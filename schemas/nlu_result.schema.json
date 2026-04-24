@@ -1,0 +1,293 @@
+{
+  "$defs": {
+    "EntityMatch": {
+      "properties": {
+        "mention": {
+          "title": "Mention",
+          "type": "string"
+        },
+        "entity_type": {
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "match_type": {
+          "title": "Match Type",
+          "type": "string"
+        },
+        "entity_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity Id"
+        },
+        "canonical_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonical Name"
+        },
+        "symbol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Symbol"
+        },
+        "exchange": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exchange"
+        }
+      },
+      "required": [
+        "mention",
+        "entity_type",
+        "confidence",
+        "match_type"
+      ],
+      "title": "EntityMatch",
+      "type": "object"
+    },
+    "Explainability": {
+      "properties": {
+        "matched_rules": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Matched Rules",
+          "type": "array"
+        },
+        "top_features": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Top Features",
+          "type": "array"
+        }
+      },
+      "title": "Explainability",
+      "type": "object"
+    },
+    "LabelScore": {
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "label",
+        "score"
+      ],
+      "title": "LabelScore",
+      "type": "object"
+    },
+    "ProductPrediction": {
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "label",
+        "score"
+      ],
+      "title": "ProductPrediction",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "query_id": {
+      "title": "Query Id",
+      "type": "string"
+    },
+    "raw_query": {
+      "title": "Raw Query",
+      "type": "string"
+    },
+    "normalized_query": {
+      "title": "Normalized Query",
+      "type": "string"
+    },
+    "question_style": {
+      "enum": [
+        "fact",
+        "why",
+        "compare",
+        "advice",
+        "forecast"
+      ],
+      "title": "Question Style",
+      "type": "string"
+    },
+    "product_type": {
+      "$ref": "#/$defs/ProductPrediction"
+    },
+    "intent_labels": {
+      "items": {
+        "$ref": "#/$defs/LabelScore"
+      },
+      "title": "Intent Labels",
+      "type": "array"
+    },
+    "topic_labels": {
+      "items": {
+        "$ref": "#/$defs/LabelScore"
+      },
+      "title": "Topic Labels",
+      "type": "array"
+    },
+    "entities": {
+      "items": {
+        "$ref": "#/$defs/EntityMatch"
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "comparison_targets": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Comparison Targets",
+      "type": "array"
+    },
+    "keywords": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Keywords",
+      "type": "array"
+    },
+    "time_scope": {
+      "enum": [
+        "today",
+        "recent_3d",
+        "recent_1w",
+        "recent_1m",
+        "recent_1q",
+        "long_term",
+        "unspecified"
+      ],
+      "title": "Time Scope",
+      "type": "string"
+    },
+    "forecast_horizon": {
+      "title": "Forecast Horizon",
+      "type": "string"
+    },
+    "sentiment_of_user": {
+      "title": "Sentiment Of User",
+      "type": "string"
+    },
+    "operation_preference": {
+      "enum": [
+        "buy",
+        "sell",
+        "hold",
+        "reduce",
+        "observe",
+        "unknown"
+      ],
+      "title": "Operation Preference",
+      "type": "string"
+    },
+    "required_evidence_types": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Required Evidence Types",
+      "type": "array"
+    },
+    "source_plan": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Plan",
+      "type": "array"
+    },
+    "risk_flags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Risk Flags",
+      "type": "array"
+    },
+    "missing_slots": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Missing Slots",
+      "type": "array"
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "explainability": {
+      "$ref": "#/$defs/Explainability"
+    }
+  },
+  "required": [
+    "query_id",
+    "raw_query",
+    "normalized_query",
+    "question_style",
+    "product_type",
+    "intent_labels",
+    "topic_labels",
+    "entities",
+    "time_scope",
+    "forecast_horizon",
+    "sentiment_of_user",
+    "operation_preference",
+    "confidence",
+    "explainability"
+  ],
+  "title": "NLUResult",
+  "type": "object"
+}

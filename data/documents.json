@@ -1,0 +1,525 @@
+[
+  {
+    "evidence_id": "announcement_000001SZ_001",
+    "source_type": "announcement",
+    "source_name": "cninfo_seed",
+    "title": "平安银行关于季度报告摘要的公告",
+    "summary": "披露季度经营与资产质量情况。",
+    "body": "平安银行披露季度报告摘要，更新零售、对公和资产质量相关指标。",
+    "publish_time": "2026-04-17T18:30:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.97,
+    "entity_symbols": [
+      "000001.SZ"
+    ]
+  },
+  {
+    "evidence_id": "announcement_601318_001",
+    "source_type": "announcement",
+    "source_name": "cninfo_seed",
+    "title": "中国平安关于年度报告摘要的公告",
+    "summary": "披露年度经营与利润情况。",
+    "body": "中国平安披露年度报告摘要，更新寿险、财险与综合金融业务经营情况。",
+    "publish_time": "2026-04-17T18:00:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.97,
+    "entity_symbols": [
+      "601318.SH"
+    ]
+  },
+  {
+    "evidence_id": "cninfo_600201_3",
+    "doc_id": null,
+    "source_type": "announcement",
+    "source_name": "cninfo",
+    "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-23/1225154831.PDF",
+    "title": "金宇生物技术股份有限公司2025年度独立董事述职报告（申嫦娥-已离任）",
+    "summary": "金宇生物技术股份有限公司2025年度独立董事述职报告（申嫦娥-已离任）",
+    "body": "金宇生物技术股份有限公司2025年度独立董事述职报告（申嫦娥-已离任）",
+    "publish_time": "2026-04-23T00:00:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.98,
+    "entity_symbols": [
+      "600519.SH"
+    ]
+  },
+  {
+    "evidence_id": "cninfo_600201_4",
+    "doc_id": null,
+    "source_type": "announcement",
+    "source_name": "cninfo",
+    "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-23/1225154830.PDF",
+    "title": "生物股份关于拟回购注销2023年员工持股计划部分股票及注销回购专用证券账户中部分股票的公告",
+    "summary": "生物股份关于拟回购注销2023年员工持股计划部分股票及注销回购专用证券账户中部分股票的公告",
+    "body": "生物股份关于拟回购注销2023年员工持股计划部分股票及注销回购专用证券账户中部分股票的公告",
+    "publish_time": "2026-04-23T00:00:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.98,
+    "entity_symbols": [
+      "600519.SH"
+    ]
+  },
+  {
+    "evidence_id": "cninfo_603601_2",
+    "doc_id": null,
+    "source_type": "announcement",
+    "source_name": "cninfo",
+    "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-23/1225155122.PDF",
+    "title": "再升科技2025年年度报告摘要",
+    "summary": "再升科技2025年年度报告摘要",
+    "body": "再升科技2025年年度报告摘要",
+    "publish_time": "2026-04-23T00:00:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.98,
+    "entity_symbols": [
+      "000858.SZ"
+    ]
+  },
+  {
+    "evidence_id": "cninfo_603601_3",
+    "doc_id": null,
+    "source_type": "announcement",
+    "source_name": "cninfo",
+    "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-23/1225155107.PDF",
+    "title": "重庆再升科技股份有限公司章程（2026年4月修订）",
+    "summary": "重庆再升科技股份有限公司章程（2026年4月修订）",
+    "body": "重庆再升科技股份有限公司章程（2026年4月修订）",
+    "publish_time": "2026-04-23T00:00:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.98,
+    "entity_symbols": [
+      "000858.SZ"
+    ]
+  },
+  {
+    "evidence_id": "cninfo_688105_5",
+    "doc_id": null,
+    "source_type": "announcement",
+    "source_name": "cninfo",
+    "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-23/1225154829.PDF",
+    "title": "董事会关于2025年度独立董事独立性自查情况的专项报告",
+    "summary": "董事会关于2025年度独立董事独立性自查情况的专项报告",
+    "body": "董事会关于2025年度独立董事独立性自查情况的专项报告",
+    "publish_time": "2026-04-23T00:00:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.98,
+    "entity_symbols": [
+      "600519.SH"
+    ]
+  },
+  {
+    "evidence_id": "cninfo_688620_1",
+    "doc_id": null,
+    "source_type": "announcement",
+    "source_name": "cninfo",
+    "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-23/1225155147.PDF",
+    "title": "广州安凯微电子股份有限公司董事会审计委员会2025年度对会计师事务所履行监督职责情况报告",
+    "summary": "广州安凯微电子股份有限公司董事会审计委员会2025年度对会计师事务所履行监督职责情况报告",
+    "body": "广州安凯微电子股份有限公司董事会审计委员会2025年度对会计师事务所履行监督职责情况报告",
+    "publish_time": "2026-04-23T00:00:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.98,
+    "entity_symbols": [
+      "000858.SZ"
+    ]
+  },
+  {
+    "evidence_id": "cninfo_688620_4",
+    "doc_id": null,
+    "source_type": "announcement",
+    "source_name": "cninfo",
+    "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-23/1225155106.PDF",
+    "title": "广州安凯微电子股份有限公司2025年度募集资金存放、管理与使用情况的专项报告",
+    "summary": "广州安凯微电子股份有限公司2025年度募集资金存放、管理与使用情况的专项报告",
+    "body": "广州安凯微电子股份有限公司2025年度募集资金存放、管理与使用情况的专项报告",
+    "publish_time": "2026-04-23T00:00:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.98,
+    "entity_symbols": [
+      "000858.SZ"
+    ]
+  },
+  {
+    "evidence_id": "faq_001",
+    "doc_id": 4,
+    "source_type": "faq",
+    "source_name": "internal_faq",
+    "title": "股票持有判断通常需要哪些证据",
+    "summary": "持有判断通常结合基本面、估值、行业和新闻。",
+    "body": "对单只股票进行持有判断时，通常需要结合基本面、行业景气度、估值水平和近期新闻。",
+    "publish_time": "2026-04-01T09:00:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.86,
+    "entity_symbols": []
+  },
+  {
+    "evidence_id": "faq_002",
+    "source_type": "faq",
+    "source_name": "internal_faq",
+    "title": "ETF 定投适合什么投资者",
+    "summary": "ETF 定投更适合长期分批投资宽基指数的用户。",
+    "body": "ETF 定投通常适合长期投资、分散择时风险、偏好透明指数策略的投资者。",
+    "publish_time": "2026-04-01T09:00:00+08:00",
+    "product_type": "etf",
+    "credibility_score": 0.88,
+    "entity_symbols": [
+      "510300.SH",
+      "159915.SZ"
+    ]
+  },
+  {
+    "evidence_id": "faq_003",
+    "source_type": "faq",
+    "source_name": "internal_faq",
+    "title": "场内 ETF 和场外基金有什么区别",
+    "summary": "交易方式、费率结构和流动性不同。",
+    "body": "场内 ETF 像股票一样交易，场外基金按净值申赎，费率结构和流动性也有差异。",
+    "publish_time": "2026-04-02T09:00:00+08:00",
+    "product_type": "etf",
+    "credibility_score": 0.9,
+    "entity_symbols": []
+  },
+  {
+    "evidence_id": "faq_004",
+    "source_type": "faq",
+    "source_name": "internal_faq",
+    "title": "公募基金费率主要包括哪些部分",
+    "summary": "基金费率通常包括申购费、赎回费、管理费和托管费。",
+    "body": "公募基金的主要费率包括申购费、赎回费、管理费、托管费，不同基金还有销售服务费。",
+    "publish_time": "2026-04-03T09:00:00+08:00",
+    "product_type": "fund",
+    "credibility_score": 0.9,
+    "entity_symbols": []
+  },
+  {
+    "evidence_id": "faq_005",
+    "source_type": "faq",
+    "source_name": "internal_faq",
+    "title": "指数基金的跟踪误差怎么看",
+    "summary": "跟踪误差反映基金复制指数的偏离程度。",
+    "body": "跟踪误差越小，说明指数基金越贴近标的指数表现。它受费用、抽样复制和现金拖累等因素影响。",
+    "publish_time": "2026-04-04T09:00:00+08:00",
+    "product_type": "index",
+    "credibility_score": 0.88,
+    "entity_symbols": [
+      "000300.SH"
+    ]
+  },
+  {
+    "evidence_id": "aknews_000858.SZ_1",
+    "doc_id": null,
+    "source_type": "news",
+    "source_name": "证券时报网",
+    "source_url": "http://finance.eastmoney.com/a/202604223714153160.html",
+    "title": "解密主力资金出逃股 连续5日净流出507股",
+    "summary": "13.49 12.89 -14.87 601766 中国中车 8 12.44 20.40 -4.29 002759 天际股份 6 12.37 10.21 -14.16 300672 国科微 6 10.38 9.28 -4.30 002714",
+    "body": "13.49 12.89 -14.87 601766 中国中车 8 12.44 20.40 -4.29 002759 天际股份 6 12.37 10.21 -14.16 300672 国科微 6 10.38 9.28 -4.30 002714 牧原股份 6 9.39 8.42 -2.32 000858",
+    "publish_time": "2026-04-22T17:19:00",
+    "product_type": "stock",
+    "credibility_score": 0.72,
+    "entity_symbols": [
+      "000858.SZ"
+    ]
+  },
+  {
+    "evidence_id": "aknews_000858.SZ_2",
+    "doc_id": null,
+    "source_type": "news",
+    "source_name": "澎湃新闻",
+    "source_url": "http://finance.eastmoney.com/a/202604223713767723.html",
+    "title": "一季度大举增持阿斯麦、SK海力士 张坤：优质股权的安全边际正被显著放大",
+    "summary": "从最新的调仓持股动作来看，易方达蓝筹精选的前十大重仓股并未发生更迭，依次为：贵州茅台（600519.SH）、五粮液（000858.SZ）、泸州老窖（000568.SZ）、腾讯控股（00700.HK）、百胜中国（09987.HK）、中国海洋石",
+    "body": "从最新的调仓持股动作来看，易方达蓝筹精选的前十大重仓股并未发生更迭，依次为：贵州茅台（600519.SH）、五粮液（000858.SZ）、泸州老窖（000568.SZ）、腾讯控股（00700.HK）、百胜中国（09987.HK）、中国海洋石油（00883.HK）、山西汾酒（600809",
+    "publish_time": "2026-04-22T11:09:00",
+    "product_type": "stock",
+    "credibility_score": 0.72,
+    "entity_symbols": [
+      "000858.SZ"
+    ]
+  },
+  {
+    "evidence_id": "aknews_000858.SZ_3",
+    "doc_id": null,
+    "source_type": "news",
+    "source_name": "证券时报网",
+    "source_url": "http://finance.eastmoney.com/a/202604173709028534.html",
+    "title": "食品饮料行业今日跌2.10%，主力资金净流出21.75亿元",
+    "summary": "600419 天润乳业 0.52 1.04 232.49 600882 妙可蓝多 0.89 1.16 189.24 食品饮料行业资金流出榜 代码 简称 今日涨跌幅（%） 今日换手率（%） 主力资金流量（万元） 600519 贵州茅台 -3.",
+    "body": "600419 天润乳业 0.52 1.04 232.49 600882 妙可蓝多 0.89 1.16 189.24 食品饮料行业资金流出榜 代码 简称 今日涨跌幅（%） 今日换手率（%） 主力资金流量（万元） 600519 贵州茅台 -3.80 0.77 -110743.88 000858",
+    "publish_time": "2026-04-17T17:27:00",
+    "product_type": "stock",
+    "credibility_score": 0.72,
+    "entity_symbols": [
+      "000858.SZ"
+    ]
+  },
+  {
+    "evidence_id": "aknews_000858.SZ_4",
+    "doc_id": null,
+    "source_type": "news",
+    "source_name": "证券时报网",
+    "source_url": "http://finance.eastmoney.com/a/202604153705966640.html",
+    "title": "8.89亿元资金今日流入食品饮料股",
+    "summary": "0.28 47426.30 600186 莲花控股 5.05 17.20 17266.95 002840 华统股份 8.92 10.78 10183.36 605388 均瑶健康 10.06 6.58 9320.21 000568 泸州老窖",
+    "body": "0.28 47426.30 600186 莲花控股 5.05 17.20 17266.95 002840 华统股份 8.92 10.78 10183.36 605388 均瑶健康 10.06 6.58 9320.21 000568 泸州老窖 -0.12 0.50 8196.97 000858",
+    "publish_time": "2026-04-15T16:49:00",
+    "product_type": "stock",
+    "credibility_score": 0.72,
+    "entity_symbols": [
+      "000858.SZ"
+    ]
+  },
+  {
+    "evidence_id": "aknews_000858.SZ_5",
+    "doc_id": null,
+    "source_type": "news",
+    "source_name": "时代财经",
+    "source_url": "http://finance.eastmoney.com/a/202604163707558436.html",
+    "title": "“白酒系”宜宾银行去年净赚5.6亿，现金分红率近30%，上市至今股价仅涨3%",
+    "summary": "接棒者则是来自大股东五粮液的蒋琳，这位曾在五粮液（000858.SZ）担任副总经理、董事会秘书的“酒系”高管，于2025年6月被委任为新任行长。但令人意外的是，在蒋琳上任仅4个月后的10月30日，其因个人原因辞去宜宾银行行长职务。",
+    "body": "接棒者则是来自大股东五粮液的蒋琳，这位曾在五粮液（000858.SZ）担任副总经理、董事会秘书的“酒系”高管，于2025年6月被委任为新任行长。但令人意外的是，在蒋琳上任仅4个月后的10月30日，其因个人原因辞去宜宾银行行长职务。",
+    "publish_time": "2026-04-16T18:08:00",
+    "product_type": "stock",
+    "credibility_score": 0.72,
+    "entity_symbols": [
+      "000858.SZ"
+    ]
+  },
+  {
+    "evidence_id": "aknews_600519.SH_1",
+    "doc_id": null,
+    "source_type": "news",
+    "source_name": "财中社",
+    "source_url": "http://finance.eastmoney.com/a/202604173708423917.html",
+    "title": "贵州茅台拟每股派发现金红利27.993元",
+    "summary": "4月16日，贵州茅台（600519）发布公告，公司拟向全体股东每股派发现金红利27.993元（含税），预计总派发金额为350.33亿元。",
+    "body": "4月16日，贵州茅台（600519）发布公告，公司拟向全体股东每股派发现金红利27.993元（含税），预计总派发金额为350.33亿元。",
+    "publish_time": "2026-04-17T09:19:00",
+    "product_type": "stock",
+    "credibility_score": 0.72,
+    "entity_symbols": [
+      "600519.SH"
+    ]
+  },
+  {
+    "evidence_id": "aknews_600519.SH_2",
+    "doc_id": null,
+    "source_type": "news",
+    "source_name": "每日经济新闻",
+    "source_url": "http://finance.eastmoney.com/a/202604163707886820.html",
+    "title": "贵州茅台：2025年度净利润823.20亿元",
+    "summary": "4月16日，贵州茅台600519.SH)发布2025年年度报告，实现营业收入1688.38亿元，同比下降1.21%；归属于上市公司股东的净利润为823.20亿元，同比下降4.53%。",
+    "body": "4月16日，贵州茅台600519.SH)发布2025年年度报告，实现营业收入1688.38亿元，同比下降1.21%；归属于上市公司股东的净利润为823.20亿元，同比下降4.53%。",
+    "publish_time": "2026-04-16T22:54:51",
+    "product_type": "stock",
+    "credibility_score": 0.72,
+    "entity_symbols": [
+      "600519.SH"
+    ]
+  },
+  {
+    "evidence_id": "aknews_600519.SH_3",
+    "doc_id": null,
+    "source_type": "news",
+    "source_name": "财联社",
+    "source_url": "http://finance.eastmoney.com/a/202604163707877824.html",
+    "title": "贵州茅台：2025年拟每股派现27.993元 合计拟派发现金红利约350.33亿元",
+    "summary": "贵州茅台600519.SH)公告称，公司拟实施2025年年度利润分配，向全体股东每股派发现金红利27.993元(含税)。以截至2026年3月31日总股本扣除回购专用账户股份后的基数计算，合计拟派发现金红利约350.33亿元。",
+    "body": "贵州茅台600519.SH)公告称，公司拟实施2025年年度利润分配，向全体股东每股派发现金红利27.993元(含税)。以截至2026年3月31日总股本扣除回购专用账户股份后的基数计算，合计拟派发现金红利约350.33亿元。",
+    "publish_time": "2026-04-16T22:57:53",
+    "product_type": "stock",
+    "credibility_score": 0.72,
+    "entity_symbols": [
+      "600519.SH"
+    ]
+  },
+  {
+    "evidence_id": "aknews_600519.SH_4",
+    "doc_id": null,
+    "source_type": "news",
+    "source_name": "人民财讯",
+    "source_url": "http://finance.eastmoney.com/a/202604163707878195.html",
+    "title": "贵州茅台：2025年净利润同比下降4.53% 拟每股派27.993元",
+    "summary": "人民财讯4月16日电，贵州茅台6005194月16日公告，2025年营业收入1688.38亿元，同比下降1.21%；净利润823.2亿元，同比下降4.53%；基本每股收益65.66元。公司拟向全体股东每股派发现金红利27.993元（含税）。",
+    "body": "人民财讯4月16日电，贵州茅台6005194月16日公告，2025年营业收入1688.38亿元，同比下降1.21%；净利润823.2亿元，同比下降4.53%；基本每股收益65.66元。公司拟向全体股东每股派发现金红利27.993元（含税）。",
+    "publish_time": "2026-04-16T22:53:00",
+    "product_type": "stock",
+    "credibility_score": 0.72,
+    "entity_symbols": [
+      "600519.SH"
+    ]
+  },
+  {
+    "evidence_id": "aknews_600519.SH_5",
+    "doc_id": null,
+    "source_type": "news",
+    "source_name": "第一财经",
+    "source_url": "http://finance.eastmoney.com/a/202604223713921743.html",
+    "title": "中际旭创、新易盛盘中股价创新高 “易中天”市值超贵州茅台",
+    "summary": "光模块“易中天”三只个股盘中总市值约1.89万亿元，超过贵州茅台（600519.SH）盘中市值1.8万亿元。 从股价看，盘中A股股价最高的是光通信概念股源杰科技（688498.SH），股价1470元/股，超过贵州茅台1405.79元/股。",
+    "body": "光模块“易中天”三只个股盘中总市值约1.89万亿元，超过贵州茅台（600519.SH）盘中市值1.8万亿元。 从股价看，盘中A股股价最高的是光通信概念股源杰科技（688498.SH），股价1470元/股，超过贵州茅台1405.79元/股。",
+    "publish_time": "2026-04-22T14:29:53",
+    "product_type": "stock",
+    "credibility_score": 0.72,
+    "entity_symbols": [
+      "600519.SH"
+    ]
+  },
+  {
+    "evidence_id": "news_000001SZ_001",
+    "source_type": "news",
+    "source_name": "public_news",
+    "title": "平安银行零售业务修复预期升温",
+    "summary": "银行板块估值修复背景下，平安银行受到关注。",
+    "body": "随着银行板块估值修复和零售业务改善预期提升，平安银行短期关注度回升。",
+    "publish_time": "2026-04-18T09:30:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.78,
+    "entity_symbols": [
+      "000001.SZ"
+    ]
+  },
+  {
+    "evidence_id": "news_601318_001",
+    "source_type": "news",
+    "source_name": "public_news",
+    "title": "中国平安估值修复预期升温，保险板块关注度回升",
+    "summary": "保险板块估值修复预期增强，中国平安受到资金关注。",
+    "body": "随着资本市场情绪修复和负债端改善预期增强，中国平安等龙头保险公司估值修复逻辑受到关注。",
+    "publish_time": "2026-04-18T10:00:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.79,
+    "entity_symbols": [
+      "601318.SH"
+    ]
+  },
+  {
+    "evidence_id": "news_etf_001",
+    "source_type": "news",
+    "source_name": "fund_public",
+    "title": "宽基ETF成交活跃，定投资金持续流入",
+    "summary": "多只宽基 ETF 成交活跃，资金关注度提升。",
+    "body": "近期多只宽基ETF成交活跃，市场对被动投资工具的关注持续提升。",
+    "publish_time": "2026-04-13T10:00:00+08:00",
+    "product_type": "etf",
+    "credibility_score": 0.75,
+    "entity_symbols": [
+      "510300.SH",
+      "159915.SZ"
+    ]
+  },
+  {
+    "evidence_id": "news_macro_001",
+    "source_type": "news",
+    "source_name": "macro_public",
+    "title": "稳增长政策继续推进，市场关注消费与金融修复",
+    "summary": "政策层面继续释放稳增长信号。",
+    "body": "宏观政策继续围绕稳增长与促消费展开，市场关注消费和金融板块的后续修复节奏。",
+    "publish_time": "2026-04-12T08:30:00+08:00",
+    "product_type": "macro",
+    "credibility_score": 0.77,
+    "entity_symbols": []
+  },
+  {
+    "evidence_id": "product_doc_001",
+    "doc_id": 5,
+    "source_type": "product_doc",
+    "source_name": "fund_docs",
+    "title": "沪深300ETF 产品概要",
+    "summary": "介绍 ETF 的跟踪标的和风险特征。",
+    "body": "沪深300ETF 跟踪沪深300指数，适合用作宽基配置工具。",
+    "publish_time": "2026-03-01T10:00:00+08:00",
+    "product_type": "etf",
+    "credibility_score": 0.9,
+    "entity_symbols": [
+      "510300.SH",
+      "000300.SH"
+    ]
+  },
+  {
+    "evidence_id": "product_doc_002",
+    "source_type": "product_doc",
+    "source_name": "fund_docs",
+    "title": "创业板ETF 产品概要",
+    "summary": "创业板 ETF 跟踪创业板指数，波动高于宽基大盘。",
+    "body": "创业板 ETF 跟踪成长风格指数，适合希望配置高成长板块的投资者，但波动通常高于宽基ETF。",
+    "publish_time": "2026-03-05T10:00:00+08:00",
+    "product_type": "etf",
+    "credibility_score": 0.91,
+    "entity_symbols": [
+      "159915.SZ"
+    ]
+  },
+  {
+    "evidence_id": "product_doc_003",
+    "source_type": "product_doc",
+    "source_name": "fund_docs",
+    "title": "证券ETF 产品概要",
+    "summary": "证券ETF 聚焦券商板块，弹性高，周期属性更强。",
+    "body": "证券ETF 跟踪券商行业指数，受市场成交、资本市场改革和风险偏好影响较大。",
+    "publish_time": "2026-03-08T10:00:00+08:00",
+    "product_type": "etf",
+    "credibility_score": 0.9,
+    "entity_symbols": [
+      "512880.SH"
+    ]
+  },
+  {
+    "evidence_id": "research_note_001",
+    "source_type": "research_note",
+    "source_name": "public_research",
+    "title": "白酒行业景气度观察：高端酒需求韧性仍在",
+    "summary": "高端白酒需求仍有韧性，但短期市场风险偏好影响估值波动。",
+    "body": "白酒行业短期受市场风格影响出现回调，但高端酒需求韧性仍在，行业盈利能力维持较高水平。",
+    "publish_time": "2026-04-10T09:30:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.8,
+    "entity_symbols": [
+      "600519.SH",
+      "000858.SZ"
+    ]
+  },
+  {
+    "evidence_id": "research_note_002",
+    "source_type": "research_note",
+    "source_name": "public_research",
+    "title": "保险板块估值复盘：中国平安关注度回升",
+    "summary": "保险板块估值处于历史中枢偏下位置。",
+    "body": "随着权益市场回暖和负债端改善预期增强，中国平安等保险龙头估值关注度回升。",
+    "publish_time": "2026-04-09T09:30:00+08:00",
+    "product_type": "stock",
+    "credibility_score": 0.79,
+    "entity_symbols": [
+      "601318.SH"
+    ]
+  },
+  {
+    "evidence_id": "research_note_003",
+    "source_type": "research_note",
+    "source_name": "public_research",
+    "title": "宽基 ETF 定投策略摘要",
+    "summary": "宽基 ETF 适合长期定投，波动管理是关键。",
+    "body": "宽基 ETF 定投适合长期资金管理，通过定期投入平滑波动并降低择时压力。",
+    "publish_time": "2026-04-11T09:30:00+08:00",
+    "product_type": "etf",
+    "credibility_score": 0.82,
+    "entity_symbols": [
+      "510300.SH",
+      "159915.SZ"
+    ]
+  },
+  {
+    "evidence_id": "research_note_004",
+    "source_type": "research_note",
+    "source_name": "public_research",
+    "title": "证券ETF交易弹性与择时风险摘要",
+    "summary": "证券ETF波动较高，适合风险承受能力较强的投资者。",
+    "body": "证券ETF受市场情绪和成交量影响明显，弹性高，但短线波动也更大，买卖时机判断比宽基ETF更重要。",
+    "publish_time": "2026-04-14T09:30:00+08:00",
+    "product_type": "etf",
+    "credibility_score": 0.8,
+    "entity_symbols": [
+      "512880.SH"
+    ]
+  }
+]

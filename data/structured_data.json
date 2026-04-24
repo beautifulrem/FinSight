@@ -1,0 +1,356 @@
+{
+  "market_api": {
+    "600519.SH": {
+      "symbol": "600519.SH",
+      "trade_date": "2026-04-22",
+      "open": 1415.0,
+      "high": 1419.0,
+      "low": 1404.98,
+      "close": 1409.5,
+      "volume": 26915.93,
+      "amount": 3793827.534,
+      "pct_change_1d": -0.1778,
+      "roe": null,
+      "grossprofit_margin": null,
+      "netprofit_yoy": null,
+      "profit_dedt": null,
+      "source_name": "tushare"
+    },
+    "000858.SZ": {
+      "symbol": "000858.SZ",
+      "trade_date": "2026-04-22",
+      "open": 101.0,
+      "high": 101.08,
+      "low": 100.46,
+      "close": 100.64,
+      "volume": 144382.61,
+      "amount": 1452833.705,
+      "pct_change_1d": -0.5337,
+      "roe": null,
+      "grossprofit_margin": null,
+      "netprofit_yoy": null,
+      "profit_dedt": null,
+      "source_name": "tushare"
+    },
+    "510300.SH": {
+      "symbol": "510300.SH",
+      "canonical_name": "沪深300ETF",
+      "trade_date": "2026-04-22",
+      "open": 4.76,
+      "high": 4.813,
+      "low": 4.756,
+      "close": 4.811,
+      "pct_change_1d": null,
+      "volume": 1012592563,
+      "amount": 4851593064,
+      "history": [
+        {
+          "trade_date": "2026-04-22",
+          "open": 4.76,
+          "high": 4.813,
+          "low": 4.756,
+          "close": 4.811,
+          "pct_change_1d": null,
+          "volume": 1012592563,
+          "amount": 4851593064
+        },
+        {
+          "trade_date": "2026-04-21",
+          "open": 4.764,
+          "high": 4.786,
+          "low": 4.73,
+          "close": 4.776,
+          "pct_change_1d": null,
+          "volume": 636108137,
+          "amount": 3026895923
+        },
+        {
+          "trade_date": "2026-04-20",
+          "open": 4.735,
+          "high": 4.777,
+          "low": 4.728,
+          "close": 4.765,
+          "pct_change_1d": null,
+          "volume": 762457819,
+          "amount": 3627929894
+        },
+        {
+          "trade_date": "2026-04-17",
+          "open": 4.737,
+          "high": 4.75,
+          "low": 4.722,
+          "close": 4.739,
+          "pct_change_1d": null,
+          "volume": 736150074,
+          "amount": 3485941360
+        },
+        {
+          "trade_date": "2026-04-16",
+          "open": 4.704,
+          "high": 4.747,
+          "low": 4.7,
+          "close": 4.746,
+          "pct_change_1d": null,
+          "volume": 853234423,
+          "amount": 4036951794
+        }
+      ],
+      "industry_name": null,
+      "source_name": "akshare"
+    },
+    "000300.SH": {
+      "symbol": "000300.SH",
+      "trade_date": "2026-04-22",
+      "open": 3988.4,
+      "high": 4012.7,
+      "low": 3979.1,
+      "close": 4005.2,
+      "pct_change_1d": 0.42,
+      "volume": 0,
+      "amount": 0,
+      "history": [
+        {
+          "trade_date": "2026-04-22",
+          "open": 3988.4,
+          "high": 4012.7,
+          "low": 3979.1,
+          "close": 4005.2,
+          "pct_change_1d": 0.42,
+          "volume": 0,
+          "amount": 0
+        },
+        {
+          "trade_date": "2026-04-21",
+          "open": 3972.0,
+          "high": 3991.2,
+          "low": 3950.3,
+          "close": 3988.5,
+          "pct_change_1d": 0.11,
+          "volume": 0,
+          "amount": 0
+        }
+      ],
+      "source_name": "seed"
+    },
+    "159915.SZ": {
+      "symbol": "159915.SZ",
+      "trade_date": "2026-04-22",
+      "open": 2.438,
+      "high": 2.471,
+      "low": 2.431,
+      "close": 2.465,
+      "pct_change_1d": 0.86,
+      "volume": 684000000,
+      "amount": 1670000000,
+      "history": [
+        {
+          "trade_date": "2026-04-22",
+          "open": 2.438,
+          "high": 2.471,
+          "low": 2.431,
+          "close": 2.465,
+          "pct_change_1d": 0.86,
+          "volume": 684000000,
+          "amount": 1670000000
+        },
+        {
+          "trade_date": "2026-04-21",
+          "open": 2.421,
+          "high": 2.446,
+          "low": 2.417,
+          "close": 2.444,
+          "pct_change_1d": 0.31,
+          "volume": 601000000,
+          "amount": 1450000000
+        }
+      ],
+      "source_name": "seed"
+    },
+    "512880.SH": {
+      "symbol": "512880.SH",
+      "trade_date": "2026-04-22",
+      "open": 1.012,
+      "high": 1.026,
+      "low": 1.008,
+      "close": 1.021,
+      "pct_change_1d": 0.59,
+      "volume": 432000000,
+      "amount": 441000000,
+      "history": [
+        {
+          "trade_date": "2026-04-22",
+          "open": 1.012,
+          "high": 1.026,
+          "low": 1.008,
+          "close": 1.021,
+          "pct_change_1d": 0.59,
+          "volume": 432000000,
+          "amount": 441000000
+        },
+        {
+          "trade_date": "2026-04-21",
+          "open": 1.006,
+          "high": 1.019,
+          "low": 1.001,
+          "close": 1.015,
+          "pct_change_1d": 0.2,
+          "volume": 398000000,
+          "amount": 404000000
+        }
+      ],
+      "source_name": "seed"
+    },
+    "601318.SH": {
+      "symbol": "601318.SH",
+      "trade_date": "2026-04-22",
+      "open": 53.22,
+      "high": 53.88,
+      "low": 52.95,
+      "close": 53.61,
+      "pct_change_1d": 0.73,
+      "volume": 124000000,
+      "amount": 6640000000,
+      "history": [
+        {
+          "trade_date": "2026-04-22",
+          "open": 53.22,
+          "high": 53.88,
+          "low": 52.95,
+          "close": 53.61,
+          "pct_change_1d": 0.73,
+          "volume": 124000000,
+          "amount": 6640000000
+        },
+        {
+          "trade_date": "2026-04-21",
+          "open": 52.88,
+          "high": 53.41,
+          "low": 52.67,
+          "close": 53.22,
+          "pct_change_1d": 0.45,
+          "volume": 117000000,
+          "amount": 6200000000
+        }
+      ],
+      "source_name": "seed"
+    }
+  },
+  "fundamental_sql": {
+    "600519.SH": {
+      "symbol": "600519.SH",
+      "report_date": "2025-12-31",
+      "revenue": 174120000000,
+      "net_profit": 85000000000,
+      "roe": 0.33,
+      "pe_ttm": 24.6,
+      "pb": 8.1
+    },
+    "000858.SZ": {
+      "symbol": "000858.SZ",
+      "report_date": "2025-12-31",
+      "revenue": 108500000000,
+      "net_profit": 37800000000,
+      "roe": 29.4,
+      "gross_margin": 76.1,
+      "pe_ttm": 20.9,
+      "pb": 5.4,
+      "source_name": "seed"
+    },
+    "601318.SH": {
+      "symbol": "601318.SH",
+      "report_date": "2025-12-31",
+      "revenue": 1218000000000,
+      "net_profit": 121000000000,
+      "roe": 15.2,
+      "gross_margin": null,
+      "pe_ttm": 8.7,
+      "pb": 1.1,
+      "source_name": "seed"
+    }
+  },
+  "industry_sql": {
+    "白酒": {
+      "industry_name": "白酒",
+      "trade_date": "2026-04-21",
+      "pct_change": -1.05,
+      "pe": 27.3,
+      "pb": 6.2,
+      "turnover": 0.84
+    },
+    "保险": {
+      "industry_name": "保险",
+      "trade_date": "2026-04-22",
+      "pct_change": 0.68,
+      "pe": 11.8,
+      "pb": 1.45,
+      "turnover": 0.43,
+      "source_name": "seed"
+    },
+    "宽基指数": {
+      "industry_name": "宽基指数",
+      "trade_date": "2026-04-22",
+      "pct_change": 0.42,
+      "pe": null,
+      "pb": null,
+      "turnover": 0.0,
+      "source_name": "seed"
+    },
+    "成长指数": {
+      "industry_name": "成长指数",
+      "trade_date": "2026-04-22",
+      "pct_change": 0.86,
+      "pe": null,
+      "pb": null,
+      "turnover": 0.0,
+      "source_name": "seed"
+    },
+    "券商": {
+      "industry_name": "券商",
+      "trade_date": "2026-04-22",
+      "pct_change": 0.59,
+      "pe": 18.2,
+      "pb": 1.62,
+      "turnover": 0.77,
+      "source_name": "seed"
+    }
+  },
+  "macro_sql": {
+    "CPI_CN": {
+      "indicator_code": "CPI_CN",
+      "metric_date": "2026-03-31",
+      "metric_value": 0.8,
+      "unit": "%",
+      "source_name": "seed"
+    },
+    "PMI_CN": {
+      "indicator_code": "PMI_CN",
+      "metric_date": "2026-03-31",
+      "metric_value": 50.6,
+      "unit": "",
+      "source_name": "seed"
+    },
+    "M2_CN": {
+      "indicator_code": "M2_CN",
+      "metric_date": "2026-03-31",
+      "metric_value": 8.1,
+      "unit": "%",
+      "source_name": "seed"
+    },
+    "UST10Y_CN_PROXY": {
+      "indicator_code": "CN10Y",
+      "metric_date": "2026-03-31",
+      "metric_value": 2.31,
+      "unit": "%",
+      "source_name": "seed"
+    }
+  },
+  "entity_to_industry": {
+    "贵州茅台": "白酒",
+    "五粮液": "白酒",
+    "沪深300ETF": "宽基指数",
+    "沪深300": "宽基指数",
+    "中国平安": "保险",
+    "创业板ETF": "成长指数",
+    "证券ETF": "券商"
+  }
+}

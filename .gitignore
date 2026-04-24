@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local environments
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Large public datasets and generated training assets
+data/external/
+data/training_assets/
+data/**/*.parquet
+data/**/*.7z
+data/**/*.zip
+data/**/*.tar
+data/**/*.tar.gz
+data/**/*.incomplete
+
+# Runtime outputs and reports
+outputs/
+reports/
+manual_test/output/
+evaluation/*.json
+evaluation/*.md
+
+# Local training/evaluation scratch files
+*.log
+tmp/
+temp/
+
+# Keep trained model artifacts for public release.
+!models/*.joblib
+!models/*.json
+

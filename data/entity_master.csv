@@ -1,0 +1,11 @@
+entity_id,canonical_name,normalized_name,symbol,market,exchange,entity_type,industry_name,status
+1,贵州茅台,贵州茅台,600519.SH,CN,SSE,stock,白酒,active
+2,五粮液,五粮液,000858.SZ,CN,SZSE,stock,白酒,active
+3,沪深300,沪深300,000300.SH,CN,SSE,index,宽基指数,active
+4,沪深300ETF,沪深300ETF,510300.SH,CN,SSE,etf,宽基指数,active
+5,上证指数,上证指数,000001.SH,CN,SSE,index,宽基指数,active
+7,市盈率,市盈率,,CN,,financial_metric,财务指标,active
+8,中国平安,中国平安,601318.SH,CN,SSE,stock,保险,active
+9,创业板ETF,创业板ETF,159915.SZ,CN,SZSE,etf,成长指数,active
+10,证券ETF,证券ETF,512880.SH,CN,SSE,etf,券商,active
+11,平安银行,平安银行,000001.SZ,CN,SZSE,stock,银行,active

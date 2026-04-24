@@ -1,0 +1,12 @@
+{
+  "type": "baseline_ranker",
+  "stage_2": "xgboost_ranker_placeholder",
+  "required_features": [
+    "lexical_score",
+    "title_hit",
+    "entity_exact_match",
+    "product_type_match",
+    "recency_score",
+    "source_credibility"
+  ]
+}

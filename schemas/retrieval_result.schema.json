@@ -1,0 +1,476 @@
+{
+  "$defs": {
+    "EvidenceGroup": {
+      "properties": {
+        "group_id": {
+          "title": "Group Id",
+          "type": "string"
+        },
+        "group_type": {
+          "title": "Group Type",
+          "type": "string"
+        },
+        "members": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Members",
+          "type": "array"
+        }
+      },
+      "required": [
+        "group_id",
+        "group_type",
+        "members"
+      ],
+      "title": "EvidenceGroup",
+      "type": "object"
+    },
+    "EvidenceItem": {
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Name"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "text_excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text Excerpt"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "body_available": {
+          "default": false,
+          "title": "Body Available",
+          "type": "boolean"
+        },
+        "publish_time": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Publish Time"
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retrieved At"
+        },
+        "entity_hits": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity Hits"
+        },
+        "retrieval_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retrieval Score"
+        },
+        "rank_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rank Score"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "payload": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Payload"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "source_type"
+      ],
+      "title": "EvidenceItem",
+      "type": "object"
+    },
+    "RetrievalDebugTrace": {
+      "properties": {
+        "candidate_count": {
+          "title": "Candidate Count",
+          "type": "integer"
+        },
+        "after_dedup": {
+          "title": "After Dedup",
+          "type": "integer"
+        },
+        "top_ranked": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Top Ranked",
+          "type": "array"
+        }
+      },
+      "required": [
+        "candidate_count",
+        "after_dedup",
+        "top_ranked"
+      ],
+      "title": "RetrievalDebugTrace",
+      "type": "object"
+    },
+    "StructuredDataItem": {
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Name"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "provider_endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Endpoint"
+        },
+        "query_params": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Query Params",
+          "type": "object"
+        },
+        "source_reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Reference"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "period": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Period"
+        },
+        "field_coverage": {
+          "additionalProperties": true,
+          "title": "Field Coverage",
+          "type": "object"
+        },
+        "quality_flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Quality Flags",
+          "type": "array"
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retrieved At"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "source_type",
+        "payload"
+      ],
+      "title": "StructuredDataItem",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "query_id": {
+      "title": "Query Id",
+      "type": "string"
+    },
+    "nlu_snapshot": {
+      "additionalProperties": true,
+      "title": "Nlu Snapshot",
+      "type": "object"
+    },
+    "executed_sources": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Executed Sources",
+      "type": "array"
+    },
+    "documents": {
+      "items": {
+        "$ref": "#/$defs/EvidenceItem"
+      },
+      "title": "Documents",
+      "type": "array"
+    },
+    "structured_data": {
+      "items": {
+        "$ref": "#/$defs/StructuredDataItem"
+      },
+      "title": "Structured Data",
+      "type": "array"
+    },
+    "evidence_groups": {
+      "items": {
+        "$ref": "#/$defs/EvidenceGroup"
+      },
+      "title": "Evidence Groups",
+      "type": "array"
+    },
+    "coverage": {
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "title": "Coverage",
+      "type": "object"
+    },
+    "coverage_detail": {
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "default": {},
+      "title": "Coverage Detail",
+      "type": "object"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "retrieval_confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Retrieval Confidence",
+      "type": "number"
+    },
+    "debug_trace": {
+      "$ref": "#/$defs/RetrievalDebugTrace"
+    }
+  },
+  "required": [
+    "query_id",
+    "nlu_snapshot",
+    "executed_sources",
+    "documents",
+    "structured_data",
+    "evidence_groups",
+    "coverage",
+    "warnings",
+    "retrieval_confidence",
+    "debug_trace"
+  ],
+  "title": "RetrievalResult",
+  "type": "object"
+}
