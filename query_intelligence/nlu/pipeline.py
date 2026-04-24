@@ -171,35 +171,53 @@ class NLUPipeline:
             product_classifier = ProductTypeClassifier.load_model(product_model_path) if product_model_path.exists() else ProductTypeClassifier.build_demo()
             intent_classifier = MultiLabelClassifier.load_model(intent_model_path) if intent_model_path.exists() else MultiLabelClassifier.build_demo(INTENT_SAMPLES)
             topic_classifier = MultiLabelClassifier.load_model(topic_model_path) if topic_model_path.exists() else MultiLabelClassifier.build_demo(TOPIC_SAMPLES)
+            ml_planner = MLSourcePlanner.build_from_records(default_records) if default_records else None
+            source_plan_reranker = (
+                SourcePlanReranker.load_model(source_plan_reranker_model_path)
+                if source_plan_reranker_model_path.exists()
+                else SourcePlanReranker.build_from_dataset(default_records_path)
+                if default_records
+                else None
+            )
             source_planner = SourcePlanner(
-                ml_planner=MLSourcePlanner.build_from_records(default_records),
-                source_plan_reranker=SourcePlanReranker.load_model(source_plan_reranker_model_path) if source_plan_reranker_model_path.exists() else SourcePlanReranker.build_from_dataset(default_records_path),
-            ) if default_records else SourcePlanner()
+                ml_planner=ml_planner,
+                source_plan_reranker=source_plan_reranker,
+            )
             question_style_classifier = (
                 SingleLabelTextClassifier.load_model(question_style_model_path)
                 if question_style_model_path.exists()
                 else SingleLabelTextClassifier.build_from_records(default_records, "question_style")
-            ) if default_records else None
+                if default_records
+                else None
+            )
             question_style_reranker = (
                 QuestionStyleReranker.load_model(question_style_reranker_model_path)
                 if question_style_reranker_model_path.exists()
                 else QuestionStyleReranker.build_from_dataset(default_records_path)
-            ) if default_records else None
+                if default_records
+                else None
+            )
             sentiment_classifier = (
                 SingleLabelTextClassifier.load_model(sentiment_model_path)
                 if sentiment_model_path.exists()
                 else SingleLabelTextClassifier.build_from_records(default_records, "sentiment_label")
-            ) if default_records else None
+                if default_records
+                else None
+            )
             boundary_model = (
                 load(entity_crf_model_path)
                 if entity_crf_model_path.exists()
                 else EntityBoundaryCRF.build_from_queries([record["query"] for record in default_records], [row["normalized_alias"] for row in aliases])
-            ) if default_records else None
+                if default_records
+                else None
+            )
             clarification_gate = (
                 ClarificationGate.load_model(clarification_model_path)
                 if clarification_model_path.exists()
                 else ClarificationGate.build_from_dataset(default_records_path)
-            ) if default_records else None
+                if default_records
+                else None
+            )
             typo_linker = (
                 TypoLinker.load_model(str(typo_linker_model_path))
                 if typo_linker_model_path.exists()
@@ -209,7 +227,9 @@ class NLUPipeline:
                 OutOfScopeDetector.load_model(out_of_scope_model_path)
                 if out_of_scope_model_path.exists()
                 else OutOfScopeDetector.build_from_dataset(default_records_path)
-            ) if default_records else None
+                if default_records
+                else None
+            )
 
         return cls(
             normalizer=QueryNormalizer(synonyms),
