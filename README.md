@@ -130,33 +130,95 @@ Important fields:
 | `comparison_targets` | array | Targets in comparison queries. |
 | `keywords` | array | Retrieval keywords. |
 | `time_scope` | enum | `today`, `recent_3d`, `recent_1w`, `recent_1m`, `recent_1q`, `long_term`, `unspecified`. |
-| `forecast_horizon` | string | Forecast or holding horizon. |
-| `sentiment_of_user` | string | User tone sentiment, usually `positive`, `neutral`, or `negative`. |
+| `forecast_horizon` | string | Forecast or holding horizon. Controlled values are listed below. |
+| `sentiment_of_user` | string | User tone sentiment. Controlled values are listed below. |
 | `operation_preference` | enum | `buy`, `sell`, `hold`, `reduce`, `observe`, `unknown`. |
-| `required_evidence_types` | array | Evidence requirements for downstream modules. |
+| `required_evidence_types` | array | Evidence requirements for downstream modules. Controlled values are listed below. |
 | `source_plan` | array | Sources that retrieval should execute. |
-| `risk_flags` | array | Flags such as `investment_advice_like`, `out_of_scope_query`, `entity_not_found`. |
-| `missing_slots` | array | Missing slots such as `missing_entity`. |
+| `risk_flags` | array | NLU risk flags. Controlled values are listed below. |
+| `missing_slots` | array | Missing required slots. Controlled values are listed below. |
 | `confidence` | float | Overall NLU confidence. |
 | `explainability` | object | Matched rules and top model features. |
 
-Common labels:
+Controlled labels:
 
-| Category | Labels |
-|---|---|
-| `product_type` | `stock`, `etf`, `fund`, `index`, `macro`, `generic_market`, `unknown`, `out_of_scope` |
-| `intent_labels` | `price_query`, `market_explanation`, `hold_judgment`, `buy_sell_timing`, `product_info`, `risk_analysis`, `peer_compare`, `fundamental_analysis`, `valuation_analysis`, `macro_policy_impact`, `event_news_query`, `trading_rule_fee` |
-| `topic_labels` | `price`, `news`, `industry`, `macro`, `policy`, `fundamentals`, `valuation`, `risk`, `comparison`, `product_mechanism` |
-| `source_plan` | `market_api`, `news`, `industry_sql`, `fundamental_sql`, `announcement`, `research_note`, `faq`, `product_doc`, `macro_sql` |
+| Field | Value | Meaning |
+|---|---|---|
+| `question_style` | `fact` | Factual lookup, definition, status, or general “how is it” query. |
+| `question_style` | `why` | Cause/explanation query, usually asking why a market move or event happened. |
+| `question_style` | `compare` | Comparison between two or more securities, funds, indices, sectors, or mechanisms. |
+| `question_style` | `advice` | Investment-advice-like query, for example whether to buy, sell, hold, add, reduce, or enter. |
+| `question_style` | `forecast` | Forward-looking trend, target, probability, or future movement query. |
+| `product_type` | `stock` | A-share or stock-like single equity target. |
+| `product_type` | `etf` | Exchange-traded fund, including ETF mechanism and ETF product queries. |
+| `product_type` | `fund` | Mutual fund or non-ETF fund product. |
+| `product_type` | `index` | Market index, index product, or index-level query. |
+| `product_type` | `macro` | Macro indicator, policy, interest rate, inflation, liquidity, or economy-level query. |
+| `product_type` | `generic_market` | Market-wide or sector-wide query without one specific product. |
+| `product_type` | `unknown` | Financial-looking query whose product type is not confidently identified. |
+| `product_type` | `out_of_scope` | Non-financial or unsupported query. Retrieval normally abstains. |
+| `intent_labels` | `price_query` | Price, quote, recent movement, volume, turnover, or market-performance query. |
+| `intent_labels` | `market_explanation` | Explanation of price movement, market movement, drivers, catalysts, or market behavior. |
+| `intent_labels` | `hold_judgment` | Whether a position is worth holding, keeping, adding, reducing, or exiting. |
+| `intent_labels` | `buy_sell_timing` | Buy/sell timing, entry point, take-profit, stop-loss, or “can I buy now” query. |
+| `intent_labels` | `product_info` | Product definition, mechanism, profile, holdings, issuer, or basic information query. |
+| `intent_labels` | `risk_analysis` | Downside, volatility, drawdown, credit, policy, liquidity, or other risk query. |
+| `intent_labels` | `peer_compare` | Query comparing peers, alternatives, securities, funds, indices, or product structures. |
+| `intent_labels` | `fundamental_analysis` | Revenue, profit, margin, ROE, balance sheet, business quality, or fundamental query. |
+| `intent_labels` | `valuation_analysis` | PE, PB, valuation percentile, expensive/cheap judgment, or valuation comparison. |
+| `intent_labels` | `macro_policy_impact` | Macro or policy effect on a market, sector, security, or product. |
+| `intent_labels` | `event_news_query` | News, announcement, event, earnings call, disclosure, or recent update query. |
+| `intent_labels` | `trading_rule_fee` | Trading rules, fee, subscription, redemption, tax, settlement, or product operation query. |
+| `topic_labels` | `price` | Price, trend, quote, volume, turnover, or market movement evidence needed. |
+| `topic_labels` | `news` | News/event evidence needed. |
+| `topic_labels` | `industry` | Industry or sector evidence needed. |
+| `topic_labels` | `macro` | Macro indicator or economy evidence needed. |
+| `topic_labels` | `policy` | Policy, regulatory, central-bank, or government action evidence needed. |
+| `topic_labels` | `fundamentals` | Financial statement, profitability, growth, or company operation evidence needed. |
+| `topic_labels` | `valuation` | Valuation metric or valuation percentile evidence needed. |
+| `topic_labels` | `risk` | Risk evidence needed. |
+| `topic_labels` | `comparison` | Comparative evidence needed. |
+| `topic_labels` | `product_mechanism` | ETF/fund/index product mechanism, fee, redemption, or rule evidence needed. |
+| `forecast_horizon` | `short_term` | Short-term forecast or near-term holding horizon. |
+| `forecast_horizon` | `medium_term` | Medium-term forecast horizon. This value may appear in custom training/runtime data. |
+| `forecast_horizon` | `long_term` | Long-term forecast or holding horizon. |
+| `sentiment_of_user` | `positive` | Positive user tone. |
+| `sentiment_of_user` | `neutral` | Neutral user tone. |
+| `sentiment_of_user` | `negative` | Negative user tone. |
+| `sentiment_of_user` | `bullish` | Explicitly bullish or optimistic market tone. |
+| `sentiment_of_user` | `bearish` | Explicitly bearish or pessimistic market tone. |
+| `sentiment_of_user` | `anxious` | Risk-averse, worried, panic, or uncertainty-heavy tone. |
+| `operation_preference` | `buy` | User expresses buying, adding, entering, or subscription intent. |
+| `operation_preference` | `sell` | User expresses selling or exit intent. |
+| `operation_preference` | `hold` | User expresses holding or continue-to-hold intent. |
+| `operation_preference` | `reduce` | User expresses reducing position or trimming exposure. |
+| `operation_preference` | `observe` | User wants to watch, wait, or keep on the radar. |
+| `operation_preference` | `unknown` | No clear operation preference. |
+| `required_evidence_types` | `price` | Downstream should receive price, quote, NAV, or market movement evidence. |
+| `required_evidence_types` | `news` | Downstream should receive news or event evidence. |
+| `required_evidence_types` | `industry` | Downstream should receive industry or sector evidence. |
+| `required_evidence_types` | `fundamentals` | Downstream should receive financial/fundamental evidence. |
+| `required_evidence_types` | `valuation` | Downstream should receive valuation evidence. |
+| `required_evidence_types` | `risk` | Downstream should receive risk-related evidence. |
+| `required_evidence_types` | `macro` | Downstream should receive macro or policy evidence. |
+| `required_evidence_types` | `comparison` | Downstream should receive evidence for multiple comparison targets. |
+| `required_evidence_types` | `product_mechanism` | Downstream should receive product mechanism, fee, rule, or redemption evidence. |
+| `risk_flags` | `investment_advice_like` | Query asks for advice-like output. Downstream should include risk disclosure and avoid deterministic recommendations. |
+| `risk_flags` | `out_of_scope_query` | Query is outside supported finance scope. Retrieval normally abstains. |
+| `risk_flags` | `entity_not_found` | Query needs a specific entity, but no entity was resolved. |
+| `risk_flags` | `entity_ambiguous` | More than one entity candidate matched and disambiguation was uncertain. |
+| `risk_flags` | `clarification_required` | User clarification is needed before reliable retrieval or downstream analysis. |
+| `missing_slots` | `missing_entity` | A required entity is missing or unresolved. |
+| `missing_slots` | `comparison_target` | A comparison query is missing at least one comparison target. |
 
 Entity fields:
 
 | Field | Description |
 |---|---|
 | `mention` | Text span from the query. |
-| `entity_type` | `stock`, `etf`, `fund`, `index`, `sector`, `macro_indicator`, etc. |
+| `entity_type` | `stock`, `etf`, `fund`, `index`, `sector`, `macro_indicator`, or `policy`. |
 | `confidence` | Entity confidence. |
-| `match_type` | Matching path, such as `alias_exact`, `ticker_exact`, `fuzzy`, `crf`. |
+| `match_type` | Matching path. Current values: `alias_exact`, `alias_fuzzy`, `fuzzy`, `crf_fuzzy`, `linked`, `context_dialog`, `context_profile`. |
 | `entity_id` | Runtime entity ID. |
 | `canonical_name` | Canonical entity name. |
 | `symbol` | Security or indicator symbol. |
@@ -171,8 +233,8 @@ Top-level fields:
 | `query_id` | string | Same query ID as `NLUResult`. |
 | `nlu_snapshot` | object | Key NLU fields used by retrieval. |
 | `executed_sources` | array | Sources actually executed. May be smaller than `source_plan`. |
-| `documents` | array | Unstructured evidence: news, announcements, research notes, FAQ, product docs. |
-| `structured_data` | array | Structured evidence: market, financials, industry, macro, fund, index. |
+| `documents` | array | Unstructured evidence. See the document source type vocabulary below. |
+| `structured_data` | array | Structured evidence. See the structured source type vocabulary below. |
 | `evidence_groups` | array | Deduplication or clustering groups. |
 | `coverage` | object | High-level evidence coverage. |
 | `coverage_detail` | object | Fine-grained coverage flags. |
@@ -185,7 +247,7 @@ Top-level fields:
 | Field | Description |
 |---|---|
 | `evidence_id` | Unique evidence ID. |
-| `source_type` | `news`, `announcement`, `research_note`, `faq`, `product_doc`. |
+| `source_type` | Document source type. Controlled values are listed below. |
 | `source_name` | Source name, such as `cninfo`, `akshare_sina`, or a news outlet. |
 | `source_url` | Web or PDF URL. Dataset-only research notes may use `dataset://...`. |
 | `provider` | Provider name. |
@@ -199,7 +261,7 @@ Top-level fields:
 | `entity_hits` | Matched symbols or entity names. |
 | `retrieval_score` | Initial retrieval score. |
 | `rank_score` | Reranked score. |
-| `reason` | Selection reasons, such as `entity_exact_match`, `alias_match`, `title_hit`. |
+| `reason` | Selection reasons. Controlled values are listed below. |
 | `payload` | Optional raw extension object. |
 
 `structured_data[]` fields:
@@ -207,7 +269,7 @@ Top-level fields:
 | Field | Description |
 |---|---|
 | `evidence_id` | Unique structured evidence ID, for example `price_688256.SH`. |
-| `source_type` | `market_api`, `fundamental_sql`, `industry_sql`, `macro_sql`. |
+| `source_type` | Structured source type. Controlled values are listed below. |
 | `source_name` | Source name, such as `akshare_sina`, `tushare`, `seed`. |
 | `source_url` | Public page URL when available. Pure API rows may keep this null. |
 | `provider` | Provider name. |
@@ -217,9 +279,112 @@ Top-level fields:
 | `as_of` | Data as-of date. |
 | `period` | Trading date or report period. |
 | `field_coverage` | Field completeness summary. |
-| `quality_flags` | Data quality flags such as `seed_source`, `missing_source_url`, `missing_values`. |
+| `quality_flags` | Data quality flags. Controlled values are listed below. |
 | `retrieved_at` | Retrieval timestamp. |
 | `payload` | Structured data payload consumed by downstream models. |
+
+Retrieval controlled vocabularies:
+
+| Field | Value | Meaning |
+|---|---|---|
+| `source_plan`, `executed_sources`, `documents[].source_type` | `news` | News articles from live or local news providers. Usually carries a web URL when available. |
+| `source_plan`, `executed_sources`, `documents[].source_type` | `announcement` | Exchange or Cninfo-style public company announcement. Usually should carry a PDF or announcement URL. |
+| `source_plan`, `executed_sources`, `documents[].source_type` | `research_note` | Research report, analyst note, or research-style dataset document. May use `dataset://...` when no public URL exists. |
+| `source_plan`, `executed_sources`, `documents[].source_type` | `faq` | Curated FAQ entry for trading rules, fees, subscription/redemption, or product mechanics. |
+| `source_plan`, `executed_sources`, `documents[].source_type` | `product_doc` | Product document or explainer, especially ETF/fund/index mechanism documentation. |
+| `source_plan`, `executed_sources`, `structured_data[].source_type` | `market_api` | Stock/ETF/fund/index quote or price-history data. |
+| `source_plan`, `executed_sources`, `structured_data[].source_type` | `fundamental_sql` | Company fundamentals, financial statement indicators, profitability, valuation, or business metrics. |
+| `source_plan`, `executed_sources`, `structured_data[].source_type` | `industry_sql` | Industry identity, industry snapshot, sector trend, or sector context data. |
+| `source_plan`, `executed_sources`, `structured_data[].source_type` | `macro_sql` | Macro seed or macro table data such as CPI, PMI, M2, and bond yield. |
+| `executed_sources`, `structured_data[].source_type` | `fund_nav` | Fund/ETF net asset value, accumulated NAV, or NAV history. |
+| `executed_sources`, `structured_data[].source_type` | `fund_fee` | Fund/ETF management fee, custodian fee, sales service fee, subscription fee, or redemption fee. |
+| `executed_sources`, `structured_data[].source_type` | `fund_redemption` | Subscription/redemption status, trading status, minimum amount, redemption rules, or liquidity rule data. |
+| `executed_sources`, `structured_data[].source_type` | `fund_profile` | Fund profile, manager, issuer, benchmark, risk level, fund type, or holdings summary. |
+| `executed_sources`, `structured_data[].source_type` | `index_daily` | Index daily quote, open/high/low/close, turnover, or performance series. |
+| `executed_sources`, `structured_data[].source_type` | `index_valuation` | Index valuation, PE/PB, dividend yield, or valuation percentile. |
+| `executed_sources`, `structured_data[].source_type` | `macro_indicator` | Live or structured macro indicator row. |
+| `executed_sources`, `structured_data[].source_type` | `policy_event` | Policy event, central-bank action, regulation, or policy-news structured record. |
+
+Coverage keys:
+
+| Field | Meaning |
+|---|---|
+| `coverage.price` | Price or NAV evidence exists: `market_api`, `index_daily`, or `fund_nav`. |
+| `coverage.news` | At least one `news` document exists. |
+| `coverage.industry` | At least one `industry_sql` structured item exists. |
+| `coverage.fundamentals` | At least one `fundamental_sql` structured item exists. |
+| `coverage.announcement` | At least one `announcement` document exists. |
+| `coverage.product_mechanism` | FAQ/product documentation or fund fee/redemption/profile data exists. |
+| `coverage.macro` | Macro evidence exists: `macro_sql`, `macro_indicator`, or `policy_event`. |
+| `coverage.risk` | Risk-relevant evidence exists, for example price, fundamentals, valuation, fund fee/redemption, macro, research note, announcement, FAQ, or product doc. |
+| `coverage.comparison` | Comparison query has evidence for at least two covered targets. |
+| `coverage_detail.price_history` | Stock/ETF/fund/index price history exists. |
+| `coverage_detail.financials` | Company financial indicator data exists. |
+| `coverage_detail.valuation` | Fundamental or index valuation data exists. |
+| `coverage_detail.industry_snapshot` | Industry identity or snapshot data exists. |
+| `coverage_detail.fund_nav` | Fund NAV data exists. |
+| `coverage_detail.fund_fee` | Fund fee data exists. |
+| `coverage_detail.fund_redemption` | Fund subscription/redemption data exists. |
+| `coverage_detail.fund_profile` | Fund profile data exists. |
+| `coverage_detail.index_daily` | Index daily market data exists. |
+| `coverage_detail.index_valuation` | Index valuation data exists. |
+| `coverage_detail.macro_indicator` | Macro indicator data exists. |
+| `coverage_detail.policy_event` | Policy event data exists. |
+
+Warnings and quality flags:
+
+| Field | Value | Meaning |
+|---|---|---|
+| `warnings` | `out_of_scope_query` | NLU classified the query as out of scope; retrieval abstained. |
+| `warnings` | `clarification_required_missing_entity` | The query needs clarification, usually because a required entity is missing or unresolved. |
+| `warnings` | `announcement_not_found_recent_window` | Announcements were requested but no recent matching announcement was found. |
+| `structured_data[].quality_flags` | `seed_source` | The row came from bundled seed data, not a live provider. Good for demos, weak for production decisions. |
+| `structured_data[].quality_flags` | `missing_source_url` | No public page URL is attached. For pure API rows, use `provider_endpoint`, `query_params`, and `source_reference` for traceability. |
+| `structured_data[].quality_flags` | `empty_payload` | No business payload fields are present after metadata fields are removed. |
+| `structured_data[].quality_flags` | `missing_values` | At least one business payload field is null. Check `field_coverage.missing_fields`. |
+
+Ranking reason values:
+
+| Value | Meaning |
+|---|---|
+| `lexical_score` | Initial lexical retriever score contributed strongly. |
+| `trigram_similarity` | Character n-gram similarity between query and title/content was high. |
+| `entity_exact_match` | The evidence explicitly matched the resolved symbol. |
+| `alias_match` | The evidence matched an entity alias or canonical name. |
+| `title_hit` | Query keyword, entity name, or symbol hit the title. |
+| `keyword_coverage` | The document covered a large share of query keywords. |
+| `intent_compatibility` | The source type is compatible with the predicted intent. |
+| `topic_compatibility` | The source type or content is compatible with predicted topics. |
+| `product_type_match` | The evidence product type matches the NLU product type. |
+| `source_credibility` | The provider/source has a higher static credibility score. |
+| `recency_score` | The evidence is recent enough for the query time scope. |
+| `is_primary_disclosure` | The evidence is a primary disclosure-like source, such as an announcement or product document. |
+| `doc_length` | The document has enough useful text length. |
+| `time_window_match` | The publish time matches the query time window. |
+| `ticker_hit` | The ticker or symbol appears in the evidence text. |
+
+Evidence group values:
+
+| Field | Value | Meaning |
+|---|---|---|
+| `evidence_groups[].group_type` | `single` | No near-duplicate document was grouped with this evidence. |
+| `evidence_groups[].group_type` | `news_cluster` | Near-duplicate or highly similar documents were grouped. `members` lists all grouped evidence IDs. |
+
+Structured payload guidance:
+
+| Source type | Common payload fields |
+|---|---|
+| `market_api` | `symbol`, `canonical_name`, `trade_date`, `open`, `high`, `low`, `close`, `pct_change_1d`, `volume`, `amount`, `history`, `industry_name`, `industry_snapshot`. |
+| `fundamental_sql` | `symbol`, `report_date`, `revenue`, `net_profit`, `roe`, `gross_margin`, `pe_ttm`, `pb`, `eps`. |
+| `industry_sql` | `industry_name`, `coverage_level`, industry quote/valuation fields when provider data is available. |
+| `macro_sql`, `macro_indicator` | `indicator_code`, `metric_date`, `metric_value`, `unit`, optional provider-specific fields. |
+| `fund_nav` | `symbol`, `nav_date`, `unit_nav`, `accumulated_nav`, `daily_return`, `history`. |
+| `fund_fee` | `symbol`, `management_fee`, `custodian_fee`, `sales_service_fee`, `subscription_fee`, `redemption_fee`. |
+| `fund_redemption` | `symbol`, `subscription_status`, `redemption_status`, `min_subscription_amount`, `settlement_rule`. |
+| `fund_profile` | `symbol`, `fund_name`, `fund_type`, `manager`, `issuer`, `benchmark`, `risk_level`, `tracking_index`. |
+| `index_daily` | `symbol`, `trade_date`, `open`, `high`, `low`, `close`, `pct_change_1d`, `volume`, `amount`, `history`. |
+| `index_valuation` | `symbol`, `trade_date`, `pe`, `pb`, `dividend_yield`, `valuation_percentile`. |
+| `policy_event` | `event_date`, `policy_type`, `title`, `summary`, `impact_area`, `source_name`. |
 
 ## Architecture
 
@@ -598,4 +763,3 @@ Common causes:
 ### The API returns JSON but no natural-language answer
 
 This is expected. Query Intelligence only produces understanding and evidence artifacts. Final chatbot wording, investment-safe answer generation, sentiment analysis, trend analysis, and numerical calculation belong to downstream modules.
-

@@ -194,24 +194,99 @@ API 定义在 `query_intelligence/api/app.py`，字段模型定义在 `query_int
 | `comparison_targets` | array | 比较型问题中的目标，如“沪深300”“上证50”。 |
 | `keywords` | array | 检索关键词。 |
 | `time_scope` | enum | 时间范围：`today`、`recent_3d`、`recent_1w`、`recent_1m`、`recent_1q`、`long_term`、`unspecified`。 |
-| `forecast_horizon` | string | 预测或持有周期，例如 `short_term`、`long_term`。 |
-| `sentiment_of_user` | string | 用户语气情绪，通常为 `positive`、`neutral`、`negative`。 |
+| `forecast_horizon` | string | 预测或持有周期。完整取值见下方词典。 |
+| `sentiment_of_user` | string | 用户语气情绪。完整取值见下方词典。 |
 | `operation_preference` | enum | 用户操作倾向：`buy`、`sell`、`hold`、`reduce`、`observe`、`unknown`。 |
-| `required_evidence_types` | array | 下游需要的证据类型，如 `price`、`news`、`fundamentals`、`risk`、`industry`。 |
+| `required_evidence_types` | array | 下游需要的证据类型。完整取值见下方词典。 |
 | `source_plan` | array | 检索阶段应执行的数据源类型。 |
-| `risk_flags` | array | 风险标记，如 `investment_advice_like`、`out_of_scope_query`、`entity_not_found`。 |
-| `missing_slots` | array | 缺失槽位，如 `missing_entity`。存在关键缺失时检索会早退或只输出告警。 |
+| `risk_flags` | array | NLU 风险标记。完整取值见下方词典。 |
+| `missing_slots` | array | 缺失槽位。完整取值见下方词典。存在关键缺失时检索会早退或只输出告警。 |
 | `confidence` | float | NLU 总体置信度。 |
 | `explainability` | object | 可解释信息：命中的规则、模型特征、实体匹配依据。 |
 
-常见标签：
+受控标签：
 
-| 类别 | 标签 |
+| 字段 | 取值 | 含义 |
+|---|---|---|
+| `question_style` | `fact` | 事实查询、定义查询、状态查询，或“怎么样”一类泛问。 |
+| `question_style` | `why` | 原因解释问题，例如为什么涨跌、为什么异动、事件原因。 |
+| `question_style` | `compare` | 比较问题，例如股票/基金/指数/行业/产品机制之间哪个好或有什么区别。 |
+| `question_style` | `advice` | 投资建议倾向问题，例如能不能买、要不要卖、还值不值得拿、是否入手。 |
+| `question_style` | `forecast` | 预测问题，例如后续趋势、目标位、未来表现、概率判断。 |
+| `product_type` | `stock` | A 股或股票类单一权益标的。 |
+| `product_type` | `etf` | ETF 产品或 ETF 机制问题。 |
+| `product_type` | `fund` | 公募基金、开放式基金或非 ETF 基金产品。 |
+| `product_type` | `index` | 指数、指数产品或指数层面的市场问题。 |
+| `product_type` | `macro` | 宏观指标、政策、利率、通胀、流动性、经济层面问题。 |
+| `product_type` | `generic_market` | 没有单一标的的市场、板块、行业泛问。 |
+| `product_type` | `unknown` | 看起来像金融问题，但产品类型无法稳定识别。 |
+| `product_type` | `out_of_scope` | 非金融或当前不支持的问题。检索通常会早退。 |
+| `intent_labels` | `price_query` | 行情、价格、涨跌、成交量、成交额、近期走势。 |
+| `intent_labels` | `market_explanation` | 解释市场表现、涨跌原因、驱动因素、催化剂。 |
+| `intent_labels` | `hold_judgment` | 是否值得持有、继续拿、加仓、减仓、离场。 |
+| `intent_labels` | `buy_sell_timing` | 买卖时点、入场点、止盈、止损、现在能不能买。 |
+| `intent_labels` | `product_info` | 产品定义、机制、档案、持仓、发行方、基本信息。 |
+| `intent_labels` | `risk_analysis` | 下行、波动、回撤、信用、政策、流动性等风险。 |
+| `intent_labels` | `peer_compare` | 同类比较、替代品比较、证券/基金/指数/产品结构比较。 |
+| `intent_labels` | `fundamental_analysis` | 营收、利润、毛利率、ROE、资产负债、业务质量、基本面。 |
+| `intent_labels` | `valuation_analysis` | PE、PB、估值分位、贵不贵、便不便宜、估值比较。 |
+| `intent_labels` | `macro_policy_impact` | 宏观或政策对市场、行业、标的、产品的影响。 |
+| `intent_labels` | `event_news_query` | 新闻、公告、事件、业绩会、披露、近期更新。 |
+| `intent_labels` | `trading_rule_fee` | 交易规则、费率、申购、赎回、税费、结算、产品操作规则。 |
+| `topic_labels` | `price` | 需要行情、价格、走势、成交相关证据。 |
+| `topic_labels` | `news` | 需要新闻或事件证据。 |
+| `topic_labels` | `industry` | 需要行业或板块证据。 |
+| `topic_labels` | `macro` | 需要宏观指标或经济数据证据。 |
+| `topic_labels` | `policy` | 需要政策、监管、央行、政府行为证据。 |
+| `topic_labels` | `fundamentals` | 需要财报、盈利、成长、经营质量证据。 |
+| `topic_labels` | `valuation` | 需要估值指标或估值分位证据。 |
+| `topic_labels` | `risk` | 需要风险证据。 |
+| `topic_labels` | `comparison` | 需要比较证据。 |
+| `topic_labels` | `product_mechanism` | 需要 ETF/基金/指数产品机制、费率、申赎、规则证据。 |
+| `forecast_horizon` | `short_term` | 短期预测或短期持有周期。 |
+| `forecast_horizon` | `medium_term` | 中期预测周期。自定义训练或运行时数据可能出现。 |
+| `forecast_horizon` | `long_term` | 长期预测或长期持有周期。 |
+| `sentiment_of_user` | `positive` | 用户语气偏积极。 |
+| `sentiment_of_user` | `neutral` | 用户语气中性。 |
+| `sentiment_of_user` | `negative` | 用户语气偏消极。 |
+| `sentiment_of_user` | `bullish` | 明确看多或乐观。 |
+| `sentiment_of_user` | `bearish` | 明确看空或悲观。 |
+| `sentiment_of_user` | `anxious` | 焦虑、担心、恐慌或强不确定性语气。 |
+| `operation_preference` | `buy` | 用户表达买入、加仓、入手、申购倾向。 |
+| `operation_preference` | `sell` | 用户表达卖出或离场倾向。 |
+| `operation_preference` | `hold` | 用户表达持有、继续拿倾向。 |
+| `operation_preference` | `reduce` | 用户表达减仓或降低仓位倾向。 |
+| `operation_preference` | `observe` | 用户表达观察、等等看、加入关注倾向。 |
+| `operation_preference` | `unknown` | 没有明确操作倾向。 |
+| `required_evidence_types` | `price` | 下游需要价格、行情、净值或涨跌证据。 |
+| `required_evidence_types` | `news` | 下游需要新闻或事件证据。 |
+| `required_evidence_types` | `industry` | 下游需要行业或板块证据。 |
+| `required_evidence_types` | `fundamentals` | 下游需要财务或基本面证据。 |
+| `required_evidence_types` | `valuation` | 下游需要估值证据。 |
+| `required_evidence_types` | `risk` | 下游需要风险证据。 |
+| `required_evidence_types` | `macro` | 下游需要宏观或政策证据。 |
+| `required_evidence_types` | `comparison` | 下游需要多个比较目标的证据。 |
+| `required_evidence_types` | `product_mechanism` | 下游需要产品机制、费率、规则或申赎证据。 |
+| `risk_flags` | `investment_advice_like` | 问题带投资建议属性。下游应加风险提示，避免确定性推荐。 |
+| `risk_flags` | `out_of_scope_query` | 问题不在支持的金融范围内。检索通常早退。 |
+| `risk_flags` | `entity_not_found` | 问题需要具体实体，但实体未解析成功。 |
+| `risk_flags` | `entity_ambiguous` | 命中多个候选实体，消歧不够确定。 |
+| `risk_flags` | `clarification_required` | 需要用户补充信息后才能可靠检索或分析。 |
+| `missing_slots` | `missing_entity` | 缺少必要实体或实体未解析。 |
+| `missing_slots` | `comparison_target` | 比较问题缺少至少一个比较目标。 |
+
+实体字段：
+
+| 字段 | 说明 |
 |---|---|
-| `product_type` | `stock`、`etf`、`fund`、`index`、`macro`、`generic_market`、`unknown`、`out_of_scope` |
-| `intent_labels` | `price_query`、`market_explanation`、`hold_judgment`、`buy_sell_timing`、`product_info`、`risk_analysis`、`peer_compare`、`fundamental_analysis`、`valuation_analysis`、`macro_policy_impact`、`event_news_query`、`trading_rule_fee` |
-| `topic_labels` | `price`、`news`、`industry`、`macro`、`policy`、`fundamentals`、`valuation`、`risk`、`comparison`、`product_mechanism` |
-| `source_plan` | `market_api`、`news`、`industry_sql`、`fundamental_sql`、`announcement`、`research_note`、`faq`、`product_doc`、`macro_sql` |
+| `mention` | query 中命中的文本片段。 |
+| `entity_type` | `stock`、`etf`、`fund`、`index`、`sector`、`macro_indicator`、`policy`。 |
+| `confidence` | 实体置信度。 |
+| `match_type` | 匹配路径。当前取值：`alias_exact`、`alias_fuzzy`、`fuzzy`、`crf_fuzzy`、`linked`、`context_dialog`、`context_profile`。 |
+| `entity_id` | runtime 实体 ID。 |
+| `canonical_name` | 标准实体名。 |
+| `symbol` | 证券代码、基金代码、指数代码或指标代码。 |
+| `exchange` | 交易所代码，可为空。 |
 
 ## 输出二：RetrievalResult
 
@@ -333,12 +408,12 @@ API 定义在 `query_intelligence/api/app.py`，字段模型定义在 `query_int
 | `query_id` | string | 与 NLU 结果一致。 |
 | `nlu_snapshot` | object | 检索时使用的 NLU 关键信息快照，方便下游追溯。 |
 | `executed_sources` | array | 实际执行过的数据源。可能少于 `source_plan`，例如缺 token 或实体不足。 |
-| `documents` | array | 非结构化文档证据：新闻、公告、研报、FAQ、产品文档。 |
-| `structured_data` | array | 结构化数据证据：行情、财务、行业、宏观、基金净值/费率/申赎、指数估值。 |
+| `documents` | array | 非结构化文档证据。完整 source type 见下方词典。 |
+| `structured_data` | array | 结构化数据证据。完整 source type 见下方词典。 |
 | `evidence_groups` | array | 去重或聚类后的证据组。 |
 | `coverage` | object | 高层覆盖度，告诉下游哪些证据类型已覆盖。 |
 | `coverage_detail` | object | 更细粒度覆盖度。 |
-| `warnings` | array | 检索告警，如 `out_of_scope_query`、`announcement_not_found_recent_window`。 |
+| `warnings` | array | 检索告警。完整取值见下方词典。 |
 | `retrieval_confidence` | float | 检索阶段总体置信度。 |
 | `debug_trace` | object | 候选数量、去重后数量、最终 top ranked evidence IDs。 |
 
@@ -347,7 +422,7 @@ API 定义在 `query_intelligence/api/app.py`，字段模型定义在 `query_int
 | 字段 | 说明 |
 |---|---|
 | `evidence_id` | 证据唯一 ID。 |
-| `source_type` | `news`、`announcement`、`research_note`、`faq`、`product_doc` 等。 |
+| `source_type` | 文档证据类型。完整取值见下方词典。 |
 | `source_name` | 数据源名称，例如 `cninfo`、`akshare_sina`、`证券时报网`。 |
 | `source_url` | 网页或 PDF URL。研报训练集可能是 `dataset://...` 标识。 |
 | `provider` | 实际 provider 名称。 |
@@ -361,7 +436,7 @@ API 定义在 `query_intelligence/api/app.py`，字段模型定义在 `query_int
 | `entity_hits` | 命中的实体 symbol 或实体名。 |
 | `retrieval_score` | 初召回分。 |
 | `rank_score` | 重排后分数。 |
-| `reason` | 入选原因，例如 `entity_exact_match`、`alias_match`、`title_hit`。 |
+| `reason` | 入选原因。完整取值见下方词典。 |
 | `payload` | 原始扩展字段，当前通常为空。 |
 
 `structured_data[]` 字段：
@@ -369,7 +444,7 @@ API 定义在 `query_intelligence/api/app.py`，字段模型定义在 `query_int
 | 字段 | 说明 |
 |---|---|
 | `evidence_id` | 结构化证据唯一 ID，例如 `price_688256.SH`。 |
-| `source_type` | `market_api`、`fundamental_sql`、`industry_sql`、`macro_sql`。 |
+| `source_type` | 结构化证据类型。完整取值见下方词典。 |
 | `source_name` | 结构化数据源名称，例如 `akshare_sina`、`tushare`、`seed`。 |
 | `source_url` | 如果结构化数据有公开页面 URL，则填 URL；纯 API 数据可为空。 |
 | `provider` | provider 名称。 |
@@ -379,9 +454,112 @@ API 定义在 `query_intelligence/api/app.py`，字段模型定义在 `query_int
 | `as_of` | 数据截至日期。 |
 | `period` | 数据所属报告期或交易日。 |
 | `field_coverage` | 字段完整性统计：总字段数、非空字段数、缺失字段列表。 |
-| `quality_flags` | 数据质量标记，如 `seed_source`、`missing_source_url`、`missing_values`。 |
+| `quality_flags` | 数据质量标记。完整取值见下方词典。 |
 | `retrieved_at` | 本次检索时间。 |
 | `payload` | 结构化数据主体，下游模型应主要读取这里。 |
+
+检索受控词典：
+
+| 字段 | 取值 | 含义 |
+|---|---|---|
+| `source_plan`、`executed_sources`、`documents[].source_type` | `news` | 新闻文章，来自 live provider 或本地新闻库。可用时应包含网页 URL。 |
+| `source_plan`、`executed_sources`、`documents[].source_type` | `announcement` | 上市公司公告，例如巨潮公告。通常应包含公告网页或 PDF URL。 |
+| `source_plan`、`executed_sources`、`documents[].source_type` | `research_note` | 研报、分析师报告或研究型数据集文档。没有公开 URL 时可使用 `dataset://...`。 |
+| `source_plan`、`executed_sources`、`documents[].source_type` | `faq` | FAQ 条目，主要用于交易规则、费率、申赎、产品机制。 |
+| `source_plan`、`executed_sources`、`documents[].source_type` | `product_doc` | 产品文档或机制说明，主要用于 ETF/基金/指数产品机制。 |
+| `source_plan`、`executed_sources`、`structured_data[].source_type` | `market_api` | 股票、ETF、基金、指数的行情或历史价格数据。 |
+| `source_plan`、`executed_sources`、`structured_data[].source_type` | `fundamental_sql` | 公司基本面、财务指标、盈利能力、估值、经营数据。 |
+| `source_plan`、`executed_sources`、`structured_data[].source_type` | `industry_sql` | 行业归属、行业快照、板块趋势、行业上下文。 |
+| `source_plan`、`executed_sources`、`structured_data[].source_type` | `macro_sql` | 宏观 seed 或宏观表数据，例如 CPI、PMI、M2、债券收益率。 |
+| `executed_sources`、`structured_data[].source_type` | `fund_nav` | 基金/ETF 单位净值、累计净值、净值历史。 |
+| `executed_sources`、`structured_data[].source_type` | `fund_fee` | 基金/ETF 管理费、托管费、销售服务费、申购费、赎回费。 |
+| `executed_sources`、`structured_data[].source_type` | `fund_redemption` | 申购/赎回状态、交易状态、最低金额、赎回规则、流动性规则。 |
+| `executed_sources`、`structured_data[].source_type` | `fund_profile` | 基金档案、基金经理、发行方、业绩基准、风险等级、基金类型、持仓摘要。 |
+| `executed_sources`、`structured_data[].source_type` | `index_daily` | 指数日行情、开高低收、成交额、走势序列。 |
+| `executed_sources`、`structured_data[].source_type` | `index_valuation` | 指数估值、PE、PB、股息率、估值分位。 |
+| `executed_sources`、`structured_data[].source_type` | `macro_indicator` | live 或结构化宏观指标行。 |
+| `executed_sources`、`structured_data[].source_type` | `policy_event` | 政策事件、央行动作、监管事件、政策新闻结构化记录。 |
+
+覆盖度字段：
+
+| 字段 | 含义 |
+|---|---|
+| `coverage.price` | 存在价格或净值证据：`market_api`、`index_daily` 或 `fund_nav`。 |
+| `coverage.news` | 存在至少一条 `news` 文档。 |
+| `coverage.industry` | 存在至少一条 `industry_sql` 结构化数据。 |
+| `coverage.fundamentals` | 存在至少一条 `fundamental_sql` 结构化数据。 |
+| `coverage.announcement` | 存在至少一条 `announcement` 文档。 |
+| `coverage.product_mechanism` | 存在 FAQ/product_doc，或基金费率/申赎/档案数据。 |
+| `coverage.macro` | 存在宏观证据：`macro_sql`、`macro_indicator` 或 `policy_event`。 |
+| `coverage.risk` | 存在风险相关证据，例如行情、基本面、估值、基金费率/申赎、宏观、研报、公告、FAQ、产品文档。 |
+| `coverage.comparison` | 比较型问题至少有两个目标被证据覆盖。 |
+| `coverage_detail.price_history` | 存在股票/ETF/基金/指数价格历史。 |
+| `coverage_detail.financials` | 存在公司财务指标。 |
+| `coverage_detail.valuation` | 存在基本面或指数估值数据。 |
+| `coverage_detail.industry_snapshot` | 存在行业归属或行业快照。 |
+| `coverage_detail.fund_nav` | 存在基金净值数据。 |
+| `coverage_detail.fund_fee` | 存在基金费率数据。 |
+| `coverage_detail.fund_redemption` | 存在基金申赎数据。 |
+| `coverage_detail.fund_profile` | 存在基金档案数据。 |
+| `coverage_detail.index_daily` | 存在指数日行情。 |
+| `coverage_detail.index_valuation` | 存在指数估值数据。 |
+| `coverage_detail.macro_indicator` | 存在宏观指标数据。 |
+| `coverage_detail.policy_event` | 存在政策事件数据。 |
+
+告警和质量标记：
+
+| 字段 | 取值 | 含义 |
+|---|---|---|
+| `warnings` | `out_of_scope_query` | NLU 判断为范围外问题，检索早退。 |
+| `warnings` | `clarification_required_missing_entity` | 问题需要澄清，通常是关键实体缺失或无法解析。 |
+| `warnings` | `announcement_not_found_recent_window` | source_plan 需要公告，但近期窗口内没有找到匹配公告。 |
+| `structured_data[].quality_flags` | `seed_source` | 数据来自仓库内置 seed，不是 live provider。可用于演示，不适合作为生产决策的唯一依据。 |
+| `structured_data[].quality_flags` | `missing_source_url` | 没有公开页面 URL。纯 API 数据请用 `provider_endpoint`、`query_params`、`source_reference` 追溯。 |
+| `structured_data[].quality_flags` | `empty_payload` | 去掉元数据字段后，没有业务 payload 字段。 |
+| `structured_data[].quality_flags` | `missing_values` | 至少一个业务字段为空，具体看 `field_coverage.missing_fields`。 |
+
+排序原因 `reason` 取值：
+
+| 取值 | 含义 |
+|---|---|
+| `lexical_score` | 初召回文本分较高。 |
+| `trigram_similarity` | query 与标题/正文的字符 n-gram 相似度高。 |
+| `entity_exact_match` | 证据明确命中已解析 symbol。 |
+| `alias_match` | 证据命中实体别名或标准名。 |
+| `title_hit` | 标题命中 query 关键词、实体名或代码。 |
+| `keyword_coverage` | 文档覆盖了较多 query 关键词。 |
+| `intent_compatibility` | source type 与意图匹配。 |
+| `topic_compatibility` | source type 或内容与主题匹配。 |
+| `product_type_match` | 证据产品类型与 NLU 产品类型一致。 |
+| `source_credibility` | 数据源静态可信度较高。 |
+| `recency_score` | 发布时间与问题时间范围匹配，且足够新。 |
+| `is_primary_disclosure` | 证据是公告或产品文档等一手披露。 |
+| `doc_length` | 文档长度足够，具备可用正文。 |
+| `time_window_match` | 发布时间匹配 query 的时间窗口。 |
+| `ticker_hit` | 正文中出现 ticker 或 symbol。 |
+
+证据组取值：
+
+| 字段 | 取值 | 含义 |
+|---|---|---|
+| `evidence_groups[].group_type` | `single` | 该证据没有被归入近重复组。 |
+| `evidence_groups[].group_type` | `news_cluster` | 多条近重复或高度相似文档被聚合，`members` 是组内 evidence IDs。 |
+
+结构化 payload 常见字段：
+
+| source type | 常见 payload 字段 |
+|---|---|
+| `market_api` | `symbol`、`canonical_name`、`trade_date`、`open`、`high`、`low`、`close`、`pct_change_1d`、`volume`、`amount`、`history`、`industry_name`、`industry_snapshot`。 |
+| `fundamental_sql` | `symbol`、`report_date`、`revenue`、`net_profit`、`roe`、`gross_margin`、`pe_ttm`、`pb`、`eps`。 |
+| `industry_sql` | `industry_name`、`coverage_level`，provider 可用时还会包含行业行情或行业估值字段。 |
+| `macro_sql`、`macro_indicator` | `indicator_code`、`metric_date`、`metric_value`、`unit`，以及 provider 特有字段。 |
+| `fund_nav` | `symbol`、`nav_date`、`unit_nav`、`accumulated_nav`、`daily_return`、`history`。 |
+| `fund_fee` | `symbol`、`management_fee`、`custodian_fee`、`sales_service_fee`、`subscription_fee`、`redemption_fee`。 |
+| `fund_redemption` | `symbol`、`subscription_status`、`redemption_status`、`min_subscription_amount`、`settlement_rule`。 |
+| `fund_profile` | `symbol`、`fund_name`、`fund_type`、`manager`、`issuer`、`benchmark`、`risk_level`、`tracking_index`。 |
+| `index_daily` | `symbol`、`trade_date`、`open`、`high`、`low`、`close`、`pct_change_1d`、`volume`、`amount`、`history`。 |
+| `index_valuation` | `symbol`、`trade_date`、`pe`、`pb`、`dividend_yield`、`valuation_percentile`。 |
+| `policy_event` | `event_date`、`policy_type`、`title`、`summary`、`impact_area`、`source_name`。 |
 
 ## 架构
 
@@ -672,7 +850,7 @@ python -m scripts.materialize_runtime_document_assets \
 data/runtime/documents.jsonl
 ```
 
-文档库用于本地 `DocumentRetriever`，包含新闻、公告、研报、产品文档、FAQ 等可召回文本。
+文档库用于本地 `DocumentRetriever`，包含新闻、公告、研报、产品文档、FAQ 这类可召回文本。
 
 ### 结构化数据
 
@@ -823,4 +1001,3 @@ python -m scripts.materialize_runtime_entity_assets
 ### API 只输出 JSON，不返回自然语言答案，正常吗？
 
 正常。本模块只负责理解和证据检索。最终聊天回答、投资观点措辞、情感分析、趋势分析和指标计算由下游模块完成。
-
