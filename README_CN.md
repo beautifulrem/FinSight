@@ -1001,3 +1001,260 @@ python -m scripts.materialize_runtime_entity_assets
 ### API 只输出 JSON，不返回自然语言答案，正常吗？
 
 正常。本模块只负责理解和证据检索。最终聊天回答、投资观点措辞、情感分析、趋势分析和指标计算由下游模块完成。
+
+# ARIN 文档情感分析（实现计划）
+
+ARIN 文档情感分析是一个**计划中的下游模块**，它消费 Query Intelligence 产出的 JSON 产物，使用 **FinBERT** 模型对检索到的文档进行金融情感分析，并输出结构化情感结果。
+
+## 支持范围
+
+- 分析 `retrieval_result.json` 中除 `faq` 之外的所有文档类型：`news`（新闻）、`announcement`（公告）、`research_note`（研报）、`product_doc`（产品文档）。
+- 当正文缺失时，退回到标题 + 摘要（短文本模式）。
+- 当上游 NLU 识别为 `out_of_scope`、`product_info`、`trading_rule_fee` 时，跳过整个查询。
+- 提供逐文档情感标签和按实体的聚合统计。
+
+## FinBERT 模型
+
+本模块使用 [**ProsusAI/finbert**](https://huggingface.co/ProsusAI/finbert) 作为核心情感分类器。
+
+### 概述
+
+FinBERT 是一个基于 BERT 的预训练模型，在大量金融语料（财报、SEC 文件、财经新闻、分析师报告）上继续预训练，并在 Financial PhraseBank 数据集（Malo et al., 2014）上微调的情感分类模型。它专为金融情感分析设计，在业界和研究领域得到广泛应用。
+
+**标签体系（3 分类）：**
+
+| 标签 | 含义 | 分数映射 |
+|---|---|---|
+| `positive` | 正面/利好的金融信号（如业绩超预期、营收增长、市场反弹） | 0.85 |
+| `neutral` | 中性/客观陈述，无明确情感倾向 | 0.50 |
+| `negative` | 负面/利空的金融信号（如亏损、裁员、降级、市场下跌） | 0.15 |
+
+### 中文文本处理
+
+FinBERT 是一个**纯英文模型**（`bert-base-uncased`）。中文输入文本需要在推理前翻译为英文。
+
+翻译策略如下：在文档加载和 FinBERT 推理之间插入一个轻量级的机器翻译步骤：
+
+```
+中文文档文本（标题 + 摘要 + 正文）
+    │
+    ▼
+机器翻译（中文 → 英文）
+    │
+    ▼
+FinBERT 推理（英文输入）
+    │
+    ▼
+情感标签 + 置信度
+```
+
+翻译可以调用 HuggingFace 翻译 pipeline、腾讯/有道/Google Translate API 等轻量服务。翻译依赖是可选的——当不可用时，模块应回退到基于词典的规则情感判断。
+
+### 使用示例
+
+```python
+from transformers import pipeline
+
+classifier = pipeline(
+    "sentiment-analysis",
+    model="ProsusAI/finbert",
+    tokenizer="ProsusAI/finbert",
+)
+
+result = classifier("Stocks rallied and the British pound gained.")
+# [{'label': 'positive', 'score': 0.89}]
+```
+
+## API
+
+模块提供两个端点：
+
+| 端点 | 用途 | 输入 | 输出 |
+|---|---|---|---|
+| `POST /sentiment/from-artifact` | 消费上游 QI 产物做批量情感分析 | artifact 文件路径 + 可选的 NLU 结果路径 | `SentimentResult` |
+| `POST /sentiment/analyze-text` | 直接文本分析（不依赖 artifact） | 文章 dict 列表 | `list[SentimentItem]` |
+
+### 产物分析请求
+
+`POST /sentiment/from-artifact`
+
+```json
+{
+  "retrieval_result_path": "outputs/query_intelligence/2026-04-24_120000/retrieval_result.json",
+  "nlu_result_path": "outputs/query_intelligence/2026-04-24_120000/nlu_result.json"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `retrieval_result_path` | string | 是 | QI 产出的 `retrieval_result.json` 文件路径。 |
+| `nlu_result_path` | string | 否 | QI 产出的 `nlu_result.json` 文件路径。用于过滤逻辑和实体名称解析。 |
+
+### 直接文本分析请求
+
+`POST /sentiment/analyze-text`
+
+```json
+{
+  "items": [
+    {
+      "evidence_id": "custom_001",
+      "source_type": "news",
+      "title": "Stocks rallied on positive earnings",
+      "summary": "Market indexes hit new highs...",
+      "body": "Full article text here..."
+    }
+  ]
+}
+```
+
+## 输入：上游 QI 产物
+
+### `nlu_result.json`
+
+以下字段控制模块行为：
+
+| 字段 | 用途 |
+|---|---|
+| `product_type` | 如果 `label == "out_of_scope"`，跳过整个查询。 |
+| `intent_labels` | 如果任意标签为 `product_info` 或 `trading_rule_fee`，跳过。 |
+| `risk_flags` | 如果包含 `out_of_scope_query`，跳过（防御性冗余）。 |
+| `missing_slots` | 如果包含 `missing_entity`，跳过（文档大概率空）。 |
+| `entities` | 为聚合输出中的 `symbol` 提供 `canonical_name`。 |
+| `query_id` | 传递到输出，保持可追溯性。 |
+
+### `retrieval_result.json`
+
+`documents[]` 数组是主要输入来源。符合以下条件的条目才被纳入分析：
+
+- `source_type` 不等于 `"faq"`。
+- 在 `title`、`summary`、`body` 中至少有一个非空字段。
+- `body_available` 仅作为参考——当 `false` 时，模块退回短文本模式。
+
+每条文档使用的字段：
+
+| 字段 | 必填 | 用途 |
+|---|---|---|
+| `evidence_id` | 是 | 传递到输出，保持 ID 一致。 |
+| `title` | 否 | FinBERT 输入文本。 |
+| `summary` | 否 | FinBERT 输入文本（短文本回退）。 |
+| `body` | 否 | FinBERT 输入文本（主要来源）。 |
+| `body_available` | 否 | 决定 `text_level`：`full` 或 `short`。 |
+| `source_type` | 是 | 过滤（`faq` 跳过）。 |
+| `source_name` | 否 | 传递到输出。 |
+| `publish_time` | 否 | 聚合上下文。 |
+| `entity_hits` | 否 | 按实体聚合。 |
+
+## 输出：`SentimentResult`
+
+### 顶层字段
+
+```json
+{
+  "query_id": "d5f7941a-d658-40f6-a0e0-25620ce09c73",
+  "filter_meta": {
+    "skipped_by_product_type": false,
+    "skipped_by_intent": false,
+    "skipped_docs_count": 1,
+    "short_text_fallback_count": 0,
+    "analyzed_docs_count": 3
+  },
+  "articles": [
+    {
+      "evidence_id": "aknews_601318.SH_1",
+      "source_type": "news",
+      "title": "China Life Insurance Premium Growth Accelerates",
+      "publish_time": "2026-04-23T20:17:00",
+      "source_name": "证券时报",
+      "entity_symbols": ["601318.SH"],
+      "sentiment_label": "positive",
+      "sentiment_score": 0.85,
+      "confidence": 0.92,
+      "text_level": "full"
+    }
+  ],
+  "entity_aggregates": [
+    {
+      "entity_symbol": "601318.SH",
+      "entity_name": "中国平安",
+      "doc_count": 3,
+      "positive_ratio": 0.6667,
+      "negative_ratio": 0.0,
+      "neutral_ratio": 0.3333,
+      "avg_sentiment_score": 0.7333,
+      "trend": null
+    }
+  ],
+  "generated_at": "2026-04-24T12:00:00"
+}
+```
+
+### 字段参考
+
+`filter_meta`
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `skipped_by_product_type` | bool | 因 `product_type == "out_of_scope"` 跳过。 |
+| `skipped_by_intent` | bool | 因意图为 `product_info` 或 `trading_rule_fee` 跳过。 |
+| `skipped_docs_count` | int | 跳过的文档数（faq 或无任何文本）。 |
+| `short_text_fallback_count` | int | 仅有标题/摘要、无正文的文档数。 |
+| `analyzed_docs_count` | int | 实际送入 FinBERT 的文档数。 |
+
+`articles[]` (SentimentItem)
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `evidence_id` | string | 与上游 `retrieval_result.json` 一致的 ID。 |
+| `source_type` | string | `news`、`announcement`、`research_note`、`product_doc` 之一。 |
+| `title` | string | 文档标题。 |
+| `publish_time` | string or null | 上游的发布时间。 |
+| `source_name` | string or null | 来源名称，如 `证券时报网`。 |
+| `entity_symbols` | array of string | 来自 `entity_hits` 的证券/实体代码。 |
+| `sentiment_label` | string | `positive`、`negative` 或 `neutral`。 |
+| `sentiment_score` | float | 0.0–1.0；接近 1.0 = 正面，0.5 = 中性，接近 0.0 = 负面。 |
+| `confidence` | float | 预测标签的 softmax 概率（0.0–1.0）。 |
+| `text_level` | string | `"full"` = 含正文分析；`"short"` = 仅标题+摘要。 |
+
+`entity_aggregates[]` (EntityAggregate)
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `entity_symbol` | string | 证券或指标代码，如 `601318.SH`。 |
+| `entity_name` | string | NLU 实体提供的标准名称，没有时回退到 symbol。 |
+| `doc_count` | int | 提及该实体的文档总数。 |
+| `positive_ratio` | float | 标记为 `positive` 的文档比例（0.0–1.0）。 |
+| `negative_ratio` | float | 标记为 `negative` 的比例。 |
+| `neutral_ratio` | float | 标记为 `neutral` 的比例。 |
+| `avg_sentiment_score` | float | 该实体的平均 `sentiment_score`。 |
+| `trend` | string or null | 预留字段，用于未来时间序列趋势计算；当前为 `null`。 |
+
+## 架构
+
+```mermaid
+flowchart TD
+  A["QUERY\nQuery Intelligence Pipeline"] --> B["nlu_result.json"]
+  A --> C["retrieval_result.json"]
+  B --> D["NLU 过滤层\nproduct_type / intent_labels / risk_flags / missing_slots"]
+  D -- 跳过 --> E["空 SentimentResult"]
+  D -- 通过 --> F["文档过滤\n跳过 faq，检查 body/summary/title"]
+  F --> G["可分析的文档列表"]
+  G --> H["中文 → 英文\n机器翻译"]
+  H --> I["FinBERT 推理\n(3 分类: positive/negative/neutral)"]
+  I --> J["逐文档\nSentimentItem"]
+  J --> K["实体聚合引擎"]
+  J --> L["sentiment_result.json"]
+  K --> L
+```
+
+## 关键决策记录
+
+| 决策 | 选择 | 理由 |
+|---|---|---|
+| 与 QI 的关系 | **完全独立的下游模块** | 不修改 `query_intelligence/` 任何代码。 |
+| 模型 | **FinBERT** (ProsusAI/finbert) | 在金融语料上预训练；3 分类输出符合文档情感需求。 |
+| 中文文本 | **经过机器翻译**再送入 FinBERT | FinBERT 是纯英文模型；翻译是轻量预处理步骤。 |
+| 分析范围 | 除 `faq` 外所有 `source_type` | 新闻、公告、研报、产品文档均有情感信号。 |
+| 短文本回退 | 无正文时分析标题+摘要 | FinBERT 对短文本同样有效，不需要丢弃这些文档。 |
+| 跳过条件 | `out_of_scope` / `product_info` / `trading_rule_fee` | 这些查询类型的情感分析无价值。 |
+| 输出格式 | `sentiment_result.json` 与 QI 产物并列 | 保持一致的 artifact 风格，方便下游追溯。 |

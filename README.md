@@ -763,3 +763,260 @@ Common causes:
 ### The API returns JSON but no natural-language answer
 
 This is expected. Query Intelligence only produces understanding and evidence artifacts. Final chatbot wording, investment-safe answer generation, sentiment analysis, trend analysis, and numerical calculation belong to downstream modules.
+
+# ARIN Document Sentiment Analysis (Implementation Plan)
+
+ARIN Document Sentiment Analysis is a **planned downstream module** that consumes the JSON artifacts produced by Query Intelligence. It performs financial sentiment analysis on retrieved documents using the **FinBERT** model and outputs structured sentiment results.
+
+## Scope
+
+- Analyze **all document types** from `retrieval_result.json` except `faq`: `news`, `announcement`, `research_note`, `product_doc`.
+- When full body text is unavailable, fall back to title + summary (short-text mode).
+- Skip analysis entirely when upstream NLU indicates `out_of_scope`, `product_info`, or `trading_rule_fee` intents.
+- Provide per-document sentiment labels and entity-level aggregate statistics.
+
+## FinBERT Model
+
+This module uses [**ProsusAI/finbert**](https://huggingface.co/ProsusAI/finbert) as its core sentiment classifier.
+
+### Overview
+
+FinBERT is a BERT-based model pre-trained on a large financial corpus (earnings reports, SEC filings, financial news, analyst reports) and fine-tuned on the Financial PhraseBank dataset (Malo et al., 2014). It is designed specifically for financial sentiment analysis and is widely adopted in industry and research.
+
+**Label taxonomy (3-class):**
+
+| Label | Description | Score Mapping |
+|---|---|---|
+| `positive` | Optimistic/positive financial signal (e.g., earnings beat, revenue growth, market rally) | 0.85 |
+| `neutral` | Factual or balanced reporting without clear sentiment direction | 0.50 |
+| `negative` | Pessimistic/negative financial signal (e.g., loss, layoff, downgrade, market decline) | 0.15 |
+
+### Chinese Text Handling
+
+FinBERT is an **English-only** model (`bert-base-uncased`). Chinese input text must be translated to English before inference.
+
+The proposed translation strategy is a lightweight machine translation step placed between document loading and FinBERT inference:
+
+```
+Chinese document text (title + summary + body)
+    │
+    ▼
+Machine translation (Chinese → English)
+    │
+    ▼
+FinBERT inference (English input)
+    │
+    ▼
+Sentiment label + confidence
+```
+
+Translation can be performed by a free or lightweight service (e.g., HuggingFace translation pipeline, Tencent/Youdao/Google Translate API). The translation dependency is optional — if unavailable, the module should fall back to a rule-based sentiment heuristic.
+
+### Usage
+
+```python
+from transformers import pipeline
+
+classifier = pipeline(
+    "sentiment-analysis",
+    model="ProsusAI/finbert",
+    tokenizer="ProsusAI/finbert",
+)
+
+result = classifier("Stocks rallied and the British pound gained.")
+# [{'label': 'positive', 'score': 0.89}]
+```
+
+## API
+
+The module exposes two endpoints:
+
+| Endpoint | Purpose | Input | Output |
+|---|---|---|---|
+| `POST /sentiment/from-artifact` | Consume upstream QI artifacts for batch sentiment analysis | Artifact file paths + optional NLU result path | `SentimentResult` |
+| `POST /sentiment/analyze-text` | Direct text analysis (bypass artifacts) | List of article dicts | `list[SentimentItem]` |
+
+### Artifact Analysis Request
+
+`POST /sentiment/from-artifact`
+
+```json
+{
+  "retrieval_result_path": "outputs/query_intelligence/2026-04-24_120000/retrieval_result.json",
+  "nlu_result_path": "outputs/query_intelligence/2026-04-24_120000/nlu_result.json"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `retrieval_result_path` | string | yes | Path to the QI `retrieval_result.json` file. |
+| `nlu_result_path` | string | no | Path to the QI `nlu_result.json` file. Used for filtering logic and entity name resolution. |
+
+### Direct Text Analysis Request
+
+`POST /sentiment/analyze-text`
+
+```json
+{
+  "items": [
+    {
+      "evidence_id": "custom_001",
+      "source_type": "news",
+      "title": "Stocks rallied on positive earnings",
+      "summary": "Market indexes hit new highs...",
+      "body": "Full article text here..."
+    }
+  ]
+}
+```
+
+## Input: Upstream QI Artifacts
+
+### `nlu_result.json`
+
+The following fields control module behavior:
+
+| Field | Usage |
+|---|---|
+| `product_type` | If `label == "out_of_scope"`, skip entirely. |
+| `intent_labels` | If any label is `product_info` or `trading_rule_fee`, skip entirely. |
+| `risk_flags` | If `out_of_scope_query` present, skip entirely (defensive redundancy). |
+| `missing_slots` | If `missing_entity` present, skip entirely (documents likely empty). |
+| `entities` | Provides `canonical_name` for each `symbol` in aggregate output. |
+| `query_id` | Propagated to the output for traceability. |
+
+### `retrieval_result.json`
+
+The `documents[]` array is the primary input. Eligible entries are those with:
+
+- `source_type` not equal to `"faq"`.
+- At least one non-empty field among `title`, `summary`, or `body`.
+- `body_available` flag is advisory only — when `false`, the module falls back to short-text mode.
+
+Fields consumed per document:
+
+| Field | Required | Used For |
+|---|---|---|
+| `evidence_id` | yes | Identity propagation to output. |
+| `title` | optional | FinBERT input text. |
+| `summary` | optional | FinBERT input text (short-text fallback). |
+| `body` | optional | FinBERT input text (primary source). |
+| `body_available` | optional | Determines `text_level`: `full` vs `short`. |
+| `source_type` | yes | Filtering (`faq` skipped). |
+| `source_name` | optional | Propagation to output. |
+| `publish_time` | optional | Aggregate context. |
+| `entity_hits` | optional | Entity-level aggregation. |
+
+## Output: `SentimentResult`
+
+### Top-level Fields
+
+```json
+{
+  "query_id": "d5f7941a-d658-40f6-a0e0-25620ce09c73",
+  "filter_meta": {
+    "skipped_by_product_type": false,
+    "skipped_by_intent": false,
+    "skipped_docs_count": 1,
+    "short_text_fallback_count": 0,
+    "analyzed_docs_count": 3
+  },
+  "articles": [
+    {
+      "evidence_id": "aknews_601318.SH_1",
+      "source_type": "news",
+      "title": "China Life Insurance Premium Growth Accelerates",
+      "publish_time": "2026-04-23T20:17:00",
+      "source_name": "Securities Times",
+      "entity_symbols": ["601318.SH"],
+      "sentiment_label": "positive",
+      "sentiment_score": 0.85,
+      "confidence": 0.92,
+      "text_level": "full"
+    }
+  ],
+  "entity_aggregates": [
+    {
+      "entity_symbol": "601318.SH",
+      "entity_name": "中国平安",
+      "doc_count": 3,
+      "positive_ratio": 0.6667,
+      "negative_ratio": 0.0,
+      "neutral_ratio": 0.3333,
+      "avg_sentiment_score": 0.7333,
+      "trend": null
+    }
+  ],
+  "generated_at": "2026-04-24T12:00:00"
+}
+```
+
+### Field Reference
+
+`filter_meta`
+
+| Field | Type | Description |
+|---|---|---|
+| `skipped_by_product_type` | bool | Skipped because `product_type == "out_of_scope"`. |
+| `skipped_by_intent` | bool | Skipped because intent is `product_info` or `trading_rule_fee`. |
+| `skipped_docs_count` | int | Number of documents skipped (faq or no text at all). |
+| `short_text_fallback_count` | int | Number of documents analyzed with only title/summary (no body). |
+| `analyzed_docs_count` | int | Number of documents actually sent to FinBERT. |
+
+`articles[]` (SentimentItem)
+
+| Field | Type | Description |
+|---|---|---|
+| `evidence_id` | string | Same ID as in the source `retrieval_result.json`. |
+| `source_type` | string | `news`, `announcement`, `research_note`, or `product_doc`. |
+| `title` | string | Document title. |
+| `publish_time` | string or null | Publish timestamp from upstream. |
+| `source_name` | string or null | Source name, e.g. `证券时报网`. |
+| `entity_symbols` | array of string | Security/entity symbols from `entity_hits`. |
+| `sentiment_label` | string | `positive`, `negative`, or `neutral`. |
+| `sentiment_score` | float | 0.0–1.0; close to 1.0 = positive, 0.5 = neutral, close to 0.0 = negative. |
+| `confidence` | float | Softmax probability of the predicted label (0.0–1.0). |
+| `text_level` | string | `"full"` = analyzed with body; `"short"` = analyzed with title+summary only. |
+
+`entity_aggregates[]` (EntityAggregate)
+
+| Field | Type | Description |
+|---|---|---|
+| `entity_symbol` | string | Security or indicator symbol, e.g. `601318.SH`. |
+| `entity_name` | string | Canonical name from NLU entities, or falls back to symbol. |
+| `doc_count` | int | Total documents mentioning this entity. |
+| `positive_ratio` | float | Proportion of documents labeled `positive` (0.0–1.0). |
+| `negative_ratio` | float | Proportion labeled `negative`. |
+| `neutral_ratio` | float | Proportion labeled `neutral`. |
+| `avg_sentiment_score` | float | Mean `sentiment_score` across all documents for this entity. |
+| `trend` | string or null | Reserved for future time-series trend computation; currently `null`. |
+
+## Architecture
+
+```mermaid
+flowchart TD
+  A["QUERY\nQuery Intelligence Pipeline"] --> B["nlu_result.json"]
+  A --> C["retrieval_result.json"]
+  B --> D["NLU Filter Gate\nproduct_type / intent_labels / risk_flags / missing_slots"]
+  D -- skip --> E["Empty SentimentResult"]
+  D -- pass --> F["Document Filter\nskip faq, check body/summary/title"]
+  F --> G["Documents eligible for analysis"]
+  G --> H["Chinese → English\nMachine Translation"]
+  H --> I["FinBERT Inference\n(3-class: positive/negative/neutral)"]
+  I --> J["Per-Document\nSentimentItem"]
+  J --> K["Entity Aggregation Engine"]
+  J --> L["sentiment_result.json"]
+  K --> L
+```
+
+## Key Design Decisions
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Relationship to QI | **Fully independent downstream module** | No modifications to `query_intelligence/` code. |
+| Model | **FinBERT** (ProsusAI/finbert) | Pre-trained on financial corpora; 3-class output aligns with document sentiment needs. |
+| Chinese text | **Machine translation** before FinBERT | FinBERT is English-only (bert-base-uncased); translation is a lightweight pre-processing step. |
+| Analysis scope | All `source_type` except `faq` | News, announcements, research notes, and product docs all carry sentiment signals. |
+| Short-text fallback | Analyze title+summary when body is unavailable | FinBERT is effective on short text; no need to discard these documents. |
+| Skip conditions | `out_of_scope` / `product_info` / `trading_rule_fee` | Sentiment analysis provides no value for these query types. |
+| Output format | `sentiment_result.json` alongside QI artifacts | Consistent artifact style for downstream traceability. |
