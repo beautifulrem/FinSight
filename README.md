@@ -772,9 +772,11 @@ This module supports **two implementation approaches** with different resource r
 
 ## Implementation Approaches
 
-### High Resource: FinBERT
+### High Resource: Pre-trained Transformer Models
 
-**Model**: [ProsusAI/finbert](https://huggingface.co/ProsusAI/finbert) (~420MB)
+**Model**: Off-the-shelf financial sentiment models (e.g., FinBERT family) (~420MB)
+
+> **MVP rationale**: We start with ready-made pre-trained models for the initial demo because they require no additional training and provide strong baselines out of the box. The specific model names below illustrate the current MVP choice; they can be swapped for newer or domain-specific alternatives as the project evolves.
 
 **Pros**:
 - High accuracy (85-95%) on financial text
@@ -784,22 +786,24 @@ This module supports **two implementation approaches** with different resource r
 **Cons**:
 - Requires GPU or large memory for optimal performance
 - Slower inference (~50-100 docs/sec on CPU)
-- Requires Chinese→English translation before inference
-- Longer training/setup time (1-3 hours)
+- Bilingual pipeline adds complexity (language detection + model routing)
+- Longer setup time (1-3 hours)
 
 **Best for**:
 - Production environments with high accuracy requirements
 - Scenarios with sufficient GPU resources
 - Complex long-text analysis
 
-### Low Resource: Lightweight Model (SGD + TF-IDF)
+### Low Resource: Lightweight Classifier
 
-**Model**: SGDClassifier + HashingVectorizer TF-IDF (~few MB)
+**Model**: Classical ML classifier (e.g., SGD + TF-IDF) or other small-footprint approach (~few MB)
+
+> **Note**: The specific architecture (SGD + HashingVectorizer) is the current MVP placeholder. Other lightweight options (logistic regression, linear SVM, distilled small transformers, etc.) can be evaluated after the MVP milestone.
 
 **Pros**:
 - Fast inference (~1000 docs/sec)
 - CPU-friendly, minimal memory footprint
-- Direct Chinese text processing (no translation needed)
+- Direct text processing for supported languages (no translation needed)
 - Quick training (5-10 minutes)
 - Reuses existing training infrastructure
 
@@ -813,12 +817,12 @@ This module supports **two implementation approaches** with different resource r
 - Large-scale batch document processing
 - Frequent model retraining/iteration
 
-| Dimension | FinBERT (High Resource) | SGD+TF-IDF (Low Resource) |
+| Dimension | Pre-trained Models (High Resource) | Lightweight Classifier (Low Resource) |
 |---|---|---|
 | Model size | ~420MB | ~few MB |
 | Hardware | GPU recommended | CPU only |
 | Inference speed | ~50-100 docs/sec (CPU) | ~1000 docs/sec |
-| Chinese text | Requires translation | Direct processing |
+| Multilingual | Language detection + model routing | Direct for supported languages |
 | Accuracy | 85-95% | 75-85% |
 | Training time | 1-3 hours | 5-10 minutes |
 | Implementation | Needs translation pipeline | Reuses existing code |
@@ -845,10 +849,13 @@ Both approaches can leverage existing sentiment datasets with adapters in `query
 
 ## Model Architecture
 
-### High Resource (FinBERT)
+### High Resource (Pre-trained Models)
 
 ```
-Chinese document → Machine translation → FinBERT → Sentiment label + confidence
+Document → Language detection → [zh] Chinese FinBERT
+                            → [en] English FinBERT
+                            → [mixed/unknown] Fallback / heuristic
+→ Sentiment label + confidence
 ```
 
 ### Low Resource (SGD + TF-IDF)
@@ -862,7 +869,9 @@ Chinese document → Text augmentation → TF-IDF features → SGDClassifier →
 - `query_intelligence/nlu/classifiers.py`: Model architecture (SGD + TF-IDF)
 - `query_intelligence/external_data/adapters/sentiment.py`: Data adapters
 
-## FinBERT Model Details (High Resource Approach)
+## Pre-trained Model Details (High Resource Approach)
+
+> The following describes the FinBERT family models currently used in the MVP. They are chosen because they are publicly available, well-documented, and require no additional training to produce usable results. Future iterations may replace them with custom-trained or newer open-source alternatives.
 
 ### Overview
 
@@ -876,24 +885,69 @@ FinBERT is a BERT-based model pre-trained on a large financial corpus and fine-t
 | `neutral` | Factual or balanced reporting without clear sentiment direction | 0.50 |
 | `negative` | Pessimistic/negative financial signal (e.g., loss, layoff, downgrade, market decline) | 0.15 |
 
-### Chinese Text Handling
+### Language Detection & Bilingual Model Routing
 
-FinBERT is an **English-only** model (`bert-base-uncased`). Chinese input text must be translated to English before inference:
+Documents retrieved by Query Intelligence may be in **Chinese, English, or mixed**. The module must detect language before selecting the inference path.
+
+> **Order of operations**: Language detection happens **before** sentence segmentation because the segmentation tool may be language-specific (e.g., Chinese uses punctuation-based rules; English benefits from abbreviation-aware segmenters like spaCy or NLTK Punkt).
+
+**Language detection strategy**: character-ratio heuristics as the primary path (zero overhead), with an optional fastText fallback for ambiguous cases.
+
+| Detected Language | High-Resource Path | Low-Resource Path |
+|---|---|---|
+| `zh` (Chinese) | `finbert-tone-chinese` (bert-base-chinese, ~8k analyst-report sentences) | Chinese TF-IDF model |
+| `en` (English) | `ProsusAI/finbert` (Financial PhraseBank) | English TF-IDF model (if available) or fallback |
+| `mixed` | Route Chinese sentences to Chinese model, English sentences to English model; aggregate scores | Heuristic or lightweight model on full text |
+| `unknown` | Skip or fallback to lightweight model | Skip or fallback to lightweight model |
+
+**Why two FinBERT variants?**
+- `ProsusAI/finbert` is English-only (`bert-base-uncased`).
+- `finbert-tone-chinese` is a Chinese-native model fine-tuned on Chinese analyst-report sentences (test accuracy 0.88, macro F1 0.87).
+Using the Chinese-native model avoids translation noise and latency for Chinese documents.
+
+### Sentence-Level Segmentation & Entity Relevance Filtering
+
+Both FinBERT variants were fine-tuned on **sentence-level/phrase-level** data (Financial PhraseBank for English; ~8k analyst-report sentences for Chinese). Feeding an entire long document directly into the model is **out-of-distribution (OOD)** and can produce unreliable results for the following reasons:
+
+1. **Multi-entity sentiment conflict**: A single industry report may say "liquor sector under pressure" (negative) and "new-energy sector shines" (positive). If the user asks about the liquor sector, document-level aggregation would dilute the negative signal.
+2. **Truncation risk**: `body[:800]` may cut off the most relevant paragraph.
+3. **Training-inference mismatch**: The models expect short financial statements, not 800-character mixed narratives.
+
+**Recommended preprocessing pipeline**:
 
 ```
-Chinese document text (title + summary + body)
+Document body
     │
     ▼
-Machine translation (Chinese → English)
+Language detection (document-level)
     │
     ▼
-FinBERT inference (English input)
+Sentence segmentation
+    - Chinese: punctuation-based rules (。！？；\n) + quote matching
+    - English: spaCy sentencizer or NLTK Punkt (handles abbreviations)
     │
     ▼
-Sentiment label + confidence
+Entity relevance filter (string matching)
+    - Build entity name set from nlu_result.entities
+      (symbol, canonical_name, mention, aliases)
+    - Keep sentences that contain any name in the set
+    - Optional: also keep sentences with query-context keywords
+    │
+    ▼
+Fallback if no sentence matches: title + first 3 sentences
+    │
+    ▼
+Concatenate retained sentences → tokenizer → model inference
+    │
+    ▼
+Per-sentence scores aggregated (simple mean for MVP) → final label
 ```
 
-Translation can be performed by HuggingFace translation pipeline, Tencent/Youdao/Google Translate API, etc. The translation dependency is optional — if unavailable, the module should fall back to a rule-based sentiment heuristic or the lightweight model.
+**Why string matching instead of NER?**
+- Query Intelligence has already performed high-quality entity recognition in the NLU stage. Reusing the resolved `entities` list (with `canonical_name`, `mention`, and aliases) for string matching is **zero-cost** and avoids running an extra NER pass over every sentence.
+- Coreference (e.g., "the company") is **out of scope for MVP**; string matching captures the vast majority of explicit mentions in financial documents.
+
+The module exposes the actual text fed to the model via the `relevant_excerpt` field in the output, enabling downstream traceability and debugging.
 
 ### Usage Example
 
@@ -1064,6 +1118,8 @@ Fields consumed per document:
 | `sentiment_score` | float | 0.0–1.0; close to 1.0 = positive, 0.5 = neutral, close to 0.0 = negative. |
 | `confidence` | float | Softmax probability of the predicted label (0.0–1.0). |
 | `text_level` | string | `"full"` = analyzed with body; `"short"` = analyzed with title+summary only. |
+| `relevant_excerpt` | string or null | The actual text segment(s) fed to the sentiment model after sentence segmentation and entity filtering. `null` when short-text fallback is used. |
+| `rank_score` | float or null | Propagated from upstream `retrieval_result.documents[].rank_score`. Reserved for future weighted aggregation; not used in MVP. |
 
 `entity_aggregates[]` (EntityAggregate)
 
@@ -1075,12 +1131,20 @@ Fields consumed per document:
 | `positive_ratio` | float | Proportion of documents labeled `positive` (0.0–1.0). |
 | `negative_ratio` | float | Proportion labeled `negative`. |
 | `neutral_ratio` | float | Proportion labeled `neutral`. |
-| `avg_sentiment_score` | float | Mean `sentiment_score` across all documents for this entity. |
+| `avg_sentiment_score` | float | Mean `sentiment_score` across all documents for this entity. In the MVP this is a simple unweighted average. |
 | `trend` | string or null | Reserved for future time-series trend computation; currently `null`. |
+
+**Aggregation strategy (MVP vs. future)**:
+
+Upstream Query Intelligence provides per-document relevance signals (`retrieval_score` and `rank_score`). The MVP uses **simple unweighted averaging** in `entity_aggregates` to keep the first version predictable and easy to debug. Future iterations may introduce:
+
+- **Document-level weighting**: Weight each document's sentiment by its `rank_score` so that highly ranked evidence contributes more to the aggregate.
+- **Source-type weighting**: Give different weights to `news`, `announcement`, and `research_note` based on their typical sentiment reliability.
+- **Time-decay weighting**: More recent documents count more when a time window is specified.
 
 ## Deployment Selection Guide
 
-### Choose FinBERT (High Resource) if:
+### Choose Pre-trained Models (High Resource) if:
 - ✅ Production environment with high accuracy requirements
 - ✅ GPU resources available or acceptable slower inference
 - ✅ Processing complex long texts
@@ -1103,15 +1167,16 @@ flowchart TD
   D -- pass --> F["Document Filter\nskip faq, check body/summary/title"]
   F --> G["Documents eligible for analysis"]
   G --> H{Implementation Approach}
-  H -->|High Resource| I["Chinese → English\nMachine Translation"]
+  H -->|High Resource| I["Language Detection\n+ Bilingual Model Routing"]
   H -->|Low Resource| J["Text Augmentation\n+ TF-IDF Features"]
-  I --> K["FinBERT Inference\n(3-class: positive/negative/neutral)"]
-  J --> L["SGD+TF-IDF Inference\n(3-class: positive/negative/neutral)"]
-  K --> M["Per-Document\nSentimentItem"]
-  L --> N["Per-Document\nSentimentItem"]
-  M --> O["Entity Aggregation Engine"]
+  I --> K["Sentence Segmentation\n+ Entity Relevance Filter"]
+  J --> L["Sentence Segmentation\n+ Entity Relevance Filter"]
+  K --> M["FinBERT Inference\n(zh-CN / en / mixed fallback)"]
+  L --> N["SGD+TF-IDF Inference\n(3-class: positive/negative/neutral)"]
+  M --> O["Per-Document\nSentimentItem"]
   N --> O
-  O --> P["sentiment_result.json\n(model_info: finbert|sgd_tfidf)"]
+  O --> P["Entity Aggregation Engine"]
+  P --> Q["sentiment_result.json\n(model_info: finbert|sgd_tfidf)"]
 ```
 
 ## Implementation Roadmap
@@ -1134,7 +1199,8 @@ flowchart TD
 | Decision | High Resource | Low Resource | Rationale |
 |---|---|---|---|
 | Model | FinBERT | SGD+TF-IDF | Accuracy vs speed trade-off |
-| Chinese text | Machine translation | Direct processing | Performance vs implementation complexity |
+| Multilingual | Language detection + bilingual model routing | Direct for supported languages | Avoid translation noise; match training distribution |
+| Input granularity | Sentence-level segmentation + entity filtering | Sentence-level segmentation + entity filtering | Both models trained on sentence/phrase-level data; long-document input is OOD |
 | Deployment requirements | GPU recommended | CPU only | Resource availability |
 | API compatibility | ✅ Same interface | ✅ Same interface | Downstream consumers are model-agnostic |
 | Relationship to QI | **Fully independent downstream module** | **Fully independent downstream module** | No modifications to `query_intelligence/` code. |

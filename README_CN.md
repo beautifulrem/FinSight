@@ -1010,9 +1010,11 @@ ARIN 文档情感分析是一个**计划中的下游模块**，它消费 Query I
 
 ## 实现方案对比
 
-### 高资源方案：FinBERT
+### 高资源方案：预训练语言模型（MVP 阶段）
 
-**模型**：[ProsusAI/finbert](https://huggingface.co/ProsusAI/finbert)（~420MB）
+**模型**：开箱即用的金融情感预训练模型（如 FinBERT 系列）（~420MB）
+
+> **MVP 说明**：MVP 阶段直接选用现成的预训练模型做 demo，是因为它们开箱即用、无需额外训练即可提供较强的基线效果。下文列出的具体模型名称仅代表当前 MVP 选型，后续可替换为更新或更贴合业务域的模型。
 
 **优点**：
 - 高准确率（85-95%）处理金融文本
@@ -1022,22 +1024,24 @@ ARIN 文档情感分析是一个**计划中的下游模块**，它消费 Query I
 **缺点**：
 - 需要 GPU 或大内存以获得最佳性能
 - 推理速度较慢（CPU 上 ~50-100 文档/秒）
-- 需要中文→英文翻译预处理
-- 训练/配置时间较长（1-3 小时）
+- 双语 pipeline 增加复杂度（语言检测 + 模型路由）
+- 配置时间较长（1-3 小时）
 
 **适用场景**：
 - 对准确率要求高的生产环境
 - 有充足 GPU 资源的场景
 - 复杂长文本分析
 
-### 低资源方案：轻量级模型（SGD + TF-IDF）
+### 低资源方案：轻量级分类器
 
-**模型**：SGDClassifier + HashingVectorizer TF-IDF（~几 MB）
+**模型**：经典机器学习分类器（如 SGD + TF-IDF）或其他小体积方案（~几 MB）
+
+> **说明**：SGD + HashingVectorizer 是当前 MVP 的占位实现。完成 MVP 后，可进一步评估其他轻量方案（逻辑回归、线性 SVM、蒸馏后的小 Transformer 等）。
 
 **优点**：
 - 快速推理（~1000 文档/秒）
 - 仅需 CPU，内存占用极小
-- 直接处理中文（无需翻译）
+- 对支持的语言直接处理（无需翻译）
 - 快速训练（5-10 分钟）
 - 复用现有训练基础设施
 
@@ -1051,12 +1055,12 @@ ARIN 文档情感分析是一个**计划中的下游模块**，它消费 Query I
 - 大规模批量文档处理
 - 频繁的模型重训练/迭代
 
-| 维度 | FinBERT (高资源) | SGD+TF-IDF (低资源) |
+| 维度 | 预训练模型（高资源） | 轻量级分类器（低资源） |
 |---|---|---|
 | 模型大小 | ~420MB | ~几MB |
 | 硬件要求 | GPU 推荐 | CPU 即可 |
 | 推理速度 | ~50-100 文档/秒 (CPU) | ~1000 文档/秒 |
-| 中文处理 | 需要翻译 | 直接处理 |
+| 多语言支持 | 语言检测 + 模型路由 | 对支持语言直接处理 |
 | 准确率 | 85-95% | 75-85% |
 | 训练时间 | 1-3 小时 | 5-10 分钟 |
 | 实现难度 | 需要翻译 pipeline | 复用现有代码 |
@@ -1083,10 +1087,13 @@ ARIN 文档情感分析是一个**计划中的下游模块**，它消费 Query I
 
 ## 模型架构
 
-### 高资源方案 (FinBERT)
+### 高资源方案（预训练模型）
 
 ```
-中文文档 → 机器翻译 → FinBERT → 情感标签 + 置信度
+文档 → 语言检测 → [zh] 中文 FinBERT
+              → [en] 英文 FinBERT
+              → [混合/未知] Fallback / 启发式规则
+→ 情感标签 + 置信度
 ```
 
 ### 低资源方案 (SGD + TF-IDF)
@@ -1100,7 +1107,9 @@ ARIN 文档情感分析是一个**计划中的下游模块**，它消费 Query I
 - `query_intelligence/nlu/classifiers.py`：模型架构（SGD + TF-IDF）
 - `query_intelligence/external_data/adapters/sentiment.py`：数据适配器
 
-## FinBERT 模型详情（高资源方案）
+## 预训练模型详情（高资源方案）
+
+> 以下描述的是 MVP 阶段选用的 FinBERT 系列模型。选用它们的原因是公开可用、文档完善，且无需额外训练即可产出可用结果。后续迭代可替换为自训练或更新的开源替代方案。
 
 ### 概述
 
@@ -1114,24 +1123,69 @@ FinBERT 是一个基于 BERT 的预训练模型，在大量金融语料上继续
 | `neutral` | 中性/客观陈述，无明确情感倾向 | 0.50 |
 | `negative` | 负面/利空的金融信号（如亏损、裁员、降级、市场下跌） | 0.15 |
 
-### 中文文本处理
+### 语言检测与双语模型路由
 
-FinBERT 是一个**纯英文模型**（`bert-base-uncased`）。中文输入文本需要在推理前翻译为英文：
+Query Intelligence 检索到的文档可能是**中文、英文或中英混合**。模块必须在推理前检测语言并选择对应路径。
+
+> **执行顺序**：语言检测在**分句之前**完成，因为分句工具可能是语言相关的（例如中文以标点规则为主；英文则需要 spaCy sentencizer 或 NLTK Punkt 等能处理缩写的分句器）。
+
+**语言检测策略**：以字符比例启发式规则为主路径（零开销），对模糊情况可选 fastText 兜底。
+
+| 检测语言 | 高资源路径 | 低资源路径 |
+|---|---|---|
+| `zh`（中文） | `finbert-tone-chinese`（基于 bert-base-chinese，~8k 研报句子微调） | 中文 TF-IDF 模型 |
+| `en`（英文） | `ProsusAI/finbert`（Financial PhraseBank 微调） | 英文 TF-IDF 模型（如有）或 fallback |
+| `mixed`（混合） | 中文句子送中文模型，英文句子送英文模型，再聚合分数 | 轻量模型全篇推理或启发式规则 |
+| `unknown`（未知） | 跳过或 fallback 到轻量模型 | 跳过或 fallback 到轻量模型 |
+
+**为什么用两个 FinBERT 变体？**
+- `ProsusAI/finbert` 是纯英文模型（`bert-base-uncased`）。
+- `finbert-tone-chinese` 是中文原生模型，在中文研报句子上微调（测试准确率 0.88，Macro F1 0.87）。
+对中文文档使用中文原生模型，可避免翻译噪声和延迟。
+
+### 分句处理与实体相关句子节选
+
+两种 FinBERT 变体都是在**句子/短语级别**的数据上微调的（英文基于 Financial PhraseBank；中文基于约 8k 条研报句子）。将整篇长文档直接输入模型属于**分布外（OOD）**行为，会导致以下问题：
+
+1. **多实体情感冲突**：一篇行业综述里「白酒板块承压」（负面）和「新能源大涨」（正面），如果用户问的是白酒，整篇文档的正面情感会把白酒的负面信号稀释掉。
+2. **截断风险**：`body[:800]` 可能刚好截掉最关键的那段。
+3. **训练-推理粒度不匹配**：模型期望的是短金融陈述句，而不是 800 字的混杂叙事。
+
+**推荐的预处理流程**：
 
 ```
-中文文档文本（标题 + 摘要 + 正文）
+文档正文
     │
     ▼
-机器翻译（中文 → 英文）
+语言检测（文档级）
     │
     ▼
-FinBERT 推理（英文输入）
+分句
+    - 中文：基于标点规则（。！？；\n）+ 引号匹配
+    - 英文：spaCy sentencizer 或 NLTK Punkt（处理缩写）
     │
     ▼
-情感标签 + 置信度
+实体相关性筛选（字符串匹配）
+    - 从 nlu_result.entities 构建实体名集合
+      （symbol、canonical_name、mention、alias）
+    - 保留包含集合中任意名称的句子
+    - 可选：同时保留含 query 上下文关键词的句子
+    │
+    ▼
+若无匹配则兜底：标题 + 前 3 句
+    │
+    ▼
+拼接保留句子 → tokenizer → 模型推理
+    │
+    ▼
+逐句分数聚合（MVP 阶段简单平均）→ 最终标签
 ```
 
-翻译可以调用 HuggingFace 翻译 pipeline、腾讯/有道/Google Translate API 等轻量服务。翻译依赖是可选的——当不可用时，模块应回退到基于词典的规则情感判断或使用轻量级模型。
+**为什么用字符串匹配而不是 NER？**
+- Query Intelligence 已在 NLU 阶段完成高质量的实体识别。直接复用已解析的 `entities` 列表（含 `canonical_name`、`mention` 及别名）做字符串匹配是**零额外开销**的，无需对每句话再跑一遍 NER。
+- 指代消解（如"该公司"）在 **MVP 阶段暂不处理**；金融文档中实体通常以显式名称出现，字符串匹配已能覆盖绝大多数情况。
+
+模块通过输出字段 `relevant_excerpt` 暴露实际送入模型的文本片段，方便下游追溯和调试。
 
 ### 使用示例
 
@@ -1302,6 +1356,8 @@ result = classifier("Stocks rallied and the British pound gained.")
 | `sentiment_score` | float | 0.0–1.0；接近 1.0 = 正面，0.5 = 中性，接近 0.0 = 负面。 |
 | `confidence` | float | 预测标签的 softmax 概率（0.0–1.0）。 |
 | `text_level` | string | `"full"` = 含正文分析；`"short"` = 仅标题+摘要。 |
+| `relevant_excerpt` | string 或 null | 经分句和实体筛选后实际送入情感模型的文本片段。使用短文本回退时为 `null`。 |
+| `rank_score` | float 或 null | 从上游 `retrieval_result.documents[].rank_score` 透传。预留用于未来加权聚合，MVP 阶段不使用。 |
 
 `entity_aggregates[]` (EntityAggregate)
 
@@ -1313,12 +1369,20 @@ result = classifier("Stocks rallied and the British pound gained.")
 | `positive_ratio` | float | 标记为 `positive` 的文档比例（0.0–1.0）。 |
 | `negative_ratio` | float | 标记为 `negative` 的比例。 |
 | `neutral_ratio` | float | 标记为 `neutral` 的比例。 |
-| `avg_sentiment_score` | float | 该实体的平均 `sentiment_score`。 |
+| `avg_sentiment_score` | float | 该实体的平均 `sentiment_score`。MVP 阶段为简单无权平均。 |
 | `trend` | string or null | 预留字段，用于未来时间序列趋势计算；当前为 `null`。 |
+
+**聚合策略（MVP vs. 后续扩展）**
+
+上游 Query Intelligence 已提供每篇文档的相关性信号（`retrieval_score` 和 `rank_score`）。MVP 阶段在 `entity_aggregates` 中采用**简单无权平均**，以保证结果可预期、易于调试。后续迭代可考虑：
+
+- **文档级加权**：按 `rank_score` 对每篇文档的情感分数加权，高排名证据贡献更大。
+- **来源类型加权**：根据 `news`、`announcement`、`research_note` 的典型情感可靠性赋予不同权重。
+- **时间衰减加权**：当 query 指定时间窗口时，越新的文档权重越高。
 
 ## 部署选择指南
 
-### 选择 FinBERT（高资源）如果：
+### 选择预训练模型（高资源）如果：
 - ✅ 生产环境、对准确率要求极高
 - ✅ 有 GPU 资源或可接受较慢推理
 - ✅ 处理复杂长文本
@@ -1341,15 +1405,16 @@ flowchart TD
   D -- 通过 --> F["文档过滤\n跳过 faq，检查 body/summary/title"]
   F --> G["可分析的文档列表"]
   G --> H{实现方案选择}
-  H -->|高资源方案| I["中文 → 英文\n机器翻译"]
+  H -->|高资源方案| I["语言检测\n+ 双语模型路由"]
   H -->|低资源方案| J["文本增强\n+ TF-IDF 特征"]
-  I --> K["FinBERT 推理\n(3 分类: positive/negative/neutral)"]
-  J --> L["SGD+TF-IDF 推理\n(3 分类: positive/negative/neutral)"]
-  K --> M["逐文档\nSentimentItem"]
-  L --> N["逐文档\nSentimentItem"]
-  M --> O["实体聚合引擎"]
+  I --> K["分句处理\n+ 实体相关句子筛选"]
+  J --> L["分句处理\n+ 实体相关句子筛选"]
+  K --> M["FinBERT 推理\n(zh-CN / en / mixed fallback)"]
+  L --> N["SGD+TF-IDF 推理\n(3 分类: positive/negative/neutral)"]
+  M --> O["逐文档\nSentimentItem"]
   N --> O
-  O --> P["sentiment_result.json\n(model_info: finbert|sgd_tfidf)"]
+  O --> P["实体聚合引擎"]
+  P --> Q["sentiment_result.json\n(model_info: finbert|sgd_tfidf)"]
 ```
 
 ## 实现路径
@@ -1372,7 +1437,8 @@ flowchart TD
 | 决策 | 高资源方案 | 低资源方案 | 理由 |
 |---|---|---|---|
 | 模型 | FinBERT | SGD+TF-IDF | 准确率 vs 速度权衡 |
-| 中文文本 | 机器翻译 | 直接处理 | 性能 vs 实现复杂度 |
+| 多语言支持 | 语言检测 + 双语模型路由 | 对支持语言直接处理 | 避免翻译噪声，匹配训练分布 |
+| 输入粒度 | 分句 + 实体相关句子筛选 | 分句 + 实体相关句子筛选 | 两种模型均在句子/短语级数据上训练，长文档直接输入是 OOD |
 | 部署要求 | GPU 推荐 | CPU 即可 | 资源可用性 |
 | API 兼容性 | ✅ 相同接口 | ✅ 相同接口 | 下游消费者对模型类型无感知 |
 | 与 QI 的关系 | **完全独立的下游模块** | **完全独立的下游模块** | 不修改 `query_intelligence/` 任何代码。 |
