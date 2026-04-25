@@ -23,6 +23,7 @@ from .feature_builder import FeatureBuilder
 from .packager import RetrievalPackager
 from .query_builder import QueryBuilder
 from .ranker import BaselineRanker, HybridRanker
+from .market_analyzer import MarketAnalyzer
 from .selector import DocumentSelector
 from .sql_retriever import SQLRetriever
 
@@ -53,6 +54,7 @@ class RetrievalPipeline:
         self.macro_provider = None
         self.news_providers: list = []
         self.announcement_provider = None
+        self.market_analyzer = MarketAnalyzer()
 
     @classmethod
     def build_demo(cls) -> "RetrievalPipeline":
@@ -160,8 +162,19 @@ class RetrievalPipeline:
         deduped_docs, groups = self.deduper.dedupe(selected_docs)
 
         structured_items = self._fetch_structured_items(query_bundle)
+        structured_items = self._enrich_with_analysis(structured_items)
+        analysis_summary = self.market_analyzer.build_analysis_summary(structured_items, nlu_result, deduped_docs)
         executed_sources = self._compute_executed_sources(deduped_docs, structured_items)
-        return self.packager.build(nlu_result, deduped_docs, structured_items, groups, total_candidates, executed_sources)
+        return self.packager.build(nlu_result, deduped_docs, structured_items, groups, total_candidates, executed_sources, analysis_summary)
+
+    def _enrich_with_analysis(self, structured_items: list[dict]) -> list[dict]:
+        for item in structured_items:
+            if item.get("source_type") in {"market_api", "index_daily"} and item.get("payload"):
+                try:
+                    self.market_analyzer.enrich_payload(item["payload"])
+                except Exception as exc:
+                    logger.warning("Market analyzer failed for %s: %s", item.get("evidence_id"), exc)
+        return structured_items
 
     def _fetch_structured_items(self, query_bundle: dict) -> list[dict]:
         structured_items = self.api_retriever.fetch(query_bundle) + self.sql_retriever.fetch(query_bundle)

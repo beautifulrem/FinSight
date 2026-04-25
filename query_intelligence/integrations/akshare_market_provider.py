@@ -59,7 +59,7 @@ class AKShareMarketProvider:
             "pct_change_1d": latest.get("pct_change_1d"),
             "volume": latest.get("volume"),
             "amount": latest.get("amount"),
-            "history": market_rows[:5],
+            "history": market_rows[:30],
             "industry_name": industry_name,
         }
         if industry_payload:
@@ -252,9 +252,17 @@ class AKShareMarketProvider:
         except TypeError:
             return self.ak_module.fund_open_fund_info_em(symbol=symbol)
 
+    def _prefixed_index_symbol(self, symbol: str) -> str:
+        """Return Sina-style prefixed symbol for index APIs (sh000001 / sz399001)."""
+        plain = symbol.split(".")[0]
+        if plain.startswith(("0", "5", "6")):
+            return f"sh{plain}"
+        return f"sz{plain}"
+
     def _fetch_index_rows(self, symbol: str, start_date: str, end_date: str):
+        prefixed = self._prefixed_index_symbol(symbol)
         for method_name, kwargs in (
-            ("stock_zh_index_daily", {"symbol": symbol}),
+            ("stock_zh_index_daily", {"symbol": prefixed}),
             ("index_zh_a_hist", {"symbol": symbol, "period": "daily", "start_date": start_date, "end_date": end_date}),
             ("stock_zh_index_spot_em", {}),
         ):
@@ -364,10 +372,24 @@ class AKShareMarketProvider:
             return {}
         latest = max(rows, key=lambda row: self._normalize_date(row.get("日期")) or "")
         trace = self._api_trace("akshare.stock_financial_analysis_indicator", {"symbol": symbol, "start_year": "2020"})
+
+        # Try to get pe_ttm/pb from stock_a_indicator_lg
+        pe_ttm, pb = None, None
+        try:
+            val_rows = _rows_to_records(self.ak_module.stock_a_indicator_lg(symbol=symbol))
+            if val_rows:
+                val_latest = max(val_rows, key=lambda row: self._normalize_date(row.get("trade_date") or row.get("日期")) or "")
+                pe_ttm = val_latest.get("pe_ttm")
+                pb = val_latest.get("pb")
+        except Exception:
+            pass
+
         return {
             "source_name": "akshare",
             **trace,
             "report_date": self._normalize_date(latest.get("日期")),
+            "pe_ttm": pe_ttm,
+            "pb": pb,
             "roe": latest.get("净资产收益率(%)"),
             "grossprofit_margin": latest.get("主营业务毛利率(%)"),
             "eps": latest.get("每股收益(元)"),
@@ -417,7 +439,7 @@ class AKShareMarketProvider:
             "pct_change_1d": latest.get("pct_change_1d"),
             "volume": latest.get("volume"),
             "amount": latest.get("amount"),
-            "history": market_rows[:5],
+            "history": market_rows[:30],
         }
 
     def _fetch_index_valuation_payload(self, symbol: str) -> dict:
@@ -478,7 +500,7 @@ class AKShareMarketProvider:
             "latest_nav": latest.get("latest_nav"),
             "accumulated_nav": latest.get("accumulated_nav"),
             "nav_date": latest.get("nav_date"),
-            "history": normalized[:5],
+            "history": normalized[:30],
         }
 
     def _empty_fund_nav_payload(self, symbol: str) -> dict:

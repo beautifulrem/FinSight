@@ -457,6 +457,70 @@
     },
     "debug_trace": {
       "$ref": "#/$defs/RetrievalDebugTrace"
+    },
+    "analysis_summary": {
+      "title": "Analysis Summary",
+      "description": "Pre-computed market/fundamental/macro analysis signals for downstream sentiment analysis",
+      "type": "object",
+      "properties": {
+        "market_signal": {
+          "type": "object",
+          "description": "Technical indicators and trend signal for market data",
+          "nullable": true,
+          "properties": {
+            "symbol": {"type": "string"},
+            "canonical_name": {"type": "string"},
+            "trade_date": {"type": "string"},
+            "close": {"type": "number"},
+            "pct_change_1d": {"type": "number"},
+            "trend_signal": {"type": "string", "enum": ["bullish", "bearish", "neutral"]},
+            "rsi_14": {"type": "number"},
+            "ma5": {"type": "number"},
+            "ma20": {"type": "number"},
+            "pct_change_nd": {"type": "object"},
+            "volatility_20d": {"type": "number"},
+            "macd": {"type": "object"},
+            "bollinger": {"type": "object"},
+            "price_vs_ma": {"type": "object"}
+          }
+        },
+        "fundamental_signal": {
+          "type": "object",
+          "description": "Fundamental valuation assessment",
+          "nullable": true,
+          "properties": {
+            "symbol": {"type": "string"},
+            "report_date": {"type": "string"},
+            "pe_ttm": {"type": "number"},
+            "pb": {"type": "number"},
+            "roe": {"type": "number"},
+            "valuation_assessment": {"type": "string", "enum": ["potentially_undervalued", "fair_range", "potentially_overvalued", "unknown"]}
+          }
+        },
+        "macro_signal": {
+          "type": "object",
+          "description": "Macro indicator directions and overall assessment",
+          "nullable": true,
+          "properties": {
+            "indicators": {"type": "array", "items": {"type": "object"}},
+            "overall": {"type": "string", "enum": ["expansionary", "contractionary", "mixed", null]}
+          }
+        },
+        "data_readiness": {
+          "type": "object",
+          "description": "Flags indicating what data and analysis is available for downstream",
+          "properties": {
+            "has_price_data": {"type": "boolean"},
+            "has_fundamentals": {"type": "boolean"},
+            "has_macro": {"type": "boolean"},
+            "has_news": {"type": "boolean"},
+            "has_technical_indicators": {"type": "boolean"},
+            "relevant_intents": {"type": "array", "items": {"type": "string"}},
+            "relevant_topics": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      },
+      "default": {}
     }
   },
   "required": [

@@ -16,6 +16,7 @@ class RetrievalPackager:
         groups: list[dict],
         total_candidates: int,
         executed_sources: list[str],
+        analysis_summary: dict | None = None,
     ) -> dict:
         retrieved_at = datetime.now(timezone.utc).isoformat()
         document_items = []
@@ -117,6 +118,8 @@ class RetrievalPackager:
         return {
             "query_id": nlu_result["query_id"],
             "nlu_snapshot": {
+                "raw_query": nlu_result.get("raw_query"),
+                "normalized_query": nlu_result.get("normalized_query"),
                 "product_type": nlu_result["product_type"]["label"],
                 "intent_labels": [item["label"] for item in nlu_result["intent_labels"]],
                 "entities": [item["symbol"] for item in nlu_result["entities"] if item.get("symbol")],
@@ -135,6 +138,7 @@ class RetrievalPackager:
                 "after_dedup": len(ranked_docs),
                 "top_ranked": ranked_ids,
             },
+            "analysis_summary": analysis_summary or {},
         }
 
     def _coverage_detail(self, structured_source_types: set[str]) -> dict[str, bool]:
