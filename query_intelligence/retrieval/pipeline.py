@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import logging
 import psycopg
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import date, timedelta
 from pathlib import Path
+from threading import Thread
 from psycopg.rows import dict_row
 
 logger = logging.getLogger(__name__)
@@ -398,19 +398,30 @@ class RetrievalPipeline:
             for symbol, _ in entity_targets:
                 if not symbol:
                     continue
-                try:
-                    with ThreadPoolExecutor(max_workers=1) as pool:
-                        future = pool.submit(
-                            self.announcement_provider.fetch_announcements,
+                ann_docs: list[dict] = []
+                worker_error: Exception | None = None
+
+                def _fetch() -> None:
+                    nonlocal ann_docs, worker_error
+                    try:
+                        ann_docs = self.announcement_provider.fetch_announcements(
                             symbol,
                             limit=min(top_k, 10),
                         )
-                        ann_docs = future.result(timeout=20)
-                    docs.extend(ann_docs)
-                except FuturesTimeoutError:
+                    except Exception as exc:  # noqa: BLE001
+                        worker_error = exc
+
+                worker = Thread(target=_fetch, daemon=True)
+                worker.start()
+                worker.join(timeout=20)
+
+                if worker.is_alive():
                     logger.warning("Announcement provider timed out (20s) for %s, skipping", symbol)
-                except Exception:
-                    logger.warning("Announcement provider failed for %s", symbol, exc_info=True)
+                    continue
+                if worker_error is not None:
+                    logger.warning("Announcement provider failed for %s: %s", symbol, worker_error)
+                    continue
+                docs.extend(ann_docs)
         for doc in docs:
             doc.setdefault("retrieval_score", 0.5)
         return docs
