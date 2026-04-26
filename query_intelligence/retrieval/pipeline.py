@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import psycopg
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import date, timedelta
 from pathlib import Path
 from psycopg.rows import dict_row
@@ -398,7 +399,16 @@ class RetrievalPipeline:
                 if not symbol:
                     continue
                 try:
-                    docs.extend(self.announcement_provider.fetch_announcements(symbol, limit=min(top_k, 10)))
+                    with ThreadPoolExecutor(max_workers=1) as pool:
+                        future = pool.submit(
+                            self.announcement_provider.fetch_announcements,
+                            symbol,
+                            limit=min(top_k, 10),
+                        )
+                        ann_docs = future.result(timeout=20)
+                    docs.extend(ann_docs)
+                except FuturesTimeoutError:
+                    logger.warning("Announcement provider timed out (20s) for %s, skipping", symbol)
                 except Exception:
                     logger.warning("Announcement provider failed for %s", symbol, exc_info=True)
         for doc in docs:

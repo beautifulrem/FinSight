@@ -2,15 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 from datetime import datetime
 from pathlib import Path
 import sys
-
-os.environ.setdefault("QI_USE_LIVE_MARKET", "1")
-os.environ.setdefault("QI_USE_LIVE_MACRO", "1")
-os.environ.setdefault("QI_USE_LIVE_NEWS", "1")
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -29,7 +24,13 @@ def main() -> None:
         raise SystemExit("query is empty")
 
     clear_service_caches()
-    service = build_default_service()
+    service = build_default_service(
+        use_live_market=args.live_market,
+        use_live_macro=args.live_macro,
+        use_live_news=args.live_news,
+        use_live_announcement=args.live_announcement,
+    )
+    print(f"  Live providers: market={args.live_market}  macro={args.live_macro}  news={args.live_news}  announcement={args.live_announcement}")
 
     # ---- Step 1: NLU ----
     nlu_result = service.analyze_query(query, debug=True)
@@ -134,6 +135,15 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run one manual Query Intelligence test and write NLU/Retrieval JSON outputs.")
     parser.add_argument("--query", type=str, default="", help="Question to evaluate. If omitted, the script prompts in the terminal.")
     parser.add_argument("--top-k", type=int, default=10, help="Retrieval top_k passed to the retrieval module.")
+    # Live data toggles (default: market/macro/news on, announcement off)
+    parser.add_argument("--live-market", dest="live_market", action=argparse.BooleanOptionalAction, default=True,
+                        help="Enable live market data (default: on). Use --no-live-market to disable.")
+    parser.add_argument("--live-macro", dest="live_macro", action=argparse.BooleanOptionalAction, default=True,
+                        help="Enable live macro data (default: on). Use --no-live-macro to disable.")
+    parser.add_argument("--live-news", dest="live_news", action=argparse.BooleanOptionalAction, default=True,
+                        help="Enable live news data (default: on). Use --no-live-news to disable.")
+    parser.add_argument("--live-announcement", dest="live_announcement", action=argparse.BooleanOptionalAction, default=False,
+                        help="Enable live announcement data (default: off — cninfo often hangs from overseas). Use --live-announcement to enable.")
     return parser
 
 

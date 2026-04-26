@@ -9,13 +9,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
-
-os.environ.setdefault("QI_USE_LIVE_MARKET", "1")
-os.environ.setdefault("QI_USE_LIVE_MACRO", "1")
-os.environ.setdefault("QI_USE_LIVE_NEWS", "1")
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -38,15 +33,29 @@ def _latest_output_dir() -> Path | None:
 
 def _run_pipeline(query: str) -> dict:
     clear_service_caches()
-    svc = build_default_service()
+    svc = build_default_service(
+        use_live_market=True,
+        use_live_macro=True,
+        use_live_news=True,
+        use_live_announcement=False,
+    )
     nlu = svc.analyze_query(query, debug=False)
     return svc.retrieve_evidence(nlu, debug=False)
 
 
 # ── formatters ──────────────────────────────────────────────────────
-def fmt_market_signal(ms: dict | None) -> str:
+def fmt_market_signal(ms: dict | list[dict] | None) -> str:
     if not ms:
         return "  （无市场技术信号 — 可能缺少历史数据）"
+    if isinstance(ms, list):
+        if not ms:
+            return "  （无市场技术信号 — 可能缺少历史数据）"
+        sections = []
+        for item in ms:
+            symbol = item.get("symbol") or item.get("canonical_name") or "未知标的"
+            sections.append(f"  [{symbol}]")
+            sections.append(fmt_market_signal(item))
+        return "\n".join(sections)
     lines = [
         f"  趋势判断: {ms.get('trend_signal', 'N/A')}",
         f"  RSI(14): {ms.get('rsi_14', 'N/A')}",
@@ -59,7 +68,7 @@ def fmt_market_signal(ms: dict | None) -> str:
     if boll:
         lines.append(f"  布林带: 上轨={boll.get('upper')}  中轨={boll.get('middle')}  下轨={boll.get('lower')}  bandwidth={boll.get('bandwidth')}")
     if ms.get("volatility_20d") is not None:
-        lines.append(f"  20日波动率: {ms['volatility_20d']:.2%}")
+        lines.append(f"  20日波动率: {ms['volatility_20d']:.2f}%")
     pnd = ms.get("pct_change_nd") or {}
     if pnd:
         parts = [f"{k}={v}" for k, v in pnd.items() if v is not None]
@@ -70,9 +79,18 @@ def fmt_market_signal(ms: dict | None) -> str:
     return "\n".join(lines)
 
 
-def fmt_fundamental_signal(fs: dict | None) -> str:
+def fmt_fundamental_signal(fs: dict | list[dict] | None) -> str:
     if not fs:
         return "  （无基本面信号）"
+    if isinstance(fs, list):
+        if not fs:
+            return "  （无基本面信号）"
+        sections = []
+        for item in fs:
+            symbol = item.get("symbol") or "未知标的"
+            sections.append(f"  [{symbol}]")
+            sections.append(fmt_fundamental_signal(item))
+        return "\n".join(sections)
     lines = [
         f"  PE(TTM)={fs.get('pe_ttm', 'N/A')}  PB={fs.get('pb', 'N/A')}  ROE={fs.get('roe', 'N/A')}",
         f"  估值评估: {fs.get('valuation_assessment', 'N/A')}",
@@ -86,7 +104,7 @@ def fmt_macro_signal(ms: dict | None) -> str:
     lines = [f"  综合判断: {ms.get('overall', 'N/A')}"]
     for ind in ms.get("indicators") or []:
         name = ind.get("indicator_name") or ind.get("name", "?")
-        value = ind.get("metric_value") or ind.get("value", "?")
+        value = ind.get("metric_value") if ind.get("metric_value") is not None else ind.get("value", "?")
         unit = ind.get("unit", "")
         direction = ind.get("direction", "?")
         lines.append(f"  - {name}: {value}{unit} → {direction}")
@@ -121,11 +139,15 @@ def fmt_structured_data(items: list[dict]) -> str:
         st = item.get("source_type", "?")
         p = item.get("payload", {})
         if st == "market_api":
-            lines.append(f"  行情: {p.get('symbol')} 收盘={p.get('close')} 涨跌幅={p.get('pct_change_1d')}%")
+            pct = p.get('pct_change_1d')
+            pct_str = f"{pct}%" if pct is not None else "N/A"
+            lines.append(f"  行情: {p.get('symbol')} 收盘={p.get('close')} 涨跌幅={pct_str}")
         elif st == "fundamental_sql":
             lines.append(f"  基本面: {p.get('symbol')} ROE={p.get('roe')} PE={p.get('pe_ttm')} PB={p.get('pb')}")
         elif st == "industry_sql":
-            lines.append(f"  行业: {p.get('industry_name')} 涨跌幅={p.get('pct_change')}% PE={p.get('pe')}")
+            ind_pct = p.get('pct_change')
+            ind_pct_str = f"{ind_pct}%" if ind_pct is not None else "N/A"
+            lines.append(f"  行业: {p.get('industry_name')} 涨跌幅={ind_pct_str} PE={p.get('pe')}")
         elif st in ("macro_indicator", "macro_sql"):
             lines.append(f"  宏观: {p.get('indicator_name')}={p.get('metric_value')}{p.get('unit', '')} ({p.get('metric_date', p.get('period', ''))})")
     return "\n".join(lines)
