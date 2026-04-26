@@ -47,11 +47,14 @@ class TushareMarketProvider:
 
         daily_row = self._first_row(daily_rows)
         fina_row = self._first_row(fina_rows)
+        basic_trade_date = ""
+        if daily_row:
+            basic_trade_date = self._normalize_trade_date(_row_get(daily_row, "trade_date")) or ""
 
         try:
             basic_rows = self.client.daily_basic(
                 ts_code=symbol,
-                trade_date=self._normalize_trade_date(_row_get(daily_row, "trade_date")) if daily_row else "",
+                trade_date=basic_trade_date,
                 fields=basic_fields,
             )
         except Exception as exc:  # noqa: BLE001
