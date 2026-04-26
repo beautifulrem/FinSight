@@ -5,9 +5,15 @@ import os
 
 import pytest
 
-os.environ.setdefault("QI_USE_LIVE_MARKET", "1")
-os.environ.setdefault("QI_USE_LIVE_MACRO", "1")
-os.environ.setdefault("QI_USE_LIVE_NEWS", "1")
+os.environ.setdefault("QI_USE_LIVE_MARKET", "0")
+os.environ.setdefault("QI_USE_LIVE_MACRO", "0")
+os.environ.setdefault("QI_USE_LIVE_NEWS", "0")
+
+if os.environ.get("QI_INTEGRATION_TESTS") != "1":
+    pytest.skip(
+        "live integration tests disabled; set QI_INTEGRATION_TESTS=1 to enable",
+        allow_module_level=True,
+    )
 
 from query_intelligence.contracts import RetrievalResult
 from query_intelligence.service import build_default_service, clear_service_caches

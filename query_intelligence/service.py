@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Any
 
 from .config import Settings
 from .contracts import NLUResult, RetrievalResult
@@ -54,8 +55,23 @@ def build_demo_service() -> QueryIntelligenceService:
 
 
 @lru_cache(maxsize=1)
-def build_default_service() -> QueryIntelligenceService:
-    settings = Settings.from_env()
+def build_default_service(**overrides: Any) -> QueryIntelligenceService:
+    """Build a service from env vars, with optional Settings field overrides.
+
+    Examples:
+        # Use env vars only
+        svc = build_default_service()
+
+        # Override specific settings without env vars
+        svc = build_default_service(use_live_market=True, use_live_macro=True, use_live_announcement=False)
+    """
+    base = Settings.from_env()
+    if overrides:
+        import dataclasses
+        changes = {f.name: overrides[f.name] for f in dataclasses.fields(base) if f.name in overrides}
+        settings = dataclasses.replace(base, **changes)
+    else:
+        settings = base
     nlu_pipeline = NLUPipeline.build_default(settings)
     retrieval_pipeline = RetrievalPipeline.build_default(settings)
     return QueryIntelligenceService(nlu_pipeline=nlu_pipeline, retrieval_pipeline=retrieval_pipeline)

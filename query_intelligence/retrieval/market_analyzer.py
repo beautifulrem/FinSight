@@ -19,6 +19,10 @@ class MarketAnalyzer:
         if len(closes) < 2:
             return payload
 
+        # Providers return history in latest-first order; reverse so
+        # closes[-1] is the most recent close and tail slices are recent.
+        closes = list(reversed(closes))
+
         analysis: dict[str, Any] = {}
 
         # Multi-day returns
@@ -56,7 +60,7 @@ class MarketAnalyzer:
             "above_ma20": latest_close > ma20 if ma20 is not None else None,
         }
 
-        payload["analysis"] = analysis
+        payload["_market_analysis"] = analysis
         return payload
 
     def build_analysis_summary(
@@ -73,15 +77,18 @@ class MarketAnalyzer:
             "data_readiness": {},
         }
 
+        market_signals: list[dict] = []
+        fundamental_signals: list[dict] = []
+
         for item in structured_items:
             source_type = item.get("source_type", "")
             payload = item.get("payload", {})
-            analysis = payload.get("analysis")
+            analysis = payload.get("_market_analysis")
 
             if source_type in {"market_api", "index_daily"} and analysis:
-                summary["market_signal"] = self._summarize_market_signal(payload, analysis)
+                market_signals.append(self._summarize_market_signal(payload, analysis))
             elif source_type == "fundamental_sql":
-                summary["fundamental_signal"] = self._summarize_fundamental_signal(payload)
+                fundamental_signals.append(self._summarize_fundamental_signal(payload))
             elif source_type in {"macro_sql", "macro_indicator"}:
                 if summary["macro_signal"] is None:
                     summary["macro_signal"] = {"indicators": [], "overall": None}
@@ -93,6 +100,16 @@ class MarketAnalyzer:
         if summary["macro_signal"] and summary["macro_signal"]["indicators"]:
             summary["macro_signal"]["overall"] = self._macro_overall(summary["macro_signal"]["indicators"])
 
+        # Assign market/fundamental signals (single → object, multi → list)
+        if len(market_signals) == 1:
+            summary["market_signal"] = market_signals[0]
+        elif market_signals:
+            summary["market_signal"] = market_signals
+        if len(fundamental_signals) == 1:
+            summary["fundamental_signal"] = fundamental_signals[0]
+        elif fundamental_signals:
+            summary["fundamental_signal"] = fundamental_signals
+
         # Data readiness
         intent_labels = {item["label"] for item in nlu_result.get("intent_labels", [])}
         topic_labels = {item["label"] for item in nlu_result.get("topic_labels", [])}
@@ -103,12 +120,12 @@ class MarketAnalyzer:
             "has_macro": bool(source_types.intersection({"macro_sql", "macro_indicator"})),
             "has_news": any(doc.get("source_type") == "news" for doc in (documents or [])),
             "has_technical_indicators": any(
-                item.get("payload", {}).get("analysis") is not None
+                item.get("payload", {}).get("_market_analysis") is not None
                 for item in structured_items
                 if item.get("source_type") in {"market_api", "index_daily"}
             ),
-            "relevant_intents": list(intent_labels),
-            "relevant_topics": list(topic_labels),
+            "relevant_intents": sorted(intent_labels),
+            "relevant_topics": sorted(topic_labels),
         }
 
         return summary
@@ -302,7 +319,9 @@ class MarketAnalyzer:
         # Simple valuation assessment
         valuation = "unknown"
         if pe_ttm is not None:
-            if pe_ttm < 15:
+            if pe_ttm <= 0:
+                valuation = "unknown"  # negative/zero PE → loss-making or invalid
+            elif pe_ttm < 15:
                 valuation = "potentially_undervalued"
             elif pe_ttm > 40:
                 valuation = "potentially_overvalued"
@@ -346,6 +365,7 @@ class MarketAnalyzer:
     def _macro_overall(indicators: list[dict]) -> str:
         expansion_count = sum(1 for ind in indicators if ind.get("direction") in {"expansion", "expansionary", "rising"})
         contraction_count = sum(1 for ind in indicators if ind.get("direction") in {"contraction", "tightening", "deflationary", "falling"})
+        # "stable" and "moderate" count as neither → lean toward "mixed"
         if expansion_count > contraction_count:
             return "expansionary"
         if contraction_count > expansion_count:

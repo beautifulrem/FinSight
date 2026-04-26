@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+logger = logging.getLogger(__name__)
 
 
 CNINFO_HEADERS = {
@@ -42,28 +45,35 @@ class CninfoAnnouncementProvider:
 
     def fetch_announcements(self, symbol: str, limit: int = 10) -> list[dict]:
         plain_symbol = symbol.split(".")[0]
-        response = self.session.post(
-            self.url,
-            data={
-                "pageNum": 1,
-                "pageSize": limit,
-                "column": "szse",
-                "tabName": "fulltext",
-                "plate": "sz;sh",
-                "stock": f"{plain_symbol},",
-                "sortName": "",
-                "sortType": "",
-                "searchkey": "",
-                "secid": "",
-                "category": "",
-                "trade": "",
-                "seDate": "",
-            },
-            headers=CNINFO_HEADERS,
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-        payload = response.json()
+        try:
+            response = self.session.post(
+                self.url,
+                data={
+                    "pageNum": 1,
+                    "pageSize": limit,
+                    "column": "szse",
+                    "tabName": "fulltext",
+                    "plate": "sz;sh",
+                    "stock": f"{plain_symbol},",
+                    "sortName": "",
+                    "sortType": "",
+                    "searchkey": "",
+                    "secid": "",
+                    "category": "",
+                    "trade": "",
+                    "seDate": "",
+                },
+                headers=CNINFO_HEADERS,
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except requests.Timeout:
+            logger.warning("Cninfo announcement fetch timed out for %s (%ds), skipping", symbol, self.timeout)
+            return []
+        except requests.ConnectionError as exc:
+            logger.warning("Cninfo announcement connection error for %s: %s, skipping", symbol, exc)
+            return []
         announcements = payload.get("announcements", [])
         normalized_symbol = self._normalize_symbol(symbol)
         results = []

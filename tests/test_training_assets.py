@@ -219,10 +219,10 @@ def test_build_training_assets_writes_training_report_and_entity_rows(tmp_path: 
     clarification_rows = load_clarification_supervision_rows(manifest.root_dir / "manifest.json")
     out_of_scope_rows = load_out_of_scope_supervision_rows(manifest.root_dir / "manifest.json")
     typo_rows = load_typo_supervision_rows(manifest.root_dir / "manifest.json")
+    sources_by_id = {item["source_id"]: item for item in report_payload["sources"]}
 
     assert len(entity_lines) == 1
-    assert report_payload["sources"][0]["source_id"] == "demo"
-    assert report_payload["sources"][0]["record_count"] == 4
+    assert sources_by_id["demo"]["record_count"] == 4
     assert source_plan_rows[0]["source"] in {"market_api", "news", "announcement"}
     assert any(row["needs_clarification"] for row in clarification_rows)
     assert {row["label"] for row in out_of_scope_rows} <= {0, 1}
