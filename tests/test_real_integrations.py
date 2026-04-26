@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import time
 from pathlib import Path
 
 from query_intelligence.bootstrap_public_data import PublicDataBootstrapper
@@ -353,6 +354,14 @@ class _FakeSession:
         )
 
 
+class _SlowAnnouncementProvider:
+    timeout = 1
+
+    def fetch_announcements(self, symbol: str, limit: int = 10):  # noqa: ARG002
+        time.sleep(8)
+        return []
+
+
 class _FakeMixedCninfoSession:
     def post(self, url: str, data: dict, headers: dict, timeout: int):  # noqa: ARG002
         return _FakeResponse(
@@ -607,6 +616,27 @@ def test_retrieval_pipeline_output_exposes_live_urls_and_provider_payloads() -> 
     assert fundamental_item["provider_endpoint"] == "tushare.fina_indicator"
     assert fundamental_item["query_params"]["ts_code"] == "600519.SH"
     assert fundamental_item["source_reference"].startswith("api://tushare.fina_indicator?")
+
+
+def test_retrieval_pipeline_announcement_wait_uses_provider_timeout() -> None:
+    pipeline = RetrievalPipeline.build_demo()
+    pipeline.announcement_provider = _SlowAnnouncementProvider()
+
+    query_bundle = {
+        "normalized_query": "贵州茅台公告",
+        "symbols": ["600519.SH"],
+        "entity_names": ["贵州茅台"],
+        "keywords": [],
+        "source_plan": ["announcement"],
+        "product_type": "stock",
+    }
+
+    started = time.time()
+    docs = pipeline._fetch_live_docs(query_bundle, top_k=5)
+    elapsed = time.time() - started
+
+    assert docs == []
+    assert elapsed < 10
 
 
 def test_cninfo_provider_filters_announcements_to_requested_security_code() -> None:

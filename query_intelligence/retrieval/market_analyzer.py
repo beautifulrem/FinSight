@@ -77,7 +77,7 @@ class MarketAnalyzer:
             "data_readiness": {},
         }
 
-        market_signals: list[dict] = []
+        market_signal_by_key: dict[str, dict[str, Any]] = {}
         fundamental_signals: list[dict] = []
 
         for item in structured_items:
@@ -86,7 +86,13 @@ class MarketAnalyzer:
             analysis = payload.get("_market_analysis")
 
             if source_type in {"market_api", "index_daily"} and analysis:
-                market_signals.append(self._summarize_market_signal(payload, analysis))
+                signal = self._summarize_market_signal(payload, analysis)
+                signal_key = str(signal.get("symbol") or signal.get("canonical_name") or "")
+                if not signal_key:
+                    signal_key = f"__market_signal_{len(market_signal_by_key)}"
+                existing = market_signal_by_key.get(signal_key)
+                if existing is None or source_type == "market_api":
+                    market_signal_by_key[signal_key] = signal
             elif source_type == "fundamental_sql":
                 fundamental_signals.append(self._summarize_fundamental_signal(payload))
             elif source_type in {"macro_sql", "macro_indicator"}:
@@ -99,6 +105,8 @@ class MarketAnalyzer:
         # Compute macro overall direction
         if summary["macro_signal"] and summary["macro_signal"]["indicators"]:
             summary["macro_signal"]["overall"] = self._macro_overall(summary["macro_signal"]["indicators"])
+
+        market_signals = list(market_signal_by_key.values())
 
         # Assign market/fundamental signals (single → object, multi → list)
         if len(market_signals) == 1:

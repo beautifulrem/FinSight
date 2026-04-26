@@ -400,6 +400,7 @@ class RetrievalPipeline:
                     continue
                 ann_docs: list[dict] = []
                 worker_error: Exception | None = None
+                wait_timeout = getattr(self.announcement_provider, "timeout", 15) + 5
 
                 def _fetch() -> None:
                     nonlocal ann_docs, worker_error
@@ -413,10 +414,10 @@ class RetrievalPipeline:
 
                 worker = Thread(target=_fetch, daemon=True)
                 worker.start()
-                worker.join(timeout=20)
+                worker.join(timeout=wait_timeout)
 
                 if worker.is_alive():
-                    logger.warning("Announcement provider timed out (20s) for %s, skipping", symbol)
+                    logger.warning("Announcement provider timed out (%ss) for %s, skipping", wait_timeout, symbol)
                     continue
                 if worker_error is not None:
                     logger.warning("Announcement provider failed for %s: %s", symbol, worker_error)
