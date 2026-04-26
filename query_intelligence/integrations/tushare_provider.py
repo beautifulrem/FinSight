@@ -49,7 +49,9 @@ class TushareMarketProvider:
         fina_row = self._first_row(fina_rows)
         basic_trade_date = ""
         if daily_row:
-            basic_trade_date = self._normalize_trade_date(_row_get(daily_row, "trade_date")) or ""
+            trade_date = _row_get(daily_row, "trade_date")
+            if trade_date:
+                basic_trade_date = str(trade_date).replace("-", "")
 
         try:
             basic_rows = self.client.daily_basic(

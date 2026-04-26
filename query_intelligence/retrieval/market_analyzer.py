@@ -157,6 +157,8 @@ class MarketAnalyzer:
         losses = [-d if d < 0 else 0 for d in deltas[-period:]]
         avg_gain = sum(gains) / period
         avg_loss = sum(losses) / period
+        if avg_gain == 0 and avg_loss == 0:
+            return 50.0
         if avg_loss == 0:
             return 100.0
         rs = avg_gain / avg_loss

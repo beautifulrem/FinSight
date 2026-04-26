@@ -55,6 +55,19 @@ class _FakeTushareClient:
             }
         ]
 
+    def daily_basic(self, ts_code: str, trade_date: str, fields: str):  # noqa: ARG002
+        self.last_daily_basic_trade_date = trade_date
+        if trade_date != "20260422":
+            return []
+        return [
+            {
+                "ts_code": ts_code,
+                "trade_date": trade_date,
+                "pe_ttm": 22.8,
+                "pb": 7.4,
+            }
+        ]
+
 
 class _FakeTushareClientNoFina(_FakeTushareClient):
     def fina_indicator(self, ts_code: str, fields: str):  # noqa: ARG002
@@ -393,7 +406,8 @@ class _FakeConnection:
 
 
 def test_tushare_market_provider_normalizes_market_and_fundamental_payloads() -> None:
-    provider = TushareMarketProvider(client=_FakeTushareClient())
+    client = _FakeTushareClient()
+    provider = TushareMarketProvider(client=client)
 
     result = provider.fetch_bundle("600519.SH", start_date="20260401", end_date="20260422")
 
@@ -405,7 +419,10 @@ def test_tushare_market_provider_normalizes_market_and_fundamental_payloads() ->
     assert result["payload"]["roe"] == 33.0
     assert result["fundamental_payload"]["source_name"] == "tushare"
     assert result["fundamental_payload"]["report_date"] == "2025-12-31"
+    assert result["fundamental_payload"]["pe_ttm"] == 22.8
+    assert result["fundamental_payload"]["pb"] == 7.4
     assert result["fundamental_payload"]["roe"] == 33.0
+    assert client.last_daily_basic_trade_date == "20260422"
 
 
 def test_tushare_market_provider_keeps_daily_payload_when_fundamental_permission_missing() -> None:
