@@ -241,6 +241,7 @@ Top-level fields:
 | `warnings` | array | Retrieval warnings. |
 | `retrieval_confidence` | float | Overall retrieval confidence. |
 | `debug_trace` | object | Candidate counts and top-ranked evidence IDs. |
+| `analysis_summary` | object | Pre-computed analysis signals for downstream consumption. Contains `market_signal`, `fundamental_signal`, `macro_signal`, and `data_readiness`. See `docs/retrieval_output_spec.md` for full field documentation. |
 
 `documents[]` fields:
 
@@ -403,6 +404,7 @@ flowchart TD
   E --> E2["Document Retriever + Live News + Cninfo"]
   E --> E3["Structured Providers: Tushare / AKShare / Postgres / Seed"]
   E --> E4["Feature Builder + ML Ranker + Deduper + Selector"]
+  E --> E5["MarketAnalyzer: Technical Indicators + Valuation + Macro Direction"]
   E --> F["retrieval_result.json"]
   F --> G["Downstream Analysis and Chatbot Answering"]
 ```
@@ -417,7 +419,8 @@ Key paths:
 | `query_intelligence/config.py` | Environment-driven settings. |
 | `query_intelligence/data_loader.py` | Runtime CSV/JSON loaders. |
 | `query_intelligence/nlu/pipeline.py` | NLU chain. |
-| `query_intelligence/retrieval/pipeline.py` | Retrieval chain. |
+| `query_intelligence/retrieval/pipeline.py` | Retrieval pipeline. |
+| `query_intelligence/retrieval/market_analyzer.py` | Technical indicators (RSI, MACD, Bollinger, trend signal) and analysis summary builder. |
 | `query_intelligence/integrations/` | Tushare, AKShare, Cninfo, efinance providers. |
 | `query_intelligence/external_data/` | Public dataset sync and asset building. |
 | `training/` | ML training scripts. |

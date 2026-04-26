@@ -4,6 +4,7 @@ import logging
 import psycopg
 from datetime import date, timedelta
 from pathlib import Path
+from threading import Thread
 from psycopg.rows import dict_row
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ from .feature_builder import FeatureBuilder
 from .packager import RetrievalPackager
 from .query_builder import QueryBuilder
 from .ranker import BaselineRanker, HybridRanker
+from .market_analyzer import MarketAnalyzer
 from .selector import DocumentSelector
 from .sql_retriever import SQLRetriever
 
@@ -53,6 +55,7 @@ class RetrievalPipeline:
         self.macro_provider = None
         self.news_providers: list = []
         self.announcement_provider = None
+        self.market_analyzer = MarketAnalyzer()
 
     @classmethod
     def build_demo(cls) -> "RetrievalPipeline":
@@ -160,8 +163,19 @@ class RetrievalPipeline:
         deduped_docs, groups = self.deduper.dedupe(selected_docs)
 
         structured_items = self._fetch_structured_items(query_bundle)
+        structured_items = self._enrich_with_analysis(structured_items)
+        analysis_summary = self.market_analyzer.build_analysis_summary(structured_items, nlu_result, deduped_docs)
         executed_sources = self._compute_executed_sources(deduped_docs, structured_items)
-        return self.packager.build(nlu_result, deduped_docs, structured_items, groups, total_candidates, executed_sources)
+        return self.packager.build(nlu_result, deduped_docs, structured_items, groups, total_candidates, executed_sources, analysis_summary)
+
+    def _enrich_with_analysis(self, structured_items: list[dict]) -> list[dict]:
+        for item in structured_items:
+            if item.get("source_type") in {"market_api", "index_daily"} and item.get("payload"):
+                try:
+                    self.market_analyzer.enrich_payload(item["payload"])
+                except Exception as exc:
+                    logger.warning("Market analyzer failed for %s: %s", item.get("evidence_id"), exc)
+        return structured_items
 
     def _fetch_structured_items(self, query_bundle: dict) -> list[dict]:
         structured_items = self.api_retriever.fetch(query_bundle) + self.sql_retriever.fetch(query_bundle)
@@ -384,10 +398,30 @@ class RetrievalPipeline:
             for symbol, _ in entity_targets:
                 if not symbol:
                     continue
-                try:
-                    docs.extend(self.announcement_provider.fetch_announcements(symbol, limit=min(top_k, 10)))
-                except Exception:
-                    logger.warning("Announcement provider failed for %s", symbol, exc_info=True)
+                ann_docs: list[dict] = []
+                worker_error: Exception | None = None
+
+                def _fetch() -> None:
+                    nonlocal ann_docs, worker_error
+                    try:
+                        ann_docs = self.announcement_provider.fetch_announcements(
+                            symbol,
+                            limit=min(top_k, 10),
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        worker_error = exc
+
+                worker = Thread(target=_fetch, daemon=True)
+                worker.start()
+                worker.join(timeout=20)
+
+                if worker.is_alive():
+                    logger.warning("Announcement provider timed out (20s) for %s, skipping", symbol)
+                    continue
+                if worker_error is not None:
+                    logger.warning("Announcement provider failed for %s: %s", symbol, worker_error)
+                    continue
+                docs.extend(ann_docs)
         for doc in docs:
             doc.setdefault("retrieval_score", 0.5)
         return docs

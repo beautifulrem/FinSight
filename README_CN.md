@@ -416,6 +416,7 @@ API 定义在 `query_intelligence/api/app.py`，字段模型定义在 `query_int
 | `warnings` | array | 检索告警。完整取值见下方词典。 |
 | `retrieval_confidence` | float | 检索阶段总体置信度。 |
 | `debug_trace` | object | 候选数量、去重后数量、最终 top ranked evidence IDs。 |
+| `analysis_summary` | object | 预计算分析信号，供下游直接消费。包含 `market_signal`、`fundamental_signal`、`macro_signal` 和 `data_readiness`。详见 `docs/retrieval_output_spec.md`。 |
 
 `documents[]` 字段：
 
@@ -578,6 +579,7 @@ flowchart TD
   E --> E2["Document Retriever + Live News + Cninfo"]
   E --> E3["Structured Providers: Tushare / AKShare / Postgres / Seed"]
   E --> E4["Feature Builder + ML Ranker + Deduper + Selector"]
+  E --> E5["MarketAnalyzer: 技术指标 + 估值评估 + 宏观方向"]
   E --> F["retrieval_result.json"]
   F --> G["Downstream Analysis and Chatbot Answering"]
 ```
@@ -593,6 +595,7 @@ flowchart TD
 | `query_intelligence/data_loader.py` | 实体、alias、文档、结构化 seed 数据加载。 |
 | `query_intelligence/nlu/pipeline.py` | NLU 主链路。 |
 | `query_intelligence/retrieval/pipeline.py` | 检索主链路。 |
+| `query_intelligence/retrieval/market_analyzer.py` | 技术指标计算（RSI、MACD、布林带、趋势信号）与分析摘要构建。 |
 | `query_intelligence/integrations/` | Tushare、AKShare、巨潮、efinance provider。 |
 | `query_intelligence/external_data/` | 公开数据集同步、标准化、训练资产构建。 |
 | `training/` | 全部 ML 模型训练脚本。 |

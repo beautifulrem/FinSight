@@ -25,6 +25,7 @@ class TushareMarketProvider:
         errors: list[str] = []
         daily_fields = "ts_code,trade_date,open,high,low,close,vol,amount,pct_chg"
         fina_fields = "ts_code,end_date,roe,grossprofit_margin,netprofit_yoy,profit_dedt"
+        basic_fields = "ts_code,trade_date,pe_ttm,pb"
         try:
             daily_rows = self.client.daily(
                 ts_code=symbol,
@@ -46,6 +47,21 @@ class TushareMarketProvider:
 
         daily_row = self._first_row(daily_rows)
         fina_row = self._first_row(fina_rows)
+        basic_trade_date = ""
+        if daily_row:
+            basic_trade_date = self._normalize_trade_date(_row_get(daily_row, "trade_date")) or ""
+
+        try:
+            basic_rows = self.client.daily_basic(
+                ts_code=symbol,
+                trade_date=basic_trade_date,
+                fields=basic_fields,
+            )
+        except Exception as exc:  # noqa: BLE001
+            basic_rows = None
+            errors.append(f"daily_basic:{exc}")
+
+        basic_row = self._first_row(basic_rows)
         if daily_row is None and fina_row is None:
             raise RuntimeError("; ".join(errors) or f"no data for {symbol}")
         daily_trace = self._api_trace(
@@ -57,6 +73,7 @@ class TushareMarketProvider:
                 "fields": daily_fields,
             },
         )
+        history = self._build_history(daily_rows)
         payload = {
             "symbol": symbol,
             "source_name": "tushare",
@@ -69,6 +86,7 @@ class TushareMarketProvider:
             "volume": _row_get(daily_row, "vol") if daily_row else None,
             "amount": _row_get(daily_row, "amount") if daily_row else None,
             "pct_change_1d": _row_get(daily_row, "pct_chg") if daily_row else None,
+            "history": history,
             "roe": _row_get(fina_row, "roe") if fina_row else None,
             "grossprofit_margin": _row_get(fina_row, "grossprofit_margin") if fina_row else None,
             "netprofit_yoy": _row_get(fina_row, "netprofit_yoy") if fina_row else None,
@@ -87,6 +105,8 @@ class TushareMarketProvider:
                 "source_name": "tushare",
                 **fina_trace,
                 "report_date": self._normalize_trade_date(_row_get(fina_row, "end_date")),
+                "pe_ttm": _row_get(basic_row, "pe_ttm") if basic_row else None,
+                "pb": _row_get(basic_row, "pb") if basic_row else None,
                 "roe": _row_get(fina_row, "roe"),
                 "grossprofit_margin": _row_get(fina_row, "grossprofit_margin"),
                 "netprofit_yoy": _row_get(fina_row, "netprofit_yoy"),
@@ -101,6 +121,30 @@ class TushareMarketProvider:
             "status": "ok" if not errors else "partial",
             "warnings": errors,
         }
+
+    def _build_history(self, daily_rows: object) -> list[dict]:
+        """Convert Tushare daily rows into a normalized history list (latest first)."""
+        if daily_rows is None:
+            return []
+        if hasattr(daily_rows, "to_dict"):
+            items = daily_rows.to_dict("records")
+        elif isinstance(daily_rows, list):
+            items = daily_rows
+        else:
+            return []
+        history = []
+        for row in items[:30]:
+            history.append({
+                "trade_date": self._normalize_trade_date(_row_get(row, "trade_date")),
+                "open": _row_get(row, "open"),
+                "high": _row_get(row, "high"),
+                "low": _row_get(row, "low"),
+                "close": _row_get(row, "close"),
+                "pct_change_1d": _row_get(row, "pct_chg"),
+                "volume": _row_get(row, "vol"),
+                "amount": _row_get(row, "amount"),
+            })
+        return history
 
     def _api_trace(self, endpoint: str, query_params: dict[str, str]) -> dict:
         encoded_params = urlencode(query_params, doseq=True)
