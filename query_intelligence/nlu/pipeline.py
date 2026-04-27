@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from uuid import uuid4
@@ -46,6 +47,8 @@ GENERIC_PRODUCT_TARGETS = {
     "创业板etf",
     "中证a500etf",
 }
+
+logger = logging.getLogger(__name__)
 
 
 class NLUPipeline:
@@ -173,7 +176,7 @@ class NLUPipeline:
             topic_classifier = MultiLabelClassifier.load_model(topic_model_path) if topic_model_path.exists() else MultiLabelClassifier.build_demo(TOPIC_SAMPLES)
             ml_planner = MLSourcePlanner.build_from_records(default_records) if default_records else None
             source_plan_reranker = (
-                SourcePlanReranker.load_model(source_plan_reranker_model_path)
+                cls._load_optional_model(SourcePlanReranker.load_model, source_plan_reranker_model_path, "source_plan_reranker")
                 if source_plan_reranker_model_path.exists()
                 else SourcePlanReranker.build_from_dataset(default_records_path)
                 if default_records
@@ -191,28 +194,28 @@ class NLUPipeline:
                 else None
             )
             question_style_reranker = (
-                QuestionStyleReranker.load_model(question_style_reranker_model_path)
+                cls._load_optional_model(QuestionStyleReranker.load_model, question_style_reranker_model_path, "question_style_reranker")
                 if question_style_reranker_model_path.exists()
                 else QuestionStyleReranker.build_from_dataset(default_records_path)
                 if default_records
                 else None
             )
             sentiment_classifier = (
-                SingleLabelTextClassifier.load_model(sentiment_model_path)
+                cls._load_optional_model(SingleLabelTextClassifier.load_model, sentiment_model_path, "sentiment")
                 if sentiment_model_path.exists()
                 else SingleLabelTextClassifier.build_from_records(default_records, "sentiment_label")
                 if default_records
                 else None
             )
             boundary_model = (
-                load(entity_crf_model_path)
+                cls._load_optional_model(load, entity_crf_model_path, "entity_crf")
                 if entity_crf_model_path.exists()
                 else EntityBoundaryCRF.build_from_queries([record["query"] for record in default_records], [row["normalized_alias"] for row in aliases])
                 if default_records
                 else None
             )
             clarification_gate = (
-                ClarificationGate.load_model(clarification_model_path)
+                cls._load_optional_model(ClarificationGate.load_model, clarification_model_path, "clarification_gate")
                 if clarification_model_path.exists()
                 else ClarificationGate.build_from_dataset(default_records_path)
                 if default_records
@@ -224,7 +227,7 @@ class NLUPipeline:
                 else TypoLinker.build_from_aliases(aliases)
             )
             out_of_scope_detector = (
-                OutOfScopeDetector.load_model(out_of_scope_model_path)
+                cls._load_optional_model(OutOfScopeDetector.load_model, out_of_scope_model_path, "out_of_scope_detector")
                 if out_of_scope_model_path.exists()
                 else OutOfScopeDetector.build_from_dataset(default_records_path)
                 if default_records
@@ -245,6 +248,14 @@ class NLUPipeline:
             clarification_gate=clarification_gate,
             out_of_scope_detector=out_of_scope_detector,
         )
+
+    @staticmethod
+    def _load_optional_model(loader, path: Path, model_name: str):
+        try:
+            return loader(path)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Optional NLU model %s failed to load from %s and will be disabled: %s", model_name, path, exc)
+            return None
 
     def run(self, query: str, user_profile: dict, dialog_context: list, debug: bool) -> dict:
         normalized_query, normalization_trace = self.normalizer.normalize(query)
@@ -716,7 +727,7 @@ class NLUPipeline:
             return False
         if any(entity.get("entity_type") in {"stock", "etf", "fund", "index"} for entity in resolved_entities or []):
             return False
-        if out_of_scope_score < 0.8 and self._looks_like_unresolved_listed_company_target_query(query):
+        if self._looks_like_unresolved_listed_company_target_query(query):
             return False
         if self._looks_like_unresolved_finance_target_query(query):
             return False
@@ -746,6 +757,8 @@ class NLUPipeline:
             "还值得",
             "还能拿",
             "适合拿",
+            "哪个好",
+            "哪个更好",
             "走势",
             "后面",
             "前景",
@@ -787,6 +800,8 @@ class NLUPipeline:
             "还值得",
             "还能拿",
             "适合拿",
+            "哪个好",
+            "哪个更好",
             "走势",
             "后面",
             "前景",

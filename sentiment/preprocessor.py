@@ -306,6 +306,9 @@ def _extract_target_symbols(nlu_result: dict[str, Any]) -> set[str]:
 _CORP_PATTERN = re.compile(
     r"[A-Z一-鿿]{2,}(?:公司|股份|集团|银行|证券|保险|实业|控股)"
 )
+_ENTITY_EVENT_PATTERN = re.compile(
+    r"([A-Z一-鿿]{2,8})(?:发布|披露|公告|股价|财报|业绩)"
+)
 
 
 def _has_non_target_entity(sentence: str, entity_map: dict[str, str]) -> bool:
@@ -327,6 +330,11 @@ def _has_non_target_entity(sentence: str, entity_map: dict[str, str]) -> bool:
     for m in _CORP_PATTERN.finditer(sentence):
         name = m.group()
         if name not in entity_map:
+            return True
+
+    for m in _ENTITY_EVENT_PATTERN.finditer(sentence):
+        name = m.group(1)
+        if name not in entity_map and name not in {"市场", "行业", "板块"}:
             return True
 
     return False

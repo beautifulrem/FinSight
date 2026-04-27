@@ -127,6 +127,37 @@ def test_sync_skips_cached_sources(tmp_path: Path) -> None:
     assert result.status == "cached"
 
 
+def test_download_http_file_streams_response_without_buffering(monkeypatch, tmp_path: Path) -> None:
+    from query_intelligence.external_data import sync
+
+    class FakeResponse:
+        headers = {}
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_content(self, chunk_size: int):
+            assert chunk_size > 0
+            yield b"alpha"
+            yield b""
+            yield b"beta"
+
+        @property
+        def content(self) -> bytes:
+            raise AssertionError("download_http_file should stream chunks instead of reading response.content")
+
+    def fake_get(url: str, *, timeout: int, stream: bool):
+        assert stream is True
+        assert timeout == 120
+        return FakeResponse()
+
+    monkeypatch.setattr(sync.requests, "get", fake_get)
+
+    output = sync.download_http_file("https://example.test/data.bin", tmp_path)
+
+    assert output.read_bytes() == b"alphabeta"
+
+
 def test_build_training_assets_emits_manifest_and_task_views(tmp_path: Path) -> None:
     from query_intelligence.external_data.build_assets import build_training_assets
 

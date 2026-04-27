@@ -106,14 +106,22 @@ def download_github_repo(repo_url: str, target_dir: Path, *, branch: str = "main
 
 def download_http_file(url: str, target_dir: Path, filename: str = "download.bin") -> Path:
     target_dir.mkdir(parents=True, exist_ok=True)
-    response = requests.get(url, timeout=120)
+    response = requests.get(url, timeout=120, stream=True)
     response.raise_for_status()
     if filename == "download.bin":
         candidate = Path(unquote(urlparse(url).path)).name
         if candidate:
             filename = candidate
     output_path = target_dir / filename
-    output_path.write_bytes(response.content)
+    try:
+        with output_path.open("wb") as handle:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    handle.write(chunk)
+    finally:
+        close = getattr(response, "close", None)
+        if callable(close):
+            close()
     return output_path
 
 

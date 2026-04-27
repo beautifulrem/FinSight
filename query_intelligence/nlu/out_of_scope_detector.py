@@ -169,8 +169,10 @@ class OutOfScopeDetector:
     def load_model(cls, path: str | Path) -> "OutOfScopeDetector":
         try:
             return cls(model=load(path))
-        except Exception:
+        except Exception as exc:
             fallback_dataset = Path(__file__).resolve().parents[2] / "data" / "query_labels.csv"
+            if not fallback_dataset.exists():
+                raise RuntimeError(f"out-of-scope detector model failed to load and fallback dataset is missing: {fallback_dataset}") from exc
             return cls.build_from_dataset(fallback_dataset)
 
     def predict_probability(self, query: str) -> float:

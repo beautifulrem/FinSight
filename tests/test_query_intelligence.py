@@ -13,7 +13,7 @@ from query_intelligence.api.app import create_app
 from query_intelligence.nlu.source_planner import SourcePlanner
 from query_intelligence.retrieval.pipeline import RetrievalPipeline
 from query_intelligence.retrieval.packager import RetrievalPackager
-from query_intelligence.service import build_default_service, build_demo_service
+from query_intelligence.service import QueryIntelligenceService, build_default_service, build_demo_service
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +22,61 @@ ROOT = Path(__file__).resolve().parents[1]
 def load_schema(name: str) -> dict:
     path = ROOT / "schemas" / name
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+class _NoopNLUPipeline:
+    def run(self, **kwargs) -> dict:
+        return {
+            "query_id": "Q-test",
+            "raw_query": kwargs["query"],
+            "normalized_query": kwargs["query"],
+            "question_style": "fact",
+            "product_type": {"label": "stock", "score": 1.0},
+            "intent_labels": [],
+            "topic_labels": [],
+            "entities": [],
+            "comparison_targets": [],
+            "keywords": [],
+            "time_scope": "unspecified",
+            "forecast_horizon": "unspecified",
+            "sentiment_of_user": "neutral",
+            "operation_preference": "unknown",
+            "required_evidence_types": [],
+            "source_plan": [],
+            "risk_flags": [],
+            "missing_slots": [],
+            "confidence": 1.0,
+            "explainability": {"matched_rules": [], "top_features": []},
+        }
+
+
+class _NoopRetrievalPipeline:
+    def run(self, *, nlu_result: dict, top_k: int, debug: bool) -> dict:
+        return {
+            "query_id": nlu_result["query_id"],
+            "nlu_snapshot": nlu_result,
+            "executed_sources": [],
+            "documents": [],
+            "structured_data": [],
+            "evidence_groups": [],
+            "coverage": {},
+            "coverage_detail": {},
+            "warnings": [],
+            "retrieval_confidence": 1.0,
+            "analysis_summary": {},
+            "debug_trace": {"candidate_count": top_k, "after_dedup": 0, "top_ranked": []},
+        }
+
+
+def test_service_rejects_top_k_outside_public_contract() -> None:
+    service = QueryIntelligenceService(_NoopNLUPipeline(), _NoopRetrievalPipeline())
+    nlu_result = service.analyze_query("中国平安最近为什么涨？")
+
+    with pytest.raises(ValueError, match="top_k must be less than or equal to 100"):
+        service.retrieve_evidence(nlu_result, top_k=101)
+
+    with pytest.raises(ValueError, match="top_k must be greater than 0"):
+        service.run_pipeline("中国平安最近为什么涨？", top_k=0)
 
 
 QUERY_CASES = [

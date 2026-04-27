@@ -24,6 +24,36 @@ GENERIC_CRYPTO_PRODUCT_MENTIONS = {
     "指数",
 }
 
+GENERIC_ACTION_PHRASES = {
+    "能买",
+    "能买吗",
+    "值得买",
+    "值得拿",
+    "还值得",
+    "还能拿",
+    "止损",
+    "止盈",
+}
+
+GENERIC_ENTITY_SUFFIX_MENTIONS = {
+    "科技",
+    "股份",
+    "集团",
+    "银行",
+    "证券",
+    "汽车",
+    "医药",
+    "生物",
+    "能源",
+    "电子",
+    "电力",
+    "控股",
+    "保险",
+}
+
+SECTOR_CONTEXT_SUFFIXES = {"板块", "行业", "赛道", "方向", "主题"}
+QUESTION_BOUNDARY_CHARS = set("哪谁怎吗么该能好更不")
+
 
 @dataclass
 class EntityResolver:
@@ -141,7 +171,10 @@ class EntityResolver:
         comparison_targets = self._extract_comparison_targets(query)
         if not resolved_entities:
             return [], comparison_targets, ["entity_not_found"]
-        return self._dedupe_resolved_entities(query, resolved_entities), comparison_targets, flags + trace
+        resolved_entities = self._dedupe_resolved_entities(query, resolved_entities)
+        if len(resolved_entities) == 1:
+            flags = [flag for flag in flags if flag != "entity_ambiguous"]
+        return resolved_entities, comparison_targets, flags + trace
 
     def _disambiguate(self, query: str, mention: str, candidates: list[dict], trace: list[str], flags: list[str]) -> list[dict]:
         deduped = {}
@@ -255,6 +288,14 @@ class EntityResolver:
                 continue
             if self._is_generic_product_mention(best_match["text"]):
                 continue
+            if self._is_generic_action_phrase(best_match["text"]):
+                continue
+            if self._should_skip_question_word_fuzzy_match(best_match["text"], alias):
+                continue
+            if self._should_skip_embedded_generic_fuzzy_mention(query, best_match):
+                continue
+            if self._should_skip_generic_alias_fuzzy_hit(query, best_match, alias, rows):
+                continue
             if self._should_skip_generic_suffix_fuzzy_match(best_match["text"], alias):
                 continue
             ml_score = self.typo_linker.predict_probability(query=query, mention=best_match["text"], alias=alias, heuristic_score=best_match["score"]) if self.typo_linker else best_match["score"]
@@ -355,20 +396,27 @@ class EntityResolver:
         normalized = value.strip().lower().strip("和与及、/ ")
         return normalized in GENERIC_CRYPTO_PRODUCT_MENTIONS
 
+    @staticmethod
+    def _is_generic_action_phrase(value: str) -> bool:
+        normalized = value.strip().lower().strip("和与及、/ ")
+        return normalized in GENERIC_ACTION_PHRASES
+
     def _should_skip_exact_alias_hit(self, query: str, start: int, end: int, rows: list[dict[str, str]], alias_text: str | None = None) -> bool:
         entity_types = {
             entity["entity_type"]
             for row in rows
             if (entity := self._entity_by_id(int(row["entity_id"]))) is not None
         }
+        alias_value = alias_text or query[start:end]
+        if self._is_generic_tradable_entity_alias(alias_value, entity_types):
+            return True
         if "sector" not in entity_types:
             return False
-        alias_value = alias_text or query[start:end]
         if len(alias_value) > 2:
             return False
         previous_char = query[start - 1] if start > 0 else ""
         next_text = query[end : end + 2]
-        if previous_char and self._is_cjk_char(previous_char) and next_text not in {"板块", "行业", "赛道", "方向", "主题"}:
+        if previous_char and self._is_cjk_char(previous_char) and next_text not in SECTOR_CONTEXT_SUFFIXES:
             return True
         return False
 
@@ -389,7 +437,7 @@ class EntityResolver:
         }
         values = [alias]
         if "sector" in entity_types:
-            for suffix in ("板块", "行业", "赛道", "方向", "主题", "股"):
+            for suffix in (*SECTOR_CONTEXT_SUFFIXES, "股"):
                 if alias.endswith(suffix) and len(alias) > len(suffix):
                     values.append(alias[: -len(suffix)])
         return values
@@ -397,12 +445,56 @@ class EntityResolver:
     def _is_cjk_char(self, char: str) -> bool:
         return "\u4e00" <= char <= "\u9fff"
 
+    def _should_skip_generic_alias_fuzzy_hit(self, query: str, match: dict, alias: str, rows: list[dict[str, str]]) -> bool:
+        root = self._generic_entity_suffix_root(alias)
+        if root not in GENERIC_ENTITY_SUFFIX_MENTIONS:
+            return False
+        entity_types = {
+            entity["entity_type"]
+            for row in rows
+            if (entity := self._entity_by_id(int(row["entity_id"]))) is not None
+        }
+        if self._is_generic_tradable_entity_alias(alias, entity_types):
+            return True
+        previous_char = query[match["start"] - 1] if match["start"] > 0 else ""
+        next_text = query[match["end"] : match["end"] + 2]
+        if previous_char and self._is_cjk_char(previous_char) and next_text not in SECTOR_CONTEXT_SUFFIXES:
+            return True
+        return False
+
+    @staticmethod
+    def _generic_entity_suffix_root(value: str) -> str:
+        normalized = value.strip().lower().strip("和与及、/ ")
+        for suffix in (*SECTOR_CONTEXT_SUFFIXES, "股"):
+            if normalized.endswith(suffix) and len(normalized) > len(suffix):
+                return normalized[: -len(suffix)]
+        return normalized
+
+    def _is_generic_tradable_entity_alias(self, alias_value: str, entity_types: set[str]) -> bool:
+        root = self._generic_entity_suffix_root(alias_value)
+        return root in GENERIC_ENTITY_SUFFIX_MENTIONS and bool(entity_types.intersection({"stock", "fund", "etf", "index"}))
+
+    def _should_skip_question_word_fuzzy_match(self, mention: str, alias: str) -> bool:
+        if not (self._is_cjk_string(mention) and self._is_cjk_string(alias)):
+            return False
+        if len(alias) > 4 or len(mention) > len(alias) + 1:
+            return False
+        extra_chars = set(mention) - set(alias)
+        return bool(extra_chars.intersection(QUESTION_BOUNDARY_CHARS))
+
+    def _should_skip_embedded_generic_fuzzy_mention(self, query: str, match: dict) -> bool:
+        if self._generic_entity_suffix_root(match["text"]) not in GENERIC_ENTITY_SUFFIX_MENTIONS:
+            return False
+        previous_char = query[match["start"] - 1] if match["start"] > 0 else ""
+        next_text = query[match["end"] : match["end"] + 2]
+        return bool(previous_char and self._is_cjk_char(previous_char) and next_text not in SECTOR_CONTEXT_SUFFIXES)
+
     def _should_skip_generic_suffix_fuzzy_match(self, mention: str, alias: str) -> bool:
         if not (self._is_cjk_string(mention) and self._is_cjk_string(alias)):
             return False
         if len(alias) > 6 or len(mention) > 6:
             return False
-        generic_suffixes = ["科技", "股份", "集团", "银行", "证券", "汽车", "医药", "生物", "能源", "电子", "控股"]
+        generic_suffixes = sorted(GENERIC_ENTITY_SUFFIX_MENTIONS, key=len, reverse=True)
         for suffix in generic_suffixes:
             if not (alias.endswith(suffix) and mention.endswith(suffix)):
                 continue

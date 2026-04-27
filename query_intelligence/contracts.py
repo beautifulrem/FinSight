@@ -5,6 +5,9 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
+MIN_RETRIEVAL_TOP_K = 1
+MAX_RETRIEVAL_TOP_K = 100
+
 QuestionStyle = Literal["fact", "why", "compare", "advice", "forecast"]
 TimeScope = Literal[
     "today",
@@ -139,7 +142,7 @@ class AnalyzeRequest(BaseModel):
 
 class RetrievalRequest(BaseModel):
     nlu_result: dict[str, Any]
-    top_k: int = Field(default=20, ge=1, le=100)
+    top_k: int = Field(default=20, ge=MIN_RETRIEVAL_TOP_K, le=MAX_RETRIEVAL_TOP_K)
     debug: bool = False
 
 
@@ -147,7 +150,7 @@ class PipelineRequest(BaseModel):
     query: str
     user_profile: dict[str, Any] = Field(default_factory=dict)
     dialog_context: list[dict[str, Any]] = Field(default_factory=list)
-    top_k: int = Field(default=20, ge=1, le=100)
+    top_k: int = Field(default=20, ge=MIN_RETRIEVAL_TOP_K, le=MAX_RETRIEVAL_TOP_K)
     debug: bool = False
 
 

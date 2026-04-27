@@ -5,7 +5,7 @@ from functools import lru_cache
 from typing import Any
 
 from .config import Settings
-from .contracts import NLUResult, RetrievalResult
+from .contracts import MAX_RETRIEVAL_TOP_K, MIN_RETRIEVAL_TOP_K, NLUResult, RetrievalResult
 from .data_loader import clear_data_caches
 from .nlu.pipeline import NLUPipeline
 from .retrieval.pipeline import RetrievalPipeline
@@ -32,6 +32,7 @@ class QueryIntelligenceService:
         return NLUResult.model_validate(result).model_dump(mode="json")
 
     def retrieve_evidence(self, nlu_result: dict, top_k: int = 20, debug: bool = False) -> dict:
+        top_k = _coerce_top_k(top_k)
         result = self.retrieval_pipeline.run(nlu_result=nlu_result, top_k=top_k, debug=debug)
         return RetrievalResult.model_validate(result).model_dump(mode="json")
 
@@ -93,3 +94,13 @@ def clear_service_caches() -> None:
     clear_data_caches()
     build_demo_service.cache_clear()
     _build_default_service_cached.cache_clear()
+
+
+def _coerce_top_k(value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("top_k must be an integer")
+    if value < MIN_RETRIEVAL_TOP_K:
+        raise ValueError("top_k must be greater than 0")
+    if value > MAX_RETRIEVAL_TOP_K:
+        raise ValueError(f"top_k must be less than or equal to {MAX_RETRIEVAL_TOP_K}")
+    return value

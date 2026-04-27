@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -197,6 +198,64 @@ def test_hf_token_reads_standard_environment_variables(monkeypatch) -> None:
     assert hf_token() == "primary-token"
 
 
+def test_chat_model_disables_remote_code_by_default(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[str, bool]] = []
+
+    class FakeTokenizer:
+        @classmethod
+        def from_pretrained(cls, model_id: str, **kwargs):
+            calls.append(("tokenizer", kwargs["trust_remote_code"]))
+            return cls()
+
+    class FakeModel:
+        device = "cpu"
+
+        @classmethod
+        def from_pretrained(cls, model_id: str, **kwargs):
+            calls.append(("model", kwargs["trust_remote_code"]))
+            return cls()
+
+    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(float16="float16", bfloat16="bfloat16", float32="float32"))
+    monkeypatch.setitem(
+        sys.modules,
+        "transformers",
+        SimpleNamespace(AutoTokenizer=FakeTokenizer, AutoModelForCausalLM=FakeModel),
+    )
+
+    ChatModel("owner/demo-model", device_map="cpu", dtype="float32", models_dir=tmp_path)
+
+    assert calls == [("tokenizer", False), ("model", False)]
+
+
+def test_chat_model_allows_remote_code_only_when_explicit(monkeypatch, tmp_path: Path) -> None:
+    calls: list[bool] = []
+
+    class FakeTokenizer:
+        @classmethod
+        def from_pretrained(cls, model_id: str, **kwargs):
+            calls.append(kwargs["trust_remote_code"])
+            return cls()
+
+    class FakeModel:
+        device = "cpu"
+
+        @classmethod
+        def from_pretrained(cls, model_id: str, **kwargs):
+            calls.append(kwargs["trust_remote_code"])
+            return cls()
+
+    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(float16="float16", bfloat16="bfloat16", float32="float32"))
+    monkeypatch.setitem(
+        sys.modules,
+        "transformers",
+        SimpleNamespace(AutoTokenizer=FakeTokenizer, AutoModelForCausalLM=FakeModel),
+    )
+
+    ChatModel("owner/demo-model", device_map="cpu", dtype="float32", models_dir=tmp_path, trust_remote_code=True)
+
+    assert calls == [True, True]
+
+
 def test_load_few_shot_bank_has_chinese_and_english_examples_for_each_question_style() -> None:
     answer_bank, next_bank = load_few_shot_bank(Path(DEFAULT_FEW_SHOT_SOURCE))
 
@@ -325,12 +384,22 @@ def test_chat_model_generate_json_retries_after_invalid_output() -> None:
 def test_coerce_top_k_rejects_invalid_values() -> None:
     assert coerce_top_k(None) == 20
     assert coerce_top_k("5") == 5
+    assert coerce_top_k(5.0) == 5
 
     with pytest.raises(ValueError, match="top_k must be an integer"):
         coerce_top_k("abc")
 
+    with pytest.raises(ValueError, match="top_k must be an integer"):
+        coerce_top_k(5.9)
+
+    with pytest.raises(ValueError, match="top_k must be an integer"):
+        coerce_top_k("5.9")
+
     with pytest.raises(ValueError, match="top_k must be greater than 0"):
         coerce_top_k(0)
+
+    with pytest.raises(ValueError, match="top_k must be less than or equal to 100"):
+        coerce_top_k(101)
 
 
 def test_coerce_query_rejects_blank_values() -> None:
@@ -338,6 +407,12 @@ def test_coerce_query_rejects_blank_values() -> None:
 
     with pytest.raises(ValueError, match="query must not be blank"):
         coerce_query("   ")
+
+    with pytest.raises(ValueError, match="query must be a string"):
+        coerce_query({"text": "中国平安最近为什么涨？"})
+
+    with pytest.raises(ValueError, match="query must be a string"):
+        coerce_query(["中国平安最近为什么涨？"])
 
 
 def test_cli_rejects_invalid_query_inputs() -> None:
@@ -352,6 +427,16 @@ def test_cli_rejects_invalid_query_inputs() -> None:
     )
     assert invalid_top_k.returncode == 2
     assert "top_k must be greater than 0" in invalid_top_k.stderr
+
+    oversized_top_k = subprocess.run(
+        [sys.executable, "scripts/llm_response.py", "--query", "中国平安最近为什么涨？", "--top-k", "101"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert oversized_top_k.returncode == 2
+    assert "top_k must be less than or equal to 100" in oversized_top_k.stderr
 
     blank_query = subprocess.run(
         [sys.executable, "scripts/llm_response.py", "--query", "   "],

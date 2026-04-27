@@ -115,8 +115,10 @@ class SourcePlanReranker:
         try:
             payload = load(path)
             return cls(vectorizer=payload["vectorizer"], model=payload["model"])
-        except Exception:
+        except Exception as exc:
             fallback_dataset = Path(__file__).resolve().parents[2] / "data" / "query_labels.csv"
+            if not fallback_dataset.exists():
+                raise RuntimeError(f"source plan reranker model failed to load and fallback dataset is missing: {fallback_dataset}") from exc
             return cls.build_from_dataset(fallback_dataset)
 
     def score_candidates(

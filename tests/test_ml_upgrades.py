@@ -7,6 +7,7 @@ import pytest
 
 from query_intelligence.nlu.clarification_gate import ClarificationGate
 from query_intelligence.nlu.out_of_scope_detector import OutOfScopeDetector
+from query_intelligence.nlu.pipeline import NLUPipeline
 from query_intelligence.nlu.source_plan_reranker import SourcePlanReranker
 from query_intelligence.nlu.typo_linker import TypoLinker
 from query_intelligence.nlu.classifiers import MultiLabelClassifier
@@ -25,6 +26,11 @@ from training.train_typo_linker import main as train_typo_linker_main
 
 
 ROOT = Path(__file__).resolve().parents[1]
+QUERY_LABELS_PATH = ROOT / "data" / "query_labels.csv"
+requires_query_labels = pytest.mark.skipif(
+    not QUERY_LABELS_PATH.exists(),
+    reason="expanded query_labels.csv is optional; generate training assets before running this check",
+)
 
 
 def _write_jsonl(path: Path, rows: list[dict]) -> None:
@@ -35,8 +41,9 @@ def _write_manifest(assets_dir: Path, payload: dict) -> None:
     (assets_dir / "manifest.json").write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
 
+@requires_query_labels
 def test_multilabel_classifier_returns_non_empty_predictions_on_in_domain_query() -> None:
-    rows = load_training_rows(ROOT / "data" / "query_labels.csv")
+    rows = load_training_rows(QUERY_LABELS_PATH)
     classifier = MultiLabelClassifier.build_from_records(rows, "intent_labels")
 
     result = classifier.predict("中国平安还值得持有吗？")
@@ -45,11 +52,12 @@ def test_multilabel_classifier_returns_non_empty_predictions_on_in_domain_query(
     assert any(item["label"] in {"hold_judgment", "risk_analysis", "valuation_analysis"} for item in result)
 
 
+@requires_query_labels
 def test_train_ranker_model_outputs_trained_artifact(tmp_path: Path) -> None:
     artifact_path = tmp_path / "ranker.joblib"
 
     metadata = train_ranker_model(
-        dataset_path=ROOT / "data" / "query_labels.csv",
+        dataset_path=QUERY_LABELS_PATH,
         output_path=artifact_path,
     )
 
@@ -102,6 +110,15 @@ def test_source_plan_reranker_prioritizes_announcement_for_announcement_query() 
     assert "market_api" not in result["source_plan"][:2]
     assert "fundamental_sql" not in result["source_plan"]
     assert "industry_sql" not in result["source_plan"]
+
+
+def test_optional_model_loader_disables_corrupt_artifact_without_training_csv(tmp_path: Path) -> None:
+    model_path = tmp_path / "source_plan_reranker.joblib"
+    model_path.write_text("not a joblib artifact", encoding="utf-8")
+
+    model = NLUPipeline._load_optional_model(SourcePlanReranker.load_model, model_path, "source_plan_reranker")
+
+    assert model is None
 
 
 def test_source_plan_reranker_prioritizes_fundamentals_for_fundamental_query() -> None:
@@ -166,11 +183,12 @@ def test_entity_linker_disambiguates_ping_an_bank_vs_ping_an_insurance() -> None
     assert insurance_result["entities"][0]["canonical_name"] == "中国平安"
 
 
+@requires_query_labels
 def test_ranker_training_uses_qrels_when_available(tmp_path: Path) -> None:
     artifact_path = tmp_path / "ranker.joblib"
 
     metadata = train_ranker_model(
-        dataset_path=ROOT / "data" / "query_labels.csv",
+        dataset_path=QUERY_LABELS_PATH,
         output_path=artifact_path,
     )
 
@@ -533,22 +551,24 @@ def test_question_style_reranker_promotes_compare_for_difference_query() -> None
     assert result["question_style"] == "compare"
 
 
+@requires_query_labels
 def test_entity_crf_training_artifact_is_produced(tmp_path: Path, monkeypatch) -> None:
     models_dir = tmp_path / "models"
     models_dir.mkdir()
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("sys.argv", ["train_entity_crf.py", str(ROOT / "data" / "query_labels.csv")])
+    monkeypatch.setattr("sys.argv", ["train_entity_crf.py", str(QUERY_LABELS_PATH)])
 
     train_entity_crf_main()
 
     assert (models_dir / "entity_crf.joblib").exists()
 
 
+@requires_query_labels
 def test_clarification_gate_training_artifact_is_produced(tmp_path: Path, monkeypatch) -> None:
     models_dir = tmp_path / "models"
     models_dir.mkdir()
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("sys.argv", ["train_clarification_gate.py", str(ROOT / "data" / "query_labels.csv")])
+    monkeypatch.setattr("sys.argv", ["train_clarification_gate.py", str(QUERY_LABELS_PATH)])
 
     train_clarification_gate_main()
 
@@ -566,33 +586,36 @@ def test_typo_linker_training_artifact_is_produced(tmp_path: Path, monkeypatch) 
     assert (models_dir / "typo_linker.joblib").exists()
 
 
+@requires_query_labels
 def test_question_style_reranker_training_artifact_is_produced(tmp_path: Path, monkeypatch) -> None:
     models_dir = tmp_path / "models"
     models_dir.mkdir()
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("sys.argv", ["train_question_style_reranker.py", str(ROOT / "data" / "query_labels.csv")])
+    monkeypatch.setattr("sys.argv", ["train_question_style_reranker.py", str(QUERY_LABELS_PATH)])
 
     train_question_style_reranker_main()
 
     assert (models_dir / "question_style_reranker.joblib").exists()
 
 
+@requires_query_labels
 def test_source_plan_reranker_training_artifact_is_produced(tmp_path: Path, monkeypatch) -> None:
     models_dir = tmp_path / "models"
     models_dir.mkdir()
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("sys.argv", ["train_source_plan_reranker.py", str(ROOT / "data" / "query_labels.csv")])
+    monkeypatch.setattr("sys.argv", ["train_source_plan_reranker.py", str(QUERY_LABELS_PATH)])
 
     train_source_plan_reranker_main()
 
     assert (models_dir / "source_plan_reranker.joblib").exists()
 
 
+@requires_query_labels
 def test_out_of_scope_detector_training_artifact_is_produced(tmp_path: Path, monkeypatch) -> None:
     models_dir = tmp_path / "models"
     models_dir.mkdir()
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("sys.argv", ["train_out_of_scope_detector.py", str(ROOT / "data" / "query_labels.csv")])
+    monkeypatch.setattr("sys.argv", ["train_out_of_scope_detector.py", str(QUERY_LABELS_PATH)])
 
     train_out_of_scope_detector_main()
 
@@ -1015,7 +1038,7 @@ def test_generic_product_query_filters_out_entity_bound_documents() -> None:
 def test_unresolved_stock_compare_query_requires_clarification() -> None:
     clear_service_caches()
     service = build_default_service()
-    nlu_result = service.analyze_query("中国太保哪个好？", debug=True)
+    nlu_result = service.analyze_query("蓝星科技哪个好？", debug=True)
     retrieval_result = service.retrieve_evidence(nlu_result, top_k=5, debug=True)
 
     assert "missing_entity" in nlu_result["missing_slots"]
@@ -1025,10 +1048,28 @@ def test_unresolved_stock_compare_query_requires_clarification() -> None:
     assert retrieval_result["structured_data"] == []
 
 
+def test_unknown_company_with_generic_suffix_requires_clarification() -> None:
+    clear_service_caches()
+    service = build_default_service()
+
+    for query in [
+        "蓝星能源哪个好？",
+        "蓝星股份哪个好？",
+        "蓝星电子哪个好？",
+        "蓝星保险哪个好？",
+    ]:
+        result = service.analyze_query(query, debug=True)
+
+        assert result["entities"] == []
+        assert "missing_entity" in result["missing_slots"]
+        assert "clarification_required" in result["risk_flags"]
+        assert result["source_plan"] == []
+
+
 def test_unresolved_stock_query_filters_entity_bound_documents() -> None:
     clear_service_caches()
     service = build_default_service()
-    nlu_result = service.analyze_query("中国太保哪个好？", debug=True)
+    nlu_result = service.analyze_query("蓝星科技哪个好？", debug=True)
     retrieval_result = service.retrieve_evidence(nlu_result, top_k=5, debug=True)
 
     assert all(not item["entity_hits"] for item in retrieval_result["documents"])
@@ -1058,7 +1099,7 @@ def test_sector_market_question_is_not_forced_into_clarification() -> None:
 def test_compare_query_with_only_one_resolved_operand_requires_clarification() -> None:
     clear_service_caches()
     service = build_default_service()
-    nlu_result = service.analyze_query("上证50和沪深300有什么区别？", debug=True)
+    nlu_result = service.analyze_query("蓝星科技和中国平安哪个好？", debug=True)
     retrieval_result = service.retrieve_evidence(nlu_result, top_k=5, debug=True)
 
     assert "missing_entity" in nlu_result["missing_slots"]

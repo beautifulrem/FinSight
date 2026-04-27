@@ -19,6 +19,13 @@ Current scope is China market v1:
 
 HK/US stocks and overseas products are not guaranteed by default. To support them in production, add runtime entities, aliases, structured providers, document sources, and matching training/evaluation cases.
 
+## Module Boundary
+
+Important boundary:
+
+- Query Intelligence owns `nlu_result`, `retrieval_result`, source planning, retrieval evidence, and `analysis_summary`.
+- `sentiment/` and `scripts/llm_response.py` are downstream consumers. They may use `torch`, `transformers`, FinBERT, or local generation models, but they must not re-infer the user's intent, target entities, or retrieval source plan.
+
 ## Quick Start
 
 Use Python 3.13 or a compatible Python 3 version. Commands below assume you are running from the repository root.
@@ -406,7 +413,10 @@ flowchart TD
   E --> E4["Feature Builder + ML Ranker + Deduper + Selector"]
   E --> E5["MarketAnalyzer: Technical Indicators + Valuation + Macro Direction"]
   E --> F["retrieval_result.json"]
-  F --> G["Downstream Analysis and Chatbot Answering"]
+  F --> G["Document Sentiment Analysis: sentiment/"]
+  F --> H["LLM Response Utility: scripts/llm_response.py"]
+  G --> I["Downstream Analysis and Chatbot Answering"]
+  H --> I
 ```
 
 Key paths:
@@ -423,6 +433,9 @@ Key paths:
 | `query_intelligence/retrieval/market_analyzer.py` | Technical indicators (RSI, MACD, Bollinger, trend signal) and analysis summary builder. |
 | `query_intelligence/integrations/` | Tushare, AKShare, Cninfo, efinance providers. |
 | `query_intelligence/external_data/` | Public dataset sync and asset building. |
+| `sentiment/` | Downstream document sentiment preprocessor and FinBERT classifier. |
+| `scripts/llm_response.py` | Downstream frontend answer and next-question JSON generator. |
+| `data/answer_generation_sft/` | Few-shot and handoff assets for answer generation experiments. |
 | `training/` | ML training scripts. |
 | `scripts/` | Sync, runtime materialization, evaluation, live-source verification. |
 | `schemas/` | JSON Schemas for outputs. |
@@ -765,9 +778,43 @@ Common causes:
 
 ### The API returns JSON but no natural-language answer
 
-This is expected. Query Intelligence only produces understanding and evidence artifacts. Final chatbot wording, investment-safe answer generation, sentiment analysis, trend analysis, and numerical calculation belong to downstream modules.
+This is expected. Query Intelligence only produces understanding and evidence artifacts. Final chatbot wording, investment-safe answer generation, sentiment analysis, trend analysis, and numerical calculation belong to downstream modules. For the current experimental answer-generation handoff, see `scripts/llm_response.py`.
 
-# ARIN Document Sentiment Analysis (Implementation Plan)
+## Frontend LLM Response Handoff
+
+`scripts/llm_response.py` is a downstream utility for producing frontend-ready JSON from compact evidence. It can either consume an existing Query Intelligence record or run Query Intelligence first from a raw query.
+
+It generates:
+
+- `answer_generation`: answer text, key points, evidence IDs used, limitations, risk disclaimer, and model name.
+- `next_question_prediction`: exactly three follow-up questions with scores and short reasons.
+
+Core safeguards:
+
+- It uses compact evidence only: query, NLU result, retrieval evidence summary, statistical result, and sentiment result.
+- It strips debug traces, long raw documents, history arrays, and source-generation metadata before model input.
+- It validates and normalizes JSON output.
+- It must not invent missing market data, fundamentals, valuation, macro data, news, sentiment, or statistical facts.
+- It must include a risk disclaimer and must not output chain-of-thought or markdown fences.
+
+Example commands:
+
+```bash
+python scripts/llm_response.py --query "你觉得中国平安怎么样？"
+python scripts/llm_response.py --input path/to/pipeline_record.json
+```
+
+`--input` expects one combined JSON object with `query`, `nlu_result`, and `retrieval_result`; `statistical_result` and `sentiment_result` are optional. Query Intelligence artifact runs write separate `query.txt`, `nlu_result.json`, `retrieval_result.json`, and `manifest.json` files rather than a single `record.json`, so combine those fields first or use `--query`.
+
+Model configuration:
+
+- `LLM_MODELS_DIR` or `QI_LLM_MODELS_DIR` overrides the local model search root.
+- `HF_TOKEN` or `HUGGINGFACE_HUB_TOKEN` enables authenticated HuggingFace access.
+- Remote model repository code is disabled by default. Use `--trust-remote-code` only for audited HuggingFace models that require it.
+- Default answer model: `instruction-pretrain/finance-Llama3-8B`.
+- Default next-question model: `Qwen/Qwen2.5-3B-Instruct`.
+
+# ARIN Document Sentiment Analysis
 
 ARIN Document Sentiment Analysis is an **implemented downstream module** that consumes the JSON artifacts produced by Query Intelligence. It performs financial sentiment analysis on retrieved documents and outputs structured sentiment results. The high-resource path (FinBERT) is implemented; the low-resource path (lightweight classifier) is planned.
 

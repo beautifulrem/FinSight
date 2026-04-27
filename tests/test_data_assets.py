@@ -3,11 +3,23 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+import pytest
+
 from evaluation.eval_nlu import build_nlu_metrics
 from evaluation.eval_retrieval import build_retrieval_metrics
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REQUIRED_DATA_ASSETS = (
+    ROOT / "data" / "query_labels.csv",
+    ROOT / "data" / "retrieval_qrels.csv",
+    ROOT / "data" / "entity_bio_annotations.jsonl",
+)
+
+pytestmark = pytest.mark.skipif(
+    not all(path.exists() for path in REQUIRED_DATA_ASSETS),
+    reason="expanded supervision assets are optional; generate them before running data asset checks",
+)
 
 
 def test_query_labels_csv_exists_and_is_expanded() -> None:

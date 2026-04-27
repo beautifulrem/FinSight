@@ -759,6 +759,8 @@ class SourcePlanner:
             for source in ["market_api", "news", "industry_sql", "fundamental_sql", "announcement", "research_note"]:
                 if source in plan["source_plan"] and source not in selected_sources:
                     selected_sources.append(source)
+        if any(label == "event_news_query" for label in intent_labels) or any(term in query for term in ["新闻", "公告"]):
+            selected_sources = [source for source in selected_sources if source not in {"market_api", "fundamental_sql", "industry_sql"}]
         if product_type in {"index", "generic_market"} and (
             set(intent_labels).intersection(INDEX_SCOPE_INTENTS) or set(topic_labels).intersection(INDEX_SCOPE_TOPICS)
         ):

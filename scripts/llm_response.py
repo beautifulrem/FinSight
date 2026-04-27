@@ -924,7 +924,15 @@ def resolve_model_path(model_id: str, *, models_dir: Path | None = None) -> str:
 
 
 class ChatModel:
-    def __init__(self, model_id: str, *, device_map: str, dtype: str, models_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        model_id: str,
+        *,
+        device_map: str,
+        dtype: str,
+        models_dir: Path | None = None,
+        trust_remote_code: bool = False,
+    ) -> None:
         try:
             import torch
             from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -952,13 +960,13 @@ class ChatModel:
                 "Set HF_TOKEN or HUGGINGFACE_HUB_TOKEN to enable authenticated downloads."
             )
         logger.info("Loading tokenizer: model=%s resolved=%s", model_id, self.resolved_model)
-        self.tokenizer = AutoTokenizer.from_pretrained(self.resolved_model, trust_remote_code=True, **token_kwargs)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.resolved_model, trust_remote_code=trust_remote_code, **token_kwargs)
         logger.info("Loading model: model=%s resolved=%s device_map=%s dtype=%s", model_id, self.resolved_model, device_map, dtype)
         self.model = AutoModelForCausalLM.from_pretrained(
             self.resolved_model,
             torch_dtype=torch_dtype,
             device_map=device_map,
-            trust_remote_code=True,
+            trust_remote_code=trust_remote_code,
             **token_kwargs,
         )
         logger.info("Loaded model: model=%s resolved=%s", model_id, self.resolved_model)
@@ -1088,6 +1096,7 @@ class LLMResponseRuntime:
         answer_max_new_tokens: int,
         next_max_new_tokens: int,
         json_retries: int,
+        trust_remote_code: bool = False,
     ) -> None:
         logger.info("Initializing LLM response runtime")
         self.answer_model_name = answer_model
@@ -1098,8 +1107,8 @@ class LLMResponseRuntime:
         self.json_retries = json_retries
         self.answer_few_shot_bank, self.next_question_few_shot_bank = load_few_shot_bank(few_shot_source)
         logger.info("Loaded few-shot bank: source=%s styles=%s", few_shot_source, sorted(self.answer_few_shot_bank.keys()))
-        self.answer_model = ChatModel(answer_model, device_map=device_map, dtype=dtype, models_dir=models_dir)
-        self.next_question_model = ChatModel(next_question_model, device_map=device_map, dtype=dtype, models_dir=models_dir)
+        self.answer_model = ChatModel(answer_model, device_map=device_map, dtype=dtype, models_dir=models_dir, trust_remote_code=trust_remote_code)
+        self.next_question_model = ChatModel(next_question_model, device_map=device_map, dtype=dtype, models_dir=models_dir, trust_remote_code=trust_remote_code)
         logger.info("LLM response runtime ready")
 
     def generate(self, record: dict[str, Any]) -> dict[str, Any]:
@@ -1198,23 +1207,40 @@ def make_runtime(args: argparse.Namespace) -> LLMResponseRuntime:
         answer_max_new_tokens=args.answer_max_new_tokens,
         next_max_new_tokens=args.next_max_new_tokens,
         json_retries=args.json_retries,
+        trust_remote_code=args.trust_remote_code,
     )
 
 
-def coerce_top_k(value: Any, *, default: int = 20) -> int:
-    if value in (None, ""):
+def coerce_top_k(value: Any, *, default: int = 20, max_value: int = 100) -> int:
+    if value is None or value == "":
         return default
-    try:
+
+    if isinstance(value, bool):
+        raise ValueError("top_k must be an integer")
+    if isinstance(value, int):
+        top_k = value
+    elif isinstance(value, float):
+        if not value.is_integer():
+            raise ValueError("top_k must be an integer")
         top_k = int(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("top_k must be an integer") from exc
+    elif isinstance(value, str):
+        text = value.strip()
+        if not re.fullmatch(r"[+-]?\d+", text):
+            raise ValueError("top_k must be an integer")
+        top_k = int(text)
+    else:
+        raise ValueError("top_k must be an integer")
     if top_k <= 0:
         raise ValueError("top_k must be greater than 0")
+    if top_k > max_value:
+        raise ValueError(f"top_k must be less than or equal to {max_value}")
     return top_k
 
 
 def coerce_query(value: Any) -> str:
-    query = str(value or "").strip()
+    if not isinstance(value, str):
+        raise ValueError("query must be a string")
+    query = value.strip()
     if not query:
         raise ValueError("query must not be blank")
     return query
@@ -1371,6 +1397,7 @@ def main() -> None:
     parser.add_argument("--next-max-new-tokens", type=int, default=260)
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--json-retries", type=int, default=1, help="Strict JSON retry count after repair/parsing failure.")
+    parser.add_argument("--trust-remote-code", action="store_true", help="Allow HuggingFace model repositories to execute remote code. Use only for audited models.")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()
     if args.json_retries < 0:
