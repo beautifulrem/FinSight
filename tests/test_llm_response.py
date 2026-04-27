@@ -157,6 +157,19 @@ def test_resolve_model_path_uses_hf_cache_snapshot(tmp_path: Path) -> None:
     assert resolved == str(snapshot)
 
 
+def test_resolve_model_path_uses_explicit_hf_cache_snapshot(tmp_path: Path) -> None:
+    cache_dir = tmp_path / "models--owner--demo-model"
+    snapshot = cache_dir / "snapshots" / "abc123"
+    snapshot.mkdir(parents=True)
+    (cache_dir / "refs").mkdir()
+    (cache_dir / "refs" / "main").write_text("abc123", encoding="utf-8")
+    (snapshot / "config.json").write_text("{}", encoding="utf-8")
+
+    resolved = resolve_model_path(str(cache_dir), models_dir=tmp_path / "unused")
+
+    assert resolved == str(snapshot)
+
+
 def test_hf_token_reads_standard_environment_variables(monkeypatch) -> None:
     monkeypatch.delenv("HF_TOKEN", raising=False)
     monkeypatch.delenv("HUGGINGFACE_HUB_TOKEN", raising=False)

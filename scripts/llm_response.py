@@ -879,6 +879,10 @@ def _resolve_hf_model_dir(path: Path) -> Path | None:
 def resolve_model_path(model_id: str, *, models_dir: Path | None = None) -> str:
     direct = Path(model_id).expanduser()
     if direct.exists():
+        resolved_direct = _resolve_hf_model_dir(direct)
+        if resolved_direct is not None:
+            logger.info("Using explicit local model path: %s", resolved_direct)
+            return str(resolved_direct)
         logger.info("Using explicit local model path: %s", direct)
         return str(direct)
 
