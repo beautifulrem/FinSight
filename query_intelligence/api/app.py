@@ -39,7 +39,7 @@ def create_app(service: QueryIntelligenceService | None = None, artifact_output_
 
     @app.post("/retrieval/search")
     def retrieval(payload: RetrievalRequest) -> dict:
-        return runtime.retrieve_evidence(payload.nlu_result, top_k=payload.top_k, debug=payload.debug)
+        return runtime.retrieve_evidence(payload.nlu_result.model_dump(mode="json"), top_k=payload.top_k, debug=payload.debug)
 
     @app.post("/query/intelligence", response_model=PipelineResponse)
     def pipeline(payload: PipelineRequest) -> dict:

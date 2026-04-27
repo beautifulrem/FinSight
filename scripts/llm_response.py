@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import socket
 import sys
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -16,11 +17,15 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from query_intelligence.contracts import MAX_QUERY_LENGTH
+
 
 DEFAULT_ANSWER_MODEL = "instruction-pretrain/finance-Llama3-8B"
 DEFAULT_NEXT_QUESTION_MODEL = "Qwen/Qwen2.5-3B-Instruct"
 DEFAULT_FEW_SHOT_SOURCE = ROOT / "data" / "answer_generation_sft" / "synthetic_source_500.jsonl"
 DEFAULT_LLM_MODELS_DIR = ROOT / "models" / "llm"
+_MAX_REQUEST_BODY_BYTES = 10 * 1024 * 1024
+_REQUEST_READ_TIMEOUT_SECONDS = 30.0
 
 logger = logging.getLogger("llm_response")
 
@@ -1237,12 +1242,14 @@ def coerce_top_k(value: Any, *, default: int = 20, max_value: int = 100) -> int:
     return top_k
 
 
-def coerce_query(value: Any) -> str:
+def coerce_query(value: Any, *, max_length: int = MAX_QUERY_LENGTH) -> str:
     if not isinstance(value, str):
         raise ValueError("query must be a string")
     query = value.strip()
     if not query:
         raise ValueError("query must not be blank")
+    if len(query) > max_length:
+        raise ValueError(f"query must be less than or equal to {max_length} characters")
     return query
 
 
@@ -1269,10 +1276,24 @@ def run_service(args: argparse.Namespace) -> None:
             self.wfile.write(body)
 
         def _read_json_body(self) -> dict[str, Any]:
-            content_length = int(self.headers.get("Content-Length") or "0")
+            try:
+                content_length = int(self.headers.get("Content-Length") or "0")
+            except ValueError as exc:
+                raise ValueError("Content-Length must be an integer") from exc
             if content_length <= 0:
                 return {}
-            raw = self.rfile.read(content_length)
+            if content_length > _MAX_REQUEST_BODY_BYTES:
+                raise ValueError(
+                    f"Request body too large: {content_length} bytes "
+                    f"(max {_MAX_REQUEST_BODY_BYTES})"
+                )
+            self.connection.settimeout(_REQUEST_READ_TIMEOUT_SECONDS)
+            try:
+                raw = self.rfile.read(content_length)
+            except socket.timeout as exc:
+                raise ValueError("request body read timed out") from exc
+            if len(raw) != content_length:
+                raise ValueError("incomplete request body")
             parsed = json.loads(raw.decode("utf-8"))
             if not isinstance(parsed, dict):
                 raise ValueError("request body must be a JSON object")
