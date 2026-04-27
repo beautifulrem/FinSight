@@ -31,11 +31,12 @@ try:
 except ImportError:
     _nltk_available = False
 else:
-    _nltk_available = True
     try:
         nltk.data.find("tokenizers/punkt")
     except LookupError:
-        nltk.download("punkt", quiet=True)
+        _nltk_available = False
+    else:
+        _nltk_available = True
 
 from .schemas import (
     FilterMeta,
@@ -47,6 +48,16 @@ from .schemas import (
     SentimentItem,
     TextLevel,
 )
+
+# Optional: reuse NLU EntityResolver for accurate entity matching.
+# Falls back gracefully when query_intelligence is not available.
+try:
+    from query_intelligence.data_loader import load_seed_entities, load_seed_aliases
+    from query_intelligence.nlu.entity_resolver import EntityResolver
+except ImportError:
+    EntityResolver = None  # type: ignore[assignment]
+    load_seed_entities = None  # type: ignore[assignment]
+    load_seed_aliases = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +71,21 @@ _LATIN_RANGE = re.compile(r"[a-zA-Z]")
 
 _FUZZY_THRESHOLD = 85
 
+# Language-detection heuristics (used when lingua is unavailable)
+_ZH_STOPWORDS = frozenset({
+    "的", "了", "是", "在", "和", "有", "就", "不", "也", "都",
+    "被", "把", "对", "与", "及", "而", "或", "但", "所", "为",
+    "从", "到", "要", "会", "能", "个", "以",
+})
+_EN_STOPWORDS = frozenset({
+    "the", "is", "are", "was", "were", "has", "have", "had", "been",
+    "this", "that", "these", "those", "with", "from", "after", "before",
+    "will", "would", "could", "should", "may", "might", "shall", "can",
+    "not", "but", "and", "for", "its", "his", "her", "their", "our",
+})
+
+_ZH_PUNCT = "。！？；：、，""''《》（）【】…—～"
+_EN_PUNCT = ".!?;:\"'\"()-"
 
 # ---------------------------------------------------------------------------
 # 1. Query-level filter
@@ -132,19 +158,35 @@ def detect_language(text: str) -> Language:
 
     if _lingua_available:
         detected = _LINGUA_DETECTOR.detect_language_of(text)
-        if detected is None:
-            return "unknown"
         if detected == LinguaLanguage.CHINESE:
             return "mixed" if latin_ratio > 0.10 else "zh"
-        return "mixed" if cjk_ratio > 0.10 else "en"
+        if detected == LinguaLanguage.ENGLISH:
+            return "mixed" if cjk_ratio > 0.10 else "en"
+        # lingua returned None — fall through to heuristic below
 
-    # Fallback heuristic: 10% threshold (raised from 5%)
+    # Fallback heuristic: 10% character-ratio threshold (raised from 5%),
+    # supplemented by stopword and punctuation signals for tiebreaking.
     if cjk_ratio > 0.10 and latin_ratio > 0.10:
         return "mixed"
     if cjk_ratio > 0.10:
         return "zh"
     if latin_ratio > 0.10:
         return "en"
+
+    # Neither character ratio exceeded 10% — use stopwords + punctuation
+    text_lower = text.lower()
+    zh_stop = sum(1 for w in _ZH_STOPWORDS if w in text)
+    en_stop = sum(1 for w in _EN_STOPWORDS if w in text_lower)
+    zh_punct = sum(1 for c in text if c in _ZH_PUNCT)
+    en_punct = sum(1 for c in text if c in _EN_PUNCT)
+
+    zh_signal = zh_stop * 2 + zh_punct
+    en_signal = en_stop * 2 + en_punct
+
+    if zh_signal > en_signal and zh_signal >= 2:
+        return "mixed" if latin_ratio > 0.05 and cjk_ratio > 0.05 else "zh"
+    if en_signal > zh_signal and en_signal >= 2:
+        return "mixed" if latin_ratio > 0.05 and cjk_ratio > 0.05 else "en"
     return "unknown"
 
 
@@ -208,10 +250,12 @@ def _split_zh(text: str) -> list[str]:
 def _split_en(text: str) -> list[str]:
     """Split English text using NLTK Punkt tokenizer with regex fallback."""
     if _nltk_available:
-        sentences = sent_tokenize(text)
-        return [s.strip() for s in sentences if s.strip()]
+        try:
+            sentences = sent_tokenize(text)
+            return [s.strip() for s in sentences if s.strip()]
+        except Exception:
+            pass  # fallback to regex
 
-    # Fallback: split on sentence-ending punctuation followed by space
     raw = re.split(r"(?<=[.!?])\s+", text)
     return [s.strip() for s in raw if s.strip()]
 
@@ -225,7 +269,9 @@ def build_entity_names(nlu_result: dict[str, Any]) -> dict[str, str]:
     """Build a map of entity name text -> entity symbol.
 
     Each entity contributes its symbol, canonical_name, and mention.
-    For CJK names, jieba tokens are also added as keys.
+    No jieba token expansion — exact names only, to avoid false positives
+    from shared sub-tokens (e.g. "平安" matching 平安银行 when the sentence
+    is about 平安证券).
     """
     entity_map: dict[str, str] = {}
     for entity in nlu_result.get("entities", []):
@@ -242,52 +288,160 @@ def build_entity_names(nlu_result: dict[str, Any]) -> dict[str, str]:
             if not raw:
                 continue
             entity_map[raw] = symbol
-            if jieba is not None and len(raw) >= 2 and _CJK_RANGE.search(raw):
-                for token in jieba.cut(raw):
-                    token = token.strip()
-                    if len(token) >= 2:
-                        entity_map[token] = symbol
     return entity_map
+
+
+def _extract_target_symbols(nlu_result: dict[str, Any]) -> set[str]:
+    """Extract the set of target entity symbols from an NLU result."""
+    symbols: set[str] = set()
+    for entity in nlu_result.get("entities", []):
+        if not isinstance(entity, dict):
+            continue
+        symbol = str(entity.get("symbol", "")).strip()
+        if symbol:
+            symbols.add(symbol)
+    return symbols
+
+
+_CORP_PATTERN = re.compile(
+    r"[A-Z一-鿿]{2,}(?:公司|股份|集团|银行|证券|保险|实业|控股)"
+)
+
+
+def _has_non_target_entity(sentence: str, entity_map: dict[str, str]) -> bool:
+    """Detect if sentence mentions an entity not in the target entity_map.
+
+    Uses jieba POS tagging for Chinese; falls back to pattern matching.
+    """
+    if jieba is not None:
+        try:
+            import jieba.posseg as pseg
+
+            for word, flag in pseg.cut(sentence):
+                if flag in ("nt", "nz") and len(word) >= 2:
+                    if word not in entity_map:
+                        return True
+        except (ImportError, AttributeError):
+            pass
+
+    for m in _CORP_PATTERN.finditer(sentence):
+        name = m.group()
+        if name not in entity_map:
+            return True
+
+    return False
 
 
 def filter_relevant_sentences(
     sentences: list[str],
     entity_map: dict[str, str],
     title: str,
+    *,
+    entity_resolver: EntityResolver | None = None,
+    target_symbols: set[str] | None = None,
 ) -> tuple[list[str], list[str]]:
-    """Keep sentences mentioning target entities; returns (sentences, matched_symbols).
+    """3-tier entity relevance filtering.
 
-    Fast path: exact substring match.
-    Slow path: rapidfuzz partial_ratio fuzzy match.
-    Fallback: title + first 3 sentences, empty symbols.
+    Strong  — sentence mentions a target entity          → keep (full weight)
+    Exclude — sentence mentions a non-target entity       → discard
+    Generic — sentence has no entity reference at all      → keep (anaphora candidate)
+
+    Strong sentences come first, followed by Generic.
+    If no Strong or Generic survives, falls back to title + first 3 sentences.
+
+    When *entity_resolver* is provided, entity matching uses the NLU
+    EntityResolver for accurate alias-aware detection instead of plain
+    substring matching.  Non-target detection also switches from jieba POS
+    heuristics to the resolver's entity catalog.
     """
     if not entity_map:
         return sentences, []
 
-    relevant: list[str] = []
+    strong: list[str] = []
+    generic: list[str] = []
     matched_symbols: list[str] = []
 
-    # Fast path: exact substring matching
+    # ---- resolver path ---------------------------------------------------
+    if entity_resolver is not None and target_symbols is not None:
+        for s in sentences:
+            resolved, _comparison_targets, _trace = entity_resolver.resolve_exact(s)
+            if resolved:
+                hit_target = False
+                for candidate in resolved:
+                    sym = (candidate.get("symbol") or "").strip()
+                    if sym in target_symbols:
+                        hit_target = True
+                        if sym not in matched_symbols:
+                            matched_symbols.append(sym)
+                if hit_target:
+                    strong.append(s)
+                else:
+                    # resolved entities exist but none are targets → exclude
+                    continue
+            else:
+                # EntityResolver found nothing, but the sentence could still
+                # mention non-catalog entities (e.g. US stocks like 微软, 特斯拉).
+                # Fall back to jieba POS heuristic to catch those.
+                if _has_non_target_entity(s, entity_map):
+                    continue
+                generic.append(s)
+
+        # fuzzy fallback when no strong match was found
+        if not strong and not generic and fuzz is not None:
+            for s in sentences:
+                for name, symbol in entity_map.items():
+                    if fuzz.partial_ratio(name, s) >= _FUZZY_THRESHOLD:
+                        strong.append(s)
+                        if symbol not in matched_symbols:
+                            matched_symbols.append(symbol)
+                        break
+
+        result = strong + generic
+        if result:
+            return result, matched_symbols
+
+        fallback = [s for s in sentences if s.strip()][:3]
+        if title:
+            fallback.insert(0, title)
+        if not fallback:
+            fallback = sentences[:3]
+        return fallback, []
+
+    # ---- substring fallback path -----------------------------------------
     for s in sentences:
+        # 1. Strong: exact substring match against target entity names
+        matched = False
         for name, symbol in entity_map.items():
             if name in s:
-                relevant.append(s)
+                strong.append(s)
                 if symbol not in matched_symbols:
                     matched_symbols.append(symbol)
+                matched = True
                 break
 
-    # Slow path: fuzzy matching
-    if not relevant and fuzz is not None:
+        if matched:
+            continue
+
+        # 2. Exclude: non-target entity present
+        if _has_non_target_entity(s, entity_map):
+            continue
+
+        # 3. Generic: no entity reference found (keep as anaphora candidate)
+        generic.append(s)
+
+    # 4. Fuzzy-path for cases where no Strong match was found (fallback)
+    if not strong and not generic and fuzz is not None:
         for s in sentences:
             for name, symbol in entity_map.items():
                 if fuzz.partial_ratio(name, s) >= _FUZZY_THRESHOLD:
-                    relevant.append(s)
+                    strong.append(s)
                     if symbol not in matched_symbols:
                         matched_symbols.append(symbol)
                     break
 
-    if relevant:
-        return relevant, matched_symbols
+    result = strong + generic
+    if result:
+        return result, matched_symbols
 
     # Fallback: title + first 3 non-empty sentences
     fallback = [s for s in sentences if s.strip()][:3]
@@ -304,7 +458,48 @@ def filter_relevant_sentences(
 
 
 class Preprocessor:
-    """End-to-end document preprocessing for sentiment analysis."""
+    """End-to-end document preprocessing for sentiment analysis.
+
+    Parameters
+    ----------
+    entity_resolver:
+        Optional NLU ``EntityResolver`` for accurate entity matching.
+        When provided, the resolver is used to detect target and non-target
+        entity mentions in each sentence, replacing the simpler substring /
+        jieba-POS heuristics.  Build one with :meth:`build_default_resolver`
+        or pass your own pre-built instance.
+    """
+
+    def __init__(self, entity_resolver: EntityResolver | None = None):
+        self._entity_resolver = entity_resolver
+
+    # ------------------------------------------------------------------
+    # resolver construction
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def build_default_resolver(cls) -> EntityResolver | None:
+        """Build an ``EntityResolver`` from the seed entity catalog.
+
+        Returns ``None`` when the query_intelligence package or seed data
+        is unavailable (the preprocessor will then fall back to substring
+        matching).
+        """
+        if EntityResolver is None or load_seed_entities is None or load_seed_aliases is None:
+            return None
+        try:
+            entities = load_seed_entities()
+            aliases = load_seed_aliases()
+            if not entities or not aliases:
+                return None
+            return EntityResolver(entities=entities, aliases=aliases)
+        except Exception:
+            logger.warning("Failed to build default EntityResolver", exc_info=True)
+            return None
+
+    # ------------------------------------------------------------------
+    # document-level skip
+    # ------------------------------------------------------------------
 
     def skip_document(self, doc: dict[str, Any]) -> str | None:
         """Check if an individual document should be skipped. Returns reason or None."""
@@ -312,6 +507,10 @@ class Preprocessor:
         if source_type not in SUPPORTED_SOURCE_TYPES:
             return f"unsupported source_type={source_type}"
         return None
+
+    # ------------------------------------------------------------------
+    # main pipeline
+    # ------------------------------------------------------------------
 
     def process_query(
         self,
@@ -327,6 +526,7 @@ class Preprocessor:
             return skip_reason, [], FilterMeta(skipped_by_product_type=True)
 
         entity_map = build_entity_names(nlu_result)
+        target_symbols = _extract_target_symbols(nlu_result)
         docs = retrieval_result.get("documents", [])
         processed: list[PreprocessedDoc] = []
         filter_meta = FilterMeta()
@@ -369,7 +569,11 @@ class Preprocessor:
                 sentences = split_sentences(raw_text, language)
 
                 relevant_sentences, matched_symbols = filter_relevant_sentences(
-                    sentences, entity_map, title,
+                    sentences,
+                    entity_map,
+                    title,
+                    entity_resolver=self._entity_resolver,
+                    target_symbols=target_symbols,
                 )
                 relevant_excerpt = " ".join(relevant_sentences)
 
@@ -386,7 +590,7 @@ class Preprocessor:
                     rank_score=doc.get("rank_score"),
                     raw_text=raw_text,
                     language=language,
-                    sentences=sentences,
+                    sentences=relevant_sentences,
                     entity_hits=matched_symbols,
                     text_level=text_level,
                     relevant_excerpt=relevant_excerpt,

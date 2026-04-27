@@ -424,7 +424,7 @@ class TestSentenceCapPipeline:
         classifier = SentimentClassifier(device="cpu", max_sentences=3)
 
         # Build a doc with many sentence-ending punctuation marks
-        sentences = [f"这是第{i}句话。" for i in range(10)]
+        sentences = [f"这是第{i}句话。茅台" for i in range(10)]
         long_body = "".join(sentences)
         long_doc = {
             "evidence_id": "long_001",
