@@ -265,19 +265,19 @@ class MarketAnalyzer:
         if ma5 is not None:
             if latest > ma5:
                 bullish_signals += 1
-            else:
+            elif latest < ma5:
                 bearish_signals += 1
         if ma20 is not None:
             if latest > ma20:
                 bullish_signals += 1
-            else:
+            elif latest < ma20:
                 bearish_signals += 1
 
         # MA cross
         if ma5 is not None and ma20 is not None:
             if ma5 > ma20:
                 bullish_signals += 1
-            else:
+            elif ma5 < ma20:
                 bearish_signals += 1
 
         # RSI
@@ -303,6 +303,24 @@ class MarketAnalyzer:
     # --- Signal Summaries for Downstream ---
 
     @staticmethod
+    def _to_float(value: Any) -> float | None:
+        if value is None or isinstance(value, bool):
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            text = value.strip().replace(",", "")
+            if not text:
+                return None
+            if text.endswith("%"):
+                text = text[:-1]
+            try:
+                return float(text)
+            except ValueError:
+                return None
+        return None
+
+    @staticmethod
     def _summarize_market_signal(payload: dict, analysis: dict) -> dict[str, Any]:
         return {
             "symbol": payload.get("symbol"),
@@ -323,9 +341,9 @@ class MarketAnalyzer:
 
     @staticmethod
     def _summarize_fundamental_signal(payload: dict) -> dict[str, Any]:
-        pe_ttm = payload.get("pe_ttm")
-        pb = payload.get("pb")
-        roe = payload.get("roe")
+        pe_ttm = MarketAnalyzer._to_float(payload.get("pe_ttm"))
+        pb = MarketAnalyzer._to_float(payload.get("pb"))
+        roe = MarketAnalyzer._to_float(payload.get("roe"))
         # Simple valuation assessment
         valuation = "unknown"
         if pe_ttm is not None:

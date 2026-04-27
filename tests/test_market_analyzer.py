@@ -48,3 +48,28 @@ def test_market_signal_deduplicates_same_symbol_and_prefers_market_api() -> None
     assert summary["market_signal"]["symbol"] == "000300.SH"
     assert summary["market_signal"]["trend_signal"] == "bullish"
     assert summary["market_signal"]["close"] == 4001.0
+
+
+def test_fundamental_signal_parses_string_numeric_fields() -> None:
+    analyzer = MarketAnalyzer()
+    structured_items = [
+        {
+            "source_type": "fundamental_sql",
+            "payload": {
+                "symbol": "600519.SH",
+                "report_date": "2025-12-31",
+                "pe_ttm": "22.8",
+                "pb": "7.4",
+                "roe": "33.0%",
+            },
+        }
+    ]
+
+    summary = analyzer.build_analysis_summary(structured_items, nlu_result={"intent_labels": [], "topic_labels": []}, documents=[])
+
+    assert isinstance(summary["fundamental_signal"], dict)
+    assert summary["fundamental_signal"]["symbol"] == "600519.SH"
+    assert summary["fundamental_signal"]["pe_ttm"] == 22.8
+    assert summary["fundamental_signal"]["pb"] == 7.4
+    assert summary["fundamental_signal"]["roe"] == 33.0
+    assert summary["fundamental_signal"]["valuation_assessment"] == "fair_range"
