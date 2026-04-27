@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import dataclasses
 from functools import lru_cache
+from typing import Any
 
 from .config import Settings
 from .contracts import NLUResult, RetrievalResult
@@ -54,8 +56,34 @@ def build_demo_service() -> QueryIntelligenceService:
 
 
 @lru_cache(maxsize=1)
-def build_default_service() -> QueryIntelligenceService:
+def _build_default_service_cached() -> QueryIntelligenceService:
     settings = Settings.from_env()
+    nlu_pipeline = NLUPipeline.build_default(settings)
+    retrieval_pipeline = RetrievalPipeline.build_default(settings)
+    return QueryIntelligenceService(nlu_pipeline=nlu_pipeline, retrieval_pipeline=retrieval_pipeline)
+
+
+def build_default_service(**overrides: Any) -> QueryIntelligenceService:
+    """Build a service from env vars, with optional Settings field overrides.
+
+    Examples:
+        # Use env vars only
+        svc = build_default_service()
+
+        # Override specific settings without env vars
+        svc = build_default_service(use_live_market=True, use_live_macro=True, use_live_announcement=False)
+    """
+    if not overrides:
+        return _build_default_service_cached()
+
+    base = Settings.from_env()
+    setting_field_names = {f.name for f in dataclasses.fields(base)}
+    unknown = sorted(set(overrides) - setting_field_names)
+    if unknown:
+        raise ValueError(f"Unknown Settings override keys: {', '.join(unknown)}")
+
+    changes = {name: value for name, value in overrides.items() if name in setting_field_names}
+    settings = dataclasses.replace(base, **changes)
     nlu_pipeline = NLUPipeline.build_default(settings)
     retrieval_pipeline = RetrievalPipeline.build_default(settings)
     return QueryIntelligenceService(nlu_pipeline=nlu_pipeline, retrieval_pipeline=retrieval_pipeline)
@@ -64,4 +92,4 @@ def build_default_service() -> QueryIntelligenceService:
 def clear_service_caches() -> None:
     clear_data_caches()
     build_demo_service.cache_clear()
-    build_default_service.cache_clear()
+    _build_default_service_cached.cache_clear()

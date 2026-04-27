@@ -416,6 +416,7 @@ API 定义在 `query_intelligence/api/app.py`，字段模型定义在 `query_int
 | `warnings` | array | 检索告警。完整取值见下方词典。 |
 | `retrieval_confidence` | float | 检索阶段总体置信度。 |
 | `debug_trace` | object | 候选数量、去重后数量、最终 top ranked evidence IDs。 |
+| `analysis_summary` | object | 预计算分析信号，供下游直接消费。包含 `market_signal`、`fundamental_signal`、`macro_signal` 和 `data_readiness`。详见 `docs/retrieval_output_spec.md`。 |
 
 `documents[]` 字段：
 
@@ -578,6 +579,7 @@ flowchart TD
   E --> E2["Document Retriever + Live News + Cninfo"]
   E --> E3["Structured Providers: Tushare / AKShare / Postgres / Seed"]
   E --> E4["Feature Builder + ML Ranker + Deduper + Selector"]
+  E --> E5["MarketAnalyzer: 技术指标 + 估值评估 + 宏观方向"]
   E --> F["retrieval_result.json"]
   F --> G["Downstream Analysis and Chatbot Answering"]
 ```
@@ -593,6 +595,7 @@ flowchart TD
 | `query_intelligence/data_loader.py` | 实体、alias、文档、结构化 seed 数据加载。 |
 | `query_intelligence/nlu/pipeline.py` | NLU 主链路。 |
 | `query_intelligence/retrieval/pipeline.py` | 检索主链路。 |
+| `query_intelligence/retrieval/market_analyzer.py` | 技术指标计算（RSI、MACD、布林带、趋势信号）与分析摘要构建。 |
 | `query_intelligence/integrations/` | Tushare、AKShare、巨潮、efinance provider。 |
 | `query_intelligence/external_data/` | 公开数据集同步、标准化、训练资产构建。 |
 | `training/` | 全部 ML 模型训练脚本。 |
@@ -1001,3 +1004,472 @@ python -m scripts.materialize_runtime_entity_assets
 ### API 只输出 JSON，不返回自然语言答案，正常吗？
 
 正常。本模块只负责理解和证据检索。最终聊天回答、投资观点措辞、情感分析、趋势分析和指标计算由下游模块完成。
+
+# ARIN 文档情感分析（实现计划）
+
+ARIN 文档情感分析是一个**已实现的下游模块**，它消费 Query Intelligence 产出的 JSON 产物，对检索到的文档进行金融情感分析，并输出结构化情感结果。当前已实现高资源方案（FinBERT），低资源方案（轻量级分类器）待后续完成。
+
+本模块支持**两种实现方案**，具有不同的资源需求和性能特征：
+
+## 实现方案对比
+
+### 高资源方案：预训练语言模型（MVP 阶段）
+
+**模型**：开箱即用的金融情感预训练模型（如 FinBERT 系列）（~420MB）
+
+> **MVP 说明**：MVP 阶段直接选用现成的预训练模型做 demo，是因为它们开箱即用、无需额外训练即可提供较强的基线效果。下文列出的具体模型名称仅代表当前 MVP 选型，后续可替换为更新或更贴合业务域的模型。
+
+**优点**：
+- 高准确率（85-95%）处理金融文本
+- 在金融语料上预训练（财报、SEC 文件、财经新闻、分析师报告）
+- 业界和研究领域广泛应用
+
+**缺点**：
+- 需要 GPU 或大内存以获得最佳性能
+- 推理速度较慢（CPU 上 ~50-100 文档/秒）
+- 双语 pipeline 增加复杂度（语言检测 + 模型路由）
+- 配置时间较长（1-3 小时）
+
+**适用场景**：
+- 对准确率要求高的生产环境
+- 有充足 GPU 资源的场景
+- 复杂长文本分析
+
+### 低资源方案：轻量级分类器
+
+**模型**：经典机器学习分类器（如 SGD + TF-IDF）或其他小体积方案（~几 MB）
+
+> **说明**：SGD + HashingVectorizer 是当前 MVP 的占位实现。完成 MVP 后，可进一步评估其他轻量方案（逻辑回归、线性 SVM、蒸馏后的小 Transformer 等）。
+
+**优点**：
+- 快速推理（~1000 文档/秒）
+- 仅需 CPU，内存占用极小
+- 对支持的语言直接处理（无需翻译）
+- 快速训练（5-10 分钟）
+- 复用现有训练基础设施
+
+**缺点**：
+- 中等准确率（75-85%），取决于训练数据质量
+- 性能依赖特征工程和数据质量
+
+**适用场景**：
+- 快速原型验证
+- 资源受限环境（边缘设备、低配服务器）
+- 大规模批量文档处理
+- 频繁的模型重训练/迭代
+
+| 维度 | 预训练模型（高资源） | 轻量级分类器（低资源） |
+|---|---|---|
+| 模型大小 | ~420MB | ~几MB |
+| 硬件要求 | GPU 推荐 | CPU 即可 |
+| 推理速度 | ~50-100 文档/秒 (CPU) | ~1000 文档/秒 |
+| 多语言支持 | 语言检测 + 模型路由 | 对支持语言直接处理 |
+| 准确率 | 85-95% | 75-85% |
+| 训练时间 | 1-3 小时 | 5-10 分钟 |
+| 实现难度 | 需要翻译 pipeline | 复用现有代码 |
+
+## 支持范围
+
+- 分析 `retrieval_result.json` 中除 `faq` 之外的所有文档类型：`news`（新闻）、`announcement`（公告）、`research_note`（研报）、`product_doc`（产品文档）。
+- 当正文缺失时，退回到标题 + 摘要（短文本模式）。
+- 当上游 NLU 识别为 `out_of_scope`、`product_info`、`trading_rule_fee` 时，跳过整个查询。
+- 提供逐文档情感标签和按实体的聚合统计。
+- **API 兼容性**：两种方案共享相同的 API 接口；下游消费者对模型类型无感知。
+
+## 数据来源
+
+两种方案均可利用现有情感数据集，适配器位于 `query_intelligence/external_data/adapters/sentiment.py`：
+
+| 数据集 | 语言 | 标签 | 用途 |
+|---|---:|---|---|
+| FinFE | 中文 | 3类 (neg/neu/pos) | 金融短文本 |
+| ChnSentiCorp | 中文 | 2类 (neg/pos) | 通用中文情感 |
+| 金融新闻情感 | 中文 | 2类 (neg/pos) | 新闻标题+正文 |
+
+✅ **数据已就绪**：文档级情感训练的适配器已实现。
+
+## 模型架构
+
+### 高资源方案（预训练模型）
+
+```
+文档 → 语言检测 → [zh] 中文 FinBERT
+              → [en] 英文 FinBERT
+              → [混合/未知] Fallback / 启发式规则
+→ 情感标签 + 置信度
+```
+
+### 低资源方案 (SGD + TF-IDF)
+
+```
+中文文档 → 文本增强 → TF-IDF 特征 → SGDClassifier → 情感标签 + 置信度
+```
+
+**复用现有训练代码**：
+- `training/train_sentiment.py`：训练入口
+- `query_intelligence/nlu/classifiers.py`：模型架构（SGD + TF-IDF）
+- `query_intelligence/external_data/adapters/sentiment.py`：数据适配器
+
+## 预训练模型详情（高资源方案）
+
+> 以下描述的是 MVP 阶段选用的 FinBERT 系列模型。选用它们的原因是公开可用、文档完善，且无需额外训练即可产出可用结果。后续迭代可替换为自训练或更新的开源替代方案。
+
+### 概述
+
+FinBERT 是一个基于 BERT 的预训练模型，在大量金融语料上继续预训练，并在 Financial PhraseBank 数据集（Malo et al., 2014）上微调的情感分类模型。
+
+**标签体系（3 分类）：**
+
+| 标签 | 含义 | 分数映射 |
+|---|---|---|
+| `positive` | 正面/利好的金融信号（如业绩超预期、营收增长、市场反弹） | 0.85 |
+| `neutral` | 中性/客观陈述，无明确情感倾向 | 0.50 |
+| `negative` | 负面/利空的金融信号（如亏损、裁员、降级、市场下跌） | 0.15 |
+
+### 语言检测与双语模型路由
+
+Query Intelligence 检索到的文档可能是**中文、英文或中英混合**。模块必须在推理前检测语言并选择对应路径。
+
+> **执行顺序**：语言检测在**分句之前**完成，因为分句工具可能是语言相关的（例如中文以标点规则为主；英文则需要 spaCy sentencizer 或 NLTK Punkt 等能处理缩写的分句器）。
+
+**语言检测策略**：以 [lingua-language-detector](https://pypi.org/project/lingua-language-detector/) 为主路径（支持中文/英文，离线运行），对无 lingua 的部署环境自动回退到字符比例启发式（10% 阈值）。
+
+| 检测语言 | 高资源路径 | 低资源路径 |
+|---|---|---|
+| `zh`（中文） | `finbert-tone-chinese`（基于 bert-base-chinese，~8k 研报句子微调） | 中文 TF-IDF 模型 |
+| `en`（英文） | `ProsusAI/finbert`（Financial PhraseBank 微调） | 英文 TF-IDF 模型（如有）或 fallback |
+| `mixed`（混合） | 中文句子送中文模型，英文句子送英文模型，再聚合分数 | 轻量模型全篇推理或启发式规则 |
+| `unknown`（未知） | 跳过或 fallback 到轻量模型 | 跳过或 fallback 到轻量模型 |
+
+**为什么用两个 FinBERT 变体？**
+- `ProsusAI/finbert` 是纯英文模型（`bert-base-uncased`）。
+- `finbert-tone-chinese` 是中文原生模型，在中文研报句子上微调（测试准确率 0.88，Macro F1 0.87）。
+对中文文档使用中文原生模型，可避免翻译噪声和延迟。
+
+### 分句处理与逐句推理
+
+两种 FinBERT 变体都是在**句子/短语级别**的数据上微调的（英文基于 Financial PhraseBank；中文基于约 8k 条研报句子）。将整篇长文档直接输入模型属于**分布外（OOD）**行为。为此，模块采用**逐句推理 + 聚合**策略：
+
+1. 将文档拆分为句子
+2. 每句话独立送入 FinBERT 推理
+3. 聚合所有句子的结果（多数标签 + 平均分数）
+
+这同时绕过了指代消解问题——像"公司营收增长"这样由于"公司"未匹配实体名而被实体过滤丢弃的句子，仍然会参与情感推理。
+
+**预处理管线**（`sentiment/preprocessor.py`）：
+
+```
+文档正文
+    │
+    ▼
+语言检测（文档级）
+  - 主路径：lingua-language-detector（支持 zh + en）
+  - 回退到字符比例启发式（10% 阈值）
+    │
+    ▼
+分句
+  - 中文：基于标点规则（。！？；\n）+ 中文引号平衡
+  - 英文：NLTK Punkt tokenizer（处理缩写、URL、小数）
+  - 混合/未知：先中文后英文，最后泛化标点分割
+    │
+    ▼
+实体相关性筛选
+  - 从 nlu_result.entities 构建实体名→symbol 映射
+  - 快速通道：精确子串匹配（in）
+  - 兜底通道：rapidfuzz partial_ratio 模糊匹配（阈值 85）
+  - 对含 CJK 的实体名做 jieba 分词扩充匹配目标
+    │
+    ▼
+若无匹配则兜底：标题 + 前 3 句
+    │
+    ▼
+逐句推理 → 多数标签 + 平均分数 → 最终标签
+```
+
+**为什么用字符串匹配而不是 NER？**
+- Query Intelligence 已在 NLU 阶段完成高质量的实体识别。直接复用已解析的 `entities` 列表（含 `canonical_name`、`mention` 及别名）做字符串匹配是**零额外开销**的，无需对每句话再跑一遍 NER。
+- 指代消解（如"该公司"）由**逐句推理策略绕过**——即使含指代代词的句子因不匹配实体名而未通过实体筛选，它仍会在逐句推理阶段作为独立句子被情感模型处理。
+
+### 使用示例
+
+```python
+from sentiment import Preprocessor, SentimentClassifier
+
+# 1. 预处理：从 QI 产物提取并清洗文档
+preprocessor = Preprocessor()
+skip_reason, docs, filter_meta = preprocessor.process_query(nlu_result, retrieval_result)
+
+# 2. 分类：逐句推理，双语路由
+classifier = SentimentClassifier()  # 自动选择 CUDA > MPS > CPU
+results = classifier.analyze_documents(docs)
+
+for item in results:
+    print(f"[{item.evidence_id}] {item.sentiment_label} "
+          f"(score={item.sentiment_score:.4f}, conf={item.confidence:.4f})")
+```
+
+### 实现状态
+
+| 组件 | 文件 | 状态 |
+|---|---|---|
+| 模式定义（PreprocessedDoc, SentimentItem, FilterMeta） | `sentiment/schemas.py` | ✅ 已实现 |
+| 文档预处理（6 阶段管线） | `sentiment/preprocessor.py` | ✅ 已实现 |
+| FinBERT 分类器（双语路由 + 逐句推理） | `sentiment/classifier.py` | ✅ 已实现 |
+| 轻量级分类器（SGD+TF-IDF） | — | 待实现 |
+
+**实际性能基准**（RTX 4080, CUDA）：
+
+| 场景 | 速度 |
+|---|---|
+| 逐句推理 | ~200 句子/秒 |
+| 典型查询（10 篇文档, ~30 句） | ~0.15 秒 |
+| CPU 回退 | ~50 句子/秒 |
+
+## API
+
+模块提供两个端点：
+
+| 端点 | 用途 | 输入 | 输出 |
+|---|---|---|---|
+| `POST /sentiment/from-artifact` | 消费上游 QI 产物做批量情感分析 | artifact 文件路径 + 可选的 NLU 结果路径 | `SentimentResult` |
+| `POST /sentiment/analyze-text` | 直接文本分析（不依赖 artifact） | 文章 dict 列表 | `list[SentimentItem]` |
+
+### 产物分析请求
+
+`POST /sentiment/from-artifact`
+
+```json
+{
+  "retrieval_result_path": "outputs/query_intelligence/2026-04-24_120000/retrieval_result.json",
+  "nlu_result_path": "outputs/query_intelligence/2026-04-24_120000/nlu_result.json"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `retrieval_result_path` | string | 是 | QI 产出的 `retrieval_result.json` 文件路径。 |
+| `nlu_result_path` | string | 否 | QI 产出的 `nlu_result.json` 文件路径。用于过滤逻辑和实体名称解析。 |
+
+### 直接文本分析请求
+
+`POST /sentiment/analyze-text`
+
+```json
+{
+  "items": [
+    {
+      "evidence_id": "custom_001",
+      "source_type": "news",
+      "title": "Stocks rallied on positive earnings",
+      "summary": "Market indexes hit new highs...",
+      "body": "Full article text here..."
+    }
+  ]
+}
+```
+
+## 输入：上游 QI 产物
+
+### `nlu_result.json`
+
+以下字段控制模块行为：
+
+| 字段 | 用途 |
+|---|---|
+| `product_type` | 如果 `label == "out_of_scope"`，跳过整个查询。 |
+| `intent_labels` | 如果任意标签为 `product_info` 或 `trading_rule_fee`，跳过。 |
+| `risk_flags` | 如果包含 `out_of_scope_query`，跳过（防御性冗余）。 |
+| `missing_slots` | 如果包含 `missing_entity`，跳过（文档大概率空）。 |
+| `entities` | 为聚合输出中的 `symbol` 提供 `canonical_name`。 |
+| `query_id` | 传递到输出，保持可追溯性。 |
+
+### `retrieval_result.json`
+
+`documents[]` 数组是主要输入来源。符合以下条件的条目才被纳入分析：
+
+- `source_type` 不等于 `"faq"`。
+- 在 `title`、`summary`、`body` 中至少有一个非空字段。
+- `body_available` 仅作为参考——当 `false` 时，模块退回短文本模式。
+
+每条文档使用的字段：
+
+| 字段 | 必填 | 用途 |
+|---|---|---|
+| `evidence_id` | 是 | 传递到输出，保持 ID 一致。 |
+| `title` | 否 | FinBERT 输入文本。 |
+| `summary` | 否 | FinBERT 输入文本（短文本回退）。 |
+| `body` | 否 | FinBERT 输入文本（主要来源）。 |
+| `body_available` | 否 | 决定 `text_level`：`full` 或 `short`。 |
+| `source_type` | 是 | 过滤（`faq` 跳过）。 |
+| `source_name` | 否 | 传递到输出。 |
+| `publish_time` | 否 | 聚合上下文。 |
+| `entity_hits` | 否 | 按实体聚合。 |
+
+## 输出：`SentimentResult`
+
+### 顶层字段
+
+```json
+{
+  "query_id": "d5f7941a-d658-40f6-a0e0-25620ce09c73",
+  "filter_meta": {
+    "skipped_by_product_type": false,
+    "skipped_by_intent": false,
+    "skipped_docs_count": 1,
+    "short_text_fallback_count": 0,
+    "analyzed_docs_count": 3
+  },
+  "articles": [
+    {
+      "evidence_id": "aknews_601318.SH_1",
+      "source_type": "news",
+      "title": "China Life Insurance Premium Growth Accelerates",
+      "publish_time": "2026-04-23T20:17:00",
+      "source_name": "证券时报",
+      "entity_symbols": ["601318.SH"],
+      "sentiment_label": "positive",
+      "sentiment_score": 0.85,
+      "confidence": 0.92,
+      "text_level": "full"
+    }
+  ],
+  "entity_aggregates": [
+    {
+      "entity_symbol": "601318.SH",
+      "entity_name": "中国平安",
+      "doc_count": 3,
+      "positive_ratio": 0.6667,
+      "negative_ratio": 0.0,
+      "neutral_ratio": 0.3333,
+      "avg_sentiment_score": 0.7333,
+      "trend": null
+    }
+  ],
+  "model_info": {
+    "model_type": "finbert",
+    "model_version": "ProsusAI/finbert"
+  },
+  "generated_at": "2026-04-24T12:00:00"
+}
+```
+
+### 字段参考
+
+`filter_meta`
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `skipped_by_product_type` | bool | 因 `product_type == "out_of_scope"` 跳过。 |
+| `skipped_by_intent` | bool | 因意图为 `product_info` 或 `trading_rule_fee` 跳过。 |
+| `skipped_docs_count` | int | 跳过的文档数（faq 或无任何文本）。 |
+| `short_text_fallback_count` | int | 仅有标题/摘要、无正文的文档数。 |
+| `analyzed_docs_count` | int | 实际送入 FinBERT 的文档数。 |
+
+`articles[]` (SentimentItem)
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `evidence_id` | string | 与上游 `retrieval_result.json` 一致的 ID。 |
+| `source_type` | string | `news`、`announcement`、`research_note`、`product_doc` 之一。 |
+| `title` | string | 文档标题。 |
+| `publish_time` | string or null | 上游的发布时间。 |
+| `source_name` | string or null | 来源名称，如 `证券时报网`。 |
+| `entity_symbols` | array of string | 来自 `entity_hits` 的证券/实体代码。 |
+| `sentiment_label` | string | `positive`、`negative` 或 `neutral`。 |
+| `sentiment_score` | float | 0.0–1.0；接近 1.0 = 正面，0.5 = 中性，接近 0.0 = 负面。 |
+| `confidence` | float | 预测标签的 softmax 概率（0.0–1.0）。 |
+| `text_level` | string | `"full"` = 含正文分析；`"short"` = 仅标题+摘要。 |
+| `relevant_excerpt` | string 或 null | 经分句和实体筛选后实际送入情感模型的文本片段。使用短文本回退时为 `null`。 |
+| `rank_score` | float 或 null | 从上游 `retrieval_result.documents[].rank_score` 透传。预留用于未来加权聚合，MVP 阶段不使用。 |
+
+`entity_aggregates[]` (EntityAggregate)
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `entity_symbol` | string | 证券或指标代码，如 `601318.SH`。 |
+| `entity_name` | string | NLU 实体提供的标准名称，没有时回退到 symbol。 |
+| `doc_count` | int | 提及该实体的文档总数。 |
+| `positive_ratio` | float | 标记为 `positive` 的文档比例（0.0–1.0）。 |
+| `negative_ratio` | float | 标记为 `negative` 的比例。 |
+| `neutral_ratio` | float | 标记为 `neutral` 的比例。 |
+| `avg_sentiment_score` | float | 该实体的平均 `sentiment_score`。MVP 阶段为简单无权平均。 |
+| `trend` | string or null | 预留字段，用于未来时间序列趋势计算；当前为 `null`。 |
+
+**聚合策略（MVP vs. 后续扩展）**
+
+上游 Query Intelligence 已提供每篇文档的相关性信号（`retrieval_score` 和 `rank_score`）。MVP 阶段在 `entity_aggregates` 中采用**简单无权平均**，以保证结果可预期、易于调试。后续迭代可考虑：
+
+- **文档级加权**：按 `rank_score` 对每篇文档的情感分数加权，高排名证据贡献更大。
+- **来源类型加权**：根据 `news`、`announcement`、`research_note` 的典型情感可靠性赋予不同权重。
+- **时间衰减加权**：当 query 指定时间窗口时，越新的文档权重越高。
+
+## 部署选择指南
+
+### 选择预训练模型（高资源）如果：
+- ✅ 生产环境、对准确率要求极高
+- ✅ 有 GPU 资源或可接受较慢推理
+- ✅ 处理复杂长文本
+- ✅ 需要最佳性能
+
+### 选择轻量级模型（低资源）如果：
+- ✅ 快速原型验证
+- ✅ 资源受限环境（边缘设备、低配服务器）
+- ✅ 大规模批量文档处理
+- ✅ 需要快速迭代/频繁重训
+
+## 架构
+
+```mermaid
+flowchart TD
+  A["QUERY\nQuery Intelligence Pipeline"] --> B["nlu_result.json"]
+  A --> C["retrieval_result.json"]
+  B --> D["NLU 过滤层\nproduct_type / intent_labels / risk_flags / missing_slots"]
+  D -- 跳过 --> E["空 SentimentResult"]
+  D -- 通过 --> F["文档过滤\n跳过 faq，检查 body/summary/title"]
+  F --> G["可分析的文档列表"]
+  G --> I["语言检测\nlingua (primary) / char-ratio (fallback)"]
+  I --> K["分句处理\nzh: 标点规则 + 引号平衡\nen: NLTK Punkt"]
+  K --> L["实体筛选\n精确 in + rapidfuzz partial_ratio"]
+  L --> M["逐句 FinBERT 推理"]
+  M --> N["zh: yiyanghkust/finbert-tone-chinese"]
+  M --> O["en: ProsusAI/finbert"]
+  N --> P["多数标签 + 平均分数聚合"]
+  O --> P
+  P --> Q["逐文档 SentimentItem"]
+  Q --> R["entity_aggregates (规划中)"]
+```
+
+## 实现路径
+
+### 高资源方案（已完成 ✅）
+1. ✅ 集成 HuggingFace Transformers —— `sentiment/classifier.py`
+2. ✅ 实现双语预处理管线 —— `sentiment/preprocessor.py`（lingua + nltk + rapidfuzz）
+3. ✅ 加载 FinBERT 模型 —— `yiyanghkust/finbert-tone-chinese` + `ProsusAI/finbert`
+4. ✅ 逐句推理 + 聚合 —— 多数标签胜出 + 平均分数
+5. ✅ 设备自动检测 —— CUDA > MPS > CPU
+
+### 低资源方案（待实现）
+1. 复用现有训练代码 `training/train_sentiment.py`
+2. 收集文档情感标注数据（已有适配器）
+3. 训练模型：`python -m training.train_document_sentiment`
+4. 集成到 API
+
+## 关键决策记录
+
+| 决策 | 高资源方案（已实现） | 低资源方案（规划中） | 理由 |
+|---|---|---|---|
+| 模型 | `yiyanghkust/finbert-tone-chinese` + `ProsusAI/finbert` | SGD+TF-IDF | 准确率 vs 速度权衡 |
+| 语言检测 | lingua-language-detector（主路径），字符比例 10% 回退 | 对支持语言直接处理 | 零网络依赖，准确率远高于单纯字符比例 |
+| 英文分句 | NLTK Punkt tokenizer | 简单正则 | 正确处理缩写、URL、小数 |
+| 实体匹配 | 精确 `in`（快速通道）+ rapidfuzz `partial_ratio >= 85`（兜底） | 字符串匹配 | 捕获实体名变体，不需额外 NER |
+| 推理粒度 | **逐句推理 + 聚合**（所有句子） | 分句 + 句子级推理 | 绕过指代消解，FinBERT 原生就是句子级模型 |
+| 长文档保护 | `max_sentences=20` 截断 | — | CPU 上单文档 < 0.5 秒 |
+| 多语言支持 | 语言检测 + 双语模型路由 | 对支持语言直接处理 | 避免翻译噪声，匹配训练分布 |
+| 部署要求 | GPU 推荐 | CPU 即可 | 资源可用性 |
+| API 兼容性 | ✅ 相同接口 | ✅ 相同接口 | 下游消费者对模型类型无感知 |
+| 与 QI 的关系 | **完全独立的下游模块** | **完全独立的下游模块** | 不修改 `query_intelligence/` 任何代码。 |
+| 分析范围 | 除 `faq` 外所有 `source_type` | 除 `faq` 外所有 `source_type` | 新闻、公告、研报、产品文档均有情感信号。 |
+| 短文本回退 | 无正文时分析标题+摘要 | 无正文时分析标题+摘要 | 两种模型对短文本都有效。 |
+| 跳过条件 | `out_of_scope` / `product_info` / `trading_rule_fee` | `out_of_scope` / `product_info` / `trading_rule_fee` | 这些查询类型的情感分析无价值。 |
+| 输出格式 | `sentiment_result.json` 与 QI 产物并列 | `sentiment_result.json` 与 QI 产物并列 | 保持一致的 artifact 风格，方便下游追溯。 |
+| 模型存储 | HuggingFace 缓存（`from_pretrained` 标准路径） | `models/`（训练产物） | 预训练权重与项目训练产物的职责分离 |

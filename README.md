@@ -241,6 +241,7 @@ Top-level fields:
 | `warnings` | array | Retrieval warnings. |
 | `retrieval_confidence` | float | Overall retrieval confidence. |
 | `debug_trace` | object | Candidate counts and top-ranked evidence IDs. |
+| `analysis_summary` | object | Pre-computed analysis signals for downstream consumption. Contains `market_signal`, `fundamental_signal`, `macro_signal`, and `data_readiness`. See `docs/retrieval_output_spec.md` for full field documentation. |
 
 `documents[]` fields:
 
@@ -403,6 +404,7 @@ flowchart TD
   E --> E2["Document Retriever + Live News + Cninfo"]
   E --> E3["Structured Providers: Tushare / AKShare / Postgres / Seed"]
   E --> E4["Feature Builder + ML Ranker + Deduper + Selector"]
+  E --> E5["MarketAnalyzer: Technical Indicators + Valuation + Macro Direction"]
   E --> F["retrieval_result.json"]
   F --> G["Downstream Analysis and Chatbot Answering"]
 ```
@@ -417,7 +419,8 @@ Key paths:
 | `query_intelligence/config.py` | Environment-driven settings. |
 | `query_intelligence/data_loader.py` | Runtime CSV/JSON loaders. |
 | `query_intelligence/nlu/pipeline.py` | NLU chain. |
-| `query_intelligence/retrieval/pipeline.py` | Retrieval chain. |
+| `query_intelligence/retrieval/pipeline.py` | Retrieval pipeline. |
+| `query_intelligence/retrieval/market_analyzer.py` | Technical indicators (RSI, MACD, Bollinger, trend signal) and analysis summary builder. |
 | `query_intelligence/integrations/` | Tushare, AKShare, Cninfo, efinance providers. |
 | `query_intelligence/external_data/` | Public dataset sync and asset building. |
 | `training/` | ML training scripts. |
@@ -763,3 +766,474 @@ Common causes:
 ### The API returns JSON but no natural-language answer
 
 This is expected. Query Intelligence only produces understanding and evidence artifacts. Final chatbot wording, investment-safe answer generation, sentiment analysis, trend analysis, and numerical calculation belong to downstream modules.
+
+# ARIN Document Sentiment Analysis (Implementation Plan)
+
+ARIN Document Sentiment Analysis is an **implemented downstream module** that consumes the JSON artifacts produced by Query Intelligence. It performs financial sentiment analysis on retrieved documents and outputs structured sentiment results. The high-resource path (FinBERT) is implemented; the low-resource path (lightweight classifier) is planned.
+
+This module supports **two implementation approaches** with different resource requirements and performance characteristics:
+
+## Implementation Approaches
+
+### High Resource: Pre-trained Transformer Models
+
+**Model**: Off-the-shelf financial sentiment models (e.g., FinBERT family) (~420MB)
+
+> **MVP rationale**: We start with ready-made pre-trained models for the initial demo because they require no additional training and provide strong baselines out of the box. The specific model names below illustrate the current MVP choice; they can be swapped for newer or domain-specific alternatives as the project evolves.
+
+**Pros**:
+- High accuracy (85-95%) on financial text
+- Pre-trained on financial corpora (earnings reports, SEC filings, financial news, analyst reports)
+- Widely adopted in industry and research
+
+**Cons**:
+- Requires GPU or large memory for optimal performance
+- Slower inference (~50-100 docs/sec on CPU)
+- Bilingual pipeline adds complexity (language detection + model routing)
+- Longer setup time (1-3 hours)
+
+**Best for**:
+- Production environments with high accuracy requirements
+- Scenarios with sufficient GPU resources
+- Complex long-text analysis
+
+### Low Resource: Lightweight Classifier
+
+**Model**: Classical ML classifier (e.g., SGD + TF-IDF) or other small-footprint approach (~few MB)
+
+> **Note**: The specific architecture (SGD + HashingVectorizer) is the current MVP placeholder. Other lightweight options (logistic regression, linear SVM, distilled small transformers, etc.) can be evaluated after the MVP milestone.
+
+**Pros**:
+- Fast inference (~1000 docs/sec)
+- CPU-friendly, minimal memory footprint
+- Direct text processing for supported languages (no translation needed)
+- Quick training (5-10 minutes)
+- Reuses existing training infrastructure
+
+**Cons**:
+- Moderate accuracy (75-85%) depending on training data quality
+- Performance depends on feature engineering and data quality
+
+**Best for**:
+- Rapid prototyping and validation
+- Resource-constrained environments (edge devices, low-spec servers)
+- Large-scale batch document processing
+- Frequent model retraining/iteration
+
+| Dimension | Pre-trained Models (High Resource) | Lightweight Classifier (Low Resource) |
+|---|---|---|
+| Model size | ~420MB | ~few MB |
+| Hardware | GPU recommended | CPU only |
+| Inference speed | ~50-100 docs/sec (CPU) | ~1000 docs/sec |
+| Multilingual | Language detection + model routing | Direct for supported languages |
+| Accuracy | 85-95% | 75-85% |
+| Training time | 1-3 hours | 5-10 minutes |
+| Implementation | Needs translation pipeline | Reuses existing code |
+
+## Scope
+
+- Analyze **all document types** from `retrieval_result.json` except `faq`: `news`, `announcement`, `research_note`, `product_doc`.
+- When full body text is unavailable, fall back to title + summary (short-text mode).
+- Skip analysis entirely when upstream NLU indicates `out_of_scope`, `product_info`, or `trading_rule_fee` intents.
+- Provide per-document sentiment labels and entity-level aggregate statistics.
+- **API compatibility**: Both approaches share identical API interfaces; downstream consumers are model-agnostic.
+
+## Data Sources
+
+Both approaches can leverage existing sentiment datasets with adapters in `query_intelligence/external_data/adapters/sentiment.py`:
+
+| Dataset | Language | Labels | Use Case |
+|---|---:|---|---|
+| FinFE | Chinese | 3-class (neg/neu/pos) | Financial short text |
+| ChnSentiCorp | Chinese | 2-class (neg/pos) | General Chinese sentiment |
+| Financial News | Chinese | 2-class (neg/pos) | News headlines + body |
+
+✅ **Data ready**: Adapters already implemented for document-level sentiment training.
+
+## Model Architecture
+
+### High Resource (Pre-trained Models)
+
+```
+Document → Language detection → [zh] Chinese FinBERT
+                            → [en] English FinBERT
+                            → [mixed/unknown] Fallback / heuristic
+→ Sentiment label + confidence
+```
+
+### Low Resource (SGD + TF-IDF)
+
+```
+Chinese document → Text augmentation → TF-IDF features → SGDClassifier → Sentiment label + confidence
+```
+
+**Reuse existing training code**:
+- `training/train_sentiment.py`: Training entry point
+- `query_intelligence/nlu/classifiers.py`: Model architecture (SGD + TF-IDF)
+- `query_intelligence/external_data/adapters/sentiment.py`: Data adapters
+
+## Pre-trained Model Details (High Resource Approach)
+
+> The following describes the FinBERT family models currently used in the MVP. They are chosen because they are publicly available, well-documented, and require no additional training to produce usable results. Future iterations may replace them with custom-trained or newer open-source alternatives.
+
+### Overview
+
+FinBERT is a BERT-based model pre-trained on a large financial corpus and fine-tuned on the Financial PhraseBank dataset (Malo et al., 2014).
+
+**Label taxonomy (3-class):**
+
+| Label | Description | Score Mapping |
+|---|---|---|
+| `positive` | Optimistic/positive financial signal (e.g., earnings beat, revenue growth, market rally) | 0.85 |
+| `neutral` | Factual or balanced reporting without clear sentiment direction | 0.50 |
+| `negative` | Pessimistic/negative financial signal (e.g., loss, layoff, downgrade, market decline) | 0.15 |
+
+### Language Detection & Bilingual Model Routing
+
+Documents retrieved by Query Intelligence may be in **Chinese, English, or mixed**. The module must detect language before selecting the inference path.
+
+> **Order of operations**: Language detection happens **before** sentence segmentation because the segmentation tool may be language-specific (e.g., Chinese uses punctuation-based rules; English benefits from abbreviation-aware segmenters like spaCy or NLTK Punkt).
+
+**Language detection strategy**: [lingua-language-detector](https://pypi.org/project/lingua-language-detector/) as the primary path (supports zh+en, offline), with a character-ratio heuristic (10% threshold) fallback for environments without lingua installed.
+
+| Detected Language | High-Resource Path | Low-Resource Path |
+|---|---|---|
+| `zh` (Chinese) | `finbert-tone-chinese` (bert-base-chinese, ~8k analyst-report sentences) | Chinese TF-IDF model |
+| `en` (English) | `ProsusAI/finbert` (Financial PhraseBank) | English TF-IDF model (if available) or fallback |
+| `mixed` | Route Chinese sentences to Chinese model, English sentences to English model; aggregate scores | Heuristic or lightweight model on full text |
+| `unknown` | Skip or fallback to lightweight model | Skip or fallback to lightweight model |
+
+**Why two FinBERT variants?**
+- `ProsusAI/finbert` is English-only (`bert-base-uncased`).
+- `finbert-tone-chinese` is a Chinese-native model fine-tuned on Chinese analyst-report sentences (test accuracy 0.88, macro F1 0.87).
+Using the Chinese-native model avoids translation noise and latency for Chinese documents.
+
+### Sentence-Level Segmentation & Entity Relevance Filtering
+
+Both FinBERT variants were fine-tuned on **sentence-level/phrase-level** data (Financial PhraseBank for English; ~8k analyst-report sentences for Chinese). Feeding an entire long document directly into the model is **out-of-distribution (OOD)**. The module therefore uses **per-sentence inference + aggregation**:
+
+1. Split document into sentences
+2. Run each sentence independently through FinBERT
+3. Aggregate: majority label + average score
+
+This also sidesteps the coreference resolution problem — sentences with pronouns like "the company" that don't match an entity name are still analyzed for sentiment rather than being discarded.
+
+**Preprocessing pipeline** (`sentiment/preprocessor.py`):
+
+```
+Document body
+    │
+    ▼
+Language detection (document-level)
+  - Primary: lingua-language-detector (zh + en)
+  - Fallback: character-ratio heuristic (10% threshold)
+    │
+    ▼
+Sentence segmentation
+  - Chinese: punctuation rules (。！？；\n) + quote balancing
+  - English: NLTK Punkt tokenizer (handles abbreviations, URLs)
+  - Mixed: tries zh first, then en, then generic boundary split
+    │
+    ▼
+Entity relevance filter
+  - Builds entity name→symbol map from nlu_result.entities
+  - Fast path: exact substring match
+  - Fallback: rapidfuzz partial_ratio ≥ 85 fuzzy match
+  - CJK entity names expanded via jieba tokenization
+    │
+    ▼
+Fallback if no sentence matches: title + first 3 sentences
+    │
+    ▼
+Per-sentence inference → majority label + average score → final label
+```
+
+**Why string matching instead of NER?**
+- Query Intelligence has already performed high-quality entity recognition in the NLU stage. Reusing the resolved `entities` list (with `canonical_name`, `mention`, and aliases) for string matching is **zero-cost**.
+- Coreference (e.g., "the company") is handled by the **per-sentence inference strategy** — sentences with pronouns still contribute to the document's sentiment.
+
+### Usage Example
+
+```python
+from sentiment import Preprocessor, SentimentClassifier
+
+# 1. Preprocess: extract and clean documents from QI artifacts
+preprocessor = Preprocessor()
+skip_reason, docs, filter_meta = preprocessor.process_query(nlu_result, retrieval_result)
+
+# 2. Classify: per-sentence inference with bilingual routing
+classifier = SentimentClassifier()  # auto-detects CUDA > MPS > CPU
+results = classifier.analyze_documents(docs)
+
+for item in results:
+    print(f"[{item.evidence_id}] {item.sentiment_label} "
+          f"(score={item.sentiment_score:.4f}, conf={item.confidence:.4f})")
+```
+
+### Implementation Status
+
+| Component | File | Status |
+|---|---|---|
+| Schemas (PreprocessedDoc, SentimentItem, FilterMeta) | `sentiment/schemas.py` | Done |
+| Document preprocessor (6-stage pipeline) | `sentiment/preprocessor.py` | Done |
+| FinBERT classifier (bilingual routing + per-sentence) | `sentiment/classifier.py` | Done |
+| Lightweight classifier (SGD+TF-IDF) | — | Planned |
+
+**Performance** (RTX 4080, CUDA):
+
+| Scenario | Throughput |
+|---|---|
+| Per-sentence inference | ~200 sentences/sec |
+| Typical query (10 docs, ~30 sentences) | ~0.15s |
+| CPU fallback | ~50 sentences/sec |
+
+## API
+
+The module exposes two endpoints:
+
+| Endpoint | Purpose | Input | Output |
+|---|---|---|---|
+| `POST /sentiment/from-artifact` | Consume upstream QI artifacts for batch sentiment analysis | Artifact file paths + optional NLU result path | `SentimentResult` |
+| `POST /sentiment/analyze-text` | Direct text analysis (bypass artifacts) | List of article dicts | `list[SentimentItem]` |
+
+### Artifact Analysis Request
+
+`POST /sentiment/from-artifact`
+
+```json
+{
+  "retrieval_result_path": "outputs/query_intelligence/2026-04-24_120000/retrieval_result.json",
+  "nlu_result_path": "outputs/query_intelligence/2026-04-24_120000/nlu_result.json"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `retrieval_result_path` | string | yes | Path to the QI `retrieval_result.json` file. |
+| `nlu_result_path` | string | no | Path to the QI `nlu_result.json` file. Used for filtering logic and entity name resolution. |
+
+### Direct Text Analysis Request
+
+`POST /sentiment/analyze-text`
+
+```json
+{
+  "items": [
+    {
+      "evidence_id": "custom_001",
+      "source_type": "news",
+      "title": "Stocks rallied on positive earnings",
+      "summary": "Market indexes hit new highs...",
+      "body": "Full article text here..."
+    }
+  ]
+}
+```
+
+## Input: Upstream QI Artifacts
+
+### `nlu_result.json`
+
+The following fields control module behavior:
+
+| Field | Usage |
+|---|---|
+| `product_type` | If `label == "out_of_scope"`, skip entirely. |
+| `intent_labels` | If any label is `product_info` or `trading_rule_fee`, skip entirely. |
+| `risk_flags` | If `out_of_scope_query` present, skip entirely (defensive redundancy). |
+| `missing_slots` | If `missing_entity` present, skip entirely (documents likely empty). |
+| `entities` | Provides `canonical_name` for each `symbol` in aggregate output. |
+| `query_id` | Propagated to the output for traceability. |
+
+### `retrieval_result.json`
+
+The `documents[]` array is the primary input. Eligible entries are those with:
+
+- `source_type` not equal to `"faq"`.
+- At least one non-empty field among `title`, `summary`, or `body`.
+- `body_available` flag is advisory only — when `false`, the module falls back to short-text mode.
+
+Fields consumed per document:
+
+| Field | Required | Used For |
+|---|---|---|
+| `evidence_id` | yes | Identity propagation to output. |
+| `title` | optional | FinBERT input text. |
+| `summary` | optional | FinBERT input text (short-text fallback). |
+| `body` | optional | FinBERT input text (primary source). |
+| `body_available` | optional | Determines `text_level`: `full` vs `short`. |
+| `source_type` | yes | Filtering (`faq` skipped). |
+| `source_name` | optional | Propagation to output. |
+| `publish_time` | optional | Aggregate context. |
+| `entity_hits` | optional | Entity-level aggregation. |
+
+## Output: `SentimentResult`
+
+### Top-level Fields
+
+```json
+{
+  "query_id": "d5f7941a-d658-40f6-a0e0-25620ce09c73",
+  "filter_meta": {
+    "skipped_by_product_type": false,
+    "skipped_by_intent": false,
+    "skipped_docs_count": 1,
+    "short_text_fallback_count": 0,
+    "analyzed_docs_count": 3
+  },
+  "articles": [
+    {
+      "evidence_id": "aknews_601318.SH_1",
+      "source_type": "news",
+      "title": "China Life Insurance Premium Growth Accelerates",
+      "publish_time": "2026-04-23T20:17:00",
+      "source_name": "Securities Times",
+      "entity_symbols": ["601318.SH"],
+      "sentiment_label": "positive",
+      "sentiment_score": 0.85,
+      "confidence": 0.92,
+      "text_level": "full"
+    }
+  ],
+  "entity_aggregates": [
+    {
+      "entity_symbol": "601318.SH",
+      "entity_name": "中国平安",
+      "doc_count": 3,
+      "positive_ratio": 0.6667,
+      "negative_ratio": 0.0,
+      "neutral_ratio": 0.3333,
+      "avg_sentiment_score": 0.7333,
+      "trend": null
+    }
+  ],
+  "model_info": {
+    "model_type": "finbert",
+    "model_version": "ProsusAI/finbert"
+  },
+  "generated_at": "2026-04-24T12:00:00"
+}
+```
+
+### Field Reference
+
+`filter_meta`
+
+| Field | Type | Description |
+|---|---|---|
+| `skipped_by_product_type` | bool | Skipped because `product_type == "out_of_scope"`. |
+| `skipped_by_intent` | bool | Skipped because intent is `product_info` or `trading_rule_fee`. |
+| `skipped_docs_count` | int | Number of documents skipped (faq or no text at all). |
+| `short_text_fallback_count` | int | Number of documents analyzed with only title/summary (no body). |
+| `analyzed_docs_count` | int | Number of documents actually sent to FinBERT. |
+
+`articles[]` (SentimentItem)
+
+| Field | Type | Description |
+|---|---|---|
+| `evidence_id` | string | Same ID as in the source `retrieval_result.json`. |
+| `source_type` | string | `news`, `announcement`, `research_note`, or `product_doc`. |
+| `title` | string | Document title. |
+| `publish_time` | string or null | Publish timestamp from upstream. |
+| `source_name` | string or null | Source name, e.g. `证券时报网`. |
+| `entity_symbols` | array of string | Security/entity symbols from `entity_hits`. |
+| `sentiment_label` | string | `positive`, `negative`, or `neutral`. |
+| `sentiment_score` | float | 0.0–1.0; close to 1.0 = positive, 0.5 = neutral, close to 0.0 = negative. |
+| `confidence` | float | Softmax probability of the predicted label (0.0–1.0). |
+| `text_level` | string | `"full"` = analyzed with body; `"short"` = analyzed with title+summary only. |
+| `relevant_excerpt` | string or null | The actual text segment(s) fed to the sentiment model after sentence segmentation and entity filtering. `null` when short-text fallback is used. |
+| `rank_score` | float or null | Propagated from upstream `retrieval_result.documents[].rank_score`. Reserved for future weighted aggregation; not used in MVP. |
+
+`entity_aggregates[]` (EntityAggregate)
+
+| Field | Type | Description |
+|---|---|---|
+| `entity_symbol` | string | Security or indicator symbol, e.g. `601318.SH`. |
+| `entity_name` | string | Canonical name from NLU entities, or falls back to symbol. |
+| `doc_count` | int | Total documents mentioning this entity. |
+| `positive_ratio` | float | Proportion of documents labeled `positive` (0.0–1.0). |
+| `negative_ratio` | float | Proportion labeled `negative`. |
+| `neutral_ratio` | float | Proportion labeled `neutral`. |
+| `avg_sentiment_score` | float | Mean `sentiment_score` across all documents for this entity. In the MVP this is a simple unweighted average. |
+| `trend` | string or null | Reserved for future time-series trend computation; currently `null`. |
+
+**Aggregation strategy (MVP vs. future)**:
+
+Upstream Query Intelligence provides per-document relevance signals (`retrieval_score` and `rank_score`). The MVP uses **simple unweighted averaging** in `entity_aggregates` to keep the first version predictable and easy to debug. Future iterations may introduce:
+
+- **Document-level weighting**: Weight each document's sentiment by its `rank_score` so that highly ranked evidence contributes more to the aggregate.
+- **Source-type weighting**: Give different weights to `news`, `announcement`, and `research_note` based on their typical sentiment reliability.
+- **Time-decay weighting**: More recent documents count more when a time window is specified.
+
+## Deployment Selection Guide
+
+### Choose Pre-trained Models (High Resource) if:
+- ✅ Production environment with high accuracy requirements
+- ✅ GPU resources available or acceptable slower inference
+- ✅ Processing complex long texts
+- ✅ Best performance is critical
+
+### Choose Lightweight Model (Low Resource) if:
+- ✅ Rapid prototyping and validation
+- ✅ Resource-constrained environments (edge devices, low-spec servers)
+- ✅ Large-scale batch document processing
+- ✅ Frequent model retraining/iteration needed
+
+## Architecture
+
+```mermaid
+flowchart TD
+  A["QUERY\nQuery Intelligence Pipeline"] --> B["nlu_result.json"]
+  A --> C["retrieval_result.json"]
+  B --> D["NLU Filter Gate\nproduct_type / intent_labels / risk_flags / missing_slots"]
+  D -- skip --> E["Empty SentimentResult"]
+  D -- pass --> F["Document Filter\nskip faq, check body/summary/title"]
+  F --> G["Documents eligible for analysis"]
+  G --> H{Implementation Approach}
+  G --> I["Language Detection\nlingua (primary) / char-ratio (fallback)"]
+  I --> K["Sentence Segmentation\nzh: punctuation rules + quote balancing\nen: NLTK Punkt"]
+  K --> L["Entity Relevance Filter\nexact in + rapidfuzz partial_ratio"]
+  L --> M["Per-Sentence FinBERT Inference"]
+  M --> N["zh: yiyanghkust/finbert-tone-chinese"]
+  M --> O["en: ProsusAI/finbert"]
+  N --> P["Majority label + avg score aggregation"]
+  O --> P
+  P --> Q["Per-Document SentimentItem"]
+  Q --> R["entity_aggregates (planned)"]
+```
+
+## Implementation Roadmap
+
+### High Resource (Done)
+1. Integrate HuggingFace Transformers — `sentiment/classifier.py`
+2. Implement bilingual preprocessing pipeline — `sentiment/preprocessor.py` (lingua + nltk + rapidfuzz)
+3. Load FinBERT models — `yiyanghkust/finbert-tone-chinese` + `ProsusAI/finbert`
+4. Per-sentence inference + aggregation — majority label + average score
+5. Device auto-detection — CUDA > MPS > CPU
+
+### Low Resource (Planned)
+1. Reuse existing training code in `training/train_sentiment.py`
+2. Collect document sentiment annotations (adapters already available)
+3. Train model: `python -m training.train_document_sentiment`
+4. Integrate into API
+
+## Key Design Decisions
+
+| Decision | High Resource (Implemented) | Low Resource (Planned) | Rationale |
+|---|---|---|---|
+| Model | FinBERT | SGD+TF-IDF | Accuracy vs speed trade-off |
+| Model | `yiyanghkust/finbert-tone-chinese` + `ProsusAI/finbert` | SGD+TF-IDF | Accuracy vs speed trade-off |
+| Language detection | lingua-language-detector (primary), 10% char-ratio fallback | Direct for supported languages | Zero network dependency, far more accurate than char-ratio alone |
+| English segmentation | NLTK Punkt tokenizer | Simple regex | Correctly handles abbreviations, URLs, decimals |
+| Entity matching | Exact `in` (fast path) + rapidfuzz `partial_ratio ≥ 85` (fallback) | String matching | Captures entity name variants without additional NER |
+| Inference granularity | **Per-sentence inference + aggregation** (all sentences) | Sentence-level | Sidesteps coreference; FinBERT is natively sentence-level |
+| Long-doc guard | `max_sentences=20` truncation | — | Single doc < 0.5s on CPU |
+| Multilingual | Language detection + bilingual model routing | Direct for supported languages | Avoid translation noise; match training distribution |
+| Deployment requirements | GPU recommended | CPU only | Resource availability |
+| API compatibility | ✅ Same interface | ✅ Same interface | Downstream consumers are model-agnostic |
+| Relationship to QI | **Fully independent downstream module** | **Fully independent downstream module** | No modifications to `query_intelligence/` code. |
+| Analysis scope | All `source_type` except `faq` | All `source_type` except `faq` | News, announcements, research notes, and product docs all carry sentiment signals. |
+| Short-text fallback | Analyze title+summary when body is unavailable | Analyze title+summary when body is unavailable | Both models effective on short text. |
+| Skip conditions | `out_of_scope` / `product_info` / `trading_rule_fee` | `out_of_scope` / `product_info` / `trading_rule_fee` | Sentiment analysis provides no value for these query types. |
+| Output format | `sentiment_result.json` alongside QI artifacts | `sentiment_result.json` alongside QI artifacts | Consistent artifact style for downstream traceability. |
+| Model storage | HuggingFace cache (`from_pretrained` default) | `models/` (trained artifacts) | Pre-trained weights vs project-trained artifacts |

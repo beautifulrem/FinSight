@@ -457,6 +457,113 @@
     },
     "debug_trace": {
       "$ref": "#/$defs/RetrievalDebugTrace"
+    },
+    "analysis_summary": {
+      "title": "Analysis Summary",
+      "description": "Pre-computed market/fundamental/macro analysis signals for downstream sentiment analysis",
+      "type": "object",
+      "properties": {
+        "market_signal": {
+          "description": "Technical indicators and trend signal for market data. Single symbol → object; multi-symbol comparison → array of objects",
+          "anyOf": [{"type": "object"}, {"type": "array", "items": {"type": "object"}}, {"type": "null"}],
+          "properties": {
+            "symbol": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "canonical_name": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "trade_date": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "close": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+            "pct_change_1d": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+            "trend_signal": {"type": "string", "enum": ["bullish", "bearish", "neutral"]},
+            "rsi_14": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+            "ma5": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+            "ma20": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+            "pct_change_nd": {
+              "type": "object",
+              "description": "Multi-day cumulative returns in percent",
+              "properties": {
+                "pct_3d": {"anyOf": [{"type": "number"}, {"type": "null"}], "description": "3-day cumulative return %"},
+                "pct_5d": {"anyOf": [{"type": "number"}, {"type": "null"}], "description": "5-day cumulative return %"},
+                "pct_10d": {"anyOf": [{"type": "number"}, {"type": "null"}], "description": "10-day cumulative return %"},
+                "pct_20d": {"anyOf": [{"type": "number"}, {"type": "null"}], "description": "20-day cumulative return %"}
+              }
+            },
+            "volatility_20d": {"anyOf": [{"type": "number"}, {"type": "null"}], "description": "20-day annualized volatility in percent (e.g. 28.5 = 28.5%)"},
+            "macd": {
+              "anyOf": [{"type": "object"}, {"type": "null"}],
+              "description": "MACD indicator (simplified SMA-based signal line)",
+              "properties": {
+                "macd_line": {"type": "number"},
+                "signal_line": {"type": "number"},
+                "histogram": {"type": "number"}
+              }
+            },
+            "bollinger": {
+              "anyOf": [{"type": "object"}, {"type": "null"}],
+              "description": "Bollinger Bands (20,2)",
+              "properties": {
+                "upper": {"type": "number"},
+                "middle": {"type": "number"},
+                "lower": {"type": "number"},
+                "bandwidth": {"type": "number", "description": "Bandwidth as % of middle band"}
+              }
+            },
+            "price_vs_ma": {
+              "type": "object",
+              "description": "Latest price position relative to moving averages",
+              "properties": {
+                "above_ma5": {"anyOf": [{"type": "boolean"}, {"type": "null"}]},
+                "above_ma20": {"anyOf": [{"type": "boolean"}, {"type": "null"}]}
+              }
+            }
+          }
+        },
+        "fundamental_signal": {
+          "description": "Fundamental valuation assessment. Single symbol → object; multi-symbol comparison → array of objects",
+          "anyOf": [{"type": "object"}, {"type": "array", "items": {"type": "object"}}, {"type": "null"}],
+          "properties": {
+            "symbol": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "report_date": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "pe_ttm": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+            "pb": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+            "roe": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+            "valuation_assessment": {"type": "string", "enum": ["potentially_undervalued", "fair_range", "potentially_overvalued", "unknown"]}
+          }
+        },
+        "macro_signal": {
+          "description": "Macro indicator directions and overall assessment",
+          "anyOf": [{"type": "object"}, {"type": "null"}],
+          "properties": {
+            "indicators": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "indicator_code": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                  "indicator_name": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                  "metric_date": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                  "metric_value": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                  "unit": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                  "direction": {"type": "string", "enum": ["expansion", "expansionary", "contraction", "tightening", "inflationary", "deflationary", "rising", "falling", "stable", "moderate", "unknown"]}
+                }
+              }
+            },
+            "overall": {"anyOf": [{"type": "string", "enum": ["expansionary", "contractionary", "mixed"]}, {"type": "null"}]}
+          }
+        },
+        "data_readiness": {
+          "type": "object",
+          "description": "Flags indicating what data and analysis is available for downstream",
+          "properties": {
+            "has_price_data": {"type": "boolean"},
+            "has_fundamentals": {"type": "boolean"},
+            "has_macro": {"type": "boolean"},
+            "has_news": {"type": "boolean"},
+            "has_technical_indicators": {"type": "boolean"},
+            "relevant_intents": {"type": "array", "items": {"type": "string"}},
+            "relevant_topics": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      },
+      "default": {}
     }
   },
   "required": [
