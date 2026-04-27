@@ -1246,6 +1246,9 @@ def coerce_query(value: Any) -> str:
     return query
 
 
+_MAX_REQUEST_BODY_BYTES = 10 * 1024 * 1024  # 10 MB – prevent OOM via huge Content-Length
+
+
 def run_service(args: argparse.Namespace) -> None:
     from http import HTTPStatus
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -1272,6 +1275,11 @@ def run_service(args: argparse.Namespace) -> None:
             content_length = int(self.headers.get("Content-Length") or "0")
             if content_length <= 0:
                 return {}
+            if content_length > _MAX_REQUEST_BODY_BYTES:
+                raise ValueError(
+                    f"Request body too large: {content_length} bytes "
+                    f"(max {_MAX_REQUEST_BODY_BYTES})"
+                )
             raw = self.rfile.read(content_length)
             parsed = json.loads(raw.decode("utf-8"))
             if not isinstance(parsed, dict):

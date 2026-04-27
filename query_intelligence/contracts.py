@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 MIN_RETRIEVAL_TOP_K = 1
 MAX_RETRIEVAL_TOP_K = 100
+MAX_QUERY_LENGTH = 2000
 
 QuestionStyle = Literal["fact", "why", "compare", "advice", "forecast"]
 TimeScope = Literal[
@@ -134,7 +135,7 @@ class RetrievalResult(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    query: str
+    query: str = Field(min_length=1, max_length=MAX_QUERY_LENGTH)
     user_profile: dict[str, Any] = Field(default_factory=dict)
     dialog_context: list[dict[str, Any]] = Field(default_factory=list)
     debug: bool = False
@@ -147,7 +148,7 @@ class RetrievalRequest(BaseModel):
 
 
 class PipelineRequest(BaseModel):
-    query: str
+    query: str = Field(min_length=1, max_length=MAX_QUERY_LENGTH)
     user_profile: dict[str, Any] = Field(default_factory=dict)
     dialog_context: list[dict[str, Any]] = Field(default_factory=list)
     top_k: int = Field(default=20, ge=MIN_RETRIEVAL_TOP_K, le=MAX_RETRIEVAL_TOP_K)

@@ -168,13 +168,31 @@ def _allow_patterns_for_source(source_id: str) -> list[str] | None:
     return None
 
 
+def _safe_zip_extractall(archive: zipfile.ZipFile, extract_dir: Path) -> None:
+    """Extract a zip archive while blocking zip-slip path traversal attacks.
+
+    zipfile.extractall() does not validate member paths; a malicious archive
+    could contain entries like ``../../etc/cron.d/evil`` and write files
+    outside *extract_dir*.  This helper resolves every member path and raises
+    ``ValueError`` if the resolved path escapes the target directory.
+    """
+    resolved_root = extract_dir.resolve()
+    for member in archive.infolist():
+        target = (extract_dir / member.filename).resolve()
+        if not target.is_relative_to(resolved_root):
+            raise ValueError(
+                f"Blocked unsafe zip member path (zip-slip): {member.filename!r}"
+            )
+        archive.extract(member, extract_dir)
+
+
 def _extract_zip_files(target_dir: Path) -> None:
     for path in target_dir.rglob("*.zip"):
         extract_dir = path.with_suffix("")
         if extract_dir.exists():
             continue
         with zipfile.ZipFile(path) as archive:
-            archive.extractall(extract_dir)
+            _safe_zip_extractall(archive, extract_dir)
 
 
 def _extract_7z_files(target_dir: Path) -> None:
