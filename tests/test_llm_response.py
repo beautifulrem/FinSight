@@ -12,6 +12,7 @@ from scripts.llm_response import (
     build_record_from_query,
     build_frontend_response,
     compact_payload,
+    coerce_top_k,
     extract_json_object,
     hf_token,
     load_few_shot_bank,
@@ -114,6 +115,16 @@ def test_compact_payload_uses_retrieval_analysis_summary_when_statistical_result
 
     assert payload["statistical_result"]["retrieval_analysis_summary"]["market_signal"] == {"trend_signal": "positive"}
     assert payload["statistical_result"]["retrieval_analysis_summary"]["data_readiness"]["has_price_data"] is True
+
+
+def test_compact_payload_falls_back_to_nlu_raw_query() -> None:
+    record = _sample_record()
+    record.pop("query")
+    record["nlu_result"]["raw_query"] = "中国平安最近为什么涨？"
+
+    payload = compact_payload(record)
+
+    assert payload["query"] == "中国平安最近为什么涨？"
 
 
 def test_build_record_from_query_connects_query_intelligence_output_shape() -> None:
@@ -288,6 +299,17 @@ def test_chat_model_generate_json_retries_after_invalid_output() -> None:
     assert result == {"answer": "ok"}
     assert len(calls) == 2
     assert "not valid JSON" in calls[1][-1]["content"]
+
+
+def test_coerce_top_k_rejects_invalid_values() -> None:
+    assert coerce_top_k(None) == 20
+    assert coerce_top_k("5") == 5
+
+    with pytest.raises(ValueError, match="top_k must be an integer"):
+        coerce_top_k("abc")
+
+    with pytest.raises(ValueError, match="top_k must be greater than 0"):
+        coerce_top_k(0)
 
 
 def test_build_frontend_response_adds_llm_sections_without_model_loading() -> None:

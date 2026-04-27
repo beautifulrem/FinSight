@@ -481,7 +481,7 @@ def compact_payload(record: dict[str, Any]) -> dict[str, Any]:
         statistical_result = {"retrieval_analysis_summary": retrieval_result.get("analysis_summary")}
     sentiment_result = deepcopy(record.get("sentiment_result") or {})
     payload = {
-        "query": record.get("query") or record.get("raw_query") or "",
+        "query": record.get("query") or record.get("raw_query") or nlu_result.get("raw_query") or "",
         "nlu_result": _compact_nlu(nlu_result) if isinstance(nlu_result, dict) else {},
         "retrieval_result": _compact_retrieval(retrieval_result) if isinstance(retrieval_result, dict) else {},
         "statistical_result": _compact_statistical(statistical_result) if isinstance(statistical_result, dict) else {},
@@ -1192,6 +1192,18 @@ def make_runtime(args: argparse.Namespace) -> LLMResponseRuntime:
     )
 
 
+def coerce_top_k(value: Any, *, default: int = 20) -> int:
+    if value in (None, ""):
+        return default
+    try:
+        top_k = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("top_k must be an integer") from exc
+    if top_k <= 0:
+        raise ValueError("top_k must be greater than 0")
+    return top_k
+
+
 def run_service(args: argparse.Namespace) -> None:
     from http import HTTPStatus
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -1248,9 +1260,14 @@ def run_service(args: argparse.Namespace) -> None:
                 if isinstance(pipeline_result, dict):
                     record = pipeline_result
                 elif query:
+                    try:
+                        top_k = coerce_top_k(request.get("top_k"))
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.UNPROCESSABLE_ENTITY, {"detail": str(exc)})
+                        return
                     record = build_record_from_query(
                         str(query).strip(),
-                        top_k=int(request.get("top_k") or 20),
+                        top_k=top_k,
                         debug=bool(request.get("debug") or False),
                         user_profile=request.get("user_profile") if isinstance(request.get("user_profile"), dict) else {},
                         dialog_context=request.get("dialog_context") if isinstance(request.get("dialog_context"), list) else [],
