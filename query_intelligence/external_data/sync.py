@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+import stat
 import subprocess
 import zipfile
 from pathlib import Path
@@ -13,6 +15,11 @@ except ImportError:  # pragma: no cover - dependency installed via requirements.
     snapshot_download = None
 
 from .models import DatasetSource, SyncResult
+
+MAX_HTTP_DOWNLOAD_BYTES = 5 * 1024 * 1024 * 1024
+MAX_ARCHIVE_MEMBERS = 100_000
+MAX_ARCHIVE_UNCOMPRESSED_BYTES = 5 * 1024 * 1024 * 1024
+SUBPROCESS_TIMEOUT_SECONDS = 900
 
 _SCRIPT_BACKED_DOWNLOADS: dict[str, tuple[str, ...]] = {
     "msra_ner": (
@@ -100,11 +107,18 @@ def download_github_repo(repo_url: str, target_dir: Path, *, branch: str = "main
     subprocess.run(
         ["git", "clone", "--depth", "1", "--branch", branch, repo_url, str(target_dir)],
         check=True,
+        timeout=SUBPROCESS_TIMEOUT_SECONDS,
     )
     return target_dir
 
 
-def download_http_file(url: str, target_dir: Path, filename: str = "download.bin") -> Path:
+def download_http_file(
+    url: str,
+    target_dir: Path,
+    filename: str = "download.bin",
+    *,
+    max_bytes: int = MAX_HTTP_DOWNLOAD_BYTES,
+) -> Path:
     target_dir.mkdir(parents=True, exist_ok=True)
     response = requests.get(url, timeout=120, stream=True)
     response.raise_for_status()
@@ -112,16 +126,45 @@ def download_http_file(url: str, target_dir: Path, filename: str = "download.bin
         candidate = Path(unquote(urlparse(url).path)).name
         if candidate:
             filename = candidate
-    output_path = target_dir / filename
+    output_path = _safe_child_path(target_dir, filename)
+    declared_length = response.headers.get("Content-Length")
+    if declared_length:
+        try:
+            content_length = int(declared_length)
+        except ValueError as exc:
+            raise ValueError(f"invalid Content-Length for {url}: {declared_length!r}") from exc
+        if content_length > max_bytes:
+            raise ValueError(f"download too large: {content_length} bytes exceeds limit {max_bytes}")
+    tmp_path = output_path.with_name(f".{output_path.name}.part")
+    bytes_written = 0
     try:
-        with output_path.open("wb") as handle:
+        with tmp_path.open("wb") as handle:
             for chunk in response.iter_content(chunk_size=1024 * 1024):
                 if chunk:
+                    bytes_written += len(chunk)
+                    if bytes_written > max_bytes:
+                        raise ValueError(f"download too large: exceeded limit {max_bytes} bytes")
                     handle.write(chunk)
+        tmp_path.replace(output_path)
     finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
         close = getattr(response, "close", None)
         if callable(close):
             close()
+    return output_path
+
+
+def _safe_child_path(root: Path, filename: str) -> Path:
+    if not filename:
+        raise ValueError("download filename must not be empty")
+    name = Path(filename).name
+    if name != filename or name in {".", ".."}:
+        raise ValueError(f"unsafe download filename: {filename!r}")
+    resolved_root = root.resolve()
+    output_path = (root / name).resolve()
+    if not output_path.is_relative_to(resolved_root):
+        raise ValueError(f"unsafe download filename: {filename!r}")
     return output_path
 
 
@@ -168,13 +211,90 @@ def _allow_patterns_for_source(source_id: str) -> list[str] | None:
     return None
 
 
+def _safe_archive_target(extract_dir: Path, member_name: str) -> Path:
+    normalized_name = member_name.replace("\\", "/")
+    member_path = Path(normalized_name)
+    if member_path.is_absolute() or ".." in member_path.parts:
+        raise ValueError(f"Blocked unsafe archive member path: {member_name!r}")
+    resolved_root = extract_dir.resolve()
+    target = (extract_dir / member_path).resolve()
+    if not target.is_relative_to(resolved_root):
+        raise ValueError(f"Blocked unsafe archive member path: {member_name!r}")
+    return target
+
+
+def _validate_archive_limits(file_count: int, total_size: int) -> None:
+    if file_count > MAX_ARCHIVE_MEMBERS:
+        raise ValueError(f"archive has too many members: {file_count} > {MAX_ARCHIVE_MEMBERS}")
+    if total_size > MAX_ARCHIVE_UNCOMPRESSED_BYTES:
+        raise ValueError(
+            f"archive expands to too many bytes: {total_size} > {MAX_ARCHIVE_UNCOMPRESSED_BYTES}"
+        )
+
+
+def _safe_zip_extractall(archive: zipfile.ZipFile, extract_dir: Path) -> None:
+    """Extract a zip archive after validating paths, symlinks, count, and size."""
+    members = archive.infolist()
+    total_size = 0
+    safe_targets: list[tuple[zipfile.ZipInfo, Path]] = []
+    for member in members:
+        mode = member.external_attr >> 16
+        if stat.S_ISLNK(mode):
+            raise ValueError(f"Blocked unsafe zip symlink member: {member.filename!r}")
+        total_size += member.file_size
+        safe_targets.append((member, _safe_archive_target(extract_dir, member.filename)))
+    _validate_archive_limits(len(members), total_size)
+
+    for member, target in safe_targets:
+        if member.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with archive.open(member) as source, target.open("wb") as destination:
+            shutil.copyfileobj(source, destination)
+
+
+def _replace_with_validated_extract_dir(tmp_dir: Path, extract_dir: Path) -> None:
+    _validate_extracted_tree(tmp_dir)
+    tmp_dir.replace(extract_dir)
+
+
+def _validate_extracted_tree(extract_dir: Path) -> None:
+    resolved_root = extract_dir.resolve()
+    file_count = 0
+    total_size = 0
+    for path in extract_dir.rglob("*"):
+        if path.is_symlink():
+            raise ValueError(f"Blocked unsafe archive symlink: {path}")
+        if not path.resolve().is_relative_to(resolved_root):
+            raise ValueError(f"Blocked archive path escaping target directory: {path}")
+        if path.is_file():
+            file_count += 1
+            total_size += path.stat().st_size
+    _validate_archive_limits(file_count, total_size)
+
+
+def _fresh_extract_dir(path: Path) -> Path:
+    tmp_dir = path.with_name(f".{path.stem}.extracting")
+    if tmp_dir.exists():
+        shutil.rmtree(tmp_dir)
+    return tmp_dir
+
+
 def _extract_zip_files(target_dir: Path) -> None:
     for path in target_dir.rglob("*.zip"):
         extract_dir = path.with_suffix("")
         if extract_dir.exists():
             continue
-        with zipfile.ZipFile(path) as archive:
-            archive.extractall(extract_dir)
+        tmp_dir = _fresh_extract_dir(path)
+        tmp_dir.mkdir(parents=True)
+        try:
+            with zipfile.ZipFile(path) as archive:
+                _safe_zip_extractall(archive, tmp_dir)
+            _replace_with_validated_extract_dir(tmp_dir, extract_dir)
+        except Exception:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise
 
 
 def _extract_7z_files(target_dir: Path) -> None:
@@ -182,7 +302,18 @@ def _extract_7z_files(target_dir: Path) -> None:
         extract_dir = path.with_suffix("")
         if extract_dir.exists():
             continue
-        subprocess.run(["unar", "-quiet", "-output-directory", str(extract_dir), str(path)], check=True)
+        tmp_dir = _fresh_extract_dir(path)
+        tmp_dir.mkdir(parents=True)
+        try:
+            subprocess.run(
+                ["unar", "-quiet", "-output-directory", str(tmp_dir), str(path)],
+                check=True,
+                timeout=SUBPROCESS_TIMEOUT_SECONDS,
+            )
+            _replace_with_validated_extract_dir(tmp_dir, extract_dir)
+        except Exception:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise
 
 
 _download_huggingface = download_huggingface_dataset

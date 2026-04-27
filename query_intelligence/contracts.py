@@ -1,12 +1,20 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
 
 MIN_RETRIEVAL_TOP_K = 1
 MAX_RETRIEVAL_TOP_K = 100
+MAX_QUERY_LENGTH = 2000
+MAX_NLU_LIST_ITEMS = 64
+MAX_NLU_ENTITIES = 32
+MAX_NLU_TEXT_LENGTH = 256
+MAX_USER_PROFILE_FIELDS = 64
+MAX_DIALOG_CONTEXT_ITEMS = 32
+
+ShortText = Annotated[str, Field(max_length=MAX_NLU_TEXT_LENGTH)]
 
 QuestionStyle = Literal["fact", "why", "compare", "advice", "forecast"]
 TimeScope = Literal[
@@ -22,7 +30,7 @@ ActionType = Literal["buy", "sell", "hold", "reduce", "observe", "unknown"]
 
 
 class LabelScore(BaseModel):
-    label: str
+    label: ShortText
     score: float = Field(ge=0.0, le=1.0)
 
 
@@ -31,40 +39,40 @@ class ProductPrediction(LabelScore):
 
 
 class EntityMatch(BaseModel):
-    mention: str
-    entity_type: str
+    mention: ShortText
+    entity_type: ShortText
     confidence: float = Field(ge=0.0, le=1.0)
-    match_type: str
+    match_type: ShortText
     entity_id: int | None = None
-    canonical_name: str | None = None
-    symbol: str | None = None
-    exchange: str | None = None
+    canonical_name: ShortText | None = None
+    symbol: ShortText | None = None
+    exchange: ShortText | None = None
 
 
 class Explainability(BaseModel):
-    matched_rules: list[str] = Field(default_factory=list)
-    top_features: list[str] = Field(default_factory=list)
+    matched_rules: list[ShortText] = Field(default_factory=list, max_length=MAX_NLU_LIST_ITEMS)
+    top_features: list[ShortText] = Field(default_factory=list, max_length=MAX_NLU_LIST_ITEMS)
 
 
 class NLUResult(BaseModel):
-    query_id: str
-    raw_query: str
-    normalized_query: str
+    query_id: ShortText
+    raw_query: str = Field(max_length=MAX_QUERY_LENGTH)
+    normalized_query: str = Field(max_length=MAX_QUERY_LENGTH)
     question_style: QuestionStyle
     product_type: ProductPrediction
-    intent_labels: list[LabelScore]
-    topic_labels: list[LabelScore]
-    entities: list[EntityMatch]
-    comparison_targets: list[str] = Field(default_factory=list)
-    keywords: list[str] = Field(default_factory=list)
+    intent_labels: list[LabelScore] = Field(max_length=MAX_NLU_LIST_ITEMS)
+    topic_labels: list[LabelScore] = Field(max_length=MAX_NLU_LIST_ITEMS)
+    entities: list[EntityMatch] = Field(max_length=MAX_NLU_ENTITIES)
+    comparison_targets: list[ShortText] = Field(default_factory=list, max_length=MAX_NLU_LIST_ITEMS)
+    keywords: list[ShortText] = Field(default_factory=list, max_length=MAX_NLU_LIST_ITEMS)
     time_scope: TimeScope
-    forecast_horizon: str
-    sentiment_of_user: str
+    forecast_horizon: ShortText
+    sentiment_of_user: ShortText
     operation_preference: ActionType
-    required_evidence_types: list[str] = Field(default_factory=list)
-    source_plan: list[str] = Field(default_factory=list)
-    risk_flags: list[str] = Field(default_factory=list)
-    missing_slots: list[str] = Field(default_factory=list)
+    required_evidence_types: list[ShortText] = Field(default_factory=list, max_length=MAX_NLU_LIST_ITEMS)
+    source_plan: list[ShortText] = Field(default_factory=list, max_length=MAX_NLU_LIST_ITEMS)
+    risk_flags: list[ShortText] = Field(default_factory=list, max_length=MAX_NLU_LIST_ITEMS)
+    missing_slots: list[ShortText] = Field(default_factory=list, max_length=MAX_NLU_LIST_ITEMS)
     confidence: float = Field(ge=0.0, le=1.0)
     explainability: Explainability
 
@@ -134,22 +142,22 @@ class RetrievalResult(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    query: str
-    user_profile: dict[str, Any] = Field(default_factory=dict)
-    dialog_context: list[dict[str, Any]] = Field(default_factory=list)
+    query: str = Field(min_length=1, max_length=MAX_QUERY_LENGTH)
+    user_profile: dict[str, Any] = Field(default_factory=dict, max_length=MAX_USER_PROFILE_FIELDS)
+    dialog_context: list[dict[str, Any]] = Field(default_factory=list, max_length=MAX_DIALOG_CONTEXT_ITEMS)
     debug: bool = False
 
 
 class RetrievalRequest(BaseModel):
-    nlu_result: dict[str, Any]
+    nlu_result: NLUResult
     top_k: int = Field(default=20, ge=MIN_RETRIEVAL_TOP_K, le=MAX_RETRIEVAL_TOP_K)
     debug: bool = False
 
 
 class PipelineRequest(BaseModel):
-    query: str
-    user_profile: dict[str, Any] = Field(default_factory=dict)
-    dialog_context: list[dict[str, Any]] = Field(default_factory=list)
+    query: str = Field(min_length=1, max_length=MAX_QUERY_LENGTH)
+    user_profile: dict[str, Any] = Field(default_factory=dict, max_length=MAX_USER_PROFILE_FIELDS)
+    dialog_context: list[dict[str, Any]] = Field(default_factory=list, max_length=MAX_DIALOG_CONTEXT_ITEMS)
     top_k: int = Field(default=20, ge=MIN_RETRIEVAL_TOP_K, le=MAX_RETRIEVAL_TOP_K)
     debug: bool = False
 
@@ -160,8 +168,8 @@ class PipelineResponse(BaseModel):
 
 
 class ArtifactRequest(PipelineRequest):
-    session_id: str | None = None
-    message_id: str | None = None
+    session_id: ShortText | None = None
+    message_id: ShortText | None = None
 
 
 class ArtifactPaths(BaseModel):
