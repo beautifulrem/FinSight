@@ -686,7 +686,10 @@ def select_few_shots(
 ) -> list[dict[str, Any]]:
     style = _question_style_from_payload(payload)
     selected = bank.get(style) or []
-    return selected[:2] if selected else fallback[:2]
+    if selected:
+        return selected[:2]
+    fallback_selected = [item for item in fallback if _question_style_from_payload(item.get("input") or {}) == style]
+    return fallback_selected[:2]
 
 
 def extract_json_object(text: str) -> dict[str, Any]:
@@ -1204,6 +1207,13 @@ def coerce_top_k(value: Any, *, default: int = 20) -> int:
     return top_k
 
 
+def coerce_query(value: Any) -> str:
+    query = str(value or "").strip()
+    if not query:
+        raise ValueError("query must not be blank")
+    return query
+
+
 def run_service(args: argparse.Namespace) -> None:
     from http import HTTPStatus
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -1261,12 +1271,17 @@ def run_service(args: argparse.Namespace) -> None:
                     record = pipeline_result
                 elif query:
                     try:
+                        query_text = coerce_query(query)
+                    except ValueError as exc:
+                        self._send_json(HTTPStatus.UNPROCESSABLE_ENTITY, {"detail": str(exc)})
+                        return
+                    try:
                         top_k = coerce_top_k(request.get("top_k"))
                     except ValueError as exc:
                         self._send_json(HTTPStatus.UNPROCESSABLE_ENTITY, {"detail": str(exc)})
                         return
                     record = build_record_from_query(
-                        str(query).strip(),
+                        query_text,
                         top_k=top_k,
                         debug=bool(request.get("debug") or False),
                         user_profile=request.get("user_profile") if isinstance(request.get("user_profile"), dict) else {},

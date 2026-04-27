@@ -12,6 +12,7 @@ from scripts.llm_response import (
     build_record_from_query,
     build_frontend_response,
     compact_payload,
+    coerce_query,
     coerce_top_k,
     extract_json_object,
     hf_token,
@@ -218,6 +219,14 @@ def test_select_few_shots_uses_matching_question_style_only() -> None:
     assert all(_question_style_from_payload(item["input"]) == "compare" for item in selected)
 
 
+def test_select_few_shots_does_not_use_mismatched_fallback_styles() -> None:
+    payload = compact_payload(_sample_record(question_style="forecast"))
+
+    selected = select_few_shots(payload, {}, [])
+
+    assert selected == []
+
+
 def test_normalize_next_questions_returns_three_bounded_predictions() -> None:
     result = normalize_next_questions(
         {
@@ -310,6 +319,13 @@ def test_coerce_top_k_rejects_invalid_values() -> None:
 
     with pytest.raises(ValueError, match="top_k must be greater than 0"):
         coerce_top_k(0)
+
+
+def test_coerce_query_rejects_blank_values() -> None:
+    assert coerce_query("  中国平安最近为什么涨？  ") == "中国平安最近为什么涨？"
+
+    with pytest.raises(ValueError, match="query must not be blank"):
+        coerce_query("   ")
 
 
 def test_build_frontend_response_adds_llm_sections_without_model_loading() -> None:
