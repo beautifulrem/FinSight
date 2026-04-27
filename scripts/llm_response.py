@@ -1264,12 +1264,16 @@ def run_service(args: argparse.Namespace) -> None:
                 self._send_json(HTTPStatus.NOT_FOUND, {"detail": "not found"})
                 return
             try:
-                request = self._read_json_body()
+                try:
+                    request = self._read_json_body()
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"detail": str(exc)})
+                    return
                 pipeline_result = request.get("pipeline_result")
                 query = request.get("query")
                 if isinstance(pipeline_result, dict):
                     record = pipeline_result
-                elif query:
+                elif query is not None:
                     try:
                         query_text = coerce_query(query)
                     except ValueError as exc:

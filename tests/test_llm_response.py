@@ -17,6 +17,7 @@ from scripts.llm_response import (
     extract_json_object,
     hf_token,
     load_few_shot_bank,
+    ANSWER_FEW_SHOTS,
     make_next_question_language_repair_messages,
     next_questions_match_language,
     normalize_next_questions,
@@ -225,6 +226,15 @@ def test_select_few_shots_does_not_use_mismatched_fallback_styles() -> None:
     selected = select_few_shots(payload, {}, [])
 
     assert selected == []
+
+
+def test_select_few_shots_keeps_matching_fallback_styles() -> None:
+    payload = compact_payload(_sample_record(question_style="why"))
+
+    selected = select_few_shots(payload, {}, ANSWER_FEW_SHOTS)
+
+    assert selected
+    assert all(_question_style_from_payload(item["input"]) == "why" for item in selected)
 
 
 def test_normalize_next_questions_returns_three_bounded_predictions() -> None:
