@@ -53,17 +53,19 @@ class TushareMarketProvider:
             if trade_date:
                 basic_trade_date = str(trade_date).replace("-", "")
 
-        try:
-            basic_rows = self.client.daily_basic(
-                ts_code=symbol,
-                trade_date=basic_trade_date,
-                fields=basic_fields,
-            )
-        except Exception as exc:  # noqa: BLE001
-            basic_rows = None
-            errors.append(f"daily_basic:{exc}")
+        basic_row = None
+        if basic_trade_date:
+            try:
+                basic_rows = self.client.daily_basic(
+                    ts_code=symbol,
+                    trade_date=basic_trade_date,
+                    fields=basic_fields,
+                )
+            except Exception as exc:  # noqa: BLE001
+                basic_rows = None
+                errors.append(f"daily_basic:{exc}")
 
-        basic_row = self._first_row(basic_rows)
+            basic_row = self._first_row(basic_rows)
         if daily_row is None and fina_row is None:
             raise RuntimeError("; ".join(errors) or f"no data for {symbol}")
         daily_trace = self._api_trace(
