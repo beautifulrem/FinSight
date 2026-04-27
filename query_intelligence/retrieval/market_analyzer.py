@@ -158,7 +158,7 @@ class MarketAnalyzer:
         avg_gain = sum(gains) / period
         avg_loss = sum(losses) / period
         if avg_loss == 0:
-            return 100.0
+            return 50.0 if avg_gain == 0 else 100.0
         rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
         return round(rsi, 2)
