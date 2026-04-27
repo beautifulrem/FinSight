@@ -1,0 +1,384 @@
+Frontend LLM Response Handoff
+=============================
+
+Purpose
+-------
+This file is for frontend integration. The LLM response runner connects the
+previous Query Intelligence pipeline output to two frontend-facing sections:
+
+1. answer_generation
+2. next_question_prediction
+
+The runner is:
+
+  scripts/llm_response.py
+
+Default models:
+
+  answer_generation: instruction-pretrain/finance-Llama3-8B
+  next_question_prediction: Qwen/Qwen2.5-3B-Instruct
+
+Local model lookup:
+
+  The runner checks local paths before using HuggingFace model IDs.
+  Default local root: models/llm
+  Default env var: LLM_MODELS_DIR=models/llm
+  Compatibility override: QI_LLM_MODELS_DIR=models/llm
+
+HF token:
+
+  Optional but recommended for first-time downloads:
+    export HF_TOKEN=hf_xxx
+
+  The runner also accepts HUGGINGFACE_HUB_TOKEN. If neither is set and a model
+  is not available locally, HuggingFace Hub requests may be rate-limited.
+
+  Accepted local directory names include:
+    models/llm/instruction-pretrain__finance-Llama3-8B
+    models/llm/finance-Llama3-8B
+    models/llm/models--instruction-pretrain--finance-Llama3-8B
+
+
+
+How to Run
+----------
+
+Option A: run from a raw user query. This first runs Query Intelligence, then
+passes the pipeline result to the LLM response step.
+
+  python scripts/llm_response.py \
+    --query "中国平安最近为什么涨？" \
+    --top-k 20
+
+Option B: run from an existing pipeline JSON file.
+
+  python scripts/llm_response.py \
+    --input path/to/pipeline_result.json
+
+Option C: pipe a previous pipeline output through stdin.
+
+  python scripts/llm_response.py \
+    --input -
+
+Option D: run as a persistent HTTP service for frontend integration.
+
+  python scripts/llm_response.py \
+    --serve \
+    --host 127.0.0.1 \
+    --port 8010
+
+  Health:
+
+    curl http://127.0.0.1:8010/health
+
+  From raw query:
+
+    curl -X POST http://127.0.0.1:8010/respond \
+      -H "Content-Type: application/json" \
+      -d '{"query":"中国平安最近为什么涨？","top_k":20}'
+
+  From existing pipeline result:
+
+    curl -X POST http://127.0.0.1:8010/respond \
+      -H "Content-Type: application/json" \
+      -d '{"pipeline_result":{"query":"...","nlu_result":{},"retrieval_result":{}}}'
+
+Output behavior:
+
+  If --output is omitted, the final JSON is printed to stdout and can be
+  returned directly by a caller. Logs are written to stderr.
+
+  Add --output only when a file copy is needed for debugging or archiving.
+
+  In --serve mode the response JSON is returned directly by the HTTP endpoint.
+  The service loads both models once at startup and reuses them for later
+  requests.
+
+Large-model / AutoDL smoke test:
+
+  Use this after the two default models are available locally or can be
+  downloaded. LLM_MODELS_DIR keeps HuggingFace downloads under models/llm so
+  repeated tests reuse the same checkpoint files.
+
+  LLM_MODELS_DIR=models/llm python scripts/llm_response.py \
+    --query "中国平安最近为什么涨？" \
+    --top-k 5 \
+    --answer-model instruction-pretrain/finance-Llama3-8B \
+    --next-question-model Qwen/Qwen2.5-3B-Instruct \
+    --device-map auto \
+    --dtype auto \
+    --answer-max-new-tokens 400 \
+    --next-max-new-tokens 160 \
+    --log-level INFO
+
+  If the models were downloaded outside models/llm, pass explicit local paths:
+
+  python scripts/llm_response.py \
+    --query "中国平安最近为什么涨？" \
+    --top-k 5 \
+    --answer-model /root/finance-Llama3-8B \
+    --next-question-model /root/Qwen2.5-3B-Instruct \
+    --device-map auto \
+    --dtype auto \
+    --answer-max-new-tokens 400 \
+    --next-max-new-tokens 160 \
+    --log-level INFO
+
+  For repeated manual checks, prefer --serve because CLI mode loads both
+  checkpoints for each run, while service mode loads them once at startup.
+
+JSON format recovery:
+
+  The runner strips markdown fences, extracts the first JSON object, and uses
+  json-repair for common malformed JSON. If parsing still fails, it sends a
+  strict JSON retry prompt. The default retry count is:
+
+    --json-retries 1
+
+
+Pipeline Input Format
+---------------------
+
+The runner accepts either:
+
+1. Query Intelligence native pipeline output:
+
+  {
+    "nlu_result": { ... },
+    "retrieval_result": {
+      ...,
+      "analysis_summary": { ... }
+    }
+  }
+
+2. Extended pipeline output with downstream statistical/sentiment modules:
+
+  {
+    "status": "ok",
+    "query": "国企ETF中银今天异动主要受什么影响？",
+    "nlu_result": { ... },
+    "retrieval_result": { ... },
+    "statistical_result": { ... },
+    "sentiment_result": { ... }
+  }
+
+Required minimum fields:
+
+  query
+    Raw user query. If missing, the runner falls back to nlu_result.raw_query.
+
+  nlu_result.question_style
+    One of: fact, why, compare, advice, forecast.
+    This controls few-shot selection.
+
+  retrieval_result.documents[]
+    Evidence documents. The runner reads evidence_id, source_type, title,
+    summary, text_excerpt, body.
+
+  retrieval_result.structured_data[]
+    Structured evidence rows. The runner reads evidence_id, source_type, as_of,
+    payload.
+
+Optional but useful fields:
+
+  statistical_result
+    Preferred statistical module output. If present, it is used in the compact
+    evidence prompt.
+
+  sentiment_result
+    Sentiment module output. If present, high-level sentiment fields are used in
+    the compact evidence prompt.
+
+  retrieval_result.analysis_summary
+    Query Intelligence fallback analysis summary. Used when statistical_result
+    is not present.
+
+
+Recommended Pipeline JSON Example
+---------------------------------
+
+{
+  "status": "ok",
+  "query": "国企ETF中银今天异动主要受什么影响？",
+  "nlu_result": {
+    "query_id": "Q_FRONTEND_001",
+    "raw_query": "国企ETF中银今天异动主要受什么影响？",
+    "normalized_query": "国企ETF中银今天异动主要受什么影响",
+    "question_style": "why",
+    "product_type": {"label": "etf", "score": 0.95},
+    "intent_labels": [{"label": "market_explanation", "score": 0.9}],
+    "topic_labels": [{"label": "price", "score": 0.8}, {"label": "news", "score": 0.8}],
+    "entities": [
+      {
+        "mention": "国企ETF中银",
+        "entity_type": "etf",
+        "confidence": 0.9,
+        "match_type": "alias_exact",
+        "canonical_name": "国企ETF中银",
+        "symbol": "example"
+      }
+    ],
+    "time_scope": "today",
+    "forecast_horizon": "short_term",
+    "sentiment_of_user": "neutral",
+    "operation_preference": "unknown",
+    "risk_flags": ["market_volatility"],
+    "missing_slots": [],
+    "confidence": 0.92,
+    "explainability": {"matched_rules": [], "top_features": []}
+  },
+  "retrieval_result": {
+    "query_id": "Q_FRONTEND_001",
+    "executed_sources": ["news", "market_api", "research_note"],
+    "documents": [
+      {
+        "evidence_id": "DOC_001",
+        "source_type": "news",
+        "source_name": "news_provider",
+        "title": "国企 ETF 今日走强",
+        "summary": "政策预期改善和资金流入推动国企 ETF 今日走强。",
+        "text_excerpt": "国企板块受政策预期改善影响，相关 ETF 出现放量上涨。",
+        "publish_time": "2026-04-27T10:00:00Z",
+        "entity_hits": ["国企ETF中银"],
+        "retrieval_score": 0.91,
+        "rank_score": 0.88
+      }
+    ],
+    "structured_data": [
+      {
+        "evidence_id": "STRUCT_001",
+        "source_type": "market_api",
+        "source_name": "market_provider",
+        "as_of": "2026-04-27",
+        "period": "daily",
+        "payload": {
+          "close": 1.25,
+          "pct_change_1d": 2.4,
+          "volume_change_signal": "increase",
+          "trend_signal": "positive"
+        }
+      }
+    ],
+    "warnings": [],
+    "retrieval_confidence": 0.88,
+    "analysis_summary": {
+      "market_signal": {
+        "trend_signal": "positive",
+        "pct_change_1d": 2.4,
+        "volume_change_signal": "increase"
+      },
+      "data_readiness": {
+        "has_price_data": true,
+        "has_news": true,
+        "has_fundamentals": false
+      }
+    },
+    "debug_trace": {
+      "candidate_count": 10,
+      "after_dedup": 4,
+      "top_ranked": ["DOC_001", "STRUCT_001"]
+    }
+  },
+  "statistical_result": {
+    "price_statistics": {
+      "available": true,
+      "trend_signal": "positive",
+      "volume_change_signal": "increase",
+      "technical_summary": "Price moved up with increased volume."
+    },
+    "news_statistics": {
+      "available": true,
+      "dominant_news_signal": "positive",
+      "news_summary": "Policy expectations and inflow reports are the main news drivers."
+    },
+    "risk_statistics": {
+      "risk_level": "moderate",
+      "main_risk_factors": ["market volatility", "policy uncertainty"],
+      "risk_summary": "The move may reverse if policy expectations weaken."
+    },
+    "overall_statistical_summary": {
+      "data_sufficiency": "partial",
+      "overall_signal": "positive",
+      "answerable": true,
+      "should_abstain": false,
+      "summary": "The move was mainly supported by policy expectations, stronger sector sentiment, and higher trading activity."
+    }
+  },
+  "sentiment_result": {
+    "overall_sentiment": {"label": "positive", "score": 0.55, "confidence": 0.84},
+    "news_sentiment": {"label": "positive", "score": 0.65, "confidence": 0.88},
+    "market_sentiment": {"label": "positive", "score": 0.6, "confidence": 0.82},
+    "risk_sentiment": {"label": "moderate", "confidence": 0.76}
+  }
+}
+
+
+LLM Output Format
+-----------------
+
+The output preserves the input pipeline object and adds:
+
+{
+  "answer_generation": {
+    "model_status": "real_model",
+    "model_name": "instruction-pretrain/finance-Llama3-8B",
+    "answer": "...",
+    "key_points": ["..."],
+    "evidence_used": ["DOC_001", "STRUCT_001"],
+    "limitations": ["..."],
+    "risk_disclaimer": "..."
+  },
+  "next_question_prediction": {
+    "model_status": "real_model",
+    "model_name": "Qwen/Qwen2.5-3B-Instruct",
+    "predictions": [
+      {"question": "...", "score": 0.92, "reason": "why_followup"},
+      {"question": "...", "score": 0.86, "reason": "why_followup"},
+      {"question": "...", "score": 0.80, "reason": "why_followup"}
+    ]
+  }
+}
+
+
+Frontend Reserved Space
+-----------------------
+
+Frontend can reserve UI slots for:
+
+  answer_generation.answer
+    Main answer text.
+
+  answer_generation.key_points
+    Bullet list or compact evidence cards.
+
+  answer_generation.evidence_used
+    Clickable evidence IDs mapped back to retrieval_result documents and
+    structured_data.
+
+  answer_generation.limitations
+    Low-confidence or missing-data notices.
+
+  answer_generation.risk_disclaimer
+    Footer disclaimer.
+
+  next_question_prediction.predictions[]
+    Follow-up question chips/buttons.
+
+
+Testing
+-------
+
+Smoke/completeness tests do not load model weights:
+
+  pytest tests/test_llm_response.py
+
+Optional live-model smoke test. This loads configured models and may download
+weights if the local directory is empty:
+
+  LLM_MODELS_DIR=models/llm python scripts/llm_response.py \
+    --query "中国平安最近为什么涨？" \
+    --top-k 5 \
+    --log-level INFO
+
+Use the live-model smoke test only on a machine with the required model files,
+disk space, and memory/GPU capacity.
