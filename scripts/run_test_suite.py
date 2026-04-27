@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TEST_GROUPS = (
     ("data_assets", ["tests/test_data_assets.py"]),
     ("adapters_assets", ["tests/test_dataset_adapters.py", "tests/test_training_assets.py"]),
+    ("sentiment", ["tests/test_sentiment_preprocessor.py", "tests/test_sentiment_pipeline.py"]),
     ("core_nlu_retrieval", ["tests/test_query_intelligence.py", "tests/test_ml_upgrades.py"]),
     ("manual_and_fuzz", ["tests/test_manual_test_runner.py", "tests/test_fuzz_query_intelligence_report.py"]),
     ("real_integrations", ["tests/test_real_integrations.py"]),
