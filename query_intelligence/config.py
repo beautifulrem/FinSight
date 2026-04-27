@@ -36,7 +36,7 @@ class Settings:
             use_live_market=live_market_raw.lower() in {"1", "true", "yes"},
             use_live_macro=os.getenv("QI_USE_LIVE_MACRO", "").lower() in {"1", "true", "yes"},
             use_live_news=os.getenv("QI_USE_LIVE_NEWS", live_market_raw).lower() in {"1", "true", "yes"},
-            use_live_announcement=os.getenv("QI_USE_LIVE_ANNOUNCEMENT", "").lower() in {"1", "true", "yes"},
+            use_live_announcement=os.getenv("QI_USE_LIVE_ANNOUNCEMENT", live_market_raw).lower() in {"1", "true", "yes"},
             use_postgres_retrieval=os.getenv("QI_USE_POSTGRES_RETRIEVAL", "").lower() in {"1", "true", "yes"},
             training_dataset_path=os.getenv("QI_TRAINING_DATASET"),
             models_dir=os.getenv("QI_MODELS_DIR", "models"),
