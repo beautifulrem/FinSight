@@ -1,5 +1,7 @@
 # ARIN Query Intelligence
 
+Languages: English | [中文](README_CN.md)
+
 ARIN Query Intelligence turns a user's financial question into explainable JSON artifacts that downstream systems can analyze and answer from.
 
 It produces:
@@ -124,6 +126,7 @@ See [Query Intelligence Contracts](docs/query-intelligence.md) for full request 
 | Training and runtime assets | [docs/training.md](docs/training.md) | [docs/zh/training.md](docs/zh/training.md) |
 | LLM response handoff | [docs/llm-response.md](docs/llm-response.md) | [docs/zh/llm-response.md](docs/zh/llm-response.md) |
 | Document sentiment analysis | [docs/sentiment.md](docs/sentiment.md) | [docs/zh/sentiment.md](docs/zh/sentiment.md) |
+| Retrieval output compatibility spec | [docs/retrieval_output_spec.md](docs/retrieval_output_spec.md) | [docs/zh/retrieval_output_spec.md](docs/zh/retrieval_output_spec.md) |
 
 ## Configuration
 
