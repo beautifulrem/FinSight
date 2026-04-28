@@ -134,8 +134,6 @@ Training scripts produce the shipped `models/*.joblib` artifacts.
 | `training.train_ranker` | Standardized handcrafted ranking features + linear logistic SGD | `models/ranker.joblib` |
 | `training.train_typo_linker` | Dict features + linear logistic SGD | `models/typo_linker.joblib` |
 
-## 8. Short Presentation Summary
+## 8. Summary
 
-If asked "What ML methods does the project use?", the short answer is:
-
-> The core system uses classical, explainable ML: sparse n-gram features with linear logistic SGD classifiers for text classification, CRF for entity boundary detection, handcrafted feature-based linear classifiers for clarification, typo linking, source planning, and ranking, plus TF-IDF/cosine methods for retrieval and deduplication. Transformer models are only downstream exceptions: FinBERT for document sentiment and LLMs for final answer and next-question JSON generation over already retrieved evidence.
+The core system uses classical, explainable ML: sparse n-gram features with linear logistic SGD classifiers for text classification, CRF for entity boundary detection, handcrafted feature-based linear classifiers for clarification, typo linking, source planning, and ranking, plus TF-IDF/cosine methods for retrieval and deduplication. Transformer models are downstream exceptions: FinBERT handles document sentiment, and LLMs generate final answer and next-question JSON over already retrieved evidence.

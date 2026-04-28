@@ -134,8 +134,6 @@ Retrieval 中的辅助非 ML 方法：
 | `training.train_ranker` | 标准化人工排序特征 + 线性 logistic SGD | `models/ranker.joblib` |
 | `training.train_typo_linker` | 字典特征 + 线性 logistic SGD | `models/typo_linker.joblib` |
 
-## 8. 答辩简短总结
+## 8. 总结
 
-如果被问到“这个项目用了哪些 ML 方法”，可以这样回答：
-
-> 项目的核心系统使用传统、可解释机器学习：文本分类主要是稀疏 n-gram 特征加线性 logistic SGD 分类器，实体边界识别使用 CRF，澄清判断、错别字链接、source planning 和排序使用人工特征加线性分类器，文档检索和去重使用 TF-IDF / cosine similarity。Transformer 模型只作为下游例外：FinBERT 用于文档情感分析，LLM 用于在已有证据基础上生成最终回答和追问 JSON。
+项目的核心系统使用传统、可解释机器学习：文本分类主要是稀疏 n-gram 特征加线性 logistic SGD 分类器，实体边界识别使用 CRF，澄清判断、错别字链接、source planning 和排序使用人工特征加线性分类器，文档检索和去重使用 TF-IDF / cosine similarity。Transformer 模型是下游例外：FinBERT 用于文档情感分析，LLM 用于在已有证据基础上生成最终回答和追问 JSON。
