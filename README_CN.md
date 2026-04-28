@@ -1,5 +1,7 @@
 # ARIN Query Intelligence
 
+语言：[English](README.md) | 中文
+
 ARIN Query Intelligence 将用户的金融问题转换成可解释的 JSON 证据产物，供下游分析、情感判断和回答生成使用。
 
 它输出：
@@ -124,6 +126,7 @@ manual_test/output/<timestamp>-<query-slug>/
 | 训练和运行时资产 | [docs/zh/training.md](docs/zh/training.md) | [docs/training.md](docs/training.md) |
 | LLM 回答生成交接 | [docs/zh/llm-response.md](docs/zh/llm-response.md) | [docs/llm-response.md](docs/llm-response.md) |
 | 文档情感分析 | [docs/zh/sentiment.md](docs/zh/sentiment.md) | [docs/sentiment.md](docs/sentiment.md) |
+| Retrieval 输出兼容说明 | [docs/zh/retrieval_output_spec.md](docs/zh/retrieval_output_spec.md) | [docs/retrieval_output_spec.md](docs/retrieval_output_spec.md) |
 
 ## 配置
 

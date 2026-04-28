@@ -1,5 +1,7 @@
 # Documentation
 
+Languages: English | [中文](zh/index.md)
+
 This directory holds the detailed project documentation. The root README is intentionally short; use these pages when you need contracts, configuration details, training steps, or downstream handoff notes.
 
 ## Contents
@@ -10,7 +12,7 @@ This directory holds the detailed project documentation. The root README is inte
 | [Training](training.md) | Public dataset sync, manifest-based training, runtime asset materialization, evaluation, and release checks. |
 | [LLM Response](llm-response.md) | Downstream answer-generation JSON, DeepSeek defaults, OpenAI-compatible endpoints, Anthropic, local API servers, and legacy transformers mode. |
 | [Sentiment](sentiment.md) | Downstream document sentiment pipeline, preprocessing, FinBERT routing, output fields, and test commands. |
-| [Retrieval Output Spec](retrieval_output_spec.md) | Compatibility entry point for `analysis_summary` and retrieval output references. |
+| [Retrieval Output Spec](retrieval_output_spec.md) | Compatibility entry point for `analysis_summary` and retrieval output references. [中文](zh/retrieval_output_spec.md) |
 
 Chinese documentation is in [docs/zh](zh/index.md).
 

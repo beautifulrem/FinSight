@@ -1,5 +1,7 @@
 # Query Intelligence
 
+Languages: English | [中文](zh/query-intelligence.md)
+
 Query Intelligence is the owned core of ARIN. It turns a financial query into two evidence artifacts:
 
 - `nlu_result`: what the user asked, what entities were resolved, what evidence is needed, and which sources should run.

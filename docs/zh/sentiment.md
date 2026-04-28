@@ -1,5 +1,7 @@
 # 文档情感分析
 
+语言：[English](../sentiment.md) | 中文
+
 `sentiment/` 是已实现的下游模块，用 Query Intelligence 产物分析检索到的文档，并输出 `positive`、`negative` 或 `neutral`。
 
 它独立于 NLU/Retrieval 主干，应复用上游 `nlu_result` 和 `retrieval_result`，不要重新做 query understanding。

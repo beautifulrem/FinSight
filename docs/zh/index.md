@@ -1,5 +1,7 @@
 # 文档导航
 
+语言：[English](../index.md) | 中文
+
 根目录 README 只保留项目定位、架构图、快速运行、模块和必要配置。详细说明放在本目录中。
 
 ## 内容
@@ -10,6 +12,7 @@
 | [训练和运行时资产](training.md) | 公开数据同步、manifest 训练、运行时资产生成、评估和发布检查。 |
 | [LLM 回答生成交接](llm-response.md) | 下游回答 JSON、DeepSeek 默认配置、OpenAI 兼容端点、Anthropic、本地 API 服务和本地 transformers 模式。 |
 | [文档情感分析](sentiment.md) | 下游 sentiment pipeline、预处理、FinBERT 路由、输出字段和测试命令。 |
+| [Retrieval 输出兼容说明](retrieval_output_spec.md) | `analysis_summary` 和 retrieval 输出引用的兼容入口。 |
 
 English documentation is in [docs/](../index.md).
 
