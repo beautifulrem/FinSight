@@ -2,7 +2,7 @@
 
 Languages: English | [中文](zh/training.md)
 
-ARIN trains classical, explainable models for NLU and retrieval. Training assets and runtime assets are separate:
+The FinSight backend trains classical, explainable models for NLU and retrieval. Training assets and runtime assets are separate:
 
 - Training assets improve classifiers, rankers, CRF, typo linking, source planning, and out-of-scope behavior.
 - Runtime assets power production entity resolution, alias matching, local document recall, and fallback structured data.

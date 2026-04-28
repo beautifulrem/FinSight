@@ -2,7 +2,7 @@
 
 Languages: English | [中文](zh/query-intelligence.md)
 
-Query Intelligence is the owned core of ARIN. It turns a financial query into two evidence artifacts:
+Query Intelligence is the owned backend core of FinSight, the ARIN7012 Group 4.2 evidence-first financial analysis chatbot project. It turns a financial query into two evidence artifacts:
 
 - `nlu_result`: what the user asked, what entities were resolved, what evidence is needed, and which sources should run.
 - `retrieval_result`: what evidence was found, how complete it is, how it was ranked, and what structured analysis signals are available.

@@ -2,7 +2,7 @@
 
 Languages: English | [中文](zh/sentiment.md)
 
-`sentiment/` is an implemented downstream module that consumes Query Intelligence artifacts and classifies retrieved documents as `positive`, `negative`, or `neutral`.
+`sentiment/` is an implemented downstream FinSight module that consumes Query Intelligence artifacts and classifies retrieved documents as `positive`, `negative`, or `neutral`.
 
 It is separate from the NLU/Retrieval backbone. It should use upstream `nlu_result` and `retrieval_result` instead of redoing query understanding.
 

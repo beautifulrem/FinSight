@@ -2,7 +2,7 @@
 
 Languages: English | [中文](zh/llm-response.md)
 
-`scripts/llm_response.py` is a downstream utility that produces frontend-ready JSON from compact Query Intelligence evidence. It can consume an existing record or run Query Intelligence first from a raw query.
+`scripts/llm_response.py` is a downstream FinSight utility that produces frontend-ready JSON from compact Query Intelligence evidence. It can consume an existing record or run Query Intelligence first from a raw query.
 
 It is outside the NLU/Retrieval backbone. It must not re-infer intent, targets, or source plans.
 

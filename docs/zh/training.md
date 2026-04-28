@@ -2,7 +2,7 @@
 
 语言：[English](../training.md) | 中文
 
-ARIN 使用传统、可解释模型训练 NLU 和 Retrieval。训练资产和运行时资产是两套东西：
+FinSight 后端使用传统、可解释模型训练 NLU 和 Retrieval。训练资产和运行时资产是两套东西：
 
 - 训练资产用于提升分类器、ranker、CRF、typo linker、source planner 和 out-of-scope 行为。
 - 运行时资产用于生产实体解析、alias 匹配、本地文档召回和结构化 seed fallback。

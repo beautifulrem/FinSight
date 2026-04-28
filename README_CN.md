@@ -1,15 +1,19 @@
-# ARIN Query Intelligence
+# FinSight
 
 语言：[English](README.md) | 中文
 
-ARIN Query Intelligence 将用户的金融问题转换成可解释的 JSON 证据产物，供下游分析、情感判断和回答生成使用。
+课程：ARIN7012 | 小组：Group 4.2
+
+FinSight 是 ARIN7012 Group 4.2 的证据优先金融分析聊天机器人项目。本仓库包含它的 ARIN Query Intelligence 后端，以及下游回答生成交接工具。
+
+Query Intelligence 后端将用户的金融问题转换成可解释的 JSON 证据产物，供下游分析、情感判断和回答生成使用。
 
 它输出：
 
 - `nlu_result`：规范化问题、产品类型、意图、主题、实体、缺失槽位、风险标记、证据需求和 source plan。
 - `retrieval_result`：实际执行的数据源、文档证据、结构化数据、覆盖情况、warning、排序追踪和 `analysis_summary`。
 
-它不直接生成最终投资回答，也不做确定性的买卖结论。自然语言回答、文档情感、统计分析等都属于下游模块。
+Query Intelligence 层不直接生成最终投资回答，也不做确定性的买卖结论。自然语言回答、文档情感、统计分析等都属于下游模块。
 
 ## 架构
 

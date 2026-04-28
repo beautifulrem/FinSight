@@ -2,7 +2,7 @@
 
 语言：[English](../query-intelligence.md) | 中文
 
-Query Intelligence 是 ARIN 的核心模块。它把金融问题转换为两个证据产物：
+Query Intelligence 是 FinSight（ARIN7012 Group 4.2 证据优先金融分析聊天机器人项目）的后端核心模块。它把金融问题转换为两个证据产物：
 
 - `nlu_result`：用户问了什么、识别到哪些实体、需要哪些证据、应该执行哪些 source。
 - `retrieval_result`：找到了哪些证据、证据是否完整、如何排序，以及有哪些结构化分析信号。

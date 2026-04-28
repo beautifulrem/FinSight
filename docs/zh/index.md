@@ -2,6 +2,8 @@
 
 语言：[English](../index.md) | 中文
 
+这些文档说明 FinSight，即 ARIN7012 Group 4.2 的证据优先金融分析聊天机器人项目。技术后端仍命名为 ARIN Query Intelligence。
+
 根目录 README 只保留项目定位、架构图、快速运行、模块和必要配置。详细说明放在本目录中。
 
 ## 内容

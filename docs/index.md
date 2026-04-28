@@ -2,7 +2,9 @@
 
 Languages: English | [中文](zh/index.md)
 
-This directory holds the detailed project documentation. The root README is intentionally short; use these pages when you need contracts, configuration details, training steps, or downstream handoff notes.
+These pages document FinSight, the ARIN7012 Group 4.2 evidence-first financial analysis chatbot project. The technical backend remains ARIN Query Intelligence.
+
+The root README is intentionally short; use these pages when you need contracts, configuration details, training steps, or downstream handoff notes.
 
 ## Contents
 

@@ -41,6 +41,12 @@ manual_test/output/
 evaluation/*.json
 evaluation/*.md
 
+# PPT local drafts and screenshots
+PPT_Overleaf/archive/
+PPT_Overleaf/*.png
+PPT_Overleaf/*.jpg
+PPT_Overleaf/*.jpeg
+
 # Local training/evaluation scratch files
 *.log
 tmp/

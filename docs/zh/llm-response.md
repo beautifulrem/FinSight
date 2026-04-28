@@ -2,7 +2,7 @@
 
 语言：[English](../llm-response.md) | 中文
 
-`scripts/llm_response.py` 是下游工具，用紧凑的 Query Intelligence 证据生成前端可直接消费的 JSON。它可以读取已有 record，也可以先从原始 query 跑 Query Intelligence。
+`scripts/llm_response.py` 是 FinSight 下游工具，用紧凑的 Query Intelligence 证据生成前端可直接消费的 JSON。它可以读取已有 record，也可以先从原始 query 跑 Query Intelligence。
 
 它不属于 NLU/Retrieval 主干，不应重新推断意图、目标实体或 source plan。
 

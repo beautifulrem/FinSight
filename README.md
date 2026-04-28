@@ -1,15 +1,19 @@
-# ARIN Query Intelligence
+# FinSight
 
 Languages: English | [中文](README_CN.md)
 
-ARIN Query Intelligence turns a user's financial question into explainable JSON artifacts that downstream systems can analyze and answer from.
+Course: ARIN7012 | Team: Group 4.2
+
+FinSight is an evidence-first financial analysis chatbot project for ARIN7012 Group 4.2. This repository contains its ARIN Query Intelligence backend and downstream handoff utilities.
+
+The Query Intelligence backend turns a user's financial question into explainable JSON artifacts that downstream systems can analyze and answer from.
 
 It produces:
 
 - `nlu_result`: normalized query, product type, intents, topics, entities, missing slots, risk flags, evidence requirements, and source plan.
 - `retrieval_result`: executed sources, document evidence, structured data, coverage, warnings, ranking traces, and `analysis_summary`.
 
-It does not write final investment answers or deterministic buy/sell decisions. Natural-language response generation, sentiment analysis, and statistical reasoning consume these artifacts downstream.
+The Query Intelligence layer does not write final investment answers or deterministic buy/sell decisions. Natural-language response generation, sentiment analysis, and statistical reasoning consume these artifacts downstream.
 
 ## Architecture
 
