@@ -800,6 +800,7 @@ Core safeguards:
 Example commands:
 
 ```bash
+export DEEPSEEK_API_KEY="..."
 python scripts/llm_response.py --query "你觉得中国平安怎么样？"
 python scripts/llm_response.py --input path/to/pipeline_record.json
 ```
@@ -808,11 +809,25 @@ python scripts/llm_response.py --input path/to/pipeline_record.json
 
 Model configuration:
 
-- `LLM_MODELS_DIR` or `QI_LLM_MODELS_DIR` overrides the local model search root.
-- `HF_TOKEN` or `HUGGINGFACE_HUB_TOKEN` enables authenticated HuggingFace access.
+- Default backend: `openai-compatible`, using a Chat Completions compatible API.
+- Default API base URL: `https://api.deepseek.com`; override with `QI_LLM_API_BASE_URL`, provider-specific base URL env vars, or `--api-base-url`.
+- API key: `QI_LLM_API_KEY` or provider-specific env vars such as `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, and similar; localhost API endpoints may omit a key.
+- Default answer model: `deepseek-v4-flash`.
+- Default next-question model: `deepseek-v4-flash`.
+- Default API extra body: `{"reasoning_effort":"max"}` for DeepSeek V4 Flash.
+- Default generation limit: `--answer-max-new-tokens 8192` and `--next-max-new-tokens 8192`.
+- OpenAI-compatible calls enable JSON Output by default with `response_format={"type":"json_object"}`; use `--no-api-response-format-json` only for providers that reject it.
+- GPT/OpenAI-compatible APIs can use the same backend by setting `QI_LLM_API_BASE_URL` and model names.
+- When switching away from DeepSeek, set `QI_LLM_API_EXTRA_BODY_JSON='{}'` unless the target provider accepts `reasoning_effort`.
+- Claude uses `--llm-backend anthropic` plus `QI_LLM_API_KEY` or `ANTHROPIC_API_KEY`; set Claude model names explicitly with `--answer-model` and `--next-question-model`.
+- Local API servers such as vLLM, Ollama, or LM Studio should be exposed as an OpenAI-compatible address, for example `--api-base-url http://127.0.0.1:8000/v1`.
+- Azure OpenAI can use `--api-chat-url` with the full deployment chat-completions URL plus `--api-key-header api-key --api-key-prefix ""`.
+- Legacy local HuggingFace/transformers inference remains available with `--llm-backend local-transformers`.
+- `LLM_MODELS_DIR` or `QI_LLM_MODELS_DIR` overrides the local model search root for `local-transformers`.
+- `HF_TOKEN` or `HUGGINGFACE_HUB_TOKEN` enables authenticated HuggingFace access for `local-transformers`.
 - Remote model repository code is disabled by default. Use `--trust-remote-code` only for audited HuggingFace models that require it.
-- Default answer model: `instruction-pretrain/finance-Llama3-8B`.
-- Default next-question model: `Qwen/Qwen2.5-3B-Instruct`.
+- Default local-transformers answer model: `instruction-pretrain/finance-Llama3-8B`.
+- Default local-transformers next-question model: `Qwen/Qwen2.5-3B-Instruct`.
 
 # ARIN Document Sentiment Analysis
 

@@ -1038,6 +1038,7 @@ python -m scripts.materialize_runtime_entity_assets
 示例命令：
 
 ```bash
+export DEEPSEEK_API_KEY="..."
 python scripts/llm_response.py --query "你觉得中国平安怎么样？"
 python scripts/llm_response.py --input path/to/pipeline_record.json
 ```
@@ -1046,11 +1047,25 @@ python scripts/llm_response.py --input path/to/pipeline_record.json
 
 模型配置：
 
-- `LLM_MODELS_DIR` 或 `QI_LLM_MODELS_DIR` 可覆盖本地模型搜索目录。
-- `HF_TOKEN` 或 `HUGGINGFACE_HUB_TOKEN` 用于 HuggingFace 鉴权。
+- 默认 backend：`openai-compatible`，走兼容 Chat Completions 的远程或本地 API。
+- 默认 API 地址：`https://api.deepseek.com`；可用 `QI_LLM_API_BASE_URL`、provider-specific base URL 环境变量或 `--api-base-url` 覆盖。
+- API key：`QI_LLM_API_KEY` 或 provider-specific 环境变量，例如 `DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`GEMINI_API_KEY`、`ANTHROPIC_API_KEY`、`OPENROUTER_API_KEY` 等；localhost 本地 API 可以不传 key。
+- 默认回答模型：`deepseek-v4-flash`。
+- 默认下一问模型：`deepseek-v4-flash`。
+- 默认 API extra body：`{"reasoning_effort":"max"}`，对应 DeepSeek V4 Flash 的最大思考强度。
+- 默认生成上限：`--answer-max-new-tokens 8192` 和 `--next-max-new-tokens 8192`。
+- OpenAI-compatible 请求默认启用 JSON Output：`response_format={"type":"json_object"}`；只有 provider 不支持该参数时才使用 `--no-api-response-format-json` 关闭。
+- GPT/OpenAI-compatible API 继续使用同一 backend，只需设置 `QI_LLM_API_BASE_URL` 和模型名。
+- 如果切换到非 DeepSeek provider，建议设置 `QI_LLM_API_EXTRA_BODY_JSON='{}'`，除非目标 provider 支持 `reasoning_effort`。
+- Claude 使用 `--llm-backend anthropic`，并设置 `QI_LLM_API_KEY` 或 `ANTHROPIC_API_KEY`；Claude 模型名需通过 `--answer-model` 和 `--next-question-model` 显式指定。
+- vLLM、Ollama、LM Studio 等本地模型服务建议暴露为 OpenAI-compatible 地址，例如 `--api-base-url http://127.0.0.1:8000/v1`。
+- Azure OpenAI 可用 `--api-chat-url` 传完整 deployment chat-completions URL，并设置 `--api-key-header api-key --api-key-prefix ""`。
+- 旧的本机 HuggingFace/transformers 推理仍可用：`--llm-backend local-transformers`。
+- `LLM_MODELS_DIR` 或 `QI_LLM_MODELS_DIR` 仅用于 `local-transformers` 的本地模型搜索目录。
+- `HF_TOKEN` 或 `HUGGINGFACE_HUB_TOKEN` 仅用于 `local-transformers` 的 HuggingFace 鉴权。
 - 默认不执行远端模型仓库代码。只有已审计且必须依赖该能力的 HuggingFace 模型才使用 `--trust-remote-code`。
-- 默认回答模型：`instruction-pretrain/finance-Llama3-8B`。
-- 默认下一问模型：`Qwen/Qwen2.5-3B-Instruct`。
+- `local-transformers` 默认回答模型：`instruction-pretrain/finance-Llama3-8B`。
+- `local-transformers` 默认下一问模型：`Qwen/Qwen2.5-3B-Instruct`。
 
 # ARIN 文档情感分析
 
