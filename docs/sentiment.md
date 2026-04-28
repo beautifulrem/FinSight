@@ -82,13 +82,13 @@ The classifier runs per-sentence inference and aggregates to a document label. T
 Run sentiment as part of a manual Query Intelligence run:
 
 ```bash
-python manual_test/run_manual_query.py --query "茅台最近有什么消息" --sentiment
+python manual_test/run_manual_query.py --query "Any recent news about Kweichow Moutai (600519.SH)?" --sentiment
 ```
 
 Use real FinBERT models:
 
 ```bash
-python manual_test/run_manual_query.py --query "茅台最近有什么消息" --sentiment --real-models
+python manual_test/run_manual_query.py --query "Any recent news about Kweichow Moutai (600519.SH)?" --sentiment --real-models
 ```
 
 Run the standalone sentiment tester:

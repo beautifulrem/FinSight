@@ -75,7 +75,7 @@ API code is in `query_intelligence/api/app.py`.
 
 ```json
 {
-  "query": "你觉得中国平安怎么样？",
+  "query": "What do you think about Ping An Insurance (601318.SH)?",
   "user_profile": {
     "risk_preference": "balanced",
     "preferred_market": "cn",
@@ -84,7 +84,7 @@ API code is in `query_intelligence/api/app.py`.
   "dialog_context": [
     {
       "role": "user",
-      "content": "我持有中国平安"
+      "content": "I hold Ping An Insurance."
     }
   ],
   "top_k": 10,

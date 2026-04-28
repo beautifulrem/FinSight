@@ -40,7 +40,7 @@ pip install -r requirements.txt
 Run a manual query:
 
 ```bash
-python manual_test/run_manual_query.py --query "你觉得中国平安怎么样？"
+python manual_test/run_manual_query.py --query "What do you think about Ping An Insurance (601318.SH)?"
 ```
 
 Start the API:
@@ -60,7 +60,7 @@ Generate downstream LLM response JSON with the default DeepSeek V4 Flash backend
 
 ```bash
 export DEEPSEEK_API_KEY="your_deepseek_api_key_here"
-python scripts/llm_response.py --query "你觉得中国平安怎么样？"
+python scripts/llm_response.py --query "What do you think about Ping An Insurance (601318.SH)?"
 ```
 
 Manual query output:
@@ -86,7 +86,7 @@ Recommended request:
 
 ```json
 {
-  "query": "你觉得中国平安怎么样？",
+  "query": "What do you think about Ping An Insurance (601318.SH)?",
   "user_profile": {
     "risk_preference": "balanced",
     "preferred_market": "cn",
@@ -161,7 +161,7 @@ Run live source verification:
 
 ```bash
 QI_USE_LIVE_MARKET=1 QI_USE_LIVE_NEWS=1 QI_USE_LIVE_ANNOUNCEMENT=1 \
-python -m scripts.verify_live_sources --query "你觉得寒武纪值得入手吗" --debug
+python -m scripts.verify_live_sources --query "Is Cambricon (688256.SH) worth buying now?" --debug
 ```
 
 ## Scope

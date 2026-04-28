@@ -32,7 +32,7 @@ Quick run:
 
 ```bash
 export DEEPSEEK_API_KEY="your_deepseek_api_key_here"
-python scripts/llm_response.py --query "你觉得中国平安怎么样？"
+python scripts/llm_response.py --query "What do you think about Ping An Insurance (601318.SH)?"
 ```
 
 Use an existing combined record:
@@ -100,7 +100,7 @@ DeepSeek default:
 
 ```bash
 export DEEPSEEK_API_KEY="your_deepseek_api_key_here"
-python scripts/llm_response.py --query "贵州茅台最近基本面怎么样？"
+python scripts/llm_response.py --query "How are Kweichow Moutai's fundamentals recently?"
 ```
 
 OpenAI-compatible endpoint:

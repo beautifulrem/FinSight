@@ -174,7 +174,7 @@ Full-stack evaluation covers Chinese/English, finance, non-finance, adversarial,
 
 ```bash
 QI_USE_LIVE_MARKET=1 QI_USE_LIVE_NEWS=1 QI_USE_LIVE_ANNOUNCEMENT=1 \
-python -m scripts.verify_live_sources --query "你觉得中国平安怎么样？" --debug
+python -m scripts.verify_live_sources --query "What do you think about Ping An Insurance (601318.SH)?" --debug
 ```
 
 Check:
