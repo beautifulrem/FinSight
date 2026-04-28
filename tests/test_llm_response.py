@@ -28,7 +28,10 @@ from scripts.llm_response import (
     hf_token,
     load_few_shot_bank,
     ANSWER_FEW_SHOTS,
+    LLMResponseRuntime,
+    answer_matches_language,
     make_next_question_language_repair_messages,
+    make_answer_language_repair_messages,
     next_questions_match_language,
     normalize_llm_backend,
     normalize_next_questions,
@@ -576,6 +579,24 @@ def test_next_questions_language_mismatch_can_be_repaired_by_model_instruction()
     assert "current_output" in messages[1]["content"]
 
 
+def test_answer_language_mismatch_can_be_repaired_by_model_instruction() -> None:
+    output = {
+        "answer": "主要受政策预期支持。",
+        "key_points": ["政策支持"],
+        "evidence_used": ["D1"],
+        "limitations": ["数据覆盖不完整"],
+        "risk_disclaimer": "不构成投资建议。",
+    }
+
+    assert answer_matches_language(output, "Why has Ping An been rising recently?") is False
+
+    messages = make_answer_language_repair_messages("Why has Ping An been rising recently?", output)
+
+    assert "English" in messages[0]["content"]
+    assert "evidence_used" in messages[0]["content"]
+    assert "current_output" in messages[1]["content"]
+
+
 def test_normalize_next_questions_keeps_model_predictions_without_hardcoded_translation() -> None:
     result = normalize_next_questions(
         {
@@ -590,6 +611,68 @@ def test_normalize_next_questions_keeps_model_predictions_without_hardcoded_tran
 
     assert result["predictions"][0]["question"] == "What drove the price move?"
     assert result["predictions"][0]["reason"] == "why_followup"
+
+
+def test_runtime_repairs_answer_language_for_english_query() -> None:
+    record = _sample_record()
+    record["query"] = "What do you think about Ping An Insurance (601318.SH)?"
+    record["nlu_result"]["raw_query"] = record["query"]
+    record["nlu_result"]["entities"] = [{"canonical_name": "Ping An Insurance", "symbol": "601318.SH"}]
+
+    class FakeAnswerModel:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate_json(self, messages, *, max_new_tokens, temperature, json_retries):  # noqa: ANN001, ARG002
+            self.calls += 1
+            if self.calls == 1:
+                return {
+                    "answer": "主要受政策预期支持。",
+                    "key_points": ["政策支持"],
+                    "evidence_used": ["D1"],
+                    "limitations": ["数据覆盖不完整"],
+                    "risk_disclaimer": "不构成投资建议。",
+                }
+            assert "English" in messages[0]["content"]
+            return {
+                "answer": "The available evidence points to policy expectations as a possible driver.",
+                "key_points": ["Policy expectations are a possible support factor."],
+                "evidence_used": ["D1"],
+                "limitations": ["Data coverage is incomplete."],
+                "risk_disclaimer": "This answer is based only on the provided evidence and is not investment advice.",
+            }
+
+    class FakeNextQuestionModel:
+        def generate_json(self, messages, *, max_new_tokens, temperature, json_retries):  # noqa: ANN001, ARG002
+            return {
+                "predictions": [
+                    {"question": "What risks should I watch next?", "score": 0.9, "reason": "risk_followup"},
+                    {"question": "How do its fundamentals compare with peers?", "score": 0.8, "reason": "peer_followup"},
+                    {"question": "Which evidence source is most important?", "score": 0.7, "reason": "evidence_followup"},
+                ]
+            }
+
+    runtime = object.__new__(LLMResponseRuntime)
+    runtime.llm_backend = "openai-compatible"
+    runtime.answer_model_name = "answer-model"
+    runtime.next_question_model_name = "next-model"
+    runtime.temperature = 0.2
+    runtime.answer_max_new_tokens = 8192
+    runtime.next_max_new_tokens = 8192
+    runtime.json_retries = 1
+    runtime.answer_few_shot_bank = {}
+    runtime.next_question_few_shot_bank = {}
+    runtime.answer_model = FakeAnswerModel()
+    runtime.next_question_model = FakeNextQuestionModel()
+
+    response = runtime.generate(record)
+
+    assert runtime.answer_model.calls == 2
+    assert response["request"]["language"] == "en"
+    assert response["answer_generation"]["answer"].startswith("The available evidence")
+    assert response["answer_generation"]["risk_disclaimer"] == (
+        "This answer is based only on the provided evidence and is not investment advice."
+    )
 
 
 def test_extract_json_object_repairs_common_malformed_json() -> None:

@@ -1571,6 +1571,50 @@ def normalize_next_questions(
     }
 
 
+def answer_matches_language(output: dict[str, Any], query: str) -> bool:
+    expected_zh = _is_zh(query)
+    text_values: list[str] = []
+    for key in ("answer", "risk_disclaimer"):
+        value = str(output.get(key) or "").strip()
+        if value:
+            text_values.append(value)
+    for key in ("key_points", "limitations"):
+        values = output.get(key)
+        if isinstance(values, list):
+            text_values.extend(str(item).strip() for item in values if str(item).strip())
+    if not text_values:
+        return True
+    return all(_is_zh(text) == expected_zh for text in text_values)
+
+
+def make_answer_language_repair_messages(query: str, output: dict[str, Any]) -> list[dict[str, str]]:
+    target_language = "Chinese" if _is_zh(query) else "English"
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You rewrite answer-generation JSON into the user's language. "
+                "Return only one valid JSON object with exactly these keys: "
+                "answer, key_points, evidence_used, limitations, risk_disclaimer. "
+                "Preserve the financial meaning, risk caution, and evidence_used IDs. "
+                f"All natural-language strings must be in {target_language}."
+            ),
+        },
+        {
+            "role": "user",
+            "content": json.dumps(
+                {
+                    "query": query,
+                    "target_language": target_language,
+                    "current_output": output,
+                },
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ),
+        },
+    ]
+
+
 def next_questions_match_language(output: dict[str, Any], query: str) -> bool:
     expected_zh = _is_zh(query)
     predictions = output.get("predictions") if isinstance(output.get("predictions"), list) else []
@@ -2233,6 +2277,14 @@ class LLMResponseRuntime:
             json_retries=self.json_retries,
         )
         query = str(payload.get("query") or "")
+        if not answer_matches_language(answer_output, query):
+            logger.info("Repairing answer language: model=%s", self.answer_model_name)
+            answer_output = self.answer_model.generate_json(
+                make_answer_language_repair_messages(query, answer_output),
+                max_new_tokens=self.answer_max_new_tokens,
+                temperature=0,
+                json_retries=self.json_retries,
+            )
         if not next_questions_match_language(next_question_output, query):
             logger.info("Repairing next-question language: model=%s", self.next_question_model_name)
             next_question_output = self.next_question_model.generate_json(
