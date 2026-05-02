@@ -1,0 +1,18 @@
+Merged directory: ARIN-merged-wechat-ui-4.2
+
+Sources:
+- Backend baseline: C:\Users\leela\Desktop\project\ARIN-merged-4.2
+- UI baseline: C:\Users\leela\Documents\WeChat Files\wxid_iuddxhgnc4622\FileStorage\File\2026-05\chatbot.py
+- Visual reference: C:\Users\leela\Desktop\project\demo3\demo2\ARIN-master
+
+Merge result:
+- This directory keeps the current backend behavior from ARIN-merged-4.2.
+- The frontend renderer was replaced with a WeChat-style chat bubble UI.
+- Cache folders, virtual environments, pr_ready artifacts, outputs, and reports were excluded.
+
+Retained behavior:
+- Financial Chatbot by Group 4.2 branding.
+- English fixed UI labels.
+- DeepSeek response language detection and one retry repair.
+- English fallback and stale-market-data guard.
+- Command-window progress logs for /chat requests.
