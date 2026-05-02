@@ -12,7 +12,7 @@
     "base_url": "https://api.deepseek.com/v1",
     "chat_path": "/chat/completions",
     "model": "deepseek-chat",
-    "api_key": "sk-cb94a063291547118f4565917e8101a0",
+    "api_key": "",
     "timeout_seconds": 30
   },
   "live_data": {
