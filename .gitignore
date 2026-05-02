@@ -22,7 +22,6 @@ env/
 .DS_Store
 .idea/
 .vscode/
-AGENTS.md
 
 # Large public datasets and generated training assets
 data/external/
@@ -41,17 +40,6 @@ manual_test/output/
 evaluation/*.json
 evaluation/*.md
 
-# PPT local drafts and screenshots
-PPT_Overleaf/archive/
-PPT_Overleaf/*.png
-PPT_Overleaf/*.jpg
-PPT_Overleaf/*.jpeg
-PPT_Overleaf/*.aux
-PPT_Overleaf/*.nav
-PPT_Overleaf/*.out
-PPT_Overleaf/*.snm
-PPT_Overleaf/*.toc
-
 # Local training/evaluation scratch files
 *.log
 tmp/
@@ -60,3 +48,4 @@ temp/
 # Keep trained model artifacts for public release.
 !models/*.joblib
 !models/*.json
+
