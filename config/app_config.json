@@ -9,11 +9,14 @@
     "submit_text": "Submit"
   },
   "deepseek": {
-    "base_url": "https://api.deepseek.com/v1",
+    "base_url": "https://api.deepseek.com",
     "chat_path": "/chat/completions",
-    "model": "deepseek-chat",
+    "model": "deepseek-v4-flash",
     "api_key": "",
-    "timeout_seconds": 30
+    "timeout_seconds": 60,
+    "thinking_type": "enabled",
+    "reasoning_effort": "high",
+    "max_tokens": 8192
   },
   "live_data": {
     "enabled": true

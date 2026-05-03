@@ -11,8 +11,10 @@ The root README is intentionally short; use these pages when you need contracts,
 | Document | Purpose |
 |---|---|
 | [Query Intelligence](query-intelligence.md) | Scope, architecture, API, NLU and retrieval output contracts, live providers, environment variables, troubleshooting. |
+| [Local Frontend Chatbot](frontend-chatbot.md) | Browser UI, `/chat` contract, DeepSeek v4 settings, real local screenshots, and troubleshooting. |
+| [Presentation Materials](presentation/README.md) | Clean slide outline and links to current demo screenshots. |
 | [Training](training.md) | Public dataset sync, manifest-based training, runtime asset materialization, evaluation, and release checks. |
-| [LLM Response](llm-response.md) | Downstream answer-generation JSON, DeepSeek defaults, OpenAI-compatible endpoints, Anthropic, local API servers, and legacy transformers mode. |
+| [LLM Response](llm-response.md) | Legacy local-transformers answer-generation JSON handoff, output contract, configuration, and safeguards. |
 | [Sentiment](sentiment.md) | Downstream document sentiment pipeline, preprocessing, FinBERT routing, output fields, and test commands. |
 | [Retrieval Output Spec](retrieval_output_spec.md) | Compatibility entry point for `analysis_summary` and retrieval output references. [中文](zh/retrieval_output_spec.md) |
 

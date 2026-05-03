@@ -32,11 +32,14 @@ DEFAULT_CHATBOT_CONFIG: dict[str, Any] = {
         "submit_text": "Submit",
     },
     "deepseek": {
-        "base_url": "https://api.deepseek.com/v1",
+        "base_url": "https://api.deepseek.com",
         "chat_path": "/chat/completions",
-        "model": "deepseek-chat",
+        "model": "deepseek-v4-flash",
         "api_key": "",
-        "timeout_seconds": 30,
+        "timeout_seconds": 60,
+        "thinking_type": "enabled",
+        "reasoning_effort": "high",
+        "max_tokens": 8192,
     },
     "live_data": {
         "enabled": True,
@@ -615,6 +618,10 @@ class DeepSeekClient:
         self.model = str(deepseek.get("model") or DEFAULT_CHATBOT_CONFIG["deepseek"]["model"])
         self.api_key = str(deepseek.get("api_key") or "")
         self.timeout_seconds = int(deepseek.get("timeout_seconds") or DEFAULT_CHATBOT_CONFIG["deepseek"]["timeout_seconds"])
+        self.thinking_type = str(deepseek.get("thinking_type") or "").strip()
+        self.reasoning_effort = str(deepseek.get("reasoning_effort") or "").strip()
+        max_tokens = deepseek.get("max_tokens")
+        self.max_tokens = int(max_tokens) if max_tokens not in {None, ""} else None
         self.http_client = http_client
 
     def generate(self, record: dict[str, Any]) -> dict[str, Any]:
@@ -639,9 +646,16 @@ class DeepSeekClient:
         body = {
             "model": self.model,
             "messages": messages,
-            "temperature": 0.2,
             "response_format": {"type": "json_object"},
         }
+        if self.thinking_type:
+            body["thinking"] = {"type": self.thinking_type}
+        if self.reasoning_effort and self.thinking_type != "disabled":
+            body["reasoning_effort"] = self.reasoning_effort
+        if self.max_tokens is not None:
+            body["max_tokens"] = self.max_tokens
+        if self.thinking_type != "enabled":
+            body["temperature"] = 0.2
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -1241,6 +1255,9 @@ def _apply_env_overrides(config: dict[str, Any]) -> None:
         "DEEPSEEK_MODEL": ("deepseek", "model"),
         "DEEPSEEK_API_KEY": ("deepseek", "api_key"),
         "DEEPSEEK_TIMEOUT_SECONDS": ("deepseek", "timeout_seconds"),
+        "DEEPSEEK_THINKING_TYPE": ("deepseek", "thinking_type"),
+        "DEEPSEEK_REASONING_EFFORT": ("deepseek", "reasoning_effort"),
+        "DEEPSEEK_MAX_TOKENS": ("deepseek", "max_tokens"),
         "CHATBOT_LIVE_DATA": ("live_data", "enabled"),
     }
     for env_name, path in mappings.items():
@@ -1252,6 +1269,8 @@ def _apply_env_overrides(config: dict[str, Any]) -> None:
 def _coerce_config_types(config: dict[str, Any]) -> None:
     config["server"]["port"] = int(config["server"]["port"])
     config["deepseek"]["timeout_seconds"] = int(config["deepseek"]["timeout_seconds"])
+    max_tokens = config["deepseek"].get("max_tokens")
+    config["deepseek"]["max_tokens"] = int(max_tokens) if max_tokens not in {None, ""} else None
     config["live_data"]["enabled"] = _parse_bool(config["live_data"].get("enabled", True))
 
 

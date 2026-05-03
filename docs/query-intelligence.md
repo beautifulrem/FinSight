@@ -7,7 +7,7 @@ Query Intelligence is the owned backend core of FinSight, the ARIN7012 Group 4.2
 - `nlu_result`: what the user asked, what entities were resolved, what evidence is needed, and which sources should run.
 - `retrieval_result`: what evidence was found, how complete it is, how it was ranked, and what structured analysis signals are available.
 
-Downstream systems must consume these artifacts instead of re-inferring intent, targets, or source plans.
+Downstream systems must consume these artifacts instead of re-inferring intent, targets, or source plans. The local browser chatbot at `GET /` and `POST /chat` is one such downstream wrapper; see [Local Frontend Chatbot](frontend-chatbot.md).
 
 ## Scope and Boundaries
 
@@ -21,7 +21,7 @@ Default shipped runtime coverage is China-market v1:
 
 Unsupported or non-financial questions should be marked `out_of_scope`.
 
-NLU and Retrieval use explainable methods as their main path: rules, dictionaries, TF-IDF, linear classifiers, CRF, tree models, learning-to-rank, and provider-backed structured retrieval. `sentiment/` and `scripts/llm_response.py` are downstream exceptions and may use transformer or LLM models over compact evidence.
+NLU and Retrieval use explainable methods as their main path: rules, dictionaries, TF-IDF, linear classifiers, CRF, tree models, learning-to-rank, and provider-backed structured retrieval. `sentiment/`, `scripts/llm_response.py`, and `/chat` are downstream exceptions and may use transformer or LLM models over compact evidence.
 
 ## Architecture
 
@@ -44,6 +44,7 @@ flowchart TD
   E --> F["retrieval_result.json"]
   F --> G["sentiment/"]
   F --> H["scripts/llm_response.py"]
+  F --> I["/chat Browser Chatbot"]
 ```
 
 ## Key Paths
@@ -68,6 +69,8 @@ API code is in `query_intelligence/api/app.py`.
 | Endpoint | Purpose | Input | Output |
 |---|---|---|---|
 | `GET /health` | Health check | none | `{"status":"ok"}` |
+| `GET /` | Browser chatbot UI | browser | HTML app |
+| `POST /chat` | End-to-end NLU + Retrieval + DeepSeek response polishing | `ChatRequest` | Chatbot response JSON |
 | `POST /nlu/analyze` | NLU only | `AnalyzeRequest` | `NLUResult` |
 | `POST /retrieval/search` | Retrieval from an existing NLU result | `RetrievalRequest` | `RetrievalResult` |
 | `POST /query/intelligence` | End-to-end NLU + Retrieval | `PipelineRequest` | `PipelineResponse` |

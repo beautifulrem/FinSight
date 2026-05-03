@@ -5,7 +5,7 @@ ARIN Query Intelligence is the repository module responsible for query understan
 - `nlu_result.json`: normalized query, product type, intent, topic, entities, missing slots, risk flags, evidence requirements, and source plan.
 - `retrieval_result.json`: executed sources, document evidence, structured market/fundamental/macro data, coverage, warnings, and ranking/debug traces.
 
-This module does not generate the final chatbot answer and does not make investment conclusions. Downstream modules should consume the two JSON outputs for document learning, sentiment analysis, trend analysis, numerical feature computation, and response generation.
+The core Query Intelligence pipeline does not make investment conclusions. The repository also ships a local browser chatbot wrapper at `GET /` and `POST /chat`; that wrapper consumes the same NLU/Retrieval artifacts, calls DeepSeek for response polishing when configured, and falls back to a structured evidence summary when the model is unavailable.
 
 ## Scope
 
@@ -24,7 +24,7 @@ HK/US stocks and overseas products are not guaranteed by default. To support the
 Important boundary:
 
 - Query Intelligence owns `nlu_result`, `retrieval_result`, source planning, retrieval evidence, and `analysis_summary`.
-- `sentiment/` and `scripts/llm_response.py` are downstream consumers. They may use `torch`, `transformers`, FinBERT, or local generation models, but they must not re-infer the user's intent, target entities, or retrieval source plan.
+- `sentiment/`, `scripts/llm_response.py`, and the `/chat` browser wrapper are downstream consumers. They may use `torch`, `transformers`, FinBERT, or remote/local generation models, but they must not re-infer the user's intent, target entities, or retrieval source plan.
 
 ## Quick Start
 
@@ -36,6 +36,10 @@ python manual_test/run_manual_query.py
 
 # One-shot manual query
 python manual_test/run_manual_query.py --query "你觉得中国平安怎么样？"
+
+# Start the local browser chatbot
+export DEEPSEEK_API_KEY="your_deepseek_api_key_here"
+python scripts/launch_chatbot.py
 
 # Start FastAPI
 uvicorn query_intelligence.api.app:create_app --factory --host 0.0.0.0 --port 8000
@@ -61,10 +65,34 @@ API code is in `query_intelligence/api/app.py`; request/response contracts are i
 | Endpoint | Purpose | Input | Output |
 |---|---|---|---|
 | `GET /health` | Health check | none | `{"status":"ok"}` |
+| `GET /` | Local browser chatbot UI | browser | HTML app |
+| `POST /chat` | End-to-end NLU + Retrieval + DeepSeek response polishing | `ChatRequest` | Chatbot response JSON |
 | `POST /nlu/analyze` | NLU only | `AnalyzeRequest` | `NLUResult` |
 | `POST /retrieval/search` | Retrieval from an existing NLU result | `RetrievalRequest` | `RetrievalResult` |
 | `POST /query/intelligence` | End-to-end NLU + Retrieval | `PipelineRequest` | `PipelineResponse` |
 | `POST /query/intelligence/artifacts` | End-to-end run and write JSON artifacts | `ArtifactRequest` | `ArtifactResponse` |
+
+## Local Frontend Chatbot
+
+The local frontend is a single-page chat app rendered by `query_intelligence/chatbot.py` and served from `query_intelligence/api/app.py`. It runs the same Query Intelligence pipeline, then sends compact evidence to DeepSeek only for final response wording.
+
+![Chinese chatbot response](docs/assets/frontend-chatbot-zh.png)
+
+Default DeepSeek settings are clone-safe and token-free:
+
+| Setting | Default |
+|---|---|
+| Base URL | `https://api.deepseek.com` |
+| Chat path | `/chat/completions` |
+| Model | `deepseek-v4-flash` |
+| Thinking mode | `enabled` |
+| Reasoning effort | `high` |
+| JSON output | `response_format={"type":"json_object"}` |
+| Max tokens | `8192` |
+
+Use `deepseek-v4-pro` by setting `DEEPSEEK_MODEL=deepseek-v4-pro` or editing `config/app_config.json`. Use `DEEPSEEK_REASONING_EFFORT=max` for heavier reasoning. The API key should be provided through `DEEPSEEK_API_KEY` or a local `.env`; do not commit it.
+
+The UI response JSON includes `answer`, `key_points`, `risk_disclaimer`, `evidence_used`, `evidence_sources`, `llm`, `nlu_result`, and `retrieval_result`. For the full frontend reference and screenshots from real local runs, see [docs/frontend-chatbot.md](docs/frontend-chatbot.md).
 
 ### Frontend Request JSON
 
@@ -415,8 +443,10 @@ flowchart TD
   E --> F["retrieval_result.json"]
   F --> G["Document Sentiment Analysis: sentiment/"]
   F --> H["LLM Response Utility: scripts/llm_response.py"]
+  F --> J["Browser Chatbot: POST /chat"]
   G --> I["Downstream Analysis and Chatbot Answering"]
   H --> I
+  J --> I
 ```
 
 Key paths:
@@ -434,7 +464,8 @@ Key paths:
 | `query_intelligence/integrations/` | Tushare, AKShare, Cninfo, efinance providers. |
 | `query_intelligence/external_data/` | Public dataset sync and asset building. |
 | `sentiment/` | Downstream document sentiment preprocessor and FinBERT classifier. |
-| `scripts/llm_response.py` | Downstream frontend answer and next-question JSON generator. |
+| `query_intelligence/chatbot.py` | Local browser UI renderer and DeepSeek response-polishing client for `/chat`. |
+| `scripts/llm_response.py` | Legacy local-transformers frontend answer and next-question JSON generator. |
 | `data/answer_generation_sft/` | Few-shot and handoff assets for answer generation experiments. |
 | `training/` | ML training scripts. |
 | `scripts/` | Sync, runtime materialization, evaluation, live-source verification. |
@@ -776,13 +807,13 @@ Common causes:
 - The source has no recent data.
 - The retrieval pipeline intentionally skipped an unsafe or irrelevant source.
 
-### The API returns JSON but no natural-language answer
+### `/query/intelligence` returns JSON but no natural-language answer
 
-This is expected. Query Intelligence only produces understanding and evidence artifacts. Final chatbot wording, investment-safe answer generation, sentiment analysis, trend analysis, and numerical calculation belong to downstream modules. For the current experimental answer-generation handoff, see `scripts/llm_response.py`.
+This is expected. Query Intelligence only produces understanding and evidence artifacts. Final chatbot wording, investment-safe answer generation, sentiment analysis, trend analysis, and numerical calculation belong to downstream modules. Use `POST /chat` or the local browser app for a DeepSeek-polished chatbot response. Use `scripts/llm_response.py` only for the legacy local-transformers frontend handoff flow.
 
 ## Frontend LLM Response Handoff
 
-`scripts/llm_response.py` is a downstream utility for producing frontend-ready JSON from compact evidence. It can either consume an existing Query Intelligence record or run Query Intelligence first from a raw query.
+`scripts/llm_response.py` is a downstream utility for producing frontend-ready JSON from compact evidence. It can either consume an existing Query Intelligence record or run Query Intelligence first from a raw query. It is separate from the local browser chatbot: `/chat` uses DeepSeek API settings from `config/app_config.json`, while this script remains the local HuggingFace/transformers handoff path in this checkout.
 
 It generates:
 

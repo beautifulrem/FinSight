@@ -75,13 +75,19 @@ def test_load_chatbot_config_applies_json_and_env_overrides(tmp_path: Path, monk
             {
                 "server": {"port": 9001},
                 "ui": {"title": "Custom Title"},
-                "deepseek": {"base_url": "https://example.invalid/v1", "api_key": "from-file"},
+                "deepseek": {
+                    "base_url": "https://example.invalid/v1",
+                    "api_key": "from-file",
+                    "reasoning_effort": "max",
+                },
                 "live_data": {"enabled": False},
             }
         ),
         encoding="utf-8",
     )
     monkeypatch.setenv("DEEPSEEK_API_KEY", "from-env")
+    monkeypatch.setenv("DEEPSEEK_THINKING_TYPE", "disabled")
+    monkeypatch.setenv("DEEPSEEK_MAX_TOKENS", "4096")
     monkeypatch.setenv("CHATBOT_TITLE", "Env Title")
     monkeypatch.setenv("CHATBOT_LIVE_DATA", "true")
 
@@ -92,6 +98,9 @@ def test_load_chatbot_config_applies_json_and_env_overrides(tmp_path: Path, monk
     assert config["ui"]["title"] == "Env Title"
     assert config["deepseek"]["base_url"] == "https://example.invalid/v1"
     assert config["deepseek"]["api_key"] == "from-env"
+    assert config["deepseek"]["thinking_type"] == "disabled"
+    assert config["deepseek"]["reasoning_effort"] == "max"
+    assert config["deepseek"]["max_tokens"] == 4096
     assert config["live_data"]["enabled"] is True
 
 
@@ -135,9 +144,12 @@ def test_deepseek_client_generates_normalized_answer() -> None:
             "deepseek": {
                 "base_url": "https://api.deepseek.test/v1",
                 "chat_path": "/chat/completions",
-                "model": "deepseek-chat",
+                "model": "deepseek-v4-flash",
                 "api_key": "sk-test",
                 "timeout_seconds": 5,
+                "thinking_type": "enabled",
+                "reasoning_effort": "max",
+                "max_tokens": 4096,
             }
         },
         http_client=http_client,
@@ -150,7 +162,38 @@ def test_deepseek_client_generates_normalized_answer() -> None:
     assert answer["risk_disclaimer"] == "仅供参考，不构成投资建议。"
     assert answer["evidence_used"] == ["S1", "D1"]
     assert http_client.calls[0]["url"] == "https://api.deepseek.test/v1/chat/completions"
-    assert "Chinese" in http_client.calls[0]["json"]["messages"][0]["content"]
+    request_body = http_client.calls[0]["json"]
+    assert request_body["model"] == "deepseek-v4-flash"
+    assert request_body["thinking"] == {"type": "enabled"}
+    assert request_body["reasoning_effort"] == "max"
+    assert request_body["max_tokens"] == 4096
+    assert request_body["response_format"] == {"type": "json_object"}
+    assert "temperature" not in request_body
+    assert "Chinese" in request_body["messages"][0]["content"]
+
+
+def test_deepseek_client_omits_reasoning_effort_when_thinking_is_disabled() -> None:
+    http_client = _FakeHTTPClient()
+    client = DeepSeekClient(
+        {
+            "deepseek": {
+                "base_url": "https://api.deepseek.test/v1",
+                "chat_path": "/chat/completions",
+                "model": "deepseek-v4-flash",
+                "api_key": "sk-test",
+                "thinking_type": "disabled",
+                "reasoning_effort": "max",
+            }
+        },
+        http_client=http_client,
+    )
+
+    client.generate({"query": "你觉得中国平安怎么样？", **_sample_pipeline_result()})
+
+    request_body = http_client.calls[0]["json"]
+    assert request_body["thinking"] == {"type": "disabled"}
+    assert "reasoning_effort" not in request_body
+    assert request_body["temperature"] == 0.2
 
 
 class _SequentialHTTPResponse:
@@ -204,7 +247,7 @@ def test_deepseek_client_repairs_answer_language_for_english_query() -> None:
             "deepseek": {
                 "base_url": "https://api.deepseek.test/v1",
                 "chat_path": "/chat/completions",
-                "model": "deepseek-chat",
+                "model": "deepseek-v4-flash",
                 "api_key": "sk-test",
                 "timeout_seconds": 5,
             }

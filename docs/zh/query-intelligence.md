@@ -7,7 +7,7 @@ Query Intelligence 是 FinSight（ARIN7012 Group 4.2 证据优先金融分析聊
 - `nlu_result`：用户问了什么、识别到哪些实体、需要哪些证据、应该执行哪些 source。
 - `retrieval_result`：找到了哪些证据、证据是否完整、如何排序，以及有哪些结构化分析信号。
 
-下游系统应消费这些产物，不应重新推断用户意图、目标实体或 source plan。
+下游系统应消费这些产物，不应重新推断用户意图、目标实体或 source plan。本地网页 Chatbot 的 `GET /` 和 `POST /chat` 就是一个下游包装层；详见 [本地网页 Chatbot](frontend-chatbot.md)。
 
 ## 支持范围和边界
 
@@ -21,7 +21,7 @@ Query Intelligence 是 FinSight（ARIN7012 Group 4.2 证据优先金融分析聊
 
 非金融或不支持的问题应识别为 `out_of_scope`。
 
-NLU 和 Retrieval 主路径使用可解释方法：规则、词典、TF-IDF、线性分类器、CRF、树模型、Learning to Rank 和 provider 支撑的结构化检索。`sentiment/` 和 `scripts/llm_response.py` 是下游例外，可以在紧凑证据上使用 transformer 或 LLM。
+NLU 和 Retrieval 主路径使用可解释方法：规则、词典、TF-IDF、线性分类器、CRF、树模型、Learning to Rank 和 provider 支撑的结构化检索。`sentiment/`、`scripts/llm_response.py` 和 `/chat` 是下游例外，可以在紧凑证据上使用 transformer 或 LLM。
 
 ## 架构
 
@@ -44,6 +44,7 @@ flowchart TD
   E --> F["retrieval_result.json"]
   F --> G["sentiment/"]
   F --> H["scripts/llm_response.py"]
+  F --> I["/chat 网页 Chatbot"]
 ```
 
 ## 关键路径
@@ -68,6 +69,8 @@ API 代码位于 `query_intelligence/api/app.py`。
 | Endpoint | 用途 | 输入 | 输出 |
 |---|---|---|---|
 | `GET /health` | 健康检查 | 无 | `{"status":"ok"}` |
+| `GET /` | 浏览器 Chatbot UI | 浏览器访问 | HTML app |
+| `POST /chat` | 端到端 NLU + Retrieval + DeepSeek 润色 | `ChatRequest` | Chatbot 回复 JSON |
 | `POST /nlu/analyze` | 只执行 NLU | `AnalyzeRequest` | `NLUResult` |
 | `POST /retrieval/search` | 基于已有 NLU 执行检索 | `RetrievalRequest` | `RetrievalResult` |
 | `POST /query/intelligence` | 端到端 NLU + Retrieval | `PipelineRequest` | `PipelineResponse` |
