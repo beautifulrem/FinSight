@@ -27,7 +27,7 @@ Query Intelligence owns:
 Downstream modules consume those artifacts:
 
 - Local browser chatbot: `GET /` and `POST /chat`.
-- DeepSeek response polishing over compact evidence.
+- LLM API response polishing over compact evidence. DeepSeek is the default provider example, not a hard dependency.
 - Sentiment analysis over retrieved documents.
 - Optional local-transformers handoff via `scripts/llm_response.py`.
 
@@ -43,7 +43,7 @@ flowchart LR
   E --> G["Evidence documents + structured data"]
   G --> H["Compact evidence payload"]
   F --> H
-  H --> I["DeepSeek response polishing"]
+  H --> I["LLM API response polishing"]
   I --> J["Answer + key points + disclaimer + evidence cards"]
 ```
 
@@ -106,7 +106,7 @@ Expected behavior:
 - Financial queries return answer text, key points, evidence cards, and a risk disclaimer.
 - English queries receive English output.
 - Out-of-scope queries are rejected as non-financial.
-- If DeepSeek is unavailable, the system falls back to a structured evidence summary.
+- If the configured LLM API is unavailable, the system falls back to a structured evidence summary.
 
 Screenshots:
 

@@ -70,7 +70,7 @@ API code is in `query_intelligence/api/app.py`.
 |---|---|---|---|
 | `GET /health` | Health check | none | `{"status":"ok"}` |
 | `GET /` | Browser chatbot UI | browser | HTML app |
-| `POST /chat` | End-to-end NLU + Retrieval + DeepSeek response polishing | `ChatRequest` | Chatbot response JSON |
+| `POST /chat` | End-to-end NLU + Retrieval + LLM API response polishing | `ChatRequest` | Chatbot response JSON |
 | `POST /nlu/analyze` | NLU only | `AnalyzeRequest` | `NLUResult` |
 | `POST /retrieval/search` | Retrieval from an existing NLU result | `RetrievalRequest` | `RetrievalResult` |
 | `POST /query/intelligence` | End-to-end NLU + Retrieval | `PipelineRequest` | `PipelineResponse` |

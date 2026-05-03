@@ -2,7 +2,7 @@
 
 语言：[English](../frontend-chatbot.md) | 中文
 
-本地网页 Chatbot 是 FinSight 的浏览器演示入口。它刻意保持轻量：前端把用户问题发到 `POST /chat`，后端先跑 Query Intelligence，再把紧凑证据交给 DeepSeek 生成面向用户的回答措辞。
+本地网页 Chatbot 是 FinSight 的浏览器演示入口。它刻意保持轻量：前端把用户问题发到 `POST /chat`，后端先跑 Query Intelligence，再把紧凑证据交给 OpenAI-compatible LLM API 生成面向用户的回答措辞。DeepSeek 是当前 checkout 的默认 provider 配置，不是架构边界。
 
 这个包装层不能替代 NLU/Retrieval 主干。实体识别、意图、source plan、证据检索、排序、warnings 和 `analysis_summary` 仍全部来自 Query Intelligence。
 
@@ -37,16 +37,16 @@ flowchart LR
   C --> D["nlu_result"]
   C --> E["retrieval_result + analysis_summary"]
   E --> F["紧凑证据 payload"]
-  F --> G["DeepSeek chat completions"]
+  F --> G["LLM chat completions API"]
   G --> H["answer + key_points + risk_disclaimer"]
   H --> I["证据来源卡片"]
 ```
 
-如果没有配置 DeepSeek、网络不可达或模型返回非法 JSON，`/chat` 会返回结构化摘要 fallback，并把 `llm.status` 标为 `"fallback"`。即使 fallback，响应仍保留 `nlu_result`、`retrieval_result` 和证据来源。
+如果没有配置 LLM API、网络不可达或模型返回非法 JSON，`/chat` 会返回结构化摘要 fallback，并把 `llm.status` 标为 `"fallback"`。即使 fallback，响应仍保留 `nlu_result`、`retrieval_result` 和证据来源。
 
-## DeepSeek 配置
+## LLM API 配置
 
-默认值在 `config/app_config.json`，环境变量优先级更高。
+默认值在 `config/app_config.json`，环境变量优先级更高。当前配置命名空间仍叫 `deepseek`，因为 DeepSeek 是随仓库提供的默认示例 provider。架构上客户端调用的是 chat-completions endpoint，可以通过修改 `DEEPSEEK_BASE_URL`、`DEEPSEEK_CHAT_PATH` 和 `DEEPSEEK_MODEL` 指向其他兼容 provider。
 
 | 字段 | 环境变量 | 默认值 |
 |---|---|---|
@@ -59,7 +59,7 @@ flowchart LR
 | `deepseek.reasoning_effort` | `DEEPSEEK_REASONING_EFFORT` | `high` |
 | `deepseek.max_tokens` | `DEEPSEEK_MAX_TOKENS` | `8192` |
 
-如果需要更强模型，使用 `DEEPSEEK_MODEL=deepseek-v4-pro`。如果需要更高思考强度，使用 `DEEPSEEK_REASONING_EFFORT=max`。后端请求会发送 `response_format={"type":"json_object"}`，并要求 DeepSeek 只返回一个严格 JSON object。
+如果需要默认 provider 的更强模型，使用 `DEEPSEEK_MODEL=deepseek-v4-pro`；如果切换 base URL，也可以把它设置为其他兼容 provider 的模型名。支持 reasoning controls 的 provider 可使用 `DEEPSEEK_REASONING_EFFORT=max`。后端请求会发送 `response_format={"type":"json_object"}`，并要求模型只返回一个严格 JSON object。
 
 ## API 契约
 
@@ -79,7 +79,7 @@ flowchart LR
 
 | 字段 | 含义 |
 |---|---|
-| `answer` | DeepSeek 或 fallback 生成的最终用户回复。 |
+| `answer` | LLM API 或 fallback 生成的最终用户回复。 |
 | `key_points` | 基于检索证据的简短要点。 |
 | `risk_disclaimer` | 投资风险提示。 |
 | `evidence_used` | 回答层使用的 evidence IDs。 |
@@ -90,7 +90,7 @@ flowchart LR
 
 ## 本地实测
 
-以下截图来自 2026-05-03 的真实本地浏览器运行。服务使用 `deepseek-v4-flash`、thinking enabled、`reasoning_effort=high`，API key 只通过本地环境变量注入，没有写入仓库。
+以下截图来自 2026-05-03 的真实本地浏览器运行。服务使用默认 DeepSeek-compatible 配置：`deepseek-v4-flash`、thinking enabled、`reasoning_effort=high`，API key 只通过本地环境变量注入，没有写入仓库。
 
 中文问题：
 
@@ -120,7 +120,7 @@ What do you think about Ping An Insurance (601318.SH)?
 
 ## 排错
 
-如果 DeepSeek fallback 中出现 SOCKS proxy 相关错误，重新安装依赖：
+如果 LLM API fallback 中出现 SOCKS proxy 相关错误，重新安装依赖：
 
 ```bash
 pip install -r requirements.txt

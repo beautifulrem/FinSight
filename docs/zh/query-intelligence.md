@@ -70,7 +70,7 @@ API 代码位于 `query_intelligence/api/app.py`。
 |---|---|---|---|
 | `GET /health` | 健康检查 | 无 | `{"status":"ok"}` |
 | `GET /` | 浏览器 Chatbot UI | 浏览器访问 | HTML app |
-| `POST /chat` | 端到端 NLU + Retrieval + DeepSeek 润色 | `ChatRequest` | Chatbot 回复 JSON |
+| `POST /chat` | 端到端 NLU + Retrieval + LLM API 润色 | `ChatRequest` | Chatbot 回复 JSON |
 | `POST /nlu/analyze` | 只执行 NLU | `AnalyzeRequest` | `NLUResult` |
 | `POST /retrieval/search` | 基于已有 NLU 执行检索 | `RetrievalRequest` | `RetrievalResult` |
 | `POST /query/intelligence` | 端到端 NLU + Retrieval | `PipelineRequest` | `PipelineResponse` |

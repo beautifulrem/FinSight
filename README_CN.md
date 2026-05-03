@@ -10,7 +10,7 @@
   <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-f1c40f?style=flat&labelColor=555555"></a>
   <img alt="Python 3.13" src="https://img.shields.io/badge/Python-3.13-3776ab?style=flat&labelColor=555555">
   <img alt="API FastAPI" src="https://img.shields.io/badge/API-FastAPI-009688?style=flat&labelColor=555555">
-  <img alt="LLM DeepSeek" src="https://img.shields.io/badge/LLM-DeepSeek-111111?style=flat&labelColor=555555">
+  <img alt="LLM API" src="https://img.shields.io/badge/LLM-API-111111?style=flat&labelColor=555555">
 </p>
 
 </div>
@@ -164,8 +164,8 @@ submission/           最终报告包和证据文件
 
 | 变量 | 用途 |
 |---|---|
-| `DEEPSEEK_API_KEY` | 启用 `/chat` 的 LLM 回答润色。 |
-| `DEEPSEEK_MODEL` | 覆盖默认 DeepSeek 模型。 |
+| `DEEPSEEK_API_KEY` | `/chat` 默认 LLM provider 使用的 API key。 |
+| `DEEPSEEK_MODEL` | 覆盖默认 LLM 模型；修改 `DEEPSEEK_BASE_URL` 后也可填其他兼容 provider 的模型名。 |
 | `TUSHARE_TOKEN` | 启用 Tushare 行情和基本面。 |
 | `QI_USE_LIVE_MARKET` | 启用 live 行情 provider。 |
 | `QI_USE_LIVE_NEWS` | 启用 live 新闻 provider。 |

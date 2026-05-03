@@ -12,7 +12,7 @@ The root README is intentionally short; use these pages when you need contracts,
 |---|---|
 | [Modules](modules.md) | Five-module map: frontend, NLU/Retrieval, numerical analysis, text analysis, and LLM summary/prediction. |
 | [Query Intelligence](query-intelligence.md) | Scope, architecture, API, NLU and retrieval output contracts, live providers, environment variables, troubleshooting. |
-| [Local Frontend Chatbot](frontend-chatbot.md) | Browser UI, `/chat` contract, DeepSeek v4 settings, real local screenshots, and troubleshooting. |
+| [Local Frontend Chatbot](frontend-chatbot.md) | Browser UI, `/chat` contract, LLM API settings, real local screenshots, and troubleshooting. |
 | [Numerical Analysis](numerical-analysis.md) | `analysis_summary`, technical indicators, fundamentals, macro signals, and data readiness. |
 | [Presentation Materials](presentation/README.md) | Clean slide outline and links to current demo screenshots. |
 | [Training](training.md) | Public dataset sync, manifest-based training, runtime asset materialization, evaluation, and release checks. |

@@ -6,7 +6,7 @@
 
 它不属于 NLU/Retrieval 主干，不应重新推断意图、目标实体或 source plan。
 
-本页记录当前 checkout 中旧版的本地 HuggingFace/transformers 回答交接路径。本地网页 Chatbot 和 DeepSeek v4 API 路径见 [本地网页 Chatbot](frontend-chatbot.md)。
+本页记录当前 checkout 中旧版的本地 HuggingFace/transformers 回答交接路径。本地网页 Chatbot 和 OpenAI-compatible LLM API 路径见 [本地网页 Chatbot](frontend-chatbot.md)。DeepSeek 是默认 provider 示例，不是架构限制。
 
 ## 输出
 

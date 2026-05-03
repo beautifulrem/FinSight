@@ -6,7 +6,7 @@ Languages: English | [中文](zh/llm-response.md)
 
 It is outside the NLU/Retrieval backbone. It must not re-infer intent, targets, or source plans.
 
-This page documents the legacy local HuggingFace/transformers handoff path in the current checkout. The browser chatbot and DeepSeek v4 API path are documented separately in [Local Frontend Chatbot](frontend-chatbot.md).
+This page documents the legacy local HuggingFace/transformers handoff path in the current checkout. The browser chatbot and OpenAI-compatible LLM API path are documented separately in [Local Frontend Chatbot](frontend-chatbot.md). DeepSeek is the default provider example, not an architectural limit.
 
 ## Outputs
 

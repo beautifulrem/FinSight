@@ -12,7 +12,7 @@
 |---|---|
 | [模块总览](modules.md) | 五个模块地图：前端、NLU/Retrieval、数值分析、文本分析、LLM 总结和预测。 |
 | [Query Intelligence](query-intelligence.md) | 支持范围、架构、API、NLU 和 Retrieval 输出契约、live provider、环境变量、排错。 |
-| [本地网页 Chatbot](frontend-chatbot.md) | 浏览器 UI、`/chat` 契约、DeepSeek v4 配置、真实本地截图和排错。 |
+| [本地网页 Chatbot](frontend-chatbot.md) | 浏览器 UI、`/chat` 契约、LLM API 配置、真实本地截图和排错。 |
 | [数值分析](numerical-analysis.md) | `analysis_summary`、技术指标、基本面、宏观信号和数据就绪程度。 |
 | [Presentation Materials](../presentation/README.md) | 清理后的英文汇报大纲和当前演示截图入口。 |
 | [训练和运行时资产](training.md) | 公开数据同步、manifest 训练、运行时资产生成、评估和发布检查。 |

@@ -10,7 +10,7 @@
   <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-f1c40f?style=flat&labelColor=555555"></a>
   <img alt="Python 3.13" src="https://img.shields.io/badge/Python-3.13-3776ab?style=flat&labelColor=555555">
   <img alt="API FastAPI" src="https://img.shields.io/badge/API-FastAPI-009688?style=flat&labelColor=555555">
-  <img alt="LLM DeepSeek" src="https://img.shields.io/badge/LLM-DeepSeek-111111?style=flat&labelColor=555555">
+  <img alt="LLM API" src="https://img.shields.io/badge/LLM-API-111111?style=flat&labelColor=555555">
 </p>
 
 </div>
@@ -164,8 +164,8 @@ Common environment variables:
 
 | Variable | Purpose |
 |---|---|
-| `DEEPSEEK_API_KEY` | Enables `/chat` LLM answer polishing. |
-| `DEEPSEEK_MODEL` | Overrides the default DeepSeek model. |
+| `DEEPSEEK_API_KEY` | API key for the default LLM provider used by `/chat`. |
+| `DEEPSEEK_MODEL` | Overrides the default LLM model; can be another compatible provider's model when `DEEPSEEK_BASE_URL` is changed. |
 | `TUSHARE_TOKEN` | Enables Tushare live market and fundamentals. |
 | `QI_USE_LIVE_MARKET` | Enables live market providers. |
 | `QI_USE_LIVE_NEWS` | Enables live news providers. |
