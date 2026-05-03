@@ -5,12 +5,12 @@
 <h3>Evidence-first financial analysis chatbot.</h3>
 
 <p>
-  <a href="README.md"><img alt="English" src="https://img.shields.io/badge/English-2f80ed?style=flat"></a>
-  <a href="README_CN.md"><img alt="简体中文" src="https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-d97706?style=flat"></a>
-  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/MIT-f1c40f?style=flat"></a>
-  <img alt="Python 3.13" src="https://img.shields.io/badge/Python%203.13-3776ab?style=flat">
-  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?style=flat">
-  <img alt="DeepSeek" src="https://img.shields.io/badge/DeepSeek-4b5563?style=flat">
+  <a href="README.md"><img alt="Language English" src="https://img.shields.io/badge/Language-English-2f80ed?style=flat&labelColor=555555"></a>
+  <a href="README_CN.md"><img alt="Language Simplified Chinese" src="https://img.shields.io/badge/%E8%AF%AD%E8%A8%80-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-d97706?style=flat&labelColor=555555"></a>
+  <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-f1c40f?style=flat&labelColor=555555"></a>
+  <img alt="Python 3.13" src="https://img.shields.io/badge/Python-3.13-3776ab?style=flat&labelColor=555555">
+  <img alt="API FastAPI" src="https://img.shields.io/badge/API-FastAPI-009688?style=flat&labelColor=555555">
+  <img alt="LLM DeepSeek" src="https://img.shields.io/badge/LLM-DeepSeek-111111?style=flat&labelColor=555555">
 </p>
 
 </div>
