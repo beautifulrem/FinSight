@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <style>.title{font:700 30px Arial,sans-serif;fill:#111827}.sub{font:400 16px Arial,sans-serif;fill:#475569}.box{fill:#fff;stroke:#CBD5E1;stroke-width:2}.accent{fill:#EEF2FF;stroke:#4F46E5;stroke-width:2}.soft{fill:#F8FAFC;stroke:#CBD5E1;stroke-width:2}.h{font:700 18px Arial,sans-serif;fill:#111827}.t{font:400 14px Arial,sans-serif;fill:#475569}.line{stroke:#334155;stroke-width:2.4;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1200" height="420" fill="#FFFFFF"/>
+  <text x="42" y="52" class="title">Text Analysis Pipeline</text>
+  <text x="42" y="82" class="sub">Sentiment is computed only over retrieved, entity-relevant documents selected by Query Intelligence.</text>
+  <rect x="55" y="145" width="190" height="125" rx="5" class="soft"/><text x="75" y="179" class="h">Retrieved Docs</text><text x="75" y="211" class="t">news</text><text x="75" y="235" class="t">announcements</text><text x="75" y="259" class="t">research notes</text>
+  <rect x="305" y="145" width="205" height="125" rx="5" class="box"/><text x="325" y="179" class="h">Relevance Filter</text><text x="325" y="211" class="t">product type</text><text x="325" y="235" class="t">entity symbols</text><text x="325" y="259" class="t">source type</text>
+  <rect x="570" y="145" width="205" height="125" rx="5" class="box"/><text x="590" y="179" class="h">Preprocess</text><text x="590" y="211" class="t">language detection</text><text x="590" y="235" class="t">sentence split</text><text x="590" y="259" class="t">excerpt selection</text>
+  <rect x="835" y="145" width="230" height="125" rx="5" class="accent"/><text x="855" y="179" class="h">Sentiment Model</text><text x="855" y="211" class="t">FinBERT classifier</text><text x="855" y="235" class="t">confidence score</text><text x="855" y="259" class="t">document label</text>
+  <path d="M245 208 H305" class="line"/><path d="M510 208 H570" class="line"/><path d="M775 208 H835" class="line"/>
+  <rect x="305" y="318" width="760" height="44" rx="4" class="soft"/><text x="330" y="346" class="t">Output: SentimentItem records preserve evidence_id, source, relevant excerpt, label, confidence, and rank score.</text>
+</svg>

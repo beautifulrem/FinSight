@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <style>.title{font:700 30px Arial,sans-serif;fill:#111827}.sub{font:400 16px Arial,sans-serif;fill:#475569}.box{fill:#fff;stroke:#CBD5E1;stroke-width:2}.accent{fill:#EEF2FF;stroke:#4F46E5;stroke-width:2}.soft{fill:#F8FAFC;stroke:#CBD5E1;stroke-width:2}.h{font:700 18px Arial,sans-serif;fill:#111827}.t{font:400 14px Arial,sans-serif;fill:#475569}.line{stroke:#334155;stroke-width:2.4;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1200" height="420" fill="#FFFFFF"/>
+  <text x="42" y="52" class="title">Numerical Analysis Pipeline</text>
+  <text x="42" y="82" class="sub">Structured financial rows are cleaned and summarized as descriptive signals, not deterministic investment decisions.</text>
+  <rect x="60" y="145" width="210" height="125" rx="5" class="soft"/><text x="80" y="179" class="h">Structured Inputs</text><text x="80" y="211" class="t">market prices</text><text x="80" y="235" class="t">fundamentals</text><text x="80" y="259" class="t">macro indicators</text>
+  <rect x="330" y="145" width="205" height="125" rx="5" class="box"/><text x="350" y="179" class="h">Data Cleansing</text><text x="350" y="211" class="t">symbol/date alignment</text><text x="350" y="235" class="t">missing values</text><text x="350" y="259" class="t">provider quality</text>
+  <rect x="595" y="145" width="230" height="125" rx="5" class="accent"/><text x="615" y="179" class="h">Indicator Engine</text><text x="615" y="211" class="t">returns, MA5, MA20</text><text x="615" y="235" class="t">RSI(14), MACD</text><text x="615" y="259" class="t">volatility, Bollinger</text>
+  <rect x="885" y="145" width="240" height="125" rx="5" class="box"/><text x="905" y="179" class="h">Analysis Summary</text><text x="905" y="211" class="t">trend signal</text><text x="905" y="235" class="t">data readiness</text><text x="905" y="259" class="t">numeric evidence IDs</text>
+  <path d="M270 208 H330" class="line"/><path d="M535 208 H595" class="line"/><path d="M825 208 H885" class="line"/>
+  <rect x="330" y="318" width="795" height="44" rx="4" class="soft"/><text x="355" y="346" class="t">Interpretation rule: indicators support observed market discussion, but do not claim causal forecasts or buy/sell decisions.</text>
+</svg>

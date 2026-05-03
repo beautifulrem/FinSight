@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="620" viewBox="0 0 1400 620">
+  <defs>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <style>
+      .title{font:700 32px Arial,sans-serif;fill:#111827}
+      .sub{font:400 17px Arial,sans-serif;fill:#475569}
+      .h{font:700 20px Arial,sans-serif;fill:#111827}
+      .t{font:400 15px Arial,sans-serif;fill:#475569}
+      .box{fill:#fff;stroke:#CBD5E1;stroke-width:2}
+      .dark{fill:#111827}
+      .white{font:700 18px Arial,sans-serif;fill:white}
+      .lane{fill:#F8FAFC;stroke:#E2E8F0;stroke-width:2}
+      .line{stroke:#334155;stroke-width:2.5;fill:none;marker-end:url(#arrow2)}
+    </style>
+  </defs>
+  <rect width="1400" height="620" fill="#fff"/>
+  <text x="48" y="56" class="title">Evidence Contract and Data Flow</text>
+  <text x="48" y="86" class="sub">Downstream modules consume explicit artifacts instead of re-inferring intent, entity, or source plan.</text>
+  <rect x="48" y="130" width="220" height="330" rx="8" class="lane"/>
+  <text x="82" y="172" class="h">Inputs</text>
+  <rect x="82" y="210" width="152" height="60" rx="4" class="box"/>
+  <text x="106" y="247" class="t">user query</text>
+  <rect x="82" y="300" width="152" height="60" rx="4" class="box"/>
+  <text x="106" y="337" class="t">context</text>
+  <rect x="82" y="390" width="152" height="60" rx="4" class="box"/>
+  <text x="106" y="427" class="t">runtime assets</text>
+  <path d="M268 295 H344" class="line"/>
+  <rect x="344" y="130" width="250" height="330" rx="8" class="lane"/>
+  <text x="378" y="172" class="h">NLU Artifact</text>
+  <rect x="378" y="210" width="180" height="160" rx="4" class="box"/>
+  <text x="402" y="244" class="t">normalized_query</text>
+  <text x="402" y="274" class="t">product_type</text>
+  <text x="402" y="304" class="t">intents and topics</text>
+  <text x="402" y="334" class="t">entities and risk flags</text>
+  <path d="M594 295 H670" class="line"/>
+  <rect x="670" y="130" width="250" height="330" rx="8" class="lane"/>
+  <text x="704" y="172" class="h">Retrieval Artifact</text>
+  <rect x="704" y="210" width="180" height="190" rx="4" class="box"/>
+  <text x="728" y="244" class="t">executed sources</text>
+  <text x="728" y="274" class="t">ranked evidence</text>
+  <text x="728" y="304" class="t">structured data</text>
+  <text x="728" y="334" class="t">coverage flags</text>
+  <text x="728" y="364" class="t">warnings</text>
+  <path d="M920 295 H996" class="line"/>
+  <rect x="996" y="130" width="356" height="330" rx="8" class="lane"/>
+  <text x="1030" y="172" class="h">Constrained Outputs</text>
+  <rect x="1030" y="210" width="286" height="56" rx="4" class="box"/>
+  <text x="1054" y="245" class="t">analysis_summary</text>
+  <rect x="1030" y="290" width="286" height="56" rx="4" class="box"/>
+  <text x="1054" y="325" class="t">SentimentItem records</text>
+  <rect x="1030" y="370" width="286" height="56" rx="4" class="dark"/>
+  <text x="1054" y="405" class="white">answer_generation JSON</text>
+  <text x="344" y="525" class="sub">Rule: generated text may cite evidence IDs, but must not invent missing market, news, macro, sentiment, or statistical facts.</text>
+</svg>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <style>.title{font:700 30px Arial,sans-serif;fill:#111827}.sub{font:400 16px Arial,sans-serif;fill:#475569}.box{fill:#fff;stroke:#CBD5E1;stroke-width:2}.accent{fill:#EEF2FF;stroke:#4F46E5;stroke-width:2}.soft{fill:#F8FAFC;stroke:#CBD5E1;stroke-width:2}.dark{fill:#111827}.h{font:700 18px Arial,sans-serif;fill:#111827}.t{font:400 14px Arial,sans-serif;fill:#475569}.w{font:700 16px Arial,sans-serif;fill:#fff}.line{stroke:#334155;stroke-width:2.4;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1200" height="420" fill="#FFFFFF"/>
+  <text x="42" y="52" class="title">LLM Summary &amp; Prediction Pipeline</text>
+  <text x="42" y="82" class="sub">The LLM is constrained to compact evidence JSON and validated output fields before display.</text>
+  <rect x="55" y="145" width="190" height="125" rx="5" class="soft"/><text x="75" y="179" class="h">Evidence Pack</text><text x="75" y="211" class="t">nlu_result</text><text x="75" y="235" class="t">retrieval_result</text><text x="75" y="259" class="t">sentiment / stats</text>
+  <rect x="305" y="145" width="205" height="125" rx="5" class="accent"/><text x="325" y="179" class="h">Prompt Guardrails</text><text x="325" y="211" class="t">no re-inference</text><text x="325" y="235" class="t">cite evidence IDs</text><text x="325" y="259" class="t">risk disclaimer</text>
+  <rect x="570" y="145" width="190" height="125" rx="5" class="box"/><text x="590" y="179" class="h">Generate JSON</text><text x="590" y="211" class="t">answer</text><text x="590" y="235" class="t">key points</text><text x="590" y="259" class="t">limitations</text>
+  <rect x="820" y="145" width="175" height="125" rx="5" class="box"/><text x="840" y="179" class="h">Validate</text><text x="840" y="211" class="t">schema check</text><text x="840" y="235" class="t">repair fallback</text><text x="840" y="259" class="t">language control</text>
+  <rect x="1040" y="145" width="120" height="125" rx="5" class="dark"/><text x="1060" y="179" class="w">Return</text><text x="1060" y="211" class="w">answer</text><text x="1060" y="235" class="w">follow-ups</text>
+  <path d="M245 208 H305" class="line"/><path d="M510 208 H570" class="line"/><path d="M760 208 H820" class="line"/><path d="M995 208 H1040" class="line"/>
+  <rect x="305" y="318" width="855" height="44" rx="4" class="soft"/><text x="330" y="346" class="t">Safety rule: missing market, macro, news, sentiment, or statistical facts remain explicit limitations rather than hallucinated content.</text>
+</svg>

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <style>
+      .title{font:700 34px Arial, sans-serif;fill:#111827}
+      .subtitle{font:400 18px Arial, sans-serif;fill:#475569}
+      .label{font:700 20px Arial, sans-serif;fill:#111827}
+      .small{font:400 16px Arial, sans-serif;fill:#475569}
+      .tiny{font:400 14px Arial, sans-serif;fill:#475569}
+      .box{fill:#fff;stroke:#CBD5E1;stroke-width:2}
+      .group{fill:#F8FAFC;stroke:#94A3B8;stroke-width:2}
+      .accent{fill:#EEF2FF;stroke:#4F46E5;stroke-width:2}
+      .down{stroke:#334155;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+      .line{stroke:#64748B;stroke-width:2;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1400" height="760" fill="#FFFFFF"/>
+  <text x="48" y="58" class="title">FinSight Evidence-First System Architecture</text>
+  <text x="48" y="90" class="subtitle">The system separates query understanding, evidence retrieval, analysis, and final answer wording.</text>
+  <rect x="48" y="130" width="240" height="120" rx="6" class="box"/>
+  <text x="76" y="174" class="label">User Interface</text>
+  <text x="76" y="205" class="small">Browser chatbot</text>
+  <text x="76" y="230" class="tiny">Chinese and English queries</text>
+  <path d="M288 190 H360" class="down"/>
+  <rect x="360" y="130" width="240" height="120" rx="6" class="box"/>
+  <text x="388" y="174" class="label">FastAPI Service</text>
+  <text x="388" y="205" class="small">/chat contract</text>
+  <text x="388" y="230" class="tiny">request validation and routing</text>
+  <path d="M600 190 H672" class="down"/>
+  <rect x="672" y="110" width="640" height="430" rx="8" class="group"/>
+  <text x="704" y="150" class="label">Query Intelligence Core</text>
+  <rect x="704" y="180" width="250" height="140" rx="6" class="accent"/>
+  <text x="730" y="222" class="label">NLU</text>
+  <text x="730" y="252" class="small">normalize query</text>
+  <text x="730" y="278" class="small">resolve entities</text>
+  <text x="730" y="304" class="small">classify intents and risk</text>
+  <rect x="1030" y="180" width="250" height="140" rx="6" class="accent"/>
+  <text x="1056" y="222" class="label">Retrieval</text>
+  <text x="1056" y="252" class="small">source planning</text>
+  <text x="1056" y="278" class="small">ranking and deduplication</text>
+  <text x="1056" y="304" class="small">coverage and warnings</text>
+  <path d="M954 250 H1030" class="line"/>
+  <rect x="704" y="365" width="250" height="130" rx="6" class="box"/>
+  <text x="730" y="405" class="label">Market Analyzer</text>
+  <text x="730" y="435" class="small">price, fundamentals, macro</text>
+  <text x="730" y="462" class="small">technical indicators</text>
+  <rect x="1030" y="365" width="250" height="130" rx="6" class="box"/>
+  <text x="1056" y="405" class="label">Evidence Package</text>
+  <text x="1056" y="435" class="small">nlu_result</text>
+  <text x="1056" y="462" class="small">retrieval_result</text>
+  <path d="M829 320 V365" class="line"/>
+  <path d="M1155 320 V365" class="line"/>
+  <path d="M954 430 H1030" class="line"/>
+  <path d="M992 540 V600" class="down"/>
+  <rect x="128" y="600" width="1144" height="100" rx="8" class="group"/>
+  <text x="160" y="638" class="label">Downstream Evidence Consumers</text>
+  <text x="160" y="670" class="small">Text sentiment over retrieved documents</text>
+  <text x="525" y="670" class="small">LLM answer JSON with cited evidence IDs</text>
+  <text x="925" y="670" class="small">Frontend answer and source cards</text>
+</svg>

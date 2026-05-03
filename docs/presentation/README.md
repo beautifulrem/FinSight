@@ -1,6 +1,6 @@
 # Presentation Materials
 
-This folder is the cleaned presentation entry point for the FinSight / ARIN Query Intelligence project.
+This folder is the cleaned presentation entry point for the FinSight project.
 
 The original `PPT_Overleaf` backup contained older browser screenshots, LaTeX build byproducts, unrelated image assets, and raw planning notes. The reusable content has been consolidated here as a clean slide outline and linked to the current documented frontend screenshots.
 

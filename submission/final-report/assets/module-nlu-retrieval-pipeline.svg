@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <style>.title{font:700 30px Arial,sans-serif;fill:#111827}.sub{font:400 16px Arial,sans-serif;fill:#475569}.box{fill:#fff;stroke:#CBD5E1;stroke-width:2}.accent{fill:#EEF2FF;stroke:#4F46E5;stroke-width:2}.soft{fill:#F8FAFC;stroke:#CBD5E1;stroke-width:2}.dark{fill:#111827}.h{font:700 18px Arial,sans-serif;fill:#111827}.t{font:400 14px Arial,sans-serif;fill:#475569}.w{font:700 16px Arial,sans-serif;fill:#fff}.line{stroke:#334155;stroke-width:2.4;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1200" height="420" fill="#FFFFFF"/>
+  <text x="42" y="52" class="title">NLU &amp; Retrieval Pipeline</text>
+  <text x="42" y="82" class="sub">Classical, explainable stages transform a raw finance question into traceable evidence artifacts.</text>
+  <rect x="40" y="145" width="155" height="125" rx="5" class="soft"/><text x="60" y="179" class="h">Normalize</text><text x="60" y="211" class="t">punctuation</text><text x="60" y="235" class="t">aliases</text><text x="60" y="259" class="t">language</text>
+  <rect x="235" y="145" width="175" height="125" rx="5" class="accent"/><text x="255" y="179" class="h">Understand</text><text x="255" y="211" class="t">product type</text><text x="255" y="235" class="t">intent / topic</text><text x="255" y="259" class="t">risk flags</text>
+  <rect x="450" y="145" width="170" height="125" rx="5" class="box"/><text x="470" y="179" class="h">Resolve</text><text x="470" y="211" class="t">entity aliases</text><text x="470" y="235" class="t">symbols</text><text x="470" y="259" class="t">missing slots</text>
+  <rect x="660" y="145" width="170" height="125" rx="5" class="box"/><text x="680" y="179" class="h">Plan Sources</text><text x="680" y="211" class="t">news</text><text x="680" y="235" class="t">market API</text><text x="680" y="259" class="t">fundamentals</text>
+  <rect x="870" y="145" width="165" height="125" rx="5" class="box"/><text x="890" y="179" class="h">Rank</text><text x="890" y="211" class="t">features</text><text x="890" y="235" class="t">dedup</text><text x="890" y="259" class="t">coverage</text>
+  <rect x="1075" y="145" width="95" height="125" rx="5" class="dark"/><text x="1095" y="179" class="w">Emit</text><text x="1095" y="211" class="w">NLU</text><text x="1095" y="235" class="w">Retrieval</text>
+  <path d="M195 208 H235" class="line"/><path d="M410 208 H450" class="line"/><path d="M620 208 H660" class="line"/><path d="M830 208 H870" class="line"/><path d="M1035 208 H1075" class="line"/>
+  <rect x="235" y="318" width="800" height="44" rx="4" class="soft"/><text x="260" y="346" class="t">Inspectable outputs include matched rules, entity match type, source-plan reasons, ranking scores, coverage flags, and warnings.</text>
+</svg>

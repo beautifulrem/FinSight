@@ -1,0 +1,68 @@
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage[table]{xcolor}
+
+\definecolor{HKUDarkRed}{rgb}{0.55,0,0}
+\definecolor{HKULinkRed}{HTML}{8B0000}
+\definecolor{FinSightNavy}{HTML}{172033}
+\definecolor{FinSightBlue}{HTML}{285AA6}
+\definecolor{FinSightTeal}{HTML}{0F766E}
+\definecolor{FinSightGray}{HTML}{F7F7F7}
+\definecolor{FinSightLine}{HTML}{D7DEE9}
+
+\AtBeginDocument{%
+  \hypersetup{
+    colorlinks=true,
+    linkcolor=HKULinkRed,
+    urlcolor=FinSightTeal,
+    citecolor=HKULinkRed
+  }%
+}
+
+\titleformat{\section}
+  {\Large\bfseries\color{HKUDarkRed}}
+  {}
+  {0pt}
+  {}
+  [\vspace{0.25em}{\color{FinSightLine}\titlerule}]
+\titleformat{\subsection}
+  {\large\bfseries\color{FinSightNavy}}
+  {}
+  {0pt}
+  {}
+\titlespacing*{\section}{0pt}{1.35em}{0.7em}
+\titlespacing*{\subsection}{0pt}{1.05em}{0.45em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\itshape FinSight}
+\rhead{\small\itshape ARIN7012}
+\cfoot{\small \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{FinSightLine}\leaders\hrule height \headrulewidth\hfill}}
+
+\captionsetup{
+  font=small,
+  labelfont=bf,
+  labelformat=simple,
+  margin=1.5em
+}
+\setlength{\parskip}{0.52em}
+\setlength{\parindent}{1.6em}
+\setlist{itemsep=0.2em, topsep=0.3em}
+\renewcommand{\arraystretch}{1.18}
+\rowcolors{2}{FinSightGray}{white}
+\setcounter{tocdepth}{2}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{12pt plus 1fil}
+\setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
