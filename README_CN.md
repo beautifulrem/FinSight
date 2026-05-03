@@ -5,24 +5,12 @@
 <h3>证据优先的金融分析聊天机器人。</h3>
 
 <p>
-  <a href="README.md"><img alt="Language English" src="https://img.shields.io/badge/Language-English-2f80ed?style=for-the-badge"></a>
-  <a href="README_CN.md"><img alt="Language Simplified Chinese" src="https://img.shields.io/badge/%E8%AF%AD%E8%A8%80-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-d97706?style=for-the-badge"></a>
-</p>
-
-<p>
-  <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-f1c40f?style=for-the-badge"></a>
-  <img alt="Course ARIN7012" src="https://img.shields.io/badge/Course-ARIN7012-555555?style=for-the-badge">
-  <img alt="Group 4.2" src="https://img.shields.io/badge/Group-4.2-8b0000?style=for-the-badge">
-  <img alt="Status Research Prototype" src="https://img.shields.io/badge/Status-Research%20Prototype-0f766e?style=for-the-badge">
-  <img alt="Market China Finance" src="https://img.shields.io/badge/Market-China%20Finance-285aa6?style=for-the-badge">
-</p>
-
-<p>
-  <img alt="Python 3.13" src="https://img.shields.io/badge/Python-3.13-3776ab?style=for-the-badge">
-  <img alt="FastAPI" src="https://img.shields.io/badge/API-FastAPI-009688?style=for-the-badge">
-  <img alt="Backend Query Intelligence" src="https://img.shields.io/badge/Backend-Query%20Intelligence-172033?style=for-the-badge">
-  <img alt="Frontend Browser Chatbot" src="https://img.shields.io/badge/Frontend-Browser%20Chatbot-111111?style=for-the-badge">
-  <img alt="LLM DeepSeek" src="https://img.shields.io/badge/LLM-DeepSeek-4b5563?style=for-the-badge">
+  <a href="README.md"><img alt="English" src="https://img.shields.io/badge/English-2f80ed?style=flat"></a>
+  <a href="README_CN.md"><img alt="简体中文" src="https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-d97706?style=flat"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/MIT-f1c40f?style=flat"></a>
+  <img alt="Python 3.13" src="https://img.shields.io/badge/Python%203.13-3776ab?style=flat">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?style=flat">
+  <img alt="DeepSeek" src="https://img.shields.io/badge/DeepSeek-4b5563?style=flat">
 </p>
 
 </div>
