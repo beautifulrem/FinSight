@@ -17,7 +17,7 @@
 
 ---
 
-FinSight is an evidence-first financial analysis chatbot for ARIN7012 Group 4.2. It turns a natural-language finance question into auditable evidence artifacts, then presents a risk-aware answer through a local browser chatbot.
+FinSight is an evidence-first financial analysis chatbot. It turns a natural-language finance question into auditable evidence artifacts, then presents a risk-aware answer through a local browser chatbot.
 
 The project is designed around a simple rule: the system should retrieve and expose evidence before it writes a financial answer. The backend identifies intent, entities, required evidence, source plans, retrieved documents, structured market data, numerical signals, sentiment evidence, and cited answer JSON.
 
@@ -211,4 +211,4 @@ Start with [docs/index.md](docs/index.md).
 
 ## Safety
 
-FinSight is a research and coursework prototype. It summarizes evidence and can help inspect financial information, but it is not an investment adviser and must not be used as the sole basis for trading decisions.
+FinSight summarizes evidence and can help inspect financial information, but it is not an investment adviser and must not be used as the sole basis for trading decisions.
