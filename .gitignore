@@ -40,6 +40,7 @@ manual_test/output/
 evaluation/*.json
 evaluation/*.md
 submission/conference-paper/
+submission/final-report/
 
 # Local training/evaluation scratch files
 *.log
