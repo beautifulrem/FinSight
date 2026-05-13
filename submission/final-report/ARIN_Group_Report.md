@@ -184,7 +184,7 @@ The result evaluation combines UI walkthrough, structured artifacts, statistical
 | Result area | Evidence used | Interpretation |
 |---|---|---|
 | Frontend usability | Chinese and English browser screenshots; `/chat` response fields | The interface can present answer text, key points, sources, and disclaimer in a user-readable workflow. |
-| NLU & Retrieval | 32/32 fuzz cases; NLU labels; entity resolution; retrieval coverage | The backend handles finance, English, colloquial, typo, comparison, macro, and clarification cases with traceable artifacts. |
+| NLU & Retrieval | 10,000 query-style evaluation cases; 32-case end-to-end fuzz matrix; NLU labels; entity resolution; retrieval coverage | The backend handles large-scale finance and out-of-scope queries, while the fuzz matrix checks English, colloquial, typo, comparison, macro, and clarification contracts. |
 | Numerical analysis | Market, fundamental, and industry structured rows; technical-indicator design | The system summarizes observed evidence and data readiness without turning indicators into deterministic advice. |
 | Text analysis | Sentiment schemas, preprocessing tests, classifier tests, pipeline tests | Sentiment is tied to retrieved evidence IDs rather than unsupported document crawling. |
 | LLM summary | DeepSeek `/chat` status, strict JSON fields, fallback contract | Generation is constrained to evidence-grounded answer wording and follow-up question support. |
@@ -218,16 +218,21 @@ These screenshots show that the frontend is not only a visual shell. It demonstr
 
 ## 4.2 NLU & Retrieval Results
 
-The strongest backend evidence comes from the Query Intelligence fuzz test report generated on 2026-04-22. It contained 32 cases, all passed, with an overall score of 10.0/10, NLU score of 10.0/10, retrieval score of 10.0/10, and schema score of 10.0/10. The matrix covered baseline stock advice, colloquial paraphrases, recent time scopes, ETF aliases, comparison, typo tolerance, dialogue context carryover, user-profile carryover, macro-policy queries, event/news queries, English queries, and clarification-required cases.
+The strongest backend evidence comes from a 10,000-case Query Intelligence evaluation. The set contains 6,236 finance-domain queries, 3,764 out-of-scope queries, 5,865 Chinese queries, and 4,135 English queries. It uses public and generated query-style examples while filtering out article-length rows that would not represent interactive chatbot input. The evaluation is therefore larger than the 32-case fuzz matrix, but still aligned with the system's intended user workflow.
 
 | Evaluation item | Observed result |
 |---|---|
-| Fuzz test cases | 32 total, 32 passed, 0 failed |
-| Overall score | 10.0/10 |
-| NLU score | 10.0/10 |
-| Retrieval score | 10.0/10 |
-| Schema score | 10.0/10 |
-| Passed checks | 361 total checks, 361 passed |
+| Large-scale evaluation cases | 10,000 total: 6,236 finance and 3,764 out-of-scope |
+| Language coverage | 5,865 Chinese and 4,135 English queries |
+| Domain routing | Finance-domain recall 0.975; out-of-scope rejection accuracy 0.9729 |
+| Classification quality | Product type accuracy 1.0; question-style accuracy 1.0; intent micro-F1 0.9407; topic micro-F1 0.9208 |
+| Source planning | Hit@5 1.0; recall@5 0.9957 |
+| Retrieval ranking | Recall@10 0.9664; MRR@10 0.889; NDCG@10 0.8872 |
+| Retrieval abstention | Out-of-scope retrieval abstention 0.986 |
+| Remaining gap | Clarification recall 0.75, below the 0.90 target and kept as a limitation |
+| Complementary fuzz matrix | 32 total cases, 32 passed, 0 failed; 361 checks passed |
+
+The 32-case fuzz report remains useful as a complementary end-to-end contract test. It covered baseline stock advice, colloquial paraphrases, recent time scopes, ETF aliases, comparison, typo tolerance, dialogue context carryover, user-profile carryover, macro-policy queries, event/news queries, English queries, and clarification-required cases. The larger evaluation provides statistical support, while the fuzz matrix verifies schema validity and representative workflow behavior.
 
 One representative case was the Chinese query `茅台今天为什么跌？后面还值得拿吗？`. The normalized query became `贵州茅台今天为什么跌 后面还值得拿吗`. The NLU module classified product type as `stock` with score 0.99, detected intents `market_explanation`, `hold_judgment`, and `buy_sell_timing`, and resolved the entity to `贵州茅台`, symbol `600519.SH`, through exact alias matching. It also marked the risk flag `investment_advice_like` and planned sources including news, research note, market API, industry SQL, fundamental SQL, and announcement. This result is important because the system understood both the explanation request and the advice-like risk in the same query.
 
@@ -304,6 +309,8 @@ The remaining gap is predictive depth. The system summarizes market, fundamental
 | Chinese chatbot run | `/chat` returned `llm.status="ok"` and Chinese answer; PDF figure redacts volatile market numbers | `docs/assets/frontend-chatbot-zh.png`; `submission/final-report/assets/frontend-chatbot-zh-redacted.png` |
 | English chatbot run | `/chat` returned `llm.status="ok"` and English answer; PDF figure redacts volatile market numbers | `docs/assets/frontend-chatbot-en.png`; `submission/final-report/assets/frontend-chatbot-en-redacted.png` |
 | Browser rendering | Input, submit button, answer card, key points, evidence cards, and disclaimer rendered | `docs/frontend-chatbot.md` |
+| Large-scale Query Intelligence evaluation | 10,000 total queries; finance recall 0.975; OOD rejection 0.9729; Recall@10 0.9664; NDCG@10 0.8872 | `submission/final-report/evidence/large_scale_query_intelligence_eval.md` |
+| Large-scale evaluation limitation | Clarification recall 0.75, below the 0.90 target | `submission/final-report/evidence/large_scale_query_intelligence_eval.json` |
 | Fuzz test matrix | 32 total cases, 32 passed, 0 failed | `submission/final-report/evidence/fuzz_query_intelligence_report.md` |
 | Fuzz score | Overall 10.0/10; NLU 10.0/10; Retrieval 10.0/10; Schema 10.0/10 | `submission/final-report/evidence/fuzz_query_intelligence_report.md` |
 | Representative NLU case | Moutai query normalized, entity resolved to `600519.SH`, risk flag detected | `submission/final-report/evidence/fuzz_query_intelligence_report.json` |

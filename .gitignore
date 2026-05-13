@@ -39,6 +39,7 @@ reports/
 manual_test/output/
 evaluation/*.json
 evaluation/*.md
+submission/conference-paper/
 
 # Local training/evaluation scratch files
 *.log
@@ -48,4 +49,3 @@ temp/
 # Keep trained model artifacts for public release.
 !models/*.joblib
 !models/*.json
-

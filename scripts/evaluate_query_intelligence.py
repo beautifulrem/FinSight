@@ -29,6 +29,7 @@ TOTAL_QUERIES = 10_000
 RETRIEVAL_QREL_QUERIES = 1_500
 OOD_RETRIEVAL_CHECK_QUERIES = 500
 TOP_K = 10
+MAX_EVAL_QUERY_CHARS = 120
 
 FINANCE_CLASSIFICATION_TARGET = 4_000
 FINANCE_RETRIEVAL_TARGET = 1_500
@@ -155,7 +156,7 @@ def _sample_finance_classification_rows(rows: list[dict], target: int) -> list[E
         if product_type in {"", "unknown"} or question_style == "":
             continue
         query = str(row.get("query") or "").strip()
-        if not query:
+        if not _is_question_style_eval_query(query):
             continue
         expected_sources = tuple(_ordered_unique(_as_tuple(row.get("expected_document_sources")) + _as_tuple(row.get("expected_structured_sources"))))
         pool.append(
@@ -190,7 +191,7 @@ def _sample_finance_retrieval_queries(qrel_rows: list[dict], corpus_rows: list[d
         query = str(row.get("query") or "").strip()
         doc_id = str(row.get("doc_id") or "").strip()
         relevance = int(row.get("relevance") or 0)
-        if not query or not doc_id or relevance <= 0:
+        if not _is_question_style_eval_query(query) or not doc_id or relevance <= 0:
             continue
         item = grouped.setdefault(
             query,
@@ -231,7 +232,7 @@ def _sample_ood_public_queries(classification_rows: list[dict], qrel_rows: list[
         if source_id not in OOD_SOURCE_IDS:
             continue
         query = str(row.get("query") or "").strip()
-        if not query:
+        if not _is_question_style_eval_query(query):
             continue
         pool.append(
             EvalItem(
@@ -252,7 +253,7 @@ def _sample_ood_public_queries(classification_rows: list[dict], qrel_rows: list[
         if source_id != "t2ranking":
             continue
         query = str(row.get("query") or "").strip()
-        if not query or query in seen:
+        if not _is_question_style_eval_query(query) or query in seen:
             continue
         pool.append(
             EvalItem(
@@ -282,7 +283,7 @@ def _sample_ood_dialogue_queries(target: int) -> list[EvalItem]:
         for line_index, line in enumerate(lines):
             utterances = [item.strip() for item in line.split("__eou__") if item.strip()]
             for turn_index, utterance in enumerate(utterances):
-                if len(utterance) < 2:
+                if not _is_question_style_eval_query(utterance):
                     continue
                 pool.append(
                     EvalItem(
@@ -1058,6 +1059,18 @@ def _is_self_contained_finance(query: str) -> bool:
         "policy",
     ]
     return any(term in lowered for term in finance_terms)
+
+
+def _is_question_style_eval_query(query: str) -> bool:
+    query = query.strip()
+    if not query or len(query) > MAX_EVAL_QUERY_CHARS:
+        return False
+    article_markers = ("\n", "\r", "\t", "\u3000", "新浪财经讯", "本报记者", "每经记者")
+    if any(marker in query for marker in article_markers):
+        return False
+    if query.startswith("['") or query.startswith('["'):
+        return False
+    return True
 
 
 def _predicted_product_type(nlu_result: dict) -> str:

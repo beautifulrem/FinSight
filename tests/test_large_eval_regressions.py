@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from scripts.evaluate_query_intelligence import EvalItem, build_summary
+from scripts.evaluate_query_intelligence import EvalItem, _sample_finance_classification_rows, build_summary
 from query_intelligence.service import build_default_service, clear_service_caches
 
 
@@ -89,6 +89,37 @@ def test_eval_summary_checks_retrieval_metric_names_and_exports_failures() -> No
     assert summary["failure_examples"]["topic"]
     assert summary["failure_examples"]["source_plan"]
     assert summary["failure_examples"]["clarification"]
+
+
+def test_large_eval_finance_sampling_excludes_article_length_rows() -> None:
+    rows = [
+        {
+            "split": "test",
+            "source_id": "finnl",
+            "query": "贵州茅台最近为什么下跌？",
+            "product_type": "stock",
+            "question_style": "why",
+            "intent_labels": ["market_explanation"],
+            "topic_labels": ["price"],
+            "expected_document_sources": ["news"],
+            "expected_structured_sources": ["market_api"],
+        },
+        {
+            "split": "test",
+            "source_id": "finnl",
+            "query": "上市公司公告速递\n" + "这是一段整篇新闻正文。" * 200,
+            "product_type": "stock",
+            "question_style": "fact",
+            "intent_labels": ["event_news_query"],
+            "topic_labels": ["news"],
+            "expected_document_sources": ["news"],
+            "expected_structured_sources": [],
+        },
+    ]
+
+    sampled = _sample_finance_classification_rows(rows, target=2)
+
+    assert [item.query for item in sampled] == ["贵州茅台最近为什么下跌？"]
 
 
 def test_personal_finance_english_query_is_not_rejected_as_ood_and_gets_research_source() -> None:
