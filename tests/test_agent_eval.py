@@ -166,3 +166,11 @@ def test_runner_on_stub_service():
     assert report["summary"]["task_success"] == 1.0
     assert report["by_category"]["out_of_scope"]["tasks"] == 1
     assert report["failures"] == []
+
+
+def test_gate_threshold_check():
+    from evaluation.agent_eval.gate import THRESHOLDS, check
+
+    assert check({"task_success": 0.99, "behavior_accuracy": 1.0, "compliance_clean": 1.0}, THRESHOLDS["holdout"]) == []
+    problems = check({"task_success": 0.5, "behavior_accuracy": None, "compliance_clean": 1.0}, THRESHOLDS["holdout"])
+    assert problems == ["task_success=0.5 < 0.8", "behavior_accuracy=None < 0.95"]
