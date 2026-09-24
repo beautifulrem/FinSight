@@ -112,11 +112,20 @@ def repair_answer(
     invalid = set(report.invalid_citations)
     unsupported = report.unsupported_numbers
 
+    def has_unsupported(text: str) -> bool:
+        return bool(unsupported) and any(_is_supported(value, unsupported) for value in claim_numbers(text))
+
     def clean_sentence(sentence: str) -> str | None:
         stripped = _CITATION.sub(lambda match: "" if match.group(1) in invalid else match.group(0), sentence)
-        if unsupported and any(_is_supported(value, unsupported) for value in claim_numbers(stripped)):
+        if not has_unsupported(stripped):
+            return stripped
+        # Salvage the clauses that only contain supported numbers.
+        clauses = [clause for clause in re.split(r"(?<=[，,；;])", stripped) if clause]
+        kept_clauses = [clause for clause in clauses if not has_unsupported(clause)]
+        if not kept_clauses or not claim_numbers("".join(kept_clauses)):
             return None
-        return stripped
+        text = "".join(kept_clauses).rstrip("，,；; ")
+        return text + ("。" if re.search(r"[\u4e00-\u9fff]", text) else ".")
 
     sentences = [clean_sentence(sentence) for sentence in _split_sentences(str(answer.get("answer") or ""))]
     kept = [sentence for sentence in sentences if sentence and sentence.strip()]
