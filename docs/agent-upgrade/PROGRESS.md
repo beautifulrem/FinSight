@@ -6,7 +6,7 @@
 
 | ID | 任务 | 状态 | 备注 |
 |---|---|---|---|
-| T0.1 | 环境与基线 | 🟡 | `.venv`（Python 3.13）已建立并安装依赖；全量基线测试运行中（live provider 默认开启且沙箱网络被拦截，耗时很长） |
+| T0.1 | 环境与基线 | ✅ | 基线：364 passed / 53 skipped / 1 failed（49.5 分钟，live provider 默认开启导致逐个等待网络超时）；唯一失败 `test_fuzz_query_intelligence_report` 已修复（见迭代 2） |
 | T0.2 | 文档纠偏 | ✅ | README 架构图按真实链路重画；删除 `submission/`；评测构造与局限写入 training 文档；UI 标题中性化；AGENTS.md 增加 Agent 层规则 |
 | T0.3 | 代码质量工具 | ✅ | `ruff.toml`（仅约束 agent 相关目录）+ `requirements-dev.txt` |
 | T0.4 | 结构化日志 | ✅ | `api/app.py` 改为 `logging`，保留控制台进度输出 |
@@ -19,15 +19,15 @@
 | T1.7 | analyze_sentiment | ✅ | `analyze_sentiment`：默认经典模型，`QI_AGENT_SENTIMENT_BACKEND=finbert` 可选 |
 | T1.8 | MCP Server | ✅ | `agent/mcp_server.py` + `docs/mcp.md`；stdio 子进程端到端验证通过 |
 | T2.1 | LLM 层 | ✅ | `agent/llm.py`：DeepSeekToolClient（非 strict、回传 reasoning_content、429/5xx 重试）、ScriptedLLM、Pricing（仅配置时计费） |
-| T2.2 | 确定性规划器 | ⬜ | |
-| T2.3 | 状态与图 | ⬜ | |
-| T2.4 | 路由器 | ⬜ | |
-| T2.5 | 证据校验器 | ⬜ | |
-| T2.6 | 合规节点 | ⬜ | |
+| T2.2 | 确定性规划器 | ✅ | `agent/planner.py`，14 个测试 |
+| T2.3 | 状态与图 | ✅ | `agent/state.py` + `agent/graph.py`（LangGraph 1.2.12）；13 个图测试 + 7 个真实离线服务集成测试 |
+| T2.4 | 路由器 | ✅ | `agent/router.py`，31 条表驱动用例 |
+| T2.5 | 证据校验器 | ✅ | `agent/verifier.py`：引用存在性 + 数值可追溯（单位换算/四舍五入容差）+ 修复 |
+| T2.6 | 合规节点 | ✅ | `agent/compliance.py`：复用 llm_response 软化规则与 chatbot 新鲜度/免责声明；删除直接交易指令 |
 | T2.7 | 记忆与澄清 | ⬜ | |
 | T2.8 | 服务与 API | ⬜ | |
 | T2.9 | 接入情感与下一问 | ⬜ | |
-| T2.10 | 提示注入防护 | ⬜ | |
+| T2.10 | 提示注入防护 | ✅ | `agent/injection.py`：工具结果以不可信数据信封包装、指令类文本脱敏；端到端注入测试 |
 | T3.1 | Tracing | ⬜ | |
 | T3.2 | 评测任务集 | ⬜ | |
 | T3.3 | 数据快照回放 | ⬜ | |
@@ -66,3 +66,18 @@
   - `QI_USE_LIVE_MARKET=0 QI_USE_LIVE_MACRO=0 pytest tests/test_runtime_entity_assets.py tests/test_query_intelligence.py tests/test_analysis_summary.py tests/test_retrieval_selector.py tests/test_chatbot.py` → 64 passed, 40 skipped
   - `ruff check .` → 通过
 - 下一步：T2.2 确定性规划器 → T2.3 图。
+
+### 2026-09-24 · 迭代 2 · T0.1 收尾、T2.2–T2.6、T2.10
+
+- 基线（T0.1）：`python -m pytest -q tests/`（live 默认开启、沙箱无外网）→ **364 passed, 53 skipped, 1 failed, 2971 s**。
+  - 失败根因：`evaluation/fuzz_query_intelligence_report.py` 只读取 `evaluation/fuzz_query_intelligence_report.json`，该文件被 `.gitignore` 忽略且随 `submission/` 一起删除，任何干净 clone 都会失败。
+  - 修复：从历史报告中恢复 32 个用例定义到已提交的 `evaluation/fuzz_cases.jsonl`（两个多轮用例的上下文输入为重建值，已在用例中注明），`build_fuzz_report()` 改为离线实际运行、schema 校验并打分。
+  - **发现**：离线重跑结果 23/32 用例通过、331/361 检查通过（历史报告 2026-04-22 为 32/32）。差异一部分来自 live 数据（公告、告警），一部分是 NLU 漂移（question_style 4 例、错别字实体 1 例、英文板块建议 1 例），如实记录，不在本目标范围内调参。
+- 新增：确定性规划器、路由器、证据校验器、合规节点、提示注入防护、模板组答器、LangGraph 图（guard_in → refuse/clarify/execute_plan/agent_llm⇄agent_tools → verify⇄revise → compliance → finalize）。
+- 新依赖：`langgraph>=1.2,<2`（安装版本 1.2.12）。
+- 测试：
+  - `pytest tests/test_agent_planner.py tests/test_agent_router.py tests/test_agent_verifier.py tests/test_agent_compliance.py tests/test_agent_graph.py tests/test_agent_composer_injection.py` → 14 + 34 + 8 + 19 + 13 + 13 全部通过
+  - `pytest tests/test_agent_graph_integration.py` → 7 passed（真实离线服务 + 真实工具）
+  - `pytest tests/test_fuzz_query_intelligence_report.py` → 2 passed
+  - `ruff check .` → 通过
+- 下一步：T2.7 记忆与澄清中断 → T2.8 服务与 API → T2.9。
