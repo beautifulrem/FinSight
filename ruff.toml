@@ -8,6 +8,7 @@ include = [
     "tests/test_agent_*.py",
     "tests/agent_fakes.py",
     "tests/test_api_security.py",
+    "tests/test_web_ui.py",
     "query_intelligence/api/security.py",
 ]
 

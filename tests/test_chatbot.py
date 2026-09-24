@@ -435,10 +435,16 @@ def test_chat_endpoint_and_index_page() -> None:
     assert index.status_code == 200
     assert "Financial Chatbot by Group x" in index.text
     assert 'class="chat-messages"' in index.text
-    assert "bubble-user" in index.text
-    assert "typing-dots" in index.text
-    assert "Key Points" in index.text
-    assert "Evidence Sources" in index.text
+    assert '<script src="/static/app.js">' in index.text
+    # The page script and styles are served as static assets.
+    script = client.get("/static/app.js")
+    styles = client.get("/static/styles.css")
+    assert script.status_code == 200 and styles.status_code == 200
+    assert "bubble-user" in script.text
+    assert "typing-dots" in script.text
+    assert "Key Points" in script.text
+    assert "Evidence Sources" in script.text
+    assert ".bubble-user" in styles.text
 
     response = client.post("/chat", json={"query": "你觉得中国平安怎么样？"})
     payload = response.json()

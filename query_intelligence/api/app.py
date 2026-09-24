@@ -13,10 +13,12 @@ from typing import Annotated, Any
 from fastapi import FastAPI, HTTPException
 from fastapi import Path as ApiPath
 from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from ..artifacts import ArtifactWriter
 from ..chatbot import (
+    STATIC_DIR,
     DeepSeekClient,
     apply_live_data_env,
     build_chatbot_response,
@@ -98,6 +100,7 @@ def create_app(
 
     _ensure_console_logging()
     app = FastAPI(title="Query Intelligence Service", version="0.1.0")
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     security_settings = install_security(app, security)
     if security_settings.api_keys:
         logger.info("[startup] API key authentication enabled for %d key(s).", len(security_settings.api_keys))
