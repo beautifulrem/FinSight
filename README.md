@@ -27,29 +27,27 @@ The project is designed around a simple rule: the system should retrieve and exp
 - Explainable Query Intelligence backend for NLU and retrieval.
 - China-market runtime coverage for A-shares, ETFs/funds, indices, sectors, macro indicators, policy events, news, announcements, and fundamentals.
 - Numerical `analysis_summary` with market, fundamental, macro, technical-indicator, and data-readiness signals.
-- Document sentiment pipeline over retrieved evidence (currently run offline via `manual_test/`; not yet wired into `/chat`).
-- LLM answer over compact evidence with citation and disclaimer controls; next-question prediction is an offline script (`scripts/llm_response.py`).
+- Evidence-first research agent (`/agent/*`, or `/chat` with `mode=agent|auto`): classical NLU routes and guards, an LLM orchestrates nine typed tools in a LangGraph loop, every answer is checked for citations and traceable numbers, and financial guardrails apply. Works without an LLM key through a deterministic planner.
+- The agent tools are also served over MCP (`python -m query_intelligence.agent.mcp_server`).
+- Document sentiment (classical model by default, FinBERT optional) and next-question suggestions are part of the agent answer; the original `/chat` path still runs them offline only.
+- LLM answer over compact evidence with citation and disclaimer controls.
 - Clone-usable runtime assets in `data/runtime/` and shipped model artifacts in `models/`.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  A["Browser Chatbot"] --> B["FastAPI /chat"]
-  B --> C["Query Intelligence"]
-  C --> C1["NLU"]
-  C --> C2["Retrieval"]
-  C2 --> D["Numerical Analysis<br/>analysis_summary"]
-  D --> F["Compact Evidence"]
-  C2 --> F
-  F --> G["LLM Answer<br/>(template fallback)"]
-  G --> H["Freshness + Compliance Guards"]
-  H --> A
-  C2 -.offline.-> E["Text Sentiment<br/>manual_test/"]
-  F -.offline.-> P["Next-Question Prediction<br/>scripts/llm_response.py"]
+  A["Browser / API client"] --> B["FastAPI"]
+  B -->|"/chat (mode=workflow)"| C["Query Intelligence<br/>NLU + Retrieval"]
+  C --> D["analysis_summary"] --> G["LLM answer<br/>(template fallback)"] --> H["Freshness + compliance guards"] --> A
+  B -->|"/agent/* or /chat mode=agent|auto"| R["Agent: NLU guard + router"]
+  R -->|refuse / clarify| F["Finalize"]
+  R -->|workflow| P["Deterministic planner"] --> T["Tool registry<br/>(9 tools, also via MCP)"]
+  R -->|agent| L["LLM tool loop<br/>(LangGraph)"] <--> T
+  T --> V["Evidence verifier"] --> K["Compliance"] --> F --> A
 ```
 
-Solid arrows are the live `/chat` request path. Dotted arrows are offline stages that consume the same artifacts but are not yet part of the online response.
+The original `/chat` path (top) is unchanged. The agent path (bottom) reuses the same NLU, retrieval, market analyzer, and sentiment code through typed tools; see [docs/agent.md](docs/agent.md).
 
 Core outputs:
 
@@ -111,7 +109,11 @@ manual_test/output/<timestamp>-<query-slug>/
 |---|---|
 | `GET /health` | Health check. |
 | `GET /` | Local browser chatbot UI. |
-| `POST /chat` | End-to-end chatbot response with evidence-backed LLM wording. |
+| `POST /chat` | End-to-end chatbot response with evidence-backed LLM wording; optional `mode=agent|auto` routes to the agent. |
+| `POST /agent/chat` | Agent answer with session memory, tool trace, verification, sentiment, and next questions. |
+| `POST /agent/chat/stream` | Same as `/agent/chat`, streamed as server-sent events. |
+| `POST /agent/resume` | Answer a pending clarification question for a session. |
+| `GET /agent/sessions/{session_id}` | Session turns and any pending clarification. |
 | `POST /nlu/analyze` | NLU only. |
 | `POST /retrieval/search` | Retrieval from an existing NLU result. |
 | `POST /query/intelligence` | End-to-end NLU and retrieval. |

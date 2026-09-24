@@ -27,29 +27,27 @@ FinSight 是证据优先的金融分析聊天机器人。它把自然语言金�
 - 可解释的 Query Intelligence 后端，负责 NLU 和 Retrieval。
 - 面向中国市场的运行时覆盖：A 股、ETF/基金、指数、行业、宏观指标、政策事件、新闻、公告和基本面。
 - 数值分析 `analysis_summary`：市场、基本面、宏观、技术指标和数据就绪信号。
-- 对检索文档执行文本情感分析（目前通过 `manual_test/` 离线运行，尚未接入 `/chat`）。
-- 基于紧凑证据生成 LLM 回答，并控制引用和风险提示；下一问题预测目前是离线脚本（`scripts/llm_response.py`）。
+- 证据优先的研究 Agent（`/agent/*`，或 `/chat` 传 `mode=agent|auto`）：经典 NLU 负责路由与守卫，LLM 在 LangGraph 循环中编排 9 个类型化工具，每个回答都校验引用与数字可追溯，并经过金融合规守卫；没有 LLM Key 时由确定性规划器完成。
+- Agent 工具同时通过 MCP 对外提供（`python -m query_intelligence.agent.mcp_server`）。
+- 文档情感分析（默认经典模型，可选 FinBERT）和下一问题建议已进入 Agent 在线回答；原 `/chat` 链路仍只在离线运行它们。
+- 基于紧凑证据生成 LLM 回答，并控制引用和风险提示。
 - `data/runtime/` 和 `models/` 中包含 clone 后可运行的轻量资产。
 
 ## 架构
 
 ```mermaid
 flowchart LR
-  A["浏览器 Chatbot"] --> B["FastAPI /chat"]
-  B --> C["Query Intelligence"]
-  C --> C1["NLU"]
-  C --> C2["Retrieval"]
-  C2 --> D["数值分析<br/>analysis_summary"]
-  D --> F["紧凑证据"]
-  C2 --> F
-  F --> G["LLM 回答<br/>（失败时模板兜底）"]
-  G --> H["行情新鲜度 + 合规守卫"]
-  H --> A
-  C2 -.离线.-> E["文本情感<br/>manual_test/"]
-  F -.离线.-> P["下一问题预测<br/>scripts/llm_response.py"]
+  A["浏览器 / API 客户端"] --> B["FastAPI"]
+  B -->|"/chat（mode=workflow）"| C["Query Intelligence<br/>NLU + Retrieval"]
+  C --> D["analysis_summary"] --> G["LLM 回答<br/>（模板兜底）"] --> H["新鲜度 + 合规守卫"] --> A
+  B -->|"/agent/* 或 /chat mode=agent|auto"| R["Agent：NLU 守卫 + 路由"]
+  R -->|拒答 / 澄清| F["组装结果"]
+  R -->|workflow| P["确定性规划器"] --> T["工具注册表<br/>（9 个工具，也经 MCP 暴露）"]
+  R -->|agent| L["LLM 工具循环<br/>（LangGraph）"] <--> T
+  T --> V["证据校验"] --> K["合规"] --> F --> A
 ```
 
-实线是在线 `/chat` 请求链路；虚线是消费同一批产物、但尚未进入在线响应的离线阶段。
+上半部分是原有 `/chat` 链路，行为不变；下半部分是 Agent 链路，通过类型化工具复用同一套 NLU、检索、行情分析和情感代码，详见 [docs/zh/agent.md](docs/zh/agent.md)。
 
 核心产物：
 
@@ -111,7 +109,11 @@ manual_test/output/<timestamp>-<query-slug>/
 |---|---|
 | `GET /health` | 健康检查。 |
 | `GET /` | 本地浏览器 Chatbot UI。 |
-| `POST /chat` | 端到端聊天回复，包含证据支撑的 LLM 措辞。 |
+| `POST /chat` | 端到端聊天回复，包含证据支撑的 LLM 措辞；可选 `mode=agent|auto` 转交 Agent。 |
+| `POST /agent/chat` | Agent 回答：会话记忆、工具轨迹、证据校验、情感和下一问题建议。 |
+| `POST /agent/chat/stream` | 与 `/agent/chat` 相同，以 SSE 流式返回。 |
+| `POST /agent/resume` | 回答会话中待澄清的问题。 |
+| `GET /agent/sessions/{session_id}` | 会话历史和待澄清问题。 |
 | `POST /nlu/analyze` | 只执行 NLU。 |
 | `POST /retrieval/search` | 使用已有 NLU 结果执行检索。 |
 | `POST /query/intelligence` | 端到端执行 NLU 和 Retrieval。 |
