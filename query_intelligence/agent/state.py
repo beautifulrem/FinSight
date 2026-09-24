@@ -6,11 +6,23 @@ import operator
 from dataclasses import dataclass
 from typing import Annotated, Any, TypedDict
 
+RESET = "__reset__"
+
 
 def merge_dicts(left: dict[str, Any] | None, right: dict[str, Any] | None) -> dict[str, Any]:
+    """Merge reducer; ``{RESET: True}`` clears the value (used at the start of each turn)."""
+    if isinstance(right, dict) and right.get(RESET) is True:
+        return {}
     merged = dict(left or {})
     merged.update(right or {})
     return merged
+
+
+def add_or_reset(left: list[Any] | None, right: Any) -> list[Any]:
+    """Append reducer; ``{RESET: [...]}`` replaces the value (used at the start of each turn)."""
+    if isinstance(right, dict) and RESET in right:
+        return list(right[RESET])
+    return [*(left or []), *(right or [])]
 
 
 class AgentState(TypedDict, total=False):
@@ -30,7 +42,7 @@ class AgentState(TypedDict, total=False):
     usage: dict[str, int]
     next: str
     # evidence
-    tool_log: Annotated[list[dict[str, Any]], operator.add]
+    tool_log: Annotated[list[dict[str, Any]], add_or_reset]
     evidence: Annotated[dict[str, dict[str, Any]], merge_dicts]
     # answer
     draft: dict[str, Any]
@@ -42,8 +54,11 @@ class AgentState(TypedDict, total=False):
     answer: dict[str, Any]
     result: dict[str, Any]
     # diagnostics
-    degraded: Annotated[list[str], operator.add]
-    spans: Annotated[list[dict[str, Any]], operator.add]
+    degraded: Annotated[list[str], add_or_reset]
+    spans: Annotated[list[dict[str, Any]], add_or_reset]
+    # session memory (persists across turns on the same thread)
+    turns: Annotated[list[dict[str, Any]], operator.add]
+    clarification_rounds: int
 
 
 @dataclass(frozen=True)

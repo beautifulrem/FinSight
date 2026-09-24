@@ -88,3 +88,36 @@ def test_scripted_agent_over_real_tools(offline_service):
     assert {"fundamental_600519.SH", "industry_白酒"} <= set(result["evidence_used"])
     runtime.close()
     registry.shutdown()
+
+
+def test_session_memory_resolves_follow_up_pronoun(offline_service):
+    from query_intelligence.agent.service import AgentService
+
+    registry = build_registry_for_service(offline_service)
+    service = AgentService(AgentRuntime(offline_service, registry, None, today=lambda: date(2026, 9, 24)))
+
+    service.chat("贵州茅台的市盈率是多少", session_id="mem")
+    follow_up = service.chat("那它的市净率呢", session_id="mem")
+
+    assert follow_up["status"] == "ok"
+    assert {"name": "贵州茅台", "symbol": "600519.SH"} in follow_up["nlu_summary"]["entities"]
+    assert "fundamental_600519.SH" in follow_up["evidence_used"]
+    service.close()
+    registry.shutdown()
+
+
+def test_clarification_resume_with_real_nlu(offline_service):
+    from query_intelligence.agent.service import AgentService
+
+    registry = build_registry_for_service(offline_service)
+    service = AgentService(AgentRuntime(offline_service, registry, None, today=lambda: date(2026, 9, 24)))
+
+    pending = service.chat("这只股票能买吗", session_id="clar")
+    resumed = service.resume("clar", "贵州茅台")
+
+    assert pending["status"] == "needs_clarification"
+    assert resumed["status"] == "ok" and resumed["route"] in {"workflow", "agent"}
+    assert any(entity["symbol"] == "600519.SH" for entity in resumed["nlu_summary"]["entities"])
+    assert resumed["tool_calls"]
+    service.close()
+    registry.shutdown()
