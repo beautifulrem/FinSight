@@ -6,6 +6,7 @@ include = [
     "query_intelligence/agent/**/*.py",
     "evaluation/agent_eval/**/*.py",
     "tests/test_agent_*.py",
+    "tests/agent_fakes.py",
 ]
 
 [lint]

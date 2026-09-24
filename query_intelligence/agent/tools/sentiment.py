@@ -174,6 +174,7 @@ def build_sentiment_tool(context: ToolContext) -> ToolSpec:
                 "overall_label": overall,
                 "mean_score": mean_score,
                 "label_counts": dict(counts),
+                "neutral_score": 0.5,
                 "document_ids": [item.evidence_id for item in scored],
             },
             produced_by="analyze_sentiment",

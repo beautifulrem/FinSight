@@ -82,8 +82,9 @@ class AgentEvidence(BaseModel):
         """All numeric values carried by this evidence, used for numeric faithfulness checks."""
         values: list[float] = []
         _collect_numbers(self.payload, values)
-        if self.text_excerpt:
-            values.extend(extract_numbers(self.text_excerpt))
+        for text in (self.title, self.text_excerpt):
+            if text:
+                values.extend(extract_numbers(text))
         return values
 
     def prompt_view(self) -> dict[str, Any]:
