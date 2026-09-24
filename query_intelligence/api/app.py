@@ -41,6 +41,7 @@ from ..contracts import (
     RetrievalRequest,
 )
 from ..service import QueryIntelligenceService, build_default_service
+from .security import SecuritySettings, install_security
 
 
 logger = logging.getLogger("finsight.api")
@@ -89,6 +90,7 @@ def create_app(
     app_config_path: str | Path | None = None,
     deepseek_client: DeepSeekClient | None = None,
     agent_service: Any = None,
+    security: SecuritySettings | None = None,
 ) -> FastAPI:
     chatbot_config = app_config or load_chatbot_config(app_config_path, load_env_file=False)
     if service is None:
@@ -96,6 +98,11 @@ def create_app(
 
     _ensure_console_logging()
     app = FastAPI(title="Query Intelligence Service", version="0.1.0")
+    security_settings = install_security(app, security)
+    if security_settings.api_keys:
+        logger.info("[startup] API key authentication enabled for %d key(s).", len(security_settings.api_keys))
+    if str((chatbot_config.get("deepseek") or {}).get("api_key") or "").strip() and os.getenv("DEEPSEEK_API_KEY") is None:
+        logger.warning("[startup] An LLM API key is stored in the config file; prefer the DEEPSEEK_API_KEY variable.")
     if service is None:
         service_started_at = time.perf_counter()
         logger.info("[startup] Loading default Query Intelligence service...")
