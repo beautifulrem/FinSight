@@ -11,6 +11,9 @@
 | 文档 | 用途 |
 |---|---|
 | [模块总览](modules.md) | 五个模块地图：前端、NLU/Retrieval、数值分析、文本分析、LLM 总结和预测。 |
+| [Agent 层](agent.md) | Agent 状态图、工具、路由、证据校验、合规、记忆、`/agent/*` API 与 schema、配置、tracing。 |
+| [Agent 评测](../agent-eval.md)（英文） | 离线任务集、快照回放、一票否决指标、消融、故障注入与局限。 |
+| [MCP Server](../mcp.md)（英文） | 通过 stdio 或 streamable HTTP 向 MCP 客户端提供 Agent 工具。 |
 | [Query Intelligence](query-intelligence.md) | 支持范围、架构、API、NLU 和 Retrieval 输出契约、live provider、环境变量、排错。 |
 | [本地网页 Chatbot](frontend-chatbot.md) | 浏览器 UI、`/chat` 契约、LLM API 配置、真实本地截图和排错。 |
 | [数值分析](numerical-analysis.md) | `analysis_summary`、技术指标、基本面、宏观信号和数据就绪程度。 |

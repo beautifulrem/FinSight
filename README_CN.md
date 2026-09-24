@@ -87,6 +87,12 @@ python scripts/launch_chatbot.py
 uvicorn query_intelligence.api.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
+也可以用 Docker 运行（多阶段镜像、非 root 用户、healthcheck；可选 `postgres` 与 `tracing` profile）：
+
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```
+
 按需启用 live provider：
 
 ```bash
@@ -134,7 +140,7 @@ manual_test/output/<timestamp>-<query-slug>/
 }
 ```
 
-完整请求和响应契约见 [docs/zh/query-intelligence.md](docs/zh/query-intelligence.md)。
+完整请求和响应契约见 [docs/zh/query-intelligence.md](docs/zh/query-intelligence.md)。Agent 请求与响应的 schema 在 `schemas/agent_*.schema.json`，见 [docs/zh/agent.md](docs/zh/agent.md)。
 
 ## 模块
 
@@ -177,6 +183,11 @@ docs/                 详细文档
 | `QI_USE_LIVE_ANNOUNCEMENT` | 启用 live 公告 provider。 |
 | `QI_USE_LIVE_MACRO` | 启用 live 宏观 provider。 |
 | `QI_POSTGRES_DSN` | 可选 PostgreSQL 结构化检索源。 |
+| `QI_AGENT_CHECKPOINT_DB` | 保存 Agent 会话的 SQLite 文件，重启后保留（默认在内存中）。 |
+| `QI_AGENT_TRACE_DIR` | Agent trace 输出目录（默认 `outputs/traces`，`off` 关闭）；OTLP 导出使用 `OTEL_EXPORTER_OTLP_ENDPOINT`。 |
+| `QI_API_KEYS`、`QI_RATE_LIMIT_PER_MINUTE`、`QI_CORS_ORIGINS`、`QI_MAX_REQUEST_BYTES` | 可选的 API Key、限流、CORS 与请求体大小限制（默认全部关闭）。 |
+
+完整的 Agent 变量列表见 [docs/zh/agent.md](docs/zh/agent.md#配置)。
 
 不要提交 `.env`、真实 token、生成输出、公开数据缓存或本地临时文件。
 
@@ -195,6 +206,8 @@ python -m pytest tests/test_query_intelligence.py -q
 python -m pytest tests/test_analysis_summary.py tests/test_market_analyzer.py -q
 python -m pytest tests/test_sentiment_pipeline.py -q
 python -m pytest tests/test_llm_response.py -q
+python -m pytest tests/test_agent_*.py tests/test_api_security.py -q
+python -m evaluation.agent_eval.gate   # 离线 Agent 评测门禁
 ```
 
 评估、训练和发布检查见 [docs/zh/training.md](docs/zh/training.md)。
@@ -206,6 +219,9 @@ python -m pytest tests/test_llm_response.py -q
 | 主题 | 链接 |
 |---|---|
 | 模块地图 | [docs/zh/modules.md](docs/zh/modules.md) |
+| Agent 层 | [docs/zh/agent.md](docs/zh/agent.md) |
+| Agent 评测（英文） | [docs/agent-eval.md](docs/agent-eval.md) |
+| MCP Server（英文） | [docs/mcp.md](docs/mcp.md) |
 | Query Intelligence | [docs/zh/query-intelligence.md](docs/zh/query-intelligence.md) |
 | 前端 Chatbot | [docs/zh/frontend-chatbot.md](docs/zh/frontend-chatbot.md) |
 | 数值分析 | [docs/zh/numerical-analysis.md](docs/zh/numerical-analysis.md) |

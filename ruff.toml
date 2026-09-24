@@ -9,6 +9,7 @@ include = [
     "tests/agent_fakes.py",
     "tests/test_api_security.py",
     "tests/test_web_ui.py",
+    "scripts/export_agent_schemas.py",
     "query_intelligence/api/security.py",
     "query_intelligence/chat/**/*.py",
     "query_intelligence/chatbot.py",

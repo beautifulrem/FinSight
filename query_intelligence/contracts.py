@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 MIN_RETRIEVAL_TOP_K = 1
@@ -173,6 +173,118 @@ class AgentResumeRequest(BaseModel):
 
     session_id: str = Field(pattern=SESSION_ID_PATTERN)
     reply: str = Field(min_length=1, max_length=MAX_QUERY_LENGTH)
+
+
+AgentRoute = Literal["refuse", "clarify", "workflow", "agent"]
+
+
+class AgentToolError(BaseModel):
+    code: str
+    message: str
+
+
+class AgentToolCall(BaseModel):
+    """One executed tool call (raw tool output is omitted; it is summarized as evidence)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    tool: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    ok: bool
+    error: AgentToolError | None = None
+    latency_ms: float
+    attempts: int
+    cached: bool
+    evidence_ids: list[str] = Field(default_factory=list)
+    source: str = Field(description="'plan' for the deterministic planner, 'llm' for model-chosen calls")
+    reason: str = ""
+    step: int | None = None
+
+
+class AgentEvidenceSource(BaseModel):
+    evidence_id: str
+    kind: str
+    source_type: str | None = None
+    title: str | None = None
+    source_name: str | None = None
+    source_url: str | None = None
+    as_of: str | None = None
+    produced_by: str | None = None
+
+
+class AgentVerification(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    passed: bool | None = None
+    cited_ids: list[str] = Field(default_factory=list)
+    invalid_citations: list[str] = Field(default_factory=list)
+    unsupported_numbers: list[float] = Field(default_factory=list)
+    checked_numbers: int = 0
+    missing_citations: bool = False
+
+
+class AgentLLMUsage(BaseModel):
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    prompt_cache_hit_tokens: int = 0
+    reasoning_tokens: int = 0
+    total_tokens: int = 0
+
+
+class AgentLLMInfo(BaseModel):
+    model: str | None = None
+    calls: int = 0
+    steps: int = 0
+    usage: AgentLLMUsage
+    cost: float | None = Field(default=None, description="Only set when QI_LLM_PRICE_* is configured")
+    currency: str | None = None
+    log: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AgentClarification(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    type: Literal["clarification"] = "clarification"
+    question: str
+    missing_slots: list[str] = Field(default_factory=list)
+    original_query: str | None = None
+
+
+class AgentChatResponse(BaseModel):
+    """Response of ``/agent/chat`` and ``/agent/resume``, and the ``answer`` event of the SSE stream.
+
+    ``status == "needs_clarification"`` carries only ``session_id`` and ``clarification``; answer
+    the question with ``/agent/resume``. ``status == "ok"`` carries the answer and its evidence trail.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    status: Literal["ok", "needs_clarification"]
+    session_id: str
+    clarification: AgentClarification | None = None
+    trace_id: str | None = None
+    run_id: str | None = None
+    query: str | None = None
+    language: Literal["zh", "en"] | None = None
+    route: AgentRoute | None = None
+    route_reasons: list[str] = Field(default_factory=list)
+    answer: str | None = None
+    key_points: list[str] = Field(default_factory=list)
+    evidence_used: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+    risk_disclaimer: str | None = None
+    evidence_sources: list[AgentEvidenceSource] = Field(default_factory=list)
+    tool_calls: list[AgentToolCall] = Field(default_factory=list)
+    verification: AgentVerification | None = None
+    compliance_notes: list[str] = Field(default_factory=list)
+    degraded: list[str] = Field(default_factory=list)
+    answer_source: str | None = Field(default=None, description="template, llm_compose, llm_agent, clarification or guardrail")
+    llm: AgentLLMInfo | None = None
+    nlu_summary: dict[str, Any] | None = None
+    spans: list[dict[str, Any]] = Field(default_factory=list)
+    turn_index: int | None = None
+    sentiment: dict[str, Any] | None = None
+    next_questions: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class PipelineRequest(BaseModel):

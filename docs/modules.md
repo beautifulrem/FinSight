@@ -13,6 +13,7 @@ FinSight is organized into five modules. Each module has a clear responsibility 
 | Numerical Analysis | Convert structured market, fundamental, valuation, macro, and price-history rows into compact analytical signals. | `analysis_summary.market_signal`, `fundamental_signal`, `macro_signal`, `data_readiness`. | [Numerical Analysis](numerical-analysis.md) |
 | Text Analysis | Clean retrieved documents, detect language, filter entity-relevant sentences, and classify financial sentiment. | `SentimentResult`, document-level `SentimentItem`, entity aggregates. | [Document Sentiment Analysis](sentiment.md) |
 | LLM Summary and Prediction | Generate frontend-ready answer JSON and follow-up question suggestions from compact evidence. | `answer_generation`, `next_question_prediction`, citations, disclaimer. | [LLM Response Handoff](llm-response.md) |
+| Agent layer (orchestration) | Route each turn, call the modules above as typed tools (deterministic plan or LLM tool loop), verify citations and numbers, apply compliance, keep session memory. | `AgentChatResponse` with tool calls, evidence sources, verification, trace id. | [Agent Layer](agent.md) |
 
 ## Data Flow
 
@@ -44,6 +45,7 @@ flowchart TD
 | Add a new endpoint or contract field | `query_intelligence/contracts.py`, then update [Query Intelligence](query-intelligence.md). |
 | Add a new source provider | `query_intelligence/integrations/`, retrieval source planning, and provider config. |
 | Add a new numerical indicator | `query_intelligence/retrieval/market_analyzer.py`, then update [Numerical Analysis](numerical-analysis.md). |
-| Change frontend display | `query_intelligence/chatbot.py`, then update [Local Frontend Chatbot](frontend-chatbot.md). |
+| Change frontend display | `query_intelligence/web/static/` (page, styles, script) and `query_intelligence/chat/` (answer assembly), then update [Local Frontend Chatbot](frontend-chatbot.md). |
 | Change sentiment preprocessing or labels | `sentiment/`, then update [Document Sentiment Analysis](sentiment.md). |
+| Add or change an agent tool | `query_intelligence/agent/tools/`, register it in `tools/defaults.py`, then update [Agent Layer](agent.md) and the eval tasks. |
 | Change LLM JSON output | `scripts/llm_response.py` and `/chat` response mapping, then update [LLM Response Handoff](llm-response.md). |
