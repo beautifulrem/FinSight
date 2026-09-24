@@ -17,12 +17,13 @@ from pydantic import BaseModel, Field
 
 EvidenceKind = Literal["document", "structured"]
 
-_SAFE_ID = re.compile(r"[^A-Za-z0-9_.:-]+")
+# Keep Unicode word characters so ids such as ``industry_白酒`` match the retrieval layer.
+_SAFE_ID = re.compile(r"[^\w.:-]+")
 _MAX_EXCERPT_CHARS = 600
 
 
 def safe_evidence_id(value: str) -> str:
-    """Normalize an evidence id to the charset used by runtime document assets."""
+    """Normalize an evidence id: word characters (including CJK), ``.``, ``:`` and ``-`` are kept."""
     cleaned = _SAFE_ID.sub("_", value).strip("_")[:160]
     return cleaned or "evidence"
 

@@ -231,7 +231,8 @@ def test_evidence_store_dedupes_identical_and_renames_conflicts():
 
 
 def test_safe_evidence_id_and_number_extraction():
-    assert safe_evidence_id("news/贵州茅台 2026") == "news_2026"
+    assert safe_evidence_id("news/贵州茅台 2026") == "news_贵州茅台_2026"
+    assert safe_evidence_id("industry_白酒") == "industry_白酒"
     assert safe_evidence_id("///") == "evidence"
     assert extract_numbers("MA5 为 12.3，RSI14=45, 成交 1,200 手") == [12.3, 45.0, 1200.0]
     assert extract_numbers("涨幅 -3.5%，600519.SH 收盘 1500") == [-3.5, 1500.0]
