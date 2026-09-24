@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -188,12 +189,21 @@ def create_app(
         logger.info("[chat] Completed request in %s", _elapsed_seconds(request_started_at))
         return response
 
+    request_timeout_s = float(os.getenv("QI_AGENT_REQUEST_TIMEOUT_S", "120"))
+
+    async def run_with_timeout(function, *args, **kwargs):
+        try:
+            return await asyncio.wait_for(asyncio.to_thread(function, *args, **kwargs), timeout=request_timeout_s)
+        except TimeoutError as exc:
+            raise HTTPException(status_code=504, detail=f"agent did not finish within {request_timeout_s:g}s") from exc
+
     @app.post("/agent/chat")
-    def agent_chat(payload: AgentChatRequest) -> dict:
+    async def agent_chat(payload: AgentChatRequest) -> dict:
         query = payload.query.strip()
         if not query:
             raise HTTPException(status_code=422, detail="query must not be empty")
-        return get_agent().chat(
+        return await run_with_timeout(
+            get_agent().chat,
             query,
             session_id=payload.session_id,
             mode=payload.mode,
@@ -225,9 +235,9 @@ def create_app(
         )
 
     @app.post("/agent/resume")
-    def agent_resume(payload: AgentResumeRequest) -> dict:
+    async def agent_resume(payload: AgentResumeRequest) -> dict:
         try:
-            return get_agent().resume(payload.session_id, payload.reply.strip())
+            return await run_with_timeout(get_agent().resume, payload.session_id, payload.reply.strip())
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 

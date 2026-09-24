@@ -138,6 +138,7 @@ class AgentRuntime:
         return {
             "query": query,
             "mode": mode,
+            "started_at": time.time(),
             "user_profile": user_profile or {},
             "dialog_context": dialog_context or [],
             "nlu": {},
@@ -321,6 +322,8 @@ class AgentRuntime:
             stop_reason = f"tool-call budget of {self.config.max_tool_calls} reached"
         elif _total_tokens(usage) >= self.config.token_budget:
             stop_reason = f"token budget of {self.config.token_budget} reached"
+        elif time.time() - float(state.get("started_at") or time.time()) >= self.config.run_deadline_s:
+            stop_reason = f"run deadline of {self.config.run_deadline_s:g}s reached"
         if stop_reason:
             messages.append({"role": "user", "content": force_final_message(stop_reason)})
 
