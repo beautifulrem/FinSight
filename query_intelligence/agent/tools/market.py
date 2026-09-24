@@ -59,6 +59,8 @@ class IndicatorsOutput(BaseModel):
     trend_signal: str | None = None
     price_vs_ma: dict[str, Any] | None = None
     pct_change_nd: dict[str, Any] | None = Field(default=None, description="Multi-day returns in percent.")
+    history_points: int = Field(description="Daily closes available for the calculation.")
+    unavailable: list[str] = Field(default_factory=list, description="Indicators not computable from the history.")
     evidence_id: str
 
 
@@ -134,6 +136,16 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
                 "unavailable",
                 f"not enough price history to compute indicators for {resolved.name} ({resolved.symbol})",
             )
+        points = sum(1 for row in payload.get("history") or [] if row.get("close") is not None)
+        core = {"ma5": analysis.get("ma5"), "ma20": analysis.get("ma20"), "rsi_14": analysis.get("rsi_14")}
+        core["macd"] = analysis.get("macd")
+        missing = [name for name, value in core.items() if value is None]
+        if len(missing) == len(core):
+            raise ToolFailure(
+                "unavailable",
+                f"only {points} daily closes for {resolved.name} ({resolved.symbol}); "
+                "MA5 needs 5, MA20 needs 20, RSI(14) needs 15, MACD needs 26",
+            )
         evidence_id = safe_evidence_id(f"indicators_{resolved.symbol}")
         output = IndicatorsOutput(
             symbol=resolved.symbol,
@@ -149,6 +161,8 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
             trend_signal=analysis.get("trend_signal"),
             price_vs_ma=analysis.get("price_vs_ma"),
             pct_change_nd=analysis.get("pct_change_nd"),
+            history_points=points,
+            unavailable=missing,
             evidence_id=evidence_id,
         )
         evidence = AgentEvidence(
