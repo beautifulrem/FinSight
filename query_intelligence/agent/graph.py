@@ -54,7 +54,7 @@ from .prompts import (
     force_final_message,
     revision_message,
 )
-from .router import decide_route
+from .router import apply_finance_overrides, decide_route
 from .state import RESET, AgentConfig, AgentState
 from .tools import ToolRegistry, ToolResult
 from .verifier import cited_ids, repair_answer, verify_answer
@@ -187,8 +187,11 @@ class AgentRuntime:
                 nlu = self.service.analyze_query(
                     rewritten_query, user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
                 )
+        nlu, override_reasons = apply_finance_overrides(nlu, state["query"])
         decision = decide_route(nlu, mode=state.get("mode", "auto"), query=state["query"])  # type: ignore[arg-type]
-        reasons = [*decision.reasons, coreference_reason] if coreference_reason else decision.reasons
+        reasons = [*decision.reasons, *override_reasons]
+        if coreference_reason:
+            reasons.append(coreference_reason)
         update: dict[str, Any] = {"nlu": nlu, "route": decision.route, "route_reasons": reasons}
         if decision.route == "agent" and self.llm is None:
             update["route"] = "workflow"

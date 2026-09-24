@@ -101,3 +101,51 @@ def test_decision_exposes_features_and_score():
     assert decision.features["listed_entities"] == 2
     assert decision.complexity_score >= 2
     assert "multi_entity:2" in decision.reasons and "question_style:compare" in decision.reasons
+
+
+@pytest.mark.parametrize(
+    ("query", "reason", "route"),
+    [
+        ("最新一期PMI数据是多少？", "override:out_of_scope_with_macro_anchor", "workflow"),
+        ("M2增速变化对股市流动性有什么影响", "override:out_of_scope_with_macro_anchor", "agent"),
+        ("该股后面走势怎么样", "override:out_of_scope_with_finance_anchor", "clarify"),
+        ("Is the stock overvalued?", "override:out_of_scope_with_finance_anchor", "clarify"),
+    ],
+)
+def test_out_of_scope_false_positives_are_overridden(query, reason, route):
+    from query_intelligence.agent.router import apply_finance_overrides
+
+    nlu = _nlu(query, flags=["out_of_scope_query"], product="out_of_scope")
+    patched, reasons = apply_finance_overrides(nlu, query)
+    decision = decide_route(patched)
+
+    assert reasons == [reason]
+    assert decision.route == route
+    assert "out_of_scope_query" not in patched["risk_flags"]
+
+
+@pytest.mark.parametrize(
+    "query", ["明天北京会下雨吗", "我跌倒了怎么办", "仓库管理怎么做", "其它问题", "Write a poem about the sea."]
+)
+def test_real_out_of_scope_queries_are_not_overridden(query):
+    from query_intelligence.agent.router import apply_finance_overrides
+
+    nlu = _nlu(query, flags=["out_of_scope_query"], product="out_of_scope")
+    patched, reasons = apply_finance_overrides(nlu, query)
+
+    assert reasons == [] and patched is nlu
+    assert decide_route(patched).route == "refuse"
+
+
+@pytest.mark.parametrize(
+    "query", ["它的估值高吗", "这家公司的业绩怎么样", "How is that fund doing?", "Is it overvalued?"]
+)
+def test_dangling_references_ask_for_clarification(query):
+    decision = decide_route(_nlu(query))
+
+    assert decision.route == "clarify" and decision.reasons == ["dangling_reference"]
+
+
+def test_references_with_a_resolved_entity_are_not_dangling():
+    assert decide_route(_nlu("它的估值高吗", entities=[MOUTAI])).route != "clarify"
+    assert decide_route(_nlu("其它行业的估值", entities=[LIQUOR])).route != "clarify"
