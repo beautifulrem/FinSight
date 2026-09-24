@@ -27,7 +27,7 @@ DEFAULT_CHATBOT_CONFIG: dict[str, Any] = {
         "port": 8765,
     },
     "ui": {
-        "title": "Financial Chatbot by Group 4.2",
+        "title": "FinSight Financial Research Assistant",
         "input_placeholder": "Ask a financial question, e.g. What do you think about Ping An Insurance (601318.SH)?",
         "submit_text": "Submit",
     },

@@ -168,6 +168,15 @@ python -m scripts.evaluate_query_intelligence
 
 全链路评估覆盖中文/英文、金融、非金融、对抗和边界问题，并报告金融召回、OOD 拒识、产品类型准确率、问题样式准确率、意图/主题 F1、澄清召回、source-plan 质量、retrieval recall@10、MRR@10、NDCG@10 和 OOD retrieval abstention。
 
+### 评估集的构造方式与局限
+
+解读评估数字时请注意以下构造细节（见 `scripts/evaluate_query_intelligence.py`）：
+
+- 10,000 条主评估集混合了公开数据集的 `valid`/`test` 划分、**模板生成**的金融与超范围问题（`_generate_finance_boundary_queries`、`_generate_ood_queries`）以及手写的必过用例。模板生成的问题与训练用的 curated 监督数据句式相近，因此其上的产品类型和问题样式准确率（报告为 1.0）应视为回归覆盖，而不是泛化能力。
+- 检索指标是**重排序**指标：每条查询只对 qrel 正例文档加上语料中按哈希偏移取出的 40 个确定性负例打分（`_candidate_docs_for_query`），不是全库检索，负例也不是难负例，所以 Recall@10 / MRR@10 / NDCG@10 是端到端检索质量的上界。
+- 该脚本只评估 NLU 与检索，不评估 LLM 回答质量（事实忠实度、引用正确性）。
+- 澄清召回率（0.75）低于 0.90 的目标，仍是已知局限。
+
 ## Live Source 验证
 
 ```bash

@@ -172,6 +172,15 @@ python -m scripts.evaluate_query_intelligence
 
 Full-stack evaluation covers Chinese/English, finance, non-finance, adversarial, and boundary queries. It reports finance-domain recall, OOD rejection, product type accuracy, question style accuracy, intent/topic F1, clarification recall, source-plan quality, retrieval recall@10, MRR@10, NDCG@10, and OOD retrieval abstention.
 
+### How the evaluation set is built, and its limits
+
+Read the reported numbers with these construction details in mind (see `scripts/evaluate_query_intelligence.py`):
+
+- The 10,000-query master set mixes `valid`/`test` splits of public datasets with **template-generated** finance and out-of-scope queries (`_generate_finance_boundary_queries`, `_generate_ood_queries`) and hand-written must-pass cases. Template-generated queries share phrasing patterns with curated training supervision, so product-type and question-style accuracy on them (reported as 1.0) should be read as regression coverage, not as generalization.
+- Retrieval metrics are **re-ranking** metrics: for each query the ranker scores the qrel-positive documents plus 40 deterministic, hash-offset negatives from the corpus (`_candidate_docs_for_query`). It is not full-corpus retrieval, and the negatives are not hard negatives, so Recall@10 / MRR@10 / NDCG@10 are upper bounds on end-to-end retrieval quality.
+- The evaluation covers NLU and retrieval only. LLM answer quality (factual faithfulness, citation correctness) is not measured by this script.
+- Clarification recall (0.75) is below its 0.90 target and remains an open limitation.
+
 ## Live Source Verification
 
 ```bash

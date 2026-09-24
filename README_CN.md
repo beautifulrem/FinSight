@@ -27,25 +27,29 @@ FinSight 是证据优先的金融分析聊天机器人。它把自然语言金�
 - 可解释的 Query Intelligence 后端，负责 NLU 和 Retrieval。
 - 面向中国市场的运行时覆盖：A 股、ETF/基金、指数、行业、宏观指标、政策事件、新闻、公告和基本面。
 - 数值分析 `analysis_summary`：市场、基本面、宏观、技术指标和数据就绪信号。
-- 对检索文档执行文本情感分析。
-- 基于紧凑证据生成 LLM 总结和下一问题预测，并控制引用和风险提示。
+- 对检索文档执行文本情感分析（目前通过 `manual_test/` 离线运行，尚未接入 `/chat`）。
+- 基于紧凑证据生成 LLM 回答，并控制引用和风险提示；下一问题预测目前是离线脚本（`scripts/llm_response.py`）。
 - `data/runtime/` 和 `models/` 中包含 clone 后可运行的轻量资产。
 
 ## 架构
 
 ```mermaid
 flowchart LR
-  A["浏览器 Chatbot"] --> B["FastAPI"]
+  A["浏览器 Chatbot"] --> B["FastAPI /chat"]
   B --> C["Query Intelligence"]
   C --> C1["NLU"]
   C --> C2["Retrieval"]
-  C2 --> D["数值分析"]
-  C2 --> E["文本情感"]
-  D --> F["证据包"]
-  E --> F
-  F --> G["LLM 总结 + 预测"]
-  G --> A
+  C2 --> D["数值分析<br/>analysis_summary"]
+  D --> F["紧凑证据"]
+  C2 --> F
+  F --> G["LLM 回答<br/>（失败时模板兜底）"]
+  G --> H["行情新鲜度 + 合规守卫"]
+  H --> A
+  C2 -.离线.-> E["文本情感<br/>manual_test/"]
+  F -.离线.-> P["下一问题预测<br/>scripts/llm_response.py"]
 ```
+
+实线是在线 `/chat` 请求链路；虚线是消费同一批产物、但尚未进入在线响应的离线阶段。
 
 核心产物：
 
@@ -155,7 +159,6 @@ schemas/              外部校验 JSON Schema
 data/runtime/         clone 后可用的小型运行时资产
 models/               随仓库发布的模型产物
 docs/                 详细文档
-submission/           最终报告包和证据文件
 ```
 
 ## 配置
