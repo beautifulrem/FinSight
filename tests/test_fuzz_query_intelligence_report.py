@@ -16,8 +16,8 @@ def load_schema(name: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_build_fuzz_report_returns_scored_schema_valid_matrix() -> None:
-    report = build_fuzz_report()
+def test_build_fuzz_report_returns_scored_schema_valid_matrix(offline_service) -> None:
+    report = build_fuzz_report(service=offline_service)
 
     assert report["summary"]["total_cases"] >= 25
     assert 0.0 <= report["summary"]["overall_score"] <= 10.0
@@ -47,3 +47,11 @@ def test_build_fuzz_report_returns_scored_schema_valid_matrix() -> None:
         jsonschema.validate(case["actual"]["nlu_result"], nlu_schema)
         jsonschema.validate(case["actual"]["retrieval_result"], retrieval_schema)
         assert case["check_results"]
+
+
+def test_build_fuzz_report_can_load_a_saved_report(tmp_path) -> None:
+    saved = {"summary": {"total_cases": 0}, "cases": [], "defect_summary": [], "recommendations": ["x"]}
+    path = tmp_path / "report.json"
+    path.write_text(json.dumps(saved), encoding="utf-8")
+
+    assert build_fuzz_report(path) == saved
