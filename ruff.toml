@@ -1,0 +1,14 @@
+# Lint scope is limited to the agent layer and its evaluation/tests.
+# Legacy modules are not linted yet to avoid unrelated churn.
+target-version = "py313"
+line-length = 120
+include = [
+    "query_intelligence/agent/**/*.py",
+    "evaluation/agent_eval/**/*.py",
+    "tests/test_agent_*.py",
+]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+# Chinese text legitimately contains full-width punctuation.
+ignore = ["RUF001", "RUF002", "RUF003"]
