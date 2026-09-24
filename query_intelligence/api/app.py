@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -33,6 +35,21 @@ from ..contracts import (
 from ..service import QueryIntelligenceService, build_default_service
 
 
+logger = logging.getLogger("finsight.api")
+
+
+def _ensure_console_logging() -> None:
+    """Keep the launcher's console progress output when no logging is configured."""
+    base = logging.getLogger("finsight")
+    if base.handlers or logging.getLogger().handlers:
+        return
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    base.addHandler(handler)
+    base.setLevel(logging.INFO)
+    base.propagate = False
+
+
 def _elapsed_seconds(started_at: float) -> str:
     return f"{time.perf_counter() - started_at:.1f}s"
 
@@ -60,21 +77,19 @@ def create_app(
     if service is None:
         apply_live_data_env(chatbot_config)
 
+    _ensure_console_logging()
     app = FastAPI(title="Query Intelligence Service", version="0.1.0")
     if service is None:
         service_started_at = time.perf_counter()
-        print("[startup] Loading default Query Intelligence service...", flush=True)
+        logger.info("[startup] Loading default Query Intelligence service...")
         runtime = build_default_service()
-        print(
-            f"[startup] Query Intelligence service loaded in {_elapsed_seconds(service_started_at)}.",
-            flush=True,
-        )
+        logger.info("[startup] Query Intelligence service loaded in %s.", _elapsed_seconds(service_started_at))
     else:
         runtime = service
     artifact_writer = ArtifactWriter(artifact_output_dir or os.getenv("QI_API_OUTPUT_DIR", "outputs/query_intelligence"))
-    print("[startup] Preparing DeepSeek response client...", flush=True)
+    logger.info("[startup] Preparing DeepSeek response client...")
     response_client = deepseek_client or DeepSeekClient(chatbot_config)
-    print("[startup] FastAPI routes are ready.", flush=True)
+    logger.info("[startup] FastAPI routes are ready.")
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -90,8 +105,8 @@ def create_app(
         if not query:
             raise HTTPException(status_code=422, detail="query must not be empty")
         request_started_at = time.perf_counter()
-        print(f"[chat] Received query: {_short_query(query)}", flush=True)
-        print("[chat] Step 1/3: running NLU, retrieval, and live data providers...", flush=True)
+        logger.info("[chat] Received query: %s", _short_query(query))
+        logger.info("[chat] Step 1/3: running NLU, retrieval, and live data providers...")
         pipeline_started_at = time.perf_counter()
         result = runtime.run_pipeline(
             query,
@@ -101,30 +116,28 @@ def create_app(
             debug=payload.debug,
         )
         retrieval = result.get("retrieval_result") or {}
-        print(
-            "[chat] Step 1/3 complete "
-            f"({_elapsed_seconds(pipeline_started_at)}): "
-            f"documents={len(retrieval.get('documents') or [])}, "
-            f"structured_data={len(retrieval.get('structured_data') or [])}, "
-            f"warnings={len(retrieval.get('warnings') or [])}",
-            flush=True,
+        logger.info(
+            "[chat] Step 1/3 complete (%s): documents=%d, structured_data=%d, warnings=%d",
+            _elapsed_seconds(pipeline_started_at),
+            len(retrieval.get("documents") or []),
+            len(retrieval.get("structured_data") or []),
+            len(retrieval.get("warnings") or []),
         )
-        print("[chat] Step 2/3: calling DeepSeek or fallback answer generator...", flush=True)
+        logger.info("[chat] Step 2/3: calling DeepSeek or fallback answer generator...")
         answer_started_at = time.perf_counter()
         response = build_chatbot_response(
             query=query,
             pipeline_result=result,
             deepseek_client=response_client,
-            progress=lambda message: print(f"[chat] {message}", flush=True),
+            progress=lambda message: logger.info("[chat] %s", message),
         )
         llm_status = response.get("llm") or {}
-        print(
-            "[chat] Step 2/3 complete "
-            f"({_elapsed_seconds(answer_started_at)}): "
-            f"llm_status={llm_status.get('status', 'unknown')}",
-            flush=True,
+        logger.info(
+            "[chat] Step 2/3 complete (%s): llm_status=%s",
+            _elapsed_seconds(answer_started_at),
+            llm_status.get("status", "unknown"),
         )
-        print(f"[chat] Completed request in {_elapsed_seconds(request_started_at)}", flush=True)
+        logger.info("[chat] Completed request in %s", _elapsed_seconds(request_started_at))
         return response
 
     @app.post("/nlu/analyze")
