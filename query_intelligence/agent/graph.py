@@ -20,6 +20,7 @@ Graph::
 
 from __future__ import annotations
 
+import functools
 import time
 import uuid
 from collections.abc import Callable
@@ -28,6 +29,7 @@ from datetime import date
 from typing import TYPE_CHECKING, Any
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.types import interrupt
 
 from ..chatbot import detect_query_language
 from .compliance import apply_compliance
@@ -35,6 +37,13 @@ from .composer import compose_template, parse_answer
 from .evidence import AgentEvidence, EvidenceStore
 from .injection import tool_message_content
 from .llm import LLMClient, LLMError, Pricing, Usage
+from .memory import (
+    dialog_context_from_turns,
+    history_messages,
+    listed_entities,
+    resolve_coreference,
+    turn_record,
+)
 from .planner import plan_from_nlu
 from .prompts import (
     AGENT_SYSTEM_PROMPT,
@@ -45,7 +54,7 @@ from .prompts import (
     revision_message,
 )
 from .router import decide_route
-from .state import AgentConfig, AgentState
+from .state import RESET, AgentConfig, AgentState
 from .tools import ToolRegistry, ToolResult
 from .verifier import cited_ids, repair_answer, verify_answer
 
@@ -82,7 +91,7 @@ class AgentRuntime:
         for name, node in (
             ("guard_in", self.guard_in),
             ("refuse", self.refuse),
-            ("clarify", self.clarify),
+            ("clarify", functools.partial(self.clarify, interactive=checkpointer is not None)),
             ("execute_plan", self.execute_plan),
             ("compose", self.compose),
             ("agent_llm", self.agent_llm),
@@ -100,7 +109,7 @@ class AgentRuntime:
             {"refuse": "refuse", "clarify": "clarify", "workflow": "execute_plan", "agent": "agent_llm"},
         )
         graph.add_edge("refuse", "finalize")
-        graph.add_edge("clarify", "finalize")
+        graph.add_conditional_edges("clarify", _after_clarify, {"guard_in": "guard_in", "finalize": "finalize"})
         graph.add_edge("execute_plan", "compose")
         graph.add_edge("compose", "verify")
         graph.add_conditional_edges(
@@ -123,20 +132,34 @@ class AgentRuntime:
         user_profile: dict[str, Any] | None = None,
         dialog_context: list[dict[str, Any]] | None = None,
     ) -> AgentState:
+        # Every turn-scoped field is reset explicitly: with a checkpointer, values from the previous
+        # turn on the same thread would otherwise leak into this one. ``turns`` is session memory.
         return {
             "query": query,
             "mode": mode,
             "user_profile": user_profile or {},
             "dialog_context": dialog_context or [],
+            "nlu": {},
+            "route": "",
+            "route_reasons": [],
             "messages": [],
             "llm_steps": 0,
             "llm_calls": 0,
             "usage": {},
+            "next": "",
+            "draft": {},
+            "draft_source": "",
             "revisions": 0,
-            "tool_log": [],
-            "evidence": {},
-            "degraded": [],
-            "spans": [],
+            "verification": {},
+            "verification_notes": [],
+            "compliance_notes": [],
+            "answer": {},
+            "result": {},
+            "clarification_rounds": 0,
+            "tool_log": {RESET: []},
+            "evidence": {RESET: True},
+            "degraded": {RESET: []},
+            "spans": {RESET: []},
         }
 
     def run(self, query: str, *, mode: str = "auto", **kwargs: Any) -> dict[str, Any]:
@@ -150,13 +173,21 @@ class AgentRuntime:
     # ------------------------------------------------------------------ nodes
 
     def guard_in(self, state: AgentState) -> dict[str, Any]:
+        dialog_context = dialog_context_from_turns(state.get("turns") or [], state.get("dialog_context") or [])
         nlu = self.service.analyze_query(
-            state["query"],
-            user_profile=state.get("user_profile") or {},
-            dialog_context=state.get("dialog_context") or [],
+            state["query"], user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
         )
+        coreference_reason = None
+        if not listed_entities(nlu):
+            rewrite = resolve_coreference(state["query"], state.get("turns") or [])
+            if rewrite is not None:
+                rewritten_query, coreference_reason = rewrite
+                nlu = self.service.analyze_query(
+                    rewritten_query, user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
+                )
         decision = decide_route(nlu, mode=state.get("mode", "auto"), query=state["query"])  # type: ignore[arg-type]
-        update: dict[str, Any] = {"nlu": nlu, "route": decision.route, "route_reasons": decision.reasons}
+        reasons = [*decision.reasons, coreference_reason] if coreference_reason else decision.reasons
+        update: dict[str, Any] = {"nlu": nlu, "route": decision.route, "route_reasons": reasons}
         if decision.route == "agent" and self.llm is None:
             update["route"] = "workflow"
             update["degraded"] = ["no_llm_configured:agent_route_downgraded_to_workflow"]
@@ -171,8 +202,30 @@ class AgentRuntime:
         }
         return {"answer": answer, "draft_source": "guardrail"}
 
-    def clarify(self, state: AgentState) -> dict[str, Any]:
+    def clarify(self, state: AgentState, *, interactive: bool = False) -> dict[str, Any]:
         zh = self._zh(state)
+        question = (
+            "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+            if zh
+            else "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+        )
+        if interactive and state.get("clarification_rounds", 0) < 1:
+            reply = interrupt(
+                {
+                    "type": "clarification",
+                    "question": question,
+                    "missing_slots": (state.get("nlu") or {}).get("missing_slots") or [],
+                    "original_query": state["query"],
+                }
+            )
+            reply_text = str(reply.get("reply") if isinstance(reply, dict) else reply).strip()
+            if reply_text:
+                context = [*(state.get("dialog_context") or []), {"role": "user", "content": reply_text}]
+                return {
+                    "dialog_context": context,
+                    "clarification_rounds": state.get("clarification_rounds", 0) + 1,
+                    "next": "guard_in",
+                }
         answer = {
             "answer": (
                 "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH），我再基于证据回答。"
@@ -183,7 +236,7 @@ class AgentRuntime:
             "evidence_used": [],
             "limitations": ["缺少明确的标的" if zh else "The target security is missing"],
         }
-        return {"answer": answer, "draft_source": "clarification"}
+        return {"answer": answer, "draft_source": "clarification", "next": "finalize"}
 
     def execute_plan(self, state: AgentState) -> dict[str, Any]:
         plan = plan_from_nlu(state.get("nlu") or {})
@@ -241,6 +294,7 @@ class AgentRuntime:
         if not messages:
             messages = [
                 {"role": "system", "content": AGENT_SYSTEM_PROMPT},
+                *history_messages(state.get("turns") or []),
                 {
                     "role": "user",
                     "content": agent_user_message(
@@ -426,8 +480,9 @@ class AgentRuntime:
                 "risk_flags": nlu.get("risk_flags") or [],
             },
             "spans": state.get("spans") or [],
+            "turn_index": len(state.get("turns") or []),
         }
-        return {"result": result}
+        return {"result": result, "turns": [turn_record(state, result)]}
 
     # ---------------------------------------------------------------- helpers
 
@@ -470,6 +525,10 @@ def _timed(name: str, node: Callable[[AgentState], dict[str, Any]]) -> Callable[
 
     wrapper.__name__ = name
     return wrapper
+
+
+def _after_clarify(state: AgentState) -> str:
+    return "guard_in" if state.get("next") == "guard_in" else "finalize"
 
 
 def _route_after_guard(state: AgentState) -> str:
