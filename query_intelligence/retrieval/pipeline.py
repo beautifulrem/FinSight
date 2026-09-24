@@ -148,6 +148,17 @@ class RetrievalPipeline:
             return self.packager.build(early_exit_nlu, [], [], [], 0, [])
 
         query_bundle = self.query_builder.build(nlu_result)
+        deduped_docs, groups, total_candidates = self.retrieve_documents(query_bundle, top_k)
+        structured_items = self.fetch_structured(query_bundle)
+        analysis_summary = self.market_analyzer.build_analysis_summary(structured_items, nlu_result, deduped_docs)
+        executed_sources = self._compute_executed_sources(deduped_docs, structured_items)
+        return self.packager.build(nlu_result, deduped_docs, structured_items, groups, total_candidates, executed_sources, analysis_summary)
+
+    def retrieve_documents(self, query_bundle: dict, top_k: int) -> tuple[list[dict], list[dict], int]:
+        """Search, rank, select, and dedupe documents for a query bundle.
+
+        Returns ``(documents, evidence_groups, total_candidates)``. Used by ``run`` and by agent tools.
+        """
         doc_candidates = self.doc_retriever.search(query_bundle, top_k=max(top_k * 2, 10))
         doc_candidates.extend(self._fetch_live_docs(query_bundle, top_k))
         total_candidates = len(doc_candidates)
@@ -167,12 +178,12 @@ class RetrievalPipeline:
         ranked_docs.sort(key=lambda item: item["rank_score"], reverse=True)
         selected_docs = self.selector.select(ranked_docs, query_bundle.get("source_plan", []), top_k)
         deduped_docs, groups = self.deduper.dedupe(selected_docs)
+        return deduped_docs, groups, total_candidates
 
+    def fetch_structured(self, query_bundle: dict) -> list[dict]:
+        """Fetch structured items (seed/SQL/live) and enrich market payloads with technical analysis."""
         structured_items = self._fetch_structured_items(query_bundle)
-        structured_items = self._enrich_with_analysis(structured_items)
-        analysis_summary = self.market_analyzer.build_analysis_summary(structured_items, nlu_result, deduped_docs)
-        executed_sources = self._compute_executed_sources(deduped_docs, structured_items)
-        return self.packager.build(nlu_result, deduped_docs, structured_items, groups, total_candidates, executed_sources, analysis_summary)
+        return self._enrich_with_analysis(structured_items)
 
     def _enrich_with_analysis(self, structured_items: list[dict]) -> list[dict]:
         for item in structured_items:
