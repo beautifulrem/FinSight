@@ -38,7 +38,7 @@
 | T3.8 | CI 评测门禁 | ✅ | `gate.py`：dev + holdout 阈值；本地 `python -m evaluation.agent_eval.gate` → passed |
 | T4.1 | 前端拆分 | ✅ | `query_intelligence/web/static/`：模式切换、SSE 步骤流、澄清、下一问、运行详情、API Key 设置；Playwright 6 个浏览器测试 |
 | T4.2 | 异步与并发 | ✅ | `/agent/chat`、`/agent/resume` 异步 + `QI_AGENT_REQUEST_TIMEOUT_S`（504）；图内 `run_deadline_s`；工具并发 `max_parallel_tools` |
-| T4.3 | Docker | ✅ | 多阶段镜像（python:3.13 构建 wheel → 3.13-slim 运行，非 root，healthcheck）；compose 可选 postgres / tracing(Jaeger) profile；本地构建并验证 |
+| T4.3 | Docker | ✅ | 多阶段镜像（python:3.13 构建 wheel → 3.13-slim 运行，非 root，healthcheck）；compose 可选 postgres / tracing(Jaeger) profile；本地构建并验证。偏离说明：GOAL 写的是 langfuse profile，但自托管 Langfuse v3 需要 Postgres + ClickHouse + Redis + S3 兼容存储，且无法在沙箱验证；因此改为 OTLP + Jaeger，Langfuse 可通过其 OTLP 端点（`OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_HEADERS`）接入 |
 | T4.4 | CI | ✅ | `.github/workflows/ci.yml`：lint、tests（agent 组 + 全量）、agent-eval-gate、docker |
 | T4.5 | 安全 | ✅ | `api/security.py`：API Key、令牌桶限流（429 + Retry-After）、CORS、请求体上限（413）；默认全部关闭 |
 | T4.6 | 重构 chatbot.py | ✅ | 拆为 `query_intelligence/chat/{config,language,llm_client,answer,page}.py`，`chatbot.py` 保留为兼容 facade |
