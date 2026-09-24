@@ -9,6 +9,7 @@ The original `PPT_Overleaf` backup contained older browser screenshots, LaTeX bu
 | File | Purpose |
 |---|---|
 | [slide-outline.md](slide-outline.md) | Presentation-ready structure, talking points, and demo flow. |
+| [agent-design-notes.md](agent-design-notes.md) | Agent layer design review (Chinese): decisions and trade-offs, failure cases, ablation conclusions, limits, interview Q&A. |
 | [../assets/frontend-chatbot-zh.png](../assets/frontend-chatbot-zh.png) | Current Chinese chatbot demo screenshot. |
 | [../assets/frontend-chatbot-en.png](../assets/frontend-chatbot-en.png) | Current English chatbot demo screenshot. |
 | [../frontend-chatbot.md](../frontend-chatbot.md) | Full frontend runbook and verified local test notes. |
