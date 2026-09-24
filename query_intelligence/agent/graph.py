@@ -161,6 +161,7 @@ class AgentRuntime:
             "evidence": {RESET: True},
             "degraded": {RESET: []},
             "spans": {RESET: []},
+            "llm_log": {RESET: []},
         }
 
     def run(self, query: str, *, mode: str = "auto", **kwargs: Any) -> dict[str, Any]:
@@ -285,6 +286,7 @@ class AgentRuntime:
                 "messages": [*messages, turn.as_message()],
                 "llm_calls": state.get("llm_calls", 0) + 1,
                 "usage": _add_usage(state.get("usage"), turn.usage),
+                "llm_log": [_llm_entry("compose", turn)],
             }
         return self._template_update(tool_log, zh, style=style)
 
@@ -330,6 +332,7 @@ class AgentRuntime:
             "messages": [*messages, turn.as_message()],
             "llm_calls": state.get("llm_calls", 0) + 1,
             "usage": _add_usage(usage, turn.usage),
+            "llm_log": [_llm_entry("agent_llm", turn, step=state.get("llm_steps", 0))],
         }
         if stop_reason:
             update["degraded"] = [f"budget:{stop_reason}"]
@@ -410,6 +413,7 @@ class AgentRuntime:
                 "draft": parse_answer(turn.content),
                 "llm_calls": state.get("llm_calls", 0) + 1,
                 "usage": _add_usage(state.get("usage"), turn.usage),
+                "llm_log": [_llm_entry("revise", turn)],
             }
         )
         return update
@@ -470,6 +474,7 @@ class AgentRuntime:
                 "usage": usage_model.model_dump() | {"total_tokens": usage_model.total_tokens},
                 "cost": None if self.pricing is None else self.pricing.cost(usage_model),
                 "currency": None if self.pricing is None else self.pricing.currency,
+                "log": state.get("llm_log") or [],
             },
             "nlu_summary": {
                 "question_style": nlu.get("question_style"),
@@ -566,6 +571,7 @@ def _log_entry(result: ToolResult, *, source: str, reason: str, step: int, flagg
         "data": result.data,
         "error": result.error.model_dump() if result.error else None,
         "latency_ms": result.latency_ms,
+        "started_at": round(time.time() - result.latency_ms / 1000, 3),
         "attempts": result.attempts,
         "cached": result.cached,
         "evidence_ids": [item.evidence_id for item in result.evidence],
@@ -573,6 +579,22 @@ def _log_entry(result: ToolResult, *, source: str, reason: str, step: int, flagg
         "reason": reason,
         "step": step,
         "instruction_like_text_removed": flagged,
+    }
+
+
+def _llm_entry(node: str, turn: Any, *, step: int | None = None) -> dict[str, Any]:
+    return {
+        "node": node,
+        "step": step,
+        "model": turn.model,
+        "started_at": round(time.time() - turn.latency_ms / 1000, 3),
+        "latency_ms": turn.latency_ms,
+        "prompt_tokens": turn.usage.prompt_tokens,
+        "completion_tokens": turn.usage.completion_tokens,
+        "prompt_cache_hit_tokens": turn.usage.prompt_cache_hit_tokens,
+        "reasoning_tokens": turn.usage.reasoning_tokens,
+        "tool_calls": [call.name for call in turn.tool_calls],
+        "finish_reason": turn.finish_reason,
     }
 
 
