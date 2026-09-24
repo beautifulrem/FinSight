@@ -10,6 +10,8 @@ include = [
     "tests/test_api_security.py",
     "tests/test_web_ui.py",
     "query_intelligence/api/security.py",
+    "query_intelligence/chat/**/*.py",
+    "query_intelligence/chatbot.py",
 ]
 
 [lint]
