@@ -35,6 +35,7 @@ from ..chatbot import detect_query_language
 from .compliance import apply_compliance
 from .composer import compose_template, parse_answer
 from .evidence import AgentEvidence, EvidenceStore
+from .followups import next_questions, sentiment_summary
 from .injection import tool_message_content
 from .llm import LLMClient, LLMError, Pricing, Usage
 from .memory import (
@@ -481,6 +482,15 @@ class AgentRuntime:
             },
             "spans": state.get("spans") or [],
             "turn_index": len(state.get("turns") or []),
+            "sentiment": sentiment_summary(state.get("tool_log") or []),
+            "next_questions": next_questions(
+                query=state["query"],
+                route=str(state.get("route") or ""),
+                nlu_result=nlu,
+                tool_log=state.get("tool_log") or [],
+                zh=zh,
+                limit=self.config.max_next_questions,
+            ),
         }
         return {"result": result, "turns": [turn_record(state, result)]}
 
