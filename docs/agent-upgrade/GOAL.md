@@ -161,15 +161,15 @@ docs/agent.md  docs/zh/agent.md  docs/mcp.md  docs/agent-eval.md
 
 ## 6. 整体完成标准
 
-- [ ] 8 个以上工具，Pydantic schema，离线可测，并经 MCP Server 暴露
-- [ ] LangGraph Agent：路由、工具循环、校验、合规、记忆、澄清中断、降级全部有测试
-- [ ] `/agent/chat`、`/agent/chat/stream`、`/agent/resume` 可用；`/chat` 旧行为不变
-- [ ] 情感分析与下一问预测接入在线路径
-- [ ] ≥ 200 条评测任务，回放可复现；消融、故障注入、延迟与成本报告
-- [ ] Trace 可落盘，Langfuse/OTel 可选
-- [ ] Docker、CI、鉴权/限流
-- [ ] 中英文档与 README 与代码一致，所有数字可复现
-- [ ] 全量测试为绿（或已有失败在 PROGRESS 中有根因记录）
+- [x] 8 个以上工具，Pydantic schema，离线可测，并经 MCP Server 暴露
+- [x] LangGraph Agent：路由、工具循环、校验、合规、记忆、澄清中断、降级全部有测试
+- [x] `/agent/chat`、`/agent/chat/stream`、`/agent/resume` 可用；`/chat` 旧行为不变
+- [x] 情感分析与下一问预测接入在线路径
+- [x] ≥ 200 条评测任务，回放可复现；消融、故障注入、延迟与成本报告
+- [x] Trace 可落盘，Langfuse/OTel 可选
+- [x] Docker、CI、鉴权/限流
+- [x] 中英文档与 README 与代码一致，所有数字可复现
+- [x] 全量测试为绿（或已有失败在 PROGRESS 中有根因记录）
 
 ## 7. 初始架构决策（ADR）
 

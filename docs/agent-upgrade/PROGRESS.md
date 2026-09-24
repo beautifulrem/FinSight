@@ -44,7 +44,7 @@
 | T4.6 | 重构 chatbot.py | ✅ | 拆为 `query_intelligence/chat/{config,language,llm_client,answer,page}.py`，`chatbot.py` 保留为兼容 facade |
 | T5.1 | 文档 | ✅ | `docs/agent.md`、`docs/zh/agent.md`；`schemas/agent_*.schema.json` 由 contracts 生成（`scripts/export_agent_schemas.py`，测试检查漂移并用真实响应校验）；两份 README、index、modules 更新 |
 | T5.2 | 设计复盘 | ✅ | `docs/presentation/agent-design-notes.md`：决策与取舍、10 个失败案例、消融结论、局限、面试问答 |
-| T5.3 | 最终验收 | ⬜ | |
+| T5.3 | 最终验收 | ✅ | 全量离线测试 621 passed / 53 skipped（跳过数与基线一致，均为既有条件跳过）；评测门禁 passed；ruff 通过；Docker 镜像构建并冒烟通过。详见迭代 5 |
 
 ## 阻塞
 
@@ -106,3 +106,16 @@
   - `pytest tests/test_chatbot.py tests/test_llm_response.py tests/test_agent_*.py tests/test_api_security.py tests/test_web_ui.py` → 295 passed
   - `python -m evaluation.agent_eval.gate` → passed
 - 下一步：T5.1 文档与 JSON Schema → T5.2 设计复盘 → T5.3 最终验收。
+
+### 2026-09-24 · 迭代 5 · T4.6 收尾、T5.1–T5.3（最终验收）
+
+- T4.6：拆分后 `chat/config.py` 的 `ROOT` 层级少了一级，导致静态资源路径错误（`test_chat_endpoint_and_index_page` 失败）；已修复，并把 `query_intelligence/chat/` 纳入 ruff 范围。
+- T5.1：新增 `AgentChatResponse` 等 Pydantic 模型；`schemas/agent_*.schema.json` 由 `python -m scripts.export_agent_schemas` 生成，`tests/test_agent_schemas.py` 检查 schema 漂移，并用 workflow / refuse / clarify / resume / LLM agent 五类真实响应做校验。
+- 最终验收（commit `096907a` 的代码；之后的提交只改文档）：
+  - `QI_USE_LIVE_*=false QI_AGENT_TRACE_DIR=off python -m pytest -q tests` → **621 passed, 53 skipped, 0 failed**（3339 s；基线 364 passed / 53 skipped / 1 failed）
+  - `python -m evaluation.agent_eval.ablation && python -m evaluation.agent_eval.fault_injection && python -m evaluation.agent_eval.report` → 报告已重新生成；质量指标与 `f2a7d06` 相同（dev 0.981、holdout 0.849、故障体面降级率 1.00），只有延迟有变化
+  - `python -m evaluation.agent_eval.gate` → passed
+  - `ruff check . && ruff format --check .` → 通过；`python -m scripts.export_agent_schemas --check` → 通过
+  - `docker build -f docker/Dockerfile --secret id=ca,src=<ca bundle> -t finsight:final .` → 成功（1.96 GB）；容器以 uid 10001 运行，`/health` ok，`/agent/chat` 返回校验通过的答案
+- 未能在本环境完成（需要外部条件，已在 `docs/agent-eval.md` 说明）：在线 LLM 消融与 pass^k（需 `DEEPSEEK_API_KEY`）、live 数据源验证（沙箱无外网）。
+- 状态：GOAL 中全部 39 个任务完成，循环结束。
