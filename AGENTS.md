@@ -20,6 +20,18 @@ NLU and Retrieval must use classical, explainable ML as their main path: rules, 
 
 Every stage must remain explainable: NLU matched rules, classifier top features, entity match type, retrieval rank features, and source-planning reasons should be inspectable in outputs or debug traces.
 
+## Agent Layer Rules
+
+`query_intelligence/agent/` is the orchestration layer being added on top of Query Intelligence (plan and progress: `docs/agent-upgrade/GOAL.md`, `docs/agent-upgrade/PROGRESS.md`). It may use an LLM to choose tools and compose answers, under these rules:
+
+- Tools wrap existing NLU, retrieval, provider, analyzer, and sentiment code. The LLM orchestrates tools; it never replaces classical NLU or retrieval as the backbone, and no vector retrieval backbone is introduced.
+- Every tool has Pydantic input/output models, a timeout, and returns evidence items with stable `evidence_id`s. Retrieved document text is untrusted data and must never be interpreted as instructions.
+- Classical NLU remains the router and guard: out-of-scope rejection, risk flags, and clarification run before any LLM call.
+- The agent must work without network or API keys: tests use a scripted LLM, and a deterministic planner takes over when no LLM is configured or the LLM fails.
+- Answers must cite `evidence_id`s that exist in the run, must not contain numbers that cannot be traced to tool outputs, must include a risk disclaimer, and must not issue direct buy/sell/position instructions.
+- Existing endpoints keep their behavior; agent features are exposed through new endpoints or new optional request fields.
+- Metrics reported in docs must come from reproducible runs, with the command, date, and commit; offline (scripted/deterministic) and online (real LLM) results are reported separately.
+
 ## Upstream Additions To Know
 
 `analysis_summary` is part of `RetrievalResult`. It is built by `query_intelligence/retrieval/market_analyzer.py` and summarizes market, fundamental, macro, and data-readiness signals. It may include technical indicators such as returns, MA5/MA20, RSI(14), MACD, volatility, Bollinger bands, and trend signal. It is evidence summarization, not investment advice.

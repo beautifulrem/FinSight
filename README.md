@@ -27,25 +27,29 @@ The project is designed around a simple rule: the system should retrieve and exp
 - Explainable Query Intelligence backend for NLU and retrieval.
 - China-market runtime coverage for A-shares, ETFs/funds, indices, sectors, macro indicators, policy events, news, announcements, and fundamentals.
 - Numerical `analysis_summary` with market, fundamental, macro, technical-indicator, and data-readiness signals.
-- Document sentiment pipeline over retrieved evidence.
-- LLM summary and next-question prediction over compact evidence, with citation and disclaimer controls.
+- Document sentiment pipeline over retrieved evidence (currently run offline via `manual_test/`; not yet wired into `/chat`).
+- LLM answer over compact evidence with citation and disclaimer controls; next-question prediction is an offline script (`scripts/llm_response.py`).
 - Clone-usable runtime assets in `data/runtime/` and shipped model artifacts in `models/`.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  A["Browser Chatbot"] --> B["FastAPI"]
+  A["Browser Chatbot"] --> B["FastAPI /chat"]
   B --> C["Query Intelligence"]
   C --> C1["NLU"]
   C --> C2["Retrieval"]
-  C2 --> D["Numerical Analysis"]
-  C2 --> E["Text Sentiment"]
-  D --> F["Evidence Package"]
-  E --> F
-  F --> G["LLM Summary + Prediction"]
-  G --> A
+  C2 --> D["Numerical Analysis<br/>analysis_summary"]
+  D --> F["Compact Evidence"]
+  C2 --> F
+  F --> G["LLM Answer<br/>(template fallback)"]
+  G --> H["Freshness + Compliance Guards"]
+  H --> A
+  C2 -.offline.-> E["Text Sentiment<br/>manual_test/"]
+  F -.offline.-> P["Next-Question Prediction<br/>scripts/llm_response.py"]
 ```
+
+Solid arrows are the live `/chat` request path. Dotted arrows are offline stages that consume the same artifacts but are not yet part of the online response.
 
 Core outputs:
 
@@ -155,7 +159,6 @@ schemas/              JSON schemas for external validation
 data/runtime/         Small clone-usable runtime assets
 models/               Shipped model artifacts
 docs/                 Detailed documentation
-submission/           Final report package and evidence files
 ```
 
 ## Configuration
