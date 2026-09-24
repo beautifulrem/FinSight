@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 import time
 from collections.abc import Callable
 from datetime import UTC, date, datetime
@@ -184,6 +185,11 @@ def _task_meta(task: dict[str, Any]) -> dict[str, Any]:
     return {key: task.get(key) for key in ("id", "category", "language")}
 
 
+def _display_path(value: str | Path) -> str:
+    path = Path(value).resolve()
+    return str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
+
+
 def _git_commit() -> str | None:
     try:
         return subprocess.run(
@@ -246,7 +252,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         if args.record and isinstance(holder, RecordingRegistry):
             holder.save(args.snapshot, snapshot=SNAPSHOT_NAME)
         snapshot_info = {
-            "path": str(Path(args.snapshot).relative_to(ROOT)) if not args.no_replay else None,
+            "path": _display_path(args.snapshot) if not args.no_replay else None,
             "recorded": args.record,
             "misses": len(holder.misses) if isinstance(holder, ReplayRegistry) else None,
         }
@@ -254,14 +260,14 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     config = {
         "mode": args.mode,
         "llm": getattr(llm, "model", None) if llm else None,
-        "tasks_file": str(Path(args.tasks).relative_to(ROOT)) if Path(args.tasks).is_relative_to(ROOT) else args.tasks,
+        "tasks_file": _display_path(args.tasks),
         "snapshot": snapshot_info,
         "repeats": args.repeats,
         "commit": _git_commit(),
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "eval_today": EVAL_TODAY.isoformat(),
         "wall_seconds": round(time.perf_counter() - started, 1),
-        "command": "python -m evaluation.agent_eval.runner " + " ".join(argv if argv is not None else []),
+        "command": "python -m evaluation.agent_eval.runner " + " ".join(argv if argv is not None else sys.argv[1:]),
     }
     report = summarize(records, config=config, repeats=args.repeats)
     out = Path(args.out) if args.out else DEFAULT_OUTPUT_DIR / f"{args.mode}{'-' + args.llm if llm else ''}.json"
