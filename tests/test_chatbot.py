@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-import query_intelligence.chatbot as chatbot_module
+import query_intelligence.chat.answer as chat_answer_module
 from query_intelligence.api.app import create_app
 from query_intelligence.chatbot import (
     DeepSeekClient,
@@ -338,7 +338,7 @@ def test_market_freshness_guard_blocks_stale_today_answer(monkeypatch) -> None:
         def today(cls):
             return real_date(2026, 4, 28)
 
-    monkeypatch.setattr(chatbot_module, "date", RegularTradingDate)
+    monkeypatch.setattr(chat_answer_module, "date", RegularTradingDate)
     record = {"query": "茅台股票今天涨了吗", **_sample_pipeline_result()}
     record["retrieval_result"]["structured_data"][0]["payload"]["trade_date"] = "2026-04-22"
     answer = {
@@ -361,7 +361,7 @@ def test_market_freshness_guard_blocks_stale_english_today_answer(monkeypatch) -
         def today(cls):
             return real_date(2026, 4, 28)
 
-    monkeypatch.setattr(chatbot_module, "date", RegularTradingDate)
+    monkeypatch.setattr(chat_answer_module, "date", RegularTradingDate)
     record = {"query": "Did Kweichow Moutai rise today?", **_sample_pipeline_result()}
     record["retrieval_result"]["structured_data"][0]["payload"]["trade_date"] = "2026-04-22"
     answer = {
@@ -385,7 +385,7 @@ def test_market_freshness_guard_uses_latest_quote_on_non_trading_day(monkeypatch
         def today(cls):
             return real_date(2026, 5, 2)
 
-    monkeypatch.setattr(chatbot_module, "date", WeekendDate)
+    monkeypatch.setattr(chat_answer_module, "date", WeekendDate)
     record = {"query": "Did Ping An rise today?", **_sample_pipeline_result()}
     record["retrieval_result"]["structured_data"][0]["payload"].update(
         {"trade_date": "2026-04-30", "close": 57.63, "pct_change_1d": 0.14}
