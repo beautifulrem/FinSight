@@ -1,0 +1,16 @@
+.git
+.venv
+venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+outputs
+reports
+data/external
+data/training_assets
+manual_test/output
+evaluation/*.json
+evaluation/*.md
+.env
+.env.*
