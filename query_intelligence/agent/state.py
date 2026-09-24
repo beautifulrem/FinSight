@@ -29,6 +29,7 @@ class AgentState(TypedDict, total=False):
     # request
     query: str
     mode: str
+    started_at: float
     user_profile: dict[str, Any]
     dialog_context: list[dict[str, Any]]
     # classical front end
@@ -71,3 +72,4 @@ class AgentConfig:
     max_revisions: int = 1
     llm_compose: bool = True
     max_next_questions: int = 3
+    run_deadline_s: float = 90.0
