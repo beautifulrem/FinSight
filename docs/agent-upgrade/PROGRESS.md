@@ -24,11 +24,11 @@
 | T2.4 | 路由器 | ✅ | `agent/router.py`，31 条表驱动用例 |
 | T2.5 | 证据校验器 | ✅ | `agent/verifier.py`：引用存在性 + 数值可追溯（单位换算/四舍五入容差）+ 修复 |
 | T2.6 | 合规节点 | ✅ | `agent/compliance.py`：复用 llm_response 软化规则与 chatbot 新鲜度/免责声明；删除直接交易指令 |
-| T2.7 | 记忆与澄清 | ⬜ | |
-| T2.8 | 服务与 API | ⬜ | |
-| T2.9 | 接入情感与下一问 | ⬜ | |
+| T2.7 | 记忆与澄清 | ✅ | `agent/memory.py`：InMemory/SQLite checkpointer、turn 级状态重置、会话历史→NLU dialog_context、代词指代改写（它/it/its）、`interrupt()` 澄清 + resume |
+| T2.8 | 服务与 API | ✅ | `agent/service.py` + `/agent/chat`、`/agent/chat/stream`（SSE）、`/agent/resume`、`/agent/sessions/{id}`；`/chat` 新增 `mode`（默认 workflow 保持旧行为） |
+| T2.9 | 接入情感与下一问 | ✅ | `agent/followups.py`：在线情感摘要 + 确定性下一问建议（复用 llm_response 净化规则）；README 架构图更新 |
 | T2.10 | 提示注入防护 | ✅ | `agent/injection.py`：工具结果以不可信数据信封包装、指令类文本脱敏；端到端注入测试 |
-| T3.1 | Tracing | ⬜ | |
+| T3.1 | Tracing | ✅ | `agent/tracing.py`：节点/工具/LLM 调用 trace，JSON 落盘 + 可选 OTLP 导出；响应带 trace_id |
 | T3.2 | 评测任务集 | ⬜ | |
 | T3.3 | 数据快照回放 | ⬜ | |
 | T3.4 | 指标 | ⬜ | |
@@ -81,3 +81,15 @@
   - `pytest tests/test_fuzz_query_intelligence_report.py` → 2 passed
   - `ruff check .` → 通过
 - 下一步：T2.7 记忆与澄清中断 → T2.8 服务与 API → T2.9。
+
+### 2026-09-24 · 迭代 3 · T2.7–T2.9、T3.1
+
+- 记忆：checkpointer 持久化 `turns`；每轮开始用 `{__reset__}` 标记重置工具日志、证据、诊断等 turn 级字段（否则同一 thread 的上轮数据会泄漏到本轮——已用测试覆盖）。
+- **发现**：真实 NLU 对「那它的市净率呢」只识别出「市净率」（财务指标实体），因此不会回退到对话上下文。新增基于规则、可解释的指代改写（代词→上一轮唯一上市实体），改写原因写入 `route_reasons`。
+- 澄清：缺标的时 `interrupt()` 暂停，`/agent/resume` 注入用户回复后重新走 guard_in（每轮最多一次，避免循环）。
+- API：`/agent/*` 端点与 `/chat?mode`；Agent 服务惰性构建，不影响已有测试用 stub。
+- 情感与下一问：Agent 结果新增 `sentiment` 与 `next_questions`。
+- Tracing：`outputs/traces/<date>/<trace_id>.json`（已 gitignore），`QI_AGENT_OTEL=1` 或 `OTEL_EXPORTER_OTLP_ENDPOINT` 时导出 OTLP；Langfuse Python SDK v3/v4 API 差异较大且无法在沙箱验证，因此统一走 OTLP（Langfuse 支持 OTLP 接入）。
+- 新依赖：`langgraph-checkpoint-sqlite`、`opentelemetry-sdk`、`opentelemetry-exporter-otlp-proto-http`。
+- 测试：`pytest tests/test_agent_*.py`（除集成外）全部通过；集成 `tests/test_agent_graph_integration.py` 9 passed；`tests/test_chatbot.py` 13 passed；`ruff check .` 通过。
+- 下一步：T3.2 评测任务集 → T3.3 回放 → T3.4 指标 → T3.5 消融 → T3.6 故障注入 → T3.7 报告。
