@@ -87,6 +87,12 @@ Start the FastAPI service:
 uvicorn query_intelligence.api.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
+Or run it in Docker (multi-stage image, non-root, healthcheck; optional `postgres` and `tracing` profiles):
+
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```
+
 Enable live providers when needed:
 
 ```bash
@@ -134,7 +140,7 @@ Example request:
 }
 ```
 
-See [docs/query-intelligence.md](docs/query-intelligence.md) for full request and response contracts.
+See [docs/query-intelligence.md](docs/query-intelligence.md) for full request and response contracts. Agent request and response schemas are in `schemas/agent_*.schema.json`; see [docs/agent.md](docs/agent.md).
 
 ## Modules
 
@@ -177,6 +183,11 @@ Common environment variables:
 | `QI_USE_LIVE_ANNOUNCEMENT` | Enables live announcement providers. |
 | `QI_USE_LIVE_MACRO` | Enables live macro providers. |
 | `QI_POSTGRES_DSN` | Optional PostgreSQL source for structured retrieval. |
+| `QI_AGENT_CHECKPOINT_DB` | SQLite file that keeps agent sessions across restarts (default: in memory). |
+| `QI_AGENT_TRACE_DIR` | Where agent traces are written (default `outputs/traces`; `off` disables). OTLP export uses `OTEL_EXPORTER_OTLP_ENDPOINT`. |
+| `QI_API_KEYS`, `QI_RATE_LIMIT_PER_MINUTE`, `QI_CORS_ORIGINS`, `QI_MAX_REQUEST_BYTES` | Optional API keys, rate limit, CORS, and body size limit (all off by default). |
+
+The full agent variable list is in [docs/agent.md](docs/agent.md#configuration).
 
 Never commit `.env`, tokens, generated outputs, public dataset caches, or local scratch files.
 
@@ -195,6 +206,8 @@ python -m pytest tests/test_query_intelligence.py -q
 python -m pytest tests/test_analysis_summary.py tests/test_market_analyzer.py -q
 python -m pytest tests/test_sentiment_pipeline.py -q
 python -m pytest tests/test_llm_response.py -q
+python -m pytest tests/test_agent_*.py tests/test_api_security.py -q
+python -m evaluation.agent_eval.gate   # offline agent evaluation thresholds
 ```
 
 See [docs/training.md](docs/training.md) for evaluation, training, and release checks.
@@ -206,6 +219,9 @@ Start with [docs/index.md](docs/index.md).
 | Topic | Link |
 |---|---|
 | Module map | [docs/modules.md](docs/modules.md) |
+| Agent layer | [docs/agent.md](docs/agent.md) |
+| Agent evaluation | [docs/agent-eval.md](docs/agent-eval.md) |
+| MCP server | [docs/mcp.md](docs/mcp.md) |
 | Query Intelligence | [docs/query-intelligence.md](docs/query-intelligence.md) |
 | Frontend chatbot | [docs/frontend-chatbot.md](docs/frontend-chatbot.md) |
 | Numerical analysis | [docs/numerical-analysis.md](docs/numerical-analysis.md) |

@@ -1,0 +1,22 @@
+{
+  "description": "Answer to a pending clarification for ``/agent/resume``.",
+  "properties": {
+    "session_id": {
+      "pattern": "^[A-Za-z0-9_.:-]{1,128}$",
+      "title": "Session Id",
+      "type": "string"
+    },
+    "reply": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Reply",
+      "type": "string"
+    }
+  },
+  "required": [
+    "session_id",
+    "reply"
+  ],
+  "title": "AgentResumeRequest",
+  "type": "object"
+}

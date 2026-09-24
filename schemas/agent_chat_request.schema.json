@@ -1,0 +1,54 @@
+{
+  "description": "Request for ``/agent/chat`` and ``/agent/chat/stream``.",
+  "properties": {
+    "query": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+    },
+    "session_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Session Id"
+    },
+    "mode": {
+      "default": "auto",
+      "enum": [
+        "auto",
+        "workflow",
+        "agent"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "user_profile": {
+      "additionalProperties": true,
+      "maxProperties": 64,
+      "title": "User Profile",
+      "type": "object"
+    },
+    "dialog_context": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "maxItems": 32,
+      "title": "Dialog Context",
+      "type": "array"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "AgentChatRequest",
+  "type": "object"
+}

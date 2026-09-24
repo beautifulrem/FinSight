@@ -13,6 +13,7 @@ FinSight 分为五个模块。每个模块职责明确，并通过结构化产�
 | 数值分析 | 将行情、基本面、估值、宏观和价格历史行转换为紧凑分析信号。 | `analysis_summary.market_signal`、`fundamental_signal`、`macro_signal`、`data_readiness`。 | [数值分析](numerical-analysis.md) |
 | 文本分析 | 清洗检索文档、检测语言、过滤实体相关句子并分类金融情感。 | `SentimentResult`、文档级 `SentimentItem`、实体聚合结果。 | [文档情感分析](sentiment.md) |
 | LLM 总结和预测 | 基于紧凑证据生成前端回答 JSON 和后续问题建议。 | `answer_generation`、`next_question_prediction`、引用和风险提示。 | [LLM 回答生成交接](llm-response.md) |
+| Agent 层（编排） | 逐轮路由，把上述模块作为类型化工具调用（确定性计划或 LLM 工具循环），校验引用与数字，执行合规规则，维护会话记忆。 | 带工具调用、证据来源、校验结果与 trace id 的 `AgentChatResponse`。 | [Agent 层](agent.md) |
 
 ## 数据流
 
@@ -44,6 +45,7 @@ flowchart TD
 | 新增 endpoint 或契约字段 | `query_intelligence/contracts.py`，然后更新 [Query Intelligence](query-intelligence.md)。 |
 | 新增 source provider | `query_intelligence/integrations/`、retrieval source planning 和 provider 配置。 |
 | 新增数值指标 | `query_intelligence/retrieval/market_analyzer.py`，然后更新 [数值分析](numerical-analysis.md)。 |
-| 修改前端展示 | `query_intelligence/chatbot.py`，然后更新 [本地网页 Chatbot](frontend-chatbot.md)。 |
+| 修改前端展示 | `query_intelligence/web/static/`（页面、样式、脚本）与 `query_intelligence/chat/`（答案组装），然后更新 [本地网页 Chatbot](frontend-chatbot.md)。 |
 | 修改情感预处理或标签 | `sentiment/`，然后更新 [文档情感分析](sentiment.md)。 |
+| 新增或修改 Agent 工具 | `query_intelligence/agent/tools/`，在 `tools/defaults.py` 注册，然后更新 [Agent 层](agent.md) 与评测任务。 |
 | 修改 LLM JSON 输出 | `scripts/llm_response.py` 和 `/chat` 响应映射，然后更新 [LLM 回答生成交接](llm-response.md)。 |

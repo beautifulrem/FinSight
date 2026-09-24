@@ -11,6 +11,9 @@ The root README is intentionally short; use these pages when you need contracts,
 | Document | Purpose |
 |---|---|
 | [Modules](modules.md) | Five-module map: frontend, NLU/Retrieval, numerical analysis, text analysis, and LLM summary/prediction. |
+| [Agent Layer](agent.md) | Agent graph, tools, routing, verification, compliance, memory, `/agent/*` API and schemas, configuration, tracing. |
+| [Agent Evaluation](agent-eval.md) | Offline task sets, replay snapshots, dealbreaker-gated metrics, ablation, fault injection, and limitations. |
+| [MCP Server](mcp.md) | Serving the agent tools to MCP clients over stdio or streamable HTTP. |
 | [Query Intelligence](query-intelligence.md) | Scope, architecture, API, NLU and retrieval output contracts, live providers, environment variables, troubleshooting. |
 | [Local Frontend Chatbot](frontend-chatbot.md) | Browser UI, `/chat` contract, LLM API settings, real local screenshots, and troubleshooting. |
 | [Numerical Analysis](numerical-analysis.md) | `analysis_summary`, technical indicators, fundamentals, macro signals, and data readiness. |

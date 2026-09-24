@@ -1,0 +1,652 @@
+{
+  "$defs": {
+    "AgentClarification": {
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "const": "clarification",
+          "default": "clarification",
+          "title": "Type",
+          "type": "string"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "missing_slots": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Slots",
+          "type": "array"
+        },
+        "original_query": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Original Query"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "title": "AgentClarification",
+      "type": "object"
+    },
+    "AgentEvidenceSource": {
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "source_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Type"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "source_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Name"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "produced_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Produced By"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "kind"
+      ],
+      "title": "AgentEvidenceSource",
+      "type": "object"
+    },
+    "AgentLLMInfo": {
+      "properties": {
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "calls": {
+          "default": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "steps": {
+          "default": 0,
+          "title": "Steps",
+          "type": "integer"
+        },
+        "usage": {
+          "$ref": "#/$defs/AgentLLMUsage"
+        },
+        "cost": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only set when QI_LLM_PRICE_* is configured",
+          "title": "Cost"
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Currency"
+        },
+        "log": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Log",
+          "type": "array"
+        }
+      },
+      "required": [
+        "usage"
+      ],
+      "title": "AgentLLMInfo",
+      "type": "object"
+    },
+    "AgentLLMUsage": {
+      "properties": {
+        "prompt_tokens": {
+          "default": 0,
+          "title": "Prompt Tokens",
+          "type": "integer"
+        },
+        "completion_tokens": {
+          "default": 0,
+          "title": "Completion Tokens",
+          "type": "integer"
+        },
+        "prompt_cache_hit_tokens": {
+          "default": 0,
+          "title": "Prompt Cache Hit Tokens",
+          "type": "integer"
+        },
+        "reasoning_tokens": {
+          "default": 0,
+          "title": "Reasoning Tokens",
+          "type": "integer"
+        },
+        "total_tokens": {
+          "default": 0,
+          "title": "Total Tokens",
+          "type": "integer"
+        }
+      },
+      "title": "AgentLLMUsage",
+      "type": "object"
+    },
+    "AgentToolCall": {
+      "additionalProperties": true,
+      "description": "One executed tool call (raw tool output is omitted; it is summarized as evidence).",
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "arguments": {
+          "additionalProperties": true,
+          "title": "Arguments",
+          "type": "object"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AgentToolError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "latency_ms": {
+          "title": "Latency Ms",
+          "type": "number"
+        },
+        "attempts": {
+          "title": "Attempts",
+          "type": "integer"
+        },
+        "cached": {
+          "title": "Cached",
+          "type": "boolean"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "source": {
+          "description": "'plan' for the deterministic planner, 'llm' for model-chosen calls",
+          "title": "Source",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step"
+        }
+      },
+      "required": [
+        "tool",
+        "ok",
+        "latency_ms",
+        "attempts",
+        "cached",
+        "source"
+      ],
+      "title": "AgentToolCall",
+      "type": "object"
+    },
+    "AgentToolError": {
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "AgentToolError",
+      "type": "object"
+    },
+    "AgentVerification": {
+      "additionalProperties": true,
+      "properties": {
+        "passed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Passed"
+        },
+        "cited_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cited Ids",
+          "type": "array"
+        },
+        "invalid_citations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Invalid Citations",
+          "type": "array"
+        },
+        "unsupported_numbers": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Unsupported Numbers",
+          "type": "array"
+        },
+        "checked_numbers": {
+          "default": 0,
+          "title": "Checked Numbers",
+          "type": "integer"
+        },
+        "missing_citations": {
+          "default": false,
+          "title": "Missing Citations",
+          "type": "boolean"
+        }
+      },
+      "title": "AgentVerification",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Response of ``/agent/chat`` and ``/agent/resume``, and the ``answer`` event of the SSE stream.\n\n``status == \"needs_clarification\"`` carries only ``session_id`` and ``clarification``; answer\nthe question with ``/agent/resume``. ``status == \"ok\"`` carries the answer and its evidence trail.",
+  "properties": {
+    "status": {
+      "enum": [
+        "ok",
+        "needs_clarification"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
+    },
+    "clarification": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AgentClarification"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "trace_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Trace Id"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Run Id"
+    },
+    "query": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Query"
+    },
+    "language": {
+      "anyOf": [
+        {
+          "enum": [
+            "zh",
+            "en"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Language"
+    },
+    "route": {
+      "anyOf": [
+        {
+          "enum": [
+            "refuse",
+            "clarify",
+            "workflow",
+            "agent"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Route"
+    },
+    "route_reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Route Reasons",
+      "type": "array"
+    },
+    "answer": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Answer"
+    },
+    "key_points": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Key Points",
+      "type": "array"
+    },
+    "evidence_used": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Evidence Used",
+      "type": "array"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "risk_disclaimer": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Risk Disclaimer"
+    },
+    "evidence_sources": {
+      "items": {
+        "$ref": "#/$defs/AgentEvidenceSource"
+      },
+      "title": "Evidence Sources",
+      "type": "array"
+    },
+    "tool_calls": {
+      "items": {
+        "$ref": "#/$defs/AgentToolCall"
+      },
+      "title": "Tool Calls",
+      "type": "array"
+    },
+    "verification": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AgentVerification"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "compliance_notes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Compliance Notes",
+      "type": "array"
+    },
+    "degraded": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Degraded",
+      "type": "array"
+    },
+    "answer_source": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "template, llm_compose, llm_agent, clarification or guardrail",
+      "title": "Answer Source"
+    },
+    "llm": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AgentLLMInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "nlu_summary": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Nlu Summary"
+    },
+    "spans": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Spans",
+      "type": "array"
+    },
+    "turn_index": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Turn Index"
+    },
+    "sentiment": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sentiment"
+    },
+    "next_questions": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Next Questions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "status",
+    "session_id"
+  ],
+  "title": "AgentChatResponse",
+  "type": "object"
+}

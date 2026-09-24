@@ -53,7 +53,8 @@ Key implementation paths:
 - `query_intelligence/retrieval/`
 - `query_intelligence/retrieval/market_analyzer.py`
 - `query_intelligence/api/app.py`
-- `query_intelligence/chatbot.py`
+- `query_intelligence/chat/` and `query_intelligence/web/static/`
+- `query_intelligence/agent/`
 - `sentiment/`
 
 ## 4. Data Sources
