@@ -122,3 +122,16 @@ def test_cited_ids_merges_list_and_inline():
     answer = {"answer": "a [x_1] b [y_2]", "key_points": ["c [x_1]"], "evidence_used": ["z_3"]}
 
     assert cited_ids(answer) == ["z_3", "x_1", "y_2"]
+
+
+def test_repair_salvages_supported_clauses():
+    answer = {
+        "answer": "收盘价 1409.5 [price_600519.SH]，目标价 2600 元，市盈率 55 倍 [made_up]。",
+        "evidence_used": [],
+    }
+    store = _store()
+
+    repaired, _notes = repair_answer(answer, verify_answer(answer, store), store, zh=True)
+
+    assert repaired["answer"] == "收盘价 1409.5 [price_600519.SH]。"
+    assert verify_answer(repaired, store).passed

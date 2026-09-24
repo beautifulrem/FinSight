@@ -36,7 +36,7 @@ from .compliance import apply_compliance
 from .composer import compose_template, parse_answer
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
-from .injection import tool_message_content
+from .injection import sanitize_untrusted_text, tool_message_content
 from .llm import LLMClient, LLMError, Pricing, Usage
 from .memory import (
     dialog_context_from_turns,
@@ -252,7 +252,11 @@ class AgentRuntime:
             _log_entry(result, source="planner", reason=call.reason, step=0)
             for call, result in zip(calls, results, strict=True)
         ]
-        return {"tool_log": log, "evidence": _evidence_update(results)}
+        evidence, flagged = _evidence_update(results)
+        update: dict[str, Any] = {"tool_log": log, "evidence": evidence}
+        if flagged:
+            update["degraded"] = ["instruction_like_text_removed_from_evidence"]
+        return update
 
     def compose(self, state: AgentState) -> dict[str, Any]:
         zh = self._zh(state)
@@ -370,11 +374,13 @@ class AgentRuntime:
                     "content": _BUDGET_EXHAUSTED,
                 }
             )
+        evidence_update, evidence_flagged = _evidence_update(results)
+        flagged_any = flagged_any or evidence_flagged
         update: dict[str, Any] = {
             "messages": [*messages, *tool_messages],
             "llm_steps": step,
             "tool_log": log,
-            "evidence": _evidence_update(results),
+            "evidence": evidence_update,
         }
         if flagged_any:
             update["degraded"] = ["instruction_like_text_removed_from_tool_output"]
@@ -396,7 +402,9 @@ class AgentRuntime:
             return update
         if not report.passed:
             repaired, notes = repair_answer(draft, report, store, zh=self._zh(state))
-            update.update({"draft": repaired, "verification_notes": notes})
+            update.update(
+                {"draft": repaired, "verification_notes": notes, "degraded": ["verification_failed:repaired"]}
+            )
         update["next"] = "compliance"
         return update
 
@@ -605,12 +613,19 @@ def _public_log(entry: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in entry.items() if key != "data"}
 
 
-def _evidence_update(results: list[ToolResult]) -> dict[str, dict[str, Any]]:
+def _evidence_update(results: list[ToolResult]) -> tuple[dict[str, dict[str, Any]], bool]:
+    """Evidence keyed by id, with instruction-like text in document fields redacted on ingestion."""
     update: dict[str, dict[str, Any]] = {}
+    flagged_any = False
     for result in results:
         for item in result.evidence:
-            update[item.evidence_id] = item.model_dump(mode="json")
-    return update
+            dumped = item.model_dump(mode="json")
+            for field in ("title", "text_excerpt"):
+                if isinstance(dumped.get(field), str):
+                    dumped[field], flagged = sanitize_untrusted_text(dumped[field])
+                    flagged_any = flagged_any or flagged
+            update[item.evidence_id] = dumped
+    return update, flagged_any
 
 
 def _store(state: AgentState) -> EvidenceStore:
