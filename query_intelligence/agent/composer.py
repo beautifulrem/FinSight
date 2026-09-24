@@ -98,12 +98,15 @@ def _indicators(data: dict[str, Any], zh: bool) -> list[str]:
             parts.append(f"{label} {_num(data[key])}")
     if not parts:
         return []
+    missing = [name.upper().replace("_14", "(14)") for name in data.get("unavailable") or []]
     trend = data.get("trend_signal")
     if zh:
         trend_text = f"，趋势信号为 {trend}" if trend else ""
-        return [f"{name} 技术指标：{'，'.join(parts)}{trend_text} [{eid}]。"]
+        gap = f"（历史数据不足，无法计算 {'、'.join(missing)}）" if missing else ""
+        return [f"{name} 技术指标：{'，'.join(parts)}{trend_text}{gap} [{eid}]。"]
     trend_text = f", trend signal {trend}" if trend else ""
-    return [f"{name} technical indicators: {', '.join(parts)}{trend_text} [{eid}]."]
+    gap = f" (not enough history to compute {', '.join(missing)})" if missing else ""
+    return [f"{name} technical indicators: {', '.join(parts)}{trend_text}{gap} [{eid}]."]
 
 
 def _fundamentals(data: dict[str, Any], zh: bool) -> list[str]:
