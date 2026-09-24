@@ -49,6 +49,22 @@ _INVALID_NAME_PARTS = {
     "有限公司",
     "股份有限公司",
 }
+# Column headers that leak into scraped name fields and must never become aliases.
+_HEADER_ALIAS_TEXTS = {
+    "公司名称",
+    "公司简称",
+    "证券名称",
+    "证券简称",
+    "股票名称",
+    "股票简称",
+    "基金名称",
+    "基金简称",
+    "证券代码",
+    "股票代码",
+    "名称",
+    "简称",
+    "代码",
+}
 _INVALID_EXACT_NAMES = {
     "买入",
     "卖出",
@@ -340,6 +356,8 @@ class RuntimeEntityAssetBuilder:
                 normalized_alias = alias_text.strip()
                 if not normalized_alias or normalized_alias in aliases_by_entity[entity["entity_id"]]:
                     continue
+                if normalized_alias in _HEADER_ALIAS_TEXTS:
+                    continue
                 existing_owner = alias_owner_by_normalized.get(normalized_alias)
                 if existing_owner and existing_owner != entity["entity_id"]:
                     continue
@@ -403,6 +421,8 @@ class RuntimeEntityAssetBuilder:
             for index, alias_text in enumerate(row.get("aliases", [])):
                 normalized_alias = str(alias_text).strip()
                 if not normalized_alias or normalized_alias in aliases_by_entity[entity["entity_id"]]:
+                    continue
+                if normalized_alias in _HEADER_ALIAS_TEXTS:
                     continue
                 existing_owner = alias_owner_by_normalized.get(normalized_alias)
                 if existing_owner and existing_owner != entity["entity_id"]:
