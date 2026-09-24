@@ -42,8 +42,8 @@
 | T4.4 | CI | ✅ | `.github/workflows/ci.yml`：lint、tests（agent 组 + 全量）、agent-eval-gate、docker |
 | T4.5 | 安全 | ✅ | `api/security.py`：API Key、令牌桶限流（429 + Retry-After）、CORS、请求体上限（413）；默认全部关闭 |
 | T4.6 | 重构 chatbot.py | ✅ | 拆为 `query_intelligence/chat/{config,language,llm_client,answer,page}.py`，`chatbot.py` 保留为兼容 facade |
-| T5.1 | 文档 | ⬜ | |
-| T5.2 | 设计复盘 | ⬜ | |
+| T5.1 | 文档 | ✅ | `docs/agent.md`、`docs/zh/agent.md`；`schemas/agent_*.schema.json` 由 contracts 生成（`scripts/export_agent_schemas.py`，测试检查漂移并用真实响应校验）；两份 README、index、modules 更新 |
+| T5.2 | 设计复盘 | ✅ | `docs/presentation/agent-design-notes.md`：决策与取舍、10 个失败案例、消融结论、局限、面试问答 |
 | T5.3 | 最终验收 | ⬜ | |
 
 ## 阻塞
