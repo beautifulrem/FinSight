@@ -89961,7 +89961,6 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 89961,3863,高铁,高铁,official_name,1,true
 89962,29437,113667.SH,113667.SH,symbol,1,false
 89963,29437,113667,113667,symbol,2,false
-89964,4466,公司名称,公司名称,official_name,1,true
 89965,29438,光大转债,光大转债,official_name,1,true
 89966,29438,113011.SH,113011.SH,symbol,1,false
 89967,29438,113011,113011,symbol,2,false
