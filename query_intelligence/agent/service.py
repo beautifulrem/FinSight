@@ -16,6 +16,7 @@ from .llm import DeepSeekToolClient, LLMClient, Pricing
 from .memory import make_checkpointer
 from .state import AgentConfig
 from .tools import ToolRegistry, build_registry_for_service
+from .tracing import TraceSink, build_trace, emit, sinks_from_env
 
 if TYPE_CHECKING:
     from ..service import QueryIntelligenceService
@@ -38,8 +39,11 @@ _STEP_LABELS = {
 
 
 class AgentService:
-    def __init__(self, runtime: AgentRuntime, *, checkpointer: Any = None) -> None:
+    def __init__(
+        self, runtime: AgentRuntime, *, checkpointer: Any = None, trace_sinks: list[TraceSink] | None = None
+    ) -> None:
         self.runtime = runtime
+        self.trace_sinks = trace_sinks if trace_sinks is not None else sinks_from_env()
         self.checkpointer = checkpointer if checkpointer is not None else make_checkpointer()
         self.graph = runtime.build_graph(self.checkpointer)
         self._locks: dict[str, threading.Lock] = {}
@@ -55,6 +59,7 @@ class AgentService:
         registry: ToolRegistry | None = None,
         config: AgentConfig | None = None,
         checkpointer: Any = None,
+        trace_sinks: list[TraceSink] | None = None,
     ) -> AgentService:
         if llm is None and chatbot_config is not None:
             candidate = DeepSeekToolClient.from_chatbot_config(chatbot_config)
@@ -67,7 +72,7 @@ class AgentService:
             pricing=Pricing.from_env(),
             today=date.today,
         )
-        return cls(runtime, checkpointer=checkpointer)
+        return cls(runtime, checkpointer=checkpointer, trace_sinks=trace_sinks)
 
     # ------------------------------------------------------------------ public API
 
@@ -144,7 +149,13 @@ class AgentService:
             value = interrupts[0].value if hasattr(interrupts[0], "value") else interrupts[0]
             payload = dict(value) if isinstance(value, dict) else {"question": str(value)}
             return {"status": "needs_clarification", "session_id": session_id, "clarification": payload}
-        return {"status": "ok", "session_id": session_id, **(output.get("result") or {})}
+        result = output.get("result") or {}
+        self._trace(session_id, result)
+        return {"status": "ok", "session_id": session_id, "trace_id": result.get("run_id"), **result}
+
+    def _trace(self, session_id: str, result: dict[str, Any]) -> None:
+        if result and self.trace_sinks:
+            emit(self.trace_sinks, build_trace(result, session_id=session_id))
 
     def _events(self, session_id: str, update: dict[str, Any]) -> Iterator[dict[str, Any]]:
         for node, payload in update.items():
@@ -182,4 +193,9 @@ class AgentService:
                     },
                 }
             if node == "finalize" and payload.get("result"):
-                yield {"event": "answer", "data": {"status": "ok", "session_id": session_id, **payload["result"]}}
+                result = payload["result"]
+                self._trace(session_id, result)
+                yield {
+                    "event": "answer",
+                    "data": {"status": "ok", "session_id": session_id, "trace_id": result.get("run_id"), **result},
+                }

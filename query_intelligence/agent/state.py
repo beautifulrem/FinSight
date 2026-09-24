@@ -56,6 +56,7 @@ class AgentState(TypedDict, total=False):
     # diagnostics
     degraded: Annotated[list[str], add_or_reset]
     spans: Annotated[list[dict[str, Any]], add_or_reset]
+    llm_log: Annotated[list[dict[str, Any]], add_or_reset]
     # session memory (persists across turns on the same thread)
     turns: Annotated[list[dict[str, Any]], operator.add]
     clarification_rounds: int
