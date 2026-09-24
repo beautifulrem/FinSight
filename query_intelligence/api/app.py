@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
+import threading
 import time
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import Path as ApiPath
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..artifacts import ArtifactWriter
@@ -20,6 +24,9 @@ from ..chatbot import (
     render_index_html,
 )
 from ..contracts import (
+    AgentChatRequest,
+    AgentMode,
+    AgentResumeRequest,
     AnalyzeRequest,
     ArtifactRequest,
     ArtifactResponse,
@@ -28,6 +35,7 @@ from ..contracts import (
     MAX_RETRIEVAL_TOP_K,
     MAX_USER_PROFILE_FIELDS,
     MIN_RETRIEVAL_TOP_K,
+    SESSION_ID_PATTERN,
     PipelineRequest,
     PipelineResponse,
     RetrievalRequest,
@@ -64,6 +72,14 @@ class ChatRequest(BaseModel):
     dialog_context: list[dict[str, Any]] = Field(default_factory=list, max_length=MAX_DIALOG_CONTEXT_ITEMS)
     top_k: int = Field(default=20, ge=MIN_RETRIEVAL_TOP_K, le=MAX_RETRIEVAL_TOP_K)
     debug: bool = False
+    # "workflow" keeps the original /chat pipeline; "agent" and "auto" use the agent service.
+    mode: AgentMode = "workflow"
+    session_id: str | None = Field(default=None, pattern=SESSION_ID_PATTERN)
+
+
+def _sse(event: dict[str, Any]) -> str:
+    data = json.dumps(event["data"], ensure_ascii=False, default=str)
+    return f"event: {event['event']}\ndata: {data}\n\n"
 
 
 def create_app(
@@ -72,6 +88,7 @@ def create_app(
     app_config: dict[str, Any] | None = None,
     app_config_path: str | Path | None = None,
     deepseek_client: DeepSeekClient | None = None,
+    agent_service: Any = None,
 ) -> FastAPI:
     chatbot_config = app_config or load_chatbot_config(app_config_path, load_env_file=False)
     if service is None:
@@ -89,6 +106,18 @@ def create_app(
     artifact_writer = ArtifactWriter(artifact_output_dir or os.getenv("QI_API_OUTPUT_DIR", "outputs/query_intelligence"))
     logger.info("[startup] Preparing DeepSeek response client...")
     response_client = deepseek_client or DeepSeekClient(chatbot_config)
+    agent_holder: dict[str, Any] = {"service": agent_service}
+    agent_lock = threading.Lock()
+
+    def get_agent():
+        # Built lazily: the agent layer is only constructed when an agent endpoint is used.
+        with agent_lock:
+            if agent_holder["service"] is None:
+                from ..agent.service import AgentService
+
+                agent_holder["service"] = AgentService.from_service(runtime, chatbot_config=chatbot_config)
+            return agent_holder["service"]
+
     logger.info("[startup] FastAPI routes are ready.")
 
     @app.get("/health")
@@ -104,6 +133,15 @@ def create_app(
         query = payload.query.strip()
         if not query:
             raise HTTPException(status_code=422, detail="query must not be empty")
+        if payload.mode != "workflow":
+            logger.info("[chat] Routing query to the agent (mode=%s): %s", payload.mode, _short_query(query))
+            return get_agent().chat(
+                query,
+                session_id=payload.session_id,
+                mode=payload.mode,
+                user_profile=payload.user_profile,
+                dialog_context=payload.dialog_context,
+            )
         request_started_at = time.perf_counter()
         logger.info("[chat] Received query: %s", _short_query(query))
         logger.info("[chat] Step 1/3: running NLU, retrieval, and live data providers...")
@@ -139,6 +177,58 @@ def create_app(
         )
         logger.info("[chat] Completed request in %s", _elapsed_seconds(request_started_at))
         return response
+
+    @app.post("/agent/chat")
+    def agent_chat(payload: AgentChatRequest) -> dict:
+        query = payload.query.strip()
+        if not query:
+            raise HTTPException(status_code=422, detail="query must not be empty")
+        return get_agent().chat(
+            query,
+            session_id=payload.session_id,
+            mode=payload.mode,
+            user_profile=payload.user_profile,
+            dialog_context=payload.dialog_context,
+        )
+
+    @app.post("/agent/chat/stream")
+    def agent_chat_stream(payload: AgentChatRequest) -> StreamingResponse:
+        query = payload.query.strip()
+        if not query:
+            raise HTTPException(status_code=422, detail="query must not be empty")
+        agent = get_agent()
+
+        def events() -> Iterator[str]:
+            for event in agent.stream(
+                query,
+                session_id=payload.session_id,
+                mode=payload.mode,
+                user_profile=payload.user_profile,
+                dialog_context=payload.dialog_context,
+            ):
+                yield _sse(event)
+
+        return StreamingResponse(
+            events(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    @app.post("/agent/resume")
+    def agent_resume(payload: AgentResumeRequest) -> dict:
+        try:
+            return get_agent().resume(payload.session_id, payload.reply.strip())
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.get("/agent/sessions/{session_id}")
+    def agent_session(session_id: Annotated[str, ApiPath(pattern=SESSION_ID_PATTERN)]) -> dict:
+        agent = get_agent()
+        return {
+            "session_id": session_id,
+            "turns": agent.history(session_id),
+            "pending_clarification": agent.pending_clarification(session_id),
+        }
 
     @app.post("/nlu/analyze")
     def analyze(payload: AnalyzeRequest) -> dict:

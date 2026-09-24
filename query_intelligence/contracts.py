@@ -154,6 +154,27 @@ class RetrievalRequest(BaseModel):
     debug: bool = False
 
 
+AgentMode = Literal["auto", "workflow", "agent"]
+SESSION_ID_PATTERN = r"^[A-Za-z0-9_.:-]{1,128}$"
+
+
+class AgentChatRequest(BaseModel):
+    """Request for ``/agent/chat`` and ``/agent/chat/stream``."""
+
+    query: str = Field(min_length=1, max_length=MAX_QUERY_LENGTH)
+    session_id: str | None = Field(default=None, pattern=SESSION_ID_PATTERN)
+    mode: AgentMode = "auto"
+    user_profile: dict[str, Any] = Field(default_factory=dict, max_length=MAX_USER_PROFILE_FIELDS)
+    dialog_context: list[dict[str, Any]] = Field(default_factory=list, max_length=MAX_DIALOG_CONTEXT_ITEMS)
+
+
+class AgentResumeRequest(BaseModel):
+    """Answer to a pending clarification for ``/agent/resume``."""
+
+    session_id: str = Field(pattern=SESSION_ID_PATTERN)
+    reply: str = Field(min_length=1, max_length=MAX_QUERY_LENGTH)
+
+
 class PipelineRequest(BaseModel):
     query: str = Field(min_length=1, max_length=MAX_QUERY_LENGTH)
     user_profile: dict[str, Any] = Field(default_factory=dict, max_length=MAX_USER_PROFILE_FIELDS)
