@@ -39,7 +39,7 @@ def test_out_of_scope_and_missing_entity_are_not_planned():
     assert plan_from_nlu(_nlu(missing_slots=["missing_entity"])).skipped_reason == "missing_entity"
 
 
-def test_single_stock_fact_question_uses_source_plan():
+def test_single_stock_valuation_question_only_fetches_fundamentals():
     plan = plan_from_nlu(
         _nlu(
             raw_query="贵州茅台的市盈率是多少",
@@ -50,7 +50,8 @@ def test_single_stock_fact_question_uses_source_plan():
         )
     )
 
-    assert _tools(plan) == [("get_price_history", "600519.SH"), ("get_fundamentals", "600519.SH")]
+    # source_plan also lists market_api, but a valuation fact question has no price cue.
+    assert _tools(plan) == [("get_fundamentals", "600519.SH")]
     assert plan.targets == ["600519.SH"]
     assert all(call.reason for call in plan.calls)
 
@@ -70,12 +71,12 @@ def test_comparison_expands_every_target():
     for symbol in ("600519.SH", "000858.SZ"):
         assert ("get_price_history", symbol) in tools
         assert ("get_fundamentals", symbol) in tools
-        assert ("search_news", (symbol,)) in tools
-    # Advice questions with news also look at document tone.
-    assert ("analyze_sentiment", ("600519.SH",)) in tools
+        # Advice questions look at document tone; plain news is only fetched for why questions or news cues.
+        assert ("analyze_sentiment", (symbol,)) in tools
+        assert ("search_news", (symbol,)) not in tools
 
 
-def test_why_question_pulls_news_and_sentiment_even_without_news_in_plan():
+def test_why_question_pulls_price_and_news_even_without_news_in_plan():
     plan = plan_from_nlu(
         _nlu(
             raw_query="茅台最近为什么跌了",
@@ -89,8 +90,7 @@ def test_why_question_pulls_news_and_sentiment_even_without_news_in_plan():
     )
 
     tools = _tools(plan)
-    assert ("search_news", ("600519.SH",)) in tools
-    assert ("analyze_sentiment", ("600519.SH",)) in tools
+    assert tools == [("get_price_history", "600519.SH"), ("search_news", ("600519.SH",))]
     news_call = next(call for call in plan.calls if call.tool == "search_news")
     assert news_call.arguments["query"] == "下跌"
 
@@ -101,7 +101,7 @@ def test_technical_terms_add_indicators():
     assert ("compute_indicators", "600519.SH") in _tools(plan)
 
 
-def test_macro_question_uses_macro_tool_and_topic_news():
+def test_macro_question_uses_only_the_macro_tool():
     plan = plan_from_nlu(
         _nlu(
             raw_query="CPI上升对白酒板块有什么影响",
@@ -118,8 +118,7 @@ def test_macro_question_uses_macro_tool_and_topic_news():
 
     macro = next(call for call in plan.calls if call.tool == "get_macro_indicators")
     assert macro.arguments["topics"] == ["CPI"]
-    assert ("search_news", ()) in _tools(plan)
-    assert ("search_knowledge", ()) in _tools(plan)
+    assert _tools(plan) == [("get_macro_indicators", ())]
 
 
 def test_policy_entity_becomes_macro_topic():

@@ -25,7 +25,7 @@ def test_fact_question_workflow_is_verified(runtime):
 
     assert result["route"] == "workflow"
     assert result["verification"]["passed"] is True
-    assert {"price_600519.SH", "fundamental_600519.SH"} <= set(result["evidence_used"])
+    assert "fundamental_600519.SH" in result["evidence_used"]
     assert "24.6" in result["answer"]
 
 

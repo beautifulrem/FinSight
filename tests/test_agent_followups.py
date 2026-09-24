@@ -91,8 +91,8 @@ def test_sentiment_summary_uses_latest_successful_call():
 def test_agent_result_contains_sentiment_and_next_questions():
     runtime = AgentRuntime(StubService(), build_fake_registry(), None, today=lambda: date(2026, 9, 24))
 
-    result = runtime.run("茅台为什么跌了")
+    result = runtime.run("茅台最近的市场情绪怎么样")
 
-    assert result["sentiment"]["overall_label"] is None or "label_counts" in result["sentiment"]
+    assert "label_counts" in result["sentiment"]
     assert result["sentiment"]["evidence_id"] == "sentiment_600519.SH"
     assert 1 <= len(result["next_questions"]) <= 3

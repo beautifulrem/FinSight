@@ -29,10 +29,11 @@ def test_workflow_without_llm_uses_planner_and_template():
 
     assert result["route"] == "workflow"
     assert result["answer_source"] == "template"
-    assert [call["tool"] for call in result["tool_calls"]] == ["get_price_history", "get_fundamentals"]
-    assert "1409.5" in result["answer"] and "24.6" in result["answer"]
+    # A valuation fact question only needs fundamentals (no price cue in the question).
+    assert [call["tool"] for call in result["tool_calls"]] == ["get_fundamentals"]
+    assert "24.6" in result["answer"]
     assert result["verification"]["passed"] is True
-    assert result["evidence_used"] == ["price_600519.SH", "fundamental_600519.SH"]
+    assert result["evidence_used"] == ["fundamental_600519.SH"]
     assert result["risk_disclaimer"]
     assert result["llm"]["calls"] == 0
     assert [span["node"] for span in result["spans"]] == [
@@ -199,7 +200,7 @@ def test_missing_entity_asks_for_clarification():
 
 def test_tool_failures_become_limitations():
     result = _runtime(registry=build_fake_registry(fail={"get_price_history", "get_fundamentals"})).run(
-        "贵州茅台的市盈率是多少"
+        "贵州茅台最新价格和市盈率"
     )
 
     assert all(not call["ok"] for call in result["tool_calls"])
@@ -217,7 +218,7 @@ def test_llm_compose_in_workflow_mode():
         ]
     )
 
-    result = _runtime(llm).run("贵州茅台的市盈率是多少", mode="workflow")
+    result = _runtime(llm).run("贵州茅台最新价格和市盈率", mode="workflow")
 
     assert result["route"] == "workflow" and result["answer_source"] == "llm_compose"
     assert llm.requests[0]["json_mode"] is True and llm.requests[0]["tools"] is None
