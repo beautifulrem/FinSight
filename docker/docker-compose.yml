@@ -1,0 +1,61 @@
+# Usage (from the repository root):
+#   docker compose -f docker/docker-compose.yml up --build                    # API + agent
+#   docker compose -f docker/docker-compose.yml --profile postgres up --build # + PostgreSQL retrieval
+#   docker compose -f docker/docker-compose.yml --profile tracing up --build  # + Jaeger (OTLP traces)
+name: finsight
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        WITH_TORCH: "${WITH_TORCH:-0}"
+    ports:
+      - "${FINSIGHT_PORT:-8000}:8000"
+    environment:
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      TUSHARE_TOKEN: "${TUSHARE_TOKEN:-}"
+      QI_USE_LIVE_MARKET: "${QI_USE_LIVE_MARKET:-true}"
+      QI_USE_LIVE_MACRO: "${QI_USE_LIVE_MACRO:-true}"
+      QI_USE_LIVE_NEWS: "${QI_USE_LIVE_NEWS:-true}"
+      QI_USE_LIVE_ANNOUNCEMENT: "${QI_USE_LIVE_ANNOUNCEMENT:-true}"
+      QI_API_KEYS: "${QI_API_KEYS:-}"
+      QI_RATE_LIMIT_PER_MINUTE: "${QI_RATE_LIMIT_PER_MINUTE:-0}"
+      QI_CORS_ORIGINS: "${QI_CORS_ORIGINS:-}"
+      QI_POSTGRES_DSN: "${QI_POSTGRES_DSN:-}"
+      QI_USE_POSTGRES_RETRIEVAL: "${QI_USE_POSTGRES_RETRIEVAL:-}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
+    volumes:
+      - finsight-outputs:/app/outputs
+      - finsight-state:/app/state
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: finsight
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-finsight}"
+      POSTGRES_DB: finsight
+    volumes:
+      - ../sql/qi_schema.sql:/docker-entrypoint-initdb.d/01_qi_schema.sql:ro
+      - finsight-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finsight -d finsight"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    profiles: ["tracing"]
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+
+volumes:
+  finsight-outputs:
+  finsight-state:
+  finsight-pg:
