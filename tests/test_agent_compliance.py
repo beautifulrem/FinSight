@@ -135,3 +135,44 @@ def test_disclaimer_with_trading_language_is_replaced():
     )
 
     assert guarded["risk_disclaimer"] == DEFAULT_RISK_DISCLAIMER_EN
+
+
+@pytest.mark.parametrize(
+    ("query", "zh"),
+    [
+        ("五粮液明天会涨吗，要不要满仓", True),
+        ("证券ETF下周能涨多少", True),
+        ("Give me a price target for Ping An.", False),
+    ],
+)
+def test_judgment_questions_are_hedged_even_when_nlu_style_is_fact(query, zh):
+    guarded, notes = apply_compliance(
+        {"answer": "收盘价 1409.5 元。" if zh else "Close was 1409.5.", "key_points": []},
+        query=query,
+        nlu_result=_nlu(style="fact"),
+        today=TRADING_DAY,
+    )
+
+    assert "conditional_prefix" in notes
+    assert guarded["answer"].startswith("基于当前证据只能做条件性判断" if zh else "Based on the current evidence")
+    assert ("问题包含投资建议或预测属性" if zh else "The query has advice or forecast-like risk") in guarded[
+        "limitations"
+    ]
+
+
+def test_causal_questions_get_a_caveat_once():
+    guarded, notes = apply_compliance(
+        {"answer": "PMI 最新值 50.6。", "key_points": []},
+        query="PMI回升对券商板块意味着什么",
+        nlu_result=_nlu(style="fact"),
+        today=TRADING_DAY,
+    )
+    already, notes_already = apply_compliance(
+        {"answer": "可能相关的因素包括 PMI。", "key_points": []},
+        query="PMI回升对券商板块意味着什么",
+        nlu_result=_nlu(style="fact"),
+        today=TRADING_DAY,
+    )
+
+    assert guarded["answer"].endswith("不能据此确定因果关系。") and "causal_caveat" in notes
+    assert "causal_caveat" not in notes_already and already["answer"] == "可能相关的因素包括 PMI。"

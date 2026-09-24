@@ -36,6 +36,28 @@ _TRADING_EN = re.compile(
     r"|\b(?:strong buy|strong sell|price target|target price|go all[- ]in)\b",
     re.IGNORECASE,
 )
+# Lexical triggers make hedging independent of the NLU question-style label.
+_JUDGMENT_TRIGGER = re.compile(
+    r"能买|能不能买|值得买|要不要|该不该|会涨|会跌|能涨|能跌|涨多少|跌多少|必涨|必跌|目标价|买点|卖点|买入点|满仓|梭哈|"
+    r"加仓|清仓|止损|止盈|还能拿|值得拿|持有吗|翻倍|哪个更好|选哪个|"
+    r"\bshould i\b|\bbuy\b|\bsell\b|price target|target price|strong buy|go all[- ]in|\bdouble\b|"
+    r"when to (?:buy|sell)|worth buying|\bwill\b.*\b(?:rise|fall|go up|go down|double)\b",
+    re.IGNORECASE,
+)
+_CAUSAL_TRIGGER = re.compile(
+    r"为什么|原因|因素|影响|导致|意味着|关系|传导|友好|有利|不利|利好|利空|"
+    r"\bwhy\b|impact|affect|cause|mean for|driver|good for|bad for|favorable",
+    re.IGNORECASE,
+)
+_JUDGMENT_PREFIX_ZH = "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。"
+_JUDGMENT_PREFIX_EN = (
+    "Based on the current evidence this can only be a conditional assessment, not a buy, sell, or hold "
+    "recommendation or a price forecast."
+)
+_CAUSAL_CAVEAT_ZH = "以上证据只能提示可能的影响因素，不能据此确定因果关系。"
+_CAUSAL_CAVEAT_EN = "This evidence only points to possible factors; it does not establish cause and effect."
+_HEDGE_MARKERS = ("条件性", "不能据此", "可能", "possible", "conditional", "does not establish", "cannot")
+
 _NEUTRAL_ZH = "是否交易取决于个人风险承受能力、投资期限和持仓情况，以上仅为证据梳理，不构成买卖建议。"
 _NEUTRAL_EN = (
     "Whether to trade depends on your risk tolerance, horizon, and existing positions; the above is an evidence "
@@ -95,10 +117,24 @@ def apply_compliance(
             softened = f"{prefix}{'' if zh else ' '}{softened}".strip()
             notes.append("conditional_prefix")
 
+    if _JUDGMENT_TRIGGER.search(query) and "conditional_prefix" not in notes:
+        prefix = _JUDGMENT_PREFIX_ZH if zh else _JUDGMENT_PREFIX_EN
+        if not any(marker in softened for marker in ("条件性判断", "conditional assessment", "证据不足以直接判断")):
+            softened = f"{prefix}{'' if zh else ' '}{softened}".strip()
+            notes.append("conditional_prefix")
+    elif _CAUSAL_TRIGGER.search(query) and not any(marker in softened.lower() for marker in _HEDGE_MARKERS):
+        caveat = _CAUSAL_CAVEAT_ZH if zh else _CAUSAL_CAVEAT_EN
+        softened = f"{softened}{'' if zh else ' '}{caveat}".strip()
+        notes.append("causal_caveat")
+
     limitations = [str(item) for item in guarded.get("limitations") or [] if str(item).strip()]
     limitations = guards._append_unique(
         limitations, guards._guardrail_limitations(pseudo_retrieval, nlu_result, zh=zh, query=query)
     )
+    if "conditional_prefix" in notes:
+        limitations = guards._append_unique(
+            limitations, ["问题包含投资建议或预测属性" if zh else "The query has advice or forecast-like risk"]
+        )
 
     freshness_point = _freshness_note(query, market_evidence or [], zh=zh, today=today or date.today())
     if freshness_point:
