@@ -29,19 +29,19 @@
 | T2.9 | 接入情感与下一问 | ✅ | `agent/followups.py`：在线情感摘要 + 确定性下一问建议（复用 llm_response 净化规则）；README 架构图更新 |
 | T2.10 | 提示注入防护 | ✅ | `agent/injection.py`：工具结果以不可信数据信封包装、指令类文本脱敏；端到端注入测试 |
 | T3.1 | Tracing | ✅ | `agent/tracing.py`：节点/工具/LLM 调用 trace，JSON 落盘 + 可选 OTLP 导出；响应带 trace_id |
-| T3.2 | 评测任务集 | ⬜ | |
-| T3.3 | 数据快照回放 | ⬜ | |
-| T3.4 | 指标 | ⬜ | |
-| T3.5 | 消融 | ⬜ | |
-| T3.6 | 故障注入 | ⬜ | |
-| T3.7 | 评测报告 | ⬜ | |
-| T3.8 | CI 评测门禁 | ⬜ | |
-| T4.1 | 前端拆分 | ⬜ | |
-| T4.2 | 异步与并发 | ⬜ | |
-| T4.3 | Docker | ⬜ | |
-| T4.4 | CI | ⬜ | |
-| T4.5 | 安全 | ⬜ | |
-| T4.6 | 重构 chatbot.py | ⬜ | |
+| T3.2 | 评测任务集 | ✅ | `evaluation/agent_eval/build_tasks.py` → dev 207 任务 / 220 轮；`build_holdout.py` → holdout 53 任务；与 1,112 条训练查询做重叠检查 |
+| T3.3 | 数据快照回放 | ✅ | `replay.py`：RecordingRegistry/ReplayRegistry；`fixtures/snapshot_v1.json`、`snapshot_holdout_v1.json` |
+| T3.4 | 指标 | ✅ | `metrics.py`：关键事实错误一票否决的任务成功率、工具精确/召回、引用、数值忠实、行为准确率、pass^k、延迟、成本 |
+| T3.5 | 消融 | ✅ | `ablation.py`：离线 legacy vs workflow；在线 legacy_llm / pure_llm / workflow_llm / agent（沙箱无 LLM 密钥，未跑，如实标注） |
+| T3.6 | 故障注入 | ✅ | `fault_injection.py`：11 个场景，离线体面降级率 1.00 |
+| T3.7 | 评测报告 | ✅ | `docs/agent-eval.md`（commit `f2a7d06` 生成）：dev 0.981 vs legacy 0.266；holdout 0.849 vs 0.207 |
+| T3.8 | CI 评测门禁 | ✅ | `gate.py`：dev + holdout 阈值；本地 `python -m evaluation.agent_eval.gate` → passed |
+| T4.1 | 前端拆分 | ✅ | `query_intelligence/web/static/`：模式切换、SSE 步骤流、澄清、下一问、运行详情、API Key 设置；Playwright 6 个浏览器测试 |
+| T4.2 | 异步与并发 | ✅ | `/agent/chat`、`/agent/resume` 异步 + `QI_AGENT_REQUEST_TIMEOUT_S`（504）；图内 `run_deadline_s`；工具并发 `max_parallel_tools` |
+| T4.3 | Docker | ✅ | 多阶段镜像（python:3.13 构建 wheel → 3.13-slim 运行，非 root，healthcheck）；compose 可选 postgres / tracing(Jaeger) profile；本地构建并验证 |
+| T4.4 | CI | ✅ | `.github/workflows/ci.yml`：lint、tests（agent 组 + 全量）、agent-eval-gate、docker |
+| T4.5 | 安全 | ✅ | `api/security.py`：API Key、令牌桶限流（429 + Retry-After）、CORS、请求体上限（413）；默认全部关闭 |
+| T4.6 | 重构 chatbot.py | ✅ | 拆为 `query_intelligence/chat/{config,language,llm_client,answer,page}.py`，`chatbot.py` 保留为兼容 facade |
 | T5.1 | 文档 | ⬜ | |
 | T5.2 | 设计复盘 | ⬜ | |
 | T5.3 | 最终验收 | ⬜ | |
@@ -93,3 +93,16 @@
 - 新依赖：`langgraph-checkpoint-sqlite`、`opentelemetry-sdk`、`opentelemetry-exporter-otlp-proto-http`。
 - 测试：`pytest tests/test_agent_*.py`（除集成外）全部通过；集成 `tests/test_agent_graph_integration.py` 9 passed；`tests/test_chatbot.py` 13 passed；`ruff check .` 通过。
 - 下一步：T3.2 评测任务集 → T3.3 回放 → T3.4 指标 → T3.5 消融 → T3.6 故障注入 → T3.7 报告。
+
+### 2026-09-24 · 迭代 4 · T3.2–T4.6
+
+- 评测集：dev 207 任务（220 轮，中英文；事实/对比/归因/宏观/技术/多轮/缺数据/OOD/合规陷阱），holdout 53 任务在 dev 调优结束后单独构造；期望值（如 MA5）从离线数据推导而非手写。
+- **评测驱动的修复**（dev 任务成功率 0.773 → 0.981）：NLU 把宏观/金融问题误判为 out-of-scope → 路由器用金融锚词覆盖；悬空指代 → 澄清；判断/归因类问题缺少限定语 → 与 NLU style 无关的词法触发；规划器过度取数 → 按 style/意图/词法线索裁剪；`compute_indicators` 在历史不足时返回空值却报成功 → 改为 unavailable 并列出无法计算的指标。
+- **故障注入发现**：注入文本在 compose 路径未脱敏 → 改为证据入库时统一脱敏；校验失败的修复会整句删除 → 改为子句级修复。
+- holdout（未参与调优）成功率 0.849，低于 dev 0.981，主要缺口：限定语覆盖 0.636（dev 为 1.000，词法触发泛化不足）、宏观联动 0.33、英文别名（dev 中 CATL/BYD 等）未覆盖。已写入 `docs/agent-eval.md` 局限部分，没有为 holdout 回头调参。
+- Docker：`numpy<2` 没有 3.13 slim 可用 wheel 且沙箱无法访问 deb.debian.org → 多阶段构建；`mcp` 需要 `pydantic>=2.12` → 放宽 pin。镜像 1.96 GB，容器以 uid 10001 运行，`/health` ok，静态资源可访问，SQLite 会话在重启后保留。
+- 测试：
+  - `ruff check . && ruff format --check .` → 通过
+  - `pytest tests/test_chatbot.py tests/test_llm_response.py tests/test_agent_*.py tests/test_api_security.py tests/test_web_ui.py` → 295 passed
+  - `python -m evaluation.agent_eval.gate` → passed
+- 下一步：T5.1 文档与 JSON Schema → T5.2 设计复盘 → T5.3 最终验收。
