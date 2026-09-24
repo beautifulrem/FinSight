@@ -85,7 +85,11 @@ def install_security(app: FastAPI, settings: SecuritySettings | None = None) -> 
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
-        public = (request.method, request.url.path) in PUBLIC_PATHS or request.method == "OPTIONS"
+        public = (
+            (request.method, request.url.path) in PUBLIC_PATHS
+            or request.method == "OPTIONS"
+            or (request.method == "GET" and request.url.path.startswith("/static/"))
+        )
         length = request.headers.get("content-length")
         if length and length.isdigit() and int(length) > settings.max_request_bytes:
             return JSONResponse({"detail": "request body too large"}, status_code=413)

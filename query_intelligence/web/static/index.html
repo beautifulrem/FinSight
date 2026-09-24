@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="chat-app">
+    <header class="chat-header">
+      <div class="brand-mark">F</div>
+      <h1>{{title}}</h1>
+      <div class="header-controls">
+        <label class="mode-label" for="mode-select">Mode</label>
+        <select id="mode-select" aria-label="Answer mode">
+          <option value="auto">Agent (auto)</option>
+          <option value="agent">Agent (LLM tools)</option>
+          <option value="workflow">Agent (fixed workflow)</option>
+          <option value="classic">Classic</option>
+        </select>
+        <button type="button" class="ghost-btn" id="new-session">New session</button>
+        <button type="button" class="ghost-btn" id="settings-toggle" aria-expanded="false">Settings</button>
+      </div>
+      <div class="status-pill" id="status-pill">Ready</div>
+    </header>
+    <section class="settings-panel" id="settings-panel" hidden>
+      <label for="api-key-input">API key (only needed when the server sets QI_API_KEYS)</label>
+      <input id="api-key-input" type="password" autocomplete="off" placeholder="Stored in this browser only" />
+      <div class="session-line">Session: <code id="session-id"></code></div>
+    </section>
+    <section class="chat-messages" id="chat-messages" aria-live="polite">
+      <div class="msg-row msg-bot">
+        <div class="bubble bubble-bot">
+          <div class="answer-text">Hello. I am your financial chatbot. Ask a question and I will analyze it using retrieved evidence, live data when available, and a risk-aware summary.</div>
+        </div>
+      </div>
+    </section>
+    <form class="composer" id="chat-form">
+      <input id="query-input" name="query" type="text" autocomplete="off" placeholder="{{placeholder}}" />
+      <button id="submit-button" type="submit">{{submit_text}}</button>
+    </form>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
