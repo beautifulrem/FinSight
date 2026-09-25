@@ -110,9 +110,15 @@ The browser page at `/` uses these endpoints: pick a mode, watch steps stream in
 | Variable | Default | Purpose |
 |---|---|---|
 | `DEEPSEEK_API_KEY` (or `deepseek.api_key` in config) | unset | Enables the LLM agent path and LLM composition. Without it everything runs on the deterministic path. |
-| `DEEPSEEK_MODEL`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_THINKING_TYPE`, `DEEPSEEK_REASONING_EFFORT`, `DEEPSEEK_MAX_TOKENS`, `DEEPSEEK_TIMEOUT_SECONDS` | see `config/app_config.json` | LLM settings shared with `/chat`. |
-| `QI_LLM_PRICE_INPUT_MISS`, `QI_LLM_PRICE_INPUT_HIT`, `QI_LLM_PRICE_OUTPUT`, `QI_LLM_PRICE_CURRENCY` | unset | Price per million tokens. Cost is reported only when these are set. |
-| `QI_AGENT_CHECKPOINT_DB` | unset (memory) | SQLite file for session persistence. |
+| `DEEPSEEK_MODEL`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_THINKING_TYPE`, `DEEPSEEK_REASONING_EFFORT`, `DEEPSEEK_MAX_TOKENS`, `DEEPSEEK_TIMEOUT_SECONDS` | see `config/app_config.json` | LLM settings shared with `/chat`. Any OpenAI-compatible endpoint works, including gateways that wrap responses in `{"data": ...}`. |
+| `DEEPSEEK_REASONING_STYLE` | `auto` | How per-node reasoning levels are sent: `deepseek` (`thinking` + `reasoning_effort`), `openrouter` (`reasoning` object, e.g. the Cline gateway) or `none`; `auto` picks from the base URL. |
+| `QI_LLM_FALLBACK_MODELS` | unset | Comma-separated failover models on the same endpoint; circuit breaker per model ([details](a2a-and-observability.md#llm-gateway-failover-and-cost)). |
+| `QI_PROMPT_VERSION` | `v3` | Active prompt version from the registry in `agent/prompts.py` (`v1`, `v2`, `v3`). |
+| `QI_LLM_PRICE_INPUT_MISS`, `QI_LLM_PRICE_INPUT_HIT`, `QI_LLM_PRICE_OUTPUT`, `QI_LLM_PRICE_CURRENCY` | unset | Price per million tokens. Without them the gateway-reported cost (`usage.cost`, USD) is used when present. |
+| `QI_LLM_USD_CNY` | unset | Exchange rate to report gateway costs in CNY. |
+| `QI_AGENT_CHECKPOINT_DB` | unset (memory) | Session persistence: a SQLite file path, or a `postgresql://` DSN shared by several processes or replicas. |
+| `QI_AGENT_DURABILITY` | `exit` | LangGraph durability: one checkpoint per run (`exit`), or per step (`async`, `sync`); see [performance.md](performance.md). |
+| `QI_A2A_ENABLED`, `QI_A2A_MODE`, `QI_PUBLIC_BASE_URL` | `1`, `auto`, `http://127.0.0.1:8765` | A2A endpoint switch, agent mode and the URL advertised in the agent card. |
 | `QI_AGENT_REQUEST_TIMEOUT_S` | `120` | Per-request timeout for `/agent/chat` and `/agent/resume` (504 on expiry). |
 | `QI_AGENT_SENTIMENT_BACKEND` | `classical` | `finbert` to use the FinBERT sentiment model (needs `torch`/`transformers`). |
 | `QI_AGENT_TRACE_DIR` | `outputs/traces` | Where JSON traces are written; `off` disables them. |
@@ -123,11 +129,11 @@ The browser page at `/` uses these endpoints: pick a mode, watch steps stream in
 | `QI_MAX_REQUEST_BYTES` | `1048576` | Larger bodies get 413. |
 | `QI_SOURCE_CALL_TIMEOUT_SECONDS`, `QI_SOURCE_FAILURE_THRESHOLD`, `QI_SOURCE_COOLDOWN_SECONDS`, `QI_SOURCE_CACHE` | `10`, `3`, `60`, `true` | Live data source hard timeout, circuit breaker, and TTL cache ([details](data-sources.md#configuration)). |
 
-Agent budgets (`max_llm_steps=6`, `max_tool_calls=16`, `max_parallel_tools=4`, `token_budget=80000`, `max_revisions=1`, `run_deadline_s=90`) are fields of `AgentConfig` in `agent/state.py`.
+Agent budgets (`max_llm_steps=6`, `max_tool_calls=16`, `max_parallel_tools=4`, `token_budget=80000`, `max_revisions=1`, `run_deadline_s=90`) and per-node reasoning levels (`agent_reasoning=None` i.e. the client default, `compose_reasoning`, `revise_reasoning` and `final_reasoning` = `low`) are fields of `AgentConfig` in `agent/state.py`.
 
 ## Observability
 
-Every run returns a `trace_id` and per-node `spans`. Traces are written as JSON to `outputs/traces/<date>/<trace_id>.json` (gitignored) and, when OTLP is configured, exported as spans with node, tool, and LLM timings, token usage, cost, and errors. `docker/docker-compose.yml` has a `tracing` profile that starts Jaeger.
+Every run returns a `trace_id` and per-node `spans`. Traces are written as JSON to `outputs/traces/<date>/<trace_id>.json` (gitignored) and, when OTLP is configured, exported as spans with node, tool, and LLM timings, token usage, cost, prompt versions and errors. `docker/docker-compose.yml` has a `tracing` profile that starts Jaeger. `GET /agent/traces` and `GET /agent/traces/{trace_id}` serve recent traces (the web UI's run inspector) and `GET /metrics` exposes Prometheus counters and histograms; see [a2a-and-observability.md](a2a-and-observability.md).
 
 ## Running
 
@@ -162,7 +168,7 @@ All agent tests run offline: `ScriptedLLM` replays fixed assistant turns and `te
 
 ## Limits
 
-- The agent path is only as good as the LLM behind it; offline evaluation measures the deterministic path and the graph's safety checks, not LLM reasoning quality.
-- Numeric verification checks that numbers appear in the evidence, not that they are used correctly (e.g. the right period).
+- The agent path is only as good as the LLM behind it. Offline evaluation measures the deterministic path and the graph's safety checks; the online evaluation in [agent-eval.md](agent-eval.md) measures one model (DeepSeek V4.1 Flash through a gateway).
+- Numeric verification is claim-level (each number must be in the evidence cited in its sentence, with unit- and precision-aware matching; 2.8% false-accept rate on corrupted gold answers), but it does not check that a number is used for the right period or metric when the cited evidence holds several.
 - Pronoun resolution is rule-based and only resolves to a single previously listed entity; ambiguous references trigger a clarification.
 - English aliases are limited to what `data/runtime/alias_table.csv` contains.
