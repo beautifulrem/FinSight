@@ -20,7 +20,7 @@ from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from ..evidence import AgentEvidence
 
@@ -39,6 +39,7 @@ class ToolError(BaseModel):
     code: ToolErrorCode
     message: str
     retryable: bool = False
+    hint: str | None = Field(default=None, description="What the model should do next (actionable error)")
 
 
 class ToolResult(BaseModel):
@@ -53,14 +54,20 @@ class ToolResult(BaseModel):
     cached: bool = False
 
     def observation(self) -> dict[str, Any]:
-        """Compact view returned to the LLM as the tool message content."""
+        """Compact view returned to the LLM as the tool message content.
+
+        ``data`` already carries every value and document excerpt together with its ``evidence_id``, so
+        evidence is listed by reference only (id, type, title, date) instead of repeating the payload.
+        """
         if not self.ok:
             assert self.error is not None
-            return {"ok": False, "error": self.error.model_dump()}
+            error = self.error.model_dump(exclude_none=True)
+            error.setdefault("hint", error_hint(self.tool, self.error.code))
+            return {"ok": False, "error": error}
         return {
             "ok": True,
             "data": self.data,
-            "evidence": [item.prompt_view() for item in self.evidence],
+            "evidence": [item.reference() for item in self.evidence],
         }
 
 
@@ -76,6 +83,34 @@ class ToolFailure(Exception):
     def __init__(self, code: ToolErrorCode, message: str) -> None:
         super().__init__(message)
         self.code = code
+
+
+_ERROR_HINTS: dict[str, str] = {
+    "not_found": (
+        "Nothing matched. If the target was a name, call resolve_entity first or use a 6-digit code with "
+        ".SH/.SZ/.BJ; otherwise say the data is unavailable."
+    ),
+    "invalid_arguments": "Fix the arguments to match the tool's JSON schema and call it once more.",
+    "unknown_tool": "Use only the tools listed in this request.",
+    "timeout": (
+        "Transient. Do not call the same tool again in this turn; answer with the evidence you have and "
+        "name the missing data under limitations."
+    ),
+    "upstream_error": (
+        "The data provider failed. Do not retry this call in this turn; answer with the evidence you have "
+        "and name the missing data under limitations."
+    ),
+    "unavailable": "This data is not available for this target. Do not retry; mention it under limitations.",
+    "internal": "Unexpected tool failure. Do not retry; answer with the evidence you have.",
+}
+
+
+def error_hint(tool: str, code: str) -> str | None:
+    """Actionable next step for the model after a failed tool call (ACI guidance: helpful errors)."""
+    hint = _ERROR_HINTS.get(code)
+    if code == "not_found" and tool == "resolve_entity":
+        return "No security matched. Ask the user which company, fund or index they mean."
+    return hint
 
 
 class TransientToolError(Exception):

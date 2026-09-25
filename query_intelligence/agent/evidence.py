@@ -87,6 +87,15 @@ class AgentEvidence(BaseModel):
                 values.extend(extract_numbers(text))
         return values
 
+    def reference(self) -> dict[str, Any]:
+        """Id, type, title and date only: used when the tool data already carries the values."""
+        view: dict[str, Any] = {"evidence_id": self.evidence_id, "source_type": self.source_type}
+        for key in ("title", "as_of"):
+            value = getattr(self, key)
+            if value:
+                view[key] = value
+        return view
+
     def prompt_view(self) -> dict[str, Any]:
         """Compact representation handed to the LLM."""
         view: dict[str, Any] = {"evidence_id": self.evidence_id, "source_type": self.source_type}
