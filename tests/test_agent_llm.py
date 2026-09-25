@@ -9,10 +9,13 @@ from query_intelligence.agent.llm import (
     AssistantTurn,
     DeepSeekToolClient,
     LLMError,
+    FallbackLLM,
     Pricing,
     ScriptedLLM,
+    build_llm_from_config,
     Usage,
     final_turn,
+    resolve_cost,
     tool_call_turn,
 )
 
@@ -159,6 +162,46 @@ def test_pricing_cost_and_env(monkeypatch):
     assert Pricing.from_env() == Pricing(input_cache_miss=1.0, input_cache_hit=0.1, output=2.0)
 
 
+def test_gateway_envelope_and_reported_cost_are_parsed():
+    body = _completion(
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "get_quote", "arguments": "{}"}}],
+        },
+        usage={
+            "prompt_tokens": 291,
+            "completion_tokens": 40,
+            "prompt_tokens_details": {"cached_tokens": 128},
+            "completion_tokens_details": {"reasoning_tokens": 12},
+            "cost": 0.0001965,
+        },
+    )
+    client = _client(lambda request: httpx.Response(200, json={"success": True, "data": body}))
+
+    turn = client.chat([{"role": "user", "content": "hi"}], TOOLS)
+
+    assert [call.name for call in turn.tool_calls] == ["get_quote"]
+    assert turn.usage.prompt_cache_hit_tokens == 128
+    assert turn.usage.reasoning_tokens == 12
+    assert turn.usage.reported_cost_usd == pytest.approx(0.0001965)
+
+
+def test_resolve_cost_prefers_price_table_then_reported_cost(monkeypatch):
+    usage = Usage(prompt_tokens=1_000_000, completion_tokens=0, reported_cost_usd=0.5)
+    monkeypatch.delenv("QI_LLM_USD_CNY", raising=False)
+
+    assert resolve_cost(usage, Pricing(input_cache_miss=2.0, input_cache_hit=0.5, output=8.0)) == (
+        2.0,
+        "CNY",
+        "price_table",
+    )
+    assert resolve_cost(usage, None) == (0.5, "USD", "provider_reported")
+    monkeypatch.setenv("QI_LLM_USD_CNY", "7.1")
+    assert resolve_cost(usage, None) == (pytest.approx(3.55), "CNY", "provider_reported")
+    assert resolve_cost(Usage(), None) == (None, None, None)
+
+
 def test_usage_addition():
     total = Usage(prompt_tokens=1, completion_tokens=2) + Usage(prompt_tokens=3, prompt_cache_hit_tokens=1)
     assert total.prompt_tokens == 4 and total.completion_tokens == 2 and total.total_tokens == 6
@@ -188,3 +231,64 @@ def test_scripted_llm_replays_steps_and_records_requests():
 
 def test_assistant_turn_message_without_tools_is_plain():
     assert AssistantTurn(content="done").as_message() == {"role": "assistant", "content": "done"}
+
+
+class _Clock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def test_fallback_llm_fails_over_and_opens_circuit():
+    clock = _Clock()
+    broken = ScriptedLLM([LLMError("down", retryable=True)] * 5, model="primary")
+    backup = ScriptedLLM([final_turn("ok")] * 5, model="backup")
+    llm = FallbackLLM([broken, backup], failure_threshold=2, cooldown_s=30, clock=clock)
+
+    assert llm.model == "primary"
+    assert llm.chat([{"role": "user", "content": "q"}]).model == "backup"
+    assert llm.chat([{"role": "user", "content": "q"}]).model == "backup"
+    assert llm.stats()[0]["circuit_open"] is True
+    calls_before = len(broken.requests)
+
+    llm.chat([{"role": "user", "content": "q"}])
+    assert len(broken.requests) == calls_before  # skipped while the circuit is open
+
+    clock.now = 31  # half-open: primary gets one trial call
+    llm.chat([{"role": "user", "content": "q"}])
+    assert len(broken.requests) == calls_before + 1
+
+
+def test_fallback_llm_raises_last_error_when_all_fail():
+    llm = FallbackLLM(
+        [ScriptedLLM([LLMError("a")], model="a"), ScriptedLLM([LLMError("b")], model="b")], failure_threshold=5
+    )
+
+    with pytest.raises(LLMError, match="b"):
+        llm.chat([{"role": "user", "content": "q"}])
+
+
+def test_fallback_llm_resets_failures_after_success():
+    primary = ScriptedLLM([LLMError("blip"), final_turn("ok"), LLMError("blip")], model="p")
+    backup = ScriptedLLM([final_turn("b1"), final_turn("b2")], model="b")
+    llm = FallbackLLM([primary, backup], failure_threshold=2)
+
+    assert llm.chat([]).model == "b"
+    assert llm.chat([]).model == "p"
+    assert llm.chat([]).model == "b"
+    assert llm.stats()[0]["circuit_open"] is False
+
+
+def test_build_llm_from_config_adds_fallback_models(monkeypatch):
+    config = {"deepseek": {"api_key": "sk-x", "model": "m1", "base_url": "https://gw.example/api/v1"}}
+    monkeypatch.delenv("QI_LLM_FALLBACK_MODELS", raising=False)
+    assert isinstance(build_llm_from_config(config), DeepSeekToolClient)
+    assert build_llm_from_config({"deepseek": {"api_key": ""}}) is None
+
+    monkeypatch.setenv("QI_LLM_FALLBACK_MODELS", "m2, m1 ,m2")
+    llm = build_llm_from_config(config)
+    assert isinstance(llm, FallbackLLM)
+    assert [client.model for client in llm.clients] == ["m1", "m2"]
+    assert llm.clients[1].url == "https://gw.example/api/v1/chat/completions"

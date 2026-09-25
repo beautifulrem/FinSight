@@ -228,6 +228,7 @@ class AgentLLMUsage(BaseModel):
     completion_tokens: int = 0
     prompt_cache_hit_tokens: int = 0
     reasoning_tokens: int = 0
+    reported_cost_usd: float = Field(default=0.0, description="Cost reported by a per-request billing gateway, in USD")
     total_tokens: int = 0
 
 
@@ -236,8 +237,11 @@ class AgentLLMInfo(BaseModel):
     calls: int = 0
     steps: int = 0
     usage: AgentLLMUsage
-    cost: float | None = Field(default=None, description="Only set when QI_LLM_PRICE_* is configured")
+    cost: float | None = Field(
+        default=None, description="Set from QI_LLM_PRICE_* or from the gateway-reported cost (see cost_source)"
+    )
     currency: str | None = None
+    cost_source: str | None = Field(default=None, description="price_table | provider_reported")
     log: list[dict[str, Any]] = Field(default_factory=list)
 
 

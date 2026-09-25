@@ -7,9 +7,13 @@
   preserves it.
 * ``ScriptedLLM`` replays scripted turns for tests and offline evaluation.
 
-Token usage is always recorded. Cost is only computed when a ``Pricing`` is configured, because
-provider prices change over time (and DeepSeek has peak/off-peak rates); nothing here hard-codes
-a price.
+Token usage is always recorded. Cost comes from a configured ``Pricing`` or, when the endpoint is a
+gateway that bills per request (OpenRouter-style ``usage.cost``, e.g. the Cline API), from the
+provider-reported cost. Nothing here hard-codes a price, because provider prices change over time
+(and DeepSeek has peak/off-peak rates).
+
+Some gateways wrap the OpenAI-compatible body in an envelope (``{"success": true, "data": {...}}``);
+``unwrap_completion`` accepts both shapes.
 """
 
 from __future__ import annotations
@@ -43,6 +47,7 @@ class Usage(BaseModel):
     completion_tokens: int = 0
     prompt_cache_hit_tokens: int = 0
     reasoning_tokens: int = 0
+    reported_cost_usd: float = 0.0
 
     @property
     def total_tokens(self) -> int:
@@ -54,6 +59,7 @@ class Usage(BaseModel):
             completion_tokens=self.completion_tokens + other.completion_tokens,
             prompt_cache_hit_tokens=self.prompt_cache_hit_tokens + other.prompt_cache_hit_tokens,
             reasoning_tokens=self.reasoning_tokens + other.reasoning_tokens,
+            reported_cost_usd=round(self.reported_cost_usd + other.reported_cost_usd, 8),
         )
 
 
@@ -122,6 +128,35 @@ class Pricing:
         except ValueError:
             return None
         return cls(currency=os.getenv("QI_LLM_PRICE_CURRENCY", "CNY"), **values)
+
+
+def resolve_cost(usage: Usage, pricing: Pricing | None) -> tuple[float | None, str | None, str | None]:
+    """Return ``(cost, currency, source)`` for a run.
+
+    A configured ``Pricing`` wins. Otherwise the gateway-reported USD cost is used, converted to CNY
+    when ``QI_LLM_USD_CNY`` (exchange rate) is set. Returns ``(None, None, None)`` when neither is known.
+    """
+    if pricing is not None:
+        return pricing.cost(usage), pricing.currency, "price_table"
+    if usage.reported_cost_usd <= 0:
+        return None, None, None
+    rate = os.getenv("QI_LLM_USD_CNY", "").strip()
+    try:
+        fx = float(rate) if rate else 0.0
+    except ValueError:
+        fx = 0.0
+    if fx > 0:
+        return round(usage.reported_cost_usd * fx, 6), "CNY", "provider_reported"
+    return round(usage.reported_cost_usd, 6), "USD", "provider_reported"
+
+
+def unwrap_completion(data: Any) -> Any:
+    """Return the OpenAI-compatible completion body, unwrapping a ``{"data": {...}}`` envelope."""
+    if isinstance(data, dict) and not data.get("choices"):
+        inner = data.get("data")
+        if isinstance(inner, dict) and inner.get("choices"):
+            return inner
+    return data
 
 
 class DeepSeekToolClient:
@@ -241,12 +276,106 @@ class DeepSeekToolClient:
                 status_code=response.status_code,
             )
         try:
-            data = response.json()
+            data = unwrap_completion(response.json())
         except json.JSONDecodeError as exc:
             raise LLMError("LLM API returned invalid JSON") from exc
         if not isinstance(data, dict) or not data.get("choices"):
             raise LLMError("LLM API response is missing choices")
         return data
+
+
+class FallbackLLM:
+    """Model routing with failover: try clients in order, skipping ones whose circuit is open.
+
+    A client's circuit opens after ``failure_threshold`` consecutive ``LLMError`` failures and stays
+    open for ``cooldown_s`` seconds, so a failing provider/model is not retried on every request.
+    The returned ``AssistantTurn.model`` names the model that actually answered. When every client
+    fails the last error is raised and the graph degrades to the deterministic planner.
+    """
+
+    def __init__(
+        self,
+        clients: Sequence[LLMClient],
+        *,
+        failure_threshold: int = 3,
+        cooldown_s: float = 60.0,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        if not clients:
+            raise ValueError("FallbackLLM needs at least one client")
+        self.clients = list(clients)
+        self.model = self.clients[0].model
+        self.failure_threshold = max(1, failure_threshold)
+        self.cooldown_s = cooldown_s
+        self._clock = clock
+        self._failures = [0] * len(self.clients)
+        self._opened_at: list[float | None] = [None] * len(self.clients)
+        self._calls = [0] * len(self.clients)
+
+    def _is_open(self, index: int) -> bool:
+        opened = self._opened_at[index]
+        if opened is None:
+            return False
+        if self._clock() - opened >= self.cooldown_s:
+            self._opened_at[index] = None  # half-open: allow one trial call
+            self._failures[index] = self.failure_threshold - 1
+            return False
+        return True
+
+    def chat(
+        self,
+        messages: Sequence[dict[str, Any]],
+        tools: Sequence[dict[str, Any]] | None = None,
+        *,
+        tool_choice: str | dict[str, Any] | None = None,
+        json_mode: bool = False,
+        max_tokens: int | None = None,
+    ) -> AssistantTurn:
+        last_error: LLMError | None = None
+        for index, client in enumerate(self.clients):
+            if self._is_open(index):
+                continue
+            self._calls[index] += 1
+            try:
+                turn = client.chat(messages, tools, tool_choice=tool_choice, json_mode=json_mode, max_tokens=max_tokens)
+            except LLMError as exc:
+                last_error = exc
+                self._failures[index] += 1
+                if self._failures[index] >= self.failure_threshold:
+                    self._opened_at[index] = self._clock()
+                continue
+            self._failures[index] = 0
+            return turn if turn.model else turn.model_copy(update={"model": client.model})
+        raise last_error or LLMError("all LLM clients are unavailable (circuits open)")
+
+    def stats(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "model": client.model,
+                "calls": self._calls[index],
+                "consecutive_failures": self._failures[index],
+                "circuit_open": self._opened_at[index] is not None,
+            }
+            for index, client in enumerate(self.clients)
+        ]
+
+
+def build_llm_from_config(config: dict[str, Any]) -> LLMClient | None:
+    """Primary client from the ``deepseek`` config section plus optional failover models.
+
+    ``QI_LLM_FALLBACK_MODELS`` (comma-separated) adds clients for the same endpoint and key with other
+    model ids, e.g. ``cline-pass/glm-5.3-flash``. Returns ``None`` when no API key is configured.
+    """
+    primary = DeepSeekToolClient.from_chatbot_config(config)
+    if not primary.configured:
+        return None
+    fallbacks = [model.strip() for model in os.getenv("QI_LLM_FALLBACK_MODELS", "").split(",") if model.strip()]
+    fallbacks = [model for model in dict.fromkeys(fallbacks) if model != primary.model]
+    if not fallbacks:
+        return primary
+    clients: list[LLMClient] = [primary]
+    clients += [DeepSeekToolClient.from_chatbot_config(config, model=model) for model in fallbacks]
+    return FallbackLLM(clients)
 
 
 def _parse_completion(data: dict[str, Any], *, model: str, latency_ms: float) -> AssistantTurn:
@@ -265,11 +394,15 @@ def _parse_completion(data: dict[str, Any], *, model: str, latency_ms: float) ->
         )
     usage_raw = data.get("usage") or {}
     details = usage_raw.get("completion_tokens_details") or {}
+    prompt_details = usage_raw.get("prompt_tokens_details") or {}
     usage = Usage(
         prompt_tokens=int(usage_raw.get("prompt_tokens") or 0),
         completion_tokens=int(usage_raw.get("completion_tokens") or 0),
-        prompt_cache_hit_tokens=int(usage_raw.get("prompt_cache_hit_tokens") or 0),
+        prompt_cache_hit_tokens=int(
+            usage_raw.get("prompt_cache_hit_tokens") or prompt_details.get("cached_tokens") or 0
+        ),
         reasoning_tokens=int(details.get("reasoning_tokens") or 0),
+        reported_cost_usd=_float_or_zero(usage_raw.get("cost")),
     )
     return AssistantTurn(
         content=message.get("content"),
@@ -280,6 +413,13 @@ def _parse_completion(data: dict[str, Any], *, model: str, latency_ms: float) ->
         model=str(data.get("model") or model),
         latency_ms=round(latency_ms, 2),
     )
+
+
+def _float_or_zero(value: Any) -> float:
+    try:
+        return max(float(value), 0.0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 ScriptStep = AssistantTurn | Callable[[list[dict[str, Any]], list[dict[str, Any]] | None], AssistantTurn] | Exception

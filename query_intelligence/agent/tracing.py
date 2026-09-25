@@ -75,6 +75,7 @@ def build_trace(result: dict[str, Any], *, session_id: str | None = None) -> dic
         "usage": llm.get("usage") or {},
         "cost": llm.get("cost"),
         "currency": llm.get("currency"),
+        "cost_source": llm.get("cost_source"),
         "verification_passed": verification.get("passed"),
         "unsupported_numbers": verification.get("unsupported_numbers") or [],
         "invalid_citations": verification.get("invalid_citations") or [],

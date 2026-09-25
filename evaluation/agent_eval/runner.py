@@ -24,6 +24,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -31,7 +32,7 @@ from typing import Any
 from query_intelligence.agent.composer import parse_answer
 from query_intelligence.agent.evidence import EvidenceStore
 from query_intelligence.agent.graph import AgentRuntime
-from query_intelligence.agent.llm import LLMClient, LLMError
+from query_intelligence.agent.llm import LLMClient, LLMError, Pricing, Usage, resolve_cost
 from query_intelligence.agent.prompts import ANSWER_CONTRACT
 from query_intelligence.agent.service import AgentService
 from query_intelligence.agent.state import AgentConfig
@@ -80,6 +81,33 @@ def build_registry(
     return live, None
 
 
+def map_tasks(
+    fn: Callable[[dict[str, Any]], list[dict[str, Any]]],
+    tasks: list[dict[str, Any]],
+    *,
+    workers: int = 1,
+    progress: Callable[[str], None] | None = None,
+) -> list[dict[str, Any]]:
+    """Apply ``fn`` to every task (optionally on a thread pool) and flatten the records in task order.
+
+    Tasks are independent (each uses its own session id), so they can run concurrently; results are
+    always returned in input order so reports do not depend on scheduling.
+    """
+    results: list[list[dict[str, Any]]] = []
+    if workers <= 1:
+        for index, task in enumerate(tasks, start=1):
+            results.append(fn(task))
+            if progress and index % 25 == 0:
+                progress(f"{index}/{len(tasks)} tasks")
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for index, records in enumerate(pool.map(fn, tasks), start=1):
+                results.append(records)
+                if progress and index % 25 == 0:
+                    progress(f"{index}/{len(tasks)} tasks")
+    return [record for records in results for record in records]
+
+
 def run_agent_tasks(
     tasks: list[dict[str, Any]],
     agent: AgentService,
@@ -87,9 +115,10 @@ def run_agent_tasks(
     mode: str,
     repeats: int = 1,
     progress: Callable[[str], None] | None = None,
+    workers: int = 1,
 ) -> list[dict[str, Any]]:
-    records = []
-    for index, task in enumerate(tasks, start=1):
+    def run_task(task: dict[str, Any]) -> list[dict[str, Any]]:
+        records = []
         for repeat in range(repeats):
             session = f"eval-{task['id']}-{mode}-{repeat}"
             turns = []
@@ -99,15 +128,18 @@ def run_agent_tasks(
                 latency_ms = round((time.perf_counter() - started) * 1000, 2)
                 turns.append(_turn_record(turn, response, latency_ms))
             records.append({"task": _task_meta(task), "repeat": repeat, "turns": turns})
-        if progress and index % 25 == 0:
-            progress(f"{index}/{len(tasks)} tasks")
-    return records
+        return records
+
+    return map_tasks(run_task, tasks, workers=workers, progress=progress)
 
 
-def run_pure_llm_tasks(tasks: list[dict[str, Any]], llm: LLMClient, *, repeats: int = 1) -> list[dict[str, Any]]:
+def run_pure_llm_tasks(
+    tasks: list[dict[str, Any]], llm: LLMClient, *, repeats: int = 1, workers: int = 1
+) -> list[dict[str, Any]]:
     """Baseline without tools: the model answers from parametric knowledge only."""
-    records = []
-    for task in tasks:
+
+    def run_task(task: dict[str, Any]) -> list[dict[str, Any]]:
+        records = []
         for repeat in range(repeats):
             history: list[dict[str, Any]] = []
             turns = []
@@ -125,6 +157,7 @@ def run_pure_llm_tasks(tasks: list[dict[str, Any]], llm: LLMClient, *, repeats: 
                 except LLMError as exc:
                     draft = {"answer": "", "key_points": [], "evidence_used": [], "limitations": [str(exc)]}
                     usage = {}
+                cost, currency, _source = resolve_cost(Usage(**usage), Pricing.from_env())
                 latency_ms = round((time.perf_counter() - started) * 1000, 2)
                 report = verify_answer(draft, EvidenceStore(), query=turn["query"])
                 response = {
@@ -133,7 +166,13 @@ def run_pure_llm_tasks(tasks: list[dict[str, Any]], llm: LLMClient, *, repeats: 
                     "tool_calls": [],
                     "verification": report.model_dump(),
                     "risk_disclaimer": "",
-                    "llm": {"calls": 1, "usage": usage, "model": getattr(llm, "model", None)},
+                    "llm": {
+                        "calls": 1,
+                        "usage": usage,
+                        "model": getattr(llm, "model", None),
+                        "cost": cost,
+                        "currency": currency,
+                    },
                 }
                 turns.append(_turn_record(turn, response, latency_ms))
                 history += [
@@ -141,7 +180,9 @@ def run_pure_llm_tasks(tasks: list[dict[str, Any]], llm: LLMClient, *, repeats: 
                     {"role": "assistant", "content": draft["answer"]},
                 ]
             records.append({"task": _task_meta(task), "repeat": repeat, "turns": turns})
-    return records
+        return records
+
+    return map_tasks(run_task, tasks, workers=workers)
 
 
 def summarize(records: list[dict[str, Any]], *, config: dict[str, Any], repeats: int) -> dict[str, Any]:
@@ -202,11 +243,11 @@ def _git_commit() -> str | None:
 def _make_llm(kind: str) -> LLMClient | None:
     if kind == "none":
         return None
-    from query_intelligence.agent.llm import DeepSeekToolClient
+    from query_intelligence.agent.llm import build_llm_from_config
     from query_intelligence.chatbot import load_chatbot_config
 
-    client = DeepSeekToolClient.from_chatbot_config(load_chatbot_config())
-    if not client.configured:
+    client = build_llm_from_config(load_chatbot_config())
+    if client is None:
         raise SystemExit("--llm deepseek requires DEEPSEEK_API_KEY (or deepseek.api_key in config/app_config.json)")
     return client
 
@@ -223,6 +264,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--category", action="append", default=[])
+    parser.add_argument("--workers", type=int, default=1, help="Run tasks concurrently (LLM modes).")
     parser.add_argument("--out", default="")
     args = parser.parse_args(argv)
 
@@ -237,7 +279,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     if args.mode == "pure_llm":
         if llm is None:
             raise SystemExit("pure_llm mode needs --llm deepseek")
-        records = run_pure_llm_tasks(tasks, llm, repeats=args.repeats)
+        records = run_pure_llm_tasks(tasks, llm, repeats=args.repeats, workers=args.workers)
         snapshot_info = None
     else:
         service = build_offline_service()
@@ -247,7 +289,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         )
         runtime = AgentRuntime(service, registry, llm, config=AgentConfig(), today=lambda: EVAL_TODAY)
         agent = AgentService(runtime, trace_sinks=[])
-        records = run_agent_tasks(tasks, agent, mode=args.mode, repeats=args.repeats, progress=print)
+        records = run_agent_tasks(
+            tasks, agent, mode=args.mode, repeats=args.repeats, progress=print, workers=args.workers
+        )
         agent.close()
         if args.record and isinstance(holder, RecordingRegistry):
             holder.save(args.snapshot, snapshot=SNAPSHOT_NAME)
