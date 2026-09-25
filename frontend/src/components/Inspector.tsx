@@ -49,8 +49,8 @@ export function Inspector({ turn, view, tab, onTab, highlight, highlightNonce, s
         ))}
       </Tabs.List>
       {turn && (
-        <p className="mt-2.5 truncate px-0.5 text-[12px] text-faint" title={turn.query}>
-          {t("inspector.forTurn", { q: turn.query })}
+        <p className="mt-2.5 truncate px-0.5 text-[12px] text-faint" title={turnLabel(turn)}>
+          {t("inspector.forTurn", { q: turnLabel(turn) })}
         </p>
       )}
       <div className="scrollbar-thin mt-2 min-h-0 flex-1 overflow-y-auto pr-0.5 pb-4">
@@ -80,4 +80,10 @@ export function Inspector({ turn, view, tab, onTab, highlight, highlightNonce, s
       </div>
     </Tabs.Root>
   );
+}
+
+/** A clarification reply is shown with the question it answered, e.g. "它的市盈率呢 → 宁德时代". */
+function turnLabel(turn: { query: string; via?: string; agent?: { query?: string | null } }): string {
+  const original = turn.agent?.query;
+  return turn.via === "resume" && original && original !== turn.query ? `${original} → ${turn.query}` : turn.query;
 }

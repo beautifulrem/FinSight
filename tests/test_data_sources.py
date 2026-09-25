@@ -1034,3 +1034,26 @@ def test_sources_health_endpoint_reports_status_latency_and_last_error():
     assert body["summary"]["down"] == 1
     assert body["live_providers"]["market"] is None
     assert body["circuit_breaker"]["failure_threshold"] == 3
+
+
+def test_js_engine_initialisation_survives_concurrent_first_use():
+    """Regression: concurrent first use of py_mini_racer (akshare Sina decoders) aborted the process."""
+    import subprocess
+    import sys
+
+    pytest.importorskip("py_mini_racer")
+    script = (
+        "import threading\n"
+        "from query_intelligence.integrations.sources.runtime import _run_with_timeout\n"
+        "import py_mini_racer\n"
+        "def work():\n"
+        "    for _ in range(3):\n"
+        "        _run_with_timeout(lambda: py_mini_racer.MiniRacer().eval('1+1'), 30)\n"
+        "threads = [threading.Thread(target=work) for _ in range(8)]\n"
+        "[t.start() for t in threads]; [t.join() for t in threads]\n"
+        "print('ok')\n"
+    )
+    result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120)
+
+    assert result.returncode == 0, result.stderr[-500:]
+    assert result.stdout.strip() == "ok"

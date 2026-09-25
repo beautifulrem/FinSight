@@ -451,7 +451,11 @@ class AgentRuntime:
                 "draft": parse_answer(turn.content),
                 "llm_calls": state.get("llm_calls", 0) + 1,
                 "usage": _add_usage(state.get("usage"), turn.usage),
-                "llm_log": [_llm_entry("revise", turn)],
+                "llm_log": [
+                    _llm_entry(
+                        "revise", turn, prompt=get_prompt("agent_system" if on_agent_path else "compose_system").ref
+                    )
+                ],
             }
         )
         return update
