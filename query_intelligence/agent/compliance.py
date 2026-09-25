@@ -2,13 +2,16 @@
 
 Reuses the judgment/causal softening rules from ``scripts/llm_response.py`` and the market-freshness
 and disclaimer conventions from ``query_intelligence/chatbot.py``, and additionally removes direct
-trading instructions (buy/sell/position calls, price targets) that a model might still produce.
+trading instructions that a model might still produce: buy/sell calls, price targets, investment ratings
+("买入评级", "rated outperform") and position sizing ("八成仓位", "逢低加仓"), including ratings quoted from
+third-party documents, because relaying them reads as a recommendation.
 """
 
 from __future__ import annotations
 
 import re
 import sys
+import threading
 from datetime import date
 from pathlib import Path
 from types import ModuleType
@@ -29,11 +32,17 @@ _TRADING_ZH = re.compile(
     r"(?:建议|推荐|可以|应该|应当|不妨|宜|可考虑|考虑|赶紧|立即|果断)\s*(?:逢低|逢高|适当|分批|立即|果断|继续)?\s*"
     r"(?:买入|卖出|加仓|减仓|清仓|满仓|全仓|抄底|建仓|止损|止盈|持有|增持|减持|入场|离场|上车)"
     r"|强烈推荐|强烈建议|目标价|梭哈|满仓|全仓买入"
+    # Investment ratings and position sizing are advice too, whoever is quoted as their author.
+    r"|(?:强烈)?(?:买入|增持|推荐|跑赢大市|优于大市|跑赢行业)(?:」|”|\"|')?\s*评级|评级(?:为|上调至|维持)?\s*(?:强烈)?(?:买入|增持|推荐)"
+    r"|(?:[一二三四五六七八九十]|\d{1,2})\s*成仓位?|仓位(?:可|应|宜|提高|提升|加到|降到|降至|控制在)|逢低(?:加仓|买入|吸纳|布局)"
 )
 _TRADING_EN = re.compile(
     r"\b(?:you should|we recommend|i recommend|i suggest|consider|it is a good time to|now is the time to)\s+"
     r"(?:buy|sell|short|add|accumulate|trim|dump|hold|exit|enter)\w*\b"
-    r"|\b(?:strong buy|strong sell|price target|target price|go all[- ]in)\b",
+    r"|\b(?:strong buy|strong sell|price target|target price|go all[- ]in)\b"
+    r"|\b(?:outperform|overweight|underweight|underperform|buy|sell|accumulate|market perform)\s+rating\b"
+    r"|\brated\s+(?:a\s+)?(?:strong\s+)?(?:buy|sell|outperform|overweight|underweight|accumulate)\b"
+    r"|\b(?:position size|increase (?:your|the) position|raise (?:your|the) position|allocate \d+%)",
     re.IGNORECASE,
 )
 # Lexical triggers make hedging independent of the NLU question-style label.
@@ -71,6 +80,55 @@ def _guards() -> ModuleType:
     from scripts import llm_response
 
     return llm_response
+
+
+_LINGUA_LOCK = threading.Lock()
+_lingua_detector: Any = None
+
+
+def _detector() -> Any:
+    """Lazily built lingua detector restricted to English and major European languages (about 5 s once)."""
+    global _lingua_detector
+    with _LINGUA_LOCK:
+        if _lingua_detector is None:
+            try:
+                from lingua import Language, LanguageDetectorBuilder
+            except ImportError:
+                _lingua_detector = False
+            else:
+                _lingua_detector = LanguageDetectorBuilder.from_languages(
+                    Language.ENGLISH,
+                    Language.FRENCH,
+                    Language.GERMAN,
+                    Language.SPANISH,
+                    Language.PORTUGUESE,
+                    Language.ITALIAN,
+                ).build()
+        return _lingua_detector
+
+
+def language_violation(answer_text: str, query: str) -> bool:
+    """True when the answer is not in the language of the question (e.g. hijacked by a poisoned document).
+
+    Chinese questions need a CJK-dominant answer. English answers are checked with lingua on the text
+    stripped of citations, Chinese names and numbers, and only when enough Latin text remains to be reliable.
+    """
+    text = str(answer_text or "")
+    cjk = len(re.findall(r"[\u4e00-\u9fff]", text))
+    latin = len(re.findall(r"[A-Za-z]", text))
+    if detect_query_language(query) == "zh":
+        return latin >= 40 and cjk < max(2, latin * 0.2)
+    if cjk >= max(40, latin):
+        return True
+    cleaned = re.sub(r"\[[^\]]+\]|[\u4e00-\u9fff]+|[\d.,%()（）:：/-]+", " ", text)
+    if len(re.findall(r"[A-Za-z]", cleaned)) < 60:
+        return False
+    detector = _detector()
+    if not detector:
+        return False
+    values = {item.language.name: item.value for item in detector.compute_language_confidence_values(cleaned)}
+    top = max(values, key=values.get)
+    return top != "ENGLISH" and values[top] >= 0.8 and values.get("ENGLISH", 0.0) < 0.2
 
 
 def contains_trading_instruction(text: str) -> bool:

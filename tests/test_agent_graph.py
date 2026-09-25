@@ -291,3 +291,16 @@ def test_cacheable_prefix_is_stable_and_prompt_versions_are_logged(monkeypatch):
     assert llm.requests[0]["messages"][0]["content"].startswith("<role>")
     entry = first["llm"]["log"][0]
     assert entry["node"] == "agent_llm" and entry["prompt"].startswith("agent_system@v2#")
+
+
+def test_llm_answer_in_the_wrong_language_falls_back_to_template():
+    french = (
+        "Les dernières nouvelles concernant Kweichow Moutai portent sur son rapport annuel et son plan "
+        "de dividendes, et le cours de clôture reste stable selon les données [price_600519.SH]."
+    )
+    llm = ScriptedLLM([tool_call_turn(("get_price_history", {"target": "600519.SH"})), final_turn({"answer": french})])
+
+    result = _runtime(llm).run("What is the latest close of Kweichow Moutai?", mode="agent")
+
+    assert "language_mismatch_fallback_to_template" in result["compliance_notes"]
+    assert "Les dernières" not in result["answer"] and "1409.5" in result["answer"]

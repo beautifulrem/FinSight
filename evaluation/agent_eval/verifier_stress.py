@@ -74,7 +74,7 @@ def gold_answers(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 store.add(AgentEvidence.model_validate(item))
             if not draft.get("answer") or not len(store):
                 continue
-            if not verify_answer(draft, store, query=turn["query"]).passed:
+            if not verify_answer(draft, store, query=turn["query"], market_precedence=False).passed:
                 continue
             golds.append({"task": task["id"], "query": turn["query"], "draft": draft, "store": store})
     finally:
@@ -144,6 +144,11 @@ def _variant(gold: dict[str, Any], answer: str, start: int, end: int, replacemen
     return {"kind": kind, "draft": draft, "original": answer[start:end], "replacement": replacement}
 
 
+def _check(draft: dict[str, Any], gold: dict[str, Any], mode: str) -> bool:
+    # Gold answers are template answers, for which the graph turns market precedence off.
+    return verify_answer(draft, gold["store"], query=gold["query"], binding=mode, market_precedence=False).passed
+
+
 def run(tasks: list[dict[str, Any]], *, seed: int = 7) -> dict[str, Any]:
     rng = random.Random(seed)
     golds = gold_answers(tasks)
@@ -154,15 +159,13 @@ def run(tasks: list[dict[str, Any]], *, seed: int = 7) -> dict[str, Any]:
     for gold in golds:
         gold_answer = dict(gold["draft"])
         for mode in _MODES:
-            true_accept[mode] += int(
-                verify_answer(gold_answer, gold["store"], query=gold["query"], binding=mode).passed
-            )
+            true_accept[mode] += int(_check(gold_answer, gold, mode))
         for variant in corruptions(gold, rng):
             kind = variant["kind"]
             totals[kind] = totals.get(kind, 0) + 1
             outcome = {}
             for mode in _MODES:
-                passed = verify_answer(variant["draft"], gold["store"], query=gold["query"], binding=mode).passed
+                passed = _check(variant["draft"], gold, mode)
                 accepted.setdefault(kind, {m: 0 for m in _MODES})[mode] += int(passed)
                 outcome[mode] = passed
             if outcome["legacy"] and not outcome["claim"] and len(examples) < 8:
