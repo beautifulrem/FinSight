@@ -48,6 +48,11 @@ COPY models ./models
 COPY data/runtime ./data/runtime
 COPY data/*.json data/*.csv ./data/
 
+# efinance writes <package>/data on import; point it at /tmp so the image also runs with a read-only
+# root filesystem (the Kubernetes manifest mounts an emptyDir there).
+RUN EF_DIR="$(python -c 'import importlib.util,os;print(os.path.dirname(importlib.util.find_spec("efinance").origin))')" \
+    && rm -rf "$EF_DIR/data" && ln -s /tmp/efinance-data "$EF_DIR/data"
+
 RUN useradd --create-home --uid 10001 finsight \
     && mkdir -p /app/outputs /app/state \
     && chown -R finsight:finsight /app/outputs /app/state

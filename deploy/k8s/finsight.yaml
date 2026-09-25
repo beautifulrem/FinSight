@@ -1,0 +1,190 @@
+# FinSight on Kubernetes: API/agent replicas sharing sessions through Postgres.
+#
+#   kubectl apply -f deploy/k8s/finsight.yaml
+#   kubectl -n finsight create secret generic finsight-llm --from-literal=DEEPSEEK_API_KEY=...   # optional
+#
+# The Postgres StatefulSet is for a self-contained demo; point QI_AGENT_CHECKPOINT_DB at a managed
+# database in production. Replicas are stateless apart from the checkpointer: sessions, clarification
+# interrupts and conversation memory live in Postgres, so any replica can serve any turn. The A2A task
+# store and the in-memory trace buffer are per pod (traces are also exported over OTLP when configured).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: finsight
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: finsight-db
+  namespace: finsight
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: change-me
+  QI_AGENT_CHECKPOINT_DB: postgresql://postgres:change-me@finsight-postgres:5432/finsight
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finsight-config
+  namespace: finsight
+data:
+  QI_USE_LIVE_MARKET: "1"
+  QI_USE_LIVE_NEWS: "1"
+  QI_USE_LIVE_ANNOUNCEMENT: "1"
+  QI_USE_LIVE_MACRO: "1"
+  QI_AGENT_DURABILITY: exit
+  QI_AGENT_REQUEST_TIMEOUT_S: "120"
+  QI_RATE_LIMIT_PER_MINUTE: "120"
+  QI_AGENT_TRACE_DIR: /app/outputs/traces
+  DEEPSEEK_BASE_URL: https://api.deepseek.com
+  DEEPSEEK_MODEL: deepseek-v4-flash
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: finsight-postgres
+  namespace: finsight
+spec:
+  serviceName: finsight-postgres
+  replicas: 1
+  selector:
+    matchLabels: {app: finsight-postgres}
+  template:
+    metadata:
+      labels: {app: finsight-postgres}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - {name: POSTGRES_DB, value: finsight}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: finsight-db, key: POSTGRES_PASSWORD}}
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec: {command: ["pg_isready", "-U", "postgres"]}
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests: {storage: 2Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finsight-postgres
+  namespace: finsight
+spec:
+  selector: {app: finsight-postgres}
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finsight-api
+  namespace: finsight
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: finsight-api}
+  strategy:
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  template:
+    metadata:
+      labels: {app: finsight-api}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: api
+          image: finsight:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: http, containerPort: 8000}
+          envFrom:
+            - configMapRef: {name: finsight-config}
+            - secretRef: {name: finsight-db}
+            - secretRef: {name: finsight-llm, optional: true}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          # NLU models load at start-up (about a minute); readiness gates traffic until /health answers.
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests: {cpu: 500m, memory: 2Gi}
+            limits: {cpu: "2", memory: 3Gi}
+          volumeMounts:
+            - {name: outputs, mountPath: /app/outputs}
+            - {name: state, mountPath: /app/state}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: outputs, emptyDir: {}}
+        - {name: state, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finsight-api
+  namespace: finsight
+spec:
+  selector: {app: finsight-api}
+  ports:
+    - {name: http, port: 80, targetPort: http}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: finsight-api
+  namespace: finsight
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: finsight-api
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: {type: Utilization, averageUtilization: 70}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: finsight-api
+  namespace: finsight
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app: finsight-api}

@@ -197,6 +197,7 @@ def run(tasks: list[dict[str, Any]], *, seed: int = 7) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
+    _git_commit()  # record the commit at start, not when the run finishes
     parser = argparse.ArgumentParser(description="Verifier false-accept stress test.")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--out", default=str(DEFAULT_OUTPUT_DIR / "verifier_stress.json"))

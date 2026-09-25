@@ -21,6 +21,7 @@ class EFinanceETFProvider:
 
     @classmethod
     def from_import(cls) -> "EFinanceETFProvider":
+        _ensure_efinance_data_dir()
         import efinance as ef
 
         return cls(fund_module=ef.fund, stock_module=ef.stock)
@@ -86,3 +87,17 @@ class EFinanceETFProvider:
                 return datetime.strptime(value, "%Y-%m-%d").date().isoformat()
             except ValueError:
                 return value
+
+
+def _ensure_efinance_data_dir() -> None:
+    """efinance creates ``<package>/data`` on import. With a read-only root filesystem (Kubernetes
+    ``readOnlyRootFilesystem``) the image links that path to ``/tmp``; create the link target first."""
+    import importlib.util
+    import os
+
+    spec = importlib.util.find_spec("efinance")
+    if spec is None or not spec.origin:
+        return
+    data_dir = os.path.join(os.path.dirname(spec.origin), "data")
+    if os.path.islink(data_dir):
+        os.makedirs(os.path.realpath(data_dir), exist_ok=True)

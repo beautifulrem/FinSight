@@ -351,6 +351,7 @@ def run_path(
 
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
+    _git_commit()  # record the commit at start, not when the run finishes
     parser = argparse.ArgumentParser(description="Prompt-injection red team over poisoned documents.")
     parser.add_argument("--llm", choices=["none", "deepseek"], default="none")
     parser.add_argument("--workers", type=int, default=1)

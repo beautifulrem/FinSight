@@ -22,7 +22,7 @@ from typing import Any
 
 from .injection import UNTRUSTED_NOTICE
 
-DEFAULT_PROMPT_VERSION = "v1"
+DEFAULT_PROMPT_VERSION = "v3"
 
 ANSWER_CONTRACT = (
     'Return only a JSON object: {"answer": string, "key_points": [string], '
@@ -109,6 +109,29 @@ only a JSON object with keys answer, key_points, evidence_used and limitations, 
 {_OUTPUT_EXAMPLE}
 </output_format>"""
 
+_V2_AGENT_COMPLIANCE = """<compliance>
+- No buy/sell/hold instructions, position sizes or price targets. Reason: this is an information service, not a \
+licensed investment adviser.
+- For "why" questions, present possible factors supported by evidence, not proven causes.
+</compliance>"""
+_V3_AGENT_COMPLIANCE = """<compliance>
+- No buy/sell/hold instructions, position sizes or price targets. Reason: this is an information service, not a \
+licensed investment adviser.
+- For "why" questions, present possible factors supported by evidence, not proven causes.
+- For judgment questions (whether to buy or sell, whether a price will rise, whether something is good or bad, \
+whether one factor helps another), say that the evidence only supports a conditional view, and describe the \
+uncertainty and the risks. Reason: the answer must not read as a recommendation.
+</compliance>"""
+_V2_COMPOSE_COMPLIANCE = """<compliance>
+No buy/sell/hold instructions, position sizes or price targets. For "why" questions list possible factors, not \
+proven causes.
+</compliance>"""
+_V3_COMPOSE_COMPLIANCE = """<compliance>
+No buy/sell/hold instructions, position sizes or price targets. For "why" questions list possible factors, not \
+proven causes. For judgment questions (whether to buy or sell, whether a price will rise, whether one factor \
+helps another), say that the evidence only supports a conditional view and describe the uncertainty and the risks.
+</compliance>"""
+
 _COMPOSE_SYSTEM_V2 = f"""<role>
 You are FinSight. Write the answer to a China-market financial question using only the evidence in the user \
 message. The evidence was already collected; do not ask for more.
@@ -135,6 +158,12 @@ limitations, for example:
 </output_format>"""
 
 
+# v3 = v2 plus the uncertainty/risk rule for judgment questions that v2 dropped from v1 (the v1 -> v2 A/B
+# showed hedging on held-out judgment questions falling from 1.00 to 0.67; see docs/agent-eval.md).
+_AGENT_SYSTEM_V3 = _AGENT_SYSTEM_V2.replace(_V2_AGENT_COMPLIANCE, _V3_AGENT_COMPLIANCE)
+_COMPOSE_SYSTEM_V3 = _COMPOSE_SYSTEM_V2.replace(_V2_COMPOSE_COMPLIANCE, _V3_COMPOSE_COMPLIANCE)
+
+
 @dataclass(frozen=True)
 class Prompt:
     id: str
@@ -154,10 +183,12 @@ PROMPTS: dict[str, dict[str, Prompt]] = {
     "agent_system": {
         "v1": Prompt("agent_system", "v1", _AGENT_SYSTEM_V1),
         "v2": Prompt("agent_system", "v2", _AGENT_SYSTEM_V2),
+        "v3": Prompt("agent_system", "v3", _AGENT_SYSTEM_V3),
     },
     "compose_system": {
         "v1": Prompt("compose_system", "v1", _COMPOSE_SYSTEM_V1),
         "v2": Prompt("compose_system", "v2", _COMPOSE_SYSTEM_V2),
+        "v3": Prompt("compose_system", "v3", _COMPOSE_SYSTEM_V3),
     },
 }
 
