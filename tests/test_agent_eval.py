@@ -174,3 +174,102 @@ def test_gate_threshold_check():
     assert check({"task_success": 0.99, "behavior_accuracy": 1.0, "compliance_clean": 1.0}, THRESHOLDS["holdout"]) == []
     problems = check({"task_success": 0.5, "behavior_accuracy": None, "compliance_clean": 1.0}, THRESHOLDS["holdout"])
     assert problems == ["task_success=0.5 < 0.8", "behavior_accuracy=None < 0.95"]
+
+
+def test_aggregate_labels_pass_k_by_runs_present_and_adds_cis():
+    ok = {"score": score_turn(_response(), EXPECT), "latency_ms": 10.0}
+    records = [
+        {"task": {"id": f"t{i}", "category": "fact", "language": "zh"}, "repeat": 0, "turns": [ok]} for i in range(5)
+    ]
+
+    summary = aggregate(records, repeats=3)  # asked for 3 repeats, but every task ran once
+
+    assert "pass^1" in summary and "pass^3" not in summary and summary["repeats"] == 1
+    assert summary["ci"] == {"task_success": [1.0, 1.0], "pass^1": [1.0, 1.0]}
+
+
+def test_bootstrap_ci_is_seeded_and_brackets_the_mean():
+    from evaluation.agent_eval.metrics import bootstrap_ci
+
+    values = [1.0] * 45 + [0.0] * 8  # 53 tasks, mean 0.849
+    low, high = bootstrap_ci(values)
+
+    assert bootstrap_ci(values) == [low, high]
+    assert low < 0.849 < high and 0.08 < high - low < 0.25  # roughly +-6 points for 53 tasks
+    assert bootstrap_ci([]) is None
+
+
+def test_paired_comparison_detects_real_and_null_differences():
+    from evaluation.agent_eval.metrics import paired_comparison
+
+    same = {f"t{i}": [True, True, i % 7 != 0] for i in range(60)}
+    better = {f"t{i}": [True, True, True] for i in range(60)}
+    worse = {f"t{i}": [i % 2 == 0] * 3 for i in range(60)}
+
+    null = paired_comparison(same, same)
+    real = paired_comparison(better, worse)
+
+    assert null["task_success"]["diff"] == 0 and not null["task_success"]["significant"]
+    assert null["mcnemar"] == {"a_only_pass": 0, "b_only_pass": 0, "p_value": 1.0, "significant": False}
+    assert real["pass^k"]["diff"] == 0.5 and real["pass^k"]["significant"]
+    assert real["mcnemar"]["a_only_pass"] == 30 and real["mcnemar"]["p_value"] < 0.001
+
+
+def test_mcnemar_exact_binomial():
+    from evaluation.agent_eval.metrics import _binomial_two_sided
+
+    assert _binomial_two_sided(0, 0) == 1.0
+    assert abs(_binomial_two_sided(1, 6) - 0.21875) < 1e-9  # 2 * (1 + 6) / 64
+    assert _binomial_two_sided(3, 6) == 1.0
+
+
+def test_legacy_freshness_guard_uses_pinned_date():
+    from query_intelligence.chat.answer import apply_market_freshness_guard
+
+    record = {
+        "query": "茅台现在能买吗",
+        "retrieval_result": {
+            "structured_data": [
+                {
+                    "evidence_id": "price_600519.SH",
+                    "source_type": "market_api",
+                    "payload": {"symbol": "600519.SH", "trade_date": "2026-04-22", "close": 1409.5},
+                }
+            ]
+        },
+    }
+    weekday = apply_market_freshness_guard({"answer": ""}, record, as_of_date=date(2026, 9, 25))
+    saturday = apply_market_freshness_guard({"answer": ""}, record, as_of_date=date(2026, 9, 26))
+
+    assert "不能据此判断" in weekday["answer"]  # the hedge the legacy baseline gets on trading days
+    assert "不是 A 股常规交易日" in saturday["answer"] and "不能据此" not in saturday["answer"]
+
+
+def test_test_v2_set_shape_matches_builder_and_has_no_overlap():
+    from evaluation.agent_eval import build_test_v2
+
+    tasks = build_test_v2.build_tasks()
+    committed = [
+        json.loads(line) for line in build_test_v2.TASKS_PATH.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    conversations = [task for task in tasks if task["category"] == "multi_turn"]
+
+    assert committed == tasks
+    assert len(tasks) >= 100 and len({task["id"] for task in tasks}) == len(tasks)
+    assert sum(1 for task in conversations if 3 <= len(task["turns"]) <= 5) >= 20
+    assert {task["language"] for task in tasks} == {"zh", "en"}
+    assert {"judgment", "injection", "clarify", "missing_data", "out_of_scope"} <= {task["category"] for task in tasks}
+    assert build_test_v2.overlap_report(tasks) == {"exact": [], "near": []}
+
+
+def test_test_v2_facts_come_from_offline_data():
+    from evaluation.agent_eval import build_test_v2
+    from query_intelligence.data_loader import load_structured_data
+
+    data = load_structured_data()
+    moutai = data["fundamental_sql"]["600519.SH"]
+
+    assert build_test_v2.price("600519.SH")["value"] == data["market_api"]["600519.SH"]["close"]
+    assert build_test_v2.net_margin("600519.SH")["value"] == round(moutai["net_profit"] / moutai["revenue"] * 100, 1)
+    assert build_test_v2.macro("CN10Y")["value"] == data["macro_sql"]["UST10Y_CN_PROXY"]["metric_value"]
+    assert build_test_v2.symbol("宁德时代") == "300750.SZ" and not build_test_v2.has_market("300750.SZ")
