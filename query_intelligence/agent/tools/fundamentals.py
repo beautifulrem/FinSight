@@ -89,6 +89,8 @@ def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
         if fundamental is not None:
             item = AgentEvidence.from_structured(fundamental, produced_by="get_fundamentals")
             item.title = f"{resolved.name} ({resolved.symbol}) fundamentals"
+            item.payload = _tidy_payload(item.payload)
+            item.as_of = item.as_of or _as_str(payload.get("report_date")) or _provenance_as_of(payload)
             evidence.append(item)
             fundamental_evidence_id = item.evidence_id
 
@@ -100,6 +102,12 @@ def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
                 industry_payload.get("industry_name") or industry_evidence.evidence_id.removeprefix("industry_")
             )
             industry_evidence.title = f"{industry_name} industry snapshot"
+            industry_evidence.payload = _tidy_payload(industry_evidence.payload)
+            industry_evidence.as_of = (
+                industry_evidence.as_of
+                or _as_str(industry_payload.get("trade_date") or industry_payload.get("as_of"))
+                or _provenance_as_of(industry_payload)
+            )
             evidence.append(industry_evidence)
             industry_snapshot = IndustrySnapshot(
                 industry_name=industry_name,
@@ -135,9 +143,29 @@ def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
     )
 
 
+# Valuation multiples are quoted to two decimals; other floats keep four (ratios such as ROE 0.1141).
+_TWO_DECIMAL_KEYS = {"pe", "pe_ttm", "pb", "ps", "ps_ttm", "pcf", "dividend_yield"}
+
+
+def _tidy(key: str, value: Any) -> Any:
+    """Round provider floats (e.g. PE 15.97759372) so the model does not copy spurious precision."""
+    if isinstance(value, bool) or not isinstance(value, float):
+        return value
+    return round(value, 2 if key.lower() in _TWO_DECIMAL_KEYS else 4)
+
+
+def _tidy_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return {key: _tidy(str(key), value) for key, value in (payload or {}).items()}
+
+
+def _provenance_as_of(payload: dict[str, Any]) -> str | None:
+    provenance = payload.get("provenance")
+    return _as_str(provenance.get("as_of")) if isinstance(provenance, dict) else None
+
+
 def _metrics(payload: dict[str, Any]) -> dict[str, Any]:
     return {
-        key: value
+        key: _tidy(str(key), value)
         for key, value in payload.items()
         if key not in _METADATA_KEYS
         and not str(key).startswith("_")

@@ -31,6 +31,34 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
+_JS_ENGINE_LOCK = threading.Lock()
+_js_engine_ready = False
+
+
+def ensure_js_engine_ready() -> None:
+    """Initialise the embedded V8 engine (``py_mini_racer``) once, before any concurrent use.
+
+    Several akshare functions (Sina daily bars and indices, cninfo profiles, ...) decode responses with
+    ``py_mini_racer``. V8's process-wide allocator is not safe to initialise from two threads at once:
+    concurrent first use aborts the whole process (``Check failed: !pool->IsInitialized()``). Live calls
+    run on worker threads and the agent runs tools in parallel, so the first call initialises the
+    engine under a lock and every later call finds it ready. No-op when the package is missing.
+    """
+    global _js_engine_ready
+    if _js_engine_ready:
+        return
+    with _JS_ENGINE_LOCK:
+        if _js_engine_ready:
+            return
+        try:
+            import py_mini_racer
+
+            py_mini_racer.MiniRacer().eval("0")
+        except Exception:  # missing package or unusable engine: the calls that need it fail on their own
+            pass
+        _js_engine_ready = True
+
+
 _ACTIVE_TRACES: contextvars.ContextVar[tuple[list[str], ...]] = contextvars.ContextVar("source_traces", default=())
 
 
@@ -207,6 +235,7 @@ class SourceRuntime:
 
 
 def _run_with_timeout(fn: Callable[[], T], timeout_s: float | None) -> T:
+    ensure_js_engine_ready()
     if not timeout_s or timeout_s <= 0:
         return fn()
     outcome: dict[str, Any] = {}
@@ -238,6 +267,7 @@ _default_lock = threading.Lock()
 
 
 def runtime_from_settings(settings: Settings) -> SourceRuntime:
+    ensure_js_engine_ready()
     health = SourceHealthRegistry(
         failure_threshold=settings.source_failure_threshold,
         cooldown_s=settings.source_cooldown_seconds,

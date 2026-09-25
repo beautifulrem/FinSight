@@ -152,12 +152,12 @@ function NodeDetails({ node, response, finalVerify }: { node: TraceNode; respons
         )}
         {(v.misattributed_numbers ?? []).length > 0 && (
           <Badge tone="warn">
-            {t("trace.misattributed")}: {(v.misattributed_numbers ?? []).join(", ")}
+            {t("trace.misattributed", { n: String((v.misattributed_numbers ?? []).length) })}: {(v.misattributed_numbers ?? []).join(", ")}
           </Badge>
         )}
         {(v.unsupported_numbers ?? []).length > 0 && (
           <Badge tone="up">
-            {t("trace.unsupported")}: {(v.unsupported_numbers ?? []).join(", ")}
+            {t("trace.unsupported", { n: String((v.unsupported_numbers ?? []).length) })}: {(v.unsupported_numbers ?? []).join(", ")}
           </Badge>
         )}
       </div>
