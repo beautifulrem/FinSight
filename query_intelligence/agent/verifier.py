@@ -37,6 +37,13 @@ _UNIT_SCALES: tuple[tuple[re.Pattern[str], tuple[float, ...]], ...] = (
     (re.compile(r"^\s*(?:thousand|k)\b", re.IGNORECASE), (1e-3, 1.0)),
 )
 _BARE_SCALES = (1.0,)
+# Market metrics must come from market/fundamental data, not from third-party text: a closing price or a
+# valuation multiple that is only backed by a news excerpt is exactly what a poisoned document would plant.
+_MARKET_METRIC = re.compile(
+    r"收盘|收于|股价|现价|最新价|市盈率|市净率|涨跌幅|当日(?:上涨|下跌|涨|跌)|"
+    r"\bclos(?:e|ed|ing)\b|share price|last price|\bP/?E\b|\bP/?B\b|price[- ]to[- ](?:earnings|book)",
+    re.IGNORECASE,
+)
 _CITATION = re.compile(r"\[([^\[\]\s]{2,160})\]")
 _DATE_PATTERNS = (
     re.compile(r"\d{4}-\d{1,2}-\d{1,2}(?:[T ]\d{1,2}:\d{2}(?::\d{2})?)?"),
@@ -67,6 +74,10 @@ class VerificationReport(BaseModel):
         default_factory=list,
         description="Numbers present in the run's evidence but not in the evidence cited next to them",
     )
+    document_market_numbers: list[float] = Field(
+        default_factory=list,
+        description="Prices, valuation multiples or daily moves supported only by document text, not market data",
+    )
     checked_numbers: int = 0
     missing_citations: bool = False
 
@@ -82,6 +93,12 @@ class VerificationReport(BaseModel):
             problems.append(
                 f"These numbers do not appear in the evidence cited in the same sentence: {values}. "
                 "Cite the evidence id that actually contains each number."
+            )
+        if self.document_market_numbers:
+            values = ", ".join(_format_number(value) for value in self.document_market_numbers)
+            problems.append(
+                f"These prices or valuation figures are only backed by news or document text: {values}. State market "
+                "metrics only from market or fundamental data evidence, or drop them."
             )
         if self.missing_citations:
             problems.append("The answer cites no evidence ids although evidence is available.")
@@ -142,18 +159,28 @@ def claim_units(answer: dict[str, Any]) -> list[str]:
 
 
 def verify_answer(
-    answer: dict[str, Any], store: EvidenceStore, *, query: str = "", binding: str = "claim"
+    answer: dict[str, Any],
+    store: EvidenceStore,
+    *,
+    query: str = "",
+    binding: str = "claim",
+    market_precedence: bool = True,
 ) -> VerificationReport:
     """``binding="claim"`` (default) checks each number against the evidence cited in its sentence with a
     unit- and precision-aware tolerance. ``"run"`` checks against all evidence of the run, and ``"legacy"``
     also uses the original loose matching (any of 13 scales, ±max(0.011, 0.5%)); both are kept only so
-    ``evaluation/agent_eval/verifier_stress.py`` can measure the improvement."""
+    ``evaluation/agent_eval/verifier_stress.py`` can measure the improvement.
+
+    ``market_precedence`` (on for LLM drafts) rejects prices, valuation multiples and daily moves backed
+    only by document text. Template answers quote documents with explicit attribution ("相关资料：《…》")
+    and are deterministic, so the graph turns it off for them."""
     ids = cited_ids(answer)
     invalid = [evidence_id for evidence_id in ids if evidence_id not in store]
     known = _evidence_numbers(store)
     query_numbers = claim_numbers(query)
     unsupported: list[float] = []
     misattributed: list[float] = []
+    document_market: list[float] = []
     checked = 0
     for unit in claim_units(answer):
         unit_ids = (
@@ -162,13 +189,23 @@ def verify_answer(
             else []
         )
         scope = _evidence_numbers(store, unit_ids) if unit_ids else known
+        market_scope = (
+            _evidence_numbers(store, [i for i in (unit_ids or store.ids()) if _is_structured(store, i)])
+            if binding == "claim" and market_precedence and _MARKET_METRIC.search(unit)
+            else None
+        )
         for value, scales, rounding in claim_values(unit):
             if binding == "legacy":
                 scales, rounding = _SCALES, None
             if value == 0 and binding != "legacy":
                 continue  # zero counts ("0 negative") carry no checkable magnitude
             checked += 1
-            if _is_supported(value, scope, scales, rounding) or _is_supported(value, query_numbers, _BARE_SCALES):
+            if _is_supported(value, query_numbers, _BARE_SCALES):
+                continue
+            if _is_supported(value, scope, scales, rounding):
+                document_only = market_scope is not None and not _is_supported(value, market_scope, scales, rounding)
+                if document_only and value not in document_market:
+                    document_market.append(value)
                 continue
             if unit_ids and _is_supported(value, known, scales, rounding):
                 if value not in misattributed:
@@ -178,11 +215,12 @@ def verify_answer(
     valid_cited = [evidence_id for evidence_id in ids if evidence_id in store]
     missing = len(store) > 0 and not valid_cited
     return VerificationReport(
-        passed=not invalid and not unsupported and not misattributed and not missing,
+        passed=not invalid and not unsupported and not misattributed and not document_market and not missing,
         cited_ids=valid_cited,
         invalid_citations=invalid,
         unsupported_numbers=unsupported,
         misattributed_numbers=misattributed,
+        document_market_numbers=document_market,
         checked_numbers=checked,
         missing_citations=missing,
     )
@@ -195,7 +233,7 @@ def repair_answer(
     repaired = dict(answer)
     notes: list[str] = []
     invalid = set(report.invalid_citations)
-    unsupported = [*report.unsupported_numbers, *report.misattributed_numbers]
+    unsupported = [*report.unsupported_numbers, *report.misattributed_numbers, *report.document_market_numbers]
 
     def has_unsupported(text: str) -> bool:
         return bool(unsupported) and any(
@@ -247,6 +285,11 @@ def repair_answer(
             else "The available evidence is not enough for a complete answer; only verifiable points are listed."
         )
     return repaired, notes
+
+
+def _is_structured(store: EvidenceStore, evidence_id: str) -> bool:
+    item = store.get(evidence_id)
+    return item is not None and item.kind == "structured"
 
 
 def _evidence_numbers(store: EvidenceStore, evidence_ids: list[str] | None = None) -> list[float]:

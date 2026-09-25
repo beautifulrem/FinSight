@@ -32,7 +32,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
 from ..chatbot import detect_query_language
-from .compliance import apply_compliance
+from .compliance import apply_compliance, language_violation
 from .composer import compose_template, parse_answer
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
@@ -409,7 +409,8 @@ class AgentRuntime:
     def verify(self, state: AgentState) -> dict[str, Any]:
         draft = state.get("draft") or {}
         store = _store(state)
-        report = verify_answer(draft, store, query=state["query"])
+        llm_draft = state.get("draft_source") in {"llm_agent", "llm_compose"}
+        report = verify_answer(draft, store, query=state["query"], market_precedence=llm_draft)
         update: dict[str, Any] = {"verification": report.model_dump()}
         can_revise = (
             not report.passed
@@ -465,6 +466,14 @@ class AgentRuntime:
 
     def compliance(self, state: AgentState) -> dict[str, Any]:
         draft = dict(state.get("draft") or {})
+        fallback_notes: list[str] = []
+        if state.get("draft_source") in {"llm_agent", "llm_compose"} and language_violation(
+            str(draft.get("answer") or ""), state["query"]
+        ):
+            # A poisoned document can hijack the output language; fall back to the deterministic answer.
+            style = str((state.get("nlu") or {}).get("question_style") or "")
+            draft = compose_template(state.get("tool_log") or [], zh=self._zh(state), question_style=style)
+            fallback_notes.append("language_mismatch_fallback_to_template")
         limitations = list(draft.get("limitations") or [])
         limitations.extend(state.get("verification_notes") or [])
         draft["limitations"] = list(dict.fromkeys(limitations))
@@ -481,7 +490,7 @@ class AgentRuntime:
             market_evidence=market,
             today=self.today(),
         )
-        return {"answer": answer, "compliance_notes": notes}
+        return {"answer": answer, "compliance_notes": [*fallback_notes, *notes]}
 
     def finalize(self, state: AgentState) -> dict[str, Any]:
         from ..chatbot import DEFAULT_RISK_DISCLAIMER_EN, DEFAULT_RISK_DISCLAIMER_ZH

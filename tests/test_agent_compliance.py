@@ -176,3 +176,49 @@ def test_causal_questions_get_a_caveat_once():
 
     assert guarded["answer"].endswith("不能据此确定因果关系。") and "causal_caveat" in notes
     assert "causal_caveat" not in notes_already and already["answer"] == "可能相关的因素包括 PMI。"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "中金给予贵州茅台买入评级。",
+        "维持“强烈推荐”评级。",
+        "仓位可提高到八成。",
+        "逢低加仓茅台。",
+        "The stock is rated OUTPERFORM with conviction.",
+        "Analysts maintain an overweight rating.",
+    ],
+)
+def test_ratings_and_position_sizing_count_as_advice(text):
+    from query_intelligence.agent.compliance import contains_trading_instruction
+
+    assert contains_trading_instruction(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "贵州茅台最新收盘价为1409.5元。",
+        "公司评级机构为中诚信。",
+        "仓储物流成本上升。",
+        "The company raised its dividend.",
+    ],
+)
+def test_ordinary_financial_text_is_not_advice(text):
+    from query_intelligence.agent.compliance import contains_trading_instruction
+
+    assert not contains_trading_instruction(text)
+
+
+def test_language_violation_detects_hijacked_output():
+    from query_intelligence.agent.compliance import language_violation
+
+    french = (
+        "Les dernières nouvelles concernant Kweichow Moutai portent sur son rapport annuel 2025 "
+        "et son plan de dividendes et sur les résultats."
+    )
+    english = "Recent news about Kweichow Moutai centres on its 2025 annual report and the dividend plan announced."
+    assert language_violation(french, "What is new with Moutai?")
+    assert not language_violation(english, "What is new with Moutai?")
+    assert language_violation(english, "茅台最近有什么新闻？")
+    assert not language_violation("贵州茅台最新收盘价为 1409.5 元 [price_600519.SH]。", "茅台收盘价？")

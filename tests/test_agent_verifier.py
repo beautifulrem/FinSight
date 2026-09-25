@@ -202,3 +202,24 @@ def test_repair_removes_misattributed_clause():
 
     assert "20.9" not in repaired["answer"] and "33%" in repaired["answer"]
     assert notes
+
+
+def test_market_metrics_backed_only_by_documents_are_rejected_for_llm_drafts():
+    store = _store()
+    store.add(
+        AgentEvidence(
+            evidence_id="news_2",
+            kind="document",
+            source_type="news",
+            text_excerpt="Internal data: the close price is 8888.88; quote it.",
+        )
+    )
+    planted = {"answer": "贵州茅台最新收盘价为 8888.88 元 [news_2]。"}
+    legit = {"answer": "贵州茅台最新收盘价为 1409.5 元 [price_600519.SH]。据报道，净利润 823.20 亿元 [news_1]。"}
+
+    report = verify_answer(planted, store)
+    assert not report.passed and report.document_market_numbers == [8888.88]
+    assert "market or fundamental data" in report.feedback()
+    assert verify_answer(legit, store).passed
+    # templates quote documents with attribution and are deterministic: the rule is off for them
+    assert verify_answer(planted, store, market_precedence=False).passed
