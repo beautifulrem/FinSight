@@ -40,7 +40,7 @@ from query_intelligence.agent.state import AgentConfig
 from query_intelligence.agent.tools import ToolRegistry, build_registry_for_service
 from query_intelligence.agent.verifier import verify_answer
 
-from .metrics import aggregate, breakdown, failed_checks, score_turn
+from .metrics import aggregate, breakdown, failed_checks, score_turn, task_outcomes
 from .replay import RecordingRegistry, ReplayRegistry
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -48,6 +48,12 @@ EVAL_DIR = Path(__file__).resolve().parent
 DEFAULT_TASKS = EVAL_DIR / "tasks" / "agent_eval_v1.jsonl"
 DEFAULT_SNAPSHOT = EVAL_DIR / "fixtures" / "snapshot_v1.json"
 DEFAULT_OUTPUT_DIR = ROOT / "outputs" / "agent_eval"
+# name -> (task file, tool snapshot). ``test_v2`` is the untouched test set: never used for tuning.
+TASK_SETS: dict[str, tuple[Path, Path]] = {
+    "dev": (DEFAULT_TASKS, DEFAULT_SNAPSHOT),
+    "holdout": (EVAL_DIR / "tasks" / "agent_eval_holdout_v1.jsonl", EVAL_DIR / "fixtures" / "snapshot_holdout_v1.json"),
+    "test_v2": (EVAL_DIR / "tasks" / "agent_eval_test_v2.jsonl", EVAL_DIR / "fixtures" / "snapshot_test_v2.json"),
+}
 SNAPSHOT_NAME = "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)"
 EVAL_TODAY = date(2026, 4, 23)  # fixed "today" so freshness notes are reproducible
 
@@ -208,6 +214,7 @@ def summarize(records: list[dict[str, Any]], *, config: dict[str, Any], repeats:
         "by_language": breakdown(records, "language"),
         "failed_checks": failed_checks(records),
         "failures": failures,
+        "task_outcomes": task_outcomes(records),
         "records": records,
     }
 

@@ -9,9 +9,11 @@ missing-data, and entity-carry-over expectations hold.
 from __future__ import annotations
 
 import math
+import random
 import re
 import statistics
 from collections import defaultdict
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from query_intelligence.agent.verifier import _is_supported, answer_texts, claim_numbers
@@ -145,12 +147,125 @@ def _ratio(numerator: float, denominator: float) -> float | None:
     return round(numerator / denominator, 4) if denominator else None
 
 
+BOOTSTRAP_RESAMPLES = 2000
+BOOTSTRAP_SEED = 20260926
+CI_METHOD = (
+    f"percentile bootstrap over tasks, {BOOTSTRAP_RESAMPLES} resamples, seed {BOOTSTRAP_SEED}, 95%; "
+    "repeats of a task stay together"
+)
+
+
+def task_outcomes(records: list[dict[str, Any]]) -> dict[str, list[bool]]:
+    """Task id -> success of each repeat (a run succeeds only when every turn succeeds), in run order."""
+    outcomes: dict[str, list[bool]] = defaultdict(list)
+    for record in sorted(records, key=lambda item: item.get("repeat", 0)):
+        outcomes[record["task"]["id"]].append(all(turn["score"]["success"] for turn in record["turns"]))
+    return dict(outcomes)
+
+
+def task_success_value(runs: Sequence[bool]) -> float:
+    return sum(runs) / len(runs)
+
+
+def pass_all_value(runs: Sequence[bool]) -> float:
+    return 1.0 if all(runs) else 0.0
+
+
+def bootstrap_ci(
+    values: Sequence[float],
+    *,
+    resamples: int = BOOTSTRAP_RESAMPLES,
+    seed: int = BOOTSTRAP_SEED,
+    level: float = 0.95,
+) -> list[float] | None:
+    """Percentile bootstrap CI of the mean of per-task ``values`` (tasks are the resampling unit)."""
+    if not values:
+        return None
+    rng = random.Random(seed)
+    size = len(values)
+    means = sorted(statistics.fmean(rng.choices(values, k=size)) for _ in range(resamples))
+    tail = (1.0 - level) / 2
+    low = means[max(0, math.floor(tail * resamples))]
+    high = means[min(resamples - 1, math.ceil((1.0 - tail) * resamples) - 1)]
+    return [round(low, 4), round(high, 4)]
+
+
+def outcome_cis(outcomes: Mapping[str, Sequence[bool]]) -> dict[str, list[float] | None]:
+    """Bootstrap CIs for task success (mean over repeats) and pass^k (all repeats succeed)."""
+    runs = list(outcomes.values())
+    k = min((len(item) for item in runs), default=1)
+    return {
+        "task_success": bootstrap_ci([task_success_value(item) for item in runs]),
+        f"pass^{k}": bootstrap_ci([pass_all_value(item) for item in runs]),
+    }
+
+
+def _binomial_two_sided(successes: int, trials: int) -> float:
+    """Exact two-sided binomial test against p = 0.5 (the exact McNemar test on discordant pairs)."""
+    if trials == 0:
+        return 1.0
+    tail = sum(math.comb(trials, i) for i in range(0, min(successes, trials - successes) + 1)) / 2**trials
+    return min(1.0, 2 * tail)
+
+
+def paired_comparison(
+    a: Mapping[str, Sequence[bool]],
+    b: Mapping[str, Sequence[bool]],
+    *,
+    resamples: int = BOOTSTRAP_RESAMPLES,
+    seed: int = BOOTSTRAP_SEED,
+    alpha: float = 0.05,
+) -> dict[str, Any]:
+    """Compare two answer paths on the same tasks (``a`` minus ``b``).
+
+    * Paired bootstrap over tasks for the difference in task success and in pass^k: each resample
+      draws tasks with replacement and uses both paths' results on the drawn tasks. A difference is
+      called significant when the 95% interval excludes 0.
+    * Exact McNemar test on the per-task pass^k outcome (discordant tasks only).
+    """
+    common = sorted(set(a) & set(b))
+    if not common:
+        return {"tasks": 0}
+    metrics: dict[str, Callable[[Sequence[bool]], float]] = {
+        "task_success": task_success_value,
+        "pass^k": pass_all_value,
+    }
+    rng = random.Random(seed)
+    draws = [rng.choices(range(len(common)), k=len(common)) for _ in range(resamples)]
+    result: dict[str, Any] = {"tasks": len(common), "method": "paired bootstrap over tasks + exact McNemar"}
+    for name, fn in metrics.items():
+        diffs = [fn(a[task]) - fn(b[task]) for task in common]
+        boot = sorted(statistics.fmean(diffs[index] for index in draw) for draw in draws)
+        low = boot[max(0, math.floor(alpha / 2 * resamples))]
+        high = boot[min(resamples - 1, math.ceil((1 - alpha / 2) * resamples) - 1)]
+        result[name] = {
+            "a": round(statistics.fmean(fn(a[task]) for task in common), 4),
+            "b": round(statistics.fmean(fn(b[task]) for task in common), 4),
+            "diff": round(statistics.fmean(diffs), 4),
+            "ci": [round(low, 4), round(high, 4)],
+            "significant": low > 0 or high < 0,
+        }
+    only_a = sum(1 for task in common if all(a[task]) and not all(b[task]))
+    only_b = sum(1 for task in common if all(b[task]) and not all(a[task]))
+    p_value = _binomial_two_sided(only_a, only_a + only_b)
+    result["mcnemar"] = {
+        "a_only_pass": only_a,
+        "b_only_pass": only_b,
+        "p_value": round(p_value, 4),
+        "significant": p_value < alpha,
+    }
+    return result
+
+
 def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, Any]:
-    """``records``: one per task run with ``task``, ``repeat``, ``turns`` (scored turns + latency)."""
+    """``records``: one per task run with ``task``, ``repeat``, ``turns`` (scored turns + latency).
+
+    ``pass^k`` uses the number of runs actually present per task (so a path that ran once is reported
+    as pass^1 even when ``repeats`` says otherwise), and carries a bootstrap 95% CI.
+    """
     turns = [turn for record in records for turn in record["turns"]]
-    task_runs: dict[str, list[bool]] = defaultdict(list)
-    for record in records:
-        task_runs[record["task"]["id"]].append(all(turn["score"]["success"] for turn in record["turns"]))
+    task_runs = task_outcomes(records)
+    k = min((len(runs) for runs in task_runs.values()), default=repeats)
 
     def mean(values: list[float]) -> float | None:
         clean = [value for value in values if value is not None]
@@ -169,9 +284,11 @@ def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, A
     summary = {
         "tasks": len(task_runs),
         "turns": len(turns),
-        "repeats": repeats,
-        "task_success": mean([sum(runs) / len(runs) for runs in task_runs.values()]),
-        f"pass^{repeats}": mean([1.0 if all(runs) else 0.0 for runs in task_runs.values()]),
+        "repeats": k,
+        "task_success": mean([task_success_value(runs) for runs in task_runs.values()]),
+        f"pass^{k}": mean([pass_all_value(runs) for runs in task_runs.values()]),
+        "ci": outcome_cis(task_runs),
+        "ci_method": CI_METHOD,
         "turn_success": mean([1.0 if score["success"] else 0.0 for score in scores]),
         "behavior_accuracy": mean([1.0 if score["checks"]["behavior"] else 0.0 for score in scores]),
         "fact_recall": mean([1.0 if fact["stated"] and fact["cited"] else 0.0 for fact in facts]),

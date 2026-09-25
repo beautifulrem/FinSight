@@ -15,7 +15,12 @@ def build_chatbot_response(
     pipeline_result: dict[str, Any],
     deepseek_client: DeepSeekClient,
     progress: Any | None = None,
+    as_of_date: date | None = None,
 ) -> dict[str, Any]:
+    """``as_of_date`` ("today") defaults to the wall-clock date.
+
+    Evaluations pin it so the market freshness guard does not depend on the day a run happens.
+    """
     record = {
         "status": "ok",
         "query": query,
@@ -36,7 +41,7 @@ def build_chatbot_response(
         llm_status = {"provider": "deepseek", "model": deepseek_client.model, "status": "fallback", "error": str(exc)}
     if progress:
         progress("Step 3/3: applying market freshness guard and formatting evidence sources...")
-    answer = apply_market_freshness_guard(answer, record)
+    answer = apply_market_freshness_guard(answer, record, as_of_date=as_of_date)
     evidence_sources = build_evidence_sources(record, answer.get("evidence_used") or [])
     if progress:
         progress(f"Step 3/3 complete: evidence_sources={len(evidence_sources)}")
@@ -136,13 +141,15 @@ def template_answer(record: dict[str, Any], *, fallback_reason: str | None = Non
     }
 
 
-def apply_market_freshness_guard(answer: dict[str, Any], record: dict[str, Any]) -> dict[str, Any]:
+def apply_market_freshness_guard(
+    answer: dict[str, Any], record: dict[str, Any], *, as_of_date: date | None = None
+) -> dict[str, Any]:
     query = str(record.get("query") or (record.get("nlu_result") or {}).get("raw_query") or "")
     if not _asks_for_current_market_data(query):
         return answer
 
     language = detect_query_language(query)
-    today_date = date.today()
+    today_date = as_of_date or date.today()
     today = today_date.isoformat()
     market_item = _first_market_item(record)
     if _is_known_non_trading_day(today_date):

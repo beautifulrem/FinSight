@@ -13,7 +13,7 @@ import json
 import sys
 from typing import Any
 
-from .runner import DEFAULT_OUTPUT_DIR, DEFAULT_SNAPSHOT, DEFAULT_TASKS, EVAL_DIR
+from .runner import DEFAULT_OUTPUT_DIR, TASK_SETS
 from .runner import main as run_eval
 
 THRESHOLDS: dict[str, dict[str, float]] = {
@@ -31,10 +31,8 @@ THRESHOLDS: dict[str, dict[str, float]] = {
         "compliance_clean": 1.0,
     },
 }
-SETS = {
-    "dev": (DEFAULT_TASKS, DEFAULT_SNAPSHOT),
-    "holdout": (EVAL_DIR / "tasks" / "agent_eval_holdout_v1.jsonl", EVAL_DIR / "fixtures" / "snapshot_holdout_v1.json"),
-}
+# The untouched test set (test_v2) is deliberately not gated: gating on it would turn it into a tuning target.
+SETS = {name: TASK_SETS[name] for name in ("dev", "holdout")}
 
 
 def check(summary: dict[str, Any], thresholds: dict[str, float]) -> list[str]:
