@@ -223,3 +223,60 @@ def test_market_metrics_backed_only_by_documents_are_rejected_for_llm_drafts():
     assert verify_answer(legit, store).passed
     # templates quote documents with attribution and are deterministic: the rule is off for them
     assert verify_answer(planted, store, market_precedence=False).passed
+
+
+def _probe_store() -> EvidenceStore:
+    store = EvidenceStore()
+    store.add(
+        AgentEvidence(
+            evidence_id="price_600519.SH",
+            kind="structured",
+            source_type="market_api",
+            payload={"close": 1420.50, "pct_change_1d": -2.35, "pe_ttm": 21.4},
+        )
+    )
+    return store
+
+
+def test_stated_direction_must_match_signed_evidence():
+    store = _probe_store()
+
+    assert verify_answer({"answer": "收盘价1420.50元，当日下跌2.35%[price_600519.SH]。"}, store).passed
+    assert verify_answer({"answer": "Close 1420.50, down 2.35% on the day [price_600519.SH]."}, store).passed
+    flipped = verify_answer({"answer": "收盘价1420.50元，当日上涨2.35%[price_600519.SH]。"}, store)
+    assert not flipped.passed and flipped.unsupported_numbers == [2.35]
+    assert not verify_answer({"answer": "Shares rose 2.35% [price_600519.SH]."}, store).passed
+
+
+def test_text_numbers_have_no_direction():
+    store = EvidenceStore()
+    store.add(AgentEvidence(evidence_id="n1", kind="document", source_type="news", text_excerpt="营收同比下降1.21%"))
+
+    assert verify_answer({"answer": "营收同比下降1.21% [n1]。"}, store).passed
+
+
+def test_percent_conversion_only_applies_to_fractions():
+    store = _probe_store()
+
+    assert not verify_answer({"answer": "市盈率为2140% [price_600519.SH]。"}, store).passed
+    assert verify_answer({"answer": "ROE 33% [fundamental_600519.SH]。"}, _store()).passed
+
+
+def test_question_numbers_can_be_echoed_hypothetically_but_not_asserted():
+    store = _probe_store()
+    query = "有人说茅台市盈率99倍，对吗"
+
+    assert not verify_answer({"answer": "贵州茅台市盈率为99倍[price_600519.SH]。"}, store, query=query).passed
+    assert verify_answer(
+        {"answer": "如果市盈率是99倍，那将远高于当前的21.4倍[price_600519.SH]。"}, store, query=query
+    ).passed
+
+
+def test_llm_drafts_need_a_citation_next_to_every_number():
+    store = _probe_store()
+    uncited = {"answer": "茅台近期估值合理，预计明年涨幅21.4%。", "evidence_used": ["price_600519.SH"]}
+
+    report = verify_answer(uncited, store, require_citations=True)
+    assert not report.passed and report.uncited_numbers == [21.4]
+    assert "without a citation" in report.feedback()
+    assert verify_answer(uncited, store).passed  # templates keep the run-level fallback
