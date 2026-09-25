@@ -236,3 +236,51 @@ def test_safe_evidence_id_and_number_extraction():
     assert safe_evidence_id("///") == "evidence"
     assert extract_numbers("MA5 为 12.3，RSI14=45, 成交 1,200 手") == [12.3, 45.0, 1200.0]
     assert extract_numbers("涨幅 -3.5%，600519.SH 收盘 1500") == [-3.5, 1500.0]
+
+
+def test_failed_observation_carries_an_actionable_hint():
+    from query_intelligence.agent.tools.base import ToolError, ToolResult, error_hint
+
+    result = ToolResult(
+        tool="get_price_history",
+        ok=False,
+        arguments={"target": "茅台"},
+        error=ToolError(code="upstream_error", message="HTTP 502"),
+    )
+
+    error = result.observation()["error"]
+    assert error["code"] == "upstream_error" and "Do not retry" in error["hint"]
+    assert "resolve_entity" in error_hint("get_fundamentals", "not_found")
+    assert "Ask the user" in error_hint("resolve_entity", "not_found")
+
+
+def test_successful_observation_lists_evidence_by_reference_only():
+    from query_intelligence.agent.evidence import AgentEvidence
+    from query_intelligence.agent.tools.base import ToolResult
+
+    evidence = AgentEvidence(
+        evidence_id="price_600519.SH",
+        kind="structured",
+        source_type="market_api",
+        title="贵州茅台 daily market data",
+        as_of="2026-09-24",
+        payload={"close": 1237.0, "recent_closes": [{"date": "2026-09-24", "close": 1237.0}]},
+    )
+    result = ToolResult(
+        tool="get_price_history",
+        ok=True,
+        arguments={},
+        data={"close": 1237.0, "evidence_id": "price_600519.SH"},
+        evidence=[evidence],
+    )
+
+    observation = result.observation()
+    assert observation["evidence"] == [
+        {
+            "evidence_id": "price_600519.SH",
+            "source_type": "market_api",
+            "title": "贵州茅台 daily market data",
+            "as_of": "2026-09-24",
+        }
+    ]
+    assert observation["data"]["close"] == 1237.0

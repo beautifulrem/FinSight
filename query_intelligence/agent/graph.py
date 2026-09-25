@@ -36,7 +36,7 @@ from .compliance import apply_compliance
 from .composer import compose_template, parse_answer
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
-from .injection import sanitize_untrusted_text, tool_message_content
+from .injection import sanitize_observation, sanitize_untrusted_text, tool_message_content
 from .llm import LLMClient, LLMError, Pricing, Usage, resolve_cost
 from .memory import (
     apply_clarification,
@@ -63,7 +63,10 @@ if TYPE_CHECKING:
     from ..service import QueryIntelligenceService
 
 _MARKET_SOURCE_TYPES = {"market_api"}
-_BUDGET_EXHAUSTED = '{"ok": false, "error": {"code": "unavailable", "message": "tool-call budget exhausted"}}'
+_BUDGET_EXHAUSTED = (
+    '{"ok": false, "error": {"code": "unavailable", "message": "tool-call budget exhausted", '
+    '"hint": "Stop calling tools and answer now with the evidence gathered so far."}}'
+)
 
 
 class AgentRuntime:
@@ -612,7 +615,8 @@ def _log_entry(result: ToolResult, *, source: str, reason: str, step: int, flagg
         "tool": result.tool,
         "arguments": result.arguments,
         "ok": result.ok,
-        "data": result.data,
+        # The template composer renders document titles from this data: redact it like evidence.
+        "data": sanitize_observation(result.data)[0],
         "error": result.error.model_dump() if result.error else None,
         "latency_ms": result.latency_ms,
         "started_at": round(time.time() - result.latency_ms / 1000, 3),
