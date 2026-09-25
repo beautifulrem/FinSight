@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import queue
 import threading
 import uuid
 from collections.abc import Iterator
@@ -106,18 +107,46 @@ class AgentService:
         user_profile: dict[str, Any] | None = None,
         dialog_context: list[dict[str, Any]] | None = None,
     ) -> Iterator[dict[str, Any]]:
-        """Yield events: session, step, tool_call, tool_result, clarification, answer, error, done."""
+        """Yield events: session, node_start, step, tool_call, tool_result, clarification, answer, error, done.
+
+        The graph runs on a worker thread that owns the session lock and pushes events into a queue. If
+        the client disconnects and this generator is closed, the run still finishes (its state and
+        trace are saved) and the lock is released, so the session stays usable.
+        """
         session = session_id or uuid.uuid4().hex
         state = self.runtime.initial_state(query, mode=mode, user_profile=user_profile, dialog_context=dialog_context)
+        events: queue.Queue[dict[str, Any] | None] = queue.Queue()
+
+        def run() -> None:
+            with self._lock(session):
+                try:
+                    for chunk in self.graph.stream(
+                        state, self._config(session), stream_mode=["updates", "tasks"], version="v2"
+                    ):
+                        for event in self._chunk_events(session, chunk):
+                            events.put(event)
+                except Exception as exc:  # surfaced to the client as an error event
+                    logger.exception("agent stream failed")
+                    events.put({"event": "error", "data": {"message": f"{type(exc).__name__}: {exc}"}})
+                finally:
+                    events.put(None)
+
         yield {"event": "session", "data": {"session_id": session}}
-        with self._lock(session):
-            try:
-                for update in self.graph.stream(state, self._config(session), stream_mode="updates"):
-                    yield from self._events(session, update)
-            except Exception as exc:  # surfaced to the client as an error event
-                logger.exception("agent stream failed")
-                yield {"event": "error", "data": {"message": f"{type(exc).__name__}: {exc}"}}
+        threading.Thread(target=run, name=f"agent-stream-{session[:8]}", daemon=True).start()
+        while (event := events.get()) is not None:
+            yield event
         yield {"event": "done", "data": {"session_id": session}}
+
+    def _chunk_events(self, session_id: str, chunk: dict[str, Any]) -> Iterator[dict[str, Any]]:
+        data = chunk.get("data") or {}
+        if chunk.get("type") == "tasks":
+            # Task-start events (they carry "input") announce a node before it runs.
+            if "input" in data and data.get("name") in _STEP_LABELS:
+                name = data["name"]
+                yield {"event": "node_start", "data": {"node": name, "label": _STEP_LABELS[name]}}
+            return
+        if chunk.get("type") == "updates":
+            yield from self._events(session_id, data)
 
     def pending_clarification(self, session_id: str) -> dict[str, Any] | None:
         snapshot = self.graph.get_state(self._config(session_id))

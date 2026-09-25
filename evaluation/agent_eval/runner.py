@@ -33,7 +33,7 @@ from query_intelligence.agent.composer import parse_answer
 from query_intelligence.agent.evidence import EvidenceStore
 from query_intelligence.agent.graph import AgentRuntime
 from query_intelligence.agent.llm import LLMClient, LLMError, Pricing, Usage, resolve_cost
-from query_intelligence.agent.prompts import ANSWER_CONTRACT
+from query_intelligence.agent.prompts import ANSWER_CONTRACT, prompt_refs
 from query_intelligence.agent.service import AgentService
 from query_intelligence.agent.state import AgentConfig
 from query_intelligence.agent.tools import ToolRegistry, build_registry_for_service
@@ -307,6 +307,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "tasks_file": _display_path(args.tasks),
         "snapshot": snapshot_info,
         "repeats": args.repeats,
+        "prompts": prompt_refs(),
         "commit": _git_commit(),
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "eval_today": EVAL_TODAY.isoformat(),

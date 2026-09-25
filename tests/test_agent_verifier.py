@@ -135,3 +135,70 @@ def test_repair_salvages_supported_clauses():
 
     assert repaired["answer"] == "收盘价 1409.5 [price_600519.SH]。"
     assert verify_answer(repaired, store).passed
+
+
+def _two_company_store() -> EvidenceStore:
+    store = _store()
+    store.add(
+        AgentEvidence(
+            evidence_id="fundamental_000858.SZ",
+            kind="structured",
+            source_type="fundamental_sql",
+            payload={"pe_ttm": 20.9, "roe": 0.294},
+        )
+    )
+    return store
+
+
+def test_number_from_other_evidence_is_misattributed():
+    # 20.9 is 五粮液's PE: it exists in the run, but not in the evidence cited in this sentence.
+    answer = {"answer": "贵州茅台 PE(TTM) 为 20.9 [fundamental_600519.SH]。", "evidence_used": []}
+
+    report = verify_answer(answer, _two_company_store())
+
+    assert not report.passed
+    assert report.misattributed_numbers == [20.9] and report.unsupported_numbers == []
+    assert "cited in the same sentence" in report.feedback()
+    # the pre-binding behaviour accepted it
+    assert verify_answer(answer, _two_company_store(), binding="run").passed
+
+
+def test_uncited_sentences_fall_back_to_all_evidence():
+    answer = {
+        "answer": "两家公司估值不同：五粮液 PE 20.9。贵州茅台 PE 24.6 [fundamental_600519.SH]。",
+        "evidence_used": ["fundamental_000858.SZ"],
+    }
+
+    assert verify_answer(answer, _two_company_store()).passed
+
+
+def test_precision_aware_tolerance_rejects_last_digit_errors():
+    store = _store()
+    ok = {"answer": "PE 24.6，涨跌幅 -0.18% [price_600519.SH][fundamental_600519.SH]。"}
+    wrong = {"answer": "PE 24.8 [fundamental_600519.SH]。"}
+    close_but_wrong = {"answer": "收盘价 1423.6 元 [price_600519.SH]。"}
+    store.get("price_600519.SH").payload["high"] = 1419.0  # 1423.6 is within 0.5% of the day's high
+
+    assert verify_answer(ok, store).passed
+    assert verify_answer(wrong, store).unsupported_numbers == [24.8]
+    assert not verify_answer(close_but_wrong, store).passed
+    assert verify_answer(close_but_wrong, store, binding="legacy").passed  # slipped through before
+
+
+def test_units_restrict_scale_conversions():
+    store = _store()
+
+    assert verify_answer({"answer": "营收 1741.2 亿元，ROE 33% [fundamental_600519.SH]。"}, store).passed
+    assert verify_answer({"answer": "Revenue 1741.2 hundred million CNY [fundamental_600519.SH]."}, store).passed
+    # a bare 17.412 would have matched 174120000000 x 1e-10-ish scales before; now it needs a unit
+    assert not verify_answer({"answer": "营收 17.412 [fundamental_600519.SH]。"}, store).passed
+
+
+def test_repair_removes_misattributed_clause():
+    answer = {"answer": "贵州茅台 ROE 33%，PE 20.9 [fundamental_600519.SH]。", "evidence_used": []}
+    report = verify_answer(answer, _two_company_store())
+
+    repaired, notes = repair_answer(answer, report, _two_company_store(), zh=True)
+
+    assert "20.9" not in repaired["answer"] and "33%" in repaired["answer"]
+    assert notes

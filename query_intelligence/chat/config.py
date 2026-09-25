@@ -98,6 +98,7 @@ def _apply_env_overrides(config: dict[str, Any]) -> None:
         "DEEPSEEK_TIMEOUT_SECONDS": ("deepseek", "timeout_seconds"),
         "DEEPSEEK_THINKING_TYPE": ("deepseek", "thinking_type"),
         "DEEPSEEK_REASONING_EFFORT": ("deepseek", "reasoning_effort"),
+        "DEEPSEEK_REASONING_STYLE": ("deepseek", "reasoning_style"),
         "DEEPSEEK_MAX_TOKENS": ("deepseek", "max_tokens"),
         "CHATBOT_LIVE_DATA": ("live_data", "enabled"),
     }

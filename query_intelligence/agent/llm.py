@@ -95,7 +95,47 @@ class LLMClient(Protocol):
         tool_choice: str | dict[str, Any] | None = None,
         json_mode: bool = False,
         max_tokens: int | None = None,
+        reasoning: str | None = None,
     ) -> AssistantTurn: ...
+
+
+REASONING_LEVELS = ("off", "low", "medium", "high")
+
+
+@dataclass(frozen=True)
+class ModelCapabilities:
+    """What a model accepts on an OpenAI-compatible endpoint (verified against the provider, see docs)."""
+
+    tool_choice_none: bool = False
+    reasoning_off: bool = False
+
+
+# Matched by substring of the model id. Unknown models get the conservative defaults above.
+_CAPABILITIES: tuple[tuple[str, ModelCapabilities], ...] = (
+    ("deepseek", ModelCapabilities(tool_choice_none=True, reasoning_off=True)),
+    ("glm", ModelCapabilities(tool_choice_none=False, reasoning_off=False)),
+)
+
+
+def model_capabilities(model: str) -> ModelCapabilities:
+    lowered = model.lower()
+    for needle, capabilities in _CAPABILITIES:
+        if needle in lowered:
+            return capabilities
+    return ModelCapabilities()
+
+
+def reasoning_style_for(base_url: str, configured: str = "auto") -> str:
+    """``deepseek`` (``thinking`` + ``reasoning_effort``), ``openrouter`` (``reasoning`` object) or ``none``."""
+    style = configured.strip().lower() or "auto"
+    if style != "auto":
+        return style
+    url = base_url.lower()
+    if "deepseek.com" in url:
+        return "deepseek"
+    if "openrouter.ai" in url or "cline.bot" in url:
+        return "openrouter"
+    return "none"
 
 
 @dataclass(frozen=True)
@@ -174,6 +214,7 @@ class DeepSeekToolClient:
         reasoning_effort: str = "",
         max_tokens: int | None = 4096,
         temperature: float = 0.2,
+        reasoning_style: str = "auto",
         max_retries: int = 2,
         retry_backoff_s: float = 1.0,
         http_client: httpx.Client | None = None,
@@ -187,6 +228,8 @@ class DeepSeekToolClient:
         self.reasoning_effort = reasoning_effort.strip()
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self.reasoning_style = reasoning_style_for(base_url, reasoning_style)
+        self.capabilities = model_capabilities(model)
         self.max_retries = max_retries
         self.retry_backoff_s = retry_backoff_s
         self._http_client = http_client
@@ -204,6 +247,7 @@ class DeepSeekToolClient:
             "timeout_s": float(section.get("timeout_seconds") or 60),
             "thinking_type": str(section.get("thinking_type") or ""),
             "reasoning_effort": str(section.get("reasoning_effort") or ""),
+            "reasoning_style": str(section.get("reasoning_style") or "auto"),
             "max_tokens": int(max_tokens) if max_tokens not in {None, ""} else None,
         }
         kwargs.update(overrides)
@@ -222,28 +266,60 @@ class DeepSeekToolClient:
         tool_choice: str | dict[str, Any] | None = None,
         json_mode: bool = False,
         max_tokens: int | None = None,
+        reasoning: str | None = None,
     ) -> AssistantTurn:
+        """``reasoning`` overrides the configured thinking level for this call (``off``/``low``/...)."""
         if not self.configured:
             raise LLMError("LLM API key is not configured")
         body: dict[str, Any] = {"model": self.model, "messages": list(messages)}
         if tools:
             body["tools"] = list(tools)
-            body["tool_choice"] = tool_choice or "auto"
+            choice = tool_choice or "auto"
+            if choice == "none" and not self.capabilities.tool_choice_none:
+                # e.g. GLM returns an empty completion for tool_choice="none": drop the tools instead.
+                body.pop("tools")
+            else:
+                body["tool_choice"] = choice
         if json_mode:
             body["response_format"] = {"type": "json_object"}
-        if self.thinking_type:
-            body["thinking"] = {"type": self.thinking_type}
-        if self.reasoning_effort and self.thinking_type != "disabled":
-            body["reasoning_effort"] = self.reasoning_effort
+        thinking_on = self._apply_reasoning(body, reasoning)
         limit = max_tokens if max_tokens is not None else self.max_tokens
         if limit is not None:
             body["max_tokens"] = limit
-        if self.thinking_type != "enabled":
+        if not thinking_on:
             body["temperature"] = self.temperature
 
         started = time.perf_counter()
         data = self._post_with_retries(body)
         return _parse_completion(data, model=self.model, latency_ms=(time.perf_counter() - started) * 1000)
+
+    def _apply_reasoning(self, body: dict[str, Any], reasoning: str | None) -> bool:
+        """Write the provider's reasoning parameters; return whether DeepSeek thinking mode is on."""
+        level = (reasoning or "").strip().lower() or None
+        if level is not None and level not in REASONING_LEVELS:
+            raise ValueError(f"reasoning must be one of {REASONING_LEVELS}, got {reasoning!r}")
+        if level == "off" and not self.capabilities.reasoning_off:
+            level = "low"  # e.g. GLM: reasoning is mandatory on this endpoint
+        if self.reasoning_style == "deepseek":
+            if level == "off":
+                body["thinking"] = {"type": "disabled"}
+                return False
+            if level:
+                body["thinking"] = {"type": "enabled"}
+                body["reasoning_effort"] = level
+                return True
+            if self.thinking_type:
+                body["thinking"] = {"type": self.thinking_type}
+            if self.reasoning_effort and self.thinking_type != "disabled":
+                body["reasoning_effort"] = self.reasoning_effort
+            return self.thinking_type == "enabled"
+        if self.reasoning_style == "openrouter":
+            effort = level or self.reasoning_effort or None
+            if effort == "off":
+                body["reasoning"] = {"enabled": False}
+            elif effort:
+                body["reasoning"] = {"effort": effort}
+        return False
 
     def _post_with_retries(self, body: dict[str, Any]) -> dict[str, Any]:
         attempt = 0
@@ -330,6 +406,7 @@ class FallbackLLM:
         tool_choice: str | dict[str, Any] | None = None,
         json_mode: bool = False,
         max_tokens: int | None = None,
+        reasoning: str | None = None,
     ) -> AssistantTurn:
         last_error: LLMError | None = None
         for index, client in enumerate(self.clients):
@@ -337,7 +414,14 @@ class FallbackLLM:
                 continue
             self._calls[index] += 1
             try:
-                turn = client.chat(messages, tools, tool_choice=tool_choice, json_mode=json_mode, max_tokens=max_tokens)
+                turn = client.chat(
+                    messages,
+                    tools,
+                    tool_choice=tool_choice,
+                    json_mode=json_mode,
+                    max_tokens=max_tokens,
+                    reasoning=reasoning,
+                )
             except LLMError as exc:
                 last_error = exc
                 self._failures[index] += 1
@@ -445,12 +529,14 @@ class ScriptedLLM:
         tool_choice: str | dict[str, Any] | None = None,
         json_mode: bool = False,
         max_tokens: int | None = None,
+        reasoning: str | None = None,
     ) -> AssistantTurn:
         request = {
             "messages": [dict(message) for message in messages],
             "tools": list(tools) if tools else None,
             "tool_choice": tool_choice,
             "json_mode": json_mode,
+            "reasoning": reasoning,
         }
         self.requests.append(request)
         if not self.steps:

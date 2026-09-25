@@ -28,6 +28,7 @@ from typing import Any
 
 from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
 from query_intelligence.agent.graph import AgentRuntime
+from query_intelligence.agent.prompts import prompt_refs
 from query_intelligence.agent.service import AgentService
 from query_intelligence.agent.verifier import verify_answer
 from query_intelligence.chatbot import DeepSeekClient, build_chatbot_response
@@ -201,6 +202,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "config": {
             "llm": getattr(llm, "model", None),
             "repeats": args.repeats,
+            "prompts": prompt_refs(),
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "eval_today": EVAL_TODAY.isoformat(),

@@ -39,6 +39,7 @@ from .followups import next_questions, sentiment_summary
 from .injection import sanitize_untrusted_text, tool_message_content
 from .llm import LLMClient, LLMError, Pricing, Usage, resolve_cost
 from .memory import (
+    apply_clarification,
     dialog_context_from_turns,
     history_messages,
     listed_entities,
@@ -47,11 +48,10 @@ from .memory import (
 )
 from .planner import plan_from_nlu
 from .prompts import (
-    AGENT_SYSTEM_PROMPT,
-    COMPOSE_SYSTEM_PROMPT,
     agent_user_message,
     compose_user_message,
     force_final_message,
+    get_prompt,
     revision_message,
 )
 from .router import apply_finance_overrides, decide_route
@@ -158,6 +158,7 @@ class AgentRuntime:
             "answer": {},
             "result": {},
             "clarification_rounds": 0,
+            "clarification_reply": "",
             "tool_log": {RESET: []},
             "evidence": {RESET: True},
             "degraded": {RESET: []},
@@ -177,19 +178,22 @@ class AgentRuntime:
 
     def guard_in(self, state: AgentState) -> dict[str, Any]:
         dialog_context = dialog_context_from_turns(state.get("turns") or [], state.get("dialog_context") or [])
-        nlu = self.service.analyze_query(
-            state["query"], user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
-        )
+        query = state["query"]
         coreference_reason = None
-        if not listed_entities(nlu):
+        if state.get("clarification_reply"):
+            query, coreference_reason = apply_clarification(query, state["clarification_reply"])
+        nlu = self.service.analyze_query(
+            query, user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
+        )
+        if not listed_entities(nlu) and not coreference_reason:
             rewrite = resolve_coreference(state["query"], state.get("turns") or [])
             if rewrite is not None:
-                rewritten_query, coreference_reason = rewrite
+                query, coreference_reason = rewrite
                 nlu = self.service.analyze_query(
-                    rewritten_query, user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
+                    query, user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
                 )
-        nlu, override_reasons = apply_finance_overrides(nlu, state["query"])
-        decision = decide_route(nlu, mode=state.get("mode", "auto"), query=state["query"])  # type: ignore[arg-type]
+        nlu, override_reasons = apply_finance_overrides(nlu, query)
+        decision = decide_route(nlu, mode=state.get("mode", "auto"), query=query)  # type: ignore[arg-type]
         reasons = [*decision.reasons, *override_reasons]
         if coreference_reason:
             reasons.append(coreference_reason)
@@ -229,6 +233,7 @@ class AgentRuntime:
                 context = [*(state.get("dialog_context") or []), {"role": "user", "content": reply_text}]
                 return {
                     "dialog_context": context,
+                    "clarification_reply": reply_text,
                     "clarification_rounds": state.get("clarification_rounds", 0) + 1,
                     "next": "guard_in",
                 }
@@ -271,8 +276,9 @@ class AgentRuntime:
             evidence_views = [
                 AgentEvidence.model_validate(item).prompt_view() for item in (state.get("evidence") or {}).values()
             ]
+            prompt = get_prompt("compose_system")
             messages = [
-                {"role": "system", "content": COMPOSE_SYSTEM_PROMPT},
+                {"role": "system", "content": prompt.text},
                 {
                     "role": "user",
                     "content": compose_user_message(
@@ -285,7 +291,9 @@ class AgentRuntime:
                 },
             ]
             try:
-                turn = self.llm.chat(messages, json_mode=True)  # type: ignore[union-attr]
+                turn = self.llm.chat(  # type: ignore[union-attr]
+                    messages, json_mode=True, reasoning=self.config.compose_reasoning
+                )
             except LLMError as exc:
                 return self._template_update(tool_log, zh, degraded=f"llm_compose_failed:{exc}", style=style)
             return {
@@ -294,7 +302,7 @@ class AgentRuntime:
                 "messages": [*messages, turn.as_message()],
                 "llm_calls": state.get("llm_calls", 0) + 1,
                 "usage": _add_usage(state.get("usage"), turn.usage),
-                "llm_log": [_llm_entry("compose", turn)],
+                "llm_log": [_llm_entry("compose", turn, prompt=prompt.ref)],
             }
         return self._template_update(tool_log, zh, style=style)
 
@@ -302,9 +310,10 @@ class AgentRuntime:
         assert self.llm is not None
         zh = self._zh(state)
         messages = list(state.get("messages") or [])
+        prompt = get_prompt("agent_system")
         if not messages:
             messages = [
-                {"role": "system", "content": AGENT_SYSTEM_PROMPT},
+                {"role": "system", "content": prompt.text},
                 *history_messages(state.get("turns") or []),
                 {
                     "role": "user",
@@ -327,11 +336,16 @@ class AgentRuntime:
         if stop_reason:
             messages.append({"role": "user", "content": force_final_message(stop_reason)})
 
+        tools = self.registry.to_openai_tools()
         try:
             if stop_reason:
-                turn = self.llm.chat(messages, json_mode=True)
+                # Same tools with tool_choice="none" keeps the cached prompt prefix intact (the client
+                # drops the tools for models that do not support "none").
+                turn = self.llm.chat(
+                    messages, tools, tool_choice="none", json_mode=True, reasoning=self.config.final_reasoning
+                )
             else:
-                turn = self.llm.chat(messages, self.registry.to_openai_tools())
+                turn = self.llm.chat(messages, tools, reasoning=self.config.agent_reasoning)
         except LLMError as exc:
             degraded = [f"llm_error:{exc}"]
             if state.get("evidence"):
@@ -342,7 +356,7 @@ class AgentRuntime:
             "messages": [*messages, turn.as_message()],
             "llm_calls": state.get("llm_calls", 0) + 1,
             "usage": _add_usage(usage, turn.usage),
-            "llm_log": [_llm_entry("agent_llm", turn, step=state.get("llm_steps", 0))],
+            "llm_log": [_llm_entry("agent_llm", turn, step=state.get("llm_steps", 0), prompt=prompt.ref)],
         }
         if stop_reason:
             update["degraded"] = [f"budget:{stop_reason}"]
@@ -416,8 +430,18 @@ class AgentRuntime:
         report_text = _feedback_text(state.get("verification") or {})
         messages = [*(state.get("messages") or []), {"role": "user", "content": revision_message(report_text)}]
         update: dict[str, Any] = {"revisions": state.get("revisions", 0) + 1}
+        on_agent_path = state.get("draft_source") == "llm_agent"
         try:
-            turn = self.llm.chat(messages, json_mode=True)
+            if on_agent_path:
+                turn = self.llm.chat(
+                    messages,
+                    self.registry.to_openai_tools(),
+                    tool_choice="none",
+                    json_mode=True,
+                    reasoning=self.config.revise_reasoning,
+                )
+            else:
+                turn = self.llm.chat(messages, json_mode=True, reasoning=self.config.revise_reasoning)
         except LLMError as exc:
             update["degraded"] = [f"llm_revision_failed:{exc}"]
             return update
@@ -598,10 +622,11 @@ def _log_entry(result: ToolResult, *, source: str, reason: str, step: int, flagg
     }
 
 
-def _llm_entry(node: str, turn: Any, *, step: int | None = None) -> dict[str, Any]:
+def _llm_entry(node: str, turn: Any, *, step: int | None = None, prompt: str | None = None) -> dict[str, Any]:
     return {
         "node": node,
         "step": step,
+        "prompt": prompt,
         "model": turn.model,
         "started_at": round(time.time() - turn.latency_ms / 1000, 3),
         "latency_ms": turn.latency_ms,
@@ -666,7 +691,12 @@ def _feedback_text(verification: dict[str, Any]) -> str:
 
 
 def _source_view(item: dict[str, Any]) -> dict[str, Any]:
-    return {
+    view = {
         key: item.get(key)
         for key in ("evidence_id", "kind", "source_type", "title", "source_name", "source_url", "as_of", "produced_by")
     }
+    # Structured evidence carries the numbers the answer cites (and the price series the UI charts).
+    # Document payloads are omitted: their text is already summarised by title/source and can be large.
+    if item.get("kind") == "structured" and isinstance(item.get("payload"), dict):
+        view["payload"] = item["payload"]
+    return view
