@@ -544,7 +544,15 @@ class AgentRuntime:
                 limit=self.config.max_next_questions,
             ),
         }
-        return {"result": result, "turns": [turn_record(state, result)]}
+        # The result carries everything the response needs; drop the bulky turn-scoped working state so the
+        # checkpoint stays small (it is reset at the start of the next turn anyway).
+        return {
+            "result": result,
+            "turns": [turn_record(state, result)],
+            "messages": [],
+            "tool_log": {RESET: []},
+            "llm_log": {RESET: []},
+        }
 
     # ---------------------------------------------------------------- helpers
 

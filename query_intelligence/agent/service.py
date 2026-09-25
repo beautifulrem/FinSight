@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import queue
 import threading
 import uuid
@@ -46,6 +47,9 @@ class AgentService:
         self.runtime = runtime
         self.trace_sinks = trace_sinks if trace_sinks is not None else sinks_from_env()
         self.checkpointer = checkpointer if checkpointer is not None else make_checkpointer()
+        # "exit" writes one checkpoint per run (and at interrupts) instead of one per node: runs are short, and
+        # a crash mid-run only loses that turn. QI_AGENT_DURABILITY=async|sync restores per-step checkpoints.
+        self.durability = os.getenv("QI_AGENT_DURABILITY", "exit").strip() or "exit"
         self.graph = runtime.build_graph(self.checkpointer)
         self._locks: dict[str, threading.Lock] = {}
         self._locks_guard = threading.Lock()
@@ -88,14 +92,14 @@ class AgentService:
         session = session_id or uuid.uuid4().hex
         state = self.runtime.initial_state(query, mode=mode, user_profile=user_profile, dialog_context=dialog_context)
         with self._lock(session):
-            output = self.graph.invoke(state, self._config(session))
+            output = self.graph.invoke(state, self._config(session), durability=self.durability)
         return self._response(session, output)
 
     def resume(self, session_id: str, reply: str) -> dict[str, Any]:
         with self._lock(session_id):
             if not self.pending_clarification(session_id):
                 raise ValueError(f"session {session_id} has no pending clarification")
-            output = self.graph.invoke(Command(resume=reply), self._config(session_id))
+            output = self.graph.invoke(Command(resume=reply), self._config(session_id), durability=self.durability)
         return self._response(session_id, output)
 
     def stream(
@@ -121,7 +125,11 @@ class AgentService:
             with self._lock(session):
                 try:
                     for chunk in self.graph.stream(
-                        state, self._config(session), stream_mode=["updates", "tasks"], version="v2"
+                        state,
+                        self._config(session),
+                        stream_mode=["updates", "tasks"],
+                        version="v2",
+                        durability=self.durability,
                     ):
                         for event in self._chunk_events(session, chunk):
                             events.put(event)
