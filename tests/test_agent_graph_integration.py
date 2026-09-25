@@ -121,3 +121,26 @@ def test_clarification_resume_with_real_nlu(offline_service):
     assert resumed["tool_calls"]
     service.close()
     registry.shutdown()
+
+
+@pytest.mark.parametrize(
+    ("query", "route"),
+    [
+        ("它会涨吗", "clarify"),  # round-1 review B1: was refused with weather wording
+        ("茅台现在能不能抄底", "agent"),  # B4: was a single lookup
+        ("What drove CATL's recent share price move?", "agent"),  # B3: CATL unresolved, routed as lookup
+        ("比亚迪的市盈率是多少", "workflow"),  # 比亚迪 read as a comparison by the style classifier
+        ("最新一期CPI是多少", "workflow"),  # a single macro value is not a macro-to-market question
+        ("那它的PE呢", "clarify"),  # dangling follow-up without context was refused
+        ("帮我写一首关于春天的诗", "refuse"),
+    ],
+)
+def test_router_regressions_from_round1_review(offline_service, query, route):
+    from query_intelligence.agent.llm import ScriptedLLM
+    from query_intelligence.agent.tools import build_registry_for_service
+
+    runtime = AgentRuntime(offline_service, build_registry_for_service(offline_service), ScriptedLLM([]))
+    try:
+        assert runtime.guard_in(runtime.initial_state(query, mode="auto"))["route"] == route
+    finally:
+        runtime.close()

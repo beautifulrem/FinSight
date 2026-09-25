@@ -7,7 +7,10 @@ that tools returned (so the verifier can trace every number) and cites the evide
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
+
+from .verifier import _MARKET_METRIC
 
 _MAX_DOCS_PER_TOOL = 3
 
@@ -172,10 +175,16 @@ def _macro(data: dict[str, Any], zh: bool) -> list[str]:
 
 
 def _documents(data: dict[str, Any], zh: bool) -> list[str]:
+    """Quote retrieved documents by title with attribution.
+
+    Titles that state market metrics with numbers ("shares closed up 12.34%", "市盈率55倍") are not
+    repeated: prices, multiples and daily moves come only from market data (the same source-precedence
+    rule the verifier applies to LLM drafts). The documents stay in the evidence list.
+    """
     sentences = []
     for document in (data.get("documents") or [])[:_MAX_DOCS_PER_TOOL]:
         title = str(document.get("title") or "").strip()
-        if not title:
+        if not title or (_MARKET_METRIC.search(title) and re.search(r"\d", title)):
             continue
         source = document.get("source_name") or document.get("source_type")
         when = str(document.get("publish_time") or "")[:10]
