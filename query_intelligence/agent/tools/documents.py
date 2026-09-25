@@ -5,9 +5,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from ...integrations.sources.provenance import corpus_provenance
 from ..evidence import AgentEvidence
 from .base import ToolFailure, ToolOutput, ToolSpec
 from .context import ToolContext
+from .provenance import SourceProvenance, provenance_from
 
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 UNTRUSTED_NOTE = (
@@ -37,6 +39,7 @@ class DocumentHit(BaseModel):
     url: str | None
     excerpt: str | None
     rank_score: float | None
+    provenance: SourceProvenance | None = None
 
 
 class DocumentSearchOutput(BaseModel):
@@ -70,6 +73,10 @@ def build_document_tools(context: ToolContext) -> list[ToolSpec]:
                 doc for doc in context.retrieve_documents(bundle, args.top_k) if doc.get("source_type") in source_types
             ]
             evidence = [AgentEvidence.from_document(_sanitize(doc), produced_by=tool_name) for doc in documents]
+            provenances = [_document_provenance(doc) for doc in documents]
+            for item, provenance in zip(evidence, provenances, strict=True):
+                if provenance is not None:
+                    item.payload["provenance"] = provenance.model_dump(mode="json")
             hits = [
                 DocumentHit(
                     evidence_id=item.evidence_id,
@@ -80,8 +87,9 @@ def build_document_tools(context: ToolContext) -> list[ToolSpec]:
                     url=item.source_url,
                     excerpt=item.text_excerpt,
                     rank_score=_as_float(doc.get("rank_score")),
+                    provenance=provenance,
                 )
-                for item, doc in zip(evidence, documents, strict=True)
+                for item, doc, provenance in zip(evidence, documents, provenances, strict=True)
             ]
             return ToolOutput(data=DocumentSearchOutput(documents=hits, targets=names), evidence=evidence)
 
@@ -125,6 +133,19 @@ def build_document_tools(context: ToolContext) -> list[ToolSpec]:
             cache_ttl_s=600.0,
         ),
     ]
+
+
+def _document_provenance(document: dict[str, Any]) -> SourceProvenance | None:
+    provenance = provenance_from(document.get("payload"))
+    if provenance is None:
+        provenance = provenance_from(
+            {
+                "provenance": corpus_provenance(
+                    as_of=document.get("publish_time"), source_name=document.get("source_name")
+                )
+            }
+        )
+    return provenance
 
 
 def _sanitize(document: dict[str, Any]) -> dict[str, Any]:

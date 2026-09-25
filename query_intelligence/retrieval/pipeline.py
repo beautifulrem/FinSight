@@ -15,7 +15,16 @@ from ..data_loader import load_documents, load_structured_data
 from ..integrations.akshare_macro_provider import AKShareMacroProvider
 from ..integrations.akshare_market_provider import AKShareMarketProvider
 from ..integrations.akshare_provider import AKShareNewsProvider
-from ..integrations.cninfo_provider import CninfoAnnouncementProvider
+from ..integrations.announcement_sources import FallbackAnnouncementProvider
+from ..integrations.sources.provenance import (
+    LAST_KNOWN_GOOD,
+    build_provenance,
+    corpus_provenance,
+    freshness,
+    snapshot_provenance,
+    with_mode,
+)
+from ..integrations.sources.runtime import SourceRuntime, error_summary, get_default_runtime
 from ..integrations.tushare_provider import TushareMarketProvider, TushareNewsProvider
 from ..repositories.postgres_repository import PostgresDocumentRepository, PostgresStructuredRepository
 from .api_retriever import APIRetriever
@@ -28,6 +37,22 @@ from .ranker import BaselineRanker, HybridRanker
 from .market_analyzer import MarketAnalyzer
 from .selector import DocumentSelector
 from .sql_retriever import SQLRetriever
+
+
+_PROVENANCE_KIND = {
+    "market_api": "market",
+    "index_daily": "index",
+    "fund_nav": "fund_nav",
+    "fund_fee": "fund_profile",
+    "fund_redemption": "fund_profile",
+    "fund_profile": "fund_profile",
+    "index_valuation": "index_valuation",
+    "fundamental_sql": "fundamentals",
+    "industry_sql": "industry",
+    "macro_sql": "macro_monthly",
+    "macro_indicator": "macro_monthly",
+    "policy_event": "macro_monthly",
+}
 
 
 class RetrievalPipeline:
@@ -62,6 +87,10 @@ class RetrievalPipeline:
         self._announcement_fetch_inflight = False
         self._announcement_breaker_lock = Lock()
         self.market_analyzer = MarketAnalyzer()
+        # Health/cache runtime. Demo/test pipelines get a private one; ``build_default`` shares the
+        # process-wide runtime with the live providers and the ``/sources/health`` endpoint.
+        self.source_runtime = SourceRuntime()
+        self.market_bundle_ttl_s = 60.0
 
     @classmethod
     def build_demo(cls) -> "RetrievalPipeline":
@@ -90,11 +119,12 @@ class RetrievalPipeline:
             text_retriever = DocumentRetriever(load_documents())
             sql_retriever = SQLRetriever(structured)
 
+        runtime = get_default_runtime()
         if settings.use_live_market and settings.tushare_token:
             market_provider = TushareMarketProvider.from_token(settings.tushare_token)
             api_retriever = APIRetriever(load_structured_data())
         elif settings.use_live_market:
-            market_provider = AKShareMarketProvider.from_import(timeout=settings.request_timeout_seconds)
+            market_provider = AKShareMarketProvider.from_import(timeout=settings.request_timeout_seconds, runtime=runtime)
             api_retriever = APIRetriever(load_structured_data())
         else:
             structured = load_structured_data()
@@ -115,19 +145,21 @@ class RetrievalPipeline:
             selector=DocumentSelector(),
             packager=RetrievalPackager(),
         )
+        instance.source_runtime = runtime
         if settings.use_live_market:
             instance.market_provider = market_provider
         if settings.use_live_macro:
-            instance.macro_provider = AKShareMacroProvider.from_import()
+            instance.macro_provider = AKShareMacroProvider.from_import(runtime=runtime)
         if settings.use_live_news:
-            instance.news_providers.append(AKShareNewsProvider.from_import())
+            instance.news_providers.append(AKShareNewsProvider.from_import(runtime=runtime))
             if settings.tushare_token:
                 instance.news_providers.append(TushareNewsProvider.from_token(settings.tushare_token))
         if settings.use_live_announcement:
-            instance.announcement_provider = CninfoAnnouncementProvider(
+            instance.announcement_provider = FallbackAnnouncementProvider.build_default(
                 url=settings.cninfo_announcement_url,
                 static_base=settings.cninfo_static_base,
                 timeout=settings.request_timeout_seconds,
+                runtime=runtime,
             )
         return instance
 
@@ -178,7 +210,25 @@ class RetrievalPipeline:
         ranked_docs.sort(key=lambda item: item["rank_score"], reverse=True)
         selected_docs = self.selector.select(ranked_docs, query_bundle.get("source_plan", []), top_k)
         deduped_docs, groups = self.deduper.dedupe(selected_docs)
+        for doc in deduped_docs:
+            self._ensure_document_provenance(doc)
         return deduped_docs, groups, total_candidates
+
+    def _ensure_document_provenance(self, doc: dict) -> None:
+        payload = doc.get("payload") if isinstance(doc.get("payload"), dict) else {}
+        if payload.get("provenance"):
+            return
+        if isinstance(self.doc_retriever, DocumentRetriever):
+            provenance = corpus_provenance(as_of=doc.get("publish_time"), source_name=doc.get("source_name"))
+        else:
+            provenance = build_provenance(
+                source="postgres",
+                kind="document",
+                as_of=doc.get("publish_time"),
+                mode="snapshot",
+                endpoint=type(self.doc_retriever).__name__,
+            )
+        doc["payload"] = {**payload, "provenance": provenance}
 
     def fetch_structured(self, query_bundle: dict) -> list[dict]:
         """Fetch structured items (seed/SQL/live) and enrich market payloads with technical analysis."""
@@ -195,11 +245,12 @@ class RetrievalPipeline:
         return structured_items
 
     def _fetch_structured_items(self, query_bundle: dict) -> list[dict]:
-        structured_items = self.api_retriever.fetch(query_bundle) + self.sql_retriever.fetch(query_bundle)
-        structured_items = self._merge_live_macro_items(query_bundle, structured_items)
+        snapshot_items = self.api_retriever.fetch(query_bundle) + self.sql_retriever.fetch(query_bundle)
+        macro_failures: dict[str, str] = {}
+        structured_items = self._merge_live_macro_items(query_bundle, snapshot_items, macro_failures)
         requested_live_sources = self._requested_live_structured_sources(query_bundle)
         if not (self.market_provider and query_bundle.get("symbols") and requested_live_sources):
-            return structured_items
+            return self._annotate_provenance(structured_items, {}, macro_failures)
 
         product_type = query_bundle.get("product_type", "stock")
         end_date = date.today().strftime("%Y%m%d")
@@ -214,24 +265,17 @@ class RetrievalPipeline:
         failed_live_market_symbols: set[str] = set()
         live_fundamental_symbols: set[str] = set()
         live_industry_names: set[str] = set()
+        live_failure_reasons: dict[str, str] = {}
 
         for symbol, canonical_name in self._iter_entity_targets(query_bundle):
             if not symbol:
                 continue
             try:
-                if isinstance(self.market_provider, TushareMarketProvider):
-                    live_market = self.market_provider.fetch_bundle(symbol, start_date=start_date, end_date=end_date)
-                else:
-                    live_market = self.market_provider.fetch_bundle(
-                        symbol=symbol,
-                        canonical_name=canonical_name,
-                        product_type=product_type,
-                        start_date=start_date,
-                        end_date=end_date,
-                    )
+                live_market = self._fetch_market_bundle(symbol, canonical_name, product_type, start_date, end_date)
             except Exception as exc:
                 logger.warning("Market provider fetch failed for %s: %s", symbol, exc)
                 failed_live_market_symbols.add(symbol)
+                live_failure_reasons[symbol] = f"live market fetch failed ({error_summary(exc, 120)})"
                 live_provider_warning_items.append(self._build_live_provider_warning_item(symbol, exc))
                 continue
 
@@ -287,13 +331,159 @@ class RetrievalPipeline:
             if item["source_type"] == "market_api" and payload.get("symbol") in live_symbols:
                 continue
             if item["source_type"] == "market_api" and payload.get("symbol") in failed_live_market_symbols:
-                continue
+                # A snapshot price may stand in for a failed live fetch only while it is still fresh;
+                # a months-old seed price must never be presented as today's quote.
+                if freshness("market", payload.get("trade_date")) != "fresh":
+                    continue
             if item["source_type"] == "fundamental_sql" and payload.get("symbol") in live_fundamental_symbols:
                 continue
             if item["source_type"] == "industry_sql" and payload.get("industry_name") in live_industry_names:
                 continue
             filtered_items.append(item)
-        return live_price_items + live_fund_items + live_index_items + live_provider_warning_items + filtered_items + live_fundamental_items + live_industry_items
+        items = (
+            live_price_items
+            + live_fund_items
+            + live_index_items
+            + live_provider_warning_items
+            + filtered_items
+            + live_fundamental_items
+            + live_industry_items
+        )
+        return self._annotate_provenance(items, live_failure_reasons, macro_failures)
+
+    # ---- live market bundles: TTL cache + last known good -------------------------
+
+    def _fetch_market_bundle(
+        self, symbol: str, canonical_name: str, product_type: str, start_date: str, end_date: str
+    ) -> dict:
+        runtime = self.source_runtime
+        cache_key = f"market_bundle:{type(self.market_provider).__name__}:{symbol}:{product_type}"
+        if runtime.cache_enabled and self.market_bundle_ttl_s > 0:
+            cached = runtime.cache.get(cache_key)
+            if cached is not None:
+                return self._mark_bundle(cached, cache_hit=True)
+        try:
+            if isinstance(self.market_provider, TushareMarketProvider):
+                bundle = self.market_provider.fetch_bundle(symbol, start_date=start_date, end_date=end_date)
+            else:
+                bundle = self.market_provider.fetch_bundle(
+                    symbol=symbol,
+                    canonical_name=canonical_name,
+                    product_type=product_type,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+        except Exception as exc:
+            stale = runtime.cache.get_stale(cache_key, runtime.max_stale_s) if runtime.cache_enabled else None
+            if stale is None:
+                raise
+            reason = f"live market fetch failed ({error_summary(exc, 120)})"
+            logger.warning("Serving last known good market data for %s: %s", symbol, reason)
+            return self._mark_bundle(stale, mode=LAST_KNOWN_GOOD, fallback_reason=reason)
+        has_rows = (bundle.get("payload") or {}).get("close") is not None
+        if not has_rows and runtime.cache_enabled:
+            stale = runtime.cache.get_stale(cache_key, runtime.max_stale_s)
+            if stale is not None:
+                return self._mark_bundle(stale, mode=LAST_KNOWN_GOOD, fallback_reason="live market sources returned no rows")
+        if has_rows and runtime.cache_enabled and self.market_bundle_ttl_s > 0:
+            runtime.cache.put(cache_key, bundle, self.market_bundle_ttl_s)
+        return bundle
+
+    def _mark_bundle(
+        self, bundle: dict, *, cache_hit: bool = False, mode: str | None = None, fallback_reason: str | None = None
+    ) -> dict:
+        """Update provenance on every payload of a cached bundle (cache hit or last-known-good)."""
+        payloads = [bundle.get("payload") or {}, bundle.get("fundamental_payload") or {}]
+        payloads.append((bundle.get("payload") or {}).get("industry_snapshot") or {})
+        payloads.extend(value for key, value in bundle.items() if key.endswith("_payload") and isinstance(value, dict))
+        for payload in payloads:
+            provenance = payload.get("provenance")
+            if not isinstance(provenance, dict):
+                continue
+            if mode is not None:
+                payload["provenance"] = with_mode(provenance, mode=mode, fallback_reason=fallback_reason)
+            elif cache_hit:
+                payload["provenance"] = {**provenance, "cache_hit": True}
+        if mode == LAST_KNOWN_GOOD:
+            payload = bundle.get("payload") or {}
+            warnings = list(payload.get("provider_warnings") or [])
+            warnings.append(f"market_served_last_known_good:{payload.get('symbol')}:{fallback_reason}")
+            payload["provider_warnings"] = warnings
+        return bundle
+
+    # ---- provenance on every structured record ------------------------------------
+
+    def _annotate_provenance(
+        self, items: list[dict], live_failure_reasons: dict[str, str], macro_failures: dict[str, str]
+    ) -> list[dict]:
+        annotated = []
+        for item in items:
+            payload = item.get("payload")
+            if not isinstance(payload, dict) or item.get("source_type") == "provider_warning":
+                annotated.append(item)
+                continue
+            if isinstance(payload.get("provenance"), dict):
+                annotated.append(item)
+                continue
+            source_type = item.get("source_type")
+            kind = _PROVENANCE_KIND.get(source_type, "market")
+            if kind == "macro_monthly" and self._macro_indicator_code(payload) == "CN10Y":
+                kind = "macro_daily"
+            as_of = self._payload_as_of(payload)
+            if item.get("source_name") or item.get("provider"):
+                # Live item from a provider without built-in provenance (e.g. Tushare).
+                provenance = build_provenance(
+                    source=str(item.get("provider") or item.get("source_name")),
+                    kind=kind,
+                    as_of=as_of,
+                    endpoint=payload.get("provider_endpoint"),
+                )
+            else:
+                provenance = self._snapshot_provenance(item, kind, as_of, live_failure_reasons, macro_failures)
+            annotated.append({**item, "payload": {**payload, "provenance": provenance}})
+        return annotated
+
+    def _snapshot_provenance(
+        self,
+        item: dict,
+        kind: str,
+        as_of,
+        live_failure_reasons: dict[str, str],
+        macro_failures: dict[str, str],
+    ) -> dict:
+        payload = item.get("payload") or {}
+        source_type = item.get("source_type")
+        if source_type in {"macro_sql", "macro_indicator", "policy_event"}:
+            family = self._macro_indicator_code(payload)
+            failed = {self._macro_indicator_code({"indicator_code": key}): value for key, value in macro_failures.items()}
+            detail = failed.get(family) or macro_failures.get("*")
+            if not self.macro_provider:
+                reason = "live macro data disabled"
+            elif detail:
+                reason = f"live macro unavailable ({detail})"
+            else:
+                reason = "indicator not fetched from live sources for this query"
+        elif not self.market_provider:
+            reason = "live market data disabled"
+        else:
+            symbol = payload.get("symbol")
+            reason = live_failure_reasons.get(symbol) or "live source returned no data for this record"
+        if not isinstance(self.sql_retriever, SQLRetriever):
+            return build_provenance(
+                source="postgres",
+                kind=kind,
+                as_of=as_of,
+                mode="snapshot",
+                endpoint=type(self.sql_retriever).__name__,
+                fallback_reason=reason,
+            )
+        return snapshot_provenance(kind=kind, as_of=as_of, reason=reason, source_name=payload.get("source_name"))
+
+    def _payload_as_of(self, payload: dict):
+        for key in ("trade_date", "report_date", "metric_date", "nav_date", "valuation_date", "publish_date", "as_of"):
+            if payload.get(key):
+                return payload[key]
+        return None
 
     def _build_live_provider_warning_item(self, symbol: str, exc: Exception) -> dict:
         text = str(exc).strip().replace("\n", " ")
@@ -341,13 +531,22 @@ class RetrievalPipeline:
                 requested.add("market_api")
         return requested
 
-    def _merge_live_macro_items(self, query_bundle: dict, structured_items: list[dict]) -> list[dict]:
+    def _merge_live_macro_items(
+        self, query_bundle: dict, structured_items: list[dict], failures: dict[str, str] | None = None
+    ) -> list[dict]:
         if "macro_sql" not in set(query_bundle.get("source_plan", [])) or not self.macro_provider:
             return structured_items
         try:
-            live_items = self.macro_provider.fetch_indicators(query_bundle)
+            if hasattr(self.macro_provider, "fetch_indicators_with_status"):
+                live_items, live_failures = self.macro_provider.fetch_indicators_with_status(query_bundle)
+                if failures is not None:
+                    failures.update(live_failures)
+            else:
+                live_items = self.macro_provider.fetch_indicators(query_bundle)
         except Exception as exc:
             logger.warning("Macro provider fetch failed: %s", exc)
+            if failures is not None:
+                failures["*"] = error_summary(exc, 120)
             return structured_items
         if not live_items:
             return structured_items
@@ -424,13 +623,12 @@ class RetrievalPipeline:
             for provider in self.news_providers:
                 for symbol, canonical_name in entity_targets:
                     try:
-                        docs.extend(
-                            provider.fetch_news(
-                                symbol=symbol or canonical_name,
-                                canonical_name=canonical_name or symbol,
-                                limit=min(top_k, 10),
-                            )
+                        news_docs = provider.fetch_news(
+                            symbol=symbol or canonical_name,
+                            canonical_name=canonical_name or symbol,
+                            limit=min(top_k, 10),
                         )
+                        docs.extend(self._with_live_provenance(news_docs, provider, "news"))
                     except Exception:
                         logger.warning("News provider %s failed for %s", type(provider).__name__, symbol or canonical_name, exc_info=True)
         if (
@@ -499,12 +697,27 @@ class RetrievalPipeline:
                         if worker_error is not None:
                             logger.warning("Announcement provider failed for %s: %s", symbol, worker_error)
                             continue
-                        docs.extend(ann_docs)
+                        docs.extend(self._with_live_provenance(ann_docs, self.announcement_provider, "announcement"))
                 finally:
                     with self._announcement_breaker_lock:
                         self._announcement_fetch_inflight = False
         for doc in docs:
             doc.setdefault("retrieval_score", 0.5)
+        return docs
+
+    def _with_live_provenance(self, docs: list[dict], provider: object, kind: str) -> list[dict]:
+        for doc in docs:
+            payload = doc.get("payload") if isinstance(doc.get("payload"), dict) else {}
+            if not payload.get("provenance"):
+                doc["payload"] = {
+                    **payload,
+                    "provenance": build_provenance(
+                        source=str(doc.get("source_name") or type(provider).__name__),
+                        kind=kind,
+                        as_of=doc.get("publish_time"),
+                        endpoint=type(provider).__name__,
+                    ),
+                }
         return docs
 
     def _iter_entity_targets(self, query_bundle: dict):

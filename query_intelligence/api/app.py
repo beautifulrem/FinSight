@@ -346,4 +346,11 @@ def create_app(
             "retrieval_result": result["retrieval_result"],
         }
 
+    # ---- live data source health (passive: reports recorded outcomes, never calls upstreams) ----
+    @app.get("/sources/health")
+    def sources_health() -> dict:
+        from ..integrations.sources.report import sources_health_report
+
+        return sources_health_report(getattr(runtime, "retrieval_pipeline", None))
+
     return app

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from ..evidence import AgentEvidence
 from .base import ToolFailure, ToolOutput, ToolSpec
 from .context import ToolContext
+from .provenance import SourceProvenance, provenance_from
 
 _MACRO_SOURCE_TYPES = {"macro_sql", "macro_indicator", "policy_event"}
 
@@ -31,6 +32,7 @@ class MacroIndicator(BaseModel):
     unit: str | None = None
     source: str | None = None
     evidence_id: str
+    provenance: SourceProvenance | None = None
 
 
 class MacroOutput(BaseModel):
@@ -69,6 +71,7 @@ def build_macro_tool(context: ToolContext) -> ToolSpec:
                         unit=payload.get("unit"),
                         source=item.get("source_name") or payload.get("source_name"),
                         evidence_id=record.evidence_id,
+                        provenance=provenance_from(payload),
                     )
                 )
             record.as_of = record.as_of or _as_str(payload.get("metric_date") or payload.get("publish_date"))
@@ -78,7 +81,7 @@ def build_macro_tool(context: ToolContext) -> ToolSpec:
     return ToolSpec(
         name="get_macro_indicators",
         description=(
-            "China macro indicators (CPI, PMI, M2, 10-year government bond yield) and related policy events. "
+            "China macro indicators (CPI, PMI, M2, 10-year government bond yield, LPR) and related policy events. "
             "Pass topics to narrow the result."
         ),
         input_model=MacroInput,

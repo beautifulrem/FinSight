@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from ..evidence import AgentEvidence, safe_evidence_id
 from .base import ToolFailure, ToolOutput, ToolSpec, TransientToolError
 from .context import ResolvedTarget, ToolContext, provider_warnings
+from .provenance import SourceProvenance, provenance_from
 
 _TARGET_FIELD = Field(
     min_length=1,
@@ -43,6 +44,10 @@ class PriceHistoryOutput(BaseModel):
     recent_closes: list[DailyClose] = Field(description="Oldest first; the last element is the latest close.")
     source: str | None
     evidence_id: str
+    volume_unit: str | None = Field(default=None, description="'lot' (手, 100 shares) or 'share', per source.")
+    provenance: SourceProvenance | None = Field(
+        default=None, description="Where the quote came from, its as-of date, and why a fallback was used."
+    )
 
 
 class IndicatorsOutput(BaseModel):
@@ -62,6 +67,7 @@ class IndicatorsOutput(BaseModel):
     history_points: int = Field(description="Daily closes available for the calculation.")
     unavailable: list[str] = Field(default_factory=list, description="Indicators not computable from the history.")
     evidence_id: str
+    provenance: SourceProvenance | None = Field(default=None, description="Provenance of the underlying prices.")
 
 
 def build_market_tools(context: ToolContext) -> list[ToolSpec]:
@@ -114,6 +120,8 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
             recent_closes=recent,
             source=item.get("source_name") or payload.get("source_name"),
             evidence_id=evidence_id,
+            volume_unit=payload.get("volume_unit"),
+            provenance=provenance_from(payload),
         )
         evidence = AgentEvidence(
             evidence_id=evidence_id,
@@ -164,6 +172,7 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
             history_points=points,
             unavailable=missing,
             evidence_id=evidence_id,
+            provenance=provenance_from(payload),
         )
         evidence = AgentEvidence(
             evidence_id=evidence_id,
