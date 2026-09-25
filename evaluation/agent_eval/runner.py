@@ -157,6 +157,7 @@ def run_pure_llm_tasks(
                     {"role": "user", "content": turn["query"]},
                 ]
                 started = time.perf_counter()
+                degraded: list[str] = []
                 try:
                     reply = llm.chat(messages, json_mode=True)
                     draft = parse_answer(reply.content)
@@ -164,12 +165,14 @@ def run_pure_llm_tasks(
                 except LLMError as exc:
                     draft = {"answer": "", "key_points": [], "evidence_used": [], "limitations": [str(exc)]}
                     usage = {}
+                    degraded = [f"llm_error:{exc}"]
                 cost, currency, _source = resolve_cost(Usage(**usage), Pricing.from_env())
                 latency_ms = round((time.perf_counter() - started) * 1000, 2)
                 report = verify_answer(draft, EvidenceStore(), query=turn["query"])
                 response = {
                     **draft,
                     "route": "pure_llm",
+                    "degraded": degraded,
                     "tool_calls": [],
                     "verification": report.model_dump(),
                     "risk_disclaimer": "",

@@ -34,6 +34,7 @@ _HEDGE_MARKERS = (
     "not enough",
     "does not establish",
 )
+_LLM_FAILURE_FLAGS = ("llm_error", "llm_compose_failed", "llm_revision_failed")
 _MISSING_MARKERS = ("未返回", "没有", "未获取", "缺少", "不足", "无法", "not ", "no usable", "unavailable", "missing")
 
 
@@ -329,6 +330,13 @@ def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, A
         ),
         "revise_rate": mean(
             [1.0 if score.get("revisions") else 0.0 for score in scores if score.get("first_pass_verified") is not None]
+        ),
+        # Turns where an LLM call failed and the run fell back (planner, template, or unrevised draft).
+        "llm_error_rate": mean(
+            [
+                1.0 if any(str(flag).startswith(_LLM_FAILURE_FLAGS) for flag in score.get("degraded") or []) else 0.0
+                for score in scores
+            ]
         ),
         "cost_per_turn": round(statistics.fmean(costs), 6) if costs else None,
         "cost_per_task": round(statistics.fmean(task_costs), 6) if task_costs else None,
