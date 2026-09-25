@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date as real_date
 from pathlib import Path
 from typing import Any
@@ -423,19 +424,32 @@ class _FakeDeepSeek:
         }
 
 
-def test_chat_endpoint_and_index_page() -> None:
+def test_chat_endpoint_and_index_page(monkeypatch) -> None:
     app = create_app(
         service=_FakeService(),
-        app_config={"ui": {"title": "Financial Chatbot by Group x"}},
+        app_config={"ui": {"title": "Financial Chatbot by Group x", "input_placeholder": "Ask <me>"}},
         deepseek_client=_FakeDeepSeek(),
     )
     client = TestClient(app)
 
+    # `/` serves the built React app (frontend/ → query_intelligence/web/dist) with the configured title.
     index = client.get("/")
     assert index.status_code == 200
+    assert "<title>Financial Chatbot by Group x</title>" in index.text
+    assert '<div id="root"></div>' in index.text
+    assert 'content="Ask &lt;me&gt;"' in index.text
+    bundle = re.search(r'src="(/static/app/assets/[^"]+\.js)"', index.text)
+    assert bundle, "React bundle is not referenced from the page"
+    asset = client.get(bundle.group(1))
+    assert asset.status_code == 200 and "javascript" in asset.headers["content-type"]
+
+    # The original single-file page stays available as a fallback (also used when dist/ is missing).
+    monkeypatch.setenv("QI_WEB_UI", "legacy")
+    index = client.get("/")
     assert "Financial Chatbot by Group x" in index.text
     assert 'class="chat-messages"' in index.text
     assert '<script src="/static/app.js">' in index.text
+    monkeypatch.delenv("QI_WEB_UI")
     # The page script and styles are served as static assets.
     script = client.get("/static/app.js")
     styles = client.get("/static/styles.css")

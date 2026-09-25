@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.7
 # FinSight API + agent. Build from the repository root:
 #   docker build -f docker/Dockerfile -t finsight .
+# The browser UI is served from query_intelligence/web/dist, which is built from frontend/ and
+# committed, so this image needs no Node toolchain (CI checks that dist matches the source).
 # Torch/transformers are only needed for the optional FinBERT sentiment backend and the offline
 # llm_response generator; they are skipped unless WITH_TORCH=1 (CPU wheels).
 FROM python:3.13 AS builder

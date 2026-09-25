@@ -50,3 +50,9 @@ temp/
 # Keep trained model artifacts for public release.
 !models/*.joblib
 !models/*.json
+
+# Frontend (source in frontend/, build output committed in query_intelligence/web/dist/)
+frontend/node_modules/
+frontend/.vite/
+frontend/coverage/
+frontend/*.tsbuildinfo

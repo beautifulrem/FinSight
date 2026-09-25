@@ -1,0 +1,83 @@
+import type { Lang } from "./i18n";
+import type { KpiFormat } from "./marketData";
+
+const locale = (lang: Lang) => (lang === "zh" ? "zh-CN" : "en-US");
+
+export function formatMs(ms: number | undefined | null): string {
+  if (ms == null || !Number.isFinite(ms)) return "–";
+  if (ms < 1) return "<1 ms";
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  return `${(ms / 1000).toFixed(ms < 10_000 ? 2 : 1)} s`;
+}
+
+export function formatInt(lang: Lang, value: number | undefined | null): string {
+  if (value == null) return "–";
+  return new Intl.NumberFormat(locale(lang)).format(value);
+}
+
+/** Large CNY amounts: 亿/万 in Chinese, B/M in English. */
+export function formatMoney(lang: Lang, value: number): string {
+  const abs = Math.abs(value);
+  if (lang === "zh") {
+    if (abs >= 1e8) return `${trim(value / 1e8)} 亿`;
+    if (abs >= 1e4) return `${trim(value / 1e4)} 万`;
+    return trim(value);
+  }
+  if (abs >= 1e9) return `${trim(value / 1e9)}B`;
+  if (abs >= 1e6) return `${trim(value / 1e6)}M`;
+  if (abs >= 1e3) return `${trim(value / 1e3)}K`;
+  return trim(value);
+}
+
+function trim(value: number, digits = 2): string {
+  return Number(value.toFixed(digits)).toLocaleString("en-US", { maximumFractionDigits: digits });
+}
+
+export function formatKpi(lang: Lang, value: number, format: KpiFormat, unit?: string): string {
+  switch (format) {
+    case "percent":
+      return `${value > 0 ? "+" : ""}${trim(value)}%`;
+    case "fraction":
+      // ROE / volatility arrive as fractions (0.33 → 33%); values above 1 are already percentages.
+      return `${trim(Math.abs(value) <= 1 ? value * 100 : value, 1)}%`;
+    case "ratio":
+      return trim(value, 2);
+    case "money":
+      return formatMoney(lang, value);
+    case "volume":
+      // Tushare `amount` is reported in thousands of CNY.
+      return formatMoney(lang, value * 1000);
+    case "price":
+      return trim(value, 2);
+    default:
+      return `${trim(value)}${unit ? ` ${unit}` : ""}`;
+  }
+}
+
+export function formatCost(value: number | null | undefined, currency: string | null | undefined): string | null {
+  if (value == null) return null;
+  const symbol = currency === "CNY" ? "¥" : currency === "USD" ? "$" : "";
+  const digits = value < 0.01 ? 5 : 4;
+  return `${symbol}${value.toFixed(digits)}${symbol ? "" : ` ${currency ?? ""}`}`.trim();
+}
+
+/** Whole days between an ISO-ish date and now; undefined when the date cannot be parsed. */
+export function ageInDays(asOf: string | null | undefined, now = new Date()): number | undefined {
+  if (!asOf) return undefined;
+  const parsed = new Date(asOf.length === 10 ? `${asOf}T00:00:00` : asOf);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return Math.max(0, Math.floor((now.getTime() - parsed.getTime()) / 86_400_000));
+}
+
+export function formatDate(lang: Lang, asOf: string | null | undefined): string {
+  if (!asOf) return "";
+  const parsed = new Date(asOf.length === 10 ? `${asOf}T00:00:00` : asOf);
+  if (Number.isNaN(parsed.getTime())) return asOf;
+  const hasTime = asOf.length > 10 && !/T00:00:00/.test(asOf);
+  return new Intl.DateTimeFormat(locale(lang), {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    ...(hasTime ? { hour: "2-digit", minute: "2-digit", hour12: false } : {}),
+  }).format(parsed);
+}

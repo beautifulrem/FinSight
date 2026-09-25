@@ -28,6 +28,14 @@ http://127.0.0.1:8765/
 QI_USE_LIVE_ANNOUNCEMENT=0 python scripts/launch_chatbot.py
 ```
 
+## 浏览器界面
+
+![智能体回答、执行过程与证据面板](../assets/ui/desktop-light-agent-trace.png)
+
+页面源码在 `frontend/`（React 19 + TypeScript + Vite 8 + Tailwind CSS v4 + Radix/shadcn 风格组件 + Motion + TradingView Lightweight Charts），构建产物提交在 `query_intelligence/web/dist`，因此只装 Python 也能直接使用。每个回答展示：流式执行过程（路由依据、每次工具调用的参数/耗时/状态、LLM 步骤 token、核验结果、合规改写、降级标记）、可点击的 `E1` 引用标记与证据面板（类型、时间、新鲜度、链接）、有价格序列时的收盘价走势图和 KPI（A 股配色：红涨绿跌）、运行指标（trace_id、路由、模型、token、成本、耗时）。另有模式切换、澄清续答（`/agent/resume`）、推荐追问、文本语气、会话记忆、新会话、API Key、中英文切换、深浅色主题、移动端布局和键盘/读屏支持；风险提示始终可见，界面不给出买卖建议。
+
+开发与构建：`cd frontend && pnpm install && pnpm dev`（代理到 :8765 的 uvicorn）；`pnpm typecheck && pnpm lint && pnpm test && pnpm build`。缺少 `web/dist` 或设置 `QI_WEB_UI=legacy` 时回退到 `web/static` 的旧页面。技术选型理由与后端缺口见[英文文档](../frontend-chatbot.md#browser-ui)。
+
 ## 请求流程
 
 ```mermaid
