@@ -62,6 +62,8 @@ class AgentState(TypedDict, total=False):
     turns: Annotated[list[dict[str, Any]], operator.add]
     clarification_rounds: int
     clarification_reply: str
+    effective_query: str
+    refusal_category: str
 
 
 @dataclass(frozen=True)

@@ -18,8 +18,22 @@ _LISTED_TYPES = {"stock", "etf", "fund", "index"}
 _COMPLEX_STYLES = {"why", "compare", "forecast"}
 _COMPLEX_INTENTS = {"market_explanation", "macro_policy_impact", "peer_compare"}
 _MULTI_HOP_MARKERS = re.compile(
-    r"结合|同时|并且|以及.*(影响|变化)|对比|相比|比较|分别|还是|哪个|影响|传导|联动|为什么|原因|归因"
-    r"|\bcompare|\bversus\b|\bvs\.?\b|\bimpact\b|\bwhy\b|\bcombined\b|\btogether with\b|\band then\b",
+    r"结合|同时|并且|以及.*(影响|变化)|对比|相比|比较|分别|还是|哪个|影响|传导|联动|为什么|原因|归因|"
+    r"意味着|关联|关系|是否匹配|综合来看|综合|"
+    r"\bcompare|\bversus\b|\bvs\.?\b|\bimpact\b|\baffect|\beffect\b|\brelat(?:ion|ed|es)|\bcorrelat|"
+    r"\blinked\b|\bwhy\b|\bcombined\b|\btogether with\b|\band then\b",
+    re.IGNORECASE,
+)
+# Judgment and timing questions need valuation, fundamentals and news plus hedging: never a single lookup.
+_JUDGMENT_MARKERS = re.compile(
+    r"抄底|能不能买|能买吗|值得买|值不值得|要不要|该不该|会涨|会跌|能涨|还能涨|涨吗|跌吗|见底|高估|低估|买点|卖点|"
+    r"止盈|止损|逃顶|上车|还能拿|拿得住|适合定投|适合买|值得持有|长期持有|"
+    r"\bshould i\b|\bworth (?:buying|it)\b|\bwill\b.{0,40}\b(?:rise|fall|go up|go down|drop|rebound)\b|"
+    r"\bgood time to\b|\bovervalued\b|\bundervalued\b|\bbottom(?:ed)?\b",
+    re.IGNORECASE,
+)
+_WHY_MARKERS = re.compile(
+    r"\bdr(?:ove|ives|iving)\b|\bdriver[s]?\b|\bbehind\b|\bwhat caused\b|\breasons? for\b|\bexplain\b",
     re.IGNORECASE,
 )
 _FOLLOW_UP_MARKERS = re.compile(r"^(那|那么|它|这只|这个|该股|那它|and |what about |how about )", re.IGNORECASE)
@@ -29,15 +43,21 @@ _MACRO_ANCHOR = re.compile(
 )
 _FINANCE_ANCHOR = re.compile(
     r"股票|股价|个股|该股|这只票|那只票|基金|etf|lof|指数|估值|走势|行情|市盈率|市净率|收盘|涨跌|上涨|下跌|大涨|大跌|"
-    r"涨停|跌停|业绩|财报|分红|满仓|加仓|减仓|清仓|仓位|"
-    r"\bstocks?\b|\bshares?\b|\bfunds?\b|valuation|overvalued|undervalued|earnings|share price|dividend",
+    r"涨停|跌停|业绩|财报|分红|满仓|加仓|减仓|清仓|仓位|会涨|会跌|能涨|涨吗|跌吗|抄底|买入|卖出|能买|值得买|"
+    r"\bP/?E\b|\bP/?B\b|股息|不良率|营收|净利|同行|涨了|跌了|费率|股价|"
+    r"\bstocks?\b|\bshares?\b|\bfunds?\b|valuation|overvalued|undervalued|earnings|share price|dividend|"
+    r"\bbuy\b|\bsell\b|\binvest(?:ing|ment)?\b|\bdrop\b|\bgo up\b|\brise\b|\bfall\b",
     re.IGNORECASE,
 )
 _DANGLING_REFERENCE = re.compile(
-    r"(?<!其)它|这只|这支|这个基金|这个标的|这家|该股|该公司|该基金|那只|那支|"
-    r"\bit\b|\bthis (?:stock|fund|company|one)\b|\bthat (?:stock|fund|company|one)\b",
+    r"(?<!其)它|这只|这支|这个基金|这个标的|这个指数|这个股票|这家|那家|该股|该公司|该基金|那只|那支|"
+    r"\bit\b|\bits\b|\b(?:this|that) (?:stock|fund|company|one|etf|index|bank)\b",
     re.IGNORECASE,
 )
+
+
+def has_finance_content(query: str) -> bool:
+    return bool(_FINANCE_ANCHOR.search(query) or _MACRO_ANCHOR.search(query))
 
 
 def apply_finance_overrides(nlu_result: dict[str, Any], query: str) -> tuple[dict[str, Any], list[str]]:
@@ -59,6 +79,11 @@ def apply_finance_overrides(nlu_result: dict[str, Any], query: str) -> tuple[dic
         patched["product_type"] = {"label": "unknown", "score": 0.5}
         patched["missing_slots"] = sorted({*(nlu_result.get("missing_slots") or []), "missing_entity"})
         return patched, ["override:out_of_scope_with_finance_anchor"]
+    if _DANGLING_REFERENCE.search(query) and len(query) <= 40:
+        # A short follow-up about "it" is a conversation turn without context, not an off-topic request.
+        patched["product_type"] = {"label": "unknown", "score": 0.5}
+        patched["missing_slots"] = sorted({*(nlu_result.get("missing_slots") or []), "missing_entity"})
+        return patched, ["override:out_of_scope_dangling_reference"]
     return nlu_result, []
 
 
@@ -107,16 +132,29 @@ def decide_route(nlu_result: dict[str, Any], *, mode: Mode = "auto", query: str 
         reasons.append(f"multi_entity:{len(listed)}")
     if len(comparison_targets) >= 2:
         reasons.append("comparison_targets")
+    multi_hop = bool(_MULTI_HOP_MARKERS.search(text))
+    anchored_to_market = bool(listed) or "sector" in entity_types
     if style in _COMPLEX_STYLES:
-        reasons.append(f"question_style:{style}")
+        # The style classifier alone is noisy (比亚迪 reads as a comparison): with a single target it needs
+        # lexical support before a question counts as complex.
+        supported = len(listed) >= 2 or multi_hop or bool(_WHY_MARKERS.search(text)) or style == "forecast"
+        if supported:
+            reasons.append(f"question_style:{style}")
     for intent in sorted(intents & _COMPLEX_INTENTS):
+        # A macro question counts as macro-to-market only when it names a market target.
+        if intent == "macro_policy_impact" and not (anchored_to_market or multi_hop):
+            continue
         reasons.append(f"intent:{intent}")
     if len(intents) >= 3:
         reasons.append(f"multi_intent:{len(intents)}")
     if entity_types & {"macro_indicator", "policy"} and (listed or "sector" in entity_types):
         reasons.append("cross_domain:macro_to_market")
-    if _MULTI_HOP_MARKERS.search(text):
+    if multi_hop:
         reasons.append("lexical:multi_hop_marker")
+    if _JUDGMENT_MARKERS.search(text):
+        reasons.append("lexical:judgment_or_timing")
+    if _WHY_MARKERS.search(text):
+        reasons.append("lexical:why")
     if _FOLLOW_UP_MARKERS.search(text.strip()):
         reasons.append("lexical:follow_up")
 

@@ -1,0 +1,468 @@
+{
+ "config": {
+  "labels": "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+  "commit": "d78b313",
+  "run_at": "2026-09-25T22:56:36+00:00",
+  "command": "python -m evaluation.agent_eval.router_eval --out /tmp/router_master.json"
+ },
+ "queries": 158,
+ "accuracy": 0.7152,
+ "per_route": {
+  "refuse": {
+   "support": 30,
+   "precision": 0.6905,
+   "recall": 0.9667
+  },
+  "clarify": {
+   "support": 30,
+   "precision": 0.875,
+   "recall": 0.4667
+  },
+  "workflow": {
+   "support": 48,
+   "precision": 0.65,
+   "recall": 0.8125
+  },
+  "agent": {
+   "support": 50,
+   "precision": 0.775,
+   "recall": 0.62
+  }
+ },
+ "confusion": {
+  "refuse": {
+   "refuse": 29,
+   "clarify": 0,
+   "workflow": 1,
+   "agent": 0
+  },
+  "clarify": {
+   "refuse": 10,
+   "clarify": 14,
+   "workflow": 3,
+   "agent": 3
+  },
+  "workflow": {
+   "refuse": 3,
+   "clarify": 0,
+   "workflow": 39,
+   "agent": 6
+  },
+  "agent": {
+   "refuse": 0,
+   "clarify": 2,
+   "workflow": 17,
+   "agent": 31
+  }
+ },
+ "errors": [
+  {
+   "id": "route_004",
+   "query": "明天去上海的高铁几点",
+   "expected": "refuse",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_020",
+   "query": "它会涨吗",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_028",
+   "query": "What about it?",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_031",
+   "query": "Will it go up tomorrow?",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_032",
+   "query": "它最近为什么跌",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_033",
+   "query": "这支ETF费率多少",
+   "expected": "clarify",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_048",
+   "query": "比亚迪的市盈率是多少",
+   "expected": "workflow",
+   "predicted": "agent",
+   "reasons": [
+    "question_style:compare"
+   ]
+  },
+  {
+   "id": "route_049",
+   "query": "比亚迪的ROE是多少",
+   "expected": "workflow",
+   "predicted": "agent",
+   "reasons": [
+    "question_style:compare"
+   ]
+  },
+  {
+   "id": "route_052",
+   "query": "沪深300ETF最近有什么公告",
+   "expected": "workflow",
+   "predicted": "agent",
+   "reasons": [
+    "question_style:why"
+   ]
+  },
+  {
+   "id": "route_055",
+   "query": "最新一期CPI是多少",
+   "expected": "workflow",
+   "predicted": "agent",
+   "reasons": [
+    "intent:macro_policy_impact"
+   ]
+  },
+  {
+   "id": "route_069",
+   "query": "茅台现在能不能抄底",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_079",
+   "query": "What drove CATL's recent share price move?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_081",
+   "query": "Compare BYD and CATL valuations",
+   "expected": "agent",
+   "predicted": "clarify",
+   "reasons": [
+    "nlu:missing_entity",
+    "override:out_of_scope_with_finance_anchor"
+   ]
+  },
+  {
+   "id": "route_082",
+   "query": "Should I buy Ping An Insurance now?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_083",
+   "query": "Is Kweichow Moutai overvalued?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_084",
+   "query": "How does inflation affect consumer stocks like Moutai?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_085",
+   "query": "Explain the recent move in China Merchants Bank shares",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_086",
+   "query": "Is it a good time to buy the CSI 300 ETF?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_089",
+   "query": "中信证券业绩和市场成交量有什么关联",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_091",
+   "query": "茅台分红和估值综合来看怎么样",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_103",
+   "query": "那它的PE呢",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_105",
+   "query": "它的股息率多少",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_107",
+   "query": "那家银行的不良率呢",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_108",
+   "query": "How about its dividend?",
+   "expected": "clarify",
+   "predicted": "agent",
+   "reasons": [
+    "lexical:follow_up"
+   ]
+  },
+  {
+   "id": "route_109",
+   "query": "What is its P/E?",
+   "expected": "clarify",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_110",
+   "query": "Is that ETF good?",
+   "expected": "clarify",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_111",
+   "query": "这只基金值得长期持有吗",
+   "expected": "clarify",
+   "predicted": "agent",
+   "reasons": [
+    "multi_intent:3",
+    "lexical:follow_up"
+   ]
+  },
+  {
+   "id": "route_112",
+   "query": "它和同行比怎么样",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_114",
+   "query": "这个指数现在贵吗",
+   "expected": "clarify",
+   "predicted": "agent",
+   "reasons": [
+    "lexical:follow_up"
+   ]
+  },
+  {
+   "id": "route_116",
+   "query": "What drove its drop?",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_117",
+   "query": "它今天涨了多少",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_126",
+   "query": "What is ICBC's latest close?",
+   "expected": "workflow",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_127",
+   "query": "China Life P/B ratio?",
+   "expected": "workflow",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_128",
+   "query": "Midea Group latest news",
+   "expected": "workflow",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "route_134",
+   "query": "What is the latest CPI in China?",
+   "expected": "workflow",
+   "predicted": "agent",
+   "reasons": [
+    "intent:macro_policy_impact"
+   ]
+  },
+  {
+   "id": "route_135",
+   "query": "What is China's latest PMI?",
+   "expected": "workflow",
+   "predicted": "agent",
+   "reasons": [
+    "intent:macro_policy_impact"
+   ]
+  },
+  {
+   "id": "route_141",
+   "query": "隆基绿能还能抄底吗",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_144",
+   "query": "国债收益率下降对保险股意味着什么",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup",
+    "override:out_of_scope_with_macro_anchor"
+   ]
+  },
+  {
+   "id": "route_147",
+   "query": "Compare Midea and Gree on valuation and growth",
+   "expected": "agent",
+   "predicted": "clarify",
+   "reasons": [
+    "nlu:missing_entity"
+   ]
+  },
+  {
+   "id": "route_148",
+   "query": "Will China Life stock go up after the earnings?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_149",
+   "query": "What's behind the recent drop in LONGi shares?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_150",
+   "query": "Should I sell BYD now?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_155",
+   "query": "招商银行分红率和估值是否匹配",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_156",
+   "query": "宁德时代是被高估了吗",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_157",
+   "query": "创业板ETF现在适合定投吗",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  }
+ ]
+}
