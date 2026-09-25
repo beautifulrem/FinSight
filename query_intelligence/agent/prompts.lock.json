@@ -1,10 +1,12 @@
 {
   "agent_system": {
     "v1": "573143702bff",
-    "v2": "7c46113c470d"
+    "v2": "7c46113c470d",
+    "v3": "e419eb84d58e"
   },
   "compose_system": {
     "v1": "f0b3ab6236aa",
-    "v2": "da2f1d558da1"
+    "v2": "da2f1d558da1",
+    "v3": "b9a704272c6d"
   }
 }

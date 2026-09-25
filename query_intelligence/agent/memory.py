@@ -1,7 +1,8 @@
 """Session memory for the agent.
 
 * Checkpointer: in-memory by default; ``QI_AGENT_CHECKPOINT_DB=/path/agent.sqlite`` persists
-  sessions in SQLite so conversations survive restarts.
+  sessions in SQLite so conversations survive restarts; ``QI_AGENT_CHECKPOINT_DB=postgresql://...``
+  shares them across processes and replicas.
 * Each finished turn is appended to ``state["turns"]``. The previous user questions are handed to
   the classical NLU as ``dialog_context`` (so "它/那它的市盈率呢/that stock" resolve to the last
   single entity), and short summaries of recent turns are given to the LLM.
@@ -22,13 +23,35 @@ _HISTORY_ANSWER_CHARS = 600
 
 
 def make_checkpointer(path: str | None = None) -> Any:
+    """In-memory by default; a SQLite file path; or a ``postgresql://`` DSN for sessions shared by several
+    processes or replicas (``langgraph-checkpoint-postgres`` with a psycopg connection pool)."""
     target = path if path is not None else os.getenv("QI_AGENT_CHECKPOINT_DB", "").strip()
     if not target:
         return InMemorySaver()
+    if target.startswith(("postgres://", "postgresql://")):
+        return _postgres_checkpointer(target)
     from langgraph.checkpoint.sqlite import SqliteSaver
 
     connection = sqlite3.connect(target, check_same_thread=False)
     saver = SqliteSaver(connection)
+    saver.setup()
+    return saver
+
+
+def _postgres_checkpointer(dsn: str) -> Any:
+    from langgraph.checkpoint.postgres import PostgresSaver
+    from psycopg.rows import dict_row
+    from psycopg_pool import ConnectionPool
+
+    pool = ConnectionPool(
+        conninfo=dsn,
+        min_size=1,
+        max_size=int(os.getenv("QI_AGENT_CHECKPOINT_POOL", "10")),
+        # settings required by PostgresSaver (see PostgresSaver.from_conn_string)
+        kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+        open=True,
+    )
+    saver = PostgresSaver(pool)
     saver.setup()
     return saver
 

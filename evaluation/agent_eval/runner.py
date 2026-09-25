@@ -19,6 +19,7 @@ Results are written to ``outputs/agent_eval/`` (gitignored).
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import subprocess
 import sys
@@ -231,13 +232,27 @@ def _display_path(value: str | Path) -> str:
     return str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
 
 
+@functools.cache
 def _git_commit() -> str | None:
+    """Commit the evaluation code ran from, suffixed ``-dirty`` when the working tree had changes.
+
+    Cached: every ``main`` calls it before running, so a commit made while a long online run is in
+    progress is not attributed to that run.
+    """
     try:
-        return subprocess.run(
+        commit = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         return None
+    return f"{commit}-dirty" if status else commit
 
 
 def _make_llm(kind: str) -> LLMClient | None:
@@ -253,6 +268,7 @@ def _make_llm(kind: str) -> LLMClient | None:
 
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
+    _git_commit()  # record the commit at start, not when the run finishes
     parser = argparse.ArgumentParser(description="Run the FinSight agent evaluation.")
     parser.add_argument("--mode", choices=["workflow", "agent", "auto", "pure_llm"], default="workflow")
     parser.add_argument("--llm", choices=["none", "deepseek"], default="none")

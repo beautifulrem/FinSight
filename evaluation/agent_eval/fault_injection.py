@@ -268,6 +268,7 @@ def run_scenario(name: str, spec: dict[str, Any], service: Any, *, questions: li
 
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
+    _git_commit()  # record the commit at start, not when the run finishes
     parser = argparse.ArgumentParser(description="Run agent fault-injection scenarios.")
     parser.add_argument("--scenario", action="append", default=[])
     parser.add_argument("--out", default=str(DEFAULT_OUTPUT_DIR / "fault_injection.json"))

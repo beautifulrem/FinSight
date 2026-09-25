@@ -142,6 +142,7 @@ ONLINE_MODES = ("legacy_llm", "pure_llm", "workflow_llm", "agent")
 
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
+    _git_commit()  # record the commit at start, not when the run finishes
     parser = argparse.ArgumentParser(description="Ablation over answer paths.")
     parser.add_argument("--llm", choices=["none", "deepseek"], default="none")
     parser.add_argument("--repeats", type=int, default=1)
