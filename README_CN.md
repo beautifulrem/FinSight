@@ -2,237 +2,175 @@
 
 <h1>FinSight</h1>
 
-<h3>证据优先的金融分析聊天机器人。</h3>
+<h3>证据优先的 A 股研究 Agent。</h3>
 
 <p>
   <a href="README.md"><img alt="Language English" src="https://img.shields.io/badge/Language-English-2f80ed?style=flat&labelColor=555555"></a>
   <a href="README_CN.md"><img alt="Language Simplified Chinese" src="https://img.shields.io/badge/%E8%AF%AD%E8%A8%80-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-d97706?style=flat&labelColor=555555"></a>
   <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-f1c40f?style=flat&labelColor=555555"></a>
   <img alt="Python 3.13" src="https://img.shields.io/badge/Python-3.13-3776ab?style=flat&labelColor=555555">
-  <img alt="API FastAPI" src="https://img.shields.io/badge/API-FastAPI-009688?style=flat&labelColor=555555">
-  <img alt="LLM API" src="https://img.shields.io/badge/LLM-API-111111?style=flat&labelColor=555555">
+  <img alt="LangGraph" src="https://img.shields.io/badge/LangGraph-1.2-1c3c3c?style=flat&labelColor=555555">
+  <img alt="MCP and A2A" src="https://img.shields.io/badge/MCP%20%2B%20A2A-protocols-6b46c1?style=flat&labelColor=555555">
+  <img alt="React 19" src="https://img.shields.io/badge/UI-React%2019%20%2B%20TS-149eca?style=flat&labelColor=555555">
 </p>
 
 </div>
 
 ---
 
-FinSight 是证据优先的金融分析聊天机器人。它把自然语言金融问题转换为可审计的证据产物，再通过本地网页 Chatbot 输出带风险提示的回答。
+FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问题。经典、可解释的 NLU 负责理解、守卫和路由；LLM 在 LangGraph 循环里编排类型化的取证工具；**答案里的每个数字都由代码对照它旁边引用的证据逐句核对**，最后由合规节点删除任何像投资建议的表述。没有 LLM Key 时，同一张图由确定性规划器完成回答。
 
-项目遵循一个核心原则：先检索和暴露证据，再生成金融回答。后端会识别意图、实体、证据需求、source plan、文档证据、结构化行情数据、数值信号、情感证据和带引用的回答 JSON。
+<p align="center"><img src="docs/assets/ui/chrome-agent-trace.png" alt="Agent 回答、实时执行过程与证据面板" width="900"></p>
 
-## 特性
+## 为什么这样设计
 
-- 支持中文和英文问题的浏览器 Chatbot。
-- 可解释的 Query Intelligence 后端，负责 NLU 和 Retrieval。
-- 面向中国市场的运行时覆盖：A 股、ETF/基金、指数、行业、宏观指标、政策事件、新闻、公告和基本面。
-- 数值分析 `analysis_summary`：市场、基本面、宏观、技术指标和数据就绪信号。
-- 证据优先的研究 Agent（`/agent/*`，或 `/chat` 传 `mode=agent|auto`）：经典 NLU 负责路由与守卫，LLM 在 LangGraph 循环中编排 9 个类型化工具，每个回答都校验引用与数字可追溯，并经过金融合规守卫；没有 LLM Key 时由确定性规划器完成。
-- Agent 工具同时通过 MCP 对外提供（`python -m query_intelligence.agent.mcp_server`）。
-- 文档情感分析（默认经典模型，可选 FinBERT）和下一问题建议已进入 Agent 在线回答；原 `/chat` 链路仍只在离线运行它们。
-- 基于紧凑证据生成 LLM 回答，并控制引用和风险提示。
-- `data/runtime/` 和 `models/` 中包含 clone 后可运行的轻量资产。
+| 决策 | 理由 | 位置 |
+|---|---|---|
+| 经典 NLU 路由，LLM 负责编排 | 路由和守卫必须可解释、便宜；LLM 只用在它有价值的地方（选工具、组织答案）。简单问题走固定流程，对比、归因、多跳问题交给 LLM 工具循环。 | `agent/router.py`、`agent/graph.py` |
+| 逐句的数字校验 | 数字必须出现在**本句**引用的证据里，按单位和写出的精度匹配。不通过时让 LLM 修改一次，仍不通过就删除该子句。 | `agent/verifier.py` |
+| 处处有确定性兜底 | 没有 Key、模型故障或预算耗尽时，降级到规划器 + 模板答案，依然有引用、依然经过校验。 | `agent/planner.py`、`agent/llm.py` |
+| 证据是不可信数据 | 工具结果被包装、规范化并过滤注入指令；工具全部只读。 | `agent/injection.py` |
+
+## 结果
+
+全部数字都能用 [docs/agent-eval.md](docs/agent-eval.md) 中的命令复现。在线结果来自经网关调用的 DeepSeek V4.1 Flash，每个任务重复 3 次，成本为网关账单口径。
+
+任务成功是「一票否决」口径：行为（回答/澄清/拒答）正确、每个必需事实都陈述**且**引用、调用了必需工具、判断类问题有限定语、全文没有交易指令，缺一不可。开发集 207 个任务 / 220 轮；保留集 53 个任务，在规则调优之后才编写。
+
+| 回答路径 | 成功率（开发集） | 成功率（保留集） | pass^3（开发 / 保留） | 单任务成本（开发 / 保留） | P95 延迟（开发集） |
+|---|---|---|---|---|---|
+| 原 `/chat`，无 LLM | 0.256 | 0.189 | – | – | 1.0 s |
+| 原 `/chat` + LLM 改写 | 0.440 | 0.679 | – | 未记录 | 13.4 s |
+| 纯 LLM，不调工具 | 0.000 | 0.000 | 0.000 / 0.000 | $0.0009 / $0.0009 | 18.3 s |
+| 确定性固定流程（无 LLM） | 0.981 | 0.849 | – | $0 | 0.8 s |
+| 固定流程 + LLM 组织答案 | 0.979 | 0.906 | 0.976 / 0.906 | $0.0008 / $0.0007 | 16.7 s |
+| **LLM Agent（工具循环）** | **0.986** | **0.956** | **0.971 / 0.906** | **$0.0016 / $0.0010** | 25.2 s |
+
+纯 LLM 一题都过不了：它无法引用证据，报出的价格也无法核实。Prompt v2/v3 相比 v1 把 Agent 单任务成本降低 60%（原为 $0.0040），同时把保留集 pass^3 从 0.849 提到 0.906。
+
+| 其他测量 | 结果 | 详情 |
+|---|---|---|
+| 校验器误放率（2,315 个被篡改的正确答案） | 35.0%（原来的整批比对）→ **2.8%**（逐句绑定）；公司之间互换数字 100% → **0.6%**；157 个正确答案仍全部通过 | [agent-eval.md](docs/agent-eval.md) |
+| 提示注入红队（17 种攻击 × 4 种混淆，投毒到搜索结果） | 开发攻击集：三条路径 **0** 次成功（216 次运行）。未见过的保留攻击集：模板 0/64、LLM 组织答案 2/64、Agent 1/64，如实公开（见局限） | [agent-eval.md](docs/agent-eval.md) |
+| 故障注入（超时、5xx、空数据、超大文档、LLM 宕机、畸形工具参数、无限循环） | 11/11 个场景平稳降级 | [agent-eval.md](docs/agent-eval.md) |
+| 容器压测（固定流程，无 LLM） | 减少检查点写入后，单客户端 8.4 次/秒、P95 0.66 秒（原为 0.7 次/秒、P95 4.6 秒） | [performance.md](docs/performance.md) |
+| 实时数据源审计（64 次探测） | 49 次成功；修复了错误的 M2 序列、停更的 CPI/PMI、始终为空的 PE/PB 和取不到的公告 | [data-sources.md](docs/data-sources.md) |
 
 ## 架构
 
 ```mermaid
 flowchart LR
-  A["浏览器 / API 客户端"] --> B["FastAPI"]
-  B -->|"/chat（mode=workflow）"| C["Query Intelligence<br/>NLU + Retrieval"]
-  C --> D["analysis_summary"] --> G["LLM 回答<br/>（模板兜底）"] --> H["新鲜度 + 合规守卫"] --> A
-  B -->|"/agent/* 或 /chat mode=agent|auto"| R["Agent：NLU 守卫 + 路由"]
-  R -->|拒答 / 澄清| F["组装结果"]
-  R -->|workflow| P["确定性规划器"] --> T["工具注册表<br/>（9 个工具，也经 MCP 暴露）"]
-  R -->|agent| L["LLM 工具循环<br/>（LangGraph）"] <--> T
-  T --> V["证据校验"] --> K["合规"] --> F --> A
+  U["浏览器 (React) / API / A2A 客户端"] --> API["FastAPI"]
+  API --> G["guard_in：经典 NLU + 可解释路由"]
+  G -->|超出范围| RF["拒答"]
+  G -->|缺少标的| CL["澄清（中断 / 恢复）"]
+  G -->|简单| WF["确定性规划器"]
+  G -->|复杂| AL["LLM 工具循环（LangGraph）"]
+  WF --> T["9 个类型化工具（同时经 MCP 提供）"]
+  AL <--> T
+  T --> DS["实时数据源：降级链、熔断、来源标注"]
+  WF --> C["组织答案（LLM 或模板）"]
+  AL --> V["校验：逐句的引用与数字"]
+  C --> V
+  V -->|不通过| RV["修改一次，再修复"] --> V
+  V --> K["合规节点"] --> F["汇总：答案、证据、trace、成本"]
+  F --> U
+  F -.-> O["trace：JSON / OTLP · Prometheus /metrics"]
 ```
 
-上半部分是原有 `/chat` 链路，行为不变；下半部分是 Agent 链路，通过类型化工具复用同一套 NLU、检索、行情分析和情感代码，详见 [docs/zh/agent.md](docs/zh/agent.md)。
+会话保存在 LangGraph checkpointer 中（内存、SQLite 或 Postgres），因此澄清可以暂停一次运行，任意副本都能接着对话。详见 [docs/zh/agent.md](docs/zh/agent.md)。
 
-核心产物：
+## 功能
 
-| 产物 | 用途 |
-|---|---|
-| `nlu_result` | 问题归一化、产品类型、意图、主题、实体、缺失槽位、风险标记、证据需求和 source plan。 |
-| `retrieval_result` | 已执行 source、文档、结构化数据、覆盖度、warning、排序 trace 和 `analysis_summary`。 |
-| `answer_generation` | 前端可直接渲染的回答 JSON。 |
-| `next_question_prediction` | Chatbot 的后续问题建议。 |
+- **Agent**：带理由的路由、并行工具调用、步数/工具/token 预算与运行截止时间、校验失败后一次 LLM 修改、指代消解与澄清中断、按节点设置推理强度、带熔断的模型容灾、按哈希锁定的版本化 Prompt。
+- **取证工具**：实体解析、行情、技术指标、基本面、宏观指标、新闻、公告、知识检索、文档情感，每个都有 Pydantic schema、超时、重试、TTL 缓存和可操作的错误提示。
+- **实时数据**：东方财富 → 新浪 → 腾讯 → 缓存 → 快照降级链，每个数据源独立熔断，每条记录标注来源与时效（`GET /sources/health`）。
+- **协议**：工具经 MCP 提供；整个 Agent 经 A2A 1.0 提供（澄清对应 `input-required`）。
+- **可观测性**：每次运行的 trace（节点、工具、LLM 调用、token、成本、Prompt 版本）、运行查看接口、OpenTelemetry 导出、Prometheus 指标。
+- **网页前端**（React 19、TypeScript、Tailwind v4、Radix、Motion、Lightweight Charts）：流式执行时间线、与证据面板联动的引用标签（含时效）、价格图、运行成本与延迟、中英文、深色模式、移动端。
+- **安全**：可选 API Key、限流、CORS、请求体上限、非 root 且根文件系统只读的容器。
 
-FinSight 不输出确定性的买入/卖出决策。它提供证据、解释、不确定性提示和风险声明。
+<p align="center">
+  <img src="docs/assets/ui/chrome-run-details.png" alt="运行详情：token、成本、延迟" width="440">
+  <img src="docs/assets/ui/chrome-mobile-dark-en.png" alt="移动端、深色、英文" width="200">
+</p>
 
 ## 快速开始
 
-请使用 Python 3.13 或兼容的 Python 3 版本。
-
 ```bash
 pip install -r requirements.txt
+uvicorn query_intelligence.api.app:create_app --factory --port 8765   # 打开 http://127.0.0.1:8765
 ```
 
-运行一次人工查询：
+没有 Key 时由确定性路径回答。启用 LLM Agent（任何 OpenAI 兼容接口均可）：
 
 ```bash
-python manual_test/run_manual_query.py --query "你觉得中国平安怎么样？"
+export DEEPSEEK_API_KEY=...                      # 只从环境变量读取，不要写进配置文件
+export DEEPSEEK_BASE_URL=https://api.deepseek.com # 或网关，例如 https://api.cline.bot/api/v1
+export DEEPSEEK_MODEL=deepseek-v4-flash
+export QI_LLM_FALLBACK_MODELS=...                 # 可选：同一接口上的备用模型
 ```
 
-启动本地网页 Chatbot：
+实时行情、新闻、公告、宏观默认开启；设置 `QI_USE_LIVE_MARKET=0`（以及 `_NEWS`、`_ANNOUNCEMENT`、`_MACRO`）即使用随仓库提供的离线快照。
+
+Docker 与 Kubernetes（多副本经 Postgres 共享会话、只读根文件系统）见 [docs/deployment.md](docs/deployment.md)。
 
 ```bash
-export DEEPSEEK_API_KEY="your_deepseek_api_key_here"
-python scripts/launch_chatbot.py
+docker build -f docker/Dockerfile -t finsight . && docker run -p 8000:8000 finsight
+kubectl apply -f deploy/k8s/finsight.yaml
 ```
 
-启动 FastAPI 服务：
+## API
 
-```bash
-uvicorn query_intelligence.api.app:create_app --factory --host 0.0.0.0 --port 8000
-```
-
-也可以用 Docker 运行（多阶段镜像、非 root 用户、healthcheck；可选 `postgres` 与 `tracing` profile）：
-
-```bash
-docker compose -f docker/docker-compose.yml up --build
-```
-
-按需启用 live provider：
-
-```bash
-QI_USE_LIVE_MARKET=1 QI_USE_LIVE_NEWS=1 QI_USE_LIVE_ANNOUNCEMENT=1 \
-uvicorn query_intelligence.api.app:create_app --factory --host 0.0.0.0 --port 8000
-```
-
-live 数据按「主源 → 备源 → 最近一次成功值 → 离线快照」的顺序获取，每个数据源都有熔断器和硬超时，另有 TTL 缓存。例如股票日线依次尝试东方财富、新浪、腾讯、新浪实时行情、efinance。每条记录都带 `payload.provenance`（来源、`fetched_at`、`as_of`、实时/快照、降级原因）；`GET /sources/health` 返回各数据源的状态、延迟与最近错误。2026-09-25 的实测审计（延迟、失效接口及根因、改造前后对比）见 [docs/data-sources.md](docs/data-sources.md)，可用 `python -m scripts.audit_data_sources` 复跑。
-
-人工运行会输出本地文件：
-
-```text
-manual_test/output/<timestamp>-<query-slug>/
-  query.txt
-  nlu_result.json
-  retrieval_result.json
-```
-
-## API 概览
-
-| Endpoint | 用途 |
+| 接口 | 用途 |
 |---|---|
-| `GET /health` | 健康检查。 |
-| `GET /` | 本地浏览器 Chatbot UI。 |
-| `POST /chat` | 端到端聊天回复，包含证据支撑的 LLM 措辞；可选 `mode=agent|auto` 转交 Agent。 |
-| `POST /agent/chat` | Agent 回答：会话记忆、工具轨迹、证据校验、情感和下一问题建议。 |
-| `POST /agent/chat/stream` | 与 `/agent/chat` 相同，以 SSE 流式返回。 |
-| `POST /agent/resume` | 回答会话中待澄清的问题。 |
-| `GET /agent/sessions/{session_id}` | 会话历史和待澄清问题。 |
-| `POST /nlu/analyze` | 只执行 NLU。 |
-| `POST /retrieval/search` | 使用已有 NLU 结果执行检索。 |
-| `POST /query/intelligence` | 端到端执行 NLU 和 Retrieval。 |
-| `POST /query/intelligence/artifacts` | 端到端运行并写出 JSON 产物。 |
+| `POST /agent/chat`、`POST /agent/chat/stream`（SSE）、`POST /agent/resume` | 带证据、校验结果、trace id 和成本的 Agent 回答；节点事件流；澄清后恢复。 |
+| `GET /agent/sessions/{id}`、`GET /agent/traces`、`GET /agent/traces/{id}` | 会话记忆、最近运行、完整 trace。 |
+| `GET /.well-known/agent-card.json`、`POST /a2a` | A2A 服务卡片与 JSON-RPC 接口。 |
+| `GET /metrics`、`GET /sources/health`、`GET /health` | Prometheus 指标、数据源状态、健康检查。 |
+| `POST /chat` | 原聊天接口（`mode=workflow` 保持原流程；`agent`/`auto` 走 Agent）。 |
+| `POST /nlu/analyze`、`POST /retrieval/search`、`POST /query/intelligence` | 经典 NLU 与检索产物。 |
 
-示例请求：
+Schema 位于 `schemas/agent_*.schema.json`，由 `query_intelligence/contracts.py` 生成。
 
-```json
-{
-  "query": "你觉得中国平安怎么样？",
-  "user_profile": {
-    "risk_preference": "balanced",
-    "preferred_market": "cn",
-    "holding_symbols": ["601318.SH"]
-  },
-  "top_k": 10,
-  "debug": false
-}
-```
-
-完整请求和响应契约见 [docs/zh/query-intelligence.md](docs/zh/query-intelligence.md)。Agent 请求与响应的 schema 在 `schemas/agent_*.schema.json`，见 [docs/zh/agent.md](docs/zh/agent.md)。
-
-## 模块
-
-| 模块 | 主要路径 | 文档 |
-|---|---|---|
-| 前端 Chatbot | `query_intelligence/chatbot.py`, `query_intelligence/api/app.py` | [docs/zh/frontend-chatbot.md](docs/zh/frontend-chatbot.md) |
-| NLU 和 Retrieval | `query_intelligence/` | [docs/zh/query-intelligence.md](docs/zh/query-intelligence.md) |
-| 数值分析 | `query_intelligence/retrieval/market_analyzer.py` | [docs/zh/numerical-analysis.md](docs/zh/numerical-analysis.md) |
-| 文本分析 | `sentiment/` | [docs/zh/sentiment.md](docs/zh/sentiment.md) |
-| LLM 总结和预测 | `scripts/llm_response.py`, `/chat` | [docs/zh/llm-response.md](docs/zh/llm-response.md) |
-
-模块级说明见 [docs/zh/modules.md](docs/zh/modules.md)。
-
-## 仓库结构
-
-```text
-query_intelligence/   FastAPI、NLU、retrieval、contracts、provider
-sentiment/            文档情感预处理和分类
-scripts/              Chatbot 启动、LLM 交接、评估工具
-training/             公开数据同步、训练和运行时资产构建
-manual_test/          人工查询和集成测试脚本
-tests/                Pytest 测试
-schemas/              外部校验 JSON Schema
-data/runtime/         clone 后可用的小型运行时资产
-models/               随仓库发布的模型产物
-docs/                 详细文档
-```
-
-## 配置
-
-常用环境变量：
-
-| 变量 | 用途 |
-|---|---|
-| `DEEPSEEK_API_KEY` | `/chat` 默认 LLM provider 使用的 API key。 |
-| `DEEPSEEK_MODEL` | 覆盖默认 LLM 模型；修改 `DEEPSEEK_BASE_URL` 后也可填其他兼容 provider 的模型名。 |
-| `TUSHARE_TOKEN` | 启用 Tushare 行情和基本面。 |
-| `QI_USE_LIVE_MARKET` | 启用 live 行情 provider。 |
-| `QI_USE_LIVE_NEWS` | 启用 live 新闻 provider。 |
-| `QI_USE_LIVE_ANNOUNCEMENT` | 启用 live 公告 provider。 |
-| `QI_USE_LIVE_MACRO` | 启用 live 宏观 provider。 |
-| `QI_SOURCE_CALL_TIMEOUT_SECONDS`、`QI_SOURCE_FAILURE_THRESHOLD`、`QI_SOURCE_COOLDOWN_SECONDS`、`QI_SOURCE_CACHE` | live 数据源硬超时（10 秒）、熔断阈值（3 次）与冷却时间（60 秒）、TTL 缓存开关，详见 [docs/data-sources.md](docs/data-sources.md#configuration)。 |
-| `QI_POSTGRES_DSN` | 可选 PostgreSQL 结构化检索源。 |
-| `QI_AGENT_CHECKPOINT_DB` | 保存 Agent 会话的 SQLite 文件，重启后保留（默认在内存中）。 |
-| `QI_AGENT_TRACE_DIR` | Agent trace 输出目录（默认 `outputs/traces`，`off` 关闭）；OTLP 导出使用 `OTEL_EXPORTER_OTLP_ENDPOINT`。 |
-| `QI_API_KEYS`、`QI_RATE_LIMIT_PER_MINUTE`、`QI_CORS_ORIGINS`、`QI_MAX_REQUEST_BYTES` | 可选的 API Key、限流、CORS 与请求体大小限制（默认全部关闭）。 |
-
-完整的 Agent 变量列表见 [docs/zh/agent.md](docs/zh/agent.md#配置)。
-
-不要提交 `.env`、真实 token、生成输出、公开数据缓存或本地临时文件。
-
-## 测试
-
-运行分组测试：
+## 评测与测试
 
 ```bash
-python -m scripts.run_test_suite
+python -m pytest -q tests                                  # 离线；CI 中关闭实时数据源
+python -m evaluation.agent_eval.gate                       # 快照回放的开发集 + 保留集门槛
+python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6   # 在线消融
+python -m evaluation.agent_eval.verifier_stress            # 校验器误放率
+python -m evaluation.agent_eval.redteam --llm deepseek     # 提示注入红队
+python -m evaluation.agent_eval.fault_injection            # 平稳降级
+python -m scripts.load_test --base-url http://127.0.0.1:8000 --users 8
 ```
 
-运行重点测试：
-
-```bash
-python -m pytest tests/test_query_intelligence.py -q
-python -m pytest tests/test_analysis_summary.py tests/test_market_analyzer.py -q
-python -m pytest tests/test_sentiment_pipeline.py -q
-python -m pytest tests/test_llm_response.py -q
-python -m pytest tests/test_agent_*.py tests/test_api_security.py -q
-python -m evaluation.agent_eval.gate   # 离线 Agent 评测门禁
-```
-
-评估、训练和发布检查见 [docs/zh/training.md](docs/zh/training.md)。
+CI 包括：代码检查、前端检查（类型、lint、单测、可复现构建）、带 Postgres 服务的全量测试、评测门禁、Docker 构建与冒烟测试、Kubernetes 清单校验。
 
 ## 文档
 
-从 [docs/zh/index.md](docs/zh/index.md) 开始。
-
 | 主题 | 链接 |
 |---|---|
-| 模块地图 | [docs/zh/modules.md](docs/zh/modules.md) |
-| Agent 层 | [docs/zh/agent.md](docs/zh/agent.md) |
-| Agent 评测（英文） | [docs/agent-eval.md](docs/agent-eval.md) |
-| MCP Server（英文） | [docs/mcp.md](docs/mcp.md) |
-| Query Intelligence | [docs/zh/query-intelligence.md](docs/zh/query-intelligence.md) |
-| 前端 Chatbot | [docs/zh/frontend-chatbot.md](docs/zh/frontend-chatbot.md) |
-| 数值分析 | [docs/zh/numerical-analysis.md](docs/zh/numerical-analysis.md) |
-| 文本情感 | [docs/zh/sentiment.md](docs/zh/sentiment.md) |
-| LLM 回答交接 | [docs/zh/llm-response.md](docs/zh/llm-response.md) |
-| 训练和运行时资产 | [docs/zh/training.md](docs/zh/training.md) |
-| 汇报材料 | [docs/presentation/README.md](docs/presentation/README.md) |
+| Agent 层：图、工具、记忆、API、配置 | [docs/zh/agent.md](docs/zh/agent.md) |
+| 评测：任务集、在线消融、Prompt A/B、红队、校验器压力测试 | [docs/agent-eval.md](docs/agent-eval.md)（英文） |
+| A2A、模型容灾、网关成本、监控指标 | [docs/a2a-and-observability.md](docs/a2a-and-observability.md)（英文） |
+| 实时数据源 | [docs/data-sources.md](docs/data-sources.md)（英文） |
+| 性能与压测 | [docs/performance.md](docs/performance.md)（英文） |
+| 部署 | [docs/deployment.md](docs/deployment.md)（英文） |
+| 设计复盘与取舍 | [docs/presentation/agent-design-notes.md](docs/presentation/agent-design-notes.md) |
+| Agent 与 Prompt 工程实践调研 | [docs/research/agent-architecture-practices-2026.md](docs/research/agent-architecture-practices-2026.md)（英文） |
+| Query Intelligence（经典 NLU 与检索） | [docs/zh/query-intelligence.md](docs/zh/query-intelligence.md) |
+| 网页前端 | [docs/zh/frontend-chatbot.md](docs/zh/frontend-chatbot.md) |
+| 全部文档 | [docs/zh/index.md](docs/zh/index.md) |
 
-## 风险说明
+## 局限
 
-FinSight 用于汇总证据和辅助查看金融信息，不是投资顾问，也不能作为交易决策的唯一依据。
+- 在线评测只覆盖一个模型族（DeepSeek V4.1 Flash）。保留集也参与了 Prompt 版本选择，因此它是 Prompt 的验证集，而不是未触碰的测试集。
+- 校验器检查数字是否来自所引证据；当一条证据包含多个报告期或指标时，它无法判断选对了哪一个。
+- 指代消解基于规则；英文公司别名只覆盖 `data/runtime/alias_table.csv` 中已有的条目。
+- 关键词注入过滤器对没见过的说法不泛化（保留攻击集拦截率 0%）；防护主要来自结构（只读工具、不可信数据信封、数字校验、合规节点）。投毒到新闻正文里的假数字能通过数字校验，因为它确实「在证据里」：校验证明的是可追溯，不是真实。
+- 免费数据源会限流：审计时东方财富拒绝了本机连接，由降级链兜底。
+
+## 安全声明
+
+FinSight 只做证据汇总，不是投资顾问，不能作为交易决策的唯一依据。
