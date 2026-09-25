@@ -57,6 +57,7 @@ from .prompts import (
 )
 from .router import apply_finance_overrides, decide_route, has_finance_content
 from .state import RESET, AgentConfig, AgentState
+from .streaming import AnswerTextStream, stream_writer
 from .tools import ToolRegistry, ToolResult
 from .verifier import cited_ids, repair_answer, verify_answer
 
@@ -330,7 +331,10 @@ class AgentRuntime:
             ]
             try:
                 turn = self.llm.chat(  # type: ignore[union-attr]
-                    messages, json_mode=True, reasoning=self.config.compose_reasoning
+                    messages,
+                    json_mode=True,
+                    reasoning=self.config.compose_reasoning,
+                    on_delta=_answer_delta_callback(),
                 )
             except LLMError as exc:
                 return self._template_update(tool_log, zh, degraded=f"llm_compose_failed:{exc}", style=style)
@@ -382,10 +386,17 @@ class AgentRuntime:
                 # Same tools with tool_choice="none" keeps the cached prompt prefix intact (the client
                 # drops the tools for models that do not support "none").
                 turn = self.llm.chat(
-                    messages, tools, tool_choice="none", json_mode=True, reasoning=self.config.final_reasoning
+                    messages,
+                    tools,
+                    tool_choice="none",
+                    json_mode=True,
+                    reasoning=self.config.final_reasoning,
+                    on_delta=_answer_delta_callback(),
                 )
             else:
-                turn = self.llm.chat(messages, tools, reasoning=self.config.agent_reasoning)
+                turn = self.llm.chat(
+                    messages, tools, reasoning=self.config.agent_reasoning, on_delta=_answer_delta_callback()
+                )
         except LLMError as exc:
             degraded = [f"llm_error:{exc}"]
             if state.get("evidence"):
@@ -624,6 +635,12 @@ class AgentRuntime:
     @staticmethod
     def _zh(state: AgentState) -> bool:
         return detect_query_language(state.get("query", "")) == "zh"
+
+
+def _answer_delta_callback() -> Callable[[str], None]:
+    """Stream the draft answer text to SSE clients as ``answer_delta`` custom events (no-op when invoked)."""
+    writer = stream_writer()
+    return AnswerTextStream(lambda text: writer({"event": "answer_delta", "text": text})).feed
 
 
 def _timed(name: str, node: Callable[[AgentState], dict[str, Any]]) -> Callable[[AgentState], dict[str, Any]]:

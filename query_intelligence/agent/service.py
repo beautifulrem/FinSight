@@ -111,7 +111,8 @@ class AgentService:
         user_profile: dict[str, Any] | None = None,
         dialog_context: list[dict[str, Any]] | None = None,
     ) -> Iterator[dict[str, Any]]:
-        """Yield events: session, node_start, step, tool_call, tool_result, clarification, answer, error, done.
+        """Yield events: session, node_start, step, tool_call, tool_result, answer_delta, clarification, answer,
+        error, done. ``answer_delta`` streams the draft answer text; the final ``answer`` event supersedes it.
 
         The graph runs on a worker thread that owns the session lock and pushes events into a queue. If
         the client disconnects and this generator is closed, the run still finishes (its state and
@@ -127,7 +128,7 @@ class AgentService:
                     for chunk in self.graph.stream(
                         state,
                         self._config(session),
-                        stream_mode=["updates", "tasks"],
+                        stream_mode=["updates", "tasks", "custom"],
                         version="v2",
                         durability=self.durability,
                     ):
@@ -152,6 +153,9 @@ class AgentService:
             if "input" in data and data.get("name") in _STEP_LABELS:
                 name = data["name"]
                 yield {"event": "node_start", "data": {"node": name, "label": _STEP_LABELS[name]}}
+            return
+        if chunk.get("type") == "custom" and isinstance(data, dict) and data.get("event") == "answer_delta":
+            yield {"event": "answer_delta", "data": {"text": data.get("text", "")}}
             return
         if chunk.get("type") == "updates":
             yield from self._events(session_id, data)
