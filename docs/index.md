@@ -2,7 +2,7 @@
 
 Languages: English | [中文](zh/index.md)
 
-These pages document FinSight, the ARIN7012 Group 4.2 evidence-first financial analysis chatbot project. The technical backend module is Query Intelligence.
+These pages document FinSight, an evidence-first A-share research agent. The classical NLU and retrieval backend is Query Intelligence; the agent layer orchestrates it with LangGraph.
 
 The root README is intentionally short; use these pages when you need contracts, configuration details, training steps, or downstream handoff notes.
 
@@ -12,8 +12,13 @@ The root README is intentionally short; use these pages when you need contracts,
 |---|---|
 | [Modules](modules.md) | Five-module map: frontend, NLU/Retrieval, numerical analysis, text analysis, and LLM summary/prediction. |
 | [Agent Layer](agent.md) | Agent graph, tools, routing, verification, compliance, memory, `/agent/*` API and schemas, configuration, tracing. |
-| [Agent Evaluation](agent-eval.md) | Offline task sets, replay snapshots, dealbreaker-gated metrics, ablation, fault injection, and limitations. |
+| [Agent Evaluation](agent-eval.md) | Task sets, replay snapshots, dealbreaker-gated metrics, online ablation with a real LLM (pass^3, latency, cost), prompt A/B, verifier stress test, prompt-injection red team, fault injection, and limitations. |
 | [MCP Server](mcp.md) | Serving the agent tools to MCP clients over stdio or streamable HTTP. |
+| [A2A, Failover and Observability](a2a-and-observability.md) | A2A endpoint, LLM gateway handling, model failover, gateway cost, run inspector, Prometheus metrics. |
+| [Data Sources](data-sources.md) | Live source audit, fallback chains, circuit breakers, cache, provenance, `/sources/health`. |
+| [Performance](performance.md) | Load test of the container, the checkpoint bottleneck and fix, scaling limits. |
+| [Deployment](deployment.md) | Docker image, Kubernetes manifests (replicas sharing sessions through Postgres), read-only root filesystem. |
+| [Agent practices research](research/agent-architecture-practices-2026.md) | 2025–2026 agent and prompt-engineering practice from primary sources, and the gap analysis that drove the latest changes. |
 | [Query Intelligence](query-intelligence.md) | Scope, architecture, API, NLU and retrieval output contracts, live providers, environment variables, troubleshooting. |
 | [Local Frontend Chatbot](frontend-chatbot.md) | Browser UI, `/chat` contract, LLM API settings, real local screenshots, and troubleshooting. |
 | [Numerical Analysis](numerical-analysis.md) | `analysis_summary`, technical indicators, fundamentals, macro signals, and data readiness. |
