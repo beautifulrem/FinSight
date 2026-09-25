@@ -8,13 +8,15 @@ import pytest
 from query_intelligence.agent.llm import (
     AssistantTurn,
     DeepSeekToolClient,
-    LLMError,
     FallbackLLM,
+    LLMError,
     Pricing,
     ScriptedLLM,
-    build_llm_from_config,
     Usage,
+    build_llm_from_config,
     final_turn,
+    model_capabilities,
+    reasoning_style_for,
     resolve_cost,
     tool_call_turn,
 )
@@ -292,3 +294,69 @@ def test_build_llm_from_config_adds_fallback_models(monkeypatch):
     assert isinstance(llm, FallbackLLM)
     assert [client.model for client in llm.clients] == ["m1", "m2"]
     assert llm.clients[1].url == "https://gw.example/api/v1/chat/completions"
+
+
+def _capture(**kwargs):
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json=_completion({"role": "assistant", "content": "{}"}))
+
+    return _client(handler, **kwargs), captured
+
+
+def test_reasoning_style_is_detected_from_the_endpoint():
+    assert reasoning_style_for("https://api.deepseek.com") == "deepseek"
+    assert reasoning_style_for("https://api.cline.bot/api/v1") == "openrouter"
+    assert reasoning_style_for("https://openrouter.ai/api/v1") == "openrouter"
+    assert reasoning_style_for("https://llm.internal/v1") == "none"
+    assert reasoning_style_for("https://llm.internal/v1", "openrouter") == "openrouter"
+
+
+def test_per_call_reasoning_on_deepseek_endpoint():
+    client, captured = _capture(model="deepseek-v4-flash", thinking_type="enabled", reasoning_effort="high")
+
+    client.chat([{"role": "user", "content": "q"}])
+    assert captured["body"]["thinking"] == {"type": "enabled"} and captured["body"]["reasoning_effort"] == "high"
+    assert "temperature" not in captured["body"]
+
+    client.chat([{"role": "user", "content": "q"}], reasoning="off")
+    assert captured["body"]["thinking"] == {"type": "disabled"} and "reasoning_effort" not in captured["body"]
+    assert captured["body"]["temperature"] == 0.2
+
+    client.chat([{"role": "user", "content": "q"}], reasoning="low")
+    assert captured["body"]["reasoning_effort"] == "low"
+
+
+def test_per_call_reasoning_on_openrouter_style_gateway():
+    client, captured = _capture(model="cline-pass/deepseek-v4.1-flash", base_url="https://api.cline.bot/api/v1")
+
+    client.chat([{"role": "user", "content": "q"}], reasoning="off")
+    assert captured["body"]["reasoning"] == {"enabled": False} and "thinking" not in captured["body"]
+
+    client.chat([{"role": "user", "content": "q"}], reasoning="medium")
+    assert captured["body"]["reasoning"] == {"effort": "medium"}
+
+    client.chat([{"role": "user", "content": "q"}])
+    assert "reasoning" not in captured["body"]
+
+    with pytest.raises(ValueError):
+        client.chat([{"role": "user", "content": "q"}], reasoning="max")
+
+
+def test_model_capabilities_downgrade_unsupported_options():
+    assert model_capabilities("cline-pass/deepseek-v4.1-flash").tool_choice_none is True
+    assert model_capabilities("cline-pass/glm-5.3-flash").reasoning_off is False
+    glm, captured = _capture(model="cline-pass/glm-5.3-flash", base_url="https://api.cline.bot/api/v1")
+
+    glm.chat([{"role": "user", "content": "q"}], TOOLS, tool_choice="none", reasoning="off")
+
+    # GLM: reasoning is mandatory and tool_choice="none" yields empty completions, so the client
+    # asks for low reasoning and drops the tools instead of sending an unsupported combination.
+    assert captured["body"]["reasoning"] == {"effort": "low"}
+    assert "tools" not in captured["body"] and "tool_choice" not in captured["body"]
+
+    deepseek, captured = _capture(model="deepseek-v4-flash")
+    deepseek.chat([{"role": "user", "content": "q"}], TOOLS, tool_choice="none")
+    assert captured["body"]["tool_choice"] == "none" and captured["body"]["tools"] == TOOLS

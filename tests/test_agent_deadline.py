@@ -27,7 +27,7 @@ def test_run_deadline_forces_a_final_answer():
     result = runtime.run("茅台为什么跌了")
 
     assert any(item.startswith("budget:run deadline") for item in result["degraded"])
-    assert llm.requests[0]["tools"] is None and llm.requests[0]["json_mode"] is True
+    assert llm.requests[0]["tool_choice"] == "none" and llm.requests[0]["json_mode"] is True
 
 
 class SlowService:

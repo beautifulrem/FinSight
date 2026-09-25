@@ -130,3 +130,28 @@ def test_chat_mode_defaults_to_legacy_pipeline(client_and_stub, monkeypatch):
     assert stub.pipeline_calls == 1
     assert agent["session_id"] == "api-m" and agent["route"] == "workflow"  # no LLM configured -> downgraded
     assert "no_llm_configured:agent_route_downgraded_to_workflow" in agent["degraded"]
+
+
+def test_stream_announces_nodes_before_their_results(client_and_stub):
+    client, _ = client_and_stub
+
+    events = _parse_sse(client.post("/agent/chat/stream", json={"query": "贵州茅台的市盈率是多少"}).text)
+
+    order = [(name, data.get("node")) for name, data in events if name in {"node_start", "step"}]
+    assert order.index(("node_start", "execute_plan")) < order.index(("step", "execute_plan"))
+    assert ("node_start", "verify") in order and ("node_start", "finalize") in order
+
+
+def test_abandoned_stream_releases_the_session(client_and_stub):
+    client, _ = client_and_stub
+
+    # Read only the first event, then drop the connection.
+    with client.stream(
+        "POST", "/agent/chat/stream", json={"query": "贵州茅台的市盈率是多少", "session_id": "gone-1"}
+    ) as r:
+        first = next(r.iter_lines())
+        assert first.startswith("event: session")
+
+    # The worker finishes the run and releases the lock: the next turn on the same session completes.
+    follow_up = client.post("/agent/chat", json={"query": "它的市净率呢", "session_id": "gone-1"})
+    assert follow_up.status_code == 200 and follow_up.json()["status"] == "ok"

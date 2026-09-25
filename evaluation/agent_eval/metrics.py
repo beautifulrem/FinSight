@@ -114,10 +114,23 @@ def score_turn(response: dict[str, Any], expect: dict[str, Any]) -> dict[str, An
         "answer_source": response.get("answer_source"),
         "prompt_tokens": usage.get("prompt_tokens", 0),
         "completion_tokens": usage.get("completion_tokens", 0),
+        "cache_hit_tokens": usage.get("prompt_cache_hit_tokens", 0),
+        "reasoning_tokens": usage.get("reasoning_tokens", 0),
+        "revisions": sum(1 for entry in llm.get("log") or [] if entry.get("node") == "revise"),
+        "first_pass_verified": _first_pass_verified(response, llm),
         "cost": llm.get("cost"),
         "cost_currency": llm.get("currency"),
         "llm_calls": llm.get("calls", 0),
     }
+
+
+def _first_pass_verified(response: dict[str, Any], llm: dict[str, Any]) -> bool | None:
+    """Draft passed verification with no LLM revision and no deterministic repair (LLM answers only)."""
+    if response.get("answer_source") not in {"llm_agent", "llm_compose"}:
+        return None
+    revised = any(entry.get("node") == "revise" for entry in llm.get("log") or [])
+    repaired = any(str(flag).startswith("verification_failed") for flag in response.get("degraded") or [])
+    return bool((response.get("verification") or {}).get("passed")) and not revised and not repaired
 
 
 def percentile(values: list[float], q: float) -> float | None:
@@ -126,6 +139,10 @@ def percentile(values: list[float], q: float) -> float | None:
     ordered = sorted(values)
     index = max(0, math.ceil(q * len(ordered)) - 1)
     return round(ordered[index], 2)
+
+
+def _ratio(numerator: float, denominator: float) -> float | None:
+    return round(numerator / denominator, 4) if denominator else None
 
 
 def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, Any]:
@@ -182,6 +199,20 @@ def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, A
         "latency_ms_p95": percentile(latencies, 0.95),
         "llm_calls_per_turn": mean([float(score["llm_calls"]) for score in scores]),
         "tokens_per_turn": mean([float(score["prompt_tokens"] + score["completion_tokens"]) for score in scores]),
+        "reasoning_tokens_per_turn": mean([float(score.get("reasoning_tokens") or 0) for score in scores]),
+        "cache_hit_ratio": _ratio(
+            sum(score.get("cache_hit_tokens") or 0 for score in scores), sum(score["prompt_tokens"] for score in scores)
+        ),
+        "first_pass_verification": mean(
+            [
+                1.0 if score["first_pass_verified"] else 0.0
+                for score in scores
+                if score.get("first_pass_verified") is not None
+            ]
+        ),
+        "revise_rate": mean(
+            [1.0 if score.get("revisions") else 0.0 for score in scores if score.get("first_pass_verified") is not None]
+        ),
         "cost_per_turn": round(statistics.fmean(costs), 6) if costs else None,
         "cost_per_task": round(statistics.fmean(task_costs), 6) if task_costs else None,
         "cost_currency": "/".join(currencies) if currencies else None,

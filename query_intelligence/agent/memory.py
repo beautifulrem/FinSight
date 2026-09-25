@@ -91,3 +91,21 @@ def resolve_coreference(query: str, turns: list[dict[str, Any]]) -> tuple[str, s
             rewritten = f"{query[: match.start()]}{name}{query[match.end() :]}"
             return rewritten, f"coreference:{match.group(0)}->{name}"
     return None
+
+
+def apply_clarification(query: str, reply: str) -> tuple[str, str]:
+    """Fold a clarification reply (e.g. "宁德时代") into the original question.
+
+    The reply replaces the dangling pronoun when there is one ("它的市盈率呢" -> "宁德时代的市盈率呢");
+    otherwise it is prepended so the NLU sees the entity. Returns ``(query, reason)``.
+    """
+    reply = reply.strip()
+    possessive = _POSSESSIVE_EN.search(query)
+    if possessive:
+        return f"{query[: possessive.start()]}{reply}'s{query[possessive.end() :]}", f"clarified:{reply}"
+    for pattern in (_PRONOUN_ZH, _PRONOUN_EN):
+        match = pattern.search(query)
+        if match:
+            return f"{query[: match.start()]}{reply}{query[match.end() :]}", f"clarified:{reply}"
+    separator = "" if re.search(r"[\u4e00-\u9fff]$", reply) else " "
+    return f"{reply}{separator}{query}", f"clarified:{reply}"

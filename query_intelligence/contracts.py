@@ -210,6 +210,9 @@ class AgentEvidenceSource(BaseModel):
     source_url: str | None = None
     as_of: str | None = None
     produced_by: str | None = None
+    payload: dict[str, Any] | None = Field(
+        default=None, description="Structured evidence values (quotes, price series, fundamentals, macro)"
+    )
 
 
 class AgentVerification(BaseModel):
@@ -219,6 +222,7 @@ class AgentVerification(BaseModel):
     cited_ids: list[str] = Field(default_factory=list)
     invalid_citations: list[str] = Field(default_factory=list)
     unsupported_numbers: list[float] = Field(default_factory=list)
+    misattributed_numbers: list[float] = Field(default_factory=list)
     checked_numbers: int = 0
     missing_citations: bool = False
 

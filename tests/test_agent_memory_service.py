@@ -167,3 +167,23 @@ def test_resolve_coreference_rules():
     assert resolve_coreference("那它呢", []) is None
     two = [{"entities": [{"name": "A", "symbol": "1"}, {"name": "B", "symbol": "2"}]}]
     assert resolve_coreference("那它呢", two) is None
+
+
+def test_clarification_reply_is_folded_into_the_question():
+    service, stub = _service()
+    service.chat("它的市盈率呢", session_id="fold")
+
+    resumed = service.resume("fold", "贵州茅台")
+
+    assert stub.calls[-1]["query"] == "贵州茅台的市盈率呢"
+    assert "clarified:贵州茅台" in resumed["route_reasons"]
+    assert resumed["status"] == "ok" and resumed["route"] != "clarify"
+
+
+def test_apply_clarification_rewrites_or_prepends():
+    from query_intelligence.agent.memory import apply_clarification
+
+    assert apply_clarification("它的市盈率呢", "宁德时代")[0] == "宁德时代的市盈率呢"
+    assert apply_clarification("What is its PE?", "CATL")[0] == "What is CATL's PE?"
+    assert apply_clarification("能买吗", "宁德时代")[0] == "宁德时代能买吗"
+    assert apply_clarification("buy now?", "BYD") == ("BYD buy now?", "clarified:BYD")

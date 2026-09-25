@@ -1,9 +1,12 @@
 """Evidence verifier: citations must exist and numbers must be traceable to tool outputs.
 
-Numbers are matched against every numeric value carried by the run's evidence, allowing common
-unit conversions (percent <-> ratio, 万/亿, thousand/million/billion) and rounding. Dates, evidence
-ids, ticker codes, and window parameters such as ``RSI(14)`` or ``近5日`` are not treated as factual
-claims.
+Checks are claim-level. The answer and each key point are split into sentences; a number in a
+sentence that cites evidence ids must be found in *those* evidence items, not merely somewhere in the
+run. A number found only in other evidence is reported as ``misattributed`` (for example a PE ratio of
+one company cited with another company's evidence id); a number found nowhere is ``unsupported``.
+Sentences without a citation fall back to the whole evidence store. Matching allows common unit
+conversions (percent <-> ratio, 万/亿, thousand/million/billion) and rounding. Dates, evidence ids,
+ticker codes, and window parameters such as ``RSI(14)`` or ``近5日`` are not treated as factual claims.
 """
 
 from __future__ import annotations
@@ -13,9 +16,27 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from .evidence import _NUMBER as _NUMBER_TOKEN
 from .evidence import EvidenceStore, extract_numbers
 
 _SCALES = (1.0, 100.0, 0.01, 1e-4, 1e-8, 1e4, 1e8, 1e-3, 1e-6, 1e-9, 1e3, 1e6, 1e9)
+# Scale factors (evidence value -> stated value) allowed for the unit written after a number. Evidence
+# amounts may be stored in 元, 千元 (Tushare), 万元 or 亿元, so each unit lists the conversions that can
+# legitimately produce it; a bare number must match as is. Restricting scales by unit keeps a wrong
+# number from matching an unrelated value by an arbitrary power of ten.
+_UNIT_SCALES: tuple[tuple[re.Pattern[str], tuple[float, ...]], ...] = (
+    (re.compile(r"^\s*(?:%|％|个百分点|百分点|pct|percentage points?|bp)", re.IGNORECASE), (1.0, 100.0, 0.01)),
+    (re.compile(r"^\s*万亿"), (1e-12, 1e-9, 1e-8, 1e-4, 1.0)),
+    (re.compile(r"^\s*(?:亿|hundred million)", re.IGNORECASE), (1e-8, 1e-5, 1e-4, 1.0)),
+    (re.compile(r"^\s*千万"), (1e-7, 1e-4, 1e-3, 1.0)),
+    (re.compile(r"^\s*百万"), (1e-6, 1e-3, 1e-2, 1.0)),
+    (re.compile(r"^\s*万"), (1e-4, 0.1, 1.0)),
+    (re.compile(r"^\s*千(?!元)"), (1e-3, 1.0)),
+    (re.compile(r"^\s*(?:billion|bn)\b", re.IGNORECASE), (1e-9, 1e-6, 1e-5, 0.1, 1.0)),
+    (re.compile(r"^\s*(?:million|mn|m)\b", re.IGNORECASE), (1e-6, 1e-3, 1e-2, 100.0, 1.0)),
+    (re.compile(r"^\s*(?:thousand|k)\b", re.IGNORECASE), (1e-3, 1.0)),
+)
+_BARE_SCALES = (1.0,)
 _CITATION = re.compile(r"\[([^\[\]\s]{2,160})\]")
 _DATE_PATTERNS = (
     re.compile(r"\d{4}-\d{1,2}-\d{1,2}(?:[T ]\d{1,2}:\d{2}(?::\d{2})?)?"),
@@ -42,6 +63,10 @@ class VerificationReport(BaseModel):
     cited_ids: list[str] = Field(default_factory=list)
     invalid_citations: list[str] = Field(default_factory=list)
     unsupported_numbers: list[float] = Field(default_factory=list)
+    misattributed_numbers: list[float] = Field(
+        default_factory=list,
+        description="Numbers present in the run's evidence but not in the evidence cited next to them",
+    )
     checked_numbers: int = 0
     missing_citations: bool = False
 
@@ -52,6 +77,12 @@ class VerificationReport(BaseModel):
         if self.unsupported_numbers:
             values = ", ".join(_format_number(value) for value in self.unsupported_numbers)
             problems.append(f"These numbers are not found in any tool output: {values}.")
+        if self.misattributed_numbers:
+            values = ", ".join(_format_number(value) for value in self.misattributed_numbers)
+            problems.append(
+                f"These numbers do not appear in the evidence cited in the same sentence: {values}. "
+                "Cite the evidence id that actually contains each number."
+            )
         if self.missing_citations:
             problems.append("The answer cites no evidence ids although evidence is available.")
         return " ".join(problems)
@@ -70,34 +101,88 @@ def cited_ids(answer: dict[str, Any]) -> list[str]:
     return list(dict.fromkeys(ids))
 
 
-def claim_numbers(text: str) -> list[float]:
+def _cleaned(text: str) -> str:
     cleaned = _CITATION.sub(" ", text)
     for pattern in (*_DATE_PATTERNS, *_PARAMETER_PATTERNS):
         cleaned = pattern.sub(" ", cleaned)
-    return extract_numbers(cleaned)
+    return cleaned
 
 
-def verify_answer(answer: dict[str, Any], store: EvidenceStore, *, query: str = "") -> VerificationReport:
+def claim_numbers(text: str) -> list[float]:
+    return extract_numbers(_cleaned(text))
+
+
+def claim_values(text: str) -> list[tuple[float, tuple[float, ...], float]]:
+    """Claimed numbers with the scale factors their unit allows and the rounding tolerance of their precision.
+
+    A number written with ``d`` decimals can differ from the evidence by at most half a unit in its
+    last place (``0.5 * 10**-d``) plus 0.05% for binary rounding; "24.6" matches 24.63 but not 24.8.
+    """
+    cleaned = _cleaned(text)
+    values = []
+    for match in _NUMBER_TOKEN.finditer(cleaned):
+        token = match.group(0).replace(",", "")
+        try:
+            value = float(token)
+        except ValueError:
+            continue
+        tail = cleaned[match.end() : match.end() + 24]
+        scales = next((scales for pattern, scales in _UNIT_SCALES if pattern.search(tail)), _BARE_SCALES)
+        decimals = len(token.split(".")[1]) if "." in token else 0
+        values.append((value, scales, 0.5 * 10**-decimals))
+    return values
+
+
+def claim_units(answer: dict[str, Any]) -> list[str]:
+    """Sentences of the answer and of each key point: the unit a citation applies to."""
+    units: list[str] = []
+    for text in answer_texts(answer):
+        units.extend(sentence for sentence in _split_sentences(text) if sentence.strip())
+    return units
+
+
+def verify_answer(
+    answer: dict[str, Any], store: EvidenceStore, *, query: str = "", binding: str = "claim"
+) -> VerificationReport:
+    """``binding="claim"`` (default) checks each number against the evidence cited in its sentence with a
+    unit- and precision-aware tolerance. ``"run"`` checks against all evidence of the run, and ``"legacy"``
+    also uses the original loose matching (any of 13 scales, ±max(0.011, 0.5%)); both are kept only so
+    ``evaluation/agent_eval/verifier_stress.py`` can measure the improvement."""
     ids = cited_ids(answer)
     invalid = [evidence_id for evidence_id in ids if evidence_id not in store]
     known = _evidence_numbers(store)
     query_numbers = claim_numbers(query)
     unsupported: list[float] = []
+    misattributed: list[float] = []
     checked = 0
-    for text in answer_texts(answer):
-        for value in claim_numbers(text):
+    for unit in claim_units(answer):
+        unit_ids = (
+            [match.group(1) for match in _CITATION.finditer(unit) if match.group(1) in store]
+            if binding == "claim"
+            else []
+        )
+        scope = _evidence_numbers(store, unit_ids) if unit_ids else known
+        for value, scales, rounding in claim_values(unit):
+            if binding == "legacy":
+                scales, rounding = _SCALES, None
+            if value == 0 and binding != "legacy":
+                continue  # zero counts ("0 negative") carry no checkable magnitude
             checked += 1
-            if _is_supported(value, known) or _is_supported(value, query_numbers):
+            if _is_supported(value, scope, scales, rounding) or _is_supported(value, query_numbers, _BARE_SCALES):
                 continue
-            if value not in unsupported:
+            if unit_ids and _is_supported(value, known, scales, rounding):
+                if value not in misattributed:
+                    misattributed.append(value)
+            elif value not in unsupported:
                 unsupported.append(value)
     valid_cited = [evidence_id for evidence_id in ids if evidence_id in store]
     missing = len(store) > 0 and not valid_cited
     return VerificationReport(
-        passed=not invalid and not unsupported and not missing,
+        passed=not invalid and not unsupported and not misattributed and not missing,
         cited_ids=valid_cited,
         invalid_citations=invalid,
         unsupported_numbers=unsupported,
+        misattributed_numbers=misattributed,
         checked_numbers=checked,
         missing_citations=missing,
     )
@@ -110,12 +195,17 @@ def repair_answer(
     repaired = dict(answer)
     notes: list[str] = []
     invalid = set(report.invalid_citations)
-    unsupported = report.unsupported_numbers
+    unsupported = [*report.unsupported_numbers, *report.misattributed_numbers]
 
     def has_unsupported(text: str) -> bool:
-        return bool(unsupported) and any(_is_supported(value, unsupported) for value in claim_numbers(text))
+        return bool(unsupported) and any(
+            _is_supported(value, unsupported, _BARE_SCALES) for value in claim_numbers(text)
+        )
+
+    salvaged = 0
 
     def clean_sentence(sentence: str) -> str | None:
+        nonlocal salvaged
         stripped = _CITATION.sub(lambda match: "" if match.group(1) in invalid else match.group(0), sentence)
         if not has_unsupported(stripped):
             return stripped
@@ -125,6 +215,7 @@ def repair_answer(
         if not kept_clauses or not claim_numbers("".join(kept_clauses)):
             return None
         text = "".join(kept_clauses).rstrip("，,；; ")
+        salvaged += 1
         return text + ("。" if re.search(r"[\u4e00-\u9fff]", text) else ".")
 
     sentences = [clean_sentence(sentence) for sentence in _split_sentences(str(answer.get("answer") or ""))]
@@ -133,7 +224,7 @@ def repair_answer(
     repaired["answer"] = "".join(kept).strip()
     points = [clean_sentence(str(point)) for point in answer.get("key_points") or []]
     kept_points = [point.strip() for point in points if point and point.strip()]
-    removed += len(points) - len(kept_points)
+    removed += len(points) - len(kept_points) + salvaged
     repaired["key_points"] = kept_points
 
     valid = [evidence_id for evidence_id in cited_ids(repaired) if evidence_id in store]
@@ -158,18 +249,24 @@ def repair_answer(
     return repaired, notes
 
 
-def _evidence_numbers(store: EvidenceStore) -> list[float]:
+def _evidence_numbers(store: EvidenceStore, evidence_ids: list[str] | None = None) -> list[float]:
     values: list[float] = []
-    for item in store.items():
-        values.extend(item.numbers())
+    items = store.items() if evidence_ids is None else [store.get(evidence_id) for evidence_id in evidence_ids]
+    for item in items:
+        if item is not None:
+            values.extend(item.numbers())
     return values
 
 
-def _is_supported(value: float, known: list[float]) -> bool:
+def _is_supported(
+    value: float, known: list[float], scales: tuple[float, ...] = _SCALES, rounding: float | None = None
+) -> bool:
+    """``rounding`` is the stated number's precision tolerance; ``None`` keeps the legacy loose tolerance."""
     for base in known:
-        for scale in _SCALES:
+        for scale in scales:
             target = base * scale
-            tolerance = max(0.011, abs(target) * 0.005)
+            loose = max(0.011, abs(target) * 0.005)
+            tolerance = loose if rounding is None else rounding + abs(target) * 0.0005 + 1e-9
             # Signs are compared loosely: "下跌 1.2%" legitimately restates a change of -1.2.
             if abs(abs(value) - abs(target)) <= tolerance:
                 return True

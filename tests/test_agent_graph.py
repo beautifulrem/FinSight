@@ -162,7 +162,9 @@ def test_step_budget_forces_final_answer():
     result = _runtime(llm, config=AgentConfig(max_llm_steps=2)).run("茅台为什么跌了")
 
     assert any(item.startswith("budget:step budget") for item in result["degraded"])
-    assert llm.requests[2]["tools"] is None and llm.requests[2]["json_mode"] is True
+    # forced final answer: same tools (stable cached prefix) but tool_choice="none"
+    assert llm.requests[2]["tools"] and llm.requests[2]["tool_choice"] == "none"
+    assert llm.requests[2]["json_mode"] is True and llm.requests[2]["reasoning"] == "low"
     assert "Stop calling tools" in llm.requests[2]["messages"][-1]["content"]
     assert result["verification"]["passed"] is True
 
@@ -272,3 +274,20 @@ def test_failed_verification_is_visible_in_degraded():
 
     assert "verification_failed:repaired" in result["degraded"]
     assert "1409.5" in result["answer"] and "2600" not in result["answer"]
+
+
+def test_cacheable_prefix_is_stable_and_prompt_versions_are_logged(monkeypatch):
+    monkeypatch.setenv("QI_PROMPT_VERSION", "v2")
+    answer = {"answer": "最新收盘价 1409.5 元 [price_600519.SH]。", "evidence_used": ["price_600519.SH"]}
+    llm = ScriptedLLM([final_turn(answer), final_turn(answer)])
+    runtime = _runtime(llm)
+
+    first = runtime.run("茅台为什么跌了", mode="agent")
+    runtime.run("宁德时代为什么涨了", mode="agent")
+
+    # System prompt and tool list (the provider-cacheable prefix) do not depend on the request.
+    assert llm.requests[0]["messages"][0] == llm.requests[1]["messages"][0]
+    assert llm.requests[0]["tools"] == llm.requests[1]["tools"]
+    assert llm.requests[0]["messages"][0]["content"].startswith("<role>")
+    entry = first["llm"]["log"][0]
+    assert entry["node"] == "agent_llm" and entry["prompt"].startswith("agent_system@v2#")

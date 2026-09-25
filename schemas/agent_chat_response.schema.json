@@ -120,6 +120,20 @@
           ],
           "default": null,
           "title": "Produced By"
+        },
+        "payload": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Structured evidence values (quotes, price series, fundamentals, macro)",
+          "title": "Payload"
         }
       },
       "required": [
@@ -379,6 +393,13 @@
             "type": "number"
           },
           "title": "Unsupported Numbers",
+          "type": "array"
+        },
+        "misattributed_numbers": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Misattributed Numbers",
           "type": "array"
         },
         "checked_numbers": {
