@@ -80,8 +80,13 @@ class QueryNormalizer:
         if not source or source == target:
             return text, 0
         is_ascii_source = source.isascii()
-        if is_ascii_source:
-            pattern = re.compile(re.escape(source), flags=re.IGNORECASE)
+        # English aliases match whole words only ("zte" must not fire inside "ztest").
+        pattern = (
+            re.compile(rf"(?<![A-Za-z0-9]){re.escape(source)}(?![A-Za-z0-9])", flags=re.IGNORECASE)
+            if is_ascii_source
+            else None
+        )
+        if pattern is not None:
             if not pattern.search(text):
                 return text, 0
         elif source not in text:
@@ -92,7 +97,7 @@ class QueryNormalizer:
         replacements = 0
         protected_prefix = target[: max(len(target) - len(source), 0)]
 
-        iterator = re.finditer(re.escape(source), text, flags=re.IGNORECASE) if is_ascii_source else re.finditer(re.escape(source), text)
+        iterator = pattern.finditer(text) if pattern is not None else re.finditer(re.escape(source), text)
         for match in iterator:
             start, end = match.span()
             current_slice = text[max(0, start - len(protected_prefix)) : end]
