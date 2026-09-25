@@ -7,8 +7,17 @@ from pydantic import BaseModel, Field
 from ..evidence import AgentEvidence
 from .base import ToolFailure, ToolOutput, ToolSpec, TransientToolError
 from .context import ToolContext, provider_warnings
+from .provenance import SourceProvenance, provenance_from
 
-_METADATA_KEYS = {"symbol", "source_name", "provider", "canonical_name", "report_date", "industry_name"}
+_METADATA_KEYS = {
+    "symbol",
+    "source_name",
+    "provider",
+    "canonical_name",
+    "report_date",
+    "industry_name",
+    "valuation_date",
+}
 
 
 class FundamentalsInput(BaseModel):
@@ -23,6 +32,7 @@ class IndustrySnapshot(BaseModel):
     industry_name: str
     metrics: dict[str, Any]
     evidence_id: str
+    provenance: SourceProvenance | None = None
 
 
 class FundamentalsOutput(BaseModel):
@@ -35,6 +45,12 @@ class FundamentalsOutput(BaseModel):
     source: str | None
     evidence_id: str | None
     industry: IndustrySnapshot | None = None
+    provenance: SourceProvenance | None = Field(
+        default=None, description="Where the financial statements came from and how fresh they are."
+    )
+    valuation_provenance: SourceProvenance | None = Field(
+        default=None, description="Source of pe_ttm/pb when fetched separately from the statements."
+    )
 
 
 def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
@@ -89,6 +105,7 @@ def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
                 industry_name=industry_name,
                 metrics=_metrics(industry_payload),
                 evidence_id=industry_evidence.evidence_id,
+                provenance=provenance_from(industry_payload),
             )
 
         output = FundamentalsOutput(
@@ -99,6 +116,8 @@ def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
             source=(fundamental or {}).get("source_name") or payload.get("source_name"),
             evidence_id=fundamental_evidence_id,
             industry=industry_snapshot,
+            provenance=provenance_from(payload),
+            valuation_provenance=provenance_from(payload, "valuation_provenance"),
         )
         return ToolOutput(data=output, evidence=evidence)
 

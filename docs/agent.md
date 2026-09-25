@@ -49,12 +49,14 @@ All tools share one base (`tools/base.py`): Pydantic input schemas (also exporte
 | Tool | Backed by |
 |---|---|
 | `resolve_entity` | Entity resolver from NLU (aliases, tickers, fuzzy match) |
-| `get_price_history` | Market provider (Tushare/AKShare/efinance when live, seed data offline) |
+| `get_price_history` | Market fallback chain when live (Tushare with a token; otherwise Eastmoney → Sina → Tencent → Sina realtime → efinance), seed snapshot offline |
 | `compute_indicators` | `MarketAnalyzer`: returns, MA5/MA20, RSI(14), MACD, volatility, Bollinger bands. Reports indicators it cannot compute from short history instead of returning empty values. |
-| `get_fundamentals` | Fundamental SQL / provider rows |
-| `get_macro_indicators` | Macro provider (CPI, PMI, M2, LPR, …) |
+| `get_fundamentals` | Live: Sina financial indicators → THS, PE(TTM)/PB from Eastmoney datacenter → Tencent quote; seed snapshot offline |
+| `get_macro_indicators` | Live: Eastmoney datacenter (NBS CPI/PMI, M2, LPR 1Y/5Y) and the 10Y yield (Eastmoney → ChinaBond); seed snapshot offline |
 | `search_news`, `search_announcements`, `search_knowledge` | The existing retrieval pipeline (PostgreSQL full-text search / TF-IDF + learning-to-rank) |
 | `analyze_sentiment` | Classical sentiment model by default; FinBERT with `QI_AGENT_SENTIMENT_BACKEND=finbert` |
+
+Data tools return an optional `provenance` object in their output and evidence payload: source, `fetched_at`, `as_of`, `is_live`, `mode` (`live` / `live_fallback` / `last_known_good` / `snapshot`), `freshness`, `fallback_reason`, and a one-line `note` such as 数据来自新浪财经行情，截至2026-09-24；因东方财富行情熔断中降级. It contains no numeric values, so it cannot make an invented number look traceable to the verifier. Chains, circuit breakers, caching, and the measured audit are described in [Live data sources](data-sources.md); `GET /sources/health` reports per-source status.
 
 Document text is untrusted: tool output reaches the LLM inside an explicit untrusted-data envelope, and instruction-like text ("ignore previous instructions", role tags, …) is redacted when evidence is ingested. Redactions are flagged in `degraded` as `instruction_like_text_removed_from_evidence`.
 
@@ -119,6 +121,7 @@ The browser page at `/` uses these endpoints: pick a mode, watch steps stream in
 | `QI_RATE_LIMIT_PER_MINUTE` | `0` (off) | Per-client token bucket; 429 with `Retry-After`. |
 | `QI_CORS_ORIGINS` | unset | Comma-separated allowed browser origins. |
 | `QI_MAX_REQUEST_BYTES` | `1048576` | Larger bodies get 413. |
+| `QI_SOURCE_CALL_TIMEOUT_SECONDS`, `QI_SOURCE_FAILURE_THRESHOLD`, `QI_SOURCE_COOLDOWN_SECONDS`, `QI_SOURCE_CACHE` | `10`, `3`, `60`, `true` | Live data source hard timeout, circuit breaker, and TTL cache ([details](data-sources.md#configuration)). |
 
 Agent budgets (`max_llm_steps=6`, `max_tool_calls=16`, `max_parallel_tools=4`, `token_budget=80000`, `max_revisions=1`, `run_deadline_s=90`) are fields of `AgentConfig` in `agent/state.py`.
 

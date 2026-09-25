@@ -49,12 +49,14 @@ flowchart LR
 | 工具 | 数据来源 |
 |---|---|
 | `resolve_entity` | NLU 的实体解析器（别名、代码、模糊匹配） |
-| `get_price_history` | 行情 provider（live 时为 Tushare/AKShare/efinance，离线为种子数据） |
+| `get_price_history` | live 时走行情降级链（有 token 时用 Tushare，否则东方财富 → 新浪 → 腾讯 → 新浪实时 → efinance），离线为种子快照 |
 | `compute_indicators` | `MarketAnalyzer`：收益率、MA5/MA20、RSI(14)、MACD、波动率、布林带。历史太短无法计算时明确列出，而不是返回空值。 |
-| `get_fundamentals` | 基本面 SQL / provider 数据 |
-| `get_macro_indicators` | 宏观 provider（CPI、PMI、M2、LPR 等） |
+| `get_fundamentals` | live 时：新浪财务指标 → 同花顺；PE(TTM)/PB 来自东方财富数据中心 → 腾讯行情；离线为种子快照 |
+| `get_macro_indicators` | live 时：东方财富数据中心（统计局 CPI/PMI、M2、LPR 1年/5年）及10年期国债收益率（东方财富 → 中债）；离线为种子快照 |
 | `search_news`、`search_announcements`、`search_knowledge` | 现有检索流水线（PostgreSQL 全文检索 / TF-IDF + Learning to Rank） |
 | `analyze_sentiment` | 默认经典情感模型；`QI_AGENT_SENTIMENT_BACKEND=finbert` 时使用 FinBERT |
+
+数据类工具在输出和证据 payload 中附带可选的 `provenance`：来源、`fetched_at`、`as_of`、`is_live`、`mode`（`live` / `live_fallback` / `last_known_good` / `snapshot`）、`freshness`、`fallback_reason`，以及一行 `note`，例如「数据来自新浪财经行情，截至2026-09-24；因东方财富行情熔断中降级」。它不含任何数值，因此不会让编造的数字在校验时看起来「可溯源」。降级链、熔断、缓存与实测审计见 [Live data sources](../data-sources.md)（英文）；`GET /sources/health` 返回各数据源状态。
 
 文档文本被视为不可信数据：工具输出以明确的不可信数据信封交给 LLM，指令类文本（「忽略之前的指令」、角色标签等）在证据入库时即被脱敏，并在 `degraded` 中标记 `instruction_like_text_removed_from_evidence`。
 
@@ -119,6 +121,7 @@ curl -s localhost:8000/agent/resume -H 'Content-Type: application/json' \
 | `QI_RATE_LIMIT_PER_MINUTE` | `0`（关闭） | 按客户端的令牌桶限流；超限返回 429 与 `Retry-After`。 |
 | `QI_CORS_ORIGINS` | 未设置 | 逗号分隔的允许来源。 |
 | `QI_MAX_REQUEST_BYTES` | `1048576` | 超过该大小的请求体返回 413。 |
+| `QI_SOURCE_CALL_TIMEOUT_SECONDS`、`QI_SOURCE_FAILURE_THRESHOLD`、`QI_SOURCE_COOLDOWN_SECONDS`、`QI_SOURCE_CACHE` | `10`、`3`、`60`、`true` | live 数据源硬超时、熔断器与 TTL 缓存（[详情](../data-sources.md#configuration)）。 |
 
 Agent 预算（`max_llm_steps=6`、`max_tool_calls=16`、`max_parallel_tools=4`、`token_budget=80000`、`max_revisions=1`、`run_deadline_s=90`）是 `agent/state.py` 中 `AgentConfig` 的字段。
 

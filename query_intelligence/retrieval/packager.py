@@ -4,7 +4,18 @@ from datetime import datetime, timezone
 from urllib.parse import urlencode
 
 
-_PAYLOAD_METADATA_FIELDS = {"source_name", "provider", "source_url", "provider_endpoint", "query_params", "source_reference"}
+_PAYLOAD_METADATA_FIELDS = {
+    "source_name",
+    "provider",
+    "source_url",
+    "provider_endpoint",
+    "query_params",
+    "source_reference",
+    # Provenance metadata added by the live source layer; not business fields.
+    "provenance",
+    "valuation_provenance",
+    "volume_unit",
+}
 
 
 class RetrievalPackager:

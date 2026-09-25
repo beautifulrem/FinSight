@@ -100,6 +100,14 @@ QI_USE_LIVE_MARKET=1 QI_USE_LIVE_NEWS=1 QI_USE_LIVE_ANNOUNCEMENT=1 \
 uvicorn query_intelligence.api.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
+Live data goes through ordered fallback chains with per-source circuit breakers, hard timeouts, and a
+TTL cache that can serve the last known good value. Stock prices, for example, try Eastmoney, then
+Sina, Tencent, the Sina realtime quote, and efinance. Every record carries `payload.provenance`
+(source, `fetched_at`, `as_of`, live or snapshot, fallback reason). `GET /sources/health` reports
+per-source status, latency, and last error. The 2026-09-25 audit (measured latencies, broken
+endpoints and their root causes, before/after) is in [docs/data-sources.md](docs/data-sources.md).
+Rerun it with `python -m scripts.audit_data_sources`.
+
 Manual runs write local artifacts to:
 
 ```text
@@ -182,6 +190,7 @@ Common environment variables:
 | `QI_USE_LIVE_NEWS` | Enables live news providers. |
 | `QI_USE_LIVE_ANNOUNCEMENT` | Enables live announcement providers. |
 | `QI_USE_LIVE_MACRO` | Enables live macro providers. |
+| `QI_SOURCE_CALL_TIMEOUT_SECONDS`, `QI_SOURCE_FAILURE_THRESHOLD`, `QI_SOURCE_COOLDOWN_SECONDS`, `QI_SOURCE_CACHE` | Live source hard timeout (10 s), circuit-breaker threshold (3) and cooldown (60 s), and TTL cache switch; see [docs/data-sources.md](docs/data-sources.md#configuration). |
 | `QI_POSTGRES_DSN` | Optional PostgreSQL source for structured retrieval. |
 | `QI_AGENT_CHECKPOINT_DB` | SQLite file that keeps agent sessions across restarts (default: in memory). |
 | `QI_AGENT_TRACE_DIR` | Where agent traces are written (default `outputs/traces`; `off` disables). OTLP export uses `OTEL_EXPORTER_OTLP_ENDPOINT`. |

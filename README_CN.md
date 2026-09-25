@@ -100,6 +100,8 @@ QI_USE_LIVE_MARKET=1 QI_USE_LIVE_NEWS=1 QI_USE_LIVE_ANNOUNCEMENT=1 \
 uvicorn query_intelligence.api.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
+live 数据按「主源 → 备源 → 最近一次成功值 → 离线快照」的顺序获取，每个数据源都有熔断器和硬超时，另有 TTL 缓存。例如股票日线依次尝试东方财富、新浪、腾讯、新浪实时行情、efinance。每条记录都带 `payload.provenance`（来源、`fetched_at`、`as_of`、实时/快照、降级原因）；`GET /sources/health` 返回各数据源的状态、延迟与最近错误。2026-09-25 的实测审计（延迟、失效接口及根因、改造前后对比）见 [docs/data-sources.md](docs/data-sources.md)，可用 `python -m scripts.audit_data_sources` 复跑。
+
 人工运行会输出本地文件：
 
 ```text
@@ -182,6 +184,7 @@ docs/                 详细文档
 | `QI_USE_LIVE_NEWS` | 启用 live 新闻 provider。 |
 | `QI_USE_LIVE_ANNOUNCEMENT` | 启用 live 公告 provider。 |
 | `QI_USE_LIVE_MACRO` | 启用 live 宏观 provider。 |
+| `QI_SOURCE_CALL_TIMEOUT_SECONDS`、`QI_SOURCE_FAILURE_THRESHOLD`、`QI_SOURCE_COOLDOWN_SECONDS`、`QI_SOURCE_CACHE` | live 数据源硬超时（10 秒）、熔断阈值（3 次）与冷却时间（60 秒）、TTL 缓存开关，详见 [docs/data-sources.md](docs/data-sources.md#configuration)。 |
 | `QI_POSTGRES_DSN` | 可选 PostgreSQL 结构化检索源。 |
 | `QI_AGENT_CHECKPOINT_DB` | 保存 Agent 会话的 SQLite 文件，重启后保留（默认在内存中）。 |
 | `QI_AGENT_TRACE_DIR` | Agent trace 输出目录（默认 `outputs/traces`，`off` 关闭）；OTLP 导出使用 `OTEL_EXPORTER_OTLP_ENDPOINT`。 |
