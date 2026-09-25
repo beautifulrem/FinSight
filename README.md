@@ -2,243 +2,175 @@
 
 <h1>FinSight</h1>
 
-<h3>Evidence-first financial analysis chatbot.</h3>
+<h3>Evidence-first research agent for China A-shares.</h3>
 
 <p>
   <a href="README.md"><img alt="Language English" src="https://img.shields.io/badge/Language-English-2f80ed?style=flat&labelColor=555555"></a>
   <a href="README_CN.md"><img alt="Language Simplified Chinese" src="https://img.shields.io/badge/%E8%AF%AD%E8%A8%80-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-d97706?style=flat&labelColor=555555"></a>
   <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-f1c40f?style=flat&labelColor=555555"></a>
   <img alt="Python 3.13" src="https://img.shields.io/badge/Python-3.13-3776ab?style=flat&labelColor=555555">
-  <img alt="API FastAPI" src="https://img.shields.io/badge/API-FastAPI-009688?style=flat&labelColor=555555">
-  <img alt="LLM API" src="https://img.shields.io/badge/LLM-API-111111?style=flat&labelColor=555555">
+  <img alt="LangGraph" src="https://img.shields.io/badge/LangGraph-1.2-1c3c3c?style=flat&labelColor=555555">
+  <img alt="MCP and A2A" src="https://img.shields.io/badge/MCP%20%2B%20A2A-protocols-6b46c1?style=flat&labelColor=555555">
+  <img alt="React 19" src="https://img.shields.io/badge/UI-React%2019%20%2B%20TS-149eca?style=flat&labelColor=555555">
 </p>
 
 </div>
 
 ---
 
-FinSight is an evidence-first financial analysis chatbot. It turns a natural-language finance question into auditable evidence artifacts, then presents a risk-aware answer through a local browser chatbot.
+FinSight answers questions about Chinese listed companies, funds, indices and macro data. A classical, explainable NLU front end routes and guards every question; an LLM orchestrates typed evidence tools in a LangGraph loop; and **every number in the answer is checked by code against the evidence cited next to it** before a compliance guard removes anything that reads like investment advice. Without an LLM key the same graph runs on a deterministic planner.
 
-The project is designed around a simple rule: the system should retrieve and expose evidence before it writes a financial answer. The backend identifies intent, entities, required evidence, source plans, retrieved documents, structured market data, numerical signals, sentiment evidence, and cited answer JSON.
+<p align="center"><img src="docs/assets/ui/chrome-agent-trace.png" alt="Agent answer with live run trace and evidence ledger" width="900"></p>
 
-## Highlights
+## Why it is built this way
 
-- Browser chatbot with Chinese and English queries.
-- Explainable Query Intelligence backend for NLU and retrieval.
-- China-market runtime coverage for A-shares, ETFs/funds, indices, sectors, macro indicators, policy events, news, announcements, and fundamentals.
-- Numerical `analysis_summary` with market, fundamental, macro, technical-indicator, and data-readiness signals.
-- Evidence-first research agent (`/agent/*`, or `/chat` with `mode=agent|auto`): classical NLU routes and guards, an LLM orchestrates nine typed tools in a LangGraph loop, every answer is checked for citations and traceable numbers, and financial guardrails apply. Works without an LLM key through a deterministic planner.
-- The agent tools are also served over MCP (`python -m query_intelligence.agent.mcp_server`).
-- Document sentiment (classical model by default, FinBERT optional) and next-question suggestions are part of the agent answer; the original `/chat` path still runs them offline only.
-- LLM answer over compact evidence with citation and disclaimer controls.
-- Clone-usable runtime assets in `data/runtime/` and shipped model artifacts in `models/`.
+| Decision | Reason | Where |
+|---|---|---|
+| Classical NLU routes, an LLM orchestrates | Routing and guarding must be explainable and cheap; the LLM is used where it adds value (choosing tools, writing). A fixed workflow handles simple questions; the LLM loop handles comparisons, "why" questions and multi-hop ones. | `agent/router.py`, `agent/graph.py` |
+| Claim-level number verification | A number must appear in the evidence cited in *its own sentence*, with unit- and precision-aware matching. Unverifiable sentences are revised once by the LLM, then deleted. | `agent/verifier.py` |
+| Deterministic fallback everywhere | No key, a provider outage or an exhausted budget degrades to the planner + template answer, still cited and verified. | `agent/planner.py`, `agent/llm.py` |
+| Evidence as untrusted data | Tool output is wrapped, normalised and filtered for injected instructions; tools are read-only. | `agent/injection.py` |
+
+## Results
+
+All numbers are reproducible with the commands in [docs/agent-eval.md](docs/agent-eval.md); online numbers come from DeepSeek V4.1 Flash through a gateway, 3 repeats per task, costs as billed by the gateway.
+
+Task success is dealbreaker-gated: the behaviour (answer / clarify / refuse) must be right, every required fact stated **and** cited, the required tools used, hedging present where the question asks for a judgment, and no trading instruction anywhere. Development set: 207 tasks / 220 turns; held-out set: 53 tasks written after the rules were tuned.
+
+| Answer path | Success (dev) | Success (held-out) | pass^3 (dev / held-out) | Cost per task (dev / held-out) | P95 latency (dev) |
+|---|---|---|---|---|---|
+| Original `/chat`, no LLM | 0.256 | 0.189 | – | – | 1.0 s |
+| Original `/chat` + LLM rewrite | 0.440 | 0.679 | – | not recorded | 13.4 s |
+| LLM alone, no tools | 0.000 | 0.000 | 0.000 / 0.000 | $0.0009 / $0.0009 | 18.3 s |
+| Deterministic workflow (no LLM) | 0.981 | 0.849 | – | $0 | 0.8 s |
+| Workflow + LLM composition | 0.979 | 0.906 | 0.976 / 0.906 | $0.0008 / $0.0007 | 16.7 s |
+| **LLM agent (tool loop)** | **0.986** | **0.956** | **0.971 / 0.906** | **$0.0016 / $0.0010** | 25.2 s |
+
+The LLM alone never passes: it cannot cite evidence and its prices are unverifiable. Prompt v2/v3 cut the agent's cost per task by 60% against v1 (from $0.0040) while raising held-out pass^3 from 0.849 to 0.906.
+
+| Other measurements | Result | Details |
+|---|---|---|
+| Verifier false-accept rate on 2,315 corrupted gold answers | 35.0% (original run-level check) → **2.8%** (claim-level); numbers swapped between companies 100% → **0.6%**; 157/157 gold answers still accepted | [agent-eval.md](docs/agent-eval.md) |
+| Prompt-injection red team (17 attacks × 4 obfuscations, poisoned search results) | Development attacks: **0** successes on all three paths (216 runs). Unseen held-out attacks: 0/64 template, 2/64 LLM composition, 1/64 agent — reported, not hidden (see Limits) | [agent-eval.md](docs/agent-eval.md) |
+| Fault injection (timeouts, 5xx, empty data, huge documents, LLM down, malformed tool calls, endless loops) | 11/11 scenarios degrade gracefully | [agent-eval.md](docs/agent-eval.md) |
+| Load test of the container (workflow path, no LLM) | 8.4 req/s and P95 0.66 s for one client after cutting checkpoint writes (was 0.7 req/s, P95 4.6 s) | [performance.md](docs/performance.md) |
+| Live data audit (64 probes) | 49 OK; fixed a wrong M2 series, stale CPI/PMI, always-null PE/PB and empty announcements | [data-sources.md](docs/data-sources.md) |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  A["Browser / API client"] --> B["FastAPI"]
-  B -->|"/chat (mode=workflow)"| C["Query Intelligence<br/>NLU + Retrieval"]
-  C --> D["analysis_summary"] --> G["LLM answer<br/>(template fallback)"] --> H["Freshness + compliance guards"] --> A
-  B -->|"/agent/* or /chat mode=agent|auto"| R["Agent: NLU guard + router"]
-  R -->|refuse / clarify| F["Finalize"]
-  R -->|workflow| P["Deterministic planner"] --> T["Tool registry<br/>(9 tools, also via MCP)"]
-  R -->|agent| L["LLM tool loop<br/>(LangGraph)"] <--> T
-  T --> V["Evidence verifier"] --> K["Compliance"] --> F --> A
+  U["Browser (React) / API / A2A client"] --> API["FastAPI"]
+  API --> G["guard_in: classical NLU + explainable router"]
+  G -->|out of scope| RF["refuse"]
+  G -->|missing target| CL["clarify (interrupt / resume)"]
+  G -->|simple| WF["deterministic planner"]
+  G -->|complex| AL["LLM tool loop (LangGraph)"]
+  WF --> T["9 typed tools (also served over MCP)"]
+  AL <--> T
+  T --> DS["live sources: fallback chains, breakers, provenance"]
+  WF --> C["compose (LLM or template)"]
+  AL --> V["verify: claim-level citations and numbers"]
+  C --> V
+  V -->|fails| RV["revise once, then repair"] --> V
+  V --> K["compliance guard"] --> F["finalize: answer, evidence, trace, cost"]
+  F --> U
+  F -.-> O["traces: JSON / OTLP · Prometheus /metrics"]
 ```
 
-The original `/chat` path (top) is unchanged. The agent path (bottom) reuses the same NLU, retrieval, market analyzer, and sentiment code through typed tools; see [docs/agent.md](docs/agent.md).
+Sessions are LangGraph checkpoints (memory, SQLite or Postgres), so a clarification can pause a run and any replica can continue a conversation. See [docs/agent.md](docs/agent.md).
 
-Core outputs:
+## Features
 
-| Artifact | Purpose |
-|---|---|
-| `nlu_result` | Normalized query, product type, intents, topics, entities, missing slots, risk flags, evidence requirements, and source plan. |
-| `retrieval_result` | Executed sources, documents, structured data, coverage, warnings, ranking traces, and `analysis_summary`. |
-| `answer_generation` | Frontend-ready answer JSON generated from compact evidence. |
-| `next_question_prediction` | Suggested follow-up questions for the chatbot. |
+- **Agent**: routing with reasons, parallel tool calls, step/tool/token budgets and a run deadline, one LLM revision after failed verification, coreference and clarification interrupts, per-node reasoning levels, model failover with a circuit breaker, versioned prompts pinned by hash.
+- **Evidence tools**: entity resolution, price history, technical indicators, fundamentals, macro indicators, news, announcements, knowledge search and document sentiment — each with a Pydantic schema, timeout, retry, TTL cache and actionable error hints.
+- **Live data**: Eastmoney → Sina → Tencent → cache → snapshot chains, per-source circuit breakers, provenance on every record (`GET /sources/health`).
+- **Protocols**: MCP server for the tools; A2A 1.0 endpoint for the whole agent (clarification maps to `input-required`).
+- **Observability**: per-run traces (nodes, tools, LLM calls, tokens, cost, prompt versions), a run inspector API, OpenTelemetry export and Prometheus metrics.
+- **Web UI** (React 19, TypeScript, Tailwind v4, Radix, Motion, Lightweight Charts): streamed run timeline, citation chips linked to an evidence ledger with freshness, price charts, run cost and latency, zh/en, dark mode, mobile.
+- **Security**: optional API keys, rate limiting, CORS, body limits, non-root read-only container.
 
-FinSight does not make deterministic buy/sell decisions. It provides evidence, interpretation, uncertainty warnings, and a risk disclaimer.
+<p align="center">
+  <img src="docs/assets/ui/chrome-run-details.png" alt="Run details: tokens, cost, latency" width="440">
+  <img src="docs/assets/ui/chrome-mobile-dark-en.png" alt="Mobile, dark, English" width="200">
+</p>
 
-## Quick Start
-
-Use Python 3.13 or a compatible Python 3 version.
+## Quick start
 
 ```bash
 pip install -r requirements.txt
+uvicorn query_intelligence.api.app:create_app --factory --port 8765   # open http://127.0.0.1:8765
 ```
 
-Run a one-shot manual query:
+Without a key, answers come from the deterministic path. To enable the LLM agent with any OpenAI-compatible endpoint:
 
 ```bash
-python manual_test/run_manual_query.py --query "你觉得中国平安怎么样？"
+export DEEPSEEK_API_KEY=...                      # read from the environment, never from the config file
+export DEEPSEEK_BASE_URL=https://api.deepseek.com # or a gateway, e.g. https://api.cline.bot/api/v1
+export DEEPSEEK_MODEL=deepseek-v4-flash
+export QI_LLM_FALLBACK_MODELS=...                 # optional failover models on the same endpoint
 ```
 
-Start the local browser chatbot:
+Live market, news, announcement and macro providers are on by default; set `QI_USE_LIVE_MARKET=0` (and `_NEWS`, `_ANNOUNCEMENT`, `_MACRO`) for the shipped offline snapshot.
+
+Docker and Kubernetes (replicas sharing sessions through Postgres, read-only root filesystem): see [docs/deployment.md](docs/deployment.md).
 
 ```bash
-export DEEPSEEK_API_KEY="your_deepseek_api_key_here"
-python scripts/launch_chatbot.py
+docker build -f docker/Dockerfile -t finsight . && docker run -p 8000:8000 finsight
+kubectl apply -f deploy/k8s/finsight.yaml
 ```
 
-Start the FastAPI service:
-
-```bash
-uvicorn query_intelligence.api.app:create_app --factory --host 0.0.0.0 --port 8000
-```
-
-Or run it in Docker (multi-stage image, non-root, healthcheck; optional `postgres` and `tracing` profiles):
-
-```bash
-docker compose -f docker/docker-compose.yml up --build
-```
-
-Enable live providers when needed:
-
-```bash
-QI_USE_LIVE_MARKET=1 QI_USE_LIVE_NEWS=1 QI_USE_LIVE_ANNOUNCEMENT=1 \
-uvicorn query_intelligence.api.app:create_app --factory --host 0.0.0.0 --port 8000
-```
-
-Live data goes through ordered fallback chains with per-source circuit breakers, hard timeouts, and a
-TTL cache that can serve the last known good value. Stock prices, for example, try Eastmoney, then
-Sina, Tencent, the Sina realtime quote, and efinance. Every record carries `payload.provenance`
-(source, `fetched_at`, `as_of`, live or snapshot, fallback reason). `GET /sources/health` reports
-per-source status, latency, and last error. The 2026-09-25 audit (measured latencies, broken
-endpoints and their root causes, before/after) is in [docs/data-sources.md](docs/data-sources.md).
-Rerun it with `python -m scripts.audit_data_sources`.
-
-Manual runs write local artifacts to:
-
-```text
-manual_test/output/<timestamp>-<query-slug>/
-  query.txt
-  nlu_result.json
-  retrieval_result.json
-```
-
-## API Overview
+## API
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /health` | Health check. |
-| `GET /` | Local browser chatbot UI. |
-| `POST /chat` | End-to-end chatbot response with evidence-backed LLM wording; optional `mode=agent|auto` routes to the agent. |
-| `POST /agent/chat` | Agent answer with session memory, tool trace, verification, sentiment, and next questions. |
-| `POST /agent/chat/stream` | Same as `/agent/chat`, streamed as server-sent events. |
-| `POST /agent/resume` | Answer a pending clarification question for a session. |
-| `GET /agent/sessions/{session_id}` | Session turns and any pending clarification. |
-| `POST /nlu/analyze` | NLU only. |
-| `POST /retrieval/search` | Retrieval from an existing NLU result. |
-| `POST /query/intelligence` | End-to-end NLU and retrieval. |
-| `POST /query/intelligence/artifacts` | End-to-end run and write JSON artifacts. |
+| `POST /agent/chat`, `POST /agent/chat/stream` (SSE), `POST /agent/resume` | Agent answer with evidence, verification, trace id and cost; streamed node events; clarification resume. |
+| `GET /agent/sessions/{id}`, `GET /agent/traces`, `GET /agent/traces/{id}` | Session memory, recent runs, full run trace. |
+| `GET /.well-known/agent-card.json`, `POST /a2a` | A2A agent card and JSON-RPC endpoint. |
+| `GET /metrics`, `GET /sources/health`, `GET /health` | Prometheus metrics, live source status, health. |
+| `POST /chat` | Original chatbot endpoint (`mode=workflow` keeps the original pipeline; `agent`/`auto` use the agent). |
+| `POST /nlu/analyze`, `POST /retrieval/search`, `POST /query/intelligence` | Classical NLU and retrieval artifacts. |
 
-Example request:
+Schemas: `schemas/agent_*.schema.json`, generated from `query_intelligence/contracts.py`.
 
-```json
-{
-  "query": "你觉得中国平安怎么样？",
-  "user_profile": {
-    "risk_preference": "balanced",
-    "preferred_market": "cn",
-    "holding_symbols": ["601318.SH"]
-  },
-  "top_k": 10,
-  "debug": false
-}
-```
-
-See [docs/query-intelligence.md](docs/query-intelligence.md) for full request and response contracts. Agent request and response schemas are in `schemas/agent_*.schema.json`; see [docs/agent.md](docs/agent.md).
-
-## Modules
-
-| Module | Main path | Documentation |
-|---|---|---|
-| Frontend chatbot | `query_intelligence/chatbot.py`, `query_intelligence/api/app.py` | [docs/frontend-chatbot.md](docs/frontend-chatbot.md) |
-| NLU and Retrieval | `query_intelligence/` | [docs/query-intelligence.md](docs/query-intelligence.md) |
-| Numerical Analysis | `query_intelligence/retrieval/market_analyzer.py` | [docs/numerical-analysis.md](docs/numerical-analysis.md) |
-| Text Analysis | `sentiment/` | [docs/sentiment.md](docs/sentiment.md) |
-| LLM Summary and Prediction | `scripts/llm_response.py`, `/chat` | [docs/llm-response.md](docs/llm-response.md) |
-
-For a module-level map, see [docs/modules.md](docs/modules.md).
-
-## Repository Layout
-
-```text
-query_intelligence/   FastAPI app, NLU, retrieval, contracts, providers
-sentiment/            Document sentiment preprocessing and classification
-scripts/              Chatbot launcher, LLM handoff, evaluation utilities
-training/             Public-data sync, training, and runtime asset building
-manual_test/          Manual query and integration runners
-tests/                Pytest coverage
-schemas/              JSON schemas for external validation
-data/runtime/         Small clone-usable runtime assets
-models/               Shipped model artifacts
-docs/                 Detailed documentation
-```
-
-## Configuration
-
-Common environment variables:
-
-| Variable | Purpose |
-|---|---|
-| `DEEPSEEK_API_KEY` | API key for the default LLM provider used by `/chat`. |
-| `DEEPSEEK_MODEL` | Overrides the default LLM model; can be another compatible provider's model when `DEEPSEEK_BASE_URL` is changed. |
-| `TUSHARE_TOKEN` | Enables Tushare live market and fundamentals. |
-| `QI_USE_LIVE_MARKET` | Enables live market providers. |
-| `QI_USE_LIVE_NEWS` | Enables live news providers. |
-| `QI_USE_LIVE_ANNOUNCEMENT` | Enables live announcement providers. |
-| `QI_USE_LIVE_MACRO` | Enables live macro providers. |
-| `QI_SOURCE_CALL_TIMEOUT_SECONDS`, `QI_SOURCE_FAILURE_THRESHOLD`, `QI_SOURCE_COOLDOWN_SECONDS`, `QI_SOURCE_CACHE` | Live source hard timeout (10 s), circuit-breaker threshold (3) and cooldown (60 s), and TTL cache switch; see [docs/data-sources.md](docs/data-sources.md#configuration). |
-| `QI_POSTGRES_DSN` | Optional PostgreSQL source for structured retrieval. |
-| `QI_AGENT_CHECKPOINT_DB` | SQLite file that keeps agent sessions across restarts (default: in memory). |
-| `QI_AGENT_TRACE_DIR` | Where agent traces are written (default `outputs/traces`; `off` disables). OTLP export uses `OTEL_EXPORTER_OTLP_ENDPOINT`. |
-| `QI_API_KEYS`, `QI_RATE_LIMIT_PER_MINUTE`, `QI_CORS_ORIGINS`, `QI_MAX_REQUEST_BYTES` | Optional API keys, rate limit, CORS, and body size limit (all off by default). |
-
-The full agent variable list is in [docs/agent.md](docs/agent.md#configuration).
-
-Never commit `.env`, tokens, generated outputs, public dataset caches, or local scratch files.
-
-## Testing
-
-Run the grouped test suite:
+## Evaluation and tests
 
 ```bash
-python -m scripts.run_test_suite
+python -m pytest -q tests                                  # offline; live providers off in CI
+python -m evaluation.agent_eval.gate                       # replayed dev + held-out thresholds
+python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6   # online ablation
+python -m evaluation.agent_eval.verifier_stress            # verifier false-accept rate
+python -m evaluation.agent_eval.redteam --llm deepseek     # prompt-injection red team
+python -m evaluation.agent_eval.fault_injection            # graceful degradation
+python -m scripts.load_test --base-url http://127.0.0.1:8000 --users 8
 ```
 
-Run focused checks:
-
-```bash
-python -m pytest tests/test_query_intelligence.py -q
-python -m pytest tests/test_analysis_summary.py tests/test_market_analyzer.py -q
-python -m pytest tests/test_sentiment_pipeline.py -q
-python -m pytest tests/test_llm_response.py -q
-python -m pytest tests/test_agent_*.py tests/test_api_security.py -q
-python -m evaluation.agent_eval.gate   # offline agent evaluation thresholds
-```
-
-See [docs/training.md](docs/training.md) for evaluation, training, and release checks.
+CI runs lint, the frontend checks (typecheck, lint, unit tests, reproducible build), the full test suite with a Postgres service, the evaluation gates, the Docker build with a smoke test and Kubernetes manifest validation.
 
 ## Documentation
 
-Start with [docs/index.md](docs/index.md).
-
 | Topic | Link |
 |---|---|
-| Module map | [docs/modules.md](docs/modules.md) |
-| Agent layer | [docs/agent.md](docs/agent.md) |
-| Agent evaluation | [docs/agent-eval.md](docs/agent-eval.md) |
-| MCP server | [docs/mcp.md](docs/mcp.md) |
-| Query Intelligence | [docs/query-intelligence.md](docs/query-intelligence.md) |
-| Frontend chatbot | [docs/frontend-chatbot.md](docs/frontend-chatbot.md) |
-| Numerical analysis | [docs/numerical-analysis.md](docs/numerical-analysis.md) |
-| Text sentiment | [docs/sentiment.md](docs/sentiment.md) |
-| LLM response handoff | [docs/llm-response.md](docs/llm-response.md) |
-| Training and runtime assets | [docs/training.md](docs/training.md) |
-| Presentation materials | [docs/presentation/README.md](docs/presentation/README.md) |
+| Agent layer: graph, tools, memory, API, configuration | [docs/agent.md](docs/agent.md) |
+| Evaluation: task sets, online ablation, prompt A/B, red team, verifier stress | [docs/agent-eval.md](docs/agent-eval.md) |
+| A2A, model failover, gateway cost, metrics | [docs/a2a-and-observability.md](docs/a2a-and-observability.md) |
+| Live data sources | [docs/data-sources.md](docs/data-sources.md) |
+| Performance and load | [docs/performance.md](docs/performance.md) |
+| Deployment | [docs/deployment.md](docs/deployment.md) |
+| Design notes and trade-offs | [docs/presentation/agent-design-notes.md](docs/presentation/agent-design-notes.md) |
+| Agent and prompt-engineering practice research | [docs/research/agent-architecture-practices-2026.md](docs/research/agent-architecture-practices-2026.md) |
+| Query Intelligence (classical NLU and retrieval) | [docs/query-intelligence.md](docs/query-intelligence.md) |
+| Web UI | [docs/frontend-chatbot.md](docs/frontend-chatbot.md) |
+| All pages | [docs/index.md](docs/index.md) |
+
+## Limits
+
+- One LLM family was evaluated online (DeepSeek V4.1 Flash). The held-out set was also used to choose between prompt versions, so it is a validation set for prompts rather than an untouched test set.
+- The verifier checks that numbers come from the cited evidence; it cannot tell whether the right period or metric was chosen when one evidence item holds several.
+- Pronoun resolution is rule-based; English company aliases are limited to `data/runtime/alias_table.csv`.
+- The lexical injection filter does not generalise to unseen phrasings (0% redaction on the held-out attacks); protection comes mostly from structure (read-only tools, untrusted-data envelope, verification, compliance).
+- Free data sources throttle: Eastmoney refused this machine's connections during the audit, so fallbacks carried the load.
 
 ## Safety
 
-FinSight summarizes evidence and can help inspect financial information, but it is not an investment adviser and must not be used as the sole basis for trading decisions.
+FinSight summarises evidence; it is not an investment adviser and must not be the sole basis for trading decisions.

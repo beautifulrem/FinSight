@@ -64,7 +64,7 @@ flowchart LR
 
 ## 记忆与会话
 
-- 每个 `session_id` 对应一个 LangGraph thread。默认使用内存 checkpointer；设置 `QI_AGENT_CHECKPOINT_DB=/path/sessions.sqlite` 可在重启后保留会话。
+- 每个 `session_id` 对应一个 LangGraph thread。默认使用内存 checkpointer；设置 `QI_AGENT_CHECKPOINT_DB=/path/sessions.sqlite` 可在重启后保留会话；设置为 `postgresql://...` 则多个副本共享会话。
 - 每轮开始时重置本轮字段（工具日志、证据、校验结果等），因此上一轮的证据不会在下一轮被引用。
 - 完成的轮次（问题、答案、实体、证据 id）保存在 `turns` 中，并作为对话上下文传给 NLU，「那它的市净率呢」就是这样解析到上一轮的公司。
 - 同一会话的请求通过会话级锁串行执行。
@@ -111,8 +111,14 @@ curl -s localhost:8000/agent/resume -H 'Content-Type: application/json' \
 |---|---|---|
 | `DEEPSEEK_API_KEY`（或配置中的 `deepseek.api_key`） | 未设置 | 启用 LLM Agent 路径与 LLM 组答；未设置时全部走确定性路径。 |
 | `DEEPSEEK_MODEL`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_THINKING_TYPE`、`DEEPSEEK_REASONING_EFFORT`、`DEEPSEEK_MAX_TOKENS`、`DEEPSEEK_TIMEOUT_SECONDS` | 见 `config/app_config.json` | 与 `/chat` 共用的 LLM 设置。 |
-| `QI_LLM_PRICE_INPUT_MISS`、`QI_LLM_PRICE_INPUT_HIT`、`QI_LLM_PRICE_OUTPUT`、`QI_LLM_PRICE_CURRENCY` | 未设置 | 每百万 token 价格；只有设置后才报告成本。 |
-| `QI_AGENT_CHECKPOINT_DB` | 未设置（内存） | 会话持久化用的 SQLite 文件。 |
+| `DEEPSEEK_REASONING_STYLE` | `auto` | 按节点设置推理强度时的参数写法：`deepseek`（`thinking` + `reasoning_effort`）、`openrouter`（`reasoning` 对象，例如 Cline 网关）或 `none`；`auto` 按接口地址判断。 |
+| `QI_LLM_FALLBACK_MODELS` | 未设置 | 同一接口上的备用模型（逗号分隔），每个模型独立熔断。 |
+| `QI_PROMPT_VERSION` | `v3` | 使用 `agent/prompts.py` 注册表中的哪个 Prompt 版本（`v1`、`v2`、`v3`）。 |
+| `QI_LLM_PRICE_INPUT_MISS`、`QI_LLM_PRICE_INPUT_HIT`、`QI_LLM_PRICE_OUTPUT`、`QI_LLM_PRICE_CURRENCY` | 未设置 | 每百万 token 价格；未设置时若网关返回 `usage.cost`（美元）则使用它。 |
+| `QI_LLM_USD_CNY` | 未设置 | 把网关成本换算为人民币的汇率。 |
+| `QI_AGENT_CHECKPOINT_DB` | 未设置（内存） | 会话持久化：SQLite 文件路径，或多个进程/副本共享的 `postgresql://` 连接串。 |
+| `QI_AGENT_DURABILITY` | `exit` | LangGraph 持久化模式：每次运行写一次检查点（`exit`），或每步写（`async`、`sync`），见 [performance.md](../performance.md)。 |
+| `QI_A2A_ENABLED`、`QI_A2A_MODE`、`QI_PUBLIC_BASE_URL` | `1`、`auto`、`http://127.0.0.1:8765` | A2A 开关、使用的 Agent 模式、服务卡片中公布的地址。 |
 | `QI_AGENT_REQUEST_TIMEOUT_S` | `120` | `/agent/chat` 与 `/agent/resume` 的单次请求超时（超时返回 504）。 |
 | `QI_AGENT_SENTIMENT_BACKEND` | `classical` | 设为 `finbert` 使用 FinBERT（需要 `torch`/`transformers`）。 |
 | `QI_AGENT_TRACE_DIR` | `outputs/traces` | JSON trace 输出目录；`off` 表示关闭。 |

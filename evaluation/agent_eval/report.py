@@ -49,7 +49,7 @@ SUMMARY_ROWS = [
 def _fmt(value: Any, key: str = "") -> str:
     if value is None:
         return "–"
-    if key.startswith("cost"):
+    if key.startswith("cost") and isinstance(value, float):
         return f"{value:.5f}"
     if isinstance(value, float):
         return f"{value:.1f}" if value > 1.5 else f"{value:.3f}"
@@ -61,6 +61,7 @@ def render(
     faults: dict[str, Any] | None,
     *,
     prompt_ab: dict[str, Any] | None = None,
+    ab_baseline: dict[str, Any] | None = None,
     stress: dict[str, Any] | None = None,
     redteam: dict[str, Any] | None = None,
 ) -> str:
@@ -154,7 +155,7 @@ def render(
             )
         lines.append("")
     if prompt_ab:
-        lines += _prompt_ab_section(ablation, prompt_ab)
+        lines += _prompt_ab_section(ab_baseline or ablation, prompt_ab)
     if stress:
         lines += _stress_section(stress)
     if redteam:
@@ -182,7 +183,8 @@ def _prompt_ab_section(baseline: dict[str, Any], variant: dict[str, Any]) -> lis
         "### Prompt A/B",
         "",
         f"Baseline `{base_refs.get('agent_system')}` vs variant `{variant_refs.get('agent_system')}` "
-        f"(commit `{variant['config'].get('commit')}`, command `{variant['config'].get('command')}`).",
+        f"(baseline commit `{baseline['config'].get('commit')}`, variant commit `{variant['config'].get('commit')}`; "
+        f"variant command `{variant['config'].get('command')}`).",
         "",
     ]
     for set_name in ("dev", "holdout"):
@@ -218,14 +220,20 @@ def _stress_section(stress: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _attack_counts(attacks: Any) -> str:
+    if not isinstance(attacks, dict):
+        return str(attacks)
+    return ", ".join(f"{name} {count}" for name, count in attacks.items())
+
+
 def _redteam_section(redteam: dict[str, Any]) -> list[str]:
     config = redteam["config"]
     lines = [
         "### Prompt-injection red team",
         "",
         f"Command: `{config['command']}` at commit `{config['commit']}` (LLM: {config.get('llm') or 'none'}). "
-        f"Attacks: {config['attacks']}; variants: {', '.join(config['variants'])}. Only runs in which a "
-        "document tool returned the poisoned text are counted.",
+        f"Attacks: {_attack_counts(config['attacks'])}; variants: {', '.join(config['variants'])}. "
+        "Only runs in which a document tool returned the poisoned text are counted.",
         "",
         "| Attack set | Path | Runs | Attack success | Redaction by lexical filter | Crashes |",
         "|---|---|---|---|---|---|",
@@ -261,12 +269,14 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Render docs/agent-eval.md from evaluation outputs.")
     parser.add_argument("--ablation", default=str(OUTPUT_DIR / "ablation.json"))
     parser.add_argument("--prompt-ab", default="", help="Ablation output of a prompt variant to compare.")
+    parser.add_argument("--ab-baseline", default="", help="Baseline for the prompt A/B (defaults to --ablation).")
     args = parser.parse_args(argv)
     ablation = json.loads(Path(args.ablation).read_text(encoding="utf-8"))
     block = render(
         ablation,
         _load(OUTPUT_DIR / "fault_injection.json"),
         prompt_ab=_load(Path(args.prompt_ab)) if args.prompt_ab else None,
+        ab_baseline=_load(Path(args.ab_baseline)) if args.ab_baseline else None,
         stress=_load(OUTPUT_DIR / "verifier_stress.json"),
         redteam=_load(OUTPUT_DIR / "redteam.json"),
     )
