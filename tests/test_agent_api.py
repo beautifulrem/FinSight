@@ -155,3 +155,25 @@ def test_abandoned_stream_releases_the_session(client_and_stub):
     # The worker finishes the run and releases the lock: the next turn on the same session completes.
     follow_up = client.post("/agent/chat", json={"query": "它的市净率呢", "session_id": "gone-1"})
     assert follow_up.status_code == 200 and follow_up.json()["status"] == "ok"
+
+
+def test_stream_emits_answer_deltas_before_the_final_answer():
+    from query_intelligence.agent.llm import ScriptedLLM, final_turn
+
+    stub = LegacyStub()
+    answer = {
+        "answer": "贵州茅台 PE(TTM) 为 24.6 [fundamental_600519.SH]。",
+        "evidence_used": ["fundamental_600519.SH"],
+    }
+    llm = ScriptedLLM([final_turn(answer)])
+    runtime = AgentRuntime(stub, build_fake_registry(), llm, today=lambda: date(2026, 9, 24))
+    app = create_app(service=stub, app_config={"deepseek": {"api_key": ""}}, agent_service=AgentService(runtime))
+
+    events = _parse_sse(
+        TestClient(app).post("/agent/chat/stream", json={"query": "贵州茅台的市盈率是多少", "mode": "workflow"}).text
+    )
+
+    names = [name for name, _ in events]
+    streamed = "".join(data["text"] for name, data in events if name == "answer_delta")
+    assert streamed == answer["answer"]
+    assert names.index("answer_delta") < names.index("answer")

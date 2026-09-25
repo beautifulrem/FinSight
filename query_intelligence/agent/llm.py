@@ -96,6 +96,7 @@ class LLMClient(Protocol):
         json_mode: bool = False,
         max_tokens: int | None = None,
         reasoning: str | None = None,
+        on_delta: Callable[[str], None] | None = None,
     ) -> AssistantTurn: ...
 
 
@@ -267,8 +268,12 @@ class DeepSeekToolClient:
         json_mode: bool = False,
         max_tokens: int | None = None,
         reasoning: str | None = None,
+        on_delta: Callable[[str], None] | None = None,
     ) -> AssistantTurn:
-        """``reasoning`` overrides the configured thinking level for this call (``off``/``low``/...)."""
+        """``reasoning`` overrides the configured thinking level for this call (``off``/``low``/...).
+
+        With ``on_delta`` the request is streamed (server-sent events) and each content fragment is passed
+        to it as it arrives; the returned turn is the same as without streaming."""
         if not self.configured:
             raise LLMError("LLM API key is not configured")
         body: dict[str, Any] = {"model": self.model, "messages": list(messages)}
@@ -290,7 +295,7 @@ class DeepSeekToolClient:
             body["temperature"] = self.temperature
 
         started = time.perf_counter()
-        data = self._post_with_retries(body)
+        data = self._post_with_retries(body, on_delta)
         return _parse_completion(data, model=self.model, latency_ms=(time.perf_counter() - started) * 1000)
 
     def _apply_reasoning(self, body: dict[str, Any], reasoning: str | None) -> bool:
@@ -321,16 +326,93 @@ class DeepSeekToolClient:
                 body["reasoning"] = {"effort": effort}
         return False
 
-    def _post_with_retries(self, body: dict[str, Any]) -> dict[str, Any]:
+    def _post_with_retries(self, body: dict[str, Any], on_delta: Callable[[str], None] | None = None) -> dict[str, Any]:
         attempt = 0
+        emitted = [False]
+
+        def forward(piece: str) -> None:
+            emitted[0] = True
+            on_delta(piece)  # type: ignore[misc]
+
         while True:
             attempt += 1
             try:
-                return self._post(body)
+                return self._post_stream(body, forward) if on_delta is not None else self._post(body)
             except LLMError as exc:
-                if not exc.retryable or attempt > self.max_retries:
+                # A stream that already produced text cannot be replayed without duplicating it.
+                if not exc.retryable or attempt > self.max_retries or emitted[0]:
                     raise
                 self._sleep(self.retry_backoff_s * (2 ** (attempt - 1)))
+
+    def _post_stream(self, body: dict[str, Any], on_delta: Callable[[str], None]) -> dict[str, Any]:
+        """Stream a completion and rebuild the non-streamed response shape (content, tool calls, usage)."""
+        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+        payload = {**body, "stream": True, "stream_options": {"include_usage": True}}
+        client = self._http_client or httpx.Client(timeout=self.timeout_s)
+        content: list[str] = []
+        reasoning: list[str] = []
+        calls: dict[int, dict[str, Any]] = {}
+        finish_reason = None
+        usage: dict[str, Any] = {}
+        model = self.model
+        try:
+            with client.stream("POST", self.url, headers=headers, json=payload) as response:
+                if response.status_code >= 400:
+                    text = response.read().decode("utf-8", "replace")
+                    retryable = response.status_code in {408, 409, 429} or response.status_code >= 500
+                    raise LLMError(
+                        f"LLM API returned HTTP {response.status_code}: {text[:300]}",
+                        retryable=retryable,
+                        status_code=response.status_code,
+                    )
+                for line in response.iter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = unwrap_completion(json.loads(data))
+                    except json.JSONDecodeError:
+                        continue
+                    model = str(chunk.get("model") or model)
+                    if chunk.get("usage"):
+                        usage = chunk["usage"]
+                    for choice in chunk.get("choices") or []:
+                        delta = choice.get("delta") or {}
+                        if delta.get("content"):
+                            content.append(delta["content"])
+                            on_delta(delta["content"])
+                        piece = delta.get("reasoning_content") or delta.get("reasoning")
+                        if isinstance(piece, str):
+                            reasoning.append(piece)
+                        for call in delta.get("tool_calls") or []:
+                            slot = calls.setdefault(int(call.get("index", 0)), {"id": "", "name": "", "arguments": ""})
+                            slot["id"] = call.get("id") or slot["id"]
+                            function = call.get("function") or {}
+                            slot["name"] += function.get("name") or ""
+                            slot["arguments"] += function.get("arguments") or ""
+                        finish_reason = choice.get("finish_reason") or finish_reason
+        except httpx.TimeoutException as exc:
+            raise LLMError(f"LLM request timed out: {exc}", retryable=True) from exc
+        except httpx.TransportError as exc:
+            raise LLMError(f"LLM transport error: {exc}", retryable=True) from exc
+        finally:
+            if self._http_client is None:
+                client.close()
+        message: dict[str, Any] = {"role": "assistant", "content": "".join(content) or None}
+        if reasoning:
+            message["reasoning_content"] = "".join(reasoning)
+        if calls:
+            message["tool_calls"] = [
+                {
+                    "id": slot["id"] or f"call_{index}",
+                    "type": "function",
+                    "function": {"name": slot["name"], "arguments": slot["arguments"]},
+                }
+                for index, slot in sorted(calls.items())
+            ]
+        return {"model": model, "choices": [{"message": message, "finish_reason": finish_reason}], "usage": usage}
 
     def _post(self, body: dict[str, Any]) -> dict[str, Any]:
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
@@ -407,6 +489,7 @@ class FallbackLLM:
         json_mode: bool = False,
         max_tokens: int | None = None,
         reasoning: str | None = None,
+        on_delta: Callable[[str], None] | None = None,
     ) -> AssistantTurn:
         last_error: LLMError | None = None
         for index, client in enumerate(self.clients):
@@ -421,6 +504,7 @@ class FallbackLLM:
                     json_mode=json_mode,
                     max_tokens=max_tokens,
                     reasoning=reasoning,
+                    on_delta=on_delta,
                 )
             except LLMError as exc:
                 last_error = exc
@@ -530,6 +614,7 @@ class ScriptedLLM:
         json_mode: bool = False,
         max_tokens: int | None = None,
         reasoning: str | None = None,
+        on_delta: Callable[[str], None] | None = None,
     ) -> AssistantTurn:
         request = {
             "messages": [dict(message) for message in messages],
@@ -546,6 +631,9 @@ class ScriptedLLM:
             raise step
         if callable(step) and not isinstance(step, AssistantTurn):
             step = step(request["messages"], request["tools"])
+        if on_delta is not None and step.content:
+            for index in range(0, len(step.content), 8):  # simulate streamed fragments
+                on_delta(step.content[index : index + 8])
         return step.model_copy(update={"model": step.model or self.model})
 
 
