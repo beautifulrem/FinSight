@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="FinSight: an evidence-first A-share research agent. Every answer shows its tool calls, sources, and verification." />
+    <!-- Filled in by query_intelligence/chat/page.py from the `ui` section of the app config. -->
+    <meta name="finsight:title" content="{{title}}" />
+    <meta name="finsight:placeholder" content="{{placeholder}}" />
+    <meta name="finsight:submit-text" content="{{submit_text}}" />
+    <title>{{title}}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/app/favicon.svg" />
+    <script>
+      // Apply the saved theme and language before first paint to avoid a flash.
+      (function () {
+        try {
+          var theme = localStorage.getItem("finsight.theme");
+          var dark = theme ? theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.classList.toggle("dark", dark);
+          var lang = localStorage.getItem("finsight.lang");
+          if (lang === "en") document.documentElement.lang = "en";
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>FinSight needs JavaScript. The JSON API is still available at POST /agent/chat.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

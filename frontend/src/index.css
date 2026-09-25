@@ -1,0 +1,180 @@
+@import "tailwindcss";
+
+/* Latin subsets only: CJK text uses the platform font (PingFang SC / Noto Sans SC / Microsoft YaHei). */
+@font-face {
+  font-family: "Plex Sans";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 700;
+  src: url("../node_modules/@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Plex Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Plex Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url("../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Palette: blue-and-white porcelain (青花). Cobalt ink on cool porcelain, a gilt accent for the
+ * evidence ledger, and A-share price colours (red = up, green = down).
+ */
+:root {
+  --bg: #f1f4f9;
+  --surface: #ffffff;
+  --surface-2: #eaeef6;
+  --ink: #131a2c;
+  --muted: #586379;
+  --faint: #8b95a8;
+  --line: #d9e0eb;
+  --cobalt: #2446a6;
+  --cobalt-ink: #ffffff;
+  --cobalt-soft: #e3e9fa;
+  --gilt: #b7801a;
+  --gilt-soft: #fbf0d6;
+  --up: #cf3528;
+  --up-soft: #fbe7e4;
+  --down: #10805a;
+  --down-soft: #def3ea;
+  --warn: #a8650a;
+  --warn-soft: #fcefd9;
+  --shadow: 0 1px 2px rgb(19 26 44 / 0.05), 0 8px 24px -12px rgb(19 26 44 / 0.12);
+}
+
+.dark {
+  --bg: #0c1220;
+  --surface: #131b2d;
+  --surface-2: #1a2439;
+  --ink: #e6ebf5;
+  --muted: #9aa5ba;
+  --faint: #6c7890;
+  --line: #253048;
+  --cobalt: #8aa6ff;
+  --cobalt-ink: #0c1220;
+  --cobalt-soft: #1d2b54;
+  --gilt: #f0bf5e;
+  --gilt-soft: #3a2f16;
+  --up: #ff6b5e;
+  --up-soft: #3d1d1e;
+  --down: #40c78d;
+  --down-soft: #123427;
+  --warn: #f2b54f;
+  --warn-soft: #3a2c12;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -16px rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-cobalt: var(--cobalt);
+  --color-cobalt-ink: var(--cobalt-ink);
+  --color-cobalt-soft: var(--cobalt-soft);
+  --color-gilt: var(--gilt);
+  --color-gilt-soft: var(--gilt-soft);
+  --color-up: var(--up);
+  --color-up-soft: var(--up-soft);
+  --color-down: var(--down);
+  --color-down-soft: var(--down-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --shadow-card: var(--shadow);
+  --font-sans: "Plex Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+    font-feature-settings: "tnum" 1;
+  }
+  ::selection {
+    background: var(--cobalt-soft);
+  }
+  :focus-visible {
+    outline: 2px solid var(--cobalt);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  /* Evidence row flash when a citation chip is followed. */
+  .evidence-flash {
+    animation: evidence-flash 1.6s ease-out;
+  }
+  .shimmer {
+    background: linear-gradient(90deg, var(--muted) 0%, var(--ink) 40%, var(--muted) 80%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 1.8s linear infinite;
+  }
+}
+
+@keyframes evidence-flash {
+  0% {
+    box-shadow: 0 0 0 3px var(--gilt);
+    background-color: var(--gilt-soft);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none;
+    color: var(--muted);
+    background: none;
+  }
+  .evidence-flash {
+    animation-duration: 0.01s;
+  }
+}

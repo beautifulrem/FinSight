@@ -33,6 +33,32 @@ jobs:
       - run: ruff check .
       - run: ruff format --check query_intelligence/agent evaluation/agent_eval
 
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+      - name: Committed build matches the source
+        working-directory: .
+        run: |
+          git status --porcelain query_intelligence/web/dist
+          test -z "$(git status --porcelain query_intelligence/web/dist)" \
+            || { echo "::error::query_intelligence/web/dist is stale; run 'pnpm build' in frontend/ and commit it"; exit 1; }
+
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 60

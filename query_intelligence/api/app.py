@@ -21,6 +21,7 @@ from ..agent.a2a_server import install_a2a
 from ..agent.telemetry import PrometheusTraceSink, RecentTraceStore
 from ..agent.tracing import DEFAULT_TRACE_DIR, sinks_from_env
 from ..artifacts import ArtifactWriter
+from ..chat.page import DIST_DIR
 from ..chatbot import (
     STATIC_DIR,
     DeepSeekClient,
@@ -104,6 +105,9 @@ def create_app(
 
     _ensure_console_logging()
     app = FastAPI(title="Query Intelligence Service", version="0.1.0")
+    if DIST_DIR.is_dir():
+        # Built React UI (frontend/ → web/dist); mounted before /static so its prefix wins.
+        app.mount("/static/app", StaticFiles(directory=DIST_DIR), name="static-app")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     security_settings = install_security(app, security)
     if security_settings.api_keys:
