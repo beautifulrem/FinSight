@@ -115,6 +115,7 @@ def score_turn(response: dict[str, Any], expect: dict[str, Any]) -> dict[str, An
         "prompt_tokens": usage.get("prompt_tokens", 0),
         "completion_tokens": usage.get("completion_tokens", 0),
         "cost": llm.get("cost"),
+        "cost_currency": llm.get("currency"),
         "llm_calls": llm.get("calls", 0),
     }
 
@@ -142,6 +143,12 @@ def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, A
     facts = [fact for score in scores for fact in score["facts"]]
     latencies = [turn["latency_ms"] for turn in turns]
     costs = [score["cost"] for score in scores if score["cost"] is not None]
+    currencies = sorted({score.get("cost_currency") for score in scores if score.get("cost_currency")})
+    task_costs = [
+        sum(turn["score"]["cost"] for turn in record["turns"])
+        for record in records
+        if record["turns"] and all(turn["score"]["cost"] is not None for turn in record["turns"])
+    ]
     summary = {
         "tasks": len(task_runs),
         "turns": len(turns),
@@ -176,6 +183,8 @@ def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, A
         "llm_calls_per_turn": mean([float(score["llm_calls"]) for score in scores]),
         "tokens_per_turn": mean([float(score["prompt_tokens"] + score["completion_tokens"]) for score in scores]),
         "cost_per_turn": round(statistics.fmean(costs), 6) if costs else None,
+        "cost_per_task": round(statistics.fmean(task_costs), 6) if task_costs else None,
+        "cost_currency": "/".join(currencies) if currencies else None,
     }
     return summary
 

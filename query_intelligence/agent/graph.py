@@ -37,7 +37,7 @@ from .composer import compose_template, parse_answer
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
 from .injection import sanitize_untrusted_text, tool_message_content
-from .llm import LLMClient, LLMError, Pricing, Usage
+from .llm import LLMClient, LLMError, Pricing, Usage, resolve_cost
 from .memory import (
     dialog_context_from_turns,
     history_messages,
@@ -463,6 +463,7 @@ class AgentRuntime:
         ordered = cited + [evidence_id for evidence_id in evidence if evidence_id not in cited]
         usage = state.get("usage") or {}
         usage_model = Usage(**usage) if usage else Usage()
+        cost, currency, cost_source = resolve_cost(usage_model, self.pricing)
         nlu = state.get("nlu") or {}
         result = {
             "run_id": uuid.uuid4().hex,
@@ -486,8 +487,9 @@ class AgentRuntime:
                 "calls": state.get("llm_calls", 0),
                 "steps": state.get("llm_steps", 0),
                 "usage": usage_model.model_dump() | {"total_tokens": usage_model.total_tokens},
-                "cost": None if self.pricing is None else self.pricing.cost(usage_model),
-                "currency": None if self.pricing is None else self.pricing.currency,
+                "cost": cost,
+                "currency": currency,
+                "cost_source": cost_source,
                 "log": state.get("llm_log") or [],
             },
             "nlu_summary": {
@@ -607,6 +609,7 @@ def _llm_entry(node: str, turn: Any, *, step: int | None = None) -> dict[str, An
         "completion_tokens": turn.usage.completion_tokens,
         "prompt_cache_hit_tokens": turn.usage.prompt_cache_hit_tokens,
         "reasoning_tokens": turn.usage.reasoning_tokens,
+        "reported_cost_usd": turn.usage.reported_cost_usd,
         "tool_calls": [call.name for call in turn.tool_calls],
         "finish_reason": turn.finish_reason,
     }
@@ -647,12 +650,12 @@ def _failures(tool_log: list[dict[str, Any]]) -> list[str]:
     return list(dict.fromkeys(failures))
 
 
-def _add_usage(current: dict[str, int] | None, extra: Usage) -> dict[str, int]:
+def _add_usage(current: dict[str, Any] | None, extra: Usage) -> dict[str, Any]:
     total = Usage(**(current or {})) + extra
     return total.model_dump()
 
 
-def _total_tokens(usage: dict[str, int]) -> int:
+def _total_tokens(usage: dict[str, Any]) -> int:
     return int(usage.get("prompt_tokens", 0)) + int(usage.get("completion_tokens", 0))
 
 

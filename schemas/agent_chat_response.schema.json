@@ -166,7 +166,7 @@
             }
           ],
           "default": null,
-          "description": "Only set when QI_LLM_PRICE_* is configured",
+          "description": "Set from QI_LLM_PRICE_* or from the gateway-reported cost (see cost_source)",
           "title": "Cost"
         },
         "currency": {
@@ -180,6 +180,19 @@
           ],
           "default": null,
           "title": "Currency"
+        },
+        "cost_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "price_table | provider_reported",
+          "title": "Cost Source"
         },
         "log": {
           "items": {
@@ -217,6 +230,12 @@
           "default": 0,
           "title": "Reasoning Tokens",
           "type": "integer"
+        },
+        "reported_cost_usd": {
+          "default": 0.0,
+          "description": "Cost reported by a per-request billing gateway, in USD",
+          "title": "Reported Cost Usd",
+          "type": "number"
         },
         "total_tokens": {
           "default": 0,

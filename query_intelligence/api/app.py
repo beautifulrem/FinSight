@@ -11,12 +11,15 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi import Path as ApiPath
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from ..agent.a2a_server import install_a2a
+from ..agent.telemetry import PrometheusTraceSink, RecentTraceStore
+from ..agent.tracing import DEFAULT_TRACE_DIR, sinks_from_env
 from ..artifacts import ArtifactWriter
 from ..chatbot import (
     STATIC_DIR,
@@ -119,6 +122,13 @@ def create_app(
     response_client = deepseek_client or DeepSeekClient(chatbot_config)
     agent_holder: dict[str, Any] = {"service": agent_service}
     agent_lock = threading.Lock()
+    trace_dir = os.getenv("QI_AGENT_TRACE_DIR", DEFAULT_TRACE_DIR).strip()
+    trace_store = RecentTraceStore(
+        trace_dir=None if trace_dir.lower() in {"", "off", "0", "false", "none"} else trace_dir
+    )
+    metrics_sink = PrometheusTraceSink()
+    if agent_service is not None and isinstance(getattr(agent_service, "trace_sinks", None), list):
+        agent_service.trace_sinks.extend([trace_store, metrics_sink])
 
     def get_agent():
         # Built lazily: the agent layer is only constructed when an agent endpoint is used.
@@ -126,7 +136,9 @@ def create_app(
             if agent_holder["service"] is None:
                 from ..agent.service import AgentService
 
-                agent_holder["service"] = AgentService.from_service(runtime, chatbot_config=chatbot_config)
+                agent_holder["service"] = AgentService.from_service(
+                    runtime, chatbot_config=chatbot_config, trace_sinks=[*sinks_from_env(), trace_store, metrics_sink]
+                )
             return agent_holder["service"]
 
     logger.info("[startup] FastAPI routes are ready.")
@@ -249,6 +261,30 @@ def create_app(
             "turns": agent.history(session_id),
             "pending_clarification": agent.pending_clarification(session_id),
         }
+
+    @app.get("/agent/traces")
+    def agent_traces(
+        limit: Annotated[int, Query(ge=1, le=200)] = 50,
+        session_id: Annotated[str | None, Query(pattern=SESSION_ID_PATTERN)] = None,
+    ) -> dict:
+        return {"traces": trace_store.recent(limit, session_id=session_id)}
+
+    @app.get("/agent/traces/{trace_id}")
+    def agent_trace(trace_id: Annotated[str, ApiPath(pattern=r"^[A-Za-z0-9_-]{1,80}$")]) -> dict:
+        trace = trace_store.get(trace_id)
+        if trace is None:
+            raise HTTPException(status_code=404, detail=f"trace {trace_id} not found")
+        return trace
+
+    @app.get("/metrics")
+    def metrics() -> Response:
+        if not metrics_sink.available:
+            raise HTTPException(status_code=503, detail="prometheus-client is not installed")
+        body, content_type = metrics_sink.render()
+        return Response(content=body, media_type=content_type)
+
+    if install_a2a(app, get_agent):
+        logger.info("[startup] A2A agent card at /.well-known/agent-card.json, JSON-RPC at /a2a.")
 
     @app.post("/nlu/analyze")
     def analyze(payload: AnalyzeRequest) -> dict:

@@ -23,7 +23,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-PUBLIC_PATHS = {("GET", "/health"), ("GET", "/"), ("HEAD", "/health")}
+PUBLIC_PATHS = {
+    ("GET", "/health"),
+    ("GET", "/"),
+    ("HEAD", "/health"),
+    # A2A discovery: the agent card must be readable before a client can authenticate.
+    ("GET", "/.well-known/agent-card.json"),
+}
 DEFAULT_MAX_REQUEST_BYTES = 1024 * 1024
 
 

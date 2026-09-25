@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 from langgraph.types import Command
 
 from .graph import AgentRuntime
-from .llm import DeepSeekToolClient, LLMClient, Pricing
+from .llm import LLMClient, Pricing, build_llm_from_config
 from .memory import make_checkpointer
 from .state import AgentConfig
 from .tools import ToolRegistry, build_registry_for_service
@@ -62,8 +62,7 @@ class AgentService:
         trace_sinks: list[TraceSink] | None = None,
     ) -> AgentService:
         if llm is None and chatbot_config is not None:
-            candidate = DeepSeekToolClient.from_chatbot_config(chatbot_config)
-            llm = candidate if candidate.configured else None
+            llm = build_llm_from_config(chatbot_config)
         runtime = AgentRuntime(
             service,
             registry or build_registry_for_service(service),

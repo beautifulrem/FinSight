@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 
+from ..agent.llm import unwrap_completion
 from .config import DEFAULT_CHATBOT_CONFIG
 from .language import _default_risk_disclaimer, _target_language_name, answer_matches_language, detect_query_language
 
@@ -73,7 +74,7 @@ class DeepSeekClient:
         try:
             result = client.post(url, headers=headers, json=body)
             result.raise_for_status()
-            data = result.json()
+            data = unwrap_completion(result.json())
         except Exception as exc:
             raise DeepSeekError(f"DeepSeek API request failed: {exc}") from exc
         finally:
