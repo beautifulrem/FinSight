@@ -1,0 +1,86 @@
+{
+  "trace_id": "f7b3c3b244c34d0b8716011ea63685bb",
+  "session_id": "chaos-src-2_blocked_within_ttl-1",
+  "turn_index": 0,
+  "query": "CPI 最新数据是多少？",
+  "route": "workflow",
+  "route_reasons": [
+    "mode:workflow"
+  ],
+  "answer_source": "template",
+  "started_at": 1790430964.921,
+  "duration_ms": 171.23,
+  "nodes": [
+    {
+      "node": "guard_in",
+      "started_at": 1790430964.921,
+      "duration_ms": 159.37
+    },
+    {
+      "node": "execute_plan",
+      "started_at": 1790430965.081,
+      "duration_ms": 3.92
+    },
+    {
+      "node": "compose",
+      "started_at": 1790430965.086,
+      "duration_ms": 2.18
+    },
+    {
+      "node": "verify",
+      "started_at": 1790430965.089,
+      "duration_ms": 0.81
+    },
+    {
+      "node": "compliance",
+      "started_at": 1790430965.091,
+      "duration_ms": 0.17
+    },
+    {
+      "node": "finalize",
+      "started_at": 1790430965.092,
+      "duration_ms": 0.23
+    }
+  ],
+  "tools": [
+    {
+      "tool": "get_macro_indicators",
+      "arguments": {
+        "topics": [
+          "CPI"
+        ],
+        "query": "CPI 最新数据是多少"
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 3.51,
+      "started_at": 1790430965.081,
+      "attempts": 1,
+      "cached": false,
+      "source": "planner",
+      "step": 0
+    }
+  ],
+  "llm_calls": [],
+  "model": null,
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "prompt_cache_hit_tokens": 0,
+    "reasoning_tokens": 0,
+    "reported_cost_usd": 0.0,
+    "total_tokens": 0
+  },
+  "cost": null,
+  "currency": null,
+  "cost_source": null,
+  "verification_passed": true,
+  "unsupported_numbers": [],
+  "invalid_citations": [],
+  "compliance_notes": [
+    "market_freshness"
+  ],
+  "degraded": [],
+  "evidence_count": 1,
+  "owner": "local"
+}

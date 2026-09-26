@@ -1,0 +1,87 @@
+{
+ "label": "k3s replicas=2",
+ "base_url": "http://finsight-api.finsight.svc.cluster.local",
+ "mode": "workflow",
+ "question_set": "default",
+ "fresh_connections": true,
+ "users": 8,
+ "requests_per_user": 20,
+ "requests": 160,
+ "wall_seconds": 37.04,
+ "throughput_rps": 4.32,
+ "error_rate": 0.0,
+ "latency_ms": {
+  "n": 160,
+  "p50": 694.2,
+  "p95": 4654.2,
+  "p99": 11106.7,
+  "mean": 1576.8,
+  "max": 11587.0
+ },
+ "statuses": {
+  "200": 160
+ },
+ "routes": {
+  "refuse": 20,
+  "workflow": 120,
+  "None": 20
+ },
+ "answer_sources": {
+  "guardrail": 20,
+  "template": 120,
+  "None": 20
+ },
+ "verified_rate": 1.0,
+ "degraded_rate": 0.0,
+ "models": {},
+ "cost": {
+  "requests_counted": 160,
+  "requests_with_llm": 0,
+  "total_usd": 0.0,
+  "usd_cny": null,
+  "total_cny": 0.0,
+  "per_question_cny": 0.0,
+  "per_1k_questions_cny": 0.0,
+  "per_1k_questions_usd": 0.0,
+  "questions_per_day": 1000,
+  "monthly_cny_at_questions_per_day": 0.0,
+  "tokens": {
+   "prompt": 0,
+   "completion": 0,
+   "cache_hit": 0
+  },
+  "llm_calls": 0,
+  "cost_sources": []
+ },
+ "warmup": {
+  "status": 200,
+  "latency_ms": 268.9,
+  "route": "workflow",
+  "answer_source": "template",
+  "verified": true,
+  "degraded": [],
+  "llm_calls": 0,
+  "models": [],
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "cache_hit_tokens": 0,
+  "reported_cost_usd": 0.0,
+  "cost": null,
+  "currency": null,
+  "cost_source": null
+ },
+ "environment": {
+  "host": "Linux-6.8.0-117-generic-aarch64-with-glibc2.41",
+  "cpu_count": 4,
+  "loadavg_at_start": [
+   1.49,
+   1.79,
+   1.84
+  ],
+  "python": "3.13.15"
+ },
+ "commit": "8dc388b (load generator); see server_build",
+ "run_at": "2026-09-26T10:39:42+00:00",
+ "command": "python -m scripts.load_test --base-url http://finsight-api.finsight.svc.cluster.local --users 8 --requests 20 --fresh-connections --label k3s replicas=2 --out /tmp/lt.json",
+ "server_build": "merge of r2-ops@8dc388b + round2@d04a42d + deploy/patches/app-ops-wiring.patch (image finsight:merged / /tmp/finsight-merged)"
+}

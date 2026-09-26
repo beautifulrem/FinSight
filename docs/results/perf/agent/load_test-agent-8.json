@@ -1,0 +1,877 @@
+{
+ "label": "agent path, deepseek-v4.1-flash + glm-5.3-flash fallback, live data off",
+ "base_url": "http://127.0.0.1:8801",
+ "mode": "agent",
+ "question_set": "research",
+ "fresh_connections": false,
+ "users": 8,
+ "requests_per_user": 5,
+ "requests": 40,
+ "wall_seconds": 94.59,
+ "throughput_rps": 0.423,
+ "error_rate": 0.0,
+ "latency_ms": {
+  "n": 40,
+  "p50": 18779.4,
+  "p95": 38089.7,
+  "p99": 43310.2,
+  "mean": 18579.1,
+  "max": 43310.2
+ },
+ "statuses": {
+  "200": 40
+ },
+ "routes": {
+  "agent": 40
+ },
+ "answer_sources": {
+  "llm_agent": 26,
+  "template": 14
+ },
+ "verified_rate": 0.8,
+ "degraded_rate": 0.55,
+ "models": {
+  "deepseek/deepseek-v4.1-flash": 29
+ },
+ "cost": {
+  "requests_counted": 40,
+  "requests_with_llm": 29,
+  "total_usd": 0.065521,
+  "usd_cny": 6.7489,
+  "total_cny": 0.4422,
+  "per_question_cny": 0.011055,
+  "per_1k_questions_cny": 11.05,
+  "per_1k_questions_usd": 1.638,
+  "questions_per_day": 2000,
+  "monthly_cny_at_questions_per_day": 663.29,
+  "tokens": {
+   "prompt": 458357,
+   "completion": 60970,
+   "cache_hit": 270848
+  },
+  "llm_calls": 95,
+  "cost_sources": [
+   "provider_reported"
+  ]
+ },
+ "warmup": {
+  "status": 200,
+  "latency_ms": 30461.0,
+  "route": "agent",
+  "answer_source": "llm_agent",
+  "verified": true,
+  "degraded": [],
+  "llm_calls": 4,
+  "models": [
+   "deepseek/deepseek-v4.1-flash"
+  ],
+  "prompt_tokens": 24832,
+  "completion_tokens": 4408,
+  "cache_hit_tokens": 13184,
+  "reported_cost_usd": 0.00443155,
+  "cost": 0.029908,
+  "currency": "CNY",
+  "cost_source": "provider_reported"
+ },
+ "environment": {
+  "host": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "cpu_count": 10,
+  "loadavg_at_start": [
+   24.65,
+   17.49,
+   11.65
+  ],
+  "python": "3.13.13"
+ },
+ "commit": "8dc388b (load generator); see server_build",
+ "run_at": "2026-09-26T13:31:14+00:00",
+ "per_request": [
+  {
+   "user": 5,
+   "step": 0,
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 24047.5,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 3,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 10583,
+   "completion_tokens": 1462,
+   "reported_cost_usd": 0.00118516,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 0,
+   "query": "五粮液最新的营收和净利润增长情况如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 24742.2,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 14517,
+   "completion_tokens": 1426,
+   "reported_cost_usd": 0.00160314,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 0,
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 24862.2,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 12099,
+   "completion_tokens": 1155,
+   "reported_cost_usd": 0.00120955,
+   "degraded": []
+  },
+  {
+   "user": 6,
+   "step": 0,
+   "query": "Compare the valuation of Kweichow Moutai and Wuliangye and explain the gap.",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 24861.9,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 3,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 13657,
+   "completion_tokens": 3049,
+   "reported_cost_usd": 0.00301242,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 0,
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 31360.1,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 27309,
+   "completion_tokens": 2629,
+   "reported_cost_usd": 0.00392386,
+   "degraded": []
+  },
+  {
+   "user": 3,
+   "step": 0,
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 32508.6,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 20496,
+   "completion_tokens": 2559,
+   "reported_cost_usd": 0.00312335,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 0,
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 38089.7,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 3,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 13385,
+   "completion_tokens": 3183,
+   "reported_cost_usd": 0.0030332,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 0,
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 43310.2,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 27201,
+   "completion_tokens": 4553,
+   "reported_cost_usd": 0.0049868,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 6,
+   "step": 1,
+   "query": "五粮液最新的营收和净利润增长情况如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 23767.1,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 3,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 12222,
+   "completion_tokens": 1191,
+   "reported_cost_usd": 0.0012496,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 1,
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 16000.6,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 11818,
+   "completion_tokens": 1182,
+   "reported_cost_usd": 0.00118359,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 1,
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 11871.4,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 8612,
+   "completion_tokens": 1277,
+   "reported_cost_usd": 0.00123009,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 1,
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 32641.0,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 5,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 26148,
+   "completion_tokens": 2886,
+   "reported_cost_usd": 0.00330181,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 1,
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 26503.1,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 13936,
+   "completion_tokens": 2496,
+   "reported_cost_usd": 0.00215798,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 1,
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 37924.8,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 5,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 34394,
+   "completion_tokens": 3704,
+   "reported_cost_usd": 0.00425804,
+   "degraded": []
+  },
+  {
+   "user": 3,
+   "step": 1,
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 33478.6,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 5,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 37782,
+   "completion_tokens": 3096,
+   "reported_cost_usd": 0.00449553,
+   "degraded": []
+  },
+  {
+   "user": 6,
+   "step": 2,
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 17984.1,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 19798,
+   "completion_tokens": 2757,
+   "reported_cost_usd": 0.00302454,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 5,
+   "step": 1,
+   "query": "Compare the valuation of Kweichow Moutai and Wuliangye and explain the gap.",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 43302.1,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 27518,
+   "completion_tokens": 6275,
+   "reported_cost_usd": 0.00608637,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 2,
+   "step": 2,
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 10631.0,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 8913,
+   "completion_tokens": 752,
+   "reported_cost_usd": 0.00099788,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 2,
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 20248.6,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 20478,
+   "completion_tokens": 2676,
+   "reported_cost_usd": 0.00311558,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 7,
+   "step": 2,
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 12883.7,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 7876,
+   "completion_tokens": 1562,
+   "reported_cost_usd": 0.00132833,
+   "degraded": []
+  },
+  {
+   "user": 5,
+   "step": 2,
+   "query": "五粮液最新的营收和净利润增长情况如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 8892.9,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 3,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 10741,
+   "completion_tokens": 906,
+   "reported_cost_usd": 0.00089408,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 2,
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 22518.8,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 17545,
+   "completion_tokens": 2440,
+   "reported_cost_usd": 0.00245876,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 2,
+   "query": "Compare the valuation of Kweichow Moutai and Wuliangye and explain the gap.",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 23100.6,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 23321,
+   "completion_tokens": 3114,
+   "reported_cost_usd": 0.0035414,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 3,
+   "step": 2,
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 22113.4,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 3,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 10972,
+   "completion_tokens": 1196,
+   "reported_cost_usd": 0.00110273,
+   "degraded": [
+    "llm_revision_failed:LLM API returned HTTP 429: <!doctype html><meta charset=\"utf-8\"><meta name=viewport content=\"width=device-width, initial-scale=1\"><title>429</title>429 Too Many Requests",
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 6,
+   "step": 3,
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 21621.5,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 7809,
+   "completion_tokens": 1360,
+   "reported_cost_usd": 0.0012159,
+   "degraded": [
+    "llm_revision_failed:LLM API returned HTTP 429: <!doctype html><meta charset=\"utf-8\"><meta name=viewport content=\"width=device-width, initial-scale=1\"><title>429</title>429 Too Many Requests",
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 0,
+   "step": 3,
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 10716.7,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": [
+    "llm_error:LLM API returned HTTP 429: <!doctype html><meta charset=\"utf-8\"><meta name=viewport content=\"width=device-width, initial-scale=1\"><title>429</title>429 Too Many Requests"
+   ]
+  },
+  {
+   "user": 7,
+   "step": 3,
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 13179.6,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2597,
+   "completion_tokens": 146,
+   "reported_cost_usd": 0.00011965,
+   "degraded": [
+    "llm_error:LLM API returned HTTP 429: <!doctype html><meta charset=\"utf-8\"><meta name=viewport content=\"width=device-width, initial-scale=1\"><title>429</title>429 Too Many Requests"
+   ]
+  },
+  {
+   "user": 7,
+   "step": 4,
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 538.0,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": [
+    "llm_error:all LLM clients are unavailable (circuits open)"
+   ]
+  },
+  {
+   "user": 5,
+   "step": 3,
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 13030.2,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2623,
+   "completion_tokens": 164,
+   "reported_cost_usd": 0.00013435,
+   "degraded": [
+    "llm_error:LLM API returned HTTP 429: <!doctype html><meta charset=\"utf-8\"><meta name=viewport content=\"width=device-width, initial-scale=1\"><title>429</title>429 Too Many Requests"
+   ]
+  },
+  {
+   "user": 5,
+   "step": 4,
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 2303.6,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": [
+    "llm_error:all LLM clients are unavailable (circuits open)"
+   ]
+  },
+  {
+   "user": 2,
+   "step": 3,
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 23805.2,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 3,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 11113,
+   "completion_tokens": 1510,
+   "reported_cost_usd": 0.00129346,
+   "degraded": [
+    "llm_revision_failed:LLM API returned HTTP 429: <!doctype html><meta charset=\"utf-8\"><meta name=viewport content=\"width=device-width, initial-scale=1\"><title>429</title>429 Too Many Requests",
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 4,
+   "step": 3,
+   "query": "五粮液最新的营收和净利润增长情况如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 11039.8,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": [
+    "llm_error:LLM API returned HTTP 429: <!doctype html><meta charset=\"utf-8\"><meta name=viewport content=\"width=device-width, initial-scale=1\"><title>429</title>429 Too Many Requests"
+   ]
+  },
+  {
+   "user": 2,
+   "step": 4,
+   "query": "Compare the valuation of Kweichow Moutai and Wuliangye and explain the gap.",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 368.6,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": [
+    "llm_error:all LLM clients are unavailable (circuits open)"
+   ]
+  },
+  {
+   "user": 0,
+   "step": 4,
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 4345.7,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": [
+    "llm_error:all LLM clients are unavailable (circuits open)"
+   ]
+  },
+  {
+   "user": 1,
+   "step": 3,
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 18779.4,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2894,
+   "completion_tokens": 264,
+   "reported_cost_usd": 0.00025381,
+   "degraded": [
+    "llm_error:LLM API returned HTTP 429: <!doctype html><meta charset=\"utf-8\"><meta name=viewport content=\"width=device-width, initial-scale=1\"><title>429</title>429 Too Many Requests"
+   ]
+  },
+  {
+   "user": 3,
+   "step": 3,
+   "query": "Compare the valuation of Kweichow Moutai and Wuliangye and explain the gap.",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 5480.9,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": [
+    "llm_error:LLM API returned HTTP 429: <!doctype html><meta charset=\"utf-8\"><meta name=viewport content=\"width=device-width, initial-scale=1\"><title>429</title>429 Too Many Requests"
+   ]
+  },
+  {
+   "user": 3,
+   "step": 4,
+   "query": "五粮液最新的营收和净利润增长情况如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 257.2,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": [
+    "llm_error:all LLM clients are unavailable (circuits open)"
+   ]
+  },
+  {
+   "user": 6,
+   "step": 4,
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 6143.1,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": [
+    "llm_error:LLM API returned HTTP 429: <!doctype html><meta charset=\"utf-8\"><meta name=viewport content=\"width=device-width, initial-scale=1\"><title>429</title>429 Too Many Requests"
+   ]
+  },
+  {
+   "user": 4,
+   "step": 4,
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 2440.4,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": [
+    "llm_error:all LLM clients are unavailable (circuits open)"
+   ]
+  },
+  {
+   "user": 1,
+   "step": 4,
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 1469.0,
+   "route": "agent",
+   "answer_source": "template",
+   "verified": true,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": [
+    "llm_error:all LLM clients are unavailable (circuits open)"
+   ]
+  }
+ ],
+ "command": "python -m scripts.load_test --base-url http://127.0.0.1:8801 --mode agent --questions research --users 8 --requests 5 --usd-cny 6.7489 --questions-per-day 2000 --timeout 240 --label agent path, deepseek-v4.1-flash + glm-5.3-flash fallback, live data off --out /Volumes/Remi/FinSight-ops/docs/results/perf/agent/load_test-agent-8.json",
+ "server_build": "merge of r2-ops@8dc388b + round2@d04a42d + deploy/patches/app-ops-wiring.patch (image finsight:merged / /tmp/finsight-merged)"
+}
