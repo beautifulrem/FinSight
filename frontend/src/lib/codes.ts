@@ -148,6 +148,7 @@ const EXACT: Record<string, Text> = {
   market_freshness: { zh: "已提示行情数据时效", en: "Added a market-data freshness note" },
   // NLU risk flags and retrieval warnings
   out_of_scope_query: { zh: "问题不属于金融范畴", en: "Question is outside finance" },
+  prompt_injection_request: { zh: "请求包含改变系统设定的指令", en: "Request tried to change the system setup" },
   entity_ambiguous: { zh: "证券名称有歧义", en: "Ambiguous security name" },
   entity_not_found: { zh: "未找到对应证券", en: "Security not found" },
   investment_advice_like: { zh: "类似投资建议的问题", en: "Advice-like question" },
