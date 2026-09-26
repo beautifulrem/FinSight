@@ -98,6 +98,20 @@ class ReplayRegistry(ToolRegistry):
             raise ValueError(f"unsupported fixture version: {payload.get('version')}")
         return cls(specs, payload["calls"], fallback=fallback)
 
+    def save_missing(self, path: str | Path) -> int:
+        """Add the calls served by the fallback to the snapshot file, leaving recorded calls untouched.
+
+        Used when tasks are added: existing results (which earlier online runs replayed) stay byte-identical.
+        """
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        added = {key: value for key, value in self.calls.items() if key not in payload["calls"]}
+        if added:
+            payload["calls"] = dict(sorted({**payload["calls"], **added}.items()))
+            payload.setdefault("extended_at", [])
+            payload["extended_at"].append(datetime.now(UTC).isoformat(timespec="seconds"))
+            Path(path).write_text(json.dumps(payload, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
+        return len(added)
+
     def _handler(self, name: str):
         def handler(args: BaseModel) -> ToolOutput:
             arguments = args.model_dump(mode="json")

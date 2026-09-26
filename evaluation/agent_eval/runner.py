@@ -293,7 +293,12 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument("--snapshot", default=str(DEFAULT_SNAPSHOT))
     parser.add_argument("--no-replay", action="store_true", help="Use the offline tools directly.")
     parser.add_argument("--record", action="store_true", help="Record a new tool snapshot to --snapshot.")
-    parser.add_argument("--live-fallback", action="store_true", help="Run and record calls missing from the snapshot.")
+    parser.add_argument("--live-fallback", action="store_true", help="Run calls missing from the snapshot.")
+    parser.add_argument(
+        "--record-missing",
+        action="store_true",
+        help="Like --live-fallback, and add the missing calls to --snapshot without changing recorded ones.",
+    )
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--category", action="append", default=[])
@@ -318,7 +323,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         service = build_offline_service()
         snapshot = None if args.no_replay else Path(args.snapshot)
         registry, holder = build_registry(
-            service, snapshot=snapshot, record=args.record, live_fallback=args.live_fallback
+            service, snapshot=snapshot, record=args.record, live_fallback=args.live_fallback or args.record_missing
         )
         runtime = AgentRuntime(service, registry, llm, config=AgentConfig(), today=lambda: EVAL_TODAY)
         agent = AgentService(runtime, trace_sinks=[])
@@ -328,6 +333,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         agent.close()
         if args.record and isinstance(holder, RecordingRegistry):
             holder.save(args.snapshot, snapshot=SNAPSHOT_NAME)
+        if args.record_missing and isinstance(holder, ReplayRegistry):
+            print(f"added {holder.save_missing(args.snapshot)} calls to {_display_path(args.snapshot)}")
         snapshot_info = {
             "path": _display_path(args.snapshot) if not args.no_replay else None,
             "recorded": args.record,

@@ -45,6 +45,7 @@ from .memory import (
     history_messages,
     listed_entities,
     resolve_coreference,
+    resolve_ellipsis,
     session_memory,
     turn_record,
 )
@@ -56,7 +57,7 @@ from .prompts import (
     get_prompt,
     revision_message,
 )
-from .router import apply_finance_overrides, decide_route, has_finance_content
+from .router import apply_finance_overrides, decide_route, drop_fuzzy_concepts, has_finance_content
 from .state import RESET, AgentConfig, AgentState
 from .streaming import AnswerTextStream, stream_writer
 from .tools import ToolRegistry, ToolResult
@@ -207,14 +208,19 @@ class AgentRuntime:
         nlu = self.service.analyze_query(
             query, user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
         )
-        if not listed_entities(nlu) and not coreference_reason:
-            rewrite = resolve_coreference(state["query"], state.get("turns") or [])
+        if not coreference_reason:
+            turns = state.get("turns") or []
+            rewrite = None if listed_entities(nlu) else resolve_coreference(state["query"], turns)
+            if rewrite is None:
+                rewrite = resolve_ellipsis(query, turns, listed_entities(nlu))
             if rewrite is not None:
                 query, coreference_reason = rewrite
                 nlu = self.service.analyze_query(
                     query, user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
                 )
+        nlu, dropped_reasons = drop_fuzzy_concepts(nlu, query)
         nlu, override_reasons = apply_finance_overrides(nlu, query)
+        override_reasons = [*dropped_reasons, *override_reasons]
         decision = decide_route(nlu, mode=state.get("mode", "auto"), query=query)  # type: ignore[arg-type]
         reasons = [*decision.reasons, *override_reasons]
         if coreference_reason:

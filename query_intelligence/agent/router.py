@@ -44,9 +44,11 @@ _MACRO_ANCHOR = re.compile(
 _FINANCE_ANCHOR = re.compile(
     r"股票|股价|个股|该股|这只票|那只票|基金|etf|lof|指数|估值|走势|行情|市盈率|市净率|收盘|涨跌|上涨|下跌|大涨|大跌|"
     r"涨停|跌停|业绩|财报|分红|满仓|加仓|减仓|清仓|仓位|会涨|会跌|能涨|涨吗|跌吗|抄底|买入|卖出|能买|值得买|"
-    r"\bP/?E\b|\bP/?B\b|股息|不良率|营收|净利|同行|涨了|跌了|费率|股价|"
+    r"(?<![A-Za-z])(?:P/?E|P/?B|ROE)(?![A-Za-z])|股息|不良率|营收|净利|同行|涨了|跌了|费率|股价|"
+    r"净资产收益率|毛利率|负债率|市值|公告|年报|季报|现金流|"
     r"\bstocks?\b|\bshares?\b|\bfunds?\b|valuation|overvalued|undervalued|earnings|share price|dividend|"
-    r"\bbuy\b|\bsell\b|\binvest(?:ing|ment)?\b|\bdrop\b|\bgo up\b|\brise\b|\bfall\b",
+    r"\bbuy\b|\bsell\b|\binvest(?:ing|ment)?\b|\bdrop\b|\bgo up\b|\brise\b|\bfall\b|"
+    r"\brevenue\b|\bnet (?:profit|income)\b|\bmargins?\b|market cap|\bprice\b|\bannouncements?\b",
     re.IGNORECASE,
 )
 _DANGLING_REFERENCE = re.compile(
@@ -54,6 +56,10 @@ _DANGLING_REFERENCE = re.compile(
     r"\bit\b|\bits\b|\b(?:this|that) (?:stock|fund|company|one|etf|index|bank)\b",
     re.IGNORECASE,
 )
+
+
+def has_macro_content(query: str) -> bool:
+    return bool(_MACRO_ANCHOR.search(query))
 
 
 def has_finance_content(query: str) -> bool:
@@ -87,6 +93,33 @@ def apply_finance_overrides(nlu_result: dict[str, Any], query: str) -> tuple[dic
     return nlu_result, []
 
 
+_DEFINITION = re.compile(
+    r"什么是|是什么|什么意思|含义|定义|概念|怎么算|如何计算|计算公式|区别|"
+    r"\bwhat (?:is|are) (?:a|an|the)?\s*(?:p/?e|p/?b|roe|price|dividend)|\bdefin|\bmeaning\b|\bexplain\b",
+    re.IGNORECASE,
+)
+_CONCEPT_TYPES = {"sector", "financial_metric", "macro_indicator", "policy"}
+
+
+def drop_fuzzy_concepts(nlu_result: dict[str, Any], query: str) -> tuple[dict[str, Any], list[str]]:
+    """Drop fuzzy-matched concept entities whose name is not in the question.
+
+    Fuzzy alias matching is useful for company names with typos, but for short concept names it produces
+    false hits ("那家公司最近有公告吗" -> sector 有色金属), which would ground a question that names no target.
+    """
+    kept, dropped = [], []
+    for entity in nlu_result.get("entities") or []:
+        name = str(entity.get("canonical_name") or "")
+        fuzzy = "fuzzy" in str(entity.get("match_type") or "")
+        if fuzzy and entity.get("entity_type") in _CONCEPT_TYPES and name and name.lower() not in query.lower():
+            dropped.append(name)
+        else:
+            kept.append(entity)
+    if not dropped:
+        return nlu_result, []
+    return {**nlu_result, "entities": kept}, [f"dropped_fuzzy_concept:{name}" for name in dropped]
+
+
 class RouteDecision(BaseModel):
     route: Route
     reasons: list[str] = Field(default_factory=list)
@@ -111,14 +144,18 @@ def decide_route(nlu_result: dict[str, Any], *, mode: Mode = "auto", query: str 
     if "out_of_scope_query" in risk_flags or (nlu_result.get("product_type") or {}).get("label") == "out_of_scope":
         return RouteDecision(route="refuse", reasons=["nlu:out_of_scope_query"])
     missing = set(nlu_result.get("missing_slots") or [])
-    if "missing_entity" in missing and not entities:
+    # A metric alone ("市净率是多少") names no target: only listed, macro, policy or sector entities count.
+    targeted = listed or entity_types_of(entities) & {"macro_indicator", "policy", "sector"}
+    if "missing_entity" in missing and not targeted:
         return RouteDecision(route="clarify", reasons=["nlu:missing_entity"])
     if "clarification_required" in risk_flags and not listed and not entities:
         return RouteDecision(route="clarify", reasons=["nlu:clarification_required"])
 
-    grounded = listed or entity_types_of(entities) & {"macro_indicator", "policy", "sector"}
-    if not grounded and _DANGLING_REFERENCE.search(text):
+    if not targeted and _DANGLING_REFERENCE.search(text):
         return RouteDecision(route="clarify", reasons=["dangling_reference"])
+    if not targeted and "financial_metric" in entity_types_of(entities) and not _DEFINITION.search(text):
+        # "市净率是多少": a company metric with no company ("什么是市净率" is a concept question).
+        return RouteDecision(route="clarify", reasons=["metric_without_target"])
 
     reasons: list[str] = []
     style = str(nlu_result.get("question_style") or "")

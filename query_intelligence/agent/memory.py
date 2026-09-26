@@ -17,6 +17,8 @@ from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
 
+from .router import has_macro_content
+
 MAX_CONTEXT_TURNS = 3
 MAX_HISTORY_TURNS = 2
 _HISTORY_ANSWER_CHARS = 600
@@ -82,7 +84,7 @@ def history_messages(turns: list[dict[str, Any]]) -> list[dict[str, str]]:
     return messages
 
 
-_PRONOUN_ZH = re.compile(r"这只股票|这支股票|这只基金|这个标的|这家公司|该公司|该股|这只|它")
+_PRONOUN_ZH = re.compile(r"这只股票|这支股票|这只基金|这个标的|这家公司|那家公司|该公司|该股|这只|那只|这家|那家|它")
 _PRONOUN_EN = re.compile(r"\b(?:this stock|that stock|the stock|this company|it)\b", re.IGNORECASE)
 _POSSESSIVE_EN = re.compile(r"\bits\b", re.IGNORECASE)
 _LISTED_TYPES = {"stock", "etf", "fund", "index"}
@@ -151,6 +153,86 @@ def resolve_coreference(query: str, turns: list[dict[str, Any]]) -> tuple[str, s
         if match:
             rewritten = f"{query[: match.start()]}{name}{query[match.end() :]}"
             return rewritten, f"coreference:{match.group(0)}->{name}"
+    return None
+
+
+# Elliptical follow-ups: "ROE呢", "那市净率呢", "最近走势怎么样", "And ROE?", "换成五粮液呢", "What about BYD?".
+_ELLIPSIS_ZH = re.compile(r"^(?:那么|那就|那|再看看|再看|还有|换成|换个|改成|看看)|呢[？?。.!！]?$")
+_ELLIPSIS_EN = re.compile(r"^(?:and|what about|how about|same for|now for|and for)\b", re.IGNORECASE)
+_LEADING_ZH = re.compile(r"^(?:那么|那就|那|再看看|再看|还有|看看)")
+_MARKET_WIDE = re.compile(
+    r"大盘|市场|A股|沪指|深指|创业板|行业|板块|宏观|\bmarket\b|\bsector\b|\bindex\b", re.IGNORECASE
+)
+_ASPECT = re.compile(
+    r"市盈率|市净率|净资产收益率|营收|营业收入|净利润|净利|毛利率|股息率|市值|负债率|收盘价?|股价|"
+    r"走势|涨跌幅?|估值|公告|新闻|分红|业绩|财报|(?<![A-Za-z])(?:P/?E|P/?B|ROE)(?![A-Za-z])|"
+    r"revenue|net (?:profit|income)|"
+    r"dividend|market cap|valuation|\bprice\b|announcements?|news|trend",
+    re.IGNORECASE,
+)
+
+
+def _is_short(query: str) -> bool:
+    words = query.split()
+    return len(query) <= 20 if not re.search(r"[A-Za-z]{3,}", query) else len(words) <= 8
+
+
+def _last_targets(turns: list[dict[str, Any]], limit: int = 3) -> list[dict[str, Any]]:
+    for turn in reversed(turns[-MAX_CONTEXT_TURNS:]):
+        listed = [entity for entity in turn.get("entities") or [] if entity.get("symbol")]
+        if listed:
+            return listed[:limit]
+    return []
+
+
+def _last_aspects(turns: list[dict[str, Any]]) -> list[str]:
+    for turn in reversed(turns[-MAX_CONTEXT_TURNS:]):
+        aspects = list(dict.fromkeys(match.group(0) for match in _ASPECT.finditer(str(turn.get("query") or ""))))
+        if aspects:
+            return aspects[:3]
+    return []
+
+
+def resolve_ellipsis(
+    query: str, turns: list[dict[str, Any]], current_targets: list[dict[str, Any]]
+) -> tuple[str, str] | None:
+    """Complete a short follow-up that leaves out the target or the question: ``(rewritten, reason)``.
+
+    * No target named ("ROE呢", "最近走势怎么样", "And ROE?"): the targets of the most recent turn that
+      named any are carried over, unless the question is market-wide or macro.
+    * Only a new target named ("换成五粮液呢", "What about BYD?"): the previous question's aspects
+      (市盈率, 走势, ...) are carried over to the new target.
+
+    Only short questions with an ellipsis marker or a bare aspect qualify; anything else returns ``None``.
+    """
+    if not turns or not _is_short(query.strip()):
+        return None
+    text = query.strip()
+    zh = bool(re.search(r"[\u4e00-\u9fff]", text))
+    marker = bool(_ELLIPSIS_ZH.search(text) or _ELLIPSIS_EN.search(text))
+    aspects_now = [match.group(0) for match in _ASPECT.finditer(text)]
+    if not current_targets:
+        if _MARKET_WIDE.search(text) or has_macro_content(text) or not (marker or aspects_now):
+            return None
+        targets = _last_targets(turns)
+        if not targets:
+            return None
+        names = [str(entity.get("name") or entity["symbol"]) for entity in targets]
+        if zh:
+            joined = "和".join(names)
+            rewritten = f"{joined}{_LEADING_ZH.sub('', text)}"
+        else:
+            joined = " and ".join(names)
+            rest = _ELLIPSIS_EN.sub("", text).strip(" ,?.!") or text.rstrip("?.! ")
+            rewritten = f"{rest} for {joined}?"
+        return rewritten, f"ellipsis:target->{joined}"
+    if len(current_targets) == 1 and marker and not aspects_now:
+        aspects = _last_aspects(turns)
+        if not aspects:
+            return None
+        name = str(current_targets[0].get("canonical_name") or current_targets[0].get("symbol"))
+        rewritten = f"{name}的{'、'.join(aspects)}呢？" if zh else f"What is {name}'s {', '.join(aspects)}?"
+        return rewritten, f"ellipsis:aspect->{'/'.join(aspects)}"
     return None
 
 

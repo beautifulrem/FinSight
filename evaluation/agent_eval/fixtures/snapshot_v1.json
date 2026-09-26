@@ -1492,6 +1492,249 @@
    ],
    "error": null
   },
+  "get_macro_indicators:{\"query\": \"the P/B for 五粮液\", \"topics\": []}": {
+   "ok": true,
+   "data": {
+    "indicators": [
+     {
+      "code": "CPI_CN",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 0.8,
+      "unit": "%",
+      "source": "seed",
+      "evidence_id": "macro_CPI_CN",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     {
+      "code": "PMI_CN",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 50.6,
+      "unit": "",
+      "source": "seed",
+      "evidence_id": "macro_PMI_CN",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     {
+      "code": "M2_CN",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 8.1,
+      "unit": "%",
+      "source": "seed",
+      "evidence_id": "macro_M2_CN",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     {
+      "code": "CN10Y",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 2.31,
+      "unit": "%",
+      "source": "seed",
+      "evidence_id": "macro_CN10Y",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     }
+    ],
+    "policy_events": []
+   },
+   "evidence": [
+    {
+     "evidence_id": "macro_CPI_CN",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "CPI_CN macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "CPI_CN",
+      "metric_date": "2026-03-31",
+      "metric_value": 0.8,
+      "unit": "%",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     "produced_by": "get_macro_indicators"
+    },
+    {
+     "evidence_id": "macro_PMI_CN",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "PMI_CN macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "PMI_CN",
+      "metric_date": "2026-03-31",
+      "metric_value": 50.6,
+      "unit": "",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     "produced_by": "get_macro_indicators"
+    },
+    {
+     "evidence_id": "macro_M2_CN",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "M2_CN macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "M2_CN",
+      "metric_date": "2026-03-31",
+      "metric_value": 8.1,
+      "unit": "%",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     "produced_by": "get_macro_indicators"
+    },
+    {
+     "evidence_id": "macro_CN10Y",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "CN10Y macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "CN10Y",
+      "metric_date": "2026-03-31",
+      "metric_value": 2.31,
+      "unit": "%",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     "produced_by": "get_macro_indicators"
+    }
+   ],
+   "error": null
+  },
   "get_macro_indicators:{\"query\": \"利率变化会怎样影响保险公司利润\", \"topics\": [\"利率\"]}": {
    "ok": true,
    "data": {
@@ -4358,5 +4601,8 @@
    ],
    "error": null
   }
- }
+ },
+ "extended_at": [
+  "2026-09-26T18:41:06+00:00"
+ ]
 }

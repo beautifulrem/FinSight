@@ -9,3 +9,11 @@ entity_id,canonical_name,normalized_name,symbol,market,exchange,entity_type,indu
 9,创业板ETF,创业板ETF,159915.SZ,CN,SZSE,etf,成长指数,active
 10,证券ETF,证券ETF,512880.SH,CN,SSE,etf,券商,active
 11,平安银行,平安银行,000001.SZ,CN,SZSE,stock,银行,active
+29845,市净率,市净率,,CN,,financial_metric,财务指标,active
+29846,净资产收益率,净资产收益率,,CN,,financial_metric,财务指标,active
+29847,营业收入,营业收入,,CN,,financial_metric,财务指标,active
+29848,净利润,净利润,,CN,,financial_metric,财务指标,active
+29849,股息率,股息率,,CN,,financial_metric,财务指标,active
+29850,总市值,总市值,,CN,,financial_metric,财务指标,active
+29851,毛利率,毛利率,,CN,,financial_metric,财务指标,active
+29852,资产负债率,资产负债率,,CN,,financial_metric,财务指标,active

@@ -537,6 +537,73 @@ def build_tasks() -> list[dict[str, Any]]:
             )
         )
 
+    # H2. elliptical follow-ups (added in round 2): the second turn names no target, or only a new one
+    ellipsis = [
+        (
+            "600519.SH",
+            "贵州茅台的市盈率是多少",
+            "净资产收益率呢",
+            {"evidence_id": "fundamental_600519.SH", "value": 33.0},
+            "zh",
+        ),
+        (
+            "600519.SH",
+            "贵州茅台的市盈率是多少",
+            "市净率又是多少",
+            {"evidence_id": "fundamental_600519.SH", "value": 8.1},
+            "zh",
+        ),
+        (
+            "000858.SZ",
+            "贵州茅台的市净率是多少",
+            "换成五粮液呢",
+            {"evidence_id": "fundamental_000858.SZ", "value": 5.4},
+            "zh",
+        ),
+        (
+            "601318.SH",
+            "中国平安的市盈率是多少",
+            "ROE又是多少",
+            {"evidence_id": "fundamental_601318.SH", "value": 15.2},
+            "zh",
+        ),
+        (
+            "000858.SZ",
+            "What is Wuliangye's P/E?",
+            "And the P/B?",
+            {"evidence_id": "fundamental_000858.SZ", "value": 5.4},
+            "en",
+        ),
+        (
+            "601318.SH",
+            "What is Wuliangye's P/E?",
+            "What about Ping An?",
+            {"evidence_id": "fundamental_601318.SH", "value": 8.7},
+            "en",
+        ),
+    ]
+    for index, (symbol, first_query, second, fact, language) in enumerate(ellipsis):
+        first_symbol = (
+            "601318.SH"
+            if first_query.startswith("中国平安")
+            else ("000858.SZ" if "Wuliangye" in first_query else "600519.SH")
+        )
+        tasks.append(
+            _task(
+                f"multi_turn_ellipsis_{language}_{index}",
+                "multi_turn",
+                language,
+                [
+                    _turn(first_query, required_tools=["get_fundamentals"], required_entity=first_symbol),
+                    _turn(second, required_facts=[fact], required_entity=symbol),
+                ],
+            )
+        )
+    for index, (query, language) in enumerate([("PB呢", "zh"), ("市净率是多少", "zh"), ("And its ROE?", "en")]):
+        tasks.append(
+            _task(f"clarify_ellipsis_{language}_{index}", "clarify", language, [_turn(query, behavior="clarify")])
+        )
+
     # I. out-of-scope ---------------------------------------------------------
     ood = [
         "明天北京会下雨吗",

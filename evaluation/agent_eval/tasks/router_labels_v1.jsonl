@@ -156,3 +156,7 @@
 {"id": "route_155", "query": "招商银行分红率和估值是否匹配", "expected_route": "agent", "note": "extension"}
 {"id": "route_156", "query": "宁德时代是被高估了吗", "expected_route": "agent", "note": "extension"}
 {"id": "route_157", "query": "创业板ETF现在适合定投吗", "expected_route": "agent", "note": "extension"}
+{"id": "route_158", "query": "PB又是多少", "expected_route": "clarify", "note": "round2: metric follow-up without history"}
+{"id": "route_159", "query": "市净率是多少", "expected_route": "clarify", "note": "round2: metric without a company"}
+{"id": "route_160", "query": "那家公司最近有公告吗", "expected_route": "clarify", "note": "round2: dangling reference; fuzzy sector hit dropped"}
+{"id": "route_161", "query": "什么是市净率", "expected_route": "workflow", "note": "round2: concept question, not a missing target"}
