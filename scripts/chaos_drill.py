@@ -491,7 +491,7 @@ def run_sources(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
     server = Server(args.port, env, out_dir / "server-sources.log")
     price_q = "贵州茅台最新收盘价是多少？"
     macro_q = "CPI 最新数据是多少？"
-    fund_q = "五粮液最新的营收和净利润增长情况如何？"
+    fund_q = "五粮液最新的营收和净利润增长情况如何？所在行业最近表现怎样？"
     prefixes = ("finsight_source_circuit_state", "finsight_source_pool_", "finsight_source_calls_total")
     report: dict[str, Any] = {
         "scenario": "sources",
@@ -546,14 +546,17 @@ def run_sources(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
                 )
                 print(json.dumps({"phase": name, "latency_ms": [r["latency_ms"] for r in runs]}, ensure_ascii=False))
 
-            t0 = time.monotonic()
-            phase("1_live", [price_q, fund_q])
+            phase("1_live", [price_q])
+            # Every cache layer holds the price for 60 s from here: the agent tool cache, the structured
+            # context cache and the pipeline's market-bundle TTL cache.
+            fetched = time.monotonic()
+            phase("1b_live_fundamentals_and_industry", [fund_q])
             proxy.blocking = True
             phase("2_blocked_within_ttl", [price_q, macro_q])
-            time.sleep(max(0.0, t0 + 65 - time.monotonic()))
+            time.sleep(max(0.0, fetched + 75 - time.monotonic()))
             phase("3_blocked_after_ttl", [price_q])
-            time.sleep(max(0.0, t0 + 60 + args.max_stale + 10 - time.monotonic()))
-            phase("4_blocked_after_stale_window", [price_q, fund_q])
+            time.sleep(max(0.0, fetched + 60 + args.max_stale + 15 - time.monotonic()))
+            phase("4_blocked_after_stale_window", [price_q])
             proxy.blocking = False
             time.sleep(args.source_cooldown * 2 + 5)  # a failed half-open trial doubles the cool-down
             phase("5_unblocked_recovered", [price_q])
