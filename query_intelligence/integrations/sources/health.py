@@ -96,6 +96,13 @@ class SourceHealthRegistry:
                     raise CircuitOpenError(source_id, 0.0)
                 state.trial_in_flight = True
 
+    def release(self, source_id: str) -> None:
+        """Undo an admission whose call never reached the upstream (e.g. local pool saturation)."""
+        with self._lock:
+            state = self._states.get(source_id)
+            if state is not None:
+                state.trial_in_flight = False
+
     def is_available(self, source_id: str) -> bool:
         with self._lock:
             state = self._states.get(source_id)

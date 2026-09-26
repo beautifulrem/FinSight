@@ -19,7 +19,9 @@ class SourceInfo:
 
 
 _SOURCES = (
-    SourceInfo("eastmoney.quote", "东方财富行情", "push2his.eastmoney.com / push2.eastmoney.com", ("market", "industry")),
+    SourceInfo(
+        "eastmoney.quote", "东方财富行情", "push2his.eastmoney.com / push2.eastmoney.com", ("market", "industry")
+    ),
     SourceInfo("eastmoney.datacenter", "东方财富数据中心", "datacenter-web.eastmoney.com", ("valuation", "macro")),
     SourceInfo("eastmoney.fund", "天天基金", "fund.eastmoney.com / fundf10.eastmoney.com", ("fund",)),
     SourceInfo("eastmoney.news", "东方财富资讯", "search-api-web.eastmoney.com", ("news",)),
@@ -30,6 +32,7 @@ _SOURCES = (
     SourceInfo("tencent.kline", "腾讯证券行情", "web.ifzq.gtimg.cn", ("market",)),
     SourceInfo("tencent.quote", "腾讯实时行情", "qt.gtimg.cn", ("valuation",)),
     SourceInfo("ths.finance", "同花顺财务摘要", "basic.10jqka.com.cn", ("fundamentals",)),
+    SourceInfo("ths.industry", "同花顺行业指数", "d.10jqka.com.cn / q.10jqka.com.cn", ("industry",)),
     SourceInfo("csindex", "中证指数", "csindex.com.cn", ("index_valuation",)),
     SourceInfo("chinabond", "中债收益率曲线", "yield.chinabond.com.cn", ("macro",)),
     SourceInfo("cninfo.announcement", "巨潮资讯公告", "www.cninfo.com.cn", ("announcement",)),
@@ -69,6 +72,7 @@ ENDPOINT_SOURCES: dict[str, str] = {
     "tencent.fqkline": "tencent.kline",
     "tencent.qt_quote": "tencent.quote",
     "akshare.stock_financial_abstract_ths": "ths.finance",
+    "akshare.stock_board_industry_index_ths": "ths.industry",
     "akshare.stock_zh_index_value_csindex": "csindex",
     "akshare.bond_china_yield": "chinabond",
     "cninfo.his_announcement": "cninfo.announcement",

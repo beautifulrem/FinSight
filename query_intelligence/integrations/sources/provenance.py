@@ -173,6 +173,7 @@ _REASON_ZH = (
     ("live source returned no data", "实时源未返回该数据"),
     ("indicator not fetched from live sources", "该指标未从实时源获取"),
     ("industry board history unavailable", "行业指数行情不可用，仅有行业名称"),
+    ("live industry index unavailable", "实时行业指数不可用，沿用离线快照（旧数据，勿当作今日行情）"),
     ("no live source returned data", "所有实时源均无数据"),
 )
 
