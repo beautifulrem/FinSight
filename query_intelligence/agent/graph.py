@@ -45,6 +45,7 @@ from .memory import (
     history_messages,
     listed_entities,
     resolve_coreference,
+    session_memory,
     turn_record,
 )
 from .planner import plan_from_nlu
@@ -380,6 +381,7 @@ class AgentRuntime:
                         state.get("effective_query") or state["query"],
                         state.get("nlu") or {},
                         language="zh" if zh else "en",
+                        memory=session_memory(state.get("turns") or [], state["query"]),
                     ),
                 },
             ]
