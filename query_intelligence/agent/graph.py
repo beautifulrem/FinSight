@@ -246,9 +246,7 @@ class AgentRuntime:
                 else "I can't follow instructions to change my setup or reveal internal configuration. Ask a financial "
                 'question directly, for example "What is BYD\'s P/E ratio?"'
             )
-            limitation = (
-                "请求包含改变系统设定的指令" if zh else "The request contained instructions to change the system"
-            )
+            limitation = "prompt_injection_request"
         else:
             text = (
                 "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，"
@@ -257,7 +255,7 @@ class AgentRuntime:
                 else "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, "
                 'indices, sectors and the macro economy, for example "What was Kweichow Moutai\'s latest close?"'
             )
-            limitation = "问题不属于金融研究范围" if zh else "The question is not a financial research question"
+            limitation = "out_of_scope_query"
         answer = {"answer": text, "key_points": [], "evidence_used": [], "limitations": [limitation]}
         return {"answer": answer, "draft_source": "guardrail"}
 
