@@ -12,7 +12,7 @@ import math
 import random
 import re
 import statistics
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
@@ -148,6 +148,8 @@ def _ratio(numerator: float, denominator: float) -> float | None:
     return round(numerator / denominator, 4) if denominator else None
 
 
+# Answer paths compared on every task set (a minus b), when both ran.
+COMPARISONS = (("agent", "workflow_llm"), ("agent", "workflow"), ("workflow_llm", "workflow"))
 BOOTSTRAP_RESAMPLES = 2000
 BOOTSTRAP_SEED = 20260926
 CI_METHOD = (
@@ -337,6 +339,14 @@ def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, A
                 1.0 if any(str(flag).startswith(_LLM_FAILURE_FLAGS) for flag in score.get("degraded") or []) else 0.0
                 for score in scores
             ]
+        ),
+        "llm_error_kinds": dict(
+            Counter(
+                str(flag)[:80]
+                for score in scores
+                for flag in score.get("degraded") or []
+                if str(flag).startswith(_LLM_FAILURE_FLAGS)
+            ).most_common(5)
         ),
         "cost_per_turn": round(statistics.fmean(costs), 6) if costs else None,
         "cost_per_task": round(statistics.fmean(task_costs), 6) if task_costs else None,
