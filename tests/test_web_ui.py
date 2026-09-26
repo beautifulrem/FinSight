@@ -6,6 +6,7 @@ the real FastAPI app with a stub NLU service, fake agent tools, and a fake class
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import socket
@@ -23,6 +24,10 @@ from query_intelligence.agent.graph import AgentRuntime
 from query_intelligence.agent.service import AgentService
 from query_intelligence.api.app import create_app
 from query_intelligence.chat.page import DIST_DIR
+
+REPO = Path(__file__).resolve().parents[1]
+# axe-core is a frontend devDependency (pinned in frontend/pnpm-lock.yaml); `pnpm install` provides it.
+AXE_JS = REPO / "frontend" / "node_modules" / "axe-core" / "axe.min.js"
 
 
 def test_frontend_build_is_committed():
@@ -80,6 +85,26 @@ class FakeDeepSeek:
         }
 
 
+class StreamingAgentService(AgentService):
+    """Emits `answer_delta` events before the final answer, like a server that streams LLM tokens.
+
+    Set ``draft`` to the text to stream (it may differ from the final answer, as when verification
+    rewrites it); ``pause`` holds the stream mid-way so a test can see the partial text.
+    """
+
+    draft: str | None = None
+    pause: float = 0.0
+
+    def stream(self, query, **kwargs):
+        for event in super().stream(query, **kwargs):
+            if event["event"] == "answer" and self.draft:
+                chunks = re.findall(r".{1,6}", self.draft, flags=re.S)
+                for i, chunk in enumerate(chunks):
+                    yield {"event": "answer_delta", "data": {"text": chunk}}
+                    time.sleep(self.pause if i == len(chunks) // 2 else 0.02)
+            yield event
+
+
 def _free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -87,14 +112,20 @@ def _free_port() -> int:
 
 
 @pytest.fixture(scope="module")
-def base_url():
+def agent_service():
     stub = PageStub()
     runtime = AgentRuntime(stub, build_fake_registry(), None, today=lambda: date(2026, 9, 24))
+    return StreamingAgentService(runtime, trace_sinks=[])
+
+
+@pytest.fixture(scope="module")
+def base_url(agent_service):
+    stub = agent_service.runtime.service
     app = create_app(
         service=stub,
         app_config={"ui": {"title": "FinSight UI Test"}},
         deepseek_client=FakeDeepSeek(),
-        agent_service=AgentService(runtime, trace_sinks=[]),
+        agent_service=agent_service,
     )
     port = _free_port()
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
@@ -315,12 +346,289 @@ def test_stop_detaches_and_the_session_stays_usable(page):
     page.click("#stop-button")
     expect(_last_turn(page)).to_contain_text("已停止")
     expect(page.locator("#status-pill")).to_have_text("就绪")
-    page.unroute("**/agent/chat/stream")
+    # The slow handler is still sleeping; wait for it so it does not race the next request.
+    page.unroute_all(behavior="wait")
 
     # The stopped run finishes on the server, so the session is not left locked.
     _ask(page, "贵州茅台的市盈率是多少")
     expect(_last_turn(page).locator(".answer-card")).to_contain_text("24.6", timeout=15000)
     _wait_idle(page)
+
+
+def test_streamed_answer_shows_a_caret_then_the_verified_answer(page, agent_service):
+    # The draft differs from the final answer, as when verification or compliance rewrites it.
+    agent_service.draft = "贵州茅台市盈率约 24.6 倍，这是一段流式草稿 [fundamental_600519.SH]，尚未核验。"
+    agent_service.pause = 1.5
+    try:
+        _ask(page, "贵州茅台的市盈率是多少")
+        streaming = _last_turn(page).locator(".streaming-answer")
+        expect(streaming).to_contain_text("流式草稿", timeout=15000)
+        expect(streaming).not_to_contain_text("fundamental_600519")
+        caret = page.evaluate(
+            "() => { const el = document.querySelector('.streaming-text > p:last-child, p.streaming-text');"
+            " return el ? getComputedStyle(el, '::after').content : null; }"
+        )
+        assert caret not in (None, "none", "normal")
+
+        card = _last_turn(page).locator(".answer-card[data-streamed]")
+        expect(card).to_contain_text("24.6", timeout=15000)
+        expect(page.locator(".streaming-answer")).to_have_count(0)
+        expect(card).to_have_attribute("data-edited", "true")
+        expect(card.locator(".answer-edited")).to_be_visible()
+        _wait_idle(page)
+    finally:
+        agent_service.draft = None
+        agent_service.pause = 0.0
+
+
+def test_feedback_is_posted_with_the_trace_id_and_remembered(page):
+    card = _last_turn(page).locator(".answer-card")
+    page.route(
+        "**/agent/feedback",
+        lambda route: route.fulfill(status=200, content_type="application/json", body='{"ok": true}'),
+    )
+    with page.expect_request(re.compile(r"/agent/feedback$")) as first:
+        card.locator(".feedback-down").click()
+    body = json.loads(first.value.post_data)
+    assert body["rating"] == "down" and body["comment"] is None and body["session_id"]
+    assert re.fullmatch(r"[0-9a-f]{32}", body["trace_id"])
+    expect(card.locator(".feedback-down")).to_have_attribute("aria-pressed", "true")
+
+    card.locator(".feedback-form textarea").fill("数字不对")
+    with page.expect_request(re.compile(r"/agent/feedback$")) as second:
+        card.locator(".feedback-form").get_by_role("button", name="提交").click()
+    assert json.loads(second.value.post_data)["comment"] == "数字不对"
+    expect(card.locator(".feedback-status")).to_have_text("感谢反馈")
+    stored = page.evaluate("JSON.parse(localStorage.getItem('finsight.feedback'))")
+    assert stored[body["trace_id"]]["comment"] == "数字不对"
+    page.unroute("**/agent/feedback")
+
+
+def test_feedback_is_kept_locally_when_the_endpoint_is_missing(page, page_errors):
+    # A server without POST /agent/feedback answers FastAPI's default 404.
+    page.route(
+        "**/agent/feedback",
+        lambda route: route.fulfill(status=404, content_type="application/json", body='{"detail": "Not Found"}'),
+    )
+    turn_id = page.evaluate(
+        "() => document.querySelector(\".answer-card .feedback[data-rating='']\").closest('.turn').dataset.turnId"
+    )
+    card = page.locator(f'.turn[data-turn-id="{turn_id}"] .answer-card')
+    card.locator(".feedback-up").click()
+    expect(card.locator(".feedback-status")).to_have_text("已保存在本浏览器（服务端暂不接收反馈）")
+    expect(card.locator(".feedback-up")).to_have_attribute("aria-pressed", "true")
+    page.unroute("**/agent/feedback")
+    # Chrome logs every 4xx response to the console; this one is expected and handled by the UI.
+    page_errors[:] = [error for error in page_errors if "status of 404" not in error]
+
+
+def test_export_answer_as_markdown_with_evidence_and_disclaimer(page):
+    card = _last_turn(page).locator(".answer-card")
+    card.locator(".export-trigger").click()
+    with page.expect_download() as info:
+        page.get_by_role("menuitem", name="下载 Markdown（.md）").click()
+    download = info.value
+    assert re.fullmatch(r"finsight-\d{4}-\d{2}-\d{2}-.+\.md", download.suggested_filename)
+    text = Path(download.path()).read_text(encoding="utf-8")
+    assert text.startswith("# 贵州茅台的市盈率是多少")
+    assert "## 证据" in text and "## 风险提示" in text
+    assert re.search(r"\*\*E1\*\* .* · `[\w.]+_600519\.SH`", text)
+    assert "[E1]" in text or "[E2]" in text
+
+
+def _sse(events: list[tuple[str, dict]]) -> str:
+    return "".join(f"event: {name}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n" for name, data in events)
+
+
+def _provenance(mode: str, as_of: str, **extra) -> dict:
+    return {"mode": mode, "is_live": mode != "snapshot", "as_of": as_of, "freshness": "fresh", **extra}
+
+
+RAW_CODES = [
+    "out_of_scope_query",
+    "verification_failed",
+    "budget:",
+    "removed_trading_instruction",
+    "conditional_prefix",
+    "language_mismatch",
+    "multi_entity:2",
+    "question_style:compare",
+    "upstream_error",
+    "llm_agent",
+]
+
+CANNED_ANSWER = {
+    "status": "ok",
+    "session_id": "canned",
+    "trace_id": "f" * 32,
+    "query": "贵州茅台和白酒行业的估值",
+    "route": "agent",
+    "route_reasons": ["mode:agent", "multi_entity:2", "question_style:compare"],
+    "answer": "条件性判断：茅台收于 1413 元 [price_600519.SH]，白酒行业市盈率 27.3 倍 [industry_白酒]。",
+    "key_points": ["行业数据来自较早的离线快照 [industry_白酒]"],
+    "limitations": ["out_of_scope_query", "白酒行业快照截至 2026-04-21 [industry_白酒]"],
+    "risk_disclaimer": "以上内容仅基于检索到的证据生成，不构成投资建议。",
+    "evidence_used": ["price_600519.SH", "industry_白酒"],
+    "evidence_sources": [
+        {
+            "evidence_id": "price_600519.SH",
+            "kind": "structured",
+            "source_type": "market_api",
+            "title": "贵州茅台 daily market data",
+            "source_name": "akshare_sina",
+            "as_of": "2026-09-24",
+            "produced_by": "get_price_history",
+            "payload": {
+                "symbol": "600519.SH",
+                "name": "贵州茅台",
+                "close": 1413.0,
+                "pct_change_1d": -1.14,
+                "provenance": _provenance(
+                    "live_fallback",
+                    "2026-09-24",
+                    source_label="新浪财经行情",
+                    fallback_reason="eastmoney.quote:error(ProxyError); eastmoney.quote:circuit_open",
+                ),
+            },
+        },
+        {
+            "evidence_id": "industry_白酒",
+            "kind": "structured",
+            "source_type": "industry_sql",
+            "title": "白酒 industry snapshot",
+            "as_of": "2026-04-21",
+            "produced_by": "get_fundamentals",
+            "payload": {
+                "industry_name": "白酒",
+                "trade_date": "2026-04-21",
+                "pe": 27.3,
+                "provenance": {
+                    **_provenance("snapshot", "2026-04-21"),
+                    "freshness": "stale",
+                    "source": "offline_snapshot",
+                },
+            },
+        },
+        {
+            "evidence_id": "aknews_600519.SH_1",
+            "kind": "document",
+            "source_type": "news",
+            "title": "贵州茅台半年报",
+            "source_name": "界面新闻",
+            "source_url": "https://example.com/news/1",
+            "as_of": "2026-08-15T10:11:51",
+            "produced_by": "search_news",
+        },
+    ],
+    "tool_calls": [
+        {
+            "tool": "get_price_history",
+            "arguments": {"target": "600519.SH"},
+            "ok": True,
+            "latency_ms": 120,
+            "evidence_ids": ["price_600519.SH"],
+            "source": "llm",
+            "step": 0,
+        },
+        {
+            "tool": "search_news",
+            "arguments": {"query": "白酒"},
+            "ok": False,
+            "latency_ms": 3000,
+            "evidence_ids": [],
+            "error": {"code": "upstream_error", "message": "news source failed"},
+            "source": "llm",
+            "step": 0,
+        },
+    ],
+    "verification": {"passed": False, "checked_numbers": 2},
+    "compliance_notes": ["removed_trading_instruction", "conditional_prefix", "language_mismatch_fallback_to_template"],
+    "degraded": ["verification_failed:repaired", "budget:step budget of 6 reached"],
+    "answer_source": "llm_agent",
+    "llm": {
+        "model": "fake-model",
+        "calls": 2,
+        "steps": 1,
+        "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 5,
+            "prompt_cache_hit_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 15,
+        },
+    },
+    "nlu_summary": {
+        "question_style": "compare",
+        "product_type": "stock",
+        "entities": [],
+        "risk_flags": ["investment_advice_like"],
+    },
+    "spans": [
+        {"node": name, "started_at": 1000.0 + i, "duration_ms": 5.0}
+        for i, name in enumerate(
+            ["guard_in", "agent_llm", "agent_tools", "agent_llm", "verify", "compliance", "finalize"]
+        )
+    ],
+}
+
+
+def test_codes_are_humanised_and_stale_data_is_flagged(page):
+    body = _sse([("session", {"session_id": "canned"}), ("answer", CANNED_ANSWER), ("done", {"session_id": "canned"})])
+    page.route(
+        "**/agent/chat/stream",
+        lambda route: route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=body),
+    )
+    try:
+        _ask(page, "贵州茅台和白酒行业的估值")
+        card = _last_turn(page).locator(".answer-card")
+        banner = card.locator(".freshness-banner")
+        expect(banner).to_have_attribute("data-level", "warn", timeout=15000)
+        expect(banner).to_contain_text("1 条离线快照")
+        expect(banner).to_contain_text("日频数据日期相差 156 天")
+        expect(card.locator(".kpi-tile .kpi-freshness")).to_contain_text("离线快照")
+
+        card.locator(".trace-toggle").click()
+        visible = card.inner_text()
+        for code in RAW_CODES:
+            assert code not in visible, code
+        limitation = card.locator('.limitations [data-code="out_of_scope_query"]')
+        expect(limitation).to_have_text("问题不属于金融范畴")
+        limitation.hover()
+        expect(page.get_by_role("tooltip")).to_contain_text("out_of_scope_query")
+        page.mouse.move(0, 0)
+        expect(card.locator(".trace")).to_contain_text("达到推理步数上限（6 步）")
+        expect(card.locator(".trace")).to_contain_text("已删除交易指令")
+
+        aside = page.locator("aside")
+        expect(aside.locator('.freshness-badge[data-mode="snapshot"]')).to_have_count(1)
+        expect(aside.locator('.freshness-badge[data-mode="fallback"]')).to_have_count(1)
+        expect(aside.locator(".stale-badge")).to_have_count(2)  # the snapshot and the 6-week-old news item
+        aside.get_by_role("tab", name=re.compile("运行")).click()
+        run = aside.locator(".run-details").inner_text()
+        for code in RAW_CODES:
+            assert code not in run, code
+        expect(aside.locator(".run-details")).to_contain_text("涉及 2 只证券")
+        aside.get_by_role("tab", name=re.compile("证据")).click()
+        if AXE_JS.is_file():
+            _assert_accessible(page, "canned answer: freshness banner, snapshot tile, uncited evidence")
+    finally:
+        page.unroute("**/agent/chat/stream")
+
+
+def test_refusal_limitations_are_human_readable(page):
+    _ask(page, "明天天气怎么样")
+    card = _last_turn(page).locator(".answer-card")
+    expect(card.locator(".route-badge")).to_be_visible(timeout=15000)
+    _wait_idle(page)
+    assert "out_of_scope_query" not in card.inner_text()
+    expect(card.locator('[data-code="out_of_scope_query"]')).to_have_text("问题不属于金融范畴")
+
+
+def test_only_the_chat_pane_scrolls(page):
+    # Visually hidden (sr-only) text is absolutely positioned; it must stay inside the scrolling pane,
+    # or the whole document grows and scrollIntoView() shifts the header off screen.
+    assert page.locator(".turn").count() > 3
+    assert page.evaluate("document.documentElement.scrollHeight <= window.innerHeight + 1")
 
 
 def test_no_browser_errors(page_errors):
@@ -344,3 +652,122 @@ def test_mobile_layout_opens_evidence_sheet(browser, base_url):
         assert errors == []
     finally:
         mobile.context.close()
+
+
+AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]
+
+
+def _serious_violations(page: Page) -> list[dict]:
+    if not page.evaluate("typeof window.axe !== 'undefined'"):
+        page.add_script_tag(path=str(AXE_JS))
+    page.wait_for_timeout(700)  # let entrance animations settle so contrast is measured on final colours
+    violations = page.evaluate(
+        """async (tags) => {
+          const options = { runOnly: { type: "tag", values: tags }, resultTypes: ["violations"] };
+          const result = await axe.run(document, options);
+          return result.violations.map((v) => ({
+            id: v.id, impact: v.impact, help: v.help,
+            nodes: v.nodes.slice(0, 4).map((n) => n.target.join(" ") + " :: " + (n.failureSummary || "")),
+          }));
+        }""",
+        AXE_TAGS,
+    )
+    return [v for v in violations if v["impact"] in ("serious", "critical")]
+
+
+def _assert_accessible(page: Page, state: str) -> None:
+    found = _serious_violations(page)
+    assert not found, f"{state}:\n" + json.dumps(found, ensure_ascii=False, indent=1)
+
+
+@pytest.fixture()
+def axe_ready():
+    if not AXE_JS.is_file():
+        pytest.skip("axe-core not installed: run `pnpm install` in frontend/")
+
+
+def test_accessibility_desktop_states(browser, base_url, axe_ready):
+    errors: list[str] = []
+    desk = _open(browser, base_url, errors, viewport={"width": 1440, "height": 900})
+    try:
+        _assert_accessible(desk, "empty state (light, zh)")
+
+        _ask(desk, "贵州茅台的市盈率是多少")
+        card = _last_turn(desk).locator(".answer-card")
+        expect(card).to_contain_text("24.6", timeout=15000)
+        _wait_idle(desk)
+        card.locator(".trace-toggle").click()
+        _assert_accessible(desk, "answer with trace and evidence ledger")
+
+        aside = desk.locator("aside")
+        aside.get_by_role("tab", name=re.compile("过程")).click()
+        _assert_accessible(desk, "inspector trace tab")
+        aside.get_by_role("tab", name=re.compile("运行")).click()
+        _assert_accessible(desk, "inspector run tab")
+
+        desk.route(
+            "**/agent/feedback",
+            lambda route: route.fulfill(status=404, content_type="application/json", body='{"detail": "Not Found"}'),
+        )
+        card.locator(".feedback-down").click()
+        expect(card.locator(".feedback-form textarea")).to_be_visible()
+        _assert_accessible(desk, "feedback comment form")
+        card.locator(".export-trigger").click()
+        expect(desk.get_by_role("menu")).to_be_visible()
+        _assert_accessible(desk, "export menu open")
+        desk.keyboard.press("Escape")
+
+        desk.click("#settings-toggle")
+        expect(desk.get_by_role("dialog")).to_be_visible()
+        _assert_accessible(desk, "settings dialog")
+        desk.keyboard.press("Escape")
+
+        _ask(desk, "明天天气怎么样")
+        expect(_last_turn(desk).locator(".answer-card .route-badge")).to_be_visible(timeout=15000)
+        _wait_idle(desk)
+        _assert_accessible(desk, "refusal")
+
+        desk.get_by_role("radio", name="经典").click()
+        _ask(desk, "贵州茅台最近走势")
+        expect(_last_turn(desk).locator(".price-chart canvas").first).to_be_visible(timeout=15000)
+        _wait_idle(desk)
+        _assert_accessible(desk, "price chart and KPI tiles")
+        desk.get_by_role("radio", name="自动").click()
+
+        desk.click("#lang-toggle")
+        desk.click("#theme-toggle")
+        desk.wait_for_function("document.documentElement.classList.contains('dark')")
+        _assert_accessible(desk, "dark theme, English")
+
+        desk.click("#new-session")
+        _ask(desk, "这只股票能买吗")
+        expect(_last_turn(desk).locator(".clarification-card")).to_be_visible(timeout=15000)
+        _assert_accessible(desk, "clarification (dark, English)")
+        assert [error for error in errors if "status of 404" not in error] == []
+    finally:
+        desk.context.close()
+
+
+def test_accessibility_mobile_dark_english(browser, base_url, axe_ready):
+    errors: list[str] = []
+    context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    context.add_init_script(
+        "localStorage.setItem('finsight.lang', 'en'); localStorage.setItem('finsight.theme', 'dark');"
+    )
+    mobile = context.new_page()
+    mobile.on("pageerror", lambda exc: errors.append(str(exc)))
+    mobile.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+    try:
+        mobile.goto(base_url)
+        _assert_accessible(mobile, "mobile empty (dark, en)")
+        mobile.locator(".example-question").first.click()
+        chip = mobile.locator(".answer-card .citation-chip").first
+        expect(chip).to_be_visible(timeout=15000)
+        _wait_idle(mobile)
+        _assert_accessible(mobile, "mobile answer (dark, en)")
+        chip.click()
+        expect(mobile.get_by_role("dialog")).to_be_visible()
+        _assert_accessible(mobile, "mobile evidence sheet (dark, en)")
+        assert errors == []
+    finally:
+        context.close()

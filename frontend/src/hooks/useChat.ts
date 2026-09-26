@@ -40,6 +40,8 @@ export interface Turn {
   startedAt: number;
   finishedAt?: number;
   steps: LiveStep[];
+  /** Answer text streamed by `answer_delta` events; the final `answer` replaces it (kept for comparison). */
+  draft?: string;
   agent?: AgentResponse;
   classic?: ClassicResponse;
   clarification?: Clarification;
@@ -69,6 +71,7 @@ interface State {
 type Action =
   | { type: "start"; turn: Turn }
   | { type: "event"; id: string; event: StreamEvent }
+  | { type: "delta"; id: string; text: string }
   | { type: "agent"; id: string; response: AgentResponse }
   | { type: "classic"; id: string; response: ClassicResponse }
   | { type: "error"; id: string; error: { kind: ErrorKind; message: string } }
@@ -77,6 +80,12 @@ type Action =
   | { type: "reset"; notice?: Notice }
   | { type: "pending"; clarification: Clarification | null }
   | { type: "restore"; turns: SessionTurn[]; pending: Clarification | null };
+
+const hasFrames = () => typeof window.requestAnimationFrame === "function";
+const requestFrame = (callback: () => void): number =>
+  hasFrames() ? window.requestAnimationFrame(callback) : window.setTimeout(callback, 16);
+const cancelFrame = (handle: number): void =>
+  hasFrames() ? window.cancelAnimationFrame(handle) : window.clearTimeout(handle);
 
 let counter = 0;
 const nextId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
@@ -137,6 +146,10 @@ function reducer(state: State, action: Action): State {
       return { ...state, items: [...state.items, action.turn] };
     case "event":
       return updateTurn(state, action.id, (turn) => applyEvent(turn, action.event));
+    case "delta":
+      return updateTurn(state, action.id, (turn) =>
+        turn.status === "running" ? { ...turn, draft: (turn.draft ?? "") + action.text } : turn,
+      );
     case "agent": {
       const next = updateTurn(state, action.id, (turn) => withAgent(turn, action.response));
       const pending =
@@ -232,9 +245,27 @@ export function useChat(options: ChatOptions) {
       if (!run.detached) dispatch(action);
     };
     const request = { apiKey, signal: run.abort.signal };
+    // Token deltas can arrive faster than the screen refreshes: buffer them and render once per frame.
+    let buffered = "";
+    let frame: number | null = null;
+    const flush = () => {
+      if (frame !== null) cancelFrame(frame);
+      frame = null;
+      if (!buffered) return;
+      const text = buffered;
+      buffered = "";
+      emit({ type: "delta", id, text });
+    };
     const runStream = async () => {
       let finished = false;
       for await (const event of streamAgentChat(query, sessionId, mode as Exclude<UiMode, "classic">, request)) {
+        if (event.event === "answer_delta") {
+          if (typeof event.data?.text !== "string") continue;
+          buffered += event.data.text;
+          if (frame === null) frame = requestFrame(flush);
+          continue;
+        }
+        flush();
         if (event.event === "answer") {
           emit({ type: "agent", id, response: event.data });
           finished = true;
@@ -271,6 +302,7 @@ export function useChat(options: ChatOptions) {
       if (run.abort.signal.aborted) dispatch({ type: "stopped", id });
       else emit({ type: "error", id, error: classify(error) });
     } finally {
+      if (frame !== null) cancelFrame(frame);
       if (current.current === run) current.current = null;
     }
   }, []);

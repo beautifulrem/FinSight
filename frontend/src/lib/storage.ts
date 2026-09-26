@@ -5,6 +5,7 @@ export const STORAGE_KEYS = {
   apiKey: "finsight.apiKey",
   theme: "finsight.theme",
   lang: "finsight.lang",
+  feedback: "finsight.feedback",
 } as const;
 
 export function readStorage(key: string, fallback = ""): string {

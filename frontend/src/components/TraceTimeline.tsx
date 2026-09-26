@@ -4,10 +4,12 @@ import { useId, useState } from "react";
 
 import { cn } from "@/lib/cn";
 import { formatInt, formatMs } from "@/lib/format";
+import { humanizeCode } from "@/lib/codes";
 import { nodeLabel, toolLabel, useI18n } from "@/lib/i18n";
 import { formatArgs, type TraceNode, type TraceTool } from "@/lib/trace";
 import type { AgentResponse } from "@/lib/types";
 
+import { CodeBadge } from "./CodeLabel";
 import { Badge } from "./ui/badge";
 
 interface Props {
@@ -55,7 +57,7 @@ function ToolRow({ tool, onEvidence }: { tool: TraceTool; onEvidence?: (id: stri
         <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[11.5px] text-faint tabular-nums">
           {tool.cached && <Badge tone="cobalt">{t("trace.cached")}</Badge>}
           {tool.source === "llm" && <Badge tone="gilt">{t("trace.byLlm")}</Badge>}
-          {tool.error && <Badge tone="up">{tool.error.code}</Badge>}
+          {tool.error && <Badge tone="up" data-code={tool.error.code}>{humanizeCode(lang, tool.error.code, "toolError")}</Badge>}
           {tool.latencyMs !== undefined && formatMs(tool.latencyMs)}
           <ChevronRight className={cn("size-3.5 transition-transform", open && "rotate-90")} aria-hidden />
         </span>
@@ -87,8 +89,10 @@ function ToolRow({ tool, onEvidence }: { tool: TraceTool; onEvidence?: (id: stri
               ) : null}
               {tool.error && (
                 <>
-                  <dt className="text-up">{tool.error.code}</dt>
-                  <dd className="text-muted">{tool.error.message}</dd>
+                  <dt className="text-up">{humanizeCode(lang, tool.error.code, "toolError")}</dt>
+                  <dd className="text-muted">
+                    {tool.error.message} <code className="font-mono text-[11px]">({tool.error.code})</code>
+                  </dd>
                 </>
               )}
               {tool.evidenceIds.length > 0 && (
@@ -122,13 +126,11 @@ function NodeDetails({ node, response, finalVerify }: { node: TraceNode; respons
   if (node.node === "guard_in" && response.route) {
     return (
       <div className="flex flex-wrap items-center gap-1 text-[12px]">
-        <Badge tone="cobalt">
-          {t("trace.route")}: {response.route}
+        <Badge tone="cobalt" data-code={response.route}>
+          {t("trace.route")}: {humanizeCode(lang, response.route, "route")}
         </Badge>
         {(response.route_reasons ?? []).map((reason) => (
-          <Badge key={reason} className="font-mono font-normal">
-            {reason}
-          </Badge>
+          <CodeBadge key={reason} code={reason} kind="reason" className="font-normal" />
         ))}
       </div>
     );
@@ -167,9 +169,7 @@ function NodeDetails({ node, response, finalVerify }: { node: TraceNode; respons
     return (
       <div className="flex flex-wrap gap-1 text-[12px]">
         {(response.compliance_notes ?? []).map((note) => (
-          <Badge key={note} tone="warn" className="font-mono font-normal">
-            {note}
-          </Badge>
+          <CodeBadge key={note} code={note} kind="compliance" tone="warn" className="font-normal" />
         ))}
       </div>
     );
@@ -197,8 +197,8 @@ function NodeDetails({ node, response, finalVerify }: { node: TraceNode; respons
   }
   if (node.node === "compose" && response.answer_source) {
     return (
-      <Badge className="font-mono font-normal">
-        {t("run.answerSource")}: {response.answer_source}
+      <Badge className="font-normal" data-code={response.answer_source}>
+        {t("run.answerSource")}: {humanizeCode(lang, response.answer_source, "answerSource")}
       </Badge>
     );
   }
@@ -231,7 +231,7 @@ export function TraceTimeline({ nodes, live, response, onEvidence }: Props) {
             />
             <div className="flex items-baseline gap-2 py-1">
               <span className="text-[13px] font-medium text-ink">{nodeLabel(lang, node.node)}</span>
-              <code className="font-mono text-[11px] text-faint">{node.node}</code>
+              <code className="font-mono text-[11px] text-muted">{node.node}</code>
               {node.durationMs !== undefined && (
                 <span className="ml-auto text-[11.5px] text-faint tabular-nums">{formatMs(node.durationMs)}</span>
               )}
@@ -262,9 +262,7 @@ export function TraceTimeline({ nodes, live, response, onEvidence }: Props) {
           <AlertTriangle aria-hidden className="absolute top-1.5 left-0.5 size-3.5 text-warn" />
           <span className="text-warn">{t("trace.degraded")}:</span>
           {degraded.map((item) => (
-            <Badge key={item} tone="warn" className="max-w-full truncate font-mono font-normal" title={item}>
-              {item}
-            </Badge>
+            <CodeBadge key={item} code={item} kind="degraded" tone="warn" className="font-normal" />
           ))}
         </li>
       )}
