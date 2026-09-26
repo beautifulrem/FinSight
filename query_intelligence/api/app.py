@@ -90,6 +90,10 @@ class ChatRequest(BaseModel):
 TRACE_ID_PATTERN = r"^[A-Za-z0-9_-]{1,80}$"
 
 
+class ClaimCheckRequest(BaseModel):
+    claim: str = Field(min_length=2, max_length=MAX_QUERY_LENGTH)
+
+
 class FeedbackRequest(BaseModel):
     trace_id: str = Field(pattern=TRACE_ID_PATTERN)
     session_id: str | None = Field(default=None, pattern=SESSION_ID_PATTERN)
@@ -318,6 +322,23 @@ def create_app(
         if trace is None:
             raise HTTPException(status_code=404, detail=f"trace {trace_id} not found")
         return trace
+
+    @app.post("/agent/claim-check")
+    async def agent_claim_check(payload: ClaimCheckRequest) -> dict:
+        """Check the numbers in a pasted market claim against market and fundamental data (no LLM)."""
+        from ..agent.claim_check import check_claim
+        from ..chatbot import detect_query_language
+
+        agent = get_agent()
+        claim = payload.claim.strip()
+        report = await run_with_timeout(
+            check_claim,
+            claim,
+            service=agent.runtime.service,
+            registry=agent.runtime.registry,
+            zh=detect_query_language(claim) == "zh",
+        )
+        return report.model_dump()
 
     @app.post("/agent/feedback")
     def agent_feedback(payload: FeedbackRequest, request: Request) -> dict:
