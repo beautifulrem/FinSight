@@ -40,26 +40,35 @@ class RecentTraceStore:
             while len(self._traces) > self.capacity:
                 self._traces.popitem(last=False)
 
-    def get(self, trace_id: str) -> dict[str, Any] | None:
+    def get(self, trace_id: str, *, owner: str | None = None) -> dict[str, Any] | None:
+        """The trace, or ``None`` when it is unknown or belongs to another caller (``owner``)."""
         with self._lock:
             trace = self._traces.get(trace_id)
         if trace is not None:
-            return trace
+            return trace if _visible(trace, owner) else None
         if self.trace_dir is None or not self.trace_dir.is_dir():
             return None
         for path in self.trace_dir.glob(f"*/{trace_id}.json"):
             try:
-                return json.loads(path.read_text(encoding="utf-8"))
+                trace = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 return None
+            return trace if _visible(trace, owner) else None
         return None
 
-    def recent(self, limit: int = 50, *, session_id: str | None = None) -> list[dict[str, Any]]:
+    def recent(
+        self, limit: int = 50, *, session_id: str | None = None, owner: str | None = None
+    ) -> list[dict[str, Any]]:
         with self._lock:
-            traces = list(reversed(self._traces.values()))
+            traces = [trace for trace in reversed(self._traces.values()) if _visible(trace, owner)]
         if session_id:
             traces = [trace for trace in traces if trace.get("session_id") == session_id]
         return [summarize_trace(trace) for trace in traces[: max(0, limit)]]
+
+
+def _visible(trace: dict[str, Any], owner: str | None) -> bool:
+    # Traces written before ownership existed have no owner and are treated as local.
+    return owner is None or str(trace.get("owner") or "local") == owner
 
 
 def summarize_trace(trace: dict[str, Any]) -> dict[str, Any]:
@@ -128,6 +137,9 @@ class PrometheusTraceSink:
         self.degradations = Counter(
             "finsight_degradations_total", "Degradation flags raised during runs.", ["flag"], registry=self.registry
         )
+        self.feedback = Counter(
+            "finsight_feedback_total", "User feedback on answers.", ["rating"], registry=self.registry
+        )
 
     @property
     def available(self) -> bool:
@@ -162,6 +174,10 @@ class PrometheusTraceSink:
             self.verification_failures.inc()
         for flag in trace.get("degraded") or []:
             self.degradations.labels(flag=str(flag).split(":")[0]).inc()
+
+    def record_feedback(self, rating: str) -> None:
+        if self.registry is not None:
+            self.feedback.labels(rating=rating).inc()
 
     def render(self) -> tuple[bytes, str]:
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest

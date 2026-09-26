@@ -9,15 +9,17 @@ import threading
 import time
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Annotated, Any
+from datetime import UTC, datetime
+from typing import Annotated, Any, Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi import Path as ApiPath
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from ..agent.a2a_server import install_a2a
+from ..agent.errors import SessionAccessError
 from ..agent.telemetry import PrometheusTraceSink, RecentTraceStore
 from ..agent.tracing import DEFAULT_TRACE_DIR, sinks_from_env
 from ..artifacts import ArtifactWriter
@@ -48,7 +50,7 @@ from ..contracts import (
     RetrievalRequest,
 )
 from ..service import QueryIntelligenceService, build_default_service
-from .security import SecuritySettings, install_security
+from .security import SecuritySettings, install_security, principal_of
 
 
 logger = logging.getLogger("finsight.api")
@@ -83,6 +85,21 @@ class ChatRequest(BaseModel):
     # "workflow" keeps the original /chat pipeline; "agent" and "auto" use the agent service.
     mode: AgentMode = "workflow"
     session_id: str | None = Field(default=None, pattern=SESSION_ID_PATTERN)
+
+
+TRACE_ID_PATTERN = r"^[A-Za-z0-9_-]{1,80}$"
+
+
+class FeedbackRequest(BaseModel):
+    trace_id: str = Field(pattern=TRACE_ID_PATTERN)
+    session_id: str | None = Field(default=None, pattern=SESSION_ID_PATTERN)
+    rating: Literal["up", "down"]
+    comment: str | None = Field(default=None, max_length=1000)
+
+
+def _session_not_found(exc: Exception) -> HTTPException:
+    # 404 rather than 403, so session ids of other callers cannot be probed.
+    return HTTPException(status_code=404, detail=f"session {exc} not found")
 
 
 def _sse(event: dict[str, Any]) -> str:
@@ -131,6 +148,8 @@ def create_app(
         trace_dir=None if trace_dir.lower() in {"", "off", "0", "false", "none"} else trace_dir
     )
     metrics_sink = PrometheusTraceSink()
+    feedback_log = Path(os.getenv("QI_FEEDBACK_PATH", "outputs/feedback/feedback.jsonl"))
+    feedback_lock = threading.Lock()
     if agent_service is not None and isinstance(getattr(agent_service, "trace_sinks", None), list):
         agent_service.trace_sinks.extend([trace_store, metrics_sink])
 
@@ -156,19 +175,23 @@ def create_app(
         return render_index_html(chatbot_config)
 
     @app.post("/chat")
-    def chat(payload: ChatRequest) -> dict:
+    def chat(payload: ChatRequest, request: Request) -> dict:
         query = payload.query.strip()
         if not query:
             raise HTTPException(status_code=422, detail="query must not be empty")
         if payload.mode != "workflow":
             logger.info("[chat] Routing query to the agent (mode=%s): %s", payload.mode, _short_query(query))
-            return get_agent().chat(
-                query,
-                session_id=payload.session_id,
-                mode=payload.mode,
-                user_profile=payload.user_profile,
-                dialog_context=payload.dialog_context,
-            )
+            try:
+                return get_agent().chat(
+                    query,
+                    session_id=payload.session_id,
+                    mode=payload.mode,
+                    user_profile=payload.user_profile,
+                    dialog_context=payload.dialog_context,
+                    owner=principal_of(request),
+                )
+            except SessionAccessError as exc:
+                raise _session_not_found(exc) from exc
         request_started_at = time.perf_counter()
         logger.info("[chat] Received query: %s", _short_query(query))
         logger.info("[chat] Step 1/3: running NLU, retrieval, and live data providers...")
@@ -214,25 +237,32 @@ def create_app(
             raise HTTPException(status_code=504, detail=f"agent did not finish within {request_timeout_s:g}s") from exc
 
     @app.post("/agent/chat")
-    async def agent_chat(payload: AgentChatRequest) -> dict:
+    async def agent_chat(payload: AgentChatRequest, request: Request) -> dict:
         query = payload.query.strip()
         if not query:
             raise HTTPException(status_code=422, detail="query must not be empty")
-        return await run_with_timeout(
-            get_agent().chat,
-            query,
-            session_id=payload.session_id,
-            mode=payload.mode,
-            user_profile=payload.user_profile,
-            dialog_context=payload.dialog_context,
-        )
+        try:
+            return await run_with_timeout(
+                get_agent().chat,
+                query,
+                session_id=payload.session_id,
+                mode=payload.mode,
+                user_profile=payload.user_profile,
+                dialog_context=payload.dialog_context,
+                owner=principal_of(request),
+            )
+        except SessionAccessError as exc:
+            raise _session_not_found(exc) from exc
 
     @app.post("/agent/chat/stream")
-    def agent_chat_stream(payload: AgentChatRequest) -> StreamingResponse:
+    def agent_chat_stream(payload: AgentChatRequest, request: Request) -> StreamingResponse:
         query = payload.query.strip()
         if not query:
             raise HTTPException(status_code=422, detail="query must not be empty")
         agent = get_agent()
+        owner = principal_of(request)
+        if payload.session_id and agent.owner_of(payload.session_id) not in {None, owner}:
+            raise _session_not_found(SessionAccessError(payload.session_id))
 
         def events() -> Iterator[str]:
             for event in agent.stream(
@@ -241,6 +271,7 @@ def create_app(
                 mode=payload.mode,
                 user_profile=payload.user_profile,
                 dialog_context=payload.dialog_context,
+                owner=owner,
             ):
                 yield _sse(event)
 
@@ -251,15 +282,21 @@ def create_app(
         )
 
     @app.post("/agent/resume")
-    async def agent_resume(payload: AgentResumeRequest) -> dict:
+    async def agent_resume(payload: AgentResumeRequest, request: Request) -> dict:
         try:
-            return await run_with_timeout(get_agent().resume, payload.session_id, payload.reply.strip())
+            return await run_with_timeout(
+                get_agent().resume, payload.session_id, payload.reply.strip(), owner=principal_of(request)
+            )
+        except SessionAccessError as exc:
+            raise _session_not_found(exc) from exc
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.get("/agent/sessions/{session_id}")
-    def agent_session(session_id: Annotated[str, ApiPath(pattern=SESSION_ID_PATTERN)]) -> dict:
+    def agent_session(session_id: Annotated[str, ApiPath(pattern=SESSION_ID_PATTERN)], request: Request) -> dict:
         agent = get_agent()
+        if agent.owner_of(session_id) not in {None, principal_of(request)}:
+            raise _session_not_found(SessionAccessError(session_id))
         return {
             "session_id": session_id,
             "turns": agent.history(session_id),
@@ -268,17 +305,43 @@ def create_app(
 
     @app.get("/agent/traces")
     def agent_traces(
+        request: Request,
         limit: Annotated[int, Query(ge=1, le=200)] = 50,
         session_id: Annotated[str | None, Query(pattern=SESSION_ID_PATTERN)] = None,
     ) -> dict:
-        return {"traces": trace_store.recent(limit, session_id=session_id)}
+        # Callers only see their own runs (everything is "local" when API keys are off).
+        return {"traces": trace_store.recent(limit, session_id=session_id, owner=principal_of(request))}
 
     @app.get("/agent/traces/{trace_id}")
-    def agent_trace(trace_id: Annotated[str, ApiPath(pattern=r"^[A-Za-z0-9_-]{1,80}$")]) -> dict:
-        trace = trace_store.get(trace_id)
+    def agent_trace(trace_id: Annotated[str, ApiPath(pattern=TRACE_ID_PATTERN)], request: Request) -> dict:
+        trace = trace_store.get(trace_id, owner=principal_of(request))
         if trace is None:
             raise HTTPException(status_code=404, detail=f"trace {trace_id} not found")
         return trace
+
+    @app.post("/agent/feedback")
+    def agent_feedback(payload: FeedbackRequest, request: Request) -> dict:
+        """Thumbs up/down on an answer, stored with its trace so failures can become evaluation tasks
+        (``scripts/feedback_to_tasks.py``)."""
+        owner = principal_of(request)
+        trace = trace_store.get(payload.trace_id, owner=owner)
+        if trace is None:
+            raise HTTPException(status_code=404, detail=f"trace {payload.trace_id} not found")
+        record = {
+            "at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "trace_id": payload.trace_id,
+            "session_id": payload.session_id or trace.get("session_id"),
+            "rating": payload.rating,
+            "comment": payload.comment,
+            "query": trace.get("query"),
+            "route": trace.get("route"),
+            "owner": owner,
+        }
+        feedback_log.parent.mkdir(parents=True, exist_ok=True)
+        with feedback_lock, feedback_log.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+        metrics_sink.record_feedback(payload.rating)
+        return {"ok": True}
 
     @app.get("/metrics")
     def metrics() -> Response:

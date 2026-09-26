@@ -187,3 +187,18 @@ def test_apply_clarification_rewrites_or_prepends():
     assert apply_clarification("What is its PE?", "CATL")[0] == "What is CATL's PE?"
     assert apply_clarification("能买吗", "宁德时代")[0] == "宁德时代能买吗"
     assert apply_clarification("buy now?", "BYD") == ("BYD buy now?", "clarified:BYD")
+
+
+def test_session_lock_map_is_bounded(monkeypatch):
+    import query_intelligence.agent.service as service_module
+
+    monkeypatch.setattr(service_module, "MAX_SESSION_LOCKS", 3)
+    service, _ = _service()
+    held = service._lock("keep")
+    held.acquire()
+    try:
+        for index in range(10):
+            service._lock(f"s{index}")
+        assert len(service._locks) <= 4 and "keep" in service._locks  # a held lock is never evicted
+    finally:
+        held.release()

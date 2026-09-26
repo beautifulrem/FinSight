@@ -3,7 +3,7 @@
 Suggestions are deterministic: they point at evidence the current turn did not cover yet (valuation,
 technicals, news, peers, macro links), so they are cheap, explainable, and always answerable by the
 agent's tools. They are then passed through the existing judgment/causal sanitizer from
-``scripts/llm_response.py`` so they never suggest trading actions.
+``query_intelligence/answer_guards.py`` so they never suggest trading actions.
 """
 
 from __future__ import annotations

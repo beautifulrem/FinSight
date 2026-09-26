@@ -1,6 +1,6 @@
 """Compliance guard for agent answers.
 
-Reuses the judgment/causal softening rules from ``scripts/llm_response.py`` and the market-freshness
+Reuses the judgment/causal softening rules from ``query_intelligence/answer_guards.py`` and the market-freshness
 and disclaimer conventions from ``query_intelligence/chatbot.py``, and additionally removes direct
 trading instructions that a model might still produce: buy/sell calls, price targets, investment ratings
 ("买入评级", "rated outperform") and position sizing ("八成仓位", "逢低加仓"), including ratings quoted from
@@ -10,7 +10,6 @@ third-party documents, because relaying them reads as a recommendation.
 from __future__ import annotations
 
 import re
-import sys
 import threading
 from datetime import date
 from pathlib import Path
@@ -75,11 +74,9 @@ _NEUTRAL_EN = (
 
 
 def _guards() -> ModuleType:
-    if str(_ROOT) not in sys.path:
-        sys.path.insert(0, str(_ROOT))
-    from scripts import llm_response
+    from .. import answer_guards
 
-    return llm_response
+    return answer_guards
 
 
 _LINGUA_LOCK = threading.Lock()

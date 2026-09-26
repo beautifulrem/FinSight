@@ -19,8 +19,9 @@ A2A_HEADERS = {"A2A-Version": "1.0"}
 
 
 @pytest.fixture
-def client(monkeypatch):
+def client(monkeypatch, tmp_path):
     monkeypatch.setenv("QI_AGENT_TRACE_DIR", "off")
+    monkeypatch.setenv("QI_FEEDBACK_PATH", str(tmp_path / "feedback.jsonl"))
     stub = StubService()
     runtime = AgentRuntime(stub, build_fake_registry(), None, today=lambda: date(2026, 9, 24))
     app = create_app(service=stub, app_config={"deepseek": {"api_key": ""}}, agent_service=AgentService(runtime))
@@ -176,3 +177,64 @@ def test_prometheus_sink_records_llm_usage_cost_and_degradation():
     assert 'finsight_tool_calls_total{outcome="cached",tool="get_price_history"} 1.0' in text
     assert "finsight_verification_failures_total 1.0" in text
     assert 'finsight_degradations_total{flag="llm_error"} 1.0' in text
+
+
+def _keyed_client(monkeypatch):
+    from query_intelligence.api.security import SecuritySettings
+
+    monkeypatch.setenv("QI_AGENT_TRACE_DIR", "off")
+    monkeypatch.delenv("QI_API_KEYS", raising=False)
+    stub = StubService()
+    runtime = AgentRuntime(stub, build_fake_registry(), None, today=lambda: date(2026, 9, 24))
+    app = create_app(
+        service=stub,
+        app_config={"deepseek": {"api_key": ""}},
+        agent_service=AgentService(runtime),
+        security=SecuritySettings(api_keys=("key-a", "key-b")),
+    )
+    return TestClient(app)
+
+
+def test_sessions_and_traces_are_scoped_to_the_api_key(monkeypatch):
+    client = _keyed_client(monkeypatch)
+    a, b = {"X-API-Key": "key-a"}, {"X-API-Key": "key-b"}
+
+    answer = client.post(
+        "/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "own-1"}, headers=a
+    ).json()
+
+    # Another caller cannot read, continue or list that session and its traces.
+    assert client.get("/agent/sessions/own-1", headers=b).status_code == 404
+    assert (
+        client.post("/agent/chat", json={"query": "它的市净率呢", "session_id": "own-1"}, headers=b).status_code == 404
+    )
+    assert client.get(f"/agent/traces/{answer['trace_id']}", headers=b).status_code == 404
+    assert client.get("/agent/traces", headers=b).json()["traces"] == []
+    # The owner can.
+    assert client.get("/agent/sessions/own-1", headers=a).json()["turns"]
+    assert [t["trace_id"] for t in client.get("/agent/traces", headers=a).json()["traces"]] == [answer["trace_id"]]
+
+
+def test_feedback_is_recorded_for_known_traces(client, tmp_path):
+    answer = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "fb-1"}).json()
+
+    ok = client.post("/agent/feedback", json={"trace_id": answer["trace_id"], "rating": "down", "comment": "PE 旧了"})
+    missing = client.post("/agent/feedback", json={"trace_id": "nope", "rating": "up"})
+    invalid = client.post("/agent/feedback", json={"trace_id": answer["trace_id"], "rating": "meh"})
+
+    assert ok.json() == {"ok": True} and missing.status_code == 404 and invalid.status_code == 422
+    import json
+
+    record = json.loads((tmp_path / "feedback.jsonl").read_text(encoding="utf-8"))
+    assert record["trace_id"] == answer["trace_id"] and record["query"] == "贵州茅台的市盈率是多少"
+    assert 'finsight_feedback_total{rating="down"} 1.0' in client.get("/metrics").text
+
+
+def test_agent_card_url_follows_the_request():
+    stub = StubService()
+    runtime = AgentRuntime(stub, build_fake_registry(), None, today=lambda: date(2026, 9, 24))
+    app = create_app(service=stub, app_config={"deepseek": {"api_key": ""}}, agent_service=AgentService(runtime))
+
+    card = TestClient(app, base_url="http://agents.example:9000").get("/.well-known/agent-card.json").json()
+
+    assert card["supportedInterfaces"][0]["url"] == "http://agents.example:9000/a2a"

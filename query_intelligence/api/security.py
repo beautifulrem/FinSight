@@ -12,6 +12,7 @@ All are off by default so the local chatbot keeps working without configuration.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import math
 import os
@@ -101,6 +102,8 @@ def install_security(app: FastAPI, settings: SecuritySettings | None = None) -> 
             return JSONResponse({"detail": "request body too large"}, status_code=413)
         key = _presented_key(request)
         key_valid = bool(key) and any(hmac.compare_digest(key, allowed) for allowed in settings.api_keys)
+        # Who is calling: sessions and traces are scoped to it (a hash, never the key itself).
+        request.state.principal = f"key:{hashlib.sha256(key.encode()).hexdigest()[:12]}" if key_valid else "local"
         if settings.api_keys and not public and not key_valid:
             return JSONResponse(
                 {"detail": "missing or invalid API key"},
@@ -126,3 +129,8 @@ def install_security(app: FastAPI, settings: SecuritySettings | None = None) -> 
             allow_headers=["Content-Type", "Authorization", "X-API-Key"],
         )
     return settings
+
+
+def principal_of(request: Request) -> str:
+    """The caller identity set by the security middleware (``local`` when API keys are off)."""
+    return str(getattr(request.state, "principal", "local"))
