@@ -27,6 +27,25 @@
 | 可观测性 | JSON trace 落盘 + OTLP 导出 | Langfuse SDK 各大版本的 API 差异大，而 Langfuse、Jaeger、Tempo 都支持 OTLP，走标准协议更稳妥。 |
 | 评测 | 回放工具快照、关键事实错误一票否决、dev/holdout 分离、故障注入 | 数据源变化和网络状况不应影响结果；「大致正确」对金融场景没有意义；holdout 用来估计 dev 上的修复有多少能泛化。 |
 
+### 自研与复用的边界
+
+面试时经常被问「哪些是你写的、哪些是框架给的」。下表按模块列出。
+
+| 模块 | 复用（库或框架现成提供） | 自研（本仓库的代码） |
+|---|---|---|
+| 编排 | LangGraph：`StateGraph`、checkpointer（内存 / SQLite / Postgres）、`interrupt()`/`Command(resume=...)`、`stream_mode` | 图的拓扑与路由策略、可重置 reducer、每轮字段清理、`durability="exit"` 的取舍、按运行批量执行工具的线程池 |
+| 路由与守卫 | scikit-learn / CRF 等经典模型的训练与推理 | NLU 本身（仓库原有）、`router.py` 的可解释规则与 `route_reasons`、输入守卫（剥离注入指令后判断是否还剩金融内容）、指代与复数指代改写、会话记忆卡片 |
+| LLM 接入 | OpenAI 兼容协议、`json-repair` | 网关信封解析、账单口径成本、模型能力表、按节点推理强度、多模型容灾与熔断（`FallbackLLM`）、流式解析 `answer` 字段（`AnswerTextStream`） |
+| 工具 | akshare / efinance / tushare 等数据接口、Postgres 全文检索 | 9 个类型化工具的 Pydantic schema、参数修复与可执行的错误提示、重复调用拦截、数据源降级链与熔断、来源与降级标注 |
+| 校验与合规 | 无（没有现成库做「数字对证据」） | 逐句绑定的数字校验（单位、精度、正负号、市场指标的来源优先级）、按子句修复、合规改写、语言守卫（语言识别用 lingua）、「声明核查」接口 |
+| 安全 | 无 | 不可信数据信封、NFKC 规范化 + 不可见字符剥离的注入过滤、会话归属隔离（按 API Key 哈希）、限流、请求体上限 |
+| 协议 | `mcp` SDK 的低层 `Server`、`a2a-sdk` | 让 MCP 与 ToolRegistry 共用同一份 schema；A2A agent card 与任务映射 |
+| 可观测 | OpenTelemetry SDK、prometheus-client | trace 结构（节点 span、LLM 调用的上下文构成与 JSON 解析状态）、按归属过滤的最近 trace、用户反馈指标 |
+| 评测 | pytest | 整个评测框架：回放快照、一票否决指标、pass^k、消融、Prompt A/B、校验器压力测试、红队（dev / holdout / holdout2 攻击集）、故障注入、路由评测、置信区间 |
+| 前端 | React 19、Vite、Tailwind v4、Radix、Motion、Lightweight Charts | 执行过程时间线、证据面板、流式渲染、反馈与声明核查界面 |
+
+一句话：**框架负责「怎么跑」（状态、检查点、协议、渲染），项目的核心价值在「跑出来的东西能不能信」**：路由、校验、合规、评测都是自研的。
+
 ## 3. 失败案例分析
 
 这些问题都是在实现和评测过程中实际遇到的，每个都附带根因和修复方法。
