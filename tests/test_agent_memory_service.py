@@ -202,3 +202,55 @@ def test_session_lock_map_is_bounded(monkeypatch):
         assert len(service._locks) <= 4 and "keep" in service._locks  # a held lock is never evicted
     finally:
         held.release()
+
+
+def test_plural_and_skip_back_coreference():
+    from query_intelligence.agent.memory import resolve_coreference
+
+    turns = [
+        {"query": "茅台市盈率", "entities": [{"name": "贵州茅台", "symbol": "600519.SH"}]},
+        {"query": "五粮液市盈率", "entities": [{"name": "五粮液", "symbol": "000858.SZ"}]},
+        {"query": "最新CPI", "entities": []},
+    ]
+
+    assert resolve_coreference("这两家哪个估值更高", turns)[0] == "贵州茅台和五粮液哪个估值更高"
+    assert resolve_coreference("Compare both on P/B", turns)[0] == "Compare 贵州茅台 and 五粮液 on P/B"
+    # the macro turn in between has no entity: "它" resolves to the last named company
+    assert resolve_coreference("它的市净率呢", turns)[0] == "五粮液的市净率呢"
+    assert resolve_coreference("这两家怎么样", turns[:1]) is None
+
+
+def test_session_memory_carries_constraints_and_holdings():
+    from query_intelligence.agent.memory import session_memory
+
+    turns = [
+        {"query": "我是保守型投资者，只看A股，我持有招商银行", "entities": []},
+        {"query": "茅台市盈率", "entities": [{"name": "贵州茅台", "symbol": "600519.SH"}]},
+    ]
+
+    memory = session_memory(turns, "它能长期持有吗")
+
+    assert memory["user_constraints"] == ["risk:conservative", "scope:a_shares_only", "horizon:long"]
+    assert memory["stated_holdings"] == ["招商银行"]
+    assert memory["recent_targets"] == [{"name": "贵州茅台", "symbol": "600519.SH"}]
+
+
+def test_agent_prompt_includes_session_memory():
+    llm = ScriptedLLM(
+        [
+            final_turn({"answer": "PE(TTM) 为 24.6 [fundamental_600519.SH]。", "evidence_used": []}),
+            final_turn({"answer": "最新收盘价 1409.5 元 [price_600519.SH]。", "evidence_used": ["price_600519.SH"]}),
+        ]
+    )
+    service, _ = _service(llm)
+
+    service.chat("我是保守型投资者，贵州茅台的市盈率是多少", session_id="mem", mode="workflow")
+    service.chat("茅台为什么跌了", session_id="mem", mode="agent")
+
+    user_messages = [
+        message["content"]
+        for request in llm.requests
+        for message in request["messages"]
+        if message["role"] == "user" and "Session memory" in str(message["content"])
+    ]
+    assert user_messages and "risk:conservative" in user_messages[0]

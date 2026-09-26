@@ -96,14 +96,52 @@ def listed_entities(nlu_result: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+_PLURAL_ZH = re.compile(r"这两家公司|这两家|这两只|这两个|两者|它们|他们俩|二者")
+_PLURAL_EN = re.compile(r"\b(?:both of them|both|them|these two|the two)\b", re.IGNORECASE)
+
+
+def recent_entities(turns: list[dict[str, Any]], limit: int = 6) -> list[dict[str, Any]]:
+    """Distinct listed entities mentioned in the session, most recent first."""
+    seen: dict[str, dict[str, Any]] = {}
+    for turn in reversed(turns):
+        for entity in turn.get("entities") or []:
+            symbol = entity.get("symbol")
+            if symbol and symbol not in seen:
+                seen[symbol] = {"name": entity.get("name") or symbol, "symbol": symbol}
+    return list(seen.values())[:limit]
+
+
 def resolve_coreference(query: str, turns: list[dict[str, Any]]) -> tuple[str, str] | None:
-    """Rewrite a pronoun to the last turn's single listed entity: ``(rewritten_query, reason)``."""
+    """Rewrite a pronoun to entities from earlier turns: ``(rewritten_query, reason)``.
+
+    "它/it/its" resolves to the most recent turn that named exactly one listed entity (skipping turns
+    without entities, e.g. a macro question in between); "这两家/它们/both/them" resolves to the two most
+    recently named entities. Ambiguous cases return ``None`` and the router asks for clarification.
+    """
     if not turns:
         return None
-    previous = [entity for entity in turns[-1].get("entities") or [] if entity.get("symbol")]
-    if len(previous) != 1:
+    plural = _PLURAL_ZH.search(query) or _PLURAL_EN.search(query)
+    if plural:
+        entities = recent_entities(turns, limit=2)
+        if len(entities) != 2:
+            return None
+        zh = bool(_PLURAL_ZH.search(query))
+        joined = (
+            f"{entities[1]['name']}和{entities[0]['name']}"
+            if zh
+            else f"{entities[1]['name']} and {entities[0]['name']}"
+        )
+        rewritten = f"{query[: plural.start()]}{joined}{query[plural.end() :]}"
+        return rewritten, f"coreference:{plural.group(0)}->{joined}"
+    single = None
+    for turn in reversed(turns[-MAX_CONTEXT_TURNS:]):
+        listed = [entity for entity in turn.get("entities") or [] if entity.get("symbol")]
+        if listed:
+            single = listed[0] if len(listed) == 1 else None
+            break
+    if single is None:
         return None
-    name = str(previous[0].get("name") or previous[0]["symbol"])
+    name = str(single.get("name") or single["symbol"])
     possessive = _POSSESSIVE_EN.search(query)
     if possessive:
         rewritten = f"{query[: possessive.start()]}{name}'s{query[possessive.end() :]}"
@@ -114,6 +152,44 @@ def resolve_coreference(query: str, turns: list[dict[str, Any]]) -> tuple[str, s
             rewritten = f"{query[: match.start()]}{name}{query[match.end() :]}"
             return rewritten, f"coreference:{match.group(0)}->{name}"
     return None
+
+
+_CONSTRAINTS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("risk:conservative", re.compile(r"保守|稳健|低风险|风险承受能力(?:较)?低|\bconservative\b|\blow risk\b", re.I)),
+    ("risk:aggressive", re.compile(r"激进|高风险|风险承受能力(?:较)?高|\baggressive\b|\bhigh risk\b", re.I)),
+    ("horizon:long", re.compile(r"长期|长线|中长期|\blong[- ]term\b", re.I)),
+    ("horizon:short", re.compile(r"短期|短线|\bshort[- ]term\b", re.I)),
+    ("scope:a_shares_only", re.compile(r"只看A股|只关注A股|\bonly A-?shares\b", re.I)),
+    ("scope:etf_only", re.compile(r"只看ETF|只买ETF|\bonly ETFs?\b", re.I)),
+)
+_HOLDING = re.compile(
+    r"我(?:持有|买了|拿着|手里有)(?P<what>[^，,。.？?！!]{2,12})|\bI (?:own|hold|bought) (?P<en>[A-Za-z .]{2,30})"
+)
+
+
+def session_memory(turns: list[dict[str, Any]], current_query: str = "") -> dict[str, Any]:
+    """Compact memory of the session for the LLM: recent targets and constraints the user stated.
+
+    Extractive and rule-based (no LLM), bounded in size; constraints are carried forward from any earlier
+    question so "我是保守型投资者" still applies five turns later.
+    """
+    queries = [str(turn.get("query") or "") for turn in turns] + ([current_query] if current_query else [])
+    constraints: list[str] = []
+    holdings: list[str] = []
+    for query in queries:
+        for label, pattern in _CONSTRAINTS:
+            if pattern.search(query) and label not in constraints:
+                constraints.append(label)
+        for match in _HOLDING.finditer(query):
+            what = (match.group("what") or match.group("en") or "").strip()
+            if what and what not in holdings:
+                holdings.append(what)
+    return {
+        "turns_so_far": len(turns),
+        "recent_targets": recent_entities(turns),
+        "user_constraints": constraints,
+        "stated_holdings": holdings[:5],
+    }
 
 
 def apply_clarification(query: str, reply: str) -> tuple[str, str]:
