@@ -30,7 +30,6 @@ import argparse
 import json
 import random
 import re
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -44,6 +43,7 @@ from .runner import (
     DEFAULT_SNAPSHOT,
     DEFAULT_TASKS,
     EVAL_TODAY,
+    _command,
     _display_path,
     _git_commit,
     build_offline_service,
@@ -213,8 +213,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "perturbations": list(PERTURBATIONS),
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "command": "python -m evaluation.agent_eval.verifier_stress "
-            + " ".join(argv if argv is not None else sys.argv[1:]),
+            "command": _command("evaluation.agent_eval.verifier_stress", argv),
         },
         **results,
     }

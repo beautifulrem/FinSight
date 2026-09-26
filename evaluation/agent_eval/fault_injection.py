@@ -13,7 +13,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
 import threading
 import time
 from collections.abc import Callable
@@ -31,7 +30,15 @@ from query_intelligence.agent.state import AgentConfig
 from query_intelligence.agent.tools import ToolFailure, ToolOutput, ToolRegistry, ToolSpec, TransientToolError
 from query_intelligence.agent.verifier import verify_answer
 
-from .runner import DEFAULT_OUTPUT_DIR, DEFAULT_SNAPSHOT, EVAL_TODAY, _git_commit, build_offline_service, build_registry
+from .runner import (
+    DEFAULT_OUTPUT_DIR,
+    DEFAULT_SNAPSHOT,
+    EVAL_TODAY,
+    _command,
+    _git_commit,
+    build_offline_service,
+    build_registry,
+)
 
 QUESTIONS = [
     "贵州茅台最新收盘价是多少？",
@@ -281,8 +288,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "questions": QUESTIONS,
-            "command": "python -m evaluation.agent_eval.fault_injection "
-            + " ".join(argv if argv is not None else sys.argv[1:]),
+            "command": _command("evaluation.agent_eval.fault_injection", argv),
         },
         "overall_graceful_rate": round(
             sum(item["graceful_rate"] * item["runs"] for item in scenarios) / sum(item["runs"] for item in scenarios), 4

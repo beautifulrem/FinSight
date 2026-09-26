@@ -24,7 +24,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
 import time
 import unicodedata
 from collections.abc import Callable
@@ -46,6 +45,7 @@ from .runner import (
     DEFAULT_OUTPUT_DIR,
     DEFAULT_SNAPSHOT,
     EVAL_TODAY,
+    _command,
     _git_commit,
     _make_llm,
     build_offline_service,
@@ -442,8 +442,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "prompts": prompt_refs(),
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "command": "python -m evaluation.agent_eval.redteam "
-            + " ".join(argv if argv is not None else sys.argv[1:]),
+            "command": _command("evaluation.agent_eval.redteam", argv),
         },
         "paths": paths,
     }
