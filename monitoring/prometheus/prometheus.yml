@@ -1,0 +1,16 @@
+# Prometheus for the FinSight monitoring profile (docker/docker-compose.yml --profile monitoring).
+global:
+  scrape_interval: 5s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: finsight
+    metrics_path: /metrics
+    static_configs:
+      # The compose service name; set QI_API_KEYS-protected deployments to scrape with a bearer token.
+      - targets: ["app:8000"]
+        labels:
+          service: finsight-api

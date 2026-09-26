@@ -1,0 +1,21 @@
+session: xreplica1790428937
+turn 1 -> finsight-api-79fb6b448f-24ktk
+{
+ "status": "ok",
+ "session_id": "xreplica1790428937",
+ "trace_id": "acffbed91dce4e708432c2005f08acd8",
+ "route": "workflow",
+ "answer": "根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒]。"
+}
+entities: [{'name': '贵州茅台', 'symbol': '600519.SH'}, {'name': '市盈率', 'symbol': None}]
+turn 2 -> finsight-api-79fb6b448f-6mc86
+{
+ "status": "ok",
+ "session_id": "xreplica1790428937",
+ "trace_id": "42192b1a00364a4a86766edf9ffaa979",
+ "route": "workflow",
+ "answer": "根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒]。"
+}
+entities: [{'name': '贵州茅台', 'symbol': '600519.SH'}]
+session history read back through finsight-api-79fb6b448f-24ktk
+{"session_id": "xreplica1790428937", "turns": [{"query": "贵州茅台的市盈率是多少？", "route": "workflow", "answer": "根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒]。", "entities": [{"name": "贵州茅台", "symbol": "600519.SH"}, {"name": "市盈率", "symbol": null}], "evidence_used": ["fundamental_600519.SH", "industry_白酒"]}, {"query": "它的市净率呢", "route": "workflow", "answer": "根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒]。", "entities": [{"name": "贵州茅台", "symbol": "600519.SH"}], "evidence_used": ["fundamental_600519.SH", "industry_白酒"]}], "pending_clarification": null}

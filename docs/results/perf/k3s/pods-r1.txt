@@ -1,0 +1,3 @@
+NAME                            READY   STATUS    RESTARTS   AGE   IP           NODE     NOMINATED NODE   READINESS GATES
+finsight-api-79fb6b448f-24ktk   1/1     Running   0          26m   10.42.0.15   colima   <none>           <none>
+finsight-postgres-0             1/1     Running   0          20h   10.42.0.8    colima   <none>           <none>

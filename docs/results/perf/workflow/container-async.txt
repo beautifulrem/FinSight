@@ -1,0 +1,10 @@
+finsight:merged QI_USE_LIVE_MACRO=0
+QI_AGENT_DURABILITY=async
+QI_AGENT_CHECKPOINT_DB=/app/state/agent.sqlite
+total 66864
+drwxr-xr-x 1 finsight finsight     4096 Sep 26 10:00 .
+drwxr-xr-x 1 root     root         4096 Sep 26 09:53 ..
+-rw-r--r-- 1 finsight finsight 64270336 Sep 26 10:03 agent.sqlite
+-rw-r--r-- 1 finsight finsight    32768 Sep 26 10:02 agent.sqlite-shm
+-rw-r--r-- 1 finsight finsight  4152992 Sep 26 10:03 agent.sqlite-wal
+finsight-perf cpu=22.28% mem=1.55GiB / 7.738GiB

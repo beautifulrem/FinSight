@@ -124,7 +124,11 @@ class RetrievalPipeline:
             market_provider = TushareMarketProvider.from_token(settings.tushare_token)
             api_retriever = APIRetriever(load_structured_data())
         elif settings.use_live_market:
-            market_provider = AKShareMarketProvider.from_import(timeout=settings.request_timeout_seconds, runtime=runtime)
+            market_provider = AKShareMarketProvider.from_import(
+                timeout=settings.request_timeout_seconds,
+                runtime=runtime,
+                cross_check_fundamentals=settings.source_cross_check_fundamentals,
+            )
             api_retriever = APIRetriever(load_structured_data())
         else:
             structured = load_structured_data()
@@ -250,6 +254,7 @@ class RetrievalPipeline:
         structured_items = self._merge_live_macro_items(query_bundle, snapshot_items, macro_failures)
         requested_live_sources = self._requested_live_structured_sources(query_bundle)
         if not (self.market_provider and query_bundle.get("symbols") and requested_live_sources):
+            structured_items = self._refresh_stale_industry_items(structured_items)
             return self._annotate_provenance(structured_items, {}, macro_failures)
 
         product_type = query_bundle.get("product_type", "stock")
@@ -349,7 +354,68 @@ class RetrievalPipeline:
             + live_fundamental_items
             + live_industry_items
         )
+        items = self._refresh_stale_industry_items(items)
         return self._annotate_provenance(items, live_failure_reasons, macro_failures)
+
+    # ---- stale snapshot industry records -------------------------------------------
+
+    industry_board_ttl_s = 300.0
+
+    def _refresh_stale_industry_items(self, items: list[dict]) -> list[dict]:
+        """With live data on, never pass a stale snapshot industry record off as current.
+
+        The shipped snapshot has industry tiles (for example ``白酒`` dated 2026-04) keyed by board name.
+        When live data is enabled and such a record is stale, it is replaced by the live THS industry
+        index for the same board. If that fails, the snapshot is kept but labelled: snapshot provenance
+        with a reason, and an ``industry_snapshot_stale`` warning that reaches the retrieval warnings.
+        """
+        if self.market_provider is None:
+            return items
+        refreshed = []
+        for item in items:
+            payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+            is_snapshot = (
+                item.get("source_type") == "industry_sql"
+                and not isinstance(payload.get("provenance"), dict)
+                and not (item.get("source_name") or item.get("provider"))
+            )
+            if not is_snapshot or freshness("industry", payload.get("trade_date")) == "fresh":
+                refreshed.append(item)
+                continue
+            name = str(payload.get("industry_name") or "")
+            live = self._fetch_industry_board(name) if name else None
+            if live:
+                refreshed.append({**item, "source_name": live.get("source_name"), "provider": "ths.industry", "payload": live})
+                continue
+            warnings = [*payload.get("provider_warnings", []), f"industry_snapshot_stale:{name}:{payload.get('trade_date')}"]
+            provenance = snapshot_provenance(
+                kind="industry",
+                as_of=payload.get("trade_date"),
+                reason="live industry index unavailable",
+                source_name=payload.get("source_name"),
+            )
+            refreshed.append({**item, "payload": {**payload, "provider_warnings": warnings, "provenance": provenance}})
+        return refreshed
+
+    def _fetch_industry_board(self, name: str) -> dict | None:
+        fetch = getattr(self.market_provider, "fetch_industry_board", None)
+        if not callable(fetch):
+            return None
+        runtime = self.source_runtime
+        key = f"industry_board:{name}"
+        if runtime.cache_enabled:
+            cached = runtime.cache.get(key)
+            if cached is not None:
+                provenance = cached.get("provenance")
+                return {**cached, "provenance": {**provenance, "cache_hit": True}} if isinstance(provenance, dict) else cached
+        try:
+            live = fetch(name)
+        except Exception as exc:  # a failed refresh must never fail the query
+            logger.warning("Industry board refresh failed for %s: %s", name, exc)
+            return None
+        if live and runtime.cache_enabled:
+            runtime.cache.put(key, live, self.industry_board_ttl_s)
+        return live
 
     # ---- live market bundles: TTL cache + last known good -------------------------
 

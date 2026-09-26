@@ -1,0 +1,3 @@
+finsight-api-79fb6b448f-24ktk   971m   1600Mi   
+finsight-postgres-0             28m    193Mi    
+loadgen-r1-u32                  69m    31Mi     

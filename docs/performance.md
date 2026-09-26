@@ -1,56 +1,190 @@
 # Performance and Load
 
-This page records measured service throughput and latency, the bottleneck found, and what is known about scaling. Every number comes from `scripts/load_test.py` runs listed below; LLM-mode latency and cost are reported separately in [agent-eval.md](agent-eval.md), because they are dominated by the provider.
+This page records measured throughput, latency and cost for the two answer paths, the checkpointing
+bottleneck and its fix, and multi-replica scaling on k3s. Every number links to a committed JSON file
+under [`docs/results/perf/`](results/perf/) that records the command, the run time, the load
+generator's commit, the server build and the host load average at the start.
 
-## Setup
+## Test host and builds
 
-- Image: `docker build -f docker/Dockerfile -t finsight:dev .` (python:3.13-slim runtime, 2 GB).
-- Container: `docker run -p 8001:8000 -e QI_USE_LIVE_MARKET=0 -e QI_USE_LIVE_NEWS=0 -e QI_USE_LIVE_ANNOUNCEMENT=0 -e QI_USE_LIVE_MACRO=0 finsight:dev`. One uvicorn process, sessions in SQLite (`QI_AGENT_CHECKPOINT_DB=/app/state/agent.sqlite`, the image default).
-- Host: Apple-silicon Mac, Docker via colima (4 vCPU, 8 GB). The host was also running an online evaluation at the time, so absolute numbers are conservative.
-- Load: `python -m scripts.load_test --base-url http://127.0.0.1:8001 --users N --requests 20`. Closed loop: N clients each send 20 requests back to back to `POST /agent/chat` in `workflow` mode (classical NLU, deterministic planner, offline tools, template answer, verifier, compliance; no LLM). Questions rotate over 8 kinds: price, valuation, comparison, "why", English, macro, out-of-scope, and a dangling-reference clarification. Every request uses a new session.
-- Date: 2026-09-25.
+- Host: Apple-silicon Mac (10 cores), Docker and k3s v1.35 via colima (VM with 4 vCPU, 8 GB).
+- **The host was not idle.** Other work (a blockchain node at 100% of one core, test suites and an
+  online evaluation from other worktrees) ran during every measurement; the load averages recorded in
+  the JSON files range from about 6 to 38. Absolute numbers are therefore conservative and noisy;
+  compare rows measured in the same block rather than across sections.
+- Server build for all "current" rows (2026-09-26): the merge of branch `r2-ops@8dc388b` with
+  `round2@d04a42d` plus [`deploy/patches/app-ops-wiring.patch`](../deploy/patches/app-ops-wiring.patch),
+  built as image `finsight:merged`. The "before" row is `git archive 0678585` (the commit before the
+  checkpoint fix) built as `finsight:before-0678585`.
+- Load generator: [`scripts/load_test.py`](../scripts/load_test.py), a closed loop: N clients each send
+  their requests back to back to `POST /agent/chat`, every request in a new session. Percentiles are
+  nearest-rank, so with fewer than 100 samples P99 is the maximum.
 
-## Results
+## 1. Workflow path (no LLM): the checkpointing fix, reproduced
 
-| Build | Users | Requests | Throughput (req/s) | P50 (ms) | P95 (ms) | P99 (ms) | Error rate |
-|---|---|---|---|---|---|---|---|
-| before: per-node checkpoints (SQLite) | 1 | 20 | 0.73 | 231 | 4584 | 15630 | 0.0 |
-| before: per-node checkpoints (SQLite) | 8 | 160 | 0.65 | 9055 | 38416 | 68702 | 0.0 |
-| before: per-node checkpoints (SQLite) | 32 | 640 | 3.02 | 7231 | 29995 | 38936 | 0.0 |
-| after: `durability="exit"` + trimmed final state (SQLite) | 1 | 20 | 8.36 | 30 | 663 | 685 | 0.0 |
-| after: `durability="exit"` + trimmed final state (SQLite) | 8 | 160 | 6.79 | 877 | 3203 | 5964 | 0.0 |
-| after: `durability="exit"` + trimmed final state (SQLite) | 32 | 640 | 6.17 | 4658 | 8393 | 11288 | 0.0 |
+Classical NLU, deterministic planner, offline tools, template answer, verifier and compliance; live
+data off. Questions rotate over price, valuation, comparison, "why", English, macro, out-of-scope and
+a dangling-reference clarification. One container per configuration with a fresh SQLite session file,
+20 requests per user. Driver: [`docker/perf_matrix.sh`](../docker/perf_matrix.sh).
 
-A single request in isolation takes 40–120 ms (0.5 s for English questions, whose NLU path is heavier).
+| Configuration | Users | Req | Throughput (req/s) | P50 (ms) | P95 (ms) | P99 (ms) | Errors | Session file after 820 req |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| before: commit `0678585` (per-step checkpoints, untrimmed state) | 1 | 20 | 3.93 | 86 | 1,169 | 1,550 | 0 | |
+| | 8 | 160 | 5.01 | 1,613 | 2,501 | 2,799 | 0 | |
+| | 32 | 640 | 4.51 | 6,121 | 12,816 | 14,740 | 0 | 64 MB |
+| current code, `QI_AGENT_DURABILITY=async` | 1 | 20 | 4.80 | 71 | 933 | 1,319 | 0 | |
+| | 8 | 160 | 4.94 | 1,659 | 2,376 | 2,574 | 0 | |
+| | 32 | 640 | 4.44 | 7,024 | 10,816 | 14,901 | 0 | 64 MB |
+| current code, `QI_AGENT_DURABILITY=exit` (default) | 1 | 20 | **6.47** | **43** | 733 | 1,095 | 0 | |
+| | 8 | 160 | **6.22** | 1,030 | 2,937 | 4,706 | 0 | |
+| | 32 | 640 | **5.16** | 5,494 | 12,298 | 18,843 | 0 | **9.4 MB** |
 
-## The bottleneck
+Files: `results/perf/workflow/load_test-{before-0678585,async,exit}-{1,8,32}.json`; container
+settings and `ls -la /app/state` in `container-*.txt`. Run 2026-09-26 09:56–10:06 UTC.
 
-Single requests were fast but the service collapsed under load, and the SQLite session file had grown to 65 MB after about 800 requests. A control container with the in-memory checkpointer (`QI_AGENT_CHECKPOINT_DB=`) served 3.9 req/s for one user instead of 0.7, which located the problem:
+What this shows, and what it does not:
 
-- Without an explicit durability mode LangGraph writes a checkpoint after every step — about 11 per run here — each holding the full state, including LLM messages, tool data and the tool log.
-- All writes go through one SQLite connection.
+- `durability="exit"` (one checkpoint per run) is the effective part of the fix. At the same commit,
+  `async` vs `exit` gives 4.8 → 6.5 req/s at one user, 4.9 → 6.2 at 8 and 4.4 → 5.2 at 32, and the
+  session file is 7x smaller (64 MB → 9.4 MB for the same 820 requests). The "before" build
+  (per-step checkpoints plus the untrimmed final state) behaves like `async`.
+- The P95/P99 tails at 8 and 32 users are **not** better with `exit` in this run. At 32 users every
+  configuration is CPU-bound in one process; the tail is dominated by queueing and by the host's other
+  load, which varied between runs (load average 6.4–9.3).
+- **Correction of the earlier figures.** The previous version of this page (2026-09-25) reported
+  0.73 req/s and P95 4.6 s "before" and 8.36 req/s "after" at one user, an 11x gain. That "before" run
+  had no committed artifact and was taken while an online evaluation ran on the same VM. The
+  reproduction above does not show an 11x gain: the measured effect is about 1.3–1.6x throughput at
+  low concurrency and a 7x smaller session store. The earlier "after" JSONs are kept for traceability
+  in `results/perf/workflow/history-2026-09-25/`.
 
-Two changes, both in `query_intelligence/agent/`:
+## 2. LLM agent path: throughput, latency and cost
 
-1. `AgentService` runs the graph with `durability="exit"` (`QI_AGENT_DURABILITY`, default `exit`; `async` and `sync` are the other LangGraph modes): one checkpoint per run and one at a clarification interrupt. The trade-off, documented by LangGraph, is that a crash in the middle of a run loses that turn; runs take seconds and the next turn starts from the last completed one.
-2. `finalize` clears the bulky turn-scoped working state (messages, tool log, LLM log) once the response has been assembled; the next turn resets it anyway.
+Server: the merged build run locally on port 8801 with `DEEPSEEK_MODEL=cline-pass/deepseek-v4.1-flash`,
+`QI_LLM_FALLBACK_MODELS=cline-pass/glm-5.3-flash`, the Cline gateway, live data off (offline snapshot,
+so the numbers measure the agent and the LLM rather than upstream sites), `mode=agent`, and the
+`research` question set: 8 answerable multi-tool questions (comparison, why, profitability, macro
+linkage, ETF, trend, English comparison, growth). Cost is the gateway-reported `usage.cost` summed per
+run and converted with `QI_LLM_USD_CNY=6.7489`, the CFETS USD/CNY central parity of 2026-09-24
+(中国外汇交易中心受权公布人民币汇率中间价: 1 USD = 6.7489 CNY; published on
+[finance.sina.com.cn](https://finance.sina.com.cn/jjxw/2026-09-24/doc-iniswvxc5391561.shtml) and in
+SAFE's central-parity table).
 
-Single-user throughput rose 11x (0.73 → 8.36 req/s) and P95 fell from 4.6 s to 0.66 s. The session file for the same request volume shrank from 65 MB to 9 MB.
+```bash
+source /tmp/llmenv.sh   # DEEPSEEK_* from .env; the key is never printed or committed
+QI_LLM_FALLBACK_MODELS=cline-pass/glm-5.3-flash QI_LLM_USD_CNY=6.7489 QI_RATE_LIMIT_PER_MINUTE=0 \
+  uvicorn query_intelligence.api.app:create_app --factory --port 8801
+python -m scripts.load_test --base-url http://127.0.0.1:8801 --mode agent --questions research \
+  --users 4 --requests 6 --usd-cny 6.7489 --questions-per-day 2000 --timeout 240
+```
 
-## Scaling: what is and is not measured
+| Users | Req | Throughput (req/s) | P50 (s) | P95 (s) | P99 (s) | HTTP errors | Answered by the agent LLM | Fell back to planner + template | Verified |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4 | 24 | 0.12 | 22.0 | 41.9 | 78.8 | 0 | 24 (100%) | 0 | 79% |
+| 8 | 40 | 0.42 | 18.8 | 38.1 | 43.3 | 0 | 26 (65%) | 14 | 80% |
+| 16 | 64 | 0.63 | 16.8 | 66.0 | 75.4 | 0 | 23 (36%) | 41 | 88% |
 
-- One process saturates at about 6–7 req/s in this setup. The work is CPU-bound Python (NLU, retrieval ranking, verification) under the GIL; the agent's I/O (tools, LLM) runs on threads.
-- A run with `--workers 3` on the same 4-vCPU VM did not improve throughput (4.1 req/s at 8 users, 5.8 at 32) while the host was busy with the evaluation, and the three processes share one SQLite file. That measurement is inconclusive and is not claimed as a result.
-- Horizontal scaling needs a checkpointer shared across processes or replicas (Postgres through `langgraph-checkpoint-postgres`, not implemented). The A2A task store and the in-memory trace buffer are also per process.
-- LLM modes are bounded by the provider: agent-mode P95 is in the tens of seconds, see [agent-eval.md](agent-eval.md). The API applies `QI_AGENT_REQUEST_TIMEOUT_S` (504) and the graph applies a run deadline.
+Files: `results/perf/agent/load_test-agent-{4,8,16}.json` (per-request route, model, tokens, cost) and
+`gateway-log-16-run2.json` (status and latency of every gateway call during the 16-user run, recorded
+by the pass-through proxy from `scripts/chaos_drill.py`; no headers or prompts). Run 2026-09-26
+13:25–13:43 UTC, host load average 17–38.
+
+**The ceiling is the gateway's rate limit, not the service.** From 8 concurrent users on, the Cline
+gateway answered some calls with HTTP 429 (a rate-limit page). In the 16-user run 81 of 190 gateway
+calls were 429, for both the primary and the fallback model, which share the account limit (an
+evaluation in another worktree used the same key at the same time). A first 16-user run got 429 on
+every call (`load_test-agent-16-run1-all-llm-errors.json`: 64 requests, 0 LLM answers). There were
+**no failed requests**: when both models were rate-limited the graph fell back to the deterministic
+planner and template answer (`degraded: llm_error`). That is why throughput rises and P50 falls with
+concurrency: a growing share of answers never waited for an LLM. The requests that did get LLM
+answers had a P50 of 22.7 s at 4 users, 23.8 s at 8 and 39.3 s at 16 users (retries with backoff on
+429). Scaling this path needs a higher gateway quota or several keys/providers, not more replicas.
+
+**Cost.** The 4-user run is the clean cost measurement because every answer came from the agent loop:
+
+| | Value |
+|---|---|
+| LLM calls per question | 4.1 |
+| Tokens per question | 19.8k prompt (56% served from the provider's prompt cache) + 2.6k completion |
+| Cost per question | $0.00291 = ¥0.0197 |
+| **Cost per 1,000 agent questions** | **¥19.7** ($2.91) |
+| Monthly at 2,000 questions/day, all on the agent path | **¥1,180** |
+| Monthly at 10,000 questions/day | ¥5,900 |
+
+With the router in `auto` mode, lookups, refusals and clarifications never reach the agent loop, so
+these are upper bounds for the same traffic. Per LLM-answered question, the 8- and 16-user runs cost
+¥15.3 and ¥13.0 per 1,000 (fewer revision loops among the answers that got through).
+
+**Latency tail.** Traces show where the tail comes from. In the slowest agent trace of the monitoring
+run (98 s), the first draft failed verification and the `llm.revise` call alone took 74 s
+([Jaeger screenshot](assets/ops/jaeger-trace.png)). During the LLM chaos drill, answers on the fallback
+model took 48–81 s and one hit the API's 120 s request timeout (504), because GLM-5.3-flash was 2–7x
+slower per call than DeepSeek (see [a2a-and-observability.md](a2a-and-observability.md#chaos-drill)).
+A shorter per-call timeout for revise and fallback calls is the next latency fix (agent layer).
+
+## 3. Multi-replica scaling on k3s with Postgres sessions
+
+Setup: `deploy/k8s/finsight.yaml` in k3s (colima), image `finsight:merged`, sessions in the Postgres
+StatefulSet (`QI_AGENT_CHECKPOINT_DB=postgresql://...`), API pods limited to 2 CPU each on a 4-vCPU
+node. For each replica count the HPA is pinned, every pod is warmed with the question rotation (NLU
+models load lazily), and a load-generator **pod inside the cluster** (0.5 CPU) runs
+`scripts/load_test.py` against `Service/finsight-api` with fresh connections, so kube-proxy spreads
+requests over pods. Workflow mode, live data off, 20 requests per user. Driver:
+[`deploy/k8s/scale_test.sh`](../deploy/k8s/scale_test.sh).
+
+| Replicas | Users | Req | Throughput (req/s) | P50 (ms) | P95 (ms) | P99 (ms) | Errors | Runs per pod |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | 8 | 160 | 3.04 | 1,971 | 5,912 | 13,213 | 0 | 141 |
+| 1 | 32 | 640 | 3.75 | 7,731 | 13,702 | 18,420 | 0 | 561 |
+| 2 | 8 | 160 | 4.32 | 694 | 4,654 | 11,107 | 0 | 72 / 69 |
+| 2 | 32 | 640 | 6.07 | 4,018 | 13,809 | 21,209 | 0 | 275 / 286 |
+| 3 | 8 | 160 | 10.17 | 275 | 3,081 | 3,812 | 0 | 50 / 46 / 45 |
+| 3 | 32 | 640 | 11.72 | 2,017 | 6,253 | 8,119 | 0 | 199 / 166 / 196 |
+
+Files: `results/perf/k3s/load_test-k3s-r{1,2,3}-u{8,32}.json`; `pods-r*.txt` (`kubectl get pods -o
+wide`); `top-r*-u*.txt` (`kubectl top pods` during each run: every API pod at 0.8–1.1 CPU under 32
+users, one core per process); `runs-per-pod-*.txt` (completed runs per pod from each pod's `/metrics`
+before and after each run; clarifications are not counted as runs). Run 2026-09-26 10:34–10:45 UTC.
+
+Reading: one process is CPU-bound at about one core (GIL). The Service spreads load evenly (per-pod
+run counts above), and at 32 users throughput grows 3.75 → 6.07 → 11.72 req/s from 1 to 3 replicas
+with zero errors, while P95 falls from 13.7 s to 6.3 s. The 3-replica gain looks super-linear against
+one replica; the 1-replica rows were measured while the host was busier (the same image served
+5.2 req/s at 32 users in Docker earlier the same day). Read the result as "roughly linear up to the
+node's cores", not as a 3.1x speed-up. An earlier attempt without per-pod warm-up is not reported:
+the first English questions on a new pod take seconds and dominated its tail.
+
+### Cross-replica session evidence
+
+`results/perf/k3s/cross-replica-session.txt` (2026-09-26): turn 1 "贵州茅台的市盈率是多少？" was sent to
+pod `…-24ktk` through a port-forward to that pod only, and turn 2 "它的市净率呢" to pod `…-6mc86`.
+
+- Turn 2 resolved 它 → 贵州茅台 (600519.SH).
+- `GET /agent/sessions/<id>` on the first pod returns both turns.
+- Each pod's own trace directory holds exactly one of the turns (`cross-replica-pod-logs.txt`:
+  turn_index 0 on `…-24ktk`, turn_index 1 on `…-6mc86`, plus each pod's access-log line).
+- `cross-replica-postgres.txt` shows 2 checkpoints for the thread in Postgres.
+
+Only the shared checkpointer can carry the entity from one pod to the other.
+
+**The Postgres checkpointer is implemented.** The previous version of this page said it was "not
+implemented". That was wrong: `QI_AGENT_CHECKPOINT_DB=postgresql://...` selects
+`langgraph-checkpoint-postgres` with a psycopg pool (`agent/memory.py`),
+`tests/test_agent_checkpoint_postgres.py` covers it, and the k3s runs above use it.
+
+Still per replica: the A2A task store, the in-memory trace ring behind `/agent/traces` (export OTLP
+for a shared view, see [a2a-and-observability.md](a2a-and-observability.md)), the rate limiter, and
+the TTL caches of tools and live sources.
 
 ## Reproducing
 
 ```bash
-docker build -f docker/Dockerfile -t finsight:dev .
-docker run -d --name finsight -p 8001:8000 \
-  -e QI_USE_LIVE_MARKET=0 -e QI_USE_LIVE_NEWS=0 -e QI_USE_LIVE_ANNOUNCEMENT=0 -e QI_USE_LIVE_MACRO=0 finsight:dev
-for users in 1 8 32; do python -m scripts.load_test --base-url http://127.0.0.1:8001 --users $users --requests 20; done
+docker build -f docker/Dockerfile -t finsight:merged .
+docker/perf_matrix.sh                                   # section 1 (also needs finsight:before-0678585)
+IMAGE=finsight:merged OUT=docs/results/perf/k3s deploy/k8s/scale_test.sh   # section 3
+SKIP_LOAD=1 deploy/k8s/scale_test.sh                    # only the cross-replica session check
 ```
 
-`QI_AGENT_DURABILITY=async` (or `sync`) restores per-step checkpoints; the "before" rows also kept the untrimmed final state (commit `0678585`).
+`QI_AGENT_DURABILITY=async` (or `sync`) restores per-step checkpoints. The trade-off of `exit`,
+documented by LangGraph, is that a crash in the middle of a run loses that turn; runs take seconds
+and the next turn starts from the last completed one.
