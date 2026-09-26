@@ -14,15 +14,15 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "9d56f90-dirty",
-  "run_at": "2026-09-26T14:24:29+00:00",
+  "commit": "da3ec8b",
+  "run_at": "2026-09-26T18:51:29+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 162.7,
+  "wall_seconds": 71.6,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
-  "tasks": 207,
-  "turns": 220,
+  "tasks": 216,
+  "turns": 235,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -42,14 +42,14 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.757,
+  "tool_precision": 0.7417,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 112.91,
-  "latency_ms_p95": 1497.51,
+  "latency_ms_p50": 41.57,
+  "latency_ms_p95": 710.54,
   "llm_calls_per_turn": 0.0,
   "tokens_per_turn": 0.0,
   "reasoning_tokens_per_turn": 0.0,
@@ -64,71 +64,71 @@
  },
  "by_category": {
   "clarify": {
-   "tasks": 10,
+   "tasks": 13,
    "task_success": 1.0,
-   "latency_ms_p95": 1760.93
+   "latency_ms_p95": 688.32
   },
   "compare": {
    "tasks": 27,
    "task_success": 1.0,
-   "latency_ms_p95": 1717.56
+   "latency_ms_p95": 770.78
   },
   "compliance": {
    "tasks": 15,
    "task_success": 1.0,
-   "latency_ms_p95": 1661.24
+   "latency_ms_p95": 588.47
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 2013.27
+   "latency_ms_p95": 558.0
   },
   "fact": {
    "tasks": 55,
    "task_success": 1.0,
-   "latency_ms_p95": 1365.97
+   "latency_ms_p95": 748.85
   },
   "macro_link": {
    "tasks": 14,
    "task_success": 1.0,
-   "latency_ms_p95": 1115.94
+   "latency_ms_p95": 806.94
   },
   "missing_data": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 411.3
+   "latency_ms_p95": 59.34
   },
   "multi_turn": {
-   "tasks": 13,
+   "tasks": 19,
    "task_success": 1.0,
-   "latency_ms_p95": 1335.06
+   "latency_ms_p95": 701.8
   },
   "out_of_scope": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 62.62
+   "latency_ms_p95": 18.46
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 1202.19
+   "latency_ms_p95": 419.68
   },
   "why": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 1401.87
+   "latency_ms_p95": 802.23
   }
  },
  "by_language": {
   "en": {
-   "tasks": 57,
+   "tasks": 60,
    "task_success": 1.0,
-   "latency_ms_p95": 1695.69
+   "latency_ms_p95": 773.26
   },
   "zh": {
-   "tasks": 150,
+   "tasks": 156,
    "task_success": 1.0,
-   "latency_ms_p95": 1302.16
+   "latency_ms_p95": 617.08
   }
  },
  "failed_checks": {},
@@ -296,6 +296,15 @@
   "multi_turn_en_0": "1",
   "multi_turn_en_1": "1",
   "multi_turn_en_2": "1",
+  "multi_turn_ellipsis_zh_0": "1",
+  "multi_turn_ellipsis_zh_1": "1",
+  "multi_turn_ellipsis_zh_2": "1",
+  "multi_turn_ellipsis_zh_3": "1",
+  "multi_turn_ellipsis_en_4": "1",
+  "multi_turn_ellipsis_en_5": "1",
+  "clarify_ellipsis_zh_0": "1",
+  "clarify_ellipsis_zh_1": "1",
+  "clarify_ellipsis_en_2": "1",
   "ood_zh_0": "1",
   "ood_zh_1": "1",
   "ood_zh_2": "1",
@@ -344,8 +353,8 @@
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "419b0bfbafd8eb91",
-  "bytes": 353797,
-  "slimmed_at": "2026-09-26T14:24:30+00:00"
+  "sha256_16": "e101128b42e8777b",
+  "bytes": 375147,
+  "slimmed_at": "2026-09-26T18:51:29+00:00"
  }
 }

@@ -14,42 +14,42 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "9d56f90-dirty",
-  "run_at": "2026-09-26T14:26:08+00:00",
+  "commit": "da3ec8b-dirty",
+  "run_at": "2026-09-26T18:52:10+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 90.3,
+  "wall_seconds": 38.7,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out outputs/agent_eval/gate-holdout.json"
  },
  "summary": {
   "tasks": 53,
   "turns": 56,
   "repeats": 1,
-  "task_success": 0.8679,
-  "pass^1": 0.8679,
+  "task_success": 0.9057,
+  "pass^1": 0.9057,
   "ci": {
    "task_success": [
-    0.7736,
-    0.9434
+    0.8302,
+    0.9811
    ],
    "pass^1": [
-    0.7736,
-    0.9434
+    0.8302,
+    0.9811
    ]
   },
   "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
-  "turn_success": 0.875,
+  "turn_success": 0.9107,
   "behavior_accuracy": 1.0,
-  "fact_recall": 0.925,
-  "fact_stated": 0.925,
-  "tool_recall": 0.95,
-  "tool_precision": 0.7482,
+  "fact_recall": 0.975,
+  "fact_stated": 0.975,
+  "tool_recall": 0.975,
+  "tool_precision": 0.7695,
   "compliance_clean": 1.0,
   "hedged_when_required": 0.6364,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 80.28,
-  "latency_ms_p95": 1959.71,
+  "latency_ms_p50": 36.31,
+  "latency_ms_p95": 709.16,
   "llm_calls_per_turn": 0.0,
   "tokens_per_turn": 0.0,
   "reasoning_tokens_per_turn": 0.0,
@@ -66,83 +66,68 @@
   "clarify": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 892.06
+   "latency_ms_p95": 552.28
   },
   "compare": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 2028.97
+   "latency_ms_p95": 616.01
   },
   "compliance": {
    "tasks": 4,
    "task_success": 0.75,
-   "latency_ms_p95": 223.91
+   "latency_ms_p95": 93.58
   },
   "fact": {
    "tasks": 21,
-   "task_success": 0.9048,
-   "latency_ms_p95": 1234.68
+   "task_success": 0.9524,
+   "latency_ms_p95": 714.02
   },
   "macro_link": {
    "tasks": 3,
    "task_success": 0.3333,
-   "latency_ms_p95": 191.86
+   "latency_ms_p95": 105.06
   },
   "missing_data": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 91.08
+   "latency_ms_p95": 46.28
   },
   "multi_turn": {
    "tasks": 3,
-   "task_success": 0.6667,
-   "latency_ms_p95": 189.14
+   "task_success": 1.0,
+   "latency_ms_p95": 120.44
   },
   "out_of_scope": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 33.68
+   "latency_ms_p95": 18.05
   },
   "why": {
    "tasks": 4,
    "task_success": 0.75,
-   "latency_ms_p95": 461.69
+   "latency_ms_p95": 121.42
   }
  },
  "by_language": {
   "en": {
    "tasks": 15,
    "task_success": 0.8,
-   "latency_ms_p95": 10089.53
+   "latency_ms_p95": 5080.37
   },
   "zh": {
    "tasks": 38,
-   "task_success": 0.8947,
-   "latency_ms_p95": 1234.68
+   "task_success": 0.9474,
+   "latency_ms_p95": 576.42
   }
  },
  "failed_checks": {
   "hedged": 4,
-  "facts": 3,
-  "required_tools": 2,
+  "facts": 1,
+  "required_tools": 1,
   "any_of_tools": 1
  },
  "failures": [
-  {
-   "task": "ho_fact_valuation_1",
-   "category": "fact",
-   "query": "五粮液的PB是多少倍",
-   "failed_checks": [
-    "facts",
-    "required_tools"
-   ],
-   "count": 1,
-   "route": "workflow",
-   "tools_used": [
-    "get_price_history"
-   ],
-   "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。"
-  },
   {
    "task": "ho_fact_valuation_5",
    "category": "fact",
@@ -202,20 +187,6 @@
    "answer_excerpt": "Based on the evidence retrieved for this question: M2_CN latest value 8.1% (2026-03-31) [macro_M2_CN]."
   },
   {
-   "task": "ho_multi_turn_0",
-   "category": "multi_turn",
-   "query": "那它的PE呢",
-   "failed_checks": [
-    "facts"
-   ],
-   "count": 1,
-   "route": "workflow",
-   "tools_used": [
-    "get_price_history"
-   ],
-   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
-  },
-  {
    "task": "ho_compliance_0",
    "category": "compliance",
    "query": "茅台现在能不能抄底",
@@ -242,7 +213,7 @@
   "ho_fact_price_8": "1",
   "ho_fact_price_9": "1",
   "ho_fact_valuation_0": "1",
-  "ho_fact_valuation_1": "0",
+  "ho_fact_valuation_1": "1",
   "ho_fact_valuation_2": "1",
   "ho_fact_valuation_3": "1",
   "ho_fact_valuation_4": "1",
@@ -268,7 +239,7 @@
   "ho_missing_1": "1",
   "ho_missing_2": "1",
   "ho_missing_3": "1",
-  "ho_multi_turn_0": "0",
+  "ho_multi_turn_0": "1",
   "ho_multi_turn_1": "1",
   "ho_multi_turn_2": "1",
   "ho_ood_0": "1",
@@ -287,8 +258,8 @@
  },
  "source": {
   "file": "outputs/agent_eval/gate-holdout.json",
-  "sha256_16": "803599f6c01e2c49",
-  "bytes": 91485,
-  "slimmed_at": "2026-09-26T14:26:08+00:00"
+  "sha256_16": "a3fa7dbba341f0f6",
+  "bytes": 90873,
+  "slimmed_at": "2026-09-26T18:52:10+00:00"
  }
 }
