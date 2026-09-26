@@ -337,3 +337,24 @@ def test_parallel_calls_of_one_run_are_batched_by_max_parallel_tools():
 
     assert runtime._pool._max_workers == 8
     assert len(result["tool_calls"]) == 3
+
+
+def test_llm_log_records_json_status_and_context_composition():
+    answer = {"answer": "最新收盘价 1409.5 元 [price_600519.SH]。", "evidence_used": ["price_600519.SH"]}
+    llm = ScriptedLLM([tool_call_turn(("get_price_history", {"target": "600519.SH"})), final_turn(answer)])
+
+    log = _runtime(llm).run("茅台为什么跌了", mode="agent")["llm"]["log"]
+
+    tool_step, final_step = log
+    assert tool_step["json_status"] is None and final_step["json_status"] == "ok"
+    assert final_step["context_chars"]["system"] > 0 and final_step["context_chars"]["tool"] > 0
+    assert final_step["context_chars"]["tool_schemas"] > 0
+
+
+def test_answer_json_status():
+    from query_intelligence.agent.composer import answer_json_status
+
+    assert answer_json_status('{"answer": "x"}') == "ok"
+    assert answer_json_status('```json\n{"answer": "x"}\n```') == "ok"
+    assert answer_json_status('{"answer": "x", "key_points": ["a"') == "repaired"
+    assert answer_json_status("plain text answer") == "failed"
