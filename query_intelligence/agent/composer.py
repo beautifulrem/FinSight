@@ -15,6 +15,26 @@ from .verifier import _MARKET_METRIC
 _MAX_DOCS_PER_TOOL = 3
 
 
+def answer_json_status(content: str | None) -> str:
+    """``ok`` (valid JSON with an answer), ``repaired`` (needed json_repair) or ``failed`` (used as plain text)."""
+    text = (content or "").strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        text = text[text.find("{") :] if "{" in text else text
+    try:
+        parsed = json.loads(text)
+        return "ok" if isinstance(parsed, dict) and str(parsed.get("answer") or "").strip() else "failed"
+    except json.JSONDecodeError:
+        pass
+    try:
+        from json_repair import repair_json
+
+        parsed = repair_json(text, return_objects=True)
+    except Exception:
+        return "failed"
+    return "repaired" if isinstance(parsed, dict) and str(parsed.get("answer") or "").strip() else "failed"
+
+
 def parse_answer(content: str | None) -> dict[str, Any]:
     text = (content or "").strip()
     if text.startswith("```"):

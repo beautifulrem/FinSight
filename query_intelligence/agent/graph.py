@@ -34,7 +34,7 @@ from langgraph.types import interrupt
 
 from ..chatbot import detect_query_language
 from .compliance import apply_compliance, language_violation
-from .composer import compose_template, parse_answer
+from .composer import answer_json_status, compose_template, parse_answer
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
 from .injection import REDACTION_MARKER, sanitize_observation, sanitize_untrusted_text, tool_message_content
@@ -353,7 +353,15 @@ class AgentRuntime:
                 "messages": [*messages, turn.as_message()],
                 "llm_calls": state.get("llm_calls", 0) + 1,
                 "usage": _add_usage(state.get("usage"), turn.usage),
-                "llm_log": [_llm_entry("compose", turn, prompt=prompt.ref)],
+                "llm_log": [
+                    _llm_entry(
+                        "compose",
+                        turn,
+                        prompt=prompt.ref,
+                        messages=messages,
+                        json_status=answer_json_status(turn.content),
+                    )
+                ],
             }
         return self._template_update(tool_log, zh, style=style)
 
@@ -416,7 +424,17 @@ class AgentRuntime:
             "messages": [*messages, turn.as_message()],
             "llm_calls": state.get("llm_calls", 0) + 1,
             "usage": _add_usage(usage, turn.usage),
-            "llm_log": [_llm_entry("agent_llm", turn, step=state.get("llm_steps", 0), prompt=prompt.ref)],
+            "llm_log": [
+                _llm_entry(
+                    "agent_llm",
+                    turn,
+                    step=state.get("llm_steps", 0),
+                    prompt=prompt.ref,
+                    messages=messages,
+                    tools=tools,
+                    json_status=None if turn.tool_calls and not stop_reason else answer_json_status(turn.content),
+                )
+            ],
         }
         if stop_reason:
             update["degraded"] = [f"budget:{stop_reason}"]
@@ -524,7 +542,11 @@ class AgentRuntime:
                 "usage": _add_usage(state.get("usage"), turn.usage),
                 "llm_log": [
                     _llm_entry(
-                        "revise", turn, prompt=get_prompt("agent_system" if on_agent_path else "compose_system").ref
+                        "revise",
+                        turn,
+                        prompt=get_prompt("agent_system" if on_agent_path else "compose_system").ref,
+                        messages=messages,
+                        json_status=answer_json_status(turn.content),
                     )
                 ],
             }
@@ -659,6 +681,22 @@ class AgentRuntime:
         return detect_query_language(state.get("query", "")) == "zh"
 
 
+def _context_composition(messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None) -> dict[str, int]:
+    """Characters sent per part of the request (system, user, assistant, tool results, tool schemas)."""
+    import json
+
+    parts = {"system": 0, "user": 0, "assistant": 0, "tool": 0, "tool_schemas": 0}
+    for message in messages:
+        role = str(message.get("role") or "user")
+        size = len(str(message.get("content") or ""))
+        if message.get("tool_calls"):
+            size += len(json.dumps(message["tool_calls"], ensure_ascii=False))
+        parts[role if role in parts else "user"] += size
+    if tools:
+        parts["tool_schemas"] = len(json.dumps(tools, ensure_ascii=False))
+    return parts
+
+
 def _answer_delta_callback() -> Callable[[str], None]:
     """Stream the draft answer text to SSE clients as ``answer_delta`` custom events (no-op when invoked)."""
     writer = stream_writer()
@@ -728,7 +766,16 @@ def _log_entry(result: ToolResult, *, source: str, reason: str, step: int, flagg
     }
 
 
-def _llm_entry(node: str, turn: Any, *, step: int | None = None, prompt: str | None = None) -> dict[str, Any]:
+def _llm_entry(
+    node: str,
+    turn: Any,
+    *,
+    step: int | None = None,
+    prompt: str | None = None,
+    messages: list[dict[str, Any]] | None = None,
+    tools: list[dict[str, Any]] | None = None,
+    json_status: str | None = None,
+) -> dict[str, Any]:
     return {
         "node": node,
         "step": step,
@@ -741,6 +788,8 @@ def _llm_entry(node: str, turn: Any, *, step: int | None = None, prompt: str | N
         "prompt_cache_hit_tokens": turn.usage.prompt_cache_hit_tokens,
         "reasoning_tokens": turn.usage.reasoning_tokens,
         "reported_cost_usd": turn.usage.reported_cost_usd,
+        "json_status": json_status,
+        "context_chars": _context_composition(messages or [], tools),
         "tool_calls": [call.name for call in turn.tool_calls],
         "finish_reason": turn.finish_reason,
     }
