@@ -7,12 +7,14 @@ import os
 import queue
 import threading
 import uuid
+from collections import OrderedDict
 from collections.abc import Iterator
 from datetime import date
 from typing import TYPE_CHECKING, Any
 
 from langgraph.types import Command
 
+from .errors import SessionAccessError
 from .graph import AgentRuntime
 from .llm import LLMClient, Pricing, build_llm_from_config
 from .memory import make_checkpointer
@@ -24,6 +26,9 @@ if TYPE_CHECKING:
     from ..service import QueryIntelligenceService
 
 logger = logging.getLogger(__name__)
+
+MAX_SESSION_LOCKS = 4096
+
 
 _STEP_LABELS = {
     "guard_in": "NLU and routing",
@@ -51,7 +56,7 @@ class AgentService:
         # a crash mid-run only loses that turn. QI_AGENT_DURABILITY=async|sync restores per-step checkpoints.
         self.durability = os.getenv("QI_AGENT_DURABILITY", "exit").strip() or "exit"
         self.graph = runtime.build_graph(self.checkpointer)
-        self._locks: dict[str, threading.Lock] = {}
+        self._locks: OrderedDict[str, threading.Lock] = OrderedDict()
         self._locks_guard = threading.Lock()
 
     @classmethod
@@ -88,19 +93,23 @@ class AgentService:
         mode: str = "auto",
         user_profile: dict[str, Any] | None = None,
         dialog_context: list[dict[str, Any]] | None = None,
+        owner: str = "local",
     ) -> dict[str, Any]:
         session = session_id or uuid.uuid4().hex
         state = self.runtime.initial_state(query, mode=mode, user_profile=user_profile, dialog_context=dialog_context)
+        state["owner"] = owner
         with self._lock(session):
+            self._check_owner(session, owner)
             output = self.graph.invoke(state, self._config(session), durability=self.durability)
-        return self._response(session, output)
+        return self._response(session, output, owner)
 
-    def resume(self, session_id: str, reply: str) -> dict[str, Any]:
+    def resume(self, session_id: str, reply: str, *, owner: str = "local") -> dict[str, Any]:
         with self._lock(session_id):
+            self._check_owner(session_id, owner)
             if not self.pending_clarification(session_id):
                 raise ValueError(f"session {session_id} has no pending clarification")
             output = self.graph.invoke(Command(resume=reply), self._config(session_id), durability=self.durability)
-        return self._response(session_id, output)
+        return self._response(session_id, output, owner)
 
     def stream(
         self,
@@ -110,6 +119,7 @@ class AgentService:
         mode: str = "auto",
         user_profile: dict[str, Any] | None = None,
         dialog_context: list[dict[str, Any]] | None = None,
+        owner: str = "local",
     ) -> Iterator[dict[str, Any]]:
         """Yield events: session, node_start, step, tool_call, tool_result, answer_delta, clarification, answer,
         error, done. ``answer_delta`` streams the draft answer text; the final ``answer`` event supersedes it.
@@ -119,7 +129,9 @@ class AgentService:
         trace are saved) and the lock is released, so the session stays usable.
         """
         session = session_id or uuid.uuid4().hex
+        self._check_owner(session, owner)
         state = self.runtime.initial_state(query, mode=mode, user_profile=user_profile, dialog_context=dialog_context)
+        state["owner"] = owner
         events: queue.Queue[dict[str, Any] | None] = queue.Queue()
 
         def run() -> None:
@@ -132,7 +144,7 @@ class AgentService:
                         version="v2",
                         durability=self.durability,
                     ):
-                        for event in self._chunk_events(session, chunk):
+                        for event in self._chunk_events(session, chunk, owner):
                             events.put(event)
                 except Exception as exc:  # surfaced to the client as an error event
                     logger.exception("agent stream failed")
@@ -146,7 +158,7 @@ class AgentService:
             yield event
         yield {"event": "done", "data": {"session_id": session}}
 
-    def _chunk_events(self, session_id: str, chunk: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    def _chunk_events(self, session_id: str, chunk: dict[str, Any], owner: str = "local") -> Iterator[dict[str, Any]]:
         data = chunk.get("data") or {}
         if chunk.get("type") == "tasks":
             # Task-start events (they carry "input") announce a node before it runs.
@@ -158,7 +170,16 @@ class AgentService:
             yield {"event": "answer_delta", "data": {"text": data.get("text", "")}}
             return
         if chunk.get("type") == "updates":
-            yield from self._events(session_id, data)
+            yield from self._events(session_id, data, owner)
+
+    def owner_of(self, session_id: str) -> str | None:
+        snapshot = self.graph.get_state(self._config(session_id))
+        return (snapshot.values or {}).get("owner")
+
+    def _check_owner(self, session_id: str, owner: str) -> None:
+        existing = self.owner_of(session_id)
+        if existing and existing != owner:
+            raise SessionAccessError(session_id)
 
     def pending_clarification(self, session_id: str) -> dict[str, Any] | None:
         snapshot = self.graph.get_state(self._config(session_id))
@@ -180,24 +201,34 @@ class AgentService:
         return {"configurable": {"thread_id": session_id}, "recursion_limit": 60}
 
     def _lock(self, session_id: str) -> threading.Lock:
+        """Per-session lock (turns of one session run one at a time). The map is an LRU capped at
+        ``MAX_SESSION_LOCKS``; only locks that are not held are evicted."""
         with self._locks_guard:
-            return self._locks.setdefault(session_id, threading.Lock())
+            lock = self._locks.get(session_id)
+            if lock is None:
+                lock = self._locks[session_id] = threading.Lock()
+            self._locks.move_to_end(session_id)
+            if len(self._locks) > MAX_SESSION_LOCKS:
+                for key in list(self._locks)[: len(self._locks) - MAX_SESSION_LOCKS]:
+                    if key != session_id and not self._locks[key].locked():
+                        del self._locks[key]
+            return lock
 
-    def _response(self, session_id: str, output: dict[str, Any]) -> dict[str, Any]:
+    def _response(self, session_id: str, output: dict[str, Any], owner: str = "local") -> dict[str, Any]:
         interrupts = output.get("__interrupt__") or []
         if interrupts:
             value = interrupts[0].value if hasattr(interrupts[0], "value") else interrupts[0]
             payload = dict(value) if isinstance(value, dict) else {"question": str(value)}
             return {"status": "needs_clarification", "session_id": session_id, "clarification": payload}
         result = output.get("result") or {}
-        self._trace(session_id, result)
+        self._trace(session_id, result, owner)
         return {"status": "ok", "session_id": session_id, "trace_id": result.get("run_id"), **result}
 
-    def _trace(self, session_id: str, result: dict[str, Any]) -> None:
+    def _trace(self, session_id: str, result: dict[str, Any], owner: str = "local") -> None:
         if result and self.trace_sinks:
-            emit(self.trace_sinks, build_trace(result, session_id=session_id))
+            emit(self.trace_sinks, {**build_trace(result, session_id=session_id), "owner": owner})
 
-    def _events(self, session_id: str, update: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    def _events(self, session_id: str, update: dict[str, Any], owner: str = "local") -> Iterator[dict[str, Any]]:
         for node, payload in update.items():
             if node == "__interrupt__":
                 value = payload[0].value if payload and hasattr(payload[0], "value") else payload
@@ -234,7 +265,7 @@ class AgentService:
                 }
             if node == "finalize" and payload.get("result"):
                 result = payload["result"]
-                self._trace(session_id, result)
+                self._trace(session_id, result, owner)
                 yield {
                     "event": "answer",
                     "data": {"status": "ok", "session_id": session_id, "trace_id": result.get("run_id"), **result},

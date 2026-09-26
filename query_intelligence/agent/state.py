@@ -64,13 +64,15 @@ class AgentState(TypedDict, total=False):
     clarification_reply: str
     effective_query: str
     refusal_category: str
+    owner: str
 
 
 @dataclass(frozen=True)
 class AgentConfig:
     max_llm_steps: int = 6
     max_tool_calls: int = 16
-    max_parallel_tools: int = 4
+    max_parallel_tools: int = 4  # per run
+    max_concurrent_runs: int = 8  # sizes the shared tool pool: runs * parallel tools
     token_budget: int = 80_000
     max_revisions: int = 1
     llm_compose: bool = True

@@ -312,3 +312,28 @@ def test_llm_answer_in_the_wrong_language_falls_back_to_template():
 
     assert "language_mismatch_fallback_to_template" in result["compliance_notes"]
     assert "Les dernières" not in result["answer"] and "1409.5" in result["answer"]
+
+
+def test_identical_tool_calls_in_a_turn_are_not_run_twice():
+    call = ("get_price_history", {"target": "600519.SH"})
+    answer = {"answer": "最新收盘价 1409.5 元 [price_600519.SH]。", "evidence_used": ["price_600519.SH"]}
+    llm = ScriptedLLM([tool_call_turn(call), tool_call_turn(call), final_turn(answer)])
+
+    result = _runtime(llm).run("茅台为什么跌了", mode="agent")
+
+    assert [entry["tool"] for entry in result["tool_calls"]] == ["get_price_history"]
+    assert "repeated_tool_calls:1" in result["degraded"]
+    duplicate_message = llm.requests[2]["messages"][-1]
+    assert duplicate_message["role"] == "tool" and "duplicate_call" in duplicate_message["content"]
+
+
+def test_parallel_calls_of_one_run_are_batched_by_max_parallel_tools():
+    calls = [("get_price_history", {"target": symbol}) for symbol in ("600519.SH", "000858.SZ", "601318.SH")]
+    answer = {"answer": "最新收盘价 1409.5 元 [price_600519.SH]。", "evidence_used": ["price_600519.SH"]}
+    llm = ScriptedLLM([tool_call_turn(*calls), final_turn(answer)])
+    runtime = _runtime(llm, config=AgentConfig(max_parallel_tools=2, max_concurrent_runs=4))
+
+    result = runtime.run("三家公司为什么都跌了", mode="agent")
+
+    assert runtime._pool._max_workers == 8
+    assert len(result["tool_calls"]) == 3

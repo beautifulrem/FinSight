@@ -65,6 +65,10 @@ if TYPE_CHECKING:
     from ..service import QueryIntelligenceService
 
 _MARKET_SOURCE_TYPES = {"market_api"}
+_DUPLICATE_CALL = (
+    '{"ok": false, "error": {"code": "duplicate_call", "message": "already called with the same arguments in '
+    'this turn", "hint": "Use the earlier result above; do not repeat identical calls."}}'
+)
 _BUDGET_EXHAUSTED = (
     '{"ok": false, "error": {"code": "unavailable", "message": "tool-call budget exhausted", '
     '"hint": "Stop calling tools and answer now with the evidence gathered so far."}}'
@@ -88,7 +92,12 @@ class AgentRuntime:
         self.config = config or AgentConfig()
         self.pricing = pricing
         self.today = today
-        self._pool = ThreadPoolExecutor(max_workers=self.config.max_parallel_tools, thread_name_prefix="agent-run")
+        # One pool shared by all runs, sized so that concurrent runs do not queue behind each other; each run
+        # is still limited to max_parallel_tools calls at a time (see _run_tools).
+        self._pool = ThreadPoolExecutor(
+            max_workers=self.config.max_parallel_tools * self.config.max_concurrent_runs,
+            thread_name_prefix="agent-tools",
+        )
 
     # ------------------------------------------------------------------ graph
 
@@ -423,7 +432,14 @@ class AgentRuntime:
         calls = last.get("tool_calls") or []
         used = sum(1 for entry in state.get("tool_log") or [] if entry.get("source") == "llm")
         remaining = max(self.config.max_tool_calls - used, 0)
-        runnable = calls[:remaining]
+        # Identical calls already made in this turn are not run again: the model gets a pointer to the
+        # earlier result instead (loop control that does not wait for the step budget).
+        seen = {(entry["tool"], _key(entry.get("arguments"))) for entry in state.get("tool_log") or []}
+        duplicates = [
+            call for call in calls if (call["function"]["name"], _key(call["function"].get("arguments"))) in seen
+        ]
+        fresh = [call for call in calls if call not in duplicates]
+        runnable = fresh[:remaining]
         results = self._run_tools([(call["function"]["name"], call["function"].get("arguments")) for call in runnable])
         step = state.get("llm_steps", 0) + 1
         tool_messages = []
@@ -434,14 +450,10 @@ class AgentRuntime:
             flagged_any = flagged_any or flagged
             tool_messages.append({"role": "tool", "tool_call_id": call["id"], "content": content})
             log.append(_log_entry(result, source="llm", reason="selected by LLM", step=step, flagged=flagged))
-        for call in calls[len(runnable) :]:
-            tool_messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": call["id"],
-                    "content": _BUDGET_EXHAUSTED,
-                }
-            )
+        for call in fresh[len(runnable) :]:
+            tool_messages.append({"role": "tool", "tool_call_id": call["id"], "content": _BUDGET_EXHAUSTED})
+        for call in duplicates:
+            tool_messages.append({"role": "tool", "tool_call_id": call["id"], "content": _DUPLICATE_CALL})
         evidence_update, evidence_flagged = _evidence_update(results)
         flagged_any = flagged_any or evidence_flagged
         update: dict[str, Any] = {
@@ -450,8 +462,13 @@ class AgentRuntime:
             "tool_log": log,
             "evidence": evidence_update,
         }
+        degraded = []
         if flagged_any:
-            update["degraded"] = ["instruction_like_text_removed_from_tool_output"]
+            degraded.append("instruction_like_text_removed_from_tool_output")
+        if duplicates:
+            degraded.append(f"repeated_tool_calls:{len(duplicates)}")
+        if degraded:
+            update["degraded"] = degraded
         return update
 
     def verify(self, state: AgentState) -> dict[str, Any]:
@@ -629,8 +646,13 @@ class AgentRuntime:
     def _run_tools(self, calls: list[tuple[str, Any]]) -> list[ToolResult]:
         if not calls:
             return []
-        futures = [self._pool.submit(self.registry.run, name, arguments) for name, arguments in calls]
-        return [future.result() for future in futures]
+        results: list[ToolResult] = []
+        width = max(1, self.config.max_parallel_tools)
+        for start in range(0, len(calls), width):
+            batch = calls[start : start + width]
+            futures = [self._pool.submit(self.registry.run, name, arguments) for name, arguments in batch]
+            results.extend(future.result() for future in futures)
+        return results
 
     @staticmethod
     def _zh(state: AgentState) -> bool:
@@ -679,7 +701,10 @@ def _key(arguments: Any) -> str:
     import json
 
     if isinstance(arguments, str):
-        return arguments
+        try:
+            arguments = json.loads(arguments or "{}")
+        except json.JSONDecodeError:
+            return arguments
     return json.dumps(arguments or {}, sort_keys=True, ensure_ascii=False)
 
 

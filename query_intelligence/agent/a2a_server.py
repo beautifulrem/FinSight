@@ -23,6 +23,9 @@ import os
 from collections.abc import Callable
 from typing import Any
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
 logger = logging.getLogger(__name__)
 
 A2A_RPC_PATH = "/a2a"
@@ -67,10 +70,37 @@ def answer_data(response: dict[str, Any]) -> dict[str, Any]:
     return {key: response.get(key) for key in _DATA_FIELDS if response.get(key) is not None}
 
 
-def build_agent_card(base_url: str) -> Any:
-    from a2a.types import AgentCapabilities, AgentCard, AgentInterface, AgentProvider, AgentSkill
+def build_agent_card(base_url: str, *, api_key_required: bool = False) -> Any:
+    from a2a.types import (
+        AgentCapabilities,
+        AgentCard,
+        AgentInterface,
+        AgentProvider,
+        AgentSkill,
+        APIKeySecurityScheme,
+        HTTPAuthSecurityScheme,
+        SecurityRequirement,
+        SecurityScheme,
+        StringList,
+    )
 
+    security: dict[str, Any] = {}
+    if api_key_required:
+        # Mirrors api/security.py: an X-API-Key header or an Authorization: Bearer token.
+        security = {
+            "security_schemes": {
+                "apiKey": SecurityScheme(
+                    api_key_security_scheme=APIKeySecurityScheme(location="header", name="X-API-Key")
+                ),
+                "bearer": SecurityScheme(http_auth_security_scheme=HTTPAuthSecurityScheme(scheme="bearer")),
+            },
+            "security_requirements": [
+                SecurityRequirement(schemes={"apiKey": StringList(list=[])}),
+                SecurityRequirement(schemes={"bearer": StringList(list=[])}),
+            ],
+        }
     return AgentCard(
+        **security,
         name="FinSight",
         description=(
             "Evidence-first China A-share research agent. Classical NLU routes and guards each question; "
@@ -171,21 +201,29 @@ def install_a2a(app: Any, get_agent: Callable[[], Any], *, base_url: str | None 
         return False
     try:
         from a2a.server.request_handlers import DefaultRequestHandler
-        from a2a.server.routes import add_a2a_routes_to_fastapi, create_agent_card_routes, create_jsonrpc_routes
+        from a2a.server.routes import add_a2a_routes_to_fastapi, create_jsonrpc_routes
         from a2a.server.tasks import InMemoryTaskStore
     except ImportError:
         logger.info("[startup] a2a-sdk is not installed; A2A endpoints are disabled.")
         return False
 
-    card = build_agent_card(base_url or os.getenv("QI_PUBLIC_BASE_URL", "http://127.0.0.1:8765"))
+    api_key_required = bool(os.getenv("QI_API_KEYS", "").strip())
+    configured_base = base_url or os.getenv("QI_PUBLIC_BASE_URL", "").strip()
+    card = build_agent_card(configured_base or "http://127.0.0.1:8765", api_key_required=api_key_required)
     handler = DefaultRequestHandler(
         agent_executor=build_executor(get_agent, mode=os.getenv("QI_A2A_MODE", "auto")),
         task_store=InMemoryTaskStore(),
         agent_card=card,
     )
-    add_a2a_routes_to_fastapi(
-        app,
-        agent_card_routes=create_agent_card_routes(card),
-        jsonrpc_routes=create_jsonrpc_routes(handler, rpc_url=A2A_RPC_PATH),
-    )
+    add_a2a_routes_to_fastapi(app, jsonrpc_routes=create_jsonrpc_routes(handler, rpc_url=A2A_RPC_PATH))
+
+    from a2a.server.request_handlers.response_helpers import agent_card_to_dict
+    from a2a.utils.constants import AGENT_CARD_WELL_KNOWN_PATH
+
+    @app.get(AGENT_CARD_WELL_KNOWN_PATH, include_in_schema=True, tags=["A2A: Agent Card"])
+    def agent_card(request: Request) -> JSONResponse:
+        """The advertised JSON-RPC URL comes from QI_PUBLIC_BASE_URL or, when unset, from the request itself."""
+        base = configured_base or str(request.base_url)
+        return JSONResponse(agent_card_to_dict(build_agent_card(base, api_key_required=api_key_required)))
+
     return True
