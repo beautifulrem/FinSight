@@ -11,9 +11,14 @@ Offline (no LLM key needed):
 
 Online (``--llm deepseek``, needs ``DEEPSEEK_API_KEY``): ``pure_llm`` (no tools), ``workflow_llm``
 (planner + LLM composition) and ``agent`` (LLM tool loop), with ``--repeats`` for pass^k.
+``legacy_llm`` (the original ``/chat`` client) always runs once per task, so it reports pass^1.
 
     python -m evaluation.agent_eval.ablation                      # offline: legacy vs workflow
     python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3
+    python -m evaluation.agent_eval.ablation --sets dev,holdout,test_v2
+
+Every mode stores per-task outcomes (``task_outcomes``: success of each repeat), and each set gets
+paired comparisons between paths (paired bootstrap over tasks + exact McNemar on pass^k).
 """
 
 from __future__ import annotations
@@ -33,12 +38,11 @@ from query_intelligence.agent.service import AgentService
 from query_intelligence.agent.verifier import verify_answer
 from query_intelligence.chatbot import DeepSeekClient, build_chatbot_response
 
+from .metrics import COMPARISONS, paired_comparison
 from .runner import (
     DEFAULT_OUTPUT_DIR,
-    DEFAULT_SNAPSHOT,
-    DEFAULT_TASKS,
-    EVAL_DIR,
     EVAL_TODAY,
+    TASK_SETS,
     _display_path,
     _git_commit,
     _make_llm,
@@ -53,8 +57,7 @@ from .runner import (
     summarize,
 )
 
-HOLDOUT_TASKS = EVAL_DIR / "tasks" / "agent_eval_holdout_v1.jsonl"
-HOLDOUT_SNAPSHOT = EVAL_DIR / "fixtures" / "snapshot_holdout_v1.json"
+HOLDOUT_TASKS, HOLDOUT_SNAPSHOT = TASK_SETS["holdout"]
 _SOURCE_TO_TOOL = {
     "market_api": "get_price_history",
     "fundamental_sql": "get_fundamentals",
@@ -74,7 +77,11 @@ def legacy_response(
 ) -> dict[str, Any]:
     pipeline = service.run_pipeline(query, dialog_context=dialog_context, top_k=10)
     client = client or DeepSeekClient({"deepseek": {"api_key": ""}})
-    answer = build_chatbot_response(query=query, pipeline_result=pipeline, deepseek_client=client)
+    # The freshness guard reads "today"; pin it to the evaluation date like the agent paths (runs on a
+    # weekend used to take the non-trading-day branch and drop the hedging sentence).
+    answer = build_chatbot_response(
+        query=query, pipeline_result=pipeline, deepseek_client=client, as_of_date=EVAL_TODAY
+    )
     nlu, retrieval = pipeline["nlu_result"], pipeline["retrieval_result"]
     flags = set(nlu.get("risk_flags") or [])
     route = "workflow"
@@ -139,6 +146,16 @@ def _agent_records(
 
 
 ONLINE_MODES = ("legacy_llm", "pure_llm", "workflow_llm", "agent")
+# Deterministic paths run once; ``legacy_llm`` also runs once (its client predates repeats).
+SINGLE_RUN_MODES = frozenset({"legacy", "workflow", "legacy_llm"})
+
+
+def comparisons(modes: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    return {
+        f"{a}_vs_{b}": paired_comparison(modes[a]["task_outcomes"], modes[b]["task_outcomes"])
+        for a, b in COMPARISONS
+        if a in modes and b in modes
+    }
 
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
@@ -147,7 +164,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument("--llm", choices=["none", "deepseek"], default="none")
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--workers", type=int, default=1, help="Run tasks concurrently in LLM modes.")
-    parser.add_argument("--sets", default="dev,holdout", help="Comma-separated task sets: dev, holdout.")
+    parser.add_argument(
+        "--sets", default="dev,holdout", help="Comma-separated task sets: dev, holdout, test_v2 (untouched test set)."
+    )
     parser.add_argument(
         "--modes", default=",".join(ONLINE_MODES), help="Online modes to run with --llm (comma-separated)."
     )
@@ -160,15 +179,11 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
 
     llm = _make_llm(args.llm)
     service = build_offline_service()
-    all_sets = {
-        "dev": (DEFAULT_TASKS, DEFAULT_SNAPSHOT),
-        "holdout": (HOLDOUT_TASKS, HOLDOUT_SNAPSHOT),
-    }
-    sets = {
-        name: (load_tasks(all_sets[name][0]), all_sets[name][1])
-        for name in (item.strip() for item in args.sets.split(","))
-        if name in all_sets
-    }
+    requested = [item.strip() for item in args.sets.split(",") if item.strip()]
+    unknown_sets = sorted(set(requested) - set(TASK_SETS))
+    if unknown_sets:
+        raise SystemExit(f"unknown --sets: {unknown_sets} (known: {sorted(TASK_SETS)})")
+    sets = {name: (load_tasks(TASK_SETS[name][0]), TASK_SETS[name][1]) for name in requested}
     results: dict[str, dict[str, Any]] = {}
     for set_name, (tasks, snapshot) in sets.items():
         runs: dict[str, list[dict[str, Any]]] = {
@@ -193,9 +208,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
                     service, tasks, snapshot, mode="agent", llm=llm, repeats=args.repeats, workers=workers
                 )
         results[set_name] = {
-            name: summarize(
-                records, config={"mode": name}, repeats=args.repeats if name not in {"legacy", "workflow"} else 1
-            )
+            name: summarize(records, config={"mode": name}, repeats=1 if name in SINGLE_RUN_MODES else args.repeats)
             for name, records in runs.items()
         }
 
@@ -207,8 +220,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "eval_today": EVAL_TODAY.isoformat(),
-            "dev_tasks": _display_path(DEFAULT_TASKS),
-            "holdout_tasks": _display_path(HOLDOUT_TASKS),
+            "task_files": {name: _display_path(TASK_SETS[name][0]) for name in sets},
+            "snapshots": {name: _display_path(TASK_SETS[name][1]) for name in sets},
             "sets": list(sets),
             "online_modes": online_modes if llm is not None else [],
             "workers": args.workers,
@@ -222,11 +235,13 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
                     "by_category": data["by_category"],
                     "failed_checks": data["failed_checks"],
                     "failures": data["failures"],
+                    "task_outcomes": data["task_outcomes"],
                 }
                 for mode, data in modes.items()
             }
             for set_name, modes in results.items()
         },
+        "comparisons": {set_name: comparisons(modes) for set_name, modes in results.items()},
     }
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
