@@ -329,3 +329,29 @@ def test_results_slimming_reconstructs_outcomes_and_relabels_single_runs():
     assert decode_outcomes(encode_outcomes(outcomes)) == outcomes
     assert "pass^1" in entry["summary"] and "pass^3" not in entry["summary"] and notes
     assert entry["task_outcomes"] == {"a": "0", "b": "0"}
+
+
+def test_report_formats_cis_and_verdicts():
+    from evaluation.agent_eval.report import cell, fmt_ci, splice, verdict
+
+    summary = {"task_success": 0.956, "pass^3": 0.9057, "ci": {"task_success": [0.9, 0.99], "pass^3": [0.83, 0.98]}}
+    significant = {"task_success": {"diff": -0.02, "ci": [-0.03, -0.01], "significant": True}}
+    null = {"task_success": {"diff": 0.05, "ci": [-0.006, 0.119], "significant": False}}
+
+    assert fmt_ci(0.956, [0.9, 0.99]) == "0.956 [0.90, 0.99]"
+    assert cell(summary, "pass^k") == "0.906 [0.83, 0.98] (k=3)"
+    assert verdict(significant, "agent", "workflow_llm") == "workflow_llm better"
+    assert verdict(null, "agent", "workflow_llm") == "no significant difference"
+    assert (
+        splice("a\n<!-- BEGIN GENERATED: python -m evaluation.agent_eval.report -->x<!-- END GENERATED -->\nb", "NEW")
+        == "a\nNEW\nb"
+    )
+
+
+def test_report_renders_from_committed_results():
+    from evaluation.agent_eval.report import BEGIN, END, render
+
+    block = render()
+
+    assert block.startswith(BEGIN) and block.endswith(END)
+    assert "evaluation/results/ablation-final.json" in block and "Provenance of every number above" in block

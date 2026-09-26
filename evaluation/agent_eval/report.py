@@ -29,7 +29,12 @@ END = "<!-- END GENERATED -->"
 # Which committed result plays which role in the page.
 PRIMARY = "ablation-final"  # DeepSeek, dev + held-out, all paths
 TEST_V2 = "ablation-test_v2-deepseek"  # DeepSeek, untouched test set
-SECOND_MODEL = "ablation-glm"  # GLM, dev + held-out + test set
+# GLM. The first run of all three sets overlapped with the DeepSeek test-set run on the same gateway and
+# its dev rows had LLM errors on 23-28% of turns, so dev comes from a sequential rerun; for each set the
+# first file that has it wins.
+SECOND_MODEL = ("ablation-glm-dev", "ablation-glm")
+# DeepSeek agent on the test set rerun at lower concurrency: the main run hit gateway HTTP 429s.
+RATE_LIMIT_CHECK = "ablation-test_v2-deepseek-agent-w3"
 OFFLINE = "ablation-offline"  # deterministic paths on all sets at the current evaluation commit
 VARIANCE_RUNS = ("ablation-online-deepseek-v4.1-flash", "ablation-online-v1", "ablation-final")
 PROMPT_AB = ("ablation-online-v1", "ablation-online-v2")
@@ -154,24 +159,34 @@ def failure_table(data: dict[str, Any], *, limit: int = 40) -> list[str]:
     return lines
 
 
+def verdict(comparison: dict[str, Any], a: str, b: str) -> str:
+    """Primary test: the paired-bootstrap 95% CI of the task-success difference excludes 0."""
+    ts = comparison["task_success"]
+    if not ts["significant"]:
+        return "no significant difference"
+    return f"{a if ts['diff'] > 0 else b} better"
+
+
+def diff_ci(entry: dict[str, Any]) -> str:
+    return f"{entry['diff']:+.3f} [{entry['ci'][0]:+.3f}, {entry['ci'][1]:+.3f}]"
+
+
 def comparison_table(comparisons: dict[str, dict[str, Any]]) -> list[str]:
     lines = [
-        "| Set | Comparison (a − b) | Tasks | Δ task success [95% CI] | Δ pass^k [95% CI] "
-        "| McNemar (a-only / b-only, p) | Significant? |",
+        "| Set | a − b | Tasks | Δ task success [95% CI] | Δ pass^k [95% CI] "
+        "| McNemar on pass^k (a-only / b-only, p) | Verdict (Δ task success CI) |",
         "|---|---|---|---|---|---|---|",
     ]
     for set_name, items in comparisons.items():
         for name, result in items.items():
             if not result.get("tasks"):
                 continue
-            ts, pk, mc = result["task_success"], result["pass^k"], result["mcnemar"]
-            significant = ts["significant"] or pk["significant"] or mc["significant"]
+            a, b = name.split("_vs_")
+            mc = result["mcnemar"]
             lines.append(
-                f"| {set_name} | {name.replace('_vs_', ' − ')} | {result['tasks']} | "
-                f"{ts['diff']:+.3f} [{ts['ci'][0]:+.3f}, {ts['ci'][1]:+.3f}] | "
-                f"{pk['diff']:+.3f} [{pk['ci'][0]:+.3f}, {pk['ci'][1]:+.3f}] | "
-                f"{mc['a_only_pass']} / {mc['b_only_pass']}, p={mc['p_value']:.3f} | "
-                f"{'yes' if significant else 'no'} |"
+                f"| {set_name} | {a} − {b} | {result['tasks']} | {diff_ci(result['task_success'])} | "
+                f"{diff_ci(result['pass^k'])} | {mc['a_only_pass']} / {mc['b_only_pass']}, p={mc['p_value']:.3f} | "
+                f"{verdict(result, a, b)} |"
             )
     return lines
 
@@ -191,10 +206,17 @@ def _header(result: dict[str, Any], name: str) -> list[str]:
 
 
 def ablation_section(
-    result: dict[str, Any], name: str, *, full: bool = True, failures_for=("workflow", "agent")
+    result: dict[str, Any],
+    name: str,
+    *,
+    full: bool = True,
+    failures_for=("workflow", "agent"),
+    sets: set[str] | None = None,
 ) -> list[str]:
     lines = _header(result, name)
     for set_name, modes in result["results"].items():
+        if sets is not None and set_name not in sets:
+            continue
         first = next(iter(modes.values()))["summary"]
         title = SET_TITLES.get(set_name, set_name)
         lines += [
@@ -210,12 +232,47 @@ def ablation_section(
                 if data and data.get("failures"):
                     lines += [f"Remaining {mode} failures ({title.lower()}; each task once across repeats):", ""]
                     lines += [*failure_table(data), ""]
-    if result.get("comparisons"):
-        lines += ["Paired comparisons (same tasks, a − b):", "", *comparison_table(result["comparisons"]), ""]
+    comparisons = {
+        name: items
+        for name, items in (result.get("comparisons") or {}).items()
+        if items and (sets is None or name in sets)
+    }
+    if comparisons:
+        lines += ["Paired comparisons (same tasks, a − b):", "", *comparison_table(comparisons), ""]
     for note in result.get("notes") or []:
         lines.append(f"* Note: {note}")
     if result.get("notes"):
         lines.append("")
+    return lines
+
+
+def rate_limit_section(main: dict[str, Any], rerun: dict[str, Any], name: str) -> list[str]:
+    """The same path rerun with fewer concurrent requests, and a paired comparison across the two files."""
+    from .metrics import paired_comparison
+
+    lines = [
+        "### Rate-limit check: DeepSeek agent on the test set at lower concurrency",
+        "",
+        *_header(rerun, name),
+    ]
+    set_name = "test_v2"
+    main_modes, rerun_modes = main["results"].get(set_name) or {}, rerun["results"].get(set_name) or {}
+    rows = {"agent (main run)": main_modes.get("agent"), "agent (rerun)": rerun_modes.get("agent")}
+    rows["workflow_llm (main run)"] = main_modes.get("workflow_llm")
+    rows = {label: data for label, data in rows.items() if data}
+    lines += set_table(rows, ["task_success", "pass^k", "llm_error_rate", "latency_ms_p95", "cost_per_task"])
+    lines.append("")
+    if rerun_modes.get("agent") and main_modes.get("workflow_llm"):
+        comparison = paired_comparison(
+            decode_outcomes(rerun_modes["agent"]["task_outcomes"]),
+            decode_outcomes(main_modes["workflow_llm"]["task_outcomes"]),
+        )
+        lines += [
+            "Paired comparison, agent (rerun) − workflow_llm (main run), same commit and tasks:",
+            "",
+            *comparison_table({set_name: {"agent_vs_workflow_llm": comparison}}),
+            "",
+        ]
     return lines
 
 
@@ -256,26 +313,25 @@ def cross_model_section(first: dict[str, Any], second: dict[str, Any], extra: di
     sources = {"dev": first, "holdout": first}
     if extra:
         sources["test_v2"] = extra
+    short = [str(model).split("/")[-1] for model in (first_model, second_model)]
     lines = [
-        f"### Second model family: {second_model} vs {first_model}",
+        f"### Second model family: {short[1]} vs {short[0]}",
         "",
-        f"{second_model} ran at commit `{second['config'].get('commit')}`; the {first_model} dev/held-out numbers come "
-        f"from `{first['config'].get('commit')}`"
-        + (f" and its test-set numbers from `{extra['config'].get('commit')}`" if extra else "")
-        + ", so dev/held-out rows compare models across commits while test-set rows share one commit.",
+        "Commits per row are listed; rows on different commits compare models *and* code. "
+        "Δ is agent − workflow_llm task success with its paired-bootstrap 95% CI (* = CI excludes 0).",
         "",
-        "| Set | Path | "
-        + " | ".join(
-            f"{model} {metric}" for model in (first_model, second_model) for metric in ("task success", "pass^3")
-        )
-        + " | agent − workflow_llm significant? |",
-        "|---|---|" + "---|" * 5,
+        f"| Set | Path | {short[0]} task success | {short[0]} pass^3 | {short[1]} task success | {short[1]} pass^3 "
+        f"| Δ agent − workflow_llm, {short[0]} | Δ agent − workflow_llm, {short[1]} "
+        f"| Commits ({short[0]} / {short[1]}) |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for set_name in ("dev", "holdout", "test_v2"):
-        a_modes = ((sources.get(set_name) or {}).get("results") or {}).get(set_name) or {}
-        b_modes = (second["results"].get(set_name)) or {}
+        a_result = sources.get(set_name) or {}
+        a_modes = (a_result.get("results") or {}).get(set_name) or {}
+        b_modes = second["results"].get(set_name) or {}
         if not b_modes:
             continue
+        commits = f"`{(a_result.get('config') or {}).get('commit')}` / `{b_modes.get('_commit', '')}`"
         for mode in ("workflow_llm", "agent"):
             cells = []
             for modes in (a_modes, b_modes):
@@ -285,21 +341,15 @@ def cross_model_section(first: dict[str, Any], second: dict[str, Any], extra: di
                     continue
                 key = pass_key(summary)
                 cells += [cell(summary, "task_success"), fmt_ci(summary[key], (summary.get("ci") or {}).get(key))]
-            verdicts = []
-            for label, result in ((first_model, sources.get(set_name)), (second_model, second)):
+            deltas = []
+            for result in (a_result, second):
                 comparison = ((result or {}).get("comparisons") or {}).get(set_name, {}).get("agent_vs_workflow_llm")
-                if comparison and comparison.get("tasks"):
-                    flag = (
-                        comparison["task_success"]["significant"]
-                        or comparison["pass^k"]["significant"]
-                        or comparison["mcnemar"]["significant"]
-                    )
-                    verdicts.append(f"{label.split('/')[-1]}: {'yes' if flag else 'no'}")
-            lines.append(
-                f"| {set_name} | {mode} | "
-                + " | ".join(cells)
-                + f" | {'; '.join(verdicts) if mode == 'agent' else ''} |"
-            )
+                if mode == "agent" and comparison and comparison.get("tasks"):
+                    ts = comparison["task_success"]
+                    deltas.append(diff_ci(ts) + (" *" if ts["significant"] else ""))
+                else:
+                    deltas.append("")
+            lines.append(f"| {set_name} | {mode} | " + " | ".join(cells + deltas) + f" | {commits} |")
     lines.append("")
     return lines
 
@@ -345,9 +395,8 @@ def prompt_ab_section(baseline: dict[str, Any], variant: dict[str, Any]) -> list
             ts, mc = comparison["task_success"], comparison["mcnemar"]
             lines += [
                 "",
-                f"v2 − v1 task success {ts['diff']:+.3f} [{ts['ci'][0]:+.3f}, {ts['ci'][1]:+.3f}], "
-                f"McNemar p={mc['p_value']:.3f} → "
-                f"{'significant' if ts['significant'] or mc['significant'] else 'not significant'}.",
+                f"v2 − v1: task success {diff_ci(ts)}, pass^3 {diff_ci(comparison['pass^k'])}, "
+                f"McNemar p={mc['p_value']:.3f} → {verdict(comparison, 'v2', 'v1')}.",
                 "",
             ]
     return lines
@@ -497,12 +546,23 @@ def render() -> str:
     if test_v2:
         lines += ["### Untouched test set v2 (DeepSeek V4.1 Flash)", ""]
         lines += ablation_section(test_v2, TEST_V2)
-    second = take(SECOND_MODEL)
-    if second:
-        lines += [f"### All sets with a second model family ({second['config'].get('llm')})", ""]
-        lines += ablation_section(second, SECOND_MODEL, full=False)
+    rate_check = take(RATE_LIMIT_CHECK)
+    if test_v2 and rate_check:
+        lines += rate_limit_section(test_v2, rate_check, RATE_LIMIT_CHECK)
+    second_files = [(name, take(name)) for name in SECOND_MODEL]
+    second_files = [(name, result) for name, result in second_files if result]
+    if second_files:
+        merged: dict[str, Any] = {"config": second_files[0][1]["config"], "results": {}, "comparisons": {}}
+        lines += [f"### All sets with a second model family ({merged['config'].get('llm')})", ""]
+        for name, result in second_files:
+            fresh = [set_name for set_name in result["results"] if set_name not in merged["results"]]
+            for set_name in fresh:
+                merged["results"][set_name] = {**result["results"][set_name], "_commit": result["config"].get("commit")}
+                merged["comparisons"][set_name] = (result.get("comparisons") or {}).get(set_name, {})
+            if fresh:
+                lines += ablation_section(result, name, full=False, sets=set(fresh))
         if primary:
-            lines += cross_model_section(primary, second, test_v2)
+            lines += cross_model_section(primary, merged, test_v2)
     offline = take(OFFLINE)
     if offline:
         lines += ["### Deterministic paths on all three sets at the evaluation commit", ""]

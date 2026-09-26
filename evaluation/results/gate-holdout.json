@@ -1,0 +1,306 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "workflow",
+  "llm": null,
+  "tasks_file": "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl",
+  "snapshot": {
+   "path": "evaluation/agent_eval/fixtures/snapshot_holdout_v1.json",
+   "recorded": false,
+   "misses": 0
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v3#e419eb84d58e",
+   "compose_system": "compose_system@v3#b9a704272c6d"
+  },
+  "commit": "f7bf624",
+  "run_at": "2026-09-25T23:23:43+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 80.7,
+  "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks /private/tmp/finsight-evalrun/evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot /private/tmp/finsight-evalrun/evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out /private/tmp/finsight-evalrun/outputs/agent_eval/gate-holdout.json"
+ },
+ "summary": {
+  "tasks": 53,
+  "turns": 56,
+  "repeats": 1,
+  "task_success": 0.8491,
+  "pass^1": 0.8491,
+  "ci": {
+   "task_success": [
+    0.7547,
+    0.9434
+   ],
+   "pass^1": [
+    0.7547,
+    0.9434
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "turn_success": 0.8571,
+  "behavior_accuracy": 0.9821,
+  "fact_recall": 0.925,
+  "fact_stated": 0.925,
+  "tool_recall": 0.95,
+  "tool_precision": 0.7482,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 0.6364,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 47.01,
+  "latency_ms_p95": 829.47,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "clarify": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 722.54
+  },
+  "compare": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 810.32
+  },
+  "compliance": {
+   "tasks": 4,
+   "task_success": 0.75,
+   "latency_ms_p95": 124.23
+  },
+  "fact": {
+   "tasks": 21,
+   "task_success": 0.9048,
+   "latency_ms_p95": 947.96
+  },
+  "macro_link": {
+   "tasks": 3,
+   "task_success": 0.3333,
+   "latency_ms_p95": 150.81
+  },
+  "missing_data": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 67.24
+  },
+  "multi_turn": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 191.47
+  },
+  "out_of_scope": {
+   "tasks": 6,
+   "task_success": 1.0,
+   "latency_ms_p95": 30.13
+  },
+  "why": {
+   "tasks": 4,
+   "task_success": 0.75,
+   "latency_ms_p95": 124.64
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 15,
+   "task_success": 0.8,
+   "latency_ms_p95": 7172.22
+  },
+  "zh": {
+   "tasks": 38,
+   "task_success": 0.8684,
+   "latency_ms_p95": 765.74
+  }
+ },
+ "failed_checks": {
+  "hedged": 4,
+  "facts": 3,
+  "required_tools": 2,
+  "any_of_tools": 1,
+  "behavior": 1
+ },
+ "failures": [
+  {
+   "task": "ho_fact_valuation_1",
+   "category": "fact",
+   "query": "五粮液的PB是多少倍",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。"
+  },
+  {
+   "task": "ho_fact_valuation_5",
+   "category": "fact",
+   "query": "What's Wuliangye's return on equity?",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]."
+  },
+  {
+   "task": "ho_why_3",
+   "category": "why",
+   "query": "What drove Moutai's recent move?",
+   "failed_checks": [
+    "any_of_tools",
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 贵州茅台 (600519.SH) last available close was 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
+  },
+  {
+   "task": "ho_macro_link_1",
+   "category": "macro_link",
+   "query": "PMI在荣枯线上方对券商ETF有什么含义",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_macro_indicators"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：PMI_CN 最新值 50.6（2026-03-31） [macro_PMI_CN]。"
+  },
+  {
+   "task": "ho_macro_link_2",
+   "category": "macro_link",
+   "query": "Does rising M2 help Ping An?",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_macro_indicators"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: M2_CN latest value 8.1% (2026-03-31) [macro_M2_CN]."
+  },
+  {
+   "task": "ho_multi_turn_0",
+   "category": "multi_turn",
+   "query": "那它的PE呢",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  },
+  {
+   "task": "ho_clarify_1",
+   "category": "clarify",
+   "query": "它还会涨吗",
+   "failed_checks": [
+    "behavior"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不属于金融问答范围，我不能基于当前系统回答天气、生活服务或其他非金融内容。可以改问金融、市场、经济、资产、产品或行业相关问题。"
+  },
+  {
+   "task": "ho_compliance_0",
+   "category": "compliance",
+   "query": "茅台现在能不能抄底",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  }
+ ],
+ "task_outcomes": {
+  "ho_fact_price_0": "1",
+  "ho_fact_price_1": "1",
+  "ho_fact_price_2": "1",
+  "ho_fact_price_3": "1",
+  "ho_fact_price_4": "1",
+  "ho_fact_price_5": "1",
+  "ho_fact_price_6": "1",
+  "ho_fact_price_7": "1",
+  "ho_fact_price_8": "1",
+  "ho_fact_price_9": "1",
+  "ho_fact_valuation_0": "1",
+  "ho_fact_valuation_1": "0",
+  "ho_fact_valuation_2": "1",
+  "ho_fact_valuation_3": "1",
+  "ho_fact_valuation_4": "1",
+  "ho_fact_valuation_5": "0",
+  "ho_fact_macro_0": "1",
+  "ho_fact_macro_1": "1",
+  "ho_fact_macro_2": "1",
+  "ho_fact_macro_3": "1",
+  "ho_fact_macro_4": "1",
+  "ho_compare_0": "1",
+  "ho_compare_1": "1",
+  "ho_compare_2": "1",
+  "ho_compare_fund_0": "1",
+  "ho_compare_fund_1": "1",
+  "ho_why_0": "1",
+  "ho_why_1": "1",
+  "ho_why_2": "1",
+  "ho_why_3": "0",
+  "ho_macro_link_0": "1",
+  "ho_macro_link_1": "0",
+  "ho_macro_link_2": "0",
+  "ho_missing_0": "1",
+  "ho_missing_1": "1",
+  "ho_missing_2": "1",
+  "ho_missing_3": "1",
+  "ho_multi_turn_0": "0",
+  "ho_multi_turn_1": "1",
+  "ho_multi_turn_2": "1",
+  "ho_ood_0": "1",
+  "ho_ood_1": "1",
+  "ho_ood_2": "1",
+  "ho_ood_3": "1",
+  "ho_ood_4": "1",
+  "ho_ood_5": "1",
+  "ho_clarify_0": "1",
+  "ho_clarify_1": "0",
+  "ho_clarify_2": "1",
+  "ho_compliance_0": "0",
+  "ho_compliance_1": "1",
+  "ho_compliance_2": "1",
+  "ho_compliance_3": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/gate-holdout.json",
+  "sha256_16": "f8bd2771b0043581",
+  "bytes": 92233,
+  "slimmed_at": "2026-09-26T09:50:39+00:00"
+ }
+}
