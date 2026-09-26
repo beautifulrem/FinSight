@@ -566,8 +566,8 @@ v2 − v1: task success -0.031 [-0.113, +0.038], pass^3 +0.038 [-0.075, +0.151],
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `f7bf624` | 207 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
-| gate-holdout | `f7bf624` | 53 | 0.849 [0.75, 0.94] | 0.982 | 0.925 | 0 |
+| gate-dev | `9d56f90-dirty` | 207 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-holdout | `9d56f90-dirty` | 53 | 0.868 [0.77, 0.94] | 1.000 | 0.925 | 0 |
 
 ### Fault injection (overall graceful rate 1.00)
 
@@ -651,8 +651,8 @@ Successful attacks:
 | `ablation-online-deepseek-v4.1-flash.json` | ablation | `c1c3388` | 2026-09-25T09:46:46+00:00 | `outputs/agent_eval/ablation-online-deepseek-v4.1-flash.json` (ebd1d3322c4c4708) |
 | `ablation-online-v1.json` | ablation | `1beb760` | 2026-09-25T14:12:49+00:00 | `outputs/agent_eval/ablation-online-v1.json` (fc69345d844bdd6e) |
 | `ablation-online-v2.json` | ablation | `1beb760` | 2026-09-25T13:32:10+00:00 | `outputs/agent_eval/ablation-online-v2.json` (f5ba8190178dfe74) |
-| `gate-dev.json` | run | `f7bf624` | 2026-09-25T23:22:21+00:00 | `outputs/agent_eval/gate-dev.json` (60420c7a46f647ee) |
-| `gate-holdout.json` | run | `f7bf624` | 2026-09-25T23:23:43+00:00 | `outputs/agent_eval/gate-holdout.json` (f8bd2771b0043581) |
+| `gate-dev.json` | run | `9d56f90-dirty` | 2026-09-26T14:24:29+00:00 | `outputs/agent_eval/gate-dev.json` (419b0bfbafd8eb91) |
+| `gate-holdout.json` | run | `9d56f90-dirty` | 2026-09-26T14:26:08+00:00 | `outputs/agent_eval/gate-holdout.json` (803599f6c01e2c49) |
 | `fault_injection.json` | fault_injection | `f7bf624` | 2026-09-25T23:28:06+00:00 | `outputs/agent_eval/fault_injection.json` (6ae7b722daf8bdc8) |
 | `verifier_stress.json` | verifier_stress | `f7bf624` | 2026-09-25T23:25:16+00:00 | `outputs/agent_eval/verifier_stress.json` (d42dcd3b7fc21e98) |
 | `redteam-online.json` | redteam | `846bc5e` | 2026-09-25T17:43:31+00:00 | `outputs/agent_eval/redteam.json` (2aaca3106692296c) |

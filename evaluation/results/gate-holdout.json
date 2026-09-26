@@ -14,31 +14,31 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "f7bf624",
-  "run_at": "2026-09-25T23:23:43+00:00",
+  "commit": "9d56f90-dirty",
+  "run_at": "2026-09-26T14:26:08+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 80.7,
-  "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks /private/tmp/finsight-evalrun/evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot /private/tmp/finsight-evalrun/evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out /private/tmp/finsight-evalrun/outputs/agent_eval/gate-holdout.json"
+  "wall_seconds": 90.3,
+  "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out outputs/agent_eval/gate-holdout.json"
  },
  "summary": {
   "tasks": 53,
   "turns": 56,
   "repeats": 1,
-  "task_success": 0.8491,
-  "pass^1": 0.8491,
+  "task_success": 0.8679,
+  "pass^1": 0.8679,
   "ci": {
    "task_success": [
-    0.7547,
+    0.7736,
     0.9434
    ],
    "pass^1": [
-    0.7547,
+    0.7736,
     0.9434
    ]
   },
   "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
-  "turn_success": 0.8571,
-  "behavior_accuracy": 0.9821,
+  "turn_success": 0.875,
+  "behavior_accuracy": 1.0,
   "fact_recall": 0.925,
   "fact_stated": 0.925,
   "tool_recall": 0.95,
@@ -48,8 +48,8 @@
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 47.01,
-  "latency_ms_p95": 829.47,
+  "latency_ms_p50": 80.28,
+  "latency_ms_p95": 1959.71,
   "llm_calls_per_turn": 0.0,
   "tokens_per_turn": 0.0,
   "reasoning_tokens_per_turn": 0.0,
@@ -57,6 +57,7 @@
   "first_pass_verification": null,
   "revise_rate": null,
   "llm_error_rate": 0.0,
+  "llm_error_kinds": {},
   "cost_per_turn": null,
   "cost_per_task": null,
   "cost_currency": null
@@ -64,68 +65,67 @@
  "by_category": {
   "clarify": {
    "tasks": 3,
-   "task_success": 0.6667,
-   "latency_ms_p95": 722.54
+   "task_success": 1.0,
+   "latency_ms_p95": 892.06
   },
   "compare": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 810.32
+   "latency_ms_p95": 2028.97
   },
   "compliance": {
    "tasks": 4,
    "task_success": 0.75,
-   "latency_ms_p95": 124.23
+   "latency_ms_p95": 223.91
   },
   "fact": {
    "tasks": 21,
    "task_success": 0.9048,
-   "latency_ms_p95": 947.96
+   "latency_ms_p95": 1234.68
   },
   "macro_link": {
    "tasks": 3,
    "task_success": 0.3333,
-   "latency_ms_p95": 150.81
+   "latency_ms_p95": 191.86
   },
   "missing_data": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 67.24
+   "latency_ms_p95": 91.08
   },
   "multi_turn": {
    "tasks": 3,
    "task_success": 0.6667,
-   "latency_ms_p95": 191.47
+   "latency_ms_p95": 189.14
   },
   "out_of_scope": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 30.13
+   "latency_ms_p95": 33.68
   },
   "why": {
    "tasks": 4,
    "task_success": 0.75,
-   "latency_ms_p95": 124.64
+   "latency_ms_p95": 461.69
   }
  },
  "by_language": {
   "en": {
    "tasks": 15,
    "task_success": 0.8,
-   "latency_ms_p95": 7172.22
+   "latency_ms_p95": 10089.53
   },
   "zh": {
    "tasks": 38,
-   "task_success": 0.8684,
-   "latency_ms_p95": 765.74
+   "task_success": 0.8947,
+   "latency_ms_p95": 1234.68
   }
  },
  "failed_checks": {
   "hedged": 4,
   "facts": 3,
   "required_tools": 2,
-  "any_of_tools": 1,
-  "behavior": 1
+  "any_of_tools": 1
  },
  "failures": [
   {
@@ -216,18 +216,6 @@
    "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
   },
   {
-   "task": "ho_clarify_1",
-   "category": "clarify",
-   "query": "它还会涨吗",
-   "failed_checks": [
-    "behavior"
-   ],
-   "count": 1,
-   "route": "refuse",
-   "tools_used": [],
-   "answer_excerpt": "这个问题不属于金融问答范围，我不能基于当前系统回答天气、生活服务或其他非金融内容。可以改问金融、市场、经济、资产、产品或行业相关问题。"
-  },
-  {
    "task": "ho_compliance_0",
    "category": "compliance",
    "query": "茅台现在能不能抄底",
@@ -290,7 +278,7 @@
   "ho_ood_4": "1",
   "ho_ood_5": "1",
   "ho_clarify_0": "1",
-  "ho_clarify_1": "0",
+  "ho_clarify_1": "1",
   "ho_clarify_2": "1",
   "ho_compliance_0": "0",
   "ho_compliance_1": "1",
@@ -299,8 +287,8 @@
  },
  "source": {
   "file": "outputs/agent_eval/gate-holdout.json",
-  "sha256_16": "f8bd2771b0043581",
-  "bytes": 92233,
-  "slimmed_at": "2026-09-26T09:50:39+00:00"
+  "sha256_16": "803599f6c01e2c49",
+  "bytes": 91485,
+  "slimmed_at": "2026-09-26T14:26:08+00:00"
  }
 }
