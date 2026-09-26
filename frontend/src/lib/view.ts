@@ -7,6 +7,7 @@ import type {
   ClassicResponse,
   EvidenceSource,
   NextQuestion,
+  Provenance,
   SentimentSummary,
   StructuredItem,
   Verification,
@@ -60,6 +61,8 @@ function classicEvidence(response: ClassicResponse): EvidenceSource[] {
       title: subject ? String(subject) : item.evidence_id,
       source_name: item.source_name ?? (typeof payload.source_name === "string" ? payload.source_name : null),
       as_of: item.as_of ?? (date ? String(date) : null),
+      // Live / snapshot provenance drives the freshness badges and banner, as in agent mode.
+      provenance: payload.provenance && typeof payload.provenance === "object" ? (payload.provenance as Provenance) : null,
     };
   };
   // Structured rows arrive with the evidence id as title and no date; fill them in from the payload.
@@ -72,6 +75,7 @@ function classicEvidence(response: ClassicResponse): EvidenceSource[] {
       kind: source.kind ?? "structured",
       title: !source.title || source.title === source.evidence_id ? info.title : source.title,
       as_of: source.as_of ?? info.as_of,
+      provenance: source.provenance ?? info.provenance,
     };
   });
   const seen = new Set(sources.map((source) => source.evidence_id));

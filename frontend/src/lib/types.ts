@@ -36,8 +36,29 @@ export interface EvidenceSource {
   source_url?: string | null;
   as_of?: string | null;
   produced_by?: string | null;
-  /** Not sent by the agent today; rendered when a server includes the structured payload. */
+  /** Structured evidence carries its payload (numbers, price series, `provenance`). */
   payload?: Record<string, unknown> | null;
+  /** Some servers may lift provenance to the top level; the UI accepts either place. */
+  provenance?: Provenance | null;
+}
+
+/** `payload.provenance` on live and snapshot records (query_intelligence/integrations/sources/provenance.py). */
+export interface Provenance {
+  source?: string | null;
+  source_label?: string | null;
+  endpoint?: string | null;
+  is_live?: boolean;
+  /** live | live_fallback | last_known_good | snapshot */
+  mode?: string | null;
+  fetched_at?: string | null;
+  as_of?: string | null;
+  /** fresh | stale | unknown */
+  freshness?: string | null;
+  fallback_reason?: string | null;
+  attempts?: string[];
+  cache_hit?: boolean;
+  note?: string | null;
+  original_source?: string | null;
 }
 
 export interface Verification {
@@ -205,6 +226,17 @@ export type StreamEvent =
       data: { tool: string; ok: boolean; latency_ms: number; evidence_ids: string[]; error?: ToolError | null };
     }
   | { event: "clarification"; data: Clarification & { session_id: string } }
+  /** Streamed answer text while the LLM writes; the final `answer` event replaces it. */
+  | { event: "answer_delta"; data: { text: string } }
   | { event: "answer"; data: AgentResponse }
   | { event: "error"; data: { message: string } }
   | { event: "done"; data: { session_id: string } };
+
+export type FeedbackRating = "up" | "down";
+
+export interface FeedbackRequest {
+  trace_id: string;
+  session_id: string | null;
+  rating: FeedbackRating;
+  comment: string | null;
+}

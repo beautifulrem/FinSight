@@ -30,11 +30,33 @@ QI_USE_LIVE_ANNOUNCEMENT=0 python scripts/launch_chatbot.py
 
 ## 浏览器界面
 
-![智能体回答、执行过程与证据面板](../assets/ui/desktop-light-agent-trace.png)
+![智能体回答、执行过程与证据面板（真实运行，Chrome）](../assets/ui/chrome-agent-trace.png)
 
-页面源码在 `frontend/`（React 19 + TypeScript + Vite 8 + Tailwind CSS v4 + Radix/shadcn 风格组件 + Motion + TradingView Lightweight Charts），构建产物提交在 `query_intelligence/web/dist`，因此只装 Python 也能直接使用。每个回答展示：流式执行过程（路由依据、每次工具调用的参数/耗时/状态、LLM 步骤 token、核验结果、合规改写、降级标记）、可点击的 `E1` 引用标记与证据面板（类型、时间、新鲜度、链接）、有价格序列时的收盘价走势图和 KPI（A 股配色：红涨绿跌）、运行指标（trace_id、路由、模型、token、成本、耗时）。另有模式切换、澄清续答（`/agent/resume`）、推荐追问、文本语气、会话记忆、新会话、API Key、中英文切换、深浅色主题、移动端布局和键盘/读屏支持；风险提示始终可见，界面不给出买卖建议。
+| | |
+|---|---|
+| ![数据时效横幅：4 月行业快照与 9 月行情同时出现](../assets/ui/chrome-freshness.png) | ![运行详情：路由依据等内部代码已转成可读标签](../assets/ui/chrome-run-details.png) |
+| ![回答逐字流式输出，带光标](../assets/ui/chrome-streaming.png) | ![核验后的最终回答替换草稿，并提示“已按核验结果修订”](../assets/ui/chrome-streaming-final.png) |
+| ![反馈（服务端无接口时保存在本地）与 Markdown 导出菜单](../assets/ui/chrome-feedback-export.png) | ![深色英文界面下的拒答与可读的局限说明](../assets/ui/chrome-refusal-dark-en.png) |
 
-开发与构建：`cd frontend && pnpm install && pnpm dev`（代理到 :8765 的 uvicorn）；`pnpm typecheck && pnpm lint && pnpm test && pnpm build`。缺少 `web/dist` 或设置 `QI_WEB_UI=legacy` 时回退到 `web/static` 的旧页面。技术选型理由与后端缺口见[英文文档](../frontend-chatbot.md#browser-ui)。
+<p><img src="../assets/ui/chrome-mobile-dark-en.png" alt="移动端、深色、英文" width="260"> <img src="../assets/ui/chrome-mobile-evidence-dark-en.png" alt="移动端证据面板：实时 / 备用源 / 离线快照 / 可能过时" width="260"></p>
+
+页面源码在 `frontend/`（React 19 + TypeScript + Vite 8 + Tailwind CSS v4 + Radix/shadcn 风格组件 + Motion + TradingView Lightweight Charts），构建产物提交在 `query_intelligence/web/dist`，因此只装 Python 也能直接使用。每个回答展示：
+
+- **执行过程**：流式展示路由依据、每次工具调用的参数/耗时/状态、LLM 步骤 token、核验结果、合规改写、降级标记；回答文本开始流式输出后自动折叠。
+- **流式回答**：`answer_delta` 事件（`{"text": "<下一段>"}`）逐段渲染并显示闪烁光标（每帧最多渲染一次，流式过程中隐藏引用标记，包括只收到一半的 `[price_6005`）。最终的 `answer` 事件为准：正文淡入替换草稿；若核验或合规改写了内容，会短暂显示“已按核验结果修订”。服务端不发送 `answer_delta` 时行为与之前一致。
+- **数据时效**：每条证据根据 `payload.provenance`（`is_live`、`mode`、`fallback_reason`、`freshness`、`as_of`）显示“实时 / 备用源 / 缓存 / 离线快照”，并在超出时效窗口（行情、行业、技术指标 10 天，财务 200 天，宏观 75 天，新闻 30 天，公告 90 天；知识库与产品文档不过期）或 provenance 标记为 stale 时显示“可能过时”；悬停可看到来源、获取时间和可读的降级原因。只要结构化或被引用的证据中有离线快照、过时数据，或日频数据日期相差超过 10 天，回答顶部就显示横幅（如“数据日期 2026/04/21 至 2026/09/24 · 日频数据日期相差 156 天 · 1 条离线快照……”）；只用了备用源时显示提示性横幅。对应的 KPI 卡片用虚线警示边框标出。
+- **可读的内部代码**：路由依据、`degraded`、合规改写、NLU 风险标记、检索告警、工具错误码、回答来源、路由、问题类型与品种都显示为中英文标签（`frontend/src/lib/codes.ts`）。带参数的代码会被解析（`budget:step budget of 6 reached` → “达到推理步数上限（6 步），提前作答”；`llm_error:<异常>` 不会显示异常原文）；未知的新代码会被整理成可读文字，而不是原样显示。原始代码保留在提示框（悬停或键盘聚焦）和 `data-code` 属性中。
+- **反馈**：每个回答可点赞/点踩并附可选说明（点踩时自动展开），以 `{trace_id, session_id, rating, comment}` 调用 `POST /agent/feedback`；按 `trace_id` 保存在 `localStorage`（最近 300 条）。服务端没有该接口（404 “Not Found”、405、501）时保存在本地并提示；其他 404 表示服务端已找不到这次运行；网络错误可重试。
+- **导出**：复制纯文本，或复制/下载 Markdown：问题、路由、模型、核验、trace id、带 `[E1]` 引用的回答、要点、局限（附原始代码）、编号证据列表（id、类型、来源、截至日期、已引用/实时/备用源/快照/过时、URL 或“结构化数据”、降级原因）和风险提示。
+- 可点击的 `E1` 引用标记与证据面板、有价格序列时的收盘价走势图和 KPI（A 股配色：红涨绿跌）、运行指标（trace_id、路由、模型、token、成本、耗时）。另有模式切换、澄清续答（`/agent/resume`）、推荐追问、文本语气、会话记忆、新会话、API Key、中英文切换、深浅色主题、移动端布局和键盘/读屏支持；风险提示始终可见，界面不给出买卖建议。
+
+**打包体积**：恢复 Vite 默认的 500 kB 告警阈值（旧配置调到 560 kB 以掩盖 520 kB 的入口 chunk）。通过 Rolldown `output.codeSplitting.groups`（Vite 8 中替代 `manualChunks` 的方式）把 React、Radix、Motion 拆成可长期缓存的 chunk，价格图与设置对话框用 `React.lazy` 按需加载。入口从 519.6 kB（gzip 167.9）降到 162.3 kB（gzip 54.4），最大 chunk 为 react 218.8 kB，不再触发告警。详细表格见[英文文档](../frontend-chatbot.md#bundle)。
+
+**无障碍**：`tests/test_web_ui.py` 注入 axe-core（前端 devDependency），在空状态、回答与执行过程、检查器各页签、反馈表单、导出菜单、设置对话框、拒答、价格图、深色英文、澄清、带时效横幅的回答以及 390 px 手机界面上检查 WCAG 2.0/2.1/2.2 A/AA 与最佳实践，出现 serious/critical 问题即失败。本轮修复了浅色与深色主题中低于 4.5:1 的文字对比度、空状态下 Tabs 的 `aria-controls` 指向不存在的面板、图表容器 `role="img"` 内含可聚焦链接、对话开始后缺少 `h1` 和标题层级跳级，以及聊天区内的读屏隐藏文本撑高整个页面导致页头被滚出屏幕的问题。真实 Chrome 运行中各状态 axe 结果均为 0 个问题。
+
+**后端契约与降级**：`answer_delta` 与 `POST /agent/feedback` 已在后端 `round2` 分支实现，并已端到端验证（首段流式文本 9.5 秒出现，共 336 个 `answer_delta` 事件，反馈返回 `{"ok": true}`，未知 trace 返回 404 后保存在本地）；对接旧版服务端时界面按上述方式降级。证据时效依赖 `evidence_sources[].payload.provenance`，缺失时只按 `as_of` 计算。
+
+开发与构建：`cd frontend && pnpm install && pnpm dev`（代理到 :8765 的 uvicorn）；`pnpm typecheck && pnpm lint && pnpm test && pnpm build`。浏览器测试：`python -m playwright install chromium && (cd frontend && pnpm install) && python -m pytest -q tests/test_web_ui.py`。缺少 `web/dist` 或设置 `QI_WEB_UI=legacy` 时回退到 `web/static` 的旧页面。技术选型理由、后端缺口与 2026-09-26 的 Chrome 实测记录见[英文文档](../frontend-chatbot.md#browser-ui)。
 
 ## 请求流程
 

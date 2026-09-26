@@ -3,10 +3,11 @@ import { useState, type ReactNode } from "react";
 
 import type { Turn } from "@/hooks/useChat";
 import { formatCost, formatInt, formatMs } from "@/lib/format";
+import { humanizeCode } from "@/lib/codes";
 import { useI18n } from "@/lib/i18n";
 import type { AnswerView } from "@/lib/view";
 
-import { Badge } from "./ui/badge";
+import { CodeBadge } from "./CodeLabel";
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -58,15 +59,17 @@ export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: 
       )}
       <Row label={t("run.route")}>
         <span className="flex flex-wrap items-center gap-1">
-          <Badge tone="cobalt">{view.route ?? "–"}</Badge>
+          {view.route ? <CodeBadge code={view.route} kind="route" tone="cobalt" /> : "–"}
           {(agent?.route_reasons ?? []).map((reason) => (
-            <Badge key={reason} className="font-mono font-normal">
-              {reason}
-            </Badge>
+            <CodeBadge key={reason} code={reason} kind="reason" className="font-normal" />
           ))}
         </span>
       </Row>
-      {view.answerSource && <Row label={t("run.answerSource")}>{view.answerSource}</Row>}
+      {view.answerSource && (
+        <Row label={t("run.answerSource")}>
+          <CodeBadge code={view.answerSource} kind="answerSource" className="font-normal" />
+        </Row>
+      )}
       {agent && (
         <Row label={t("run.model")}>
           {llm?.model ? <span className="font-mono text-[12px]">{llm.model}</span> : <span className="text-muted">{t("run.noModel")}</span>}
@@ -74,9 +77,10 @@ export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: 
       )}
       {classic?.llm && (
         <Row label={t("run.llmStatus")}>
-          <span className="font-mono text-[12px]">
-            {classic.llm.model} · {classic.llm.status}
-          </span>
+          <span className="font-mono text-[12px]">{classic.llm.model}</span>
+          {classic.llm.status && (
+            <span className="ml-1 text-[12px]">· {humanizeCode(lang, classic.llm.status, "answerSource")}</span>
+          )}
           {classic.llm.error && <span className="block text-[12px] text-muted">{classic.llm.error}</span>}
         </Row>
       )}
@@ -101,7 +105,11 @@ export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: 
           {cost ? (
             <span className="tabular-nums">
               {cost}
-              {llm?.cost_source && <span className="ml-1 text-[12px] text-muted">({llm.cost_source})</span>}
+              {llm?.cost_source && (
+                <span className="ml-1 text-[12px] text-muted" data-code={llm.cost_source}>
+                  ({humanizeCode(lang, llm.cost_source)})
+                </span>
+              )}
             </span>
           ) : (
             <span className="text-muted">{llm?.calls ? t("run.costUnset") : "0"}</span>
@@ -124,15 +132,14 @@ export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: 
               : "–"}
           </Row>
           <Row label={t("run.style")}>
-            {nlu.question_style ?? "–"} · {nlu.product_type ?? "–"}
+            {nlu.question_style ? humanizeCode(lang, nlu.question_style, "style") : "–"} ·{" "}
+            {nlu.product_type ? humanizeCode(lang, nlu.product_type, "product") : "–"}
           </Row>
           {(nlu.risk_flags ?? []).length > 0 && (
             <Row label={t("run.riskFlags")}>
               <span className="flex flex-wrap gap-1">
                 {(nlu.risk_flags ?? []).map((flag) => (
-                  <Badge key={flag} tone="warn" className="font-mono font-normal">
-                    {flag}
-                  </Badge>
+                  <CodeBadge key={flag} code={flag} kind="risk" tone="warn" className="font-normal" />
                 ))}
               </span>
             </Row>
@@ -145,7 +152,8 @@ export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: 
             {(classic.nlu_result.entities ?? []).map((entity) => `${entity.canonical_name ?? ""}${entity.symbol ? ` (${entity.symbol})` : ""}`).join("、") || "–"}
           </Row>
           <Row label={t("run.intents")}>
-            {(classic.nlu_result.intent_labels ?? []).map((intent) => intent.label).join(", ") || "–"}
+            {(classic.nlu_result.intent_labels ?? []).map((intent) => humanizeCode(lang, intent.label, "intent")).join(lang === "zh" ? "、" : ", ") ||
+              "–"}
           </Row>
           <Row label={t("run.sources")}>
             <span className="font-mono text-[12px]">{(classic.retrieval_result?.executed_sources ?? []).join(", ") || "–"}</span>
