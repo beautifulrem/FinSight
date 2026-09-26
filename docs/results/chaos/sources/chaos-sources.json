@@ -1,0 +1,1250 @@
+{
+ "scenario": "sources",
+ "blocked_hosts": [
+  "sina.com.cn",
+  "sinajs.cn",
+  "sina.cn",
+  "gtimg.cn",
+  "eastmoney.com"
+ ],
+ "block_mode": "reject",
+ "upstream_proxy_used": true,
+ "settings": {
+  "market_bundle_ttl_s": 60,
+  "max_stale_s": 90.0,
+  "source_cooldown_s": 20.0
+ },
+ "phases": [
+  {
+   "phase": "1_live",
+   "at": "2026-09-26T13:56:02+00:00",
+   "blocking": false,
+   "requests": [
+    {
+     "query": "贵州茅台最新收盘价是多少？",
+     "status": 200,
+     "latency_ms": 4122.6,
+     "route": "workflow",
+     "verified": true,
+     "degraded": [],
+     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1237（2026-09-24），当日涨跌幅 -1.1381% [price_600519.SH]。",
+     "limitations": [
+      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-24。"
+     ],
+     "evidence": [
+      {
+       "evidence_id": "price_600519.SH",
+       "source_type": "market_api",
+       "close": 1237.0,
+       "trade_date": null,
+       "source": "sina.kline",
+       "mode": "live_fallback",
+       "freshness": "fresh",
+       "as_of": "2026-09-24",
+       "cache_hit": false,
+       "fallback_reason": "eastmoney.quote:error(ProxyError); eastmoney.quote:error(ProxyError)",
+       "note": "数据来自新浪财经行情，截至2026-09-24；因东方财富行情请求失败降级",
+       "provider_warnings": null
+      }
+     ]
+    }
+   ],
+   "sources": {
+    "eastmoney.quote": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 3,
+     "failures": 3,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/get?fltt=2&invt=2&fields=f120%2Cf121%2Cf1..."
+    },
+    "eastmoney.datacenter": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "sina.kline": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "sina.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "ths.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "cninfo.profile": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    }
+   },
+   "worker_pool": {
+    "max_workers": 32,
+    "busy": 0,
+    "max_busy": 2,
+    "submitted_total": 8,
+    "completed_total": 8,
+    "timed_out_total": 0,
+    "abandoned_total": 0,
+    "abandoned_running": 0,
+    "rejected_total": 0
+   },
+   "metrics": [
+    "finsight_source_circuit_state{source=\"eastmoney.quote\"} 2.0",
+    "finsight_source_circuit_state{source=\"eastmoney.datacenter\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.fund\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.news\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.kline\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.quote\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"tencent.kline\"} 0.0",
+    "finsight_source_circuit_state{source=\"tencent.quote\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.industry\"} 0.0",
+    "finsight_source_circuit_state{source=\"csindex\"} 0.0",
+    "finsight_source_circuit_state{source=\"chinabond\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.profile\"} 0.0",
+    "finsight_source_circuit_state{source=\"xueqiu\"} 0.0",
+    "finsight_source_circuit_state{source=\"efinance\"} 0.0",
+    "finsight_source_circuit_state{source=\"tushare\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.quote\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.quote\"} 3.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"eastmoney.quote\"} 1.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.datacenter\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.datacenter\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.kline\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.kline\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.finance\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"ths.finance\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"ths.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"cninfo.profile\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"cninfo.profile\"} 0.0",
+    "finsight_source_pool_workers 32.0",
+    "finsight_source_pool_busy 0.0",
+    "finsight_source_pool_abandoned_running 0.0",
+    "finsight_source_pool_abandoned_total 0.0",
+    "finsight_source_pool_rejected_total 0.0"
+   ],
+   "proxy_counts": {
+    "push2his.eastmoney.com": {
+     "forwarded": 2
+    },
+    "finance.sina.com.cn": {
+     "forwarded": 1
+    },
+    "stock.finance.sina.com.cn": {
+     "forwarded": 1
+    },
+    "push2.eastmoney.com": {
+     "forwarded": 1
+    },
+    "webapi.cninfo.com.cn": {
+     "forwarded": 1
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 2
+    },
+    "money.finance.sina.com.cn": {
+     "forwarded": 1
+    },
+    "datacenter-web.eastmoney.com": {
+     "forwarded": 1
+    }
+   }
+  },
+  {
+   "phase": "1b_live_fundamentals_and_industry",
+   "at": "2026-09-26T13:56:04+00:00",
+   "blocking": false,
+   "requests": [
+    {
+     "query": "五粮液最新的营收和净利润增长情况如何？所在行业最近表现怎样？",
+     "status": 200,
+     "latency_ms": 2135.5,
+     "route": "workflow",
+     "verified": true,
+     "degraded": [],
+     "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 69.67（2026-09-24），当日涨跌幅 -0.9525% [price_000858.SZ]。五粮液 基本面（报告期 2026-06-30）：PE(TTM) 20.67，PB 2.28，ROE 7.39%，营业收入 284.17 亿元，净利润 87.53 亿元 [fundamental_000858.SZ]。所属行业 白酒：涨跌幅% -2.69 [industry_白酒]。相关资料：《五粮液000858.SZ)：2026年中报净利润为87.53亿元、同比较去年同期上涨89.30%》（界面新闻，2026-08-29） [",
+     "limitations": [
+      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-24。"
+     ],
+     "evidence": [
+      {
+       "evidence_id": "price_000858.SZ",
+       "source_type": "market_api",
+       "close": 69.67,
+       "trade_date": null,
+       "source": "sina.kline",
+       "mode": "live_fallback",
+       "freshness": "fresh",
+       "as_of": "2026-09-24",
+       "cache_hit": false,
+       "fallback_reason": "eastmoney.quote:circuit_open",
+       "note": "数据来自新浪财经行情，截至2026-09-24；因东方财富行情熔断中降级",
+       "provider_warnings": null
+      },
+      {
+       "evidence_id": "fundamental_000858.SZ",
+       "source_type": "fundamental_sql",
+       "close": null,
+       "trade_date": null,
+       "source": "ths.finance",
+       "mode": "live_fallback",
+       "freshness": "fresh",
+       "as_of": "2026-06-30",
+       "cache_hit": false,
+       "fallback_reason": null,
+       "note": "数据来自同花顺财务摘要，截至2026-06-30；同花顺与新浪财经的营收同比、净利润同比不一致；已采用与报告期营收/净利润绝对值推算结果一致的同花顺数据，请以公司定期报告为准",
+       "provider_warnings": [
+        "fundamentals_cross_source_disagree_resolved:000858:revenue_yoy,netprofit_yoy:served=ths.finance"
+       ]
+      },
+      {
+       "evidence_id": "industry_白酒",
+       "source_type": "industry_sql",
+       "close": 1922.131,
+       "trade_date": "2026-09-24",
+       "source": "ths.industry",
+       "mode": "live",
+       "freshness": "fresh",
+       "as_of": "2026-09-24",
+       "cache_hit": false,
+       "fallback_reason": null,
+       "note": "数据来自同花顺行业指数，截至2026-09-24",
+       "provider_warnings": null
+      }
+     ]
+    }
+   ],
+   "sources": {
+    "eastmoney.quote": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 3,
+     "failures": 3,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/get?fltt=2&invt=2&fields=f120%2Cf121%2Cf1..."
+    },
+    "eastmoney.datacenter": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "eastmoney.news": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "sina.kline": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "sina.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "ths.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "ths.industry": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "cninfo.profile": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    }
+   },
+   "worker_pool": {
+    "max_workers": 32,
+    "busy": 0,
+    "max_busy": 4,
+    "submitted_total": 20,
+    "completed_total": 20,
+    "timed_out_total": 0,
+    "abandoned_total": 0,
+    "abandoned_running": 0,
+    "rejected_total": 0
+   },
+   "metrics": [
+    "finsight_source_circuit_state{source=\"eastmoney.quote\"} 2.0",
+    "finsight_source_circuit_state{source=\"eastmoney.datacenter\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.fund\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.news\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.kline\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.quote\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"tencent.kline\"} 0.0",
+    "finsight_source_circuit_state{source=\"tencent.quote\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.industry\"} 0.0",
+    "finsight_source_circuit_state{source=\"csindex\"} 0.0",
+    "finsight_source_circuit_state{source=\"chinabond\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.profile\"} 0.0",
+    "finsight_source_circuit_state{source=\"xueqiu\"} 0.0",
+    "finsight_source_circuit_state{source=\"efinance\"} 0.0",
+    "finsight_source_circuit_state{source=\"tushare\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.quote\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.quote\"} 3.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"eastmoney.quote\"} 5.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.datacenter\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.datacenter\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.news\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.news\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.kline\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.kline\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.finance\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"ths.finance\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"ths.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"ths.industry\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"ths.industry\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"cninfo.profile\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"cninfo.profile\"} 0.0",
+    "finsight_source_pool_workers 32.0",
+    "finsight_source_pool_busy 0.0",
+    "finsight_source_pool_abandoned_running 0.0",
+    "finsight_source_pool_abandoned_total 0.0",
+    "finsight_source_pool_rejected_total 0.0"
+   ],
+   "proxy_counts": {
+    "push2his.eastmoney.com": {
+     "forwarded": 2
+    },
+    "finance.sina.com.cn": {
+     "forwarded": 3
+    },
+    "stock.finance.sina.com.cn": {
+     "forwarded": 3
+    },
+    "push2.eastmoney.com": {
+     "forwarded": 1
+    },
+    "webapi.cninfo.com.cn": {
+     "forwarded": 3
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 6
+    },
+    "money.finance.sina.com.cn": {
+     "forwarded": 3
+    },
+    "datacenter-web.eastmoney.com": {
+     "forwarded": 3
+    },
+    "search-api-web.eastmoney.com": {
+     "forwarded": 1
+    },
+    "q.10jqka.com.cn": {
+     "forwarded": 1
+    },
+    "d.10jqka.com.cn": {
+     "forwarded": 1
+    }
+   }
+  },
+  {
+   "phase": "2_blocked_within_ttl",
+   "at": "2026-09-26T13:56:05+00:00",
+   "blocking": true,
+   "requests": [
+    {
+     "query": "贵州茅台最新收盘价是多少？",
+     "status": 200,
+     "latency_ms": 126.3,
+     "route": "workflow",
+     "verified": true,
+     "degraded": [],
+     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1237（2026-09-24），当日涨跌幅 -1.1381% [price_600519.SH]。",
+     "limitations": [
+      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-24。"
+     ],
+     "evidence": [
+      {
+       "evidence_id": "price_600519.SH",
+       "source_type": "market_api",
+       "close": 1237.0,
+       "trade_date": null,
+       "source": "sina.kline",
+       "mode": "live_fallback",
+       "freshness": "fresh",
+       "as_of": "2026-09-24",
+       "cache_hit": false,
+       "fallback_reason": "eastmoney.quote:error(ProxyError); eastmoney.quote:error(ProxyError)",
+       "note": "数据来自新浪财经行情，截至2026-09-24；因东方财富行情请求失败降级",
+       "provider_warnings": null
+      }
+     ]
+    },
+    {
+     "query": "CPI 最新数据是多少？",
+     "status": 200,
+     "latency_ms": 181.2,
+     "route": "workflow",
+     "verified": true,
+     "degraded": [],
+     "answer_excerpt": "根据本次检索到的证据：CPI_CN 最新值 0.8%（2026-03-31） [macro_CPI_CN]。",
+     "limitations": [
+      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情。"
+     ],
+     "evidence": [
+      {
+       "evidence_id": "macro_CPI_CN",
+       "source_type": "macro_sql",
+       "close": null,
+       "trade_date": null,
+       "source": "offline_snapshot",
+       "mode": "snapshot",
+       "freshness": "stale",
+       "as_of": "2026-03-31",
+       "cache_hit": false,
+       "fallback_reason": "live macro unavailable (eastmoney.datacenter:error(ProxyError))",
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因实时宏观数据不可用降级",
+       "provider_warnings": null
+      }
+     ]
+    }
+   ],
+   "sources": {
+    "eastmoney.quote": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 3,
+     "failures": 3,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/get?fltt=2&invt=2&fields=f120%2Cf121%2Cf1..."
+    },
+    "eastmoney.datacenter": {
+     "status": "degraded",
+     "circuit": "closed",
+     "calls": 4,
+     "failures": 1,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='datacenter-web.eastmoney.com', port=443): Max retries exceeded with url: /api/data/v1/get?columns=REPORT_DATE%2CTIME%2C..."
+    },
+    "eastmoney.news": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "sina.kline": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "sina.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "ths.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "ths.industry": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "cninfo.profile": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    }
+   },
+   "worker_pool": {
+    "max_workers": 32,
+    "busy": 0,
+    "max_busy": 4,
+    "submitted_total": 21,
+    "completed_total": 21,
+    "timed_out_total": 0,
+    "abandoned_total": 0,
+    "abandoned_running": 0,
+    "rejected_total": 0
+   },
+   "metrics": [
+    "finsight_source_circuit_state{source=\"eastmoney.quote\"} 2.0",
+    "finsight_source_circuit_state{source=\"eastmoney.datacenter\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.fund\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.news\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.kline\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.quote\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"tencent.kline\"} 0.0",
+    "finsight_source_circuit_state{source=\"tencent.quote\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.industry\"} 0.0",
+    "finsight_source_circuit_state{source=\"csindex\"} 0.0",
+    "finsight_source_circuit_state{source=\"chinabond\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.profile\"} 0.0",
+    "finsight_source_circuit_state{source=\"xueqiu\"} 0.0",
+    "finsight_source_circuit_state{source=\"efinance\"} 0.0",
+    "finsight_source_circuit_state{source=\"tushare\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.quote\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.quote\"} 3.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"eastmoney.quote\"} 5.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.datacenter\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.datacenter\"} 1.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.news\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.news\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.kline\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.kline\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.finance\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"ths.finance\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"ths.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"ths.industry\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"ths.industry\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"cninfo.profile\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"cninfo.profile\"} 0.0",
+    "finsight_source_pool_workers 32.0",
+    "finsight_source_pool_busy 0.0",
+    "finsight_source_pool_abandoned_running 0.0",
+    "finsight_source_pool_abandoned_total 0.0",
+    "finsight_source_pool_rejected_total 0.0"
+   ],
+   "proxy_counts": {
+    "push2his.eastmoney.com": {
+     "forwarded": 2
+    },
+    "finance.sina.com.cn": {
+     "forwarded": 3
+    },
+    "stock.finance.sina.com.cn": {
+     "forwarded": 3
+    },
+    "push2.eastmoney.com": {
+     "forwarded": 1
+    },
+    "webapi.cninfo.com.cn": {
+     "forwarded": 3
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 6
+    },
+    "money.finance.sina.com.cn": {
+     "forwarded": 3
+    },
+    "datacenter-web.eastmoney.com": {
+     "forwarded": 3,
+     "blocked": 1
+    },
+    "search-api-web.eastmoney.com": {
+     "forwarded": 1
+    },
+    "q.10jqka.com.cn": {
+     "forwarded": 1
+    },
+    "d.10jqka.com.cn": {
+     "forwarded": 1
+    }
+   }
+  },
+  {
+   "phase": "3_blocked_after_ttl",
+   "at": "2026-09-26T13:57:19+00:00",
+   "blocking": true,
+   "requests": [
+    {
+     "query": "贵州茅台最新收盘价是多少？",
+     "status": 200,
+     "latency_ms": 1480.3,
+     "route": "workflow",
+     "verified": true,
+     "degraded": [],
+     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1237（2026-09-24），当日涨跌幅 -1.1381% [price_600519.SH]。",
+     "limitations": [
+      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-24。"
+     ],
+     "evidence": [
+      {
+       "evidence_id": "price_600519.SH",
+       "source_type": "market_api",
+       "close": 1237.0,
+       "trade_date": null,
+       "source": "sina.kline",
+       "mode": "last_known_good",
+       "freshness": "fresh",
+       "as_of": "2026-09-24",
+       "cache_hit": true,
+       "fallback_reason": "live market fetch failed (ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stoc...)",
+       "note": "数据来自新浪财经行情，截至2026-09-24，沿用最近一次成功获取的实时数据（获取于2026-09-26T13:56:02+00:00）；因实时行情获取失败降级",
+       "provider_warnings": null
+      }
+     ]
+    }
+   ],
+   "sources": {
+    "eastmoney.quote": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 4,
+     "failures": 4,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2C..."
+    },
+    "eastmoney.datacenter": {
+     "status": "degraded",
+     "circuit": "closed",
+     "calls": 4,
+     "failures": 1,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='datacenter-web.eastmoney.com', port=443): Max retries exceeded with url: /api/data/v1/get?columns=REPORT_DATE%2CTIME%2C..."
+    },
+    "eastmoney.news": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "sina.kline": {
+     "status": "degraded",
+     "circuit": "closed",
+     "calls": 5,
+     "failures": 2,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='finance.sina.com.cn', port=443): Max retries exceeded with url: /realstock/company/sh600519/hisdata_klc2/klc_kl.js (Cau..."
+    },
+    "sina.quote": {
+     "status": "degraded",
+     "circuit": "closed",
+     "calls": 2,
+     "failures": 2,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='hq.sinajs.cn', port=443): Max retries exceeded with url: /list=sh600519 (Caused by ProxyError('Unable to connect to pro..."
+    },
+    "sina.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "tencent.kline": {
+     "status": "degraded",
+     "circuit": "closed",
+     "calls": 2,
+     "failures": 2,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='web.ifzq.gtimg.cn', port=443): Max retries exceeded with url: /appstock/app/fqkline/get?param=sh600519%2Cday%2C2025-09-..."
+    },
+    "ths.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "ths.industry": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "cninfo.profile": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "efinance": {
+     "status": "degraded",
+     "circuit": "closed",
+     "calls": 2,
+     "failures": 2,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2C..."
+    }
+   },
+   "worker_pool": {
+    "max_workers": 32,
+    "busy": 0,
+    "max_busy": 4,
+    "submitted_total": 30,
+    "completed_total": 30,
+    "timed_out_total": 0,
+    "abandoned_total": 0,
+    "abandoned_running": 0,
+    "rejected_total": 0
+   },
+   "metrics": [
+    "finsight_source_circuit_state{source=\"eastmoney.quote\"} 2.0",
+    "finsight_source_circuit_state{source=\"eastmoney.datacenter\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.fund\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.news\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.kline\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.quote\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"tencent.kline\"} 0.0",
+    "finsight_source_circuit_state{source=\"tencent.quote\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.industry\"} 0.0",
+    "finsight_source_circuit_state{source=\"csindex\"} 0.0",
+    "finsight_source_circuit_state{source=\"chinabond\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.profile\"} 0.0",
+    "finsight_source_circuit_state{source=\"xueqiu\"} 0.0",
+    "finsight_source_circuit_state{source=\"efinance\"} 0.0",
+    "finsight_source_circuit_state{source=\"tushare\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.quote\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.quote\"} 4.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"eastmoney.quote\"} 6.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.datacenter\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.datacenter\"} 1.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.news\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.news\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.kline\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.kline\"} 2.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.quote\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.quote\"} 2.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.finance\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"tencent.kline\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"tencent.kline\"} 2.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"ths.finance\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"ths.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"ths.industry\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"ths.industry\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"cninfo.profile\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"cninfo.profile\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"efinance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"efinance\"} 2.0",
+    "finsight_source_pool_workers 32.0",
+    "finsight_source_pool_busy 0.0",
+    "finsight_source_pool_abandoned_running 0.0",
+    "finsight_source_pool_abandoned_total 0.0",
+    "finsight_source_pool_rejected_total 0.0"
+   ],
+   "proxy_counts": {
+    "push2his.eastmoney.com": {
+     "forwarded": 2,
+     "blocked": 13
+    },
+    "finance.sina.com.cn": {
+     "forwarded": 3,
+     "blocked": 2
+    },
+    "stock.finance.sina.com.cn": {
+     "forwarded": 3
+    },
+    "push2.eastmoney.com": {
+     "forwarded": 1
+    },
+    "webapi.cninfo.com.cn": {
+     "forwarded": 3
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 6
+    },
+    "money.finance.sina.com.cn": {
+     "forwarded": 3
+    },
+    "datacenter-web.eastmoney.com": {
+     "forwarded": 3,
+     "blocked": 1
+    },
+    "search-api-web.eastmoney.com": {
+     "forwarded": 1
+    },
+    "q.10jqka.com.cn": {
+     "forwarded": 1
+    },
+    "d.10jqka.com.cn": {
+     "forwarded": 1
+    },
+    "web.ifzq.gtimg.cn": {
+     "blocked": 2
+    },
+    "hq.sinajs.cn": {
+     "blocked": 2
+    }
+   }
+  },
+  {
+   "phase": "4_blocked_after_stale_window",
+   "at": "2026-09-26T13:58:49+00:00",
+   "blocking": true,
+   "requests": [
+    {
+     "query": "贵州茅台最新收盘价是多少？",
+     "status": 200,
+     "latency_ms": 1809.9,
+     "route": "workflow",
+     "verified": true,
+     "degraded": [],
+     "answer_excerpt": "本次没有检索到可用于回答该问题的证据。",
+     "limitations": [
+      "get_price_history 未返回可用数据（upstream_error：TransientToolError: market_provider_fetch_failed:600519.SH:CircuitOpenError:circuit open for efinance; retry in 20s）",
+      "get_price_history: upstream_error",
+      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情。"
+     ],
+     "evidence": []
+    }
+   ],
+   "sources": {
+    "eastmoney.quote": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 5,
+     "failures": 5,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2C..."
+    },
+    "eastmoney.datacenter": {
+     "status": "degraded",
+     "circuit": "closed",
+     "calls": 4,
+     "failures": 1,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='datacenter-web.eastmoney.com', port=443): Max retries exceeded with url: /api/data/v1/get?columns=REPORT_DATE%2CTIME%2C..."
+    },
+    "eastmoney.news": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "sina.kline": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 6,
+     "failures": 3,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='finance.sina.com.cn', port=443): Max retries exceeded with url: /realstock/company/sh600519/hisdata_klc2/klc_kl.js (Cau..."
+    },
+    "sina.quote": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 3,
+     "failures": 3,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='hq.sinajs.cn', port=443): Max retries exceeded with url: /list=sh600519 (Caused by ProxyError('Unable to connect to pro..."
+    },
+    "sina.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "tencent.kline": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 3,
+     "failures": 3,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='web.ifzq.gtimg.cn', port=443): Max retries exceeded with url: /appstock/app/fqkline/get?param=sh600519%2Cday%2C2025-09-..."
+    },
+    "ths.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "ths.industry": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "cninfo.profile": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 3,
+     "failures": 0,
+     "last_error": null
+    },
+    "efinance": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 3,
+     "failures": 3,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2C..."
+    }
+   },
+   "worker_pool": {
+    "max_workers": 32,
+    "busy": 0,
+    "max_busy": 4,
+    "submitted_total": 35,
+    "completed_total": 35,
+    "timed_out_total": 0,
+    "abandoned_total": 0,
+    "abandoned_running": 0,
+    "rejected_total": 0
+   },
+   "metrics": [
+    "finsight_source_circuit_state{source=\"eastmoney.quote\"} 2.0",
+    "finsight_source_circuit_state{source=\"eastmoney.datacenter\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.fund\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.news\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.kline\"} 2.0",
+    "finsight_source_circuit_state{source=\"sina.quote\"} 2.0",
+    "finsight_source_circuit_state{source=\"sina.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"tencent.kline\"} 2.0",
+    "finsight_source_circuit_state{source=\"tencent.quote\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.industry\"} 0.0",
+    "finsight_source_circuit_state{source=\"csindex\"} 0.0",
+    "finsight_source_circuit_state{source=\"chinabond\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.profile\"} 0.0",
+    "finsight_source_circuit_state{source=\"xueqiu\"} 0.0",
+    "finsight_source_circuit_state{source=\"efinance\"} 2.0",
+    "finsight_source_circuit_state{source=\"tushare\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.quote\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.quote\"} 5.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"eastmoney.quote\"} 8.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.datacenter\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.datacenter\"} 1.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.news\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.news\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.kline\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.kline\"} 3.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"sina.kline\"} 2.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.quote\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.quote\"} 3.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"sina.quote\"} 2.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.finance\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"tencent.kline\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"tencent.kline\"} 3.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"tencent.kline\"} 2.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"ths.finance\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"ths.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"ths.industry\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"ths.industry\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"cninfo.profile\"} 3.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"cninfo.profile\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"efinance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"efinance\"} 3.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"efinance\"} 2.0",
+    "finsight_source_pool_workers 32.0",
+    "finsight_source_pool_busy 0.0",
+    "finsight_source_pool_abandoned_running 0.0",
+    "finsight_source_pool_abandoned_total 0.0",
+    "finsight_source_pool_rejected_total 0.0"
+   ],
+   "proxy_counts": {
+    "push2his.eastmoney.com": {
+     "forwarded": 2,
+     "blocked": 20
+    },
+    "finance.sina.com.cn": {
+     "forwarded": 3,
+     "blocked": 3
+    },
+    "stock.finance.sina.com.cn": {
+     "forwarded": 3
+    },
+    "push2.eastmoney.com": {
+     "forwarded": 1
+    },
+    "webapi.cninfo.com.cn": {
+     "forwarded": 3
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 6
+    },
+    "money.finance.sina.com.cn": {
+     "forwarded": 3
+    },
+    "datacenter-web.eastmoney.com": {
+     "forwarded": 3,
+     "blocked": 1
+    },
+    "search-api-web.eastmoney.com": {
+     "forwarded": 1
+    },
+    "q.10jqka.com.cn": {
+     "forwarded": 1
+    },
+    "d.10jqka.com.cn": {
+     "forwarded": 1
+    },
+    "web.ifzq.gtimg.cn": {
+     "blocked": 3
+    },
+    "hq.sinajs.cn": {
+     "blocked": 3
+    }
+   }
+  },
+  {
+   "phase": "5_unblocked_recovered",
+   "at": "2026-09-26T13:59:36+00:00",
+   "blocking": false,
+   "requests": [
+    {
+     "query": "贵州茅台最新收盘价是多少？",
+     "status": 200,
+     "latency_ms": 1662.0,
+     "route": "workflow",
+     "verified": true,
+     "degraded": [],
+     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1237（2026-09-24），当日涨跌幅 -1.1381% [price_600519.SH]。",
+     "limitations": [
+      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-24。"
+     ],
+     "evidence": [
+      {
+       "evidence_id": "price_600519.SH",
+       "source_type": "market_api",
+       "close": 1237.0,
+       "trade_date": null,
+       "source": "sina.kline",
+       "mode": "live_fallback",
+       "freshness": "fresh",
+       "as_of": "2026-09-24",
+       "cache_hit": false,
+       "fallback_reason": "eastmoney.quote:circuit_open",
+       "note": "数据来自新浪财经行情，截至2026-09-24；因东方财富行情熔断中降级",
+       "provider_warnings": null
+      }
+     ]
+    }
+   ],
+   "sources": {
+    "eastmoney.quote": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 5,
+     "failures": 5,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2C..."
+    },
+    "eastmoney.datacenter": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 5,
+     "failures": 1,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='datacenter-web.eastmoney.com', port=443): Max retries exceeded with url: /api/data/v1/get?columns=REPORT_DATE%2CTIME%2C..."
+    },
+    "eastmoney.news": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "sina.kline": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 7,
+     "failures": 3,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='finance.sina.com.cn', port=443): Max retries exceeded with url: /realstock/company/sh600519/hisdata_klc2/klc_kl.js (Cau..."
+    },
+    "sina.quote": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 3,
+     "failures": 3,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='hq.sinajs.cn', port=443): Max retries exceeded with url: /list=sh600519 (Caused by ProxyError('Unable to connect to pro..."
+    },
+    "sina.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 4,
+     "failures": 0,
+     "last_error": null
+    },
+    "tencent.kline": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 3,
+     "failures": 3,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='web.ifzq.gtimg.cn', port=443): Max retries exceeded with url: /appstock/app/fqkline/get?param=sh600519%2Cday%2C2025-09-..."
+    },
+    "ths.finance": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 4,
+     "failures": 0,
+     "last_error": null
+    },
+    "ths.industry": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 1,
+     "failures": 0,
+     "last_error": null
+    },
+    "cninfo.profile": {
+     "status": "up",
+     "circuit": "closed",
+     "calls": 4,
+     "failures": 0,
+     "last_error": null
+    },
+    "efinance": {
+     "status": "down",
+     "circuit": "open",
+     "calls": 3,
+     "failures": 3,
+     "last_error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2C..."
+    }
+   },
+   "worker_pool": {
+    "max_workers": 32,
+    "busy": 0,
+    "max_busy": 4,
+    "submitted_total": 40,
+    "completed_total": 40,
+    "timed_out_total": 0,
+    "abandoned_total": 0,
+    "abandoned_running": 0,
+    "rejected_total": 0
+   },
+   "metrics": [
+    "finsight_source_circuit_state{source=\"eastmoney.quote\"} 2.0",
+    "finsight_source_circuit_state{source=\"eastmoney.datacenter\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.fund\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.news\"} 0.0",
+    "finsight_source_circuit_state{source=\"eastmoney.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.kline\"} 0.0",
+    "finsight_source_circuit_state{source=\"sina.quote\"} 2.0",
+    "finsight_source_circuit_state{source=\"sina.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"tencent.kline\"} 2.0",
+    "finsight_source_circuit_state{source=\"tencent.quote\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.finance\"} 0.0",
+    "finsight_source_circuit_state{source=\"ths.industry\"} 0.0",
+    "finsight_source_circuit_state{source=\"csindex\"} 0.0",
+    "finsight_source_circuit_state{source=\"chinabond\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.announcement\"} 0.0",
+    "finsight_source_circuit_state{source=\"cninfo.profile\"} 0.0",
+    "finsight_source_circuit_state{source=\"xueqiu\"} 0.0",
+    "finsight_source_circuit_state{source=\"efinance\"} 2.0",
+    "finsight_source_circuit_state{source=\"tushare\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.quote\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.quote\"} 5.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"eastmoney.quote\"} 10.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.datacenter\"} 4.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.datacenter\"} 1.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"eastmoney.news\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"eastmoney.news\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.kline\"} 4.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.kline\"} 3.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"sina.kline\"} 2.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.quote\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.quote\"} 3.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"sina.quote\"} 2.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"sina.finance\"} 4.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"sina.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"tencent.kline\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"tencent.kline\"} 3.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"tencent.kline\"} 2.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"ths.finance\"} 4.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"ths.finance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"ths.industry\"} 1.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"ths.industry\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"cninfo.profile\"} 4.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"cninfo.profile\"} 0.0",
+    "finsight_source_calls_total{outcome=\"success\",source=\"efinance\"} 0.0",
+    "finsight_source_calls_total{outcome=\"failure\",source=\"efinance\"} 3.0",
+    "finsight_source_calls_total{outcome=\"short_circuited\",source=\"efinance\"} 2.0",
+    "finsight_source_pool_workers 32.0",
+    "finsight_source_pool_busy 0.0",
+    "finsight_source_pool_abandoned_running 0.0",
+    "finsight_source_pool_abandoned_total 0.0",
+    "finsight_source_pool_rejected_total 0.0"
+   ],
+   "proxy_counts": {
+    "push2his.eastmoney.com": {
+     "forwarded": 2,
+     "blocked": 20
+    },
+    "finance.sina.com.cn": {
+     "forwarded": 4,
+     "blocked": 3
+    },
+    "stock.finance.sina.com.cn": {
+     "forwarded": 4
+    },
+    "push2.eastmoney.com": {
+     "forwarded": 1
+    },
+    "webapi.cninfo.com.cn": {
+     "forwarded": 4
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 8
+    },
+    "money.finance.sina.com.cn": {
+     "forwarded": 4
+    },
+    "datacenter-web.eastmoney.com": {
+     "forwarded": 4,
+     "blocked": 1
+    },
+    "search-api-web.eastmoney.com": {
+     "forwarded": 1
+    },
+    "q.10jqka.com.cn": {
+     "forwarded": 1
+    },
+    "d.10jqka.com.cn": {
+     "forwarded": 1
+    },
+    "web.ifzq.gtimg.cn": {
+     "blocked": 3
+    },
+    "hq.sinajs.cn": {
+     "blocked": 3
+    }
+   }
+  }
+ ],
+ "command": "python -m scripts.chaos_drill --scenario sources --port 8821 --out /Volumes/Remi/FinSight-ops/docs/results/chaos/sources/chaos-sources.json",
+ "run_at": "2026-09-26T13:54:58+00:00",
+ "duration_s": 278.0,
+ "commit": ""
+}

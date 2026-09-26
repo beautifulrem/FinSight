@@ -14,7 +14,21 @@ curl http://127.0.0.1:8000/health
 - Multi-stage build: wheels are compiled in `python:3.13`, the runtime is `python:3.13-slim` without a compiler (2 GB; torch is only added with `--build-arg WITH_TORCH=1`).
 - Runs as uid 10001, with a Docker `HEALTHCHECK` on `/health`.
 - The web UI is the committed build in `query_intelligence/web/dist`, so the image needs no Node toolchain; CI checks that the committed build matches `frontend/`.
-- `docker/docker-compose.yml` adds optional `postgres` and `tracing` (Jaeger over OTLP) profiles.
+- `docker/docker-compose.yml` adds optional profiles: `postgres`, `tracing` (Jaeger over OTLP) and
+  `monitoring` (Prometheus with the alert rules, Grafana with the FinSight dashboard, Jaeger); see
+  [a2a-and-observability.md](a2a-and-observability.md#dashboards-alerts-and-the-monitoring-stack).
+  `FINSIGHT_EGRESS_PROXY` passes an HTTP(S) proxy to the app for networks where containers have no
+  direct internet access.
+
+### API wiring for the ops metrics and the active source probe
+
+`/metrics` gets the scrape-time breaker and pool metrics, and `/sources/health` accepts `?probe=1`,
+once `api/app.py` registers `OpsMetricsCollector` and passes the query parameter through. That file is
+owned by the API layer, so the two small hunks are kept as
+[`deploy/patches/app-ops-wiring.patch`](../deploy/patches/app-ops-wiring.patch) (made against branch
+`round2`, applied with `patch -p1`). The images measured in [performance.md](performance.md) were
+built with it; `tests/test_source_reliability.py` runs the two endpoint tests once it is applied and
+skips them otherwise.
 
 Verified on 2026-09-25 (colima, arm64): the container becomes healthy, serves the UI, answers `/agent/chat` with a verified answer, publishes the A2A agent card and Prometheus metrics, and reports `/sources/health`. Load-test numbers are in [performance.md](performance.md).
 
@@ -50,8 +64,21 @@ The first rollout crash-looped: efinance creates `<site-packages>/efinance/data`
 
 ### Verified
 
-On 2026-09-26, k3s v1.35 in colima (4 vCPU, 8 GB), image `finsight:dev`:
+On 2026-09-26, k3s v1.35 in colima (4 vCPU, 8 GB):
 
-- Both API replicas ready behind `Service/finsight-api`; Postgres ready.
-- `touch /app/x` inside a pod fails with "Read-only file system"; the process runs as uid 10001.
-- A session started on one pod continued on the other with the correct coreference and a two-turn history.
+- Image `finsight:dev`: both API replicas ready behind `Service/finsight-api`; Postgres ready.
+  `touch /app/x` inside a pod fails with "Read-only file system"; the process runs as uid 10001.
+- Image `finsight:merged`, with committed evidence in `docs/results/perf/k3s/`
+  ([`deploy/k8s/scale_test.sh`](../deploy/k8s/scale_test.sh)):
+  - 1, 2 and 3 replicas behind the Service, sessions in Postgres, 800 requests per replica count from
+    a load-generator pod, 0 errors, evenly spread (`runs-per-pod-*.txt`), 3.75 → 6.07 → 11.72 req/s at
+    32 users ([performance.md](performance.md#3-multi-replica-scaling-on-k3s-with-postgres-sessions));
+    `kubectl get pods -o wide` and `kubectl top pods` output for each run.
+  - A session started on one pod continued on the other: turn 2 ("它的市净率呢", sent only to pod B)
+    resolved 贵州茅台 from turn 1 (sent only to pod A). Each pod's trace directory holds exactly its own
+    turn, and Postgres holds 2 checkpoints for the thread (`cross-replica-*.txt`).
+- `kubectl logs` through colima's kubelet port intermittently failed with "unexpected EOF"; the scripts
+  fall back to `docker logs` of the pod's container, which is the same stream on a Docker-runtime node.
+
+The scale test changes the deployment for the measurement (live data off, rate limit off, HPA pinned).
+Re-apply `deploy/k8s/finsight.yaml` afterwards to restore the defaults.

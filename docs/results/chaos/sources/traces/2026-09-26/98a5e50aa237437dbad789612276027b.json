@@ -1,0 +1,84 @@
+{
+  "trace_id": "98a5e50aa237437dbad789612276027b",
+  "session_id": "chaos-src-1_live-0",
+  "turn_index": 0,
+  "query": "贵州茅台最新收盘价是多少？",
+  "route": "workflow",
+  "route_reasons": [
+    "mode:workflow"
+  ],
+  "answer_source": "template",
+  "started_at": 1790430959.301,
+  "duration_ms": 3331.08,
+  "nodes": [
+    {
+      "node": "guard_in",
+      "started_at": 1790430959.301,
+      "duration_ms": 98.78
+    },
+    {
+      "node": "execute_plan",
+      "started_at": 1790430959.401,
+      "duration_ms": 3228.27
+    },
+    {
+      "node": "compose",
+      "started_at": 1790430962.63,
+      "duration_ms": 0.66
+    },
+    {
+      "node": "verify",
+      "started_at": 1790430962.631,
+      "duration_ms": 0.36
+    },
+    {
+      "node": "compliance",
+      "started_at": 1790430962.631,
+      "duration_ms": 0.78
+    },
+    {
+      "node": "finalize",
+      "started_at": 1790430962.632,
+      "duration_ms": 0.08
+    }
+  ],
+  "tools": [
+    {
+      "tool": "get_price_history",
+      "arguments": {
+        "target": "600519.SH",
+        "days": 10
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 3227.89,
+      "started_at": 1790430959.401,
+      "attempts": 1,
+      "cached": false,
+      "source": "planner",
+      "step": 0
+    }
+  ],
+  "llm_calls": [],
+  "model": null,
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "prompt_cache_hit_tokens": 0,
+    "reasoning_tokens": 0,
+    "reported_cost_usd": 0.0,
+    "total_tokens": 0
+  },
+  "cost": null,
+  "currency": null,
+  "cost_source": null,
+  "verification_passed": true,
+  "unsupported_numbers": [],
+  "invalid_citations": [],
+  "compliance_notes": [
+    "market_freshness"
+  ],
+  "degraded": [],
+  "evidence_count": 1,
+  "owner": "local"
+}
