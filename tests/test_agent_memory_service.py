@@ -254,3 +254,38 @@ def test_agent_prompt_includes_session_memory():
         if message["role"] == "user" and "Session memory" in str(message["content"])
     ]
     assert user_messages and "risk:conservative" in user_messages[0]
+
+
+def test_elliptical_follow_ups_carry_the_target_or_the_aspect():
+    from query_intelligence.agent.memory import resolve_ellipsis
+
+    turns = [{"query": "贵州茅台的市盈率是多少", "entities": [{"name": "贵州茅台", "symbol": "600519.SH"}]}]
+    wuliangye = [{"canonical_name": "五粮液", "symbol": "000858.SZ"}]
+
+    assert resolve_ellipsis("ROE呢", turns, [])[0] == "贵州茅台ROE呢"
+    assert resolve_ellipsis("那市净率呢", turns, [])[0] == "贵州茅台市净率呢"
+    assert resolve_ellipsis("最近走势怎么样", turns, [])[0] == "贵州茅台最近走势怎么样"
+    assert resolve_ellipsis("And ROE?", turns, [])[0] == "ROE for 贵州茅台?"
+    assert resolve_ellipsis("换成五粮液呢", turns, wuliangye)[0] == "五粮液的市盈率呢？"
+    assert resolve_ellipsis("What about BYD?", turns, [{"canonical_name": "比亚迪"}])[0] == "What is 比亚迪's 市盈率?"
+    # market-wide, macro and long questions are not completed with the previous company
+    assert resolve_ellipsis("大盘走势怎么样", turns, []) is None
+    assert resolve_ellipsis("CPI呢", turns, []) is None
+    assert resolve_ellipsis("请详细介绍一下中国资本市场过去十年的发展历程和主要改革措施", turns, []) is None
+    assert resolve_ellipsis("ROE呢", [], []) is None
+
+
+def test_follow_up_without_history_is_clarified_not_refused(offline_service):
+    from query_intelligence.agent.tools import build_registry_for_service
+
+    runtime = AgentRuntime(offline_service, build_registry_for_service(offline_service), ScriptedLLM([]))
+    try:
+        for query in ("PB呢", "市净率是多少", "那家公司最近有公告吗"):
+            assert runtime.guard_in(runtime.initial_state(query, mode="auto"))["route"] == "clarify", query
+        state = runtime.initial_state("ROE呢", mode="auto")
+        state["turns"] = [{"query": "茅台市盈率", "entities": [{"name": "贵州茅台", "symbol": "600519.SH"}]}]
+        decision = runtime.guard_in(state)
+        assert decision["route"] == "workflow"
+        assert decision["effective_query"] == "贵州茅台ROE呢"
+    finally:
+        runtime.close()

@@ -1,7 +1,15 @@
 from __future__ import annotations
 
+import hashlib
+import logging
+import os
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
+import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 
@@ -14,14 +22,63 @@ MIN_RETRIEVAL_SCORE = {
 }
 
 
+logger = logging.getLogger(__name__)
+
+_INDEX_VERSION = "char_wb-2-4-v1"
+_INDEX_MEMO: OrderedDict[str, tuple[Any, Any]] = OrderedDict()
+_INDEX_MEMO_SIZE = 2
+_INDEX_LOCK = threading.Lock()
+
+
+def _fit_index(corpus: list[str]) -> tuple[Any, Any]:
+    """TF-IDF vectorizer and document matrix for ``corpus``, reused when the corpus is unchanged.
+
+    Fitting char n-grams over the full document set takes most of the service start-up time (~40 s), so
+    the fitted index is memoised per process by corpus hash and, when ``QI_TFIDF_CACHE_DIR`` is set,
+    persisted there (e.g. a volume shared by replicas) so a restart loads it instead of refitting.
+    """
+    digest = hashlib.sha256(_INDEX_VERSION.encode())
+    for text in corpus:
+        digest.update(text.encode("utf-8"))
+        digest.update(b"\x00")
+    key = digest.hexdigest()
+    with _INDEX_LOCK:
+        if key in _INDEX_MEMO:
+            _INDEX_MEMO.move_to_end(key)
+            return _INDEX_MEMO[key]
+        cache_dir = os.getenv("QI_TFIDF_CACHE_DIR", "").strip()
+        path = Path(cache_dir) / f"tfidf-{key[:24]}.joblib" if cache_dir else None
+        index = None
+        if path is not None and path.is_file():
+            try:
+                index = joblib.load(path)
+            except Exception as exc:  # a corrupt or incompatible cache file is rebuilt
+                logger.warning("[retrieval] ignoring unreadable TF-IDF cache %s: %s", path, exc)
+        if index is None:
+            vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 4))
+            index = (vectorizer, vectorizer.fit_transform(corpus))
+            if path is not None:
+                try:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    tmp = path.with_suffix(f".{os.getpid()}.tmp")
+                    joblib.dump(index, tmp)
+                    tmp.replace(path)
+                except OSError as exc:
+                    logger.warning("[retrieval] could not write TF-IDF cache %s: %s", path, exc)
+        _INDEX_MEMO[key] = index
+        while len(_INDEX_MEMO) > _INDEX_MEMO_SIZE:
+            _INDEX_MEMO.popitem(last=False)
+        return index
+
+
 @dataclass
 class DocumentRetriever:
     documents: list[dict]
 
     def __post_init__(self) -> None:
         corpus = [f"{doc['title']} {doc['summary']} {doc['body']}" for doc in self.documents]
-        self.vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 4))
-        self.doc_matrix = self.vectorizer.fit_transform(corpus)
+        # The fitted objects are shared (read-only) between retrievers built from the same corpus.
+        self.vectorizer, self.doc_matrix = _fit_index(corpus)
 
     def search(self, query_bundle: dict, top_k: int = 20) -> list[dict]:
         query_text = " ".join(

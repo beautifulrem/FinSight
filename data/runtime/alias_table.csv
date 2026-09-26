@@ -91306,3 +91306,25 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 91307,29844,100006,100006,symbol,2,false
 91308,1777,产品储备丰富,产品储备丰富,official_name,1,true
 91309,876,2023年年度报告,2023年年度报告,official_name,1,true
+91310,29845,市净率,市净率,official_name,1,true
+91312,29845,P/B,P/B,common_alias,1,false
+91313,29845,price-to-book,price-to-book,common_alias,1,false
+91320,29846,净资产收益率,净资产收益率,official_name,1,true
+91321,29846,ROE,ROE,common_alias,1,false
+91322,29846,return on equity,return on equity,common_alias,1,false
+91330,29847,营业收入,营业收入,official_name,1,true
+91332,29847,revenue,revenue,common_alias,1,false
+91340,29848,净利润,净利润,official_name,1,true
+91341,29848,归母净利润,归母净利润,common_alias,1,false
+91342,29848,net profit,net profit,common_alias,1,false
+91343,29848,net income,net income,common_alias,1,false
+91350,29849,股息率,股息率,official_name,1,true
+91351,29849,dividend yield,dividend yield,common_alias,1,false
+91360,29850,总市值,总市值,official_name,1,true
+91362,29850,market cap,market cap,common_alias,1,false
+91363,29850,market capitalisation,market capitalisation,common_alias,1,false
+91364,29850,market capitalization,market capitalization,common_alias,1,false
+91370,29851,毛利率,毛利率,official_name,1,true
+91371,29851,gross margin,gross margin,common_alias,1,false
+91380,29852,资产负债率,资产负债率,official_name,1,true
+91381,29852,debt-to-asset ratio,debt-to-asset ratio,common_alias,1,false

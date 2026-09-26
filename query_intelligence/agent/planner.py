@@ -28,8 +28,10 @@ _PRICE_TERMS = re.compile(
     re.IGNORECASE,
 )
 _VALUATION_TERMS = re.compile(
-    r"估值|市盈率|市净率|\bPE\b|\bPB\b|ROE|净资产收益率|盈利|业绩|利润|营收|收入|基本面|财务|贵不贵|便宜|"
-    r"valuation|valued|earnings|profit|revenue|fundamental|price-to-book|expensive|cheap",
+    r"估值|市盈率|市净率|(?<![A-Za-z])(?:P/?E|P/?B)(?![A-Za-z])|ROE|净资产收益率|盈利|业绩|利润|营收|收入|基本面|"
+    r"财务|贵不贵|便宜|毛利率|股息率|市值|"
+    r"valuation|valued|earnings|profit|revenue|fundamental|price-to-(?:book|earnings)|expensive|cheap|margin|"
+    r"dividend yield|market cap",
     re.IGNORECASE,
 )
 _INDUSTRY_TERMS = re.compile(r"行业|板块|sector|industry", re.IGNORECASE)

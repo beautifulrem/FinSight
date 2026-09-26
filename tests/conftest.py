@@ -8,6 +8,11 @@ import pytest
 
 # Agent traces are written only by tests that configure a sink explicitly.
 os.environ.setdefault("QI_AGENT_TRACE_DIR", "off")
+# Services built from the environment stay offline unless QI_TEST_LIVE=1: tests must not depend on (or wait
+# for) upstream market sites. Tests of the live defaults delete these variables explicitly.
+if os.getenv("QI_TEST_LIVE") != "1":
+    for _name in ("QI_USE_LIVE_MARKET", "QI_USE_LIVE_MACRO", "QI_USE_LIVE_NEWS", "QI_USE_LIVE_ANNOUNCEMENT"):
+        os.environ.setdefault(_name, "false")
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
