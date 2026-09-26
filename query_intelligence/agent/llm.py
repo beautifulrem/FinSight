@@ -523,9 +523,17 @@ class FallbackLLM:
                 "calls": self._calls[index],
                 "consecutive_failures": self._failures[index],
                 "circuit_open": self._opened_at[index] is not None,
+                "state": self._state(index),
             }
             for index, client in enumerate(self.clients)
         ]
+
+    def _state(self, index: int) -> str:
+        """``closed``, ``open``, or ``half_open`` once the cool-down has passed (next call is a trial)."""
+        opened = self._opened_at[index]
+        if opened is None:
+            return "closed"
+        return "half_open" if self._clock() - opened >= self.cooldown_s else "open"
 
 
 def build_llm_from_config(config: dict[str, Any]) -> LLMClient | None:
