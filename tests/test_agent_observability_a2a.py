@@ -179,6 +179,28 @@ def test_prometheus_sink_records_llm_usage_cost_and_degradation():
     assert 'finsight_degradations_total{flag="llm_error"} 1.0' in text
 
 
+def test_prometheus_sink_labels_failover_calls_with_the_answering_model():
+    sink = PrometheusTraceSink()
+    sink.emit(
+        {
+            "route": "agent",
+            "llm_calls": [
+                {"model": "primary", "prompt_tokens": 300, "completion_tokens": 100},
+                {"model": "fallback", "prompt_tokens": 100, "completion_tokens": 0},
+            ],
+            "model": "primary",
+            "cost": 0.004,
+            "currency": "USD",
+        }
+    )
+
+    text = sink.render()[0].decode()
+    assert 'finsight_llm_calls_total{model="fallback"} 1.0' in text
+    assert 'finsight_llm_tokens_total{kind="prompt",model="fallback"} 100.0' in text
+    assert 'finsight_llm_cost_total{currency="USD",model="primary"} 0.0032' in text
+    assert 'finsight_llm_cost_total{currency="USD",model="fallback"} 0.0008' in text
+
+
 def _keyed_client(monkeypatch):
     from query_intelligence.api.security import SecuritySettings
 

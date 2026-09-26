@@ -158,18 +158,40 @@ class PrometheusTraceSink:
             self.tool_calls.labels(tool=name, outcome=outcome).inc()
             if tool.get("latency_ms") is not None:
                 self.tool_latency.labels(tool=name).observe(float(tool["latency_ms"]) / 1000)
-        model = str(trace.get("model") or "none")
+        # Label by the model that answered each call, so failover traffic is attributed to the fallback model.
+        default_model = str(trace.get("model") or "none")
         calls = trace.get("llm_calls") or []
-        if calls:
-            self.llm_calls.labels(model=model).inc(len(calls))
-        usage = trace.get("usage") or {}
-        for kind in ("prompt_tokens", "completion_tokens", "prompt_cache_hit_tokens", "reasoning_tokens"):
-            if usage.get(kind):
-                self.llm_tokens.labels(model=model, kind=kind.removesuffix("_tokens")).inc(float(usage[kind]))
+        kinds = ("prompt_tokens", "completion_tokens", "prompt_cache_hit_tokens", "reasoning_tokens")
+        per_call = any(call.get(kind) for call in calls for kind in kinds)
+        tokens_by_model: dict[str, dict[str, float]] = {}
+        for call in calls:
+            model = str(call.get("model") or default_model)
+            self.llm_calls.labels(model=model).inc()
+            if per_call:
+                bucket = tokens_by_model.setdefault(model, {})
+                for kind in kinds:
+                    bucket[kind] = bucket.get(kind, 0.0) + float(call.get(kind) or 0)
+        if not per_call:
+            usage = trace.get("usage") or {}
+            tokens_by_model = {default_model: {kind: float(usage.get(kind) or 0) for kind in kinds}}
+        for model, bucket in tokens_by_model.items():
+            for kind, value in bucket.items():
+                if value:
+                    self.llm_tokens.labels(model=model, kind=kind.removesuffix("_tokens")).inc(value)
         if trace.get("cost"):
-            self.llm_cost.labels(model=model, currency=str(trace.get("currency") or "unknown")).inc(
-                float(trace["cost"])
-            )
+            # The run's cost is split across models in proportion to their prompt + completion tokens.
+            weights = {
+                model: bucket.get("prompt_tokens", 0.0) + bucket.get("completion_tokens", 0.0)
+                for model, bucket in tokens_by_model.items()
+            }
+            total = sum(weights.values())
+            if not total:
+                weights, total = {default_model: 1.0}, 1.0
+            for model, weight in weights.items():
+                if weight:
+                    self.llm_cost.labels(model=model, currency=str(trace.get("currency") or "unknown")).inc(
+                        float(trace["cost"]) * weight / total
+                    )
         if trace.get("verification_passed") is False:
             self.verification_failures.inc()
         for flag in trace.get("degraded") or []:

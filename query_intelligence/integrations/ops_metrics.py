@@ -17,7 +17,6 @@ Registered on the same private registry as the trace metrics by the API app.
 
 from __future__ import annotations
 
-import time
 from collections.abc import Callable, Iterator
 from typing import Any
 
@@ -31,17 +30,9 @@ def llm_circuit_states(llm: Any) -> list[dict[str, Any]]:
     stats = llm.stats() if callable(getattr(llm, "stats", None)) else None
     if not stats:
         return [{"model": str(getattr(llm, "model", "unknown")), "state": "closed", "calls": None, "failures": 0}]
-    opened = list(getattr(llm, "_opened_at", []) or [])
-    cooldown = float(getattr(llm, "cooldown_s", 60.0))
-    clock: Callable[[], float] = getattr(llm, "_clock", time.monotonic)
-    now = clock()
     rows = []
-    for index, row in enumerate(stats):
-        state = "closed"
-        if row.get("circuit_open"):
-            opened_at = opened[index] if index < len(opened) else None
-            # After the cool-down the next request is a single trial call (half-open).
-            state = "half_open" if opened_at is not None and now - opened_at >= cooldown else "open"
+    for row in stats:
+        state = row.get("state") or ("open" if row.get("circuit_open") else "closed")
         rows.append(
             {
                 "model": str(row.get("model")),

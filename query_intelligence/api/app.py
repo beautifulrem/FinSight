@@ -168,6 +168,18 @@ def create_app(
                 )
             return agent_holder["service"]
 
+    if metrics_sink.available:
+        # Scrape-time state (source/LLM breakers, source-call pool) next to the trace-fed metrics.
+        from ..integrations.ops_metrics import OpsMetricsCollector
+        from ..integrations.sources.report import runtime_for
+
+        metrics_sink.registry.register(
+            OpsMetricsCollector(
+                lambda: runtime_for(getattr(runtime, "retrieval_pipeline", None)),
+                lambda: getattr(getattr(agent_holder["service"], "runtime", None), "llm", None),
+            )
+        )
+
     logger.info("[startup] FastAPI routes are ready.")
 
     @app.get("/health")
@@ -432,9 +444,10 @@ def create_app(
 
     # ---- live data source health (passive: reports recorded outcomes, never calls upstreams) ----
     @app.get("/sources/health")
-    def sources_health() -> dict:
+    def sources_health(probe: bool = False) -> dict:
+        # Passive unless ?probe=1; probe rounds are rate limited (QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS).
         from ..integrations.sources.report import sources_health_report
 
-        return sources_health_report(getattr(runtime, "retrieval_pipeline", None))
+        return sources_health_report(getattr(runtime, "retrieval_pipeline", None), probe=probe)
 
     return app
