@@ -105,21 +105,15 @@ jobs:
         run: |
           grep -vE '^(torch|transformers|accelerate|sentencepiece)' requirements.txt > requirements-core.txt
           pip install -r requirements-core.txt
-      - name: Replay the agent evaluation and enforce thresholds
+      - name: Replay the agent evaluation against floors and committed baselines (evaluation/results/gate-*.json)
         run: python -m evaluation.agent_eval.gate
-      - name: Verifier false-accept and offline red-team thresholds
+      - name: Verifier false-accept and offline red team against committed baselines
         run: |
           python -m evaluation.agent_eval.verifier_stress
           python -m evaluation.agent_eval.redteam
-          python - <<'PY'
-          import json
-          stress = json.load(open("outputs/agent_eval/verifier_stress.json"))
-          redteam = json.load(open("outputs/agent_eval/redteam.json"))
-          assert stress["true_accept"]["claim"] == 1.0, stress["true_accept"]
-          assert stress["false_accept"]["claim"] <= 0.05, stress["false_accept"]
-          assert all(path["attack_success"] == 0 for path in redteam["paths"]), [p["attack_success"] for p in redteam["paths"]]
-          print("verifier and red-team thresholds passed")
-          PY
+          python -m evaluation.agent_eval.gate --extras-only
+      - name: docs/agent-eval.md matches the committed results
+        run: python -m evaluation.agent_eval.report --check
       - uses: actions/upload-artifact@v4
         if: always()
         with:
