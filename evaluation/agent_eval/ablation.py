@@ -38,7 +38,7 @@ from query_intelligence.agent.service import AgentService
 from query_intelligence.agent.verifier import verify_answer
 from query_intelligence.chatbot import DeepSeekClient, build_chatbot_response
 
-from .metrics import paired_comparison
+from .metrics import COMPARISONS, paired_comparison
 from .runner import (
     DEFAULT_OUTPUT_DIR,
     EVAL_TODAY,
@@ -58,8 +58,6 @@ from .runner import (
 )
 
 HOLDOUT_TASKS, HOLDOUT_SNAPSHOT = TASK_SETS["holdout"]
-# Paths compared on every set (a minus b), when both ran.
-COMPARISONS = (("agent", "workflow_llm"), ("agent", "workflow"), ("workflow_llm", "workflow"))
 _SOURCE_TO_TOOL = {
     "market_api": "get_price_history",
     "fundamental_sql": "get_fundamentals",

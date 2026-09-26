@@ -273,3 +273,59 @@ def test_test_v2_facts_come_from_offline_data():
     assert build_test_v2.net_margin("600519.SH")["value"] == round(moutai["net_profit"] / moutai["revenue"] * 100, 1)
     assert build_test_v2.macro("CN10Y")["value"] == data["macro_sql"]["UST10Y_CN_PROXY"]["metric_value"]
     assert build_test_v2.symbol("宁德时代") == "300750.SZ" and not build_test_v2.has_market("300750.SZ")
+
+
+def test_gate_compares_against_baseline_with_tolerance():
+    from evaluation.agent_eval.gate import compare_to_baseline, newly_failing
+
+    baseline = {"task_success": 0.98, "compliance_clean": 1.0, "fact_recall": 0.95}
+    ok, _ = compare_to_baseline({"task_success": 0.975, "compliance_clean": 1.0, "fact_recall": 0.95}, baseline)
+    dropped, _ = compare_to_baseline({"task_success": 0.96, "compliance_clean": 0.99, "fact_recall": 0.95}, baseline)
+    _, gained = compare_to_baseline({"task_success": 1.0, "compliance_clean": 1.0, "fact_recall": 0.95}, baseline)
+
+    assert ok == []
+    assert [item.split("=")[0] for item in dropped] == ["task_success", "compliance_clean"]
+    assert gained and "refresh" in gained[0]
+    assert newly_failing({"a": [False], "b": [True], "c": [False]}, {"a": [True], "b": [True], "c": [False]}) == ["a"]
+
+
+def test_gate_extras_compare_verifier_and_redteam(tmp_path, monkeypatch):
+    from evaluation.agent_eval import gate
+
+    baselines = {
+        "verifier_stress": {"false_accept": {"claim": 0.03}},
+        "redteam-offline": {"paths": [{"attack_set": "dev", "mode": "workflow", "attack_success": 0.0}]},
+    }
+    monkeypatch.setattr(gate, "load_result", baselines.get)
+    stress = {"true_accept": {"claim": 1.0}, "false_accept": {"claim": 0.05}}
+    redteam = {"paths": [{"attack_set": "dev", "mode": "workflow", "attack_success": 0.1, "crashes": 0}]}
+    (tmp_path / "verifier_stress.json").write_text(json.dumps(stress), encoding="utf-8")
+    (tmp_path / "redteam.json").write_text(json.dumps(redteam), encoding="utf-8")
+
+    problems = gate.extras_problems(tmp_path)
+
+    assert len(problems) == 2 and "false-accept" in problems[0] and "attack success" in problems[1]
+
+
+def test_results_slimming_reconstructs_outcomes_and_relabels_single_runs():
+    from evaluation.agent_eval.results import decode_outcomes, encode_outcomes, reconstruct_outcomes, slim_mode
+
+    tasks = [
+        {"id": "a", "turns": [{"query": "q1"}]},
+        {"id": "b", "turns": [{"query": "q2"}, {"query": "q3"}]},
+    ]
+    failures = [
+        {"task": "a", "query": "q1", "failed_checks": ["facts"]},
+        {"task": "b", "query": "q3", "failed_checks": ["x"]},
+    ]
+    outcomes, ambiguous = reconstruct_outcomes(tasks, failures, 3)
+    entry, notes = slim_mode(
+        {"summary": {"turns": 3, "repeats": 3, "task_success": 0.0, "pass^3": 0.0}, "failures": failures},
+        tasks,
+        mode="dev/legacy_llm",
+    )
+
+    assert outcomes == {"a": [False, True, True], "b": [False, True, True]} and ambiguous == []
+    assert decode_outcomes(encode_outcomes(outcomes)) == outcomes
+    assert "pass^1" in entry["summary"] and "pass^3" not in entry["summary"] and notes
+    assert entry["task_outcomes"] == {"a": "0", "b": "0"}
