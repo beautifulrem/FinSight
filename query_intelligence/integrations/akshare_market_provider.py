@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import contextvars
 import inspect
 import logging
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
 import requests
 
 from .efinance_provider import EFinanceETFProvider
 from .sources.catalog import source_for_endpoint
+from .sources.crosscheck import SINA, reconcile_fundamentals
 from .sources.health import CircuitOpenError
 from .sources.provenance import LIVE, LIVE_FALLBACK, build_provenance
 from .sources.runtime import SourceRuntime, SourceTimeoutError, fallback_reason_from, get_default_runtime
@@ -48,6 +51,20 @@ def _rows_to_records(rows):
     return []
 
 
+def _call_or_empty(fetch: Callable[[], dict]) -> dict:
+    try:
+        return fetch() or {}
+    except Exception:
+        return {}
+
+
+def _result_or_empty(future) -> dict:
+    try:
+        return future.result() or {}
+    except Exception:
+        return {}
+
+
 def _default_http_get(url: str, headers: dict, timeout: float):
     # Resolved at call time so tests can monkeypatch ``requests.get``.
     return requests.get(url, headers=headers, timeout=timeout)
@@ -66,6 +83,9 @@ class AKShareMarketProvider:
     # HTTP getter for the direct (non-akshare) Tencent sources. ``None`` disables them, which keeps
     # fake-module unit tests offline; ``from_import`` enables them.
     http_get: Callable | None = None
+    # Fetch both Sina and THS fundamentals and reconcile them (see ``sources/crosscheck.py``). Off for
+    # directly constructed providers so fake-module unit tests keep their call counts; on in production.
+    cross_check_fundamentals: bool = False
 
     @classmethod
     def from_import(
@@ -75,6 +95,7 @@ class AKShareMarketProvider:
         max_retries: int = 1,
         retry_backoff_seconds: float = 0.25,
         runtime: SourceRuntime | None = None,
+        cross_check_fundamentals: bool = True,
     ) -> AKShareMarketProvider:
         import akshare as ak
 
@@ -86,6 +107,7 @@ class AKShareMarketProvider:
             retry_backoff_seconds=retry_backoff_seconds,
             runtime=runtime or get_default_runtime(),
             http_get=_default_http_get,
+            cross_check_fundamentals=cross_check_fundamentals,
         )
 
     def fetch_bundle(
@@ -718,6 +740,60 @@ class AKShareMarketProvider:
         except Exception:
             return None
 
+    def fetch_industry_board(self, board_name: str, *, lookback_days: int = 30) -> dict | None:
+        """Latest daily bar of a THS industry index (``stock_board_industry_index_ths``), e.g. ``白酒``.
+
+        Used to refresh industry records that would otherwise come from the shipped snapshot. The daily
+        change is computed from the last two closes. Returns ``None`` when the board is unknown or the
+        source fails; the caller then keeps the snapshot and labels it stale.
+        """
+        if not hasattr(self.ak_module, "stock_board_industry_index_ths"):
+            return None
+        endpoint = "akshare.stock_board_industry_index_ths"
+        end = date.today()
+        params = {
+            "symbol": board_name,
+            "start_date": (end - timedelta(days=lookback_days)).strftime("%Y%m%d"),
+            "end_date": end.strftime("%Y%m%d"),
+        }
+        warnings: list[str] = []
+        with self.runtime.trace() as attempts:
+            try:
+                rows = _rows_to_records(
+                    self._call_akshare(endpoint, "stock_board_industry_index_ths", warnings, **params)
+                )
+            except Exception:
+                return None
+        dated = sorted(
+            (row for row in rows if self._normalize_date(row.get("日期"))),
+            key=lambda row: self._normalize_date(row.get("日期")) or "",
+        )
+        if not dated:
+            return None
+        latest = dated[-1]
+        close = to_number(latest.get("收盘价"))
+        previous_close = to_number(dated[-2].get("收盘价")) if len(dated) > 1 else None
+        pct_change = round((close / previous_close - 1) * 100, 2) if close is not None and previous_close else None
+        trade_date = self._normalize_date(latest.get("日期"))
+        return {
+            "source_name": "akshare",
+            **self._api_trace(endpoint, params),
+            "industry_name": board_name,
+            "industry_classification": "同花顺行业",
+            "trade_date": trade_date,
+            "open": to_number(latest.get("开盘价")),
+            "close": close,
+            "pct_change": pct_change,
+            "amount": to_number(latest.get("成交额")),
+            "provenance": self._provenance(
+                kind="industry",
+                attempts=attempts,
+                source_id=source_for_endpoint(endpoint),
+                endpoint=endpoint,
+                as_of=trade_date,
+            ),
+        }
+
     def _identity_industry_snapshot(self, symbol: str, industry_name: str, company_info: dict | None = None) -> dict:
         from_cninfo = (company_info or {}).get("industry_source") == "cninfo"
         endpoint = "akshare.stock_profile_cninfo" if from_cninfo else "akshare.stock_individual_info_em"
@@ -743,92 +819,135 @@ class AKShareMarketProvider:
     # ---- fundamentals and valuation ------------------------------------------------
 
     def _fetch_fundamental_payload(self, symbol: str) -> dict:
-        """Financial indicators: Sina -> THS; valuation (PE-TTM/PB): Eastmoney datacenter -> Tencent quote."""
+        """Financial indicators: Sina and THS (cross-checked); valuation: Eastmoney datacenter -> Tencent quote.
+
+        Without cross-checking, THS is only a fallback when Sina fails. With it, both sources are fetched
+        concurrently and reconciled per report period (``sources/crosscheck.py``): a disagreement is
+        resolved against the reported revenue/net-profit levels and always recorded in provenance and
+        as a provider warning.
+        """
         warnings: list[str] = []
         start_year = str(date.today().year - 1)
-        report: dict | None = None
-        endpoint = "akshare.stock_financial_analysis_indicator"
-        query_params: dict = {"symbol": symbol, "start_year": start_year}
+        sina_endpoint = "akshare.stock_financial_analysis_indicator"
+        ths_endpoint = "akshare.stock_financial_abstract_ths"
+        sina_params: dict = {"symbol": symbol, "start_year": start_year}
+        ths_params: dict = {"symbol": symbol, "indicator": "按报告期"}
+        has_sina = hasattr(self.ak_module, "stock_financial_analysis_indicator")
+        has_ths = hasattr(self.ak_module, "stock_financial_abstract_ths")
+
+        def fetch_sina() -> dict[str, dict]:
+            rows = _rows_to_records(
+                self._call_akshare(sina_endpoint, "stock_financial_analysis_indicator", warnings, **sina_params)
+            )
+            return self._sina_periods(rows)
+
+        def fetch_ths() -> dict[str, dict]:
+            rows = _rows_to_records(
+                self._call_akshare(ths_endpoint, "stock_financial_abstract_ths", warnings, **ths_params)
+            )
+            return self._ths_periods(rows)
+
+        sina_periods: dict[str, dict] = {}
+        ths_periods: dict[str, dict] = {}
         with self.runtime.trace() as attempts:
-            if hasattr(self.ak_module, "stock_financial_analysis_indicator"):
-                try:
-                    rows = _rows_to_records(
-                        self._call_akshare(
-                            endpoint,
-                            "stock_financial_analysis_indicator",
-                            warnings,
-                            symbol=symbol,
-                            start_year=start_year,
-                        )
-                    )
-                    report = self._sina_financial_report(rows)
-                except Exception:
-                    report = None
-            if report is None and hasattr(self.ak_module, "stock_financial_abstract_ths"):
-                endpoint = "akshare.stock_financial_abstract_ths"
-                query_params = {"symbol": symbol, "indicator": "按报告期"}
-                try:
-                    rows = _rows_to_records(
-                        self._call_akshare(endpoint, "stock_financial_abstract_ths", warnings, **query_params)
-                    )
-                    report = self._ths_financial_report(rows)
-                except Exception:
-                    report = None
-        if report is None:
+            if self.cross_check_fundamentals and has_sina and has_ths:
+                with ThreadPoolExecutor(max_workers=2, thread_name_prefix="fundamentals") as pool:
+                    # One context copy per task: a Context cannot be entered by two threads at once.
+                    sina_future = pool.submit(contextvars.copy_context().run, fetch_sina)
+                    ths_future = pool.submit(contextvars.copy_context().run, fetch_ths)
+                    sina_periods = _result_or_empty(sina_future)
+                    ths_periods = _result_or_empty(ths_future)
+            else:
+                if has_sina:
+                    sina_periods = _call_or_empty(fetch_sina)
+                if not sina_periods and has_ths:
+                    ths_periods = _call_or_empty(fetch_ths)
+        report, check = reconcile_fundamentals(sina_periods, ths_periods, primary=SINA)
+        if report is None or check is None:
             return {}
+        served = check.served_source
+        endpoint, query_params = (sina_endpoint, sina_params) if served == SINA else (ths_endpoint, ths_params)
         valuation, valuation_provenance = self._fetch_valuation(symbol)
         trace = self._api_trace(endpoint, query_params)
+        provenance = self._provenance(
+            kind="fundamentals",
+            attempts=attempts,
+            source_id=served,
+            endpoint=endpoint,
+            as_of=report.get("report_date"),
+        )
+        if self.cross_check_fundamentals:
+            provenance["cross_check"] = check.as_metadata()
+            if check.status != "agree":
+                provenance["note"] = f"{provenance.get('note') or ''}；{check.note()}".lstrip("；")
         payload = {
             "source_name": "akshare",
             **trace,
-            **report,
+            **{
+                key: value for key, value in report.items() if key not in {"revenue", "net_profit"} or value is not None
+            },
             "pe_ttm": valuation.get("pe_ttm"),
             "pb": valuation.get("pb"),
-            "provenance": self._provenance(
-                kind="fundamentals",
-                attempts=attempts,
-                source_id=source_for_endpoint(endpoint),
-                endpoint=endpoint,
-                as_of=report.get("report_date"),
-            ),
+            "provenance": provenance,
         }
+        if check.disagrees or check.out_of_range:
+            fields = ",".join(check.disagreeing_fields or check.out_of_range)
+            payload["provider_warnings"] = [
+                f"fundamentals_cross_source_{check.status}:{symbol}:{fields}:served={served}"
+            ]
         if valuation.get("valuation_date"):
             payload["valuation_date"] = valuation["valuation_date"]
         if valuation_provenance:
             payload["valuation_provenance"] = valuation_provenance
         return payload
 
+    def _sina_periods(self, rows: list[dict]) -> dict[str, dict]:
+        periods: dict[str, dict] = {}
+        for row in rows:
+            period = self._normalize_date(row.get("日期"))
+            if not period:
+                continue
+            periods[period] = {
+                "roe": self._first_number(row, "净资产收益率(%)"),
+                "grossprofit_margin": self._first_number(row, "销售毛利率(%)", "主营业务毛利率(%)"),
+                "eps": self._first_number(row, "加权每股收益(元)", "每股收益(元)", "摊薄每股收益(元)"),
+                "netprofit_yoy": self._first_number(row, "净利润增长率(%)"),
+                "revenue_yoy": self._first_number(row, "主营业务收入增长率(%)"),
+                "profit_dedt": self._first_number(row, "扣除非经常性损益后的净利润(元)"),
+            }
+        return periods
+
+    def _ths_periods(self, rows: list[dict]) -> dict[str, dict]:
+        periods: dict[str, dict] = {}
+        for row in rows:
+            period = self._normalize_date(row.get("报告期"))
+            if not period:
+                continue
+            periods[period] = {
+                "roe": self._first_number(row, "净资产收益率-摊薄", "净资产收益率"),
+                "grossprofit_margin": self._first_number(row, "销售毛利率"),
+                "eps": self._first_number(row, "基本每股收益"),
+                "netprofit_yoy": self._first_number(row, "净利润同比增长率"),
+                "revenue_yoy": self._first_number(row, "营业总收入同比增长率"),
+                "profit_dedt": self._first_number(row, "扣非净利润"),
+                "revenue": self._first_number(row, "营业总收入"),
+                "net_profit": self._first_number(row, "净利润"),
+            }
+        return periods
+
     def _sina_financial_report(self, rows: list[dict]) -> dict | None:
-        dated = [row for row in rows if self._normalize_date(row.get("日期"))]
-        if not dated:
+        periods = self._sina_periods(rows)
+        if not periods:
             return None
-        latest = max(dated, key=lambda row: self._normalize_date(row.get("日期")) or "")
-        return {
-            "report_date": self._normalize_date(latest.get("日期")),
-            "roe": self._first_number(latest, "净资产收益率(%)"),
-            "grossprofit_margin": self._first_number(latest, "销售毛利率(%)", "主营业务毛利率(%)"),
-            "eps": self._first_number(latest, "加权每股收益(元)", "每股收益(元)", "摊薄每股收益(元)"),
-            "netprofit_yoy": self._first_number(latest, "净利润增长率(%)"),
-            "revenue_yoy": self._first_number(latest, "主营业务收入增长率(%)"),
-            "profit_dedt": self._first_number(latest, "扣除非经常性损益后的净利润(元)"),
-        }
+        latest = max(periods)
+        return {"report_date": latest, **periods[latest]}
 
     def _ths_financial_report(self, rows: list[dict]) -> dict | None:
-        dated = [row for row in rows if self._normalize_date(row.get("报告期"))]
-        if not dated:
+        periods = self._ths_periods(rows)
+        if not periods:
             return None
-        latest = max(dated, key=lambda row: self._normalize_date(row.get("报告期")) or "")
-        return {
-            "report_date": self._normalize_date(latest.get("报告期")),
-            "roe": self._first_number(latest, "净资产收益率-摊薄", "净资产收益率"),
-            "grossprofit_margin": self._first_number(latest, "销售毛利率"),
-            "eps": self._first_number(latest, "基本每股收益"),
-            "netprofit_yoy": self._first_number(latest, "净利润同比增长率"),
-            "revenue_yoy": self._first_number(latest, "营业总收入同比增长率"),
-            "profit_dedt": self._first_number(latest, "扣非净利润"),
-            "revenue": self._first_number(latest, "营业总收入"),
-            "net_profit": self._first_number(latest, "净利润"),
-        }
+        latest = max(periods)
+        return {"report_date": latest, **periods[latest]}
 
     def _fetch_valuation(self, symbol: str) -> tuple[dict, dict | None]:
         warnings: list[str] = []

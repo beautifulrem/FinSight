@@ -19,6 +19,8 @@ import contextvars
 import threading
 import time
 from collections.abc import Callable, Iterator
+from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -129,6 +131,7 @@ class SourceRuntime:
         call_timeout_s: float = 10.0,
         cache_enabled: bool = True,
         max_stale_s: float = 24 * 3600.0,
+        pool: SourceCallPool | None = None,
     ) -> None:
         # ``is None`` checks: an empty SourceCache is falsy (it defines ``__len__``).
         self.health = health if health is not None else SourceHealthRegistry()
@@ -136,6 +139,7 @@ class SourceRuntime:
         self.call_timeout_s = call_timeout_s
         self.cache_enabled = cache_enabled
         self.max_stale_s = max_stale_s
+        self.pool = pool if pool is not None else _default_pool
 
     # ---- tracing --------------------------------------------------------
 
@@ -167,7 +171,12 @@ class SourceRuntime:
             raise
         started = time.perf_counter()
         try:
-            result = _run_with_timeout(fn, self.call_timeout_s if timeout_s is None else timeout_s)
+            result = _run_with_timeout(fn, self.call_timeout_s if timeout_s is None else timeout_s, self.pool)
+        except SourcePoolSaturatedError as exc:
+            # Local back-pressure: release the admission without blaming the upstream.
+            self.health.release(source_id)
+            self.note(f"{source_id}:saturated")
+            raise exc
         except BaseException as exc:
             self.health.record_failure(source_id, _elapsed_ms(started), error_summary(exc))
             self.note(attempt_label(source_id, exc))
@@ -234,28 +243,128 @@ class SourceRuntime:
         raise AllSourcesFailedError(kind, attempts)
 
 
-def _run_with_timeout(fn: Callable[[], T], timeout_s: float | None) -> T:
+class SourcePoolSaturatedError(RuntimeError):
+    """Every worker of the source-call pool is busy (usually with abandoned, hung upstream calls).
+
+    This is local back-pressure, not an upstream failure, so it does not count against the source's
+    circuit breaker.
+    """
+
+
+_IN_POOL_WORKER = threading.local()
+
+
+class SourceCallPool:
+    """Fixed-size worker pool for guarded upstream calls, with accounting for abandoned calls.
+
+    Most akshare functions accept no timeout, so a hung upstream call cannot be interrupted. The caller
+    stops waiting after the timeout and the call is *abandoned*: it keeps its worker busy until the
+    socket gives up. With one new thread per call (the previous design) a hanging upstream under load
+    grew the thread count without bound. Here at most ``max_workers`` calls run at once, and a call
+    that finds every worker busy is rejected at once (``SourcePoolSaturatedError``) instead of queueing
+    behind hung calls.
+
+    ``stats()`` is served by ``/sources/health`` and exported on ``/metrics``.
+    """
+
+    def __init__(self, max_workers: int = 32) -> None:
+        self.max_workers = max(1, int(max_workers))
+        self._executor: ThreadPoolExecutor | None = None
+        self._lock = threading.Lock()
+        self.busy = 0
+        self.max_busy = 0
+        self.submitted_total = 0
+        self.completed_total = 0
+        self.timed_out_total = 0
+        self.abandoned_total = 0
+        self.abandoned_running = 0
+        self.rejected_total = 0
+
+    def run(self, fn: Callable[[], T], timeout_s: float) -> T:
+        if getattr(_IN_POOL_WORKER, "active", False):
+            # A guarded call made from inside another guarded call: the outer call's timeout already
+            # bounds it, and dispatching it to the pool could deadlock when the pool is full.
+            return fn()
+        with self._lock:
+            if self.busy >= self.max_workers:
+                self.rejected_total += 1
+                raise SourcePoolSaturatedError(
+                    f"source-call pool saturated ({self.busy}/{self.max_workers} busy, "
+                    f"{self.abandoned_running} abandoned calls still running)"
+                )
+            self.busy += 1
+            self.max_busy = max(self.max_busy, self.busy)
+            self.submitted_total += 1
+            if self._executor is None:
+                self._executor = ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix="source-call")
+            executor = self._executor
+        context = contextvars.copy_context()
+        abandoned = threading.Event()
+
+        def target() -> T:
+            _IN_POOL_WORKER.active = True
+            try:
+                return context.run(fn)
+            finally:
+                _IN_POOL_WORKER.active = False
+
+        def release(_future: Future) -> None:
+            with self._lock:
+                self.busy -= 1
+                self.completed_total += 1
+                if abandoned.is_set():
+                    self.abandoned_running -= 1
+
+        future = executor.submit(target)
+        try:
+            return future.result(timeout=timeout_s)
+        except FutureTimeoutError:
+            with self._lock:
+                self.timed_out_total += 1
+                if not future.done():
+                    # The worker cannot be interrupted; it finishes in the background, its late result
+                    # is discarded, and ``release`` frees the slot when it eventually returns.
+                    abandoned.set()
+                    self.abandoned_total += 1
+                    self.abandoned_running += 1
+            raise SourceTimeoutError(f"exceeded {timeout_s:g}s") from None
+        finally:
+            # Registered after the wait so ``abandoned`` is decided first; runs at once if already done.
+            future.add_done_callback(release)
+
+    def stats(self) -> dict[str, Any]:
+        with self._lock:
+            return {
+                "max_workers": self.max_workers,
+                "busy": self.busy,
+                "max_busy": self.max_busy,
+                "submitted_total": self.submitted_total,
+                "completed_total": self.completed_total,
+                "timed_out_total": self.timed_out_total,
+                "abandoned_total": self.abandoned_total,
+                "abandoned_running": self.abandoned_running,
+                "rejected_total": self.rejected_total,
+            }
+
+    def shutdown(self) -> None:
+        with self._lock:
+            executor, self._executor = self._executor, None
+        if executor is not None:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+
+_default_pool = SourceCallPool()
+
+
+def default_call_pool() -> SourceCallPool:
+    return _default_pool
+
+
+def _run_with_timeout[R](fn: Callable[[], R], timeout_s: float | None, pool: SourceCallPool | None = None) -> R:
     ensure_js_engine_ready()
     if not timeout_s or timeout_s <= 0:
         return fn()
-    outcome: dict[str, Any] = {}
-    context = contextvars.copy_context()
-
-    def target() -> None:
-        try:
-            outcome["value"] = context.run(fn)
-        except BaseException as exc:  # re-raised in the caller thread
-            outcome["error"] = exc
-
-    worker = threading.Thread(target=target, daemon=True, name="source-call")
-    worker.start()
-    worker.join(timeout_s)
-    if worker.is_alive():
-        # The worker cannot be killed; it is a daemon and its late result is discarded.
-        raise SourceTimeoutError(f"exceeded {timeout_s:g}s")
-    if "error" in outcome:
-        raise outcome["error"]
-    return outcome["value"]
+    return (pool or _default_pool).run(fn, timeout_s)
 
 
 def _elapsed_ms(started: float) -> float:
@@ -278,6 +387,7 @@ def runtime_from_settings(settings: Settings) -> SourceRuntime:
         call_timeout_s=settings.source_call_timeout_seconds,
         cache_enabled=settings.source_cache_enabled,
         max_stale_s=settings.source_max_stale_seconds,
+        pool=SourceCallPool(settings.source_max_workers),
     )
 
 

@@ -13,6 +13,14 @@ include = [
     "query_intelligence/api/security.py",
     "query_intelligence/chat/**/*.py",
     "query_intelligence/chatbot.py",
+    "query_intelligence/integrations/sources/**/*.py",
+    "query_intelligence/integrations/ops_metrics.py",
+    "query_intelligence/integrations/akshare_market_provider.py",
+    "scripts/load_test.py",
+    "scripts/chaos_*.py",
+    "monitoring/**/*.py",
+    "tests/test_source_reliability.py",
+    "tests/test_ops_scripts.py",
 ]
 
 [lint]

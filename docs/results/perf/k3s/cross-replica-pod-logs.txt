@@ -1,0 +1,10 @@
+--- traces for xreplica1790428937 on finsight-api-79fb6b448f-24ktk
+acffbed91dce4e708432c2005f08acd8 0 贵州茅台的市盈率是多少？ workflow
+--- last access-log lines on finsight-api-79fb6b448f-24ktk
+--- traces for xreplica1790428937 on finsight-api-79fb6b448f-6mc86
+42192b1a00364a4a86766edf9ffaa979 1 它的市净率呢 workflow
+--- last access-log lines on finsight-api-79fb6b448f-6mc86
+--- finsight-api-79fb6b448f-24ktk (docker logs of the pod's api container)
+INFO:     127.0.0.1:44648 - "POST /agent/chat HTTP/1.1" 200 OK
+--- finsight-api-79fb6b448f-6mc86 (docker logs of the pod's api container)
+INFO:     127.0.0.1:44658 - "POST /agent/chat HTTP/1.1" 200 OK

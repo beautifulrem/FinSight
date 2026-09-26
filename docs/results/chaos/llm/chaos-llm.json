@@ -1,0 +1,483 @@
+{
+ "scenario": "llm",
+ "primary": "cline-pass/deepseek-v4.1-flash",
+ "fallback": "cline-pass/glm-5.3-flash",
+ "phases": [
+  {
+   "phase": "1_baseline",
+   "started_at": "2026-09-26T13:43:09+00:00",
+   "requests": [
+    {
+     "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+     "status": 200,
+     "latency_ms": 44212.1,
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "verified": true,
+     "degraded": [],
+     "llm_calls_by_model": {
+      "deepseek/deepseek-v4.1-flash": 4
+     },
+     "cost": 0.03488,
+     "currency": "CNY",
+     "trace_id": "1df5d5c827d041a68b2c5130a9311a48",
+     "trace_llm_calls": [
+      {
+       "node": "agent_llm",
+       "model": "deepseek/deepseek-v4.1-flash",
+       "latency_ms": 2522.44,
+       "prompt_tokens": 2623,
+       "completion_tokens": 339
+      },
+      {
+       "node": "agent_llm",
+       "model": "deepseek/deepseek-v4.1-flash",
+       "latency_ms": 6526.13,
+       "prompt_tokens": 5943,
+       "completion_tokens": 876
+      },
+      {
+       "node": "agent_llm",
+       "model": "deepseek/deepseek-v4.1-flash",
+       "latency_ms": 8967.65,
+       "prompt_tokens": 10239,
+       "completion_tokens": 1623
+      },
+      {
+       "node": "revise",
+       "model": "deepseek/deepseek-v4.1-flash",
+       "latency_ms": 8970.48,
+       "prompt_tokens": 8974,
+       "completion_tokens": 1967
+      }
+     ]
+    }
+   ],
+   "gateway_requests": [
+    {
+     "t": 1790430197.712,
+     "at": "2026-09-26T13:43:17+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 2321.9,
+     "error": null
+    },
+    {
+     "t": 1790430207.591,
+     "at": "2026-09-26T13:43:27+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 6412.5,
+     "error": null
+    },
+    {
+     "t": 1790430223.483,
+     "at": "2026-09-26T13:43:43+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 8472.0,
+     "error": null
+    },
+    {
+     "t": 1790430233.246,
+     "at": "2026-09-26T13:43:53+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 8526.9,
+     "error": null
+    }
+   ],
+   "metrics": [
+    "finsight_llm_circuit_state{model=\"cline-pass/deepseek-v4.1-flash\"} 0.0",
+    "finsight_llm_circuit_state{model=\"cline-pass/glm-5.3-flash\"} 0.0",
+    "finsight_llm_client_calls_total{model=\"cline-pass/deepseek-v4.1-flash\"} 4.0",
+    "finsight_llm_client_calls_total{model=\"cline-pass/glm-5.3-flash\"} 0.0",
+    "finsight_llm_consecutive_failures{model=\"cline-pass/deepseek-v4.1-flash\"} 0.0",
+    "finsight_llm_consecutive_failures{model=\"cline-pass/glm-5.3-flash\"} 0.0"
+   ]
+  },
+  {
+   "phase": "2_primary_failing",
+   "started_at": "2026-09-26T13:43:53+00:00",
+   "requests": [
+    {
+     "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+     "status": 200,
+     "latency_ms": 80787.2,
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "verified": true,
+     "degraded": [],
+     "llm_calls_by_model": {
+      "z-ai/glm-5.3-flash": 3
+     },
+     "cost": 0.012758,
+     "currency": "CNY",
+     "trace_id": "b8569cd661aa4255a619ac1728d18dcf",
+     "trace_llm_calls": [
+      {
+       "node": "agent_llm",
+       "model": "z-ai/glm-5.3-flash",
+       "latency_ms": 12445.35,
+       "prompt_tokens": 2109,
+       "completion_tokens": 220
+      },
+      {
+       "node": "agent_llm",
+       "model": "z-ai/glm-5.3-flash",
+       "latency_ms": 11948.55,
+       "prompt_tokens": 4437,
+       "completion_tokens": 206
+      },
+      {
+       "node": "agent_llm",
+       "model": "z-ai/glm-5.3-flash",
+       "latency_ms": 41619.8,
+       "prompt_tokens": 5050,
+       "completion_tokens": 859
+      }
+     ]
+    },
+    {
+     "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+     "status": 200,
+     "latency_ms": 47475.9,
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "verified": true,
+     "degraded": [],
+     "llm_calls_by_model": {
+      "z-ai/glm-5.3-flash": 5
+     },
+     "cost": 0.006445,
+     "currency": "CNY",
+     "trace_id": "c0478ac619fd424fb8dbf1bb0fe9f422",
+     "trace_llm_calls": [
+      {
+       "node": "agent_llm",
+       "model": "z-ai/glm-5.3-flash",
+       "latency_ms": 6073.64,
+       "prompt_tokens": 2117,
+       "completion_tokens": 125
+      },
+      {
+       "node": "agent_llm",
+       "model": "z-ai/glm-5.3-flash",
+       "latency_ms": 6616.44,
+       "prompt_tokens": 2390,
+       "completion_tokens": 36
+      },
+      {
+       "node": "agent_llm",
+       "model": "z-ai/glm-5.3-flash",
+       "latency_ms": 2724.56,
+       "prompt_tokens": 2575,
+       "completion_tokens": 15
+      },
+      {
+       "node": "agent_llm",
+       "model": "z-ai/glm-5.3-flash",
+       "latency_ms": 12130.18,
+       "prompt_tokens": 2738,
+       "completion_tokens": 127
+      },
+      {
+       "node": "agent_llm",
+       "model": "z-ai/glm-5.3-flash",
+       "latency_ms": 17227.8,
+       "prompt_tokens": 3098,
+       "completion_tokens": 189
+      }
+     ]
+    },
+    {
+     "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+     "status": 504,
+     "latency_ms": 120006.3,
+     "route": null,
+     "answer_source": null,
+     "verified": null,
+     "degraded": null,
+     "llm_calls_by_model": {},
+     "cost": null,
+     "currency": null,
+     "trace_id": null,
+     "trace_llm_calls": []
+    }
+   ],
+   "gateway_requests": [
+    {
+     "t": 1790430235.768,
+     "at": "2026-09-26T13:43:55+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": true,
+     "status": 404,
+     "latency_ms": 251.0,
+     "error": "{\"error\":\"model not found\",\"success\":false}\n"
+    },
+    {
+     "t": 1790430248.143,
+     "at": "2026-09-26T13:44:08+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 12195.3,
+     "error": null
+    },
+    {
+     "t": 1790430259.677,
+     "at": "2026-09-26T13:44:19+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": true,
+     "status": 404,
+     "latency_ms": 1002.8,
+     "error": "{\"error\":\"model not found\",\"success\":false}\n"
+    },
+    {
+     "t": 1790430271.621,
+     "at": "2026-09-26T13:44:31+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 11868.0,
+     "error": null
+    },
+    {
+     "t": 1790430272.482,
+     "at": "2026-09-26T13:44:32+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": true,
+     "status": 404,
+     "latency_ms": 429.6,
+     "error": "{\"error\":\"model not found\",\"success\":false}\n"
+    },
+    {
+     "t": 1790430314.053,
+     "at": "2026-09-26T13:45:14+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 41539.0,
+     "error": null
+    },
+    {
+     "t": 1790430320.485,
+     "at": "2026-09-26T13:45:20+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 6030.2,
+     "error": null
+    },
+    {
+     "t": 1790430327.069,
+     "at": "2026-09-26T13:45:27+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 6542.8,
+     "error": null
+    },
+    {
+     "t": 1790430329.927,
+     "at": "2026-09-26T13:45:29+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 2507.3,
+     "error": null
+    },
+    {
+     "t": 1790430342.063,
+     "at": "2026-09-26T13:45:42+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 12095.6,
+     "error": null
+    },
+    {
+     "t": 1790430344.379,
+     "at": "2026-09-26T13:45:44+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": true,
+     "status": 404,
+     "latency_ms": 323.8,
+     "error": "{\"error\":\"model not found\",\"success\":false}\n"
+    },
+    {
+     "t": 1790430361.6,
+     "at": "2026-09-26T13:46:01+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 17187.4,
+     "error": null
+    },
+    {
+     "t": 1790430375.469,
+     "at": "2026-09-26T13:46:15+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 13718.3,
+     "error": null
+    },
+    {
+     "t": 1790430399.164,
+     "at": "2026-09-26T13:46:39+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 23657.6,
+     "error": null
+    },
+    {
+     "t": 1790430412.178,
+     "at": "2026-09-26T13:46:52+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 12330.2,
+     "error": null
+    },
+    {
+     "t": 1790430413.915,
+     "at": "2026-09-26T13:46:53+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": true,
+     "status": 404,
+     "latency_ms": 354.2,
+     "error": "{\"error\":\"model not found\",\"success\":false}\n"
+    },
+    {
+     "t": 1790430476.957,
+     "at": "2026-09-26T13:47:56+00:00",
+     "model": "cline-pass/glm-5.3-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 62765.1,
+     "error": null
+    },
+    {
+     "t": 1790430477.31,
+     "at": "2026-09-26T13:47:57+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": true,
+     "status": 404,
+     "latency_ms": 286.3,
+     "error": "{\"error\":\"model not found\",\"success\":false}\n"
+    }
+   ],
+   "metrics": [
+    "finsight_llm_circuit_state{model=\"cline-pass/deepseek-v4.1-flash\"} 2.0",
+    "finsight_llm_circuit_state{model=\"cline-pass/glm-5.3-flash\"} 0.0",
+    "finsight_llm_client_calls_total{model=\"cline-pass/deepseek-v4.1-flash\"} 10.0",
+    "finsight_llm_client_calls_total{model=\"cline-pass/glm-5.3-flash\"} 13.0",
+    "finsight_llm_consecutive_failures{model=\"cline-pass/deepseek-v4.1-flash\"} 3.0",
+    "finsight_llm_consecutive_failures{model=\"cline-pass/glm-5.3-flash\"} 0.0"
+   ]
+  },
+  {
+   "phase": "3_after_cooldown_before_trial",
+   "at": "2026-09-26T13:48:59+00:00",
+   "metrics": [
+    "finsight_llm_circuit_state{model=\"cline-pass/deepseek-v4.1-flash\"} 1.0",
+    "finsight_llm_circuit_state{model=\"cline-pass/glm-5.3-flash\"} 0.0",
+    "finsight_llm_client_calls_total{model=\"cline-pass/deepseek-v4.1-flash\"} 10.0",
+    "finsight_llm_client_calls_total{model=\"cline-pass/glm-5.3-flash\"} 13.0",
+    "finsight_llm_consecutive_failures{model=\"cline-pass/deepseek-v4.1-flash\"} 3.0",
+    "finsight_llm_consecutive_failures{model=\"cline-pass/glm-5.3-flash\"} 0.0"
+   ]
+  },
+  {
+   "phase": "4_recovered",
+   "started_at": "2026-09-26T13:48:59+00:00",
+   "requests": [
+    {
+     "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+     "status": 200,
+     "latency_ms": 20962.8,
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "verified": true,
+     "degraded": [],
+     "llm_calls_by_model": {
+      "deepseek/deepseek-v4.1-flash": 3
+     },
+     "cost": 0.020605,
+     "currency": "CNY",
+     "trace_id": "c653fffe44f34d7a93c7f402ee8e9caa",
+     "trace_llm_calls": [
+      {
+       "node": "agent_llm",
+       "model": "deepseek/deepseek-v4.1-flash",
+       "latency_ms": 2672.55,
+       "prompt_tokens": 2623,
+       "completion_tokens": 330
+      },
+      {
+       "node": "agent_llm",
+       "model": "deepseek/deepseek-v4.1-flash",
+       "latency_ms": 7607.1,
+       "prompt_tokens": 5384,
+       "completion_tokens": 1447
+      },
+      {
+       "node": "revise",
+       "model": "deepseek/deepseek-v4.1-flash",
+       "latency_ms": 7606.82,
+       "prompt_tokens": 4625,
+       "completion_tokens": 1690
+      }
+     ]
+    }
+   ],
+   "gateway_requests": [
+    {
+     "t": 1790430542.641,
+     "at": "2026-09-26T13:49:02+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 2588.2,
+     "error": null
+    },
+    {
+     "t": 1790430552.656,
+     "at": "2026-09-26T13:49:12+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 7510.0,
+     "error": null
+    },
+    {
+     "t": 1790430560.314,
+     "at": "2026-09-26T13:49:20+00:00",
+     "model": "cline-pass/deepseek-v4.1-flash",
+     "fault_applied": false,
+     "status": 200,
+     "latency_ms": 7315.3,
+     "error": null
+    }
+   ],
+   "metrics": [
+    "finsight_llm_circuit_state{model=\"cline-pass/deepseek-v4.1-flash\"} 0.0",
+    "finsight_llm_circuit_state{model=\"cline-pass/glm-5.3-flash\"} 0.0",
+    "finsight_llm_client_calls_total{model=\"cline-pass/deepseek-v4.1-flash\"} 13.0",
+    "finsight_llm_client_calls_total{model=\"cline-pass/glm-5.3-flash\"} 13.0",
+    "finsight_llm_consecutive_failures{model=\"cline-pass/deepseek-v4.1-flash\"} 0.0",
+    "finsight_llm_consecutive_failures{model=\"cline-pass/glm-5.3-flash\"} 0.0"
+   ]
+  }
+ ],
+ "command": "python -m scripts.chaos_drill --scenario llm --port 8821 --out /Volumes/Remi/FinSight-ops/docs/results/chaos/llm/chaos-llm.json",
+ "run_at": "2026-09-26T13:41:52+00:00",
+ "duration_s": 449.9,
+ "commit": ""
+}

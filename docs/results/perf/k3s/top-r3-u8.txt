@@ -1,0 +1,4 @@
+finsight-api-79fb6b448f-24ktk   546m   1605Mi   
+finsight-api-79fb6b448f-6mc86   485m   1556Mi   
+finsight-api-79fb6b448f-lc2z9   761m   1544Mi   
+finsight-postgres-0             30m    243Mi    

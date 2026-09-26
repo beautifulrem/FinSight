@@ -1,0 +1,329 @@
+{
+  "trace_id": "1df5d5c827d041a68b2c5130a9311a48",
+  "session_id": "chaos-1_baseline-0",
+  "turn_index": 0,
+  "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+  "route": "agent",
+  "route_reasons": [
+    "mode:agent",
+    "multi_entity:2",
+    "question_style:compare",
+    "intent:market_explanation",
+    "lexical:multi_hop_marker"
+  ],
+  "answer_source": "llm_agent",
+  "started_at": 1790430194.927,
+  "duration_ms": 38355.65,
+  "nodes": [
+    {
+      "node": "guard_in",
+      "started_at": 1790430194.927,
+      "duration_ms": 263.03
+    },
+    {
+      "node": "agent_llm",
+      "started_at": 1790430195.193,
+      "duration_ms": 2532.6
+    },
+    {
+      "node": "agent_tools",
+      "started_at": 1790430197.728,
+      "duration_ms": 3359.14
+    },
+    {
+      "node": "agent_llm",
+      "started_at": 1790430201.089,
+      "duration_ms": 6539.02
+    },
+    {
+      "node": "agent_tools",
+      "started_at": 1790430207.633,
+      "duration_ms": 7284.01
+    },
+    {
+      "node": "agent_llm",
+      "started_at": 1790430214.919,
+      "duration_ms": 8978.91
+    },
+    {
+      "node": "verify",
+      "started_at": 1790430223.901,
+      "duration_ms": 280.85
+    },
+    {
+      "node": "revise",
+      "started_at": 1790430224.185,
+      "duration_ms": 9069.1
+    },
+    {
+      "node": "verify",
+      "started_at": 1790430233.261,
+      "duration_ms": 10.51
+    },
+    {
+      "node": "compliance",
+      "started_at": 1790430233.274,
+      "duration_ms": 6.8
+    },
+    {
+      "node": "finalize",
+      "started_at": 1790430233.282,
+      "duration_ms": 0.65
+    }
+  ],
+  "tools": [
+    {
+      "tool": "get_fundamentals",
+      "arguments": {
+        "target": "600519.SH"
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 66.4,
+      "started_at": 1790430201.017,
+      "attempts": 1,
+      "cached": false,
+      "source": "llm",
+      "step": 1
+    },
+    {
+      "tool": "get_fundamentals",
+      "arguments": {
+        "target": "000858.SZ"
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 69.76,
+      "started_at": 1790430201.014,
+      "attempts": 1,
+      "cached": false,
+      "source": "llm",
+      "step": 1
+    },
+    {
+      "tool": "get_price_history",
+      "arguments": {
+        "target": "600519.SH",
+        "days": 5
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 30.45,
+      "started_at": 1790430201.054,
+      "attempts": 1,
+      "cached": false,
+      "source": "llm",
+      "step": 1
+    },
+    {
+      "tool": "get_price_history",
+      "arguments": {
+        "target": "000858.SZ",
+        "days": 5
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 4.03,
+      "started_at": 1790430201.081,
+      "attempts": 1,
+      "cached": false,
+      "source": "llm",
+      "step": 1
+    },
+    {
+      "tool": "search_news",
+      "arguments": {
+        "query": "估值 业绩 增速 分红",
+        "targets": [
+          "600519.SH",
+          "000858.SZ"
+        ],
+        "top_k": 6
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 3275.4,
+      "started_at": 1790430197.811,
+      "attempts": 1,
+      "cached": false,
+      "source": "llm",
+      "step": 1
+    },
+    {
+      "tool": "search_news",
+      "arguments": {
+        "query": "业绩 增速 分红 估值",
+        "targets": [
+          "000858.SZ"
+        ],
+        "top_k": 6
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 5235.76,
+      "started_at": 1790430209.676,
+      "attempts": 1,
+      "cached": false,
+      "source": "llm",
+      "step": 2
+    },
+    {
+      "tool": "search_announcements",
+      "arguments": {
+        "query": "年度报告 分红 业绩",
+        "targets": [
+          "600519.SH",
+          "000858.SZ"
+        ],
+        "top_k": 6
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 4926.99,
+      "started_at": 1790430209.985,
+      "attempts": 1,
+      "cached": false,
+      "source": "llm",
+      "step": 2
+    },
+    {
+      "tool": "search_knowledge",
+      "arguments": {
+        "query": "白酒龙头估值溢价 原因 品牌 定价权",
+        "targets": [],
+        "top_k": 5
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 7269.33,
+      "started_at": 1790430207.646,
+      "attempts": 1,
+      "cached": false,
+      "source": "llm",
+      "step": 2
+    }
+  ],
+  "llm_calls": [
+    {
+      "node": "agent_llm",
+      "step": 0,
+      "prompt": "agent_system@v3#e419eb84d58e",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "started_at": 1790430195.203,
+      "latency_ms": 2522.44,
+      "prompt_tokens": 2623,
+      "completion_tokens": 339,
+      "prompt_cache_hit_tokens": 2432,
+      "reasoning_tokens": 71,
+      "reported_cost_usd": 0.000239346,
+      "json_status": null,
+      "context_chars": {
+        "system": 2652,
+        "user": 608,
+        "assistant": 0,
+        "tool": 0,
+        "tool_schemas": 5756
+      },
+      "tool_calls": [
+        "get_fundamentals",
+        "get_fundamentals",
+        "get_price_history",
+        "get_price_history",
+        "search_news"
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "node": "agent_llm",
+      "step": 1,
+      "prompt": "agent_system@v3#e419eb84d58e",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "started_at": 1790430201.102,
+      "latency_ms": 6526.13,
+      "prompt_tokens": 5943,
+      "completion_tokens": 876,
+      "prompt_cache_hit_tokens": 2944,
+      "reasoning_tokens": 635,
+      "reported_cost_usd": 0.000984282,
+      "json_status": null,
+      "context_chars": {
+        "system": 2652,
+        "user": 608,
+        "assistant": 911,
+        "tool": 8969,
+        "tool_schemas": 5756
+      },
+      "tool_calls": [
+        "search_news",
+        "search_announcements",
+        "search_knowledge"
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "node": "agent_llm",
+      "step": 2,
+      "prompt": "agent_system@v3#e419eb84d58e",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "started_at": 1790430214.929,
+      "latency_ms": 8967.65,
+      "prompt_tokens": 10239,
+      "completion_tokens": 1623,
+      "prompt_cache_hit_tokens": 6784,
+      "reasoning_tokens": 600,
+      "reported_cost_usd": 0.001512402,
+      "json_status": "ok",
+      "context_chars": {
+        "system": 2652,
+        "user": 608,
+        "assistant": 1572,
+        "tool": 17936,
+        "tool_schemas": 5756
+      },
+      "tool_calls": [],
+      "finish_reason": "stop"
+    },
+    {
+      "node": "revise",
+      "step": null,
+      "prompt": "agent_system@v3#e419eb84d58e",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "started_at": 1790430224.283,
+      "latency_ms": 8970.48,
+      "prompt_tokens": 8974,
+      "completion_tokens": 1967,
+      "prompt_cache_hit_tokens": 640,
+      "reasoning_tokens": 964,
+      "reported_cost_usd": 0.00243222,
+      "json_status": "ok",
+      "context_chars": {
+        "system": 2652,
+        "user": 1239,
+        "assistant": 3446,
+        "tool": 17936,
+        "tool_schemas": 0
+      },
+      "tool_calls": [],
+      "finish_reason": "stop"
+    }
+  ],
+  "model": "cline-pass/deepseek-v4.1-flash",
+  "usage": {
+    "prompt_tokens": 27779,
+    "completion_tokens": 4805,
+    "prompt_cache_hit_tokens": 12800,
+    "reasoning_tokens": 2270,
+    "reported_cost_usd": 0.00516825,
+    "total_tokens": 32584
+  },
+  "cost": 0.03488,
+  "currency": "CNY",
+  "cost_source": "provider_reported",
+  "verification_passed": true,
+  "unsupported_numbers": [],
+  "invalid_citations": [],
+  "compliance_notes": [],
+  "degraded": [],
+  "evidence_count": 12,
+  "owner": "local"
+}

@@ -1,0 +1,9 @@
+finsight:before-0678585 QI_USE_LIVE_MARKET=0
+QI_AGENT_CHECKPOINT_DB=/app/state/agent.sqlite
+total 66612
+drwxr-xr-x 1 finsight finsight     4096 Sep 26 09:56 .
+drwxr-xr-x 1 root     root         4096 Sep 25 22:45 ..
+-rw-r--r-- 1 finsight finsight 64012288 Sep 26 09:59 agent.sqlite
+-rw-r--r-- 1 finsight finsight    32768 Sep 26 09:58 agent.sqlite-shm
+-rw-r--r-- 1 finsight finsight  4152992 Sep 26 09:59 agent.sqlite-wal
+finsight-perf cpu=0.12% mem=1.598GiB / 7.738GiB

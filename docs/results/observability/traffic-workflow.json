@@ -1,0 +1,1592 @@
+{
+ "label": "monitoring traffic: workflow, live data",
+ "base_url": "http://127.0.0.1:8831",
+ "mode": "workflow",
+ "question_set": "default",
+ "fresh_connections": false,
+ "users": 8,
+ "requests_per_user": 10,
+ "requests": 80,
+ "wall_seconds": 163.34,
+ "throughput_rps": 0.49,
+ "error_rate": 0.0,
+ "latency_ms": {
+  "n": 80,
+  "p50": 8753.2,
+  "p95": 29380.3,
+  "p99": 65649.6,
+  "mean": 12442.7,
+  "max": 65649.6
+ },
+ "statuses": {
+  "200": 80
+ },
+ "routes": {
+  "refuse": 10,
+  "None": 10,
+  "workflow": 60
+ },
+ "answer_sources": {
+  "guardrail": 10,
+  "None": 10,
+  "llm_compose": 60
+ },
+ "verified_rate": 0.85,
+ "degraded_rate": 0.1125,
+ "models": {
+  "deepseek/deepseek-v4.1-flash": 60
+ },
+ "cost": {
+  "requests_counted": 80,
+  "requests_with_llm": 60,
+  "total_usd": 0.090551,
+  "usd_cny": null,
+  "total_cny": null,
+  "per_question_cny": null,
+  "per_1k_questions_cny": null,
+  "per_1k_questions_usd": 1.132,
+  "questions_per_day": 1000,
+  "monthly_cny_at_questions_per_day": null,
+  "tokens": {
+   "prompt": 200411,
+   "completion": 134966,
+   "cache_hit": 139392
+  },
+  "llm_calls": 97,
+  "cost_sources": [
+   "provider_reported"
+  ]
+ },
+ "warmup": {
+  "status": 200,
+  "latency_ms": 16528.0,
+  "route": "workflow",
+  "answer_source": "llm_compose",
+  "verified": true,
+  "degraded": [],
+  "llm_calls": 1,
+  "models": [
+   "deepseek/deepseek-v4.1-flash"
+  ],
+  "prompt_tokens": 1107,
+  "completion_tokens": 581,
+  "cache_hit_tokens": 384,
+  "reported_cost_usd": 0.0004582,
+  "cost": 0.003092,
+  "currency": "CNY",
+  "cost_source": "provider_reported"
+ },
+ "environment": {
+  "host": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "cpu_count": 10,
+  "loadavg_at_start": [
+   17.06,
+   18.12,
+   16.47
+  ],
+  "python": "3.13.13"
+ },
+ "commit": null,
+ "run_at": "2026-09-26T14:14:03+00:00",
+ "per_request": [
+  {
+   "user": 6,
+   "step": 0,
+   "query": "今天天气怎么样？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 1430.2,
+   "route": "refuse",
+   "answer_source": "guardrail",
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 0,
+   "query": "它的市盈率呢",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 2934.1,
+   "route": null,
+   "answer_source": null,
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 6,
+   "step": 1,
+   "query": "它的市盈率呢",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 2159.1,
+   "route": null,
+   "answer_source": null,
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 5,
+   "step": 0,
+   "query": "CPI 对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 13241.8,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 919,
+   "completion_tokens": 994,
+   "reported_cost_usd": 0.00069662,
+   "degraded": []
+  },
+  {
+   "user": 5,
+   "step": 1,
+   "query": "今天天气怎么样？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 698.6,
+   "route": "refuse",
+   "answer_source": "guardrail",
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 0,
+   "query": "贵州茅台最新收盘价是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 15391.8,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2766,
+   "completion_tokens": 1768,
+   "reported_cost_usd": 0.00119346,
+   "degraded": []
+  },
+  {
+   "user": 5,
+   "step": 2,
+   "query": "它的市盈率呢",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 1448.0,
+   "route": null,
+   "answer_source": null,
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 6,
+   "step": 2,
+   "query": "贵州茅台最新收盘价是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 13533.3,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2735,
+   "completion_tokens": 1329,
+   "reported_cost_usd": 0.00092541,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 1,
+   "query": "贵州茅台最新收盘价是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 17913.5,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2768,
+   "completion_tokens": 2031,
+   "reported_cost_usd": 0.00135156,
+   "degraded": []
+  },
+  {
+   "user": 6,
+   "step": 3,
+   "query": "五粮液的市盈率是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 5107.7,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1293,
+   "completion_tokens": 726,
+   "reported_cost_usd": 0.0005731,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 0,
+   "query": "五粮液的市盈率是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 22712.4,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1684,
+   "completion_tokens": 782,
+   "reported_cost_usd": 0.00068417,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 1,
+   "query": "五粮液的市盈率是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 8284.5,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1926,
+   "completion_tokens": 551,
+   "reported_cost_usd": 0.00056305,
+   "degraded": []
+  },
+  {
+   "user": 5,
+   "step": 3,
+   "query": "贵州茅台最新收盘价是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 8509.8,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2772,
+   "completion_tokens": 1443,
+   "reported_cost_usd": 0.00099936,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 0,
+   "query": "What was the latest close of Kweichow Moutai (600519.SH)?",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 28067.9,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2794,
+   "completion_tokens": 1978,
+   "reported_cost_usd": 0.00139892,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 2,
+   "query": "五粮液的市盈率是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 8753.2,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 4527,
+   "completion_tokens": 1503,
+   "reported_cost_usd": 0.00103519,
+   "degraded": []
+  },
+  {
+   "user": 5,
+   "step": 4,
+   "query": "五粮液的市盈率是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 8593.2,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 4434,
+   "completion_tokens": 1406,
+   "reported_cost_usd": 0.00096304,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 1,
+   "query": "CPI 对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 7533.6,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 919,
+   "completion_tokens": 944,
+   "reported_cost_usd": 0.00059135,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 2,
+   "query": "今天天气怎么样？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 244.1,
+   "route": "refuse",
+   "answer_source": "guardrail",
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 3,
+   "query": "它的市盈率呢",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 206.1,
+   "route": null,
+   "answer_source": null,
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 1,
+   "query": "对比一下贵州茅台和五粮液的估值",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 15835.3,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 8576,
+   "completion_tokens": 3664,
+   "reported_cost_usd": 0.00260045,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 3,
+   "query": "对比一下贵州茅台和五粮液的估值",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 9427.1,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 3686,
+   "completion_tokens": 1840,
+   "reported_cost_usd": 0.00114887,
+   "degraded": []
+  },
+  {
+   "user": 3,
+   "step": 0,
+   "query": "中国平安最近为什么下跌？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 39314.6,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5245,
+   "completion_tokens": 4569,
+   "reported_cost_usd": 0.00318946,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 4,
+   "step": 4,
+   "query": "贵州茅台最新收盘价是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 3830.0,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1107,
+   "completion_tokens": 526,
+   "reported_cost_usd": 0.00034994,
+   "degraded": []
+  },
+  {
+   "user": 6,
+   "step": 4,
+   "query": "对比一下贵州茅台和五粮液的估值",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 19979.4,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 3686,
+   "completion_tokens": 4615,
+   "reported_cost_usd": 0.0029644,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 0,
+   "query": "对比一下贵州茅台和五粮液的估值",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 43369.9,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 8368,
+   "completion_tokens": 5961,
+   "reported_cost_usd": 0.00419205,
+   "degraded": []
+  },
+  {
+   "user": 5,
+   "step": 5,
+   "query": "对比一下贵州茅台和五粮液的估值",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 12610.5,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 3686,
+   "completion_tokens": 2827,
+   "reported_cost_usd": 0.00174107,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 2,
+   "query": "对比一下贵州茅台和五粮液的估值",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 21660.9,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 8664,
+   "completion_tokens": 5561,
+   "reported_cost_usd": 0.00360132,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 5,
+   "query": "五粮液的市盈率是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 6478.5,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1926,
+   "completion_tokens": 849,
+   "reported_cost_usd": 0.00053488,
+   "degraded": []
+  },
+  {
+   "user": 3,
+   "step": 1,
+   "query": "What was the latest close of Kweichow Moutai (600519.SH)?",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 12778.8,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2871,
+   "completion_tokens": 1475,
+   "reported_cost_usd": 0.00103341,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 6,
+   "query": "对比一下贵州茅台和五粮液的估值",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 7808.7,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 3686,
+   "completion_tokens": 1729,
+   "reported_cost_usd": 0.00108227,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 2,
+   "query": "中国平安最近为什么下跌？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 21159.3,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5345,
+   "completion_tokens": 4283,
+   "reported_cost_usd": 0.00278825,
+   "degraded": []
+  },
+  {
+   "user": 3,
+   "step": 2,
+   "query": "CPI 对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 8000.2,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 919,
+   "completion_tokens": 1177,
+   "reported_cost_usd": 0.00073115,
+   "degraded": []
+  },
+  {
+   "user": 3,
+   "step": 3,
+   "query": "今天天气怎么样？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 365.5,
+   "route": "refuse",
+   "answer_source": "guardrail",
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 6,
+   "step": 5,
+   "query": "中国平安最近为什么下跌？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 18887.4,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5320,
+   "completion_tokens": 4009,
+   "reported_cost_usd": 0.0026201,
+   "degraded": []
+  },
+  {
+   "user": 3,
+   "step": 4,
+   "query": "它的市盈率呢",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 672.7,
+   "route": null,
+   "answer_source": null,
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 4,
+   "query": "中国平安最近为什么下跌？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 23252.0,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5069,
+   "completion_tokens": 4794,
+   "reported_cost_usd": 0.00305345,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 5,
+   "step": 6,
+   "query": "中国平安最近为什么下跌？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 22256.4,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5112,
+   "completion_tokens": 4787,
+   "reported_cost_usd": 0.0030557,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 2,
+   "step": 1,
+   "query": "中国平安最近为什么下跌？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 25966.7,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5260,
+   "completion_tokens": 5500,
+   "reported_cost_usd": 0.0035057,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 0,
+   "step": 3,
+   "query": "中国平安最近为什么下跌？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 24630.1,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5269,
+   "completion_tokens": 5600,
+   "reported_cost_usd": 0.00356705,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 7,
+   "query": "中国平安最近为什么下跌？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 22679.4,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5172,
+   "completion_tokens": 4847,
+   "reported_cost_usd": 0.0031007,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 3,
+   "step": 5,
+   "query": "贵州茅台最新收盘价是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 22417.7,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2677,
+   "completion_tokens": 1010,
+   "reported_cost_usd": 0.00080057,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 2,
+   "query": "What was the latest close of Kweichow Moutai (600519.SH)?",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 14443.2,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2812,
+   "completion_tokens": 1037,
+   "reported_cost_usd": 0.00083702,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 4,
+   "query": "What was the latest close of Kweichow Moutai (600519.SH)?",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 14959.4,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2700,
+   "completion_tokens": 1001,
+   "reported_cost_usd": 0.00072336,
+   "degraded": []
+  },
+  {
+   "user": 6,
+   "step": 6,
+   "query": "What was the latest close of Kweichow Moutai (600519.SH)?",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 24826.9,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2758,
+   "completion_tokens": 1083,
+   "reported_cost_usd": 0.00085652,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 3,
+   "query": "What was the latest close of Kweichow Moutai (600519.SH)?",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 26773.9,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2704,
+   "completion_tokens": 1657,
+   "reported_cost_usd": 0.00119282,
+   "degraded": []
+  },
+  {
+   "user": 3,
+   "step": 6,
+   "query": "五粮液的市盈率是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 4851.0,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1926,
+   "completion_tokens": 584,
+   "reported_cost_usd": 0.00037588,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 5,
+   "query": "What was the latest close of Kweichow Moutai (600519.SH)?",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 29380.3,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2882,
+   "completion_tokens": 2419,
+   "reported_cost_usd": 0.00167672,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 5,
+   "query": "CPI 对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 7850.0,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 919,
+   "completion_tokens": 905,
+   "reported_cost_usd": 0.00056795,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 6,
+   "query": "今天天气怎么样？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 222.3,
+   "route": "refuse",
+   "answer_source": "guardrail",
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 7,
+   "query": "它的市盈率呢",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 287.8,
+   "route": null,
+   "answer_source": null,
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 8,
+   "query": "What was the latest close of Kweichow Moutai (600519.SH)?",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 16634.8,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2786,
+   "completion_tokens": 1760,
+   "reported_cost_usd": 0.00119166,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 4,
+   "query": "CPI 对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 7191.7,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 919,
+   "completion_tokens": 969,
+   "reported_cost_usd": 0.00060635,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 3,
+   "query": "CPI 对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 10004.2,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2385,
+   "completion_tokens": 1339,
+   "reported_cost_usd": 0.00091654,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 5,
+   "query": "今天天气怎么样？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 115.2,
+   "route": "refuse",
+   "answer_source": "guardrail",
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 4,
+   "query": "今天天气怎么样？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 178.5,
+   "route": "refuse",
+   "answer_source": "guardrail",
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 6,
+   "query": "它的市盈率呢",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 332.8,
+   "route": null,
+   "answer_source": null,
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 5,
+   "query": "它的市盈率呢",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 265.1,
+   "route": null,
+   "answer_source": null,
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 5,
+   "step": 7,
+   "query": "What was the latest close of Kweichow Moutai (600519.SH)?",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 27304.8,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2806,
+   "completion_tokens": 1686,
+   "reported_cost_usd": 0.00122552,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 7,
+   "query": "贵州茅台最新收盘价是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 3590.8,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1084,
+   "completion_tokens": 546,
+   "reported_cost_usd": 0.00043375,
+   "degraded": []
+  },
+  {
+   "user": 4,
+   "step": 9,
+   "query": "CPI 对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 4812.5,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 919,
+   "completion_tokens": 571,
+   "reported_cost_usd": 0.00036755,
+   "degraded": []
+  },
+  {
+   "user": 6,
+   "step": 7,
+   "query": "CPI 对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 12928.3,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2500,
+   "completion_tokens": 1799,
+   "reported_cost_usd": 0.00120979,
+   "degraded": []
+  },
+  {
+   "user": 6,
+   "step": 8,
+   "query": "今天天气怎么样？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 65.5,
+   "route": "refuse",
+   "answer_source": "guardrail",
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 6,
+   "step": 9,
+   "query": "它的市盈率呢",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 196.2,
+   "route": null,
+   "answer_source": null,
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 5,
+   "step": 8,
+   "query": "CPI 对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 5939.5,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 919,
+   "completion_tokens": 807,
+   "reported_cost_usd": 0.00050915,
+   "degraded": []
+  },
+  {
+   "user": 5,
+   "step": 9,
+   "query": "今天天气怎么样？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 126.9,
+   "route": "refuse",
+   "answer_source": "guardrail",
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 8,
+   "query": "五粮液的市盈率是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 3796.6,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1926,
+   "completion_tokens": 527,
+   "reported_cost_usd": 0.00034168,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 6,
+   "query": "CPI 对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 10179.0,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2436,
+   "completion_tokens": 1310,
+   "reported_cost_usd": 0.00090679,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 7,
+   "query": "今天天气怎么样？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 73.9,
+   "route": "refuse",
+   "answer_source": "guardrail",
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 8,
+   "query": "它的市盈率呢",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 145.8,
+   "route": null,
+   "answer_source": null,
+   "verified": null,
+   "llm_calls": 0,
+   "models": [],
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "reported_cost_usd": 0.0,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 6,
+   "query": "贵州茅台最新收盘价是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 7976.9,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2744,
+   "completion_tokens": 1247,
+   "reported_cost_usd": 0.00087756,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 7,
+   "query": "五粮液的市盈率是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 4176.8,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1926,
+   "completion_tokens": 575,
+   "reported_cost_usd": 0.00037048,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 9,
+   "query": "对比一下贵州茅台和五粮液的估值",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 10062.7,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 3663,
+   "completion_tokens": 2011,
+   "reported_cost_usd": 0.00124802,
+   "degraded": []
+  },
+  {
+   "user": 7,
+   "step": 9,
+   "query": "贵州茅台最新收盘价是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 10418.6,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2714,
+   "completion_tokens": 1813,
+   "reported_cost_usd": 0.00121266,
+   "degraded": []
+  },
+  {
+   "user": 3,
+   "step": 7,
+   "query": "对比一下贵州茅台和五粮液的估值",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 31679.9,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 8269,
+   "completion_tokens": 5877,
+   "reported_cost_usd": 0.00414562,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 2,
+   "step": 8,
+   "query": "对比一下贵州茅台和五粮液的估值",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 23129.0,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 8327,
+   "completion_tokens": 5545,
+   "reported_cost_usd": 0.00354117,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 3,
+   "step": 8,
+   "query": "中国平安最近为什么下跌？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 23201.6,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5099,
+   "completion_tokens": 4245,
+   "reported_cost_usd": 0.00295434,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 3,
+   "step": 9,
+   "query": "What was the latest close of Kweichow Moutai (600519.SH)?",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 11661.4,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 2736,
+   "completion_tokens": 1356,
+   "reported_cost_usd": 0.00101702,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 9,
+   "query": "中国平安最近为什么下跌？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 25437.3,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5361,
+   "completion_tokens": 5922,
+   "reported_cost_usd": 0.00377405,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 0,
+   "step": 8,
+   "query": "贵州茅台最新收盘价是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 65649.6,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1084,
+   "completion_tokens": 716,
+   "reported_cost_usd": 0.00046049,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 9,
+   "query": "五粮液的市盈率是多少？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 4401.6,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1926,
+   "completion_tokens": 581,
+   "reported_cost_usd": 0.00037408,
+   "degraded": []
+  }
+ ],
+ "command": "python -m scripts.load_test --base-url http://127.0.0.1:8831 --users 8 --requests 10 --label monitoring traffic: workflow, live data --out /Volumes/Remi/FinSight-ops/docs/results/observability/traffic-workflow.json"
+}

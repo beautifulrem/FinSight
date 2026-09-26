@@ -149,9 +149,19 @@ All live I/O goes through `SourceRuntime.call` (`query_intelligence/integrations
   `QI_SOURCE_MAX_COOLDOWN_SECONDS` (600 s). The audit shows the effect: after the first stock had
   failed twice on Eastmoney, the next stocks skipped Eastmoney immediately
   (`eastmoney.quote:circuit_open`), and their bundles dropped from 2,062 ms to about 1,000 ms.
-- **Hard timeouts.** Most akshare functions accept no timeout, so each call runs on a daemon worker
-  that is abandoned after `QI_SOURCE_CALL_TIMEOUT_SECONDS` (default 10 s) and recorded as a failure.
-  Timeouts are not retried.
+- **Hard timeouts on a bounded pool** (`runtime.py`, `SourceCallPool`). Most akshare functions accept
+  no timeout, so each guarded call runs on a worker of a fixed-size pool (`QI_SOURCE_MAX_WORKERS`,
+  default 32). The caller stops waiting after `QI_SOURCE_CALL_TIMEOUT_SECONDS` (default 10 s); the
+  call is recorded as a failure and counted as *abandoned* until the hung socket finally returns and
+  frees its worker. Timeouts are not retried. Before this change every call started a new daemon
+  thread, so a hanging upstream under load grew the thread count without bound. Now at most
+  `QI_SOURCE_MAX_WORKERS` calls run at once; a call that finds every worker busy is rejected at once
+  (`SourcePoolSaturatedError`, attempt label `<source>:saturated`) instead of queueing behind hung
+  calls. Saturation is local back-pressure, so it does not count against the source's breaker. A
+  guarded call made from inside another guarded call runs inline under the outer timeout, so nesting
+  cannot deadlock a full pool. Pool counters (`busy`, `max_busy`, `timed_out_total`,
+  `abandoned_total`, `abandoned_running`, `rejected_total`) are served by `/sources/health` under
+  `worker_pool` and exported to Prometheus (see [a2a-and-observability.md](a2a-and-observability.md)).
 - **TTL cache with last-known-good reads** (`cache.py`). The TTLs are 60 s for market bundles,
   30 min for daily macro series, and 6 h for monthly ones. When every live source fails, an expired
   entry up to `QI_SOURCE_MAX_STALE_SECONDS` old (default 24 h) is served. It is marked
@@ -199,12 +209,86 @@ the 300750 chain in the audit run.
   `field_coverage` and `quality_flags` are unchanged.
 - Offline records say `数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级`.
 
+## Cross-source validation of fundamentals
+
+The round-1 review found that live Sina fundamentals for 000858.SZ gave H1-2026 revenue YoY -46.15%
+and net-profit YoY -55.32%, while a retrieved news item in the same answer said +20.87% and +89.30%
+(bug B11). Fetching both sources on 2026-09-26 shows where the disagreement comes from:
+
+| Report period | THS revenue (亿元) | THS revenue YoY | Sina revenue YoY | THS net profit YoY | Sina net profit YoY |
+|---|---:|---:|---:|---:|---:|
+| 2025-06-30 | 235.10 | -53.58% | +4.19% | -75.74% | +1.56% |
+| 2026-03-31 | 228.38 | +33.67% | -38.18% | +82.57% | -45.84% |
+| 2026-06-30 | 284.17 | +20.87% | -46.15% | +89.30% | -55.32% |
+
+THS's growth rates agree with its own reported levels (284.17 / 235.10 - 1 = +20.87%), and with the
+company figures quoted by the news. Sina's rates are not consistent with those levels. Before this
+change the provider used Sina and only fell back to THS when Sina failed, so the wrong figures were
+served whenever Sina answered.
+
+Now (`integrations/sources/crosscheck.py`, on by default with `QI_SOURCE_CROSS_CHECK=1`) both
+sources are fetched concurrently for every stock bundle and reconciled:
+
+1. **Range checks.** Values outside plausible bounds (revenue YoY below -100%, ROE beyond ±200%,
+   gross margin beyond ±100%, …) are dropped and listed in `out_of_range`, never served.
+2. **Report period.** Only the same report period is compared or merged. If the latest periods differ,
+   the newer one is served and the check says `period_mismatch`.
+3. **Cumulative vs single-quarter convention.** A-share reports are cumulative year to date. THS
+   levels are checked to be non-decreasing within each fiscal year, and each reported YoY is compared
+   with the YoY recomputed from the levels both cumulatively and for the single quarter
+   (e.g. Q2 = H1 - Q1). A source that reports single-quarter growth is recognised
+   (`conventions: {"sina.finance:revenue_yoy": "single_quarter"}`) instead of being called wrong.
+4. **Resolution.** Two growth rates within 2 percentage points agree. Otherwise the value that matches
+   the level-recomputed cumulative YoY (within 1 point) is served; if neither can be confirmed, the
+   primary's value is served and the status is `disagree_unresolved`. Same-period gaps (for example
+   Sina's missing gross margin) are filled from the other source and listed in `filled_from_other`.
+
+The outcome is recorded where the agent and the UI already look:
+
+- `provenance.cross_check`: `status` (`agree`, `disagree_resolved`, `disagree_unresolved`,
+  `period_mismatch`, `single_source`), `served_source`, `compared_with`, `disagreeing_fields`,
+  `resolution`, `conventions`, `level_consistent`, and a Chinese `note`. Like the rest of provenance
+  it contains only strings, booleans and ISO dates, so it cannot make a number look "traceable".
+- `provenance.note` is extended, e.g. `新浪财经与同花顺的营收同比、净利润同比不一致；已采用与报告期营收/净利润绝对值推算结果一致的同花顺数据，请以公司定期报告为准`.
+- A provider warning such as
+  `fundamentals_cross_source_disagree_resolved:000858:revenue_yoy,netprofit_yoy:served=ths.finance`,
+  which the retrieval packager adds to the result's warnings.
+
+Cost: one extra upstream call per stock bundle, run concurrently with the Sina call (THS measured
+215–261 ms in the audit), and bundles are cached for 60 s.
+
+## Stale snapshot industry records
+
+The shipped snapshot has industry tiles keyed by board name (`白酒` dated 2026-04-21, `保险`, …),
+reached through `entity_to_industry`. The live provider names industries differently (Eastmoney
+`酿酒行业`, cninfo `酒、饮料和精制茶制造业`), so the live record never replaced the snapshot tile, and
+an April industry change sat next to September prices in live answers.
+
+With live data enabled the pipeline now refreshes a stale snapshot industry record from the THS
+industry index (`stock_board_industry_index_ths`, source `ths.industry`, 170–440 ms measured on
+2026-09-26; the daily change is computed from the last two closes) and caches it for 5 minutes. No
+snapshot field (PE, PB, turnover) is carried into the live record. If the refresh fails the snapshot
+is kept but labelled: snapshot provenance with reason `live industry index unavailable`
+(`实时行业指数不可用，沿用离线快照（旧数据，勿当作今日行情）`) and an
+`industry_snapshot_stale:<board>:<date>` warning. With live data off nothing changes.
+
 ## Health endpoint
 
-`GET /sources/health` is passive: it reports what the runtime has recorded and never calls an
-upstream. For each source it returns status (`up`, `degraded`, `down`, or `unknown`), circuit state,
-call/success/failure counts, last and average latency, last error, `retry_in_s` for open circuits, and
-the breaker and cache configuration.
+`GET /sources/health` is passive by default: it reports what the runtime has recorded and never calls
+an upstream. For each source it returns status (`up`, `degraded`, `down`, or `unknown`), circuit
+state, call/success/failure counts, last and average latency, last error, `retry_in_s` for open
+circuits, the breaker and cache configuration, and the source-call pool counters (`worker_pool`).
+
+**Active probe (opt-in).** `GET /sources/health?probe=1` first runs one cheap request per source
+(Eastmoney quote/datacenter/news, Sina kline/quote, Tencent kline/quote, THS finance/industry, cninfo
+profile) through the same guarded `SourceRuntime.call`, so breakers, latency and errors are recorded
+exactly as for real traffic, then returns the report with a `probe` block (per-source `ok`, `outcome`,
+`latency_ms`, `error`). Several upstreams throttle bursts from one IP, so probing is rate limited
+process-wide: one round per `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS` (default 60). Inside that window
+the previous round is returned with `status: rate_limited` and `retry_in_s`; a request during a
+running round gets `in_progress`. With live market data off the probe is `skipped`. The query
+parameter needs the `api/app.py` wiring in `deploy/patches/app-ops-wiring.patch` (see
+[deployment.md](deployment.md)).
 
 ## Configuration
 
@@ -217,6 +301,9 @@ the breaker and cache configuration.
 | `QI_SOURCE_MAX_COOLDOWN_SECONDS` | `600` | Cooldown cap after repeated failed trials |
 | `QI_SOURCE_CACHE` | `true` | TTL cache and last-known-good reads |
 | `QI_SOURCE_MAX_STALE_SECONDS` | `86400` | Oldest last-known-good value that may be served |
+| `QI_SOURCE_MAX_WORKERS` | `32` | Size of the bounded source-call pool |
+| `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS` | `60` | Minimum time between two active probe rounds |
+| `QI_SOURCE_CROSS_CHECK` | `true` | Fetch Sina and THS fundamentals and reconcile them |
 
 ## Tests
 
@@ -232,6 +319,11 @@ the breaker and cache configuration.
   - pipeline caching, last-known-good, the fresh-vs-stale snapshot policy, and provenance on tool
     outputs;
   - `/sources/health`.
+- `tests/test_source_reliability.py` (offline) covers the bounded pool (abandoned-call accounting,
+  fast rejection without tripping the breaker, the thread bound under a hung upstream, nested calls),
+  the rate-limited active probe, the Sina/THS reconciliation on the real 000858 figures (range,
+  report period, cumulative vs single quarter, digit-free metadata), the stale-industry refresh and
+  labelling, and the Prometheus collector for breaker states and the pool.
 - `tests/test_data_sources_live.py` hits real endpoints. It runs only with `QI_LIVE_TESTS=1` (or the
   repository's existing `QI_INTEGRATION_TESTS=1`).
 

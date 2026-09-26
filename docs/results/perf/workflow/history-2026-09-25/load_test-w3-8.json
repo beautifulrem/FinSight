@@ -1,0 +1,19 @@
+{
+ "base_url": "http://127.0.0.1:8003",
+ "mode": "workflow",
+ "users": 8,
+ "requests": 160,
+ "wall_seconds": 39.1,
+ "throughput_rps": 4.09,
+ "error_rate": 0.0,
+ "latency_ms": {
+  "p50": 635.3,
+  "p95": 9777.6,
+  "p99": 12600.1,
+  "mean": 1844.3
+ },
+ "statuses": [
+  "200"
+ ],
+ "run_at": "2026-09-25T13:35:53+00:00"
+}

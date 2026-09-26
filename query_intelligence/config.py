@@ -30,6 +30,12 @@ class Settings:
     source_max_cooldown_seconds: float = 600.0
     source_cache_enabled: bool = True
     source_max_stale_seconds: float = 24 * 3600.0
+    # Worker pool for guarded upstream calls (bounds threads left behind by hung calls).
+    source_max_workers: int = 32
+    # Active probing for ``/sources/health?probe=1``: minimum seconds between two probe rounds.
+    source_probe_min_interval_seconds: float = 60.0
+    # Cross-check live fundamentals between Sina and THS (one extra upstream call per stock).
+    source_cross_check_fundamentals: bool = True
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -61,6 +67,9 @@ class Settings:
             source_max_cooldown_seconds=_env_float("QI_SOURCE_MAX_COOLDOWN_SECONDS", 600.0),
             source_cache_enabled=os.getenv("QI_SOURCE_CACHE", "true").lower() in {"1", "true", "yes"},
             source_max_stale_seconds=_env_float("QI_SOURCE_MAX_STALE_SECONDS", 24 * 3600.0),
+            source_max_workers=max(1, int(_env_float("QI_SOURCE_MAX_WORKERS", 32))),
+            source_probe_min_interval_seconds=_env_float("QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS", 60.0),
+            source_cross_check_fundamentals=os.getenv("QI_SOURCE_CROSS_CHECK", "true").lower() in {"1", "true", "yes"},
         )
 
 

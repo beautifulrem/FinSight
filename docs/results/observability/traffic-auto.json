@@ -1,0 +1,332 @@
+{
+ "label": "monitoring traffic: auto mode, live data",
+ "base_url": "http://127.0.0.1:8831",
+ "mode": "auto",
+ "question_set": "research",
+ "fresh_connections": false,
+ "users": 4,
+ "requests_per_user": 3,
+ "requests": 12,
+ "wall_seconds": 145.98,
+ "throughput_rps": 0.082,
+ "error_rate": 0.0,
+ "latency_ms": {
+  "n": 12,
+  "p50": 37116.4,
+  "p95": 98418.2,
+  "p99": 98418.2,
+  "mean": 43085.5,
+  "max": 98418.2
+ },
+ "statuses": {
+  "200": 12
+ },
+ "routes": {
+  "agent": 6,
+  "workflow": 6
+ },
+ "answer_sources": {
+  "llm_agent": 6,
+  "llm_compose": 6
+ },
+ "verified_rate": 0.5833,
+ "degraded_rate": 0.4167,
+ "models": {
+  "deepseek/deepseek-v4.1-flash": 12
+ },
+ "cost": {
+  "requests_counted": 12,
+  "requests_with_llm": 12,
+  "total_usd": 0.052133,
+  "usd_cny": 6.7489,
+  "total_cny": 0.3518,
+  "per_question_cny": 0.02932,
+  "per_1k_questions_cny": 29.32,
+  "per_1k_questions_usd": 4.344,
+  "questions_per_day": 1000,
+  "monthly_cny_at_questions_per_day": 879.6,
+  "tokens": {
+   "prompt": 203838,
+   "completion": 64027,
+   "cache_hit": 114688
+  },
+  "llm_calls": 38,
+  "cost_sources": [
+   "provider_reported"
+  ]
+ },
+ "warmup": {
+  "status": 200,
+  "latency_ms": 30910.9,
+  "route": "agent",
+  "answer_source": "llm_agent",
+  "verified": false,
+  "degraded": [
+   "verification_failed:repaired"
+  ],
+  "llm_calls": 4,
+  "models": [
+   "deepseek/deepseek-v4.1-flash"
+  ],
+  "prompt_tokens": 28786,
+  "completion_tokens": 3784,
+  "cache_hit_tokens": 13440,
+  "reported_cost_usd": 0.00461263,
+  "cost": 0.03113,
+  "currency": "CNY",
+  "cost_source": "provider_reported"
+ },
+ "environment": {
+  "host": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "cpu_count": 10,
+  "loadavg_at_start": [
+   14.6,
+   17.01,
+   16.36
+  ],
+  "python": "3.13.13"
+ },
+ "commit": null,
+ "run_at": "2026-09-26T14:17:01+00:00",
+ "per_request": [
+  {
+   "user": 0,
+   "step": 0,
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 28755.8,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 20212,
+   "completion_tokens": 3282,
+   "reported_cost_usd": 0.00338283,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 0,
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 30127.7,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5107,
+   "completion_tokens": 3317,
+   "reported_cost_usd": 0.00241756,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 0,
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 37742.9,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 3,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 17814,
+   "completion_tokens": 4654,
+   "reported_cost_usd": 0.00461779,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 1,
+   "step": 1,
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 14919.1,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 4971,
+   "completion_tokens": 1992,
+   "reported_cost_usd": 0.00135755,
+   "degraded": []
+  },
+  {
+   "user": 3,
+   "step": 0,
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 66486.7,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 5,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 36950,
+   "completion_tokens": 9448,
+   "reported_cost_usd": 0.00835127,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 1,
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 59868.2,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 6,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 38166,
+   "completion_tokens": 5395,
+   "reported_cost_usd": 0.00561265,
+   "degraded": []
+  },
+  {
+   "user": 1,
+   "step": 2,
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 46974.8,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 5,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 32514,
+   "completion_tokens": 5894,
+   "reported_cost_usd": 0.00562873,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 3,
+   "step": 1,
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 37116.4,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 7776,
+   "completion_tokens": 5240,
+   "reported_cost_usd": 0.00380237,
+   "degraded": []
+  },
+  {
+   "user": 2,
+   "step": 2,
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 36639.3,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 7877,
+   "completion_tokens": 7531,
+   "reported_cost_usd": 0.00477817,
+   "degraded": []
+  },
+  {
+   "user": 0,
+   "step": 1,
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 98418.2,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 3,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 18828,
+   "completion_tokens": 4905,
+   "reported_cost_usd": 0.00386679,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 3,
+   "step": 2,
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 41174.3,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 8445,
+   "completion_tokens": 8859,
+   "reported_cost_usd": 0.00601767,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  },
+  {
+   "user": 0,
+   "step": 2,
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "ok": true,
+   "status": 200,
+   "latency_ms": 18802.7,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 5178,
+   "completion_tokens": 3510,
+   "reported_cost_usd": 0.0022994,
+   "degraded": [
+    "verification_failed:repaired"
+   ]
+  }
+ ],
+ "command": "python -m scripts.load_test --base-url http://127.0.0.1:8831 --mode auto --questions research --users 4 --requests 3 --usd-cny 6.7489 --timeout 240 --label monitoring traffic: auto mode, live data --out /Volumes/Remi/FinSight-ops/docs/results/observability/traffic-auto.json"
+}
