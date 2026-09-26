@@ -215,3 +215,5 @@ function SettingsBody({ apiKey, onApiKey, sessionId, lang, onLang, theme, onThem
     </>
   );
 }
+
+export default SettingsDialog;
