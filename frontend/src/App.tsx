@@ -1,25 +1,28 @@
 import { Dialog } from "radix-ui";
 import { domAnimation, LazyMotion, MotionConfig } from "motion/react";
 import { X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Composer, type ComposerHandle } from "@/components/Composer";
 import { EmptyState } from "@/components/EmptyState";
 import { Header, type AppStatus } from "@/components/Header";
 import { HistoryView } from "@/components/HistoryView";
 import { Inspector, type InspectorTab } from "@/components/Inspector";
-import { SettingsDialog, type ThemePref } from "@/components/SettingsDialog";
+import type { ThemePref } from "@/components/SettingsDialog";
 import { TurnView } from "@/components/TurnView";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useChat, type Turn } from "@/hooks/useChat";
-import { fetchHealth, fetchSession } from "@/lib/api";
+import { fetchHealth, fetchSession, sendFeedback } from "@/lib/api";
 import { I18nContext, makeTranslate, type Lang } from "@/lib/i18n";
 import { newSessionId, readStorage, STORAGE_KEYS, writeStorage } from "@/lib/storage";
-import type { UiMode } from "@/lib/types";
+import type { FeedbackRequest, UiMode } from "@/lib/types";
 import { answerView, type AnswerView } from "@/lib/view";
 
 const MODES: UiMode[] = ["auto", "agent", "workflow", "classic"];
+
+// Loaded on first open: the settings dialog is not needed to read or ask anything.
+const SettingsDialog = lazy(() => import("@/components/SettingsDialog"));
 
 function meta(name: string): string {
   const value = document.querySelector<HTMLMetaElement>(`meta[name="finsight:${name}"]`)?.content ?? "";
@@ -56,6 +59,8 @@ export default function App() {
   const [sessionId, setSessionId] = useState(() => readStorage(STORAGE_KEYS.session) || newSessionId());
   const [online, setOnline] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Mount (and download) the settings dialog the first time it is opened, then keep it for its exit animation.
+  const [settingsMounted, setSettingsMounted] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [inspect, setInspect] = useState<InspectState>({ turnId: null, tab: "evidence", highlight: null, nonce: 0 });
   const composer = useRef<ComposerHandle>(null);
@@ -169,6 +174,12 @@ export default function App() {
 
   const onRetry = useCallback((turn: Turn) => ask(turn.query), [ask]);
 
+  const apiKeyRef = useRef(apiKey);
+  useEffect(() => {
+    apiKeyRef.current = apiKey;
+  }, [apiKey]);
+  const onFeedback = useCallback((body: FeedbackRequest) => sendFeedback(body, { apiKey: apiKeyRef.current }), []);
+
   const newSession = () => {
     const id = newSessionId();
     setSessionId(id);
@@ -213,17 +224,23 @@ export default function App() {
               onToggleTheme={() => setThemePref(dark ? "light" : "dark")}
               onToggleLang={() => setLang(lang === "zh" ? "en" : "zh")}
               onNewSession={newSession}
-              onSettings={() => setSettingsOpen(true)}
+              onSettings={() => {
+                setSettingsMounted(true);
+                setSettingsOpen(true);
+              }}
               onInspector={() => setSheetOpen(true)}
               canInspect={Boolean(inspectedView)}
             />
             <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
               <main className="flex min-h-0 flex-col">
-                <div ref={scroller} onScroll={onScroll} className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
+                <div ref={scroller} onScroll={onScroll} className="scrollbar-thin relative min-h-0 flex-1 overflow-y-auto">
                   <div id="chat-messages" className="mx-auto w-full max-w-3xl space-y-6 px-3 py-5 sm:px-5 sm:py-8" aria-live="polite">
                     {empty ? (
                       <EmptyState onAsk={ask} />
                     ) : (
+                      <h1 className="sr-only">{t("a11y.conversation")}</h1>
+                    )}
+                    {empty ? null : (
                       items.map((item) =>
                         item.kind === "notice" ? (
                           <p key={item.id} className="notice text-center text-[12.5px] text-faint">
@@ -243,6 +260,7 @@ export default function App() {
                             onInspect={onInspect}
                             onAsk={ask}
                             onRetry={onRetry}
+                            onFeedback={onFeedback}
                           />
                         ),
                       )
@@ -294,6 +312,8 @@ export default function App() {
             </Dialog.Portal>
           </Dialog.Root>
 
+          {settingsMounted && (
+            <Suspense fallback={null}>
           <SettingsDialog
             open={settingsOpen}
             onOpenChange={setSettingsOpen}
@@ -308,6 +328,8 @@ export default function App() {
             theme={themePref}
             onTheme={setThemePref}
           />
+            </Suspense>
+          )}
         </TooltipProvider>
       </MotionConfig>
       </LazyMotion>

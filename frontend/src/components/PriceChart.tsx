@@ -52,7 +52,7 @@ export default function PriceChart({ points, themeKey, label }: Props) {
     if (!chart || !series) return;
     const rising = (points[points.length - 1]?.value ?? 0) >= (points[0]?.value ?? 0);
     // A-share convention: red for a rise, green for a fall.
-    const color = cssVar(rising ? "--up" : "--down") || (rising ? "#cf3528" : "#10805a");
+    const color = cssVar(rising ? "--up" : "--down") || (rising ? "#b92d20" : "#0b7250");
     chart.applyOptions({
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
@@ -67,5 +67,12 @@ export default function PriceChart({ points, themeKey, label }: Props) {
     chart.timeScale().fitContent();
   }, [points, themeKey]);
 
-  return <div ref={container} role="img" aria-label={label} className="h-44 w-full sm:h-52" />;
+  // The text alternative is a sibling, not role="img" on the container: the library renders a focusable
+  // attribution link inside it, and an img must not contain interactive content (axe nested-interactive).
+  return (
+    <>
+      <p className="sr-only">{label}</p>
+      <div ref={container} className="h-44 w-full sm:h-52" />
+    </>
+  );
 }

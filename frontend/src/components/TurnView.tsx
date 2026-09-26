@@ -1,9 +1,8 @@
 import { AnimatePresence, m as motion } from "motion/react";
 import {
   AlertTriangle,
-  Check,
   ChevronDown,
-  Copy,
+  FilePenLine,
   HelpCircle,
   Info,
   Layers,
@@ -13,17 +12,23 @@ import {
   Sparkles,
   Square,
 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import type { Turn } from "@/hooks/useChat";
 import { evidenceIndex, stripCitations } from "@/lib/citations";
 import { cn } from "@/lib/cn";
+import { limitationText } from "@/lib/codes";
+import { answerEdited, streamingText } from "@/lib/streaming";
 import { formatMs } from "@/lib/format";
+import { evidenceFreshness, summarizeFreshness } from "@/lib/freshness";
 import { useI18n, type MessageKey } from "@/lib/i18n";
 import { liveTrace, traceStats } from "@/lib/trace";
 import type { AnswerView } from "@/lib/view";
 
+import { CopyButton, ExportMenu, FeedbackControls, type FeedbackSender } from "./AnswerActions";
+import { CodeText } from "./CodeLabel";
 import { DataPanel } from "./DataPanel";
+import { FreshnessBanner } from "./Freshness";
 import { RichText, type CiteHandler } from "./RichText";
 import { SentimentBar } from "./SentimentBar";
 import { TraceTimeline } from "./TraceTimeline";
@@ -36,6 +41,7 @@ export interface TurnActions {
   onInspect: (turnId: string, tab: "evidence" | "trace" | "run") => void;
   onAsk: (query: string) => void;
   onRetry: (turn: Turn) => void;
+  onFeedback: FeedbackSender;
 }
 
 interface Props extends TurnActions {
@@ -115,7 +121,8 @@ function TraceDisclosure({
   const live = turn.status === "running";
   const nodes = view ? view.trace : liveTrace(turn.steps);
   const [openState, setOpen] = useState<boolean | null>(null);
-  const open = openState ?? live;
+  // Open while tools run; fold away once answer text starts streaming so the text stays in view.
+  const open = openState ?? (live && !turn.draft);
   const panelId = useId();
   if (!nodes.length && !live) return null;
   const stats = traceStats(nodes);
@@ -158,32 +165,83 @@ function TraceDisclosure({
   );
 }
 
-function CopyButton({ text }: { text: string }) {
+function StreamingAnswer({ draft }: { draft: string }) {
   const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
+  const text = streamingText(draft);
   return (
-    <Tooltip content={copied ? t("answer.copied") : t("answer.copy")}>
-      <Button
-        size="icon-sm"
-        aria-label={t("answer.copy")}
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(text);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1400);
-          } catch {
-            /* clipboard unavailable */
-          }
-        }}
-      >
-        {copied ? <Check /> : <Copy />}
-      </Button>
-    </Tooltip>
+    <div className="streaming-answer" data-streaming="true">
+      <span className="sr-only">{t("stream.writing")}</span>
+      {text.trim() ? (
+        <RichText text={text} className="answer-text streaming-text text-[15px] leading-[1.8] text-ink" />
+      ) : (
+        <p className="streaming-text text-[15px] leading-[1.8]" aria-hidden />
+      )}
+    </div>
   );
 }
 
-function AnswerCard({ turn, view, isLast, activeEvidence, themeKey, onCite, onInspect, onAsk }: Props & { view: AnswerView }) {
+function EditedNotice() {
   const { t } = useI18n();
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(false), 6000);
+    return () => window.clearTimeout(timer);
+  }, []);
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.span
+          key="edited"
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="inline-flex"
+        >
+          <Tooltip content={t("answer.editedHint")}>
+            <Badge tone="gilt" tabIndex={0} className="answer-edited">
+              <FilePenLine />
+              {t("answer.edited")}
+            </Badge>
+          </Tooltip>
+        </motion.span>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function Limitations({ view, cite }: { view: AnswerView; cite: CiteHandler }) {
+  const { lang, t } = useI18n();
+  return (
+    <section className="limitations rounded-lg bg-surface-2/70 px-3 py-2">
+      <h2 className="mb-1 flex items-center gap-1.5 text-[12.5px] font-medium text-muted">
+        <AlertTriangle className="size-3.5 text-warn" aria-hidden />
+        {t(view.kind === "classic" ? "run.warnings" : "answer.limitations")}
+      </h2>
+      <ul className="list-disc space-y-0.5 pl-5 text-[12.5px] leading-relaxed text-muted marker:text-faint">
+        {view.limitations.map((item, i) => {
+          const { text, code } = limitationText(lang, item);
+          return (
+            <li key={`${i}-${item}`}>
+              {code ? <CodeText code={code} label={text} /> : <RichText text={text} cite={cite} className="inline [&>p]:inline" />}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function AnswerCard({ turn, view, isLast, activeEvidence, themeKey, onCite, onInspect, onAsk, onFeedback }: Props & { view: AnswerView }) {
+  const { t } = useI18n();
+  const streamed = Boolean(turn.draft?.trim());
+  const edited = view.kind === "agent" && answerEdited(turn.draft, view.answer);
+  const freshness = useMemo(() => summarizeFreshness(view.evidence, view.cited), [view.evidence, view.cited]);
+  const sourceFreshness = useMemo(
+    () => new Map(view.evidence.map((source) => [source.evidence_id, evidenceFreshness(source)])),
+    [view.evidence],
+  );
+  const query = view.agent?.query || turn.query;
   const cite: CiteHandler = useMemo(
     () => ({
       index: evidenceIndex(view.evidence.map((source) => source.evidence_id)),
@@ -196,10 +254,16 @@ function AnswerCard({ turn, view, isLast, activeEvidence, themeKey, onCite, onIn
   const copyText = [stripCitations(view.answer), view.disclaimer].filter(Boolean).join("\n\n");
   const warn = view.kind === "classic" && view.llmStatus && view.llmStatus !== "ok";
   return (
-    <article className="answer-card space-y-3.5 rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5" aria-label={t("a11y.assistant")}>
+    <article
+      className="answer-card space-y-3.5 rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5"
+      aria-label={t("a11y.assistant")}
+      data-streamed={streamed || undefined}
+      data-edited={edited || undefined}
+    >
       <header className="flex flex-wrap items-center gap-1.5">
         <RouteBadge view={view} />
         <VerificationBadge view={view} />
+        {edited && <EditedNotice />}
         {view.evidence.length > 0 && (
           <button
             type="button"
@@ -210,10 +274,9 @@ function AnswerCard({ turn, view, isLast, activeEvidence, themeKey, onCite, onIn
             {t("answer.sources", { n: view.evidence.length })}
           </button>
         )}
-        <span className="ml-auto flex items-center gap-1">
-          {view.wallMs !== undefined && <span className="text-[11.5px] text-faint tabular-nums">{formatMs(view.wallMs)}</span>}
-          <CopyButton text={copyText} />
-        </span>
+        {view.wallMs !== undefined && (
+          <span className="ml-auto text-[11.5px] text-muted tabular-nums">{formatMs(view.wallMs)}</span>
+        )}
       </header>
 
       {warn && (
@@ -225,36 +288,34 @@ function AnswerCard({ turn, view, isLast, activeEvidence, themeKey, onCite, onIn
 
       {view.kind === "agent" && <TraceDisclosure view={view} turn={turn} onEvidence={(id) => onCite(turn.id, id)} />}
 
-      <RichText text={view.answer} cite={cite} className="answer-text text-[15px] leading-[1.8] text-ink" />
+      <FreshnessBanner summary={freshness} onReview={() => onInspect(turn.id, "evidence")} />
 
-      {view.data && <DataPanel data={view.data} themeKey={themeKey} onEvidence={(id) => onCite(turn.id, id)} />}
+      <motion.div
+        initial={streamed ? { opacity: 0.4, filter: "blur(2px)" } : false}
+        animate={{ opacity: 1, filter: "blur(0px)" }}
+        transition={{ duration: 0.45, ease: "easeOut" }}
+      >
+        <RichText text={view.answer} cite={cite} className="answer-text text-[15px] leading-[1.8] text-ink" />
+      </motion.div>
+
+      {view.data && (
+        <DataPanel data={view.data} themeKey={themeKey} freshness={sourceFreshness} onEvidence={(id) => onCite(turn.id, id)} />
+      )}
 
       {view.keyPoints.length > 0 && (
         <section className="key-points">
-          <h3 className="mb-1.5 text-[13px] font-medium text-muted">{t("answer.keyPoints")}</h3>
+          <h2 className="mb-1.5 text-[13px] font-medium text-muted">{t("answer.keyPoints")}</h2>
           <RichText text={view.keyPoints.map((point) => `- ${point}`).join("\n")} cite={cite} className="text-[14px] leading-relaxed" />
         </section>
       )}
 
-      {view.limitations.length > 0 && (
-        <section className="limitations rounded-lg bg-surface-2/70 px-3 py-2">
-          <h3 className="mb-1 flex items-center gap-1.5 text-[12.5px] font-medium text-muted">
-            <AlertTriangle className="size-3.5 text-warn" aria-hidden />
-            {t(view.kind === "classic" ? "run.warnings" : "answer.limitations")}
-          </h3>
-          <RichText
-            text={view.limitations.map((item) => `- ${item}`).join("\n")}
-            cite={cite}
-            className="text-[12.5px] leading-relaxed text-muted [&_ul]:space-y-0.5"
-          />
-        </section>
-      )}
+      {view.limitations.length > 0 && <Limitations view={view} cite={cite} />}
 
       {view.sentiment && <SentimentBar sentiment={view.sentiment} />}
 
       {isLast && view.next.length > 0 && (
         <section aria-label={t("answer.next")}>
-          <h3 className="mb-1.5 text-[13px] font-medium text-muted">{t("answer.next")}</h3>
+          <h2 className="mb-1.5 text-[13px] font-medium text-muted">{t("answer.next")}</h2>
           <div className="flex flex-wrap gap-1.5">
             {view.next.map((item) => (
               <button
@@ -270,9 +331,20 @@ function AnswerCard({ turn, view, isLast, activeEvidence, themeKey, onCite, onIn
         </section>
       )}
 
-      <footer className="disclaimer flex items-start gap-1.5 border-t border-line pt-3 text-[12px] leading-relaxed text-faint">
-        <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-        <span>{view.disclaimer || t("answer.disclaimerDefault")}</span>
+      <footer className="space-y-2 border-t border-line pt-3">
+        <p className="disclaimer flex items-start gap-1.5 text-[12px] leading-relaxed text-muted">
+          <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>{view.disclaimer || t("answer.disclaimerDefault")}</span>
+        </p>
+        <div className="answer-actions flex flex-wrap items-start gap-1" role="group" aria-label={t("answer.actions")}>
+          {view.agent?.trace_id ? (
+            <FeedbackControls traceId={view.agent.trace_id} sessionId={view.agent.session_id ?? null} onSend={onFeedback} />
+          ) : null}
+          <span className="ml-auto flex items-center gap-0.5">
+            <CopyButton text={copyText} />
+            <ExportMenu view={view} query={query} />
+          </span>
+        </div>
       </footer>
     </article>
   );
@@ -328,7 +400,10 @@ export function TurnView(props: Props) {
       {turn.status === "running" && (
         <div className="answer-card rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5" aria-busy="true">
           {turn.via === "stream" ? (
-            <TraceDisclosure turn={turn} onEvidence={() => undefined} />
+            <div className="space-y-3.5">
+              <TraceDisclosure turn={turn} onEvidence={() => undefined} />
+              {turn.draft !== undefined && <StreamingAnswer draft={turn.draft} />}
+            </div>
           ) : (
             <p className="text-[14px]">
               <span className="shimmer font-medium">{t("app.running")}…</span>

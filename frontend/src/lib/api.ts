@@ -3,6 +3,7 @@ import type {
   AgentMode,
   AgentResponse,
   ClassicResponse,
+  FeedbackRequest,
   SessionInfo,
   StreamEvent,
 } from "./types";
@@ -71,6 +72,27 @@ export async function fetchSession(sessionId: string, options: ApiOptions): Prom
   });
   if (!response.ok) throw await errorFrom(response);
   return (await response.json()) as SessionInfo;
+}
+
+export type FeedbackResult = "ok" | "unsupported" | "unknown_trace";
+
+/**
+ * `POST /agent/feedback`. Servers without the endpoint answer 404 "Not Found" (or 405/501): that is
+ * reported as `unsupported` so the UI keeps the rating locally instead of showing an error. A 404
+ * with any other detail means the server no longer knows the trace (e.g. it restarted).
+ */
+export async function sendFeedback(body: FeedbackRequest, options: ApiOptions): Promise<FeedbackResult> {
+  const response = await fetch("/agent/feedback", {
+    method: "POST",
+    headers: headers(options.apiKey),
+    body: JSON.stringify(body),
+    signal: options.signal,
+  });
+  if (response.ok) return "ok";
+  if (response.status === 405 || response.status === 501) return "unsupported";
+  const error = await errorFrom(response);
+  if (response.status === 404) return error.message === "Not Found" ? "unsupported" : "unknown_trace";
+  throw error;
 }
 
 export async function fetchHealth(signal?: AbortSignal): Promise<boolean> {

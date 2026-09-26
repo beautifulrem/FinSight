@@ -20,9 +20,21 @@ export default defineConfig({
     outDir,
     emptyOutDir: true,
     target: "es2022",
-    // react-dom alone is ~200 kB minified; the whole app entry is ~165 kB gzipped.
-    chunkSizeWarningLimit: 560,
     reportCompressedSize: true,
+    // Vite's default 500 kB chunk warning applies. Libraries that change rarely get their own
+    // long-cached chunks (Vite 8 / Rolldown `codeSplitting.groups`, which replaces `manualChunks`);
+    // the price chart and the settings dialog are loaded on demand with `React.lazy`.
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: "react", test: /[\\/]node_modules[\\/](?:\.pnpm[\\/])?(?:react|react-dom|scheduler)[@\\/]/, priority: 30 },
+            { name: "radix", test: /[\\/]node_modules[\\/](?:\.pnpm[\\/])?(?:@radix-ui|radix-ui|@floating-ui)[+@\\/]/, priority: 20 },
+            { name: "motion", test: /[\\/]node_modules[\\/](?:\.pnpm[\\/])?(?:motion|framer-motion|motion-dom|motion-utils)[@\\/]/, priority: 20 },
+          ],
+        },
+      },
+    },
   },
   server: {
     port: 5173,

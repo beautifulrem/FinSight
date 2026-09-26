@@ -53,32 +53,44 @@ export function Inspector({ turn, view, tab, onTab, highlight, highlightNonce, s
           {t("inspector.forTurn", { q: turnLabel(turn) })}
         </p>
       )}
-      <div className="scrollbar-thin mt-2 min-h-0 flex-1 overflow-y-auto pr-0.5 pb-4">
-        {!view || !turn ? (
-          <div className="flex flex-col items-center gap-3 px-6 py-16 text-center text-[13px] text-faint">
-            <ScanSearch className="size-8 text-line" aria-hidden />
-            {t("inspector.empty")}
-          </div>
-        ) : (
-          <>
-            <Tabs.Content value="evidence" className="outline-none">
-              <EvidenceList sources={view.evidence} cited={view.cited} highlight={highlight} highlightNonce={highlightNonce} />
-            </Tabs.Content>
-            <Tabs.Content value="trace" className="space-y-4 outline-none">
+      <div className="scrollbar-thin relative mt-2 min-h-0 flex-1 overflow-y-auto pr-0.5 pb-4">
+        {/* Every trigger's aria-controls must point at a rendered panel, so panels exist even when empty. */}
+        <Tabs.Content value="evidence" className="outline-none">
+          {view && turn ? (
+            <EvidenceList sources={view.evidence} cited={view.cited} highlight={highlight} highlightNonce={highlightNonce} />
+          ) : (
+            <EmptyInspector />
+          )}
+        </Tabs.Content>
+        <Tabs.Content value="trace" className="space-y-4 outline-none">
+          {view && turn ? (
+            <>
               <Waterfall nodes={view.trace} />
               {view.trace.length > 0 ? (
                 <TraceTimeline nodes={view.trace} response={view.agent} onEvidence={onEvidence} />
               ) : (
                 <p className="py-6 text-center text-[13px] text-faint">{t("mode.classic.hint")}</p>
               )}
-            </Tabs.Content>
-            <Tabs.Content value="run" className="outline-none">
-              <RunDetails view={view} turn={turn} sessionId={sessionId} />
-            </Tabs.Content>
-          </>
-        )}
+            </>
+          ) : (
+            <EmptyInspector />
+          )}
+        </Tabs.Content>
+        <Tabs.Content value="run" className="outline-none">
+          {view && turn ? <RunDetails view={view} turn={turn} sessionId={sessionId} /> : <EmptyInspector />}
+        </Tabs.Content>
       </div>
     </Tabs.Root>
+  );
+}
+
+function EmptyInspector() {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center gap-3 px-6 py-16 text-center text-[13px] text-faint">
+      <ScanSearch className="size-8 text-line" aria-hidden />
+      {t("inspector.empty")}
+    </div>
   );
 }
 
