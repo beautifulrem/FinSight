@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,7 +26,15 @@ from query_intelligence.agent.graph import AgentRuntime
 from query_intelligence.agent.llm import ScriptedLLM
 from query_intelligence.agent.tools import build_registry_for_service
 
-from .runner import DEFAULT_OUTPUT_DIR, EVAL_DIR, EVAL_TODAY, _display_path, _git_commit, build_offline_service
+from .runner import (
+    DEFAULT_OUTPUT_DIR,
+    EVAL_DIR,
+    EVAL_TODAY,
+    _command,
+    _display_path,
+    _git_commit,
+    build_offline_service,
+)
 
 ROUTES = ("refuse", "clarify", "workflow", "agent")
 DEFAULT_LABELS = EVAL_DIR / "tasks" / "router_labels_v1.jsonl"
@@ -88,8 +95,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "labels": _display_path(args.labels),
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "command": "python -m evaluation.agent_eval.router_eval "
-            + " ".join(argv if argv is not None else sys.argv[1:]),
+            "command": _command("evaluation.agent_eval.router_eval", argv),
         },
         **evaluate(rows),
     }

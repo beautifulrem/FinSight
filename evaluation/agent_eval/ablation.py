@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -43,6 +42,7 @@ from .runner import (
     DEFAULT_OUTPUT_DIR,
     EVAL_TODAY,
     TASK_SETS,
+    _command,
     _display_path,
     _git_commit,
     _make_llm,
@@ -225,8 +225,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "sets": list(sets),
             "online_modes": online_modes if llm is not None else [],
             "workers": args.workers,
-            "command": "python -m evaluation.agent_eval.ablation "
-            + " ".join(argv if argv is not None else sys.argv[1:]),
+            "command": _command("evaluation.agent_eval.ablation", argv),
         },
         "results": {
             set_name: {

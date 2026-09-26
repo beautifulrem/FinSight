@@ -242,6 +242,13 @@ def _display_path(value: str | Path) -> str:
     return str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
 
 
+def _command(module: str, argv: list[str] | None) -> str:
+    """The command line as run, with paths inside the repository made relative so results are portable."""
+    args = argv if argv is not None else sys.argv[1:]
+    shown = [_display_path(arg) if arg.startswith(str(ROOT)) else arg for arg in args]
+    return f"python -m {module} " + " ".join(shown)
+
+
 @functools.cache
 def _git_commit() -> str | None:
     """Commit the evaluation code ran from, suffixed ``-dirty`` when the working tree had changes.
@@ -338,7 +345,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "eval_today": EVAL_TODAY.isoformat(),
         "wall_seconds": round(time.perf_counter() - started, 1),
-        "command": "python -m evaluation.agent_eval.runner " + " ".join(argv if argv is not None else sys.argv[1:]),
+        "command": _command("evaluation.agent_eval.runner", argv),
     }
     report = summarize(records, config=config, repeats=args.repeats)
     out = Path(args.out) if args.out else DEFAULT_OUTPUT_DIR / f"{args.mode}{'-' + args.llm if llm else ''}.json"
