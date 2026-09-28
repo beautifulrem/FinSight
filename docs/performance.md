@@ -15,8 +15,10 @@ generator's commit, the server build and the host load average at the start.
   the JSON files range from about 6 to 38. Absolute numbers are therefore conservative and noisy;
   compare rows measured in the same block rather than across sections.
 - Server build for all "current" rows (2026-09-26): the merge of branch `r2-ops@8dc388b` with
-  `round2@d04a42d` plus [`deploy/patches/app-ops-wiring.patch`](../deploy/patches/app-ops-wiring.patch),
-  built as image `finsight:merged`. The "before" row is `git archive 0678585` (the commit before the
+  `round2@d04a42d` plus the ops-wiring patch `deploy/patches/app-ops-wiring.patch` (its change has been
+  in `api/app.py` since `e9d9a9a`, so the file was deleted; `git show 47dd024:deploy/patches/app-ops-wiring.patch`
+  shows it), built as image `finsight:merged`. Results measured since then name a single commit
+  (for example [`startup-container.json`](results/perf/startup-container.json)). The "before" row is `git archive 0678585` (the commit before the
   checkpoint fix) built as `finsight:before-0678585`.
 - Load generator: [`scripts/load_test.py`](../scripts/load_test.py), a closed loop: N clients each send
   their requests back to back to `POST /agent/chat`, every request in a new session. Percentiles are

@@ -219,8 +219,8 @@ export QI_LLM_FALLBACK_MODELS=...                 # 可选：同一接口上的�
 Docker、Kubernetes（多副本经 Postgres 共享会话、只读根文件系统）与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 
 ```bash
-docker build -f docker/Dockerfile -t finsight . && docker run -p 8000:8000 finsight
-kubectl apply -f deploy/k8s/finsight.yaml
+docker build -f docker/Dockerfile -t finsight:$(git rev-parse --short=7 HEAD) .   # 镜像按 commit 打标签
+kubectl apply -k deploy/k8s        # 先创建 finsight-db Secret（见 docs/zh/deployment.md#密钥）
 docker compose -f docker/docker-compose.yml --profile monitoring up -d   # 加上 Prometheus、Grafana、Jaeger
 ```
 

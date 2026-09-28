@@ -1,16 +1,52 @@
+# Build context for docker/Dockerfile. The image copies only requirements.txt, query_intelligence/,
+# sentiment/, scripts/, training/, evaluation/, config/, schemas/, models/ and data/{runtime,*.json,*.csv};
+# everything else stays out of the context so builds are fast and nothing local (keys, virtualenvs,
+# outputs, node_modules) can end up in a layer.
+
+# VCS, CI and editor state
 .git
-.venv
-venv
-**/__pycache__
-**/*.pyc
-.pytest_cache
-.ruff_cache
-outputs
-reports
-data/external
-data/training_assets
-manual_test/output
-evaluation/*.json
-evaluation/*.md
+.github
+.gitattributes
+.idea
+.vscode
+**/.DS_Store
+
+# Secrets and local environments
 .env
 .env.*
+.venv
+venv
+env
+
+# Python caches
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+coverage_html
+
+# Frontend: the UI ships as the committed build in query_intelligence/web/dist, so the image needs
+# neither node_modules nor the TypeScript sources.
+frontend
+
+# Runtime outputs, reports and large local data
+outputs
+reports
+tmp
+temp
+**/*.log
+manual_test
+data/external
+data/training_assets
+evaluation/*.json
+evaluation/*.md
+
+# Not used at runtime
+docs
+tests
+deploy
+monitoring
+submission
