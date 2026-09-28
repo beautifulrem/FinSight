@@ -208,7 +208,9 @@ def apply_compliance(
 
 
 def _strip_trading_sentences(text: str, *, zh: bool) -> tuple[str, int]:
-    sentences = [part for part in re.split(r"(?<=[。！？!?；;])|(?<=\.)\s+", text) if part]
+    # zero-width split: the space after an English full stop stays with the next sentence, so joining the
+    # kept sentences does not glue them together ("up.B is down")
+    sentences = [part for part in re.split(r"(?<=[。！？!?；;])|(?<=\.)(?=\s)", text) if part]
     kept: list[str] = []
     removed = 0
     for sentence in sentences:
