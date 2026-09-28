@@ -153,7 +153,7 @@ def build_sentiment_tool(context: ToolContext) -> ToolSpec:
 
         counts = Counter(item.label for item in scored)
         mean_score = round(sum(item.score for item in scored) / len(scored), 4)
-        overall = "positive" if mean_score >= 0.6 else "negative" if mean_score <= 0.4 else "neutral"
+        overall = overall_label(counts)
         evidence_id = safe_evidence_id("sentiment_" + "_".join(item.symbol for item in resolved))
         output = SentimentOutput(
             backend=scorer.name,
@@ -225,3 +225,18 @@ def _score_document(scorer: SentimentBackend, text: str) -> tuple[str, float, fl
     bullish = round(sum(score for _label, score, _conf in results) / len(results), 4)
     confidence = round(sum(conf for _label, _score, conf in results) / len(results), 4)
     return label, bullish, confidence
+
+
+def overall_label(counts: dict[str, int] | Counter[str]) -> str:
+    """The aggregate tone is the most frequent document label; ties are neutral.
+
+    It used to come from the mean model score (>= 0.6 positive), which labelled three positive documents
+    with a mean of 0.55 "neutral" (round-2 review B20). The label now always agrees with the counts shown
+    next to it; the mean score is still reported as the model's average.
+    """
+    tally = {label: int(counts.get(label, 0) or 0) for label in ("positive", "neutral", "negative")}
+    best = max(tally.values())
+    if best == 0:
+        return "neutral"
+    leaders = [label for label, count in tally.items() if count == best]
+    return leaders[0] if len(leaders) == 1 else "neutral"

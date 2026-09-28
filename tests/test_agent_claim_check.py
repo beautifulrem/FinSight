@@ -92,3 +92,34 @@ def test_claim_check_endpoint_validates_blank_claims_and_uses_the_requested_lang
     assert client.post("/agent/claim-check", json={"claim": "     "}).status_code == 422
     body = client.post("/agent/claim-check", json={"claim": "贵州茅台市盈率只有15倍", "language": "en"}).json()
     assert "not investment advice" in body["disclaimer"]
+
+
+def test_roe_claims_use_the_declared_percent_unit():
+    """ROE is normalised to percent (0.33 -> 33.0, metric_units roe=%); a percent ROE is never scaled x100."""
+    from query_intelligence.agent.evidence import AgentEvidence
+    from query_intelligence.agent.tools import ToolOutput, ToolRegistry, ToolSpec
+
+    supported = check_claim("贵州茅台ROE约33%", service=StubService(), registry=build_fake_registry())
+    assert supported.checks[0].status == "supported" and supported.checks[0].actual == 33.0
+
+    registry = build_fake_registry()
+    fundamentals = registry.get("get_fundamentals")
+    low_roe = ToolRegistry()
+    for spec in registry.specs():
+        if spec.name != "get_fundamentals":
+            low_roe.register(spec)
+
+    def handler(args):
+        payload = {"roe": 0.8, "pe_ttm": 24.6, "source_name": "tushare"}  # 0.8 percent, as Tushare serves it
+        item = AgentEvidence(
+            evidence_id="fundamental_600519.SH", kind="structured", source_type="fundamental_sql", payload=payload
+        )
+        return ToolOutput(data={"metrics": payload, "source": "tushare"}, evidence=[item])
+
+    low_roe.register(
+        ToolSpec(name="get_fundamentals", description="", input_model=fundamentals.input_model, handler=handler)
+    )
+
+    report = check_claim("贵州茅台ROE高达80%", service=StubService(), registry=low_roe)
+
+    assert report.checks[0].status == "contradicted" and report.checks[0].actual == 0.8

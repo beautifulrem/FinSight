@@ -143,7 +143,9 @@ def _fundamentals(data: dict[str, Any], zh: bool) -> list[str]:
         parts.append(f"PB {_num(metrics['pb'])}")
     roe = metrics.get("roe")
     if roe is not None:
-        roe_pct = roe * 100 if abs(float(roe)) <= 1 else roe
+        # normalised payloads state ROE in percent (metric_units); older payloads may hold a fraction
+        in_percent = (data.get("metric_units") or {}).get("roe") == "%"
+        roe_pct = roe if in_percent or abs(float(roe)) > 1 else roe * 100
         parts.append(f"ROE {_num(roe_pct)}%")
     for key, label_zh, label_en in (("revenue", "营业收入", "revenue"), ("net_profit", "净利润", "net profit")):
         value = metrics.get(key)
@@ -152,10 +154,14 @@ def _fundamentals(data: dict[str, Any], zh: bool) -> list[str]:
                 f"{label_zh} {_num(value / 1e8)} 亿元" if zh else f"{label_en} {_num(value / 1e8)} hundred million CNY"
             )
     if parts and eid:
+        label = data.get("period")
         if zh:
-            sentences.append(f"{name} 基本面（报告期 {period}）：{'，'.join(parts)} [{eid}]。")
+            report = f"{label[2:]}年年报" if label and label.startswith("FY") else label
+            suffix = f"，{report}" if report else ""
+            sentences.append(f"{name} 基本面（报告期 {period}{suffix}）：{'，'.join(parts)} [{eid}]。")
         else:
-            sentences.append(f"{name} fundamentals (period {period}): {', '.join(parts)} [{eid}].")
+            suffix = f", {label}" if label else ""
+            sentences.append(f"{name} fundamentals (period {period}{suffix}): {', '.join(parts)} [{eid}].")
     industry = data.get("industry") or {}
     industry_metrics = industry.get("metrics") or {}
     industry_parts = [

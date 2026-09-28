@@ -42,7 +42,8 @@ _METRICS: dict[str, tuple[tuple[str, ...], re.Pattern[str]]] = {
 }
 _APPROXIMATE = re.compile(r"约|大约|左右|将近|接近|超过|不到|\babout\b|\baround\b|\broughly\b|\bnearly\b", re.I)
 _FUNDAMENTAL_METRICS = {"pe_ttm", "pb", "roe", "revenue", "net_profit"}
-# Metrics whose payload may be a fraction (0.33) while claims state a percentage (33%).
+# Metrics whose payload may be a fraction (0.33) while claims state a percentage (33%): only payloads without
+# ``metric_units`` (the registry normalises ROE to percent and declares it).
 _FRACTION_METRICS = {"roe"}
 _CLAUSE_BREAK = re.compile(r"[，,。；;！!？?\n]|\band\b|\bbut\b|而且|并且|但是|同时")
 _UNIT = re.compile(r"\s*(万亿|亿元|亿|万元|万|元|倍|%|个百分点|x\b|times\b|billion|million|yuan)", re.I)
@@ -221,8 +222,10 @@ def _check(
             note="no data for this metric",
         )
     for target, item, actual in candidates:
+        # normalised payloads state ROE in percent (tools/units.py); only an undeclared fraction may be x100
+        in_percent = any((item.payload.get("metric_units") or {}).get(key) == "%" for key in keys)
         for scale in scales:
-            if scale == 100.0 and (metric not in _FRACTION_METRICS or abs(actual) > 1.5):
+            if scale == 100.0 and (metric not in _FRACTION_METRICS or abs(actual) > 1.5 or in_percent):
                 continue
             expected = actual * scale
             tolerance = max(rounding, abs(expected) * relative) + 1e-9
