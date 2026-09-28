@@ -287,12 +287,56 @@ def build_task_store() -> Any:
     return InMemoryTaskStore()
 
 
+def build_request_handler(executor: Any, task_store: Any, card: Any) -> Any:
+    """The SDK's ``DefaultRequestHandler`` with spec-conformant ``SubscribeToTask`` errors.
+
+    A2A 1.0 (§3.1.6, §9.4.6) requires ``UnsupportedOperationError`` when a client subscribes to a task in a
+    terminal state. ``a2a-sdk`` 1.1's handler raises ``InvalidParamsError`` (-32602) instead, which clients
+    such as ``@a2a-js/sdk`` surface as a malformed request rather than "this task has finished; call GetTask"
+    (found by ``tools/a2a-js-client/interop.mjs``). The terminal check runs before the SDK's own, and the SDK's
+    error for a task that finishes between the check and the subscription is mapped the same way.
+    """
+    from a2a.server.request_handlers import DefaultRequestHandler
+    from a2a.types import TaskState
+    from a2a.utils.errors import InvalidParamsError, TaskNotFoundError, UnsupportedOperationError
+
+    terminal = {
+        TaskState.TASK_STATE_COMPLETED,
+        TaskState.TASK_STATE_FAILED,
+        TaskState.TASK_STATE_CANCELED,
+        TaskState.TASK_STATE_REJECTED,
+    }
+
+    def finished(task_id: str, state: Any = None) -> UnsupportedOperationError:
+        suffix = f" ({TaskState.Name(state)})" if state is not None else ""
+        return UnsupportedOperationError(
+            message=f"Task {task_id} is in a terminal state{suffix}; SubscribeToTask only streams running "
+            "tasks. Use GetTask to read the result."
+        )
+
+    class FinSightRequestHandler(DefaultRequestHandler):
+        async def on_subscribe_to_task(self, params: Any, context: Any) -> Any:
+            task = await self.task_store.get(params.id, context)  # owner-scoped: another caller's task is "not found"
+            if task is None:
+                raise TaskNotFoundError
+            if task.status.state in terminal:
+                raise finished(task.id, task.status.state)
+            try:
+                async for event in super().on_subscribe_to_task(params, context):
+                    yield event
+            except InvalidParamsError as exc:
+                if "terminal state" in str(exc) or "already completed" in str(exc):
+                    raise finished(params.id) from exc
+                raise
+
+    return FinSightRequestHandler(agent_executor=executor, task_store=task_store, agent_card=card)
+
+
 def install_a2a(app: Any, get_agent: Callable[[], Any], *, base_url: str | None = None, task_store: Any = None) -> bool:
     """Mount the agent card and JSON-RPC routes on ``app``. Returns ``False`` when A2A is unavailable."""
     if not a2a_enabled():
         return False
     try:
-        from a2a.server.request_handlers import DefaultRequestHandler
         from a2a.server.routes import add_a2a_routes_to_fastapi, create_jsonrpc_routes
     except ImportError:
         logger.info("[startup] a2a-sdk is not installed; A2A endpoints are disabled.")
@@ -303,11 +347,7 @@ def install_a2a(app: Any, get_agent: Callable[[], Any], *, base_url: str | None 
     card = build_agent_card(configured_base or "http://127.0.0.1:8765", api_key_required=api_key_required)
     store = task_store if task_store is not None else build_task_store()
     app.state.a2a_task_store = store
-    handler = DefaultRequestHandler(
-        agent_executor=build_executor(get_agent, mode=os.getenv("QI_A2A_MODE", "auto")),
-        task_store=store,
-        agent_card=card,
-    )
+    handler = build_request_handler(build_executor(get_agent, mode=os.getenv("QI_A2A_MODE", "auto")), store, card)
     routes = create_jsonrpc_routes(handler, rpc_url=A2A_RPC_PATH, context_builder=build_context_builder())
     add_a2a_routes_to_fastapi(app, jsonrpc_routes=routes)
 
