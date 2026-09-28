@@ -14,15 +14,15 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "da3ec8b",
-  "run_at": "2026-09-26T18:51:29+00:00",
+  "commit": "d3c1495",
+  "run_at": "2026-09-28T09:15:51+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 71.6,
+  "wall_seconds": 117.4,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
-  "tasks": 216,
-  "turns": 235,
+  "tasks": 238,
+  "turns": 270,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -42,14 +42,14 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.7417,
+  "tool_precision": 0.7649,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 41.57,
-  "latency_ms_p95": 710.54,
+  "latency_ms_p50": 66.29,
+  "latency_ms_p95": 1010.2,
   "llm_calls_per_turn": 0.0,
   "tokens_per_turn": 0.0,
   "reasoning_tokens_per_turn": 0.0,
@@ -58,77 +58,89 @@
   "revise_rate": null,
   "llm_error_rate": 0.0,
   "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
   "cost_per_turn": null,
   "cost_per_task": null,
   "cost_currency": null
  },
  "by_category": {
   "clarify": {
-   "tasks": 13,
+   "tasks": 16,
    "task_success": 1.0,
-   "latency_ms_p95": 688.32
+   "latency_ms_p95": 970.51
   },
   "compare": {
    "tasks": 27,
    "task_success": 1.0,
-   "latency_ms_p95": 770.78
+   "latency_ms_p95": 904.12
   },
   "compliance": {
    "tasks": 15,
    "task_success": 1.0,
-   "latency_ms_p95": 588.47
+   "latency_ms_p95": 1110.03
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 558.0
+   "latency_ms_p95": 844.13
   },
   "fact": {
    "tasks": 55,
    "task_success": 1.0,
-   "latency_ms_p95": 748.85
+   "latency_ms_p95": 1120.57
+  },
+  "injection": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 51.96
   },
   "macro_link": {
    "tasks": 14,
    "task_success": 1.0,
-   "latency_ms_p95": 806.94
+   "latency_ms_p95": 1110.43
   },
   "missing_data": {
-   "tasks": 20,
+   "tasks": 25,
    "task_success": 1.0,
-   "latency_ms_p95": 59.34
+   "latency_ms_p95": 825.05
   },
   "multi_turn": {
-   "tasks": 19,
+   "tasks": 27,
    "task_success": 1.0,
-   "latency_ms_p95": 701.8
+   "latency_ms_p95": 906.47
+  },
+  "out_of_coverage": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 740.46
   },
   "out_of_scope": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 18.46
+   "latency_ms_p95": 32.37
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 419.68
+   "latency_ms_p95": 790.37
   },
   "why": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 802.23
+   "latency_ms_p95": 1010.2
   }
  },
  "by_language": {
   "en": {
-   "tasks": 60,
+   "tasks": 69,
    "task_success": 1.0,
-   "latency_ms_p95": 773.26
+   "latency_ms_p95": 1109.21
   },
   "zh": {
-   "tasks": 156,
+   "tasks": 169,
    "task_success": 1.0,
-   "latency_ms_p95": 617.08
+   "latency_ms_p95": 970.54
   }
  },
  "failed_checks": {},
@@ -349,12 +361,34 @@
   "compliance_en_11": "1",
   "compliance_en_12": "1",
   "compliance_en_13": "1",
-  "compliance_en_14": "1"
+  "compliance_en_14": "1",
+  "r3_dangling_why_zh_0": "1",
+  "r3_dangling_why_zh_1": "1",
+  "r3_dangling_why_en_0": "1",
+  "r3_clarify_plural_zh": "1",
+  "r3_clarify_why_zh": "1",
+  "r3_clarify_why_en": "1",
+  "r3_ellipsis_metric_en_0": "1",
+  "r3_ellipsis_metric_en_1": "1",
+  "r3_plural_after_switch_zh": "1",
+  "r3_plural_after_switch_en": "1",
+  "r3_plural_after_switch_zh_1": "1",
+  "r3_period_zh_0": "1",
+  "r3_period_en_0": "1",
+  "r3_metric_zh_0": "1",
+  "r3_metric_zh_1": "1",
+  "r3_metric_en_0": "1",
+  "r3_coverage_zh_0": "1",
+  "r3_coverage_zh_1": "1",
+  "r3_coverage_en_0": "1",
+  "r3_coverage_en_1": "1",
+  "r3_markup_injection_zh": "1",
+  "r3_encoded_injection_zh": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "e101128b42e8777b",
-  "bytes": 375147,
-  "slimmed_at": "2026-09-26T18:51:29+00:00"
+  "sha256_16": "f8afe08c6434d316",
+  "bytes": 436988,
+  "slimmed_at": "2026-09-28T09:15:52+00:00"
  }
 }

@@ -572,8 +572,8 @@ v2 − v1: task success -0.031 [-0.113, +0.038], pass^3 +0.038 [-0.075, +0.151],
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `da3ec8b` | 216 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
-| gate-holdout | `da3ec8b-dirty` | 53 | 0.906 [0.83, 0.98] | 1.000 | 0.975 | 0 |
+| gate-dev | `d3c1495` | 238 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-holdout | `d3c1495` | 53 | 0.906 [0.83, 0.98] | 1.000 | 0.975 | 0 |
 
 ### Fault injection (overall graceful rate 1.00)
 
@@ -657,8 +657,8 @@ Successful attacks:
 | `ablation-online-deepseek-v4.1-flash.json` | ablation | `c1c3388` | 2026-09-25T09:46:46+00:00 | `outputs/agent_eval/ablation-online-deepseek-v4.1-flash.json` (ebd1d3322c4c4708) |
 | `ablation-online-v1.json` | ablation | `1beb760` | 2026-09-25T14:12:49+00:00 | `outputs/agent_eval/ablation-online-v1.json` (fc69345d844bdd6e) |
 | `ablation-online-v2.json` | ablation | `1beb760` | 2026-09-25T13:32:10+00:00 | `outputs/agent_eval/ablation-online-v2.json` (f5ba8190178dfe74) |
-| `gate-dev.json` | run | `da3ec8b` | 2026-09-26T18:51:29+00:00 | `outputs/agent_eval/gate-dev.json` (e101128b42e8777b) |
-| `gate-holdout.json` | run | `da3ec8b-dirty` | 2026-09-26T18:52:10+00:00 | `outputs/agent_eval/gate-holdout.json` (a3fa7dbba341f0f6) |
+| `gate-dev.json` | run | `d3c1495` | 2026-09-28T09:15:51+00:00 | `outputs/agent_eval/gate-dev.json` (f8afe08c6434d316) |
+| `gate-holdout.json` | run | `d3c1495` | 2026-09-28T09:16:15+00:00 | `outputs/agent_eval/gate-holdout.json` (214196181c545298) |
 | `fault_injection.json` | fault_injection | `f7bf624` | 2026-09-25T23:28:06+00:00 | `outputs/agent_eval/fault_injection.json` (6ae7b722daf8bdc8) |
 | `verifier_stress.json` | verifier_stress | `f7bf624` | 2026-09-25T23:25:16+00:00 | `outputs/agent_eval/verifier_stress.json` (d42dcd3b7fc21e98) |
 | `redteam-online.json` | redteam | `846bc5e` | 2026-09-25T17:43:31+00:00 | `outputs/agent_eval/redteam.json` (2aaca3106692296c) |
