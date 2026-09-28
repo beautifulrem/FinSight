@@ -117,7 +117,22 @@ export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: 
         </Row>
       )}
       {view.serverMs !== undefined && <Row label={t("run.latency")}>{formatMs(view.serverMs)}</Row>}
-      {view.wallMs !== undefined && <Row label={t("run.wall")}>{formatMs(view.wallMs)}</Row>}
+      {view.kind === "agent" && (
+        <Row label={t("run.ttft")}>
+          {view.firstTokenMs !== undefined ? (
+            <span className="run-ttft tabular-nums">{formatMs(view.firstTokenMs)}</span>
+          ) : (
+            <span className="run-ttft text-muted">{t("run.ttftNone")}</span>
+          )}
+          <span className="ml-1 text-[12px] text-muted">· {t("run.clientTimed")}</span>
+        </Row>
+      )}
+      {view.wallMs !== undefined && (
+        <Row label={t("run.wall")}>
+          <span className="run-wall tabular-nums">{formatMs(view.wallMs)}</span>
+          <span className="ml-1 text-[12px] text-muted">· {t("run.clientTimed")}</span>
+        </Row>
+      )}
       {agent && (
         <Row label={t("run.tools")}>
           {tools.length}

@@ -1,0 +1,19 @@
+# kubectl apply -k deploy/k8s
+#
+# Image tagging: images are tagged with the short commit hash they were built from, never a moving tag
+# like :dev or :latest, so a running pod always names its source commit:
+#
+#   TAG=$(git rev-parse --short=7 HEAD)                      # build from a clean working tree
+#   docker build -f docker/Dockerfile -t finsight:$TAG .     # or registry.example.com/finsight:$TAG
+#   (cd deploy/k8s && kustomize edit set image finsight=finsight:$TAG)   # updates newTag below
+#
+# CI builds every push as finsight:${GITHUB_SHA}. The tag below is the commit whose image was last built
+# from a clean tree and smoke-tested (/ready, /agent/chat) locally; see docs/deployment.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - finsight.yaml
+  - networkpolicy.yaml
+images:
+  - name: finsight
+    newTag: "edcb442"

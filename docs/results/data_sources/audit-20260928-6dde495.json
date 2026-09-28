@@ -1,0 +1,747 @@
+{
+ "generated_at": "2026-09-28T09:14:31+00:00",
+ "command": "python -m scripts.audit_data_sources",
+ "commit": "6dde495",
+ "working_tree_clean": true,
+ "versions": {
+  "python": "3.13.13",
+  "akshare": "1.18.97",
+  "efinance": "0.5.9",
+  "requests": "2.34.2",
+  "pandas": "2.3.3"
+ },
+ "summary": {
+  "probes": 64,
+  "probes_ok": 49,
+  "chains": 10,
+  "chains_ok": 10
+ },
+ "probes": [
+  {
+   "group": "market",
+   "source": "eastmoney.quote (stock_zh_a_hist)",
+   "target": "600519 贵州茅台",
+   "ok": false,
+   "error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2C",
+   "latency_ms": 219
+  },
+  {
+   "group": "market",
+   "source": "sina.kline (stock_zh_a_daily)",
+   "target": "600519 贵州茅台",
+   "ok": true,
+   "rows": 42,
+   "as_of": "2026-09-28",
+   "latency_ms": 444
+  },
+  {
+   "group": "market",
+   "source": "tencent.kline (fqkline)",
+   "target": "600519 贵州茅台",
+   "ok": true,
+   "rows": 42,
+   "as_of": "2026-09-28",
+   "latency_ms": 105
+  },
+  {
+   "group": "market",
+   "source": "sina.quote (hq.sinajs.cn)",
+   "target": "600519 贵州茅台",
+   "ok": true,
+   "rows": 1,
+   "as_of": "2026-09-28",
+   "latency_ms": 48
+  },
+  {
+   "group": "market",
+   "source": "efinance (get_quote_history)",
+   "target": "600519 贵州茅台",
+   "ok": false,
+   "error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2C",
+   "latency_ms": 910
+  },
+  {
+   "group": "market",
+   "source": "eastmoney.quote (stock_zh_a_hist)",
+   "target": "300750 宁德时代",
+   "ok": false,
+   "error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2C",
+   "latency_ms": 131
+  },
+  {
+   "group": "market",
+   "source": "sina.kline (stock_zh_a_daily)",
+   "target": "300750 宁德时代",
+   "ok": true,
+   "rows": 42,
+   "as_of": "2026-09-28",
+   "latency_ms": 282
+  },
+  {
+   "group": "market",
+   "source": "tencent.kline (fqkline)",
+   "target": "300750 宁德时代",
+   "ok": true,
+   "rows": 42,
+   "as_of": "2026-09-28",
+   "latency_ms": 78
+  },
+  {
+   "group": "market",
+   "source": "sina.quote (hq.sinajs.cn)",
+   "target": "300750 宁德时代",
+   "ok": true,
+   "rows": 1,
+   "as_of": "2026-09-28",
+   "latency_ms": 41
+  },
+  {
+   "group": "market",
+   "source": "efinance (get_quote_history)",
+   "target": "300750 宁德时代",
+   "ok": false,
+   "error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2C",
+   "latency_ms": 767
+  },
+  {
+   "group": "market",
+   "source": "eastmoney.quote (stock_zh_a_hist)",
+   "target": "601318 中国平安",
+   "ok": false,
+   "error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2C",
+   "latency_ms": 113
+  },
+  {
+   "group": "market",
+   "source": "sina.kline (stock_zh_a_daily)",
+   "target": "601318 中国平安",
+   "ok": true,
+   "rows": 42,
+   "as_of": "2026-09-28",
+   "latency_ms": 276
+  },
+  {
+   "group": "market",
+   "source": "tencent.kline (fqkline)",
+   "target": "601318 中国平安",
+   "ok": true,
+   "rows": 42,
+   "as_of": "2026-09-28",
+   "latency_ms": 90
+  },
+  {
+   "group": "market",
+   "source": "sina.quote (hq.sinajs.cn)",
+   "target": "601318 中国平安",
+   "ok": true,
+   "rows": 1,
+   "as_of": "2026-09-28",
+   "latency_ms": 42
+  },
+  {
+   "group": "market",
+   "source": "efinance (get_quote_history)",
+   "target": "601318 中国平安",
+   "ok": false,
+   "error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2C",
+   "latency_ms": 1022
+  },
+  {
+   "group": "etf",
+   "source": "eastmoney.quote (fund_etf_hist_em)",
+   "target": "510300 沪深300ETF",
+   "ok": false,
+   "error": "ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2C",
+   "latency_ms": 105
+  },
+  {
+   "group": "etf",
+   "source": "sina.kline (fund_etf_hist_sina)",
+   "target": "510300 沪深300ETF",
+   "ok": true,
+   "rows": 3485,
+   "as_of": "2026-09-24",
+   "latency_ms": 136
+  },
+  {
+   "group": "etf",
+   "source": "tencent.kline (fqkline)",
+   "target": "510300 沪深300ETF",
+   "ok": true,
+   "rows": 42,
+   "as_of": "2026-09-28",
+   "latency_ms": 97
+  },
+  {
+   "group": "etf",
+   "source": "eastmoney.fund (fund_open_fund_info_em NAV)",
+   "target": "510300 沪深300ETF",
+   "ok": true,
+   "rows": 3501,
+   "as_of": "2026-09-24",
+   "latency_ms": 186
+  },
+  {
+   "group": "etf",
+   "source": "eastmoney.fund (fund_overview_em)",
+   "target": "510300 沪深300ETF",
+   "ok": true,
+   "rows": 1,
+   "as_of": null,
+   "latency_ms": 224
+  },
+  {
+   "group": "etf",
+   "source": "xueqiu (fund_individual_detail_info_xq)",
+   "target": "510300 沪深300ETF",
+   "ok": false,
+   "error": "KeyError: 'data'",
+   "latency_ms": 1136
+  },
+  {
+   "group": "index",
+   "source": "sina.kline (stock_zh_index_daily)",
+   "target": "000300 沪深300",
+   "ok": true,
+   "rows": 6000,
+   "as_of": "2026-09-24",
+   "latency_ms": 198
+  },
+  {
+   "group": "index",
+   "source": "eastmoney.quote (index_zh_a_hist)",
+   "target": "000300 沪深300",
+   "ok": false,
+   "error": "ProxyError: HTTPSConnectionPool(host='80.push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d",
+   "latency_ms": 6076
+  },
+  {
+   "group": "index",
+   "source": "tencent.kline (fqkline)",
+   "target": "000300 沪深300",
+   "ok": true,
+   "rows": 42,
+   "as_of": "2026-09-28",
+   "latency_ms": 91
+  },
+  {
+   "group": "index",
+   "source": "csindex (stock_zh_index_value_csindex)",
+   "target": "000300 沪深300",
+   "ok": true,
+   "rows": 20,
+   "as_of": "2026-09-25",
+   "latency_ms": 510
+  },
+  {
+   "group": "fundamentals",
+   "source": "sina.finance (stock_financial_analysis_indicator)",
+   "target": "600519 贵州茅台",
+   "ok": true,
+   "rows": 6,
+   "as_of": "2026-06-30",
+   "latency_ms": 445
+  },
+  {
+   "group": "fundamentals",
+   "source": "ths.finance (stock_financial_abstract_ths)",
+   "target": "600519 贵州茅台",
+   "ok": true,
+   "rows": 103,
+   "as_of": "2026-06-30",
+   "latency_ms": 370
+  },
+  {
+   "group": "fundamentals",
+   "source": "eastmoney.datacenter (stock_value_em)",
+   "target": "600519 贵州茅台",
+   "ok": true,
+   "rows": 2121,
+   "as_of": "2026-09-28",
+   "latency_ms": 309
+  },
+  {
+   "group": "fundamentals",
+   "source": "tencent.quote (qt.gtimg.cn PE/PB)",
+   "target": "600519 贵州茅台",
+   "ok": true,
+   "rows": 1,
+   "as_of": "2026-09-28",
+   "pe_ttm": 19.09,
+   "pb": 6.19,
+   "valuation_date": "2026-09-28",
+   "latency_ms": 50
+  },
+  {
+   "group": "industry",
+   "source": "eastmoney.quote (stock_individual_info_em)",
+   "target": "600519 贵州茅台",
+   "ok": false,
+   "error": "ProxyError: HTTPSConnectionPool(host='push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/get?fltt=2&invt=2&fields=f120%2Cf121",
+   "latency_ms": 91
+  },
+  {
+   "group": "industry",
+   "source": "cninfo.profile (stock_profile_cninfo)",
+   "target": "600519 贵州茅台",
+   "ok": true,
+   "rows": 1,
+   "as_of": null,
+   "latency_ms": 83
+  },
+  {
+   "group": "fundamentals",
+   "source": "sina.finance (stock_financial_analysis_indicator)",
+   "target": "300750 宁德时代",
+   "ok": true,
+   "rows": 6,
+   "as_of": "2026-06-30",
+   "latency_ms": 374
+  },
+  {
+   "group": "fundamentals",
+   "source": "ths.finance (stock_financial_abstract_ths)",
+   "target": "300750 宁德时代",
+   "ok": true,
+   "rows": 41,
+   "as_of": "2026-06-30",
+   "latency_ms": 288
+  },
+  {
+   "group": "fundamentals",
+   "source": "eastmoney.datacenter (stock_value_em)",
+   "target": "300750 宁德时代",
+   "ok": true,
+   "rows": 2016,
+   "as_of": "2026-09-28",
+   "latency_ms": 1020
+  },
+  {
+   "group": "fundamentals",
+   "source": "tencent.quote (qt.gtimg.cn PE/PB)",
+   "target": "300750 宁德时代",
+   "ok": true,
+   "rows": 1,
+   "as_of": "2026-09-28",
+   "pe_ttm": 15.9,
+   "pb": 3.62,
+   "valuation_date": "2026-09-28",
+   "latency_ms": 53
+  },
+  {
+   "group": "industry",
+   "source": "eastmoney.quote (stock_individual_info_em)",
+   "target": "300750 宁德时代",
+   "ok": false,
+   "error": "ProxyError: HTTPSConnectionPool(host='push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/get?fltt=2&invt=2&fields=f120%2Cf121",
+   "latency_ms": 118
+  },
+  {
+   "group": "industry",
+   "source": "cninfo.profile (stock_profile_cninfo)",
+   "target": "300750 宁德时代",
+   "ok": true,
+   "rows": 1,
+   "as_of": null,
+   "latency_ms": 72
+  },
+  {
+   "group": "fundamentals",
+   "source": "sina.finance (stock_financial_analysis_indicator)",
+   "target": "601318 中国平安",
+   "ok": true,
+   "rows": 6,
+   "as_of": "2026-06-30",
+   "latency_ms": 361
+  },
+  {
+   "group": "fundamentals",
+   "source": "ths.finance (stock_financial_abstract_ths)",
+   "target": "601318 中国平安",
+   "ok": true,
+   "rows": 84,
+   "as_of": "2026-06-30",
+   "latency_ms": 328
+  },
+  {
+   "group": "fundamentals",
+   "source": "eastmoney.datacenter (stock_value_em)",
+   "target": "601318 中国平安",
+   "ok": true,
+   "rows": 2121,
+   "as_of": "2026-09-28",
+   "latency_ms": 572
+  },
+  {
+   "group": "fundamentals",
+   "source": "tencent.quote (qt.gtimg.cn PE/PB)",
+   "target": "601318 中国平安",
+   "ok": true,
+   "rows": 1,
+   "as_of": "2026-09-28",
+   "pe_ttm": 5.96,
+   "pb": 0.94,
+   "valuation_date": "2026-09-28",
+   "latency_ms": 49
+  },
+  {
+   "group": "industry",
+   "source": "eastmoney.quote (stock_individual_info_em)",
+   "target": "601318 中国平安",
+   "ok": false,
+   "error": "ProxyError: HTTPSConnectionPool(host='push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/get?fltt=2&invt=2&fields=f120%2Cf121",
+   "latency_ms": 100
+  },
+  {
+   "group": "industry",
+   "source": "cninfo.profile (stock_profile_cninfo)",
+   "target": "601318 中国平安",
+   "ok": true,
+   "rows": 1,
+   "as_of": null,
+   "latency_ms": 77
+  },
+  {
+   "group": "macro",
+   "source": "eastmoney.datacenter (macro_china_cpi)",
+   "target": "CPI",
+   "ok": true,
+   "rows": 224,
+   "as_of": "2026-08-01",
+   "latency_ms": 163
+  },
+  {
+   "group": "macro",
+   "source": "eastmoney.datacenter (macro_china_pmi)",
+   "target": "PMI",
+   "ok": true,
+   "rows": 224,
+   "as_of": "2026-08-01",
+   "latency_ms": 130
+  },
+  {
+   "group": "macro",
+   "source": "eastmoney.datacenter (macro_china_money_supply)",
+   "target": "M2",
+   "ok": true,
+   "rows": 224,
+   "as_of": "2026-08-01",
+   "latency_ms": 142
+  },
+  {
+   "group": "macro",
+   "source": "eastmoney.datacenter (bond_zh_us_rate)",
+   "target": "CN10Y",
+   "ok": true,
+   "rows": 43,
+   "as_of": "2026-09-25",
+   "latency_ms": 248
+  },
+  {
+   "group": "macro",
+   "source": "chinabond (bond_china_yield)",
+   "target": "CN10Y",
+   "ok": true,
+   "rows": 126,
+   "as_of": "2026-09-24",
+   "latency_ms": 2419
+  },
+  {
+   "group": "macro",
+   "source": "eastmoney.datacenter (macro_china_lpr)",
+   "target": "LPR",
+   "ok": true,
+   "rows": 1576,
+   "as_of": "2026-09-20",
+   "latency_ms": 1137
+  },
+  {
+   "group": "macro",
+   "source": "jin10 (macro_china_cpi_monthly, legacy)",
+   "target": "CPI",
+   "ok": true,
+   "rows": 357,
+   "as_of": "2025-09-10",
+   "latency_ms": 25351
+  },
+  {
+   "group": "macro",
+   "source": "jin10 (macro_china_pmi_yearly, legacy)",
+   "target": "PMI",
+   "ok": true,
+   "rows": 250,
+   "as_of": "2025-08-31",
+   "latency_ms": 19686
+  },
+  {
+   "group": "macro",
+   "source": "akshare (macro_china_pmi_monthly, legacy)",
+   "target": "PMI",
+   "ok": false,
+   "error": "AttributeError: module 'akshare' has no attribute 'macro_china_pmi_monthly'",
+   "latency_ms": 0
+  },
+  {
+   "group": "news",
+   "source": "eastmoney.news (stock_news_em)",
+   "target": "600519 贵州茅台",
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-09-28",
+   "latency_ms": 924
+  },
+  {
+   "group": "announcement",
+   "source": "cninfo.announcement (orgId query)",
+   "target": "600519 贵州茅台",
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-08-15",
+   "latency_ms": 349
+  },
+  {
+   "group": "announcement",
+   "source": "eastmoney.announcement (notice API)",
+   "target": "600519 贵州茅台",
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-08-15",
+   "latency_ms": 161
+  },
+  {
+   "group": "news",
+   "source": "eastmoney.news (stock_news_em)",
+   "target": "300750 宁德时代",
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-09-25",
+   "latency_ms": 102
+  },
+  {
+   "group": "announcement",
+   "source": "cninfo.announcement (orgId query)",
+   "target": "300750 宁德时代",
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-09-28",
+   "latency_ms": 220
+  },
+  {
+   "group": "announcement",
+   "source": "eastmoney.announcement (notice API)",
+   "target": "300750 宁德时代",
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-09-28",
+   "latency_ms": 58
+  },
+  {
+   "group": "news",
+   "source": "eastmoney.news (stock_news_em)",
+   "target": "601318 中国平安",
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-09-22",
+   "latency_ms": 112
+  },
+  {
+   "group": "announcement",
+   "source": "cninfo.announcement (orgId query)",
+   "target": "601318 中国平安",
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-09-25",
+   "latency_ms": 219
+  },
+  {
+   "group": "announcement",
+   "source": "eastmoney.announcement (notice API)",
+   "target": "601318 中国平安",
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-09-25",
+   "latency_ms": 137
+  },
+  {
+   "group": "news",
+   "source": "eastmoney.news (stock_news_em)",
+   "target": "510300 沪深300ETF",
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-09-28",
+   "latency_ms": 104
+  },
+  {
+   "group": "announcement",
+   "source": "cninfo.announcement (orgId query)",
+   "target": "510300 沪深300ETF",
+   "ok": false,
+   "rows": 0,
+   "as_of": null,
+   "error": "empty result",
+   "latency_ms": 358
+  },
+  {
+   "group": "announcement",
+   "source": "eastmoney.announcement (notice API)",
+   "target": "510300 沪深300ETF",
+   "ok": false,
+   "rows": 0,
+   "as_of": null,
+   "error": "empty result",
+   "latency_ms": 63
+  }
+ ],
+ "chains": [
+  {
+   "ok": true,
+   "served_by": "sina.kline",
+   "mode": "live_fallback",
+   "as_of": "2026-09-28",
+   "close": 1243.88,
+   "fallback_reason": "eastmoney.quote:error(ProxyError); eastmoney.quote:error(ProxyError)",
+   "fundamentals_by": "sina.finance",
+   "valuation_by": "eastmoney.datacenter",
+   "report_date": "2026-06-30",
+   "pe_ttm": 19.09462613,
+   "kind": "market_bundle",
+   "target": "600519.SH",
+   "latency_ms": 2697
+  },
+  {
+   "ok": true,
+   "served_by": "sina.kline",
+   "mode": "live_fallback",
+   "as_of": "2026-09-28",
+   "close": 291.99,
+   "fallback_reason": "eastmoney.quote:circuit_open",
+   "fundamentals_by": "ths.finance",
+   "valuation_by": "eastmoney.datacenter",
+   "report_date": "2026-06-30",
+   "pe_ttm": 15.89539213,
+   "kind": "market_bundle",
+   "target": "300750.SZ",
+   "latency_ms": 1628
+  },
+  {
+   "ok": true,
+   "served_by": "sina.kline",
+   "mode": "live_fallback",
+   "as_of": "2026-09-28",
+   "close": 52.4,
+   "fallback_reason": "eastmoney.quote:circuit_open",
+   "fundamentals_by": "ths.finance",
+   "valuation_by": "eastmoney.datacenter",
+   "report_date": "2026-06-30",
+   "pe_ttm": 5.95571343,
+   "kind": "market_bundle",
+   "target": "601318.SH",
+   "latency_ms": 1175
+  },
+  {
+   "ok": true,
+   "served_by": "sina.kline",
+   "mode": "live_fallback",
+   "as_of": "2026-09-24",
+   "close": 4.515,
+   "fallback_reason": "eastmoney.quote:circuit_open",
+   "fundamentals_by": null,
+   "valuation_by": null,
+   "report_date": null,
+   "pe_ttm": null,
+   "kind": "market_bundle",
+   "target": "510300.SH",
+   "latency_ms": 2002
+  },
+  {
+   "ok": true,
+   "served_by": "sina.kline",
+   "mode": "live",
+   "as_of": "2026-09-24",
+   "close": 4439.144,
+   "fallback_reason": null,
+   "fundamentals_by": null,
+   "valuation_by": null,
+   "report_date": null,
+   "pe_ttm": null,
+   "kind": "market_bundle",
+   "target": "000300.SH",
+   "latency_ms": 1540
+  },
+  {
+   "ok": true,
+   "indicators": {
+    "CPI_CN": {
+     "as_of": "2026-08-01",
+     "value": 0.8,
+     "served_by": "eastmoney.datacenter"
+    },
+    "PMI_CN": {
+     "as_of": "2026-08-01",
+     "value": 49.8,
+     "served_by": "eastmoney.datacenter"
+    },
+    "M2_CN": {
+     "as_of": "2026-08-01",
+     "value": 7.5,
+     "served_by": "eastmoney.datacenter"
+    },
+    "CN10Y": {
+     "as_of": "2026-09-24",
+     "value": 1.6738,
+     "served_by": "eastmoney.datacenter"
+    },
+    "LPR1Y_CN": {
+     "as_of": "2026-09-20",
+     "value": 3.0,
+     "served_by": "eastmoney.datacenter"
+    },
+    "LPR5Y_CN": {
+     "as_of": "2026-09-20",
+     "value": 3.5,
+     "served_by": "eastmoney.datacenter"
+    }
+   },
+   "failures": {},
+   "kind": "macro",
+   "target": "CPI/PMI/M2/CN10Y/LPR",
+   "latency_ms": 2321
+  },
+  {
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-09-28",
+   "kind": "news",
+   "target": "600519.SH",
+   "latency_ms": 108
+  },
+  {
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-08-15",
+   "served_by": "cninfo.announcement",
+   "mode": "live",
+   "kind": "announcements",
+   "target": "600519.SH",
+   "latency_ms": 256
+  },
+  {
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-09-25",
+   "kind": "news",
+   "target": "300750.SZ",
+   "latency_ms": 107
+  },
+  {
+   "ok": true,
+   "rows": 10,
+   "as_of": "2026-09-28",
+   "served_by": "cninfo.announcement",
+   "mode": "live",
+   "kind": "announcements",
+   "target": "300750.SZ",
+   "latency_ms": 201
+  }
+ ]
+}

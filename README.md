@@ -22,7 +22,7 @@ FinSight answers questions about Chinese listed companies, funds, indices and ma
 
 **In 30 seconds**
 
-- **Numbers you can trace.** The claim-level verifier rejected 97.4% of 2,314 corrupted answers and accepted all 153 correct ones. A number swapped from another company passes 0.6% of the time, down from 100% with the original check.
+- **Numbers you can trace.** The claim-level verifier rejected 97.9% of 2,433 corrupted answers and accepted all 159 correct ones. A number swapped from another company passes 0.2% of the time, down from 100% with the original check. Rejected answers are repaired by deleting whole sentences (100% readable, no fragments; it was 29% readable with clause salvage).
 - **Tools are what make it work.** An LLM without tools passes 0 of 381 tasks under strict scoring. The tool-using LLM paths pass 0.91–0.98 of the held-out tasks with two model families (DeepSeek V4.1 Flash, GLM-5.3 Flash). They pass 0.76–0.81 of a 121-task test set that was written later, blind, and was untouched when it was run.
 - **Honest statistics.** Every rate comes with a 95% bootstrap CI, and paths are compared with paired tests. The LLM agent's lead over "fixed workflow + LLM writing" is **not significant** with DeepSeek. With GLM it is significant on per-run success but not on pass^3, and the agent costs 2–5x as much.
 - **Runs like a service.** It works without an LLM, is bounded by deadlines and circuit breakers, and has been load-tested and chaos-tested. It runs on k3s with Postgres-shared sessions, exposes MCP and A2A, and ships with Prometheus/Grafana/Jaeger monitoring.
@@ -103,8 +103,8 @@ What changed after these runs (round 2), measured offline:
 
 | Other measurements | Result | Evidence |
 |---|---|---|
-| Verifier stress test: 153 correct answers, 2,314 corrupted variants | False accepts: 35.0% (original run-level check) → **2.6%** (claim-level). Numbers swapped between companies: 100% → **0.6%**. Correct answers accepted: 100%. | `verifier_stress.json` (`f7bf624`) |
-| Prompt-injection red team: 17 attacks × 4 obfuscations, planted in search results | Dev attacks: **0** successes in 216 runs on the three paths. Unseen held-out attacks: 0/64 template, 2/64 LLM composition, 1/64 agent (`846bc5e`). A third attack set, offline: 2/64 on the template path (`f7bf624`). | `redteam-online.json`, `redteam-offline.json` |
+| Verifier stress test: 159 correct answers, 2,433 corrupted variants | False accepts: 34.3% (original run-level check) → **2.1%** (claim-level). Numbers swapped between companies: 100% → **0.2%**. Correct answers accepted: 100%. Repaired answers: 100% readable and verified, 0% fragments (clause salvage before: 29% readable, 97% with fragments). | `verifier_stress.json` (`2494656`) |
+| Prompt-injection red team: 17 attacks × 4 obfuscations, planted in search results | Dev attacks: **0** successes in 216 runs on the three paths. Unseen held-out attacks: 0/64 template, 2/64 LLM composition, 1/64 agent (`846bc5e`). Offline template path at `2494656`: holdout2 0/64; holdout3 (the round-2 reviewer's 11 planted attacks, added before the fix) 6/88 → **2/88**. | `redteam-online.json`, `redteam-offline.json` |
 | Fault injection: timeouts, 5xx, empty data, huge documents, LLM down, malformed tool calls, endless loops | 11/11 scenarios degrade gracefully | `fault_injection.json` |
 | Load, deterministic path | One checkpoint per run instead of per step: 4.8 → 6.5 req/s at 1 user, session store 64 MB → 9.4 MB for the same 820 requests. An earlier "11x" claim did not reproduce; the real gain is 1.3–1.6x. | [performance.md](docs/performance.md) |
 | Load, LLM agent path | 0 failed requests at 4, 8 and 16 users. The ceiling is the gateway's rate limit (HTTP 429), not the service: rate-limited turns fell back to the deterministic answer. **¥19.7 per 1,000 agent questions** (4.1 LLM calls, 22k tokens each). | [performance.md](docs/performance.md) |
@@ -203,8 +203,8 @@ Live market, news, announcement and macro providers are on by default. For the s
 Docker, Kubernetes and the monitoring stack are covered in [docs/deployment.md](docs/deployment.md). On Kubernetes, replicas share sessions through Postgres and run on a read-only root filesystem.
 
 ```bash
-docker build -f docker/Dockerfile -t finsight . && docker run -p 8000:8000 finsight
-kubectl apply -f deploy/k8s/finsight.yaml
+docker build -f docker/Dockerfile -t finsight:$(git rev-parse --short=7 HEAD) .   # images are tagged by commit
+kubectl apply -k deploy/k8s        # after creating the finsight-db Secret (docs/deployment.md#secrets)
 docker compose -f docker/docker-compose.yml --profile monitoring up -d   # + Prometheus, Grafana, Jaeger
 ```
 
@@ -217,7 +217,8 @@ docker compose -f docker/docker-compose.yml --profile monitoring up -d   # + Pro
 | `POST /agent/feedback` | Thumbs up/down on an answer, stored with its trace. |
 | `GET /agent/sessions/{id}`, `GET /agent/traces`, `GET /agent/traces/{id}` | Session memory, recent runs and a full run trace, scoped to the caller. |
 | `GET /.well-known/agent-card.json`, `POST /a2a` | A2A agent card and JSON-RPC endpoint. |
-| `GET /metrics`, `GET /sources/health[?probe=1]`, `GET /health` | Prometheus metrics, live source status (active probe on request), health. |
+| `GET /metrics`, `GET /sources/health[?probe=1]` | Prometheus metrics; live source status (active probe of all 19 sources on request, unprobed ones marked). |
+| `GET /health`, `GET /ready` | Liveness; readiness (checkpoint store reachable and writable, LLM config, retrieval index), 503 when not ready. |
 | `POST /chat` | Original chatbot endpoint: `mode=workflow` keeps the original pipeline; `agent` and `auto` use the agent. |
 | `POST /nlu/analyze`, `POST /retrieval/search`, `POST /query/intelligence` | Classical NLU and retrieval artifacts. |
 
@@ -241,11 +242,14 @@ python -m scripts.chaos_drill --scenario sources           # blocked upstreams a
 CI runs the following:
 
 - lint;
+- a gitleaks secret scan of the full git history ([SECURITY.md](SECURITY.md));
 - the frontend checks: typecheck, lint, unit tests and a reproducible build;
-- the full test suite with a Postgres service;
+- the full test suite with a Postgres service, including the axe accessibility tests (they fail rather than skip in CI) and a coverage floor of 88% on `query_intelligence/agent` (measured 90.3%);
 - the evaluation gate against committed baselines, and a check that the evaluation page is up to date;
-- the Docker build with a smoke test;
-- Kubernetes manifest validation.
+- the Docker build with a smoke test on a read-only root filesystem (waits for `/ready`), plus a check that an unwritable state volume makes the container unready;
+- Kubernetes manifest validation (rendered kustomization, no committed Secret, commit-tagged image).
+
+`pre-commit install` runs gitleaks, ruff and the evaluation-page check before each commit.
 
 ## Documentation
 

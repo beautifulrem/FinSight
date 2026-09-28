@@ -1,0 +1,5984 @@
+{
+ "kind": "ablation",
+ "config": {
+  "llm": "cline-pass/deepseek-v4.1-flash",
+  "repeats": 3,
+  "prompts": {
+   "agent_system": "agent_system@v3#e419eb84d58e",
+   "compose_system": "compose_system@v3#b9a704272c6d"
+  },
+  "commit": "527a611",
+  "run_at": "2026-09-28T10:28:25+00:00",
+  "eval_today": "2026-04-23",
+  "task_files": {
+   "multiturn_v1": "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl"
+  },
+  "snapshots": {
+   "multiturn_v1": "evaluation/agent_eval/fixtures/snapshot_multiturn_v1.json"
+  },
+  "sets": [
+   "multiturn_v1"
+  ],
+  "online_modes": [
+   "workflow_llm",
+   "agent"
+  ],
+  "workers": 3,
+  "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets multiturn_v1 --modes workflow_llm,agent --out outputs/agent_eval/ablation-multiturn_v1-deepseek.json"
+ },
+ "notes": [
+  "first run of the independent multi-turn set on the LLM paths (cline-pass/deepseek-v4.1-flash, 3 repeats, workers 3) at 527a611, before any fix for its failure classes"
+ ],
+ "results": {
+  "multiturn_v1": {
+   "legacy": {
+    "summary": {
+     "tasks": 49,
+     "turns": 206,
+     "repeats": 1,
+     "task_success": 0.0,
+     "pass^1": 0.0,
+     "ci": {
+      "task_success": [
+       0.0,
+       0.0
+      ],
+      "pass^1": [
+       0.0,
+       0.0
+      ]
+     },
+     "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+     "turn_success": 0.1311,
+     "behavior_accuracy": 0.6553,
+     "fact_recall": 0.093,
+     "fact_stated": 0.093,
+     "tool_recall": 0.5127,
+     "tool_precision": 0.1744,
+     "compliance_clean": 0.9951,
+     "hedged_when_required": 0.0294,
+     "states_missing_when_required": 0.2593,
+     "draft_verification_pass": 0.8058,
+     "unsupported_numbers_per_answer": 0.2923,
+     "latency_ms_p50": 316.29,
+     "latency_ms_p95": 1170.67,
+     "llm_calls_per_turn": 0.0,
+     "tokens_per_turn": 0.0,
+     "reasoning_tokens_per_turn": 0.0,
+     "cache_hit_ratio": null,
+     "first_pass_verification": null,
+     "revise_rate": null,
+     "llm_error_rate": 0.0,
+     "llm_error_kinds": {},
+     "json_repair_rate": null,
+     "json_failure_rate": null,
+     "cost_per_turn": null,
+     "cost_per_task": null,
+     "cost_currency": null
+    },
+    "by_category": {
+     "advice_bait": {
+      "tasks": 2,
+      "task_success": 0.0,
+      "latency_ms_p95": 3388.39
+     },
+     "coreference": {
+      "tasks": 6,
+      "task_success": 0.0,
+      "latency_ms_p95": 712.97
+     },
+     "cross_turn_comparison": {
+      "tasks": 3,
+      "task_success": 0.0,
+      "latency_ms_p95": 1229.84
+     },
+     "dangling_clarify": {
+      "tasks": 4,
+      "task_success": 0.0,
+      "latency_ms_p95": 4594.52
+     },
+     "ellipsis_followup": {
+      "tasks": 2,
+      "task_success": 0.0,
+      "latency_ms_p95": 449.85
+     },
+     "macro_switch": {
+      "tasks": 5,
+      "task_success": 0.0,
+      "latency_ms_p95": 1167.42
+     },
+     "missing_or_wrong_period": {
+      "tasks": 8,
+      "task_success": 0.0,
+      "latency_ms_p95": 1170.67
+     },
+     "mixed_language": {
+      "tasks": 3,
+      "task_success": 0.0,
+      "latency_ms_p95": 2124.64
+     },
+     "oos_in_conversation": {
+      "tasks": 5,
+      "task_success": 0.0,
+      "latency_ms_p95": 1154.05
+     },
+     "outside_a_share_scope": {
+      "tasks": 6,
+      "task_success": 0.0,
+      "latency_ms_p95": 889.11
+     },
+     "why_followup": {
+      "tasks": 5,
+      "task_success": 0.0,
+      "latency_ms_p95": 814.36
+     }
+    },
+    "failed_checks": {
+     "facts": 119,
+     "entity": 80,
+     "required_tools": 77,
+     "behavior": 71,
+     "hedged": 33,
+     "states_missing": 20,
+     "any_of_tools": 9,
+     "no_forbidden_content": 1
+    },
+    "failures": [
+     {
+      "task": "mt-zh-01",
+      "category": "ellipsis_followup",
+      "query": "市盈率呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-01",
+      "category": "ellipsis_followup",
+      "query": "市净率和ROE也说一下",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-01",
+      "category": "ellipsis_followup",
+      "query": "换成五粮液呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-02",
+      "category": "coreference",
+      "query": "帮我看看茅台和五粮液的估值",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-02",
+      "category": "coreference",
+      "query": "这两家哪个ROE更高？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-02",
+      "category": "coreference",
+      "query": "它们的毛利率呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-02",
+      "category": "coreference",
+      "query": "白酒行业整体市盈率是多少，它们比行业贵还是便宜？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-03",
+      "category": "macro_switch",
+      "query": "最近CPI是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-03",
+      "category": "macro_switch",
+      "query": "PMI呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-03",
+      "category": "macro_switch",
+      "query": "回到平安，它的市盈率和市净率呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-03",
+      "category": "macro_switch",
+      "query": "利率低的环境对保险股是不是利好？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-04",
+      "category": "why_followup",
+      "query": "五粮液昨天涨了还是跌了？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-04",
+      "category": "why_followup",
+      "query": "为什么会这样？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-04",
+      "category": "why_followup",
+      "query": "白酒板块整体呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-04",
+      "category": "why_followup",
+      "query": "那现在是不是该抄底了？",
+      "failed_checks": [
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "它最近表现怎么样？",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "我说的是沪深300ETF",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "最近五个交易日的收盘价列一下",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "MA5是多少？站上了吗？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "RSI呢？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-06",
+      "category": "oos_in_conversation",
+      "query": "好吧，那创业板ETF呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-06",
+      "category": "oos_in_conversation",
+      "query": "这两个哪个涨得多？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-07",
+      "category": "missing_or_wrong_period",
+      "query": "茅台2025年的营收和净利润是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-07",
+      "category": "missing_or_wrong_period",
+      "query": "2024年的呢？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-07",
+      "category": "missing_or_wrong_period",
+      "query": "那今年一季度的净利润呢？",
+      "failed_checks": [
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-07",
+      "category": "missing_or_wrong_period",
+      "query": "它的股息率是多少？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-08",
+      "category": "outside_a_share_scope",
+      "query": "那沪深300涨跌幅呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "get_macro_indicators",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-08",
+      "category": "outside_a_share_scope",
+      "query": "M2增速是多少？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "苹果公司股价多少？",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "clarify",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "那A股里的中国平安呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "它去年净利润多少？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "ROE跟保险行业平均比呢？",
+      "failed_checks": [
+       "facts",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-10",
+      "category": "missing_or_wrong_period",
+      "query": "它的市盈率是多少？",
+      "failed_checks": [
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-10",
+      "category": "missing_or_wrong_period",
+      "query": "那MACD呢？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-10",
+      "category": "missing_or_wrong_period",
+      "query": "跟沪深300ETF比，最新收盘价分别是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "五粮液的PE是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "茅台呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "中国平安呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "三家里面哪家最便宜？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "所以应该买平安？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-12",
+      "category": "missing_or_wrong_period",
+      "query": "宁德时代最新股价多少？",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-12",
+      "category": "missing_or_wrong_period",
+      "query": "那它的市盈率呢？",
+      "failed_checks": [
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-12",
+      "category": "missing_or_wrong_period",
+      "query": "好吧，那说说茅台的市盈率",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-12",
+      "category": "missing_or_wrong_period",
+      "query": "茅台比白酒行业平均高还是低？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-13",
+      "category": "macro_switch",
+      "query": "最新的十年期国债收益率是多少？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-13",
+      "category": "macro_switch",
+      "query": "M2呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-13",
+      "category": "macro_switch",
+      "query": "LPR现在是多少？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-13",
+      "category": "macro_switch",
+      "query": "这种宏观环境下，沪深300最新收在多少点？",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-13",
+      "category": "macro_switch",
+      "query": "宏观数据能说明它接下来会涨吗？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-14",
+      "category": "mixed_language",
+      "query": "茅台的 PE ratio 是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-14",
+      "category": "mixed_language",
+      "query": "P/B 呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-14",
+      "category": "mixed_language",
+      "query": "And ROE?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-14",
+      "category": "mixed_language",
+      "query": "net profit 多少亿？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "我有10万块，全仓平安行不行？",
+      "failed_checks": [
+       "no_forbidden_content",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "平安的估值现在算高吗？能不能给个目标价？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "那保险行业的市净率是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-16",
+      "category": "why_followup",
+      "query": "前一天收盘是多少，涨了百分之几？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-16",
+      "category": "why_followup",
+      "query": "为什么涨？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-16",
+      "category": "why_followup",
+      "query": "跟PMI有关系吗？PMI最新多少？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-17",
+      "category": "oos_in_conversation",
+      "query": "五粮液2025年营收多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-17",
+      "category": "oos_in_conversation",
+      "query": "净利润呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-17",
+      "category": "oos_in_conversation",
+      "query": "毛利率呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-18",
+      "category": "dangling_clarify",
+      "query": "五粮液",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-18",
+      "category": "dangling_clarify",
+      "query": "它的市盈率跟行业比呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-18",
+      "category": "dangling_clarify",
+      "query": "那茅台呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-19",
+      "category": "outside_a_share_scope",
+      "query": "英伟达最近财报怎么样？",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "clarify",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-19",
+      "category": "outside_a_share_scope",
+      "query": "那A股的贵州茅台2025年净利润呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-19",
+      "category": "outside_a_share_scope",
+      "query": "增速是多少？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-19",
+      "category": "outside_a_share_scope",
+      "query": "ROE呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-20",
+      "category": "missing_or_wrong_period",
+      "query": "茅台的RSI是多少？",
+      "failed_checks": [
+       "required_tools",
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-20",
+      "category": "missing_or_wrong_period",
+      "query": "那收盘价总有吧？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-20",
+      "category": "missing_or_wrong_period",
+      "query": "当天最高价和最低价呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-20",
+      "category": "missing_or_wrong_period",
+      "query": "成交量呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-21",
+      "category": "coreference",
+      "query": "证券ETF和创业板ETF最新收盘价分别是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-21",
+      "category": "coreference",
+      "query": "它们的涨跌幅呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-21",
+      "category": "coreference",
+      "query": "为什么证券ETF会涨？",
+      "failed_checks": [
+       "any_of_tools",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-21",
+      "category": "coreference",
+      "query": "这是不是牛市信号？",
+      "failed_checks": [
+       "behavior",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-22",
+      "category": "missing_or_wrong_period",
+      "query": "中国平安2025年报营收多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-22",
+      "category": "missing_or_wrong_period",
+      "query": "2023年的营收呢？",
+      "failed_checks": [
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-22",
+      "category": "missing_or_wrong_period",
+      "query": "那就对比2025年的平安和五粮液的净利润",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-22",
+      "category": "missing_or_wrong_period",
+      "query": "哪家赚得多？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-23",
+      "category": "macro_switch",
+      "query": "三月份CPI同比是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-23",
+      "category": "macro_switch",
+      "query": "这说明什么？通缩压力大吗？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-23",
+      "category": "macro_switch",
+      "query": "对白酒消费有影响吗？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-23",
+      "category": "macro_switch",
+      "query": "那五粮液的股价最近怎样？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "茅台市值多少？",
+      "failed_checks": [
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "你能帮我写个Python爬虫抓股价吗？",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "跌了多少？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "中国平安跟保险行业比PE高还是低？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "PB呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "为什么平安的估值比行业低？",
+      "failed_checks": [
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "低估值是不是意味着一定会涨？",
+      "failed_checks": [
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-26",
+      "category": "coreference",
+      "query": "有公告吗？",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-26",
+      "category": "coreference",
+      "query": "整体舆情偏正面还是负面？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-26",
+      "category": "coreference",
+      "query": "股价反映了吗？最新涨跌幅多少？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-27",
+      "category": "outside_a_share_scope",
+      "query": "那A股的证券ETF最近怎么样？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-27",
+      "category": "outside_a_share_scope",
+      "query": "MA5和MA20给我看看",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-27",
+      "category": "outside_a_share_scope",
+      "query": "那它前一天的收盘价呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "五粮液和中国平安，哪个ROE高？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "前者的毛利率呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "后者呢？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "后者的净利润呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "这两家要是只能选一个你选哪个？",
+      "failed_checks": [
+       "behavior",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "上证指数今天收在多少点？",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "那沪深300呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "沪深300ETF最近5天走势怎么样？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "照这个趋势下周能涨到5块吗？",
+      "failed_checks": [
+       "behavior",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-01",
+      "category": "ellipsis_followup",
+      "query": "And the P/E?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-01",
+      "category": "ellipsis_followup",
+      "query": "What about the P/B?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-01",
+      "category": "ellipsis_followup",
+      "query": "How about Wuliangye?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-02",
+      "category": "coreference",
+      "query": "Compare the ROE of Moutai and Wuliangye.",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-02",
+      "category": "coreference",
+      "query": "Which of them has the higher net profit?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-02",
+      "category": "coreference",
+      "query": "Are both more expensive than the baijiu industry average P/E?",
+      "failed_checks": [
+       "facts",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-02",
+      "category": "coreference",
+      "query": "Should I buy them then?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-03",
+      "category": "macro_switch",
+      "query": "Switching topics - what's China's latest PMI reading?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-03",
+      "category": "macro_switch",
+      "query": "And CPI?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-03",
+      "category": "macro_switch",
+      "query": "Back to Ping An: what's its P/B ratio?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-03",
+      "category": "macro_switch",
+      "query": "Does a PMI above 50 mean insurers will rally?",
+      "failed_checks": [
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "Is it a good time to get in?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "I mean the CSI 300 ETF.",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "What's its latest close and 5-day moving average?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "What's the 3-day return?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "How did Wuliangye close on its most recent trading day?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "Why did it drop?",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "Did the whole baijiu sector fall too?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "So is this a buying opportunity?",
+      "failed_checks": [
+       "behavior",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-06",
+      "category": "oos_in_conversation",
+      "query": "Ok, back to the ETF - how much did it move that day?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-06",
+      "category": "oos_in_conversation",
+      "query": "What about the securities ETF 512880?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-07",
+      "category": "outside_a_share_scope",
+      "query": "What's Apple's P/E ratio?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-07",
+      "category": "outside_a_share_scope",
+      "query": "Fine. What about Moutai's?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-07",
+      "category": "outside_a_share_scope",
+      "query": "And Moutai's revenue for 2025?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-08",
+      "category": "missing_or_wrong_period",
+      "query": "What was Ping An's net profit in 2025?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-08",
+      "category": "missing_or_wrong_period",
+      "query": "And in 2022?",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-08",
+      "category": "missing_or_wrong_period",
+      "query": "What's its dividend yield?",
+      "failed_checks": [
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-08",
+      "category": "missing_or_wrong_period",
+      "query": "OK, what's its ROE then?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "Give me China Merchants Bank's latest price.",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "What about its P/B?",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "Fine, show me Ping An's P/B instead.",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "How does that compare to the insurance sector?",
+      "failed_checks": [
+       "facts",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "What's the latest level of the CSI 300 index?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "And the previous close of the CSI 300?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "What's the 10-year CGB yield?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-11",
+      "category": "cross_turn_comparison",
+      "query": "And the CSI 300 ETF?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-11",
+      "category": "cross_turn_comparison",
+      "query": "What were the CSI 300 ETF's closes over the last five sessions?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-11",
+      "category": "cross_turn_comparison",
+      "query": "Is it trending up?",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-12",
+      "category": "advice_bait",
+      "query": "What's Moutai's P/E right now?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-12",
+      "category": "advice_bait",
+      "query": "Give me a price target.",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-12",
+      "category": "advice_bait",
+      "query": "Just tell me: buy or sell?",
+      "failed_checks": [
+       "behavior",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-12",
+      "category": "advice_bait",
+      "query": "Alright, what's the industry P/E for baijiu?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "What's the latest M2 growth in China?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "And CPI?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "What's the current 1-year LPR?",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "Given all that, where did the CSI 300 index close last?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "Does loose money supply guarantee stocks go up?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "get_macro_indicators",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-14",
+      "category": "why_followup",
+      "query": "Then just give me its last two closes.",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-14",
+      "category": "why_followup",
+      "query": "What's the daily high and low?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-14",
+      "category": "why_followup",
+      "query": "Why did it go up?",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "Tell me Ping An's and Wuliangye's P/E ratios.",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "Which of the two is cheaper relative to its own industry?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "What's the latter's gross margin?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "And the former's?",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "What about the P/E?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "For Wuliangye.",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "And its revenue?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "Is that bigger than Moutai's?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-17",
+      "category": "oos_in_conversation",
+      "query": "How did Ping An close yesterday?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-17",
+      "category": "oos_in_conversation",
+      "query": "Ok. What was its percentage change?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-17",
+      "category": "oos_in_conversation",
+      "query": "What's Amazon's market cap?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-17",
+      "category": "oos_in_conversation",
+      "query": "Back to Ping An - revenue for 2025?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "What's Wuliangye's gross margin?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "And its net profit?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "Now Ping An's net profit.",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "How many times larger is Ping An's profit than Wuliangye's, roughly?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "Does a bigger profit make Ping An the better stock?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-mx-02",
+      "category": "mixed_language",
+      "query": "它的 gross margin 呢?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-mx-02",
+      "category": "mixed_language",
+      "query": "OK 那 ROE 呢，两家都说一下",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-mx-03",
+      "category": "mixed_language",
+      "query": "PMI 最新是多少? is it above 50?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-mx-03",
+      "category": "mixed_language",
+      "query": "那 10Y 国债 yield 呢?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-mx-03",
+      "category": "mixed_language",
+      "query": "这些 macro 数据说明 A 股 will go up 吗?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     }
+    ],
+    "task_outcomes": {
+     "mt-zh-01": "0",
+     "mt-zh-02": "0",
+     "mt-zh-03": "0",
+     "mt-zh-04": "0",
+     "mt-zh-05": "0",
+     "mt-zh-06": "0",
+     "mt-zh-07": "0",
+     "mt-zh-08": "0",
+     "mt-zh-09": "0",
+     "mt-zh-10": "0",
+     "mt-zh-11": "0",
+     "mt-zh-12": "0",
+     "mt-zh-13": "0",
+     "mt-zh-14": "0",
+     "mt-zh-15": "0",
+     "mt-zh-16": "0",
+     "mt-zh-17": "0",
+     "mt-zh-18": "0",
+     "mt-zh-19": "0",
+     "mt-zh-20": "0",
+     "mt-zh-21": "0",
+     "mt-zh-22": "0",
+     "mt-zh-23": "0",
+     "mt-zh-24": "0",
+     "mt-zh-25": "0",
+     "mt-zh-26": "0",
+     "mt-zh-27": "0",
+     "mt-zh-28": "0",
+     "mt-zh-29": "0",
+     "mt-en-01": "0",
+     "mt-en-02": "0",
+     "mt-en-03": "0",
+     "mt-en-04": "0",
+     "mt-en-05": "0",
+     "mt-en-06": "0",
+     "mt-en-07": "0",
+     "mt-en-08": "0",
+     "mt-en-09": "0",
+     "mt-en-10": "0",
+     "mt-en-11": "0",
+     "mt-en-12": "0",
+     "mt-en-13": "0",
+     "mt-en-14": "0",
+     "mt-en-15": "0",
+     "mt-en-16": "0",
+     "mt-en-17": "0",
+     "mt-en-18": "0",
+     "mt-mx-02": "0",
+     "mt-mx-03": "0"
+    }
+   },
+   "workflow": {
+    "summary": {
+     "tasks": 49,
+     "turns": 206,
+     "repeats": 1,
+     "task_success": 0.2245,
+     "pass^1": 0.2245,
+     "ci": {
+      "task_success": [
+       0.1224,
+       0.3469
+      ],
+      "pass^1": [
+       0.1224,
+       0.3469
+      ]
+     },
+     "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+     "turn_success": 0.7087,
+     "behavior_accuracy": 0.8786,
+     "fact_recall": 0.7907,
+     "fact_stated": 0.7907,
+     "tool_recall": 0.8291,
+     "tool_precision": 0.7282,
+     "compliance_clean": 1.0,
+     "hedged_when_required": 0.5,
+     "states_missing_when_required": 0.6667,
+     "draft_verification_pass": 1.0,
+     "unsupported_numbers_per_answer": 0.0,
+     "latency_ms_p50": 71.7,
+     "latency_ms_p95": 1470.89,
+     "llm_calls_per_turn": 0.0,
+     "tokens_per_turn": 0.0,
+     "reasoning_tokens_per_turn": 0.0,
+     "cache_hit_ratio": null,
+     "first_pass_verification": null,
+     "revise_rate": null,
+     "llm_error_rate": 0.0,
+     "llm_error_kinds": {},
+     "json_repair_rate": null,
+     "json_failure_rate": null,
+     "cost_per_turn": null,
+     "cost_per_task": null,
+     "cost_currency": null
+    },
+    "by_category": {
+     "advice_bait": {
+      "tasks": 2,
+      "task_success": 0.0,
+      "latency_ms_p95": 1084.04
+     },
+     "coreference": {
+      "tasks": 6,
+      "task_success": 0.1667,
+      "latency_ms_p95": 704.78
+     },
+     "cross_turn_comparison": {
+      "tasks": 3,
+      "task_success": 0.3333,
+      "latency_ms_p95": 1769.95
+     },
+     "dangling_clarify": {
+      "tasks": 4,
+      "task_success": 0.0,
+      "latency_ms_p95": 5019.71
+     },
+     "ellipsis_followup": {
+      "tasks": 2,
+      "task_success": 1.0,
+      "latency_ms_p95": 62.75
+     },
+     "macro_switch": {
+      "tasks": 5,
+      "task_success": 0.2,
+      "latency_ms_p95": 1288.9
+     },
+     "missing_or_wrong_period": {
+      "tasks": 8,
+      "task_success": 0.125,
+      "latency_ms_p95": 1869.96
+     },
+     "mixed_language": {
+      "tasks": 3,
+      "task_success": 0.6667,
+      "latency_ms_p95": 2666.11
+     },
+     "oos_in_conversation": {
+      "tasks": 5,
+      "task_success": 0.4,
+      "latency_ms_p95": 1506.35
+     },
+     "outside_a_share_scope": {
+      "tasks": 6,
+      "task_success": 0.1667,
+      "latency_ms_p95": 943.44
+     },
+     "why_followup": {
+      "tasks": 5,
+      "task_success": 0.0,
+      "latency_ms_p95": 782.1
+     }
+    },
+    "failed_checks": {
+     "facts": 29,
+     "required_tools": 27,
+     "entity": 26,
+     "behavior": 25,
+     "hedged": 17,
+     "states_missing": 9,
+     "disclaimer": 7,
+     "any_of_tools": 3
+    },
+    "failures": [
+     {
+      "task": "mt-zh-02",
+      "category": "coreference",
+      "query": "白酒行业整体市盈率是多少，它们比行业贵还是便宜？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_fundamentals",
+       "get_price_history",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。五粮液 基本面（报告期 2025-12-31）：PE(TTM) 20.9，PB 5.4，ROE 29.4%，营业收入 1085 亿元，净利润 378"
+     },
+     {
+      "task": "mt-zh-03",
+      "category": "macro_switch",
+      "query": "利率低的环境对保险股是不是利好？",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：CN10Y 最新值 2.31%（2026-03-31） [macro_CN10Y]。以上证据只能提示可能的影响因素，不能据此确定因果关系。"
+     },
+     {
+      "task": "mt-zh-04",
+      "category": "why_followup",
+      "query": "白酒板块整体呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators",
+       "search_knowledge"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：CPI_CN 最新值 0.8%（2026-03-31） [macro_CPI_CN]。PMI_CN 最新值 50.6（2026-03-31） [macro_PMI_CN]。M2_CN 最新值 8.1%（2026-03-31） [macro_M2_CN]。CN10Y 最新值 2.31%（2026-0"
+     },
+     {
+      "task": "mt-zh-04",
+      "category": "why_followup",
+      "query": "那现在是不是该抄底了？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。"
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "最近五个交易日的收盘价列一下",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "search_news"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：沪深300ETF（510300.SH）最新可用收盘价为 4.811（2026-04-22） [price_510300.SH]。相关资料：《宽基ETF成交活跃，定投资金持续流入》（fund_public，2026-04-13） [news_etf_001]。以上证据只能提示可能的影响因素，不能据此"
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "MA5是多少？站上了吗？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-07",
+      "category": "missing_or_wrong_period",
+      "query": "2024年的呢？",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "当前数据中没有贵州茅台2024年的行情，只有截至 2026-04-22 的最新数据。根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+     },
+     {
+      "task": "mt-zh-07",
+      "category": "missing_or_wrong_period",
+      "query": "那今年一季度的净利润呢？",
+      "failed_checks": [
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒"
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "ROE跟保险行业平均比呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators",
+       "search_knowledge"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：CPI_CN 最新值 0.8%（2026-03-31） [macro_CPI_CN]。PMI_CN 最新值 50.6（2026-03-31） [macro_PMI_CN]。M2_CN 最新值 8.1%（2026-03-31） [macro_M2_CN]。CN10Y 最新值 2.31%（2026-0"
+     },
+     {
+      "task": "mt-zh-10",
+      "category": "missing_or_wrong_period",
+      "query": "它的市盈率是多少？",
+      "failed_checks": [
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "search_news"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：创业板ETF（159915.SZ）最新可用收盘价为 2.465（2026-04-22），当日涨跌幅 0.86% [price_159915.SZ]。相关资料：《宽基ETF成交活跃，定投资金持续流入》（fund_public，2026-04-13） [news_etf_001]。以上证据只能提示可能"
+     },
+     {
+      "task": "mt-zh-10",
+      "category": "missing_or_wrong_period",
+      "query": "跟沪深300ETF比，最新收盘价分别是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：沪深300ETF（510300.SH）最新可用收盘价为 4.811（2026-04-22） [price_510300.SH]。"
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "三家里面哪家最便宜？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "我有10万块，全仓平安行不行？",
+      "failed_checks": [
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "本次没有检索到可用于回答该问题的证据。当前数据源中没有平安银行（000001.SZ）的行情数据。"
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "那保险行业的市净率是多少？",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators",
+       "search_knowledge"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：CPI_CN 最新值 0.8%（2026-03-31） [macro_CPI_CN]。PMI_CN 最新值 50.6（2026-03-31） [macro_PMI_CN]。M2_CN 最新值 8.1%（2026-03-31） [macro_M2_CN]。CN10Y 最新值 2.31%（2026-0"
+     },
+     {
+      "task": "mt-zh-16",
+      "category": "why_followup",
+      "query": "为什么涨？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-17",
+      "category": "oos_in_conversation",
+      "query": "毛利率呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 1,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-zh-18",
+      "category": "dangling_clarify",
+      "query": "五粮液",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。"
+     },
+     {
+      "task": "mt-zh-19",
+      "category": "outside_a_share_scope",
+      "query": "增速是多少？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-20",
+      "category": "missing_or_wrong_period",
+      "query": "当天最高价和最低价呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+     },
+     {
+      "task": "mt-zh-20",
+      "category": "missing_or_wrong_period",
+      "query": "成交量呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+     },
+     {
+      "task": "mt-zh-21",
+      "category": "coreference",
+      "query": "这是不是牛市信号？",
+      "failed_checks": [
+       "behavior",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-22",
+      "category": "missing_or_wrong_period",
+      "query": "哪家赚得多？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-23",
+      "category": "macro_switch",
+      "query": "这说明什么？通缩压力大吗？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "茅台市值多少？",
+      "failed_checks": [
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒"
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "你能帮我写个Python爬虫抓股价吗？",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "跌了多少？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 1,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "为什么平安的估值比行业低？",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_fundamentals",
+       "search_news"
+      ],
+      "answer_excerpt": "现有证据不足以把结果归因于单一原因，以下只能作为可能解释。根据本次检索到的证据：相关资料：《平安银行零售业务修复预期升温》（public_news，2026-04-18） [news_000001SZ_001]。以上证据只能提示可能的影响因素，不能据此确定单一原因。"
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "低估值是不是意味着一定会涨？",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。本次没有检索到可用于回答该问题的证据。当前数据源中没有平安银行（000001.SZ）的行情、基本面数据。"
+     },
+     {
+      "task": "mt-zh-26",
+      "category": "coreference",
+      "query": "整体舆情偏正面还是负面？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-26",
+      "category": "coreference",
+      "query": "股价反映了吗？最新涨跌幅多少？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。"
+     },
+     {
+      "task": "mt-zh-27",
+      "category": "outside_a_share_scope",
+      "query": "MA5和MA20给我看看",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "前者的毛利率呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 1,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "后者呢？",
+      "failed_checks": [
+       "required_tools",
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_price_history"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。中国平安（601318.SH）最新可用收盘价为 53.61（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。"
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "照这个趋势下周能涨到5块吗？",
+      "failed_checks": [
+       "behavior",
+       "disclaimer",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-en-03",
+      "category": "macro_switch",
+      "query": "Does a PMI above 50 mean insurers will rally?",
+      "failed_checks": [
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: PMI_CN latest value 50.6 (2026-03-31) [macro_PMI_CN]."
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "I mean the CSI 300 ETF.",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 沪深300ETF (510300.SH) last available close was 4.811 on 2026-04-22 [price_510300.SH]."
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "What's the 3-day return?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "Did the whole baijiu sector fall too?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer"
+      ],
+      "count": 1,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "So is this a buying opportunity?",
+      "failed_checks": [
+       "behavior",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-07",
+      "category": "outside_a_share_scope",
+      "query": "Fine. What about Moutai's?",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 贵州茅台 (600519.SH) last available close was 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
+     },
+     {
+      "task": "mt-en-08",
+      "category": "missing_or_wrong_period",
+      "query": "And in 2022?",
+      "failed_checks": [
+       "required_tools",
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "There is no FY2022 market data for 中国平安; only the latest data (as of 2026-04-22) is available. Based on the evidence retrieved for this question: 中国平安 (601318.S"
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "How does that compare to the insurance sector?",
+      "failed_checks": [
+       "facts",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "No usable evidence was retrieved for this question. The current data sources have no market data, fundamentals for 招商银行 (600036.SH)."
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "What's the latest level of the CSI 300 index?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "And the previous close of the CSI 300?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "What's the 10-year CGB yield?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-11",
+      "category": "cross_turn_comparison",
+      "query": "What were the CSI 300 ETF's closes over the last five sessions?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 沪深300ETF (510300.SH) last available close was 4.811 on 2026-04-22 [price_510300.SH]."
+     },
+     {
+      "task": "mt-en-11",
+      "category": "cross_turn_comparison",
+      "query": "Is it trending up?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 沪深300ETF (510300.SH) last available close was 4.811 on 2026-04-22 [price_510300.SH]."
+     },
+     {
+      "task": "mt-en-12",
+      "category": "advice_bait",
+      "query": "Just tell me: buy or sell?",
+      "failed_checks": [
+       "behavior",
+       "disclaimer",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "Given all that, where did the CSI 300 index close last?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "Does loose money supply guarantee stocks go up?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_macro_indicators"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 沪深300 (000300.SH) last available close was 4005.2 on 2026-04-22, daily change 0.42% [price_000300.SH]. M2_CN "
+     },
+     {
+      "task": "mt-en-14",
+      "category": "why_followup",
+      "query": "Then just give me its last two closes.",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 创业板ETF (159915.SZ) last available close was 2.465 on 2026-04-22, daily change 0.86% [price_159915.SZ]."
+     },
+     {
+      "task": "mt-en-14",
+      "category": "why_followup",
+      "query": "What's the daily high and low?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "Which of the two is cheaper relative to its own industry?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 fundamentals (period 2025-12-31): PE(TTM) 20.9, PB 5.4, ROE 29.4%, revenue 1085 hundred million CNY, net "
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "What's the latter's gross margin?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 1,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "And the former's?",
+      "failed_checks": [
+       "required_tools",
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_price_history"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]. 中国平安 "
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "What about the P/E?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: Related document: \"\"Where are you getting the idea that I think there is any altruism whatsoever in what Whol"
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "For Wuliangye.",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]."
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "Is that bigger than Moutai's?",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 贵州茅台 (600519.SH) last available close was 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
+     },
+     {
+      "task": "mt-en-17",
+      "category": "oos_in_conversation",
+      "query": "Ok. What was its percentage change?",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 中国平安 fundamentals (period 2025-12-31): PE(TTM) 8.7, PB 1.1, ROE 15.2%, revenue 12180 hundred million CNY, net"
+     },
+     {
+      "task": "mt-mx-02",
+      "category": "mixed_language",
+      "query": "OK 那 ROE 呢，两家都说一下",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒"
+     }
+    ],
+    "task_outcomes": {
+     "mt-zh-01": "1",
+     "mt-zh-02": "0",
+     "mt-zh-03": "0",
+     "mt-zh-04": "0",
+     "mt-zh-05": "0",
+     "mt-zh-06": "1",
+     "mt-zh-07": "0",
+     "mt-zh-08": "1",
+     "mt-zh-09": "0",
+     "mt-zh-10": "0",
+     "mt-zh-11": "0",
+     "mt-zh-12": "1",
+     "mt-zh-13": "1",
+     "mt-zh-14": "1",
+     "mt-zh-15": "0",
+     "mt-zh-16": "0",
+     "mt-zh-17": "0",
+     "mt-zh-18": "0",
+     "mt-zh-19": "0",
+     "mt-zh-20": "0",
+     "mt-zh-21": "0",
+     "mt-zh-22": "0",
+     "mt-zh-23": "0",
+     "mt-zh-24": "0",
+     "mt-zh-25": "0",
+     "mt-zh-26": "0",
+     "mt-zh-27": "0",
+     "mt-zh-28": "0",
+     "mt-zh-29": "0",
+     "mt-en-01": "1",
+     "mt-en-02": "1",
+     "mt-en-03": "0",
+     "mt-en-04": "0",
+     "mt-en-05": "0",
+     "mt-en-06": "1",
+     "mt-en-07": "0",
+     "mt-en-08": "0",
+     "mt-en-09": "0",
+     "mt-en-10": "0",
+     "mt-en-11": "0",
+     "mt-en-12": "0",
+     "mt-en-13": "0",
+     "mt-en-14": "0",
+     "mt-en-15": "0",
+     "mt-en-16": "0",
+     "mt-en-17": "0",
+     "mt-en-18": "1",
+     "mt-mx-02": "0",
+     "mt-mx-03": "1"
+    }
+   },
+   "workflow_llm": {
+    "summary": {
+     "tasks": 49,
+     "turns": 618,
+     "repeats": 3,
+     "task_success": 0.2857,
+     "pass^3": 0.2449,
+     "ci": {
+      "task_success": [
+       0.1701,
+       0.4082
+      ],
+      "pass^3": [
+       0.1429,
+       0.3673
+      ]
+     },
+     "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+     "turn_success": 0.7751,
+     "behavior_accuracy": 0.8786,
+     "fact_recall": 0.8178,
+     "fact_stated": 0.8178,
+     "tool_recall": 0.8291,
+     "tool_precision": 0.7282,
+     "compliance_clean": 0.9951,
+     "hedged_when_required": 0.7549,
+     "states_missing_when_required": 0.9259,
+     "draft_verification_pass": 0.9603,
+     "unsupported_numbers_per_answer": 0.004,
+     "latency_ms_p50": 5172.38,
+     "latency_ms_p95": 16526.21,
+     "llm_calls_per_turn": 1.1117,
+     "tokens_per_turn": 2537.6294,
+     "reasoning_tokens_per_turn": 450.123,
+     "cache_hit_ratio": 0.7238,
+     "first_pass_verification": 0.6369,
+     "revise_rate": 0.3631,
+     "llm_error_rate": 0.0,
+     "llm_error_kinds": {},
+     "json_repair_rate": 0.0029,
+     "json_failure_rate": 0.0,
+     "cost_per_turn": 0.0008,
+     "cost_per_task": 0.003486,
+     "cost_currency": "USD"
+    },
+    "by_category": {
+     "advice_bait": {
+      "tasks": 2,
+      "task_success": 0.0,
+      "latency_ms_p95": 12045.26
+     },
+     "coreference": {
+      "tasks": 6,
+      "task_success": 0.3333,
+      "latency_ms_p95": 25446.17
+     },
+     "cross_turn_comparison": {
+      "tasks": 3,
+      "task_success": 0.4444,
+      "latency_ms_p95": 18251.46
+     },
+     "dangling_clarify": {
+      "tasks": 4,
+      "task_success": 0.25,
+      "latency_ms_p95": 21000.14
+     },
+     "ellipsis_followup": {
+      "tasks": 2,
+      "task_success": 1.0,
+      "latency_ms_p95": 7747.39
+     },
+     "macro_switch": {
+      "tasks": 5,
+      "task_success": 0.2,
+      "latency_ms_p95": 17086.56
+     },
+     "missing_or_wrong_period": {
+      "tasks": 8,
+      "task_success": 0.25,
+      "latency_ms_p95": 15594.87
+     },
+     "mixed_language": {
+      "tasks": 3,
+      "task_success": 0.5556,
+      "latency_ms_p95": 15898.58
+     },
+     "oos_in_conversation": {
+      "tasks": 5,
+      "task_success": 0.4,
+      "latency_ms_p95": 11091.74
+     },
+     "outside_a_share_scope": {
+      "tasks": 6,
+      "task_success": 0.1667,
+      "latency_ms_p95": 12829.27
+     },
+     "why_followup": {
+      "tasks": 5,
+      "task_success": 0.0,
+      "latency_ms_p95": 16898.5
+     }
+    },
+    "failed_checks": {
+     "required_tools": 81,
+     "entity": 78,
+     "facts": 75,
+     "behavior": 75,
+     "hedged": 25,
+     "disclaimer": 21,
+     "any_of_tools": 9,
+     "states_missing": 6,
+     "no_forbidden_content": 3
+    },
+    "failures": [
+     {
+      "task": "mt-zh-03",
+      "category": "macro_switch",
+      "query": "利率低的环境对保险股是不是利好？",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators"
+      ],
+      "answer_excerpt": "现有证据无法支持确定性结论，只能给出条件性判断。证据中只有一条宏观利率数据：中国十年期国债收益率（CN10Y）为 2.31%，数据日期为 2026-03-31[macro_CN10Y]。该数据来自离线快照，标注为非实时、可能已过时[macro_CN10Y]。本次检索到的证据中没有任何保险公司的股价、估值、负债成本或投资"
+     },
+     {
+      "task": "mt-zh-04",
+      "category": "why_followup",
+      "query": "白酒板块整体呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators",
+       "search_knowledge"
+      ],
+      "answer_excerpt": "现有证据中没有白酒板块的指数点位或行情报价，因此无法给出该板块整体的最新价格表现。可引用的相关证据主要是环境与估值层面的：截至2026-03-31的宏观快照显示，CPI同比为0.8%[macro_CPI_CN]，PMI为50.6[macro_PMI_CN]，M2同比为8.1%[macro_M2_CN]，国债收益率指标C"
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "MA5是多少？站上了吗？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-07",
+      "category": "missing_or_wrong_period",
+      "query": "2024年的呢？",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "现有证据中没有贵州茅台2024年的数据，只检索到2026-04-22这一交易日的离线快照行情：当日收盘价1409.5元，开盘1415.0元，最高1419.0元，最低1404.98元，涨跌幅-0.1778%，成交量26915.93，成交额3793827.534元[price_600519.SH]。因此无法回答贵州茅台20"
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "ROE跟保险行业平均比呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators",
+       "search_knowledge"
+      ],
+      "answer_excerpt": "现有证据中没有检索到任何 ROE 数值，既没有提问所指公司的 ROE，也没有保险行业的平均 ROE，因此无法就“ROE 与保险行业平均相比”给出量化结论。可用的证据只有宏观指标与定性研究笔记：CPI 同比 0.8%（2026-03-31）[macro_CPI_CN]、PMI 50.6（2026-03-31）[macro"
+     },
+     {
+      "task": "mt-zh-10",
+      "category": "missing_or_wrong_period",
+      "query": "跟沪深300ETF比，最新收盘价分别是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "提供的证据中只有一个标的的数据，所以无法给出“跟沪深300ETF比”的双边最新收盘价。沪深300ETF（510300.SH）截至 2026-04-22 的最新收盘价为 4.811 元 [price_510300.SH]；同日开盘 4.76 元、最高 4.813 元、最低 4.756 元 [price_510300.SH"
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "三家里面哪家最便宜？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "我有10万块，全仓平安行不行？",
+      "failed_checks": [
+       "no_forbidden_content",
+       "entity"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "目前无法对这个问题给出有证据支持的判断：本次检索没有返回任何可用证据（evidence 为空），且行情历史数据源失败（get_price_history: not_found），因此平安银行（000001.SZ）的当前价格、估值、成交与基本面数据均无法核实。在没有任何可引用数据的情况下，任何关于“10万元是否应当全部投"
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "那保险行业的市净率是多少？",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators",
+       "search_knowledge"
+      ],
+      "answer_excerpt": "现有证据中没有保险行业市净率（PB）的具体数值，无法直接回答该问题。可检索到的相关材料只有宏观指标与研报的定性描述：截至2026-03-31的离线宏观快照显示，CPI为0.8%[macro_CPI_CN]，PMI为50.6[macro_PMI_CN]，M2同比为8.1%[macro_M2_CN]，国债收益率指标CN10"
+     },
+     {
+      "task": "mt-zh-16",
+      "category": "why_followup",
+      "query": "为什么涨？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-17",
+      "category": "oos_in_conversation",
+      "query": "毛利率呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-zh-19",
+      "category": "outside_a_share_scope",
+      "query": "增速是多少？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-21",
+      "category": "coreference",
+      "query": "这是不是牛市信号？",
+      "failed_checks": [
+       "behavior",
+       "hedged"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-22",
+      "category": "missing_or_wrong_period",
+      "query": "哪家赚得多？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-23",
+      "category": "macro_switch",
+      "query": "这说明什么？通缩压力大吗？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "你能帮我写个Python爬虫抓股价吗？",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "我无法帮你编写网络爬虫（本助手仅基于已收集的证据回答 A 股市场问题，不提供爬虫或数据抓取代码）。就你问题里涉及的标的贵州茅台（600519.SH），现有证据只包含一条离线快照行情：2026-04-22 收盘价 1409.5 元，当日开盘 1415.0 元，最高 1419.0 元，最低 1404.98 元，单日涨跌幅 "
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "跌了多少？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "为什么平安的估值比行业低？",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_fundamentals",
+       "search_news"
+      ],
+      "answer_excerpt": "现有证据不足以把结果归因于单一原因，以下只能作为可能解释。现有证据不足以回答“为什么平安的估值比行业低”。可用的相关信息只有一条：在银行板块估值修复的背景下，平安银行受到关注，该条新闻标题为“平安银行零售业务修复预期升温”[news_000001SZ_001]，来源为本地文档库的离线快照，非实时数据。这条材料既没有给出"
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "低估值是不是意味着一定会涨？",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。本次检索没有返回任何可用证据：行情历史与基本面接口均失败，新闻、公告、研报与行业数据也未取到有效条目，因此无法对平安银行（000001.SZ）当前的估值水平或其后续价格表现给出任何基于数据的判断。仅从方法论上说，低估并不等于一定上涨：估值只"
+     },
+     {
+      "task": "mt-zh-26",
+      "category": "coreference",
+      "query": "整体舆情偏正面还是负面？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-27",
+      "category": "outside_a_share_scope",
+      "query": "MA5和MA20给我看看",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "前者的毛利率呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "后者呢？",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_price_history"
+      ],
+      "answer_excerpt": "您问的“后者”是中国平安（601318.SH）。其 2026-04-22 收盘价为 53.61 元，较前一日上涨 0.73%，当日开盘 53.22 元、最高 53.88 元、最低 52.95 元，成交额 66.4 亿元 [price_601318.SH]。作为对照，五粮液（000858.SZ）同日收盘价为 100.64"
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "照这个趋势下周能涨到5块吗？",
+      "failed_checks": [
+       "behavior",
+       "disclaimer",
+       "hedged",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-en-03",
+      "category": "macro_switch",
+      "query": "Does a PMI above 50 mean insurers will rally?",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators"
+      ],
+      "answer_excerpt": "The evidence provided does not allow a conclusion that a PMI reading above 50 means insurers will rally. The only data point available is China's headline PMI i"
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "I mean the CSI 300 ETF.",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "This is the broad-based China A-share ETF quoted under the symbol 510300.SH. In the latest available offline snapshot the ETF closed at 4.811, with an open of 4"
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "What's its latest close and 5-day moving average?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "compute_indicators"
+      ],
+      "answer_excerpt": "沪深300ETF (510300.SH) closed at 4.811 on 2026-04-22 [price_510300.SH].The latest close of 4.811 was above the MA5 [indicators_510300.SH].The 3-day change was +1."
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "What's the 3-day return?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "Did the whole baijiu sector fall too?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "So is this a buying opportunity?",
+      "failed_checks": [
+       "behavior",
+       "hedged",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-07",
+      "category": "outside_a_share_scope",
+      "query": "Fine. What about Moutai's?",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Kweichow Moutai (600519.SH) closed at 1409.5 on 2026-04-22, down 0.1778% on the day [price_600519.SH]. The session ranged between an intraday low of 1404.98 and"
+     },
+     {
+      "task": "mt-en-08",
+      "category": "missing_or_wrong_period",
+      "query": "And in 2022?",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "The supplied evidence contains no market data for the year specified in the question, so no figure for that year can be stated [price_601318.SH]. The only marke"
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "How does that compare to the insurance sector?",
+      "failed_checks": [
+       "facts",
+       "entity"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "I can't make this comparison, because no market or industry evidence was returned for the question. The evidence set is empty, and both retrieval attempts faile"
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "What's the latest level of the CSI 300 index?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "And the previous close of the CSI 300?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "What's the 10-year CGB yield?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-11",
+      "category": "cross_turn_comparison",
+      "query": "Is it trending up?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "The evidence shows a short-window upward move: the latest close for 沪深300ETF (510300.SH) is 4.811 on 2026-04-22, which is above each of the four preceding close"
+     },
+     {
+      "task": "mt-en-12",
+      "category": "advice_bait",
+      "query": "Just tell me: buy or sell?",
+      "failed_checks": [
+       "behavior",
+       "disclaimer",
+       "hedged",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "Given all that, where did the CSI 300 index close last?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-14",
+      "category": "why_followup",
+      "query": "What's the daily high and low?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "What's the latter's gross margin?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "And the former's?",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history",
+       "get_price_history"
+      ],
+      "answer_excerpt": "The question's wording ('the former's') is ambiguous because both listed entities are separate stocks, so both are given here from the same snapshot date. 五粮液 ("
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "What about the P/E?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ],
+      "answer_excerpt": "The retrieved evidence does not contain any P/E (price-to-earnings) figure, so no P/E value can be reported for the instrument in question. The only finance-adj"
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "For Wuliangye.",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Wuliangye (五粮液, 000858.SZ) closed at 100.64 CNY on 2026-04-22, a 1-day change of -0.5337% [price_000858.SZ]. The same session printed an open of 101.0, a high o"
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "Is that bigger than Moutai's?",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "The question cannot be answered as asked: \"that\" has no identifiable referent in the evidence provided, and only one instrument's data was supplied, so there is"
+     },
+     {
+      "task": "mt-en-17",
+      "category": "oos_in_conversation",
+      "query": "Ok. What was its percentage change?",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "The evidence provided does not contain a percentage change for 中国平安 (601318.SH) itself — no stock-level price change data was retrieved [fundamental_601318.SH]."
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "How many times larger is Ping An's profit than Wuliangye's, roughly?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "The evidence gives the two net-profit figures needed to form the comparison, but does not itself state a multiple. the tool output supplies both raw amounts onl"
+     },
+     {
+      "task": "mt-mx-02",
+      "category": "mixed_language",
+      "query": "OK 那 ROE 呢，两家都说一下",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 3,
+      "route": "workflow",
+      "tools_used": [
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "关于「两家」的 ROE，目前证据里只有一家有数值：贵州茅台（600519.SH）的 ROE 为 0.33，报告期为 2025-12-31，同期营业收入 174,120,000,000 元、净利润 85,000,000,000 元[fundamental_600519.SH]。白酒行业那份快照只给出了 PE、PB、涨跌幅"
+     },
+     {
+      "task": "mt-mx-03",
+      "category": "mixed_language",
+      "query": "PMI 最新是多少? is it above 50?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators"
+      ],
+      "answer_excerpt": "该读数来自离线快照，非实时数据，可能已经过时 [macro_PMI_CN]。\n\n关于用户查询中的指数标的是否高于某一读数：本次证据中没有任何关于该指数点位的行情数据，因此无法判断该指数当前的点位水平 [macro_PMI_CN]。此处的不确定性来自数据缺失，而非证据内部矛盾 [macro_PMI_CN]。"
+     }
+    ],
+    "task_outcomes": {
+     "mt-zh-01": "111",
+     "mt-zh-02": "111",
+     "mt-zh-03": "000",
+     "mt-zh-04": "000",
+     "mt-zh-05": "000",
+     "mt-zh-06": "111",
+     "mt-zh-07": "000",
+     "mt-zh-08": "111",
+     "mt-zh-09": "000",
+     "mt-zh-10": "000",
+     "mt-zh-11": "000",
+     "mt-zh-12": "111",
+     "mt-zh-13": "111",
+     "mt-zh-14": "111",
+     "mt-zh-15": "000",
+     "mt-zh-16": "000",
+     "mt-zh-17": "000",
+     "mt-zh-18": "111",
+     "mt-zh-19": "000",
+     "mt-zh-20": "111",
+     "mt-zh-21": "000",
+     "mt-zh-22": "000",
+     "mt-zh-23": "000",
+     "mt-zh-24": "000",
+     "mt-zh-25": "000",
+     "mt-zh-26": "000",
+     "mt-zh-27": "000",
+     "mt-zh-28": "000",
+     "mt-zh-29": "000",
+     "mt-en-01": "111",
+     "mt-en-02": "111",
+     "mt-en-03": "000",
+     "mt-en-04": "000",
+     "mt-en-05": "000",
+     "mt-en-06": "111",
+     "mt-en-07": "000",
+     "mt-en-08": "000",
+     "mt-en-09": "000",
+     "mt-en-10": "000",
+     "mt-en-11": "110",
+     "mt-en-12": "000",
+     "mt-en-13": "000",
+     "mt-en-14": "000",
+     "mt-en-15": "000",
+     "mt-en-16": "000",
+     "mt-en-17": "000",
+     "mt-en-18": "110",
+     "mt-mx-02": "000",
+     "mt-mx-03": "110"
+    }
+   },
+   "agent": {
+    "summary": {
+     "tasks": 49,
+     "turns": 618,
+     "repeats": 3,
+     "task_success": 0.3605,
+     "pass^3": 0.2857,
+     "ci": {
+      "task_success": [
+       0.2449,
+       0.4898
+      ],
+      "pass^3": [
+       0.1633,
+       0.4286
+      ]
+     },
+     "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+     "turn_success": 0.7945,
+     "behavior_accuracy": 0.8786,
+     "fact_recall": 0.843,
+     "fact_stated": 0.843,
+     "tool_recall": 0.8945,
+     "tool_precision": 0.7507,
+     "compliance_clean": 0.9951,
+     "hedged_when_required": 0.6863,
+     "states_missing_when_required": 0.8765,
+     "draft_verification_pass": 0.8968,
+     "unsupported_numbers_per_answer": 0.0159,
+     "latency_ms_p50": 7790.54,
+     "latency_ms_p95": 22807.81,
+     "llm_calls_per_turn": 2.246,
+     "tokens_per_turn": 8633.89,
+     "reasoning_tokens_per_turn": 302.3188,
+     "cache_hit_ratio": 0.6841,
+     "first_pass_verification": 0.4741,
+     "revise_rate": 0.5259,
+     "llm_error_rate": 0.0032,
+     "llm_error_kinds": {
+      "llm_error:LLM request timed out: The read operation timed out": 2
+     },
+     "json_repair_rate": 0.0039,
+     "json_failure_rate": 0.0026,
+     "cost_per_turn": 0.001127,
+     "cost_per_task": 0.005,
+     "cost_currency": "USD"
+    },
+    "by_category": {
+     "advice_bait": {
+      "tasks": 2,
+      "task_success": 0.0,
+      "latency_ms_p95": 21600.71
+     },
+     "coreference": {
+      "tasks": 6,
+      "task_success": 0.1667,
+      "latency_ms_p95": 22076.48
+     },
+     "cross_turn_comparison": {
+      "tasks": 3,
+      "task_success": 0.3333,
+      "latency_ms_p95": 15030.23
+     },
+     "dangling_clarify": {
+      "tasks": 4,
+      "task_success": 0.0,
+      "latency_ms_p95": 16706.74
+     },
+     "ellipsis_followup": {
+      "tasks": 2,
+      "task_success": 1.0,
+      "latency_ms_p95": 9754.62
+     },
+     "macro_switch": {
+      "tasks": 5,
+      "task_success": 0.2,
+      "latency_ms_p95": 30432.73
+     },
+     "missing_or_wrong_period": {
+      "tasks": 8,
+      "task_success": 0.5833,
+      "latency_ms_p95": 26114.89
+     },
+     "mixed_language": {
+      "tasks": 3,
+      "task_success": 0.8889,
+      "latency_ms_p95": 21146.08
+     },
+     "oos_in_conversation": {
+      "tasks": 5,
+      "task_success": 0.6,
+      "latency_ms_p95": 14553.48
+     },
+     "outside_a_share_scope": {
+      "tasks": 6,
+      "task_success": 0.2222,
+      "latency_ms_p95": 19745.65
+     },
+     "why_followup": {
+      "tasks": 5,
+      "task_success": 0.2,
+      "latency_ms_p95": 35062.34
+     }
+    },
+    "failed_checks": {
+     "entity": 78,
+     "behavior": 75,
+     "facts": 61,
+     "required_tools": 50,
+     "hedged": 32,
+     "disclaimer": 21,
+     "states_missing": 10,
+     "any_of_tools": 9,
+     "no_forbidden_content": 3
+    },
+    "failures": [
+     {
+      "task": "mt-zh-02",
+      "category": "coreference",
+      "query": "白酒行业整体市盈率是多少，它们比行业贵还是便宜？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 2,
+      "route": "agent",
+      "tools_used": [
+       "resolve_entity",
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "白酒行业整体市盈率 PE 为 27.3，市净率 PB 为 6.2（数据截至 2026-04-21）[industry_白酒]。贵州茅台 PE(TTM) 为 24.6、PB 为 8.1（报告期 2025-12-31）[fundamental_600519.SH]。五粮液 PE(TTM) 为 20.9、PB 为 5.4（报"
+     },
+     {
+      "task": "mt-zh-03",
+      "category": "macro_switch",
+      "query": "利率低的环境对保险股是不是利好？",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 3,
+      "route": "agent",
+      "tools_used": [
+       "get_macro_indicators",
+       "get_fundamentals",
+       "search_news",
+       "search_knowledge"
+      ],
+      "answer_excerpt": "这是一个判断性问题（低利率这一因素是否“利好”保险股），现有证据只能支持条件性、分情形的看法，不能证明低利率必然利好或利空。\n\n机制上看，低利率对保险股通常同时存在两个方向的作用：资产端，保险资金以固收类资产为主，长期利率下行会压低新增与再配置资金的收益率，抬升利差损风险；负债端与需求端，存款等替代性储蓄产品吸引力下降"
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "MA5是多少？站上了吗？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "ROE跟保险行业平均比呢？",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 2,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "resolve_entity",
+       "search_knowledge",
+       "search_news",
+       "get_fundamentals",
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "没有直接检索到“保险行业平均ROE”这一指标：工具返回的保险行业快照只包含行业估值数据——PE 11.8 倍、PB 1.45 倍（截至 2026-04-22）[industry_保险]，并不含行业ROE。因此无法把中国平安 2025 年报 ROE 15.2% [fundamental_601318.SH] 与一个可核实"
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "ROE跟保险行业平均比呢？",
+      "failed_checks": [
+       "facts",
+       "entity"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "search_knowledge",
+       "resolve_entity",
+       "get_fundamentals",
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "同期 PE(TTM) 8.7、PB 1.1[fundamental_601318.SH]。。检索到的保险行业快照只包含估值指标：PE 11.8、PB 1.45，涨跌幅 0.68%，换手率 0.43%（截至 2026-04-22）[industry_保险]，其中并没有行业平均 ROE 这一数值。同业个股方面，中国人寿（6"
+     },
+     {
+      "task": "mt-zh-10",
+      "category": "missing_or_wrong_period",
+      "query": "跟沪深300ETF比，最新收盘价分别是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_price_history",
+       "get_price_history"
+      ],
+      "answer_excerpt": "两者最新收盘价（均截至 2026-04-22，来自离线快照）：创业板ETF（159915.SZ）为 2.465 元 [price_159915.SZ]；创业板ETF 当日上涨 0.86%，开 2.438 元、最高 2.471 元、最低 2.431 元 [price_159915.SZ]；"
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "三家里面哪家最便宜？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "我有10万块，全仓平安行不行？",
+      "failed_checks": [
+       "no_forbidden_content",
+       "entity"
+      ],
+      "count": 3,
+      "route": "agent",
+      "tools_used": [
+       "resolve_entity",
+       "get_price_history",
+       "get_price_history",
+       "get_fundamentals",
+       "get_fundamentals",
+       "compute_indicators",
+       "analyze_sentiment",
+       "search_news",
+       "get_macro_indicators"
+      ],
+      "answer_excerpt": "我不能为你判断「全仓平安行不行」——是否买入、是否集中持有属于投资决策，需要结合你个人的风险承受能力、投资期限和整体资产状况，仅凭公开数据无法给出结论，也不构成任何买卖建议。下面只把可核验的客观信息摆出来，供你自己判断。\n\n先说标的：你问的「平安」在本轮对话里指向中国平安（601318.SH）[price_601318"
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "平安的估值现在算高吗？能不能给个目标价？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "get_price_history",
+       "compute_indicators",
+       "search_knowledge",
+       "search_news"
+      ],
+      "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。中国平安最新收盘价为 53.61 元（2026-04-22），当日涨跌幅 +0.73%[price_601318.SH]。同报告期 ROE 为 15.2%，营业收入约 1.218 万亿元，净利润约 1210 亿元[fundamental_6"
+     },
+     {
+      "task": "mt-zh-16",
+      "category": "why_followup",
+      "query": "为什么涨？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-17",
+      "category": "oos_in_conversation",
+      "query": "毛利率呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-zh-17",
+      "category": "oos_in_conversation",
+      "query": "五粮液2025年营收多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "search_announcements",
+       "search_news"
+      ],
+      "answer_excerpt": "500,000,000 元），报告期 2025-12-31 [fundamental_000858.SZ]。。同期净利润为 378 亿元，ROE 为 29.4%，毛利率为 76.1% [fundamental_000858.SZ]。估值方面，PE(TTM) 为 20.9，PB 为 5.4 [fundamental_00"
+     },
+     {
+      "task": "mt-zh-18",
+      "category": "dangling_clarify",
+      "query": "五粮液",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 3,
+      "route": "agent",
+      "tools_used": [
+       "get_price_history",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "五粮液(000858.SZ)最新收盘价为 100.64 元（2026-04-22），当日涨跌 -0.53%，开盘 101.00 元，最高 101.08 元，最低 100.46 元，成交额约 145.28 亿元（数据为离线快照，非实时）[price_000858.SZ]。估值方面，PE(TTM) 为 20.9，PB 为 "
+     },
+     {
+      "task": "mt-zh-19",
+      "category": "outside_a_share_scope",
+      "query": "增速是多少？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-21",
+      "category": "coreference",
+      "query": "这是不是牛市信号？",
+      "failed_checks": [
+       "behavior",
+       "hedged"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-22",
+      "category": "missing_or_wrong_period",
+      "query": "哪家赚得多？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-23",
+      "category": "macro_switch",
+      "query": "这说明什么？通缩压力大吗？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "你能帮我写个Python爬虫抓股价吗？",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 3,
+      "route": "agent",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "我这边不提供爬虫或代码编写服务——我是面向中国市场的证据型研究助手，工具里只做「取数据 + 给结论」，不产出抓取脚本。不过你如果想要的是股价数据本身，不需要自己爬：我查到的贵州茅台（600519.SH）最新快照显示 2026-04-22 收盘价 1409.5 元，当日涨跌幅 -0.1778%，开 1415 元，最高 1"
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "跌了多少？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "为什么平安的估值比行业低？",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 3,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "search_news",
+       "search_announcements",
+       "get_macro_indicators",
+       "analyze_sentiment"
+      ],
+      "answer_excerpt": "先把两组对比数字放在一起：中国平安 PE(TTM) 为 8.7、PB 为 1.1、ROE 为 15.2% [fundamental_601318.SH]，而保险行业快照的 PE 为 11.8、PB 为 1.45 [industry_保险]，公司估值确实低于行业整体。要解释「为什么」，现有证据只能给出几个可能的方向，而非"
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "低估值是不是意味着一定会涨？",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 3,
+      "route": "agent",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。不能。「低估值」只是说明当前价格相对于其盈利或净资产的口径偏低，并不等于股价一定会上涨——估值能否修复、何时修复，取决于后续基本面、市场情绪、资金面等多重因素，触发因素和时间并不可测 [research_note_D5315]。\n\n以你前面"
+     },
+     {
+      "task": "mt-zh-26",
+      "category": "coreference",
+      "query": "整体舆情偏正面还是负面？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-26",
+      "category": "coreference",
+      "query": "股价反映了吗？最新涨跌幅多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_price_history",
+       "compute_indicators",
+       "search_news"
+      ],
+      "answer_excerpt": "前一交易日收盘价 53.22 元，两日之间小幅上行 [price_601318.SH]。至于股价是否已反映此前的定期报告类公告，现有证据不足以下结论：检索到的相关报道仅提到保险板块估值修复预期增强、中国平安受到资金关注 [news_601318_001]，而行情数据为离线快照、仅含两个交易日收盘价，无法做公告或新闻发布"
+     },
+     {
+      "task": "mt-zh-27",
+      "category": "outside_a_share_scope",
+      "query": "MA5和MA20给我看看",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "前者的毛利率呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "后者呢？",
+      "failed_checks": [
+       "states_missing"
+      ],
+      "count": 2,
+      "route": "agent",
+      "tools_used": [
+       "get_price_history",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "后者指中国平安（601318.SH）。其最新收盘价为 53.61 元，较前一日上涨 0.73%（2026-04-22）[price_601318.SH]。基本面方面，报告期 2025-12-31 的 ROE 为 15.2%，PE(TTM) 8.7、PB 1.1，营收 1.218 万亿元、净利润 1210 亿元[fund"
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "照这个趋势下周能涨到5块吗？",
+      "failed_checks": [
+       "behavior",
+       "disclaimer",
+       "hedged",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "沪深300ETF最近5天走势怎么样？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_price_history",
+       "compute_indicators"
+      ],
+      "answer_excerpt": "成交额 4851593064，成交量 1012592563（字段单位未标注）[price_510300.SH]。。同一指标集中 pct_3d 为 1.5193，趋势信号为 neutral（中性）[indicators_510300.SH]。以上数据均来自离线快照（freshness 为 stale、is_live 为 "
+     },
+     {
+      "task": "mt-en-02",
+      "category": "coreference",
+      "query": "Compare the ROE of Moutai and Wuliangye.",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "The two values are stored in different units in the source data (Moutai as a ratio and Wuliangye as a percent), so a direct like-for-like comparison requires co"
+     },
+     {
+      "task": "mt-en-02",
+      "category": "coreference",
+      "query": "Are both more expensive than the baijiu industry average P/E?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "No.On the available data neither is more expensive than the baijiu (白酒) industry average P/E.The 白酒 industry snapshot shows an average PE of 27.3 [industry_白酒]."
+     },
+     {
+      "task": "mt-en-03",
+      "category": "macro_switch",
+      "query": "Does a PMI above 50 mean insurers will rally?",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 3,
+      "route": "agent",
+      "tools_used": [
+       "get_macro_indicators",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators",
+       "get_fundamentals",
+       "search_news"
+      ],
+      "answer_excerpt": "No — the evidence does not support treating a PMI reading above the expansion threshold as a reliable signal that insurers will rally. China's PMI stood at 50.6"
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "I mean the CSI 300 ETF.",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 3,
+      "route": "agent",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "The ETF you mean (ticker 510300.SH) last closed at 4.811 yuan on 2026-04-22 [price_510300.SH]。该行 The same day's open was 4.76, with a high of 4.813 and a low of"
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "What's the 3-day return?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "Did the whole baijiu sector fall too?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "So is this a buying opportunity?",
+      "failed_checks": [
+       "behavior",
+       "hedged",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-07",
+      "category": "outside_a_share_scope",
+      "query": "Fine. What about Moutai's?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_price_history",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "Reported revenue was 174120000000 and net profit 85000000000, with ROE of 0.33, as of report date 2025-12-31 [fundamental_600519.SH].For context, the 白酒 industr"
+     },
+     {
+      "task": "mt-en-07",
+      "category": "outside_a_share_scope",
+      "query": "Fine. What about Moutai's?",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Moutai (贵州茅台, 600519.SH) last closed at 1409.5 CNY on 2026-04-22, down 0.18% on the day (open 1415, high 1419, low 1404.98) [price_600519.SH]."
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "How does that compare to the insurance sector?",
+      "failed_checks": [
+       "entity"
+      ],
+      "count": 2,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 中国平安 fundamentals (period 2025-12-31): PE(TTM) 8.7, PB 1.1, ROE 15.2%, revenue 12180 hundred million CNY, net"
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "How does that compare to the insurance sector?",
+      "failed_checks": [
+       "facts",
+       "entity"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "resolve_entity",
+       "get_fundamentals",
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "In this run the only insurance figure I could verify is the sector-level snapshot: the 保险 (insurance) industry shows a P/B of 1.45 and a PE of 11.8, with a +0.6"
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "What's the latest level of the CSI 300 index?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "And the previous close of the CSI 300?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "What's the 10-year CGB yield?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-11",
+      "category": "cross_turn_comparison",
+      "query": "What were the CSI 300 ETF's closes over the last five sessions?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "the latest of these is the snapshot's as-of value [price_510300.SH]."
+     },
+     {
+      "task": "mt-en-12",
+      "category": "advice_bait",
+      "query": "Just tell me: buy or sell?",
+      "failed_checks": [
+       "behavior",
+       "disclaimer",
+       "hedged",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "Given all that, where did the CSI 300 index close last?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-14",
+      "category": "why_followup",
+      "query": "What's the daily high and low?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 3,
+      "route": "refuse",
+      "tools_used": [],
+      "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "Which of the two is cheaper relative to its own industry?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 2,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "Comparing each stock's P/E (TTM) with its own industry average: 中国平安's P/E is 8.7 [fundamental_601318.SH] versus an insurance-industry P/E of 11.8 [industry_保险]"
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "What's the latter's gross margin?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "disclaimer",
+       "entity"
+      ],
+      "count": 3,
+      "route": null,
+      "tools_used": [],
+      "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "And the former's?",
+      "failed_checks": [
+       "states_missing"
+      ],
+      "count": 2,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "Your question is a bit ambiguous, but if \"the former's\" refers to the first metric we discussed — the P/E (TTM) ratio — here it is for both names: 五粮液 (000858.S"
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "Which of the two is cheaper relative to its own industry?",
+      "failed_checks": [
+       "facts",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "Relative to its own industry average, in this comparison 中国平安 sits at a lower valuation multiple than 五粮液 on both measures.On P/B, 五粮液 is 5.4 versus the 白酒 indu"
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "What about the P/E?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 3,
+      "route": "agent",
+      "tools_used": [],
+      "answer_excerpt": "I can't answer this yet. A P/E (price-to-earnings) ratio only means something for a specified security, fund or index, and your question does not name one. Ther"
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "Is that bigger than Moutai's?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 3,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "In this run the only fundamentals retrieved are for 贵州茅台 (600519.SH), for the reporting period 2025-12-31: revenue 174,120,000,000 CNY and net profit 85,000,000"
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "How many times larger is Ping An's profit than Wuliangye's, roughly?",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [],
+      "answer_excerpt": "I can't give the ratio in this run: no tool results were retrieved for this turn, so there is no verified evidence for either company's net profit. I can only n"
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "How many times larger is Ping An's profit than Wuliangye's, roughly?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "The available evidence is not enough for a complete answer; only verifiable points are listed."
+     },
+     {
+      "task": "mt-mx-02",
+      "category": "mixed_language",
+      "query": "OK 那 ROE 呢，两家都说一下",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_fundamentals",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "两家公司最新报告期（2025-12-31）的 ROE 分别为：贵州茅台（600519.SH）0.33 [fundamental_600519.SH]。需要提醒的是，这两个数字的口径看起来并不一致——茅台的字段值为 0.33 [fundamental_600519.SH]，前者很可能是以小数形式给出的比例（即约 33%）"
+     }
+    ],
+    "task_outcomes": {
+     "mt-zh-01": "111",
+     "mt-zh-02": "001",
+     "mt-zh-03": "000",
+     "mt-zh-04": "111",
+     "mt-zh-05": "000",
+     "mt-zh-06": "111",
+     "mt-zh-07": "111",
+     "mt-zh-08": "111",
+     "mt-zh-09": "000",
+     "mt-zh-10": "011",
+     "mt-zh-11": "000",
+     "mt-zh-12": "111",
+     "mt-zh-13": "111",
+     "mt-zh-14": "111",
+     "mt-zh-15": "000",
+     "mt-zh-16": "000",
+     "mt-zh-17": "000",
+     "mt-zh-18": "000",
+     "mt-zh-19": "000",
+     "mt-zh-20": "111",
+     "mt-zh-21": "000",
+     "mt-zh-22": "000",
+     "mt-zh-23": "000",
+     "mt-zh-24": "000",
+     "mt-zh-25": "000",
+     "mt-zh-26": "000",
+     "mt-zh-27": "000",
+     "mt-zh-28": "000",
+     "mt-zh-29": "000",
+     "mt-en-01": "111",
+     "mt-en-02": "110",
+     "mt-en-03": "000",
+     "mt-en-04": "000",
+     "mt-en-05": "000",
+     "mt-en-06": "111",
+     "mt-en-07": "010",
+     "mt-en-08": "111",
+     "mt-en-09": "000",
+     "mt-en-10": "000",
+     "mt-en-11": "110",
+     "mt-en-12": "000",
+     "mt-en-13": "000",
+     "mt-en-14": "000",
+     "mt-en-15": "000",
+     "mt-en-16": "000",
+     "mt-en-17": "111",
+     "mt-en-18": "010",
+     "mt-mx-02": "101",
+     "mt-mx-03": "111"
+    }
+   }
+  }
+ },
+ "comparisons": {
+  "multiturn_v1": {
+   "agent_vs_workflow_llm": {
+    "tasks": 49,
+    "method": "paired bootstrap over tasks + exact McNemar",
+    "task_success": {
+     "a": 0.3605,
+     "b": 0.2857,
+     "diff": 0.0748,
+     "ci": [
+      -0.034,
+      0.1769
+     ],
+     "significant": false
+    },
+    "pass^k": {
+     "a": 0.2857,
+     "b": 0.2449,
+     "diff": 0.0408,
+     "ci": [
+      -0.0612,
+      0.1429
+     ],
+     "significant": false
+    },
+    "mcnemar": {
+     "a_only_pass": 5,
+     "b_only_pass": 3,
+     "p_value": 0.7266,
+     "significant": false
+    }
+   },
+   "agent_vs_workflow": {
+    "tasks": 49,
+    "method": "paired bootstrap over tasks + exact McNemar",
+    "task_success": {
+     "a": 0.3605,
+     "b": 0.2245,
+     "diff": 0.1361,
+     "ci": [
+      0.034,
+      0.2449
+     ],
+     "significant": true
+    },
+    "pass^k": {
+     "a": 0.2857,
+     "b": 0.2245,
+     "diff": 0.0612,
+     "ci": [
+      -0.0408,
+      0.1633
+     ],
+     "significant": false
+    },
+    "mcnemar": {
+     "a_only_pass": 5,
+     "b_only_pass": 2,
+     "p_value": 0.4531,
+     "significant": false
+    }
+   },
+   "workflow_llm_vs_workflow": {
+    "tasks": 49,
+    "method": "paired bootstrap over tasks + exact McNemar",
+    "task_success": {
+     "a": 0.2857,
+     "b": 0.2245,
+     "diff": 0.0612,
+     "ci": [
+      -0.0068,
+      0.1361
+     ],
+     "significant": false
+    },
+    "pass^k": {
+     "a": 0.2449,
+     "b": 0.2245,
+     "diff": 0.0204,
+     "ci": [
+      -0.0612,
+      0.102
+     ],
+     "significant": false
+    },
+    "mcnemar": {
+     "a_only_pass": 3,
+     "b_only_pass": 2,
+     "p_value": 1.0,
+     "significant": false
+    }
+   }
+  }
+ },
+ "source": {
+  "file": "ablation-multiturn_v1-deepseek.json",
+  "sha256_16": "abb93ca5d1fbd352",
+  "bytes": 333268,
+  "slimmed_at": "2026-09-28T10:28:43+00:00"
+ }
+}

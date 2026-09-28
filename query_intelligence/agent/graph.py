@@ -768,9 +768,7 @@ class AgentRuntime:
         draft = state.get("draft") or {}
         store = _store(state)
         llm_draft = state.get("draft_source") in {"llm_agent", "llm_compose"}
-        report = verify_answer(
-            draft, store, query=state["query"], market_precedence=llm_draft, require_citations=llm_draft
-        )
+        report = verify_answer(draft, store, query=state["query"], market_precedence=llm_draft, require_citations=True)
         update: dict[str, Any] = {"verification": report.model_dump()}
         can_revise = (
             not report.passed
@@ -782,10 +780,19 @@ class AgentRuntime:
             update["next"] = "revise"
             return update
         if not report.passed:
-            repaired, notes = repair_answer(draft, report, store, zh=self._zh(state))
-            update.update(
-                {"draft": repaired, "verification_notes": notes, "degraded": ["verification_failed:repaired"]}
-            )
+            fallback = None
+            if llm_draft:
+                # If nothing verifiable survives the repair, answer with the deterministic template instead
+                # of a stub; it restates the same tool results and must pass the template checks itself.
+                style = str((state.get("nlu") or {}).get("question_style") or "")
+                template = compose_template(state.get("tool_log") or [], zh=self._zh(state), question_style=style)
+                if verify_answer(template, store, query=state["query"], market_precedence=False).passed:
+                    fallback = template
+            repaired, notes = repair_answer(draft, report, store, zh=self._zh(state), fallback=fallback)
+            degraded = ["verification_failed:repaired"]
+            if fallback is not None and repaired.get("answer") == fallback.get("answer"):
+                degraded.append("verification_failed:template_fallback")
+            update.update({"draft": repaired, "verification_notes": notes, "degraded": degraded})
         update["next"] = "compliance"
         return update
 

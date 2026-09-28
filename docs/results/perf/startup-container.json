@@ -1,0 +1,111 @@
+{
+ "commit": "edcb442",
+ "image": "finsight:edcb442",
+ "image_id": "sha256:5251446b40afc751f27bb15bf7bb9681e12de6836df0f967eac35948ba290ff9",
+ "image_content_size_mb": 586,
+ "image_size_listed": "2GB",
+ "run_at": "2026-09-28T09:27:44+00:00",
+ "command": "python scripts/measure_container_startup.py --image finsight:edcb442 --runs 3 --out docs/results/perf/startup-container.json",
+ "container": "read-only rootfs, uid 10001, tmpfs /tmp /app/state /app/outputs, live data off, SQLite checkpointer, no LLM key",
+ "host": {
+  "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "cpus": 10,
+  "docker_vm_cpus": 4,
+  "docker_vm_memory_gb": 7.7
+ },
+ "seconds": {
+  "health_200_median": 45.68,
+  "ready_200_median": 45.99,
+  "ready_200_min": 45.53,
+  "ready_200_max": 57.5
+ },
+ "runs": [
+  {
+   "health_200_s": 57.13,
+   "ready_200_s": 57.5,
+   "service_build_log": "[startup] Query Intelligence service loaded in 52.4s.",
+   "ready_checks": {
+    "checkpointer": {
+     "ok": true,
+     "backend": "SqliteSaver",
+     "persistent": true,
+     "database": "sqlite"
+    },
+    "model_config": {
+     "ok": true,
+     "llm": "not configured (deterministic agent)"
+    },
+    "retrieval_index": {
+     "ok": true,
+     "backend": "DocumentRetriever",
+     "documents": 38446,
+     "index_rows": 38446,
+     "structured_tables": 5
+    }
+   },
+   "load_avg_before": [
+    7.4,
+    6.24,
+    5.03
+   ]
+  },
+  {
+   "health_200_s": 45.05,
+   "ready_200_s": 45.53,
+   "service_build_log": "[startup] Query Intelligence service loaded in 42.5s.",
+   "ready_checks": {
+    "checkpointer": {
+     "ok": true,
+     "backend": "SqliteSaver",
+     "persistent": true,
+     "database": "sqlite"
+    },
+    "model_config": {
+     "ok": true,
+     "llm": "not configured (deterministic agent)"
+    },
+    "retrieval_index": {
+     "ok": true,
+     "backend": "DocumentRetriever",
+     "documents": 38446,
+     "index_rows": 38446,
+     "structured_tables": 5
+    }
+   },
+   "load_avg_before": [
+    12.2,
+    8.16,
+    5.85
+   ]
+  },
+  {
+   "health_200_s": 45.68,
+   "ready_200_s": 45.99,
+   "service_build_log": "[startup] Query Intelligence service loaded in 42.9s.",
+   "ready_checks": {
+    "checkpointer": {
+     "ok": true,
+     "backend": "SqliteSaver",
+     "persistent": true,
+     "database": "sqlite"
+    },
+    "model_config": {
+     "ok": true,
+     "llm": "not configured (deterministic agent)"
+    },
+    "retrieval_index": {
+     "ok": true,
+     "backend": "DocumentRetriever",
+     "documents": 38446,
+     "index_rows": 38446,
+     "structured_tables": 5
+    }
+   },
+   "load_avg_before": [
+    8.72,
+    7.79,
+    5.82
+   ]
+  }
+ ]
+}

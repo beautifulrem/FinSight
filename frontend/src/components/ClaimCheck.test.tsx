@@ -103,7 +103,7 @@ describe("ClaimReportCard comparators", () => {
       claim: "贵州茅台ROE超过30%，市盈率不是15倍",
       verdict: "supported",
       checks: [
-        { ...REPORT.checks[0]!, metric: "roe", claimed: 30, claimed_unit: "%", comparator: "gt", actual: 0.33, status: "supported", as_of_basis: "report_date" },
+        { ...REPORT.checks[0]!, metric: "roe", claimed: 30, claimed_unit: "%", comparator: "gt", actual: 33, status: "supported", as_of_basis: "report_date" },
         { ...REPORT.checks[0]!, claimed: 15, comparator: "ne", negated: true, status: "supported", as_of: "2026-09-24", as_of_basis: "valuation_date" },
       ],
     };

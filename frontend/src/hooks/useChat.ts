@@ -40,6 +40,10 @@ export interface Turn {
   startedAt: number;
   finishedAt?: number;
   steps: LiveStep[];
+  /** The graph node that last started (`node_start`) or finished (`step`): drives the live progress panel. */
+  current?: { node: string; running: boolean };
+  /** `performance.now()` when the first answer token arrived (client-side time to first token). */
+  firstTokenAt?: number;
   /** Answer text streamed by `answer_delta` events; the final `answer` replaces it (kept for comparison). */
   draft?: string;
   agent?: AgentResponse;
@@ -71,7 +75,7 @@ interface State {
 type Action =
   | { type: "start"; turn: Turn }
   | { type: "event"; id: string; event: StreamEvent }
-  | { type: "delta"; id: string; text: string }
+  | { type: "delta"; id: string; text: string; firstAt: number }
   | { type: "agent"; id: string; response: AgentResponse }
   | { type: "classic"; id: string; response: ClassicResponse }
   | { type: "error"; id: string; error: { kind: ErrorKind; message: string } }
@@ -97,10 +101,17 @@ function updateTurn(state: State, id: string, update: (turn: Turn) => Turn): Sta
   };
 }
 
-function applyEvent(turn: Turn, event: StreamEvent): Turn {
+/** One stream event folded into the turn (exported for the progress state-machine tests). */
+export function applyEvent(turn: Turn, event: StreamEvent): Turn {
   switch (event.event) {
+    case "node_start":
+      return { ...turn, current: { node: event.data.node, running: true } };
     case "step":
-      return { ...turn, steps: [...turn.steps, { id: nextId("step"), node: event.data.node, tools: [] }] };
+      return {
+        ...turn,
+        current: { node: event.data.node, running: false },
+        steps: [...turn.steps, { id: nextId("step"), node: event.data.node, tools: [] }],
+      };
     case "tool_call": {
       const tool: LiveTool = { id: nextId("tool"), tool: event.data.tool, args: event.data.arguments, status: "running" };
       if (!turn.steps.length) return { ...turn, steps: [{ id: nextId("step"), node: "agent_tools", tools: [tool] }] };
@@ -148,7 +159,9 @@ function reducer(state: State, action: Action): State {
       return updateTurn(state, action.id, (turn) => applyEvent(turn, action.event));
     case "delta":
       return updateTurn(state, action.id, (turn) =>
-        turn.status === "running" ? { ...turn, draft: (turn.draft ?? "") + action.text } : turn,
+        turn.status === "running"
+          ? { ...turn, draft: (turn.draft ?? "") + action.text, firstTokenAt: turn.firstTokenAt ?? action.firstAt }
+          : turn,
       );
     case "agent": {
       const next = updateTurn(state, action.id, (turn) => withAgent(turn, action.response));
@@ -237,19 +250,22 @@ export function useChat(options: ChatOptions) {
     // Token deltas can arrive faster than the screen refreshes: buffer them and render once per frame.
     let buffered = "";
     let frame: number | null = null;
+    // Time to first token is taken when the first delta arrives, not when its frame is painted.
+    let firstAt: number | null = null;
     const flush = () => {
       if (frame !== null) cancelFrame(frame);
       frame = null;
       if (!buffered) return;
       const text = buffered;
       buffered = "";
-      emit({ type: "delta", id, text });
+      emit({ type: "delta", id, text, firstAt: firstAt ?? performance.now() });
     };
     const runStream = async () => {
       let finished = false;
       for await (const event of streamAgentChat(query, sessionId, mode as Exclude<UiMode, "classic">, request)) {
         if (event.event === "answer_delta") {
-          if (typeof event.data?.text !== "string") continue;
+          if (typeof event.data?.text !== "string" || !event.data.text) continue;
+          firstAt ??= performance.now();
           buffered += event.data.text;
           if (frame === null) frame = requestFrame(flush);
           continue;

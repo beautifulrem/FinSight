@@ -186,7 +186,35 @@ const zh = {
   "a11y.userSaid": "你的问题",
   "a11y.assistant": "FinSight 回答",
   "a11y.conversation": "FinSight 对话",
-  "stream.writing": "正在撰写回答",
+  "progress.title": "进度",
+  "progress.status": "{phase}：{activity}",
+  "progress.phase.understand": "理解问题",
+  "progress.phase.fetch": "查询数据",
+  "progress.phase.write": "撰写回答",
+  "progress.phase.verify": "核对数字",
+  "progress.state.done": "已完成",
+  "progress.state.active": "进行中",
+  "progress.state.pending": "未开始",
+  "progress.activity.starting": "正在提交问题",
+  "progress.activity.routing": "识别问题中的证券与意图",
+  "progress.activity.clarifying": "判断是否需要澄清",
+  "progress.activity.planning": "模型正在规划要查询的数据",
+  "progress.activity.fetching": "正在调用数据工具",
+  "progress.activity.reading": "模型正在阅读数据、组织回答",
+  "progress.activity.composing": "正在根据证据组织回答",
+  "progress.activity.writing": "正在撰写回答",
+  "progress.activity.verifying": "逐一核对回答中的数字与引用",
+  "progress.activity.revising": "修正未通过核验的内容",
+  "progress.activity.finalizing": "合规检查与定稿",
+  "progress.elapsed": "{s} 秒",
+  "progress.elapsedLabel": "已用时",
+  "progress.tools": "数据工具调用",
+  "progress.moreTools": "另有 {n} 次更早的调用",
+  "progress.slow": "模型推理通常需要 10–20 秒，可随时停止。",
+  "progress.stoppedAfter": "已停止（用时 {s} 秒）",
+  "run.ttft": "首字耗时",
+  "run.ttftNone": "未流式输出",
+  "run.clientTimed": "浏览器计时",
   "answer.edited": "已按核验结果修订",
   "answer.editedHint": "核验后的最终回答与流式草稿不同，已替换为最终版本。",
   "answer.actions": "回答操作",
@@ -494,7 +522,35 @@ const en: Record<MessageKey, string> = {
   "a11y.userSaid": "Your question",
   "a11y.assistant": "FinSight answer",
   "a11y.conversation": "FinSight conversation",
-  "stream.writing": "Writing the answer",
+  "progress.title": "Progress",
+  "progress.status": "{phase}: {activity}",
+  "progress.phase.understand": "Plan",
+  "progress.phase.fetch": "Get data",
+  "progress.phase.write": "Draft",
+  "progress.phase.verify": "Verify",
+  "progress.state.done": "done",
+  "progress.state.active": "in progress",
+  "progress.state.pending": "not started",
+  "progress.activity.starting": "Sending the question",
+  "progress.activity.routing": "Identifying the securities and intent",
+  "progress.activity.clarifying": "Checking whether to ask back",
+  "progress.activity.planning": "The model is planning which data to fetch",
+  "progress.activity.fetching": "Calling data tools",
+  "progress.activity.reading": "The model is reading the data and drafting",
+  "progress.activity.composing": "Composing the answer from the evidence",
+  "progress.activity.writing": "Writing the answer",
+  "progress.activity.verifying": "Checking every number and citation",
+  "progress.activity.revising": "Fixing what failed the check",
+  "progress.activity.finalizing": "Compliance check and final answer",
+  "progress.elapsed": "{s}s",
+  "progress.elapsedLabel": "Elapsed",
+  "progress.tools": "Data tool calls",
+  "progress.moreTools": "Earlier calls: {n}",
+  "progress.slow": "Model reasoning usually takes 10–20 s. You can stop at any time.",
+  "progress.stoppedAfter": "Stopped after {s}s",
+  "run.ttft": "First token",
+  "run.ttftNone": "Not streamed",
+  "run.clientTimed": "measured in the browser",
   "answer.edited": "Edited after verification",
   "answer.editedHint": "The verified final answer differs from the streamed draft and has replaced it.",
   "answer.actions": "Answer actions",
@@ -730,6 +786,54 @@ const SOURCE_TYPES: Record<Lang, Record<string, string>> = {
 export function sourceTypeLabel(lang: Lang, type: string | null | undefined): string {
   if (!type) return lang === "zh" ? "证据" : "Evidence";
   return SOURCE_TYPES[lang][type] ?? type;
+}
+
+// English names for the source ids of query_intelligence/integrations/sources/catalog.py (whose labels are
+// Chinese) and for the generic source names the server uses. Media names (每日经济新闻) stay as published.
+const SOURCE_NAMES_EN: Record<string, string> = {
+  offline_snapshot: "Offline snapshot",
+  local_corpus: "Local document library",
+  "eastmoney.quote": "Eastmoney quotes",
+  "eastmoney.datacenter": "Eastmoney data center",
+  "eastmoney.fund": "Tiantian Fund (Eastmoney)",
+  "eastmoney.news": "Eastmoney news",
+  "eastmoney.announcement": "Eastmoney announcements",
+  "sina.kline": "Sina Finance quotes",
+  "sina.quote": "Sina real-time quotes",
+  "sina.finance": "Sina Finance financial indicators",
+  "tencent.kline": "Tencent Securities quotes",
+  "tencent.quote": "Tencent real-time quotes",
+  "ths.finance": "Tonghuashun financial summary",
+  "ths.industry": "Tonghuashun industry index",
+  csindex: "China Securities Index",
+  chinabond: "ChinaBond yield curve",
+  "cninfo.announcement": "CNINFO announcements",
+  "cninfo.profile": "CNINFO company profile",
+  xueqiu: "Xueqiu",
+  efinance: "efinance (Eastmoney K-line)",
+  tushare: "Tushare Pro",
+  seed: "Offline seed data",
+  snapshot: "Offline snapshot",
+  离线快照: "Offline snapshot",
+  本地文档库: "Local document library",
+  "classical sentiment model": "Classical sentiment model",
+};
+
+/**
+ * Where an evidence item came from, in the reader's language. Chinese keeps the server's label; English maps
+ * the provenance source id (or a known label/source name) and otherwise shows the name as published.
+ */
+export function sourceNameLabel(
+  lang: Lang,
+  provenance: { source?: string | null; source_label?: string | null } | null | undefined,
+  sourceName?: string | null,
+): string | undefined {
+  const label = provenance?.source_label || sourceName || provenance?.source || undefined;
+  if (lang === "zh" || !label) return label ?? undefined;
+  for (const key of [provenance?.source, provenance?.source_label, sourceName]) {
+    if (key && SOURCE_NAMES_EN[key]) return SOURCE_NAMES_EN[key];
+  }
+  return label;
 }
 
 export interface I18n {

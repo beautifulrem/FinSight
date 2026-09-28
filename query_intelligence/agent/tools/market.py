@@ -39,12 +39,15 @@ class PriceHistoryOutput(BaseModel):
     high: float | None = None
     low: float | None = None
     pct_change_1d: float | None = Field(default=None, description="Daily change in percent.")
-    volume: float | None = None
-    amount: float | None = None
+    volume: float | None = Field(default=None, description="Traded volume; in shares once normalised (volume_unit).")
+    amount: float | None = Field(default=None, description="Turnover; in CNY once normalised (amount_unit).")
     recent_closes: list[DailyClose] = Field(description="Oldest first; the last element is the latest close.")
     source: str | None
     evidence_id: str
-    volume_unit: str | None = Field(default=None, description="'lot' (手, 100 shares) or 'share', per source.")
+    volume_unit: str | None = Field(
+        default=None,
+        description="'lot' (手, 100 shares) or 'share' as served; the registry converts to 'share' (tools/units.py).",
+    )
     provenance: SourceProvenance | None = Field(
         default=None, description="Where the quote came from, its as-of date, and why a fallback was used."
     )

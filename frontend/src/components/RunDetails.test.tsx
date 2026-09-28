@@ -55,3 +55,27 @@ describe("RunDetails route reasons", () => {
     }
   });
 });
+
+describe("RunDetails timings", () => {
+  it("shows the client-measured time to first token and the total time", () => {
+    const item: Turn = { ...turn([]), startedAt: 100, firstTokenAt: 9_900, finishedAt: 14_300 };
+    render(
+      <TooltipProvider>
+        <RunDetails view={answerView(item)!} turn={item} sessionId="s1" />
+      </TooltipProvider>,
+    );
+    expect(document.querySelector(".run-ttft")).toHaveTextContent("9.80 s");
+    expect(document.querySelector(".run-wall")).toHaveTextContent("14.2 s");
+    expect(screen.getAllByText("· 浏览器计时")).toHaveLength(2);
+  });
+
+  it("says when an agent answer was not streamed", () => {
+    const item = turn([]);
+    render(
+      <TooltipProvider>
+        <RunDetails view={answerView(item)!} turn={item} sessionId="s1" />
+      </TooltipProvider>,
+    );
+    expect(document.querySelector(".run-ttft")).toHaveTextContent("未流式输出");
+  });
+});

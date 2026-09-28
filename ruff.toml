@@ -2,6 +2,7 @@
 # Legacy modules are not linted yet to avoid unrelated churn.
 target-version = "py313"
 line-length = 120
+extend-exclude = ["evaluation/agent_eval/independent"]
 include = [
     "query_intelligence/agent/**/*.py",
     "evaluation/agent_eval/**/*.py",
@@ -11,12 +12,15 @@ include = [
     "tests/test_web_ui.py",
     "scripts/export_agent_schemas.py",
     "query_intelligence/api/security.py",
+    "query_intelligence/api/readiness.py",
+    "tests/test_api_readiness.py",
     "query_intelligence/chat/**/*.py",
     "query_intelligence/chatbot.py",
     "query_intelligence/integrations/sources/**/*.py",
     "query_intelligence/integrations/ops_metrics.py",
     "query_intelligence/integrations/akshare_market_provider.py",
     "scripts/load_test.py",
+    "scripts/measure_container_startup.py",
     "scripts/chaos_*.py",
     "monitoring/**/*.py",
     "tests/test_source_reliability.py",

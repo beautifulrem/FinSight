@@ -32,6 +32,8 @@ export interface AnswerView {
   agent?: AgentResponse;
   serverMs?: number;
   wallMs?: number;
+  /** Client-side time from sending the question to the first streamed answer token. */
+  firstTokenMs?: number;
   llmStatus?: string;
 }
 
@@ -90,6 +92,7 @@ function classicEvidence(response: ClassicResponse): EvidenceSource[] {
 
 export function answerView(turn: Turn): AnswerView | null {
   const wallMs = turn.finishedAt !== undefined ? turn.finishedAt - turn.startedAt : undefined;
+  const firstTokenMs = turn.firstTokenAt !== undefined ? turn.firstTokenAt - turn.startedAt : undefined;
   if (turn.agent) {
     const response = turn.agent;
     const data = marketDataFromAgent(response);
@@ -112,6 +115,7 @@ export function answerView(turn: Turn): AnswerView | null {
       agent: response,
       serverMs: serverDurationMs(response),
       wallMs,
+      firstTokenMs,
     };
   }
   if (turn.classic) {

@@ -239,11 +239,12 @@
     "600519.SH": {
       "symbol": "600519.SH",
       "report_date": "2025-12-31",
-      "revenue": 174120000000,
-      "net_profit": 85000000000,
-      "roe": 0.33,
+      "revenue": 168838000000,
+      "net_profit": 82320000000,
+      "roe": 33.0,
       "pe_ttm": 24.6,
-      "pb": 8.1
+      "pb": 8.1,
+      "source_name": "seed"
     },
     "000858.SZ": {
       "symbol": "000858.SZ",
