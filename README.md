@@ -86,7 +86,7 @@ What the confidence intervals support:
   - Held-out: +0.075 [+0.019, +0.151] (pass^3 McNemar p = 0.125).
   - Test v2: +0.050 [+0.008, +0.091] (pass^3 p = 0.23).
   - Dev set: the GLM agent is significantly *worse*, −0.021 [−0.035, −0.008].
-- **`mode=auto` is therefore a cost and latency choice, not a proven quality gain.** The agent costs 2–5x as much as LLM composition, and its P95 is 25 s with DeepSeek and about 80 s with GLM.
+- **`mode=auto` is therefore a cost and latency choice, not a proven quality gain.** The agent costs 2–5x as much as LLM composition, and its P95 was 25 s with DeepSeek (dev set) and about 80 s with GLM before the round-3 latency work; with DeepSeek it is now 15.4 s on held-out and 17.3 s on test v2 ([performance.md](docs/performance.md#2a-agent-path-latency-profile-changes-and-beforeafter)).
 - **The claimed prompt-v2/v3 quality gain was withdrawn.** It sat inside the run-to-run spread. The supported result is the cost cut: −69% agent cost per dev task from v1 to v2 ($0.0040 → $0.0013).
 
 What changed after these runs (round 2), measured offline:
@@ -276,7 +276,7 @@ CI runs the following:
 - **The verifier proves traceability, not truth.** It checks that numbers come from the cited evidence. It cannot tell whether the right period or metric was chosen when one evidence item holds several. A fake price planted inside a news excerpt passes, because it *is* in the evidence.
 - **The injection filter does not generalise.** The lexical filter redacted none of the held-out attacks; protection comes mostly from structure (read-only tools, the untrusted-data envelope, verification, compliance and the language guard).
 - **Follow-up handling is rule-based.** Pronouns, plurals and ellipsis are resolved by rules, and English company aliases cover major names only.
-- **Latency.** The agent's P95 is 25 s with DeepSeek and about 80 s with GLM. Since the round-2 deadline change, every LLM request is capped by the run deadline (90 s + 20 s for the answer, below the API's 120 s timeout); this has not been re-measured under load.
+- **Latency.** With DeepSeek the agent's P95 is 15.4 s on held-out and 17.3 s on test v2, and the first answer token arrives after about 3 s (P50). Planner prefetch, citation repair and a 20 s stall timeout brought it down from 22–27 s without a loss in task success ([performance.md](docs/performance.md#2a-agent-path-latency-profile-changes-and-beforeafter)). On harder multi-tool questions at 4 concurrent users the P95 is 26.7 s. With GLM the P95 is still about 60–70 s, driven by per-call variance. Every LLM request is capped by the run deadline (90 s + 20 s for the answer, below the API's 120 s timeout).
 - **Free data sources throttle.** Eastmoney refused this machine's connections during the audit, and the fallbacks carried the load. With a Postgres checkpointer, A2A tasks and traces are shared by all replicas too; the rate limiter and the caches are still per replica.
 
 ## Safety

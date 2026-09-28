@@ -175,6 +175,11 @@ The browser page at `/` uses these endpoints: pick a mode, watch steps stream in
 | `QI_AGENT_DURABILITY` | `exit` | LangGraph durability: one checkpoint per run (`exit`), or per step (`async`, `sync`); see [performance.md](performance.md). |
 | `QI_A2A_ENABLED`, `QI_A2A_MODE`, `QI_PUBLIC_BASE_URL` | `1`, `auto`, `http://127.0.0.1:8765` | A2A endpoint switch, agent mode and the URL advertised in the agent card. |
 | `QI_AGENT_REQUEST_TIMEOUT_S` | `120` | Per-request timeout for `/agent/chat` and `/agent/resume` (504 on expiry). |
+| `QI_AGENT_PREFETCH` | `1` | Run the deterministic planner's tool calls before the first LLM call and pass the results with the question (one LLM round trip for questions the planner covers). |
+| `QI_AGENT_REVISE_POLICY` | `cite_repair` | `cite_repair`: a draft that only fails on citations gets the id of the single evidence item holding each number and skips the LLM revision if it then verifies; `llm`: always revise with the LLM. |
+| `QI_AGENT_LLM_STALL_TIMEOUT_S` | `20` | Longest wait for the next streamed chunk of an LLM call before it is retried or fails over; `0` = off. |
+| `QI_AGENT_VERIFY_DERIVED` | `1` | Accept a difference, sum, ratio or percent change of two supported numbers stated in the same cited sentence. |
+| `QI_LLM_KEEPALIVE` | `1` | Reuse pooled connections to the LLM endpoint; `0` opens a new connection per request. |
 | `QI_AGENT_MEMORY_SUMMARY`, `QI_AGENT_MEMORY_SUMMARY_TOKENS` | off, `300` | Optional LLM summary of turns older than the verbatim window, under a token budget (see [Session memory card](#session-memory-card)). |
 | `QI_AGENT_SENTIMENT_BACKEND` | `classical` | `finbert` to use the FinBERT sentiment model (needs `torch`/`transformers`). |
 | `QI_AGENT_TRACE_DIR` | `outputs/traces` | Where JSON traces are written; `off` disables them. |

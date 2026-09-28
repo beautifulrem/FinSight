@@ -197,6 +197,11 @@ curl -s localhost:8000/agent/resume -H 'Content-Type: application/json' \
 | `QI_AGENT_DURABILITY` | `exit` | LangGraph 持久化模式：每次运行写一次检查点（`exit`），或每步写（`async`、`sync`），见 [performance.md](performance.md)。 |
 | `QI_A2A_ENABLED`、`QI_A2A_MODE`、`QI_PUBLIC_BASE_URL` | `1`、`auto`、`http://127.0.0.1:8765` | A2A 开关、使用的 Agent 模式、服务卡片中公布的地址。 |
 | `QI_AGENT_REQUEST_TIMEOUT_S` | `120` | `/agent/chat` 与 `/agent/resume` 的单次请求超时（超时返回 504）。 |
+| `QI_AGENT_PREFETCH` | `1` | 第一次 LLM 调用前先执行确定性规划器的工具调用，并把结果随问题交给模型（规划器能覆盖的问题只需一次 LLM 往返）。 |
+| `QI_AGENT_REVISE_POLICY` | `cite_repair` | `cite_repair`：草稿只在引用上出错时，为每个数字补上唯一含该值的证据 id，校验通过就跳过 LLM 修订；`llm`：一律交给 LLM 修订。 |
+| `QI_AGENT_LLM_STALL_TIMEOUT_S` | `20` | LLM 流式调用等待下一个数据块的最长时间，超时即重试或切换模型；`0` 表示关闭。 |
+| `QI_AGENT_VERIFY_DERIVED` | `1` | 接受由同一句所引证据支持的两个数算出的差、和、比或变化百分比。 |
+| `QI_LLM_KEEPALIVE` | `1` | 复用到 LLM 接口的连接池；`0` 表示每次请求新建连接。 |
 | `QI_AGENT_MEMORY_SUMMARY`、`QI_AGENT_MEMORY_SUMMARY_TOKENS` | 关闭、`300` | 可选：在 token 预算内用 LLM 摘要移出原文窗口的较早轮次（见[会话记忆卡片](#会话记忆卡片)）。 |
 | `QI_AGENT_SENTIMENT_BACKEND` | `classical` | 设为 `finbert` 使用 FinBERT（需要 `torch`/`transformers`）。 |
 | `QI_AGENT_TRACE_DIR` | `outputs/traces` | JSON trace 输出目录；`off` 表示关闭。 |
