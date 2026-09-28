@@ -137,7 +137,9 @@ SLOW_ANSWER = {
     ],
     "spans": [
         {"node": name, "started_at": 2000.0 + i, "duration_ms": 5.0}
-        for i, name in enumerate(["guard_in", "agent_llm", "agent_tools", "agent_llm", "verify", "compliance", "finalize"])
+        for i, name in enumerate(
+            ["guard_in", "agent_llm", "agent_tools", "agent_llm", "verify", "compliance", "finalize"]
+        )
     ],
     "verification": {"passed": True, "checked_numbers": 1},
     "risk_disclaimer": "以上内容仅基于检索到的证据生成，不构成投资建议。",
