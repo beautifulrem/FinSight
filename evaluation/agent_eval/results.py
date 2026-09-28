@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from .metrics import CI_METHOD, COMPARISONS, outcome_cis, paired_comparison, task_success_value
+from .profile import profile_report
 from .runner import ROOT, TASK_SETS, load_tasks
 
 RESULTS_DIR = ROOT / "evaluation" / "results"
@@ -164,7 +165,14 @@ def slim_ablation(report: dict[str, Any]) -> dict[str, Any]:
         }
         for set_name, modes in results.items()
     }
-    return {"kind": "ablation", "config": config, "notes": notes, "results": results, "comparisons": comparisons}
+    slim = {"kind": "ablation", "config": config, "notes": notes, "results": results, "comparisons": comparisons}
+    if report.get("llm_http"):
+        slim["llm_http"] = report["llm_http"]
+    profiles = profile_report(report)
+    if profiles:
+        # Latency breakdown from the per-turn records, which are not committed (evaluation.agent_eval.profile).
+        slim["profile"] = profiles
+    return slim
 
 
 def slim_run(report: dict[str, Any]) -> dict[str, Any]:

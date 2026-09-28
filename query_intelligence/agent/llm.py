@@ -21,7 +21,9 @@ from __future__ import annotations
 import contextvars
 import json
 import os
+import threading
 import time
+from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -271,6 +273,18 @@ class DeepSeekToolClient:
         self.retry_backoff_s = retry_backoff_s
         self._http_client = http_client
         self._sleep = sleep
+        self._stats: Counter[str] = Counter()
+        self._stats_lock = threading.Lock()
+
+    def http_stats(self) -> dict[str, int]:
+        """Counters since start: ``requests`` (HTTP attempts), ``retries``, ``http_<status>`` for error
+        responses (e.g. ``http_429``, including ones that a retry later recovered), ``timeout``, ``transport``."""
+        with self._stats_lock:
+            return dict(self._stats)
+
+    def _count(self, key: str) -> None:
+        with self._stats_lock:
+            self._stats[key] += 1
 
     @classmethod
     def from_chatbot_config(cls, config: dict[str, Any], **overrides: Any) -> DeepSeekToolClient:
@@ -372,9 +386,16 @@ class DeepSeekToolClient:
 
         while True:
             attempt += 1
+            self._count("requests")
             try:
                 return self._post_stream(body, forward) if on_delta is not None else self._post(body)
             except LLMError as exc:
+                if exc.status_code is not None:
+                    self._count(f"http_{exc.status_code}")
+                elif "timed out" in str(exc):
+                    self._count("timeout")
+                elif "transport error" in str(exc):
+                    self._count("transport")
                 # A stream that already produced text cannot be replayed without duplicating it.
                 if not exc.retryable or attempt > self.max_retries or emitted[0]:
                     raise
@@ -382,6 +403,7 @@ class DeepSeekToolClient:
                 deadline = _CALL_DEADLINE.get()
                 if deadline is not None and time.time() + delay + _MIN_CALL_SECONDS > deadline:
                     raise
+                self._count("retries")
                 self._sleep(delay)
 
     def _post_stream(self, body: dict[str, Any], on_delta: Callable[[str], None]) -> dict[str, Any]:
@@ -557,6 +579,15 @@ class FallbackLLM:
             self._failures[index] = 0
             return turn if turn.model else turn.model_copy(update={"model": client.model})
         raise last_error or LLMError("all LLM clients are unavailable (circuits open)")
+
+    def http_stats(self) -> dict[str, int]:
+        """HTTP counters summed over every client (see ``DeepSeekToolClient.http_stats``)."""
+        total: Counter[str] = Counter()
+        for client in self.clients:
+            stats = getattr(client, "http_stats", None)
+            if callable(stats):
+                total.update(stats())
+        return dict(total)
 
     def stats(self) -> list[dict[str, Any]]:
         return [

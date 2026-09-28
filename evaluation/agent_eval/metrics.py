@@ -295,6 +295,8 @@ def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, A
     scores = [turn["score"] for turn in turns]
     facts = [fact for score in scores for fact in score["facts"]]
     latencies = [turn["latency_ms"] for turn in turns]
+    llm_latencies = [turn["latency_ms"] for turn in turns if turn["score"].get("llm_calls")]
+    ttfts = [turn["ttft_ms"] for turn in turns if turn.get("ttft_ms") is not None]
     costs = [score["cost"] for score in scores if score["cost"] is not None]
     currencies = sorted({score.get("cost_currency") for score in scores if score.get("cost_currency")})
     task_costs = [
@@ -335,6 +337,17 @@ def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, A
         ),
         "latency_ms_p50": percentile(latencies, 0.5),
         "latency_ms_p95": percentile(latencies, 0.95),
+        "latency_ms_p99": percentile(latencies, 0.99),
+        # Turns that made at least one LLM call (refusals, clarifications and template answers excluded).
+        "llm_turns": len(llm_latencies),
+        "llm_turn_latency_ms_p50": percentile(llm_latencies, 0.5),
+        "llm_turn_latency_ms_p95": percentile(llm_latencies, 0.95),
+        "llm_turn_latency_ms_p99": percentile(llm_latencies, 0.99),
+        # Time to the first streamed answer character (runs with --stream only; turns that streamed text).
+        "ttft_turns": len(ttfts),
+        "ttft_ms_p50": percentile(ttfts, 0.5),
+        "ttft_ms_p95": percentile(ttfts, 0.95),
+        "ttft_ms_p99": percentile(ttfts, 0.99),
         "llm_calls_per_turn": mean([float(score["llm_calls"]) for score in scores]),
         "tokens_per_turn": mean([float(score["prompt_tokens"] + score["completion_tokens"]) for score in scores]),
         "reasoning_tokens_per_turn": mean([float(score.get("reasoning_tokens") or 0) for score in scores]),

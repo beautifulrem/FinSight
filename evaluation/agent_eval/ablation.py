@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,7 @@ from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
 from query_intelligence.agent.graph import AgentRuntime
 from query_intelligence.agent.prompts import prompt_refs
 from query_intelligence.agent.service import AgentService
+from query_intelligence.agent.state import AgentConfig
 from query_intelligence.agent.verifier import verify_answer
 from query_intelligence.chatbot import DeepSeekClient, build_chatbot_response
 
@@ -48,6 +50,7 @@ from .runner import (
     _make_llm,
     _task_meta,
     _turn_record,
+    agent_config_from_overrides,
     build_offline_service,
     build_registry,
     load_tasks,
@@ -134,15 +137,37 @@ def run_legacy_tasks(
 
 
 def _agent_records(
-    service, tasks, snapshot: Path, *, mode: str, llm=None, repeats: int = 1, workers: int = 1
+    service,
+    tasks,
+    snapshot: Path,
+    *,
+    mode: str,
+    llm=None,
+    repeats: int = 1,
+    workers: int = 1,
+    config: AgentConfig | None = None,
+    stream: bool = False,
 ) -> list[dict[str, Any]]:
     registry, _holder = build_registry(service, snapshot=snapshot, record=False, live_fallback=llm is not None)
-    runtime = AgentRuntime(service, registry, llm, today=lambda: EVAL_TODAY)
+    runtime = AgentRuntime(service, registry, llm, config=config, today=lambda: EVAL_TODAY)
     agent = AgentService(runtime, trace_sinks=[])
     try:
-        return run_agent_tasks(tasks, agent, mode=mode, repeats=repeats, workers=workers)
+        return run_agent_tasks(tasks, agent, mode=mode, repeats=repeats, workers=workers, stream=stream)
     finally:
         agent.close()
+
+
+def _http_delta(llm: Any, before: dict[str, int]) -> dict[str, Any] | None:
+    """HTTP counters of the LLM client during one mode, with the 429 share of all attempts."""
+    stats = getattr(llm, "http_stats", None)
+    if not callable(stats):
+        return None
+    after = stats()
+    delta = {key: after.get(key, 0) - before.get(key, 0) for key in after}
+    delta = {key: value for key, value in delta.items() if value}
+    requests = delta.get("requests", 0)
+    delta["rate_429"] = round(delta.get("http_429", 0) / requests, 4) if requests else None
+    return delta
 
 
 ONLINE_MODES = ("legacy_llm", "pure_llm", "workflow_llm", "agent")
@@ -171,7 +196,21 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "--modes", default=",".join(ONLINE_MODES), help="Online modes to run with --llm (comma-separated)."
     )
     parser.add_argument("--out", default=str(DEFAULT_OUTPUT_DIR / "ablation.json"))
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Run agent turns through the streaming path and record time to first answer token (ttft_ms).",
+    )
+    parser.add_argument(
+        "--agent-config",
+        action="append",
+        default=[],
+        metavar="FIELD=VALUE",
+        help="Override an AgentConfig field for the LLM modes (repeatable), e.g. --agent-config max_revisions=0.",
+    )
+    parser.add_argument("--limit", type=int, default=0, help="Only the first N tasks of each set (smoke runs).")
     args = parser.parse_args(argv)
+    agent_config = agent_config_from_overrides(args.agent_config)
     online_modes = [mode.strip() for mode in args.modes.split(",") if mode.strip()]
     unknown = sorted(set(online_modes) - set(ONLINE_MODES))
     if unknown:
@@ -184,6 +223,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     if unknown_sets:
         raise SystemExit(f"unknown --sets: {unknown_sets} (known: {sorted(TASK_SETS)})")
     sets = {name: (load_tasks(TASK_SETS[name][0]), TASK_SETS[name][1]) for name in requested}
+    if args.limit:
+        sets = {name: (tasks[: args.limit], snapshot) for name, (tasks, snapshot) in sets.items()}
+    http: dict[str, dict[str, Any]] = {}
     results: dict[str, dict[str, Any]] = {}
     for set_name, (tasks, snapshot) in sets.items():
         runs: dict[str, list[dict[str, Any]]] = {
@@ -199,14 +241,22 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
                 runs["legacy_llm"] = run_legacy_tasks(tasks, service, client, workers=workers)
             if "pure_llm" in online_modes:
                 runs["pure_llm"] = run_pure_llm_tasks(tasks, llm, repeats=args.repeats, workers=workers)
-            if "workflow_llm" in online_modes:
-                runs["workflow_llm"] = _agent_records(
-                    service, tasks, snapshot, mode="workflow", llm=llm, repeats=args.repeats, workers=workers
+            for name, graph_mode in (("workflow_llm", "workflow"), ("agent", "agent")):
+                if name not in online_modes:
+                    continue
+                before = llm.http_stats() if callable(getattr(llm, "http_stats", None)) else {}
+                runs[name] = _agent_records(
+                    service,
+                    tasks,
+                    snapshot,
+                    mode=graph_mode,
+                    llm=llm,
+                    repeats=args.repeats,
+                    workers=workers,
+                    config=agent_config,
+                    stream=args.stream,
                 )
-            if "agent" in online_modes:
-                runs["agent"] = _agent_records(
-                    service, tasks, snapshot, mode="agent", llm=llm, repeats=args.repeats, workers=workers
-                )
+                http.setdefault(set_name, {})[name] = _http_delta(llm, before)
         results[set_name] = {
             name: summarize(records, config={"mode": name}, repeats=1 if name in SINGLE_RUN_MODES else args.repeats)
             for name, records in runs.items()
@@ -225,6 +275,10 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "sets": list(sets),
             "online_modes": online_modes if llm is not None else [],
             "workers": args.workers,
+            "stream": args.stream,
+            "agent_config": asdict(agent_config),
+            "agent_config_overrides": args.agent_config,
+            "limit": args.limit or None,
             "command": _command("evaluation.agent_eval.ablation", argv),
         },
         "results": {
@@ -235,12 +289,16 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
                     "failed_checks": data["failed_checks"],
                     "failures": data["failures"],
                     "task_outcomes": data["task_outcomes"],
+                    # Per-turn records with the timing profile (outputs/ only; results.py keeps a summary).
+                    "records": data["records"] if args.llm != "none" and mode not in SINGLE_RUN_MODES else None,
                 }
                 for mode, data in modes.items()
             }
             for set_name, modes in results.items()
         },
         "comparisons": {set_name: comparisons(modes) for set_name, modes in results.items()},
+        # LLM HTTP attempts per set and mode, including 429s that a retry recovered (they add latency).
+        "llm_http": http,
     }
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -251,7 +309,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             print(
                 f"{set_name:8s} {mode:12s} success={summary['task_success']} facts={summary['fact_recall']} "
                 f"tool_p={summary['tool_precision']} hedged={summary['hedged_when_required']} "
-                f"behavior={summary['behavior_accuracy']} p95={summary['latency_ms_p95']}"
+                f"behavior={summary['behavior_accuracy']} p95={summary['latency_ms_p95']} "
+                f"llm_p95={summary.get('llm_turn_latency_ms_p95')} ttft_p50={summary.get('ttft_ms_p50')} "
+                f"calls={summary['llm_calls_per_turn']} http={http.get(set_name, {}).get(mode)}"
             )
     return report
 
