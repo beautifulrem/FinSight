@@ -1,0 +1,37 @@
+{
+ "run_at": "2026-09-28T11:37:40+00:00",
+ "commit": "52e80dc",
+ "model": "cline-pass/deepseek-v4.1-flash",
+ "host": "macOS-27.0-arm64-arm-64bit-Mach-O",
+ "load_average": [
+  2.88671875,
+  3.60302734375,
+  4.59423828125
+ ],
+ "requests_per_variant": 25,
+ "command": "python -m scripts.llm_latency_probe --requests 25 --out docs/results/perf/agent/keepalive-probe.json",
+ "variants": {
+  "keepalive": {
+   "ok": 25,
+   "errors": 0,
+   "latency_ms_p50": 1321.6,
+   "latency_ms_p95": 3826.2,
+   "latency_ms_mean": 1611.5,
+   "first_request_ms": 2025.0,
+   "http": {
+    "requests": 25
+   }
+  },
+  "new_connection": {
+   "ok": 25,
+   "errors": 0,
+   "latency_ms_p50": 1687.3,
+   "latency_ms_p95": 2991.0,
+   "latency_ms_mean": 1804.0,
+   "first_request_ms": 1573.9,
+   "http": {
+    "requests": 25
+   }
+  }
+ }
+}
