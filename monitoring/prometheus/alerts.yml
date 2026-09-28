@@ -1,7 +1,8 @@
 # Alert rules for FinSight. Metric sources:
 #   trace-fed (agent/telemetry.py): finsight_agent_run_seconds, finsight_agent_runs_total,
 #     finsight_verification_failures_total, finsight_degradations_total, finsight_tool_calls_total,
-#     finsight_llm_cost_total
+#     finsight_llm_cost_total, finsight_answer_verification_total, finsight_feedback_total
+#   audit (agent/audit.py): finsight_audit_events_total
 #   scrape-time (integrations/ops_metrics.py): finsight_llm_circuit_state, finsight_source_circuit_state,
 #     finsight_source_pool_*
 # Thresholds come from the measurements in docs/performance.md (workflow P95 is below 1 s at one user
@@ -95,3 +96,32 @@ groups:
         annotations:
           summary: "LLM spend above 20 CNY in the last hour"
           description: "At the measured cost per agent question this is several thousand agent runs per hour; check for abuse or a loop."
+
+  - name: finsight-quality-security
+    rules:
+      - alert: FinSightRepairRateHighForPromptVersion
+        expr: |
+          sum by (prompt_version) (rate(finsight_answer_verification_total{outcome="repaired",prompt_version!="none"}[30m]))
+            / clamp_min(sum by (prompt_version) (rate(finsight_answer_verification_total{prompt_version!="none"}[30m])), 1e-9) > 0.25
+          and sum by (prompt_version) (increase(finsight_answer_verification_total{prompt_version!="none"}[30m])) >= 20
+        for: 30m
+        labels: {severity: warning}
+        annotations:
+          summary: "Prompt {{ $labels.prompt_version }}: more than 25% of LLM answers need deterministic repair"
+          description: "Repaired answers lose the sentences that failed verification. A rise right after a prompt or model change points at that change; compare versions on the dashboard."
+      - alert: FinSightNegativeFeedbackHigh
+        expr: |
+          sum(increase(finsight_feedback_total{rating="down"}[6h])) / clamp_min(sum(increase(finsight_feedback_total[6h])), 1e-9) > 0.5
+          and sum(increase(finsight_feedback_total[6h])) >= 10
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "More than half of the last 6 h of user ratings are thumbs-down"
+          description: "Run scripts/feedback_to_tasks.py on the feedback log to turn the flagged traces into evaluation tasks."
+      - alert: FinSightInjectionAttemptsSpike
+        expr: sum(increase(finsight_audit_events_total{event="refusal",category="prompt_injection"}[10m])) > 20
+        for: 0m
+        labels: {severity: info}
+        annotations:
+          summary: "{{ $value }} prompt-injection refusals in 10 minutes"
+          description: "Group the audit log (outputs/audit/audit.jsonl) by principal and query_hash to see whether one caller is probing the guard."

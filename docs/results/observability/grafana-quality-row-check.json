@@ -1,0 +1,217 @@
+{
+  "check": "grafana dashboard load + new panel queries",
+  "date": "2026-09-28",
+  "commit": "881ad5f (+ dashboard/alerts changes committed with this file)",
+  "setup": "2 uvicorn replicas (offline data, no LLM, shared Postgres) scraped every 5 s by prom/prometheus:v3.15.0; grafana/grafana:13.2.2 with monitoring/grafana provisioning; queries sent through Grafana's datasource proxy",
+  "traffic": {
+    "runs_1": {
+      "chat": 112,
+      "refuse": 27,
+      "up": 56,
+      "down": 19
+    },
+    "runs_2": {
+      "chat": 97,
+      "refuse": 24,
+      "up": 51,
+      "down": 16
+    },
+    "note": "4-minute loops of /agent/chat (1 in 5 a refusal) with ~60% of answers rated on the other replica (70% up)"
+  },
+  "grafana_version": "13.2.2",
+  "dashboard_panels": 27,
+  "new_panel_results": [
+    {
+      "panel": 21,
+      "title": "First-draft verification failure rate by prompt version",
+      "expr": "(sum by (prompt_version) (rate(finsight_answer_verification_total{outcome=~\"revised|repaired\"}[15m])) or 0 * sum by (prompt_version) (rate(finsight_answer_verification_total[15m]))) / clamp_min(sum by (prompt_version) (rate(finsight_answer_verification_total[15m])), 1e-9)",
+      "series": [
+        {
+          "labels": {
+            "prompt_version": "none"
+          },
+          "value": 0.0
+        }
+      ]
+    },
+    {
+      "panel": 22,
+      "title": "Repair rate by prompt version",
+      "expr": "(sum by (prompt_version) (rate(finsight_answer_verification_total{outcome=\"repaired\"}[15m])) or 0 * sum by (prompt_version) (rate(finsight_answer_verification_total[15m]))) / clamp_min(sum by (prompt_version) (rate(finsight_answer_verification_total[15m])), 1e-9)",
+      "series": [
+        {
+          "labels": {
+            "prompt_version": "none"
+          },
+          "value": 0.0
+        }
+      ]
+    },
+    {
+      "panel": 23,
+      "title": "Verification outcomes by prompt version (24 h)",
+      "expr": "sum by (prompt_version, outcome) (increase(finsight_answer_verification_total[24h]))",
+      "series": [
+        {
+          "labels": {
+            "outcome": "passed",
+            "prompt_version": "none"
+          },
+          "value": 207.9954
+        }
+      ]
+    },
+    {
+      "panel": 24,
+      "title": "User feedback: thumbs-up ratio by prompt version",
+      "expr": "(sum by (prompt_version) (increase(finsight_feedback_total{rating=\"up\"}[1h])) or 0 * sum by (prompt_version) (increase(finsight_feedback_total[1h]))) / clamp_min(sum by (prompt_version) (increase(finsight_feedback_total[1h])), 1e-9)",
+      "series": [
+        {
+          "labels": {
+            "prompt_version": "none"
+          },
+          "value": 0.7608
+        }
+      ]
+    },
+    {
+      "panel": 25,
+      "title": "Thumbs-up ratio (24 h)",
+      "expr": "(sum(increase(finsight_feedback_total{rating=\"up\"}[24h])) or 0 * sum(increase(finsight_feedback_total[24h]))) / clamp_min(sum(increase(finsight_feedback_total[24h])), 1e-9)",
+      "series": [
+        {
+          "labels": {},
+          "value": 0.7608
+        }
+      ]
+    },
+    {
+      "panel": 26,
+      "title": "Feedback per hour by rating",
+      "expr": "sum by (rating) (increase(finsight_feedback_total[1h]))",
+      "series": [
+        {
+          "labels": {
+            "rating": "up"
+          },
+          "value": 105.5177
+        },
+        {
+          "labels": {
+            "rating": "down"
+          },
+          "value": 33.1764
+        }
+      ]
+    },
+    {
+      "panel": 27,
+      "title": "Audit events per hour (refusals, compliance edits)",
+      "expr": "sum by (event, category) (increase(finsight_audit_events_total[1h]))",
+      "series": [
+        {
+          "labels": {
+            "category": "out_of_scope",
+            "event": "refusal"
+          },
+          "value": 32.1637
+        },
+        {
+          "labels": {
+            "category": "conditional_prefix",
+            "event": "compliance_edit"
+          },
+          "value": 25.1047
+        },
+        {
+          "labels": {
+            "category": "market_freshness",
+            "event": "compliance_edit"
+          },
+          "value": 25.1047
+        },
+        {
+          "labels": {
+            "category": "causal_caveat",
+            "event": "compliance_edit"
+          },
+          "value": 24.1401
+        },
+        {
+          "labels": {
+            "category": "prompt_injection",
+            "event": "refusal"
+          },
+          "value": 15.0768
+        }
+      ]
+    }
+  ],
+  "rules": [
+    [
+      "FinSightDown",
+      "ok",
+      "inactive"
+    ],
+    [
+      "FinSightLLMCostBurnHigh",
+      "ok",
+      "inactive"
+    ],
+    [
+      "FinSightLLMModelCircuitOpen",
+      "ok",
+      "inactive"
+    ],
+    [
+      "FinSightAllLLMModelsDown",
+      "ok",
+      "inactive"
+    ],
+    [
+      "FinSightDataSourceCircuitOpen",
+      "ok",
+      "inactive"
+    ],
+    [
+      "FinSightSourcePoolAbandonedCalls",
+      "ok",
+      "inactive"
+    ],
+    [
+      "FinSightWorkflowP95High",
+      "ok",
+      "inactive"
+    ],
+    [
+      "FinSightAgentP95High",
+      "ok",
+      "inactive"
+    ],
+    [
+      "FinSightVerificationFailureRateHigh",
+      "ok",
+      "inactive"
+    ],
+    [
+      "FinSightToolErrorRateHigh",
+      "ok",
+      "firing"
+    ],
+    [
+      "FinSightRepairRateHighForPromptVersion",
+      "ok",
+      "inactive"
+    ],
+    [
+      "FinSightNegativeFeedbackHigh",
+      "ok",
+      "inactive"
+    ],
+    [
+      "FinSightInjectionAttemptsSpike",
+      "ok",
+      "inactive"
+    ]
+  ]
+}
