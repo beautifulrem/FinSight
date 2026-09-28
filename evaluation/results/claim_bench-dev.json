@@ -1,0 +1,166 @@
+{
+ "config": {
+  "claims": "evaluation/claim_bench/claims_v1.jsonl",
+  "claims_sha256": "39223b500d603e40a784e1b48b8271a88efb2dfe494e59a5f3dd809fd4e49528",
+  "set": "dev",
+  "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
+  "commit": "2fcb4f0",
+  "run_at": "2026-09-28T07:05:58+00:00",
+  "command": "python -m evaluation.claim_bench.run --set dev"
+ },
+ "claims": 131,
+ "checks": 138,
+ "verdict_accuracy": 1.0,
+ "verdict_accuracy_ci": [
+  1.0,
+  1.0
+ ],
+ "check_accuracy": 1.0,
+ "check_accuracy_ci": [
+  1.0,
+  1.0
+ ],
+ "comparator_accuracy": 1.0,
+ "ci_method": "percentile bootstrap over claims, 2000 resamples, seed 20260926, 95%",
+ "verdict_confusion": {
+  "supported": {
+   "supported": 68,
+   "contradicted": 0,
+   "partially_supported": 0,
+   "unverifiable": 0
+  },
+  "contradicted": {
+   "supported": 0,
+   "contradicted": 32,
+   "partially_supported": 0,
+   "unverifiable": 0
+  },
+  "partially_supported": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 4,
+   "unverifiable": 0
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 0,
+   "unverifiable": 27
+  }
+ },
+ "check_status_confusion": {
+  "supported": {
+   "supported": 79,
+   "contradicted": 0,
+   "unverifiable": 0,
+   "missing": 0
+  },
+  "contradicted": {
+   "supported": 0,
+   "contradicted": 36,
+   "unverifiable": 0,
+   "missing": 0
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "unverifiable": 23,
+   "missing": 0
+  },
+  "extra": {
+   "supported": 0,
+   "contradicted": 0,
+   "unverifiable": 0,
+   "missing": 0
+  }
+ },
+ "by_category": {
+  "approx": {
+   "claims": 8,
+   "verdict_accuracy": 1.0
+  },
+  "chinese_numeral": {
+   "claims": 4,
+   "verdict_accuracy": 1.0
+  },
+  "comparator": {
+   "claims": 18,
+   "verdict_accuracy": 1.0
+  },
+  "direction": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "exact": {
+   "claims": 22,
+   "verdict_accuracy": 1.0
+  },
+  "false": {
+   "claims": 11,
+   "verdict_accuracy": 1.0
+  },
+  "forecast": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "growth": {
+   "claims": 5,
+   "verdict_accuracy": 1.0
+  },
+  "index_etf": {
+   "claims": 9,
+   "verdict_accuracy": 1.0
+  },
+  "multi": {
+   "claims": 9,
+   "verdict_accuracy": 1.0
+  },
+  "multi_day": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "negation": {
+   "claims": 8,
+   "verdict_accuracy": 1.0
+  },
+  "no_data": {
+   "claims": 4,
+   "verdict_accuracy": 1.0
+  },
+  "opinion": {
+   "claims": 5,
+   "verdict_accuracy": 1.0
+  },
+  "period": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "range": {
+   "claims": 5,
+   "verdict_accuracy": 1.0
+  },
+  "sign": {
+   "claims": 7,
+   "verdict_accuracy": 1.0
+  },
+  "unknown_target": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "wrong_unit": {
+   "claims": 5,
+   "verdict_accuracy": 1.0
+  }
+ },
+ "by_language": {
+  "en": {
+   "claims": 16,
+   "verdict_accuracy": 1.0
+  },
+  "zh": {
+   "claims": 115,
+   "verdict_accuracy": 1.0
+  }
+ },
+ "errors": []
+}
