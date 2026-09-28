@@ -14,10 +14,10 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "e3c76ad",
-  "run_at": "2026-09-28T16:59:44+00:00",
+  "commit": "075caad",
+  "run_at": "2026-09-28T17:52:16+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 61.4,
+  "wall_seconds": 65.8,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
@@ -48,9 +48,9 @@
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 37.62,
-  "latency_ms_p95": 488.73,
-  "latency_ms_p99": 623.62,
+  "latency_ms_p50": 40.49,
+  "latency_ms_p95": 523.49,
+  "latency_ms_p99": 678.29,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -77,79 +77,79 @@
   "clarify": {
    "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 448.63
+   "latency_ms_p95": 465.35
   },
   "compare": {
    "tasks": 27,
    "task_success": 1.0,
-   "latency_ms_p95": 613.65
+   "latency_ms_p95": 460.27
   },
   "compliance": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 419.08
+   "latency_ms_p95": 404.95
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 599.35
+   "latency_ms_p95": 516.63
   },
   "fact": {
    "tasks": 58,
    "task_success": 1.0,
-   "latency_ms_p95": 490.19
+   "latency_ms_p95": 554.44
   },
   "injection": {
    "tasks": 2,
    "task_success": 1.0,
-   "latency_ms_p95": 31.23
+   "latency_ms_p95": 39.77
   },
   "macro_link": {
    "tasks": 15,
    "task_success": 1.0,
-   "latency_ms_p95": 406.49
+   "latency_ms_p95": 486.12
   },
   "missing_data": {
    "tasks": 32,
    "task_success": 1.0,
-   "latency_ms_p95": 483.46
+   "latency_ms_p95": 396.51
   },
   "multi_turn": {
    "tasks": 40,
    "task_success": 1.0,
-   "latency_ms_p95": 477.47
+   "latency_ms_p95": 544.78
   },
   "out_of_coverage": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 471.08
+   "latency_ms_p95": 560.81
   },
   "out_of_scope": {
    "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 54.97
+   "latency_ms_p95": 75.74
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 503.58
+   "latency_ms_p95": 485.62
   },
   "why": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 587.22
+   "latency_ms_p95": 567.53
   }
  },
  "by_language": {
   "en": {
    "tasks": 80,
    "task_success": 1.0,
-   "latency_ms_p95": 587.22
+   "latency_ms_p95": 611.73
   },
   "zh": {
    "tasks": 191,
    "task_success": 1.0,
-   "latency_ms_p95": 458.67
+   "latency_ms_p95": 509.76
   }
  },
  "failed_checks": {},
@@ -429,8 +429,8 @@
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "db3a0744f1eb9e4c",
-  "bytes": 815194,
-  "slimmed_at": "2026-09-28T16:59:44+00:00"
+  "sha256_16": "7945ed5c396e546a",
+  "bytes": 815202,
+  "slimmed_at": "2026-09-28T17:52:16+00:00"
  }
 }
