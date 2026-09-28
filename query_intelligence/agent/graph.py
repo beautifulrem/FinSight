@@ -518,9 +518,7 @@ class AgentRuntime:
         draft = state.get("draft") or {}
         store = _store(state)
         llm_draft = state.get("draft_source") in {"llm_agent", "llm_compose"}
-        report = verify_answer(
-            draft, store, query=state["query"], market_precedence=llm_draft, require_citations=llm_draft
-        )
+        report = verify_answer(draft, store, query=state["query"], market_precedence=llm_draft, require_citations=True)
         update: dict[str, Any] = {"verification": report.model_dump()}
         can_revise = (
             not report.passed

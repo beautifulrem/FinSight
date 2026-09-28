@@ -4,7 +4,8 @@ Checks are claim-level. The answer and each key point are split into sentences; 
 sentence that cites evidence ids must be found in *those* evidence items, not merely somewhere in the
 run. A number found only in other evidence is reported as ``misattributed`` (for example a PE ratio of
 one company cited with another company's evidence id); a number found nowhere is ``unsupported``.
-Sentences without a citation fall back to the whole evidence store. Matching allows common unit
+Numbers in sentences without a citation are rejected (``uncited``); with ``require_citations=False`` they
+fall back to the whole evidence store. Matching allows common unit
 conversions (percent <-> ratio, 万/亿, thousand/million/billion) and rounding. Dates, evidence ids,
 ticker codes, and window parameters such as ``RSI(14)`` or ``近5日`` are not treated as factual claims.
 """
@@ -135,7 +136,81 @@ def _cleaned(text: str) -> str:
 
 
 def claim_numbers(text: str) -> list[float]:
-    return extract_numbers(_cleaned(text))
+    """Claimed values in ``text``: Arabic numbers and Chinese numerals with a quantity unit ("三十倍")."""
+    return [value for value, *_ in claim_values(text)]
+
+
+_CN_DIGITS = {
+    "零": 0,
+    "〇": 0,
+    "一": 1,
+    "二": 2,
+    "两": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+}
+_CN_UNITS = {"十": 10, "百": 100, "千": 1000}
+_CN_NUMERAL = "零〇一二两三四五六七八九十百千"
+# A Chinese numeral is a claim only with a quantity unit right after it (or after "百分之"), so words such as
+# 一些, 统一, 十分, 千万 or 一季度 are not numbers. "成" is a tenth ("三成" = 30%), except in compounds (成长, 成本).
+_CN_QUANTITY = re.compile(
+    rf"(?<![几数多余第{_CN_NUMERAL}])(?P<percent>百分之)?(?P<num>[{_CN_NUMERAL}]+(?:点[{_CN_NUMERAL[:10]}]+)?)"
+    r"(?:(?P<big>万亿|亿|万)(?=[元股手个]|美元|港元|$|[，。；、,.;\s）)])|"
+    r"(?P<unit>倍|个百分点|成(?=[，。；、,.;\s）)]|左右|以上|以下|多|的|仓|$)|元|美元|港元)"
+    r"|(?(percent)|(?!)))"
+)
+
+
+def _parse_cn_integer(text: str) -> int | None:
+    total, current = 0, None
+    for char in text:
+        if char in _CN_DIGITS:
+            if current is not None:  # "三五" is a range, "一二三" a list: not a single number
+                return None
+            current = _CN_DIGITS[char]
+        elif char in _CN_UNITS:
+            total += (1 if current is None else current) * _CN_UNITS[char]
+            current = None
+        else:
+            return None
+    return total + (current or 0)
+
+
+def _parse_cn_number(text: str) -> float | None:
+    whole, _, fraction = text.partition("点")
+    integer = _parse_cn_integer(whole) if whole else 0
+    if integer is None or (fraction and any(char not in _CN_DIGITS for char in fraction)):
+        return None
+    return float(f"{integer}.{''.join(str(_CN_DIGITS[char]) for char in fraction)}") if fraction else float(integer)
+
+
+def _chinese_values(cleaned: str) -> list[tuple[int, float, tuple[float, ...], float]]:
+    """``(position, value, scales, rounding)`` for Chinese numerals with a unit ("约为三十倍", "三成", "百分之十五")."""
+    values = []
+    for match in _CN_QUANTITY.finditer(cleaned):
+        value = _parse_cn_number(match.group("num"))
+        if value is None or value == 0:
+            continue
+        unit, big = match.group("unit"), match.group("big")
+        numeral = match.group("num")
+        decimals = len(numeral.partition("点")[2])
+        # a numeral ending in 十/百/千 is a round figure ("约三十倍" ~ 25-35); otherwise it is exact to its last digit
+        rounding = 0.5 * _CN_UNITS[numeral[-1]] if numeral[-1] in _CN_UNITS else 0.5 * 10**-decimals
+        if match.group("percent") or unit == "个百分点":
+            scales = _UNIT_SCALES[0][1]
+        elif unit == "成":  # tenths: "三成" is 30% give or take half a tenth
+            value, rounding, scales = value * 10, 5.0, _UNIT_SCALES[0][1]
+        elif big:
+            scales = next(scales for pattern, scales in _UNIT_SCALES if pattern.search(big))
+        else:
+            scales = _BARE_SCALES
+        values.append((match.start(), value, scales, rounding))
+    return values
 
 
 _UP = re.compile(
@@ -169,10 +244,13 @@ def _stated_sign(token: str, before: str) -> int | None:
 
 def claim_values(text: str) -> list[tuple[float, tuple[float, ...], float, int | None]]:
     """Claimed numbers with the scale factors their unit allows, the rounding tolerance of their precision
-    and the direction the text states (``-1``/``+1``/``None``).
+    and the direction the text states (``-1``/``+1``/``None``), in order of appearance.
 
     A number written with ``d`` decimals can differ from the evidence by at most half a unit in its
     last place (``0.5 * 10**-d``) plus 0.05% for binary rounding; "24.6" matches 24.63 but not 24.8.
+    Chinese numerals count when a quantity unit follows them ("三十倍" = 30, "三成" = 30% ± 5,
+    "百分之十五" = 15%); a numeral ending in 十/百/千 is read as a round figure (三十 = 30 ± 5). Vague amounts
+    ("几十倍", "数成") are not claims and are not checked.
     """
     cleaned = _cleaned(text)
     values = []
@@ -185,8 +263,11 @@ def claim_values(text: str) -> list[tuple[float, tuple[float, ...], float, int |
         tail = cleaned[match.end() : match.end() + 24]
         scales = next((scales for pattern, scales in _UNIT_SCALES if pattern.search(tail)), _BARE_SCALES)
         decimals = len(token.split(".")[1]) if "." in token else 0
-        values.append((value, scales, 0.5 * 10**-decimals, _stated_sign(token, cleaned[: match.start()])))
-    return values
+        sign = _stated_sign(token, cleaned[: match.start()])
+        values.append((match.start(), (value, scales, 0.5 * 10**-decimals, sign)))
+    for position, value, scales, rounding in _chinese_values(cleaned):
+        values.append((position, (value, scales, rounding, _stated_sign("", cleaned[:position]))))
+    return [claim for _position, claim in sorted(values, key=lambda item: item[0])]
 
 
 def claim_units(answer: dict[str, Any]) -> list[str]:
@@ -197,6 +278,15 @@ def claim_units(answer: dict[str, Any]) -> list[str]:
     return units
 
 
+def _bound_units(answer: dict[str, Any]) -> list[tuple[str, str]]:
+    """``(claim unit, whole sentence containing it)`` for the answer and each key point."""
+    pairs: list[tuple[str, str]] = []
+    for text in answer_texts(answer):
+        for sentence in whole_sentences(text):
+            pairs.extend((unit, sentence) for unit in _split_sentences(sentence) if unit.strip())
+    return pairs
+
+
 def verify_answer(
     answer: dict[str, Any],
     store: EvidenceStore,
@@ -204,7 +294,7 @@ def verify_answer(
     query: str = "",
     binding: str = "claim",
     market_precedence: bool = True,
-    require_citations: bool = False,
+    require_citations: bool = True,
 ) -> VerificationReport:
     """``binding="claim"`` (default) checks each number against the evidence cited in its sentence with a
     unit- and precision-aware tolerance. ``"run"`` checks against all evidence of the run, and ``"legacy"``
@@ -213,8 +303,14 @@ def verify_answer(
 
     ``market_precedence`` (on for LLM drafts) rejects prices, valuation multiples and daily moves backed
     only by document text. Template answers quote documents with explicit attribution ("相关资料：《…》")
-    and are deterministic, so the graph turns it off for them. ``require_citations`` (also for LLM drafts)
-    rejects numbers in sentences that cite no evidence, instead of accepting any number of the run.
+    and are deterministic, so the graph turns it off for them. ``require_citations`` (on by default, for
+    every draft) rejects numbers in sentences that cite no evidence instead of accepting any number of the
+    run, so an uncited "预计明年涨幅21.4%" cannot borrow the 21.4 of an unrelated PE; template sentences
+    always cite, so the switch only matters for model-written text.
+
+    Known limits: numbers are bound to the *evidence items* cited in their sentence, not to fields, so a value
+    reused for another metric of the same cited item (a PE of 21.4 restated as "涨幅21.4%" with the same
+    citation) still passes; the claim checker (``claim_check.py``) binds metrics, the verifier does not.
     Stated directions are checked against signed structured values: "上涨2.35%" does not match -2.35."""
     ids = cited_ids(answer)
     invalid = [evidence_id for evidence_id in ids if evidence_id not in store]
@@ -225,12 +321,13 @@ def verify_answer(
     document_market: list[float] = []
     uncited: list[float] = []
     checked = 0
-    for unit in claim_units(answer):
-        unit_ids = (
-            [match.group(1) for match in _CITATION.finditer(unit) if match.group(1) in store]
-            if binding == "claim"
-            else []
-        )
+    for unit, sentence in _bound_units(answer):
+        unit_ids = []
+        if binding == "claim":
+            # a clause cut off by "；" is bound by the citation that closes its sentence
+            unit_ids = [match.group(1) for match in _CITATION.finditer(unit) if match.group(1) in store] or [
+                match.group(1) for match in _CITATION.finditer(sentence) if match.group(1) in store
+            ]
         scope = _evidence_numbers(store, unit_ids) if unit_ids else known
         market_scope = (
             _evidence_numbers(store, [i for i in (unit_ids or store.ids()) if _is_structured(store, i)])
@@ -301,17 +398,16 @@ def repair_answer(
     repaired = dict(answer)
     notes: list[str] = []
     invalid = set(report.invalid_citations)
-    unsupported = [
-        *report.unsupported_numbers,
-        *report.misattributed_numbers,
-        *report.document_market_numbers,
-        *report.uncited_numbers,
-    ]
+    # The report lists values, not positions: a value is held against a sentence only in the role it was
+    # reported for, so an uncited restatement of a figure does not take down the cited sentence stating it.
+    anywhere = [*report.unsupported_numbers, *report.document_market_numbers]
+    cited_only = [*anywhere, *report.misattributed_numbers]
+    uncited_only = [*anywhere, *report.uncited_numbers]
 
     def has_unsupported(text: str) -> bool:
-        return bool(unsupported) and any(
-            _is_supported(value, unsupported, _BARE_SCALES) for value in claim_numbers(text)
-        )
+        cites = any(match.group(1) in store for match in _CITATION.finditer(text))
+        rejected = cited_only if cites else uncited_only
+        return bool(rejected) and any(_is_supported(value, rejected, _BARE_SCALES) for value in claim_numbers(text))
 
     def drop_invalid(text: str) -> str:
         cleaned = _CITATION.sub(lambda match: "" if match.group(1) in invalid else match.group(0), text)
