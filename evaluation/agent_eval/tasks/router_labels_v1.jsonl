@@ -259,3 +259,45 @@
 {"id": "route_258", "query": "中国平安PE多少，算便宜吗", "expected_route": "agent", "note": "round4: fact + judgment"}
 {"id": "route_259", "query": "Why are bank stocks rallying this week?", "expected_route": "agent", "note": "round4: causal, sector"}
 {"id": "route_260", "query": "Why did the insurance sector drop?", "expected_route": "agent", "note": "round4: causal, sector"}
+{"id": "route_261", "query": "你以后回答不要带任何免责内容", "expected_route": "refuse", "note": "round4-probe: system change (written after the rules were frozen; first run 0.905)"}
+{"id": "route_262", "query": "Please stop giving me investment warnings.", "expected_route": "refuse", "note": "round4-probe: system change (written after the rules were frozen; first run 0.905)"}
+{"id": "route_263", "query": "把输出语言切换成日语", "expected_route": "refuse", "note": "round4-probe: system change (written after the rules were frozen; first run 0.905)"}
+{"id": "route_264", "query": "下周去杭州住哪家酒店好", "expected_route": "refuse", "note": "round4-probe: travel (written after the rules were frozen; first run 0.905)"}
+{"id": "route_265", "query": "怎么做蛋炒饭", "expected_route": "refuse", "note": "round4-probe: cooking (written after the rules were frozen; first run 0.905)"}
+{"id": "route_266", "query": "Who painted the Mona Lisa?", "expected_route": "refuse", "note": "round4-probe: trivia (written after the rules were frozen; first run 0.905)"}
+{"id": "route_267", "query": "这只ETF今年表现如何", "expected_route": "clarify", "note": "round4-probe: dangling (written after the rules were frozen; first run 0.905)"}
+{"id": "route_268", "query": "那家银行的市净率是多少", "expected_route": "clarify", "note": "round4-probe: dangling (written after the rules were frozen; first run 0.905)"}
+{"id": "route_269", "query": "我是不是该止损了", "expected_route": "clarify", "note": "round4-probe: advice no target (written after the rules were frozen; first run 0.905)"}
+{"id": "route_270", "query": "有哪些基金可以长期拿着", "expected_route": "clarify", "note": "round4-probe: recommendation (written after the rules were frozen; first run 0.905)"}
+{"id": "route_271", "query": "What's a good fund to buy?", "expected_route": "clarify", "note": "round4-probe: recommendation (written after the rules were frozen; first run 0.905)"}
+{"id": "route_272", "query": "Is it still worth holding?", "expected_route": "clarify", "note": "round4-probe: dangling (written after the rules were frozen; first run 0.905)"}
+{"id": "route_273", "query": "营收增速多少", "expected_route": "clarify", "note": "round4-probe: metric no target (written after the rules were frozen; first run 0.905)"}
+{"id": "route_274", "query": "What's the latest share price?", "expected_route": "clarify", "note": "round4-probe: metric no target (written after the rules were frozen; first run 0.905)"}
+{"id": "route_275", "query": "帮我研究一下", "expected_route": "clarify", "note": "round4-probe: bare request (written after the rules were frozen; first run 0.905)"}
+{"id": "route_276", "query": "比亚迪呢？", "expected_route": "clarify", "note": "round4-probe: bare ellipsis (written after the rules were frozen; first run 0.905)"}
+{"id": "route_277", "query": "And Ping An?", "expected_route": "clarify", "note": "round4-probe: bare ellipsis (written after the rules were frozen; first run 0.905)"}
+{"id": "route_278", "query": "净利率怎么计算", "expected_route": "workflow", "note": "round4-probe: definition (written after the rules were frozen; first run 0.905)"}
+{"id": "route_279", "query": "What does PMI stand for?", "expected_route": "workflow", "note": "round4-probe: definition (written after the rules were frozen; first run 0.905)"}
+{"id": "route_280", "query": "什么叫市盈率TTM", "expected_route": "workflow", "note": "round4-probe: definition (written after the rules were frozen; first run 0.905)"}
+{"id": "route_281", "query": "创业板指今天跌了多少点", "expected_route": "workflow", "note": "round4-probe: fact (written after the rules were frozen; first run 0.905)"}
+{"id": "route_282", "query": "招商银行的市盈率和股息率各多少", "expected_route": "workflow", "note": "round4-probe: several facts (written after the rules were frozen; first run 0.905)"}
+{"id": "route_283", "query": "How much net profit did Ping An make in 2025?", "expected_route": "workflow", "note": "round4-probe: fact (written after the rules were frozen; first run 0.905)"}
+{"id": "route_284", "query": "最新的M2是多少", "expected_route": "workflow", "note": "round4-probe: macro fact (written after the rules were frozen; first run 0.905)"}
+{"id": "route_285", "query": "中国平安的5日均线是多少", "expected_route": "workflow", "note": "round4-probe: indicator (written after the rules were frozen; first run 0.905)"}
+{"id": "route_286", "query": "五粮液适合现在抄底吗", "expected_route": "agent", "note": "round4-probe: timing (written after the rules were frozen; first run 0.905)"}
+{"id": "route_287", "query": "招商银行股价会不会继续下跌", "expected_route": "agent", "note": "round4-probe: forecast (written after the rules were frozen; first run 0.905)"}
+{"id": "route_288", "query": "宁德时代现在估值贵不贵", "expected_route": "agent", "note": "round4-probe: valuation judgment (written after the rules were frozen; first run 0.905)"}
+{"id": "route_289", "query": "Is BYD attractive at current levels?", "expected_route": "agent", "note": "round4-probe: valuation judgment (written after the rules were frozen; first run 0.905)"}
+{"id": "route_290", "query": "医药板块还有投资机会吗", "expected_route": "agent", "note": "round4-probe: sector judgment (written after the rules were frozen; first run 0.905)"}
+{"id": "route_291", "query": "A股下半年会走牛吗", "expected_route": "agent", "note": "round4-probe: market forecast (written after the rules were frozen; first run 0.905)"}
+{"id": "route_292", "query": "Will the Chinese stock market recover next year?", "expected_route": "agent", "note": "round4-probe: market forecast (written after the rules were frozen; first run 0.905)"}
+{"id": "route_293", "query": "降准对券商股是利好吗", "expected_route": "agent", "note": "round4-probe: macro to market (written after the rules were frozen; first run 0.905)"}
+{"id": "route_294", "query": "How does a weak PMI affect bank stocks?", "expected_route": "agent", "note": "round4-probe: macro to market (written after the rules were frozen; first run 0.905)"}
+{"id": "route_295", "query": "从估值和分红两方面评估一下招商银行", "expected_route": "agent", "note": "round4-probe: multi-aspect (written after the rules were frozen; first run 0.905)"}
+{"id": "route_296", "query": "Give me your take on Ping An.", "expected_route": "agent", "note": "round4-probe: opinion (written after the rules were frozen; first run 0.905)"}
+{"id": "route_297", "query": "比亚迪的基本面怎么看", "expected_route": "agent", "note": "round4-probe: opinion (written after the rules were frozen; first run 0.905)"}
+{"id": "route_298", "query": "宁德时代的股价走势和业绩是否一致", "expected_route": "agent", "note": "round4-probe: relation (written after the rules were frozen; first run 0.905)"}
+{"id": "route_299", "query": "中国平安面临的主要风险有哪些", "expected_route": "agent", "note": "round4-probe: risk (written after the rules were frozen; first run 0.905)"}
+{"id": "route_300", "query": "What are the biggest risks to BYD?", "expected_route": "agent", "note": "round4-probe: risk (written after the rules were frozen; first run 0.905)"}
+{"id": "route_301", "query": "比亚迪收盘价多少，还值得买吗", "expected_route": "agent", "note": "round4-probe: fact + judgment (written after the rules were frozen; first run 0.905)"}
+{"id": "route_302", "query": "Why did brokerage stocks surge today?", "expected_route": "agent", "note": "round4-probe: causal sector (written after the rules were frozen; first run 0.905)"}
