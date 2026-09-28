@@ -35,7 +35,7 @@ jobs:
 
   secrets:
     # Full-history secret scan. .gitleaks.toml exempts exactly one historical finding (the revoked key in
-    # 302077a, see SECURITY.md) and one model-id false positive; anything else fails the build.
+    # 302077a, see SECURITY.md) and two content-matched false positives; anything else fails the build.
     # Takes about 15-20 minutes: most of it is the single 46 MB commit of data/runtime/documents.jsonl.
     runs-on: ubuntu-latest
     timeout-minutes: 45

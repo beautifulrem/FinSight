@@ -30,8 +30,8 @@ services should go to those vendors.
   - CI: the `secrets` job scans the **full git history** with gitleaks on every push and pull request
     ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 - **Allowlist entries must be narrow.** [`.gitleaks.toml`](.gitleaks.toml) extends the default rules
-  with exactly two exceptions: the historical finding below (matched by commit, file and rule together)
-  and a false positive on a public model id. Never allowlist by path wildcard; a real secret is revoked
+  with one exception for the historical finding below (matched by commit, file and rule together) and
+  two content-matched false positives (a public model id and the hashed caller-id format). Never allowlist by path wildcard; a real secret is revoked
   and removed, not allowlisted.
 - **If a secret is committed**: treat it as compromised as soon as it is pushed. Revoke or rotate it at
   the provider first, then remove it from the code, then decide whether to rewrite history (removal
