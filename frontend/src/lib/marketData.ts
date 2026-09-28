@@ -13,7 +13,7 @@ export interface PriceSeries {
 }
 
 export type KpiTone = "up" | "down" | "neutral";
-export type KpiFormat = "price" | "percent" | "ratio" | "fraction" | "money" | "number" | "volume";
+export type KpiFormat = "price" | "percent" | "percentLevel" | "ratio" | "fraction" | "money" | "number" | "volume";
 
 export interface Kpi {
   key: string;
@@ -78,7 +78,24 @@ function subjectOf(payload: Payload): string | undefined {
   return str(payload.name ?? payload.canonical_name ?? payload.industry_name ?? payload.symbol);
 }
 
-function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asOf?: string): Kpi[] {
+function unitOf(payload: Payload, metric: string): string | undefined {
+  const units = payload.metric_units as Record<string, unknown> | undefined;
+  return units && typeof units === "object" ? str(units[metric]) : undefined;
+}
+
+/**
+ * Turnover is CNY when the payload says so (`amount_unit`, set by the agent's tool normalisation). Raw provider
+ * rows (classic `/chat`) carry no unit: Tushare's `daily.amount` is in thousands of CNY, others report CNY. The
+ * provider name can sit on the payload, on the evidence item, or in the provenance (`original_source`).
+ */
+function amountFormat(payload: Payload, sourceName?: string): KpiFormat {
+  if (str(payload.amount_unit) === "CNY") return "money";
+  const provenance = (payload.provenance ?? {}) as Payload;
+  const names = [payload.source_name, payload.source, payload.provider, provenance.source, provenance.original_source, sourceName];
+  return names.some((name) => /tushare/i.test(String(name ?? ""))) ? "volume" : "money";
+}
+
+function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asOf?: string, sourceName?: string): Kpi[] {
   const subject = subjectOf(payload);
   const base = { evidenceId, subject, asOf };
   const out: Kpi[] = [];
@@ -94,15 +111,14 @@ function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asO
       add("pct", "kpi.change", change, "percent", { tone: tone(change) });
       add("high", "kpi.high", payload.high, "price");
       add("low", "kpi.low", payload.low, "price");
-      // Tushare reports `amount` in thousands of CNY; AKShare/efinance report CNY.
-      const thousands = /tushare/i.test(String(payload.source_name ?? payload.provider ?? ""));
-      add("amount", "kpi.amount", payload.amount, thousands ? "volume" : "money");
+      add("amount", "kpi.amount", payload.amount, amountFormat(payload, sourceName));
       break;
     }
     case "fundamental_sql":
       add("pe", "kpi.pe", metrics.pe_ttm, "ratio", { asOf: isoDate(payload.report_date) ?? asOf });
       add("pb", "kpi.pb", metrics.pb, "ratio");
-      add("roe", "kpi.roe", metrics.roe, "fraction");
+      // Agent payloads declare units (metric_units.roe = "%"); raw provider rows may hold a fraction.
+      add("roe", "kpi.roe", metrics.roe, unitOf(payload, "roe") === "%" ? "percentLevel" : "fraction");
       add("revenue", "kpi.revenue", metrics.revenue, "money");
       add("net_profit", "kpi.netProfit", metrics.net_profit, "money");
       break;
@@ -142,7 +158,7 @@ function collect(items: StructuredItem[]): MarketData {
     if (points.length >= 2) {
       series.push({ evidenceId: item.evidence_id, symbol: str(payload.symbol), name: subjectOf(payload), points });
     }
-    kpis.push(...kpisFrom(type, payload, item.evidence_id, isoDate(item.as_of)));
+    kpis.push(...kpisFrom(type, payload, item.evidence_id, isoDate(item.as_of), item.source_name ?? undefined));
   }
   return { series, kpis };
 }
@@ -154,6 +170,7 @@ export function marketDataFromAgent(response: AgentResponse): MarketData {
     .map((source) => ({
       evidence_id: source.evidence_id,
       source_type: source.source_type ?? undefined,
+      source_name: source.source_name ?? undefined,
       as_of: source.as_of,
       payload: source.payload,
     }));

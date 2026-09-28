@@ -34,10 +34,15 @@ export function splitCitations(text: string, index: Map<string, number>): Segmen
     if (previous?.type === "text") previous.text += value;
     else segments.push({ type: "text", text: value });
   };
+  // Evidence ids are case-sensitive, but a model (or an old compliance pass) may change their case
+  // ("fundamental_600519.sh"); such a citation still points at exactly one item, so resolve it to that item.
+  const folded = new Map<string, string>();
+  for (const id of index.keys()) folded.set(id.toLowerCase(), folded.has(id.toLowerCase()) ? "" : id);
+  const resolve = (id: string) => (index.has(id) ? id : folded.get(id.toLowerCase()) || id);
   for (const match of text.matchAll(CITATION)) {
     const start = match.index ?? 0;
     const inner = match[1] ?? "";
-    const ids = inner.split(SEPARATORS).map((part) => part.trim()).filter(Boolean);
+    const ids = inner.split(SEPARATORS).map((part) => resolve(part.trim())).filter(Boolean);
     // Every part must be an evidence id; otherwise this is ordinary bracketed prose.
     if (!ids.length || ids.some((id) => /\s/.test(id) || (!index.has(id) && !looksLikeEvidenceId(id)))) continue;
     pushText(text.slice(last, start).replace(/\s+$/, (space) => (space.includes("\n") ? space : "")));

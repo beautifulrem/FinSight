@@ -59,8 +59,8 @@ export function formatClaimValue(
     case "pb":
       return lang === "zh" ? `${trim(value)} ${t("claim.unit.times")}` : `${trim(value)}${t("claim.unit.times")}`;
     case "roe":
-      // Claims state ROE in percent ("ROE 50%"); the fundamentals payload stores a fraction (0.33).
-      return side === "claimed" ? `${trim(value, 1)}%` : formatKpi(lang, value, "fraction");
+      // Claims state ROE in percent ("ROE 50%"); the agent's fundamentals payload is normalised to percent too.
+      return formatKpi(lang, value, "percentLevel");
     case "revenue":
     case "net_profit": {
       const amount = side === "claimed" ? claimedAmount(claim, value, unit) : value;

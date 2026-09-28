@@ -25,7 +25,9 @@ describe("formatClaimValue", () => {
     expect(formatClaimValue("zh", zh, "pct_change_1d", -5, "claimed")).toBe("-5%");
     expect(formatClaimValue("en", en, "pct_change_1d", -0.1778, "actual")).toBe("-0.18%");
     expect(formatClaimValue("zh", zh, "roe", 50, "claimed")).toBe("50%");
-    expect(formatClaimValue("zh", zh, "roe", 0.33, "actual")).toBe("33%");
+    // the claim-check server normalises ROE to percent (tools/units.py), so the actual value is not rescaled
+    expect(formatClaimValue("zh", zh, "roe", 33, "actual")).toBe("33%");
+    expect(formatClaimValue("zh", zh, "roe", 0.8, "actual")).toBe("0.8%");
     expect(formatClaimValue("zh", zh, "revenue", 174_120_000_000, "actual")).toBe("1,741.2 亿元");
     expect(formatClaimValue("en", en, "revenue", 174_120_000_000, "actual")).toBe("174.12B CNY");
     expect(formatClaimValue("zh", zh, null, 3, "claimed")).toBe("3");
