@@ -91,19 +91,53 @@ def _llm_fields(body: dict) -> dict:
     }
 
 
+async def _streamed(client: httpx.AsyncClient, payload: dict, started: float) -> tuple[int, dict, float | None]:
+    """POST /agent/chat/stream; return ``(status, final body, ms to the first answer_delta)``."""
+    body: dict = {}
+    ttft_ms = None
+    async with client.stream("POST", "/agent/chat/stream", json=payload) as response:
+        if response.status_code != 200:
+            await response.aread()
+            return response.status_code, {}, None
+        event = ""
+        async for line in response.aiter_lines():
+            if line.startswith("event:"):
+                event = line[6:].strip()
+            elif line.startswith("data:"):
+                if event == "answer_delta" and ttft_ms is None:
+                    ttft_ms = round((time.perf_counter() - started) * 1000, 1)
+                elif event == "answer":
+                    body = json.loads(line[5:].strip())
+                elif event == "clarification":
+                    body = {"status": "needs_clarification"}
+                elif event == "error":
+                    body = {"status": "error"}
+    return 200, body, ttft_ms
+
+
 async def user(
-    client: httpx.AsyncClient, index: int, requests: int, mode: str, questions: list[str], results: list[dict]
+    client: httpx.AsyncClient,
+    index: int,
+    requests: int,
+    mode: str,
+    questions: list[str],
+    results: list[dict],
+    stream: bool = False,
 ) -> None:
     for step in range(requests):
         query = questions[(index + step) % len(questions)]
         started = time.perf_counter()
         record: dict = {"user": index, "step": step, "query": query}
+        payload = {"query": query, "mode": mode, "session_id": f"load{index}x{step}"}
         try:
-            response = await client.post(
-                "/agent/chat", json={"query": query, "mode": mode, "session_id": f"load{index}x{step}"}
-            )
-            status = response.status_code
-            body = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
+            if stream:
+                status, body, ttft_ms = await _streamed(client, payload, started)
+                record["ttft_ms"] = ttft_ms
+            else:
+                response = await client.post("/agent/chat", json=payload)
+                status = response.status_code
+                is_json = response.headers.get("content-type", "").startswith("application/json")
+                body = response.json() if is_json else {}
             ok = status == 200 and body.get("status") in {"ok", "needs_clarification"}
             if status == 200:
                 record.update(_llm_fields(body))
@@ -191,6 +225,7 @@ async def run(
     label: str | None = None,
     warmup: bool = True,
     fresh_connections: bool = False,
+    stream: bool = False,
 ) -> dict:
     questions = QUESTION_SETS[question_set]
     results: list[dict] = []
@@ -210,9 +245,12 @@ async def run(
             if response.status_code == 200:
                 warmup_record.update(_llm_fields(response.json()))
         started = time.perf_counter()
-        await asyncio.gather(*(user(client, index, requests, mode, questions, results) for index in range(users)))
+        await asyncio.gather(
+            *(user(client, index, requests, mode, questions, results, stream) for index in range(users))
+        )
         wall = time.perf_counter() - started
     latencies = [item["latency_ms"] for item in results if item["ok"]]
+    ttfts = [item["ttft_ms"] for item in results if item["ok"] and item.get("ttft_ms") is not None]
     answered = [item for item in results if item.get("status") == 200]
     keys = (
         "user",
@@ -221,6 +259,7 @@ async def run(
         "ok",
         "status",
         "latency_ms",
+        "ttft_ms",
         "route",
         "answer_source",
         "verified",
@@ -237,6 +276,7 @@ async def run(
         "mode": mode,
         "question_set": question_set,
         "fresh_connections": fresh_connections,
+        "stream": stream,
         "users": users,
         "requests_per_user": requests,
         "requests": len(results),
@@ -252,6 +292,15 @@ async def run(
             "max": round(max(latencies), 1),
         }
         if latencies
+        else None,
+        # Time to the first streamed answer character (--stream; requests that streamed answer text).
+        "ttft_ms": {
+            "n": len(ttfts),
+            "p50": percentile(ttfts, 0.5),
+            "p95": percentile(ttfts, 0.95),
+            "p99": percentile(ttfts, 0.99),
+        }
+        if ttfts
         else None,
         "statuses": dict(Counter(str(item["status"]) for item in results)),
         "routes": dict(Counter(str(item.get("route")) for item in answered)),
@@ -286,6 +335,9 @@ def main(argv: list[str] | None = None) -> dict:
     parser.add_argument("--label", default=None, help="Free-form label stored in the report.")
     parser.add_argument("--no-warmup", action="store_true")
     parser.add_argument("--fresh-connections", action="store_true", help="No keep-alive (balance over replicas).")
+    parser.add_argument(
+        "--stream", action="store_true", help="Use /agent/chat/stream and record time to first answer token."
+    )
     parser.add_argument("--out", default="outputs/load_test.json")
     args = parser.parse_args(argv)
     report = asyncio.run(
@@ -301,6 +353,7 @@ def main(argv: list[str] | None = None) -> dict:
             label=args.label,
             warmup=not args.no_warmup,
             fresh_connections=args.fresh_connections,
+            stream=args.stream,
         )
     )
     report["command"] = "python -m scripts.load_test " + " ".join(sys.argv[1:] if argv is None else argv)

@@ -112,3 +112,29 @@ def test_blocking_proxy_refuses_blocked_hosts_and_forwards_the_rest(upstream):
         proxy.stop()
     assert proxy.counts["hq.blocked.example"] == {"blocked": 1}
     assert proxy.counts["127.0.0.1"]["forwarded"] == 2
+
+
+def test_load_test_stream_records_time_to_first_answer_token():
+    import asyncio
+    import json as _json
+    import time as _time
+
+    import httpx
+
+    from scripts.load_test import _streamed
+
+    answer = {"status": "ok", "route": "agent", "llm": {"calls": 2, "usage": {"prompt_tokens": 10}}}
+    sse = (
+        'event: node_start\ndata: {"node": "agent_llm"}\n\n'
+        'event: answer_delta\ndata: {"text": "茅台"}\n\n'
+        f"event: answer\ndata: {_json.dumps(answer)}\n\n"
+    )
+
+    async def go():
+        transport = httpx.MockTransport(lambda _request: httpx.Response(200, text=sse))
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            return await _streamed(client, {"query": "q"}, _time.perf_counter())
+
+    status, body, ttft_ms = asyncio.run(go())
+    assert status == 200 and body["route"] == "agent"
+    assert ttft_ms is not None and ttft_ms >= 0
