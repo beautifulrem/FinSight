@@ -1,0 +1,59 @@
+{
+ "config": {
+  "labels": "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+  "commit": "075caad",
+  "run_at": "2026-09-28T17:49:01+00:00",
+  "command": "python -m evaluation.agent_eval.router_eval --out evaluation/results/router_eval-round4-own.json"
+ },
+ "queries": 303,
+ "accuracy": 1.0,
+ "per_route": {
+  "refuse": {
+   "support": 44,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "clarify": {
+   "support": 77,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "workflow": {
+   "support": 73,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "agent": {
+   "support": 109,
+   "precision": 1.0,
+   "recall": 1.0
+  }
+ },
+ "confusion": {
+  "refuse": {
+   "refuse": 44,
+   "clarify": 0,
+   "workflow": 0,
+   "agent": 0
+  },
+  "clarify": {
+   "refuse": 0,
+   "clarify": 77,
+   "workflow": 0,
+   "agent": 0
+  },
+  "workflow": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 73,
+   "agent": 0
+  },
+  "agent": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 0,
+   "agent": 109
+  }
+ },
+ "errors": []
+}
