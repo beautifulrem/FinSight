@@ -400,3 +400,18 @@ def test_report_renders_from_committed_results():
 
     assert block.startswith(BEGIN) and block.endswith(END)
     assert "evaluation/results/ablation-final.json" in block and "Provenance of every number above" in block
+
+
+def test_runs_with_mostly_rejected_llm_calls_are_invalid(tmp_path):
+    import pytest
+
+    from evaluation.agent_eval.ablation import invalid_runs
+    from evaluation.agent_eval.results import main as results_main
+
+    http = {"test_v3": {"agent": {"requests": 10, "http_429": 10, "rate_429": 1.0}, "workflow_llm": {"rate_429": 0.05}}}
+    assert invalid_runs(http) == [{"set": "test_v3", "mode": "agent", "reason": "100% of LLM requests got HTTP 429"}]
+
+    source = tmp_path / "run.json"
+    source.write_text('{"invalid_runs": [{"set": "test_v3", "mode": "agent"}]}', encoding="utf-8")
+    with pytest.raises(SystemExit, match="invalid runs"):
+        results_main([str(source)])

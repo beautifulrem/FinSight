@@ -299,6 +299,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "comparisons": {set_name: comparisons(modes) for set_name, modes in results.items()},
         # LLM HTTP attempts per set and mode, including 429s that a retry recovered (they add latency).
         "llm_http": http,
+        # Runs where most LLM calls were rejected measure the fallback path, not the model.
+        "invalid_runs": invalid_runs(http),
     }
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -313,7 +315,23 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
                 f"llm_p95={summary.get('llm_turn_latency_ms_p95')} ttft_p50={summary.get('ttft_ms_p50')} "
                 f"calls={summary['llm_calls_per_turn']} http={http.get(set_name, {}).get(mode)}"
             )
+    for item in report["invalid_runs"]:
+        print(f"INVALID: {item['set']} {item['mode']}: {item['reason']}")
     return report
+
+
+MAX_REJECTED_SHARE = 0.2
+
+
+def invalid_runs(http: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Set/mode pairs whose LLM requests were mostly rejected (429 or errors): not a measurement of the model."""
+    out = []
+    for set_name, modes in http.items():
+        for mode, counters in modes.items():
+            rate = (counters or {}).get("rate_429")
+            if rate is not None and rate > MAX_REJECTED_SHARE:
+                out.append({"set": set_name, "mode": mode, "reason": f"{rate:.0%} of LLM requests got HTTP 429"})
+    return out
 
 
 if __name__ == "__main__":
