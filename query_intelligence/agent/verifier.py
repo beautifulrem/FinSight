@@ -283,9 +283,21 @@ def verify_answer(
 
 
 def repair_answer(
-    answer: dict[str, Any], report: VerificationReport, store: EvidenceStore, *, zh: bool
+    answer: dict[str, Any],
+    report: VerificationReport,
+    store: EvidenceStore,
+    *,
+    zh: bool,
+    fallback: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
-    """Remove unsupported statements and invalid citations. Returns ``(answer, notes)``."""
+    """Delete whole sentences that state an unverified number, and invalid citations. Returns ``(answer, notes)``.
+
+    Sentences are never cut into clauses: a sentence is kept verbatim or dropped (see ``whole_sentences``).
+    When a dropped sentence is followed by one that only makes sense after it ("因此…", "This means…"),
+    that sentence goes too; a plain connector ("此外，", "However, ") in front of a kept sentence is removed
+    instead. If no cited statement survives, ``fallback`` (the deterministic template answer composed from
+    the same tool results) replaces the draft; without one a short "evidence is not enough" answer is used.
+    """
     repaired = dict(answer)
     notes: list[str] = []
     invalid = set(report.invalid_citations)
@@ -301,31 +313,50 @@ def repair_answer(
             _is_supported(value, unsupported, _BARE_SCALES) for value in claim_numbers(text)
         )
 
-    salvaged = 0
+    def drop_invalid(text: str) -> str:
+        cleaned = _CITATION.sub(lambda match: "" if match.group(1) in invalid else match.group(0), text)
+        return re.sub(r"[ \t]+([。．.，,；;！？!?])", r"\1", cleaned) if cleaned != text else text
 
-    def clean_sentence(sentence: str) -> str | None:
-        nonlocal salvaged
-        stripped = _CITATION.sub(lambda match: "" if match.group(1) in invalid else match.group(0), sentence)
-        if not has_unsupported(stripped):
-            return stripped
-        # Salvage the clauses that only contain supported numbers.
-        clauses = [clause for clause in re.split(r"(?<=[，,；;])", stripped) if clause]
-        kept_clauses = [clause for clause in clauses if not has_unsupported(clause)]
-        if not kept_clauses or not claim_numbers("".join(kept_clauses)):
-            return None
-        text = "".join(kept_clauses).rstrip("，,；; ")
-        salvaged += 1
-        return text + ("。" if re.search(r"[\u4e00-\u9fff]", text) else ".")
+    def prune(text: str) -> tuple[str, int]:
+        kept: list[str] = []
+        removed = 0
+        previous_dropped = False
+        for raw in whole_sentences(drop_invalid(text)):
+            if not raw.strip():
+                continue
+            if has_unsupported(raw) or (previous_dropped and _DEPENDENT_OPENING.search(raw)):
+                removed += 1
+                previous_dropped = True
+                continue
+            kept.append(_strip_connector(raw) if previous_dropped or not kept else raw)
+            previous_dropped = False
+        return "".join(kept).strip(), removed
 
-    sentences = [clean_sentence(sentence) for sentence in _split_sentences(str(answer.get("answer") or ""))]
-    kept = [sentence for sentence in sentences if sentence and sentence.strip()]
-    removed = len(sentences) - len(kept)
-    repaired["answer"] = "".join(kept).strip()
-    points = [clean_sentence(str(point)) for point in answer.get("key_points") or []]
-    kept_points = [point.strip() for point in points if point and point.strip()]
-    removed += len(points) - len(kept_points) + salvaged
-    repaired["key_points"] = kept_points
+    text, removed = prune(str(answer.get("answer") or ""))
+    points: list[str] = []
+    for point in answer.get("key_points") or []:
+        cleaned, dropped = prune(str(point))
+        if cleaned:
+            points.append(cleaned)
+        removed += int(bool(dropped))
 
+    if not _cites_store(text, store) and fallback and str(fallback.get("answer") or "").strip():
+        limitations = [*(answer.get("limitations") or []), *(fallback.get("limitations") or [])]
+        repaired.update(
+            answer=str(fallback["answer"]),
+            key_points=list(fallback.get("key_points") or []),
+            evidence_used=[item for item in fallback.get("evidence_used") or [] if item in store],
+            limitations=list(dict.fromkeys(limitations)),
+        )
+        notes.append(
+            "模型回答中的数字无法由证据核实，已改用基于工具结果的模板回答。"
+            if zh
+            else "The model's answer stated figures the evidence does not support; replaced with the evidence summary."
+        )
+        return repaired, notes
+
+    repaired["answer"] = text
+    repaired["key_points"] = points
     valid = [evidence_id for evidence_id in cited_ids(repaired) if evidence_id in store]
     if not valid and len(store):
         valid = store.ids()[:5]
@@ -346,6 +377,22 @@ def repair_answer(
             else "The available evidence is not enough for a complete answer; only verifiable points are listed."
         )
     return repaired, notes
+
+
+def _cites_store(text: str, store: EvidenceStore) -> bool:
+    """True when ``text`` keeps at least one citation of this run (or the run has no evidence and text remains)."""
+    if not len(store):
+        return bool(text.strip())
+    return any(match.group(1) in store for match in _CITATION.finditer(text))
+
+
+def _strip_connector(sentence: str) -> str:
+    """Drop a leading "此外，" / "However, " whose antecedent sentence was removed; re-capitalise English."""
+    match = _CONNECTOR_OPENING.match(sentence)
+    if not match or match.end() >= len(sentence.rstrip()):
+        return sentence
+    rest = sentence[match.end() :]
+    return match.group(1) + (rest[:1].upper() + rest[1:] if rest[:1].isascii() else rest)
 
 
 def _is_structured(store: EvidenceStore, evidence_id: str) -> bool:
@@ -401,6 +448,108 @@ def _is_supported(
 def _split_sentences(text: str) -> list[str]:
     parts = re.split(r"(?<=[。！？!?；;])|(?<=\.)\s+", text)
     return [part for part in parts if part]
+
+
+_OPENERS = "(（《“「【"
+_CLOSERS = ")）》”」】"
+_CITATION_RUN = re.compile(r"(?:[ \t]*\[[^\[\]\s]{2,160}\])+")
+_TRAILING_SPACE = re.compile(r"\s*")
+
+
+def whole_sentences(text: str) -> list[str]:
+    """Split ``text`` into whole sentences, keeping every character (``"".join(result) == text``).
+
+    Unlike the claim units used for verification, a sentence only ends at 。！？!? or at a full stop
+    followed by whitespace, outside brackets and quotes, and not at list numbering ("1. "); ``；`` and
+    ``;`` stay inside the sentence. Citations written right after the terminator ("growth. [id]") and the
+    whitespace that follows belong to the sentence they close, so dropping a sentence never leaves an
+    orphan citation or glues its neighbours together.
+    """
+    sentences: list[str] = []
+    start = depth = 0
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char in _OPENERS:
+            depth += 1
+        elif char in _CLOSERS:
+            depth = max(0, depth - 1)
+        boundary = char == "\n"
+        if not boundary and depth == 0:
+            if char in "。！？!?":
+                boundary = True
+            elif char == "." and (index + 1 == len(text) or text[index + 1].isspace()):
+                boundary = not re.fullmatch(r"\s*\d{1,2}\.", text[start : index + 1])
+        if boundary:
+            end = index + 1
+            citations = _CITATION_RUN.match(text, end)
+            if citations:
+                end = citations.end()
+            end = _TRAILING_SPACE.match(text, end).end()
+            sentences.append(text[start:end])
+            start = index = end
+            continue
+        index += 1
+    if start < len(text):
+        sentences.append(text[start:])
+    return sentences
+
+
+# A sentence that opens with one of these only makes sense after the sentence before it.
+_DEPENDENT_OPENING = re.compile(
+    r"^\s*(?:因此|所以|因而|从而|由此|故而|这意味着|这表明|这说明|这显示|这一|其中|对此|"
+    r"therefore\b|thus\b|hence\b|as a result\b|consequently\b|so\b|which\b|"
+    r"this (?:means|suggests|shows|indicates|implies)\b|that (?:means|suggests|shows)\b)",
+    re.IGNORECASE,
+)
+# Connectors that can simply be dropped when the sentence before them is gone.
+_CONNECTOR_OPENING = re.compile(
+    r"^(\s*)(?:此外|另外|与此同时|同时|而且|并且|但是|然而|不过|相比之下|相较之下|对比之下|另一方面|但|"
+    r"also\b|in addition\b|additionally\b|moreover\b|furthermore\b|meanwhile\b|however\b|but\b|"
+    r"by contrast\b|in contrast\b|on the other hand\b|besides\b)\s*[，,、:：]?\s*",
+    re.IGNORECASE,
+)
+_CONTINUATION_OPENING = re.compile(r"^\s*(?:[，,；;、：:)）\]]|以及|(?:and|or|while|whereas)\b)", re.IGNORECASE)
+_TERMINAL = re.compile(r"[。！？.!?…][”」’\"')）]*$")
+_BRACKET_PAIRS = (("(", ")"), ("（", "）"), ("[", "]"), ("《", "》"), ("“", "”"), ("【", "】"))
+
+
+def readability_issues(text: str) -> list[str]:
+    """Surface defects of an edited answer: empty or dangling sentences, broken brackets, orphan citations.
+
+    Used by tests and by ``evaluation/agent_eval/verifier_stress.py`` to measure repaired answers. Each issue
+    is ``"<kind>: <sentence excerpt>"``; an empty list means the text reads as whole sentences.
+    """
+    issues: list[str] = []
+    stripped = text.strip()
+    if not stripped:
+        return ["empty"]
+    for opener, closer in _BRACKET_PAIRS:
+        if stripped.count(opener) != stripped.count(closer):
+            issues.append(f"unbalanced_brackets: {opener}{closer}")
+    if re.search(r"\.\s*(?:\[[^\]]*\]\s*)*。|。\s*(?:\[[^\]]*\]\s*)*\.(?!\d)", stripped):
+        issues.append("mixed_terminators")
+    for sentence in whole_sentences(stripped):
+        body = sentence.strip()
+        if not body:
+            continue
+        content = _CITATION.sub("", body).strip()
+        excerpt = body[:40]
+        if not re.search(r"[\w一-鿿]", content):
+            issues.append(f"orphan_citation: {excerpt}" if _CITATION.search(body) else f"stray_punctuation: {excerpt}")
+            continue
+        if body.startswith("["):
+            issues.append(f"starts_with_citation: {excerpt}")
+        if _CONTINUATION_OPENING.search(content):
+            issues.append(f"starts_mid_clause: {excerpt}")
+        elif _DEPENDENT_OPENING.search(content) or _CONNECTOR_OPENING.match(content):
+            issues.append(f"starts_with_connector: {excerpt}")
+        elif re.match(r"[a-z]", content) and not re.match(r"[a-z]+[A-Z0-9(]", content):  # "down 1.2%", not "iPhone"
+            issues.append(f"starts_lowercase: {excerpt}")
+    body = _CITATION.sub("", stripped).rstrip()
+    if body and not _TERMINAL.search(body):
+        issues.append(f"unterminated: {body[-40:]}")
+    return issues
 
 
 def _format_number(value: float) -> str:

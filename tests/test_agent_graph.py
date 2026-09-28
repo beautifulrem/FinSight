@@ -282,6 +282,36 @@ def test_failed_verification_is_visible_in_degraded():
 
     assert "verification_failed:repaired" in result["degraded"]
     assert "1409.5" in result["answer"] and "2600" not in result["answer"]
+    # the only sentence mixed a verified close with an invented target price: it is dropped as a whole
+    # (no clause salvage) and, as nothing cited is left, the deterministic template answers instead
+    assert "verification_failed:template_fallback" in result["degraded"]
+    assert result["answer"].startswith("根据本次检索到的证据") and "目标价" not in result["answer"]
+
+
+def test_partially_supported_llm_answer_keeps_whole_verified_sentences():
+    draft = {
+        "answer": (
+            "茅台最新收盘价为 1409.5 [price_600519.SH]。因此目标价 2600 元。"
+            "此外，PE(TTM) 为 24.6 [fundamental_600519.SH]。"
+        ),
+        "evidence_used": [],
+    }
+    llm = ScriptedLLM(
+        [
+            tool_call_turn(
+                ("get_price_history", {"target": "600519.SH"}), ("get_fundamentals", {"target": "600519.SH"})
+            ),
+            final_turn(draft),
+            final_turn(draft),
+        ]
+    )
+
+    result = _runtime(llm).run("茅台为什么跌了")
+
+    assert "verification_failed:repaired" in result["degraded"]
+    assert "verification_failed:template_fallback" not in result["degraded"]
+    assert "茅台最新收盘价为 1409.5 [price_600519.SH]。PE(TTM) 为 24.6 [fundamental_600519.SH]。" in result["answer"]
+    assert "2600" not in result["answer"] and "此外" not in result["answer"]
 
 
 def test_cacheable_prefix_is_stable_and_prompt_versions_are_logged(monkeypatch):
