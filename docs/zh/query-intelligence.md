@@ -68,7 +68,8 @@ API 代码位于 `query_intelligence/api/app.py`。
 
 | Endpoint | 用途 | 输入 | 输出 |
 |---|---|---|---|
-| `GET /health` | 健康检查 | 无 | `{"status":"ok"}` |
+| `GET /health` | 存活检查：进程能响应 HTTP | 无 | `{"status":"ok"}` |
+| `GET /ready` | 就绪检查：检查点存储可连接且可写、LLM 配置合理、检索索引已加载 | 无 | 200 `{"status":"ready","checks":{...}}` 或 503 `{"status":"not_ready",...}` |
 | `GET /` | 浏览器 Chatbot UI | 浏览器访问 | HTML app |
 | `POST /chat` | 端到端 NLU + Retrieval + LLM API 润色 | `ChatRequest` | Chatbot 回复 JSON |
 | `POST /nlu/analyze` | 只执行 NLU | `AnalyzeRequest` | `NLUResult` |

@@ -1,0 +1,99 @@
+# Network isolation for the FinSight namespace. Requires a CNI that enforces NetworkPolicy (Calico,
+# Cilium, k3s' built-in kube-router controller, ...); on others these objects are accepted but ignored.
+#
+# Kubelet probes are not affected: traffic between a node and its own pods is always allowed.
+#
+# Egress limits of plain NetworkPolicy: rules match IP blocks and ports, not host names. The LLM gateway
+# (DEEPSEEK_BASE_URL) and the market-data hosts (Eastmoney, Sina, Tencent, THS, cninfo, CSIndex,
+# ChinaBond, Xueqiu, Tushare; the full list is in query_intelligence/integrations/sources/catalog.py) sit
+# behind CDNs with changing addresses, so the policy allows HTTP(S) to public addresses only and blocks
+# every private, link-local (cloud metadata 169.254.169.254) and carrier-grade NAT range. That removes
+# lateral movement inside the cluster/VPC. To pin egress to those host names, use an FQDN-aware policy
+# (CiliumNetworkPolicy toFQDNs, Calico DNS policy) or an egress proxy (FINSIGHT_EGRESS_PROXY); the host
+# list to allow is in docs/deployment.md.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finsight-api
+  namespace: finsight
+spec:
+  podSelector:
+    matchLabels: {app: finsight-api}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # The ingress controller: ingress-nginx in its own namespace, or Traefik in kube-system (k3s default).
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: ingress-nginx}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: ingress-nginx}
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: traefik}
+      ports:
+        - {protocol: TCP, port: 8000}
+    # Prometheus scraping /metrics (the pod template carries prometheus.io/scrape annotations).
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: monitoring}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: prometheus}
+      ports:
+        - {protocol: TCP, port: 8000}
+    # In-namespace clients that opt in with this label (the load generator of deploy/k8s/scale_test.sh).
+    - from:
+        - podSelector:
+            matchLabels: {finsight.io/client: "true"}
+      ports:
+        - {protocol: TCP, port: 8000}
+  egress:
+    # Cluster DNS.
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    # Session checkpointer (the demo StatefulSet). For a managed database replace this peer with an
+    # ipBlock for its address, e.g. {ipBlock: {cidr: 10.20.0.15/32}}.
+    - to:
+        - podSelector:
+            matchLabels: {app: finsight-postgres}
+      ports:
+        - {protocol: TCP, port: 5432}
+    # LLM gateway and market-data sources: HTTP(S) to public addresses only.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 0.0.0.0/8
+              - 10.0.0.0/8
+              - 100.64.0.0/10
+              - 127.0.0.0/8
+              - 169.254.0.0/16
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - {protocol: TCP, port: 443}
+        - {protocol: TCP, port: 80}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: finsight-postgres
+  namespace: finsight
+spec:
+  podSelector:
+    matchLabels: {app: finsight-postgres}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app: finsight-api}
+      ports:
+        - {protocol: TCP, port: 5432}
+  # No egress rules: the database initiates no connections.
+  egress: []

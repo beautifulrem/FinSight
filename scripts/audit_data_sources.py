@@ -6,7 +6,10 @@ chains used at runtime are then exercised end to end so the served source and pr
 
     python -m scripts.audit_data_sources --json outputs/data_source_audit.json
 
-Requires network access; results depend on the time of day and on upstream throttling.
+Requires network access; results depend on the time of day and on upstream throttling. The report records
+the commit and whether the working tree was clean; committed audits live in
+``docs/results/data_sources/`` (run from a clean checkout), and ``.github/workflows/data-source-audit.yml``
+runs the audit weekly and uploads the JSON as an artifact.
 """
 
 from __future__ import annotations
@@ -334,10 +337,33 @@ def run_audit(timeout: float, include_legacy: bool) -> dict[str, Any]:
     return {
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "command": "python -m scripts.audit_data_sources",
+        **_git_state(),
         "versions": _versions(),
+        "summary": {
+            "probes": len(results),
+            "probes_ok": sum(1 for row in results if row["ok"]),
+            "chains": len(chains),
+            "chains_ok": sum(1 for row in chains if row.get("ok")),
+        },
         "probes": results,
         "chains": chains,
     }
+
+
+def _git_state() -> dict[str, Any]:
+    """Commit and cleanliness of the checkout the audit ran from (``None`` outside a git checkout)."""
+    import subprocess
+
+    def git(*args: str) -> str | None:
+        try:
+            out = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return out.stdout.strip() if out.returncode == 0 else None
+
+    status = git("status", "--porcelain", "--untracked-files=no")
+    clean = None if status is None else not status
+    return {"commit": git("rev-parse", "--short=7", "HEAD"), "working_tree_clean": clean}
 
 
 def run_chains(timeout: float) -> list[dict]:
@@ -463,6 +489,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     report = run_audit(args.timeout, include_legacy=not args.no_legacy)
     print(to_markdown(report))
+    summary = report["summary"]
+    print(f"\n{summary['probes_ok']}/{summary['probes']} probes ok", end=", ")
+    print(f"{summary['chains_ok']}/{summary['chains']} chains ok")
     if args.json:
         path = Path(args.json)
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -175,13 +175,13 @@ curl -s localhost:8000/agent/resume -H 'Content-Type: application/json' \
 | `QI_AGENT_SENTIMENT_BACKEND` | `classical` | 设为 `finbert` 使用 FinBERT（需要 `torch`/`transformers`）。 |
 | `QI_AGENT_TRACE_DIR` | `outputs/traces` | JSON trace 输出目录；`off` 表示关闭。 |
 | `QI_AGENT_OTEL`、`OTEL_EXPORTER_OTLP_ENDPOINT`、`OTEL_EXPORTER_OTLP_HEADERS` | 未设置 | 通过 OTLP/HTTP 导出 OpenTelemetry span（Jaeger、Tempo、Langfuse 等）。 |
-| `QI_API_KEYS` | 未设置 | 逗号分隔的 API Key；设置后，除 `GET /health`、`GET /` 与 `/static/*` 外都需要 `X-API-Key` 或 `Authorization: Bearer`。 |
+| `QI_API_KEYS` | 未设置 | 逗号分隔的 API Key；设置后，除 `GET /health`、`GET /ready`、`GET /`、Agent Card 与 `/static/*` 外都需要 `X-API-Key` 或 `Authorization: Bearer`。 |
 | `QI_RATE_LIMIT_PER_MINUTE` | `0`（关闭） | 按客户端的令牌桶限流；超限返回 429 与 `Retry-After`。 |
 | `QI_CORS_ORIGINS` | 未设置 | 逗号分隔的允许来源。 |
 | `QI_MAX_REQUEST_BYTES` | `1048576` | 超过该大小的请求体返回 413。 |
 | `QI_SOURCE_CALL_TIMEOUT_SECONDS`、`QI_SOURCE_FAILURE_THRESHOLD`、`QI_SOURCE_COOLDOWN_SECONDS`、`QI_SOURCE_CACHE`、`QI_SOURCE_MAX_WORKERS`、`QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS`、`QI_SOURCE_CROSS_CHECK` | `10`、`3`、`60`、`true`、`32`、`60`、`true` | live 数据源硬超时、熔断器、TTL 缓存、有界调用池、主动探测限频、新浪/同花顺交叉核对（[详情](data-sources.md#配置)）。 |
 | `QI_FEEDBACK_PATH` | `outputs/feedback/feedback.jsonl` | `/agent/feedback` 追加写入的文件。 |
-| `QI_TFIDF_CACHE_DIR` | 未设置 | 保存拟合好的 TF-IDF 文档索引的目录（按语料哈希区分）。索引本来就会在进程内缓存，服务重建从约 39 秒降到 6 秒；设置该目录后，重启时从磁盘加载（约 4.5 秒）而不必重新拟合。文件约 350 MB，因此没有打进镜像。 |
+| `QI_TFIDF_CACHE_DIR` | 未设置 | 保存拟合好的 TF-IDF 文档索引的目录（按语料哈希区分）。索引本来就会在进程内缓存，同一进程内重建服务只要 3.65 秒，冷启动则是 24.06 秒；设置该目录后，新进程从磁盘加载（6.81 秒）而不必重新拟合。文件 365 MB，因此没有打进镜像（[startup.json](../results/perf/startup.json)）。 |
 | `QI_TEST_LIVE` | 未设置 | 仅测试用：除非 `QI_TEST_LIVE=1`，`tests/conftest.py` 会把 `QI_USE_LIVE_*` 默认设为 `false`，测试不会等待上游网站。 |
 
 Agent 预算（`max_llm_steps=6`、`max_tool_calls=16`、`max_parallel_tools=4`、`token_budget=80000`、`max_revisions=1`、`run_deadline_s=90`、`answer_grace_s=20`）和按节点的推理强度（`agent_reasoning=None` 即客户端默认，`compose_reasoning`、`revise_reasoning`、`final_reasoning` 为 `low`）是 `agent/state.py` 中 `AgentConfig` 的字段。

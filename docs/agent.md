@@ -153,13 +153,13 @@ The browser page at `/` uses these endpoints: pick a mode, watch steps stream in
 | `QI_AGENT_SENTIMENT_BACKEND` | `classical` | `finbert` to use the FinBERT sentiment model (needs `torch`/`transformers`). |
 | `QI_AGENT_TRACE_DIR` | `outputs/traces` | Where JSON traces are written; `off` disables them. |
 | `QI_AGENT_OTEL`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS` | unset | Export traces as OpenTelemetry spans over OTLP/HTTP (Jaeger, Tempo, Langfuse, …). |
-| `QI_API_KEYS` | unset | Comma-separated API keys; when set, all endpoints except `GET /health`, `GET /` and `/static/*` need `X-API-Key` or `Authorization: Bearer`. |
+| `QI_API_KEYS` | unset | Comma-separated API keys; when set, all endpoints except `GET /health`, `GET /ready`, `GET /`, the agent card and `/static/*` need `X-API-Key` or `Authorization: Bearer`. |
 | `QI_RATE_LIMIT_PER_MINUTE` | `0` (off) | Per-client token bucket; 429 with `Retry-After`. |
 | `QI_CORS_ORIGINS` | unset | Comma-separated allowed browser origins. |
 | `QI_MAX_REQUEST_BYTES` | `1048576` | Larger bodies get 413. |
 | `QI_SOURCE_CALL_TIMEOUT_SECONDS`, `QI_SOURCE_FAILURE_THRESHOLD`, `QI_SOURCE_COOLDOWN_SECONDS`, `QI_SOURCE_CACHE`, `QI_SOURCE_MAX_WORKERS`, `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS`, `QI_SOURCE_CROSS_CHECK` | `10`, `3`, `60`, `true`, `32`, `60`, `true` | Live data source hard timeout, circuit breaker, TTL cache, bounded call pool, active-probe rate limit and Sina/THS cross-check ([details](data-sources.md#configuration)). |
 | `QI_FEEDBACK_PATH` | `outputs/feedback/feedback.jsonl` | Where `/agent/feedback` appends records. |
-| `QI_TFIDF_CACHE_DIR` | unset | Directory for the fitted TF-IDF document index (keyed by a hash of the corpus). The index is always memoised per process, which cut a rebuilt service's start from about 39 s to 6 s; with this set, a restart loads it from disk (about 4.5 s) instead of refitting. The file is about 350 MB, so it is not baked into the image. |
+| `QI_TFIDF_CACHE_DIR` | unset | Directory for the fitted TF-IDF document index (keyed by a hash of the corpus). The index is always memoised per process, so a service rebuilt in the same process starts in 3.65 s instead of 24.06 s; with this set, a new process loads it from disk (6.81 s) instead of refitting. The file is 365 MB, so it is not baked into the image ([startup.json](results/perf/startup.json)). |
 | `QI_TEST_LIVE` | unset | Tests only: `tests/conftest.py` sets the `QI_USE_LIVE_*` defaults to `false` unless `QI_TEST_LIVE=1`, so the suite never waits for upstream sites. |
 
 Agent budgets (`max_llm_steps=6`, `max_tool_calls=16`, `max_parallel_tools=4`, `token_budget=80000`, `max_revisions=1`, `run_deadline_s=90`, `answer_grace_s=20`) and per-node reasoning levels (`agent_reasoning=None` i.e. the client default, `compose_reasoning`, `revise_reasoning` and `final_reasoning` = `low`) are fields of `AgentConfig` in `agent/state.py`.

@@ -24,6 +24,10 @@
 
 结果：64 次探测，49 次成功。每个失败都找到了根因（见下文）。
 
+**已提交的复测。** 上表来自一次在有改动的工作区上的运行，当时的 JSON 没有保留。2026-09-28 09:14 UTC 在干净的 `6dde495` 检出上重跑了审计（同样的网络和包版本），完整输出已提交：[`results/data_sources/audit-20260928-6dde495.json`](../results/data_sources/audit-20260928-6dde495.json)（文件里记录了 `commit` 和 `working_tree_clean: true`）。总数相同：**64 次探测 49 次成功，10 条降级链全部成功**（行情都由新浪提供）。失败类别也一样：东方财富 `push2`/`push2his` 主机 0/11（代理错误，根因 1；efinance 用的是同一主机）、雪球 0/1（需要登录 Token）、已移除的 `macro_china_pmi_monthly`，以及巨潮和东方财富公告接口各一次空结果（ETF 没有公司公告）。
+
+**定期运行。** [`.github/workflows/data-source-audit.yml`](../../.github/workflows/data-source-audit.yml) 每周一 01:30 UTC 以及手动触发（`workflow_dispatch`）时运行审计，把汇总表写到任务页面，并把 JSON 作为 artifact 保留 90 天。GitHub 的 runner 不在中国大陆，结果不能和上表直接比较；文档引用的审计都在部署所在网络运行，并提交到 `docs/results/data_sources/`。
+
 ## 各数据源结果
 
 延迟是各标的上观察到的范围，「最新数据日期」是返回数据中最新的日期。结果来自上面那次审计。
@@ -237,8 +241,8 @@
 - 熔断和缓存配置，以及数据源调用池的计数器（`worker_pool`）。
 
 **主动探测（需显式开启）。**
-- **怎么探**：`GET /sources/health?probe=1` 先对每个数据源发一次轻量请求：东方财富行情/数据中心/新闻、新浪日线/报价、腾讯日线/报价、同花顺财务/行业、巨潮资讯概况。请求走同一个受保护的 `SourceRuntime.call`，所以熔断、延迟和错误的记录方式和真实流量完全一样。
-- **返回什么**：报告里会多一个 `probe` 块，含每个数据源的 `ok`、`outcome`、`latency_ms`、`error`。
+- **怎么探**：`GET /sources/health?probe=1` 先对目录里的全部 19 个数据源各发一次轻量请求：东方财富行情/数据中心/基金/新闻/公告、新浪日线/报价/财务、腾讯日线/报价、同花顺财务/行业、中证指数、中债、巨潮公告/概况、雪球、efinance，以及设置了 `TUSHARE_TOKEN` 时的 Tushare。请求走同一个受保护的 `SourceRuntime.call`，所以熔断、延迟和错误的记录方式和真实流量完全一样。多页抓取的慢上游超时 15 秒，其余 6 秒。
+- **返回什么**：报告里会多一个 `probe` 块，含每个数据源的 `ok`、`outcome`、`latency_ms`、`error`，以及 `catalog_total` 和 `not_probed`（每个未探测的数据源及原因）。每一行数据源还会带 `probe` 字段：最近一次探测结果，或 `{"probed": false, "reason": ...}`（例如没有 Token 的 Tushare），未探测的数据源不会被误读为健康或只是空闲。
 - **限频**：好几个上游会对同一 IP 的突发请求限流，所以探测在进程内限频：每 `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS`（默认 60）最多一轮。
   - 窗口内再请求，返回上一轮结果，并带 `status: rate_limited` 和 `retry_in_s`；
   - 正在探测时请求，得到 `in_progress`；
