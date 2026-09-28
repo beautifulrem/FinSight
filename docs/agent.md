@@ -204,7 +204,7 @@ All agent tests run offline: `ScriptedLLM` replays fixed assistant turns and `te
 ## Limits
 
 - The agent path is only as good as the LLM behind it. Offline evaluation measures the deterministic path and the graph's safety checks; the online evaluation in [agent-eval.md](agent-eval.md) measures two flash-class models (DeepSeek V4.1 Flash, GLM-5.3 Flash) through one gateway, and the agent loop's advantage over LLM composition is not significant with DeepSeek.
-- Numeric verification is claim-level (2.6% false-accept rate on 2,314 corrupted gold answers, `evaluation/results/verifier_stress.json`), but it does not check that a number is used for the right period or metric when the cited evidence holds several, and a number planted in a document passes because it is in the evidence.
+- Numeric verification is claim-level (2.1% false-accept rate on 2,433 corrupted gold answers, `evaluation/results/verifier_stress.json`), but it does not check that a number is used for the right period or metric when the cited evidence holds several, and a number planted in a document passes because it is in the evidence.
 - Follow-up resolution is rule-based: it covers pronouns, plurals, short elliptical questions and bare "why" follow-ups; longer paraphrases ("回到刚才那只股票…") and ambiguous references lead to a clarification rather than a guess.
 - Coverage and gap detection are lexical: the out-of-coverage list names crypto terms, the largest US / Hong Kong companies and markets, not every foreign ticker; a requested period is detected only when written as a year ("2019年", "in 2023", "FY2023"), not as "去年" or a quarter.
 - The optional LLM memory summary has not been ablated; the rule-based card is the measured default.

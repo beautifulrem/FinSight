@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 
 import { cn } from "@/lib/cn";
 import { evidenceFreshness } from "@/lib/freshness";
-import { sourceTypeLabel, toolLabel, useI18n } from "@/lib/i18n";
+import { sourceNameLabel, sourceTypeLabel, toolLabel, useI18n } from "@/lib/i18n";
 import type { EvidenceSource } from "@/lib/types";
 
 import { AsOf, FreshnessBadges } from "./Freshness";
@@ -75,8 +75,8 @@ export function EvidenceList({ sources, cited, highlight, highlightNonce }: Prop
                 {source.title || source.evidence_id}
               </p>
               <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[12px]">
-                {(info.provenance?.source_label || source.source_name) && (
-                  <span className="text-muted">{info.provenance?.source_label || source.source_name}</span>
+                {sourceNameLabel(lang, info.provenance, source.source_name) && (
+                  <span className="text-muted">{sourceNameLabel(lang, info.provenance, source.source_name)}</span>
                 )}
                 <AsOf info={info} />
                 {source.produced_by && (

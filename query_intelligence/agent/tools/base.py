@@ -251,8 +251,12 @@ class ToolRegistry:
             except Exception as exc:  # normalized into a ToolError for the agent loop
                 return _failure(name, normalized_args, "internal", _short(exc), started, attempts=attempts)
             else:
+                from .units import normalise_output  # the units module imports ToolOutput from here
+
                 if not isinstance(output, ToolOutput):
                     output = ToolOutput(data=output)
+                # explicit units on every money/volume/ratio field, for live and replayed results alike
+                output = normalise_output(name, output)
                 if spec.cache_ttl_s > 0:
                     self._cache.put(cache_key, output, spec.cache_ttl_s)
                 return _success(name, normalized_args, output, started, attempts=attempts)

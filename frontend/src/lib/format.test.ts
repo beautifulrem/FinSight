@@ -13,6 +13,9 @@ describe("format helpers", () => {
     expect(formatKpi("zh", 0.33, "fraction")).toBe("33%");
     expect(formatKpi("zh", -0.1778, "percent")).toBe("-0.18%");
     expect(formatKpi("zh", 3_793_827.534, "volume")).toBe("37.94 亿");
+    expect(formatKpi("zh", 3_793_827_534, "money")).toBe("37.94 亿");
+    expect(formatKpi("zh", 33, "percentLevel")).toBe("33%");
+    expect(formatKpi("en", 0.8, "percentLevel")).toBe("0.8%");
   });
 
   it("formats cost only when priced", () => {
