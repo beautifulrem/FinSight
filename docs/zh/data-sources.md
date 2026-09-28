@@ -237,8 +237,8 @@
 - 熔断和缓存配置，以及数据源调用池的计数器（`worker_pool`）。
 
 **主动探测（需显式开启）。**
-- **怎么探**：`GET /sources/health?probe=1` 先对每个数据源发一次轻量请求：东方财富行情/数据中心/新闻、新浪日线/报价、腾讯日线/报价、同花顺财务/行业、巨潮资讯概况。请求走同一个受保护的 `SourceRuntime.call`，所以熔断、延迟和错误的记录方式和真实流量完全一样。
-- **返回什么**：报告里会多一个 `probe` 块，含每个数据源的 `ok`、`outcome`、`latency_ms`、`error`。
+- **怎么探**：`GET /sources/health?probe=1` 先对目录里的全部 19 个数据源各发一次轻量请求：东方财富行情/数据中心/基金/新闻/公告、新浪日线/报价/财务、腾讯日线/报价、同花顺财务/行业、中证指数、中债、巨潮公告/概况、雪球、efinance，以及设置了 `TUSHARE_TOKEN` 时的 Tushare。请求走同一个受保护的 `SourceRuntime.call`，所以熔断、延迟和错误的记录方式和真实流量完全一样。多页抓取的慢上游超时 15 秒，其余 6 秒。
+- **返回什么**：报告里会多一个 `probe` 块，含每个数据源的 `ok`、`outcome`、`latency_ms`、`error`，以及 `catalog_total` 和 `not_probed`（每个未探测的数据源及原因）。每一行数据源还会带 `probe` 字段：最近一次探测结果，或 `{"probed": false, "reason": ...}`（例如没有 Token 的 Tushare），未探测的数据源不会被误读为健康或只是空闲。
 - **限频**：好几个上游会对同一 IP 的突发请求限流，所以探测在进程内限频：每 `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS`（默认 60）最多一轮。
   - 窗口内再请求，返回上一轮结果，并带 `status: rate_limited` 和 `retry_in_s`；
   - 正在探测时请求，得到 `in_progress`；
