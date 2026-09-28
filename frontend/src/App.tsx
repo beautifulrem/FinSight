@@ -179,6 +179,12 @@ export default function App() {
 
   const onRetry = useCallback((turn: Turn) => ask(turn.query), [ask]);
 
+  // Both Stop buttons disappear once the turn stops: keep keyboard focus in the composer, not on <body>.
+  const onStop = useCallback(() => {
+    stop();
+    composer.current?.focus();
+  }, [stop]);
+
   // "听说…是真的吗" in the chat: switch to the fact-check view and check the claim there.
   const onCheckClaim = useCallback((claim: string) => {
     setView("check");
@@ -283,6 +289,7 @@ export default function App() {
                             onRetry={onRetry}
                             onFeedback={onFeedback}
                             onCheckClaim={onCheckClaim}
+                            onStop={onStop}
                           />
                         ),
                       )
@@ -298,7 +305,7 @@ export default function App() {
                     pending={pending}
                     onCancelPending={() => setPending(null)}
                     onSend={ask}
-                    onStop={stop}
+                    onStop={onStop}
                     placeholder={config.placeholder}
                     submitText={config.submitText}
                   />

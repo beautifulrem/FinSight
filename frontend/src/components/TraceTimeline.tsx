@@ -47,7 +47,7 @@ function ToolRow({ tool, onEvidence }: { tool: TraceTool; onEvidence?: (id: stri
           ) : tool.status === "error" ? (
             <X className="size-3" strokeWidth={3} />
           ) : (
-            <CircleDashed className="size-3.5 animate-spin" />
+            <CircleDashed className="size-3.5 motion-safe:animate-spin" />
           )}
         </span>
         <span className="shrink-0 font-medium whitespace-nowrap text-ink">{toolLabel(lang, tool.tool)}</span>
@@ -211,7 +211,8 @@ export function TraceTimeline({ nodes, live, response, onEvidence }: Props) {
   const degraded = response?.degraded ?? [];
   const lastVerify = nodes.map((node) => node.node).lastIndexOf("verify");
   return (
-    <ol className="relative space-y-0.5" aria-live={live ? "polite" : undefined}>
+    // Not a live region: a running turn announces its steps through one status region (TurnView).
+    <ol className="relative space-y-0.5">
       <AnimatePresence initial={false}>
         {nodes.map((node, index) => (
           <motion.li
@@ -250,7 +251,7 @@ export function TraceTimeline({ nodes, live, response, onEvidence }: Props) {
         ))}
         {live && (
           <motion.li key="live" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative pl-6">
-            <span aria-hidden className="absolute top-[9px] left-[3px] size-[9px] animate-pulse rounded-full bg-gilt" />
+            <span aria-hidden className="absolute top-[9px] left-[3px] size-[9px] rounded-full bg-gilt motion-safe:animate-pulse" />
             <div className="py-1 text-[13px]">
               <span className="shimmer font-medium">{t("trace.live")}…</span>
             </div>
