@@ -172,9 +172,36 @@ SKIP_LOAD=1 deploy/k8s/scale_test.sh                    # 只做跨副本会话�
 
 ## 服务启动时间
 
-服务启动时最慢的一步，是对 43 MB 文档拟合 char n-gram TF-IDF 索引，约 39 秒。
+以下数字全部来自两个已提交的结果文件。
 
-- **进程内缓存**：索引按语料哈希缓存（`clear_service_caches()` 不会清掉它），同一进程里重建服务从约 39 秒降到 6 秒，全量测试因此不再每个用例都重新拟合。
-- **可选落盘**：设置 `QI_TFIDF_CACHE_DIR` 后，索引写到该目录，重启时约 4.5 秒加载完成。文件约 350 MB，所以没有打进镜像；适合挂在多个副本共享的卷上。
+### 进程内构建服务：[`results/perf/startup.json`](../results/perf/startup.json)
 
-这些数字是 `da3ec8b` 开发时在本机测得的，没有单独提交结果文件。
+命令 `python scripts/measure_startup.py --out docs/results/perf/startup.json`，commit `a027c7c`（2026-09-28，Apple Silicon Mac 10 核，开始时负载 4.4 / 5.6 / 10.5，关闭实时数据）。构建时间主要花在对 43 MB 文档拟合 char n-gram TF-IDF 索引上。
+
+| 情形 | 秒 |
+|---|---:|
+| 冷启动构建（新进程，拟合索引） | 24.06 |
+| 同一进程内重建（索引按语料哈希缓存） | 3.65 |
+| 冷启动构建并把索引写到 `QI_TFIDF_CACHE_DIR` | 29.08 |
+| 新进程从 `QI_TFIDF_CACHE_DIR` 加载索引 | 6.81 |
+
+- **进程内缓存**：从 `da3ec8b` 起索引按语料哈希缓存，`clear_service_caches()` 不会清掉它，全量测试因此不再每个用例都重新拟合。
+- **可选落盘**：设置 `QI_TFIDF_CACHE_DIR` 后索引写到该目录（365 MB），重启时直接加载：6.81 秒，而冷启动要 24.06 秒。文件太大，没有打进镜像；适合挂在多个副本共享的卷上。
+
+（本节旧版本引用了 `da3ec8b` 提交说明里的 39 秒 / 6 秒 / 4.5 秒 / 350 MB，并说没有结果文件；这些数字与 `startup.json` 不符，已替换。）
+
+### 容器冷启动：[`results/perf/startup-container.json`](../results/perf/startup-container.json)
+
+命令 `python scripts/measure_container_startup.py --image finsight:edcb442 --runs 3`。镜像在干净工作区从 commit `edcb442` 构建（`git archive edcb442 | docker build -f docker/Dockerfile -`），也就是 Kubernetes kustomization 固定的那个镜像。每次都是全新的 `docker run`，加固方式与 Kubernetes 相同（只读根文件系统、uid 10001、`/tmp`、`/app/state`、`/app/outputs` 用 tmpfs），关闭实时数据，SQLite 检查点，不配 LLM Key；从 `docker run` 计时到 `/ready` 返回 200。colima 虚拟机 4 vCPU / 7.7 GB，同一台 Mac，同时有其他任务在跑（主机负载 7–12）。
+
+| 次数 | `/health` 200（秒） | `/ready` 200（秒） | 日志里的服务构建（秒） |
+|---|---:|---:|---:|
+| 1 | 57.13 | 57.50 | 52.4 |
+| 2 | 45.05 | 45.53 | 42.5 |
+| 3 | 45.68 | 45.99 | 42.9 |
+| **中位数** | **45.68** | **45.99** | |
+
+- 服务构建完成后 uvicorn 才开始监听，所以 `/health` 要等构建结束；容器启动时间几乎全是 TF-IDF 拟合，在 4 vCPU 虚拟机里比本机慢。
+- 第一次 `/ready` 会构建 Agent 并打开检查点，多花 0.3–0.5 秒。
+- Kubernetes 的 `startupProbe` 允许 5 分钟（60 × 5 秒），远高于这些时间。
+- 第二轮评审在更忙的主机上测过更早的镜像，约 105–165 秒变为 healthy；那次没有提交结果文件。

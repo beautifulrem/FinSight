@@ -195,15 +195,49 @@ and the next turn starts from the last completed one.
 
 ## Service start-up
 
-The slowest step of building the service is fitting the char n-gram TF-IDF index over the 43 MB
-document corpus, about 39 s.
+Two committed measurements; every number below is copied from them.
+
+### In-process service build: [`results/perf/startup.json`](results/perf/startup.json)
+
+`python scripts/measure_startup.py --out docs/results/perf/startup.json` at commit `a027c7c`
+(2026-09-28, Apple-silicon Mac, 10 cores, load average 4.4 / 5.6 / 10.5 at the start, live data off).
+Fitting the char n-gram TF-IDF index over the 43 MB document corpus dominates the build.
+
+| Case | Seconds |
+|---|---:|
+| Cold build (fresh process, index fitted) | 24.06 |
+| Rebuild in the same process (index memoised by corpus hash) | 3.65 |
+| Cold build that also writes the index to `QI_TFIDF_CACHE_DIR` | 29.08 |
+| New process loading the index from `QI_TFIDF_CACHE_DIR` | 6.81 |
 
 - **Per-process memo.** Since `da3ec8b` the fitted index is memoised by a hash of the corpus, and
-  `clear_service_caches()` does not drop it. A service rebuilt in the same process now starts in
-  about 6 s instead of 39 s, so the full test suite no longer refits it for every test.
-- **Optional disk cache.** With `QI_TFIDF_CACHE_DIR` set, the index is also written to that
-  directory, and a restart loads it in about 4.5 s. The file is about 350 MB, so it is not baked into
-  the image; it suits a volume shared by the replicas.
+  `clear_service_caches()` does not drop it, so the full test suite no longer refits it for every test.
+- **Optional disk cache.** With `QI_TFIDF_CACHE_DIR` set, the index is written there (365 MB), and a
+  restart loads it instead of refitting: 6.81 s against 24.06 s. It is not baked into the image because
+  of its size; it suits a volume shared by the replicas.
 
-These timings were measured on the development machine while making the change (stated in the
-commit message of `da3ec8b`); there is no separate committed result file.
+(Earlier versions of this section quoted 39 s / 6 s / 4.5 s / 350 MB from the `da3ec8b` commit message
+and said there was no result file; those figures did not match `startup.json` and were replaced.)
+
+### Container cold start: [`results/perf/startup-container.json`](results/perf/startup-container.json)
+
+`python scripts/measure_container_startup.py --image finsight:edcb442 --runs 3` with the image built
+from a clean tree at commit `edcb442` (`git archive edcb442 | docker build -f docker/Dockerfile -`), the
+same image the Kubernetes kustomization pins. Each run is a fresh `docker run` with the Kubernetes
+hardening (read-only root filesystem, uid 10001, tmpfs for `/tmp`, `/app/state`, `/app/outputs`), live
+data off, SQLite checkpointer, no LLM key; the clock runs from `docker run` until `/ready` answers 200.
+colima VM with 4 vCPU / 7.7 GB on the same Mac, other work running (host load average 7–12).
+
+| Run | `/health` 200 (s) | `/ready` 200 (s) | Service build in the log (s) |
+|---|---:|---:|---:|
+| 1 | 57.13 | 57.50 | 52.4 |
+| 2 | 45.05 | 45.53 | 42.5 |
+| 3 | 45.68 | 45.99 | 42.9 |
+| **Median** | **45.68** | **45.99** | |
+
+- `/health` only answers once the service is built (the build runs before uvicorn listens), so the
+  container start is almost entirely the TF-IDF fit, slower inside the 4-vCPU VM than natively.
+- The first `/ready` call builds the agent and opens the checkpointer; it adds 0.3–0.5 s.
+- The Kubernetes `startupProbe` allows 5 min (60 × 5 s), comfortably above these times.
+- The reviewer's round-2 run of an earlier image measured about 105–165 s to healthy on a busier host;
+  that run was not committed.
