@@ -111,6 +111,29 @@ METRICS: tuple[Metric, ...] = (
         ("netprofit_yoy", "net_profit_yoy", "profit_growth", "dt_netprofit_yoy"),
     ),
     _metric(
+        "growth",
+        "增速",
+        "growth rate",
+        r"增速|增长率|同比增长|同比增幅|\bgrowth(?: rate)?\b|\byoy\b|year[- ]over[- ]year",
+        (
+            "revenue_yoy",
+            "revenue_growth",
+            "or_yoy",
+            "tr_yoy",
+            "netprofit_yoy",
+            "net_profit_yoy",
+            "profit_growth",
+            "dt_netprofit_yoy",
+        ),
+    ),
+    _metric(
+        "market_cap",
+        "总市值",
+        "market cap",
+        r"总市值|流通市值|市值|market cap(?:itali[sz]ation)?",
+        ("total_mv", "market_cap", "circ_mv", "total_market_cap"),
+    ),
+    _metric(
         "dividend_yield",
         "股息率",
         "dividend yield",
@@ -204,6 +227,9 @@ def coverage_gaps(
     names = names or {}
     sentences: list[str] = []
     wanted = requested_metrics(query)
+    if _MACRO_GROWTH.search(query or ""):
+        # "M2增速" / "M2 growth": the macro indicator is itself the growth rate, not a company metric.
+        wanted = [metric for metric in wanted if metric.key != "growth"]
     years = requested_years(query)
     forward = bool(_FORWARD.search(query or ""))
     fundamentals = [entry for entry in tool_log if entry.get("tool") == "get_fundamentals" and entry.get("ok")]
@@ -228,6 +254,16 @@ def coverage_gaps(
             )
         period = str(data.get("report_date") or "")
         period_year = _year_of(period)
+        quarter = requested_quarter(query)
+        if quarter and _month_of(period) and _month_of(period) != quarter[1] and not forward:
+            # "今年一季度的净利润" with annual statements only: the quarter is not in the data.
+            sentences.append(
+                f"当前数据中没有所问的{quarter[0]}数据：{name}可得的财务数据报告期为 {period}，"
+                "以下数字均属于该报告期，不是所问季度的。"
+                if zh
+                else f"Data for the requested period ({quarter[0]}) is not available: the latest financial statements "
+                f"for {name} are for the period {period}, and the figures below are for that period."
+            )
         if years and period_year and period_year not in years and not forward:
             asked = _years_text(years, zh=zh)
             sentences.append(
@@ -261,6 +297,47 @@ def coverage_gaps(
                     f"{data.get('as_of')}) is available."
                 )
     return list(dict.fromkeys(sentences))
+
+
+_MACRO_GROWTH = re.compile(r"(?<![A-Za-z])m[12](?![A-Za-z0-9])|gdp|cpi|ppi|社融|货币供应|money supply", re.I)
+# Macro indicators a question can name, and the indicator codes that answer them.
+_MACRO_REQUESTS: tuple[tuple[str, re.Pattern[str], tuple[str, ...]], ...] = (
+    ("CPI", re.compile(r"cpi|居民消费价格", re.I), ("CPI",)),
+    ("PPI", re.compile(r"ppi|工业生产者出厂价格", re.I), ("PPI",)),
+    ("PMI", re.compile(r"pmi|采购经理", re.I), ("PMI",)),
+    ("M2", re.compile(r"(?<![A-Za-z])m2(?![A-Za-z0-9])|money supply|货币供应", re.I), ("M2",)),
+    ("LPR", re.compile(r"lpr|贷款市场报价利率|loan prime rate", re.I), ("LPR",)),
+    ("GDP", re.compile(r"gdp|国内生产总值", re.I), ("GDP",)),
+    ("社融", re.compile(r"社融|社会融资|total social financing", re.I), ("TSF", "SOCIAL_FINANCING")),
+    ("10Y", re.compile(r"国债|\bcgb\b|government bond|treasury", re.I), ("10Y",)),
+)
+
+
+def macro_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> list[str]:
+    """Macro indicators named in the question that the macro tool did not return ("1-year LPR" with no LPR data)."""
+    entries = [entry for entry in tool_log if entry.get("tool") == "get_macro_indicators" and entry.get("ok")]
+    if not entries:
+        return []
+    codes = [
+        str(indicator.get("code") or "").upper()
+        for entry in entries
+        for indicator in (entry.get("data") or {}).get("indicators") or []
+        if indicator.get("value") is not None
+    ]
+    missing = [
+        label
+        for label, pattern, keys in _MACRO_REQUESTS
+        if pattern.search(query or "") and not any(key in code for key in keys for code in codes)
+    ]
+    if not missing:
+        return []
+    labels = "、".join(missing) if zh else ", ".join(missing)
+    return [
+        f"当前数据源没有{labels}的数据，无法回答这一项；以下只列出可得的宏观指标。"
+        if zh
+        else f"The current data sources do not include {labels}, so that part cannot be answered; only the "
+        "available macro indicators are listed below."
+    ]
 
 
 def _years_text(years: list[int], *, zh: bool) -> str:
@@ -309,3 +386,285 @@ def metric_label(key: str, *, zh: bool) -> str:
     if metric is None:
         return key
     return metric.zh if zh else metric.en
+
+
+# --------------------------------------------------------------------------- requested price details
+
+_COUNT_WORDS = {
+    "一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "twenty": 20,
+}  # fmt: skip
+_COUNT = r"(\d{1,2}|[一两二三四五六七八九十]|one|two|three|four|five|six|seven|eight|nine|ten|twenty)"
+_RECENT_CLOSES = re.compile(
+    rf"(?:最近|近|过去|前)\s*{_COUNT}\s*(?:个)?(?:交易日|天|日)[^？?。]{{0,8}}?收盘|"
+    rf"收盘价?[^？?。]{{0,6}}?(?:最近|近|过去)\s*{_COUNT}\s*(?:个)?(?:交易日|天|日)|"
+    rf"(?:last|past|previous|recent)\s+{_COUNT}\s+(?:closes|closing prices|sessions|trading days|days)|"
+    rf"{_COUNT}\s+(?:most recent|latest|recent)\s+closes",
+    re.IGNORECASE,
+)
+_CLOSES_WORD = re.compile(r"收盘|\bclos(?:es|ing)\b", re.IGNORECASE)
+_PREVIOUS_CLOSE = re.compile(
+    r"前一(?:天|日|个交易日)(?:的)?收盘|前收|昨收|上一(?:个)?交易日(?:的)?收盘|\b(?:previous|prior|prev\.?) close\b|"
+    r"\bclose (?:before|the day before)\b",
+    re.IGNORECASE,
+)
+# The day's high/low, not "谁的ROE最高" or "is the P/E high or low".
+_HIGH = re.compile(
+    r"最高价|最高点|日内高点|最高(?=(?:和|与|、|及)最低)|(?:当天|当日|今天|日内)(?:的)?最高|"
+    r"\b(?:daily|day'?s|intraday|session|today'?s)\s+highs?\b|\bhighs? and (?:the )?lows?\b|\bhigh/low\b|"
+    r"\bhigh price\b",
+    re.IGNORECASE,
+)
+_LOW = re.compile(
+    r"最低价|最低点|日内低点|(?<=最高和)最低|(?<=最高与)最低|(?<=最高、)最低|(?:当天|当日|今天|日内)(?:的)?最低|"
+    r"\b(?:daily|day'?s|intraday|session|today'?s)\s+lows?\b|\bhighs? and (?:the )?lows?\b|\bhigh/low\b|\blow price\b",
+    re.IGNORECASE,
+)
+_OPEN = re.compile(r"开盘价?|\bopen(?:ing)?(?: price)?\b(?! interest)", re.IGNORECASE)
+_VOLUME = re.compile(r"成交量|量能|\b(?:trading )?volume\b", re.IGNORECASE)
+_AMOUNT = re.compile(r"成交额|成交金额|\bturnover\b|\bvalue traded\b", re.IGNORECASE)
+_RETURN_DAYS = re.compile(
+    rf"(?:近|过去|最近)?\s*{_COUNT}\s*(?:个)?(?:交易日|日|天)(?:的)?(?:收益率?|回报|涨幅|跌幅|涨跌幅?|表现)|"
+    rf"\b{_COUNT}[- ](?:day|session)s?\s+(?:return|change|performance|gain|move)\b",
+    re.IGNORECASE,
+)
+_MOVING_AVERAGE = re.compile(
+    r"(?<![A-Za-z])MA\s*(\d{1,3})(?!\d)|(\d{1,3})\s*(?:日|天)均线|\b(\d{1,3})[- ]day moving average\b", re.IGNORECASE
+)
+_ABOVE_MA = re.compile(
+    r"站上|站稳|跌破|均线(?:上方|之上|下方|之下)|"
+    r"\b(?:above|below) (?:the |its )?(?:\d+[- ]day )?(?:ma\d*|moving average)",
+    re.I,
+)
+
+
+def _count(token: str) -> int:
+    token = token.lower()
+    return int(token) if token.isdigit() else _COUNT_WORDS.get(token, 0)
+
+
+@dataclass(frozen=True)
+class PriceRequest:
+    """Price details a question asks for beyond the latest close and daily change."""
+
+    closes: int = 0  # number of recent closes to list
+    previous_close: bool = False
+    high: bool = False
+    low: bool = False
+    open: bool = False
+    volume: bool = False
+    amount: bool = False
+    return_days: tuple[int, ...] = ()
+    moving_averages: tuple[int, ...] = ()
+    above_ma: bool = False
+
+    @property
+    def needs_quote(self) -> bool:
+        return bool(
+            self.closes or self.previous_close or self.high or self.low or self.open or self.volume or self.amount
+        )
+
+    @property
+    def needs_indicators(self) -> bool:
+        return bool(self.return_days or self.moving_averages or self.above_ma)
+
+
+def requested_price_fields(query: str) -> PriceRequest:
+    """Parse the price details asked for.
+
+    Examples: "最近五个交易日的收盘价", "daily high and low", "3-day return", "MA5站上了吗".
+    """
+    text = query or ""
+    closes = 0
+    match = _RECENT_CLOSES.search(text)
+    if match:
+        closes = _count(next(group for group in match.groups() if group))
+    elif re.search(r"\b(?:last|latest|recent) (?:two|2) closes\b|最近两(?:个|次)收盘", text, re.IGNORECASE):
+        closes = 2
+    returns = sorted({_count(next(g for g in m.groups() if g)) for m in _RETURN_DAYS.finditer(text)} - {0})
+    averages = sorted({int(next(g for g in m.groups() if g)) for m in _MOVING_AVERAGE.finditer(text)})
+    above = bool(_ABOVE_MA.search(text))
+    if above and not averages:
+        averages = [5]
+    return PriceRequest(
+        closes=closes if _CLOSES_WORD.search(text) or match else 0,
+        previous_close=bool(_PREVIOUS_CLOSE.search(text)),
+        high=bool(_HIGH.search(text)),
+        low=bool(_LOW.search(text)),
+        open=bool(_OPEN.search(text)),
+        volume=bool(_VOLUME.search(text)),
+        amount=bool(_AMOUNT.search(text)),
+        return_days=tuple(returns),
+        moving_averages=tuple(averages),
+        above_ma=above,
+    )
+
+
+# --------------------------------------------------------------------------- reporting periods
+
+_QUARTER = re.compile(
+    r"(?P<q>[一二三四1-4])季度|第(?P<q2>[一二三四1-4])季度|\bQ(?P<q3>[1-4])\b|"
+    r"\b(?P<q4>first|second|third|fourth) quarter\b|(?P<h>上半年|半年报|中报|\bH1\b|\bfirst half\b|\binterim\b)",
+    re.IGNORECASE,
+)
+_QUARTER_MONTH = {"1": 3, "一": 3, "first": 3, "2": 6, "二": 6, "second": 6, "3": 9, "三": 9, "third": 9}
+_QUARTER_MONTH.update({"4": 12, "四": 12, "fourth": 12})
+
+
+def requested_quarter(query: str) -> tuple[str, int] | None:
+    """``(label, period-end month)`` for a quarter or half-year request ("今年一季度", "Q3", "上半年")."""
+    match = _QUARTER.search(query or "")
+    if not match:
+        return None
+    if match.group("h"):
+        return match.group("h"), 6
+    token = next(
+        group for group in (match.group("q"), match.group("q2"), match.group("q3"), match.group("q4")) if group
+    )
+    return match.group(0), _QUARTER_MONTH[token.lower()]
+
+
+def _month_of(value: Any) -> int | None:
+    found = re.match(r"\s*(?:19|20)\d{2}-(\d{1,2})", str(value or ""))
+    return int(found.group(1)) if found else None
+
+
+# --------------------------------------------------------------------------- industry and product scope
+
+_INDUSTRY_SCOPE = re.compile(r"行业|板块|同行|同业|\bsector\b|\bindustry\b|\bpeers?\b", re.IGNORECASE)
+# Standard fundamentals a question can ask of a company or of its industry snapshot (industry keys in brackets).
+_STANDARD: tuple[tuple[str, str, str, re.Pattern[str], tuple[str, ...]], ...] = (
+    ("pe", "市盈率", "P/E", re.compile(r"市盈率|(?<![A-Za-z])P/?E(?![A-Za-z])|price[- ]to[- ]earnings", re.I), ("pe",)),
+    ("pb", "市净率", "P/B", re.compile(r"市净率|(?<![A-Za-z])P/?B(?![A-Za-z])|price[- ]to[- ]book", re.I), ("pb",)),
+    ("roe", "ROE", "ROE", re.compile(r"净资产收益率|(?<![A-Za-z])ROE(?![A-Za-z])|return on equity", re.I), ("roe",)),
+    ("revenue", "营业收入", "revenue", re.compile(r"营收|营业收入|\brevenue\b", re.I), ("revenue",)),
+    (
+        "net_profit",
+        "净利润",
+        "net profit",
+        re.compile(r"净利润|净利(?!率)|\bnet (?:profit|income)\b", re.I),
+        ("net_profit",),
+    ),
+    ("gross_margin", "毛利率", "gross margin", re.compile(r"毛利率|gross margin", re.I), ("gross_margin",)),
+)
+_FUNDAMENTAL_ASK = re.compile(
+    r"市盈率|市净率|净资产收益率|ROE|营收|营业收入|净利润|毛利率|股息率|基本面|财报|(?<![A-Za-z])P/?[EB](?![A-Za-z])|"
+    r"\brevenue\b|\bnet (?:profit|income)\b|\bgross margin\b|\bearnings\b|\bfundamentals?\b",
+    re.IGNORECASE,
+)
+
+
+def asks_about_industry(query: str) -> bool:
+    return bool(_INDUSTRY_SCOPE.search(query or ""))
+
+
+def industry_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> list[str]:
+    """Industry metrics the question asks for that the industry snapshot does not contain.
+
+    "ROE跟保险行业平均比呢？": the 保险 snapshot has PE/PB/change but no ROE, so the industry side is stated
+    as missing instead of being silently skipped.
+    """
+    if not asks_about_industry(query):
+        return []
+    wanted = [item for item in _STANDARD if item[3].search(query or "")]
+    sentences: list[str] = []
+    seen: set[str] = set()
+    for entry in tool_log:
+        if entry.get("tool") != "get_fundamentals" or not entry.get("ok"):
+            continue
+        industry = (entry.get("data") or {}).get("industry") or {}
+        name = str(industry.get("industry_name") or "")
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        metrics = industry.get("metrics") or {}
+        missing = [item for item in wanted if not any(metrics.get(key) is not None for key in item[4])]
+        if missing:
+            labels = "、".join(item[1] for item in missing) if zh else ", ".join(item[2] for item in missing)
+            sentences.append(
+                f"当前数据源的{name}行业快照没有{labels}，无法给出行业层面的这一项。"
+                if zh
+                else f"The {name} industry snapshot in the current data has no {labels}, so the industry side of "
+                "that cannot be given."
+            )
+    return sentences
+
+
+def non_stock_fundamental_gaps(
+    query: str,
+    tool_log: list[dict[str, Any]],
+    *,
+    zh: bool,
+    names: dict[str, str] | None = None,
+    types: dict[str, str] | None = None,
+) -> list[str]:
+    """P/E, ROE or revenue asked of an ETF, fund or index: company fundamentals do not exist for it."""
+    if not types or not _FUNDAMENTAL_ASK.search(query or ""):
+        return []
+    fetched = {
+        str((entry.get("arguments") or {}).get("target"))
+        for entry in tool_log
+        if entry.get("tool") == "get_fundamentals"
+    }
+    sentences = []
+    for symbol, kind in types.items():
+        if kind in {"etf", "fund", "index"} and symbol not in fetched:
+            name = (names or {}).get(symbol) or symbol
+            label = {"etf": "ETF", "fund": "基金" if zh else "fund", "index": "指数" if zh else "index"}[kind]
+            sentences.append(
+                f"市盈率、ROE、营收等基本面指标当前只覆盖个股；{name}（{symbol}）是{label}，当前数据中没有它的这类数据。"
+                if zh
+                else f"P/E, ROE, revenue and similar fundamentals are only covered for individual stocks; {name} "
+                f"({symbol}) is an {label}, so the current data has none for it."
+            )
+    return sentences
+
+
+_NAMED_INDICATORS = (
+    ("RSI(14)", "rsi_14", re.compile(r"(?<![A-Za-z])RSI", re.I)),
+    ("MACD", "macd", re.compile(r"MACD", re.I)),
+    ("20D vol", "volatility_20d", re.compile(r"波动率|volatility", re.I)),
+    ("Bollinger", "bollinger", re.compile(r"布林|bollinger", re.I)),
+)
+
+
+def indicator_gaps(
+    query: str, tool_log: list[dict[str, Any]], *, zh: bool, names: dict[str, str] | None = None
+) -> list[str]:
+    """Requested technical indicators or N-day returns that could not be computed or are null."""
+    request = requested_price_fields(query)
+    if not request.needs_indicators and not re.search(
+        r"RSI|MACD|均线|moving average|volatility|波动率", query or "", re.I
+    ):
+        return []
+    sentences = []
+    for entry in tool_log:
+        if entry.get("tool") != "compute_indicators":
+            continue
+        target = str((entry.get("arguments") or {}).get("target") or "")
+        name = (names or {}).get(target) or target
+        if not entry.get("ok"):
+            sentences.append(
+                f"当前数据不足以计算{name}的所问技术指标（历史收盘价不够）。"
+                if zh
+                else f"The current data is not enough to compute the requested indicators for {name} "
+                "(too little price history)."
+            )
+            continue
+        data = entry.get("data") or {}
+        returns = data.get("pct_change_nd") or {}
+        missing = [f"{days}日涨跌幅" if zh else f"{days}-day return" for days in request.return_days
+                   if returns.get(f"pct_{days}d") is None]  # fmt: skip
+        missing += [f"MA{days}" for days in request.moving_averages if data.get(f"ma{days}") is None]
+        for label, key, pattern in _NAMED_INDICATORS:
+            if pattern.search(query or "") and data.get(key) is None and label not in missing:
+                missing.append(label)
+        if missing:
+            joined = "、".join(missing) if zh else ", ".join(missing)
+            sentences.append(
+                f"当前数据中没有{name}的{joined}（历史数据不足）。"
+                if zh
+                else f"The current data has no {joined} for {name} (not enough history)."
+            )
+    return sentences

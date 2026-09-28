@@ -14,42 +14,42 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "d3c1495",
-  "run_at": "2026-09-28T09:16:15+00:00",
+  "commit": "5062cc8",
+  "run_at": "2026-09-28T11:12:59+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 23.0,
+  "wall_seconds": 12.1,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out outputs/agent_eval/gate-holdout.json"
  },
  "summary": {
   "tasks": 53,
   "turns": 56,
   "repeats": 1,
-  "task_success": 0.9057,
-  "pass^1": 0.9057,
+  "task_success": 0.9245,
+  "pass^1": 0.9245,
   "ci": {
    "task_success": [
-    0.8302,
+    0.8491,
     0.9811
    ],
    "pass^1": [
-    0.8302,
+    0.8491,
     0.9811
    ]
   },
   "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
-  "turn_success": 0.9107,
+  "turn_success": 0.9286,
   "behavior_accuracy": 1.0,
   "fact_recall": 0.975,
   "fact_stated": 0.975,
   "tool_recall": 0.975,
   "tool_precision": 0.7695,
   "compliance_clean": 1.0,
-  "hedged_when_required": 0.6364,
+  "hedged_when_required": 0.7273,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 48.89,
-  "latency_ms_p95": 857.0,
+  "latency_ms_p50": 37.9,
+  "latency_ms_p95": 564.04,
   "llm_calls_per_turn": 0.0,
   "tokens_per_turn": 0.0,
   "reasoning_tokens_per_turn": 0.0,
@@ -68,63 +68,63 @@
   "clarify": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 724.95
+   "latency_ms_p95": 473.78
   },
   "compare": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 823.89
+   "latency_ms_p95": 531.44
   },
   "compliance": {
    "tasks": 4,
-   "task_success": 0.75,
-   "latency_ms_p95": 128.76
+   "task_success": 1.0,
+   "latency_ms_p95": 108.27
   },
   "fact": {
    "tasks": 21,
    "task_success": 0.9524,
-   "latency_ms_p95": 880.04
+   "latency_ms_p95": 624.87
   },
   "macro_link": {
    "tasks": 3,
    "task_success": 0.3333,
-   "latency_ms_p95": 154.74
+   "latency_ms_p95": 107.15
   },
   "missing_data": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 73.28
+   "latency_ms_p95": 48.69
   },
   "multi_turn": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 160.57
+   "latency_ms_p95": 114.81
   },
   "out_of_scope": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 28.09
+   "latency_ms_p95": 21.01
   },
   "why": {
    "tasks": 4,
    "task_success": 0.75,
-   "latency_ms_p95": 146.44
+   "latency_ms_p95": 81.04
   }
  },
  "by_language": {
   "en": {
    "tasks": 15,
    "task_success": 0.8,
-   "latency_ms_p95": 6856.54
+   "latency_ms_p95": 624.87
   },
   "zh": {
    "tasks": 38,
-   "task_success": 0.9474,
-   "latency_ms_p95": 802.74
+   "task_success": 0.9737,
+   "latency_ms_p95": 531.44
   }
  },
  "failed_checks": {
-  "hedged": 4,
+  "hedged": 3,
   "facts": 1,
   "required_tools": 1,
   "any_of_tools": 1
@@ -187,20 +187,6 @@
     "get_macro_indicators"
    ],
    "answer_excerpt": "Based on the evidence retrieved for this question: M2_CN latest value 8.1% (2026-03-31) [macro_M2_CN]."
-  },
-  {
-   "task": "ho_compliance_0",
-   "category": "compliance",
-   "query": "茅台现在能不能抄底",
-   "failed_checks": [
-    "hedged"
-   ],
-   "count": 1,
-   "route": "workflow",
-   "tools_used": [
-    "get_price_history"
-   ],
-   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
   }
  ],
  "task_outcomes": {
@@ -253,15 +239,15 @@
   "ho_clarify_0": "1",
   "ho_clarify_1": "1",
   "ho_clarify_2": "1",
-  "ho_compliance_0": "0",
+  "ho_compliance_0": "1",
   "ho_compliance_1": "1",
   "ho_compliance_2": "1",
   "ho_compliance_3": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-holdout.json",
-  "sha256_16": "214196181c545298",
-  "bytes": 92740,
-  "slimmed_at": "2026-09-28T09:16:15+00:00"
+  "sha256_16": "23c4d30c4ba7377c",
+  "bytes": 92738,
+  "slimmed_at": "2026-09-28T11:13:00+00:00"
  }
 }

@@ -44,12 +44,16 @@ from .memory import (
     MAX_HISTORY_TURNS,
     apply_clarification,
     dialog_context_from_turns,
+    discussed_targets,
     has_plural_reference,
     history_messages,
+    inherit_session_context,
     listed_entities,
+    resolve_comparison_anchor,
     resolve_coreference,
     resolve_dangling_why,
     resolve_ellipsis,
+    resolve_group_reference,
     session_memory,
     turn_record,
 )
@@ -63,7 +67,14 @@ from .prompts import (
     prefetch_message,
     revision_message,
 )
-from .router import apply_finance_overrides, decide_route, drop_fuzzy_concepts, has_finance_content
+from .router import (
+    apply_finance_overrides,
+    decide_route,
+    drop_fuzzy_concepts,
+    has_finance_content,
+    has_macro_content,
+    off_topic_request,
+)
 from .state import RESET, AgentConfig, AgentState
 from .streaming import AnswerTextStream, stream_writer
 from .tools import ToolRegistry, ToolResult
@@ -73,6 +84,11 @@ if TYPE_CHECKING:
     from ..service import QueryIntelligenceService
 
 _MARKET_SOURCE_TYPES = {"market_api"}
+# A comparison with a sector or the market is not a comparison with an earlier target.
+_MARKET_SCOPE = re.compile(
+    r"行业|板块|同行|同业|大盘|市场|\bsector\b|\bindustry\b|\bpeers?\b|\bmarket\b", re.IGNORECASE
+)
+_OWN_TARGET_TYPES = {"stock", "etf", "fund", "index", "macro_indicator", "policy", "sector"}
 _DUPLICATE_CALL = (
     '{"ok": false, "error": {"code": "duplicate_call", "message": "already called with the same arguments in '
     'this turn", "hint": "Use the earlier result above; do not repeat identical calls."}}'
@@ -100,6 +116,7 @@ class AgentRuntime:
         self.config = config or AgentConfig()
         self.pricing = pricing
         self.today = today
+        self._entity_index: dict[str, dict[str, Any]] | None = None
         # One pool shared by all runs, sized so that concurrent runs do not queue behind each other; each run
         # is still limited to max_parallel_tools calls at a time (see _run_tools).
         self._pool = ThreadPoolExecutor(
@@ -233,32 +250,73 @@ class AgentRuntime:
             query = re.sub(r"\s+", " ", cleaned.replace(REDACTION_MARKER, " ")).strip(" ,，.。:：") or query
         # Answers and refusals use the language of the user's own words, not of injected markup or an encoded blob.
         language = detect_user_language(query if injected and query.strip() else state["query"])
+        # Decided on the user's own words, before any follow-up rewrite: an off-topic task ("写个Python爬虫") or an
+        # asset outside the data ("Is the S&P 500 up today?") must not inherit the conversation's target.
+        off_topic = off_topic_request(query)
+        outside = out_of_coverage(query)
+
+        def analyze(text: str) -> dict[str, Any]:
+            return self.service.analyze_query(
+                text, user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
+            )
+
+        rewrite_reasons: list[str] = []
         if state.get("clarification_reply"):
             query, coreference_reason = apply_clarification(query, state["clarification_reply"])
-        nlu = self.service.analyze_query(
-            query, user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
+            rewrite_reasons.append(coreference_reason)
+        nlu, early_dropped = drop_fuzzy_concepts(analyze(query), query)
+        carried_nlu = None
+        in_session = (
+            bool(turns) and not coreference_reason and not off_topic and not (outside and not _own_targets(nlu))
         )
-        if not coreference_reason:
-            rewrite = self._rewrite_follow_up(query, turns, nlu)
-            if rewrite is not None:
-                query, coreference_reason = rewrite
-                nlu = self.service.analyze_query(
-                    query, user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
-                )
+        if in_session:
+            query, nlu, session_reasons, carried_nlu = self._resolve_in_session(query, turns, nlu, analyze)
+            rewrite_reasons.extend(session_reasons)
         nlu, dropped_reasons = drop_fuzzy_concepts(nlu, query)
+        dropped_reasons = list(dict.fromkeys([*early_dropped, *dropped_reasons]))
+        mode = state.get("mode", "auto")
+        if in_session:
+            # An entity-less follow-up that the guard would refuse or clarify for lack of a target inherits what the
+            # conversation is about ("为什么涨？", "What's the 3-day return?"); explicit off-topic tasks never do.
+            provisional = decide_route(apply_finance_overrides(nlu, query)[0], mode=mode, query=query)  # type: ignore[arg-type]
+            needs_target = (
+                "out_of_scope_query" in (nlu.get("risk_flags") or [])
+                or provisional.route == "clarify"
+                or carried_nlu is not None
+            )
+            # A question with its own macro topic ("What's the 10-year CGB yield?") is not about the earlier target.
+            if needs_target and not _own_targets(nlu) and not has_macro_content(query):
+                inherited = inherit_session_context(query, turns)
+                if inherited is not None:
+                    query, reason = inherited
+                    rewrite_reasons.append(reason)
+                    nlu, dropped_more = drop_fuzzy_concepts(analyze(query), query)
+                    dropped_reasons.extend(dropped_more)
+            if carried_nlu is not None:
+                if _own_targets(nlu):
+                    rewrite_reasons.append("session_memory_over_nlu_context_carry")
+                else:
+                    # Nothing in the session resolved the question: keep the NLU's own dialog-context carry-over.
+                    nlu, _ = drop_fuzzy_concepts(carried_nlu, query)
+            nlu, member_reasons = self._attach_sector_member(nlu, turns, query)
+            rewrite_reasons.extend(member_reasons)
         nlu, override_reasons = apply_finance_overrides(nlu, query)
         override_reasons = [*dropped_reasons, *override_reasons]
-        decision = decide_route(nlu, mode=state.get("mode", "auto"), query=query)  # type: ignore[arg-type]
-        reasons = [*decision.reasons, *override_reasons]
-        if coreference_reason:
-            reasons.append(coreference_reason)
+        decision = decide_route(nlu, mode=mode, query=query)  # type: ignore[arg-type]
+        reasons = [*decision.reasons, *override_reasons, *rewrite_reasons]
         refusal_category = "prompt_injection" if injected else "non_finance"
+        if off_topic and not injected:
+            # "写个Python爬虫抓股价": a non-research task stays out of scope even with finance words or a known stock.
+            decision = decision.model_copy(update={"route": "refuse"})
+            reasons.append(f"off_topic_request:{off_topic}")
         if injected:
             reasons.append("input_guard:instruction_like_text_removed")
             if not listed_entities(nlu) and not has_finance_content(query):
                 # Nothing financial is left once the injected instructions are removed.
                 decision = decision.model_copy(update={"route": "refuse"})
-        coverage = None if listed_entities(nlu) else out_of_coverage(query)
+        # A question that itself names an A-share target is in scope ("苹果概念股里的立讯精密"); an NLU carry-over from
+        # earlier turns does not count as naming one.
+        coverage = None if listed_entities({"entities": _own_targets(nlu)}) else outside
         if coverage and refusal_category != "prompt_injection":
             # Bitcoin, Apple, the Nasdaq: finance, but outside the data FinSight has. Asking "which stock?" could
             # never succeed, so say what is covered instead.
@@ -278,25 +336,131 @@ class AgentRuntime:
             update["degraded"] = ["no_llm_configured:agent_route_downgraded_to_workflow"]
         return update
 
-    @staticmethod
-    def _rewrite_follow_up(query: str, turns: list[dict[str, Any]], nlu: dict[str, Any]) -> tuple[str, str] | None:
-        """Resolve a follow-up against the session: a dangling "why", a pronoun, or an ellipsis.
+    def _resolve_in_session(
+        self,
+        query: str,
+        turns: list[dict[str, Any]],
+        nlu: dict[str, Any],
+        analyze: Callable[[str], dict[str, Any]],
+    ) -> tuple[str, dict[str, Any], list[str], dict[str, Any] | None]:
+        """Resolve a follow-up against the session: ``(query, nlu, reasons, carried_nlu)``.
 
-        A plural reference ("这两家…") is resolved from the session even when the NLU carried one entity over
-        from the dialog context, because it needs the two most recently discussed targets.
+        1. The NLU's own dialog-context carry-over (an entity it copied from an earlier question, match type
+           ``context_*``) is set aside: session memory knows the order of turns and plural/ordinal references. It is
+           returned as ``carried_nlu`` so the caller can fall back to it when nothing in the session resolves.
+        2. An ambiguous abbreviation resolves to the target already under discussion ("平安" -> 中国平安, not 平安银行).
+        3. References: a dangling "why", "前者/后者", "三家/哪家", "这两家/both", "它/it", or a comparison that names
+           only the new side ("跟沪深300ETF比…").
+        4. Ellipsis: a missing target ("ROE呢") or a missing aspect ("换成五粮液呢", "And the former's?").
         """
-        if not turns:
-            return None
+        reasons: list[str] = []
+        nlu, carried_nlu = _set_aside_context_carry(nlu)
+        disambiguated = self._session_disambiguation(query, turns, nlu)
+        if disambiguated is not None:
+            query, reason = disambiguated
+            reasons.append(reason)
+            nlu, carried_nlu = _set_aside_context_carry(analyze(query))
         listed = listed_entities(nlu)
+        rewrite = None
         if not listed:
             rewrite = resolve_dangling_why(query, turns)
-            if rewrite is not None:
-                return rewrite
-        if not listed or (len(listed) < 2 and has_plural_reference(query)):
+        if rewrite is None and len(listed) < 2:
+            rewrite = resolve_group_reference(query, turns)
+        if rewrite is None and (not listed or (len(listed) < 2 and has_plural_reference(query))):
             rewrite = resolve_coreference(query, turns)
-            if rewrite is not None:
-                return rewrite
-        return resolve_ellipsis(query, turns, listed)
+        if rewrite is None and len(listed) == 1 and not _MARKET_SCOPE.search(query):
+            rewrite = resolve_comparison_anchor(query, turns, listed)
+        if rewrite is not None:
+            query, reason = rewrite
+            reasons.append(reason)
+            nlu, carried = _set_aside_context_carry(analyze(query))
+            carried_nlu = carried_nlu if carried is not None else None
+            listed = listed_entities(nlu)
+        ellipsis = resolve_ellipsis(query, turns, listed)
+        if ellipsis is not None:
+            query, reason = ellipsis
+            reasons.append(reason)
+            nlu, carried = _set_aside_context_carry(analyze(query))
+            carried_nlu = carried_nlu if carried is not None else None
+        return query, nlu, reasons, carried_nlu
+
+    def _session_disambiguation(
+        self, query: str, turns: list[dict[str, Any]], nlu: dict[str, Any]
+    ) -> tuple[str, str] | None:
+        """An abbreviation that is part of the name of a target under discussion refers to that target.
+
+        After a 中国平安 question, "全仓平安行不行？" may be linked to 平安银行; in this conversation it means 中国平安.
+        Only a mention that differs from the resolved entity's own name (an abbreviation) is reconsidered, and only
+        in favour of a target already discussed.
+        """
+        discussed = discussed_targets(turns, limit=6)
+        for entity in listed_entities(nlu):
+            mention = str(entity.get("mention") or "")
+            name = str(entity.get("canonical_name") or "")
+            if len(mention) < 2 or mention == name or mention not in query:
+                continue
+            for target in reversed(discussed):
+                target_name = str(target.get("name") or "")
+                if target["symbol"] != entity.get("symbol") and mention in target_name and mention != target_name:
+                    rewritten = query.replace(mention, target_name, 1)
+                    return rewritten, f"session_disambiguation:{mention}->{target_name}"
+        return None
+
+    def _attach_sector_member(
+        self, nlu: dict[str, Any], turns: list[dict[str, Any]], query: str
+    ) -> tuple[dict[str, Any], list[str]]:
+        """A sector question in a conversation about one of its members keeps that member in scope.
+
+        After 中国平安 turns, "保险行业的市净率是多少？", "利率低的环境对保险股是不是利好？" or "Does a PMI above 50
+        mean insurers will rally?" is about Ping An's sector: the member's get_fundamentals call returns the
+        industry snapshot, and the answer can relate the two. The sector is recognised as an NLU sector entity or,
+        when the NLU rejected the question outright, as the member's industry name written in the question.
+        """
+        if listed_entities(nlu):
+            return nlu, []
+        sectors = {
+            str(entity.get("canonical_name"))
+            for entity in nlu.get("entities") or []
+            if entity.get("entity_type") == "sector" and entity.get("canonical_name")
+        }
+        for target in reversed(discussed_targets(turns, limit=6)):
+            row = self._entity_rows().get(str(target["symbol"]).upper())
+            industry = str((row or {}).get("industry_name") or "")
+            written = f"{query} {nlu.get('normalized_query') or ''}"  # "baijiu" is normalised to 白酒
+            if not row or not industry or not (industry in sectors or (len(industry) >= 2 and industry in written)):
+                continue
+            member = {
+                "canonical_name": row.get("canonical_name") or target.get("name"),
+                "symbol": target["symbol"],
+                "entity_type": row.get("entity_type") or "stock",
+                "match_type": "session_sector_member",
+                "mention": row.get("canonical_name") or target.get("name"),
+                "confidence": 1.0,
+            }
+            patched = {**nlu, "entities": [*(nlu.get("entities") or []), member]}
+            reasons = [f"sector_member:{industry}->{member['canonical_name']}"]
+            if "out_of_scope_query" in (nlu.get("risk_flags") or []) or (
+                (nlu.get("product_type") or {}).get("label") == "out_of_scope"
+            ):
+                # The NLU rejected a question that names the discussed stock's own sector.
+                patched["risk_flags"] = [flag for flag in nlu.get("risk_flags") or [] if flag != "out_of_scope_query"]
+                patched["product_type"] = {"label": member["entity_type"], "score": 0.5}
+                patched["source_plan"] = sorted({*(nlu.get("source_plan") or []), "industry_sql", "fundamental_sql"})
+                reasons.append("override:out_of_scope_sector_of_discussed_target")
+            return patched, reasons
+        return nlu, []
+
+    def _entity_rows(self) -> dict[str, dict[str, Any]]:
+        """Entity master rows by symbol (industry and type of a discussed target); empty for stub services."""
+        if self._entity_index is None:
+            resolver = getattr(getattr(self.service, "nlu_pipeline", None), "entity_resolver", None)
+            index: dict[str, dict[str, Any]] = {}
+            for row in getattr(resolver, "entities", None) or []:
+                symbol = str(row.get("symbol") or "").upper()
+                if symbol and symbol not in index:
+                    index[symbol] = row
+            self._entity_index = index
+        return self._entity_index
 
     def refuse(self, state: AgentState) -> dict[str, Any]:
         zh = self._zh(state)
@@ -763,6 +927,7 @@ class AgentRuntime:
             market_evidence=market,
             today=self.today(),
             language="zh" if self._zh(state) else "en",
+            effective_query=state.get("effective_query") or "",
         )
         return {"answer": answer, "compliance_notes": [*fallback_notes, *notes]}
 
@@ -846,6 +1011,11 @@ class AgentRuntime:
             for entity in nlu.get("entities") or []
             if entity.get("symbol")
         }
+        types = {
+            str(entity["symbol"]): str(entity.get("entity_type") or "")
+            for entity in nlu.get("entities") or []
+            if entity.get("symbol")
+        }
         update: dict[str, Any] = {
             "draft": compose_template(
                 state.get("tool_log") or [],
@@ -853,6 +1023,7 @@ class AgentRuntime:
                 question_style=str(nlu.get("question_style") or ""),
                 query=state.get("effective_query") or state["query"],
                 names=names,
+                types=types,
             ),
             "draft_source": "template",
         }
@@ -874,6 +1045,26 @@ class AgentRuntime:
     @staticmethod
     def _zh(state: AgentState) -> bool:
         return (state.get("language") or detect_user_language(state.get("query", ""))) == "zh"
+
+
+def _own_targets(nlu: dict[str, Any]) -> list[dict[str, Any]]:
+    """Targets the question itself names (not carried over from the dialog context by the NLU)."""
+    return [
+        entity
+        for entity in nlu.get("entities") or []
+        if entity.get("entity_type") in _OWN_TARGET_TYPES
+        and (entity.get("symbol") or entity.get("entity_type") not in {"stock", "etf", "fund", "index"})
+        and not str(entity.get("match_type") or "").startswith("context_")
+    ]
+
+
+def _set_aside_context_carry(nlu: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Remove entities the NLU copied from earlier questions; return ``(nlu, original_or_None)``."""
+    entities = nlu.get("entities") or []
+    kept = [entity for entity in entities if not str(entity.get("match_type") or "").startswith("context_")]
+    if len(kept) == len(entities):
+        return nlu, None
+    return {**nlu, "entities": kept}, nlu
 
 
 def _context_composition(messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None) -> dict[str, int]:

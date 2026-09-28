@@ -1,0 +1,78 @@
+{
+ "config": {
+  "labels": "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+  "commit": "37bb2da",
+  "run_at": "2026-09-28T11:17:14+00:00",
+  "command": "python -m evaluation.agent_eval.router_eval --out evaluation/results/router_eval-round3b.json"
+ },
+ "queries": 162,
+ "accuracy": 0.9877,
+ "per_route": {
+  "refuse": {
+   "support": 30,
+   "precision": 1.0,
+   "recall": 0.9667
+  },
+  "clarify": {
+   "support": 33,
+   "precision": 1.0,
+   "recall": 0.9697
+  },
+  "workflow": {
+   "support": 49,
+   "precision": 0.98,
+   "recall": 1.0
+  },
+  "agent": {
+   "support": 50,
+   "precision": 0.9804,
+   "recall": 1.0
+  }
+ },
+ "confusion": {
+  "refuse": {
+   "refuse": 29,
+   "clarify": 0,
+   "workflow": 1,
+   "agent": 0
+  },
+  "clarify": {
+   "refuse": 0,
+   "clarify": 32,
+   "workflow": 0,
+   "agent": 1
+  },
+  "workflow": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 49,
+   "agent": 0
+  },
+  "agent": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 0,
+   "agent": 50
+  }
+ },
+ "errors": [
+  {
+   "id": "route_004",
+   "query": "明天去上海的高铁几点",
+   "expected": "refuse",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "route_114",
+   "query": "这个指数现在贵吗",
+   "expected": "clarify",
+   "predicted": "agent",
+   "reasons": [
+    "lexical:follow_up"
+   ]
+  }
+ ]
+}

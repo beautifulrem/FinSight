@@ -37,8 +37,11 @@ _WHY_MARKERS = re.compile(
     re.IGNORECASE,
 )
 _FOLLOW_UP_MARKERS = re.compile(r"^(那|那么|它|这只|这个|该股|那它|and |what about |how about )", re.IGNORECASE)
+# "利率" must not fire inside 毛利率 / 净利率 (company margins, not interest rates).
 _MACRO_ANCHOR = re.compile(
-    r"cpi|ppi|pmi|gdp|m2|lpr|社融|利率|国债|降息|降准|通胀|货币供应|宏观|bond yield|interest rate|inflation",
+    r"cpi|ppi|pmi|gdp|m2|lpr|社融|(?<![毛净])利率|国债|降息|降准|通胀|通缩|通货紧缩|货币供应|宏观|"
+    r"bond yield|interest rate|inflation|deflation|money supply|\bcgb\b|government bond|treasury yield|"
+    r"\b10[- ]?(?:year|yr|y)\b.{0,20}\byield",
     re.IGNORECASE,
 )
 _FINANCE_ANCHOR = re.compile(
@@ -79,6 +82,67 @@ _DANGLING_WHY_EN = re.compile(
 def is_dangling_why(query: str) -> bool:
     text = (query or "").strip()
     return bool(_DANGLING_WHY_ZH.match(text) or _DANGLING_WHY_EN.match(text))
+
+
+# Requests for a non-research task. They are refused even when they mention a stock or finance words
+# ("你能帮我写个Python爬虫抓股价吗"): FinSight researches securities, it does not write code, translate, or book
+# travel. Only explicit task phrasings count, so "天气转暖对白酒消费有影响吗" is not a weather request.
+_OFF_TOPIC_TASKS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "coding",
+        re.compile(
+            r"python|java(?:script)?|c\+\+|爬虫|爬取|写(?:一)?(?:个|段|份)?(?:程序|脚本|代码|函数|接口)|编程|"
+            r"\bscrap(?:e|er|ing)\b|\b(?:write|give me|generate)\b.{0,20}\b(?:code|script|program|function)\b|"
+            r"\bdebug\b",
+            re.IGNORECASE,
+        ),
+    ),
+    ("translation", re.compile(r"翻译|译成|\btranslate\b|\binto (?:french|english|german|spanish|japanese)\b", re.I)),
+    (
+        "travel",
+        re.compile(
+            r"机票|火车票|高铁票|订.{0,10}?(?:票|酒店|民宿)|酒店预订|\bbook (?:a |me )?(?:flight|hotel|ticket)", re.I
+        ),
+    ),
+    ("weather", re.compile(r"天气(?:怎么样|如何|预报)|\bweather (?:like|today|tomorrow|forecast)\b", re.I)),
+    (
+        "writing",
+        re.compile(
+            r"写(?:一)?(?:首|篇).{0,12}?(?:诗|作文|文章|小说)|\bwrite (?:me )?(?:a |an )?(?:poem|essay|story)\b", re.I
+        ),
+    ),
+    ("entertainment", re.compile(r"讲个笑话|\btell me a joke\b|推荐(?:一部|几部)?电影|\brecommend a movie\b", re.I)),
+)
+
+
+def off_topic_request(query: str) -> str | None:
+    """The kind of non-research task the message asks for (``coding``, ``translation``, ...), or ``None``."""
+    for label, pattern in _OFF_TOPIC_TASKS:
+        if pattern.search(query or ""):
+            return label
+    return None
+
+
+# Words that only make sense about a security, a sector or the economy. Inside a conversation that already has
+# a target they mark an entity-less message ("为什么涨？", "增速是多少？", "What's the 3-day return?") as a follow-up.
+_FOLLOW_UP_CUE = re.compile(
+    r"涨|跌|反弹|回调|走势|趋势|行情|表现|收盘|开盘|最高|最低|成交|均线|MA\s*\d+|RSI|MACD|布林|站上|跌破|支撑|"
+    r"增速|增长|同比|环比|营收|收入|利润|赚|亏|毛利|净利|估值|贵|便宜|高估|低估|市盈|市净|分红|股息|市值|"
+    r"舆情|情绪|正面|负面|利好|利空|消息|新闻|公告|财报|业绩|牛市|熊市|信号|抄底|买入|卖出|买吗|卖吗|能买|该买|"
+    r"加仓|减仓|仓位|全仓|满仓|持有|机会|风险|波动|收益|回报|说明|意味|预示|代表|反映|怎么看|为什么|原因|影响|通缩|通胀|"
+    r"比较|相比|对比|哪家|哪个|哪只|上车|下车|入场|离场|建仓|"
+    r"\b(?:up|down|rise|rose|risen|fall|fell|drop(?:ped)?|rally|gain(?:ed|s)?|loss|returns?|perform(?:ance)?|"
+    r"close[sd]?|closing|open(?:ed|ing)?|high|low|volume|turnover|trend(?:ing)?|moving average|ma\d+|rsi|macd|"
+    r"volatility|growth|revenue|profit|earnings|margin|valuation|cheap(?:er|est)?|expensive|p/?e|p/?b|roe|"
+    r"dividend|sentiment|news|announcements?|filings?|bull(?:ish)?|bear(?:ish)?|signal|buy(?:ing)?|sell(?:ing)?|"
+    r"hold(?:ing)?|position|opportunity|risk|why|mean|imply|inflation|deflation|yield|rates?|compare[sd]?|"
+    r"which)\b",
+    re.IGNORECASE,
+)
+
+
+def has_follow_up_cue(query: str) -> bool:
+    return bool(_FOLLOW_UP_CUE.search(query or ""))
 
 
 def has_macro_content(query: str) -> bool:
@@ -122,6 +186,11 @@ _DEFINITION = re.compile(
     re.IGNORECASE,
 )
 _CONCEPT_TYPES = {"sector", "financial_metric", "macro_indicator", "policy"}
+_COMPANY_METRIC = re.compile(
+    r"市盈率|市净率|净资产收益率|营收|营业收入|净利润|毛利率|股息率|市值|(?<![A-Za-z])(?:P/?E|P/?B|ROE)(?![A-Za-z])|"
+    r"\brevenue\b|\bnet (?:profit|income)\b|\bgross margin\b|\bdividend yield\b|\bmarket cap|\bearnings\b",
+    re.IGNORECASE,
+)
 
 
 def drop_fuzzy_concepts(nlu_result: dict[str, Any], query: str) -> tuple[dict[str, Any], list[str]]:
@@ -129,12 +198,18 @@ def drop_fuzzy_concepts(nlu_result: dict[str, Any], query: str) -> tuple[dict[st
 
     Fuzzy alias matching is useful for company names with typos, but for short concept names it produces
     false hits ("那家公司最近有公告吗" -> sector 有色金属), which would ground a question that names no target.
+    The same holds for fuzzy company matches in a question that refers back with a pronoun.
     """
     kept, dropped = [], []
+    # "它值得长期持有吗" / "这只股票适合长期持有吗" point back at a target; a fuzzy company match inside them
+    # ("值得" -> 值得买, "长期" -> 长江投资) is noise, so the reference is resolved from the session or clarified.
+    dangling = bool(_DANGLING_REFERENCE.search(query))
     for entity in nlu_result.get("entities") or []:
         name = str(entity.get("canonical_name") or "")
         fuzzy = "fuzzy" in str(entity.get("match_type") or "")
-        if fuzzy and entity.get("entity_type") in _CONCEPT_TYPES and name and name.lower() not in query.lower():
+        concept = entity.get("entity_type") in _CONCEPT_TYPES
+        listed_noise = dangling and entity.get("entity_type") in _LISTED_TYPES
+        if fuzzy and (concept or listed_noise) and name and name.lower() not in query.lower():
             dropped.append(name)
         else:
             kept.append(entity)
@@ -179,6 +254,9 @@ def decide_route(nlu_result: dict[str, Any], *, mode: Mode = "auto", query: str 
     if not targeted and "financial_metric" in entity_types_of(entities) and not _DEFINITION.search(text):
         # "市净率是多少": a company metric with no company ("什么是市净率" is a concept question).
         return RouteDecision(route="clarify", reasons=["metric_without_target"])
+    if not targeted and _FOLLOW_UP_MARKERS.search(text.strip()) and _COMPANY_METRIC.search(text):
+        # "What about the P/E?" opening a conversation: an elliptical metric question with nothing to refer to.
+        return RouteDecision(route="clarify", reasons=["metric_without_target", "ellipsis_without_antecedent"])
 
     reasons: list[str] = []
     style = str(nlu_result.get("question_style") or "")

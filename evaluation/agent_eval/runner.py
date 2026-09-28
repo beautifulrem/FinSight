@@ -58,6 +58,8 @@ TASK_SETS: dict[str, tuple[Path, Path]] = {
         EVAL_DIR / "tasks" / "agent_eval_multiturn_v1.jsonl",
         EVAL_DIR / "fixtures" / "snapshot_multiturn_v1.json",
     ),
+    # Written independently (see evaluation/agent_eval/tasks/README_test_v3.md); run once at the final commit.
+    "test_v3": (EVAL_DIR / "tasks" / "agent_eval_test_v3.jsonl", EVAL_DIR / "fixtures" / "snapshot_test_v3.json"),
 }
 SNAPSHOT_NAME = "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)"
 EVAL_TODAY = date(2026, 4, 23)  # fixed "today" so freshness notes are reproducible
