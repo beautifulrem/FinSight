@@ -203,7 +203,7 @@ Paired comparisons (same tasks, a − b):
 Source `evaluation/results/ablation-test_v2-deepseek.json`: commit `38a3069`, run 2026-09-26T10:33:08+00:00, LLM cline-pass/deepseek-v4.1-flash, prompts `agent_system@v3#e419eb84d58e`, `compose_system@v3#b9a704272c6d`.
 
 ```bash
-python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets test_v2 --modes pure_llm,workflow_llm,agent --out /Volumes/Remi/FinSight-eval/outputs/agent_eval/ablation-test_v2-deepseek.json
+python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets test_v2 --modes pure_llm,workflow_llm,agent --out outputs/agent_eval/ablation-test_v2-deepseek.json
 ```
 
 #### Untouched test set v2 (121 tasks, 174 turns)
@@ -334,7 +334,7 @@ Paired comparisons (same tasks, a − b):
 Source `evaluation/results/ablation-test_v2-deepseek-agent-w3.json`: commit `38a3069`, run 2026-09-26T13:58:53+00:00, LLM cline-pass/deepseek-v4.1-flash, prompts `agent_system@v3#e419eb84d58e`, `compose_system@v3#b9a704272c6d`.
 
 ```bash
-python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets test_v2 --modes agent --out /Volumes/Remi/FinSight-eval/outputs/agent_eval/ablation-test_v2-deepseek-agent-w3.json
+python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets test_v2 --modes agent --out outputs/agent_eval/ablation-test_v2-deepseek-agent-w3.json
 ```
 
 | Metric | agent (main run) | agent (rerun) | workflow_llm (main run) |
@@ -356,7 +356,7 @@ Paired comparison, agent (rerun) − workflow_llm (main run), same commit and ta
 Source `evaluation/results/ablation-glm-dev.json`: commit `38a3069`, run 2026-09-26T11:48:18+00:00, LLM cline-pass/glm-5.3-flash, prompts `agent_system@v3#e419eb84d58e`, `compose_system@v3#b9a704272c6d`.
 
 ```bash
-python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets dev --modes workflow_llm,agent --out /Volumes/Remi/FinSight-eval/outputs/agent_eval/ablation-glm-dev.json
+python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets dev --modes workflow_llm,agent --out outputs/agent_eval/ablation-glm-dev.json
 ```
 
 #### Development set (207 tasks, 220 turns)
@@ -383,7 +383,7 @@ Paired comparisons (same tasks, a − b):
 Source `evaluation/results/ablation-glm.json`: commit `f7bf624`, run 2026-09-26T01:59:57+00:00, LLM cline-pass/glm-5.3-flash, prompts `agent_system@v3#e419eb84d58e`, `compose_system@v3#b9a704272c6d`.
 
 ```bash
-python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets dev,holdout,test_v2 --modes workflow_llm,agent --out /Volumes/Remi/FinSight-eval/outputs/agent_eval/ablation-glm.json
+python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets dev,holdout,test_v2 --modes workflow_llm,agent --out outputs/agent_eval/ablation-glm.json
 ```
 
 #### Held-out set (53 tasks, 56 turns)
@@ -443,7 +443,7 @@ Commits per row are listed; rows on different commits compare models *and* code.
 Source `evaluation/results/ablation-offline.json`: commit `f7bf624`, run 2026-09-25T23:26:57+00:00, LLM none (offline), prompts `agent_system@v3#e419eb84d58e`, `compose_system@v3#b9a704272c6d`.
 
 ```bash
-python -m evaluation.agent_eval.ablation --sets dev,holdout,test_v2 --out /Volumes/Remi/FinSight-eval/outputs/agent_eval/ablation-offline.json
+python -m evaluation.agent_eval.ablation --sets dev,holdout,test_v2 --out outputs/agent_eval/ablation-offline.json
 ```
 
 #### Development set (207 tasks, 220 turns)
