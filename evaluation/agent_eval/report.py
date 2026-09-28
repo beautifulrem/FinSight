@@ -61,6 +61,8 @@ SUMMARY_ROWS = [
     ("first_pass_verification", "LLM draft verified on first pass"),
     ("revise_rate", "LLM drafts sent back for revision"),
     ("llm_error_rate", "Turns with an LLM error (fallback used)"),
+    ("json_repair_rate", "Answer drafts that needed JSON repair"),
+    ("json_failure_rate", "Answer drafts that were not JSON (used as text)"),
     ("cost_per_task", "Cost per task"),
 ]
 COMPACT_ROWS = [
