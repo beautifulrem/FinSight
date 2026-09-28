@@ -20,6 +20,7 @@ from .llm import LLMClient, Pricing, build_llm_from_config
 from .memory import make_checkpointer
 from .state import AgentConfig
 from .tools import ToolRegistry, build_registry_for_service
+from .tools.mcp_client import register_configured_mcp_servers
 from .tracing import TraceSink, build_trace, emit, sinks_from_env
 
 if TYPE_CHECKING:
@@ -73,9 +74,13 @@ class AgentService:
     ) -> AgentService:
         if llm is None and chatbot_config is not None:
             llm = build_llm_from_config(chatbot_config)
+        if registry is None:
+            registry = build_registry_for_service(service)
+            # External MCP servers (QI_MCP_SERVERS, off by default) add namespaced tools for the LLM agent.
+            register_configured_mcp_servers(registry)
         runtime = AgentRuntime(
             service,
-            registry or build_registry_for_service(service),
+            registry,
             llm,
             config=config,
             pricing=Pricing.from_env(),

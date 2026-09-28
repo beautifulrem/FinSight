@@ -11,6 +11,7 @@ A tool wraps existing Query Intelligence code behind a typed contract:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import threading
 import time
@@ -131,10 +132,19 @@ class ToolSpec:
     retry_backoff_s: float = 0.2
     cache_ttl_s: float = 0.0
     retry_on: tuple[type[BaseException], ...] = (TransientToolError, TimeoutError, ConnectionError)
+    # Tools registered from an external MCP server publish the server's JSON schema as is (``mcp_client.py``);
+    # local tools derive it from ``input_model``.
+    parameters_schema: dict[str, Any] | None = None
 
-    def openai_schema(self) -> dict[str, Any]:
+    def input_schema(self) -> dict[str, Any]:
+        if self.parameters_schema is not None:
+            return json.loads(json.dumps(self.parameters_schema))
         schema = self.input_model.model_json_schema()
         schema.pop("title", None)
+        return schema
+
+    def openai_schema(self) -> dict[str, Any]:
+        schema = self.input_schema()
         return {
             "type": "function",
             "function": {"name": self.name, "description": self.description, "parameters": schema},
@@ -176,6 +186,11 @@ class ToolRegistry:
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="agent-tool")
         self._cache = _TTLCache()
         self._sleep = sleep
+        self._closers: list[Callable[[], None]] = []
+
+    def on_shutdown(self, closer: Callable[[], None]) -> None:
+        """Run ``closer`` in ``shutdown`` (e.g. to stop MCP client connections owned by this registry)."""
+        self._closers.append(closer)
 
     def register(self, spec: ToolSpec) -> ToolSpec:
         if spec.name in self._specs:
@@ -255,6 +270,10 @@ class ToolRegistry:
         )
 
     def shutdown(self) -> None:
+        for closer in self._closers:
+            with contextlib.suppress(Exception):  # shutdown must not fail on one closer
+                closer()
+        self._closers.clear()
         self._executor.shutdown(wait=False, cancel_futures=True)
 
 
