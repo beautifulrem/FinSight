@@ -360,3 +360,45 @@ def test_model_capabilities_downgrade_unsupported_options():
     deepseek, captured = _capture(model="deepseek-v4-flash")
     deepseek.chat([{"role": "user", "content": "q"}], TOOLS, tool_choice="none")
     assert captured["body"]["tool_choice"] == "none" and captured["body"]["tools"] == TOOLS
+
+
+def test_llm_deadline_caps_request_timeout_and_skips_calls_past_it():
+    import time
+
+    from query_intelligence.agent.llm import llm_deadline
+
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.extensions["timeout"])
+        return httpx.Response(200, json=_completion({"role": "assistant", "content": "ok"}))
+
+    client = _client(handler, timeout_s=60.0)
+    with llm_deadline(time.time() + 10):
+        client.chat([{"role": "user", "content": "hi"}])
+    assert 8 < seen[0]["read"] <= 10  # min(60 s client timeout, ~10 s left)
+
+    with llm_deadline(time.time() + 1), pytest.raises(LLMError, match="deadline") as info:
+        client.chat([{"role": "user", "content": "hi"}])
+    assert not info.value.retryable
+    assert len(seen) == 1  # no request was sent
+
+    client.chat([{"role": "user", "content": "hi"}])  # outside the block the client timeout applies
+    assert seen[-1]["read"] == 60.0
+
+
+def test_llm_deadline_stops_retries_that_would_overrun_it():
+    import time
+
+    from query_intelligence.agent.llm import llm_deadline
+
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        return httpx.Response(503, json={"error": "busy"})
+
+    client = _client(handler, max_retries=3, retry_backoff_s=5.0)
+    with llm_deadline(time.time() + 6), pytest.raises(LLMError):
+        client.chat([{"role": "user", "content": "hi"}])
+    assert len(calls) == 1  # a 5 s back-off would leave less than the minimum call time

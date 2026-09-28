@@ -78,6 +78,7 @@ class AgentConfig:
     llm_compose: bool = True
     max_next_questions: int = 3
     run_deadline_s: float = 90.0
+    answer_grace_s: float = 20.0  # extra time for the final answer / revision after the tool loop's deadline
     # Reasoning level per LLM node (None = the client's configured default). The tool loop needs
     # multi-step reasoning; composing from fixed evidence and revising are checked by the verifier.
     agent_reasoning: str | None = None

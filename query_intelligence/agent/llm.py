@@ -18,6 +18,7 @@ Some gateways wrap the OpenAI-compatible body in an envelope (``{"success": true
 
 from __future__ import annotations
 
+import contextvars
 import json
 import os
 import time
@@ -27,6 +28,41 @@ from typing import Any, Protocol
 
 import httpx
 from pydantic import BaseModel, Field
+
+_CALL_DEADLINE: contextvars.ContextVar[float | None] = contextvars.ContextVar("llm_call_deadline", default=None)
+_MIN_CALL_SECONDS = 2.0
+
+
+class llm_deadline:
+    """Bound every LLM request made inside the block by an absolute wall-clock deadline (``time.time()``).
+
+    Each HTTP request (including retries and failover models) gets ``min(timeout_s, time left)``; with less
+    than two seconds left the call fails fast with a non-retryable ``LLMError`` so the graph falls back to
+    its deterministic path instead of waiting for a slow model past the run's deadline.
+    """
+
+    def __init__(self, deadline: float | None) -> None:
+        self.deadline = deadline
+        self._token: contextvars.Token[float | None] | None = None
+
+    def __enter__(self) -> llm_deadline:
+        self._token = _CALL_DEADLINE.set(self.deadline)
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        if self._token is not None:
+            _CALL_DEADLINE.reset(self._token)
+
+
+def call_timeout(default_s: float) -> float:
+    """Timeout for the next LLM request: the client's timeout, capped by the active deadline."""
+    deadline = _CALL_DEADLINE.get()
+    if deadline is None:
+        return default_s
+    remaining = deadline - time.time()
+    if remaining < _MIN_CALL_SECONDS:
+        raise LLMError("run deadline reached; LLM call skipped", retryable=False)
+    return min(default_s, remaining)
 
 
 class LLMError(RuntimeError):
@@ -342,7 +378,11 @@ class DeepSeekToolClient:
                 # A stream that already produced text cannot be replayed without duplicating it.
                 if not exc.retryable or attempt > self.max_retries or emitted[0]:
                     raise
-                self._sleep(self.retry_backoff_s * (2 ** (attempt - 1)))
+                delay = self.retry_backoff_s * (2 ** (attempt - 1))
+                deadline = _CALL_DEADLINE.get()
+                if deadline is not None and time.time() + delay + _MIN_CALL_SECONDS > deadline:
+                    raise
+                self._sleep(delay)
 
     def _post_stream(self, body: dict[str, Any], on_delta: Callable[[str], None]) -> dict[str, Any]:
         """Stream a completion and rebuild the non-streamed response shape (content, tool calls, usage)."""
@@ -356,7 +396,9 @@ class DeepSeekToolClient:
         usage: dict[str, Any] = {}
         model = self.model
         try:
-            with client.stream("POST", self.url, headers=headers, json=payload) as response:
+            with client.stream(
+                "POST", self.url, headers=headers, json=payload, timeout=call_timeout(self.timeout_s)
+            ) as response:
                 if response.status_code >= 400:
                     text = response.read().decode("utf-8", "replace")
                     retryable = response.status_code in {408, 409, 429} or response.status_code >= 500
@@ -418,7 +460,7 @@ class DeepSeekToolClient:
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         client = self._http_client or httpx.Client(timeout=self.timeout_s)
         try:
-            response = client.post(self.url, headers=headers, json=body)
+            response = client.post(self.url, headers=headers, json=body, timeout=call_timeout(self.timeout_s))
         except httpx.TimeoutException as exc:
             raise LLMError(f"LLM request timed out: {exc}", retryable=True) from exc
         except httpx.TransportError as exc:
