@@ -87,7 +87,7 @@ export function DataPanel({
             <span className="text-muted">{t("chart.points", { n: series.points.length })}</span>
             {trendKey && <span className="ml-auto text-muted">{t(trendKey)}</span>}
           </figcaption>
-          <Suspense fallback={<div className="h-44 animate-pulse rounded-lg bg-surface-2 sm:h-52" />}>
+          <Suspense fallback={<div className="h-44 motion-safe:animate-pulse rounded-lg bg-surface-2 sm:h-52" />}>
             <PriceChart
               points={series.points}
               themeKey={themeKey}
