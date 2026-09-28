@@ -93,6 +93,26 @@ def summarize_trace(trace: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def prompt_version_of(trace: dict[str, Any]) -> str:
+    """Prompt version (``v3``) of the run's first LLM call (``agent_system@v3#sha``); ``none`` without an LLM."""
+    for call in trace.get("llm_calls") or []:
+        ref = str(call.get("prompt") or "")
+        if "@" in ref:
+            return ref.split("@", 1)[1].split("#", 1)[0][:16] or "unknown"
+    return "none"
+
+
+def verification_outcome(trace: dict[str, Any]) -> str | None:
+    """``passed`` / ``revised`` / ``repaired`` for answered runs; ``None`` for refusals and clarifications."""
+    passed = trace.get("verification_passed")
+    if passed is None:
+        return None
+    if passed is False:
+        return "repaired"
+    revised = any(call.get("node") == "revise" for call in trace.get("llm_calls") or [])
+    return "revised" if revised else "passed"
+
+
 class PrometheusTraceSink:
     """Aggregates traces into Prometheus metrics on a private registry."""
 
@@ -138,7 +158,19 @@ class PrometheusTraceSink:
             "finsight_degradations_total", "Degradation flags raised during runs.", ["flag"], registry=self.registry
         )
         self.feedback = Counter(
-            "finsight_feedback_total", "User feedback on answers.", ["rating"], registry=self.registry
+            "finsight_feedback_total",
+            "User feedback on answers, by rating and the prompt version that produced the answer.",
+            ["rating", "prompt_version"],
+            registry=self.registry,
+        )
+        # Answer quality by prompt version. outcome: passed (first draft verified), revised (verified after an LLM
+        # revision), repaired (still failing, deterministic repair applied). Labels stay low-cardinality: a
+        # handful of prompt versions x 3 outcomes.
+        self.verification_outcomes = Counter(
+            "finsight_answer_verification_total",
+            "Verified answers by prompt version and verification outcome.",
+            ["prompt_version", "outcome"],
+            registry=self.registry,
         )
 
     @property
@@ -194,12 +226,15 @@ class PrometheusTraceSink:
                     )
         if trace.get("verification_passed") is False:
             self.verification_failures.inc()
+        outcome = verification_outcome(trace)
+        if outcome:
+            self.verification_outcomes.labels(prompt_version=prompt_version_of(trace), outcome=outcome).inc()
         for flag in trace.get("degraded") or []:
             self.degradations.labels(flag=str(flag).split(":")[0]).inc()
 
-    def record_feedback(self, rating: str) -> None:
+    def record_feedback(self, rating: str, prompt_version: str = "none") -> None:
         if self.registry is not None:
-            self.feedback.labels(rating=rating).inc()
+            self.feedback.labels(rating=rating, prompt_version=prompt_version).inc()
 
     def render(self) -> tuple[bytes, str]:
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
