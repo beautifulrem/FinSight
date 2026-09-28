@@ -615,6 +615,128 @@ def test_codes_are_humanised_and_stale_data_is_flagged(page):
         page.unroute("**/agent/chat/stream")
 
 
+CANNED_CLAIM_REPORT = {
+    "claim": "茅台市盈率只有15倍，股价昨天跌了5%",
+    "verdict": "partially_supported",
+    "checks": [
+        {
+            "target": "贵州茅台",
+            "metric": "pe_ttm",
+            "claimed": 15.0,
+            "actual": 24.6,
+            "status": "contradicted",
+            "evidence_id": "fundamental_600519.SH",
+            "source": "tushare",
+            "as_of": "2025-12-31",
+            "note": "",
+        },
+        {
+            "target": "贵州茅台",
+            "metric": "close",
+            "claimed": 1409.5,
+            "actual": 1409.5,
+            "status": "supported",
+            "evidence_id": "price_600519.SH",
+            "source": "tushare",
+            "as_of": "2026-04-22",
+            "note": "",
+        },
+        {
+            "target": "贵州茅台",
+            "metric": None,
+            "claimed": 5.0,
+            "actual": None,
+            "status": "unverifiable",
+            "evidence_id": None,
+            "source": None,
+            "as_of": None,
+            "note": "metric not recognised",
+        },
+    ],
+    "targets": [{"name": "贵州茅台", "symbol": "600519.SH"}],
+    "evidence_sources": [
+        {"evidence_id": "fundamental_600519.SH", "source_name": "tushare", "as_of": "2025-12-31", "title": "贵州茅台 fundamentals"},
+        {"evidence_id": "price_600519.SH", "source_name": "tushare", "as_of": "2026-04-22", "title": "贵州茅台 daily market data"},
+    ],
+    "disclaimer": "核查只比对声明中的数字与所列数据源，不评价观点本身，也不构成投资建议。",
+}
+
+RAW_CLAIM_CODES = ["pe_ttm", "pct_change_1d", "partially_supported", "contradicted", "unverifiable", "metric not recognised"]
+
+
+def test_fact_check_view_shows_verdict_values_and_sources(page):
+    requests: list[dict] = []
+
+    def fulfill(route):
+        requests.append(json.loads(route.request.post_data or "{}"))
+        route.fulfill(status=200, json=CANNED_CLAIM_REPORT)
+
+    page.route("**/agent/claim-check", fulfill)
+    try:
+        page.get_by_role("tab", name="核查").click()
+        expect(page.get_by_role("tab", name="核查")).to_have_attribute("aria-selected", "true")
+        expect(page.get_by_role("heading", level=1)).to_have_text("核查一条市场说法")
+        expect(page.locator("#query-input")).to_be_hidden()
+        expect(page.locator(".claim-example")).to_have_count(3)
+
+        page.locator(".claim-example").first.click()
+        report = page.locator(".claim-report")
+        expect(report.locator(".claim-verdict")).to_have_text("部分相符", timeout=15000)
+        expect(report.locator(".claim-verdict")).to_have_attribute("data-verdict", "partially_supported")
+        assert requests == [{"claim": "茅台市盈率只有15倍，股价昨天跌了5%", "language": "zh"}]
+
+        contradicted = report.locator('.claim-check[data-status="contradicted"]')
+        expect(contradicted.locator(".claim-metric")).to_have_text("市盈率(TTM)")
+        expect(contradicted.locator(".claim-status")).to_have_text("不符")
+        expect(contradicted.locator(".claim-claimed")).to_have_text("15 倍")
+        expect(contradicted.locator(".claim-actual")).to_have_text("24.6 倍")
+        expect(contradicted.locator(".claim-source")).to_contain_text("tushare")
+        expect(contradicted.locator(".claim-source time")).to_have_attribute("datetime", "2025-12-31")
+        expect(contradicted.locator(".claim-source")).to_contain_text("可能过时")
+        expect(report.locator(".claim-check")).to_have_count(3)
+        expect(report.locator('.claim-check[data-status="unverifiable"]')).to_contain_text("未能判断这个数字指的是哪个指标")
+        expect(report.locator(".claim-disclaimer")).to_contain_text("不构成投资建议")
+        visible = report.inner_text()
+        for code in RAW_CLAIM_CODES:
+            assert code not in visible, code
+
+        # A typed claim goes out on Enter; the chat view keeps its state when switching back.
+        page.fill("#claim-input", "贵州茅台市盈率约25倍")
+        with page.expect_request(re.compile(r"/agent/claim-check$")) as typed:
+            page.keyboard.press("Enter")
+        assert json.loads(typed.value.post_data)["claim"] == "贵州茅台市盈率约25倍"
+        expect(page.locator(".claim-report .claim-verdict")).to_be_visible()
+        if AXE_JS.is_file():
+            _assert_accessible(page, "fact-check report (light, zh)")
+    finally:
+        page.unroute("**/agent/claim-check")
+        page.get_by_role("tab", name="问答").click()
+    expect(page.locator("#query-input")).to_be_visible()
+    assert page.locator(".turn").count() > 0
+
+
+def test_fact_check_errors_are_explained(page, page_errors):
+    page.route(
+        "**/agent/claim-check",
+        lambda route: route.fulfill(status=500, content_type="application/json", body='{"detail": "boom"}'),
+    )
+    try:
+        page.get_by_role("tab", name="核查").click()
+        page.fill("#claim-input", "茅台市盈率只有15倍")
+        page.keyboard.press("Enter")
+        alert = page.locator(".claim-error")
+        expect(alert).to_contain_text("请求失败：boom", timeout=15000)
+        page.unroute("**/agent/claim-check")
+        page.route("**/agent/claim-check", lambda route: route.fulfill(status=200, json=CANNED_CLAIM_REPORT))
+        alert.get_by_role("button", name="重试").click()
+        expect(page.locator(".claim-report .claim-verdict")).to_have_text("部分相符")
+    finally:
+        page.unroute("**/agent/claim-check")
+        page.get_by_role("tab", name="问答").click()
+    # Chrome logs the 500 response to the console; the UI handled it.
+    page_errors[:] = [error for error in page_errors if "status of 500" not in error]
+
+
 def test_refusal_limitations_are_human_readable(page):
     _ask(page, "明天天气怎么样")
     card = _last_turn(page).locator(".answer-card")
@@ -768,6 +890,15 @@ def test_accessibility_mobile_dark_english(browser, base_url, axe_ready):
         chip.click()
         expect(mobile.get_by_role("dialog")).to_be_visible()
         _assert_accessible(mobile, "mobile evidence sheet (dark, en)")
+        mobile.keyboard.press("Escape")
+
+        mobile.route("**/agent/claim-check", lambda route: route.fulfill(status=200, json=CANNED_CLAIM_REPORT))
+        mobile.get_by_role("tab", name="Fact-check").click()
+        mobile.locator(".claim-example").first.click()
+        expect(mobile.locator(".claim-report .claim-verdict")).to_have_text("Partly supported", timeout=15000)
+        expect(mobile.locator('.claim-check[data-status="contradicted"] .claim-actual')).to_have_text("24.6×")
+        assert mobile.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+        _assert_accessible(mobile, "mobile fact-check report (dark, en)")
         assert errors == []
     finally:
         context.close()

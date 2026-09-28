@@ -1,8 +1,9 @@
-import { Dialog } from "radix-ui";
+import { Dialog, Tabs } from "radix-ui";
 import { domAnimation, LazyMotion, MotionConfig } from "motion/react";
 import { X } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { ClaimCheckView } from "@/components/ClaimCheck";
 import { Composer, type ComposerHandle } from "@/components/Composer";
 import { EmptyState } from "@/components/EmptyState";
 import { Header, type AppStatus } from "@/components/Header";
@@ -10,6 +11,7 @@ import { HistoryView } from "@/components/HistoryView";
 import { Inspector, type InspectorTab } from "@/components/Inspector";
 import type { ThemePref } from "@/components/SettingsDialog";
 import { TurnView } from "@/components/TurnView";
+import { ViewTabs, type AppView } from "@/components/ViewTabs";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useChat, type Turn } from "@/hooks/useChat";
@@ -56,6 +58,7 @@ export default function App() {
     return MODES.includes(stored) ? stored : "auto";
   });
   const [apiKey, setApiKey] = useState(() => readStorage(STORAGE_KEYS.apiKey));
+  const [view, setView] = useState<AppView>(() => (readStorage(STORAGE_KEYS.view) === "check" ? "check" : "chat"));
   const [sessionId, setSessionId] = useState(() => readStorage(STORAGE_KEYS.session) || newSessionId());
   const [online, setOnline] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -91,6 +94,7 @@ export default function App() {
   }, [lang]);
   useEffect(() => writeStorage(STORAGE_KEYS.theme, themePref === "system" ? "" : themePref), [themePref]);
   useEffect(() => writeStorage(STORAGE_KEYS.mode, mode), [mode]);
+  useEffect(() => writeStorage(STORAGE_KEYS.view, view === "check" ? view : ""), [view]);
   useEffect(() => writeStorage(STORAGE_KEYS.session, sessionId), [sessionId]);
 
   // Server health and session restore ---------------------------------------------------------
@@ -211,9 +215,10 @@ export default function App() {
       <LazyMotion features={domAnimation} strict>
       <MotionConfig reducedMotion="user">
         <TooltipProvider delayDuration={300}>
+          <Tabs.Root asChild value={view} onValueChange={(next) => setView(next === "check" ? "check" : "chat")}>
           <div className="flex h-dvh flex-col">
             <a
-              href="#query-input"
+              href={view === "check" ? "#claim-input" : "#query-input"}
               className="sr-only z-50 rounded-md bg-cobalt px-3 py-2 text-cobalt-ink focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
             >
               {t("a11y.skip")}
@@ -230,8 +235,17 @@ export default function App() {
               }}
               onInspector={() => setSheetOpen(true)}
               canInspect={Boolean(inspectedView)}
+              showInspector={view === "chat"}
+              views={<ViewTabs />}
             />
-            <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
+            {/* Both panels stay mounted so the conversation and the last check survive switching views. */}
+            <Tabs.Content
+              value="chat"
+              forceMount
+              hidden={view !== "chat"}
+              tabIndex={-1}
+              className="grid min-h-0 flex-1 outline-none lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]"
+            >
               <main className="flex min-h-0 flex-col">
                 <div ref={scroller} onScroll={onScroll} className="scrollbar-thin relative min-h-0 flex-1 overflow-y-auto">
                   <div id="chat-messages" className="mx-auto w-full max-w-3xl space-y-6 px-3 py-5 sm:px-5 sm:py-8" aria-live="polite">
@@ -289,8 +303,14 @@ export default function App() {
               >
                 {inspector}
               </aside>
-            </div>
+            </Tabs.Content>
+            <Tabs.Content value="check" forceMount hidden={view !== "check"} tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
+              <main className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
+                <ClaimCheckView apiKey={apiKey} />
+              </main>
+            </Tabs.Content>
           </div>
+          </Tabs.Root>
 
           <Dialog.Root open={sheetOpen} onOpenChange={setSheetOpen}>
             <Dialog.Portal>

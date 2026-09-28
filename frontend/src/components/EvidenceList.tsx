@@ -2,30 +2,12 @@ import { ExternalLink } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { cn } from "@/lib/cn";
-import { formatDate } from "@/lib/format";
-import { evidenceFreshness, type EvidenceFreshness } from "@/lib/freshness";
+import { evidenceFreshness } from "@/lib/freshness";
 import { sourceTypeLabel, toolLabel, useI18n } from "@/lib/i18n";
 import type { EvidenceSource } from "@/lib/types";
 
-import { FreshnessBadges } from "./Freshness";
+import { AsOf, FreshnessBadges } from "./Freshness";
 import { Badge } from "./ui/badge";
-
-/** "2026/09/24 · 2 days ago": the as-of date and its age, in the warning colour once possibly stale. */
-function AsOf({ info }: { info: EvidenceFreshness }) {
-  const { lang, t } = useI18n();
-  const { asOf, days, stale } = info;
-  if (days === undefined || !asOf) return <span className="text-muted">{t("evidence.unknownTime")}</span>;
-  return (
-    <span className="inline-flex flex-wrap items-center gap-x-1.5">
-      <time dateTime={asOf} className="text-muted">
-        {formatDate(lang, asOf)}
-      </time>
-      <span className={cn(stale ? "text-warn" : "text-muted")}>
-        {days === 0 ? t("evidence.today") : t(stale ? "evidence.stale" : "evidence.fresh", { d: days })}
-      </span>
-    </span>
-  );
-}
 
 interface Props {
   sources: EvidenceSource[];

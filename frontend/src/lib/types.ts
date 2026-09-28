@@ -232,6 +232,31 @@ export type StreamEvent =
   | { event: "error"; data: { message: string } }
   | { event: "done"; data: { session_id: string } };
 
+/** `POST /agent/claim-check` (query_intelligence/agent/claim_check.py `ClaimReport`). */
+export type ClaimStatus = "supported" | "contradicted" | "unverifiable";
+export type ClaimVerdict = ClaimStatus | "partially_supported";
+
+export interface ClaimCheckItem {
+  target?: string | null;
+  metric?: string | null;
+  claimed: number;
+  actual?: number | null;
+  status: ClaimStatus;
+  evidence_id?: string | null;
+  source?: string | null;
+  as_of?: string | null;
+  note?: string;
+}
+
+export interface ClaimReport {
+  claim: string;
+  verdict: ClaimVerdict;
+  checks: ClaimCheckItem[];
+  targets?: { name?: string | null; symbol?: string | null }[];
+  evidence_sources?: { evidence_id: string; source_name?: string | null; as_of?: string | null; title?: string | null }[];
+  disclaimer: string;
+}
+
 export type FeedbackRating = "up" | "down";
 
 export interface FeedbackRequest {

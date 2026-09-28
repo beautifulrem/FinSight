@@ -1,6 +1,7 @@
 import { CalendarClock, Clock3, DatabaseBackup, Radio, Shuffle } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { cn } from "@/lib/cn";
 import { fallbackReasonText } from "@/lib/codes";
 import { formatDate } from "@/lib/format";
 import { evidenceFreshness, type EvidenceFreshness, type FreshnessSummary } from "@/lib/freshness";
@@ -32,6 +33,23 @@ function ProvenanceDetails({ info, mode }: { info: EvidenceFreshness; mode: keyo
           {line}
         </span>
       ))}
+    </span>
+  );
+}
+
+/** "2026/09/24 · 2 days ago": the as-of date and its age, in the warning colour once possibly stale. */
+export function AsOf({ info }: { info: EvidenceFreshness }) {
+  const { lang, t } = useI18n();
+  const { asOf, days, stale } = info;
+  if (days === undefined || !asOf) return <span className="text-muted">{t("evidence.unknownTime")}</span>;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-1.5">
+      <time dateTime={asOf} className="text-muted">
+        {formatDate(lang, asOf)}
+      </time>
+      <span className={cn(stale ? "text-warn" : "text-muted")}>
+        {days === 0 ? t("evidence.today") : t(stale ? "evidence.stale" : "evidence.fresh", { d: days })}
+      </span>
     </span>
   );
 }

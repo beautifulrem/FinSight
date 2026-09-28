@@ -18,7 +18,8 @@ export type CodeKind =
   | "style"
   | "product"
   | "intent"
-  | "limitation";
+  | "limitation"
+  | "metric";
 
 type Text = { zh: string; en: string };
 type Rule = { test: RegExp; label: (match: RegExpExecArray, lang: Lang) => string };
@@ -66,6 +67,18 @@ const INTENTS: Record<string, Text> = {
   risk_analysis: { zh: "风险分析", en: "risk" },
 };
 
+/** Metrics named by the claim checker (query_intelligence/agent/claim_check.py `_METRICS`). */
+const METRICS: Record<string, Text> = {
+  close: { zh: "收盘价", en: "Close price" },
+  pct_change_1d: { zh: "日涨跌幅", en: "Daily change" },
+  pe_ttm: { zh: "市盈率(TTM)", en: "P/E (TTM)" },
+  pe: { zh: "市盈率", en: "P/E" },
+  pb: { zh: "市净率", en: "P/B" },
+  roe: { zh: "净资产收益率(ROE)", en: "Return on equity (ROE)" },
+  revenue: { zh: "营业收入", en: "Revenue" },
+  net_profit: { zh: "净利润", en: "Net profit" },
+};
+
 const ANSWER_SOURCES: Record<string, Text> = {
   llm_agent: { zh: "LLM 智能体撰写", en: "Written by the LLM agent" },
   llm_compose: { zh: "LLM 基于证据撰写", en: "LLM-written from evidence" },
@@ -100,6 +113,7 @@ const EXACT: Record<string, Text> = {
   "lexical:follow_up": { zh: "追问", en: "Follow-up question" },
   "lexical:judgment_or_timing": { zh: "含判断或择时用语", en: "Judgment or timing wording" },
   "lexical:why": { zh: "询问原因", en: "Asks why" },
+  metric_without_target: { zh: "只问了指标，没有指明证券", en: "Asked for a metric without naming a security" },
   "input_guard:instruction_like_text_removed": {
     zh: "已移除问题中疑似指令的文本",
     en: "Removed instruction-like text from the question",
@@ -164,7 +178,46 @@ const BUDGETS: [RegExp, (m: RegExpExecArray) => Text][] = [
   [/run deadline of ([\d.]+)s/, (m) => ({ zh: `达到运行时限（${m[1]} 秒），提前作答`, en: `Run deadline (${m[1]} s) reached; answered early` })],
 ];
 
+// Aspects are joined with "/" by the server, but "P/E" and "P/B" contain one themselves.
+const aspects = (value: string, separator: string) =>
+  value
+    .replace(/\bP\/([EB])\b/gi, (match) => match.replace("/", "\u0000"))
+    .split("/")
+    .filter(Boolean)
+    .map((part) => part.replace("\u0000", "/"))
+    .join(separator);
+
+/**
+ * Follow-up rewrites (agent/memory.py, agent/router.py). The suffix after ":" or "->" is user-facing
+ * text (a security name, the carried-over question, the pronoun that was resolved).
+ */
+const REWRITES: [RegExp, (m: RegExpExecArray) => Text][] = [
+  [/^ellipsis:target->(.+)$/, (m) => ({ zh: `沿用上一轮的标的 ${m[1]}`, en: `Kept the security from the last turn: ${m[1]}` })],
+  [
+    /^ellipsis:aspect->(.+)$/,
+    (m) => ({ zh: `沿用上一轮的问题：${aspects(m[1]!, "、")}`, en: `Kept the question from the last turn: ${aspects(m[1]!, ", ")}` }),
+  ],
+  [/^ellipsis(?::.*)?$/, () => ({ zh: "补全了省略的追问", en: "Completed a shortened follow-up" })],
+  [/^coreference:(.+?)->(.+)$/, (m) => ({ zh: `将“${m[1]}”理解为 ${m[2]}`, en: `Read “${m[1]}” as ${m[2]}` })],
+  [/^coreference(?::.*)?$/, () => ({ zh: "根据上文解析了指代", en: "Resolved a reference from earlier turns" })],
+  [/^clarified:(.+)$/, (m) => ({ zh: `按澄清回复补全为 ${m[1]}`, en: `Completed with your clarification: ${m[1]}` })],
+  [
+    /^dropped_fuzzy_concept:(.+)$/,
+    (m) => ({ zh: `忽略了模糊匹配到的概念“${m[1]}”`, en: `Ignored the loosely matched concept “${m[1]}”` }),
+  ],
+];
+
 const RULES: Rule[] = [
+  {
+    test: /^(?:ellipsis|coreference|clarified|dropped_fuzzy_concept)(?::|$)/,
+    label: (m, lang) => {
+      for (const [pattern, text] of REWRITES) {
+        const hit = pattern.exec(m.input);
+        if (hit) return pick(lang, text(hit));
+      }
+      return prettify(m.input);
+    },
+  },
   {
     test: /^multi_entity:(\d+)$/,
     label: (m, lang) => (lang === "zh" ? `涉及 ${m[1]} 只证券` : `${m[1]} securities involved`),
@@ -292,6 +345,8 @@ export function humanizeCode(lang: Lang, code: string, kind?: CodeKind): string 
       return ANSWER_SOURCES[value]?.[lang] ?? prettify(value);
     case "toolError":
       return TOOL_ERRORS[value]?.[lang] ?? prettify(value);
+    case "metric":
+      return METRICS[value]?.[lang] ?? prettify(value);
     default:
       break;
   }
