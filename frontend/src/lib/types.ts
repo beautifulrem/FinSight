@@ -236,17 +236,39 @@ export type StreamEvent =
 export type ClaimStatus = "supported" | "contradicted" | "unverifiable";
 export type ClaimVerdict = ClaimStatus | "partially_supported";
 
+/** How a claimed number relates to the value: "超过30%" is `gt`, "不是15倍" is `ne`, "20到30倍" is `range`. */
+export type ClaimComparator = "eq" | "ne" | "gt" | "ge" | "lt" | "le" | "approx" | "range";
+
+/** Why a check is unverifiable (machine-readable; `note` carries the English text). */
+export type ClaimReason =
+  | "no_target"
+  | "no_metric"
+  | "no_data"
+  | "growth_unavailable"
+  | "unit_mismatch"
+  | "no_unit"
+  | "forecast"
+  | "period_mismatch"
+  | "multi_day";
+
 export interface ClaimCheckItem {
   target?: string | null;
   metric?: string | null;
   claimed: number;
+  /** Upper bound of a range claim ("20到30倍"). */
+  claimed_high?: number | null;
   /** Unit written after the number in the claim: "亿", "%", "倍", "billion", ... */
   claimed_unit?: string | null;
+  comparator?: ClaimComparator;
+  negated?: boolean;
   actual?: number | null;
   status: ClaimStatus;
+  reason?: ClaimReason | null;
   evidence_id?: string | null;
   source?: string | null;
   as_of?: string | null;
+  /** What `as_of` is: the trade date of a price, the valuation date of P/E and P/B, or the report period. */
+  as_of_basis?: "trade_date" | "valuation_date" | "report_date" | null;
   note?: string;
 }
 

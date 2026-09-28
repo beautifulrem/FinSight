@@ -12,6 +12,7 @@
 |---|---|
 | [模块总览](modules.md) | 五个模块地图：前端、NLU/Retrieval、数值分析、文本分析、LLM 总结和预测。 |
 | [Agent 层](agent.md) | Agent 状态图、工具、路由、证据校验、合规、记忆、`/agent/*` API 与 schema、配置、tracing。 |
+| [说法核查](claim-check.md) | 核查一句市场说法：比较词、否定、增速、单位、数据日期、聊天提示，以及说法基准（dev 131 条、held-out 47 条）的置信区间与局限。 |
 | [评测（中文摘要）](evaluation.md) | 三个任务集、一票否决指标、bootstrap 置信区间与配对检验、两个模型族的在线消融、Prompt A/B、校验器压力测试、红队、故障注入、路由评测。完整英文版见 [Agent Evaluation](../agent-eval.md)。 |
 | [竞品对比](comparison.md) | 与问财、豆包、Kimi、Wind Alice、妙想的对比：带出处的能力表、它们强在哪里、一个设计好但尚未执行的对比测试。 |
 | [MCP Server](../mcp.md)（英文） | 通过 stdio 或 streamable HTTP 向 MCP 客户端提供 Agent 工具。 |

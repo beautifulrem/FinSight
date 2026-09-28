@@ -42,7 +42,7 @@ function doneTurn(overrides: Partial<Turn> = {}): Turn {
   };
 }
 
-function renderTurn(turn: Turn, onFeedback = vi.fn().mockResolvedValue("ok")) {
+function renderTurn(turn: Turn, onFeedback = vi.fn().mockResolvedValue("ok"), onCheckClaim?: (claim: string) => void) {
   const view = answerView(turn);
   render(
     <TooltipProvider>
@@ -56,6 +56,7 @@ function renderTurn(turn: Turn, onFeedback = vi.fn().mockResolvedValue("ok")) {
         onAsk={vi.fn()}
         onRetry={vi.fn()}
         onFeedback={onFeedback}
+        onCheckClaim={onCheckClaim}
       />
     </TooltipProvider>,
   );
@@ -107,5 +108,21 @@ describe("TurnView answer card", () => {
     renderTurn(doneTurn(), vi.fn().mockResolvedValue("unsupported"));
     await user.click(screen.getByRole("button", { name: "有帮助" }));
     expect(await screen.findByText("已保存在本浏览器（服务端暂不接收反馈）")).toBeInTheDocument();
+  });
+});
+
+describe("claim hint", () => {
+  it("suggests the fact-check view for hearsay questions and hands over the claim", async () => {
+    const user = userEvent.setup();
+    const onCheckClaim = vi.fn();
+    renderTurn(doneTurn({ query: "听说茅台市盈率只有15倍，是真的吗？" }), undefined, onCheckClaim);
+    expect(screen.getByText("这像一条待核实的说法")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "核查这句话" }));
+    expect(onCheckClaim).toHaveBeenCalledWith("茅台市盈率只有15倍");
+  });
+
+  it("stays hidden for ordinary questions", () => {
+    renderTurn(doneTurn(), undefined, vi.fn());
+    expect(screen.queryByRole("button", { name: "核查这句话" })).not.toBeInTheDocument();
   });
 });

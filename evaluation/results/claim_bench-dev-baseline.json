@@ -1,0 +1,1970 @@
+{
+ "config": {
+  "claims": "evaluation/claim_bench/claims_v1.jsonl",
+  "claims_sha256": "39223b500d603e40a784e1b48b8271a88efb2dfe494e59a5f3dd809fd4e49528",
+  "set": "dev",
+  "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
+  "commit": "3da1a48",
+  "run_at": "2026-09-28T06:30:24+00:00",
+  "command": "python -m evaluation.claim_bench.run --set dev --out evaluation/results/claim_bench-dev-baseline.json"
+ },
+ "claims": 131,
+ "checks": 147,
+ "verdict_accuracy": 0.5267,
+ "verdict_accuracy_ci": [
+  0.4427,
+  0.6107
+ ],
+ "check_accuracy": 0.4966,
+ "check_accuracy_ci": [
+  0.4043,
+  0.5839
+ ],
+ "comparator_accuracy": 0.6522,
+ "ci_method": "percentile bootstrap over claims, 2000 resamples, seed 20260926, 95%",
+ "verdict_confusion": {
+  "supported": {
+   "supported": 34,
+   "contradicted": 13,
+   "partially_supported": 4,
+   "unverifiable": 17
+  },
+  "contradicted": {
+   "supported": 5,
+   "contradicted": 19,
+   "partially_supported": 0,
+   "unverifiable": 8
+  },
+  "partially_supported": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 3,
+   "unverifiable": 1
+  },
+  "unverifiable": {
+   "supported": 3,
+   "contradicted": 11,
+   "partially_supported": 0,
+   "unverifiable": 13
+  }
+ },
+ "check_status_confusion": {
+  "supported": {
+   "supported": 44,
+   "contradicted": 15,
+   "unverifiable": 13,
+   "missing": 7
+  },
+  "contradicted": {
+   "supported": 5,
+   "contradicted": 22,
+   "unverifiable": 5,
+   "missing": 4
+  },
+  "unverifiable": {
+   "supported": 3,
+   "contradicted": 11,
+   "unverifiable": 9,
+   "missing": 0
+  },
+  "extra": {
+   "supported": 2,
+   "contradicted": 3,
+   "unverifiable": 4,
+   "missing": 0
+  }
+ },
+ "by_category": {
+  "approx": {
+   "claims": 8,
+   "verdict_accuracy": 1.0
+  },
+  "chinese_numeral": {
+   "claims": 4,
+   "verdict_accuracy": 0.0
+  },
+  "comparator": {
+   "claims": 18,
+   "verdict_accuracy": 0.1667
+  },
+  "direction": {
+   "claims": 3,
+   "verdict_accuracy": 0.0
+  },
+  "exact": {
+   "claims": 22,
+   "verdict_accuracy": 0.7727
+  },
+  "false": {
+   "claims": 11,
+   "verdict_accuracy": 0.7273
+  },
+  "forecast": {
+   "claims": 2,
+   "verdict_accuracy": 0.0
+  },
+  "growth": {
+   "claims": 5,
+   "verdict_accuracy": 0.0
+  },
+  "index_etf": {
+   "claims": 9,
+   "verdict_accuracy": 0.6667
+  },
+  "multi": {
+   "claims": 9,
+   "verdict_accuracy": 0.6667
+  },
+  "multi_day": {
+   "claims": 2,
+   "verdict_accuracy": 0.0
+  },
+  "negation": {
+   "claims": 8,
+   "verdict_accuracy": 0.125
+  },
+  "no_data": {
+   "claims": 4,
+   "verdict_accuracy": 1.0
+  },
+  "opinion": {
+   "claims": 5,
+   "verdict_accuracy": 1.0
+  },
+  "period": {
+   "claims": 2,
+   "verdict_accuracy": 0.5
+  },
+  "range": {
+   "claims": 5,
+   "verdict_accuracy": 0.2
+  },
+  "sign": {
+   "claims": 7,
+   "verdict_accuracy": 0.8571
+  },
+  "unknown_target": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "wrong_unit": {
+   "claims": 5,
+   "verdict_accuracy": 0.2
+  }
+ },
+ "by_language": {
+  "en": {
+   "claims": 16,
+   "verdict_accuracy": 0.5625
+  },
+  "zh": {
+   "claims": 115,
+   "verdict_accuracy": 0.5217
+  }
+ },
+ "errors": [
+  {
+   "id": "d001",
+   "category": "exact",
+   "claim": "茅台PE为24.6倍",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 24.6,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d003",
+   "category": "exact",
+   "claim": "五粮液PE 20.9倍",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 20.9,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d004",
+   "category": "exact",
+   "claim": "五粮液PB为5.4",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pb",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 5.4,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d006",
+   "category": "exact",
+   "claim": "中国平安PB 1.1倍",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pb",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 1.1,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d017",
+   "category": "exact",
+   "claim": "五粮液毛利率76.1%",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "gross_margin",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 76.1,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d020",
+   "category": "false",
+   "claim": "五粮液PE 30倍",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 30.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d026",
+   "category": "false",
+   "claim": "五粮液毛利率50%",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "gross_margin",
+      "comparator": "eq",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 50.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d034",
+   "category": "comparator",
+   "claim": "贵州茅台ROE超过30%",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "roe",
+      "comparator": "gt",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "roe",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 30.0,
+      "actual": 0.33,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d035",
+   "category": "comparator",
+   "claim": "贵州茅台ROE高于30%",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "roe",
+      "comparator": "gt",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "roe",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 30.0,
+      "actual": 0.33,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d036",
+   "category": "comparator",
+   "claim": "五粮液ROE超过30%",
+   "expected_verdict": "contradicted",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "roe",
+      "comparator": "gt",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": "roe",
+      "comparator": null,
+      "status": "supported",
+      "claimed": 30.0,
+      "actual": 29.4,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d037",
+   "category": "comparator",
+   "claim": "中国平安市盈率低于10倍",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "lt",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 10.0,
+      "actual": 8.7,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d039",
+   "category": "comparator",
+   "claim": "五粮液市盈率不足25倍",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "lt",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 25.0,
+      "actual": 20.9,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d040",
+   "category": "comparator",
+   "claim": "中国平安PB小于1倍",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pb",
+      "comparator": "lt",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 1.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d041",
+   "category": "comparator",
+   "claim": "茅台PB大于8倍",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pb",
+      "comparator": "gt",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 8.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d042",
+   "category": "comparator",
+   "claim": "茅台净利润至少800亿",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "net_profit",
+      "comparator": "ge",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "net_profit",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 800.0,
+      "actual": 85000000000.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d043",
+   "category": "comparator",
+   "claim": "五粮液营收不低于1000亿元",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "revenue",
+      "comparator": "ge",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "revenue",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 1000.0,
+      "actual": 108500000000.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d044",
+   "category": "comparator",
+   "claim": "中国平安ROE不超过15%",
+   "expected_verdict": "contradicted",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "roe",
+      "comparator": "le",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": "roe",
+      "comparator": null,
+      "status": "supported",
+      "claimed": 15.0,
+      "actual": 15.2,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d045",
+   "category": "range",
+   "claim": "贵州茅台PE在20到30倍之间",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "range",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 20.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": [
+    {
+     "target": "贵州茅台",
+     "metric": null,
+     "claimed": 30.0,
+     "claimed_unit": "倍",
+     "actual": null,
+     "status": "unverifiable",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "d046",
+   "category": "range",
+   "claim": "五粮液市盈率在25到30倍之间",
+   "expected_verdict": "contradicted",
+   "verdict": "contradicted",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "五粮液",
+     "metric": "pe_ttm",
+     "claimed": 30.0,
+     "claimed_unit": "倍",
+     "actual": 20.9,
+     "status": "contradicted",
+     "evidence_id": "fundamental_000858.SZ",
+     "source": "离线快照",
+     "as_of": "2025-12-31",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "d047",
+   "category": "range",
+   "claim": "中国平安股价50到55元之间",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "close",
+      "comparator": "range",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "close",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 50.0,
+      "actual": 53.61,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": [
+    {
+     "target": "中国平安",
+     "metric": "close",
+     "claimed": 55.0,
+     "claimed_unit": "元",
+     "actual": 53.61,
+     "status": "contradicted",
+     "evidence_id": "price_601318.SH",
+     "source": "seed",
+     "as_of": "2026-04-22",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "d048",
+   "category": "range",
+   "claim": "茅台市盈率20-30倍",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "range",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 20.0,
+      "actual": 24.6,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": [
+    {
+     "target": "贵州茅台",
+     "metric": "pe_ttm",
+     "claimed": 30.0,
+     "claimed_unit": "倍",
+     "actual": 24.6,
+     "status": "contradicted",
+     "evidence_id": "fundamental_600519.SH",
+     "source": "离线快照",
+     "as_of": "2025-12-31",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "d049",
+   "category": "comparator",
+   "claim": "贵州茅台ROE在30%以上",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "roe",
+      "comparator": "ge",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "roe",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 30.0,
+      "actual": 0.33,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d050",
+   "category": "comparator",
+   "claim": "中国平安市盈率10倍以下",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "le",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 10.0,
+      "actual": 8.7,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d052",
+   "category": "comparator",
+   "claim": "贵州茅台股价低于1400元",
+   "expected_verdict": "contradicted",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "close",
+      "comparator": "lt",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": "close",
+      "comparator": null,
+      "status": "supported",
+      "claimed": 1400.0,
+      "actual": 1409.5,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d053",
+   "category": "negation",
+   "claim": "茅台市盈率不是15倍而是24.6倍",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "ne",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 15.0,
+      "actual": 24.6,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d054",
+   "category": "negation",
+   "claim": "茅台市盈率不是24.6倍",
+   "expected_verdict": "contradicted",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "ne",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": null,
+      "status": "supported",
+      "claimed": 24.6,
+      "actual": 24.6,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d055",
+   "category": "negation",
+   "claim": "五粮液的PE并不是30倍",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "ne",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 30.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d056",
+   "category": "negation",
+   "claim": "茅台昨天并没有跌",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "ge",
+      "status": "contradicted"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d057",
+   "category": "negation",
+   "claim": "中国平安今天没有下跌",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "ge",
+      "status": "supported"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d059",
+   "category": "negation",
+   "claim": "中国平安PB不是1.1倍",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pb",
+      "comparator": "ne",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 1.1,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d060",
+   "category": "direction",
+   "claim": "贵州茅台昨天下跌了",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "lt",
+      "status": "supported"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d061",
+   "category": "direction",
+   "claim": "五粮液昨天上涨",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "gt",
+      "status": "contradicted"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d062",
+   "category": "direction",
+   "claim": "中国平安今天收涨",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "gt",
+      "status": "supported"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d065",
+   "category": "sign",
+   "claim": "五粮液当日跌幅0.53%",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": -0.53,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d070",
+   "category": "growth",
+   "claim": "贵州茅台营收同比增长16%",
+   "expected_verdict": "unverifiable",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "revenue_yoy",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "revenue",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 16.0,
+      "actual": 174120000000.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d071",
+   "category": "growth",
+   "claim": "五粮液净利润同比下降10%",
+   "expected_verdict": "unverifiable",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "netprofit_yoy",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "net_profit",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": -10.0,
+      "actual": 37800000000.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d072",
+   "category": "growth",
+   "claim": "中国平安营收增速8%",
+   "expected_verdict": "unverifiable",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "revenue_yoy",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "revenue",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 8.0,
+      "actual": 1218000000000.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d073",
+   "category": "growth",
+   "claim": "茅台净利润增长15%",
+   "expected_verdict": "unverifiable",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "netprofit_yoy",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "net_profit",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 15.0,
+      "actual": 85000000000.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d080",
+   "category": "multi",
+   "claim": "茅台市盈率24.6倍，五粮液20.9倍",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 20.9,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d081",
+   "category": "multi",
+   "claim": "贵州茅台PE 24.6倍，五粮液PE 15倍",
+   "expected_verdict": "partially_supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 24.6,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    },
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 15.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d082",
+   "category": "multi",
+   "claim": "五粮液市盈率24.6倍，比茅台低",
+   "expected_verdict": "contradicted",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": null,
+      "status": "supported",
+      "claimed": 24.6,
+      "actual": 24.6,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d084",
+   "category": "no_data",
+   "claim": "比亚迪PE 26倍",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 26.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d088",
+   "category": "no_data",
+   "claim": "上证指数收于3200点",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "close",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 3200.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d093",
+   "category": "wrong_unit",
+   "claim": "茅台市盈率24.6%",
+   "expected_verdict": "unverifiable",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": null,
+      "status": "supported",
+      "claimed": 24.6,
+      "actual": 24.6,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d095",
+   "category": "wrong_unit",
+   "claim": "五粮液ROE 29.4倍",
+   "expected_verdict": "unverifiable",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "roe",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "roe",
+      "comparator": null,
+      "status": "supported",
+      "claimed": 29.4,
+      "actual": 29.4,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d096",
+   "category": "wrong_unit",
+   "claim": "茅台营收1741",
+   "expected_verdict": "unverifiable",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "revenue",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "revenue",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 1741.0,
+      "actual": 174120000000.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d097",
+   "category": "wrong_unit",
+   "claim": "中国平安股价53.61亿元",
+   "expected_verdict": "unverifiable",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "close",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "close",
+      "comparator": null,
+      "status": "supported",
+      "claimed": 53.61,
+      "actual": 53.61,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d098",
+   "category": "index_etf",
+   "claim": "沪深300指数收于4005.2点",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "close",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 300.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": [
+    {
+     "target": "沪深300",
+     "metric": null,
+     "claimed": 4005.2,
+     "claimed_unit": null,
+     "actual": null,
+     "status": "unverifiable",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "d099",
+   "category": "index_etf",
+   "claim": "沪深300今天上涨0.42%",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 300.0,
+      "actual": 0.42,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": [
+    {
+     "target": "沪深300",
+     "metric": "pct_change_1d",
+     "claimed": 0.42,
+     "claimed_unit": "%",
+     "actual": 0.42,
+     "status": "supported",
+     "evidence_id": "price_000300.SH",
+     "source": "seed",
+     "as_of": "2026-04-22",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "d105",
+   "category": "index_etf",
+   "claim": "沪深300指数市盈率12倍",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "沪深300",
+     "metric": "pe_ttm",
+     "claimed": 12.0,
+     "claimed_unit": "倍",
+     "actual": null,
+     "status": "unverifiable",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "note": "no data for this metric"
+    }
+   ]
+  },
+  {
+   "id": "d106",
+   "category": "chinese_numeral",
+   "claim": "茅台市盈率只有十五倍",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "contradicted"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d107",
+   "category": "chinese_numeral",
+   "claim": "五粮液市盈率约二十一倍",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "approx",
+      "status": "supported"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d108",
+   "category": "chinese_numeral",
+   "claim": "贵州茅台ROE超过三成",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "roe",
+      "comparator": "gt",
+      "status": "supported"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d109",
+   "category": "chinese_numeral",
+   "claim": "中国平安市净率一点一倍",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pb",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d110",
+   "category": "forecast",
+   "claim": "茅台明年股价会涨到2000元",
+   "expected_verdict": "unverifiable",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "close",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "close",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 2000.0,
+      "actual": 1409.5,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d111",
+   "category": "forecast",
+   "claim": "预计五粮液2026年净利润400亿",
+   "expected_verdict": "unverifiable",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "net_profit",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "net_profit",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 400.0,
+      "actual": 37800000000.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d112",
+   "category": "period",
+   "claim": "茅台2019年营收854亿",
+   "expected_verdict": "unverifiable",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "revenue",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "revenue",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 854.0,
+      "actual": 174120000000.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d114",
+   "category": "multi_day",
+   "claim": "茅台今年以来涨了20%",
+   "expected_verdict": "unverifiable",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 20.0,
+      "actual": -0.1778,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d115",
+   "category": "multi_day",
+   "claim": "中国平安近一个月下跌5%",
+   "expected_verdict": "unverifiable",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": -5.0,
+      "actual": 0.73,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d117",
+   "category": "false",
+   "claim": "Kweichow Moutai's P/E is only 15x",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "contradicted"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d118",
+   "category": "comparator",
+   "claim": "Moutai's ROE is above 30%",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "roe",
+      "comparator": "gt",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "roe",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 30.0,
+      "actual": 0.33,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d121",
+   "category": "negation",
+   "claim": "Kweichow Moutai's P/E is not 15x",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "ne",
+      "status": "supported"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d122",
+   "category": "range",
+   "claim": "Moutai's P/E is between 20 and 30",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "range",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 20.0,
+      "actual": 24.6,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": [
+    {
+     "target": "贵州茅台",
+     "metric": null,
+     "claimed": 30.0,
+     "claimed_unit": null,
+     "actual": null,
+     "status": "unverifiable",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "d123",
+   "category": "growth",
+   "claim": "Kweichow Moutai's revenue grew 16% year on year",
+   "expected_verdict": "unverifiable",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "revenue_yoy",
+      "comparator": "eq",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "revenue",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 16.0,
+      "actual": 174120000000.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d125",
+   "category": "comparator",
+   "claim": "Kweichow Moutai's net profit is at least 80 billion yuan",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "net_profit",
+      "comparator": "ge",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "net_profit",
+      "comparator": null,
+      "status": "contradicted",
+      "claimed": 80.0,
+      "actual": 85000000000.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "d129",
+   "category": "index_etf",
+   "claim": "The CSI 300 index rose 0.42% today",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": null,
+      "status": "unverifiable",
+      "claimed": 300.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": [
+    {
+     "target": "沪深300",
+     "metric": "pct_change_1d",
+     "claimed": 0.42,
+     "claimed_unit": "%",
+     "actual": 0.42,
+     "status": "supported",
+     "evidence_id": "price_000300.SH",
+     "source": "seed",
+     "as_of": "2026-04-22",
+     "note": ""
+    }
+   ]
+  }
+ ]
+}
