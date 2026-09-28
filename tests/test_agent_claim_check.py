@@ -248,3 +248,18 @@ def test_index_names_and_tickers_are_not_claimed_numbers():
     report = _check("贵州茅台(600519.SH)收盘价1409.5元，600519市盈率24.6倍")
 
     assert [check.claimed for check in report.checks] == [1409.5, 24.6]
+
+
+@pytest.mark.parametrize(
+    ("claim", "claimed", "status"),
+    [
+        ("茅台昨日收跌0.18%", -0.18, "supported"),  # found by the held-out run (h011): 收跌 was read as up
+        ("茅台昨天收涨0.18%", 0.18, "contradicted"),
+        ("茅台昨天跌幅0.18%", -0.18, "supported"),
+        ("Moutai fell 0.18% yesterday", -0.18, "supported"),
+    ],
+)
+def test_the_move_word_before_a_number_sets_its_sign(claim, claimed, status):
+    (check,) = _check(claim).checks
+
+    assert (check.claimed, check.status) == (claimed, status)

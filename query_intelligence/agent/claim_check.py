@@ -485,7 +485,7 @@ def read_numbers(claim: str, targets: list[dict[str, Any]]) -> list[_Number]:
         after = text[number.end : min(clause_end, number.end + _LOOK_AHEAD)]
         _read_comparator(number, stretch, after)
         # "下跌0.18%" / "fell 0.18%" is -0.18 (a written "-0.18" is already negative).
-        if number.value > 0 and number.comparator != "range" and _stated_sign("", before) == -1:
+        if number.value > 0 and number.comparator != "range" and _direction(before) == -1:
             number.value = -number.value
         _metric_for(number, before, after, norm[clause_start:clause_end], previous)
         _context(number, norm, clause_start, clause_end)
@@ -498,6 +498,15 @@ def read_numbers(claim: str, targets: list[dict[str, Any]]) -> list[_Number]:
         if number.target is None and not number.reasons:
             number.reasons.append(("no_target", "no listed company, fund or index"))
     return numbers
+
+
+def _direction(before: str) -> int | None:
+    """-1/+1 for the move word just before a number ("收跌0.53%", "fell 0.18%"), else the verifier's rule."""
+    window = before[-8:].replace("涨跌幅", "").replace("涨跌", "")
+    moves = list(_MOVE.finditer(window))
+    if moves:
+        return -1 if _DOWN_MOVE.search(moves[-1].group(0)) else 1
+    return _stated_sign("", before)
 
 
 def _merge_ranges(text: str, numbers: list[_Number]) -> list[_Number]:
