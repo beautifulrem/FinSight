@@ -31,6 +31,7 @@ import httpx
 from a2a.client import A2ACardResolver, A2AClientError, ClientConfig, ClientFactory
 from a2a.helpers import get_artifact_text, new_text_message
 from a2a.types import GetTaskRequest, Role, SendMessageRequest, TaskState
+from a2a.utils.errors import A2AError
 
 
 async def _client(base: str, http: httpx.AsyncClient) -> Any:
@@ -67,9 +68,9 @@ async def probe(replicas: list[str], key: str, other_key: str) -> dict[str, Any]
         try:
             await b2.get_task(GetTaskRequest(id=pending.id))
             checks["other_key_denied"] = False
-        except A2AClientError as exc:
+        except (A2AClientError, A2AError) as exc:  # the server answers TaskNotFoundError, not 403
             checks["other_key_denied"] = True
-            checks["other_key_error"] = str(exc)[:120]
+            checks["other_key_error"] = f"{type(exc).__name__}: {str(exc)[:100]}"
 
         started = time.perf_counter()
         resumed = await _send(a2, "贵州茅台", task_id=pending.id, context_id=pending.context_id)
