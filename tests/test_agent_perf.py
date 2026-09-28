@@ -330,3 +330,20 @@ def test_stalled_stream_is_retried():
     turn = client.chat([{"role": "user", "content": "hi"}], on_delta=lambda _text: None)
     assert turn.content == "{}"
     assert client.http_stats() == {"requests": 2, "timeout": 1, "retries": 1}
+
+
+def test_defaults_are_the_measured_latency_configuration(monkeypatch):
+    for name in (
+        "QI_AGENT_PREFETCH",
+        "QI_AGENT_REVISE_POLICY",
+        "QI_AGENT_LLM_STALL_TIMEOUT_S",
+        "QI_AGENT_VERIFY_DERIVED",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    config = AgentConfig()
+    assert config.planner_prefetch is True
+    assert config.revise_policy == "cite_repair"
+    assert config.llm_stall_timeout_s == 20.0
+    assert config.verify_derived is True
+    monkeypatch.setenv("QI_AGENT_PREFETCH", "0")
+    assert AgentConfig().planner_prefetch is False

@@ -97,20 +97,22 @@ class AgentConfig:
     memory_summary_tokens: int = field(
         default_factory=lambda: int(os.getenv("QI_AGENT_MEMORY_SUMMARY_TOKENS", "300") or 300)
     )
-    # Latency switches (docs/performance.md has the measured effect of each; defaults follow those runs).
+    # Latency switches. The defaults are the configuration measured as run C in docs/performance.md (section
+    # "Agent-path latency"): P95 22.9/21.8 s -> 15.4/17.3 s on held-out/test_v2 with task success not lower.
+    # Each can be turned off by its environment variable (or an AgentConfig field) to restore the earlier path.
     # revise_policy: "llm" sends every failed LLM draft back to the model once; "cite_repair" first tries a
     # deterministic citation fix (uncited / misattributed numbers, invalid ids) and calls the LLM only if
     # the fixed draft still fails verification.
-    revise_policy: str = field(default_factory=lambda: _env("QI_AGENT_REVISE_POLICY", "llm"))
+    revise_policy: str = field(default_factory=lambda: _env("QI_AGENT_REVISE_POLICY", "cite_repair"))
     # Run the deterministic planner's tool calls before the first LLM call and give the results to the model,
     # so a question the planner covers can be answered in one LLM round trip (the model may still call tools).
-    planner_prefetch: bool = field(default_factory=lambda: _env("QI_AGENT_PREFETCH", "0") in {"1", "true", "on"})
+    planner_prefetch: bool = field(default_factory=lambda: _env("QI_AGENT_PREFETCH", "1") in {"1", "true", "on"})
     # Per-call stall timeout (s) for LLM requests: every call is streamed and fails when no chunk arrives for
     # this long, then is retried (or fails over) instead of hanging until the run deadline. 0 = off.
-    llm_stall_timeout_s: float = field(default_factory=lambda: float(_env("QI_AGENT_LLM_STALL_TIMEOUT_S", "0") or 0))
+    llm_stall_timeout_s: float = field(default_factory=lambda: float(_env("QI_AGENT_LLM_STALL_TIMEOUT_S", "20") or 0))
     # Accept derived numbers (difference / sum / ratio / percent change of two supported numbers stated in the
     # same cited sentence) in LLM drafts instead of sending them back for revision (see verify_answer).
-    verify_derived: bool = field(default_factory=lambda: _env("QI_AGENT_VERIFY_DERIVED", "0") in {"1", "true", "on"})
+    verify_derived: bool = field(default_factory=lambda: _env("QI_AGENT_VERIFY_DERIVED", "1") in {"1", "true", "on"})
 
 
 def _env(name: str, default: str) -> str:
