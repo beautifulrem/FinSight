@@ -63,8 +63,8 @@ export function formatClaimValue(
     case "net_margin":
     case "debt_ratio":
     case "dividend_yield":
-      // Claims state these in percent ("ROE 50%"); a payload may store a fraction (0.33).
-      return side === "claimed" ? `${trim(value, 1)}%` : formatKpi(lang, value, "fraction");
+      // Claims state these in percent ("ROE 50%"); tool payloads are normalised to percent (tools/units.py).
+      return side === "claimed" ? `${trim(value, 1)}%` : formatKpi(lang, value, "percentLevel");
     case "revenue_yoy":
     case "netprofit_yoy":
       // Growth is in percent on both sides ("同比增长16%", revenue_yoy 1.47).

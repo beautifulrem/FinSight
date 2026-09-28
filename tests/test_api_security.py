@@ -95,3 +95,72 @@ def test_settings_from_env(monkeypatch):
     assert SecuritySettings.from_env() == SecuritySettings(
         api_keys=("a", "b"), rate_limit_per_minute=30, cors_origins=("*",), max_request_bytes=2048
     )
+
+
+def test_chunked_body_over_the_limit_is_rejected_while_streaming():
+    """B11 (round-2 review): a 2 MiB chunked POST bypassed the Content-Length check and got 200."""
+    client = _client(SecuritySettings())  # default limit: 1 MiB
+    sent = {"chunks": 0}
+
+    def chunks():
+        yield b'{"query": "'
+        for _ in range(32):  # 32 x 64 KiB = 2 MiB, no Content-Length header
+            sent["chunks"] += 1
+            yield b"x" * 65536
+        yield b'"}'
+
+    response = client.post("/agent/chat", content=chunks(), headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 413
+    assert response.json() == {"detail": "request body too large"}
+
+
+def test_chunked_body_under_the_limit_is_replayed_intact():
+    client = _client(SecuritySettings(max_request_bytes=4096))
+
+    def chunks():
+        yield b'{"query": '
+        yield '"今天天气怎么样"}'.encode()
+
+    response = client.post("/agent/chat", content=chunks(), headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 200 and response.json()["route"]
+
+
+def test_made_up_keys_share_the_address_bucket_when_keys_are_off():
+    """B23: rotating random X-API-Key values used to get a fresh bucket each time."""
+    client = _client(SecuritySettings(rate_limit_per_minute=2))
+
+    statuses = [
+        client.post("/agent/chat", json={"query": "今天天气怎么样"}, headers={"X-API-Key": f"fake-{i}"}).status_code
+        for i in range(4)
+    ]
+
+    assert statuses == [200, 200, 429, 429]
+
+
+def test_valid_keys_get_their_own_bucket_and_invalid_keys_are_not_counted_per_key():
+    client = _client(SecuritySettings(api_keys=("alpha", "beta"), rate_limit_per_minute=1))
+
+    def status(key: str) -> int:
+        return client.post("/agent/chat", json={"query": "今天天气怎么样"}, headers={"X-API-Key": key}).status_code
+
+    assert [status("alpha"), status("alpha"), status("beta"), status("nope")] == [200, 429, 200, 401]
+
+
+def test_token_bucket_state_is_bounded_and_idle_buckets_expire():
+    now = {"t": 0.0}
+    bucket = TokenBucket(60, clock=lambda: now["t"], max_clients=100)
+
+    for i in range(1000):
+        bucket.take(f"ip:{i}")
+    assert len(bucket) == 100  # LRU bound
+
+    bucket.take("busy")
+    bucket.take("busy")
+    now["t"] = 61.0
+    bucket.take("fresh")
+    assert len(bucket) == 1  # everything idle for a minute had refilled and was dropped
+    for _ in range(59):
+        bucket.take("fresh")
+    assert bucket.take("fresh") > 0  # eviction never resets an active client

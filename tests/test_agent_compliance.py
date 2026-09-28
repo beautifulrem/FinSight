@@ -92,6 +92,40 @@ def test_why_questions_with_tool_failures_soften_causal_language():
     assert "get_price_history: timeout" in guarded["limitations"]
 
 
+def test_english_why_softening_preserves_case_names_and_citation_ids():
+    """B5 (round-2 review): the guard lower-cased the whole English answer, citations included."""
+    ids = ["fundamental_600519.SH", "fundamental_000858.SZ", "aknews_600519.SH_2"]
+    answer = {
+        "answer": (
+            "Kweichow Moutai (600519.SH) trades at a PE(TTM) of 24.6 versus 19.8 for Wuliangye "
+            "[fundamental_600519.SH][fundamental_000858.SZ]. The main reason is its higher ROE; the premium is "
+            "Mainly caused by brand pricing power [aknews_600519.SH_2]. This proves that margins matter."
+        ),
+        "key_points": [],
+        "evidence_used": ids,
+    }
+
+    guarded, notes = apply_compliance(
+        answer,
+        query="Why is Kweichow Moutai valued higher than Wuliangye?",
+        nlu_result=_nlu(style="why"),
+        tool_failures=["search_news: timeout"],
+        today=TRADING_DAY,
+    )
+
+    text = guarded["answer"]
+    assert "softened_judgment_or_causal_language" in notes
+    assert "Possible related factors include its higher ROE" in text
+    assert "Possibly related to brand pricing power" in text
+    assert "]. Possible related" in text and "]. This suggests" in text  # sentences are not glued together
+    assert "suggests that" in text and "proves that" not in text.lower()
+    assert "Kweichow Moutai (600519.SH)" in text and "PE(TTM)" in text and "Wuliangye" in text
+    import re
+
+    cited = re.findall(r"\[([^\]]+)\]", text)
+    assert cited and set(cited) <= set(ids)  # every chip still resolves against the evidence index
+
+
 def test_freshness_note_for_stale_quote_on_trading_day():
     answer = {"answer": "收盘价 1409.5 元。", "key_points": ["收盘价 1409.5 元"], "evidence_used": []}
 

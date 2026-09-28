@@ -765,7 +765,11 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]]) -> ClaimCh
     mismatch = _period_mismatch(number, item) if metric.fundamental else None
     if mismatch:
         return base.model_copy(update={"reason": "period_mismatch", "note": mismatch})
-    return base.model_copy(update={"status": _compare(number, actual), "note": _interim_note(number, item)})
+    in_percent = any(
+        (item.payload.get("metric_units") or {}).get(key) == "%" for key in _METRICS[number.metric or ""].keys
+    )
+    status = _compare(number, actual, declared_percent=in_percent)
+    return base.model_copy(update={"status": status, "note": _interim_note(number, item)})
 
 
 def _as_of(item: AgentEvidence, metric: str) -> tuple[str | None, str | None]:
@@ -807,10 +811,11 @@ def _interim_note(number: _Number, item: AgentEvidence) -> str:
     return ""
 
 
-def _compare(number: _Number, actual: float) -> Status:
+def _compare(number: _Number, actual: float, *, declared_percent: bool = False) -> Status:
     metric = _METRICS[number.metric or ""]
     scales = number.scales
-    if number.unit_class in {_PERCENT, None} and metric.fraction and abs(actual) <= 1.5:
+    # Normalised payloads declare percent units (tools/units.py); only an undeclared fraction may be x100.
+    if number.unit_class in {_PERCENT, None} and metric.fraction and abs(actual) <= 1.5 and not declared_percent:
         scales = (1.0, 100.0)
     reference = number.high if number.comparator == "range" and number.high is not None else number.value
     expected = actual * _nearest_scale(actual, reference, scales)

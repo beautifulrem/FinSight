@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 import { fallbackReasonText } from "@/lib/codes";
 import { formatDate } from "@/lib/format";
 import { evidenceFreshness, type EvidenceFreshness, type FreshnessSummary } from "@/lib/freshness";
-import { useI18n, type MessageKey } from "@/lib/i18n";
+import { sourceNameLabel, useI18n, type MessageKey } from "@/lib/i18n";
 import type { EvidenceSource } from "@/lib/types";
 
 import { Badge } from "./ui/badge";
@@ -22,7 +22,7 @@ function ProvenanceDetails({ info, mode }: { info: EvidenceFreshness; mode: keyo
   const { lang, t } = useI18n();
   const provenance = info.provenance;
   const lines: ReactNode[] = [t(MODE_KEYS[mode].hint)];
-  const label = provenance?.source_label || provenance?.source;
+  const label = sourceNameLabel(lang, provenance);
   if (label) lines.push(t("fresh.source", { s: label }));
   if (provenance?.fetched_at) lines.push(t("fresh.fetched", { t: formatDate(lang, provenance.fetched_at) }));
   if (provenance?.fallback_reason) lines.push(t("fresh.reason", { r: fallbackReasonText(lang, provenance.fallback_reason) }));

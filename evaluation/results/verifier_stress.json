@@ -8,46 +8,46 @@
    0.05,
    0.2
   ],
-  "commit": "f7bf624",
-  "run_at": "2026-09-25T23:25:16+00:00",
+  "commit": "2494656",
+  "run_at": "2026-09-28T09:24:05+00:00",
   "command": "python -m evaluation.agent_eval.verifier_stress "
  },
- "gold_answers": 153,
+ "gold_answers": 159,
  "true_accept": {
   "legacy": 1.0,
   "run": 1.0,
   "claim": 1.0
  },
- "variants": 2314,
+ "variants": 2433,
  "false_accept": {
-  "legacy": 0.3496,
-  "run": 0.245,
-  "claim": 0.0264
+  "legacy": 0.3432,
+  "run": 0.2433,
+  "claim": 0.021
  },
  "by_kind": {
   "perturb_1pct": {
-   "variants": 566,
-   "false_accept_legacy": 0.3445,
-   "false_accept_run": 0.0442,
-   "false_accept_claim": 0.0442
+   "variants": 593,
+   "false_accept_legacy": 0.3204,
+   "false_accept_run": 0.0388,
+   "false_accept_claim": 0.0388
   },
   "perturb_20pct": {
-   "variants": 634,
-   "false_accept_legacy": 0.0978,
-   "false_accept_run": 0.0379,
-   "false_accept_claim": 0.0331
+   "variants": 665,
+   "false_accept_legacy": 0.0977,
+   "false_accept_run": 0.0346,
+   "false_accept_claim": 0.0226
   },
   "perturb_5pct": {
-   "variants": 614,
-   "false_accept_legacy": 0.0847,
-   "false_accept_run": 0.0342,
-   "false_accept_claim": 0.0195
+   "variants": 645,
+   "false_accept_legacy": 0.0775,
+   "false_accept_run": 0.0295,
+   "false_accept_claim": 0.0186
   },
   "swap": {
-   "variants": 500,
+   "variants": 530,
    "false_accept_legacy": 1.0,
-   "false_accept_run": 0.994,
-   "false_accept_claim": 0.006
+   "false_accept_run": 0.9943,
+   "false_accept_claim": 0.0019
   }
  },
  "examples_caught_only_by_claim_binding": [
@@ -108,10 +108,23 @@
    "answer": "Based on the evidence retrieved for this question: 中国平安 (601318.SH) last available close was 53.61 on 2026-04-22, daily change 0.74% [price_601318.SH]."
   }
  ],
+ "repair": {
+  "repaired_answers": 2382,
+  "readable": 1.0,
+  "passes_verification": 1.0,
+  "template_fallback": 0.1717,
+  "with_fragment": 0.0,
+  "retained_sentences": 0.9782,
+  "answers_with_issue": {},
+  "unreadable_examples": []
+ },
  "source": {
   "file": "outputs/agent_eval/verifier_stress.json",
-  "sha256_16": "d42dcd3b7fc21e98",
-  "bytes": 3377,
-  "slimmed_at": "2026-09-26T09:50:43+00:00"
- }
+  "sha256_16": "84cb632d898de157",
+  "bytes": 3616,
+  "slimmed_at": "2026-09-28T09:27:42+00:00"
+ },
+ "notes": [
+  "round 3: whole-sentence repair (B6), Chinese numerals and strict citations (B17), unit normalisation, title neutralisation (B12)"
+ ]
 }

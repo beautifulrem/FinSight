@@ -1,7 +1,17 @@
 # FinSight on Kubernetes: API/agent replicas sharing sessions through Postgres.
 #
-#   kubectl apply -f deploy/k8s/finsight.yaml
+# Applied through deploy/k8s/kustomization.yaml, which pins the image to a commit tag and adds the
+# NetworkPolicies:
+#
+#   kubectl create namespace finsight
+#   kubectl -n finsight create secret generic finsight-db \
+#     --from-literal=POSTGRES_PASSWORD="$PG_PASSWORD" \
+#     --from-literal=QI_AGENT_CHECKPOINT_DB="postgresql://postgres:$PG_PASSWORD@finsight-postgres:5432/finsight"
 #   kubectl -n finsight create secret generic finsight-llm --from-literal=DEEPSEEK_API_KEY=...   # optional
+#   kubectl apply -k deploy/k8s
+#
+# No Secret is committed: create finsight-db as above, from deploy/k8s/secret.template.yaml with envsubst,
+# or sync it from a secret manager (see docs/deployment.md). The pods do not start until it exists.
 #
 # The Postgres StatefulSet is for a self-contained demo; point QI_AGENT_CHECKPOINT_DB at a managed
 # database in production. Replicas are stateless apart from the checkpointer: sessions, clarification
@@ -11,16 +21,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: finsight
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: finsight-db
-  namespace: finsight
-type: Opaque
-stringData:
-  POSTGRES_PASSWORD: change-me
-  QI_AGENT_CHECKPOINT_DB: postgresql://postgres:change-me@finsight-postgres:5432/finsight
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -115,7 +115,9 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: api
-          image: finsight:dev
+          # The tag is set by kustomization.yaml (images: finsight -> finsight:<commit>); applying this file
+          # directly without kustomize fails to pull, rather than silently running an unknown build.
+          image: finsight:set-by-kustomization
           imagePullPolicy: IfNotPresent
           ports:
             - {name: http, containerPort: 8000}
@@ -127,14 +129,19 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities: {drop: ["ALL"]}
-          # NLU models load at start-up (about a minute); readiness gates traffic until /health answers.
+          # NLU models and the retrieval index load at start-up (about a minute); /health (liveness) answers
+          # once HTTP is up. /ready (readiness) also checks the checkpoint store (Postgres SELECT 1), the
+          # model config and the retrieval index, so a replica that cannot reach Postgres stops taking
+          # traffic without being restarted.
           startupProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 5
             failureThreshold: 60
           readinessProbe:
-            httpGet: {path: /health, port: http}
+            httpGet: {path: /ready, port: http}
             periodSeconds: 10
+            timeoutSeconds: 6
+            failureThreshold: 3
           livenessProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 20

@@ -24,6 +24,22 @@ throttles bursts from one IP), so rerun the audit before quoting them.
 
 Result: 64 probes, 49 succeeded. Every failure has an identified root cause (below).
 
+**Committed re-run.** The table above comes from a run on a dirty tree whose JSON was not kept. The
+audit was re-run on 2026-09-28 09:14 UTC from a clean checkout of commit `6dde495` (same network and
+package versions) and the full output is committed:
+[`results/data_sources/audit-20260928-6dde495.json`](results/data_sources/audit-20260928-6dde495.json)
+(`commit` and `working_tree_clean: true` are recorded in the file). It gives the same totals: **49/64
+probes OK, 10/10 fallback chains OK** (every market bundle served by Sina). The failures are the same
+families: Eastmoney `push2`/`push2his` hosts 0/11 (proxy error, root cause 1; efinance uses the same
+host), Xueqiu 0/1 (login token), the removed `macro_china_pmi_monthly`, and one empty announcement
+result each for cninfo and the Eastmoney notice API (the ETF, which has no company announcements).
+
+**Schedule.** [`.github/workflows/data-source-audit.yml`](../.github/workflows/data-source-audit.yml)
+runs the audit every Monday at 01:30 UTC and on demand (`workflow_dispatch`), writes a summary table to
+the job page and uploads the JSON as an artifact for 90 days. GitHub's runners are outside mainland
+China, so their results are not comparable with the table above; audits quoted in the docs are run
+from the deployment network and committed under `docs/results/data_sources/`.
+
 ## Per-source results
 
 Latency is the observed range across targets. "Newest as-of" is the latest date in the returned
@@ -281,11 +297,15 @@ an upstream. For each source it returns status (`up`, `degraded`, `down`, or `un
 state, call/success/failure counts, last and average latency, last error, `retry_in_s` for open
 circuits, the breaker and cache configuration, and the source-call pool counters (`worker_pool`).
 
-**Active probe (opt-in).** `GET /sources/health?probe=1` first runs one cheap request per source
-(Eastmoney quote/datacenter/news, Sina kline/quote, Tencent kline/quote, THS finance/industry, cninfo
-profile) through the same guarded `SourceRuntime.call`, so breakers, latency and errors are recorded
-exactly as for real traffic, then returns the report with a `probe` block (per-source `ok`, `outcome`,
-`latency_ms`, `error`). Several upstreams throttle bursts from one IP, so probing is rate limited
+**Active probe (opt-in).** `GET /sources/health?probe=1` first runs one cheap request for every
+catalogued source (all 19: Eastmoney quote/datacenter/fund/news/announcements, Sina kline/quote/finance,
+Tencent kline/quote, THS finance/industry, CSIndex, ChinaBond, cninfo announcements/profile, Xueqiu,
+efinance, and Tushare when `TUSHARE_TOKEN` is set) through the same guarded `SourceRuntime.call`, so
+breakers, latency and errors are recorded exactly as for real traffic, then returns the report with a
+`probe` block (per-source `ok`, `outcome`, `latency_ms`, `error`; `catalog_total`; and `not_probed`,
+each skipped source with its reason). Every source row also gets a `probe` field: the latest probe
+result, or `{"probed": false, "reason": ...}` (for example Tushare without a token), so an unprobed
+source is never mistaken for a healthy or merely idle one. Slow multi-page upstreams get 15 s, the rest 6 s. Several upstreams throttle bursts from one IP, so probing is rate limited
 process-wide: one round per `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS` (default 60). Inside that window
 the previous round is returned with `status: rate_limited` and `retry_in_s`; a request during a
 running round gets `in_progress`. With live market data off the probe is `skipped`.

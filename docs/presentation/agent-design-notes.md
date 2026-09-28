@@ -119,7 +119,7 @@
 
 24. **每次构建服务都要重新拟合 TF-IDF，测试跑了 70 分钟。** 全量测试 70 分 51 秒。`--durations` 显示最慢的 25 个测试每个 70–156 秒，它们都先 `clear_service_caches()` 再 `build_default_service()`。性能剖析显示单次构建 36–50 秒，其中 39 秒是对 43 MB 文档做 char n-gram TF-IDF 拟合。修复：
     - 按语料哈希在进程内缓存拟合结果（清缓存不影响它），重建服务从 39 秒降到 6 秒；
-    - 可选 `QI_TFIDF_CACHE_DIR` 落盘，加载约 4.5 秒；文件约 350 MB，所以没有打进镜像；
+    - 可选 `QI_TFIDF_CACHE_DIR` 落盘，加载约 4.5 秒；文件约 350 MB，所以没有打进镜像（以上是当时开发机上的粗测；后来提交的 `docs/results/perf/startup.json` 测得冷启动 24.06 秒、进程内重建 3.65 秒、落盘加载 6.81 秒、365 MB，引用时以它为准）；
     - 测试默认关闭实时数据源（`QI_TEST_LIVE=1` 才打开），不再等待上游网站。
 
 25. **模型切换后，指标记在了主模型名下。** `finsight_llm_calls_total{model}` 用的是运行级的配置模型名；故障演练中 GLM 实际作答，指标却全记在 DeepSeek 名下，熔断指标还得去读 `FallbackLLM` 的私有字段。修复：

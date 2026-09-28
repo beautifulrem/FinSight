@@ -218,6 +218,18 @@ def _append_unique(values: list[str], additions: list[str]) -> list[str]:
     return values
 
 
+def _replace_preserving_case(text: str, source: str, replacement: str) -> str:
+    """Replace ``source`` case-insensitively on word boundaries; a capitalised match keeps its capital."""
+
+    def substitute(match: re.Match[str]) -> str:
+        found = match.group(0)
+        if found[:1].isupper():
+            return replacement[:1].upper() + replacement[1:]
+        return replacement
+
+    return re.sub(rf"\b{re.escape(source)}\b", substitute, text, flags=re.IGNORECASE)
+
+
 def _soften_answer_text(
     text: str,
     nlu_result: dict[str, Any] | None,
@@ -275,10 +287,10 @@ def _soften_answer_text(
             ("caused by", "possibly affected by"),
             ("proves that", "suggests that"),
         )
-        lowered = softened.lower()
+        # replace case-insensitively but leave the rest of the answer untouched: lower-casing the whole
+        # text broke company names and evidence ids ([fundamental_600519.SH] -> [fundamental_600519.sh])
         for source, replacement in replacements:
-            lowered = lowered.replace(source, replacement)
-        softened = lowered
+            softened = _replace_preserving_case(softened, source, replacement)
     if _is_judgment_context(nlu_result, query):
         softened = re.sub(r"\b(is|are) better\b", "may compare more favorably on selected dimensions", softened, flags=re.IGNORECASE)
         softened = re.sub(r"\bshould (buy|sell|hold)\b", "should not treat this as a direct trading action", softened, flags=re.IGNORECASE)

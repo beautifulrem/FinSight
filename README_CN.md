@@ -220,8 +220,8 @@ export QI_LLM_FALLBACK_MODELS=...                 # 可选：同一接口上的�
 Docker、Kubernetes（多副本经 Postgres 共享会话、只读根文件系统）与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 
 ```bash
-docker build -f docker/Dockerfile -t finsight . && docker run -p 8000:8000 finsight
-kubectl apply -f deploy/k8s/finsight.yaml
+docker build -f docker/Dockerfile -t finsight:$(git rev-parse --short=7 HEAD) .   # 镜像按 commit 打标签
+kubectl apply -k deploy/k8s        # 先创建 finsight-db Secret（见 docs/zh/deployment.md#密钥）
 docker compose -f docker/docker-compose.yml --profile monitoring up -d   # 加上 Prometheus、Grafana、Jaeger
 ```
 
@@ -234,7 +234,8 @@ docker compose -f docker/docker-compose.yml --profile monitoring up -d   # 加�
 | `POST /agent/feedback` | 对回答点赞/点踩，与对应 trace 一起保存。 |
 | `GET /agent/sessions/{id}`、`GET /agent/traces`、`GET /agent/traces/{id}` | 会话记忆、最近运行、完整 trace，只返回调用方自己的。 |
 | `GET /.well-known/agent-card.json`、`POST /a2a` | A2A 服务卡片与 JSON-RPC 接口。 |
-| `GET /metrics`、`GET /sources/health[?probe=1]`、`GET /health` | Prometheus 指标、数据源状态（按需主动探测）、健康检查。 |
+| `GET /metrics`、`GET /sources/health[?probe=1]` | Prometheus 指标；数据源状态（按需主动探测全部 19 个数据源，未探测的会标出）。 |
+| `GET /health`、`GET /ready` | 存活检查；就绪检查（检查点存储可连接且可写、LLM 配置、检索索引），未就绪返回 503。 |
 | `POST /chat` | 原聊天接口（`mode=workflow` 保持原流程；`agent`/`auto` 走 Agent）。 |
 | `POST /nlu/analyze`、`POST /retrieval/search`、`POST /query/intelligence` | 经典 NLU 与检索产物。 |
 
@@ -258,11 +259,14 @@ python -m scripts.chaos_drill --scenario sources           # 对运行中的服�
 CI 包括：
 
 - 代码检查；
+- 用 gitleaks 扫描全部 git 历史中的密钥（[SECURITY.md](SECURITY.md)）；
 - 前端检查（类型、lint、单测、可复现构建）；
-- 带 Postgres 服务的全量测试；
+- 带 Postgres 服务的全量测试，包括 axe 无障碍测试（在 CI 里缺依赖会失败而不是跳过），以及 `query_intelligence/agent` 88% 的覆盖率下限（实测 90.3%）；
 - 与已提交基线比较的评测门禁，以及评测文档是否最新的检查；
-- Docker 构建与冒烟测试；
-- Kubernetes 清单校验。
+- Docker 构建与只读根文件系统下的冒烟测试（等待 `/ready`），以及「状态目录不可写时容器不就绪」的检查；
+- Kubernetes 清单校验（渲染后的 kustomization、不提交 Secret、镜像按 commit 打标签）。
+
+`pre-commit install` 后每次提交前会跑 gitleaks、ruff 和评测文档检查。
 
 ## 文档
 

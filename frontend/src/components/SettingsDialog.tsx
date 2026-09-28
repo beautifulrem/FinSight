@@ -167,7 +167,7 @@ function SettingsBody({ apiKey, onApiKey, sessionId, lang, onLang, theme, onThem
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-[13.5px] font-medium">{t("settings.memory")}</h3>
             <Button size="sm" onClick={reload} disabled={loading}>
-              <RefreshCw className={cn(loading && "animate-spin")} />
+              <RefreshCw className={cn(loading && "motion-safe:animate-spin")} />
               {t("settings.refresh")}
             </Button>
           </div>

@@ -219,6 +219,8 @@ export interface SessionInfo {
 
 export type StreamEvent =
   | { event: "session"; data: { session_id: string } }
+  /** A graph node is about to run (sent before its `step`, which reports it finished). */
+  | { event: "node_start"; data: { node: string; label: string } }
   | { event: "step"; data: { node: string; label: string } }
   | { event: "tool_call"; data: { tool: string; arguments: unknown } }
   | {
