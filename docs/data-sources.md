@@ -1,5 +1,7 @@
 # Live Data Sources: Audit, Fallback Chains, and Provenance
 
+Languages: English | [中文](zh/data-sources.md)
+
 This document records a real-network audit of every live data source FinSight uses, the bugs it
 exposed, and the acquisition design that now sits in front of those sources: ordered fallback chains,
 per-source circuit breakers, a TTL cache with last-known-good reads, hard timeouts, and provenance
@@ -286,9 +288,7 @@ exactly as for real traffic, then returns the report with a `probe` block (per-s
 `latency_ms`, `error`). Several upstreams throttle bursts from one IP, so probing is rate limited
 process-wide: one round per `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS` (default 60). Inside that window
 the previous round is returned with `status: rate_limited` and `retry_in_s`; a request during a
-running round gets `in_progress`. With live market data off the probe is `skipped`. The query
-parameter needs the `api/app.py` wiring in `deploy/patches/app-ops-wiring.patch` (see
-[deployment.md](deployment.md)).
+running round gets `in_progress`. With live market data off the probe is `skipped`.
 
 ## Configuration
 

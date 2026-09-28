@@ -12,12 +12,14 @@
 |---|---|
 | [模块总览](modules.md) | 五个模块地图：前端、NLU/Retrieval、数值分析、文本分析、LLM 总结和预测。 |
 | [Agent 层](agent.md) | Agent 状态图、工具、路由、证据校验、合规、记忆、`/agent/*` API 与 schema、配置、tracing。 |
-| [Agent 评测](../agent-eval.md)（英文） | 任务集、快照回放、一票否决指标、真实 LLM 在线消融（pass^3、延迟、成本）、Prompt A/B、校验器压力测试、提示注入红队、故障注入与局限。 |
+| [评测（中文摘要）](evaluation.md) | 三个任务集、一票否决指标、bootstrap 置信区间与配对检验、两个模型族的在线消融、Prompt A/B、校验器压力测试、红队、故障注入、路由评测。完整英文版见 [Agent Evaluation](../agent-eval.md)。 |
+| [竞品对比](comparison.md) | 与问财、豆包、Kimi、Wind Alice、妙想的对比：带出处的能力表、它们强在哪里、一个设计好但尚未执行的对比测试。 |
 | [MCP Server](../mcp.md)（英文） | 通过 stdio 或 streamable HTTP 向 MCP 客户端提供 Agent 工具。 |
-| [A2A、容灾与可观测性](../a2a-and-observability.md)（英文） | A2A 接口、LLM 网关适配、模型容灾、网关成本、运行检查器、Prometheus 指标。 |
-| [数据源](../data-sources.md)（英文） | 实时数据源审计、降级链、熔断、缓存、数据来源标注、`/sources/health`。 |
-| [性能](../performance.md)（英文） | 容器压测、检查点瓶颈与修复、扩展边界。 |
-| [部署](../deployment.md)（英文） | Docker 镜像、Kubernetes 清单（多副本经 Postgres 共享会话）、只读根文件系统。 |
+| [A2A、容灾与可观测性](a2a-and-observability.md) | A2A 接口、LLM 网关适配、模型容灾、网关成本、运行查看器与用户反馈、Prometheus 指标、Grafana 看板与告警、故障演练。 |
+| [实时数据源](data-sources.md) | 实时数据源审计、降级链、熔断、有界调用池、缓存、新浪/同花顺交叉核对、来源标注、`/sources/health`（含主动探测）。 |
+| [性能](performance.md) | 确定性路径与 LLM Agent 路径压测（含人民币成本）、检查点修复的复现、k3s 多副本扩展、服务启动时间。 |
+| [部署](deployment.md) | Docker 镜像、监控 profile、Kubernetes 清单（多副本经 Postgres 共享会话）、只读根文件系统。 |
+| [设计复盘](../presentation/agent-design-notes.md) | 关键取舍、自研与复用的边界、28 个真实失败案例（根因与修复）、带置信区间的消融结论、面试问答。 |
 | [Agent 工程实践调研](../research/agent-architecture-practices-2026.md)（英文） | 2025–2026 Agent 与 Prompt 工程一手资料调研，以及驱动本轮改动的差距分析。 |
 | [Query Intelligence](query-intelligence.md) | 支持范围、架构、API、NLU 和 Retrieval 输出契约、live provider、环境变量、排错。 |
 | [本地网页 Chatbot](frontend-chatbot.md) | 浏览器 UI、`/chat` 契约、LLM API 配置、真实本地截图和排错。 |

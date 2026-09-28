@@ -1,5 +1,7 @@
 # A2A, Model Failover and Observability
 
+Languages: English | [中文](zh/a2a-and-observability.md)
+
 This page covers the interoperability and operations surface of the agent API: the A2A endpoint, LLM model routing with failover, gateway cost accounting, the run inspector, and Prometheus metrics. All of it is served by the FastAPI app (`query_intelligence/api/app.py`).
 
 ## A2A (Agent2Agent)
@@ -61,12 +63,13 @@ export QI_LLM_FALLBACK_MODELS=cline-pass/glm-5.3-flash
 
 ## Run inspector
 
-Every agent run produces a trace (`query_intelligence/agent/tracing.py`): node spans, tool calls (arguments, latency, attempts, cache hits, errors), LLM calls (latency, tokens, cache hits, cost, requested tools), verification result, compliance notes and degradations.
+Every agent run produces a trace (`query_intelligence/agent/tracing.py`): node spans, tool calls (arguments, latency, attempts, cache hits, errors), LLM calls (latency, tokens, cache hits, cost, requested tools, characters sent per context part — system, user, assistant, tool results, tool schemas — and whether the answer draft was valid JSON, repaired, or used as plain text), verification result, compliance notes and degradations.
 
 | Endpoint | Purpose |
 |---|---|
 | `GET /agent/traces?limit=50&session_id=...` | Summaries of recent runs, newest first: route, answer source, duration, tool calls/errors, LLM calls, tokens, cost, verification. |
 | `GET /agent/traces/{trace_id}` | The full trace. Served from an in-memory ring buffer (last 200 runs) and, for older runs, from the JSON trace files under `QI_AGENT_TRACE_DIR` (default `outputs/traces/`). |
+| `POST /agent/feedback` | Thumbs up/down on a run (by `trace_id`), appended to `QI_FEEDBACK_PATH`; `scripts/feedback_to_tasks.py` turns flagged traces into candidate evaluation tasks for review. |
 
 Traces can also be exported to any OTLP backend (Jaeger, Tempo, Langfuse) with `QI_AGENT_OTEL=1` or `OTEL_EXPORTER_OTLP_ENDPOINT`; see [agent.md](agent.md).
 
@@ -80,20 +83,21 @@ Traces can also be exported to any OTLP backend (Jaeger, Tempo, Langfuse) with `
 | `finsight_agent_run_seconds` | `route` | End-to-end run latency histogram (P50/P95 via `histogram_quantile`). |
 | `finsight_tool_calls_total` | `tool`, `outcome` | Tool calls by outcome: `ok`, `cached`, `error`. |
 | `finsight_tool_seconds` | `tool` | Tool latency histogram. |
-| `finsight_llm_calls_total` | `model` | LLM calls. |
-| `finsight_llm_tokens_total` | `model`, `kind` | Prompt, completion, cache-hit and reasoning tokens. |
-| `finsight_llm_cost_total` | `model`, `currency` | Accumulated LLM cost. |
+| `finsight_llm_calls_total` | `model` | LLM calls, labelled with the model that answered each call (a failover call counts against the fallback model). |
+| `finsight_llm_tokens_total` | `model`, `kind` | Prompt, completion, cache-hit and reasoning tokens, per answering model. |
+| `finsight_llm_cost_total` | `model`, `currency` | Accumulated LLM cost; a run's cost is split across the models it used in proportion to their prompt + completion tokens. |
+| `finsight_feedback_total` | `rating` | User feedback from `POST /agent/feedback` (`up` / `down`). |
 | `finsight_verification_failures_total` | — | Draft answers that failed citation or number verification (before repair). |
 | `finsight_degradations_total` | `flag` | Degradations such as `llm_error` or tool failures. |
 
 The trace-fed metrics only see finished runs. Current state is read at scrape time by
 `OpsMetricsCollector` (`query_intelligence/integrations/ops_metrics.py`), registered on the same
-registry by the API app (wiring: `deploy/patches/app-ops-wiring.patch`):
+registry by the API app:
 
 | Metric | Labels | Meaning |
 |---|---|---|
-| `finsight_llm_circuit_state` | `model` | Per-model `FallbackLLM` breaker: 0 closed, 1 half-open (cool-down over, next call is a trial), 2 open. |
-| `finsight_llm_client_calls_total` | `model` | Calls attempted per model, including failed ones. Shows a failover even though the run-level `model` label of `finsight_llm_calls_total` names the configured primary. |
+| `finsight_llm_circuit_state` | `model` | Per-model `FallbackLLM` breaker, read from `FallbackLLM.stats()`: 0 closed, 1 half-open (cool-down over, next call is a trial), 2 open. |
+| `finsight_llm_client_calls_total` | `model` | Calls attempted per model, including failed ones (a failed primary call appears here but not in `finsight_llm_calls_total`). |
 | `finsight_llm_consecutive_failures` | `model` | Consecutive failures per model. |
 | `finsight_source_circuit_state` | `source` | Per live data source breaker (same encoding). |
 | `finsight_source_calls_total` | `source`, `outcome` | `success`, `failure`, `short_circuited`. |
@@ -109,7 +113,7 @@ sum by (tool) (rate(finsight_tool_calls_total{outcome="error"}[5m])) / sum by (t
 sum(increase(finsight_llm_cost_total[1d]))
 ```
 
-When `QI_API_KEYS` is set, `/metrics` and `/agent/traces*` require an API key like every other non-public endpoint.
+When `QI_API_KEYS` is set, `/metrics` and `/agent/traces*` require an API key like every other non-public endpoint, and `/agent/traces*` only return runs of the calling key (traces carry the caller as a hash of the key, never the key itself).
 
 ## Dashboards, alerts and the monitoring stack
 
@@ -186,7 +190,7 @@ In the traces (`trace_llm_calls` per request), the LLM spans of phase 2 carry
 Latency cost of the failover: a failed primary call costs 0.25–1.0 s (404 is not retried), and an open
 breaker costs nothing. The real cost is the fallback model: GLM calls took 2.5–62.8 s against
 2.5–9.0 s for DeepSeek, so answers took 48–81 s instead of 21–44 s, and one request exceeded
-`QI_AGENT_REQUEST_TIMEOUT_S`.
+`QI_AGENT_REQUEST_TIMEOUT_S`. Since `d1c007c` every LLM request is bounded by the run deadline (tool loop 90 s, answer-producing calls 20 s more; see [agent.md](agent.md#configuration)), so a slow fallback model now ends in the deterministic answer instead of a 504; the drill has not been rerun with it.
 
 ### Data sources: Sina, Tencent and Eastmoney blocked
 

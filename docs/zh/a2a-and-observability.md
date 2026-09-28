@@ -1,0 +1,244 @@
+# A2A、模型容灾与可观测性
+
+语言：[English](../a2a-and-observability.md) | 中文
+
+本页介绍 Agent API 在互操作和运维方面的能力，全部由 FastAPI 应用（`query_intelligence/api/app.py`）提供：
+
+- A2A 接口；
+- 带容灾的 LLM 模型路由与网关成本核算；
+- 运行查看器与用户反馈；
+- Prometheus 指标、看板和告警；
+- 故障演练。
+
+## A2A（Agent2Agent）
+
+MCP（[docs/mcp.md](../mcp.md)）把 FinSight 的**工具**暴露出去，让别的 Agent 逐个调用；A2A 把整个 **Agent** 暴露出去，让别的 Agent 把一个完整的研究问题交过来，拿回带引用的答案。
+
+实现：`query_intelligence/agent/a2a_server.py`，基于 `a2a-sdk` 1.x（A2A 协议 1.0）。
+
+| 接口 | 用途 |
+|---|---|
+| `GET /.well-known/agent-card.json` | 服务卡片：技能（`equity_research`、`comparison`、`macro_linkage`）、JSON-RPC 接口、流式能力。即使设置了 `QI_API_KEYS` 也公开，客户端可以先发现 Agent 再认证。 |
+| `POST /a2a` | A2A 1.0 方法的 JSON-RPC 2.0 接口（`SendMessage`、`SendStreamingMessage`、`GetTask`、`CancelTask` 等），需要 `A2A-Version: 1.0` 请求头。 |
+
+Agent 与 A2A 概念的对应关系：
+
+| A2A 概念 | FinSight 的行为 |
+|---|---|
+| `contextId` | 一个 Agent 会话（`a2a<context id>`），后续消息保留对话记忆和指代。 |
+| 任务状态 `input-required` | 一次澄清中断（例如没有上文时问「它的市盈率呢」）。同一任务的下一条消息通过 `AgentService.resume` 恢复暂停中的 LangGraph 运行。 |
+| 任务状态 `completed` | 两个产物：`answer`（带 `[evidence_id]` 引用的文本、要点和风险提示）与 `evidence`（数据部分：证据来源、校验报告、路由、降级、trace id 和后续问题建议）。 |
+| 任务状态 `failed` | 只用于意外异常。工具或 LLM 故障不会让任务失败：图会降级，并说明缺了什么。 |
+
+示例：
+
+```bash
+curl -s http://127.0.0.1:8765/a2a -H 'A2A-Version: 1.0' -H 'Content-Type: application/json' -d '{
+  "jsonrpc": "2.0", "id": 1, "method": "SendMessage",
+  "params": {"message": {"messageId": "m1", "role": "ROLE_USER", "parts": [{"text": "贵州茅台的市盈率是多少"}]}}
+}'
+```
+
+配置：
+- `QI_A2A_ENABLED=0` 关闭这些路由；
+- `QI_A2A_MODE` 选择 Agent 模式（默认 `auto`）；
+- `QI_PUBLIC_BASE_URL` 设置服务卡片里公布的地址。
+
+任务表在内存里（`InMemoryTaskStore`），适合单进程部署。
+
+测试：`tests/test_agent_observability_a2a.py`，覆盖服务卡片、带产物的完成任务、input-required 后恢复、同一 context 的记忆，以及关闭开关。
+
+## LLM 网关、容灾与成本
+
+Agent 的 LLM 客户端（`query_intelligence/agent/llm.py`）使用 OpenAI 兼容的 Chat Completions 接口，专门处理了两种网关行为：
+
+* **外层包装**：有的网关（例如 Cline API）把补全结果包成 `{"success": true, "data": {...}}`。`unwrap_completion` 两种形状都接受，Agent 客户端和旧 `/chat` 客户端都用它。
+* **供应商上报的费用**：按请求计费的网关会在 `usage.cost` 里给出费用（美元），它被记录为每次 LLM 调用的 `reported_cost_usd`。一次运行的成本由 `resolve_cost` 决定：
+  - 配置了价格表（`QI_LLM_PRICE_*`）就按价格表算；
+  - 否则用上报费用，设置了 `QI_LLM_USD_CNY` 就换算成人民币；
+  - 响应里带 `llm.cost`、`llm.currency` 和 `llm.cost_source`（`price_table` 或 `provider_reported`）；
+  - 缓存命中的 prompt token 从 `prompt_cache_hit_tokens`（DeepSeek）或 `prompt_tokens_details.cached_tokens`（OpenAI 风格）读取。
+
+**模型容灾。** `QI_LLM_FALLBACK_MODELS`（同一接口上的模型 id，逗号分隔）会把主客户端包进 `FallbackLLM`：
+
+* **尝试顺序**：按顺序尝试，第一个成功的作答，`AssistantTurn.model` 记录是哪个模型。
+* **熔断器**：某个模型连续失败 3 次后熔断器打开 60 秒，期间直接跳过它，不必每次请求都等一次超时。冷却结束后放行一次试探调用（半开），成功就关闭。`FallbackLLM.stats()` 公开每个模型的 `closed` / `open` / `half_open` 状态。
+* **全部失败**：错误向上传递，图降级到确定性规划器和模板组答。答案仍有引用、仍经过校验，`degraded` 中会列出 `llm_error`。
+* **截止时间**：所有这些请求都受运行截止时间约束（`d1c007c` 起）：每个 HTTP 请求的超时取 `min(客户端超时, 剩余时间)`，时间不够就不再重试或切换，见 [Agent 层](agent.md#配置)。
+
+示例（Cline 网关，DeepSeek 优先，GLM 备用）：
+
+```bash
+export DEEPSEEK_BASE_URL=https://api.cline.bot/api/v1
+export DEEPSEEK_API_KEY=...            # 只从环境变量读取，不写进配置文件
+export DEEPSEEK_MODEL=cline-pass/deepseek-v4.1-flash
+export DEEPSEEK_THINKING_TYPE=         # 该网关不接受 DeepSeek 的 `thinking` 参数
+export DEEPSEEK_REASONING_EFFORT=
+export QI_LLM_FALLBACK_MODELS=cline-pass/glm-5.3-flash
+```
+
+## 运行查看器
+
+每次 Agent 运行都会产生一份 trace（`query_intelligence/agent/tracing.py`），内容包括：
+
+- 节点 span；
+- 工具调用：参数、延迟、尝试次数、缓存命中、错误；
+- LLM 调用：
+  - 延迟、token、缓存命中、成本、请求的工具；
+  - 每部分上下文发送的字符数（system、user、assistant、工具结果、工具 schema）；
+  - 答案草稿是合法 JSON、经过修复，还是被当作纯文本；
+- 校验结果、合规说明和降级。
+
+| 接口 | 用途 |
+|---|---|
+| `GET /agent/traces?limit=50&session_id=...` | 最近运行的摘要，最新的在前：路由、答案来源、耗时、工具调用/错误、LLM 调用、token、成本、校验结果。 |
+| `GET /agent/traces/{trace_id}` | 完整 trace。先从内存环形缓冲（最近 200 次运行）取，更早的从 `QI_AGENT_TRACE_DIR`（默认 `outputs/traces/`）下的 JSON 文件读。 |
+| `POST /agent/feedback` | 按 `trace_id` 对一次运行点赞/点踩，追加写入 `QI_FEEDBACK_PATH`；`scripts/feedback_to_tasks.py` 把点踩的 trace 转成待审核的候选评测任务。 |
+
+trace 也可以导出到任何 OTLP 后端（Jaeger、Tempo、Langfuse）：设置 `QI_AGENT_OTEL=1` 或 `OTEL_EXPORTER_OTLP_ENDPOINT`，见 [Agent 层](agent.md)。
+
+## Prometheus 指标
+
+`GET /metrics` 以 Prometheus 文本格式输出（`prometheus-client`；缺这个包时返回 503）。以下指标由 trace 驱动：
+
+| 指标 | 标签 | 含义 |
+|---|---|---|
+| `finsight_agent_runs_total` | `route`、`answer_source` | 按路由（refuse / clarify / workflow / agent）和作答方（模板、LLM 组答、LLM Agent、守卫）统计的运行次数。 |
+| `finsight_agent_run_seconds` | `route` | 端到端运行延迟直方图（用 `histogram_quantile` 算 P50/P95）。 |
+| `finsight_tool_calls_total` | `tool`、`outcome` | 按结果统计的工具调用：`ok`、`cached`、`error`。 |
+| `finsight_tool_seconds` | `tool` | 工具延迟直方图。 |
+| `finsight_llm_calls_total` | `model` | LLM 调用，按每次调用实际作答的模型打标签（切换到备用模型的调用记在备用模型名下）。 |
+| `finsight_llm_tokens_total` | `model`、`kind` | 按作答模型统计的 prompt、completion、缓存命中和推理 token。 |
+| `finsight_llm_cost_total` | `model`、`currency` | 累计 LLM 成本；一次运行用到多个模型时，按各自 prompt + completion token 的比例分摊。 |
+| `finsight_feedback_total` | `rating` | 来自 `POST /agent/feedback` 的用户反馈（`up` / `down`）。 |
+| `finsight_verification_failures_total` | — | 引用或数字校验失败的草稿（修复之前）。 |
+| `finsight_degradations_total` | `flag` | 各类降级，例如 `llm_error` 或工具故障。 |
+
+trace 驱动的指标只能看到已完成的运行。当前状态由 `OpsMetricsCollector`（`query_intelligence/integrations/ops_metrics.py`）在抓取时读取，它和上面的指标注册在同一个 registry 上：
+
+| 指标 | 标签 | 含义 |
+|---|---|---|
+| `finsight_llm_circuit_state` | `model` | 每个模型的 `FallbackLLM` 熔断状态，取自 `FallbackLLM.stats()`：0 关闭，1 半开（冷却结束，下一次调用是试探），2 打开。 |
+| `finsight_llm_client_calls_total` | `model` | 每个模型尝试过的调用，包括失败的（主模型失败的调用出现在这里，但不在 `finsight_llm_calls_total` 里）。 |
+| `finsight_llm_consecutive_failures` | `model` | 每个模型的连续失败次数。 |
+| `finsight_source_circuit_state` | `source` | 每个实时数据源的熔断状态（编码同上）。 |
+| `finsight_source_calls_total` | `source`、`outcome` | `success`、`failure`、`short_circuited`。 |
+| `finsight_source_latency_ms` | `source` | 最近调用的平滑延迟。 |
+| `finsight_source_pool_workers` / `_busy` / `_abandoned_running` | — | 有界的数据源调用池（见[实时数据源](data-sources.md)）。 |
+| `finsight_source_pool_abandoned_total` / `_rejected_total` | — | 超时后被放弃的上游调用；池满而被拒绝的调用。 |
+
+查询示例：
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(finsight_agent_run_seconds_bucket[5m])))
+sum by (tool) (rate(finsight_tool_calls_total{outcome="error"}[5m])) / sum by (tool) (rate(finsight_tool_calls_total[5m]))
+sum(increase(finsight_llm_cost_total[1d]))
+```
+
+设置 `QI_API_KEYS` 后，`/metrics` 和 `/agent/traces*` 与其他非公开接口一样需要 API Key，而且 `/agent/traces*` 只返回当前 Key 的运行（trace 里记录的是 Key 的哈希，从不记录 Key 本身）。
+
+## 看板、告警与监控栈
+
+`docker/docker-compose.yml` 的 `monitoring` profile 会启动四个容器：
+
+- 应用本身；
+- Prometheus：每 5 秒抓取 `/metrics`，并加载告警规则；
+- Grafana：预置了 FinSight 看板；
+- Jaeger：接收 Agent 的 OTLP trace。
+
+配置文件在构建时拷进镜像，所以即使 Docker 虚拟机看不到代码目录，这个 profile 也能用。
+
+```bash
+source /tmp/llmenv.sh   # 可选：为 LLM 流量设置 DEEPSEEK_*
+FINSIGHT_IMAGE=finsight:merged FINSIGHT_PORT=8831 OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318 \
+  QI_LLM_FALLBACK_MODELS=cline-pass/glm-5.3-flash QI_LLM_USD_CNY=6.7489 \
+  FINSIGHT_EGRESS_PROXY=http://192.168.5.2:6152 \
+  docker compose -p finsight-mon -f docker/docker-compose.yml --profile monitoring up -d
+# Grafana http://127.0.0.1:3300（匿名访问，仅限本机），Prometheus :9090，Jaeger :16686
+python monitoring/screenshot.py --grafana http://127.0.0.1:3300 --jaeger http://127.0.0.1:16686
+```
+
+`FINSIGHT_EGRESS_PROXY` 只在容器不能直接访问外网时需要（这里是 colima 位于主机代理之后；不设置时每个实时数据源都因 DNS 或连接错误失败）。
+
+| 文件 | 内容 |
+|---|---|
+| `monitoring/grafana/finsight-dashboard.json` | 19 个面板，分四行：<br>- **流量**：各路由的每秒请求数、各路由的 P50/P95、作答来源；<br>- **质量**：校验失败率、各类降级、各工具错误率；<br>- **LLM**：每小时和 24 小时成本、各模型调用次数（体现容灾）、各模型熔断状态时间线、各类 token、每次作答运行的 LLM 调用数；<br>- **数据源**：各数据源熔断状态时间线、按结果统计的调用、数据源调用池。 |
+| `monitoring/prometheus/alerts.yml` | 10 条规则：`FinSightDown`、`FinSightWorkflowP95High`（10 分钟内 > 8 秒）、`FinSightAgentP95High`（> 60 秒）、`FinSightVerificationFailureRateHigh`（> 20%）、`FinSightToolErrorRateHigh`（单个工具 > 25%）、`FinSightLLMModelCircuitOpen`、`FinSightAllLLMModelsDown`、`FinSightDataSourceCircuitOpen`、`FinSightSourcePoolAbandonedCalls`、`FinSightLLMCostBurnHigh`（每小时 > ¥20）。`promtool check rules`：10 条规则，全部有效。 |
+
+2026-09-26 验证（colima）：四个容器都已启动，Prometheus 的 `finsight` 目标健康，规则已加载并在评估。
+
+- **产生的流量**（`docs/results/observability/traffic-*.json`），都通过 `scripts/load_test.py` 发出：
+  - 80 个开启实时数据的确定性路径请求（8 并发）；
+  - 12 个 `auto` 模式的研究问题（4 并发）。
+- **之后有三条告警处于 `pending`**（`docs/results/observability/prometheus-alerts.json`）：
+  - 数据源熔断打开：东方财富行情主机对这个 IP 限流，见[实时数据源](data-sources.md)；
+  - 确定性路径 P95 过高：实时数据经过代理，P50 8.8 秒；
+  - Agent P95 过高。
+- **主动探测**（`sources-health-probe.json`）：10 个数据源中 9 个可用，东方财富行情不可用，耗时 1.97 秒；1 秒后再次调用返回 `rate_limited`，`retry_in_s` 为 59.6。
+
+![Grafana 看板](../assets/ops/grafana-dashboard.png)
+
+下面的 Jaeger trace 是这批流量里最慢的一次 Agent 运行（98 秒）：一个 `finsight.agent.run` span，下挂节点、工具和 LLM 子 span。尾延迟一目了然：
+- 工具并行运行，用了 8.6 秒；
+- 第一版草稿没通过校验；
+- 单是 `llm.revise` 一次调用就花了 74 秒。
+
+![Jaeger trace](../assets/ops/jaeger-trace.png)
+
+## 故障演练
+
+`scripts/chaos_drill.py` 自己启动一个真实服务，在它前面注入真实故障（被测进程内部没有任何替身），并按阶段记录延迟、trace、`/sources/health` 和 `/metrics`。
+
+结果文件：`docs/results/chaos/llm/chaos-llm.json` 和 `docs/results/chaos/sources/chaos-sources.json`（2026-09-26，合并后的镜像，见[性能](performance.md#测试环境与镜像)）。
+
+### LLM：主模型失效，切换到 GLM，熔断打开后恢复
+
+服务和 Cline 网关之间放了一个 LLM 故障代理：
+
+- **注入方式**：故障开启时，代理把主模型 id 改成一个无效值，真实网关因此拒绝（HTTP 404，和 `DEEPSEEK_MODEL` 写错时一样）。
+- **记录内容**：代理记录每次网关调用的模型、状态码和延迟，不记录请求头和提示词。
+
+```bash
+source /tmp/llmenv.sh
+python -m scripts.chaos_drill --scenario llm --fallback-model cline-pass/glm-5.3-flash --usd-cny 6.7489
+```
+
+| 阶段（UTC） | 请求 | 网关看到的调用 | `finsight_llm_circuit_state`（DeepSeek / GLM） |
+|---|---|---|---|
+| 1 基线 13:43 | 1 个 Agent 答案，44.2 秒，校验通过 | 4 次 DeepSeek 调用，200 | 0 / 0 |
+| 2 主模型故障 13:44–13:48 | 3 个 Agent 请求：<br>- 80.8 秒和 47.5 秒，校验通过，由 GLM 作答，分别 3 次和 5 次调用；<br>- 第三个请求撞上接口的 120 秒超时（504），当时一次 GLM 调用用了 62.8 秒 | DeepSeek 连续 3 次 404（每次 0.25–1.0 秒），之后熔断打开，调用直接走 GLM（13 次，200）。每次 60 秒冷却结束，都有一次半开试探打到 DeepSeek，得到 404 后熔断重新打开（共 3 次试探） | 2（打开）/ 0 |
+| 3 故障恢复，冷却结束 13:49 | 无 | 无 | 1（半开）/ 0 |
+| 4 已恢复 13:49 | 1 个 Agent 答案，21.0 秒，校验通过 | 3 次 DeepSeek 调用，200：试探成功，熔断关闭 | 0 / 0 |
+
+- **trace 中的证据**：看每个请求的 `trace_llm_calls`，第 2 阶段的 LLM span 带 `gen_ai.request.model = z-ai/glm-5.3-flash`，第 1、4 阶段是 `deepseek/deepseek-v4.1-flash`。
+- **切换本身的延迟代价**：主模型失败一次花 0.25–1.0 秒（404 不重试），熔断打开后没有代价。
+- **真正的代价是备用模型**：GLM 单次调用 2.5–62.8 秒，DeepSeek 是 2.5–9.0 秒，所以答案要 48–81 秒而不是 21–44 秒，有一个请求超过了 `QI_AGENT_REQUEST_TIMEOUT_S`。
+
+这正是 `d1c007c` 加入截止时间约束的原因：每次 LLM 请求都以运行截止时间为上限（工具循环 90 秒，作答再宽限 20 秒，见 [Agent 层](agent.md#配置)），慢速备用模型现在会以确定性答案结束，而不是 504。加入后还没有重跑这次演练。
+
+### 数据源：屏蔽新浪、腾讯和东方财富
+
+服务的 `HTTPS_PROXY`/`HTTP_PROXY` 指向一个屏蔽代理：它把流量转发给主机代理，但屏蔽开启时对 `*.sina.com.cn`、`*.sinajs.cn`、`*.sina.cn`、`*.gtimg.cn` 和 `*.eastmoney.com` 直接回 `403`。
+
+测试条件：实时数据开启，`QI_SOURCE_COOLDOWN_SECONDS=20`，`QI_SOURCE_MAX_STALE_SECONDS=90`，确定性路径。
+
+```bash
+python -m scripts.chaos_drill --scenario sources --source-cooldown 20 --max-stale 90
+```
+
+| 阶段（UTC） | 问题 | 延迟 | 实际给出的数据（取自答案证据的来源标注） |
+|---|---|---:|---|
+| 1 正常 13:56 | 贵州茅台最新收盘价 | 4.1 秒 | 收盘价 1237.0，来自 `sina.kline`，`live_fallback`（「因东方财富行情请求失败降级」：东方财富行情主机当时已在对这个 IP 限流） |
+| 1b 正常 | 五粮液营收和净利润增长；行业表现 | 2.1 秒 | 基本面来自 `ths.finance`，`cross_check: disagree_resolved`（新浪的同比增速与报告的绝对值矛盾）；白酒行业来自实时的 `ths.industry`（2026-09-24），而不是 4 月的快照 |
+| 2 已屏蔽，缓存有效期内 | 同一个价格问题 | 0.13 秒 | 同一个收盘价，来自 60 秒缓存，没有上游调用 |
+| 2 已屏蔽 | CPI 最新数据 | 0.18 秒 | 从未缓存过：直接用离线快照，标注 `snapshot`、`stale`、「因实时宏观数据不可用降级」 |
+| 3 已屏蔽，缓存过期后 13:57 | 价格 | 1.5 秒 | 所有实时候选都失败（东方财富、新浪、腾讯、新浪实时、efinance）；给出 `last_known_good`：「沿用最近一次成功获取的实时数据（获取于13:56:02）」 |
+| 4 已屏蔽，超过可接受的陈旧期 13:58 | 价格 | 1.8 秒 | 没有价格：随仓库提供的快照价（2026-04）太旧，不能冒充行情，所以答案说明了局限（「get_price_history 未返回可用数据」），而不是给出过期数字；`sina.kline`、`sina.quote`、`tencent.kline`、`efinance` 的熔断打开 |
+| 5 解除屏蔽，冷却结束 13:59 | 价格 | 1.7 秒 | `sina.kline` 半开试探成功，熔断关闭，恢复实时 |
+
+- **结果**：每个答案都是 HTTP 200，并且通过了校验。
+- **调用池没有接近饱和**（`max_busy` 32 个中的 4 个，0 个被放弃，0 个被拒绝），因为被屏蔽的主机用 403 快速失败。
+- **调用池针对的是另一种故障：上游挂起不返回**。
+  - `--block-mode hang` 让代理扣住连接不回（不在这次记录的运行中）；
+  - 这类调用在 `QI_SOURCE_CALL_TIMEOUT_SECONDS` 到时结束，并记为被放弃；
+  - `tests/test_source_reliability.py` 离线覆盖了这种情况。

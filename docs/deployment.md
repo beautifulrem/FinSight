@@ -1,5 +1,7 @@
 # Deployment
 
+Languages: English | [中文](zh/deployment.md)
+
 FinSight ships as one container image that serves the API, the agent, the A2A endpoint and the built web UI (the MCP server is a separate entry point in the same image: `python -m query_intelligence.agent.mcp_server --transport http`). Sessions live in a LangGraph checkpointer: in memory, in a SQLite file, or in Postgres when several processes or replicas must share them.
 
 ## Docker
@@ -22,13 +24,11 @@ curl http://127.0.0.1:8000/health
 
 ### API wiring for the ops metrics and the active source probe
 
-`/metrics` gets the scrape-time breaker and pool metrics, and `/sources/health` accepts `?probe=1`,
-once `api/app.py` registers `OpsMetricsCollector` and passes the query parameter through. That file is
-owned by the API layer, so the two small hunks are kept as
-[`deploy/patches/app-ops-wiring.patch`](../deploy/patches/app-ops-wiring.patch) (made against branch
-`round2`, applied with `patch -p1`). The images measured in [performance.md](performance.md) were
-built with it; `tests/test_source_reliability.py` runs the two endpoint tests once it is applied and
-skips them otherwise.
+`/metrics` serves the scrape-time breaker and pool metrics (`OpsMetricsCollector`), and
+`/sources/health` accepts `?probe=1`. The wiring was first kept as
+[`deploy/patches/app-ops-wiring.patch`](../deploy/patches/app-ops-wiring.patch) (the images measured in
+[performance.md](performance.md) were built with it) and is applied in `api/app.py` since `e9d9a9a`;
+`tests/test_source_reliability.py` covers both endpoints.
 
 Verified on 2026-09-25 (colima, arm64): the container becomes healthy, serves the UI, answers `/agent/chat` with a verified answer, publishes the A2A agent card and Prometheus metrics, and reports `/sources/health`. Load-test numbers are in [performance.md](performance.md).
 
