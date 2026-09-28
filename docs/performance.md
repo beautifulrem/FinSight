@@ -174,9 +174,9 @@ implemented". That was wrong: `QI_AGENT_CHECKPOINT_DB=postgresql://...` selects
 `langgraph-checkpoint-postgres` with a psycopg pool (`agent/memory.py`),
 `tests/test_agent_checkpoint_postgres.py` covers it, and the k3s runs above use it.
 
-Still per replica: the A2A task store, the in-memory trace ring behind `/agent/traces` (export OTLP
-for a shared view, see [a2a-and-observability.md](a2a-and-observability.md)), the rate limiter, and
-the TTL caches of tools and live sources.
+The A2A task store and the trace store behind `/agent/traces` follow the same Postgres DSN since
+round 3 (see [a2a-and-observability.md](a2a-and-observability.md#shared-stores-for-several-replicas)).
+Still per replica: the rate limiter and the TTL caches of tools and live sources.
 
 ## Reproducing
 

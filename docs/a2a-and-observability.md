@@ -2,7 +2,7 @@
 
 Languages: English | [中文](zh/a2a-and-observability.md)
 
-This page covers the interoperability and operations surface of the agent API: the A2A endpoint, LLM model routing with failover, gateway cost accounting, the run inspector, and Prometheus metrics. All of it is served by the FastAPI app (`query_intelligence/api/app.py`).
+This page covers the interoperability and operations surface of the agent API: the A2A endpoint and client demo, the shared (Postgres) task and trace stores, LLM model routing with failover, gateway cost accounting, the run inspector, Prometheus metrics, and the audit log. All of it is served by the FastAPI app (`query_intelligence/api/app.py`).
 
 ## A2A (Agent2Agent)
 
@@ -20,6 +20,8 @@ How the agent maps onto A2A:
 | A2A concept | FinSight behaviour |
 |---|---|
 | `contextId` | One agent session (`a2a<context id>`), so follow-up messages keep conversation memory and pronoun carry-over. |
+| Caller | The API-key principal from the security middleware (a hash of the key, or `local`) is put on every A2A call by a custom `ServerCallContextBuilder`. Tasks and agent sessions are owned by it: another key gets `TaskNotFoundError` for your task and cannot continue your context. |
+| `SendStreamingMessage` | The run goes through `AgentService.stream`. Each graph node start and tool call becomes a `working` status update with a short text (`NLU and routing…`, `calling get_fundamentals`), followed by the artifact updates and the final status. |
 | Task `input-required` | A clarification interrupt (for example "它的市盈率呢" with no prior entity). The next message on the same task resumes the paused LangGraph run through `AgentService.resume`. |
 | Task `completed` | Two artifacts: `answer` (text with `[evidence_id]` citations, key points and the risk disclaimer) and `evidence` (a data part with evidence sources, verification report, route, degradations, trace id and follow-up suggestions). |
 | Task `failed` | Unexpected exceptions. Tool and LLM failures do not fail the task; the graph degrades and says what is missing. |
@@ -33,9 +35,99 @@ curl -s http://127.0.0.1:8765/a2a -H 'A2A-Version: 1.0' -H 'Content-Type: applic
 }'
 ```
 
-Configuration: `QI_A2A_ENABLED=0` disables the routes; `QI_A2A_MODE` picks the agent mode (default `auto`); `QI_PUBLIC_BASE_URL` sets the URL advertised in the agent card. The task store is in memory (`InMemoryTaskStore`), which fits a single-process deployment.
+Configuration:
 
-Tests: `tests/test_agent_observability_a2a.py` (agent card, completed task with artifacts, input-required then resume, same-context memory, disable switch).
+- `QI_A2A_ENABLED=0` disables the routes.
+- `QI_A2A_MODE` picks the agent mode (default `auto`).
+- `QI_PUBLIC_BASE_URL` sets the URL advertised in the agent card.
+- The task store follows the session store; see [Shared stores for several replicas](#shared-stores-for-several-replicas).
+
+Tests: `tests/test_agent_observability_a2a.py` covers the agent card, a completed task with artifacts, input-required then resume, same-context memory, and the disable switch. The client side is covered next.
+
+### A2A client demo
+
+`scripts/a2a_client_demo.py` is what another agent would run to delegate to FinSight. It uses the official `a2a-sdk` client (`A2ACardResolver`, `ClientFactory`, `ClientConfig`) and runs four steps:
+
+1. Fetch the agent card.
+2. `SendMessage` a normal question and print the state, trace id, cited evidence ids and answer.
+3. Send `它的市盈率呢`, get `TASK_STATE_INPUT_REQUIRED` with the clarification question, then send `贵州茅台` on the same task (`task_id` + `context_id`) and get the completed answer.
+4. `SendStreamingMessage` and print every streamed event.
+
+```bash
+uvicorn query_intelligence.api.app:create_app --factory --host 127.0.0.1 --port 8000
+python scripts/a2a_client_demo.py --url http://127.0.0.1:8000                    # add --api-key KEY when QI_API_KEYS is set
+python scripts/a2a_client_demo.py --url http://127.0.0.1:8000 --json             # also print a JSON summary
+python -m pytest tests/test_a2a_client_demo.py -q                                 # runs run_demo in-process (httpx ASGI transport)
+```
+
+Output against a real replica (offline data, no LLM) is in [`docs/results/protocols/a2a-client-demo.txt`](results/protocols/a2a-client-demo.txt). The streamed part looks like this:
+
+```text
+== SendStreamingMessage: 贵州茅台最近走势怎么样
+   [task] task b3fcc586 TASK_STATE_SUBMITTED
+   [status_update] TASK_STATE_WORKING
+   [status_update] TASK_STATE_WORKING NLU and routing…
+   [status_update] TASK_STATE_WORKING deterministic tool plan…
+   [status_update] TASK_STATE_WORKING calling get_price_history
+   ...
+   [status_update] TASK_STATE_WORKING evidence verification…
+   [artifact_update] artifact answer: 根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5 ...
+   [artifact_update] artifact evidence: (structured data part)
+   [status_update] TASK_STATE_COMPLETED
+```
+
+The in-process test also checks that the demo's API key reaches the server, and that a second key cannot `GetTask` the demo's task.
+
+## Shared stores for several replicas
+
+With one process, sessions, A2A tasks and traces can all live in memory. With several replicas behind a load balancer, three things must be shared so that any replica can serve any request:
+
+- sessions, for follow-ups and clarification resumes;
+- A2A tasks, so `GetTask` works and an `input-required` task can be continued;
+- traces, so the run inspector finds any run.
+
+One setting moves all three to Postgres:
+
+| State | In memory (default) | With `QI_AGENT_CHECKPOINT_DB=postgresql://…` | Override |
+|---|---|---|---|
+| Sessions (LangGraph checkpoints) | `InMemorySaver` | `PostgresSaver` (`agent/memory.py`) | — |
+| A2A tasks | `InMemoryTaskStore` | `PostgresTaskStore` (`agent/a2a_store.py`), table `finsight_a2a_tasks` | `QI_A2A_TASK_DB=memory` or another DSN |
+| Traces (`/agent/traces*`) | `RecentTraceStore` (last 200, plus JSON files) | `PostgresTraceStore` (`agent/trace_store.py`), table `finsight_agent_traces` | `QI_AGENT_TRACE_DB=memory` or another DSN |
+
+**`PostgresTaskStore`** implements the SDK's `TaskStore` contract on psycopg, the driver the checkpointer already uses, so FinSight does not need the SDK's SQLAlchemy + asyncpg store.
+
+- It is owner-scoped: the primary key is `(owner, task_id)`.
+- Each task is stored whole as JSONB, with `context_id`, `state` and `last_updated` columns for `ListTasks` filtering and keyset paging.
+- Blocking calls run in a worker thread, so the store is not tied to one event loop.
+- Tasks untouched for `QI_A2A_TASK_RETENTION_DAYS` (default 7) are pruned.
+
+**`PostgresTraceStore`** keeps the API unchanged (`emit`/`get`/`recent`, owner-scoped).
+
+- Each row holds the full trace and its list summary; `/agent/traces` reads only the summaries.
+- Retention is bounded by count and age: the newest `QI_AGENT_TRACE_MAX_ROWS` rows (default 50000) younger than `QI_AGENT_TRACE_RETENTION_DAYS` (default 14 days) are kept. Pruning runs every 50 writes.
+- Every trace is also kept in the local ring. If Postgres is unreachable, writes are logged and skipped, and reads fall back to the ring, so tracing never breaks an answer.
+
+If the database cannot be reached at start-up (`QI_STORE_CONNECT_TIMEOUT_S`, default 5 s), both stores fall back to memory with a warning.
+
+Tests:
+
+```bash
+python -m pytest tests/test_agent_shared_stores.py -q       # store selection, fallbacks, table-name validation (no database)
+
+docker run -d --name fs-pg -e POSTGRES_PASSWORD=finsight -e POSTGRES_DB=finsight -p 55433:5432 postgres:16-alpine
+export QI_TEST_POSTGRES_DSN=postgresql://postgres:finsight@127.0.0.1:55433/finsight
+python -m pytest tests/test_agent_shared_stores_postgres.py tests/test_agent_checkpoint_postgres.py -v
+```
+
+The Postgres tests build two app instances that share only the database, and check:
+
+- an `input-required` task from replica 1 is served and resumed by replica 2;
+- a trace written on replica 1 is listed and served on replica 2, and feedback on replica 2 finds it;
+- owner scoping across replicas;
+- trace retention by count and age;
+- a negative control: with the stores forced to `memory`, nothing is shared.
+
+`scripts/shared_store_probe.py` runs the same checks against two real `uvicorn` processes. Both result sets are in [`docs/results/protocols/`](results/protocols/README.md): 5/5 tests passed, and the probe passed every check (resume on the other replica took 0.83 s).
 
 ## LLM gateway, failover and cost
 
@@ -68,7 +160,7 @@ Every agent run produces a trace (`query_intelligence/agent/tracing.py`): node s
 | Endpoint | Purpose |
 |---|---|
 | `GET /agent/traces?limit=50&session_id=...` | Summaries of recent runs, newest first: route, answer source, duration, tool calls/errors, LLM calls, tokens, cost, verification. |
-| `GET /agent/traces/{trace_id}` | The full trace. Served from an in-memory ring buffer (last 200 runs) and, for older runs, from the JSON trace files under `QI_AGENT_TRACE_DIR` (default `outputs/traces/`). |
+| `GET /agent/traces/{trace_id}` | The full trace. Served from an in-memory ring buffer (last 200 runs) and, for older runs, from the JSON trace files under `QI_AGENT_TRACE_DIR` (default `outputs/traces/`). With a Postgres checkpointer (or `QI_AGENT_TRACE_DB`), both endpoints read the shared `finsight_agent_traces` table instead, so every replica sees every run. See [Shared stores](#shared-stores-for-several-replicas). |
 | `POST /agent/feedback` | Thumbs up/down on a run (by `trace_id`), appended to `QI_FEEDBACK_PATH`; `scripts/feedback_to_tasks.py` turns flagged traces into candidate evaluation tasks for review. |
 
 Traces can also be exported to any OTLP backend (Jaeger, Tempo, Langfuse) with `QI_AGENT_OTEL=1` or `OTEL_EXPORTER_OTLP_ENDPOINT`; see [agent.md](agent.md).
@@ -86,8 +178,10 @@ Traces can also be exported to any OTLP backend (Jaeger, Tempo, Langfuse) with `
 | `finsight_llm_calls_total` | `model` | LLM calls, labelled with the model that answered each call (a failover call counts against the fallback model). |
 | `finsight_llm_tokens_total` | `model`, `kind` | Prompt, completion, cache-hit and reasoning tokens, per answering model. |
 | `finsight_llm_cost_total` | `model`, `currency` | Accumulated LLM cost; a run's cost is split across the models it used in proportion to their prompt + completion tokens. |
-| `finsight_feedback_total` | `rating` | User feedback from `POST /agent/feedback` (`up` / `down`). |
+| `finsight_feedback_total` | `rating`, `prompt_version` | User feedback from `POST /agent/feedback` (`up` / `down`), labelled with the prompt version of the rated answer. |
 | `finsight_verification_failures_total` | — | Draft answers that failed citation or number verification (before repair). |
+| `finsight_answer_verification_total` | `prompt_version`, `outcome` | Verified answers by prompt version (`v1`…`v3` from the `agent_system@vN#sha` ref of the run's first LLM call; `none` for template answers) and outcome: `passed` (first draft verified), `revised` (verified after an LLM revision), `repaired` (still failing, deterministic repair). Refusals and clarifications are not counted. |
+| `finsight_audit_events_total` | `event`, `category` | Guard refusals (`event="refusal"`, category `prompt_injection` / `out_of_scope`) and compliance edits (`event="compliance_edit"`, category = the rule). See [Audit log](#audit-log). |
 | `finsight_degradations_total` | `flag` | Degradations such as `llm_error` or tool failures. |
 
 The trace-fed metrics only see finished runs. Current state is read at scrape time by
@@ -111,7 +205,12 @@ Example queries:
 histogram_quantile(0.95, sum by (le) (rate(finsight_agent_run_seconds_bucket[5m])))
 sum by (tool) (rate(finsight_tool_calls_total{outcome="error"}[5m])) / sum by (tool) (rate(finsight_tool_calls_total[5m]))
 sum(increase(finsight_llm_cost_total[1d]))
+# repair rate per prompt version (the number to compare before promoting a new version)
+sum by (prompt_version) (rate(finsight_answer_verification_total{outcome="repaired"}[15m]))
+  / sum by (prompt_version) (rate(finsight_answer_verification_total[15m]))
 ```
+
+Label cardinality stays low. `prompt_version` has a handful of values and `outcome` has three. `category` is a fixed set of guard and compliance rule names. The `tool` label grows by one per registered external MCP tool.
 
 When `QI_API_KEYS` is set, `/metrics` and `/agent/traces*` require an API key like every other non-public endpoint, and `/agent/traces*` only return runs of the calling key (traces carry the caller as a hash of the key, never the key itself).
 
@@ -137,8 +236,24 @@ behind the host's proxy; without it every live source failed with DNS or connect
 
 | File | Content |
 |---|---|
-| `monitoring/grafana/finsight-dashboard.json` | 19 panels in four rows. Traffic: requests/s by route, P50/P95 by route, answer source. Quality: verification-failure rate, degradations by flag, tool error rate by tool. LLM: cost per hour and per 24 h, calls per model (failover), per-model breaker state timeline, tokens by kind, LLM calls per answered run. Data sources: breaker state timeline per source, calls by outcome, the source-call pool. |
-| `monitoring/prometheus/alerts.yml` | 10 rules: `FinSightDown`, `FinSightWorkflowP95High` (> 8 s for 10 min), `FinSightAgentP95High` (> 60 s), `FinSightVerificationFailureRateHigh` (> 20%), `FinSightToolErrorRateHigh` (> 25% per tool), `FinSightLLMModelCircuitOpen`, `FinSightAllLLMModelsDown`, `FinSightDataSourceCircuitOpen`, `FinSightSourcePoolAbandonedCalls`, `FinSightLLMCostBurnHigh` (> ¥20 per hour). `promtool check rules`: 10 rules, valid. |
+| `monitoring/grafana/finsight-dashboard.json` | 27 panels in five rows. **Traffic:** requests/s by route, P50/P95 by route, answer source. **Quality:** verification-failure rate, degradations by flag, tool error rate by tool. **LLM:** cost per hour and per 24 h, calls per model (failover), per-model breaker state timeline, tokens by kind, LLM calls per answered run. **Data sources:** breaker state timeline per source, calls by outcome, the source-call pool. **Answer quality by prompt version, user feedback, audit:** first-draft verification failure rate and repair rate by prompt version, outcome counts (24 h), thumbs-up ratio by prompt version and overall (24 h), feedback per hour by rating, audit events per hour by category. |
+| `monitoring/prometheus/alerts.yml` | 13 rules. The first 10: `FinSightDown`, `FinSightWorkflowP95High` (> 8 s for 10 min), `FinSightAgentP95High` (> 60 s), `FinSightVerificationFailureRateHigh` (> 20%), `FinSightToolErrorRateHigh` (> 25% per tool), `FinSightLLMModelCircuitOpen`, `FinSightAllLLMModelsDown`, `FinSightDataSourceCircuitOpen`, `FinSightSourcePoolAbandonedCalls`, `FinSightLLMCostBurnHigh` (> ¥20 per hour). Three more: `FinSightRepairRateHighForPromptVersion` (> 25% repaired for one LLM prompt version, at least 20 answers in 30 min), `FinSightNegativeFeedbackHigh` (> 50% thumbs-down over 6 h with at least 10 ratings), `FinSightInjectionAttemptsSpike` (> 20 injection refusals in 10 min). |
+| `monitoring/prometheus/alerts_test.yml` | promtool unit tests: each of the three new rules fires on synthetic series, and only for the unhealthy prompt version. |
+
+Checks (the Docker VM cannot see the checkout, so the files are piped into the `prom/prometheus` image):
+
+```bash
+tar -C monitoring/prometheus -cf - alerts.yml alerts_test.yml | docker run --rm -i --entrypoint /bin/sh prom/prometheus:v3.15.0 \
+  -c 'mkdir -p /tmp/r && tar -C /tmp/r -xf - && cd /tmp/r && promtool check rules alerts.yml && promtool test rules alerts_test.yml'
+# Checking alerts.yml  SUCCESS: 13 rules found     (then: SUCCESS for the unit tests)
+python -m pytest tests/test_monitoring_config.py -q   # dashboard structure; every finsight_* series used is exported
+```
+
+The new row was checked on 2026-09-28 against Grafana 13.2.2 (dashboard provisioned, 27 panels), with Prometheus 3.15 scraping two offline replicas that shared Postgres. Traffic: two 4-minute loops, 260 runs in total (51 refusals). About 60% of answers were rated on the *other* replica, which works because the trace store is shared. Every new panel query returned data through Grafana's datasource proxy (`docs/results/observability/grafana-quality-row-check.json`).
+
+Without an LLM, all answers are `prompt_version="none"`. The per-version split (`v2`, `v3`) is covered by `tests/test_agent_audit_metrics.py` and the promtool tests.
+
+![Grafana: quality by prompt version, feedback and audit](assets/ops/grafana-quality-feedback-audit.png)
 
 Verified on 2026-09-26 (colima): all four containers up, the Prometheus target `finsight` healthy,
 the rules loaded and evaluating. After the traffic below, three alerts were `pending`: data source
@@ -217,3 +332,36 @@ Every answer was HTTP 200 and passed verification. The source-call pool never ca
 (`max_busy` 4 of 32, 0 abandoned, 0 rejected), because blocked hosts fail fast with 403. The pool
 matters for the other failure mode, hosts that hang: `--block-mode hang` makes the proxy hold the
 connection instead (not part of the recorded run); such calls end at `QI_SOURCE_CALL_TIMEOUT_SECONDS` and count as abandoned, which `tests/test_source_reliability.py` covers offline.
+
+## Audit log
+
+Every refusal by the input guard and every compliance edit to an answer produces one structured audit event (`query_intelligence/agent/audit.py`, a trace sink like the metrics). An event records what kind of intervention happened, for which caller, and in which run. It never records what the user wrote.
+
+```json
+{"answer_source": "guardrail", "at": "2026-09-28T06:53:51Z", "category": "out_of_scope", "event": "refusal",
+ "principal": "key:f15424e984f6", "prompt_version": "none", "query_hash": "de688223511b", "route": "refuse",
+ "session_hash": "0da330e4fed9", "trace_id": "38fa26a9f5364a8cb0ff8a1ca6982d1d"}
+```
+
+| Field | Meaning |
+|---|---|
+| `event`, `category` | `refusal`: `prompt_injection` or `out_of_scope`. `compliance_edit`: the rule that changed the answer, one of `removed_trading_instruction`, `conditional_prefix`, `causal_caveat`, `softened_judgment_or_causal_language`, `market_freshness`, `language_mismatch_fallback_to_template`. A run with several edits produces one event per rule. |
+| `principal` | The caller id used for tenancy: `key:` plus the first 12 hex digits of the API key's SHA-256, or `local`. |
+| `query_hash`, `session_hash` | 12-hex-digit HMAC-SHA256 of the question and session id, keyed by `QI_AUDIT_HASH_KEY` (plain SHA-256 when unset). Set the key in production so short common questions cannot be matched against a dictionary. |
+| `trace_id` | Links to the full trace (`/agent/traces/{id}`), for reviewers who are allowed to read it. |
+
+Sinks:
+
+| Sink | Details |
+|---|---|
+| Log line | Logger `finsight.audit`, one JSON line per event, in the service log. |
+| JSONL file | `QI_AUDIT_LOG_PATH` (default `outputs/audit/audit.jsonl`; `off` disables it). Rotated at UTC midnight, keeping `QI_AUDIT_RETENTION_DAYS` files (default 30). An unwritable path (for example a read-only root filesystem) disables the file with a warning; the log line and the counter continue. |
+| Prometheus | `finsight_audit_events_total{event, category}`. It feeds the dashboard's audit panel and the `FinSightInjectionAttemptsSpike` alert. |
+
+```bash
+python -m pytest tests/test_agent_audit_metrics.py -q
+```
+
+The tests cover refusals and compliance edits through `/agent/chat`. They check that no question text, session id or API key appears in the file or the log lines, check the keyed hashes, the counter, the verification-outcome metric by prompt version, and that the trace carries `prompt_version` and `refusal_category`.
+
+In the two-replica run above, the audit files held 128 events and none of the question text.

@@ -1,0 +1,52 @@
+# promtool unit tests for the quality/security rules (see docs/a2a-and-observability.md):
+#   promtool test rules monitoring/prometheus/alerts_test.yml
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      # v3: 2 of every 5 LLM answers need deterministic repair (40% > 25%); v2 is healthy (1 in 10).
+      - series: 'finsight_answer_verification_total{prompt_version="v3",outcome="repaired"}'
+        values: '0+2x90'
+      - series: 'finsight_answer_verification_total{prompt_version="v3",outcome="passed"}'
+        values: '0+3x90'
+      - series: 'finsight_answer_verification_total{prompt_version="v2",outcome="repaired"}'
+        values: '0+1x90'
+      - series: 'finsight_answer_verification_total{prompt_version="v2",outcome="passed"}'
+        values: '0+9x90'
+      # Template answers never alert on repair rate.
+      - series: 'finsight_answer_verification_total{prompt_version="none",outcome="repaired"}'
+        values: '0+5x90'
+      # 3 injection refusals per minute: 30 per 10 minutes.
+      - series: 'finsight_audit_events_total{event="refusal",category="prompt_injection"}'
+        values: '0+3x90'
+      # Feedback: 2 down and 1 up per 10 minutes.
+      - series: 'finsight_feedback_total{rating="down",prompt_version="v3"}'
+        values: '0+0.2x400'
+      - series: 'finsight_feedback_total{rating="up",prompt_version="v3"}'
+        values: '0+0.1x400'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: FinSightRepairRateHighForPromptVersion
+        exp_alerts:
+          - exp_labels: {severity: warning, prompt_version: v3}
+            exp_annotations:
+              summary: "Prompt v3: more than 25% of LLM answers need deterministic repair"
+              description: "Repaired answers lose the sentences that failed verification. A rise right after a prompt or model change points at that change; compare versions on the dashboard."
+      - eval_time: 20m
+        alertname: FinSightInjectionAttemptsSpike
+        exp_alerts:
+          - exp_labels: {severity: info}
+            exp_annotations:
+              summary: "30 prompt-injection refusals in 10 minutes"
+              description: "Group the audit log (outputs/audit/audit.jsonl) by principal and query_hash to see whether one caller is probing the guard."
+      - eval_time: 390m
+        alertname: FinSightNegativeFeedbackHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: "More than half of the last 6 h of user ratings are thumbs-down"
+              description: "Run scripts/feedback_to_tasks.py on the feedback log to turn the flagged traces into evaluation tasks."

@@ -1,0 +1,35 @@
+{
+  "probe": "shared_store_probe",
+  "date": "2026-09-28T06:46:59+00:00",
+  "commit": "ca5b9c1",
+  "command": "python scripts/shared_store_probe.py --replica <r1> --replica <r2> --key <a> --other-key <b>",
+  "replicas": [
+    "http://127.0.0.1:8851",
+    "http://127.0.0.1:8852"
+  ],
+  "passed": true,
+  "checks": {
+    "replica_1_input_required": true,
+    "replica_2_get_task_state": "TASK_STATE_INPUT_REQUIRED",
+    "other_key_denied": true,
+    "other_key_error": "TaskNotFoundError: Task not found",
+    "replica_2_resumed_state": "TASK_STATE_COMPLETED",
+    "same_task_id": true,
+    "replica_1_final_state": "TASK_STATE_COMPLETED",
+    "replica_1_artifacts": [
+      "answer",
+      "evidence"
+    ],
+    "answer_cites": [
+      "fundamental_600519.SH",
+      "600519"
+    ],
+    "trace_listed_on_replica_2": true,
+    "trace_served_on_replica_2": true,
+    "trace_hidden_from_other_key": true
+  },
+  "timings": {
+    "send_on_replica_1_s": 0.068,
+    "resume_on_replica_2_s": 0.829
+  }
+}
