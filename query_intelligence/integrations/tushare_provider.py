@@ -111,6 +111,8 @@ class TushareMarketProvider:
                 "report_date": self._normalize_trade_date(_row_get(fina_row, "end_date")),
                 "pe_ttm": _row_get(basic_row, "pe_ttm") if basic_row else None,
                 "pb": _row_get(basic_row, "pb") if basic_row else None,
+                # PE/PB come from daily_basic on the latest trade date, not from the report.
+                "valuation_date": self._normalize_trade_date(basic_trade_date) if basic_row else None,
                 "roe": _row_get(fina_row, "roe"),
                 "grossprofit_margin": _row_get(fina_row, "grossprofit_margin"),
                 "netprofit_yoy": _row_get(fina_row, "netprofit_yoy"),
