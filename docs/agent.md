@@ -198,6 +198,6 @@ All agent tests run offline: `ScriptedLLM` replays fixed assistant turns and `te
 ## Limits
 
 - The agent path is only as good as the LLM behind it. Offline evaluation measures the deterministic path and the graph's safety checks; the online evaluation in [agent-eval.md](agent-eval.md) measures two flash-class models (DeepSeek V4.1 Flash, GLM-5.3 Flash) through one gateway, and the agent loop's advantage over LLM composition is not significant with DeepSeek.
-- Numeric verification is claim-level (2.6% false-accept rate on 2,314 corrupted gold answers, `evaluation/results/verifier_stress.json`), but it does not check that a number is used for the right period or metric when the cited evidence holds several, and a number planted in a document passes because it is in the evidence.
+- Numeric verification is claim-level (2.1% false-accept rate on 2,433 corrupted gold answers, `evaluation/results/verifier_stress.json`), but it does not check that a number is used for the right period or metric when the cited evidence holds several, and a number planted in a document passes because it is in the evidence.
 - Follow-up resolution is rule-based: it covers pronouns, plurals and short elliptical questions; longer paraphrases ("回到刚才那只股票…") and ambiguous references lead to a clarification rather than a guess.
 - English aliases cover the major A-shares added in round 2 plus what `data/runtime/alias_table.csv` contains.

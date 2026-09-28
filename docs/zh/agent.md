@@ -230,6 +230,6 @@ python -m pytest -q tests/test_web_ui.py      # 通过 Playwright 驱动无头 C
 ## 局限
 
 - **Agent 的质量取决于背后的 LLM**：离线评测衡量的是确定性路径和图中的安全检查；[在线评测](evaluation.md)覆盖两个 flash 级模型（DeepSeek V4.1 Flash、GLM-5.3 Flash），经同一个网关调用。在 DeepSeek 上，工具循环相对 LLM 组织答案的优势不显著。
-- **数值校验只证明可追溯**：校验是逐句的，在 2,314 个篡改答案上误放率 2.6%（`evaluation/results/verifier_stress.json`）。但当所引证据包含多个报告期或指标时，它不检查用的是否正确；投毒到文档里的数字也能通过，因为它就在证据里。
+- **数值校验只证明可追溯**：校验是逐句的，在 2,433 个篡改答案上误放率 2.1%（`evaluation/results/verifier_stress.json`）。但当所引证据包含多个报告期或指标时，它不检查用的是否正确；投毒到文档里的数字也能通过，因为它就在证据里。
 - **追问补全基于规则**：覆盖代词、复数和短的省略问法；更长的转述（「回到刚才那只股票…」）和有歧义的指代会触发澄清而不是猜测。
 - **英文别名覆盖有限**：包括第二轮加入的主要 A 股英文名，以及 `data/runtime/alias_table.csv` 中已有的条目。
