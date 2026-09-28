@@ -300,3 +300,33 @@ def test_derived_numbers_are_opt_in_and_need_their_operands():
     # without both operands in the sentence the result is not accepted
     alone = {"answer": "两者之比约 57.3 [fundamental_600519.SH][price_600519.SH]。"}
     assert not verify_answer(alone, store, allow_derived=True).passed
+
+
+def test_stall_timeout_caps_streamed_requests_only():
+    import time as _time
+
+    from query_intelligence.agent.llm import call_timeout, llm_deadline
+
+    with llm_deadline(_time.time() + 90, stall_s=20):
+        assert call_timeout(120, streaming=True) == 20
+        assert 85 < call_timeout(120) <= 90
+    with llm_deadline(_time.time() + 90):
+        assert 85 < call_timeout(120, streaming=True) <= 90
+
+
+def test_stalled_stream_is_retried():
+    calls = {"n": 0}
+    body = 'data: {"choices": [{"delta": {"content": "{}"}, "finish_reason": "stop"}]}\n\ndata: [DONE]\n\n'
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx.ReadTimeout("stalled", request=request)
+        return httpx.Response(200, text=body)
+
+    client = DeepSeekToolClient(
+        api_key="sk-test", http_client=httpx.Client(transport=httpx.MockTransport(handler)), sleep=lambda _s: None
+    )
+    turn = client.chat([{"role": "user", "content": "hi"}], on_delta=lambda _text: None)
+    assert turn.content == "{}"
+    assert client.http_stats() == {"requests": 2, "timeout": 1, "retries": 1}
