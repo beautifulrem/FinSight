@@ -529,6 +529,17 @@
    ],
    "error": null
   },
+  "compute_indicators:{\"target\": \"512880.SH\"}": {
+   "ok": false,
+   "data": null,
+   "evidence": [],
+   "error": {
+    "code": "unavailable",
+    "message": "only 2 daily closes for 证券ETF (512880.SH); MA5 needs 5, MA20 needs 20, RSI(14) needs 15, MACD needs 26",
+    "retryable": false,
+    "hint": null
+   }
+  },
   "compute_indicators:{\"target\": \"600519.SH\"}": {
    "ok": false,
    "data": null,
@@ -850,6 +861,98 @@
     "message": "no fundamentals for 海天味业 (603288.SH) in the configured sources",
     "retryable": false
    }
+  },
+  "get_fundamentals:{\"target\": \"保险\"}": {
+   "ok": true,
+   "data": {
+    "symbol": "保险",
+    "name": "保险",
+    "report_date": null,
+    "metrics": {},
+    "source": null,
+    "evidence_id": null,
+    "industry": {
+     "industry_name": "保险",
+     "metrics": {
+      "trade_date": "2026-04-22",
+      "pct_change": 0.68,
+      "pe": 11.8,
+      "pb": 1.45,
+      "turnover": 0.43
+     },
+     "evidence_id": "industry_保险",
+     "provenance": {
+      "source": "offline_snapshot",
+      "source_label": "离线快照",
+      "endpoint": "data/structured_data.json",
+      "is_live": false,
+      "mode": "snapshot",
+      "fetched_at": null,
+      "as_of": "2026-04-22",
+      "freshness": "stale",
+      "fallback_reason": "live market data disabled",
+      "attempts": [],
+      "cache_hit": false,
+      "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
+      "original_source": "seed"
+     },
+     "metric_units": {
+      "pct_change": "%",
+      "pe": "x",
+      "pb": "x",
+      "turnover": "%"
+     }
+    },
+    "provenance": null,
+    "valuation_provenance": null,
+    "metric_units": {},
+    "period": null
+   },
+   "evidence": [
+    {
+     "evidence_id": "industry_保险",
+     "kind": "structured",
+     "source_type": "industry_sql",
+     "title": "保险 industry snapshot",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-04-22",
+     "text_excerpt": null,
+     "payload": {
+      "industry_name": "保险",
+      "trade_date": "2026-04-22",
+      "pct_change": 0.68,
+      "pe": 11.8,
+      "pb": 1.45,
+      "turnover": 0.43,
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-04-22",
+       "freshness": "stale",
+       "fallback_reason": "live market data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
+       "original_source": "seed"
+      },
+      "metric_units": {
+       "pct_change": "%",
+       "pe": "x",
+       "pb": "x",
+       "turnover": "%"
+      }
+     },
+     "produced_by": "get_fundamentals"
+    }
+   ],
+   "error": null
   },
   "get_macro_indicators:{\"query\": \"CPI上行对白酒股有什么影响\", \"topics\": [\"CPI\"]}": {
    "ok": true,
@@ -1230,6 +1333,75 @@
    ],
    "error": null
   },
+  "get_macro_indicators:{\"query\": \"PMI：这意味着经济在扩张吗\", \"topics\": [\"PMI\"]}": {
+   "ok": true,
+   "data": {
+    "indicators": [
+     {
+      "code": "PMI_CN",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 50.6,
+      "unit": "",
+      "source": "seed",
+      "evidence_id": "macro_PMI_CN",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     }
+    ],
+    "policy_events": []
+   },
+   "evidence": [
+    {
+     "evidence_id": "macro_PMI_CN",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "PMI_CN macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "PMI_CN",
+      "metric_date": "2026-03-31",
+      "metric_value": 50.6,
+      "unit": "",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     "produced_by": "get_macro_indicators"
+    }
+   ],
+   "error": null
+  },
   "get_macro_indicators:{\"query\": \"What does the latest PMI mean for brokerage stocks\", \"topics\": [\"PMI\"]}": {
    "ok": true,
    "data": {
@@ -1497,6 +1669,144 @@
       "metric_value": 50.6,
       "unit": "",
       "source_name": "seed"
+     },
+     "produced_by": "get_macro_indicators"
+    }
+   ],
+   "error": null
+  },
+  "get_macro_indicators:{\"query\": \"What is the latest 十年期国债收益率 reading\", \"topics\": [\"十年期国债收益率\", \"国债\"]}": {
+   "ok": true,
+   "data": {
+    "indicators": [
+     {
+      "code": "CN10Y",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 2.31,
+      "unit": "%",
+      "source": "seed",
+      "evidence_id": "macro_CN10Y",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     }
+    ],
+    "policy_events": []
+   },
+   "evidence": [
+    {
+     "evidence_id": "macro_CN10Y",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "CN10Y macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "CN10Y",
+      "metric_date": "2026-03-31",
+      "metric_value": 2.31,
+      "unit": "%",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     "produced_by": "get_macro_indicators"
+    }
+   ],
+   "error": null
+  },
+  "get_macro_indicators:{\"query\": \"Where is the CGB 10-year yield these days\", \"topics\": [\"国债\"]}": {
+   "ok": true,
+   "data": {
+    "indicators": [
+     {
+      "code": "CN10Y",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 2.31,
+      "unit": "%",
+      "source": "seed",
+      "evidence_id": "macro_CN10Y",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     }
+    ],
+    "policy_events": []
+   },
+   "evidence": [
+    {
+     "evidence_id": "macro_CN10Y",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "CN10Y macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "CN10Y",
+      "metric_date": "2026-03-31",
+      "metric_value": 2.31,
+      "unit": "%",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
      },
      "produced_by": "get_macro_indicators"
     }
@@ -2052,6 +2362,202 @@
       "metric_value": 2.31,
       "unit": "%",
       "source_name": "seed"
+     },
+     "produced_by": "get_macro_indicators"
+    }
+   ],
+   "error": null
+  },
+  "get_macro_indicators:{\"query\": \"最新的PMI读数是多少\", \"topics\": [\"PMI\"]}": {
+   "ok": true,
+   "data": {
+    "indicators": [
+     {
+      "code": "PMI_CN",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 50.6,
+      "unit": "",
+      "source": "seed",
+      "evidence_id": "macro_PMI_CN",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     }
+    ],
+    "policy_events": []
+   },
+   "evidence": [
+    {
+     "evidence_id": "macro_PMI_CN",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "PMI_CN macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "PMI_CN",
+      "metric_date": "2026-03-31",
+      "metric_value": 50.6,
+      "unit": "",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     "produced_by": "get_macro_indicators"
+    }
+   ],
+   "error": null
+  },
+  "get_macro_indicators:{\"query\": \"现在的LPR是多少\", \"topics\": [\"LPR\"]}": {
+   "ok": true,
+   "data": {
+    "indicators": [
+     {
+      "code": "M2_CN",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 8.1,
+      "unit": "%",
+      "source": "seed",
+      "evidence_id": "macro_M2_CN",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     {
+      "code": "CN10Y",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 2.31,
+      "unit": "%",
+      "source": "seed",
+      "evidence_id": "macro_CN10Y",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     }
+    ],
+    "policy_events": []
+   },
+   "evidence": [
+    {
+     "evidence_id": "macro_M2_CN",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "M2_CN macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "M2_CN",
+      "metric_date": "2026-03-31",
+      "metric_value": 8.1,
+      "unit": "%",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     "produced_by": "get_macro_indicators"
+    },
+    {
+     "evidence_id": "macro_CN10Y",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "CN10Y macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "CN10Y",
+      "metric_date": "2026-03-31",
+      "metric_value": 2.31,
+      "unit": "%",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
      },
      "produced_by": "get_macro_indicators"
     }
@@ -4798,6 +5304,7 @@
  "extended_at": [
   "2026-09-26T18:41:06+00:00",
   "2026-09-28T06:44:52+00:00",
-  "2026-09-28T06:54:20+00:00"
+  "2026-09-28T06:54:20+00:00",
+  "2026-09-28T11:08:51+00:00"
  ]
 }

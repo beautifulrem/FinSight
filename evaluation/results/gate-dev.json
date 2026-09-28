@@ -14,15 +14,15 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "d3c1495",
-  "run_at": "2026-09-28T09:15:51+00:00",
+  "commit": "5062cc8",
+  "run_at": "2026-09-28T11:12:47+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 117.4,
+  "wall_seconds": 83.5,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
-  "tasks": 238,
-  "turns": 270,
+  "tasks": 271,
+  "turns": 333,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -42,14 +42,14 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.7649,
+  "tool_precision": 0.7764,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 66.29,
-  "latency_ms_p95": 1010.2,
+  "latency_ms_p50": 52.02,
+  "latency_ms_p95": 650.09,
   "llm_calls_per_turn": 0.0,
   "tokens_per_turn": 0.0,
   "reasoning_tokens_per_turn": 0.0,
@@ -66,81 +66,81 @@
  },
  "by_category": {
   "clarify": {
-   "tasks": 16,
+   "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 970.51
+   "latency_ms_p95": 632.87
   },
   "compare": {
    "tasks": 27,
    "task_success": 1.0,
-   "latency_ms_p95": 904.12
+   "latency_ms_p95": 715.91
   },
   "compliance": {
-   "tasks": 15,
+   "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 1110.03
+   "latency_ms_p95": 650.09
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 844.13
+   "latency_ms_p95": 618.22
   },
   "fact": {
-   "tasks": 55,
+   "tasks": 58,
    "task_success": 1.0,
-   "latency_ms_p95": 1120.57
+   "latency_ms_p95": 740.85
   },
   "injection": {
    "tasks": 2,
    "task_success": 1.0,
-   "latency_ms_p95": 51.96
+   "latency_ms_p95": 39.79
   },
   "macro_link": {
-   "tasks": 14,
+   "tasks": 15,
    "task_success": 1.0,
-   "latency_ms_p95": 1110.43
+   "latency_ms_p95": 674.65
   },
   "missing_data": {
-   "tasks": 25,
+   "tasks": 32,
    "task_success": 1.0,
-   "latency_ms_p95": 825.05
+   "latency_ms_p95": 741.95
   },
   "multi_turn": {
-   "tasks": 27,
+   "tasks": 40,
    "task_success": 1.0,
-   "latency_ms_p95": 906.47
+   "latency_ms_p95": 621.58
   },
   "out_of_coverage": {
-   "tasks": 4,
+   "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 740.46
+   "latency_ms_p95": 623.45
   },
   "out_of_scope": {
-   "tasks": 20,
+   "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 32.37
+   "latency_ms_p95": 75.06
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 790.37
+   "latency_ms_p95": 651.99
   },
   "why": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 1010.2
+   "latency_ms_p95": 628.44
   }
  },
  "by_language": {
   "en": {
-   "tasks": 69,
+   "tasks": 80,
    "task_success": 1.0,
-   "latency_ms_p95": 1109.21
+   "latency_ms_p95": 740.85
   },
   "zh": {
-   "tasks": 169,
+   "tasks": 191,
    "task_success": 1.0,
-   "latency_ms_p95": 970.54
+   "latency_ms_p95": 618.22
   }
  },
  "failed_checks": {},
@@ -383,12 +383,45 @@
   "r3_coverage_en_0": "1",
   "r3_coverage_en_1": "1",
   "r3_markup_injection_zh": "1",
-  "r3_encoded_injection_zh": "1"
+  "r3_encoded_injection_zh": "1",
+  "r3b_inherit_zh_0": "1",
+  "r3b_inherit_en_0": "1",
+  "r3b_inherit_macro_zh": "1",
+  "r3b_off_topic_in_session_zh": "1",
+  "r3b_off_topic_in_session_en": "1",
+  "r3b_coverage_in_session_zh": "1",
+  "r3b_ordinal_zh": "1",
+  "r3b_ordinal_en": "1",
+  "r3b_triple_zh": "1",
+  "r3b_which_zh": "1",
+  "r3b_sector_member_zh": "1",
+  "r3b_sector_member_en": "1",
+  "r3b_sector_metric_missing_zh": "1",
+  "r3b_sector_fresh_zh": "1",
+  "r3b_price_details_zh": "1",
+  "r3b_price_details_en": "1",
+  "r3b_index_volume_missing_zh": "1",
+  "r3b_return_missing_zh": "1",
+  "r3b_hedge_followup_zh": "1",
+  "r3b_hedge_followup_en": "1",
+  "r3b_hedge_clarified_zh": "1",
+  "r3b_hedge_guarantee_zh": "1",
+  "r3b_hedge_cheaper_en": "1",
+  "r3b_half_year_missing_zh": "1",
+  "r3b_market_cap_missing_zh": "1",
+  "r3b_etf_fundamentals_missing_zh": "1",
+  "r3b_macro_missing_zh": "1",
+  "r3b_session_disambiguation_zh": "1",
+  "r3b_alias_cgb_en": "1",
+  "r3b_alias_csi300_en": "1",
+  "r3b_ellipsis_opening_en": "1",
+  "r3b_comparison_anchor_zh": "1",
+  "r3b_comparison_anchor_en": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "f8afe08c6434d316",
-  "bytes": 436988,
-  "slimmed_at": "2026-09-28T09:15:52+00:00"
+  "sha256_16": "68fba766634d3a5f",
+  "bytes": 540309,
+  "slimmed_at": "2026-09-28T11:12:47+00:00"
  }
 }

@@ -130,3 +130,12 @@
 ```
 f63ce0f4656faf99a09c2a4e4758b6144137eb4be34179c452f20ccb0238415c  multiturn_v1.jsonl
 ```
+
+## Data correction (2026-09-28, after the first runs)
+
+The offline FY2025 figures for 贵州茅台 were corrected to the annual report and tool payload units were
+normalised (round 3, `r3-quality`): revenue 1741.2亿 → 1688.38亿, net profit 850亿 → 823.2亿, ROE 0.33 → 33.0
+(percent), volume in lots → shares (26915.93 → 2691593). 14 expected fact values were updated to the corrected
+data; no behaviour expectation changed. The first runs (`evaluation/results/multiturn_v1-auto-nollm-first-run.json`,
+`ablation-multiturn_v1-deepseek-first-run.json`) used the earlier data and the earlier values, consistently. The
+file's sha256 after the update is recorded in the commit that made it.

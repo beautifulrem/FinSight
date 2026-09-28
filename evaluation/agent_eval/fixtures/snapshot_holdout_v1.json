@@ -740,6 +740,75 @@
    ],
    "error": null
   },
+  "get_macro_indicators:{\"query\": \"What's the current China 十年期国债收益率\", \"topics\": [\"十年期国债收益率\", \"国债\"]}": {
+   "ok": true,
+   "data": {
+    "indicators": [
+     {
+      "code": "CN10Y",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 2.31,
+      "unit": "%",
+      "source": "seed",
+      "evidence_id": "macro_CN10Y",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     }
+    ],
+    "policy_events": []
+   },
+   "evidence": [
+    {
+     "evidence_id": "macro_CN10Y",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "CN10Y macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "CN10Y",
+      "metric_date": "2026-03-31",
+      "metric_value": 2.31,
+      "unit": "%",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     "produced_by": "get_macro_indicators"
+    }
+   ],
+   "error": null
+  },
   "get_macro_indicators:{\"query\": \"制造业PMI最新读数\", \"topics\": [\"PMI\"]}": {
    "ok": true,
    "data": {
@@ -1659,5 +1728,8 @@
    ],
    "error": null
   }
- }
+ },
+ "extended_at": [
+  "2026-09-28T11:09:27+00:00"
+ ]
 }

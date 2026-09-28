@@ -17,7 +17,7 @@ from langgraph.types import Command
 from .errors import NoPendingClarificationError, SessionAccessError
 from .graph import AgentRuntime
 from .llm import LLMClient, Pricing, build_llm_from_config
-from .memory import make_checkpointer
+from .memory import clarification_reply_text, is_target_only_reply, make_checkpointer
 from .state import AgentConfig
 from .tools import ToolRegistry, build_registry_for_service
 from .tools.mcp_client import register_configured_mcp_servers
@@ -106,8 +106,25 @@ class AgentService:
         state["owner"] = owner
         with self._lock(session):
             self._check_owner(session, owner)
-            output = self.graph.invoke(state, self._config(session), durability=self.durability)
+            if self._answers_pending_clarification(session, query):
+                # "五粮液" typed into the chat box after "这个能买吗？" got "which stock?": finish the paused turn.
+                output = self.graph.invoke(
+                    Command(resume=query.strip()), self._config(session), durability=self.durability
+                )
+            else:
+                output = self.graph.invoke(state, self._config(session), durability=self.durability)
         return self._response(session, output, owner)
+
+    def _answers_pending_clarification(self, session_id: str, message: str) -> bool:
+        """A chat message that only names a target, sent while a clarification is pending, is its answer."""
+        if not self.pending_clarification(session_id):
+            return False
+        try:
+            nlu = self.runtime.service.analyze_query(clarification_reply_text(message))
+        except Exception:  # the NLU is best effort here; a failure just starts a new turn
+            logger.exception("clarification reply check failed")
+            return False
+        return is_target_only_reply(message, nlu)
 
     def resume(self, session_id: str, reply: str, *, owner: str = "local") -> dict[str, Any]:
         """Answer a pending clarification and finish the paused turn.
@@ -163,8 +180,11 @@ class AgentService:
         def run() -> None:
             with self._lock(session):
                 try:
+                    graph_input: Any = state
+                    if self._answers_pending_clarification(session, query):
+                        graph_input = Command(resume=query.strip())
                     for chunk in self.graph.stream(
-                        state,
+                        graph_input,
                         self._config(session),
                         stream_mode=["updates", "tasks", "custom"],
                         version="v2",

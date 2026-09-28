@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 import uvicorn
 from agent_fakes import StubService, build_fake_registry
+from fastapi.responses import StreamingResponse
 from playwright.sync_api import Page, expect, sync_playwright
 
 from query_intelligence.agent.graph import AgentRuntime
@@ -105,6 +106,87 @@ class StreamingAgentService(AgentService):
             yield event
 
 
+SLOW_ANSWER = {
+    "status": "ok",
+    "session_id": "slow",
+    "trace_id": "e" * 32,
+    "query": "贵州茅台的市盈率是多少",
+    "route": "agent",
+    "answer": "贵州茅台市盈率约 24.6 倍 [fundamental_600519.SH]。",
+    "evidence_used": ["fundamental_600519.SH"],
+    "evidence_sources": [
+        {
+            "evidence_id": "fundamental_600519.SH",
+            "kind": "structured",
+            "source_type": "fundamental_sql",
+            "title": "贵州茅台 fundamentals",
+            "as_of": "2026-09-24",
+            "payload": {"provenance": {"mode": "live", "is_live": True, "as_of": "2026-09-24", "freshness": "fresh"}},
+        }
+    ],
+    "tool_calls": [
+        {
+            "tool": "get_fundamentals",
+            "arguments": {"target": "贵州茅台"},
+            "ok": True,
+            "latency_ms": 90,
+            "evidence_ids": ["fundamental_600519.SH"],
+            "source": "llm",
+            "step": 0,
+        }
+    ],
+    "spans": [
+        {"node": name, "started_at": 2000.0 + i, "duration_ms": 5.0}
+        for i, name in enumerate(
+            ["guard_in", "agent_llm", "agent_tools", "agent_llm", "verify", "compliance", "finalize"]
+        )
+    ],
+    "verification": {"passed": True, "checked_numbers": 1},
+    "risk_disclaimer": "以上内容仅基于检索到的证据生成，不构成投资建议。",
+}
+
+
+class SlowCannedStream:
+    """A canned agent SSE stream that holds before the tools finish and before the first answer token,
+    like an LLM run that spends 10-20 s before it writes. The test releases each gate."""
+
+    def __init__(self) -> None:
+        self.tools_done = threading.Event()
+        self.first_token = threading.Event()
+
+    def events(self):
+        def sse(name: str, data: dict) -> str:
+            return f"event: {name}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+        def node(kind: str, name: str) -> str:
+            return sse(kind, {"node": name, "label": name})
+
+        yield sse("session", {"session_id": "slow"})
+        yield node("node_start", "guard_in")
+        yield node("step", "guard_in")
+        yield node("node_start", "agent_llm")
+        time.sleep(0.3)
+        yield node("step", "agent_llm")
+        yield sse("tool_call", {"tool": "get_fundamentals", "arguments": '{"target": "贵州茅台"}'})
+        yield node("node_start", "agent_tools")
+        self.tools_done.wait(20)
+        yield node("step", "agent_tools")
+        yield sse(
+            "tool_result",
+            {"tool": "get_fundamentals", "ok": True, "latency_ms": 90, "evidence_ids": ["fundamental_600519.SH"]},
+        )
+        yield node("node_start", "agent_llm")
+        self.first_token.wait(20)
+        for chunk in ["贵州茅台市盈率", "约 24.6 倍", " [fundamental_600519.SH]。"]:
+            yield sse("answer_delta", {"text": chunk})
+            time.sleep(0.15)
+        yield node("step", "agent_llm")
+        yield node("node_start", "verify")
+        time.sleep(0.2)
+        yield sse("answer", SLOW_ANSWER)
+        yield sse("done", {"session_id": "slow"})
+
+
 def _free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -118,6 +200,9 @@ def agent_service():
     return StreamingAgentService(runtime, trace_sinks=[])
 
 
+_APPS: dict = {}
+
+
 @pytest.fixture(scope="module")
 def base_url(agent_service):
     stub = agent_service.runtime.service
@@ -127,6 +212,13 @@ def base_url(agent_service):
         deepseek_client=FakeDeepSeek(),
         agent_service=agent_service,
     )
+
+    @app.post("/test/slow-stream")
+    def slow_stream() -> StreamingResponse:
+        # Test-only endpoint: the browser's /agent/chat/stream request is routed here (see page.route below).
+        return StreamingResponse(app.state.slow_stream.events(), media_type="text/event-stream")
+
+    app.state.slow_stream = SlowCannedStream()
     port = _free_port()
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)
@@ -134,7 +226,9 @@ def base_url(agent_service):
     deadline = time.time() + 20
     while not server.started and time.time() < deadline:
         time.sleep(0.05)
-    yield f"http://127.0.0.1:{port}"
+    url = f"http://127.0.0.1:{port}"
+    _APPS[url] = app
+    yield url
     server.should_exit = True
     thread.join(timeout=10)
 
@@ -343,8 +437,12 @@ def test_stop_detaches_and_the_session_stays_usable(page):
 
     page.route("**/agent/chat/stream", slow_stream)
     _ask(page, "贵州茅台的市盈率是多少")
-    page.click("#stop-button")
-    expect(_last_turn(page)).to_contain_text("已停止")
+    # The Stop next to the progress works from the keyboard, and focus returns to the composer.
+    stop = _last_turn(page).locator(".progress-stop")
+    stop.focus()
+    page.keyboard.press("Enter")
+    expect(_last_turn(page).locator(".stopped-note")).to_contain_text(re.compile(r"已停止（用时 \d+ 秒）"))
+    expect(page.locator("#query-input")).to_be_focused()
     expect(page.locator("#status-pill")).to_have_text("就绪")
     # The slow handler is still sleeping; wait for it so it does not race the next request.
     page.unroute_all(behavior="wait")
@@ -353,6 +451,79 @@ def test_stop_detaches_and_the_session_stays_usable(page):
     _ask(page, "贵州茅台的市盈率是多少")
     expect(_last_turn(page).locator(".answer-card")).to_contain_text("24.6", timeout=15000)
     _wait_idle(page)
+
+
+def test_progress_is_shown_before_the_first_token_and_folds_away_after(page, base_url):
+    stream = SlowCannedStream()
+    _APPS[base_url].state.slow_stream = stream
+    # A canned slow stream stands in for an LLM run that takes 10-20 s before its first token.
+    page.route("**/agent/chat/stream", lambda route: route.continue_(url=f"{base_url}/test/slow-stream"))
+    try:
+        _ask(page, "贵州茅台的市盈率是多少")
+        turn = _last_turn(page)
+        progress = turn.locator(".run-progress")
+        status = turn.locator(".progress-status")
+
+        # 1. Tools running: plain-language step, the tool and its target, elapsed seconds, a skeleton.
+        expect(status).to_have_text("查询数据：正在调用数据工具", timeout=15000)
+        expect(status).to_have_attribute("role", "status")
+        expect(progress.locator('.progress-steps [aria-current="step"]')).to_contain_text("查询数据")
+        expect(progress.locator('.progress-steps li[data-state="done"]')).to_have_count(1)
+        tool = progress.locator(".progress-tool").first
+        expect(tool).to_have_attribute("data-status", "running")
+        expect(tool).to_contain_text("get_fundamentals")
+        expect(tool).to_contain_text("· 贵州茅台")
+        expect(progress.locator(".answer-skeleton")).to_be_visible()
+        expect(progress.locator(".progress-elapsed")).to_have_text(re.compile(r"^已用时 \d+ 秒$"))
+        expect(progress.locator(".progress-stop")).to_be_visible()
+        expect(turn.locator(".streaming-answer")).to_have_count(0)
+        expect(turn.locator(".answer-text")).to_have_count(0)
+        expect(page.locator("#status-pill")).to_have_text("分析中")
+        # The counter ticks without the panel being re-announced: only the status region is live.
+        assert progress.evaluate("el => el.closest('[aria-live]').getAttribute('aria-live')") == "off"
+        page.wait_for_timeout(1100)
+        expect(progress.locator(".progress-elapsed")).not_to_have_text("已用时 0 秒")
+        if AXE_JS.is_file():
+            _assert_accessible(page, "progress before the first token (tools running)")
+
+        # 2. Tools done, model reading and drafting: still no answer text.
+        stream.tools_done.set()
+        expect(status).to_have_text("撰写回答：模型正在阅读数据、组织回答", timeout=15000)
+        expect(tool).to_have_attribute("data-status", "ok")
+        expect(progress.locator('.progress-steps li[data-state="done"]')).to_have_count(2)
+        expect(turn.locator(".streaming-answer")).to_have_count(0)
+
+        # 3. First token: the panel folds into the collapsed run trace above the streaming text.
+        stream.first_token.set()
+        expect(turn.locator(".streaming-answer, .answer-card[data-streamed]").first).to_be_visible(timeout=15000)
+        expect(progress).to_have_count(0)
+
+        # 4. Final answer: no progress state is left, the trace is the normal collapsed trace.
+        card = turn.locator(".answer-card")
+        expect(card).to_contain_text("24.6", timeout=15000)
+        _wait_idle(page)
+        expect(turn.locator(".run-progress")).to_have_count(0)
+        expect(turn.locator(".progress-status")).to_have_count(0)
+        expect(turn.locator(".answer-skeleton")).to_have_count(0)
+        expect(card.locator(".trace-toggle")).to_have_attribute("aria-expanded", "false")
+        expect(card.locator(".trace-toggle")).to_contain_text("执行过程")
+
+        # Client-measured time to first token and total time in the run details.
+        aside = page.locator("aside")
+        aside.get_by_role("tab", name=re.compile("运行")).click()
+        ttft = aside.locator(".run-ttft")
+        expect(ttft).to_have_text(re.compile(r"^\d+(\.\d+)? (ms|s)$"))
+        expect(aside.locator(".run-wall")).to_have_text(re.compile(r"^\d+(\.\d+)? s$"))
+        first, total = (
+            float(text.split()[0]) * (1 if text.endswith(" s") else 0.001)
+            for text in (ttft.inner_text(), aside.locator(".run-wall").inner_text())
+        )
+        assert 1.0 <= first < total, (first, total)
+        aside.get_by_role("tab", name=re.compile("证据")).click()
+    finally:
+        stream.tools_done.set()
+        stream.first_token.set()
+        page.unroute("**/agent/chat/stream")
 
 
 def test_streamed_answer_shows_a_caret_then_the_verified_answer(page, agent_service):
@@ -910,6 +1081,7 @@ def test_accessibility_mobile_dark_english(browser, base_url, axe_ready):
     try:
         mobile.goto(base_url)
         _assert_accessible(mobile, "mobile empty (dark, en)")
+
         mobile.locator(".example-question").first.click()
         chip = mobile.locator(".answer-card .citation-chip").first
         expect(chip).to_be_visible(timeout=15000)
@@ -919,6 +1091,24 @@ def test_accessibility_mobile_dark_english(browser, base_url, axe_ready):
         expect(mobile.get_by_role("dialog")).to_be_visible()
         _assert_accessible(mobile, "mobile evidence sheet (dark, en)")
         mobile.keyboard.press("Escape")
+
+        # The progress panel before the first token, on a phone.
+        stream = SlowCannedStream()
+        _APPS[base_url].state.slow_stream = stream
+        mobile.route("**/agent/chat/stream", lambda route: route.continue_(url=f"{base_url}/test/slow-stream"))
+        try:
+            _ask(mobile, "What is Kweichow Moutai's P/E?")
+            status = _last_turn(mobile).locator(".progress-status")
+            expect(status).to_have_text("Get data: Calling data tools", timeout=15000)
+            expect(_last_turn(mobile).locator(".progress-tool")).to_contain_text("· 贵州茅台")
+            assert mobile.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+            _assert_accessible(mobile, "mobile progress before the first token (dark, en)")
+        finally:
+            stream.tools_done.set()
+            stream.first_token.set()
+        expect(_last_turn(mobile).locator(".answer-card")).to_contain_text("24.6", timeout=15000)
+        _wait_idle(mobile)
+        mobile.unroute("**/agent/chat/stream")
 
         mobile.route("**/agent/claim-check", lambda route: route.fulfill(status=200, json=CANNED_CLAIM_REPORT))
         mobile.get_by_role("tab", name="Fact-check").click()

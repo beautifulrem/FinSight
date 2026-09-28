@@ -88,6 +88,32 @@ Guards against over-reach: only short questions (≤ 20 characters, or ≤ 8 Eng
 
 Without history the same questions are clarified, not refused: a metric with no company ("市净率是多少", "PB呢", reason `metric_without_target`; definition questions such as "什么是市净率" are exempt), and dangling references ("那家公司最近有公告吗", plurals such as "这两家哪个更值得关注", and a bare "为什么会这样"; `dangling_reference`). Fuzzy concept hits whose name is not in the question are dropped first (`dropped_fuzzy_concept:有色金属` for "…有公告…").
 
+### Session rules added in round 3b
+
+Written from the failure classes of the independent multi-turn set `multiturn_v1` (see Evaluation). All rules live in `guard_in` (`agent/graph.py`) and `agent/memory.py`; each one logs a reason code in `route_reasons`.
+
+| Case | Example | Behaviour | Reason code |
+|---|---|---|---|
+| Entity-less follow-up that the guard would refuse or clarify | 沪深300 → "为什么涨？"; CSI 300 ETF → "What's the 3-day return?"; CPI → "这说明什么？" | Inherits the targets, or the macro topic, of the latest turn that had any. Conditions: short (≤ 30 characters or ≤ 12 English words), carries a finance cue (涨/跌/增速/舆情/return/high/buy…), names no target or macro topic of its own, is not an off-topic task or an out-of-coverage asset | `session_inherit:target->…`, `session_inherit:macro->CPI` |
+| Off-topic task, even with finance words or a known stock | "你能帮我写个Python爬虫抓股价吗", "Translate this…", "帮我订个…酒店" | Refused; no follow-up rewrite is attempted | `off_topic_request:coding` (translation, travel, weather, writing, entertainment) |
+| Out-of-coverage asset in a finance conversation | 茅台… → "特斯拉呢？", "Is the S&P 500 up today?" | Refused with the coverage message; never inherits the earlier target | `coverage:foreign_equity` |
+| 前者/后者, the former/the latter | "五粮液和中国平安…" → "后者呢？" | The target in that position of the last turn in which the user *named* two or more (a turn that only said "the two" has no order); the previous aspect is carried when missing | `group_reference:后者->中国平安` |
+| 三家/all three; 两家/both; bare 哪家/which one | three single-stock turns → "三家里面哪家最便宜？"; "平安和五粮液…" → "哪家赚得多？" | The three most recently discussed targets; the two; the targets of the last multi-target turn | `group_reference:三家->…`, `coreference:两家->…`, `group_reference:which->…` |
+| A comparison that names only the new side | 创业板ETF… → "跟沪深300ETF比…"; 五粮液's revenue → "Is that bigger than Moutai's?" | Adds the earlier target (and aspect); not applied when the comparison is with a sector or the market | `comparison_anchor:+五粮液` |
+| Sector question in a conversation about a member | 中国平安… → "保险行业的市净率是多少？", "Does a PMI above 50 mean insurers will rally?" | Keeps the member in scope, so `get_fundamentals` returns its industry snapshot (also when the NLU rejected the question but it names the member's industry) | `sector_member:保险->中国平安` |
+| Sector question with no member in scope | "保险行业现在的市净率是多少？" | `get_fundamentals` with an industry name returns the industry snapshot only | planner reason `industry snapshot for a sector question` |
+| Ambiguous abbreviation | 平安银行… → "平安的分红多少" | Resolves to the target under discussion | `session_disambiguation:平安->平安银行` |
+| NLU copied an entity from an earlier question | "How does that compare to the insurance sector?" after 招商银行 → Ping An | Session memory (turn order, plurals, sectors) decides; the NLU carry-over is kept only when no session rule resolves the question | `session_memory_over_nlu_context_carry` |
+| Period-only follow-up | 茅台2025年的营收和净利润 → "2024年的呢？" / "And in 2022?" | Keeps the previous metric, so the missing period is stated | `ellipsis:target->贵州茅台+aspect->营收+净利润` |
+| Clarification answered in the chat box | "这个能买吗？" (clarify) → "五粮液" / "I mean the CSI 300 ETF." | A target-only message sent while a clarification is pending resumes that turn (like `/agent/resume`) | `clarified:五粮液` |
+| Elliptical opening | "What about the P/E?" as the first message | Clarified instead of searched | `metric_without_target`, `ellipsis_without_antecedent` |
+
+Fuzzy company matches inside a pronoun question ("它值得长期持有吗" → 值得买, "这只股票适合长期持有吗" → 长江投资) are dropped before these rules, and "利率" no longer counts as a macro anchor inside 毛利率/净利率.
+
+**Answer details on the deterministic path.** `coverage.requested_price_fields` is shared by the planner and the template: recent N closes, the previous close, open/high/low, volume and turnover come from `get_price_history`; N-day returns and "above MA5?" from `compute_indicators`. Requested fields are stated when present and named as unavailable otherwise (an index's zero volume counts as missing). Stated gaps also cover an industry metric the snapshot lacks ("ROE跟保险行业平均比呢" → the 保险 snapshot has no ROE), quarters and half-years with annual statements only, market cap and growth rates, P/E or ROE of an ETF/index, macro indicators not in the data (LPR), and indicators that cannot be computed.
+
+**Hedging on follow-ups.** Compliance looks for judgment and interpretation wording in both the raw message and the effective (rewritten or clarified) question, so "五粮液" answering "这个能买吗？" is hedged. The lexicon adds valuation judgements (贵还是便宜, cheaper), market calls (牛市信号, trending up), guarantees (一定会涨, guarantee), position sizing (全仓…行不行) and interpretation (说明, 反映, signal).
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) and `stated_holdings` ("我持有招商银行", "I own …", up to 5). It is rule-based and bounded, and it is the default.
@@ -192,6 +218,13 @@ python -m evaluation.agent_eval.gate                        # CI thresholds
 
 Online numbers (LLM agent, pass^k over repeated runs) need `DEEPSEEK_API_KEY` and are reported separately from offline numbers.
 
+**Independent multi-turn set (`multiturn_v1`, 49 conversations / 206 turns).** Written without reading the router, memory, planner or task files (`evaluation/agent_eval/tasks/README_multiturn_v1.md`). Its first and only pre-fix run (no LLM, `mode=auto`) scored task success **0.224** and turn success 0.709 (`evaluation/results/multiturn_v1-auto-nollm-first-run.json`). The round-3b rules above were written against those failures, with new dev examples (`build_tasks._round3b_tasks`, 33 tasks); after that the same run scores **1.000** task and turn success at 7513376 (`evaluation/results/multiturn_v1-auto-nollm-after-fixes.json`). The second number is **after exposure** and is not evidence of generalisation; the sets that were not used show smaller, honest gains: held-out gate 0.906 → 0.925 (hedged 0.636 → 0.727, `evaluation/results/gate-holdout.json`) and router labels 0.975 → 0.988 (`evaluation/results/router_eval-round3b.json`).
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --tasks evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl \
+  --snapshot evaluation/agent_eval/fixtures/snapshot_multiturn_v1.json
+```
+
 ## Tests
 
 ```bash
@@ -205,7 +238,8 @@ All agent tests run offline: `ScriptedLLM` replays fixed assistant turns and `te
 
 - The agent path is only as good as the LLM behind it. Offline evaluation measures the deterministic path and the graph's safety checks; the online evaluation in [agent-eval.md](agent-eval.md) measures two flash-class models (DeepSeek V4.1 Flash, GLM-5.3 Flash) through one gateway, and the agent loop's advantage over LLM composition is not significant with DeepSeek.
 - Numeric verification is claim-level (2.1% false-accept rate on 2,433 corrupted gold answers, `evaluation/results/verifier_stress.json`), but it does not check that a number is used for the right period or metric when the cited evidence holds several, and a number planted in a document passes because it is in the evidence.
-- Follow-up resolution is rule-based: it covers pronouns, plurals, short elliptical questions and bare "why" follow-ups; longer paraphrases ("回到刚才那只股票…") and ambiguous references lead to a clarification rather than a guess.
-- Coverage and gap detection are lexical: the out-of-coverage list names crypto terms, the largest US / Hong Kong companies and markets, not every foreign ticker; a requested period is detected only when written as a year ("2019年", "in 2023", "FY2023"), not as "去年" or a quarter.
+- Follow-up resolution is rule-based: it covers pronouns, plurals, ordinal and group references, short elliptical questions, bare "why" follow-ups and short entity-less follow-ups with a finance cue; longer paraphrases ("回到刚才那只股票…") and ambiguous references lead to a clarification rather than a guess. The cue and off-topic lexicons are hand-written: an off-topic task phrased without their words (e.g. "明天去上海的高铁几点") is still answered, and an entity-less follow-up without a cue word is clarified or refused as before.
+- Coverage and gap detection are lexical: the out-of-coverage list names crypto terms, the largest US / Hong Kong companies and markets, not every foreign ticker; a requested period is detected when written as a year ("2019年", "in 2023", "FY2023"), a quarter or a half-year ("一季度", "Q3", "上半年"), not as "去年".
+- A sector question keeps a discussed member of that sector in scope; with no member it gets only the industry snapshot (PE, PB, daily change), and only for the industries in the offline data.
 - The optional LLM memory summary has not been ablated; the rule-based card is the measured default.
-- English aliases cover the major A-shares added in round 2 plus what `data/runtime/alias_table.csv` contains.
+- English aliases cover the major A-shares added in round 2, "CSI 300 index", "10-year CGB yield", "baijiu" and "insurers" (round 3b, `data/synonym_dict.json` and the alias tables) plus what `data/runtime/alias_table.csv` contains. A question such as "Did the whole baijiu sector fall too?" opening a conversation is still sent to clarification (the NLU rejects it before the sector is recognised); inside a conversation about a baijiu stock it is answered with the industry snapshot.

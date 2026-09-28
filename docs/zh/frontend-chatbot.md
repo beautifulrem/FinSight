@@ -38,10 +38,13 @@ QI_USE_LIVE_ANNOUNCEMENT=0 python scripts/launch_chatbot.py
 | ![回答逐字流式输出，带光标](../assets/ui/chrome-streaming.png) | ![核验后的最终回答替换草稿，并提示“已按核验结果修订”](../assets/ui/chrome-streaming-final.png) |
 | ![反馈（服务端无接口时保存在本地）与 Markdown 导出菜单](../assets/ui/chrome-feedback-export.png) | ![深色英文界面下的拒答与可读的局限说明](../assets/ui/chrome-refusal-dark-en.png) |
 
+<p><img src="../assets/ui/chrome-progress-desktop-zh.png" alt="首字之前的进度：当前步骤、带目标的工具调用、已用秒数、回答骨架（真实 LLM 运行，Chrome）" width="620"> <img src="../assets/ui/chrome-progress-mobile-dark-en.png" alt="移动端深色英文下的同一进度状态" width="200"></p>
+
 <p><img src="../assets/ui/chrome-mobile-dark-en.png" alt="移动端、深色、英文" width="260"> <img src="../assets/ui/chrome-mobile-evidence-dark-en.png" alt="移动端证据面板：实时 / 备用源 / 离线快照 / 可能过时" width="260"></p>
 
 页面源码在 `frontend/`（React 19 + TypeScript + Vite 8 + Tailwind CSS v4 + Radix/shadcn 风格组件 + Motion + TradingView Lightweight Charts），构建产物提交在 `query_intelligence/web/dist`，因此只装 Python 也能直接使用。每个回答展示：
 
+- **首字之前的进度**：LLM 路径在输出第一个字之前可能要 10–20 秒。收到第一个 `answer_delta` 之前，回合卡片用平实的话显示当前步骤（“模型正在规划要查询的数据”“正在调用数据工具”“逐一核对回答中的数字与引用”），配一个四段进度条（理解问题 → 查询数据 → 撰写回答 → 核对数字，按图的实际执行顺序），列出已调用的工具及其目标（`get_fundamentals · 600519.SH`）和状态、已用秒数、停止按钮（与输入框的停止相同）以及回答区的骨架；模型耗时超过 8 秒时提示推理通常需要多久。数据来自 `node_start`、`step`、`tool_call`、`tool_result` 事件（`frontend/src/lib/progress.ts`）。第一个字到达后，进度面板收进折叠的执行过程，其标题继续显示当前步骤和用时。读屏只在步骤变化时通过一个 `role="status"` 播报一句；计时、工具列表和流式文本都不是 live region，流式文本标记 `aria-busy`。脉冲和旋转动画只在未开启“减少动态效果”时运行。运行详情里另有浏览器计时的“首字耗时”和“端到端耗时”。
 - **执行过程**：流式展示路由依据、每次工具调用的参数/耗时/状态、LLM 步骤 token、核验结果、合规改写、降级标记；回答文本开始流式输出后自动折叠。
 - **流式回答**：`answer_delta` 事件（`{"text": "<下一段>"}`）逐段渲染并显示闪烁光标（每帧最多渲染一次，流式过程中隐藏引用标记，包括只收到一半的 `[price_6005`）。最终的 `answer` 事件为准：正文淡入替换草稿；若核验或合规改写了内容，会短暂显示“已按核验结果修订”。服务端不发送 `answer_delta` 时行为与之前一致。
 - **数据时效**：每条证据根据 `payload.provenance`（`is_live`、`mode`、`fallback_reason`、`freshness`、`as_of`）显示“实时 / 备用源 / 缓存 / 离线快照”，并在超出时效窗口（行情、行业、技术指标 10 天，财务 200 天，宏观 75 天，新闻 30 天，公告 90 天；知识库与产品文档不过期）或 provenance 标记为 stale 时显示“可能过时”；悬停可看到来源、获取时间和可读的降级原因。只要结构化或被引用的证据中有离线快照、过时数据，或日频数据日期相差超过 10 天，回答顶部就显示横幅（如“数据日期 2026/04/21 至 2026/09/24 · 日频数据日期相差 156 天 · 1 条离线快照……”）；只用了备用源时显示提示性横幅。对应的 KPI 卡片用虚线警示边框标出。
