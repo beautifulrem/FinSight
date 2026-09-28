@@ -22,6 +22,13 @@ describe("splitCitations", () => {
     ]);
   });
 
+  it("resolves a case-mismatched id to its evidence item (B5: lower-cased English answers)", () => {
+    expect(splitCitations("PE 24.6 [fundamental_600519.sh]", index)).toEqual([
+      { type: "text", text: "PE 24.6" },
+      { type: "cite", id: "fundamental_600519.SH", index: 2 },
+    ]);
+  });
+
   it("leaves ordinary bracketed text alone", () => {
     expect(splitCitations("[注意] 风险", index)).toEqual([{ type: "text", text: "[注意] 风险" }]);
   });

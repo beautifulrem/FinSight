@@ -21,6 +21,12 @@ Every corrupted answer is checked by three verifier modes:
 The false-accept rate is the share of corrupted answers that still pass. The true-accept rate is the
 share of gold answers that pass; it must stay at 1.0 for every mode.
 
+Every corrupted answer the claim verifier rejects is then repaired as the graph repairs an LLM draft
+(``repair_answer`` with the gold template answer as fallback), and the ``repair`` section reports how
+readable the result is (``verifier.readability_issues``), whether it contains a fragment (a sentence that
+is not a whole sentence of the draft or the fallback), whether it verifies, and how much of the untouched
+content survives.
+
     python -m evaluation.agent_eval.verifier_stress
 """
 
@@ -36,7 +42,15 @@ from typing import Any
 
 from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
 from query_intelligence.agent.graph import AgentRuntime
-from query_intelligence.agent.verifier import _CITATION, claim_numbers, verify_answer
+from query_intelligence.agent.verifier import (
+    _CITATION,
+    claim_numbers,
+    readability_issues,
+    repair_answer,
+    verify_answer,
+    whole_sentences,
+)
+from query_intelligence.chatbot import detect_query_language
 
 from .runner import (
     DEFAULT_OUTPUT_DIR,
@@ -149,6 +163,36 @@ def _check(draft: dict[str, Any], gold: dict[str, Any], mode: str) -> bool:
     return verify_answer(draft, gold["store"], query=gold["query"], binding=mode, market_precedence=False).passed
 
 
+def _repair(variant: dict[str, Any], gold: dict[str, Any]) -> dict[str, Any]:
+    """Repair a rejected variant the way the graph does and describe the result.
+
+    ``readable``: no readability issue (``verifier.readability_issues``: dangling connectors or clauses,
+    broken brackets, orphan citations, mixed terminators). ``passes``: the repaired answer verifies.
+    ``retained``: share of the gold answer's untouched sentences that survive verbatim (content kept).
+    ``fragment``: the repaired answer contains a sentence that is not a whole sentence of the draft or of the
+    template fallback (a clause cut out of a sentence, e.g. a figure without its subject).
+    """
+    store = gold["store"]
+    report = verify_answer(variant["draft"], store, query=gold["query"], market_precedence=False)
+    zh = detect_query_language(gold["query"]) == "zh"
+    # as in the graph for LLM drafts, the template answer of the same run is the fallback
+    repaired, _notes = repair_answer(variant["draft"], report, store, zh=zh, fallback=gold["draft"])
+    text = str(repaired.get("answer") or "")
+    issues = readability_issues(text)
+    corrupted = variant["draft"]["answer"]
+    untouched = [s.strip() for s in whole_sentences(gold["draft"]["answer"]) if s.strip() and s in corrupted]
+    whole = {s.strip() for source in (corrupted, gold["draft"]["answer"]) for s in whole_sentences(source)}
+    return {
+        "readable": not issues,
+        "issues": [issue.split(":")[0] for issue in issues],
+        "passes": verify_answer(repaired, store, query=gold["query"], market_precedence=False).passed,
+        "retained": (sum(1 for s in untouched if s in text) / len(untouched)) if untouched else 1.0,
+        "fallback": text.strip() == str(gold["draft"]["answer"]).strip(),
+        "fragment": any(s.strip() and s.strip() not in whole for s in whole_sentences(text)),
+        "answer": text,
+    }
+
+
 def run(tasks: list[dict[str, Any]], *, seed: int = 7) -> dict[str, Any]:
     rng = random.Random(seed)
     golds = gold_answers(tasks)
@@ -156,6 +200,7 @@ def run(tasks: list[dict[str, Any]], *, seed: int = 7) -> dict[str, Any]:
     accepted: dict[str, dict[str, int]] = {}
     totals: dict[str, int] = {}
     examples: list[dict[str, Any]] = []
+    repairs: list[dict[str, Any]] = []
     for gold in golds:
         gold_answer = dict(gold["draft"])
         for mode in _MODES:
@@ -168,6 +213,8 @@ def run(tasks: list[dict[str, Any]], *, seed: int = 7) -> dict[str, Any]:
                 passed = _check(variant["draft"], gold, mode)
                 accepted.setdefault(kind, {m: 0 for m in _MODES})[mode] += int(passed)
                 outcome[mode] = passed
+            if not outcome["claim"]:
+                repairs.append({"kind": kind, "task": gold["task"], **_repair(variant, gold)})
             if outcome["legacy"] and not outcome["claim"] and len(examples) < 8:
                 examples.append(
                     {
@@ -186,6 +233,28 @@ def run(tasks: list[dict[str, Any]], *, seed: int = 7) -> dict[str, Any]:
         for kind in sorted(totals)
     }
     all_variants = sum(totals.values())
+    issue_counts: dict[str, int] = {}
+    for item in repairs:
+        for issue in set(item["issues"]):
+            issue_counts[issue] = issue_counts.get(issue, 0) + 1
+
+    def share(key: str) -> float | None:
+        return round(sum(1 for item in repairs if item[key]) / len(repairs), 4) if repairs else None
+
+    repair_summary = {
+        "repaired_answers": len(repairs),
+        "readable": share("readable"),
+        "passes_verification": share("passes"),
+        "template_fallback": share("fallback"),
+        "with_fragment": share("fragment"),
+        "retained_sentences": round(sum(item["retained"] for item in repairs) / len(repairs), 4) if repairs else None,
+        "answers_with_issue": dict(sorted(issue_counts.items())),
+        "unreadable_examples": [
+            {"task": item["task"], "kind": item["kind"], "issues": item["issues"], "answer": item["answer"][:240]}
+            for item in repairs
+            if not item["readable"]
+        ][:6],
+    }
     return {
         "gold_answers": len(golds),
         "true_accept": {mode: round(true_accept[mode] / len(golds), 4) if golds else None for mode in _MODES},
@@ -196,6 +265,7 @@ def run(tasks: list[dict[str, Any]], *, seed: int = 7) -> dict[str, Any]:
         },
         "by_kind": by_kind,
         "examples_caught_only_by_claim_binding": examples,
+        "repair": repair_summary,
     }
 
 
@@ -222,7 +292,10 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     print(
         json.dumps(
-            {key: report[key] for key in ("gold_answers", "true_accept", "variants", "false_accept", "by_kind")},
+            {
+                key: report[key]
+                for key in ("gold_answers", "true_accept", "variants", "false_accept", "by_kind", "repair")
+            },
             ensure_ascii=False,
             indent=1,
         )

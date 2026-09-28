@@ -440,6 +440,20 @@ def stress_section(stress: dict[str, Any]) -> list[str]:
         cells = " | ".join(_fmt(values.get(f"false_accept_{m}")) for m in modes)
         lines.append(f"| False-accept, {kind} ({values['variants']}) | {cells} |")
     lines.append("")
+    repair = stress.get("repair")
+    if repair:
+        lines += [
+            f"Repair of the {repair['repaired_answers']} rejected variants (whole-sentence deletion, template "
+            "fallback when nothing cited survives):",
+            "",
+            "| Readable (no dangling clause, stray punctuation, orphan citation) | Containing a fragment "
+            "| Repaired answer verifies | Untouched sentences kept | Template fallback |",
+            "|---|---|---|---|---|",
+            f"| {_fmt(repair['readable'])} | {_fmt(repair.get('with_fragment'))} | "
+            f"{_fmt(repair['passes_verification'])} | {_fmt(repair['retained_sentences'])} | "
+            f"{_fmt(repair['template_fallback'])} |",
+            "",
+        ]
     return lines
 
 

@@ -732,6 +732,54 @@ export function sourceTypeLabel(lang: Lang, type: string | null | undefined): st
   return SOURCE_TYPES[lang][type] ?? type;
 }
 
+// English names for the source ids of query_intelligence/integrations/sources/catalog.py (whose labels are
+// Chinese) and for the generic source names the server uses. Media names (每日经济新闻) stay as published.
+const SOURCE_NAMES_EN: Record<string, string> = {
+  offline_snapshot: "Offline snapshot",
+  local_corpus: "Local document library",
+  "eastmoney.quote": "Eastmoney quotes",
+  "eastmoney.datacenter": "Eastmoney data center",
+  "eastmoney.fund": "Tiantian Fund (Eastmoney)",
+  "eastmoney.news": "Eastmoney news",
+  "eastmoney.announcement": "Eastmoney announcements",
+  "sina.kline": "Sina Finance quotes",
+  "sina.quote": "Sina real-time quotes",
+  "sina.finance": "Sina Finance financial indicators",
+  "tencent.kline": "Tencent Securities quotes",
+  "tencent.quote": "Tencent real-time quotes",
+  "ths.finance": "Tonghuashun financial summary",
+  "ths.industry": "Tonghuashun industry index",
+  csindex: "China Securities Index",
+  chinabond: "ChinaBond yield curve",
+  "cninfo.announcement": "CNINFO announcements",
+  "cninfo.profile": "CNINFO company profile",
+  xueqiu: "Xueqiu",
+  efinance: "efinance (Eastmoney K-line)",
+  tushare: "Tushare Pro",
+  seed: "Offline seed data",
+  snapshot: "Offline snapshot",
+  离线快照: "Offline snapshot",
+  本地文档库: "Local document library",
+  "classical sentiment model": "Classical sentiment model",
+};
+
+/**
+ * Where an evidence item came from, in the reader's language. Chinese keeps the server's label; English maps
+ * the provenance source id (or a known label/source name) and otherwise shows the name as published.
+ */
+export function sourceNameLabel(
+  lang: Lang,
+  provenance: { source?: string | null; source_label?: string | null } | null | undefined,
+  sourceName?: string | null,
+): string | undefined {
+  const label = provenance?.source_label || sourceName || provenance?.source || undefined;
+  if (lang === "zh" || !label) return label ?? undefined;
+  for (const key of [provenance?.source, provenance?.source_label, sourceName]) {
+    if (key && SOURCE_NAMES_EN[key]) return SOURCE_NAMES_EN[key];
+  }
+  return label;
+}
+
 export interface I18n {
   lang: Lang;
   t: Translate;
