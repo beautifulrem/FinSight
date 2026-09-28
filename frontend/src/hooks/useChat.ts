@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useReducer, useRef } from "react";
 
-import { ApiError, classicChat, resumeClarification, streamAgentChat } from "@/lib/api";
+import { ApiError, classicChat, classifyError, resumeClarification, streamAgentChat, type ErrorKind } from "@/lib/api";
 import type {
   AgentResponse,
   Clarification,
@@ -27,7 +27,7 @@ export interface LiveStep {
   tools: LiveTool[];
 }
 
-export type ErrorKind = "network" | "auth" | "rate" | "timeout" | "generic";
+export type { ErrorKind };
 
 export interface Turn {
   kind: "turn";
@@ -191,17 +191,6 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-function classify(error: unknown): { kind: ErrorKind; message: string } {
-  if (error instanceof ApiError) {
-    if (error.status === 401 || error.status === 403) return { kind: "auth", message: error.message };
-    if (error.status === 429) return { kind: "rate", message: error.message };
-    if (error.status === 504) return { kind: "timeout", message: error.message };
-    return { kind: "generic", message: error.message };
-  }
-  if (error instanceof TypeError) return { kind: "network", message: error.message };
-  return { kind: "generic", message: error instanceof Error ? error.message : String(error) };
-}
-
 export interface ChatOptions {
   sessionId: string;
   mode: UiMode;
@@ -300,7 +289,7 @@ export function useChat(options: ChatOptions) {
       }
     } catch (error) {
       if (run.abort.signal.aborted) dispatch({ type: "stopped", id });
-      else emit({ type: "error", id, error: classify(error) });
+      else emit({ type: "error", id, error: classifyError(error) });
     } finally {
       if (frame !== null) cancelFrame(frame);
       if (current.current === run) current.current = null;

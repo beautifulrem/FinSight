@@ -31,6 +31,45 @@ describe("humanizeCode", () => {
   });
 });
 
+describe("follow-up rewrite reasons", () => {
+  it("explains carried-over targets and questions with the suffix as data", () => {
+    expect(humanizeCode("zh", "ellipsis:target->贵州茅台")).toBe("沿用上一轮的标的 贵州茅台");
+    expect(humanizeCode("zh", "ellipsis:target->宁德时代和比亚迪")).toBe("沿用上一轮的标的 宁德时代和比亚迪");
+    expect(humanizeCode("en", "ellipsis:target->Kweichow Moutai")).toBe("Kept the security from the last turn: Kweichow Moutai");
+    expect(humanizeCode("zh", "ellipsis:aspect->市盈率/走势")).toBe("沿用上一轮的问题：市盈率、走势");
+    // The server joins aspects with "/", which P/E and P/B also contain.
+    expect(humanizeCode("en", "ellipsis:aspect->P/E/trend")).toBe("Kept the question from the last turn: P/E, trend");
+    expect(humanizeCode("zh", "ellipsis:aspect->市净率/PB")).toBe("沿用上一轮的问题：市净率、PB");
+    expect(humanizeCode("zh", "ellipsis:something_new")).toBe("补全了省略的追问");
+  });
+
+  it("explains resolved pronouns, clarifications and dropped fuzzy concepts", () => {
+    expect(humanizeCode("zh", "coreference:它->贵州茅台")).toBe("将“它”理解为 贵州茅台");
+    expect(humanizeCode("en", "coreference:its->BYD")).toBe("Read “its” as BYD");
+    expect(humanizeCode("zh", "coreference:这两家->宁德时代和比亚迪")).toBe("将“这两家”理解为 宁德时代和比亚迪");
+    expect(humanizeCode("zh", "clarified:600519.SH")).toBe("按澄清回复补全为 600519.SH");
+    expect(humanizeCode("zh", "dropped_fuzzy_concept:有色金属")).toBe("忽略了模糊匹配到的概念“有色金属”");
+    expect(humanizeCode("en", "dropped_fuzzy_concept:Nonferrous metals")).toBe("Ignored the loosely matched concept “Nonferrous metals”");
+  });
+
+  it("labels the router's exact codes for follow-ups", () => {
+    expect(humanizeCode("zh", "metric_without_target")).toBe("只问了指标，没有指明证券");
+    expect(humanizeCode("en", "metric_without_target")).toBe("Asked for a metric without naming a security");
+    expect(humanizeCode("zh", "input_guard:instruction_like_text_removed")).toBe("已移除问题中疑似指令的文本");
+    for (const code of ["ellipsis:target->贵州茅台", "coreference:它->贵州茅台", "dropped_fuzzy_concept:有色金属", "metric_without_target"]) {
+      expect(isCode(code)).toBe(true);
+      expect(humanizeCode("en", code)).not.toContain(code);
+    }
+  });
+
+  it("localises claim-check metric names", () => {
+    expect(humanizeCode("zh", "pe_ttm", "metric")).toBe("市盈率(TTM)");
+    expect(humanizeCode("en", "pct_change_1d", "metric")).toBe("Daily change");
+    expect(humanizeCode("zh", "net_profit", "metric")).toBe("净利润");
+    expect(humanizeCode("en", "dividend_yield", "metric")).toBe("Dividend yield");
+  });
+});
+
 describe("isCode / limitationText", () => {
   it("separates machine codes from prose limitations", () => {
     expect(isCode("out_of_scope_query")).toBe(true);

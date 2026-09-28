@@ -6,6 +6,7 @@ export const STORAGE_KEYS = {
   theme: "finsight.theme",
   lang: "finsight.lang",
   feedback: "finsight.feedback",
+  view: "finsight.view",
 } as const;
 
 export function readStorage(key: string, fallback = ""): string {

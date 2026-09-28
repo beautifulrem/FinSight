@@ -2,6 +2,7 @@ import { SseParser } from "./sse";
 import type {
   AgentMode,
   AgentResponse,
+  ClaimReport,
   ClassicResponse,
   FeedbackRequest,
   SessionInfo,
@@ -59,6 +60,26 @@ async function postJson<T>(path: string, body: unknown, options: ApiOptions): Pr
 /** Original pipeline: `POST /chat` with the default `mode` (workflow = legacy path). */
 export function classicChat(query: string, options: ApiOptions): Promise<ClassicResponse> {
   return postJson<ClassicResponse>("/chat", { query }, options);
+}
+
+/** `POST /agent/claim-check`: compares the numbers in a pasted claim with market and fundamental data. */
+export function checkClaim(claim: string, language: "zh" | "en", options: ApiOptions): Promise<ClaimReport> {
+  return postJson<ClaimReport>("/agent/claim-check", { claim, language }, options);
+}
+
+export type ErrorKind = "network" | "auth" | "rate" | "timeout" | "invalid" | "generic";
+
+/** How the UI should explain a failed request (network down, missing API key, rate limit, …). */
+export function classifyError(error: unknown): { kind: ErrorKind; message: string } {
+  if (error instanceof ApiError) {
+    if (error.status === 401 || error.status === 403) return { kind: "auth", message: error.message };
+    if (error.status === 429) return { kind: "rate", message: error.message };
+    if (error.status === 504) return { kind: "timeout", message: error.message };
+    if (error.status === 422) return { kind: "invalid", message: error.message };
+    return { kind: "generic", message: error.message };
+  }
+  if (error instanceof TypeError) return { kind: "network", message: error.message };
+  return { kind: "generic", message: error instanceof Error ? error.message : String(error) };
 }
 
 export function resumeClarification(sessionId: string, reply: string, options: ApiOptions): Promise<AgentResponse> {
