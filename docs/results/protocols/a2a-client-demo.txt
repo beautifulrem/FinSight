@@ -1,0 +1,37 @@
+# python scripts/a2a_client_demo.py --url http://127.0.0.1:8851 --api-key <key>
+# commit ca5b9c1, 2026-09-28T06:47:15Z; server: offline data, no LLM (template answers), QI_AGENT_CHECKPOINT_DB=Postgres 16
+== Agent card: FinSight 1.0.0
+   interface: http://127.0.0.1:8851/a2a (JSONRPC)
+   streaming: True; skills: equity_research, comparison, macro_linkage
+
+== SendMessage: 贵州茅台的市盈率是多少
+   state: TASK_STATE_COMPLETED  trace: a0c1365aa18d49d3af16f926d805dda3
+   evidence: fundamental_600519.SH, industry_白酒
+   根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒]。
+   
+   - 贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。
+   - 所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒]。
+   
+   以上内容仅基于系统检索到的证据生成，不构成投资建议或确定性买卖结论。
+
+== SendMessage (needs clarification): 它的市盈率呢
+   state: TASK_STATE_INPUT_REQUIRED  question: 请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。
+== Reply on task 0521a146: 贵州茅台
+   state: TASK_STATE_COMPLETED  evidence: fundamental_600519.SH, industry_白酒
+   根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒]。
+
+== SendStreamingMessage: 贵州茅台最近走势怎么样
+   [task] task b3fcc586 TASK_STATE_SUBMITTED
+   [status_update] TASK_STATE_WORKING
+   [status_update] TASK_STATE_WORKING NLU and routing…
+   [status_update] TASK_STATE_WORKING deterministic tool plan…
+   [status_update] TASK_STATE_WORKING calling get_price_history
+   [status_update] TASK_STATE_WORKING calling compute_indicators
+   [status_update] TASK_STATE_WORKING calling get_fundamentals
+   [status_update] TASK_STATE_WORKING answer composition…
+   [status_update] TASK_STATE_WORKING evidence verification…
+   [status_update] TASK_STATE_WORKING compliance guard…
+   [status_update] TASK_STATE_WORKING finalize…
+   [artifact_update] artifact answer: 根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_6005
+   [artifact_update] artifact evidence: (structured data part)
+   [status_update] TASK_STATE_COMPLETED
