@@ -8,7 +8,7 @@
 
 - **主机**：Apple Silicon Mac（10 核），Docker 与 k3s v1.35 通过 colima 运行（虚拟机 4 vCPU、8 GB）。
 - **主机并不空闲**。每次测量时都有其他任务在跑：一个区块链节点占满一个核，另外几个工作目录在跑测试和在线评测。JSON 里记录的负载在 6 到 38 之间，所以绝对数字偏保守、噪声较大，只应在同一组测量内比较。
-- **「当前」各行的服务镜像**（2026-09-26）：分支 `r2-ops@8dc388b` 与 `round2@d04a42d` 合并，加上 [`deploy/patches/app-ops-wiring.patch`](../../deploy/patches/app-ops-wiring.patch)，镜像名 `finsight:merged`。
+- **「当前」各行的服务镜像**（2026-09-26）：分支 `r2-ops@8dc388b` 与 `round2@d04a42d` 合并，加上运维接线补丁 `deploy/patches/app-ops-wiring.patch`（其改动从 `e9d9a9a` 起已在 `api/app.py` 里，所以文件已删除；可用 `git show 47dd024:deploy/patches/app-ops-wiring.patch` 查看），镜像名 `finsight:merged`。此后的测量结果都只对应单个 commit（例如 [`startup-container.json`](../results/perf/startup-container.json)）。
 - **「修复前」镜像**：`git archive 0678585`（检查点修复之前的 commit），镜像名 `finsight:before-0678585`。
 - **压测脚本**：[`scripts/load_test.py`](../../scripts/load_test.py)，闭环压测：N 个客户端各自连续向 `POST /agent/chat` 发请求，每个请求一个新会话。分位数用最近秩法，所以样本少于 100 时 P99 就是最大值。
 
