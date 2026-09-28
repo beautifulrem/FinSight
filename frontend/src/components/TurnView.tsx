@@ -8,6 +8,7 @@ import {
   Layers,
   RotateCcw,
   ShieldAlert,
+  SearchCheck,
   ShieldCheck,
   Sparkles,
   Square,
@@ -16,6 +17,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 
 import type { Turn } from "@/hooks/useChat";
 import { evidenceIndex, stripCitations } from "@/lib/citations";
+import { claimInMessage } from "@/lib/claims";
 import { cn } from "@/lib/cn";
 import { limitationText } from "@/lib/codes";
 import { answerEdited, streamingText } from "@/lib/streaming";
@@ -42,6 +44,8 @@ export interface TurnActions {
   onAsk: (query: string) => void;
   onRetry: (turn: Turn) => void;
   onFeedback: FeedbackSender;
+  /** Open the fact-check view with this claim (the "听说…是真的吗" hint). */
+  onCheckClaim?: (claim: string) => void;
 }
 
 interface Props extends TurnActions {
@@ -69,6 +73,24 @@ function UserBubble({ turn }: { turn: Turn }) {
         >
           {turn.query}
         </p>
+      </div>
+    </div>
+  );
+}
+
+/** "听说茅台市盈率只有15倍，是真的吗": point to the fact-check view, which compares every number. */
+function ClaimHint({ claim, onCheck }: { claim: string; onCheck: (claim: string) => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="claim-hint flex justify-end">
+      <div className="flex max-w-[85%] flex-wrap items-center justify-end gap-x-2 gap-y-1 text-[12.5px] text-muted">
+        <span>
+          <span className="font-medium text-ink">{t("claim.hint.title")}</span> · {t("claim.hint.body")}
+        </span>
+        <Button size="sm" variant="outline" className="claim-hint-action" onClick={() => onCheck(claim)}>
+          <SearchCheck aria-hidden />
+          {t("claim.hint.action")}
+        </Button>
       </div>
     </div>
   );
@@ -386,8 +408,9 @@ function ErrorCard({ turn, onRetry }: { turn: Turn; onRetry: (turn: Turn) => voi
 }
 
 export function TurnView(props: Props) {
-  const { turn, view } = props;
+  const { turn, view, onCheckClaim } = props;
   const { t } = useI18n();
+  const claim = useMemo(() => (onCheckClaim ? claimInMessage(turn.query) : null), [onCheckClaim, turn.query]);
   return (
     <motion.div
       className="turn space-y-3"
@@ -397,6 +420,7 @@ export function TurnView(props: Props) {
       transition={{ duration: 0.25, ease: "easeOut" }}
     >
       <UserBubble turn={turn} />
+      {claim && onCheckClaim && <ClaimHint claim={claim} onCheck={onCheckClaim} />}
       {turn.status === "running" && (
         <div className="answer-card rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5" aria-busy="true">
           {turn.via === "stream" ? (

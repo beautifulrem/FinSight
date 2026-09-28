@@ -3,7 +3,7 @@ import { domAnimation, LazyMotion, MotionConfig } from "motion/react";
 import { X } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { ClaimCheckView } from "@/components/ClaimCheck";
+import { ClaimCheckView, type ClaimCheckHandle } from "@/components/ClaimCheck";
 import { Composer, type ComposerHandle } from "@/components/Composer";
 import { EmptyState } from "@/components/EmptyState";
 import { Header, type AppStatus } from "@/components/Header";
@@ -67,6 +67,7 @@ export default function App() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [inspect, setInspect] = useState<InspectState>({ turnId: null, tab: "evidence", highlight: null, nonce: 0 });
   const composer = useRef<ComposerHandle>(null);
+  const claimView = useRef<ClaimCheckHandle>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
 
@@ -178,6 +179,12 @@ export default function App() {
 
   const onRetry = useCallback((turn: Turn) => ask(turn.query), [ask]);
 
+  // "听说…是真的吗" in the chat: switch to the fact-check view and check the claim there.
+  const onCheckClaim = useCallback((claim: string) => {
+    setView("check");
+    claimView.current?.check(claim);
+  }, []);
+
   const apiKeyRef = useRef(apiKey);
   useEffect(() => {
     apiKeyRef.current = apiKey;
@@ -275,6 +282,7 @@ export default function App() {
                             onAsk={ask}
                             onRetry={onRetry}
                             onFeedback={onFeedback}
+                            onCheckClaim={onCheckClaim}
                           />
                         ),
                       )
@@ -306,7 +314,7 @@ export default function App() {
             </Tabs.Content>
             <Tabs.Content value="check" forceMount hidden={view !== "check"} tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
               <main className="scrollbar-thin min-h-0 flex-1 overflow-y-auto" hidden={view !== "check"}>
-                <ClaimCheckView apiKey={apiKey} />
+                <ClaimCheckView ref={claimView} apiKey={apiKey} />
               </main>
             </Tabs.Content>
           </div>

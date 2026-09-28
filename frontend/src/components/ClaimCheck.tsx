@@ -15,10 +15,19 @@ import {
   ShieldQuestionMark,
   ShieldX,
 } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type Ref,
+} from "react";
 
 import { checkClaim, classifyError, type ErrorKind } from "@/lib/api";
-import { checkEvidence, formatClaimValue, noteText, statusCounts } from "@/lib/claims";
+import { checkEvidence, claimedText, formatClaimValue, noteText, statusCounts } from "@/lib/claims";
 import { cn } from "@/lib/cn";
 import { humanizeCode } from "@/lib/codes";
 import { evidenceFreshness } from "@/lib/freshness";
@@ -77,8 +86,9 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
   const evidence = checkEvidence(check, report);
   const info = evidence ? evidenceFreshness(evidence) : null;
   const metric = check.metric ? humanizeCode(lang, check.metric, "metric") : t("claim.unknownMetric");
-  const note = noteText(t, check.note);
+  const note = noteText(t, check.note, check);
   const hasActual = check.actual !== null && check.actual !== undefined;
+  const claimed = claimedText(lang, t, check, report.claim);
   const source = evidence?.source_name || (evidence ? sourceTypeLabel(lang, evidence.source_type) : null);
   return (
     <li
@@ -102,8 +112,17 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
               "claim-claimed text-[17px] leading-7 font-medium tabular-nums",
               check.status === "contradicted" ? "text-muted line-through decoration-up/60 decoration-2" : "text-ink",
             )}
+            data-comparator={check.comparator ?? "eq"}
           >
-            {formatClaimValue(lang, t, check.metric, check.claimed, "claimed", report.claim, check.claimed_unit)}
+            {/* The symbol (">", "≠", "≈") is for the eye; screen readers get the word ("高于 30%"). */}
+            {claimed.label === claimed.text ? (
+              claimed.text
+            ) : (
+              <>
+                <span aria-hidden>{claimed.text}</span>
+                <span className="sr-only">{claimed.label}</span>
+              </>
+            )}
           </dd>
         </div>
         <div className="rounded-lg bg-surface-2/70 px-3 py-2">
@@ -127,6 +146,9 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
             </Tooltip>
           </span>
           <AsOf info={info} />
+          {check.as_of_basis && (
+            <span className="claim-basis text-muted">({t(`claim.basis.${check.as_of_basis}` as MessageKey)})</span>
+          )}
           <code className="ml-auto min-w-0 truncate font-mono text-[11px] text-muted" title={t("claim.evidence", { id: evidence.evidence_id })}>
             {evidence.evidence_id}
           </code>
@@ -255,8 +277,13 @@ type State =
   | { status: "error"; claim: string; kind: ErrorKind; message: string }
   | { status: "done"; report: ClaimReport };
 
+/** Lets the chat hand a claim over ("核查这句话"): fill the box and check it. */
+export interface ClaimCheckHandle {
+  check: (claim: string) => void;
+}
+
 /** "核查 / Fact-check": paste a market claim and see each number checked against the data. */
-export function ClaimCheckView({ apiKey }: { apiKey: string }) {
+export function ClaimCheckView({ apiKey, ref }: { apiKey: string; ref?: Ref<ClaimCheckHandle> }) {
   const { lang, t } = useI18n();
   const [value, setValue] = useState("");
   const [hint, setHint] = useState(false);
@@ -297,6 +324,14 @@ export function ClaimCheckView({ apiKey }: { apiKey: string }) {
       setState({ status: "error", claim, ...classifyError(error) });
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    check: (claim: string) => {
+      setValue(claim);
+      setHint(false);
+      void run(claim);
+    },
+  }));
 
   const submit = (text = value) => {
     if (busy) return;

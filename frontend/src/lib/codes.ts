@@ -77,6 +77,14 @@ const METRICS: Record<string, Text> = {
   roe: { zh: "净资产收益率(ROE)", en: "Return on equity (ROE)" },
   revenue: { zh: "营业收入", en: "Revenue" },
   net_profit: { zh: "净利润", en: "Net profit" },
+  revenue_yoy: { zh: "营收同比增速", en: "Revenue growth (YoY)" },
+  netprofit_yoy: { zh: "净利润同比增速", en: "Net profit growth (YoY)" },
+  gross_margin: { zh: "毛利率", en: "Gross margin" },
+  net_margin: { zh: "净利率", en: "Net margin" },
+  dividend_yield: { zh: "股息率", en: "Dividend yield" },
+  market_cap: { zh: "总市值", en: "Market cap" },
+  eps: { zh: "每股收益", en: "EPS" },
+  debt_ratio: { zh: "资产负债率", en: "Debt-to-assets" },
 };
 
 const ANSWER_SOURCES: Record<string, Text> = {
