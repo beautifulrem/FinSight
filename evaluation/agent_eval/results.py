@@ -263,11 +263,17 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("sources", nargs="+")
     parser.add_argument("--name", default="", help="Output name (single source only); defaults to the file stem.")
     parser.add_argument("--note", action="append", default=[], help="Provenance note to attach.")
+    parser.add_argument(
+        "--allow-invalid", action="store_true", help="Commit a run that ablation marked invalid (e.g. mostly 429s)."
+    )
     args = parser.parse_args(argv)
     if args.name and len(args.sources) > 1:
         raise SystemExit("--name needs exactly one source")
     for source in args.sources:
         path = Path(source)
+        invalid = json.loads(path.read_text(encoding="utf-8")).get("invalid_runs") or []
+        if invalid and not args.allow_invalid:
+            raise SystemExit(f"{source} has invalid runs {invalid}; rerun, or pass --allow-invalid with a --note")
         out = write_slim(path, args.name or path.stem, extra_notes=args.note)
         print(f"{source} -> {out.relative_to(ROOT)} ({out.stat().st_size // 1024} KB)")
 
