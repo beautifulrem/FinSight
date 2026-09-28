@@ -24,6 +24,22 @@ throttles bursts from one IP), so rerun the audit before quoting them.
 
 Result: 64 probes, 49 succeeded. Every failure has an identified root cause (below).
 
+**Committed re-run.** The table above comes from a run on a dirty tree whose JSON was not kept. The
+audit was re-run on 2026-09-28 09:14 UTC from a clean checkout of commit `6dde495` (same network and
+package versions) and the full output is committed:
+[`results/data_sources/audit-20260928-6dde495.json`](results/data_sources/audit-20260928-6dde495.json)
+(`commit` and `working_tree_clean: true` are recorded in the file). It gives the same totals: **49/64
+probes OK, 10/10 fallback chains OK** (every market bundle served by Sina). The failures are the same
+families: Eastmoney `push2`/`push2his` hosts 0/11 (proxy error, root cause 1; efinance uses the same
+host), Xueqiu 0/1 (login token), the removed `macro_china_pmi_monthly`, and one empty announcement
+result each for cninfo and the Eastmoney notice API (the ETF, which has no company announcements).
+
+**Schedule.** [`.github/workflows/data-source-audit.yml`](../.github/workflows/data-source-audit.yml)
+runs the audit every Monday at 01:30 UTC and on demand (`workflow_dispatch`), writes a summary table to
+the job page and uploads the JSON as an artifact for 90 days. GitHub's runners are outside mainland
+China, so their results are not comparable with the table above; audits quoted in the docs are run
+from the deployment network and committed under `docs/results/data_sources/`.
+
 ## Per-source results
 
 Latency is the observed range across targets. "Newest as-of" is the latest date in the returned
