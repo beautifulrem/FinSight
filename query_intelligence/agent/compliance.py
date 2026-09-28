@@ -24,6 +24,7 @@ from ..chatbot import (
     detect_query_language,
 )
 from .evidence import AgentEvidence
+from .router import _JUDGMENT_MARKERS as _ROUTER_JUDGMENT
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -44,17 +45,24 @@ _TRADING_EN = re.compile(
     r"|\b(?:position size|increase (?:your|the) position|raise (?:your|the) position|allocate \d+%)",
     re.IGNORECASE,
 )
-# Lexical triggers make hedging independent of the NLU question-style label.
+# Lexical triggers make hedging independent of the NLU question-style label. Besides buy/sell and timing words
+# they cover valuation judgements ("贵还是便宜", "which is cheaper"), market calls ("牛市信号", "is it trending
+# up?"), guarantees ("一定会涨", "guarantee stocks go up") and position sizing ("全仓…行不行").
 _JUDGMENT_TRIGGER = re.compile(
     r"能买|能不能买|值得买|要不要|该不该|会涨|会跌|能涨|能跌|涨多少|跌多少|必涨|必跌|目标价|买点|卖点|买入点|满仓|梭哈|"
-    r"加仓|清仓|止损|止盈|还能拿|值得拿|持有吗|翻倍|哪个更好|选哪个|"
+    r"加仓|清仓|止损|止盈|还能拿|值得拿|持有吗|翻倍|哪个更好|选哪个|抄底|上车|全仓|行不行|贵还是便宜|贵不贵|便宜|"
+    r"高估|低估|牛市|熊市|见顶|见底|一定会|一定涨|必然|肯定会|稳赚|保证|机会|涨到|跌到|值不值|走强|走弱|"
     r"\bshould i\b|\bbuy\b|\bsell\b|price target|target price|strong buy|go all[- ]in|\bdouble\b|"
-    r"when to (?:buy|sell)|worth buying|\bwill\b.*\b(?:rise|fall|go up|go down|double)\b",
+    r"when to (?:buy|sell)|worth buying|\bwill\b.*\b(?:rise|fall|go up|go down|double|rally|drop|rebound)\b|"
+    r"\bbuying opportunit|\bopportunit(?:y|ies)\b|\bcheap(?:er|est)?\b|\bexpensive\b|\bover(?:valued|priced)\b|"
+    r"\bunder(?:valued|priced)\b|\bbull(?:ish)? market\b|\bbear(?:ish)? market\b|\bguarantee|\btrending\b|"
+    r"\b(?:up|down)trend\b|\bgood time to\b",
     re.IGNORECASE,
 )
 _CAUSAL_TRIGGER = re.compile(
-    r"为什么|原因|因素|影响|导致|意味着|关系|传导|友好|有利|不利|利好|利空|"
-    r"\bwhy\b|impact|affect|cause|mean for|driver|good for|bad for|favorable",
+    r"为什么|原因|因素|影响|导致|意味着|关系|传导|友好|有利|不利|利好|利空|说明|预示|信号|反映|体现|"
+    r"\bwhy\b|impact|affect|cause|mean for|driver|good for|bad for|favorable|\bmeans?\b|\bsignal|"
+    r"\bindicat|\bsuggest|\breflect|priced in",
     re.IGNORECASE,
 )
 _JUDGMENT_PREFIX_ZH = "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。"
@@ -141,10 +149,13 @@ def apply_compliance(
     market_evidence: list[AgentEvidence] | None = None,
     today: date | None = None,
     language: str | None = None,
+    effective_query: str | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     """Return ``(guarded_answer, notes)``; notes name the rules that changed the answer.
 
     ``language`` overrides detection from ``query`` (the graph passes the language of the user's own words).
+    ``effective_query`` is the question after follow-up resolution: judgment and causal wording is looked for in
+    both, so "五粮液" answering "这个能买吗？", or "为什么涨？" resolved to the index, is still hedged.
     """
     guards = _guards()
     zh = (language or detect_query_language(query)) == "zh"
@@ -176,12 +187,13 @@ def apply_compliance(
             softened = f"{prefix}{'' if zh else ' '}{softened}".strip()
             notes.append("conditional_prefix")
 
-    if _JUDGMENT_TRIGGER.search(query) and "conditional_prefix" not in notes:
+    asked = f"{query} {effective_query or ''}"
+    if (_JUDGMENT_TRIGGER.search(asked) or _ROUTER_JUDGMENT.search(asked)) and "conditional_prefix" not in notes:
         prefix = _JUDGMENT_PREFIX_ZH if zh else _JUDGMENT_PREFIX_EN
         if not any(marker in softened for marker in ("条件性判断", "conditional assessment", "证据不足以直接判断")):
             softened = f"{prefix}{'' if zh else ' '}{softened}".strip()
             notes.append("conditional_prefix")
-    elif _CAUSAL_TRIGGER.search(query) and not any(marker in softened.lower() for marker in _HEDGE_MARKERS):
+    elif _CAUSAL_TRIGGER.search(asked) and not any(marker in softened.lower() for marker in _HEDGE_MARKERS):
         caveat = _CAUSAL_CAVEAT_ZH if zh else _CAUSAL_CAVEAT_EN
         softened = f"{softened}{'' if zh else ' '}{caveat}".strip()
         notes.append("causal_caveat")

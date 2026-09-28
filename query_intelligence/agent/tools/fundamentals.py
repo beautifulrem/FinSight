@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from ...query_terms import INDUSTRY_TERMS
 from ..evidence import AgentEvidence
 from .base import ToolFailure, ToolOutput, ToolSpec, TransientToolError
 from .context import ToolContext, provider_warnings
@@ -24,7 +25,10 @@ class FundamentalsInput(BaseModel):
     target: str = Field(
         min_length=1,
         max_length=64,
-        description="Ticker such as '600519.SH' or a company name such as '贵州茅台'.",
+        description=(
+            "Ticker such as '600519.SH', a company name such as '贵州茅台', or an industry name such as '白酒' "
+            "(returns only that industry's snapshot)."
+        ),
     )
 
 
@@ -54,7 +58,41 @@ class FundamentalsOutput(BaseModel):
 
 
 def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
+    def industry_only(name: str) -> ToolOutput:
+        """Industry snapshot for a sector question with no member stock ("白酒板块整体跌了吗")."""
+        bundle = context.bundle(source_plan=["industry_sql"], query=name, product_type="stock")
+        items = [
+            item
+            for item in context.fetch_structured(bundle)
+            if item.get("source_type") == "industry_sql" and (item.get("payload") or {}).get("industry_name") == name
+        ]
+        if not items:
+            warnings = provider_warnings(items)
+            if warnings:
+                raise TransientToolError("; ".join(warnings)[:300])
+            raise ToolFailure("not_found", f"no industry snapshot for {name!r} in the configured sources")
+        industry = items[0]
+        evidence = AgentEvidence.from_structured(industry, produced_by="get_fundamentals")
+        payload = industry.get("payload") or {}
+        evidence.title = f"{name} industry snapshot"
+        evidence.payload = _tidy_payload(evidence.payload)
+        evidence.as_of = evidence.as_of or _as_str(payload.get("trade_date") or payload.get("as_of"))
+        snapshot = IndustrySnapshot(
+            industry_name=name,
+            metrics=_metrics(payload),
+            evidence_id=evidence.evidence_id,
+            provenance=provenance_from(payload),
+        )
+        output = FundamentalsOutput(
+            symbol=name, name=name, report_date=None, metrics={}, source=industry.get("source_name"),
+            evidence_id=None, industry=snapshot,
+        )  # fmt: skip
+        return ToolOutput(data=output, evidence=[evidence])
+
     def handler(args: FundamentalsInput) -> ToolOutput:
+        name = args.target.strip()
+        if name in INDUSTRY_TERMS:
+            return industry_only(name)
         resolved = context.resolve_target(args.target)
         if resolved.product_type != "stock":
             raise ToolFailure("unavailable", f"fundamentals are only available for stocks, not {resolved.product_type}")
@@ -133,7 +171,8 @@ def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
         name="get_fundamentals",
         description=(
             "Latest reported fundamentals for one listed company (revenue, net profit, ROE, PE(TTM), PB, "
-            "growth, when available) plus its industry snapshot. Stocks only."
+            "growth, when available) plus its industry snapshot. Stocks only; pass an industry name such as '白酒' "
+            "or '保险' to get just that industry's snapshot (PE, PB, daily change)."
         ),
         input_model=FundamentalsInput,
         handler=handler,
