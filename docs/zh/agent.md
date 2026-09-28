@@ -95,6 +95,32 @@ flowchart LR
 
 此前会先丢弃名称并不在问题里的模糊概念匹配（「…有公告…」曾被模糊匹配成行业「有色金属」，理由 `dropped_fuzzy_concept:有色金属`）。
 
+### 第 3b 轮新增的会话规则
+
+这些规则针对独立多轮评测集 `multiturn_v1`（见「评测」）暴露的失败类别编写，位于 `guard_in`（`agent/graph.py`）和 `agent/memory.py`；每条规则都在 `route_reasons` 中记录理由代码。
+
+| 情形 | 例子 | 处理 | 理由代码 |
+|---|---|---|---|
+| 不带标的、原本会被拒答或澄清的追问 | 沪深300 →「为什么涨？」；沪深300ETF →「What's the 3-day return?」；CPI →「这说明什么？」 | 继承最近一个有标的（或宏观主题）的轮次。条件：问题短（不超过 30 个字符或 12 个英文词）、带金融线索词（涨/跌/增速/舆情/return/high/buy 等）、自身没有标的或宏观主题、不是离题任务、不是覆盖范围外的资产 | `session_inherit:target->…`、`session_inherit:macro->CPI` |
+| 离题任务，即使带金融词或已知股票 | 「你能帮我写个Python爬虫抓股价吗」「Translate this…」「帮我订个…酒店」 | 拒答，不做追问改写 | `off_topic_request:coding`（另有 translation、travel、weather、writing、entertainment） |
+| 金融对话中问到覆盖范围外的资产 | 茅台… →「特斯拉呢？」「Is the S&P 500 up today?」 | 用覆盖范围说明拒答，不继承之前的标的 | `coverage:foreign_equity` |
+| 前者/后者、the former/the latter | 「五粮液和中国平安…」→「后者呢？」 | 取用户最近一次**亲自点名**两个及以上标的的轮次中对应位置的标的（只说了「这两家」的轮次没有自己的顺序）；缺指标时沿用上一轮指标 | `group_reference:后者->中国平安` |
+| 三家/all three；两家/both；单独的哪家/which one | 连续三轮单股问题 →「三家里面哪家最便宜？」；「平安和五粮液…」→「哪家赚得多？」 | 最近讨论的三个标的；两个；最近一个多标的轮次的全部标的 | `group_reference:三家->…`、`coreference:两家->…`、`group_reference:which->…` |
+| 比较只点名了新的一方 | 创业板ETF… →「跟沪深300ETF比…」；五粮液营收 →「Is that bigger than Moutai's?」 | 补上之前的标的（及指标）；与行业或大盘比较时不适用 | `comparison_anchor:+五粮液` |
+| 对话中讨论过某行业成员时问该行业 | 中国平安… →「保险行业的市净率是多少？」「Does a PMI above 50 mean insurers will rally?」 | 保留该成员，使 `get_fundamentals` 返回其行业快照（NLU 整句拒识、但问题写出了该成员的行业名时同样适用） | `sector_member:保险->中国平安` |
+| 没有成员可用的行业问题 | 「保险行业现在的市净率是多少？」 | `get_fundamentals` 传行业名，只返回行业快照 | 规划理由 `industry snapshot for a sector question` |
+| 有歧义的简称 | 平安银行… →「平安的分红多少」 | 解析为正在讨论的标的 | `session_disambiguation:平安->平安银行` |
+| NLU 从前面的问题复制了实体 | 招商银行… → 平安 →「How does that compare to the insurance sector?」 | 由会话记忆（轮次顺序、复数、行业）决定；只有会话规则都解决不了时才保留 NLU 的上下文沿用 | `session_memory_over_nlu_context_carry` |
+| 只换了期间的追问 | 茅台2025年的营收和净利润 →「2024年的呢？」/「And in 2022?」 | 沿用上一轮指标，于是能说明所问期间缺数据 | `ellipsis:target->贵州茅台+aspect->营收+净利润` |
+| 在聊天框里回答澄清问题 | 「这个能买吗？」（澄清）→「五粮液」/「I mean the CSI 300 ETF.」 | 有待回答的澄清时，只点名标的的消息会续完那一轮（与 `/agent/resume` 相同） | `clarified:五粮液` |
+| 开场就是省略句 | 第一句就是「What about the P/E?」 | 澄清，不去检索 | `metric_without_target`、`ellipsis_without_antecedent` |
+
+在应用上述规则前，代词问题里的模糊公司匹配会被丢弃（「它值得长期持有吗」→ 值得买，「这只股票适合长期持有吗」→ 长江投资）；「利率」在毛利率/净利率中不再算作宏观锚词。
+
+**确定性路径上的答案细节。** 规划器和模板共用 `coverage.requested_price_fields`：最近 N 个收盘价、前一交易日收盘、开盘/最高/最低、成交量和成交额来自 `get_price_history`；N 日涨跌幅和「是否站上 MA5」来自 `compute_indicators`。所问字段有数据就写出，没有就明确说明（指数成交量为 0 视为缺失）。缺口说明还覆盖：行业快照没有的行业指标（「ROE跟保险行业平均比呢」→ 保险快照没有 ROE）、只有年报时问季度或半年、市值和增速、ETF/指数的市盈率或 ROE、数据中没有的宏观指标（LPR），以及算不出来的技术指标。
+
+**追问的对冲。** 合规检查在原始消息和生效问题（改写或澄清合并后的问题）中都查找判断与解读措辞，所以「五粮液」作为「这个能买吗？」的澄清回答也会加上条件性前缀。词表新增估值判断（贵还是便宜、cheaper）、市场判断（牛市信号、trending up）、保证类（一定会涨、guarantee）、仓位（全仓…行不行）和解读类（说明、反映、signal）。
+
 ### 会话记忆卡片
 
 `session_memory(turns, query)` 生成一张抽取式的小卡片，以「Session memory (from earlier turns)」的形式放进 Agent 的用户消息。卡片包含：
@@ -224,6 +250,13 @@ python -m evaluation.agent_eval.gate                        # CI 阈值
 
 在线结果（LLM Agent、多次运行的 pass^k）需要 `DEEPSEEK_API_KEY`，并与离线结果分开报告。
 
+**独立多轮评测集（`multiturn_v1`，49 段对话 / 206 轮）。** 编写者没有阅读路由、记忆、规划器代码和已有任务文件（见 `evaluation/agent_eval/tasks/README_multiturn_v1.md`）。它唯一一次修复前运行（无 LLM，`mode=auto`）的任务成功率为 **0.224**，轮次成功率 0.709（`evaluation/results/multiturn_v1-auto-nollm-first-run.json`）。上面的第 3b 轮规则是针对这些失败编写的，并补充了新的 dev 例子（`build_tasks._round3b_tasks`，33 个任务）；之后同样的运行在 7513376 上任务和轮次成功率都是 **1.000**（`evaluation/results/multiturn_v1-auto-nollm-after-fixes.json`）。后一个数字是**曝光之后**的结果，不能证明泛化；没有用于调参的集合给出的是更小、也更可信的提升：保留集门禁 0.906 → 0.925（对冲率 0.636 → 0.727，`evaluation/results/gate-holdout.json`），路由标注 0.975 → 0.988（`evaluation/results/router_eval-round3b.json`）。
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --tasks evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl \
+  --snapshot evaluation/agent_eval/fixtures/snapshot_multiturn_v1.json
+```
+
 ## 测试
 
 ```bash
@@ -237,7 +270,8 @@ python -m pytest -q tests/test_web_ui.py      # 通过 Playwright 驱动无头 C
 
 - **Agent 的质量取决于背后的 LLM**：离线评测衡量的是确定性路径和图中的安全检查；[在线评测](evaluation.md)覆盖两个 flash 级模型（DeepSeek V4.1 Flash、GLM-5.3 Flash），经同一个网关调用。在 DeepSeek 上，工具循环相对 LLM 组织答案的优势不显著。
 - **数值校验只证明可追溯**：校验是逐句的，在 2,433 个篡改答案上误放率 2.1%（`evaluation/results/verifier_stress.json`）。但当所引证据包含多个报告期或指标时，它不检查用的是否正确；投毒到文档里的数字也能通过，因为它就在证据里。
-- **覆盖范围和缺口检测基于词表**：加密资产、最大的一批美股/港股公司和海外市场，不是所有海外代码；期间只识别写成年份的（「2019年」「in 2023」「FY2023」），不识别「去年」或季度。
+- **覆盖范围和缺口检测基于词表**：加密资产、最大的一批美股/港股公司和海外市场，不是所有海外代码；期间识别写成年份的（「2019年」「in 2023」「FY2023」）以及季度、半年（「一季度」「Q3」「上半年」），不识别「去年」。
+- **行业问题**：对话中讨论过该行业的成员时保留该成员；没有成员时只返回行业快照（市盈率、市净率、当日涨跌幅），且只覆盖离线数据中有的行业。
 - **可选的 LLM 记忆摘要尚未消融**；规则卡片是经过测量的默认方案。
-- **追问补全基于规则**：覆盖代词、复数、短的省略问法和单独的「为什么」追问；更长的转述（「回到刚才那只股票…」）和有歧义的指代会触发澄清而不是猜测。
-- **英文别名覆盖有限**：包括第二轮加入的主要 A 股英文名，以及 `data/runtime/alias_table.csv` 中已有的条目。
+- **追问补全基于规则**：覆盖代词、复数、序数和群组指代、短的省略问法、单独的「为什么」追问，以及带金融线索词的短追问；更长的转述（「回到刚才那只股票…」）和有歧义的指代会触发澄清而不是猜测。线索词表和离题任务词表是手写的：不含这些词的离题任务（如「明天去上海的高铁几点」）仍会被回答，不含线索词的无标的追问仍按原来的方式澄清或拒答。
+- **英文别名覆盖有限**：包括第二轮加入的主要 A 股英文名，第 3b 轮加入的「CSI 300 index」「10-year CGB yield」「baijiu」「insurers」（`data/synonym_dict.json` 和别名表），以及 `data/runtime/alias_table.csv` 中已有的条目。以「Did the whole baijiu sector fall too?」开场的对话仍会进入澄清（NLU 在识别出行业之前就拒识了它）；在讨论白酒股的对话中则会用行业快照回答。
