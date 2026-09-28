@@ -258,6 +258,7 @@ class DeepSeekToolClient:
         retry_backoff_s: float = 1.0,
         http_client: httpx.Client | None = None,
         sleep: Callable[[float], None] = time.sleep,
+        keepalive: bool | None = None,
     ) -> None:
         self.api_key = api_key
         self.model = model
@@ -273,6 +274,13 @@ class DeepSeekToolClient:
         self.retry_backoff_s = retry_backoff_s
         self._http_client = http_client
         self._sleep = sleep
+        # One pooled client per model client: requests reuse TLS connections to the gateway instead of opening
+        # a new one per call (QI_LLM_KEEPALIVE=0 restores a fresh connection per request).
+        if keepalive is None:
+            keepalive = os.getenv("QI_LLM_KEEPALIVE", "1").strip().lower() not in {"0", "false", "off", "no"}
+        self.keepalive = keepalive
+        self._pooled: httpx.Client | None = None
+        self._pool_lock = threading.Lock()
         self._stats: Counter[str] = Counter()
         self._stats_lock = threading.Lock()
 
@@ -281,6 +289,26 @@ class DeepSeekToolClient:
         responses (e.g. ``http_429``, including ones that a retry later recovered), ``timeout``, ``transport``."""
         with self._stats_lock:
             return dict(self._stats)
+
+    def _client(self) -> tuple[httpx.Client, bool]:
+        """``(client, owned)``: the injected or pooled client, or a one-off client the caller must close."""
+        if self._http_client is not None:
+            return self._http_client, False
+        if not self.keepalive:
+            return httpx.Client(timeout=self.timeout_s), True
+        with self._pool_lock:
+            if self._pooled is None:
+                self._pooled = httpx.Client(
+                    timeout=self.timeout_s,
+                    limits=httpx.Limits(max_connections=64, max_keepalive_connections=16, keepalive_expiry=30.0),
+                )
+            return self._pooled, False
+
+    def close(self) -> None:
+        with self._pool_lock:
+            if self._pooled is not None:
+                self._pooled.close()
+                self._pooled = None
 
     def _count(self, key: str) -> None:
         with self._stats_lock:
@@ -410,7 +438,7 @@ class DeepSeekToolClient:
         """Stream a completion and rebuild the non-streamed response shape (content, tool calls, usage)."""
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         payload = {**body, "stream": True, "stream_options": {"include_usage": True}}
-        client = self._http_client or httpx.Client(timeout=self.timeout_s)
+        client, owned = self._client()
         content: list[str] = []
         reasoning: list[str] = []
         calls: dict[int, dict[str, Any]] = {}
@@ -462,7 +490,7 @@ class DeepSeekToolClient:
         except httpx.TransportError as exc:
             raise LLMError(f"LLM transport error: {exc}", retryable=True) from exc
         finally:
-            if self._http_client is None:
+            if owned:
                 client.close()
         message: dict[str, Any] = {"role": "assistant", "content": "".join(content) or None}
         if reasoning:
@@ -480,7 +508,7 @@ class DeepSeekToolClient:
 
     def _post(self, body: dict[str, Any]) -> dict[str, Any]:
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        client = self._http_client or httpx.Client(timeout=self.timeout_s)
+        client, owned = self._client()
         try:
             response = client.post(self.url, headers=headers, json=body, timeout=call_timeout(self.timeout_s))
         except httpx.TimeoutException as exc:
@@ -488,7 +516,7 @@ class DeepSeekToolClient:
         except httpx.TransportError as exc:
             raise LLMError(f"LLM transport error: {exc}", retryable=True) from exc
         finally:
-            if self._http_client is None:
+            if owned:
                 client.close()
         if response.status_code >= 400:
             retryable = response.status_code in {408, 409, 429} or response.status_code >= 500

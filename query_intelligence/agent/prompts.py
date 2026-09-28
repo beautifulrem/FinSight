@@ -265,6 +265,25 @@ def compose_user_message(
     return json.dumps(payload, ensure_ascii=False, default=str, sort_keys=True)
 
 
+def prefetch_message(entries: list[dict[str, Any]]) -> str:
+    """Tool results fetched by the deterministic planner before the first LLM call (``planner_prefetch``).
+
+    Sent as a user message after the question, so the cached prefix (system prompt, tools, history) is
+    unchanged. Each ``content`` is already wrapped as untrusted tool output by ``tool_message_content``.
+    """
+    blocks = []
+    for entry in entries:
+        arguments = json.dumps(entry.get("arguments") or {}, ensure_ascii=False, sort_keys=True)
+        blocks.append(
+            f'<tool_result name="{entry["tool"]}">\narguments: {arguments}\n{entry["content"]}\n</tool_result>'
+        )
+    return (
+        "These tool calls were already made for this question (same evidence ids and rules as tool results you "
+        "request yourself; do not repeat them). If they cover the question, answer now without tool calls; "
+        "otherwise call only the tools for what is still missing.\n" + "\n".join(blocks)
+    )
+
+
 def force_final_message(reason: str) -> str:
     return (
         f"Stop calling tools ({reason}). Answer now using only the evidence gathered so far, "

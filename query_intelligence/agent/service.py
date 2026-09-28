@@ -37,6 +37,7 @@ _STEP_LABELS = {
     "clarify": "clarification",
     "execute_plan": "deterministic tool plan",
     "compose": "answer composition",
+    "agent_prefetch": "planned tool prefetch",
     "agent_llm": "LLM reasoning",
     "agent_tools": "tool execution",
     "verify": "evidence verification",
@@ -274,7 +275,7 @@ class AgentService:
                             "event": "tool_call",
                             "data": {"tool": call["function"]["name"], "arguments": call["function"].get("arguments")},
                         }
-            if node == "execute_plan":
+            if node in {"execute_plan", "agent_prefetch"}:
                 for entry in payload.get("tool_log") or []:
                     yield {"event": "tool_call", "data": {"tool": entry["tool"], "arguments": entry["arguments"]}}
             for entry in payload.get("tool_log") or [] if isinstance(payload.get("tool_log"), list) else []:

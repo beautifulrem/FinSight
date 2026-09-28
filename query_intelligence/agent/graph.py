@@ -60,13 +60,14 @@ from .prompts import (
     compose_user_message,
     force_final_message,
     get_prompt,
+    prefetch_message,
     revision_message,
 )
 from .router import apply_finance_overrides, decide_route, drop_fuzzy_concepts, has_finance_content
 from .state import RESET, AgentConfig, AgentState
 from .streaming import AnswerTextStream, stream_writer
 from .tools import ToolRegistry, ToolResult
-from .verifier import cited_ids, failure_kinds, repair_answer, verify_answer
+from .verifier import cite_repair, cited_ids, failure_kinds, repair_answer, verify_answer
 
 if TYPE_CHECKING:
     from ..service import QueryIntelligenceService
@@ -116,6 +117,7 @@ class AgentRuntime:
             ("clarify", functools.partial(self.clarify, interactive=checkpointer is not None)),
             ("execute_plan", self.execute_plan),
             ("compose", self.compose),
+            ("agent_prefetch", self.agent_prefetch),
             ("agent_llm", self.agent_llm),
             ("agent_tools", self.agent_tools),
             ("verify", self.verify),
@@ -125,11 +127,13 @@ class AgentRuntime:
         ):
             graph.add_node(name, _timed(name, node))
         graph.add_edge(START, "guard_in")
+        first_agent_node = "agent_prefetch" if self.config.planner_prefetch else "agent_llm"
         graph.add_conditional_edges(
             "guard_in",
             _route_after_guard,
-            {"refuse": "refuse", "clarify": "clarify", "workflow": "execute_plan", "agent": "agent_llm"},
+            {"refuse": "refuse", "clarify": "clarify", "workflow": "execute_plan", "agent": first_agent_node},
         )
+        graph.add_edge("agent_prefetch", "agent_llm")
         graph.add_edge("refuse", "finalize")
         graph.add_conditional_edges("clarify", _after_clarify, {"guard_in": "guard_in", "finalize": "finalize"})
         graph.add_edge("execute_plan", "compose")
@@ -183,6 +187,7 @@ class AgentRuntime:
             "effective_query": "",
             "language": "",
             "refusal_category": "",
+            "prefetched": [],
             "tool_log": {RESET: []},
             "evidence": {RESET: True},
             "degraded": {RESET: []},
@@ -369,6 +374,30 @@ class AgentRuntime:
             update["degraded"] = ["instruction_like_text_removed_from_evidence"]
         return update
 
+    def agent_prefetch(self, state: AgentState) -> dict[str, Any]:
+        """Run the deterministic planner's calls before the first LLM call (``planner_prefetch``).
+
+        The results go to the model with the question, so a question the planner already covers is answered in
+        one LLM round trip instead of two; the model can still call other tools. Repeating a prefetched call is
+        caught by the duplicate-call guard in ``agent_tools``.
+        """
+        plan = plan_from_nlu(state.get("nlu") or {})
+        calls = plan.calls[: self.config.max_tool_calls]
+        if not calls:
+            return {}
+        results = self._run_tools([(call.tool, call.arguments) for call in calls])
+        log, prefetched, flagged_any = [], [], False
+        for call, result in zip(calls, results, strict=True):
+            content, flagged = tool_message_content(result.tool, result.observation())
+            flagged_any = flagged_any or flagged
+            prefetched.append({"tool": result.tool, "arguments": call.arguments, "content": content})
+            log.append(_log_entry(result, source="prefetch", reason=call.reason, step=0, flagged=flagged))
+        evidence, evidence_flagged = _evidence_update(results)
+        update: dict[str, Any] = {"tool_log": log, "evidence": evidence, "prefetched": prefetched}
+        if flagged_any or evidence_flagged:
+            update["degraded"] = ["instruction_like_text_removed_from_tool_output"]
+        return update
+
     def compose(self, state: AgentState) -> dict[str, Any]:
         zh = self._zh(state)
         tool_log = state.get("tool_log") or []
@@ -447,6 +476,8 @@ class AgentRuntime:
                     ),
                 },
             ]
+            if state.get("prefetched"):
+                messages.append({"role": "user", "content": prefetch_message(state["prefetched"])})
         usage = (
             _add_usage(state.get("usage"), Usage(**memory_update["usage_delta"]))
             if memory_update.get("usage_delta")
@@ -605,6 +636,18 @@ class AgentRuntime:
         store = _store(state)
         llm_draft = state.get("draft_source") in {"llm_agent", "llm_compose"}
         report = verify_answer(draft, store, query=state["query"], market_precedence=llm_draft, require_citations=True)
+        if not report.passed and llm_draft and self.config.revise_policy == "cite_repair":
+            fixed = cite_repair(draft, report, store, query=state["query"], market_precedence=True)
+            if fixed is not None:
+                fixed_report = verify_answer(fixed, store, query=state["query"], market_precedence=True)
+                if fixed_report.passed:
+                    # Only citations changed: skip the LLM revision round trip.
+                    return {
+                        "verification": fixed_report.model_dump(),
+                        "draft": fixed,
+                        "degraded": [f"verification_failed:citations_repaired:{'+'.join(failure_kinds(report))}"],
+                        "next": "compliance",
+                    }
         update: dict[str, Any] = {"verification": report.model_dump()}
         can_revise = (
             not report.passed
