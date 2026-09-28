@@ -821,10 +821,19 @@ def _assert_accessible(page: Page, state: str) -> None:
     assert not found, f"{state}:\n" + json.dumps(found, ensure_ascii=False, indent=1)
 
 
+def _running_in_ci() -> bool:
+    return os.getenv("CI", "").strip().lower() in {"1", "true", "yes"}
+
+
 @pytest.fixture()
 def axe_ready():
-    if not AXE_JS.is_file():
-        pytest.skip("axe-core not installed: run `pnpm install` in frontend/")
+    if AXE_JS.is_file():
+        return
+    message = "axe-core not installed: run `pnpm install --frozen-lockfile` in frontend/"
+    if _running_in_ci():
+        # CI installs the frontend dependencies for this job; a missing axe must not pass as a skip.
+        pytest.fail(message)
+    pytest.skip(message)
 
 
 def test_accessibility_desktop_states(browser, base_url, axe_ready):

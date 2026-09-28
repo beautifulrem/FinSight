@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Multi-replica scaling test and cross-replica session check on the k3s deployment.
 #
-#   IMAGE=finsight:ops OUT=docs/results/perf/k3s deploy/k8s/scale_test.sh
+#   IMAGE=finsight:$(git rev-parse --short=7 HEAD) OUT=docs/results/perf/k3s deploy/k8s/scale_test.sh
 #
 # For each replica count N (1, 2, 3) the HPA is pinned to N, the rollout is awaited, and a load
 # generator pod *inside the cluster* runs scripts/load_test.py against Service/finsight-api with fresh
@@ -30,7 +30,14 @@ K="kubectl --context $CTX -n $NS"
 mkdir -p "$OUT"
 
 echo "== deploy $IMAGE with load-test settings"
-kubectl --context "$CTX" apply -f deploy/k8s/finsight.yaml >/dev/null
+# The manifests commit no Secret; a throwaway demo password is generated on first use.
+kubectl --context "$CTX" get namespace "$NS" >/dev/null 2>&1 || kubectl --context "$CTX" create namespace "$NS" >/dev/null
+if ! $K get secret finsight-db >/dev/null 2>&1; then
+  PG_PASSWORD="$(openssl rand -hex 16)"
+  $K create secret generic finsight-db --from-literal=POSTGRES_PASSWORD="$PG_PASSWORD" \
+    --from-literal=QI_AGENT_CHECKPOINT_DB="postgresql://postgres:$PG_PASSWORD@finsight-postgres:5432/finsight" >/dev/null
+fi
+kubectl --context "$CTX" apply -k deploy/k8s >/dev/null
 $K set image deployment/finsight-api api="$IMAGE" >/dev/null
 $K set env deployment/finsight-api QI_USE_LIVE_MARKET=0 QI_USE_LIVE_NEWS=0 QI_USE_LIVE_ANNOUNCEMENT=0 \
   QI_USE_LIVE_MACRO=0 QI_RATE_LIMIT_PER_MINUTE=0 >/dev/null
@@ -84,7 +91,8 @@ run_load() { # replicas users
   local name="loadgen-r$1-u$2"
   $K delete pod "$name" --ignore-not-found >/dev/null
   runs_per_pod >"$OUT/runs-per-pod-r$1-u$2.before.txt"
-  $K run "$name" --image="$IMAGE" --image-pull-policy=IfNotPresent --restart=Never \
+  # finsight.io/client=true is the label the finsight-api NetworkPolicy admits from inside the namespace.
+  $K run "$name" --image="$IMAGE" --image-pull-policy=IfNotPresent --restart=Never --labels=finsight.io/client=true \
     --overrides='{"spec":{"containers":[{"name":"'"$name"'","image":"'"$IMAGE"'","resources":{"limits":{"cpu":"500m","memory":"512Mi"}},
       "command":["python","-m","scripts.load_test","--base-url","http://finsight-api.finsight.svc.cluster.local",
       "--users","'"$2"'","--requests","'"$REQUESTS"'","--fresh-connections","--label","k3s replicas='"$1"'",
