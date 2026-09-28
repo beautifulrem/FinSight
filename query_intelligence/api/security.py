@@ -2,10 +2,12 @@
 
 * ``QI_API_KEYS``: comma-separated keys. When set, every endpoint except ``GET /health`` and the
   browser page ``GET /`` requires ``X-API-Key: <key>`` or ``Authorization: Bearer <key>``.
-* ``QI_RATE_LIMIT_PER_MINUTE``: per-client token bucket (client = API key, else remote address);
-  ``0`` disables it. Exceeding it returns 429 with ``Retry-After``.
+* ``QI_RATE_LIMIT_PER_MINUTE``: per-client token bucket (client = the validated API key's principal,
+  else the remote address, so made-up keys do not get fresh buckets); ``0`` disables it. Exceeding it
+  returns 429 with ``Retry-After``. The bucket table is bounded (LRU, idle buckets dropped).
 * ``QI_CORS_ORIGINS``: comma-separated allowed origins for browsers (``*`` allows any origin).
-* ``QI_MAX_REQUEST_BYTES``: reject request bodies larger than this (default 1 MiB) with 413.
+* ``QI_MAX_REQUEST_BYTES``: reject request bodies larger than this (default 1 MiB) with 413, whether
+  the size is declared in ``Content-Length`` or only known while a chunked body streams in.
 
 All are off by default so the local chatbot keeps working without configuration.
 """
@@ -18,7 +20,10 @@ import math
 import os
 import threading
 import time
+from collections import OrderedDict
+from collections.abc import Awaitable, Callable, MutableMapping
 from dataclasses import dataclass, field
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +37,7 @@ PUBLIC_PATHS = {
     ("GET", "/.well-known/agent-card.json"),
 }
 DEFAULT_MAX_REQUEST_BYTES = 1024 * 1024
+DEFAULT_MAX_RATE_CLIENTS = 10_000
 
 
 @dataclass(frozen=True)
@@ -56,9 +62,17 @@ class SecuritySettings:
 
 @dataclass
 class TokenBucket:
+    """Per-client token buckets with bounded state.
+
+    At most ``max_clients`` buckets are kept, least recently used first out. A bucket untouched for a full
+    minute has refilled to capacity, which is the same as having no entry, so idle buckets are dropped
+    first; evicting a still-draining bucket only happens under more than ``max_clients`` active clients.
+    """
+
     rate_per_minute: int
     clock: callable = time.monotonic  # type: ignore[valid-type]
-    _state: dict[str, tuple[float, float]] = field(default_factory=dict)
+    max_clients: int = DEFAULT_MAX_RATE_CLIENTS
+    _state: OrderedDict[str, tuple[float, float]] = field(default_factory=OrderedDict)
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def take(self, client: str) -> float:
@@ -71,9 +85,72 @@ class TokenBucket:
             tokens = min(capacity, tokens + (now - updated) * refill_per_second)
             if tokens >= 1.0:
                 self._state[client] = (tokens - 1.0, now)
-                return 0.0
-            self._state[client] = (tokens, now)
-            return (1.0 - tokens) / refill_per_second
+                wait = 0.0
+            else:
+                self._state[client] = (tokens, now)
+                wait = (1.0 - tokens) / refill_per_second
+            self._state.move_to_end(client)
+            self._evict(now)
+            return wait
+
+    def _evict(self, now: float) -> None:
+        while self._state:
+            oldest, (_tokens, updated) = next(iter(self._state.items()))
+            if len(self._state) > self.max_clients or now - updated >= 60.0:
+                del self._state[oldest]
+                continue
+            break
+
+    def __len__(self) -> int:
+        return len(self._state)
+
+
+Message = MutableMapping[str, Any]
+
+
+class BodyLimitMiddleware:
+    """Pure ASGI middleware that caps the request body while it streams in.
+
+    ``Content-Length`` can be absent (``Transfer-Encoding: chunked``) or wrong, so the body is read here,
+    counting bytes as they arrive, and the request is answered with 413 as soon as the cap is passed,
+    without reading the rest. Accepted bodies (at most ``max_bytes``) are replayed to the application.
+    """
+
+    def __init__(self, app: Callable[..., Awaitable[None]], max_bytes: int) -> None:
+        self.app = app
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope: Message, receive: Callable[[], Awaitable[Message]], send: Callable) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        declared = dict(scope.get("headers") or []).get(b"content-length", b"")
+        if declared.isdigit() and int(declared) > self.max_bytes:
+            await _too_large(scope, receive, send)
+            return
+        buffered: list[Message] = []
+        size = 0
+        while True:
+            message = await receive()
+            buffered.append(message)
+            if message["type"] != "http.request":
+                break  # client disconnected: let the application see it
+            size += len(message.get("body", b""))
+            if size > self.max_bytes:
+                await _too_large(scope, receive, send)
+                return
+            if not message.get("more_body", False):
+                break
+
+        async def replay() -> Message:
+            return buffered.pop(0) if buffered else await receive()
+
+        await self.app(scope, replay, send)
+
+
+async def _too_large(scope: Message, receive: Callable, send: Callable) -> None:
+    response = JSONResponse({"detail": "request body too large"}, status_code=413, headers={"Connection": "close"})
+    await response(scope, receive, send)
 
 
 def _presented_key(request: Request) -> str | None:
@@ -97,9 +174,6 @@ def install_security(app: FastAPI, settings: SecuritySettings | None = None) -> 
             or request.method == "OPTIONS"
             or (request.method == "GET" and request.url.path.startswith("/static/"))
         )
-        length = request.headers.get("content-length")
-        if length and length.isdigit() and int(length) > settings.max_request_bytes:
-            return JSONResponse({"detail": "request body too large"}, status_code=413)
         key = _presented_key(request)
         key_valid = bool(key) and any(hmac.compare_digest(key, allowed) for allowed in settings.api_keys)
         # Who is calling: sessions and traces are scoped to it (a hash, never the key itself).
@@ -111,7 +185,10 @@ def install_security(app: FastAPI, settings: SecuritySettings | None = None) -> 
                 headers={"WWW-Authenticate": "Bearer"},
             )
         if bucket is not None and not public:
-            client = f"key:{key}" if key else f"ip:{request.client.host if request.client else 'unknown'}"
+            # Only a validated key identifies a client; a missing or made-up key is limited by address, so
+            # rotating random keys does not buy fresh buckets.
+            address = request.client.host if request.client else "unknown"
+            client = request.state.principal if key_valid else f"ip:{address}"
             wait = bucket.take(client)
             if wait > 0:
                 return JSONResponse(
@@ -121,6 +198,8 @@ def install_security(app: FastAPI, settings: SecuritySettings | None = None) -> 
                 )
         return await call_next(request)
 
+    # added after the http middleware above, so it wraps it: oversized bodies never reach auth or routing
+    app.add_middleware(BodyLimitMiddleware, max_bytes=settings.max_request_bytes)
     if settings.cors_origins:
         app.add_middleware(
             CORSMiddleware,
