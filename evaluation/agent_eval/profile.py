@@ -14,6 +14,8 @@ ablation output in ``outputs/agent_eval/`` and reports, for the turns that calle
 
     python -m evaluation.agent_eval.profile outputs/agent_eval/perf-baseline.json            # markdown tables
     python -m evaluation.agent_eval.profile outputs/agent_eval/perf-baseline.json --json out.json
+    python -m evaluation.agent_eval.profile --table evaluation/results/perf-baseline-deepseek.json \\
+        evaluation/results/perf-verifierfix-deepseek.json              # before/after table with paired CIs
 """
 
 from __future__ import annotations
@@ -242,12 +244,63 @@ def markdown(profiles: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def comparison_table(paths: list[str], *, mode: str = "agent") -> str:
+    """Markdown table of the latency, cost and success of several runs; the first file is the reference.
+
+    Works on raw ablation outputs and on the slim files in ``evaluation/results/``. Success differences are
+    paired over tasks (``metrics.paired_comparison``: bootstrap 95% CI and exact McNemar on pass^k).
+    """
+    from .metrics import paired_comparison
+    from .results import decode_outcomes
+
+    reports = [(Path(path).stem, json.loads(Path(path).read_text(encoding="utf-8"))) for path in paths]
+    lines = [
+        "| Set | Run | Commit | P50 s | P95 s | P99 s | LLM-turn P95 s | TTFT P50 s | TTFT P95 s | LLM calls/turn | "
+        "tokens/turn | cost/task (USD) | 429 share | task success | Δ vs first [95% CI] | pass^3 |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|",
+    ]
+
+    def sec(value: Any) -> str:
+        return f"{value / 1000:.1f}" if isinstance(value, int | float) else "–"
+
+    ref_name, ref = reports[0]
+    for set_name in ref["results"]:
+        ref_outcomes = decode_outcomes(ref["results"][set_name][mode]["task_outcomes"])
+        for name, report in reports:
+            data = (report["results"].get(set_name) or {}).get(mode)
+            if not data:
+                continue
+            summary = data["summary"]
+            outcomes = decode_outcomes(data["task_outcomes"])
+            http = ((report.get("llm_http") or {}).get(set_name) or {}).get(mode) or {}
+            if name == ref_name:
+                delta = "reference"
+            else:
+                comparison = paired_comparison(outcomes, ref_outcomes)["task_success"]
+                delta = f"{comparison['diff']:+.3f} [{comparison['ci'][0]:+.3f}, {comparison['ci'][1]:+.3f}]"
+            pass_key = next((key for key in summary if key.startswith("pass^")), "")
+            lines.append(
+                f"| {set_name} | {name} | {report['config'].get('commit')} | {sec(summary['latency_ms_p50'])} | "
+                f"{sec(summary['latency_ms_p95'])} | {sec(summary.get('latency_ms_p99'))} | "
+                f"{sec(summary.get('llm_turn_latency_ms_p95'))} | {sec(summary.get('ttft_ms_p50'))} | "
+                f"{sec(summary.get('ttft_ms_p95'))} | {summary['llm_calls_per_turn']} | "
+                f"{round(summary['tokens_per_turn'] or 0)} | {summary.get('cost_per_task')} | "
+                f"{http.get('rate_429')} | {summary['task_success']} | {delta} | {summary.get(pass_key)} |"
+            )
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser = argparse.ArgumentParser(description="Latency breakdown of an online ablation run.")
-    parser.add_argument("ablation", help="Raw ablation output (outputs/agent_eval/*.json) with per-turn records.")
+    parser.add_argument("ablation", nargs="+", help="Raw ablation output(s); with --table, several result files.")
     parser.add_argument("--json", default="", help="Also write the breakdown as JSON here.")
+    parser.add_argument("--table", action="store_true", help="Compare runs (first = reference) as a markdown table.")
     args = parser.parse_args(argv)
-    report = json.loads(Path(args.ablation).read_text(encoding="utf-8"))
+    if args.table:
+        table = comparison_table(args.ablation)
+        print(table)
+        return {"table": table}
+    report = json.loads(Path(args.ablation[0]).read_text(encoding="utf-8"))
     profiles = profile_report(report)
     print(markdown(profiles))
     if args.json:
