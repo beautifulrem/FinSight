@@ -38,7 +38,7 @@ Verified on 2026-09-25 (colima, arm64): the container becomes healthy, serves th
 
 | Object | Notes |
 |---|---|
-| `Deployment/finsight-api` | 2 replicas; startup probe (NLU models load in about a minute), readiness and liveness on `/health`; requests 0.5 CPU / 2 GiB, limits 2 CPU / 3 GiB; rolling update with `maxUnavailable: 0`. |
+| `Deployment/finsight-api` | 2 replicas; startup and liveness probes on `/health` (NLU models load in about a minute); readiness on `/ready`, which also checks the Postgres checkpointer, the LLM config and the retrieval index, so a replica that loses its database stops taking traffic without being restarted; requests 0.5 CPU / 2 GiB, limits 2 CPU / 3 GiB; rolling update with `maxUnavailable: 0`. |
 | Pod security | `runAsNonRoot` (uid 10001), `readOnlyRootFilesystem`, all capabilities dropped, `RuntimeDefault` seccomp; `emptyDir` volumes for `/app/outputs`, `/app/state` and `/tmp`. |
 | `HorizontalPodAutoscaler` | 2–6 replicas at 70% CPU. |
 | `PodDisruptionBudget` | At least one replica stays up during node maintenance. |

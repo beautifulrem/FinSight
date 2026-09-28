@@ -1,7 +1,8 @@
 """Optional API hardening, configured only through environment variables.
 
-* ``QI_API_KEYS``: comma-separated keys. When set, every endpoint except ``GET /health`` and the
-  browser page ``GET /`` requires ``X-API-Key: <key>`` or ``Authorization: Bearer <key>``.
+* ``QI_API_KEYS``: comma-separated keys. When set, every endpoint except the probes ``GET /health`` and
+  ``GET /ready``, the agent card and the browser page ``GET /`` requires ``X-API-Key: <key>`` or
+  ``Authorization: Bearer <key>``.
 * ``QI_RATE_LIMIT_PER_MINUTE``: per-client token bucket (client = API key, else remote address);
   ``0`` disables it. Exceeding it returns 429 with ``Retry-After``.
 * ``QI_CORS_ORIGINS``: comma-separated allowed origins for browsers (``*`` allows any origin).
@@ -28,6 +29,8 @@ PUBLIC_PATHS = {
     ("GET", "/health"),
     ("GET", "/"),
     ("HEAD", "/health"),
+    # Kubernetes readiness probes carry no credentials.
+    ("GET", "/ready"),
     # A2A discovery: the agent card must be readable before a client can authenticate.
     ("GET", "/.well-known/agent-card.json"),
 }

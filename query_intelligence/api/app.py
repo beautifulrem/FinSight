@@ -14,7 +14,7 @@ from typing import Annotated, Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi import Path as ApiPath
-from fastapi.responses import HTMLResponse, Response, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
@@ -50,6 +50,7 @@ from ..contracts import (
     RetrievalRequest,
 )
 from ..service import QueryIntelligenceService, build_default_service
+from .readiness import ReadinessChecker, check_checkpointer, check_model_config, check_retrieval_index
 from .security import SecuritySettings, install_security, principal_of
 
 
@@ -190,9 +191,24 @@ def create_app(
 
     logger.info("[startup] FastAPI routes are ready.")
 
+    readiness = ReadinessChecker(
+        {
+            "checkpointer": lambda: check_checkpointer(get_agent),
+            "model_config": lambda: check_model_config(chatbot_config, lambda: agent_holder["service"]),
+            "retrieval_index": lambda: check_retrieval_index(runtime),
+        }
+    )
+
     @app.get("/health")
     def health() -> dict[str, str]:
+        # Liveness only: the process serves HTTP. Dependencies are checked by /ready.
         return {"status": "ok"}
+
+    @app.get("/ready")
+    def ready() -> JSONResponse:
+        # Readiness: checkpoint store reachable and writable, model config sane, retrieval index loaded.
+        ok, report = readiness.run()
+        return JSONResponse(report, status_code=200 if ok else 503)
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
