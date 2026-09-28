@@ -2,7 +2,7 @@ import { evidenceIndex, splitCitations } from "./citations";
 import { fallbackReasonText, humanizeCode, limitationText } from "./codes";
 import { formatDate } from "./format";
 import { evidenceFreshness } from "./freshness";
-import { sourceTypeLabel, type Lang } from "./i18n";
+import { sourceNameLabel, sourceTypeLabel, type Lang } from "./i18n";
 import type { AnswerView } from "./view";
 
 const T = {
@@ -128,7 +128,7 @@ export function answerToMarkdown(view: AnswerView, meta: ExportMeta): string {
     const title = escapeInline(source.title || source.evidence_id);
     const parts = [`**E${i + 1}** ${title}`, `\`${source.evidence_id}\``];
     parts.push(sourceTypeLabel(lang, source.source_type));
-    const origin = info.provenance?.source_label || source.source_name;
+    const origin = sourceNameLabel(lang, info.provenance, source.source_name);
     if (origin) parts.push(`${t.from} ${escapeInline(origin)}`);
     if (info.asOf) parts.push(`${t.asOf} ${formatDate(lang, info.asOf)}`);
     parts.push(status.join(", "));

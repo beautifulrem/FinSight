@@ -37,6 +37,9 @@ export function formatKpi(lang: Lang, value: number, format: KpiFormat, unit?: s
   switch (format) {
     case "percent":
       return `${value > 0 ? "+" : ""}${trim(value)}%`;
+    case "percentLevel":
+      // a level already in percent (ROE 33 -> "33%", ROE 0.8 -> "0.8%"), no sign
+      return `${trim(value, 1)}%`;
     case "fraction":
       // ROE / volatility arrive as fractions (0.33 → 33%); values above 1 are already percentages.
       return `${trim(Math.abs(value) <= 1 ? value * 100 : value, 1)}%`;
@@ -45,7 +48,7 @@ export function formatKpi(lang: Lang, value: number, format: KpiFormat, unit?: s
     case "money":
       return formatMoney(lang, value);
     case "volume":
-      // Tushare `amount` is reported in thousands of CNY.
+      // raw Tushare `amount` (thousands of CNY, no unit field); agent payloads are already in CNY ("money")
       return formatMoney(lang, value * 1000);
     case "price":
       return trim(value, 2);
