@@ -91328,3 +91328,7 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 91371,29851,gross margin,gross margin,common_alias,1,false
 91380,29852,资产负债率,资产负债率,official_name,1,true
 91381,29852,debt-to-asset ratio,debt-to-asset ratio,common_alias,1,false
+91390,3,CSI 300 Index,csi 300 index,common_alias,2,false
+91391,49,10-year CGB yield,10-year cgb yield,common_alias,2,false
+91392,49,China 10-year government bond yield,china 10-year government bond yield,common_alias,2,false
+91393,23,baijiu,baijiu,common_alias,2,false

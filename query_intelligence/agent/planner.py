@@ -12,6 +12,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from .coverage import requested_price_fields
+
 MAX_TARGETS = 3
 MAX_CALLS = 14
 
@@ -24,14 +26,15 @@ _TECHNICAL_TERMS = re.compile(
 _SENTIMENT_TERMS = re.compile(r"情绪|舆情|利好|利空|消息面|市场怎么看|sentiment|tone", re.IGNORECASE)
 _PRICE_TERMS = re.compile(
     r"价格|股价|收盘|收在|点位|净值|涨跌|涨|跌|走势|行情|表现|多少钱|\bprice\b|\bclose\b|quote|moved|performance|"
-    r"\brise\b|\bfall\b",
+    r"\brise\b|\bfall\b|\brally\b|\brebound\b|\blos(?:e|t|ing)\b|\bgain(?:ed|s)?\b|percent(?:age)? change|"
+    r"% change|daily change|\bchange\b",
     re.IGNORECASE,
 )
 _VALUATION_TERMS = re.compile(
     r"估值|市盈率|市净率|(?<![A-Za-z])(?:P/?E|P/?B)(?![A-Za-z])|ROE|净资产收益率|盈利|业绩|利润|营收|收入|基本面|"
-    r"财务|贵不贵|便宜|毛利率|股息率|股息|市值|负债率|负债|杠杆|增速|现金流|净利率|"
+    r"财务|贵不贵|便宜|毛利率|股息率|股息|市值|负债率|负债|杠杆|增速|现金流|净利率|赚钱|赚得|赚了|挣钱|盈利能力|"
     r"valuation|valued|earnings|profit|revenue|fundamental|price-to-(?:book|earnings)|expensive|cheap|margin|"
-    r"dividend|market cap|debt|leverage|cash ?flow|growth rate",
+    r"dividend|market cap|debt|leverage|cash ?flow|growth rate|\bearns?\b|more profitable",
     re.IGNORECASE,
 )
 _INDUSTRY_TERMS = re.compile(r"行业|板块|sector|industry", re.IGNORECASE)
@@ -40,21 +43,22 @@ _ANNOUNCEMENT_TERMS = re.compile(r"公告|披露|年报|季报|半年报|filing|
 _CAUSAL_TERMS = re.compile(r"为什么|原因|因素|影响|导致|驱动|\bwhy\b|\bimpact|\baffect|\bcause|\bdriver", re.IGNORECASE)
 _JUDGMENT_STYLES = {"advice", "forecast", "compare"}
 _MACRO_TERMS = (
-    ("cpi", "CPI"),
-    ("inflation", "CPI"),
-    ("通胀", "通胀"),
-    ("pmi", "PMI"),
-    ("m2", "M2"),
-    ("money supply", "M2"),
-    ("社融", "社融"),
-    ("国债", "国债"),
-    ("bond yield", "国债"),
-    ("利率", "利率"),
-    ("interest rate", "利率"),
-    ("降息", "降息"),
-    ("rate cut", "降息"),
-    ("降准", "降准"),
-    ("lpr", "LPR"),
+    (re.compile(r"cpi", re.I), "CPI"),
+    (re.compile(r"inflation|deflation|通缩", re.I), "CPI"),
+    (re.compile(r"通胀"), "通胀"),
+    (re.compile(r"pmi", re.I), "PMI"),
+    (re.compile(r"(?<![A-Za-z])m2(?![A-Za-z0-9])", re.I), "M2"),
+    (re.compile(r"money supply", re.I), "M2"),
+    (re.compile(r"社融"), "社融"),
+    (re.compile(r"国债|\bcgb\b|government bond|treasury yield", re.I), "国债"),
+    (re.compile(r"bond yield", re.I), "国债"),
+    # "利率" but not the company margins 毛利率 / 净利率
+    (re.compile(r"(?<![毛净])利率"), "利率"),
+    (re.compile(r"interest rate", re.I), "利率"),
+    (re.compile(r"降息"), "降息"),
+    (re.compile(r"rate cut", re.I), "降息"),
+    (re.compile(r"降准"), "降准"),
+    (re.compile(r"lpr", re.I), "LPR"),
 )
 _PRICE_INTENTS = {"price_query", "market_explanation", "buy_sell_timing", "hold_judgment", "peer_compare"}
 _FUNDAMENTAL_INTENTS = {"fundamental_analysis", "valuation_analysis", "peer_compare", "hold_judgment"}
@@ -110,9 +114,19 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
         item.get("label") == "news" and float(item.get("score", 0)) >= 0.7
         for item in nlu_result.get("topic_labels") or []
     )
-    has_price_cue = bool(_PRICE_TERMS.search(text))
-    has_valuation_cue = bool(_VALUATION_TERMS.search(text)) or bool(_INDUSTRY_TERMS.search(text))
-    wants_technical = bool(_TECHNICAL_TERMS.search(text))
+    request = requested_price_fields(raw_query)
+    sectors = [
+        str(entity.get("canonical_name"))
+        for entity in entities
+        if entity.get("entity_type") == "sector" and entity.get("canonical_name")
+    ]
+    # A named sector next to a stock ("insurers" with Ping An in scope) asks for the industry snapshot, which
+    # comes with the stock's fundamentals.
+    sector_member = bool(sectors) or any(entity.get("match_type") == "session_sector_member" for entity in entities)
+    has_price_cue = bool(_PRICE_TERMS.search(text)) or request.needs_quote
+    explicit_valuation_cue = bool(_VALUATION_TERMS.search(text)) or bool(_INDUSTRY_TERMS.search(text))
+    has_valuation_cue = explicit_valuation_cue or (sector_member and bool(listed))
+    wants_technical = bool(_TECHNICAL_TERMS.search(text)) or request.needs_indicators
     causal = style == "why" or bool(_CAUSAL_TERMS.search(text))
     wants_news_docs = bool(_NEWS_TERMS.search(text)) or causal or news_topic
     wants_announcements = bool(_ANNOUNCEMENT_TERMS.search(text))
@@ -137,7 +151,10 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
         entity_type = target.get("entity_type") or "stock"
         name = target.get("canonical_name") or symbol
         if wants_price:
-            add("get_price_history", {"target": symbol}, f"{name}: price cue / question style {style or 'n/a'}")
+            arguments: dict[str, Any] = {"target": symbol}
+            if request.closes > 10:
+                arguments["days"] = min(request.closes, 30)
+            add("get_price_history", arguments, f"{name}: price cue / question style {style or 'n/a'}")
         if wants_technical:
             add("compute_indicators", {"target": symbol}, f"{name}: question mentions technical indicators")
         if wants_fundamentals and entity_type == "stock":
@@ -154,9 +171,19 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
             add("analyze_sentiment", {"targets": [symbol], "top_k": 6}, f"{name}: tone of recent documents")
 
     macro_topics = _macro_topics(entities, text)
+    # "白酒板块整体跌了吗" with no member stock in scope: get_fundamentals returns the industry snapshot. A macro
+    # question that mentions a sector ("CPI上升对白酒板块有什么影响") stays a macro question.
+    sector_planned = bool(sectors) and not listed and not macro_topics and (explicit_valuation_cue or has_price_cue)
+    if sector_planned:
+        for sector in sectors[:MAX_TARGETS]:
+            add("get_fundamentals", {"target": sector}, f"{sector}: industry snapshot for a sector question")
+
     # A question about a named security asks for macro data only when it names a macro topic: the product
     # classifier alone ("And the P/B?" read as macro) must not replace the carried target's metric with CPI/PMI.
-    if macro_topics or (product == "macro" and not listed) or (not listed and "macro_sql" in sources):
+    sector_only = bool(sectors) and not listed and not macro_topics
+    if macro_topics or (
+        not sector_only and ((product == "macro" and not listed) or (not listed and "macro_sql" in sources))
+    ):
         add(
             "get_macro_indicators",
             {"topics": macro_topics, "query": query},
@@ -165,7 +192,7 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
         if not listed and style == "why":
             add("search_news", {"query": query, "targets": [], "top_k": 5}, "macro/policy news context")
 
-    if (sources & _KNOWLEDGE_SOURCES and not listed and not macro_topics) or (
+    if (sources & _KNOWLEDGE_SOURCES and not listed and not macro_topics and not sector_planned) or (
         product in {"etf", "fund"} and _is_mechanism_question(intents, topics)
     ):
         add(
@@ -207,10 +234,9 @@ def _macro_topics(entities: list[dict[str, Any]], text: str) -> list[str]:
         for entity in entities
         if entity.get("entity_type") in _MACRO_ENTITY_TYPES and entity.get("canonical_name")
     ]
-    lowered = text.lower()
     known = {topic.lower() for topic in topics}
-    for term, topic in _MACRO_TERMS:
-        if term in lowered and topic.lower() not in known:
+    for pattern, topic in _MACRO_TERMS:
+        if pattern.search(text) and topic.lower() not in known:
             topics.append(topic)
             known.add(topic.lower())
     return topics[:8]

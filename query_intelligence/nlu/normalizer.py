@@ -33,6 +33,8 @@ ENGLISH_TERM_REWRITES: list[tuple[str, str]] = [
     (r"(?i)\bdrawdown\b", "回撤"),
     (r"(?i)macro policy", "宏观政策"),
     (r"(?i)liquor sector", "白酒行业"),
+    (r"(?i)baijiu sector", "白酒行业"),
+    (r"(?i)insurance sector", "保险行业"),
     (r"(?i)liquor", "白酒"),
     (r"(?i)sector", "行业"),
     (r"(?i)industry", "行业"),
