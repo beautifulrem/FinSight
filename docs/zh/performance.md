@@ -157,7 +157,7 @@ python -m scripts.load_test --base-url http://127.0.0.1:8801 --mode agent --ques
 - `tests/test_agent_checkpoint_postgres.py` 覆盖了它；
 - 上面的 k3s 测量用的就是它。
 
-仍然是每个副本各自一份的：A2A 任务表、`/agent/traces` 背后的内存 trace 缓冲（想要共享视图就导出 OTLP，见 [A2A、容灾与可观测性](a2a-and-observability.md)）、限流器，以及工具和数据源的 TTL 缓存。
+从第三轮起，A2A 任务表和 `/agent/traces` 背后的 trace 存储也跟随同一个 Postgres DSN（见 [A2A、容灾与可观测性](a2a-and-observability.md#多副本共享存储)）。仍然每个副本各自一份的：限流器，以及工具和数据源的 TTL 缓存。
 
 ## 复现
 

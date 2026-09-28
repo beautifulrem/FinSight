@@ -4,11 +4,13 @@
 
 本页介绍 Agent API 在互操作和运维方面的能力，全部由 FastAPI 应用（`query_intelligence/api/app.py`）提供：
 
-- A2A 接口；
+- A2A 接口与 A2A 客户端示例；
+- 多副本共享（Postgres）的任务表和 trace 表；
 - 带容灾的 LLM 模型路由与网关成本核算；
 - 运行查看器与用户反馈；
 - Prometheus 指标、看板和告警；
-- 故障演练。
+- 故障演练；
+- 审计日志。
 
 ## A2A（Agent2Agent）
 
@@ -26,6 +28,8 @@ Agent 与 A2A 概念的对应关系：
 | A2A 概念 | FinSight 的行为 |
 |---|---|
 | `contextId` | 一个 Agent 会话（`a2a<context id>`），后续消息保留对话记忆和指代。 |
+| 调用方 | 安全中间件得到的 API Key 身份（Key 的哈希，或 `local`）由自定义的 `ServerCallContextBuilder` 放进每次 A2A 调用。任务和 Agent 会话都归它所有：换一个 Key 调用 `GetTask` 会得到 `TaskNotFoundError`，也不能接着别人的 context 继续对话。 |
+| `SendStreamingMessage` | 这次运行走 `AgentService.stream`。每个图节点开始和每次工具调用都变成一条 `working` 状态更新，带一句短文本（`NLU and routing…`、`calling get_fundamentals`）；最后是产物更新和最终状态。 |
 | 任务状态 `input-required` | 一次澄清中断（例如没有上文时问「它的市盈率呢」）。同一任务的下一条消息通过 `AgentService.resume` 恢复暂停中的 LangGraph 运行。 |
 | 任务状态 `completed` | 两个产物：`answer`（带 `[evidence_id]` 引用的文本、要点和风险提示）与 `evidence`（数据部分：证据来源、校验报告、路由、降级、trace id 和后续问题建议）。 |
 | 任务状态 `failed` | 只用于意外异常。工具或 LLM 故障不会让任务失败：图会降级，并说明缺了什么。 |
@@ -44,9 +48,80 @@ curl -s http://127.0.0.1:8765/a2a -H 'A2A-Version: 1.0' -H 'Content-Type: applic
 - `QI_A2A_MODE` 选择 Agent 模式（默认 `auto`）；
 - `QI_PUBLIC_BASE_URL` 设置服务卡片里公布的地址。
 
-任务表在内存里（`InMemoryTaskStore`），适合单进程部署。
+任务表跟随会话存储：会话在 Postgres 时，任务也在 Postgres，见下文[多副本共享存储](#多副本共享存储)。
 
-测试：`tests/test_agent_observability_a2a.py`，覆盖服务卡片、带产物的完成任务、input-required 后恢复、同一 context 的记忆，以及关闭开关。
+测试：`tests/test_agent_observability_a2a.py`，覆盖服务卡片、带产物的完成任务、input-required 后恢复、同一 context 的记忆，以及关闭开关。客户端一侧见下一节。
+
+### A2A 客户端示例
+
+`scripts/a2a_client_demo.py` 就是另一个 Agent 把任务委托给 FinSight 时要跑的代码。它用官方 `a2a-sdk` 客户端（`A2ACardResolver`、`ClientFactory`、`ClientConfig`），分四步：
+
+1. 获取服务卡片；
+2. `SendMessage` 发一个普通问题，打印状态、trace id、引用的证据 id 和答案；
+3. 发「它的市盈率呢」，得到 `TASK_STATE_INPUT_REQUIRED` 和澄清问题；再在同一任务上（`task_id` + `context_id`）回复「贵州茅台」，拿到完成的答案；
+4. `SendStreamingMessage`，逐条打印流式事件。
+
+```bash
+uvicorn query_intelligence.api.app:create_app --factory --host 127.0.0.1 --port 8000
+python scripts/a2a_client_demo.py --url http://127.0.0.1:8000             # 设置了 QI_API_KEYS 时加 --api-key KEY
+python scripts/a2a_client_demo.py --url http://127.0.0.1:8000 --json      # 另外输出 JSON 摘要
+python -m pytest tests/test_a2a_client_demo.py -q                          # 在进程内运行 run_demo（httpx ASGI transport）
+```
+
+对真实副本（离线数据、无 LLM）运行的输出见 [`docs/results/protocols/a2a-client-demo.txt`](../results/protocols/a2a-client-demo.txt)。流式部分：先是 `submitted` 任务，再是 10 条 `working` 状态更新（开始工作、6 个图节点、3 次工具调用），然后是 `answer` 和 `evidence` 两个产物，最后 `completed`。
+
+进程内测试还检查了两点：示例带的 API Key 确实传到了服务端；换一个 Key 不能 `GetTask` 读取示例创建的任务。
+
+## 多副本共享存储
+
+只有一个进程时，会话、A2A 任务和 trace 都可以放在内存里。多个副本挂在负载均衡后面时，下面三样必须共享，任何副本才能处理任何请求：
+
+- 会话：追问和澄清恢复要用；
+- A2A 任务：`GetTask` 要能查到，`input-required` 的任务要能接着做；
+- trace：运行查看器要能找到任何一次运行。
+
+一个设置就把三者都放进 Postgres：
+
+| 状态 | 默认（内存） | 设置 `QI_AGENT_CHECKPOINT_DB=postgresql://…` 后 | 单独覆盖 |
+|---|---|---|---|
+| 会话（LangGraph checkpoint） | `InMemorySaver` | `PostgresSaver`（`agent/memory.py`） | — |
+| A2A 任务 | `InMemoryTaskStore` | `PostgresTaskStore`（`agent/a2a_store.py`），表 `finsight_a2a_tasks` | `QI_A2A_TASK_DB=memory` 或另一个 DSN |
+| trace（`/agent/traces*`） | `RecentTraceStore`（最近 200 条，外加 JSON 文件） | `PostgresTraceStore`（`agent/trace_store.py`），表 `finsight_agent_traces` | `QI_AGENT_TRACE_DB=memory` 或另一个 DSN |
+
+**`PostgresTaskStore`** 在 psycopg 上实现 SDK 的 `TaskStore` 接口。psycopg 是 checkpointer 已经在用的驱动，所以不用引入 SDK 自带的 SQLAlchemy + asyncpg 存储。
+
+- 按调用方隔离：主键是 `(owner, task_id)`。
+- 整个任务以 JSONB 存储，另有 `context_id`、`state`、`last_updated` 列，供 `ListTasks` 过滤和 keyset 分页。
+- 阻塞调用放在工作线程里执行，所以不绑定某一个事件循环。
+- 超过 `QI_A2A_TASK_RETENTION_DAYS`（默认 7 天）没更新的任务会被清理。
+
+**`PostgresTraceStore`** 接口不变（`emit`/`get`/`recent`，按调用方隔离）。
+
+- 每行存完整 trace 和列表摘要，`/agent/traces` 只读摘要。
+- 保留量按条数和时间双重限制：最多保留最新的 `QI_AGENT_TRACE_MAX_ROWS` 条（默认 50000），且不超过 `QI_AGENT_TRACE_RETENTION_DAYS` 天（默认 14 天）。每写 50 次清理一次。
+- 每条 trace 也同时留在本地环形缓冲里。Postgres 不可用时，写入记日志后跳过，读取退回本地缓冲，trace 永远不会影响回答。
+
+启动时连不上数据库（超时 `QI_STORE_CONNECT_TIMEOUT_S`，默认 5 秒），两个存储都会退回内存并打印警告。
+
+测试：
+
+```bash
+python -m pytest tests/test_agent_shared_stores.py -q       # 存储选择、回退、表名校验（不需要数据库）
+
+docker run -d --name fs-pg -e POSTGRES_PASSWORD=finsight -e POSTGRES_DB=finsight -p 55433:5432 postgres:16-alpine
+export QI_TEST_POSTGRES_DSN=postgresql://postgres:finsight@127.0.0.1:55433/finsight
+python -m pytest tests/test_agent_shared_stores_postgres.py tests/test_agent_checkpoint_postgres.py -v
+```
+
+Postgres 测试构建两个只共享数据库的应用实例，检查：
+
+- 副本 1 上停在 `input-required` 的任务，副本 2 能查到，也能恢复；
+- 副本 1 写的 trace，副本 2 能列出、能返回，在副本 2 提交反馈也能找到它；
+- 跨副本时仍按调用方隔离；
+- trace 按条数和时间清理；
+- 对照组：把两个存储强制设为 `memory` 后，什么都不共享。
+
+`scripts/shared_store_probe.py` 对两个真实的 `uvicorn` 进程做同样的检查。结果见 [`docs/results/protocols/`](../results/protocols/README.md)：5/5 个测试通过；探测脚本的每一项检查都通过，在另一个副本上恢复任务耗时 0.83 秒。
 
 ## LLM 网关、容灾与成本
 
@@ -92,7 +167,7 @@ export QI_LLM_FALLBACK_MODELS=cline-pass/glm-5.3-flash
 | 接口 | 用途 |
 |---|---|
 | `GET /agent/traces?limit=50&session_id=...` | 最近运行的摘要，最新的在前：路由、答案来源、耗时、工具调用/错误、LLM 调用、token、成本、校验结果。 |
-| `GET /agent/traces/{trace_id}` | 完整 trace。先从内存环形缓冲（最近 200 次运行）取，更早的从 `QI_AGENT_TRACE_DIR`（默认 `outputs/traces/`）下的 JSON 文件读。 |
+| `GET /agent/traces/{trace_id}` | 完整 trace。先从内存环形缓冲（最近 200 次运行）取，更早的从 `QI_AGENT_TRACE_DIR`（默认 `outputs/traces/`）下的 JSON 文件读。会话存储是 Postgres（或设置了 `QI_AGENT_TRACE_DB`）时，这两个接口改为读共享表 `finsight_agent_traces`，每个副本都能看到所有运行，见[多副本共享存储](#多副本共享存储)。 |
 | `POST /agent/feedback` | 按 `trace_id` 对一次运行点赞/点踩，追加写入 `QI_FEEDBACK_PATH`；`scripts/feedback_to_tasks.py` 把点踩的 trace 转成待审核的候选评测任务。 |
 
 trace 也可以导出到任何 OTLP 后端（Jaeger、Tempo、Langfuse）：设置 `QI_AGENT_OTEL=1` 或 `OTEL_EXPORTER_OTLP_ENDPOINT`，见 [Agent 层](agent.md)。
@@ -110,8 +185,10 @@ trace 也可以导出到任何 OTLP 后端（Jaeger、Tempo、Langfuse）：设�
 | `finsight_llm_calls_total` | `model` | LLM 调用，按每次调用实际作答的模型打标签（切换到备用模型的调用记在备用模型名下）。 |
 | `finsight_llm_tokens_total` | `model`、`kind` | 按作答模型统计的 prompt、completion、缓存命中和推理 token。 |
 | `finsight_llm_cost_total` | `model`、`currency` | 累计 LLM 成本；一次运行用到多个模型时，按各自 prompt + completion token 的比例分摊。 |
-| `finsight_feedback_total` | `rating` | 来自 `POST /agent/feedback` 的用户反馈（`up` / `down`）。 |
+| `finsight_feedback_total` | `rating`、`prompt_version` | 来自 `POST /agent/feedback` 的用户反馈（`up` / `down`），并标注被评价答案的提示词版本。 |
 | `finsight_verification_failures_total` | — | 引用或数字校验失败的草稿（修复之前）。 |
+| `finsight_answer_verification_total` | `prompt_version`、`outcome` | 按提示词版本统计的校验结果。版本取自本次运行第一次 LLM 调用的 `agent_system@vN#sha`（`v1`…`v3`）；模板答案记为 `none`。`outcome`：`passed`（初稿通过）、`revised`（经 LLM 修改后通过）、`repaired`（仍未通过，做了确定性修复）。拒答和澄清不计入。 |
+| `finsight_audit_events_total` | `event`、`category` | 输入防护的拒答（`event="refusal"`，类别 `prompt_injection` / `out_of_scope`）和合规改写（`event="compliance_edit"`，类别为规则名）。见[审计日志](#审计日志)。 |
 | `finsight_degradations_total` | `flag` | 各类降级，例如 `llm_error` 或工具故障。 |
 
 trace 驱动的指标只能看到已完成的运行。当前状态由 `OpsMetricsCollector`（`query_intelligence/integrations/ops_metrics.py`）在抓取时读取，它和上面的指标注册在同一个 registry 上：
@@ -133,7 +210,15 @@ trace 驱动的指标只能看到已完成的运行。当前状态由 `OpsMetric
 histogram_quantile(0.95, sum by (le) (rate(finsight_agent_run_seconds_bucket[5m])))
 sum by (tool) (rate(finsight_tool_calls_total{outcome="error"}[5m])) / sum by (tool) (rate(finsight_tool_calls_total[5m]))
 sum(increase(finsight_llm_cost_total[1d]))
+# 各提示词版本的修复率（上线新版本前要对比的数字）
+sum by (prompt_version) (rate(finsight_answer_verification_total{outcome="repaired"}[15m]))
+  / sum by (prompt_version) (rate(finsight_answer_verification_total[15m]))
 ```
+
+标签基数保持很低：
+- `prompt_version` 只有几个取值，`outcome` 只有 3 个；
+- `category` 是固定的防护规则和合规规则名；
+- `tool` 标签每注册一个外部 MCP 工具就多一个取值。
 
 设置 `QI_API_KEYS` 后，`/metrics` 和 `/agent/traces*` 与其他非公开接口一样需要 API Key，而且 `/agent/traces*` 只返回当前 Key 的运行（trace 里记录的是 Key 的哈希，从不记录 Key 本身）。
 
@@ -162,8 +247,27 @@ python monitoring/screenshot.py --grafana http://127.0.0.1:3300 --jaeger http://
 
 | 文件 | 内容 |
 |---|---|
-| `monitoring/grafana/finsight-dashboard.json` | 19 个面板，分四行：<br>- **流量**：各路由的每秒请求数、各路由的 P50/P95、作答来源；<br>- **质量**：校验失败率、各类降级、各工具错误率；<br>- **LLM**：每小时和 24 小时成本、各模型调用次数（体现容灾）、各模型熔断状态时间线、各类 token、每次作答运行的 LLM 调用数；<br>- **数据源**：各数据源熔断状态时间线、按结果统计的调用、数据源调用池。 |
-| `monitoring/prometheus/alerts.yml` | 10 条规则：`FinSightDown`、`FinSightWorkflowP95High`（10 分钟内 > 8 秒）、`FinSightAgentP95High`（> 60 秒）、`FinSightVerificationFailureRateHigh`（> 20%）、`FinSightToolErrorRateHigh`（单个工具 > 25%）、`FinSightLLMModelCircuitOpen`、`FinSightAllLLMModelsDown`、`FinSightDataSourceCircuitOpen`、`FinSightSourcePoolAbandonedCalls`、`FinSightLLMCostBurnHigh`（每小时 > ¥20）。`promtool check rules`：10 条规则，全部有效。 |
+| `monitoring/grafana/finsight-dashboard.json` | 27 个面板，分五行：<br>- **流量**：各路由的每秒请求数、各路由的 P50/P95、作答来源；<br>- **质量**：校验失败率、各类降级、各工具错误率；<br>- **LLM**：每小时和 24 小时成本、各模型调用次数（体现容灾）、各模型熔断状态时间线、各类 token、每次作答运行的 LLM 调用数；<br>- **数据源**：各数据源熔断状态时间线、按结果统计的调用、数据源调用池；<br>- **按提示词版本的答案质量、用户反馈、审计**：各版本的初稿校验失败率和修复率、24 小时各结果计数、各版本和整体（24 小时）的点赞率、每小时反馈量、每小时各类审计事件。 |
+| `monitoring/prometheus/alerts.yml` | 13 条规则。原有 10 条：`FinSightDown`、`FinSightWorkflowP95High`（10 分钟内 > 8 秒）、`FinSightAgentP95High`（> 60 秒）、`FinSightVerificationFailureRateHigh`（> 20%）、`FinSightToolErrorRateHigh`（单个工具 > 25%）、`FinSightLLMModelCircuitOpen`、`FinSightAllLLMModelsDown`、`FinSightDataSourceCircuitOpen`、`FinSightSourcePoolAbandonedCalls`、`FinSightLLMCostBurnHigh`（每小时 > ¥20）。新增 3 条：`FinSightRepairRateHighForPromptVersion`（某个 LLM 提示词版本 30 分钟内至少 20 个答案，修复率 > 25%）、`FinSightNegativeFeedbackHigh`（6 小时内至少 10 个评价，点踩 > 50%）、`FinSightInjectionAttemptsSpike`（10 分钟内注入拒答 > 20 次）。 |
+| `monitoring/prometheus/alerts_test.yml` | promtool 单元测试：三条新规则在合成数据上都会触发，而且只对不健康的那个提示词版本触发。 |
+
+检查命令（Docker 虚拟机看不到代码目录，所以把文件用管道送进 `prom/prometheus` 镜像）：
+
+```bash
+tar -C monitoring/prometheus -cf - alerts.yml alerts_test.yml | docker run --rm -i --entrypoint /bin/sh prom/prometheus:v3.15.0 \
+  -c 'mkdir -p /tmp/r && tar -C /tmp/r -xf - && cd /tmp/r && promtool check rules alerts.yml && promtool test rules alerts_test.yml'
+# Checking alerts.yml  SUCCESS: 13 rules found     （之后单元测试：SUCCESS）
+python -m pytest tests/test_monitoring_config.py -q   # 看板结构；用到的每个 finsight_* 指标都确实被导出
+```
+
+新增的一行于 2026-09-28 验证：
+- 环境：Grafana 13.2.2（看板已预置，27 个面板）；Prometheus 3.15 抓取两个共享 Postgres 的离线副本。
+- 流量：两轮各 4 分钟，共 260 次运行，其中 51 次拒答。约 60% 的答案在**另一个**副本上评价，这能成功是因为 trace 表是共享的。
+- 结果：每个新面板的查询都通过 Grafana 的数据源代理返回了数据（`docs/results/observability/grafana-quality-row-check.json`）。
+
+没有 LLM 时所有答案都是 `prompt_version="none"`。按版本（`v2`、`v3`）拆分的情况由 `tests/test_agent_audit_metrics.py` 和 promtool 测试覆盖。
+
+![Grafana：按提示词版本的质量、反馈和审计](../assets/ops/grafana-quality-feedback-audit.png)
 
 2026-09-26 验证（colima）：四个容器都已启动，Prometheus 的 `finsight` 目标健康，规则已加载并在评估。
 
@@ -242,3 +346,41 @@ python -m scripts.chaos_drill --scenario sources --source-cooldown 20 --max-stal
   - `--block-mode hang` 让代理扣住连接不回（不在这次记录的运行中）；
   - 这类调用在 `QI_SOURCE_CALL_TIMEOUT_SECONDS` 到时结束，并记为被放弃；
   - `tests/test_source_reliability.py` 离线覆盖了这种情况。
+
+## 审计日志
+
+输入防护的每一次拒答、合规检查对答案的每一次改写，都会产生一条结构化审计事件（`query_intelligence/agent/audit.py`，和指标一样是一个 trace sink）。事件记录发生了哪类干预、针对哪个调用方、属于哪次运行；从不记录用户写了什么。
+
+```json
+{"answer_source": "guardrail", "at": "2026-09-28T06:53:51Z", "category": "out_of_scope", "event": "refusal",
+ "principal": "key:f15424e984f6", "prompt_version": "none", "query_hash": "de688223511b", "route": "refuse",
+ "session_hash": "0da330e4fed9", "trace_id": "38fa26a9f5364a8cb0ff8a1ca6982d1d"}
+```
+
+| 字段 | 含义 |
+|---|---|
+| `event`、`category` | `refusal`：`prompt_injection` 或 `out_of_scope`。`compliance_edit`：改写答案的规则，取值为 `removed_trading_instruction`、`conditional_prefix`、`causal_caveat`、`softened_judgment_or_causal_language`、`market_freshness`、`language_mismatch_fallback_to_template` 之一。一次运行有几条规则改写，就产生几条事件。 |
+| `principal` | 租户隔离用的调用方标识：`key:` 加 API Key 的 SHA-256 前 12 位十六进制，或 `local`。 |
+| `query_hash`、`session_hash` | 问题和会话 id 的 HMAC-SHA256 前 12 位十六进制，密钥为 `QI_AUDIT_HASH_KEY`（未设置时用普通 SHA-256）。生产环境请设置密钥，避免常见短问题被字典反查。 |
+| `trace_id` | 指向完整 trace（`/agent/traces/{id}`），供有权限的审核人查看。 |
+
+输出位置：
+
+| 输出 | 说明 |
+|---|---|
+| 日志行 | 日志器 `finsight.audit`，每条事件一行 JSON，写进服务日志。 |
+| JSONL 文件 | `QI_AUDIT_LOG_PATH`（默认 `outputs/audit/audit.jsonl`；设为 `off` 关闭）。每天 UTC 零点轮转，保留 `QI_AUDIT_RETENTION_DAYS` 个文件（默认 30）。路径不可写时（例如只读根文件系统）会关闭文件输出并警告，日志行和计数器照常工作。 |
+| Prometheus | `finsight_audit_events_total{event, category}`。看板的审计面板和 `FinSightInjectionAttemptsSpike` 告警都用它。 |
+
+```bash
+python -m pytest tests/test_agent_audit_metrics.py -q
+```
+
+测试通过 `/agent/chat` 覆盖拒答和合规改写，并检查以下各项：
+- 文件和日志行里都没有问题原文、会话 id 或 API Key；
+- 带密钥的哈希；
+- 计数器；
+- 按提示词版本的校验结果指标；
+- trace 里带有 `prompt_version` 和 `refusal_category`。
+
+在上面的双副本运行中，审计文件共 128 条事件，没有任何问题原文。

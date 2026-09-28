@@ -158,7 +158,7 @@ Sessions are LangGraph checkpoints (memory, SQLite or Postgres). This lets a cla
   - Upstream calls run on a bounded pool.
   - Sina vs THS fundamentals are cross-checked against the reported levels.
   - Every record carries its provenance. An active probe is available at `GET /sources/health?probe=1`, rate limited.
-- **Protocols**: an MCP server for the tools, and an A2A 1.0 endpoint for the whole agent (a clarification maps to `input-required`).
+- **Protocols**: an MCP server for the tools, plus an MCP client that registers tools from external MCP servers (`QI_MCP_SERVERS`, sandboxed as untrusted data). An A2A 1.0 endpoint serves the whole agent: a clarification maps to `input-required`, streaming reports progress, and tasks are shared through Postgres. A committed a2a-sdk client demo (`scripts/a2a_client_demo.py`) exercises the endpoint.
 - **Observability**
   - A trace for every run: nodes, tools, LLM calls with context composition and JSON status, tokens, cost and prompt versions.
   - A run inspector API and OpenTelemetry export.
@@ -273,7 +273,7 @@ CI runs the following:
 - **The injection filter does not generalise.** The lexical filter redacted none of the held-out attacks; protection comes mostly from structure (read-only tools, the untrusted-data envelope, verification, compliance and the language guard).
 - **Follow-up handling is rule-based.** Pronouns, plurals and ellipsis are resolved by rules, and English company aliases cover major names only.
 - **Latency.** The agent's P95 is 25 s with DeepSeek and about 80 s with GLM. Since the round-2 deadline change, every LLM request is capped by the run deadline (90 s + 20 s for the answer, below the API's 120 s timeout); this has not been re-measured under load.
-- **Free data sources throttle.** Eastmoney refused this machine's connections during the audit, and the fallbacks carried the load. The A2A task store, the trace ring and the caches are per replica.
+- **Free data sources throttle.** Eastmoney refused this machine's connections during the audit, and the fallbacks carried the load. With a Postgres checkpointer, A2A tasks and traces are shared by all replicas too; the rate limiter and the caches are still per replica.
 
 ## Safety
 

@@ -56,7 +56,7 @@ kubectl -n finsight rollout status deployment/finsight-api
 
 Every turn is a LangGraph run on thread `session_id`. With `QI_AGENT_CHECKPOINT_DB=postgresql://...` the checkpoints (conversation turns, a paused clarification, the last resolved entity) are in Postgres, so the next turn can land on any replica. `tests/test_agent_checkpoint_postgres.py` checks this with two service instances; on the k3s deployment a follow-up sent to replica B ("它的市净率呢") resolved the pronoun from a turn served by replica A.
 
-Per-replica state that is not shared: the A2A task store, the in-memory trace buffer behind `/agent/traces` (JSON traces are per pod; export OTLP for a shared view) and the TTL caches of tools and live sources.
+The same DSN also moves the A2A task store (`finsight_a2a_tasks`) and the trace store behind `/agent/traces` (`finsight_agent_traces`) to Postgres, so any replica can serve `GetTask`, continue an `input-required` task, or show any run in the inspector (see [a2a-and-observability.md](a2a-and-observability.md#shared-stores-for-several-replicas); `QI_A2A_TASK_DB` / `QI_AGENT_TRACE_DB=memory` opt out). Still per replica: the rate limiter and the TTL caches of tools and live sources.
 
 ### Read-only root filesystem
 
