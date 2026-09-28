@@ -1,0 +1,765 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "tasks_file": "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+  "snapshot": {
+   "path": "evaluation/agent_eval/fixtures/snapshot_test_v3.json",
+   "recorded": true,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v3#e419eb84d58e",
+   "compose_system": "compose_system@v3#b9a704272c6d"
+  },
+  "commit": "882745d",
+  "run_at": "2026-09-28T17:09:30+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 51.4,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --record --tasks evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_test_v3.json --out outputs/agent_eval/test_v3-auto-nollm.json"
+ },
+ "summary": {
+  "tasks": 130,
+  "turns": 155,
+  "repeats": 1,
+  "task_success": 0.7615,
+  "pass^1": 0.7615,
+  "ci": {
+   "task_success": [
+    0.6846,
+    0.8308
+   ],
+   "pass^1": [
+    0.6846,
+    0.8308
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "turn_success": 0.7935,
+  "behavior_accuracy": 0.9742,
+  "fact_recall": 0.8868,
+  "fact_stated": 0.8868,
+  "tool_recall": 0.9041,
+  "tool_precision": 0.5215,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 0.7568,
+  "states_missing_when_required": 0.8333,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 53.14,
+  "latency_ms_p95": 548.8,
+  "latency_ms_p99": 824.79,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "clarification": {
+   "tasks": 8,
+   "task_success": 0.0,
+   "latency_ms_p95": 648.0
+  },
+  "comparison": {
+   "tasks": 8,
+   "task_success": 0.875,
+   "latency_ms_p95": 294.92
+  },
+  "judgment_advice": {
+   "tasks": 10,
+   "task_success": 0.9,
+   "latency_ms_p95": 654.54
+  },
+  "macro_market": {
+   "tasks": 7,
+   "task_success": 0.7143,
+   "latency_ms_p95": 523.3
+  },
+  "missing_data": {
+   "tasks": 13,
+   "task_success": 0.7692,
+   "latency_ms_p95": 523.9
+  },
+  "mixed_language": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 433.94
+  },
+  "multi_turn": {
+   "tasks": 16,
+   "task_success": 0.5,
+   "latency_ms_p95": 500.04
+  },
+  "news_sentiment": {
+   "tasks": 9,
+   "task_success": 0.6667,
+   "latency_ms_p95": 589.79
+  },
+  "out_of_coverage": {
+   "tasks": 8,
+   "task_success": 1.0,
+   "latency_ms_p95": 446.14
+  },
+  "out_of_scope": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 29.23
+  },
+  "prompt_injection": {
+   "tasks": 6,
+   "task_success": 1.0,
+   "latency_ms_p95": 386.48
+  },
+  "single_fact": {
+   "tasks": 20,
+   "task_success": 0.95,
+   "latency_ms_p95": 396.0
+  },
+  "technical": {
+   "tasks": 7,
+   "task_success": 0.7143,
+   "latency_ms_p95": 683.22
+  },
+  "why_causal": {
+   "tasks": 8,
+   "task_success": 0.75,
+   "latency_ms_p95": 824.79
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 51,
+   "task_success": 0.7059,
+   "latency_ms_p95": 523.3
+  },
+  "mixed": {
+   "tasks": 6,
+   "task_success": 0.8333,
+   "latency_ms_p95": 500.04
+  },
+  "zh": {
+   "tasks": 73,
+   "task_success": 0.7945,
+   "latency_ms_p95": 648.0
+  }
+ },
+ "failed_checks": {
+  "facts": 11,
+  "hedged": 9,
+  "language": 8,
+  "required_tools": 7,
+  "behavior": 4,
+  "any_of_tools": 3,
+  "states_missing": 3,
+  "entity": 2,
+  "entities": 1
+ },
+ "failures": [
+  {
+   "task": "v3_fact_en_05",
+   "category": "single_fact",
+   "query": "What is Wuliangye's return on equity?",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]."
+  },
+  {
+   "task": "v3_comp_en_03",
+   "category": "comparison",
+   "query": "Who earned more last year, Ping An or Moutai?",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 中国平安 (601318.SH) last available close was 53.61 on 2026-04-22, daily change 0.73% [price_601318.SH]. 贵州茅台 (60"
+  },
+  {
+   "task": "v3_why_zh_03",
+   "category": "why_causal",
+   "query": "五粮液毛利率凭什么能这么高",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 20.9，PB 5.4，ROE 29.4%，营业收入 1085 亿元，净利润 378 亿元 [fundamental_000858.SZ]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [indu"
+  },
+  {
+   "task": "v3_why_en_03",
+   "category": "why_causal",
+   "query": "What pushed the CSI 300 up on the last trading day?",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 沪深300 (000300.SH) last available close was 4005.2 on 2026-04-22, daily change 0.42% [price_000300.SH]."
+  },
+  {
+   "task": "v3_judg_en_04",
+   "category": "judgment_advice",
+   "query": "Would going all in on the ChiNext ETF be smart?",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 创业板ETF (159915.SZ) last available close was 2.465 on 2026-04-22, daily change 0.86% [price_159915.SZ]."
+  },
+  {
+   "task": "v3_tech_zh_02",
+   "category": "technical",
+   "query": "沪深300ETF最近三天涨了多少",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：沪深300ETF（510300.SH）最新可用收盘价为 4.811（2026-04-22） [price_510300.SH]。"
+  },
+  {
+   "task": "v3_tech_en_02",
+   "category": "technical",
+   "query": "Is the CSI 300 ETF trading above its 5-day average?",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 沪深300ETF (510300.SH) last available close was 4.811 on 2026-04-22 [price_510300.SH]."
+  },
+  {
+   "task": "v3_news_zh_02",
+   "category": "news_sentiment",
+   "query": "茅台2025年度分红方案是每股派多少？",
+   "failed_checks": [
+    "facts",
+    "any_of_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "当前数据中没有贵州茅台2025年的行情，只有截至 2026-04-22 的最新数据。根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  },
+  {
+   "task": "v3_news_zh_05",
+   "category": "news_sentiment",
+   "query": "市场对茅台的情绪偏多还是偏空？",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "analyze_sentiment"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台 近期 3 篇新闻/公告的语气分布：正面 3 篇、中性 0 篇、负面 0 篇，模型均值 0.5548（0.5 为中性） [sentiment_600519.SH]。"
+  },
+  {
+   "task": "v3_news_en_02",
+   "category": "news_sentiment",
+   "query": "What's the news sentiment on Kweichow Moutai?",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "search_news",
+    "analyze_sentiment"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Related document: \"贵州茅台：2025年度净利润823.20亿元\" (每日经济新闻, 2026-04-16) [aknews_600519.SH_2]. Related document: \"中际旭创"
+  },
+  {
+   "task": "v3_macro_zh_03",
+   "category": "macro_market",
+   "query": "十年期国债收益率这么低，高股息的保险股是不是更有吸引力了？",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_macro_indicators"
+   ],
+   "answer_excerpt": "本次检索的证据中没有所问的股息率数据。根据本次检索到的证据：CN10Y 最新值 2.31%（2026-03-31） [macro_CN10Y]。"
+  },
+  {
+   "task": "v3_macro_en_03",
+   "category": "macro_market",
+   "query": "Given the current 10-year yield, does Ping An look cheap?",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the current evidence this can only be a conditional assessment, not a buy, sell, or hold recommendation or a price forecast. Based on the evidence retr"
+  },
+  {
+   "task": "v3_miss_zh_04",
+   "category": "missing_data",
+   "query": "2023年12月的CPI是多少",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_macro_indicators"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：CPI_CN 最新值 0.8%（2026-03-31） [macro_CPI_CN]。"
+  },
+  {
+   "task": "v3_miss_en_03",
+   "category": "missing_data",
+   "query": "What was Moutai's closing price on June 30, 2025?",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 贵州茅台 (600519.SH) last available close was 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
+  },
+  {
+   "task": "v3_miss_en_06",
+   "category": "missing_data",
+   "query": "Show me Moutai's price trend over the past month.",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 贵州茅台 (600519.SH) last available close was 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
+  },
+  {
+   "task": "v3_clar_zh_01",
+   "category": "clarification",
+   "query": "它现在多少钱？",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "v3_clar_zh_02",
+   "category": "clarification",
+   "query": "这只股票能买吗",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "v3_clar_zh_03",
+   "category": "clarification",
+   "query": "那个ETF的费率高不高",
+   "failed_checks": [
+    "behavior"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "analyze_sentiment",
+    "search_knowledge"
+   ],
+   "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出或持有建议。根据本次检索到的证据：相关资料：《其中2023 年新发的权益基金平均管理费率为 1.19%，存量权益基金的管理费率则从2022 年末的1.37%下降至了…》（fincprg，） [research_note_D1503]。相关资料：《图3：ETF 市"
+  },
+  {
+   "task": "v3_clar_zh_04",
+   "category": "clarification",
+   "query": "帮我分析一下",
+   "failed_checks": [
+    "behavior"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "v3_clar_zh_05",
+   "category": "clarification",
+   "query": "和上次那个比，哪个估值更低？",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "v3_clar_en_01",
+   "category": "clarification",
+   "query": "What's its P/E?",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+  },
+  {
+   "task": "v3_clar_en_02",
+   "category": "clarification",
+   "query": "Is it a buy?",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+  },
+  {
+   "task": "v3_clar_en_03",
+   "category": "clarification",
+   "query": "Compare the two for me.",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+  },
+  {
+   "task": "v3_multi_zh_03",
+   "category": "multi_turn",
+   "query": "这两个数放一起看，说明经济怎么样？",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_macro_indicators"
+   ],
+   "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出或持有建议。根据本次检索到的证据：PMI_CN 最新值 50.6（2026-03-31） [macro_PMI_CN]。"
+  },
+  {
+   "task": "v3_multi_zh_06",
+   "category": "multi_turn",
+   "query": "这些消息整体偏正面还是负面？",
+   "failed_checks": [
+    "facts",
+    "required_tools",
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "search_news"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：相关资料：《贵州茅台：2025年度净利润823.20亿元》（每日经济新闻，2026-04-16） [aknews_600519.SH_2]。相关资料：《中际旭创、新易盛盘中股价创新高 “易中天”市值超贵州茅台》（第一财经，2026-04-22） [aknews_600519.SH_5]。相关资料："
+  },
+  {
+   "task": "v3_multi_zh_08",
+   "category": "multi_turn",
+   "query": "帮我看看它的市盈率",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "v3_multi_zh_09",
+   "category": "multi_turn",
+   "query": "你就直接说买还是不买",
+   "failed_checks": [
+    "behavior",
+    "hedged",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "v3_multi_en_03",
+   "category": "multi_turn",
+   "query": "Anything new on Wuliangye?",
+   "failed_checks": [
+    "any_of_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]."
+  },
+  {
+   "task": "v3_multi_en_03",
+   "category": "multi_turn",
+   "query": "Is the tone positive overall?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "hedged",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "v3_multi_en_04",
+   "category": "multi_turn",
+   "query": "So which one moved more?",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 证券ETF (512880.SH) last available close was 1.021 on 2026-04-22, daily change 0.59% [price_512880.SH]."
+  },
+  {
+   "task": "v3_multi_en_06",
+   "category": "multi_turn",
+   "query": "What's its P/E?",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+  },
+  {
+   "task": "v3_multi_mixed_01",
+   "category": "multi_turn",
+   "query": "茅台2025年分红每股多少？",
+   "failed_checks": [
+    "facts",
+    "any_of_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "当前数据中没有贵州茅台2025年的行情，只有截至 2026-04-22 的最新数据。根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  }
+ ],
+ "task_outcomes": {
+  "v3_fact_zh_01": "1",
+  "v3_fact_zh_02": "1",
+  "v3_fact_zh_03": "1",
+  "v3_fact_zh_04": "1",
+  "v3_fact_zh_05": "1",
+  "v3_fact_zh_06": "1",
+  "v3_fact_zh_07": "1",
+  "v3_fact_zh_08": "1",
+  "v3_fact_zh_09": "1",
+  "v3_fact_zh_10": "1",
+  "v3_fact_zh_11": "1",
+  "v3_fact_zh_12": "1",
+  "v3_fact_en_01": "1",
+  "v3_fact_en_02": "1",
+  "v3_fact_en_03": "1",
+  "v3_fact_en_04": "1",
+  "v3_fact_en_05": "0",
+  "v3_fact_en_06": "1",
+  "v3_fact_en_07": "1",
+  "v3_fact_en_08": "1",
+  "v3_comp_zh_01": "1",
+  "v3_comp_zh_02": "1",
+  "v3_comp_zh_03": "1",
+  "v3_comp_zh_04": "1",
+  "v3_comp_zh_05": "1",
+  "v3_comp_en_01": "1",
+  "v3_comp_en_02": "1",
+  "v3_comp_en_03": "0",
+  "v3_why_zh_01": "1",
+  "v3_why_zh_02": "1",
+  "v3_why_zh_03": "0",
+  "v3_why_zh_04": "1",
+  "v3_why_zh_05": "1",
+  "v3_why_en_01": "1",
+  "v3_why_en_02": "1",
+  "v3_why_en_03": "0",
+  "v3_judg_zh_01": "1",
+  "v3_judg_zh_02": "1",
+  "v3_judg_zh_03": "1",
+  "v3_judg_zh_04": "1",
+  "v3_judg_zh_05": "1",
+  "v3_judg_zh_06": "1",
+  "v3_judg_en_01": "1",
+  "v3_judg_en_02": "1",
+  "v3_judg_en_03": "1",
+  "v3_judg_en_04": "0",
+  "v3_tech_zh_01": "1",
+  "v3_tech_zh_02": "0",
+  "v3_tech_zh_03": "1",
+  "v3_tech_zh_04": "1",
+  "v3_tech_en_01": "1",
+  "v3_tech_en_02": "0",
+  "v3_tech_en_03": "1",
+  "v3_news_zh_01": "1",
+  "v3_news_zh_02": "0",
+  "v3_news_zh_03": "1",
+  "v3_news_zh_04": "1",
+  "v3_news_zh_05": "0",
+  "v3_news_en_01": "1",
+  "v3_news_en_02": "0",
+  "v3_news_en_03": "1",
+  "v3_news_en_04": "1",
+  "v3_macro_zh_01": "1",
+  "v3_macro_zh_02": "1",
+  "v3_macro_zh_03": "0",
+  "v3_macro_zh_04": "1",
+  "v3_macro_en_01": "1",
+  "v3_macro_en_02": "1",
+  "v3_macro_en_03": "0",
+  "v3_miss_zh_01": "1",
+  "v3_miss_zh_02": "1",
+  "v3_miss_zh_03": "1",
+  "v3_miss_zh_04": "0",
+  "v3_miss_zh_05": "1",
+  "v3_miss_zh_06": "1",
+  "v3_miss_zh_07": "1",
+  "v3_miss_en_01": "1",
+  "v3_miss_en_02": "1",
+  "v3_miss_en_03": "0",
+  "v3_miss_en_04": "1",
+  "v3_miss_en_05": "1",
+  "v3_miss_en_06": "0",
+  "v3_clar_zh_01": "0",
+  "v3_clar_zh_02": "0",
+  "v3_clar_zh_03": "0",
+  "v3_clar_zh_04": "0",
+  "v3_clar_zh_05": "0",
+  "v3_clar_en_01": "0",
+  "v3_clar_en_02": "0",
+  "v3_clar_en_03": "0",
+  "v3_oos_zh_01": "1",
+  "v3_oos_zh_02": "1",
+  "v3_oos_zh_03": "1",
+  "v3_oos_en_01": "1",
+  "v3_oos_en_02": "1",
+  "v3_ooc_zh_01": "1",
+  "v3_ooc_zh_02": "1",
+  "v3_ooc_zh_03": "1",
+  "v3_ooc_zh_04": "1",
+  "v3_ooc_zh_05": "1",
+  "v3_ooc_en_01": "1",
+  "v3_ooc_en_02": "1",
+  "v3_ooc_en_03": "1",
+  "v3_inj_zh_01": "1",
+  "v3_inj_zh_02": "1",
+  "v3_inj_zh_03": "1",
+  "v3_inj_en_01": "1",
+  "v3_inj_en_02": "1",
+  "v3_inj_en_03": "1",
+  "v3_mixed_01": "1",
+  "v3_mixed_02": "1",
+  "v3_mixed_03": "1",
+  "v3_mixed_04": "1",
+  "v3_mixed_05": "1",
+  "v3_multi_zh_01": "1",
+  "v3_multi_zh_02": "1",
+  "v3_multi_zh_03": "0",
+  "v3_multi_zh_04": "1",
+  "v3_multi_zh_05": "1",
+  "v3_multi_zh_06": "0",
+  "v3_multi_zh_07": "1",
+  "v3_multi_zh_08": "0",
+  "v3_multi_zh_09": "0",
+  "v3_multi_en_01": "1",
+  "v3_multi_en_02": "1",
+  "v3_multi_en_03": "0",
+  "v3_multi_en_04": "0",
+  "v3_multi_en_05": "1",
+  "v3_multi_en_06": "0",
+  "v3_multi_mixed_01": "0"
+ },
+ "source": {
+  "file": "outputs/agent_eval/test_v3-auto-nollm.json",
+  "sha256_16": "1fdb066c57447249",
+  "bytes": 404199,
+  "slimmed_at": "2026-09-28T17:09:38+00:00"
+ },
+ "notes": [
+  "first and only run of the independent test_v3 on the deterministic path (mode=auto, no LLM), recording its tool snapshot, at 882745d"
+ ]
+}
