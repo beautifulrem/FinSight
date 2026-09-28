@@ -24,6 +24,10 @@
 
 结果：64 次探测，49 次成功。每个失败都找到了根因（见下文）。
 
+**已提交的复测。** 上表来自一次在有改动的工作区上的运行，当时的 JSON 没有保留。2026-09-28 09:14 UTC 在干净的 `6dde495` 检出上重跑了审计（同样的网络和包版本），完整输出已提交：[`results/data_sources/audit-20260928-6dde495.json`](../results/data_sources/audit-20260928-6dde495.json)（文件里记录了 `commit` 和 `working_tree_clean: true`）。总数相同：**64 次探测 49 次成功，10 条降级链全部成功**（行情都由新浪提供）。失败类别也一样：东方财富 `push2`/`push2his` 主机 0/11（代理错误，根因 1；efinance 用的是同一主机）、雪球 0/1（需要登录 Token）、已移除的 `macro_china_pmi_monthly`，以及巨潮和东方财富公告接口各一次空结果（ETF 没有公司公告）。
+
+**定期运行。** [`.github/workflows/data-source-audit.yml`](../../.github/workflows/data-source-audit.yml) 每周一 01:30 UTC 以及手动触发（`workflow_dispatch`）时运行审计，把汇总表写到任务页面，并把 JSON 作为 artifact 保留 90 天。GitHub 的 runner 不在中国大陆，结果不能和上表直接比较；文档引用的审计都在部署所在网络运行，并提交到 `docs/results/data_sources/`。
+
 ## 各数据源结果
 
 延迟是各标的上观察到的范围，「最新数据日期」是返回数据中最新的日期。结果来自上面那次审计。
