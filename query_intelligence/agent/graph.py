@@ -38,7 +38,7 @@ from .composer import answer_json_status, compose_template, parse_answer
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
 from .injection import REDACTION_MARKER, sanitize_observation, sanitize_untrusted_text, tool_message_content
-from .llm import LLMClient, LLMError, Pricing, Usage, resolve_cost
+from .llm import LLMClient, LLMError, Pricing, Usage, llm_deadline, resolve_cost
 from .memory import (
     apply_clarification,
     dialog_context_from_turns,
@@ -194,6 +194,18 @@ class AgentRuntime:
 
     # ------------------------------------------------------------------ nodes
 
+    def _chat(self, state: AgentState, *args: Any, final: bool = True, **kwargs: Any) -> Any:
+        """``llm.chat`` bounded by the run deadline; answer-producing calls get ``answer_grace_s`` more.
+
+        A tool-loop step stops at ``run_deadline_s``; the final answer, composition and revision may run
+        until ``run_deadline_s + answer_grace_s``. Past that the call fails fast and the graph uses its
+        deterministic fallback, so a slow model or a failover chain cannot push a run past the API timeout.
+        """
+        started = float(state.get("started_at") or time.time())
+        deadline = started + self.config.run_deadline_s + (self.config.answer_grace_s if final else 0.0)
+        with llm_deadline(deadline):
+            return self.llm.chat(*args, **kwargs)  # type: ignore[union-attr]
+
     def guard_in(self, state: AgentState) -> dict[str, Any]:
         dialog_context = dialog_context_from_turns(state.get("turns") or [], state.get("dialog_context") or [])
         query = state["query"]
@@ -344,7 +356,8 @@ class AgentRuntime:
                 },
             ]
             try:
-                turn = self.llm.chat(  # type: ignore[union-attr]
+                turn = self._chat(
+                    state,
                     messages,
                     json_mode=True,
                     reasoning=self.config.compose_reasoning,
@@ -408,7 +421,8 @@ class AgentRuntime:
             if stop_reason:
                 # Same tools with tool_choice="none" keeps the cached prompt prefix intact (the client
                 # drops the tools for models that do not support "none").
-                turn = self.llm.chat(
+                turn = self._chat(
+                    state,
                     messages,
                     tools,
                     tool_choice="none",
@@ -417,8 +431,13 @@ class AgentRuntime:
                     on_delta=_answer_delta_callback(),
                 )
             else:
-                turn = self.llm.chat(
-                    messages, tools, reasoning=self.config.agent_reasoning, on_delta=_answer_delta_callback()
+                turn = self._chat(
+                    state,
+                    messages,
+                    tools,
+                    final=False,
+                    reasoning=self.config.agent_reasoning,
+                    on_delta=_answer_delta_callback(),
                 )
         except LLMError as exc:
             degraded = [f"llm_error:{exc}"]
@@ -528,7 +547,8 @@ class AgentRuntime:
         on_agent_path = state.get("draft_source") == "llm_agent"
         try:
             if on_agent_path:
-                turn = self.llm.chat(
+                turn = self._chat(
+                    state,
                     messages,
                     self.registry.to_openai_tools(),
                     tool_choice="none",
@@ -536,7 +556,7 @@ class AgentRuntime:
                     reasoning=self.config.revise_reasoning,
                 )
             else:
-                turn = self.llm.chat(messages, json_mode=True, reasoning=self.config.revise_reasoning)
+                turn = self._chat(state, messages, json_mode=True, reasoning=self.config.revise_reasoning)
         except LLMError as exc:
             update["degraded"] = [f"llm_revision_failed:{exc}"]
             return update
