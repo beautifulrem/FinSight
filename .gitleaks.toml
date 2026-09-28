@@ -1,10 +1,11 @@
-# gitleaks configuration: the built-in rules plus two narrowly scoped exceptions.
+# gitleaks configuration: the built-in rules plus three narrowly scoped exceptions.
 #
 #   gitleaks git --redact -v .          # full history (what CI runs)
 #   gitleaks git --redact --staged .    # staged changes (what the pre-commit hook runs)
 #
 # Do not add path wildcards here. A new finding is either a real secret (revoke it, remove it) or a
-# false positive that gets an exception as narrow as the ones below.
+# false positive that gets an exception as narrow as the ones below. `gitleaks git` scans every ref it can
+# see; CI checks out all branches (fetch-depth: 0).
 
 title = "FinSight gitleaks config"
 
@@ -31,3 +32,11 @@ description = "Hugging Face model id ProsusAI/finbert after tokenizer= is not a 
 targetRules = ["generic-api-key"]
 regexTarget = "match"
 regexes = ['''^tokenizer\s*=\s*"ProsusAI/finbert"$''']
+
+# False positive: the audit-log docstring example `"principal": "key:3b7e0a51c2d4"` (query_intelligence/
+# agent/audit.py, branch r3-protocols) is the 12-hex-digit SHA-256 prefix the API logs instead of a key.
+[[allowlists]]
+description = "Hashed caller id (key:<12 hex>) in the audit-log format example is not a secret"
+targetRules = ["generic-api-key"]
+regexTarget = "line"
+regexes = ['''"principal": "key:[0-9a-f]{12}"''']
