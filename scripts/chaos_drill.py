@@ -50,6 +50,11 @@ from urllib.parse import urlsplit
 
 import httpx
 
+try:
+    from scripts.provenance import commit_label, git_state
+except ModuleNotFoundError:  # run as a file (python scripts/x.py): scripts/ itself is on sys.path
+    from provenance import commit_label, git_state  # type: ignore[no-redef]
+
 ROOT = Path(__file__).resolve().parents[1]
 INVALID_MODEL = "cline-pass/chaos-invalid-model"
 DEFAULT_BLOCKED = ("sina.com.cn", "sinajs.cn", "sina.cn", "gtimg.cn", "eastmoney.com")
@@ -583,15 +588,16 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     out_dir = out.parent
     out_dir.mkdir(parents=True, exist_ok=True)
     started = time.time()
+    state = git_state(ROOT)  # before the run: a commit made during a long drill is not attributed to it
     report = run_llm(args, out_dir) if args.scenario == "llm" else run_sources(args, out_dir)
     report.update(
         {
             "command": "python -m scripts.chaos_drill " + " ".join(sys.argv[1:] if argv is None else argv),
             "run_at": datetime.fromtimestamp(started, UTC).isoformat(timespec="seconds"),
             "duration_s": round(time.time() - started, 1),
-            "commit": subprocess.run(
-                ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, cwd=ROOT
-            ).stdout.strip(),
+            "commit": commit_label(state),
+            "working_tree_clean": state["working_tree_clean"],
+            **({"commit_error": state["commit_error"]} if state.get("commit_error") else {}),
         }
     )
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
