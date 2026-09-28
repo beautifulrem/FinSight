@@ -983,7 +983,12 @@ def _round3b_tasks() -> list[dict[str, Any]]:
     def value(evidence_id: str, number: float) -> dict[str, Any]:
         return {"evidence_id": evidence_id, "value": number}
 
-    net_profit = {"600519.SH": 85000000000, "000858.SZ": 37800000000, "601318.SH": 121000000000}
+    from query_intelligence.data_loader import load_structured_data
+
+    # revenue and net profit straight from the offline snapshot, so a corrected figure updates the facts
+    statements = load_structured_data()["fundamental_sql"]
+    net_profit = {symbol: statements[symbol]["net_profit"] for symbol in FUNDAMENTALS}
+    revenue = {symbol: statements[symbol]["revenue"] for symbol in FUNDAMENTALS}
 
     return [
         # 1. entity-less follow-ups inherit the conversation's target or macro topic; off-topic tasks never do
@@ -1145,7 +1150,7 @@ def _round3b_tasks() -> list[dict[str, Any]]:
                 _turn(
                     "And the latter's revenue?",
                     required_tools=["get_fundamentals"],
-                    required_facts=[value("fundamental_600519.SH", 174120000000)],
+                    required_facts=[value("fundamental_600519.SH", revenue["600519.SH"])],
                     required_entity="600519.SH",
                 ),
             ],
@@ -1176,7 +1181,7 @@ def _round3b_tasks() -> list[dict[str, Any]]:
                 _turn(
                     "中国平安和五粮液的营业收入各是多少？",
                     required_tools=["get_fundamentals"],
-                    required_facts=[value("fundamental_601318.SH", 1218000000000)],
+                    required_facts=[value("fundamental_601318.SH", revenue["601318.SH"])],
                 ),
                 _turn(
                     "哪家的净利润更高？",
@@ -1449,14 +1454,14 @@ def _round3b_tasks() -> list[dict[str, Any]]:
                 _turn(
                     "五粮液营收多少？",
                     required_tools=["get_fundamentals"],
-                    required_facts=[value("fundamental_000858.SZ", 108500000000)],
+                    required_facts=[value("fundamental_000858.SZ", revenue["000858.SZ"])],
                 ),
                 _turn(
                     "比茅台高还是低？",
                     required_tools=["get_fundamentals"],
                     required_facts=[
-                        value("fundamental_000858.SZ", 108500000000),
-                        value("fundamental_600519.SH", 174120000000),
+                        value("fundamental_000858.SZ", revenue["000858.SZ"]),
+                        value("fundamental_600519.SH", revenue["600519.SH"]),
                     ],
                     required_entities=["000858.SZ", "600519.SH"],
                 ),
