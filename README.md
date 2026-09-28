@@ -217,7 +217,8 @@ docker compose -f docker/docker-compose.yml --profile monitoring up -d   # + Pro
 | `POST /agent/feedback` | Thumbs up/down on an answer, stored with its trace. |
 | `GET /agent/sessions/{id}`, `GET /agent/traces`, `GET /agent/traces/{id}` | Session memory, recent runs and a full run trace, scoped to the caller. |
 | `GET /.well-known/agent-card.json`, `POST /a2a` | A2A agent card and JSON-RPC endpoint. |
-| `GET /metrics`, `GET /sources/health[?probe=1]`, `GET /health` | Prometheus metrics, live source status (active probe on request), health. |
+| `GET /metrics`, `GET /sources/health[?probe=1]` | Prometheus metrics; live source status (active probe of all 19 sources on request, unprobed ones marked). |
+| `GET /health`, `GET /ready` | Liveness; readiness (checkpoint store reachable and writable, LLM config, retrieval index), 503 when not ready. |
 | `POST /chat` | Original chatbot endpoint: `mode=workflow` keeps the original pipeline; `agent` and `auto` use the agent. |
 | `POST /nlu/analyze`, `POST /retrieval/search`, `POST /query/intelligence` | Classical NLU and retrieval artifacts. |
 
@@ -241,11 +242,14 @@ python -m scripts.chaos_drill --scenario sources           # blocked upstreams a
 CI runs the following:
 
 - lint;
+- a gitleaks secret scan of the full git history ([SECURITY.md](SECURITY.md));
 - the frontend checks: typecheck, lint, unit tests and a reproducible build;
-- the full test suite with a Postgres service;
+- the full test suite with a Postgres service, including the axe accessibility tests (they fail rather than skip in CI) and a coverage floor of 88% on `query_intelligence/agent` (measured 90.3%);
 - the evaluation gate against committed baselines, and a check that the evaluation page is up to date;
-- the Docker build with a smoke test;
-- Kubernetes manifest validation.
+- the Docker build with a smoke test on a read-only root filesystem (waits for `/ready`), plus a check that an unwritable state volume makes the container unready;
+- Kubernetes manifest validation (rendered kustomization, no committed Secret, commit-tagged image).
+
+`pre-commit install` runs gitleaks, ruff and the evaluation-page check before each commit.
 
 ## Documentation
 
