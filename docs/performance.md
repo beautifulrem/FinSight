@@ -124,7 +124,192 @@ run (98 s), the first draft failed verification and the `llm.revise` call alone 
 ([Jaeger screenshot](assets/ops/jaeger-trace.png)). During the LLM chaos drill, answers on the fallback
 model took 48–81 s and one hit the API's 120 s request timeout (504), because GLM-5.3-flash was 2–7x
 slower per call than DeepSeek (see [a2a-and-observability.md](a2a-and-observability.md#chaos-drill)).
-The fix is in the agent layer since `d1c007c`: every LLM request, including retries, revise and failover calls, gets `min(client timeout, time left before the run deadline)` (90 s for the tool loop, 20 s more for the answer), so the fallback path ends in the deterministic answer instead of a 504. It has not been re-measured under load yet.
+The fix is in the agent layer since `d1c007c`: every LLM request, including retries, revise and failover calls, gets `min(client timeout, time left before the run deadline)` (90 s for the tool loop, 20 s more for the answer), so the fallback path ends in the deterministic answer instead of a 504. Since then a per-chunk stall timeout (20 s) also retries a stalled stream long before the deadline, and the agent path was re-measured, at 4 users as well, in [section 2a](#2a-agent-path-latency-profile-changes-and-beforeafter).
+
+## 2a. Agent-path latency: profile, changes and before/after
+
+The round-2 review measured an agent-path P95 of about 20–23 s on held-out/test_v2 with DeepSeek and a
+first streamed token after about 14 s. This section profiles where that time goes, lists the changes made,
+and gives the before/after numbers with paired confidence intervals. Every number comes from a committed
+file in [`evaluation/results/`](../evaluation/results/). Each file keeps the command, the commit, the prompt
+hashes, the per-task outcomes and the latency profile.
+
+**Method.** `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets holdout,test_v2 --modes agent --stream`
+(DeepSeek v4.1 flash through the Cline gateway, replayed tool snapshots, the fixed evaluation date).
+`--stream` sends every turn through `AgentService.stream`, the SSE path the UI uses, and records the
+time to the first `answer_delta` event (TTFT). Each turn record keeps a profile: every LLM call (node, tool-loop step,
+latency, prompt, cached, completion and reasoning tokens, and the context composition in characters),
+every tool call and every graph node's duration. `llm_http` counts the HTTP attempts, including 429s that
+a retry recovered. There were **no 429s in any run on this page**. Latency percentiles are nearest-rank
+over all turns of a set (56 held-out and 174 test_v2 turns, × 3 repeats), including refusals and
+clarifications; "LLM-turn" columns only count turns that called the LLM. Success differences are paired
+over tasks (`metrics.paired_comparison`: bootstrap 95% CI, 2,000 resamples, and exact McNemar on pass^3).
+The runs ran one after another on a shared Mac (load average 3–6) and never overlapped.
+
+```bash
+python -m evaluation.agent_eval.profile outputs/agent_eval/<run>.json        # breakdown tables below
+python -m evaluation.agent_eval.profile --table evaluation/results/perf-merged-defaults-deepseek.json \
+    evaluation/results/perf-merged-citerepair-stall-deepseek.json evaluation/results/perf-merged-prefetch-deepseek.json
+```
+
+### Where the time went (baseline, [`perf-baseline-deepseek.json`](../evaluation/results/perf-baseline-deepseek.json), code of `2dbb026`)
+
+| | held-out | test_v2 |
+|---|---:|---:|
+| LLM calls per LLM turn | 2.7 | 3.0 |
+| share of turn time in the LLM nodes (agent_llm + revise) | 95% | 95% |
+| tool-loop step 0 (choose tools): P50 latency, prompt tokens | 2.3 s, 2.6k | 2.3 s, 2.7k |
+| tool-loop step 1 (usually the answer): P50, prompt tokens | 3.0 s, 3.6k | 3.0 s, 3.8k |
+| turns with a 2nd, 3rd … tool round | 21% | 31% |
+| **revision rate** (draft failed verification → one more LLM call) | **49%** | **54%** |
+| revision: P50 / P95 latency, share of all LLM time | 4.3 / 15.7 s, 32% | 4.6 / 10.2 s, 26% |
+| tools: P50 / P95 latency | 0.6 / 601 ms | 0.6 / 744 ms |
+| NLU and routing (`guard_in`) | 3% of turn time | 2% |
+| P99 turn | 93 s | 37 s |
+
+Reading:
+
+- **The LLM round trips are the whole cost.** Tools, NLU, verification and compliance together take under
+  5% of a turn. Prompts are small (2.6–5k tokens). Tool-loop prompts are 70–93% served from the provider's prompt
+  cache, revision prompts only about 25%. Shrinking tool observations or history would save little. The number of sequential LLM calls is the lever.
+- **Half of all answers made an extra revision call.** A sample of the drafts that triggered it (21 drafts
+  captured with `revise` hooked) showed that most "unsupported numbers" were false positives of the
+  verifier's number tokenizer, not model errors. `20.9x` and `108.5bn` were read as 20 and 108,
+  month-day dates in daily series (`4.746（04-16）`) as 4 and 16, bond tenors (`10年期`) as 10 and list
+  markers (`3)`) as 3. Others were derived numbers the model computed from cited values (a 17.8-point ROE
+  gap, 茅台/平安 PE ratio 2.8). The rest were citation-only problems: a number without an id, or with the
+  wrong or a non-existent id.
+- **The tail is stalls.** The slowest turns are calls that normally take 2–5 s but hung until the 90 s run
+  deadline or the client timeout (3 + 3 read timeouts in the baseline). The slowest decile also has more
+  tool rounds (1.6–2.2 against 1.3–1.5) and was revised 80–91% of the time.
+
+### Changes (each one has a switch)
+
+| Change | Switch (default) | What it does |
+|---|---|---|
+| Number tokenizer fix | always on (a bug fix) | A number token ends before `x`/`bn`/`mn`/`m`/`k`/`pp`/`pct` instead of backtracking into a shorter number. Month-day dates, bond tenors and list markers are not claims. Verifier stress test on the current dev set ([`verifier_stress-perf-8a85ae5.json`](../evaluation/results/verifier_stress-perf-8a85ae5.json), 202 gold answers, 3,399 variants): true accept 1.0, false accept 1.94%. The 2.1% quoted elsewhere is `verifier_stress.json`, 159 gold answers at `2494656`. |
+| Pooled LLM connections | `QI_LLM_KEEPALIVE=1` | One pooled `httpx.Client` per model instead of a new TLS connection per request. Probe ([`keepalive-probe.json`](results/perf/agent/keepalive-probe.json), 25 interleaved tiny requests): P50 1.69 s → 1.32 s per call. |
+| Citation repair before revising | `QI_AGENT_REVISE_POLICY=cite_repair` | If a draft fails only on citations (uncited or misattributed numbers, invalid or missing ids), attach the id of the **single** evidence item that holds each number, re-verify, and skip the LLM revision if the result passes. Values found in several items are not guessed. |
+| Derived numbers | `QI_AGENT_VERIFY_DERIVED=1` | Accept a number equal to the difference, sum, ratio or percent change of two supported numbers stated in the same cited sentence. False accept in the same stress test 1.94% → 2.03% (swapped numbers 0.53% → 0.93%). |
+| Stall timeout | `QI_AGENT_LLM_STALL_TIMEOUT_S=20` | Every LLM call is streamed and httpx's read timeout (the wait for the next chunk) is capped at 20 s, so a stalled stream is retried or fails over instead of waiting for the run deadline. |
+| Planner prefetch | `QI_AGENT_PREFETCH=1` | The deterministic planner's tool calls run before the first LLM call and their results go to the model with the question. A question the planner covers is answered in **one** LLM call. The model can still call other tools; repeats of a prefetched call hit the duplicate-call guard. |
+
+Setting `QI_AGENT_PREFETCH=0 QI_AGENT_REVISE_POLICY=llm QI_AGENT_LLM_STALL_TIMEOUT_S=0 QI_AGENT_VERIFY_DERIVED=0`
+restores the previous agent path. The same fields exist on `AgentConfig`, and `--agent-config FIELD=VALUE` sets them in the ablation.
+
+### Before/after (DeepSeek v4.1 flash, 3 repeats, no 429s)
+
+Round 2 (`df19daa`: multi-turn session rules) was merged into this branch between run 1 and run A, so
+there are two paired comparisons, each made on one code base.
+
+| Set | Run | Commit | P50 s | P95 s | P99 s | LLM-turn P95 s | TTFT P50 s | TTFT P95 s | LLM calls/turn | tokens/turn | cost/task (USD) | task success | Δ success vs reference [95% CI] | pass^3 |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| held-out | baseline | `8e81f48` | 7.6 | 27.1 | 93.4 | 27.1 | 5.3 | 13.0 | 2.30 | 8,711 | 0.00122 | 0.962 | reference | 0.943 |
+| held-out | run 1: tokenizer fix + keep-alive | `52e80dc` | 6.2 | 19.3 | 22.5 | 19.3 | 5.3 | 12.4 | 2.15 | 7,990 | 0.00096 | 0.994 | +0.031 [−0.006, +0.088] | 0.981 |
+| test_v2 | baseline | `8e81f48` | 8.6 | 24.2 | 37.3 | 24.6 | 5.7 | 14.3 | 2.58 | 10,274 | 0.00176 | 0.898 | reference | 0.876 |
+| test_v2 | run 1: tokenizer fix + keep-alive | `52e80dc` | 7.6 | 20.3 | 31.2 | 20.9 | 5.4 | 13.0 | 2.49 | 9,859 | 0.00160 | 0.923 | **+0.025 [+0.005, +0.050]** | 0.917 |
+| held-out | A: merged round 2, switches off | `aae29fd` | 6.6 | 22.9 | 90.0 | 22.9 | 5.5 | 13.0 | 2.23 | 8,747 | 0.00106 | 0.987 | reference | 0.962 |
+| held-out | B: A + citation repair + stall timeout + derived | `d84f4e4` | 6.5 | 17.4 | 22.4 | 18.3 | 5.3 | 11.5 | 2.09 | 7,882 | 0.00092 | 0.987 | +0.000 [−0.019, +0.019] | 0.981 |
+| held-out | **C: B + planner prefetch (new default)** | `6050ffd` | **3.7** | **15.4** | **19.6** | **15.5** | **3.0** | **9.4** | **1.39** | 6,018 | 0.00077 | 0.994 | +0.006 [+0.000, +0.019] | 0.981 |
+| test_v2 | A: merged round 2, switches off | `aae29fd` | 8.0 | 21.8 | 40.6 | 22.4 | 5.8 | 13.3 | 2.58 | 10,392 | 0.00166 | 0.950 | reference | 0.934 |
+| test_v2 | B: A + citation repair + stall timeout + derived | `d84f4e4` | 7.7 | 21.7 | 28.8 | 23.0 | 5.8 | 14.1 | 2.50 | 10,099 | 0.00152 | 0.956 | +0.005 [−0.005, +0.017] | 0.950 |
+| test_v2 | **C: B + planner prefetch (new default)** | `6050ffd` | **4.7** | **17.3** | **27.5** | **18.9** | **2.8** | **10.7** | **1.71** | 7,996 | 0.00134 | 0.953 | +0.003 [−0.005, +0.014] | 0.942 |
+
+Files: `perf-baseline-deepseek.json`, `perf-verifierfix-deepseek.json`, `perf-merged-defaults-deepseek.json`,
+`perf-merged-citerepair-stall-deepseek.json`, `perf-merged-prefetch-deepseek.json` (all in
+`evaluation/results/`). The B and C switches were set with `--agent-config` at the commits shown; those
+commits differ from `aae29fd` only in result files and evaluation reporting. "LLM calls/turn" averages
+over all turns, refusals and clarifications included.
+
+What each step bought:
+
+- **Tokenizer fix + keep-alive (run 1).** Revision rate 49% → 29% (held-out) and 54% → 42% (test_v2), P95
+  27.1 → 19.3 s and 24.2 → 20.3 s. Task success rose, significantly on test_v2 (+0.025
+  [+0.005, +0.050]): correct drafts are no longer revised or cut by the repair step.
+- **Citation repair + stall timeout + derived numbers (B vs A).** Revision rate 30% → 22% and 41% → 28%;
+  citation repair replaced 10 + 52 LLM revisions. The stall timeout removed the 90 s outliers (held-out P99 90 → 22 s,
+  test_v2 41 → 29 s); 4 stalled streams were retried. On its own, B does not bring the test_v2 P95 under 20 s:
+  the slow turns there make 2.7 tool rounds.
+- **Planner prefetch (C vs B).** 59% of held-out and 47% of test_v2 LLM turns are now answered in one LLM call,
+  and the multi-round share fell. P50 drops by 40%, and TTFT P50 roughly halves (5.3–5.8 s → 2.8–3.0 s)
+  because the first LLM call writes the answer. The first call's prompt grows by 600–1,000 tokens, so it takes
+  2.9 s instead of 2.3 s, but a whole round trip goes. Cost per task falls with the number of calls
+  (−28% held-out, −19% test_v2 vs A).
+- **Against the round-2 baseline** (confounded by the merge, so not paired on one code base): held-out
+  P95 27.1 → 15.4 s, test_v2 24.2 → 17.3 s, TTFT P50 5.3–5.7 → 2.8–3.0 s. Task success is +0.031 [−0.006, +0.088]
+  and +0.055 [+0.022, +0.094].
+
+**Trade-offs, stated plainly.**
+
+- *Tool precision* (share of calls that were needed) falls slightly with prefetch: 0.684 → 0.675 on
+  held-out and 0.650 → 0.616 on test_v2. The planner fetches what its rules suggest, and some of it is not
+  needed. It is not part of task success, and those calls take milliseconds on the replay snapshot; with live
+  sources they cost upstream requests.
+- *Derived numbers* raise the verifier's false-accept rate on swapped numbers from 0.53% to 0.93%. A wrong
+  number that happens to equal a difference or ratio of two other numbers in the same cited sentence now passes.
+  Overall false accept is 2.03% against 1.94%. Set `QI_AGENT_VERIFY_DERIVED=0` to trade that back for more revisions.
+- *Citation repair* edits the model's draft. It only adds ids (and removes non-existent ones) when exactly
+  one evidence item holds the value, and the result must pass the same verifier. The binding is still to evidence
+  items, not fields, the known limit documented in `verify_answer`.
+- *The stall timeout* bounds the wait for the next streamed chunk, not the whole call. A model that keeps
+  streaming slowly is not cut off; that is left to the run deadline (90 s + 20 s for the answer).
+- The P95 target (< 20 s) is met on both sets. It is not a guarantee under load or on a slower model: see
+  the load test and the GLM check below.
+
+### Under load: 4 users, streamed ([`load_test-agent-4-*.json`](results/perf/agent/))
+
+The same server build (commit `0309fdf`, merged code, live data off), started once with the previous path
+(`QI_AGENT_PREFETCH=0 QI_AGENT_REVISE_POLICY=llm QI_AGENT_LLM_STALL_TIMEOUT_S=0 QI_AGENT_VERIFY_DERIVED=0`)
+and once with the defaults. 4 users × 6 requests from the `research` set: 8 multi-tool questions,
+harder than the evaluation sets. Requests go to `/agent/chat/stream` (`--stream`), so TTFT is measured as a client sees it.
+Run on 2026-09-28 16:36–16:41 UTC, load average 3.0–3.3 at the start.
+
+```bash
+python -m scripts.load_test --base-url http://127.0.0.1:8811 --mode agent --questions research --users 4 \
+    --requests 6 --usd-cny 6.7489 --questions-per-day 2000 --timeout 240 --stream --label defaults
+```
+
+| Server | Req | Throughput (req/s) | P50 (s) | P95 (s) | P99 (s) | TTFT P50 (s) | TTFT P95 (s) | LLM calls per question | ¥ per 1k questions | Verified | HTTP errors / LLM errors |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| previous path | 24 | 0.145 | 13.0 | 29.6 | 92.1 | 8.7 | 17.3 | 3.75 | 14.2 | 88% | 0 / 0 |
+| defaults | 24 | 0.208 | 11.6 | 26.7 | 26.7 | 7.8 | 14.5 | 2.75 | 12.6 | 96% | 0 / 0 |
+
+24 requests per row is a small sample: P95 is the second-slowest request and P99 the slowest. The
+direction matches the evaluation runs: one LLM call fewer per question, a lower tail (the 92 s
+stall is gone), 43% more throughput and 11% lower cost. **On these harder questions the P95 is still above
+20 s**, and TTFT at 4 users (7.8 s) is higher than in the 3-worker evaluation (3 s). They need more tool
+rounds and longer answers than most evaluation tasks. The client cannot see gateway 429s that a
+retry recovered; no request failed or fell back.
+
+### Second model: GLM-5.3 flash spot check ([`perf-glm-holdout-*.json`](../evaluation/results/))
+
+Held-out, one repeat per run, 3 workers, streamed. The previous path and the defaults were run in the
+order off, on, on, off (at `8a85ae5`), because GLM latency drifts between runs:
+
+| Runs (pooled, 112 turns each) | P50 (s) | P95 (s) | P99 (s) | TTFT P50 (s) | TTFT P95 (s) | LLM calls/turn | revision rate (LLM turns) | task success |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| previous path (off + off2) | 13.6 | 60.6 | 96.2 | 9.3 | 38.0 | 2.19 | 38% | 1.00, 1.00 |
+| defaults (on + on2) | 11.0 | 68.5 | 85.3 | 8.8 | 54.7 | 1.36 | 21% | 1.00, 1.00 |
+
+The switches cut GLM's LLM calls by 38% and halve its revisions without losing a task. **The latency
+effect is not established:** two runs of the same configuration differed by 40% (P50 14.9 vs
+20.8 s with the switches off, 19.1 vs 11.0 s with them on). A single GLM call ranges from 3 s to 75 s, so the
+tail is set by call-to-call variance, not by the number of calls. With prefetch, GLM's first call writes
+the whole answer (about 500 output tokens, 320 of them reasoning), and a slow first call now delays the first
+token. The TTFT P95 is higher (38 → 55 s). The defaults are tuned for DeepSeek, which serves the
+agent path. GLM remains a failover model, and its tail is bounded by the run deadline.
+
+### What was not changed, and why
+
+- **Reasoning effort.** Tool-loop calls use the model default and already spend few reasoning tokens (40–100
+  per call on DeepSeek). The answer-writing calls are at `low`. Lowering them further was not tried:
+  reasoning is not where the time goes, and the answer quality depends on it.
+- **Compacting tool observations or history.** Prompts are 2.6–6k tokens and mostly cached. The first-call
+  prompt with prefetched evidence grows by 600–1,000 tokens and costs about 0.6 s. The LLM call count
+  dominates, not the prompt size.
+- **Streaming earlier.** The answer already streams as the first JSON field (`answer`) is generated.
+  TTFT is the time until the answer-writing call starts, which prefetch halves. A draft that later fails
+  verification is still replaced by the verified answer in the final `answer` event.
 
 ## 3. Multi-replica scaling on k3s with Postgres sessions
 
@@ -188,6 +373,10 @@ docker/perf_matrix.sh                                   # section 1 (also needs 
 IMAGE=finsight:merged OUT=docs/results/perf/k3s deploy/k8s/scale_test.sh   # section 3
 SKIP_LOAD=1 deploy/k8s/scale_test.sh                    # only the cross-replica session check
 ```
+
+Section 2a: `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets holdout,test_v2 --modes agent --stream --out outputs/agent_eval/<run>.json`,
+then `python -m evaluation.agent_eval.profile outputs/agent_eval/<run>.json` for the breakdown and
+`python -m evaluation.agent_eval.results outputs/agent_eval/<run>.json --name <name>` for the committed file.
 
 `QI_AGENT_DURABILITY=async` (or `sync`) restores per-step checkpoints. The trade-off of `exit`,
 documented by LangGraph, is that a crash in the middle of a run loses that turn; runs take seconds
