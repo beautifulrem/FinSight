@@ -1,0 +1,240 @@
+{
+ "config": {
+  "claims": "evaluation/claim_bench/claims_v1_holdout.jsonl",
+  "claims_sha256": "a48aa59412a06f81c603604b587dec82948ae5914fdf176bdcdb7e42c0028bb8",
+  "set": "holdout",
+  "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
+  "commit": "2fcb4f0",
+  "run_at": "2026-09-28T07:14:56+00:00",
+  "command": "python -m evaluation.claim_bench.run --set holdout"
+ },
+ "claims": 47,
+ "checks": 54,
+ "verdict_accuracy": 0.9362,
+ "verdict_accuracy_ci": [
+  0.8511,
+  1.0
+ ],
+ "check_accuracy": 0.9444,
+ "check_accuracy_ci": [
+  0.88,
+  1.0
+ ],
+ "comparator_accuracy": 1.0,
+ "ci_method": "percentile bootstrap over claims, 2000 resamples, seed 20260926, 95%",
+ "verdict_confusion": {
+  "supported": {
+   "supported": 19,
+   "contradicted": 1,
+   "partially_supported": 1,
+   "unverifiable": 1
+  },
+  "contradicted": {
+   "supported": 0,
+   "contradicted": 12,
+   "partially_supported": 0,
+   "unverifiable": 0
+  },
+  "partially_supported": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 2,
+   "unverifiable": 0
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 0,
+   "unverifiable": 11
+  }
+ },
+ "check_status_confusion": {
+  "supported": {
+   "supported": 27,
+   "contradicted": 2,
+   "unverifiable": 1,
+   "missing": 0
+  },
+  "contradicted": {
+   "supported": 0,
+   "contradicted": 14,
+   "unverifiable": 0,
+   "missing": 0
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "unverifiable": 10,
+   "missing": 0
+  },
+  "extra": {
+   "supported": 0,
+   "contradicted": 0,
+   "unverifiable": 0,
+   "missing": 0
+  }
+ },
+ "by_category": {
+  "approx": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "chinese_numeral": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "comparator": {
+   "claims": 8,
+   "verdict_accuracy": 1.0
+  },
+  "exact": {
+   "claims": 5,
+   "verdict_accuracy": 0.8
+  },
+  "false": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "forecast": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "growth": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "index_etf": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "multi": {
+   "claims": 5,
+   "verdict_accuracy": 0.8
+  },
+  "multi_day": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "negation": {
+   "claims": 4,
+   "verdict_accuracy": 1.0
+  },
+  "no_data": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "opinion": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "period": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "range": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "sign": {
+   "claims": 2,
+   "verdict_accuracy": 0.5
+  },
+  "wrong_unit": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  }
+ },
+ "by_language": {
+  "en": {
+   "claims": 9,
+   "verdict_accuracy": 0.8889
+  },
+  "zh": {
+   "claims": 38,
+   "verdict_accuracy": 0.9474
+  }
+ },
+ "errors": [
+  {
+   "id": "h011",
+   "category": "sign",
+   "claim": "五粮液昨日收跌0.53%",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "eq",
+      "status": "contradicted",
+      "claimed": 0.53,
+      "actual": -0.5337,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "h038",
+   "category": "multi",
+   "claim": "中国平安市盈率8.7倍，而行业平均11.8倍",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "contradicted",
+      "claimed": 11.8,
+      "actual": 8.7,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "h039",
+   "category": "exact",
+   "claim": "Kweichow Moutai trades at 24.6 times earnings",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": "eq",
+      "status": "unverifiable",
+      "claimed": 24.6,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  }
+ ]
+}

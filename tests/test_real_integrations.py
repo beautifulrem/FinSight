@@ -455,6 +455,8 @@ def test_tushare_market_provider_normalizes_market_and_fundamental_payloads() ->
     assert result["fundamental_payload"]["report_date"] == "2025-12-31"
     assert result["fundamental_payload"]["pe_ttm"] == 22.8
     assert result["fundamental_payload"]["pb"] == 7.4
+    # PE/PB are the trade date's (daily_basic), not the report date's: the claim check cites this date.
+    assert result["fundamental_payload"]["valuation_date"] == "2026-04-22"
     assert result["fundamental_payload"]["roe"] == 33.0
     assert client.last_daily_basic_trade_date == "20260422"
 

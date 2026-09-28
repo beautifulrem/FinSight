@@ -96,6 +96,28 @@ describe("ClaimReportCard", () => {
   });
 });
 
+describe("ClaimReportCard comparators", () => {
+  it("shows the comparator of each claim and the date basis", () => {
+    const report: ClaimReport = {
+      ...REPORT,
+      claim: "贵州茅台ROE超过30%，市盈率不是15倍",
+      verdict: "supported",
+      checks: [
+        { ...REPORT.checks[0]!, metric: "roe", claimed: 30, claimed_unit: "%", comparator: "gt", actual: 0.33, status: "supported", as_of_basis: "report_date" },
+        { ...REPORT.checks[0]!, claimed: 15, comparator: "ne", negated: true, status: "supported", as_of: "2026-09-24", as_of_basis: "valuation_date" },
+      ],
+    };
+    wrap(<ClaimReportCard report={report} />);
+    const [roe, pe] = screen.getAllByRole("listitem") as [HTMLElement, HTMLElement];
+    expect(roe.querySelector(".claim-claimed")).toHaveTextContent("> 30%");
+    expect(roe.querySelector(".claim-claimed")).toHaveTextContent("高于 30%");
+    expect(roe.querySelector(".claim-actual")).toHaveTextContent("33%");
+    expect(roe).toHaveTextContent("(报告期)");
+    expect(pe.querySelector(".claim-claimed")).toHaveTextContent("≠ 15 倍");
+    expect(pe).toHaveTextContent("(估值日)");
+  });
+});
+
 describe("ClaimCheckView", () => {
   afterEach(() => vi.restoreAllMocks());
 

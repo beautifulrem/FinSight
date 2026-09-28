@@ -12,6 +12,7 @@ The root README is intentionally short; use these pages when you need contracts,
 |---|---|
 | [Modules](modules.md) | Five-module map: frontend, NLU/Retrieval, numerical analysis, text analysis, and LLM summary/prediction. |
 | [Agent Layer](agent.md) | Agent graph, tools, routing, verification, compliance, memory, `/agent/*` API and schemas, configuration, tracing. |
+| [Claim Check](claim-check.md) | Fact-checking a pasted market claim: comparators, negation, growth, units, as-of dates, the chat hint, and the claim benchmark (dev 131, held-out 47) with bootstrap CIs and limits. |
 | [Agent Evaluation](agent-eval.md) | Task sets (dev, held-out, test v2), replay snapshots, dealbreaker-gated metrics with bootstrap CIs and paired tests, online ablation with two LLM families (pass^3, latency, cost), prompt A/B, verifier stress test, prompt-injection red team, fault injection, and limitations. Generated from `evaluation/results/`. |
 | [Comparison](comparison.md) | FinSight next to 问财, 豆包, Kimi, Wind Alice and 妙想: sourced capability table, where the incumbents win, and a head-to-head test design (not run). [中文](zh/comparison.md) |
 | [MCP](mcp.md) | Serving the agent tools to MCP clients over stdio or streamable HTTP, and consuming external MCP servers as agent tools (`QI_MCP_SERVERS`). |
