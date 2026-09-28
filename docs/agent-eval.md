@@ -572,12 +572,12 @@ v2 − v1: task success -0.031 [-0.113, +0.038], pass^3 +0.038 [-0.075, +0.151],
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `5062cc8` | 271 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
-| gate-holdout | `5062cc8` | 53 | 0.924 [0.85, 0.98] | 1.000 | 0.975 | 0 |
+| gate-dev | `e3c76ad` | 271 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-holdout | `e3c76ad-dirty` | 53 | 0.924 [0.85, 0.98] | 1.000 | 0.975 | 0 |
 
 ### Fault injection (overall graceful rate 1.00)
 
-Command `python -m evaluation.agent_eval.fault_injection ` at commit `f7bf624`. Faults are simulated with stub tools and a scripted LLM, not injected into real providers.
+Command `python -m evaluation.agent_eval.fault_injection --out outputs/agent_eval/fault_injection.json` at commit `9f0e46b`. Faults are simulated with stub tools and a scripted LLM, not injected into real providers.
 
 | Scenario | Expectation | Runs | Graceful | Tool errors seen |
 |---|---|---|---|---|
@@ -593,24 +593,24 @@ Command `python -m evaluation.agent_eval.fault_injection ` at commit `f7bf624`. 
 | llm_hallucination | unsupported removed | 5 | 1.00 | – |
 | endless_tool_calls | step budget stops loop | 5 | 1.00 | – |
 
-### Verifier stress test (159 gold answers, 2433 corrupted variants)
+### Verifier stress test (202 gold answers, 3399 corrupted variants)
 
-Command: `python -m evaluation.agent_eval.verifier_stress ` at commit `2494656`. Lower is better; true-accept must stay 1.0.
+Command: `python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress.json` at commit `9f0e46b`. Lower is better; true-accept must stay 1.0.
 
-| | legacy | run | claim |
-|---|---|---|---|
-| True-accept (gold answers passing) | 1.000 | 1.000 | 1.000 |
-| False-accept, all corruptions | 0.343 | 0.243 | 0.021 |
-| False-accept, perturb_1pct (593) | 0.320 | 0.039 | 0.039 |
-| False-accept, perturb_20pct (665) | 0.098 | 0.035 | 0.023 |
-| False-accept, perturb_5pct (645) | 0.077 | 0.029 | 0.019 |
-| False-accept, swap (530) | 1.000 | 0.994 | 0.002 |
+| | legacy | run | claim | claim_derived |
+|---|---|---|---|---|
+| True-accept (gold answers passing) | 1.000 | 1.000 | 1.000 | 1.000 |
+| False-accept, all corruptions | 0.333 | 0.244 | 0.019 | 0.020 |
+| False-accept, perturb_1pct (828) | 0.298 | 0.035 | 0.035 | 0.035 |
+| False-accept, perturb_20pct (920) | 0.079 | 0.027 | 0.020 | 0.020 |
+| False-accept, perturb_5pct (900) | 0.066 | 0.028 | 0.017 | 0.017 |
+| False-accept, swap (751) | 1.000 | 1.000 | 0.005 | 0.009 |
 
-Repair of the 2382 rejected variants (whole-sentence deletion, template fallback when nothing cited survives):
+Repair of the 3333 rejected variants (whole-sentence deletion, template fallback when nothing cited survives):
 
 | Readable (no dangling clause, stray punctuation, orphan citation) | Containing a fragment | Repaired answer verifies | Untouched sentences kept | Template fallback |
 |---|---|---|---|---|
-| 1.000 | 0.000 | 1.000 | 0.978 | 0.172 |
+| 1.000 | 0.000 | 1.000 | 0.980 | 0.183 |
 
 ### Prompt-injection red team (online)
 
@@ -635,7 +635,7 @@ Successful attacks:
 
 ### Prompt-injection red team (offline workflow path, CI baseline)
 
-Command: `python -m evaluation.agent_eval.redteam ` at commit `2494656` (LLM: none). Attacks: dev 9, holdout 8, holdout2 8, holdout3 11; variants: fullwidth, plain, split, zero_width. Only runs in which a document tool returned the poisoned text are counted.
+Command: `python -m evaluation.agent_eval.redteam --out outputs/agent_eval/redteam.json` at commit `9f0e46b` (LLM: none). Attacks: dev 9, holdout 8, holdout2 8, holdout3 11; variants: fullwidth, plain, split, zero_width. Only runs in which a document tool returned the poisoned text are counted.
 
 | Attack set | Path | Runs | Attack success | Redaction by lexical filter | Crashes |
 |---|---|---|---|---|---|
@@ -664,12 +664,12 @@ Successful attacks:
 | `ablation-online-deepseek-v4.1-flash.json` | ablation | `c1c3388` | 2026-09-25T09:46:46+00:00 | `outputs/agent_eval/ablation-online-deepseek-v4.1-flash.json` (ebd1d3322c4c4708) |
 | `ablation-online-v1.json` | ablation | `1beb760` | 2026-09-25T14:12:49+00:00 | `outputs/agent_eval/ablation-online-v1.json` (fc69345d844bdd6e) |
 | `ablation-online-v2.json` | ablation | `1beb760` | 2026-09-25T13:32:10+00:00 | `outputs/agent_eval/ablation-online-v2.json` (f5ba8190178dfe74) |
-| `gate-dev.json` | run | `5062cc8` | 2026-09-28T11:12:47+00:00 | `outputs/agent_eval/gate-dev.json` (68fba766634d3a5f) |
-| `gate-holdout.json` | run | `5062cc8` | 2026-09-28T11:12:59+00:00 | `outputs/agent_eval/gate-holdout.json` (23c4d30c4ba7377c) |
-| `fault_injection.json` | fault_injection | `f7bf624` | 2026-09-25T23:28:06+00:00 | `outputs/agent_eval/fault_injection.json` (6ae7b722daf8bdc8) |
-| `verifier_stress.json` | verifier_stress | `2494656` | 2026-09-28T09:24:05+00:00 | `outputs/agent_eval/verifier_stress.json` (84cb632d898de157) |
+| `gate-dev.json` | run | `e3c76ad` | 2026-09-28T16:59:44+00:00 | `outputs/agent_eval/gate-dev.json` (db3a0744f1eb9e4c) |
+| `gate-holdout.json` | run | `e3c76ad-dirty` | 2026-09-28T17:00:14+00:00 | `outputs/agent_eval/gate-holdout.json` (7eb4ffb3b69c0c5a) |
+| `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
+| `verifier_stress.json` | verifier_stress | `9f0e46b` | 2026-09-28T17:04:55+00:00 | `outputs/agent_eval/verifier_stress.json` (94d2b01f3bd98c53) |
 | `redteam-online.json` | redteam | `846bc5e` | 2026-09-25T17:43:31+00:00 | `outputs/agent_eval/redteam.json` (2aaca3106692296c) |
-| `redteam-offline.json` | redteam | `2494656` | 2026-09-28T09:27:14+00:00 | `outputs/agent_eval/redteam.json` (af7e1307fa2af6c5) |
+| `redteam-offline.json` | redteam | `9f0e46b` | 2026-09-28T17:07:21+00:00 | `outputs/agent_eval/redteam.json` (96e360a267b7d89a) |
 
 <!-- END GENERATED -->
 

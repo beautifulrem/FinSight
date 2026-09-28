@@ -1,8 +1,8 @@
 {
  "kind": "fault_injection",
  "config": {
-  "commit": "f7bf624",
-  "run_at": "2026-09-25T23:28:06+00:00",
+  "commit": "9f0e46b",
+  "run_at": "2026-09-28T17:05:31+00:00",
   "questions": [
    "贵州茅台最新收盘价是多少？",
    "五粮液的市盈率(TTM)是多少？",
@@ -10,7 +10,7 @@
    "What was the latest close of Kweichow Moutai (600519.SH)?",
    "对比一下贵州茅台和五粮液的估值"
   ],
-  "command": "python -m evaluation.agent_eval.fault_injection "
+  "command": "python -m evaluation.agent_eval.fault_injection --out outputs/agent_eval/fault_injection.json"
  },
  "overall_graceful_rate": 1.0,
  "scenarios": [
@@ -104,8 +104,8 @@
  ],
  "source": {
   "file": "outputs/agent_eval/fault_injection.json",
-  "sha256_16": "6ae7b722daf8bdc8",
-  "bytes": 25572,
-  "slimmed_at": "2026-09-26T09:50:46+00:00"
+  "sha256_16": "5c62a46e48e266ca",
+  "bytes": 29287,
+  "slimmed_at": "2026-09-28T17:07:23+00:00"
  }
 }
