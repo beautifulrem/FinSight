@@ -194,24 +194,69 @@ def _macro(data: dict[str, Any], zh: bool) -> list[str]:
     return sentences
 
 
+_MAX_TITLE_CHARS = 60
+# A quoted headline must be inert text: no links, markup or code, and nothing addressed to the reader or to
+# an AI ("请…", "AI 助手…", "readers should…"), and no advice or ratings (the compliance guard would strip
+# them from the model's own words, so a quoted title must not smuggle them in either).
+_ACTIVE_TITLE = re.compile(
+    r"[a-z][a-z0-9+.-]*:(?://|[^\s]*\()|javascript:|data:|www\.|\]\(|[<>{}`|]|&#|\\u[0-9a-f]{4}",
+    re.IGNORECASE,
+)
+_DIRECTIVE_TITLE = re.compile(
+    r"请|务必|必须|不得|助手|机器人|读者|建议|推荐|评级|建仓|加仓|减仓|买入|卖出|"
+    r"\b(?:assistant|chatbot|readers?|you|your|must|should|recommend\w*|rated|must-buy|"
+    r"(?:include|mention|report|summari[sz]e|repeat|output) (?:this|that|the following)|ignore)\b",
+    re.IGNORECASE,
+)
+
+
+def quotable_title(title: str) -> str | None:
+    """The title as inert text for the template answer, or ``None`` when it must not be echoed.
+
+    Document titles are third-party text, like excerpts: the untrusted-data envelope protects the model, but
+    the template path copies titles into the answer verbatim, so a title is only quoted when it is plainly a
+    headline. Invisible characters are removed and matching runs on the NFKC form (so full-width and
+    zero-width obfuscation does not hide a payload); the title is withheld when the injection filter flags
+    it or it carries links/markup, directives, advice or ratings, and it is cut to ``_MAX_TITLE_CHARS``.
+    """
+    from .compliance import contains_trading_instruction
+    from .injection import _INVISIBLE, _normalise, sanitize_untrusted_text
+
+    text = re.sub(r"\s+", " ", _INVISIBLE.sub("", title)).strip()
+    plain = _normalise(text)  # full-width letters folded for matching only; the quote keeps CJK punctuation
+    if not text:
+        return None
+    _cleaned, flagged = sanitize_untrusted_text(plain)
+    if flagged or _ACTIVE_TITLE.search(plain) or _DIRECTIVE_TITLE.search(plain) or contains_trading_instruction(plain):
+        return None
+    if len(text) > _MAX_TITLE_CHARS:
+        text = text[: _MAX_TITLE_CHARS - 1].rstrip("，,、；;：: ") + "…"
+    return text.replace("《", "〈").replace("》", "〉").replace('"', "'")
+
+
 def _documents(data: dict[str, Any], zh: bool) -> list[str]:
-    """Quote retrieved documents by title with attribution.
+    """Cite retrieved documents by source and date, quoting the title only when it is inert text.
 
     Titles that state market metrics with numbers ("shares closed up 12.34%", "市盈率55倍") are not
     repeated: prices, multiples and daily moves come only from market data (the same source-precedence
-    rule the verifier applies to LLM drafts). The documents stay in the evidence list.
+    rule the verifier applies to LLM drafts). Titles that fail ``quotable_title`` are withheld and only the
+    source and date are given. The documents stay in the evidence list either way.
     """
     sentences = []
     for document in (data.get("documents") or [])[:_MAX_DOCS_PER_TOOL]:
-        title = str(document.get("title") or "").strip()
-        if not title or (_MARKET_METRIC.search(title) and re.search(r"\d", title)):
+        raw_title = str(document.get("title") or "").strip()
+        if not raw_title or (_MARKET_METRIC.search(raw_title) and re.search(r"\d", raw_title)):
             continue
+        title = quotable_title(raw_title)
         source = document.get("source_name") or document.get("source_type")
         when = str(document.get("publish_time") or "")[:10]
+        eid = document.get("evidence_id")
         if zh:
-            sentences.append(f"相关资料：《{title}》（{source}，{when}） [{document.get('evidence_id')}]。")
+            quoted = f"《{title}》" if title else "一篇资料（标题未引用）"
+            sentences.append(f"相关资料：{quoted}（{source}，{when}） [{eid}]。")
         else:
-            sentences.append(f'Related document: "{title}" ({source}, {when}) [{document.get("evidence_id")}].')
+            quoted = f'"{title}"' if title else "a document (title not quoted)"
+            sentences.append(f"Related document: {quoted} ({source}, {when}) [{eid}].")
     return sentences
 
 
