@@ -1,0 +1,33 @@
+# gitleaks configuration: the built-in rules plus two narrowly scoped exceptions.
+#
+#   gitleaks git --redact -v .          # full history (what CI runs)
+#   gitleaks git --redact --staged .    # staged changes (what the pre-commit hook runs)
+#
+# Do not add path wildcards here. A new finding is either a real secret (revoke it, remove it) or a
+# false positive that gets an exception as narrow as the ones below.
+
+title = "FinSight gitleaks config"
+
+[extend]
+useDefault = true
+
+# The one real historical leak. An LLM API key was committed to config/app_config.json in 302077a
+# (2026-05-02) and removed seven minutes later in d1d2958. Both commits are in the published history;
+# the owner decided not to rewrite history, so the key must be treated as compromised and revoked at
+# the provider (see SECURITY.md). This exception matches only that commit AND that file AND that rule
+# (the finding's fingerprint is 302077a6dcd9ee0487a05e4ce3b75977b18dbed0:config/app_config.json:generic-api-key:15);
+# a secret in any other commit, file or rule still fails the scan.
+[[allowlists]]
+description = "Revoked key in 302077a, removed in d1d2958 (history intentionally not rewritten)"
+condition = "AND"
+targetRules = ["generic-api-key"]
+commits = ["302077a6dcd9ee0487a05e4ce3b75977b18dbed0"]
+paths = ['''^config/app_config\.json$''']
+
+# False positive: generic-api-key reads the public Hugging Face model id in
+# `tokenizer="ProsusAI/finbert"` (README.md / README_CN.md, commit 7babec7) as a token value.
+[[allowlists]]
+description = "Hugging Face model id ProsusAI/finbert after tokenizer= is not a secret"
+targetRules = ["generic-api-key"]
+regexTarget = "match"
+regexes = ['''^tokenizer\s*=\s*"ProsusAI/finbert"$''']

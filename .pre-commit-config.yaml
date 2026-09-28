@@ -1,0 +1,32 @@
+# pre-commit install        # once per clone; hooks then run on every `git commit`
+# pre-commit run --all-files
+#
+# Versions match CI (.github/workflows/ci.yml): gitleaks 8.30.1, ruff 0.16.9. The report check runs the
+# repository's own Python, so use it from the project virtualenv (it needs the requirements).
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      # Scans the staged diff with .gitleaks.toml.
+      - id: gitleaks
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      # Lint and format the same file set as CI (`ruff check .`): ruff.toml's `include` limits the scope
+      # to the linted modules, which passing individual filenames would bypass.
+      - id: ruff-check
+        pass_filenames: false
+        args: [.]
+      - id: ruff-format
+        pass_filenames: false
+        args: [.]
+
+  - repo: local
+    hooks:
+      - id: agent-eval-report
+        name: docs/agent-eval.md matches evaluation/results (report --check)
+        entry: python -m evaluation.agent_eval.report --check
+        language: system
+        pass_filenames: false
+        files: ^(docs/agent-eval\.md|evaluation/(results|agent_eval)/)
