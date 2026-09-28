@@ -31,11 +31,17 @@ def answer_matches_language(output: dict[str, Any], query: str) -> bool:
     return all(_text_matches_language(value, expected_language) for value in text_values)
 
 
+# Upper-case acronyms and tickers (ROE, PE, P/B, ETF, CPI, 600519.SH) appear in Chinese questions too.
+_ACRONYM = re.compile(r"(?<![A-Za-z])(?:[A-Z]{1,5}(?:/[A-Z]{1,3})?|\d{6}\.[A-Z]{2})(?![A-Za-z])")
+
+
 def detect_query_language(text: str) -> str:
     cjk_count = len(re.findall(r"[\u4e00-\u9fff]", text or ""))
     latin_count = len(re.findall(r"[A-Za-z]", text or ""))
     if cjk_count and cjk_count >= max(2, latin_count * 0.4):
         return "zh"
+    if cjk_count and not re.search(r"[A-Za-z]", _ACRONYM.sub("", text or "")):
+        return "zh"  # "ROE呢", "PB多少": Chinese with only acronyms in Latin script
     if latin_count:
         return "en"
     if cjk_count:

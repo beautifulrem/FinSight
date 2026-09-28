@@ -289,3 +289,10 @@ def test_follow_up_without_history_is_clarified_not_refused(offline_service):
         assert decision["effective_query"] == "贵州茅台ROE呢"
     finally:
         runtime.close()
+
+
+def test_chinese_follow_ups_with_acronyms_are_answered_in_chinese():
+    from query_intelligence.chat.language import detect_query_language
+
+    assert [detect_query_language(query) for query in ("ROE呢", "PB多少", "CPI呢", "600519.SH呢")] == ["zh"] * 4
+    assert [detect_query_language(query) for query in ("And ROE?", "What about 茅台", "Is BYD cheap")] == ["en"] * 3
