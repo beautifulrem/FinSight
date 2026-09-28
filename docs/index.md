@@ -14,7 +14,7 @@ The root README is intentionally short; use these pages when you need contracts,
 | [Agent Layer](agent.md) | Agent graph, tools, routing, verification, compliance, memory, `/agent/*` API and schemas, configuration, tracing. |
 | [Agent Evaluation](agent-eval.md) | Task sets (dev, held-out, test v2), replay snapshots, dealbreaker-gated metrics with bootstrap CIs and paired tests, online ablation with two LLM families (pass^3, latency, cost), prompt A/B, verifier stress test, prompt-injection red team, fault injection, and limitations. Generated from `evaluation/results/`. |
 | [Comparison](comparison.md) | FinSight next to 问财, 豆包, Kimi, Wind Alice and 妙想: sourced capability table, where the incumbents win, and a head-to-head test design (not run). [中文](zh/comparison.md) |
-| [MCP Server](mcp.md) | Serving the agent tools to MCP clients over stdio or streamable HTTP. |
+| [MCP](mcp.md) | Serving the agent tools to MCP clients over stdio or streamable HTTP, and consuming external MCP servers as agent tools (`QI_MCP_SERVERS`). |
 | [A2A, Failover and Observability](a2a-and-observability.md) | A2A endpoint, LLM gateway handling, model failover, gateway cost, run inspector and feedback, Prometheus metrics, Grafana dashboard and alerts, chaos drill. |
 | [Data Sources](data-sources.md) | Live source audit, fallback chains, circuit breakers, bounded call pool, cache, Sina/THS cross-check, provenance, `/sources/health` (with an active probe). |
 | [Performance](performance.md) | Load tests of the deterministic and LLM agent paths (cost in CNY), the checkpoint fix reproduced, k3s multi-replica scaling, service start-up. |
