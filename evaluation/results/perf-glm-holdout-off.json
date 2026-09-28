@@ -1,0 +1,1554 @@
+{
+ "kind": "ablation",
+ "config": {
+  "llm": "cline-pass/glm-5.3-flash",
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v3#e419eb84d58e",
+   "compose_system": "compose_system@v3#b9a704272c6d"
+  },
+  "commit": "8a85ae5",
+  "run_at": "2026-09-28T16:12:02+00:00",
+  "eval_today": "2026-04-23",
+  "task_files": {
+   "holdout": "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl"
+  },
+  "snapshots": {
+   "holdout": "evaluation/agent_eval/fixtures/snapshot_holdout_v1.json"
+  },
+  "sets": [
+   "holdout"
+  ],
+  "online_modes": [
+   "agent"
+  ],
+  "workers": 3,
+  "stream": true,
+  "agent_config": {
+   "max_llm_steps": 6,
+   "max_tool_calls": 16,
+   "max_parallel_tools": 4,
+   "max_concurrent_runs": 8,
+   "token_budget": 80000,
+   "max_revisions": 1,
+   "llm_compose": true,
+   "max_next_questions": 3,
+   "run_deadline_s": 90.0,
+   "answer_grace_s": 20.0,
+   "agent_reasoning": null,
+   "compose_reasoning": "low",
+   "revise_reasoning": "low",
+   "final_reasoning": "low",
+   "memory_summary": false,
+   "memory_summary_tokens": 300,
+   "revise_policy": "llm",
+   "planner_prefetch": false,
+   "llm_stall_timeout_s": 0.0,
+   "verify_derived": false
+  },
+  "agent_config_overrides": [
+   "planner_prefetch=false",
+   "revise_policy=llm",
+   "llm_stall_timeout_s=0",
+   "verify_derived=false"
+  ],
+  "limit": null,
+  "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 1 --workers 3 --sets holdout --modes agent --stream --agent-config planner_prefetch=false --agent-config revise_policy=llm --agent-config llm_stall_timeout_s=0 --agent-config verify_derived=false --out outputs/agent_eval/perf-glm-off.json"
+ },
+ "notes": [
+  "GLM-5.3 flash spot check on held-out (1 repeat, 3 workers, streamed), run order off, on, on2, off2 to expose gateway drift. off = QI_AGENT_PREFETCH/REVISE_POLICY/STALL/DERIVED set to the previous path via --agent-config; on = defaults at 8a85ae5."
+ ],
+ "results": {
+  "holdout": {
+   "legacy": {
+    "summary": {
+     "tasks": 53,
+     "turns": 56,
+     "repeats": 1,
+     "task_success": 0.2075,
+     "pass^1": 0.2075,
+     "ci": {
+      "task_success": [
+       0.1132,
+       0.3208
+      ],
+      "pass^1": [
+       0.1132,
+       0.3208
+      ]
+     },
+     "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+     "turn_success": 0.2321,
+     "behavior_accuracy": 0.8571,
+     "fact_recall": 0.175,
+     "fact_stated": 0.175,
+     "tool_recall": 0.8,
+     "tool_precision": 0.2083,
+     "compliance_clean": 1.0,
+     "hedged_when_required": 0.0909,
+     "states_missing_when_required": 0.5,
+     "draft_verification_pass": 0.625,
+     "unsupported_numbers_per_answer": 0.1364,
+     "latency_ms_p50": 261.08,
+     "latency_ms_p95": 684.59,
+     "latency_ms_p99": 773.86,
+     "llm_turns": 0,
+     "llm_turn_latency_ms_p50": null,
+     "llm_turn_latency_ms_p95": null,
+     "llm_turn_latency_ms_p99": null,
+     "ttft_turns": 0,
+     "ttft_ms_p50": null,
+     "ttft_ms_p95": null,
+     "ttft_ms_p99": null,
+     "llm_calls_per_turn": 0.0,
+     "tokens_per_turn": 0.0,
+     "reasoning_tokens_per_turn": 0.0,
+     "cache_hit_ratio": null,
+     "first_pass_verification": null,
+     "revise_rate": null,
+     "llm_error_rate": 0.0,
+     "llm_error_kinds": {},
+     "json_repair_rate": null,
+     "json_failure_rate": null,
+     "cost_per_turn": null,
+     "cost_per_task": null,
+     "cost_currency": null
+    },
+    "by_category": {
+     "clarify": {
+      "tasks": 3,
+      "task_success": 0.0,
+      "latency_ms_p95": 654.36
+     },
+     "compare": {
+      "tasks": 5,
+      "task_success": 0.0,
+      "latency_ms_p95": 710.0
+     },
+     "compliance": {
+      "tasks": 4,
+      "task_success": 0.25,
+      "latency_ms_p95": 280.04
+     },
+     "fact": {
+      "tasks": 21,
+      "task_success": 0.1905,
+      "latency_ms_p95": 684.59
+     },
+     "macro_link": {
+      "tasks": 3,
+      "task_success": 0.0,
+      "latency_ms_p95": 359.83
+     },
+     "missing_data": {
+      "tasks": 4,
+      "task_success": 0.0,
+      "latency_ms_p95": 261.36
+     },
+     "multi_turn": {
+      "tasks": 3,
+      "task_success": 0.0,
+      "latency_ms_p95": 332.63
+     },
+     "out_of_scope": {
+      "tasks": 6,
+      "task_success": 1.0,
+      "latency_ms_p95": 18.91
+     },
+     "why": {
+      "tasks": 4,
+      "task_success": 0.0,
+      "latency_ms_p95": 280.1
+     }
+    },
+    "failed_checks": {
+     "facts": 29,
+     "hedged": 10,
+     "behavior": 8,
+     "required_tools": 8,
+     "entity": 3,
+     "states_missing": 2
+    },
+    "failures": [
+     {
+      "task": "ho_fact_price_0",
+      "category": "fact",
+      "query": "茅台昨天收盘价格是多少啊",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_fact_price_2",
+      "category": "fact",
+      "query": "平安保险最近的股价",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_fact_price_5",
+      "category": "fact",
+      "query": "证券ETF收盘多少",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_fact_price_6",
+      "category": "fact",
+      "query": "沪深300指数最近收在多少点",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_fact_price_7",
+      "category": "fact",
+      "query": "Moutai share price please",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_fact_price_9",
+      "category": "fact",
+      "query": "Where did 601318.SH close?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_fact_valuation_0",
+      "category": "fact",
+      "query": "茅台估值贵不贵，PE多少",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_fact_valuation_1",
+      "category": "fact",
+      "query": "五粮液的PB是多少倍",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_fact_valuation_2",
+      "category": "fact",
+      "query": "中国平安净资产收益率怎么样",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_fact_valuation_3",
+      "category": "fact",
+      "query": "茅台的盈利能力用ROE衡量是多少",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_fact_valuation_4",
+      "category": "fact",
+      "query": "Is Ping An cheap on a PE basis?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_fact_valuation_5",
+      "category": "fact",
+      "query": "What's Wuliangye's return on equity?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_fact_macro_0",
+      "category": "fact",
+      "query": "现在的CPI同比是多少",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "ho_fact_macro_1",
+      "category": "fact",
+      "query": "制造业PMI最新读数",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "ho_fact_macro_2",
+      "category": "fact",
+      "query": "广义货币M2增速是多少",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "ho_fact_macro_3",
+      "category": "fact",
+      "query": "十年期国债收益率现在多少",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "ho_fact_macro_4",
+      "category": "fact",
+      "query": "What's the current China 10-year bond yield?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "ho_compare_0",
+      "category": "compare",
+      "query": "茅台和五粮液谁更便宜",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_compare_1",
+      "category": "compare",
+      "query": "平安和茅台的ROE差多少",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_compare_2",
+      "category": "compare",
+      "query": "Which trades at a lower PB, Wuliangye or Ping An?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_compare_fund_0",
+      "category": "compare",
+      "query": "300ETF和创业板ETF今天谁表现更好",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_compare_fund_1",
+      "category": "compare",
+      "query": "证券ETF与沪深300ETF价格对比",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_why_0",
+      "category": "why",
+      "query": "茅台最近怎么跌了",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_why_1",
+      "category": "why",
+      "query": "五粮液这周涨跌背后的原因",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_why_2",
+      "category": "why",
+      "query": "中国平安股价波动的驱动因素有哪些",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_why_3",
+      "category": "why",
+      "query": "What drove Moutai's recent move?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_macro_link_0",
+      "category": "macro_link",
+      "query": "CPI走低对五粮液是利好还是利空",
+      "failed_checks": [
+       "facts",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "ho_macro_link_1",
+      "category": "macro_link",
+      "query": "PMI在荣枯线上方对券商ETF有什么含义",
+      "failed_checks": [
+       "facts",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "ho_macro_link_2",
+      "category": "macro_link",
+      "query": "Does rising M2 help Ping An?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_missing_0",
+      "category": "missing_data",
+      "query": "万科A最新股价",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "ho_missing_1",
+      "category": "missing_data",
+      "query": "迈瑞医疗的市盈率",
+      "failed_checks": [
+       "required_tools",
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "ho_missing_2",
+      "category": "missing_data",
+      "query": "贵州茅台的RSI指标",
+      "failed_checks": [
+       "required_tools",
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_missing_3",
+      "category": "missing_data",
+      "query": "What is Kweichow Moutai's MACD?",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_multi_turn_0",
+      "category": "multi_turn",
+      "query": "那它的PE呢",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "ho_multi_turn_1",
+      "category": "multi_turn",
+      "query": "中国平安股价多少",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_multi_turn_1",
+      "category": "multi_turn",
+      "query": "它的市净率呢",
+      "failed_checks": [
+       "facts",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "ho_multi_turn_2",
+      "category": "multi_turn",
+      "query": "What is its PB?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "ho_clarify_0",
+      "category": "clarify",
+      "query": "这支基金今年收益如何",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "ho_clarify_1",
+      "category": "clarify",
+      "query": "它还会涨吗",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "ho_clarify_2",
+      "category": "clarify",
+      "query": "What about this stock's dividend?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "ho_compliance_1",
+      "category": "compliance",
+      "query": "平安明年股价能翻倍吗",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "ho_compliance_2",
+      "category": "compliance",
+      "query": "五粮液止盈点位设在多少合适",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "ho_compliance_3",
+      "category": "compliance",
+      "query": "Should I sell my Ping An shares tomorrow?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     }
+    ],
+    "task_outcomes": {
+     "ho_fact_price_0": "0",
+     "ho_fact_price_1": "1",
+     "ho_fact_price_2": "0",
+     "ho_fact_price_3": "1",
+     "ho_fact_price_4": "1",
+     "ho_fact_price_5": "0",
+     "ho_fact_price_6": "0",
+     "ho_fact_price_7": "0",
+     "ho_fact_price_8": "1",
+     "ho_fact_price_9": "0",
+     "ho_fact_valuation_0": "0",
+     "ho_fact_valuation_1": "0",
+     "ho_fact_valuation_2": "0",
+     "ho_fact_valuation_3": "0",
+     "ho_fact_valuation_4": "0",
+     "ho_fact_valuation_5": "0",
+     "ho_fact_macro_0": "0",
+     "ho_fact_macro_1": "0",
+     "ho_fact_macro_2": "0",
+     "ho_fact_macro_3": "0",
+     "ho_fact_macro_4": "0",
+     "ho_compare_0": "0",
+     "ho_compare_1": "0",
+     "ho_compare_2": "0",
+     "ho_compare_fund_0": "0",
+     "ho_compare_fund_1": "0",
+     "ho_why_0": "0",
+     "ho_why_1": "0",
+     "ho_why_2": "0",
+     "ho_why_3": "0",
+     "ho_macro_link_0": "0",
+     "ho_macro_link_1": "0",
+     "ho_macro_link_2": "0",
+     "ho_missing_0": "0",
+     "ho_missing_1": "0",
+     "ho_missing_2": "0",
+     "ho_missing_3": "0",
+     "ho_multi_turn_0": "0",
+     "ho_multi_turn_1": "0",
+     "ho_multi_turn_2": "0",
+     "ho_ood_0": "1",
+     "ho_ood_1": "1",
+     "ho_ood_2": "1",
+     "ho_ood_3": "1",
+     "ho_ood_4": "1",
+     "ho_ood_5": "1",
+     "ho_clarify_0": "0",
+     "ho_clarify_1": "0",
+     "ho_clarify_2": "0",
+     "ho_compliance_0": "1",
+     "ho_compliance_1": "0",
+     "ho_compliance_2": "0",
+     "ho_compliance_3": "0"
+    }
+   },
+   "workflow": {
+    "summary": {
+     "tasks": 53,
+     "turns": 56,
+     "repeats": 1,
+     "task_success": 0.9245,
+     "pass^1": 0.9245,
+     "ci": {
+      "task_success": [
+       0.8491,
+       0.9811
+      ],
+      "pass^1": [
+       0.8491,
+       0.9811
+      ]
+     },
+     "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+     "turn_success": 0.9286,
+     "behavior_accuracy": 1.0,
+     "fact_recall": 0.975,
+     "fact_stated": 0.975,
+     "tool_recall": 0.975,
+     "tool_precision": 0.7695,
+     "compliance_clean": 1.0,
+     "hedged_when_required": 0.7273,
+     "states_missing_when_required": 1.0,
+     "draft_verification_pass": 1.0,
+     "unsupported_numbers_per_answer": 0.0,
+     "latency_ms_p50": 34.23,
+     "latency_ms_p95": 504.79,
+     "latency_ms_p99": 624.17,
+     "llm_turns": 0,
+     "llm_turn_latency_ms_p50": null,
+     "llm_turn_latency_ms_p95": null,
+     "llm_turn_latency_ms_p99": null,
+     "ttft_turns": 0,
+     "ttft_ms_p50": null,
+     "ttft_ms_p95": null,
+     "ttft_ms_p99": null,
+     "llm_calls_per_turn": 0.0,
+     "tokens_per_turn": 0.0,
+     "reasoning_tokens_per_turn": 0.0,
+     "cache_hit_ratio": null,
+     "first_pass_verification": null,
+     "revise_rate": null,
+     "llm_error_rate": 0.0,
+     "llm_error_kinds": {},
+     "json_repair_rate": null,
+     "json_failure_rate": null,
+     "cost_per_turn": null,
+     "cost_per_task": null,
+     "cost_currency": null
+    },
+    "by_category": {
+     "clarify": {
+      "tasks": 3,
+      "task_success": 1.0,
+      "latency_ms_p95": 380.64
+     },
+     "compare": {
+      "tasks": 5,
+      "task_success": 1.0,
+      "latency_ms_p95": 491.53
+     },
+     "compliance": {
+      "tasks": 4,
+      "task_success": 1.0,
+      "latency_ms_p95": 59.52
+     },
+     "fact": {
+      "tasks": 21,
+      "task_success": 0.9524,
+      "latency_ms_p95": 583.9
+     },
+     "macro_link": {
+      "tasks": 3,
+      "task_success": 0.3333,
+      "latency_ms_p95": 95.93
+     },
+     "missing_data": {
+      "tasks": 4,
+      "task_success": 1.0,
+      "latency_ms_p95": 43.71
+     },
+     "multi_turn": {
+      "tasks": 3,
+      "task_success": 1.0,
+      "latency_ms_p95": 103.18
+     },
+     "out_of_scope": {
+      "tasks": 6,
+      "task_success": 1.0,
+      "latency_ms_p95": 18.28
+     },
+     "why": {
+      "tasks": 4,
+      "task_success": 0.75,
+      "latency_ms_p95": 69.37
+     }
+    },
+    "failed_checks": {
+     "hedged": 3,
+     "facts": 1,
+     "required_tools": 1,
+     "any_of_tools": 1
+    },
+    "failures": [
+     {
+      "task": "ho_fact_valuation_5",
+      "category": "fact",
+      "query": "What's Wuliangye's return on equity?",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]."
+     },
+     {
+      "task": "ho_why_3",
+      "category": "why",
+      "query": "What drove Moutai's recent move?",
+      "failed_checks": [
+       "any_of_tools",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_price_history"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: 贵州茅台 (600519.SH) last available close was 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
+     },
+     {
+      "task": "ho_macro_link_1",
+      "category": "macro_link",
+      "query": "PMI在荣枯线上方对券商ETF有什么含义",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators"
+      ],
+      "answer_excerpt": "根据本次检索到的证据：PMI_CN 最新值 50.6（2026-03-31） [macro_PMI_CN]。"
+     },
+     {
+      "task": "ho_macro_link_2",
+      "category": "macro_link",
+      "query": "Does rising M2 help Ping An?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_macro_indicators"
+      ],
+      "answer_excerpt": "Based on the evidence retrieved for this question: M2_CN latest value 8.1% (2026-03-31) [macro_M2_CN]."
+     }
+    ],
+    "task_outcomes": {
+     "ho_fact_price_0": "1",
+     "ho_fact_price_1": "1",
+     "ho_fact_price_2": "1",
+     "ho_fact_price_3": "1",
+     "ho_fact_price_4": "1",
+     "ho_fact_price_5": "1",
+     "ho_fact_price_6": "1",
+     "ho_fact_price_7": "1",
+     "ho_fact_price_8": "1",
+     "ho_fact_price_9": "1",
+     "ho_fact_valuation_0": "1",
+     "ho_fact_valuation_1": "1",
+     "ho_fact_valuation_2": "1",
+     "ho_fact_valuation_3": "1",
+     "ho_fact_valuation_4": "1",
+     "ho_fact_valuation_5": "0",
+     "ho_fact_macro_0": "1",
+     "ho_fact_macro_1": "1",
+     "ho_fact_macro_2": "1",
+     "ho_fact_macro_3": "1",
+     "ho_fact_macro_4": "1",
+     "ho_compare_0": "1",
+     "ho_compare_1": "1",
+     "ho_compare_2": "1",
+     "ho_compare_fund_0": "1",
+     "ho_compare_fund_1": "1",
+     "ho_why_0": "1",
+     "ho_why_1": "1",
+     "ho_why_2": "1",
+     "ho_why_3": "0",
+     "ho_macro_link_0": "1",
+     "ho_macro_link_1": "0",
+     "ho_macro_link_2": "0",
+     "ho_missing_0": "1",
+     "ho_missing_1": "1",
+     "ho_missing_2": "1",
+     "ho_missing_3": "1",
+     "ho_multi_turn_0": "1",
+     "ho_multi_turn_1": "1",
+     "ho_multi_turn_2": "1",
+     "ho_ood_0": "1",
+     "ho_ood_1": "1",
+     "ho_ood_2": "1",
+     "ho_ood_3": "1",
+     "ho_ood_4": "1",
+     "ho_ood_5": "1",
+     "ho_clarify_0": "1",
+     "ho_clarify_1": "1",
+     "ho_clarify_2": "1",
+     "ho_compliance_0": "1",
+     "ho_compliance_1": "1",
+     "ho_compliance_2": "1",
+     "ho_compliance_3": "1"
+    }
+   },
+   "agent": {
+    "summary": {
+     "tasks": 53,
+     "turns": 56,
+     "repeats": 1,
+     "task_success": 1.0,
+     "pass^1": 1.0,
+     "ci": {
+      "task_success": [
+       1.0,
+       1.0
+      ],
+      "pass^1": [
+       1.0,
+       1.0
+      ]
+     },
+     "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+     "turn_success": 1.0,
+     "behavior_accuracy": 1.0,
+     "fact_recall": 1.0,
+     "fact_stated": 1.0,
+     "tool_recall": 1.0,
+     "tool_precision": 0.7372,
+     "compliance_clean": 1.0,
+     "hedged_when_required": 1.0,
+     "states_missing_when_required": 1.0,
+     "draft_verification_pass": 0.9362,
+     "unsupported_numbers_per_answer": 0.0638,
+     "latency_ms_p50": 13185.14,
+     "latency_ms_p95": 44772.72,
+     "latency_ms_p99": 110206.39,
+     "llm_turns": 47,
+     "llm_turn_latency_ms_p50": 14883.02,
+     "llm_turn_latency_ms_p95": 44772.72,
+     "llm_turn_latency_ms_p99": 110206.39,
+     "ttft_turns": 47,
+     "ttft_ms_p50": 8455.78,
+     "ttft_ms_p95": 26802.58,
+     "ttft_ms_p99": 36234.36,
+     "llm_calls_per_turn": 2.2143,
+     "tokens_per_turn": 7658.3214,
+     "reasoning_tokens_per_turn": 346.7321,
+     "cache_hit_ratio": 0.3903,
+     "first_pass_verification": 0.5745,
+     "revise_rate": 0.4043,
+     "llm_error_rate": 0.0179,
+     "llm_error_kinds": {
+      "llm_revision_failed:LLM request timed out: The read operation timed out": 1
+     },
+     "json_repair_rate": 0.0,
+     "json_failure_rate": 0.0,
+     "cost_per_turn": 0.00131,
+     "cost_per_task": 0.001399,
+     "cost_currency": "USD"
+    },
+    "by_category": {
+     "clarify": {
+      "tasks": 3,
+      "task_success": 1.0,
+      "latency_ms_p95": 323.23
+     },
+     "compare": {
+      "tasks": 5,
+      "task_success": 1.0,
+      "latency_ms_p95": 50391.54
+     },
+     "compliance": {
+      "tasks": 4,
+      "task_success": 1.0,
+      "latency_ms_p95": 37171.44
+     },
+     "fact": {
+      "tasks": 21,
+      "task_success": 1.0,
+      "latency_ms_p95": 33336.83
+     },
+     "macro_link": {
+      "tasks": 3,
+      "task_success": 1.0,
+      "latency_ms_p95": 39078.13
+     },
+     "missing_data": {
+      "tasks": 4,
+      "task_success": 1.0,
+      "latency_ms_p95": 44772.72
+     },
+     "multi_turn": {
+      "tasks": 3,
+      "task_success": 1.0,
+      "latency_ms_p95": 16813.76
+     },
+     "out_of_scope": {
+      "tasks": 6,
+      "task_success": 1.0,
+      "latency_ms_p95": 16.01
+     },
+     "why": {
+      "tasks": 4,
+      "task_success": 1.0,
+      "latency_ms_p95": 110206.39
+     }
+    },
+    "failed_checks": {},
+    "failures": [],
+    "task_outcomes": {
+     "ho_fact_price_0": "1",
+     "ho_fact_price_1": "1",
+     "ho_fact_price_2": "1",
+     "ho_fact_price_3": "1",
+     "ho_fact_price_4": "1",
+     "ho_fact_price_5": "1",
+     "ho_fact_price_6": "1",
+     "ho_fact_price_7": "1",
+     "ho_fact_price_8": "1",
+     "ho_fact_price_9": "1",
+     "ho_fact_valuation_0": "1",
+     "ho_fact_valuation_1": "1",
+     "ho_fact_valuation_2": "1",
+     "ho_fact_valuation_3": "1",
+     "ho_fact_valuation_4": "1",
+     "ho_fact_valuation_5": "1",
+     "ho_fact_macro_0": "1",
+     "ho_fact_macro_1": "1",
+     "ho_fact_macro_2": "1",
+     "ho_fact_macro_3": "1",
+     "ho_fact_macro_4": "1",
+     "ho_compare_0": "1",
+     "ho_compare_1": "1",
+     "ho_compare_2": "1",
+     "ho_compare_fund_0": "1",
+     "ho_compare_fund_1": "1",
+     "ho_why_0": "1",
+     "ho_why_1": "1",
+     "ho_why_2": "1",
+     "ho_why_3": "1",
+     "ho_macro_link_0": "1",
+     "ho_macro_link_1": "1",
+     "ho_macro_link_2": "1",
+     "ho_missing_0": "1",
+     "ho_missing_1": "1",
+     "ho_missing_2": "1",
+     "ho_missing_3": "1",
+     "ho_multi_turn_0": "1",
+     "ho_multi_turn_1": "1",
+     "ho_multi_turn_2": "1",
+     "ho_ood_0": "1",
+     "ho_ood_1": "1",
+     "ho_ood_2": "1",
+     "ho_ood_3": "1",
+     "ho_ood_4": "1",
+     "ho_ood_5": "1",
+     "ho_clarify_0": "1",
+     "ho_clarify_1": "1",
+     "ho_clarify_2": "1",
+     "ho_compliance_0": "1",
+     "ho_compliance_1": "1",
+     "ho_compliance_2": "1",
+     "ho_compliance_3": "1"
+    }
+   }
+  }
+ },
+ "comparisons": {
+  "holdout": {
+   "agent_vs_workflow": {
+    "tasks": 53,
+    "method": "paired bootstrap over tasks + exact McNemar",
+    "task_success": {
+     "a": 1.0,
+     "b": 0.9245,
+     "diff": 0.0755,
+     "ci": [
+      0.0189,
+      0.1509
+     ],
+     "significant": true
+    },
+    "pass^k": {
+     "a": 1.0,
+     "b": 0.9245,
+     "diff": 0.0755,
+     "ci": [
+      0.0189,
+      0.1509
+     ],
+     "significant": true
+    },
+    "mcnemar": {
+     "a_only_pass": 4,
+     "b_only_pass": 0,
+     "p_value": 0.125,
+     "significant": false
+    }
+   }
+  }
+ },
+ "llm_http": {
+  "holdout": {
+   "agent": {
+    "requests": 125,
+    "timeout": 1,
+    "rate_429": 0.0
+   }
+  }
+ },
+ "profile": {
+  "holdout/agent": {
+   "llm_turns": 47,
+   "latency_ms_p50": 14883.02,
+   "latency_ms_p95": 44772.72,
+   "latency_ms_p99": 110206.39,
+   "ttft_ms_p50": 8455.78,
+   "ttft_ms_p95": 26802.58,
+   "llm_calls_per_turn": 2.6,
+   "llm_calls_distribution": {
+    "2": 26,
+    "3": 15,
+    "4": 4,
+    "5": 1,
+    "6": 1
+   },
+   "llm_time_share_of_turn": 0.964,
+   "llm_nodes": {
+    "agent_llm[0]": {
+     "calls": 47,
+     "calls_per_llm_turn": 1.0,
+     "latency_ms_p50": 3639.44,
+     "latency_ms_p95": 12791.35,
+     "latency_ms_mean": 4836.6,
+     "share_of_llm_time": 0.239,
+     "prompt_tokens_mean": 2392.1,
+     "cache_hit_tokens_mean": 1210.6,
+     "completion_tokens_mean": 155.2,
+     "reasoning_tokens_mean": 116.4,
+     "tool_calls_requested_mean": 2.0,
+     "context_chars_mean": {
+      "system": 2652.0,
+      "user": 540.2,
+      "assistant": 6.8,
+      "tool": 0.0,
+      "tool_schemas": 5932.0
+     }
+    },
+    "agent_llm[1]": {
+     "calls": 47,
+     "calls_per_llm_turn": 1.0,
+     "latency_ms_p50": 7149.64,
+     "latency_ms_p95": 18908.27,
+     "latency_ms_mean": 9108.7,
+     "share_of_llm_time": 0.45,
+     "prompt_tokens_mean": 3480.0,
+     "cache_hit_tokens_mean": 1368.5,
+     "completion_tokens_mean": 463.2,
+     "reasoning_tokens_mean": 182.4,
+     "tool_calls_requested_mean": 0.2,
+     "context_chars_mean": {
+      "system": 2652.0,
+      "user": 540.2,
+      "assistant": 313.2,
+      "tool": 2548.4,
+      "tool_schemas": 5932.0
+     }
+    },
+    "agent_llm[2]": {
+     "calls": 7,
+     "calls_per_llm_turn": 0.149,
+     "latency_ms_p50": 9589.62,
+     "latency_ms_p95": 18182.79,
+     "latency_ms_mean": 10602.1,
+     "share_of_llm_time": 0.078,
+     "prompt_tokens_mean": 4635.4,
+     "cache_hit_tokens_mean": 1700.6,
+     "completion_tokens_mean": 773.1,
+     "reasoning_tokens_mean": 506.6,
+     "tool_calls_requested_mean": 0.3,
+     "context_chars_mean": {
+      "system": 2652.0,
+      "user": 541.6,
+      "assistant": 589.9,
+      "tool": 5116.3,
+      "tool_schemas": 5932.0
+     }
+    },
+    "agent_llm[3+]": {
+     "calls": 4,
+     "calls_per_llm_turn": 0.085,
+     "latency_ms_p50": 8576.9,
+     "latency_ms_p95": 9526.89,
+     "latency_ms_mean": 8244.2,
+     "share_of_llm_time": 0.035,
+     "prompt_tokens_mean": 3435.0,
+     "cache_hit_tokens_mean": 3056.0,
+     "completion_tokens_mean": 363.2,
+     "reasoning_tokens_mean": 294.2,
+     "tool_calls_requested_mean": 0.5,
+     "context_chars_mean": {
+      "system": 2652.0,
+      "user": 523.0,
+      "assistant": 531.8,
+      "tool": 1918.8,
+      "tool_schemas": 5932.0
+     }
+    },
+    "revise": {
+     "calls": 19,
+     "calls_per_llm_turn": 0.404,
+     "latency_ms_p50": 7630.6,
+     "latency_ms_p95": 37508.23,
+     "latency_ms_mean": 9967.9,
+     "share_of_llm_time": 0.199,
+     "prompt_tokens_mean": 3316.7,
+     "cache_hit_tokens_mean": 262.8,
+     "completion_tokens_mean": 407.5,
+     "reasoning_tokens_mean": 34.4,
+     "tool_calls_requested_mean": 0.0,
+     "context_chars_mean": {
+      "system": 2652.0,
+      "user": 964.4,
+      "assistant": 1425.1,
+      "tool": 3871.8,
+      "tool_schemas": 0.0
+     }
+    }
+   },
+   "graph_nodes": {
+    "agent_llm": {
+     "turns": 47,
+     "ms_mean_when_run": 16228.9,
+     "share_of_turn_time": 0.772
+    },
+    "revise": {
+     "turns": 20,
+     "ms_mean_when_run": 10902.2,
+     "share_of_turn_time": 0.221
+    },
+    "guard_in": {
+     "turns": 47,
+     "ms_mean_when_run": 74.5,
+     "share_of_turn_time": 0.004
+    },
+    "agent_tools": {
+     "turns": 47,
+     "ms_mean_when_run": 57.0,
+     "share_of_turn_time": 0.003
+    },
+    "compliance": {
+     "turns": 47,
+     "ms_mean_when_run": 4.7,
+     "share_of_turn_time": 0.0
+    },
+    "verify": {
+     "turns": 47,
+     "ms_mean_when_run": 1.3,
+     "share_of_turn_time": 0.0
+    },
+    "finalize": {
+     "turns": 47,
+     "ms_mean_when_run": 0.1,
+     "share_of_turn_time": 0.0
+    }
+   },
+   "tools": {
+    "calls_per_turn": 2.3,
+    "latency_ms_p50": 0.24,
+    "latency_ms_p95": 224.47,
+    "llm_tool_rounds_distribution": {
+     "1": 40,
+     "2": 5,
+     "4": 2
+    }
+   },
+   "revise": {
+    "rate": 0.404,
+    "trigger_counts": {
+     "unsupported_numbers": 12,
+     "uncited_numbers": 5,
+     "misattributed_numbers": 3,
+     "document_market_numbers": 3,
+     "invalid_citations": 3
+    },
+    "trigger_combinations": {
+     "unsupported_numbers": 8,
+     "uncited_numbers": 2,
+     "unsupported_numbers+uncited_numbers": 2,
+     "invalid_citations": 2,
+     "unsupported_numbers+misattributed_numbers+document_market_numbers": 1,
+     "document_market_numbers": 1,
+     "misattributed_numbers+document_market_numbers": 1,
+     "misattributed_numbers+uncited_numbers": 1
+    }
+   },
+   "slowest_10pct": {
+    "turns": 5,
+    "latency_ms_mean": 58072.9,
+    "llm_calls_mean": 3.2,
+    "revised_share": 0.8,
+    "tool_rounds_mean": 1.4,
+    "max_single_call_ms_mean": 31073.9,
+    "degraded": {
+     "llm_revision_failed": 1,
+     "verification_failed": 1
+    },
+    "threshold_ms": 40980.03
+   },
+   "all_llm_turns": {
+    "turns": 47,
+    "latency_ms_mean": 21015.5,
+    "llm_calls_mean": 2.6,
+    "revised_share": 0.404,
+    "tool_rounds_mean": 1.2,
+    "max_single_call_ms_mean": 11438.5,
+    "degraded": {
+     "verification_failed": 3,
+     "llm_revision_failed": 1
+    }
+   }
+  }
+ },
+ "source": {
+  "file": "outputs/agent_eval/perf-glm-off.json",
+  "sha256_16": "b7874cf0f1b1e7e7",
+  "bytes": 298364,
+  "slimmed_at": "2026-09-28T16:34:50+00:00"
+ }
+}
