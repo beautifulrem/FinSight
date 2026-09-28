@@ -5,7 +5,12 @@ the *agent* itself so another agent can delegate a whole research task and get b
 
 * Agent card: ``GET /.well-known/agent-card.json`` (skills, JSON-RPC interface, streaming support).
 * JSON-RPC endpoint: ``POST /a2a`` (A2A protocol 1.0 methods such as ``SendMessage``, ``GetTask``).
-* An A2A ``context_id`` maps to an agent session, so follow-up messages keep conversation memory.
+* An A2A ``context_id`` maps to an agent session, so follow-up messages keep conversation memory. Tasks and
+  sessions are owned by the caller's API-key principal (``build_context_builder``).
+* ``SendStreamingMessage`` streams ``working`` status updates for each graph node and tool call, then the
+  answer artifacts.
+* Tasks live in Postgres when ``QI_AGENT_CHECKPOINT_DB`` (or ``QI_A2A_TASK_DB``) is a ``postgresql://`` DSN,
+  so any replica can serve ``GetTask`` and continue an ``input-required`` task (``a2a_store.py``).
 * A clarification interrupt becomes an ``input-required`` task; the next message on the same task
   resumes the paused graph (``AgentService.resume``).
 * The completed task carries two artifacts: the answer text (with ``[evidence_id]`` citations and the
@@ -146,6 +151,23 @@ def build_agent_card(base_url: str, *, api_key_required: bool = False) -> Any:
     )
 
 
+def principal_of_context(context: Any) -> str:
+    """The FinSight principal (API-key hash or ``local``) that ``PrincipalContextBuilder`` put on the call."""
+    call_context = getattr(context, "call_context", None)
+    name = getattr(getattr(call_context, "user", None), "user_name", "") if call_context is not None else ""
+    return name or "local"
+
+
+def progress_text(event: dict[str, Any]) -> str | None:
+    """A short progress line for a streamed agent event (node starts and tool calls), else ``None``."""
+    data = event.get("data") or {}
+    if event.get("event") == "node_start":
+        return f"{data.get('label') or data.get('node')}…"
+    if event.get("event") == "tool_call":
+        return f"calling {data.get('tool')}"
+    return None
+
+
 def build_executor(get_agent: Callable[[], Any], *, mode: str = "auto") -> Any:
     from a2a.helpers import new_data_part, new_task_from_user_message, new_text_part
     from a2a.server.agent_execution import AgentExecutor
@@ -165,12 +187,13 @@ def build_executor(get_agent: Callable[[], Any], *, mode: str = "auto") -> Any:
                 return
             agent = get_agent()
             session = session_for_context(task.context_id)
+            owner = principal_of_context(context)
             await updater.start_work()
             try:
                 if task.status.state == TaskState.TASK_STATE_INPUT_REQUIRED and agent.pending_clarification(session):
-                    response = await asyncio.to_thread(agent.resume, session, query)
+                    response = await asyncio.to_thread(agent.resume, session, query, owner=owner)
                 else:
-                    response = await asyncio.to_thread(agent.chat, query, session_id=session, mode=mode)
+                    response = await self._run_streamed(agent, updater, query, session, owner)
             except Exception as exc:  # surfaced to the A2A client as a failed task
                 logger.exception("A2A task failed")
                 await updater.failed(updater.new_agent_message([new_text_part(f"{type(exc).__name__}: {exc}")]))
@@ -187,6 +210,30 @@ def build_executor(get_agent: Callable[[], Any], *, mode: str = "auto") -> Any:
             await updater.add_artifact([new_data_part(answer_data(response))], name="evidence")
             await updater.complete()
 
+        async def _run_streamed(self, agent: Any, updater: Any, query: str, session: str | None, owner: str) -> dict:
+            """Run the agent through ``AgentService.stream`` and forward node starts and tool calls as
+            ``working`` status updates, so ``SendStreamingMessage`` clients see progress before the answer."""
+            events = agent.stream(query, session_id=session, mode=mode, owner=owner)
+            response: dict[str, Any] | None = None
+            while (event := await asyncio.to_thread(next, events, None)) is not None:
+                kind = event.get("event")
+                text = progress_text(event)
+                if text:
+                    await updater.update_status(
+                        TaskState.TASK_STATE_WORKING, updater.new_agent_message([new_text_part(text)])
+                    )
+                elif kind == "answer":
+                    response = dict(event.get("data") or {})
+                elif kind == "clarification":
+                    data = dict(event.get("data") or {})
+                    data.pop("session_id", None)
+                    response = {"status": "needs_clarification", "clarification": data}
+                elif kind == "error":
+                    raise RuntimeError(str((event.get("data") or {}).get("message") or "agent run failed"))
+            if response is None:
+                raise RuntimeError("agent run ended without an answer")
+            return response
+
         async def cancel(self, context: Any, event_queue: Any) -> None:
             task = context.current_task
             if task is not None:
@@ -195,14 +242,58 @@ def build_executor(get_agent: Callable[[], Any], *, mode: str = "auto") -> Any:
     return FinSightAgentExecutor()
 
 
-def install_a2a(app: Any, get_agent: Callable[[], Any], *, base_url: str | None = None) -> bool:
+def build_context_builder() -> Any:
+    """Puts the security middleware's principal on every A2A call, so tasks and agent sessions are scoped to
+    the calling API key (the SDK's default builder only knows Starlette auth users)."""
+    from a2a.auth.user import User
+    from a2a.server.routes import DefaultServerCallContextBuilder
+
+    class PrincipalUser(User):
+        def __init__(self, principal: str) -> None:
+            self._principal = principal
+
+        @property
+        def is_authenticated(self) -> bool:
+            return self._principal != "local"
+
+        @property
+        def user_name(self) -> str:
+            return self._principal
+
+    class PrincipalContextBuilder(DefaultServerCallContextBuilder):
+        def build_user(self, request: Any) -> User:
+            return PrincipalUser(str(getattr(request.state, "principal", "local") or "local"))
+
+    return PrincipalContextBuilder()
+
+
+def build_task_store() -> Any:
+    """Postgres when ``QI_A2A_TASK_DB`` (or, by default, ``QI_AGENT_CHECKPOINT_DB``) is a DSN, else in memory.
+    An unreachable database falls back to memory with a warning, so the API still starts."""
+    from a2a.server.tasks import InMemoryTaskStore
+
+    from .pg import open_pool, store_dsn
+
+    dsn = store_dsn("QI_A2A_TASK_DB")
+    if dsn:
+        try:
+            from .a2a_store import PostgresTaskStore
+
+            store = PostgresTaskStore(open_pool(dsn, name="a2a-tasks"))
+            logger.info("[startup] A2A tasks are stored in Postgres (shared by all replicas).")
+            return store
+        except Exception as exc:
+            logger.warning("[startup] A2A Postgres task store unavailable (%s); using the in-memory store.", exc)
+    return InMemoryTaskStore()
+
+
+def install_a2a(app: Any, get_agent: Callable[[], Any], *, base_url: str | None = None, task_store: Any = None) -> bool:
     """Mount the agent card and JSON-RPC routes on ``app``. Returns ``False`` when A2A is unavailable."""
     if not a2a_enabled():
         return False
     try:
         from a2a.server.request_handlers import DefaultRequestHandler
         from a2a.server.routes import add_a2a_routes_to_fastapi, create_jsonrpc_routes
-        from a2a.server.tasks import InMemoryTaskStore
     except ImportError:
         logger.info("[startup] a2a-sdk is not installed; A2A endpoints are disabled.")
         return False
@@ -210,12 +301,15 @@ def install_a2a(app: Any, get_agent: Callable[[], Any], *, base_url: str | None 
     api_key_required = bool(os.getenv("QI_API_KEYS", "").strip())
     configured_base = base_url or os.getenv("QI_PUBLIC_BASE_URL", "").strip()
     card = build_agent_card(configured_base or "http://127.0.0.1:8765", api_key_required=api_key_required)
+    store = task_store if task_store is not None else build_task_store()
+    app.state.a2a_task_store = store
     handler = DefaultRequestHandler(
         agent_executor=build_executor(get_agent, mode=os.getenv("QI_A2A_MODE", "auto")),
-        task_store=InMemoryTaskStore(),
+        task_store=store,
         agent_card=card,
     )
-    add_a2a_routes_to_fastapi(app, jsonrpc_routes=create_jsonrpc_routes(handler, rpc_url=A2A_RPC_PATH))
+    routes = create_jsonrpc_routes(handler, rpc_url=A2A_RPC_PATH, context_builder=build_context_builder())
+    add_a2a_routes_to_fastapi(app, jsonrpc_routes=routes)
 
     from a2a.server.request_handlers.response_helpers import agent_card_to_dict
     from a2a.utils.constants import AGENT_CARD_WELL_KNOWN_PATH

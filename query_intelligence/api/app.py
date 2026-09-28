@@ -20,7 +20,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from ..agent.a2a_server import install_a2a
 from ..agent.errors import SessionAccessError
-from ..agent.telemetry import PrometheusTraceSink, RecentTraceStore
+from ..agent.telemetry import PrometheusTraceSink
+from ..agent.trace_store import build_trace_store
 from ..agent.tracing import DEFAULT_TRACE_DIR, sinks_from_env
 from ..artifacts import ArtifactWriter
 from ..chat.page import DIST_DIR
@@ -156,9 +157,9 @@ def create_app(
     agent_holder: dict[str, Any] = {"service": agent_service}
     agent_lock = threading.Lock()
     trace_dir = os.getenv("QI_AGENT_TRACE_DIR", DEFAULT_TRACE_DIR).strip()
-    trace_store = RecentTraceStore(
-        trace_dir=None if trace_dir.lower() in {"", "off", "0", "false", "none"} else trace_dir
-    )
+    # In-process ring by default; a Postgres table shared by all replicas when QI_AGENT_TRACE_DB (or a Postgres
+    # QI_AGENT_CHECKPOINT_DB) is set. Same interface, owner-scoped either way.
+    trace_store = build_trace_store(None if trace_dir.lower() in {"", "off", "0", "false", "none"} else trace_dir)
     metrics_sink = PrometheusTraceSink()
     feedback_log = Path(os.getenv("QI_FEEDBACK_PATH", "outputs/feedback/feedback.jsonl"))
     feedback_lock = threading.Lock()
@@ -393,6 +394,17 @@ def create_app(
 
     if install_a2a(app, get_agent):
         logger.info("[startup] A2A agent card at /.well-known/agent-card.json, JSON-RPC at /a2a.")
+
+    app.state.trace_store = trace_store
+
+    def close_shared_stores() -> None:
+        # Postgres-backed stores own connection pools; the in-memory ones have nothing to close.
+        for store in (trace_store, getattr(app.state, "a2a_task_store", None)):
+            close = getattr(store, "close", None)
+            if callable(close):
+                close()
+
+    app.router.on_shutdown.append(close_shared_stores)
 
     @app.post("/nlu/analyze")
     def analyze(payload: AnalyzeRequest) -> dict:
