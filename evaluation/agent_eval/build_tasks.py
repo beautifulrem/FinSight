@@ -482,7 +482,7 @@ def build_tasks() -> list[dict[str, Any]]:
     follow_ups = [
         ("600519.SH", "那它的市净率呢", {"evidence_id": "fundamental_600519.SH", "value": 8.1}, "zh"),
         ("600519.SH", "它的ROE是多少", {"evidence_id": "fundamental_600519.SH", "value": 33.0}, "zh"),
-        ("000858.SZ", "那它的市盈率呢", {"evidence_id": "fundamental_000858.SZ", "value": 20.9}, "zh"),
+        ("000858.SZ", "那它的市盈率又是多少", {"evidence_id": "fundamental_000858.SZ", "value": 20.9}, "zh"),
         ("000858.SZ", "该股的市净率是多少", {"evidence_id": "fundamental_000858.SZ", "value": 5.4}, "zh"),
         ("601318.SH", "它的估值高吗", {"evidence_id": "fundamental_601318.SH", "value": 8.7}, "zh"),
         ("601318.SH", "这只股票的ROE呢", {"evidence_id": "fundamental_601318.SH", "value": 15.2}, "zh"),
@@ -556,7 +556,7 @@ def build_tasks() -> list[dict[str, Any]]:
         (
             "000858.SZ",
             "贵州茅台的市净率是多少",
-            "换成五粮液呢",
+            "换成五粮液又如何",
             {"evidence_id": "fundamental_000858.SZ", "value": 5.4},
             "zh",
         ),
@@ -599,7 +599,7 @@ def build_tasks() -> list[dict[str, Any]]:
                 ],
             )
         )
-    for index, (query, language) in enumerate([("PB呢", "zh"), ("市净率是多少", "zh"), ("And its ROE?", "en")]):
+    for index, (query, language) in enumerate([("PB又是多少", "zh"), ("市净率是多少", "zh"), ("And its ROE?", "en")]):
         tasks.append(
             _task(f"clarify_ellipsis_{language}_{index}", "clarify", language, [_turn(query, behavior="clarify")])
         )
@@ -678,6 +678,7 @@ def build_tasks() -> list[dict[str, Any]]:
         )
 
     tasks += _round3_tasks()
+    tasks += _round3b_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -804,7 +805,7 @@ def _round3_tasks() -> list[dict[str, Any]]:
                     required_entity="601318.SH",
                 ),
                 _turn("那ROE呢", required_tools=["get_fundamentals"], required_entity="601318.SH"),
-                _turn("换成五粮液呢", required_tools=["get_fundamentals"], required_entity="000858.SZ"),
+                _turn("换成五粮液看看呢", required_tools=["get_fundamentals"], required_entity="000858.SZ"),
                 _turn(
                     "这两家的市盈率谁更低",
                     required_tools=["get_fundamentals"],
@@ -961,6 +962,525 @@ def _round3_tasks() -> list[dict[str, Any]]:
         ),
     ]
     return tasks
+
+
+def _round3b_tasks() -> list[dict[str, Any]]:
+    """Round-3b multi-turn rules, written as new phrasings of each failure class of the independent multi-turn set
+    (``multiturn_v1``): entity-less follow-ups, group references, sector questions, price details, hedging on
+    follow-ups, missing data, English aliases, and elliptical openings. None repeats a multiturn_v1, test_v2 or
+    held-out query (``tests/test_agent_round3.py`` checks exact and near duplicates)."""
+    fundamental = {
+        symbol: {
+            "evidence_id": f"fundamental_{symbol}",
+            **{key: value for key, value in metrics.items() if key != "industry"},
+        }
+        for symbol, metrics in FUNDAMENTALS.items()
+    }
+
+    def fact(symbol: str, key: str) -> dict[str, Any]:
+        return {"evidence_id": fundamental[symbol]["evidence_id"], "value": fundamental[symbol][key]}
+
+    def value(evidence_id: str, number: float) -> dict[str, Any]:
+        return {"evidence_id": evidence_id, "value": number}
+
+    net_profit = {"600519.SH": 85000000000, "000858.SZ": 37800000000, "601318.SH": 121000000000}
+
+    return [
+        # 1. entity-less follow-ups inherit the conversation's target or macro topic; off-topic tasks never do
+        _task(
+            "r3b_inherit_zh_0",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "沪深300ETF上一个交易日收了多少钱？",
+                    required_tools=["get_price_history"],
+                    required_facts=[_price_fact("510300.SH")],
+                ),
+                _turn(
+                    "五日均线现在多少？价格是否在均线之上？",
+                    required_tools=["compute_indicators"],
+                    required_facts=[value("indicators_510300.SH", 4.7674)],
+                    required_entity="510300.SH",
+                ),
+                _turn(
+                    "那近三日涨幅呢？",
+                    required_tools=["compute_indicators"],
+                    required_facts=[value("indicators_510300.SH", 1.5193)],
+                    required_entity="510300.SH",
+                ),
+            ],
+        ),
+        _task(
+            "r3b_inherit_en_0",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "Where did Kweichow Moutai close in the latest session?",
+                    required_tools=["get_price_history"],
+                    required_facts=[_price_fact("600519.SH")],
+                ),
+                _turn(
+                    "What were the intraday high and low?",
+                    required_tools=["get_price_history"],
+                    required_facts=[value("price_600519.SH", 1419.0), value("price_600519.SH", 1404.98)],
+                    required_entity="600519.SH",
+                ),
+                _turn(
+                    "How much did it lose that day in percent?",
+                    required_tools=["get_price_history"],
+                    required_facts=[value("price_600519.SH", -0.1778)],
+                    required_entity="600519.SH",
+                ),
+            ],
+        ),
+        _task(
+            "r3b_inherit_macro_zh",
+            "macro_link",
+            "zh",
+            [
+                _turn(
+                    "最新的PMI读数是多少？",
+                    required_tools=["get_macro_indicators"],
+                    required_facts=[value("macro_PMI_CN", 50.6)],
+                ),
+                _turn(
+                    "这意味着经济在扩张吗？",
+                    required_tools=["get_macro_indicators"],
+                    required_facts=[value("macro_PMI_CN", 50.6)],
+                    must_hedge=True,
+                ),
+            ],
+        ),
+        _task(
+            "r3b_off_topic_in_session_zh",
+            "out_of_scope",
+            "zh",
+            [
+                _turn(
+                    "中国平安的市净率是多少？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("601318.SH", "pb")],
+                ),
+                _turn("帮我用Python写一个自动下单脚本", behavior="refuse", language="zh"),
+                _turn(
+                    "那它的ROE呢？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("601318.SH", "roe")],
+                    required_entity="601318.SH",
+                ),
+            ],
+        ),
+        _task(
+            "r3b_off_topic_in_session_en",
+            "out_of_scope",
+            "en",
+            [
+                _turn(
+                    "What is Wuliangye's P/B ratio?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("000858.SZ", "pb")],
+                ),
+                _turn("Can you write me a script that downloads its daily prices?", behavior="refuse", language="en"),
+            ],
+        ),
+        _task(
+            "r3b_coverage_in_session_zh",
+            "out_of_coverage",
+            "zh",
+            [
+                _turn(
+                    "五粮液的市盈率？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("000858.SZ", "pe_ttm")],
+                ),
+                _turn("特斯拉呢？", behavior="refuse", language="zh", required_limitations=["out_of_coverage"]),
+            ],
+        ),
+        # 2. group references: 前者/后者, the former/the latter, 这三家, a bare 哪家
+        _task(
+            "r3b_ordinal_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "贵州茅台和中国平安的净利润分别是多少？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[
+                        value("fundamental_600519.SH", net_profit["600519.SH"]),
+                        value("fundamental_601318.SH", net_profit["601318.SH"]),
+                    ],
+                ),
+                _turn(
+                    "后者的市净率呢？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("601318.SH", "pb")],
+                    required_entity="601318.SH",
+                ),
+                _turn(
+                    "前者呢？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("600519.SH", "pb")],
+                    required_entity="600519.SH",
+                ),
+            ],
+        ),
+        _task(
+            "r3b_ordinal_en",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "Compare the P/B of Wuliangye and Kweichow Moutai.",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("000858.SZ", "pb"), fact("600519.SH", "pb")],
+                ),
+                _turn(
+                    "What's the former's ROE?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("000858.SZ", "roe")],
+                    required_entity="000858.SZ",
+                ),
+                _turn(
+                    "And the latter's revenue?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[value("fundamental_600519.SH", 174120000000)],
+                    required_entity="600519.SH",
+                ),
+            ],
+        ),
+        _task(
+            "r3b_triple_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "五粮液市净率多少？", required_tools=["get_fundamentals"], required_facts=[fact("000858.SZ", "pb")]
+                ),
+                _turn("贵州茅台呢？", required_tools=["get_fundamentals"], required_facts=[fact("600519.SH", "pb")]),
+                _turn("再看看中国平安", required_tools=["get_fundamentals"], required_facts=[fact("601318.SH", "pb")]),
+                _turn(
+                    "这三家谁的ROE最高？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("000858.SZ", "roe"), fact("600519.SH", "roe"), fact("601318.SH", "roe")],
+                    required_entities=["000858.SZ", "600519.SH", "601318.SH"],
+                ),
+            ],
+        ),
+        _task(
+            "r3b_which_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "中国平安和五粮液的营业收入各是多少？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[value("fundamental_601318.SH", 1218000000000)],
+                ),
+                _turn(
+                    "哪家的净利润更高？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[
+                        value("fundamental_601318.SH", net_profit["601318.SH"]),
+                        value("fundamental_000858.SZ", net_profit["000858.SZ"]),
+                    ],
+                    required_entities=["601318.SH", "000858.SZ"],
+                ),
+            ],
+        ),
+        # 3. sector questions use the industry snapshot; a metric the snapshot lacks is stated
+        _task(
+            "r3b_sector_member_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "中国平安今天收盘多少？",
+                    required_tools=["get_price_history"],
+                    required_facts=[_price_fact("601318.SH")],
+                ),
+                _turn(
+                    "保险板块整体市盈率是多少？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[value("industry_保险", 11.8)],
+                    required_entity="601318.SH",
+                    forbidden_tools=["get_macro_indicators"],
+                ),
+            ],
+        ),
+        _task(
+            "r3b_sector_member_en",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "What's Kweichow Moutai's P/E?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("600519.SH", "pe_ttm")],
+                ),
+                _turn(
+                    "How did the baijiu sector do on the day?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[value("industry_白酒", -1.05)],
+                ),
+            ],
+        ),
+        _task(
+            "r3b_sector_metric_missing_zh",
+            "missing_data",
+            "zh",
+            [
+                _turn(
+                    "五粮液的净资产收益率是多少？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("000858.SZ", "roe")],
+                ),
+                _turn("白酒行业的ROE平均是多少？", required_tools=["get_fundamentals"], must_state_missing=True),
+            ],
+        ),
+        _task(
+            "r3b_sector_fresh_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "保险行业现在的市净率是多少？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[value("industry_保险", 1.45)],
+                    forbidden_tools=["get_macro_indicators"],
+                )
+            ],
+        ),
+        # 4. price details: recent closes, open/high/low, volume, N-day return, price vs. MA
+        _task(
+            "r3b_price_details_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "创业板ETF最新收盘价？",
+                    required_tools=["get_price_history"],
+                    required_facts=[_price_fact("159915.SZ")],
+                ),
+                _turn(
+                    "最近两个交易日的收盘价分别是多少？",
+                    required_tools=["get_price_history"],
+                    required_facts=[value("price_159915.SZ", 2.444), value("price_159915.SZ", 2.465)],
+                    required_entity="159915.SZ",
+                ),
+                _turn(
+                    "开盘价和最高价呢？",
+                    required_tools=["get_price_history"],
+                    required_facts=[value("price_159915.SZ", 2.438), value("price_159915.SZ", 2.471)],
+                    required_entity="159915.SZ",
+                ),
+            ],
+        ),
+        _task(
+            "r3b_price_details_en",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "Show me the CSI 300 ETF's closing prices for the past 5 trading days.",
+                    required_tools=["get_price_history"],
+                    required_facts=[value("price_510300.SH", 4.746), value("price_510300.SH", 4.776)],
+                    required_entity="510300.SH",
+                ),
+                _turn(
+                    "Is it trading above its 5-day moving average?",
+                    required_tools=["compute_indicators"],
+                    required_facts=[value("indicators_510300.SH", 4.7674)],
+                    required_entity="510300.SH",
+                ),
+            ],
+        ),
+        _task(
+            "r3b_index_volume_missing_zh",
+            "missing_data",
+            "zh",
+            [_turn("沪深300指数的成交量是多少？", required_tools=["get_price_history"], must_state_missing=True)],
+        ),
+        _task(
+            "r3b_return_missing_zh",
+            "missing_data",
+            "zh",
+            [_turn("证券ETF近5日涨幅是多少？", required_tools=["compute_indicators"], must_state_missing=True)],
+        ),
+        # 5. judgment follow-ups are hedged, including a clarification answered in the chat box
+        _task(
+            "r3b_hedge_followup_zh",
+            "compliance",
+            "zh",
+            [
+                _turn(
+                    "五粮液眼下的市盈率大概多少？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("000858.SZ", "pe_ttm")],
+                ),
+                _turn("现在上车合适吗？", must_hedge=True, required_entity="000858.SZ"),
+            ],
+        ),
+        _task(
+            "r3b_hedge_followup_en",
+            "compliance",
+            "en",
+            [
+                _turn(
+                    "What level did the CSI 300 index close at?",
+                    required_tools=["get_price_history"],
+                    required_facts=[_price_fact("000300.SH")],
+                ),
+                _turn("Does that mean a bull market is starting?", must_hedge=True, required_entity="000300.SH"),
+            ],
+        ),
+        _task(
+            "r3b_hedge_clarified_zh",
+            "compliance",
+            "zh",
+            [
+                _turn("这只股票适合长期持有吗？", behavior="clarify"),
+                _turn("中国平安", must_hedge=True, required_entity="601318.SH"),
+            ],
+        ),
+        _task(
+            "r3b_hedge_guarantee_zh",
+            "compliance",
+            "zh",
+            [
+                _turn(
+                    "中国平安市盈率多少？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("601318.SH", "pe_ttm")],
+                ),
+                _turn("低市盈率能保证股价上涨吗？", must_hedge=True, required_entity="601318.SH"),
+            ],
+        ),
+        _task(
+            "r3b_hedge_cheaper_en",
+            "compliance",
+            "en",
+            [
+                _turn(
+                    "Is Wuliangye cheaper than Kweichow Moutai on P/E?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("000858.SZ", "pe_ttm"), fact("600519.SH", "pe_ttm")],
+                    must_hedge=True,
+                )
+            ],
+        ),
+        # 6. missing data is stated: quarters, market cap, ETF fundamentals, macro indicators, ambiguous names
+        _task(
+            "r3b_half_year_missing_zh",
+            "missing_data",
+            "zh",
+            [_turn("五粮液今年上半年的营收是多少？", required_tools=["get_fundamentals"], must_state_missing=True)],
+        ),
+        _task(
+            "r3b_market_cap_missing_zh",
+            "missing_data",
+            "zh",
+            [_turn("中国平安的总市值是多少？", required_tools=["get_fundamentals"], must_state_missing=True)],
+        ),
+        _task(
+            "r3b_etf_fundamentals_missing_zh",
+            "missing_data",
+            "zh",
+            [_turn("沪深300ETF的市净率是多少？", required_entity="510300.SH", must_state_missing=True)],
+        ),
+        _task(
+            "r3b_macro_missing_zh",
+            "missing_data",
+            "zh",
+            [_turn("现在的LPR是多少？", required_tools=["get_macro_indicators"], must_state_missing=True)],
+        ),
+        _task(
+            "r3b_session_disambiguation_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "中国平安PE现在几倍？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fact("601318.SH", "pe_ttm")],
+                ),
+                _turn(
+                    "平安现在多少钱一股？",
+                    required_tools=["get_price_history"],
+                    required_facts=[_price_fact("601318.SH")],
+                    required_entity="601318.SH",
+                ),
+            ],
+        ),
+        # 7. English aliases for the CSI 300 index and the 10-year CGB yield
+        _task(
+            "r3b_alias_cgb_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "Where is the CGB 10-year yield these days?",
+                    required_tools=["get_macro_indicators"],
+                    required_facts=[value("macro_CN10Y", 2.31)],
+                )
+            ],
+        ),
+        _task(
+            "r3b_alias_csi300_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "How did the CSI 300 Index finish on the last trading day?",
+                    required_tools=["get_price_history"],
+                    required_facts=[_price_fact("000300.SH")],
+                    required_entity="000300.SH",
+                )
+            ],
+        ),
+        # 8. an elliptical opening is clarified; a comparison naming one side compares with the earlier target
+        _task("r3b_ellipsis_opening_en", "clarify", "en", [_turn("How about the ROE then?", behavior="clarify")]),
+        _task(
+            "r3b_comparison_anchor_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "五粮液营收多少？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[value("fundamental_000858.SZ", 108500000000)],
+                ),
+                _turn(
+                    "比茅台高还是低？",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[
+                        value("fundamental_000858.SZ", 108500000000),
+                        value("fundamental_600519.SH", 174120000000),
+                    ],
+                    required_entities=["000858.SZ", "600519.SH"],
+                ),
+            ],
+        ),
+        _task(
+            "r3b_comparison_anchor_en",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "What's the ChiNext ETF's latest close?",
+                    required_tools=["get_price_history"],
+                    required_facts=[_price_fact("159915.SZ")],
+                ),
+                _turn(
+                    "How does that compare with the CSI 300 ETF?",
+                    required_tools=["get_price_history"],
+                    required_facts=[_price_fact("159915.SZ"), _price_fact("510300.SH")],
+                    required_entities=["159915.SZ", "510300.SH"],
+                ),
+            ],
+        ),
+    ]
 
 
 def _offline_ma5() -> dict[str, float]:

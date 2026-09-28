@@ -480,14 +480,16 @@ def test_memory_summary_disabled_makes_no_extra_call():
 
 
 def test_round3_dev_tasks_do_not_overlap_holdout_or_test_sets():
+    """Dev regressions (rounds 3 and 3b) must not copy or near-copy a held-out, test_v2 or multiturn_v1 query:
+    those sets measure generalisation, and the multi-turn set was written independently of the agent."""
     from evaluation.agent_eval import build_test_v2
-    from evaluation.agent_eval.build_tasks import _round3_tasks, check_overlap
+    from evaluation.agent_eval.build_tasks import _round3_tasks, _round3b_tasks, build_tasks, check_overlap
     from evaluation.agent_eval.runner import TASK_SETS, load_tasks
 
-    tasks = _round3_tasks()
+    tasks = [*_round3_tasks(), *_round3b_tasks()]
     others = [
         turn["query"]
-        for name in ("holdout", "test_v2")
+        for name in ("holdout", "test_v2", "multiturn_v1")
         for item in load_tasks(TASK_SETS[name][0])
         for turn in item["turns"]
     ]
@@ -495,6 +497,18 @@ def test_round3_dev_tasks_do_not_overlap_holdout_or_test_sets():
     grams = [build_test_v2._grams(query) for query in others]
 
     assert check_overlap(tasks) == []
+    # the whole dev set is disjoint from the independent multi-turn set as well (exact, after normalisation)
+    multiturn = {
+        build_test_v2._normalise(turn["query"])
+        for item in load_tasks(TASK_SETS["multiturn_v1"][0])
+        for turn in item["turns"]
+    }
+    assert not [
+        turn["query"]
+        for task in build_tasks()
+        for turn in task["turns"]
+        if build_test_v2._normalise(turn["query"]) in multiturn
+    ]
     for query in (turn["query"] for task in tasks for turn in task["turns"]):
         assert build_test_v2._normalise(query) not in normalised, query
         mine = build_test_v2._grams(query)
