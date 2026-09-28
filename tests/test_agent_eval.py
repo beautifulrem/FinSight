@@ -262,6 +262,51 @@ def test_test_v2_set_shape_matches_builder_and_has_no_overlap():
     assert build_test_v2.overlap_report(tasks) == {"exact": [], "near": []}
 
 
+def _router_rows(name: str) -> list[dict]:
+    from evaluation.agent_eval.runner import EVAL_DIR
+
+    path = EVAL_DIR / "tasks" / name
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def test_router_label_sets_are_well_formed():
+    own, independent = _router_rows("router_labels_v1.jsonl"), _router_rows("router_labels_independent_v1.jsonl")
+
+    for rows in (own, independent):
+        assert len({row["id"] for row in rows}) == len(rows)
+        assert {row["expected_route"] for row in rows} == {"refuse", "clarify", "workflow", "agent"}
+    assert all(row["id"].startswith("route_") for row in own)
+    assert sum(1 for row in own if row["note"].startswith("round4")) >= 60
+
+
+def test_round4_router_labels_do_not_overlap_independent_or_test_sets():
+    """Round-4 router examples were written from the error classes of the independent router labels, with new
+    wording: none may copy or near-copy a query of the independent router set, test_v2, holdout, multiturn_v1 or
+    test_v3 (test_v3 content is only compared, never printed)."""
+    from evaluation.agent_eval import build_test_v2
+    from evaluation.agent_eval.runner import TASK_SETS, load_tasks
+
+    own = _router_rows("router_labels_v1.jsonl")
+    round4 = [row["query"] for row in own if row["note"].startswith("round4")]
+    earlier = {build_test_v2._normalise(row["query"]) for row in own if not row["note"].startswith("round4")}
+    others = [row["query"] for row in _router_rows("router_labels_independent_v1.jsonl")]
+    for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
+        others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    normalised = {build_test_v2._normalise(query) for query in others}
+    grams = [build_test_v2._grams(query) for query in others]
+
+    assert len({build_test_v2._normalise(query) for query in round4}) == len(round4)
+    exact = [query for query in round4 if build_test_v2._normalise(query) in normalised | earlier]
+    near = [
+        query
+        for query in round4
+        if len(mine := build_test_v2._grams(query)) > 3
+        and any(len(mine & theirs) / len(mine | theirs) >= 0.8 for theirs in grams)
+    ]
+    # counts only: a failure message must not echo a held-out query
+    assert (len(exact), len(near)) == (0, 0), "round-4 router labels overlap a held-out set"
+
+
 def test_test_v2_facts_come_from_offline_data():
     from evaluation.agent_eval import build_test_v2
     from query_intelligence.data_loader import load_structured_data
