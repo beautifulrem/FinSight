@@ -78,7 +78,7 @@ export function Header({
           className={cn(
             "size-1.5 rounded-full",
             status === "ready" && "bg-down",
-            status === "running" && "animate-pulse bg-cobalt",
+            status === "running" && "bg-cobalt motion-safe:animate-pulse",
             status === "waiting" && "bg-gilt",
             (status === "error" || status === "offline") && "bg-up",
           )}
