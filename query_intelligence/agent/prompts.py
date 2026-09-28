@@ -240,7 +240,12 @@ def agent_user_message(
         f"Answer language: {'Chinese' if language == 'zh' else 'English'}\n"
         f"Classical NLU analysis of the question (use it to choose tools; it may be imperfect):\n{context}"
     )
-    if memory and (memory.get("recent_targets") or memory.get("user_constraints") or memory.get("stated_holdings")):
+    if memory and (
+        memory.get("recent_targets")
+        or memory.get("user_constraints")
+        or memory.get("stated_holdings")
+        or memory.get("conversation_summary")
+    ):
         # Constraints the user stated earlier (e.g. risk preference) shape the caveats, never a recommendation.
         message += "\nSession memory (from earlier turns):\n" + json.dumps(memory, ensure_ascii=False, sort_keys=True)
     return message

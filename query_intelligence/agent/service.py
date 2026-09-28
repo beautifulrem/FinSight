@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from langgraph.types import Command
 
-from .errors import SessionAccessError
+from .errors import NoPendingClarificationError, SessionAccessError
 from .graph import AgentRuntime
 from .llm import LLMClient, Pricing, build_llm_from_config
 from .memory import make_checkpointer
@@ -104,12 +104,32 @@ class AgentService:
         return self._response(session, output, owner)
 
     def resume(self, session_id: str, reply: str, *, owner: str = "local") -> dict[str, Any]:
+        """Answer a pending clarification and finish the paused turn.
+
+        Idempotent: a repeated submission of the same reply (a double click, a client retry after a timeout)
+        does not run the turn again. It returns the stored result of the turn that reply completed, marked
+        ``replayed: true``, and emits no second trace. A different reply once nothing is pending raises
+        ``NoPendingClarificationError`` (409 ``no_pending_clarification``). The session lock serialises
+        concurrent submissions, so the second one always sees the first one's outcome.
+        """
+        reply = reply.strip()
         with self._lock(session_id):
             self._check_owner(session_id, owner)
             if not self.pending_clarification(session_id):
-                raise ValueError(f"session {session_id} has no pending clarification")
+                replay = self._replayed_resume(session_id, reply)
+                if replay is None:
+                    raise NoPendingClarificationError(session_id)
+                return replay
             output = self.graph.invoke(Command(resume=reply), self._config(session_id), durability=self.durability)
         return self._response(session_id, output, owner)
+
+    def _replayed_resume(self, session_id: str, reply: str) -> dict[str, Any] | None:
+        """The result of the last turn when it was completed by this same clarification reply."""
+        values = self.graph.get_state(self._config(session_id)).values or {}
+        result = values.get("result") or {}
+        if not reply or not result or str(values.get("clarification_reply") or "").strip() != reply:
+            return None
+        return {"status": "ok", "session_id": session_id, "trace_id": result.get("run_id"), **result, "replayed": True}
 
     def stream(
         self,

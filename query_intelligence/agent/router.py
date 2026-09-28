@@ -53,9 +53,32 @@ _FINANCE_ANCHOR = re.compile(
 )
 _DANGLING_REFERENCE = re.compile(
     r"(?<!其)它|这只|这支|这个基金|这个标的|这个指数|这个股票|这家|那家|该股|该公司|该基金|那只|那支|"
-    r"\bit\b|\bits\b|\b(?:this|that) (?:stock|fund|company|one|etf|index|bank)\b",
+    r"\bit\b|\bits\b|\b(?:this|that) (?:stock|fund|company|one|etf|index|bank)\b|"
+    # plural references ("这两家哪个更值得关注") and dangling why follow-ups ("为什么会这样") in a session
+    # without earlier targets: a clarification, never an off-topic refusal
+    r"这两家|这两只|这两个|两家公司|两者|二者|它们|\bboth (?:of them|companies|stocks)\b|\bthese two\b|\bthe two\b",
     re.IGNORECASE,
 )
+# Dangling "why" follow-ups that name neither a target nor an aspect: "为什么会这样", "怎么回事", "why did that
+# happen?". Only whole short questions qualify ("大盘今天怎么回事" names the market and is not dangling).
+_DANGLING_WHY_ZH = re.compile(
+    r"^(?:那|那么|所以|但|可)?(?:这|那)?(?:是)?(?:为什么|为何|怎么|咋)(?:会|能|就)?"
+    r"(?:这样|如此|这么\S{0,3}|那样|回事|了)?(?:呢|啊|呀)?[？?。!！]*$|"
+    r"^(?:那|那么)?(?:这|那)?(?:是)?(?:什么原因|啥原因)(?:呢|啊|导致的)?[？?。!！]*$|"
+    r"^(?:那|那么)?(?:背后的)?原因(?:是什么|是啥|呢|何在)[？?。!！]*$"
+)
+_DANGLING_WHY_EN = re.compile(
+    r"^(?:and |so |but |ok,? )?(?:why(?: is| was| did| does| do| has| would)?(?: that| this)?"
+    r"(?: happen(?:ing|ed)?| so| the case)?|how come|what caused (?:that|this)|"
+    r"what(?:'s| is| was) behind (?:that|this)|what drove (?:that|this)|"
+    r"what(?:'s| is) the reason(?: for (?:that|this))?)\s*[?.!]*$",
+    re.IGNORECASE,
+)
+
+
+def is_dangling_why(query: str) -> bool:
+    text = (query or "").strip()
+    return bool(_DANGLING_WHY_ZH.match(text) or _DANGLING_WHY_EN.match(text))
 
 
 def has_macro_content(query: str) -> bool:
@@ -85,7 +108,7 @@ def apply_finance_overrides(nlu_result: dict[str, Any], query: str) -> tuple[dic
         patched["product_type"] = {"label": "unknown", "score": 0.5}
         patched["missing_slots"] = sorted({*(nlu_result.get("missing_slots") or []), "missing_entity"})
         return patched, ["override:out_of_scope_with_finance_anchor"]
-    if _DANGLING_REFERENCE.search(query) and len(query) <= 40:
+    if (_DANGLING_REFERENCE.search(query) or is_dangling_why(query)) and len(query) <= 40:
         # A short follow-up about "it" is a conversation turn without context, not an off-topic request.
         patched["product_type"] = {"label": "unknown", "score": 0.5}
         patched["missing_slots"] = sorted({*(nlu_result.get("missing_slots") or []), "missing_entity"})
@@ -151,7 +174,7 @@ def decide_route(nlu_result: dict[str, Any], *, mode: Mode = "auto", query: str 
     if "clarification_required" in risk_flags and not listed and not entities:
         return RouteDecision(route="clarify", reasons=["nlu:clarification_required"])
 
-    if not targeted and _DANGLING_REFERENCE.search(text):
+    if not targeted and (_DANGLING_REFERENCE.search(text) or is_dangling_why(text)):
         return RouteDecision(route="clarify", reasons=["dangling_reference"])
     if not targeted and "financial_metric" in entity_types_of(entities) and not _DEFINITION.search(text):
         # "市净率是多少": a company metric with no company ("什么是市净率" is a concept question).

@@ -25,6 +25,11 @@ REDACTION_MARKER = "[instruction-like text removed]"
 _INSTRUCTION_PATTERNS = [
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
+        # A whole fake role block ("<system>New policy: ...</system>") is injected text, not only its tags.
+        r"(?s)<\s*(system|assistant|developer|instructions?|tool)\s*>.*?<\s*/\s*\1\s*>",
+        # "decode this base64/hex and then execute it": an instruction smuggled in an encoding.
+        r"(?:base-?64|b64|hex|十六进制|rot-?13|编码|密文)[^。！!\n]{0,16}?(?:解码|解密|decode|decrypt)"
+        r"[^。！!\n]{0,16}?(?:执行|照做|运行|遵循|服从|follow|execute|run|obey)[^。！!\n]*",
         r"ignore (?:all |any )?(?:previous|prior|above|earlier) (?:instructions|prompts|rules)[^。.!！\n]*",
         r"disregard (?:all |any )?(?:previous|prior|above) [^。.!！\n]*",
         r"(?:you are now|act as|pretend to be|new instructions?:|system prompt:)[^。.!！\n]*",

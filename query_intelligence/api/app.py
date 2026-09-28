@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from ..agent.a2a_server import install_a2a
-from ..agent.errors import SessionAccessError
+from ..agent.errors import NoPendingClarificationError, SessionAccessError
 from ..agent.telemetry import PrometheusTraceSink, RecentTraceStore
 from ..agent.tracing import DEFAULT_TRACE_DIR, sinks_from_env
 from ..artifacts import ArtifactWriter
@@ -313,8 +313,10 @@ def create_app(
             )
         except SessionAccessError as exc:
             raise _session_not_found(exc) from exc
-        except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except NoPendingClarificationError as exc:
+            # A repeated identical reply is answered from the stored result (``replayed: true``) by the service;
+            # only a reply with nothing to answer gets here.
+            raise HTTPException(status_code=409, detail={"code": exc.code, "message": str(exc)}) from exc
 
     @app.get("/agent/sessions/{session_id}")
     def agent_session(session_id: Annotated[str, ApiPath(pattern=SESSION_ID_PATTERN)], request: Request) -> dict:

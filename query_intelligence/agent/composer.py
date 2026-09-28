@@ -10,6 +10,7 @@ import json
 import re
 from typing import Any
 
+from .coverage import EXTRA_METRIC_FIELDS, coverage_gaps, failed_target_statements, requested_metrics
 from .verifier import _MARKET_METRIC
 
 _MAX_DOCS_PER_TOOL = 3
@@ -61,10 +62,24 @@ def parse_answer(content: str | None) -> dict[str, Any]:
     }
 
 
-def compose_template(tool_log: list[dict[str, Any]], *, zh: bool, question_style: str = "") -> dict[str, Any]:
+def compose_template(
+    tool_log: list[dict[str, Any]],
+    *,
+    zh: bool,
+    question_style: str = "",
+    query: str = "",
+    names: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Restate tool results with citations.
+
+    With ``query``, metrics and periods the question asks for but the evidence lacks are stated first
+    (``coverage_gaps``), and targets whose data could not be retrieved are named, so a question about
+    "2019年营收" or a dividend yield is never answered silently with other numbers.
+    """
     facts: list[str] = []
     evidence_used: list[str] = []
     limitations: list[str] = []
+    extra_keys = {field for metric in requested_metrics(query) for field in metric.fields}
     for entry in tool_log:
         if not entry.get("ok"):
             error = entry.get("error") or {}
@@ -73,16 +88,24 @@ def compose_template(tool_log: list[dict[str, Any]], *, zh: bool, question_style
         renderer = _RENDERERS.get(str(entry.get("tool")))
         if renderer is None:
             continue
-        for sentence in renderer(entry.get("data") or {}, zh):
+        data = entry.get("data") or {}
+        sentences = renderer(data, zh)
+        if entry.get("tool") == "get_fundamentals" and extra_keys:
+            sentences = [*sentences, *_extra_metrics(data, extra_keys, zh)]
+        for sentence in sentences:
             if sentence and sentence not in facts:
                 facts.append(sentence)
         for evidence_id in entry.get("evidence_ids") or []:
             if evidence_id not in evidence_used:
                 evidence_used.append(evidence_id)
 
+    gaps = coverage_gaps(query, tool_log, zh=zh, names=names) if query else []
+    separator = "" if zh else " "
     if facts:
         lead = "根据本次检索到的证据：" if zh else "Based on the evidence retrieved for this question: "
-        answer = lead + ("" if zh else " ").join(facts)
+        answer = lead + separator.join(facts)
+        if gaps:
+            answer = separator.join(gaps) + separator + answer
         if question_style == "why":
             answer += (
                 "以上证据只能提示可能的影响因素，不能据此确定单一原因。"
@@ -93,12 +116,33 @@ def compose_template(tool_log: list[dict[str, Any]], *, zh: bool, question_style
         answer = (
             "本次没有检索到可用于回答该问题的证据。" if zh else "No usable evidence was retrieved for this question."
         )
+        missing = failed_target_statements(query, tool_log, zh=zh, names=names) if query else []
+        if missing:
+            answer += separator + separator.join(missing)
     return {
         "answer": answer,
         "key_points": facts[:8],
         "evidence_used": evidence_used,
-        "limitations": list(dict.fromkeys(limitations)),
+        "limitations": list(dict.fromkeys([*gaps, *limitations])),
     }
+
+
+def _extra_metrics(data: dict[str, Any], keys: set[str], zh: bool) -> list[str]:
+    """Requested metrics beyond the standard snapshot (e.g. a live source's dividend yield), when present."""
+    metrics = data.get("metrics") or {}
+    eid, name, period = data.get("evidence_id"), data.get("name"), data.get("report_date")
+    parts = []
+    for key in sorted(keys):
+        value = metrics.get(key)
+        if value is None or not eid:
+            continue
+        metric = EXTRA_METRIC_FIELDS[key]
+        parts.append(f"{metric.zh if zh else metric.en} {_num(value)}")
+    if not parts:
+        return []
+    if zh:
+        return [f"{name}（报告期 {period}）：{'，'.join(parts)} [{eid}]。"]
+    return [f"{name} (period {period}): {', '.join(parts)} [{eid}]."]
 
 
 def _price(data: dict[str, Any], zh: bool) -> list[str]:
