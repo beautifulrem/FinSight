@@ -1,0 +1,21 @@
+{
+ "commit": "a027c7c",
+ "run_at": "2026-09-28T04:42:49+00:00",
+ "command": "python scripts/measure_startup.py --out docs/results/perf/startup.json",
+ "host": {
+  "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "cpus": 10,
+  "load_avg": [
+   4.43994140625,
+   5.58984375,
+   10.521484375
+  ]
+ },
+ "seconds": {
+  "cold_build": 24.06,
+  "rebuild_same_process": 3.65,
+  "cold_build_writing_disk_cache": 29.08,
+  "restart_with_disk_cache": 6.81
+ },
+ "disk_cache_mb": 365.0
+}

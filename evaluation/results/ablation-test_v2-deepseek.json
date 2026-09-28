@@ -25,7 +25,8 @@
    "agent"
   ],
   "workers": 6,
-  "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets test_v2 --modes pure_llm,workflow_llm,agent --out /Volumes/Remi/FinSight-eval/outputs/agent_eval/ablation-test_v2-deepseek.json"
+  "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets test_v2 --modes pure_llm,workflow_llm,agent --out outputs/agent_eval/ablation-test_v2-deepseek.json",
+  "notes_on_provenance": "command paths made repo-relative after the run"
  },
  "notes": [],
  "results": {

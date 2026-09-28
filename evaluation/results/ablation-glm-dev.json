@@ -24,7 +24,8 @@
    "agent"
   ],
   "workers": 6,
-  "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets dev --modes workflow_llm,agent --out /Volumes/Remi/FinSight-eval/outputs/agent_eval/ablation-glm-dev.json"
+  "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets dev --modes workflow_llm,agent --out outputs/agent_eval/ablation-glm-dev.json",
+  "notes_on_provenance": "command paths made repo-relative after the run"
  },
  "notes": [],
  "results": {

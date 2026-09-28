@@ -30,7 +30,8 @@
    "agent"
   ],
   "workers": 6,
-  "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets dev,holdout,test_v2 --modes workflow_llm,agent --out /Volumes/Remi/FinSight-eval/outputs/agent_eval/ablation-glm.json"
+  "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets dev,holdout,test_v2 --modes workflow_llm,agent --out outputs/agent_eval/ablation-glm.json",
+  "notes_on_provenance": "command paths made repo-relative after the run"
  },
  "notes": [
   "The dev rows of this run are superseded: they overlapped with the DeepSeek test-set run on the same gateway and LLM calls failed on 23% (workflow_llm) and 28% (agent) of dev turns. Dev was rerun sequentially (ablation-glm-dev.json). The held-out and test-set rows ran after the overlap ended and had no LLM errors."
