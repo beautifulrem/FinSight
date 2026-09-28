@@ -8,46 +8,52 @@
    0.05,
    0.2
   ],
-  "commit": "2494656",
-  "run_at": "2026-09-28T09:24:05+00:00",
-  "command": "python -m evaluation.agent_eval.verifier_stress "
+  "commit": "9f0e46b",
+  "run_at": "2026-09-28T17:04:55+00:00",
+  "command": "python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress.json"
  },
- "gold_answers": 159,
+ "gold_answers": 202,
  "true_accept": {
   "legacy": 1.0,
   "run": 1.0,
-  "claim": 1.0
+  "claim": 1.0,
+  "claim_derived": 1.0
  },
- "variants": 2433,
+ "variants": 3399,
  "false_accept": {
-  "legacy": 0.3432,
-  "run": 0.2433,
-  "claim": 0.021
+  "legacy": 0.3325,
+  "run": 0.2442,
+  "claim": 0.0194,
+  "claim_derived": 0.0203
  },
  "by_kind": {
   "perturb_1pct": {
-   "variants": 593,
-   "false_accept_legacy": 0.3204,
-   "false_accept_run": 0.0388,
-   "false_accept_claim": 0.0388
+   "variants": 828,
+   "false_accept_legacy": 0.2983,
+   "false_accept_run": 0.035,
+   "false_accept_claim": 0.035,
+   "false_accept_claim_derived": 0.035
   },
   "perturb_20pct": {
-   "variants": 665,
-   "false_accept_legacy": 0.0977,
-   "false_accept_run": 0.0346,
-   "false_accept_claim": 0.0226
+   "variants": 920,
+   "false_accept_legacy": 0.0793,
+   "false_accept_run": 0.0272,
+   "false_accept_claim": 0.0196,
+   "false_accept_claim_derived": 0.0196
   },
   "perturb_5pct": {
-   "variants": 645,
-   "false_accept_legacy": 0.0775,
-   "false_accept_run": 0.0295,
-   "false_accept_claim": 0.0186
+   "variants": 900,
+   "false_accept_legacy": 0.0656,
+   "false_accept_run": 0.0278,
+   "false_accept_claim": 0.0167,
+   "false_accept_claim_derived": 0.0167
   },
   "swap": {
-   "variants": 530,
+   "variants": 751,
    "false_accept_legacy": 1.0,
-   "false_accept_run": 0.9943,
-   "false_accept_claim": 0.0019
+   "false_accept_run": 1.0,
+   "false_accept_claim": 0.0053,
+   "false_accept_claim_derived": 0.0093
   }
  },
  "examples_caught_only_by_claim_binding": [
@@ -109,22 +115,19 @@
   }
  ],
  "repair": {
-  "repaired_answers": 2382,
+  "repaired_answers": 3333,
   "readable": 1.0,
   "passes_verification": 1.0,
-  "template_fallback": 0.1717,
+  "template_fallback": 0.183,
   "with_fragment": 0.0,
-  "retained_sentences": 0.9782,
+  "retained_sentences": 0.98,
   "answers_with_issue": {},
   "unreadable_examples": []
  },
  "source": {
   "file": "outputs/agent_eval/verifier_stress.json",
-  "sha256_16": "84cb632d898de157",
-  "bytes": 3616,
-  "slimmed_at": "2026-09-28T09:27:42+00:00"
- },
- "notes": [
-  "round 3: whole-sentence repair (B6), Chinese numerals and strict citations (B17), unit normalisation, title neutralisation (B12)"
- ]
+  "sha256_16": "94d2b01f3bd98c53",
+  "bytes": 3868,
+  "slimmed_at": "2026-09-28T17:07:23+00:00"
+ }
 }
