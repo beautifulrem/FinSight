@@ -31,15 +31,15 @@ flowchart LR
 
 | Node | What it does |
 |---|---|
-| `guard_in` | Runs NLU with session history as `dialog_context`, rewrites pronouns (它 / it / its) to the last listed entity, corrects NLU out-of-scope false positives for clear finance/macro questions, and routes. Every decision is written to `route_reasons`. |
+| `guard_in` | Input guard (instruction-like spans in the user's own message are removed before NLU; a message with nothing financial left is refused), NLU with session history as `dialog_context`, follow-up resolution (pronouns, plurals and elliptical questions, see [Memory](#memory-and-sessions)), a filter for fuzzy concept matches that are not in the question, corrections of NLU out-of-scope false positives for clear finance/macro questions, and routing. Every decision is written to `route_reasons`. |
 | `refuse` | Out-of-scope answer and follow-up suggestions, reusing `scripts/llm_response.py` wording. |
 | `clarify` | Asks which security is meant. With a checkpointer the graph pauses with `interrupt()` and continues when `/agent/resume` supplies the reply (at most one round per turn). |
 | `execute_plan` | Runs the planner's tool calls in parallel (`max_parallel_tools`). |
 | `compose` | LLM composition over the collected evidence, or `compose_template` when no LLM is configured or the LLM fails. |
-| `agent_llm` / `agent_tools` | The tool-calling loop. Stops on a final answer, `max_llm_steps`, `max_tool_calls`, `token_budget`, or `run_deadline_s`; hitting a limit forces a final answer from the evidence gathered so far. |
-| `verify` | Every cited `evidence_id` must exist; every number in the answer must be traceable to evidence (unit scaling such as 亿/万/%, rounding tolerance; dates, tickers and indicator parameters are ignored). |
+| `agent_llm` / `agent_tools` | The tool-calling loop. Stops on a final answer, `max_llm_steps`, `max_tool_calls`, `token_budget`, or `run_deadline_s`; hitting a limit forces a final answer from the evidence gathered so far. A call repeated with identical arguments in the same turn is not run again: the model gets a `duplicate_call` error that points to the earlier result, and the run records `repeated_tool_calls:N` in `degraded`. |
+| `verify` | Every cited `evidence_id` must exist, and every number must be in the evidence cited **in its own sentence** (claim-level binding): unit scaling limited to the stated unit (亿/万/%/hundred million…), a tolerance set by the written precision, the stated direction (涨/跌, up/down) checked against the sign, and for LLM drafts market metrics (price, change, PE/PB) only from market evidence and citations required. Dates, tickers and indicator parameters are ignored. |
 | `revise` | Sends the verification feedback back to the LLM (`max_revisions`). If it still fails, the answer is repaired clause by clause: unsupported clauses are dropped and `verification_failed:repaired` is recorded. |
-| `compliance` | Softens judgment and causal language (conditional wording for "can I buy", caveats for "why did it rise"), removes direct trading instructions, adds a freshness note for stale market data and the risk disclaimer. |
+| `compliance` | Softens judgment and causal language (conditional wording for "can I buy", caveats for "why did it rise"), removes direct trading instructions, ratings and position sizing, adds a freshness note for stale market data and the risk disclaimer. A language guard replaces an answer that is not in the question's language (e.g. hijacked by a poisoned document) with the deterministic answer. |
 | `finalize` | Builds the response: answer, citations, evidence sources, tool calls, verification, LLM usage/cost, spans, sentiment, next questions. |
 
 ## Tools
@@ -64,19 +64,43 @@ The same tools are published by an MCP server; see [MCP](mcp.md).
 
 ## Memory and sessions
 
-- Each `session_id` is a LangGraph thread. The checkpointer is in memory by default; set `QI_AGENT_CHECKPOINT_DB=/path/sessions.sqlite` to persist sessions across restarts.
-- Per-turn fields (tool log, evidence, verification, …) are reset at the start of every turn, so one turn's evidence can never be cited in the next.
-- Completed turns (query, answer, entities, evidence ids) are kept in `turns` and fed to NLU as dialog context, which is how "那它的市净率呢" resolves to the previous company.
-- Requests on the same session are serialized with a per-session lock.
+- Each `session_id` is a LangGraph thread. The checkpointer is in memory by default; `QI_AGENT_CHECKPOINT_DB=/path/sessions.sqlite` persists sessions across restarts, and a `postgresql://` DSN shares them between processes and replicas.
+- Per-turn fields (tool log, evidence, verification, …) are reset at the start of every turn, so one turn's evidence can never be cited in the next. One checkpoint is written per run (`QI_AGENT_DURABILITY=exit`).
+- Completed turns (query, answer, entities, evidence ids) are kept in `turns` and fed to NLU as dialog context.
+- Requests on the same session are serialized with a per-session lock (a bounded LRU of at most 4,096 idle locks).
+- **Ownership.** A session belongs to the caller that created it: with `QI_API_KEYS` set, the owner is a hash of the API key (`key:<sha256[:12]>`, never the key itself). Another key gets `404` for that session id, and `/agent/traces*` only return the caller's runs.
+
+### Follow-up resolution
+
+Rules in `agent/memory.py`, applied in `guard_in` only when the current question names no listed target (or only a new one). Each rewrite is visible in `route_reasons` and in the `effective_query`.
+
+| Case | Example | Rewrite | Reason code |
+|---|---|---|---|
+| Pronoun, one target in the most recent turn that named any (entity-less turns in between are skipped) | 茅台市盈率 → 最新CPI → "它的市净率呢" | 贵州茅台的市净率呢 | `coreference:它->贵州茅台` |
+| Plural | 茅台… → 五粮液… → "这两家哪个估值更高" / "Compare both on P/B" | 贵州茅台和五粮液哪个估值更高 | `coreference:这两家->…` |
+| Ellipsis, no target | 贵州茅台的市盈率 → "ROE呢", "最近走势怎么样", "And ROE?" | 贵州茅台ROE呢 / ROE for 贵州茅台? | `ellipsis:target->贵州茅台` |
+| Ellipsis, new target only | 贵州茅台的市盈率 → "换成五粮液呢", "What about BYD?" | 五粮液的市盈率呢？ / What is 比亚迪's P/E? | `ellipsis:aspect->市盈率` |
+
+Guards against over-reach: only short questions (≤ 20 characters, or ≤ 8 English words) with an ellipsis marker (那/呢/换成/and/what about…) or a bare aspect qualify; market-wide (大盘, 行业, market, sector) and macro questions (CPI呢) are never attached to the previous company; an ambiguous pronoun (two candidates) is not guessed.
+
+Without history the same questions are clarified, not refused: a metric with no company ("市净率是多少", "PB呢", reason `metric_without_target`; definition questions such as "什么是市净率" are exempt), and dangling references ("那家公司最近有公告吗", `dangling_reference`). Fuzzy concept hits whose name is not in the question are dropped first (`dropped_fuzzy_concept:有色金属` for "…有公告…").
+
+### Session memory card
+
+`session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) and `stated_holdings` ("我持有招商银行", "I own …", up to 5). It is rule-based and bounded; no LLM summarisation.
 
 ## API
 
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/agent/chat` | One turn. Body: `AgentChatRequest`. Returns `AgentChatResponse`. |
-| `POST` | `/agent/chat/stream` | Same, as Server-Sent Events. |
+| `POST` | `/agent/chat/stream` | Same, as Server-Sent Events (below). |
 | `POST` | `/agent/resume` | Answer a pending clarification. Body: `AgentResumeRequest`. 409 if nothing is pending. |
-| `GET` | `/agent/sessions/{session_id}` | Session history and any pending clarification. |
+| `GET` | `/agent/sessions/{session_id}` | Session history and any pending clarification (404 for another owner's session). |
+| `POST` | `/agent/claim-check` | `{"claim": "茅台市盈率只有15倍，股价跌了5%"}` → per-number checks (`supported` within the written precision or 2%, 5% with 约/about; `contradicted` with the actual value; `unverifiable`), an overall verdict (`supported`, `contradicted`, `partially_supported`, `unverifiable`), evidence ids, sources, as-of dates and a disclaimer. Deterministic: classical NLU for targets, the verifier's number extraction, the price and fundamentals tools; no LLM. |
+| `POST` | `/agent/feedback` | `{"trace_id", "rating": "up" \| "down", "comment"?, "session_id"?}`. Appended with the query and route to `QI_FEEDBACK_PATH` (default `outputs/feedback/feedback.jsonl`), counted in `finsight_feedback_total`; 404 if the trace is not the caller's. `scripts/feedback_to_tasks.py` turns flagged traces into candidate evaluation tasks for review. |
+| `GET` | `/agent/traces`, `/agent/traces/{trace_id}` | Recent run summaries and full traces, the caller's own only ([details](a2a-and-observability.md#run-inspector)). |
+| `GET` | `/metrics`, `/sources/health[?probe=1]` | Prometheus metrics; live source status, with an opt-in, rate-limited active probe ([details](data-sources.md#health-endpoint)). |
 | `POST` | `/chat` | Existing endpoint, unchanged by default: `mode` omitted or `workflow` runs the original pipeline. `mode=auto` or `agent` hands the turn to the agent and returns `AgentChatResponse`. |
 
 JSON Schemas, generated from `query_intelligence/contracts.py`:
@@ -101,7 +125,7 @@ curl -s localhost:8000/agent/resume -H 'Content-Type: application/json' \
   -d '{"session_id": "demo", "reply": "贵州茅台"}'
 ```
 
-SSE events from `/agent/chat/stream`, in order: `session`, then `step` (node started), `tool_call`, `tool_result` as they happen, then `answer` (the full response) or `clarification`, then `done`. An `error` event is sent if the run fails.
+SSE events from `/agent/chat/stream`: `session` first; then, as they happen, `node_start` (a node is about to run), `step` (a node finished), `tool_call`, `tool_result` and `answer_delta` (the `answer` text of the LLM's JSON draft, decoded while it streams, escapes split across chunks included); then `answer` (the verified, compliance-checked response, which replaces the streamed preview) or `clarification`; finally `done`. An `error` event is sent if the run fails. The graph runs on a worker thread that owns the session lock, so a client that disconnects does not leave the session locked.
 
 The browser page at `/` uses these endpoints: pick a mode, watch steps stream in, answer clarifications inline, open "How this answer was produced" for tools and verification, and click suggested next questions.
 
@@ -112,7 +136,7 @@ The browser page at `/` uses these endpoints: pick a mode, watch steps stream in
 | `DEEPSEEK_API_KEY` (or `deepseek.api_key` in config) | unset | Enables the LLM agent path and LLM composition. Without it everything runs on the deterministic path. |
 | `DEEPSEEK_MODEL`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_THINKING_TYPE`, `DEEPSEEK_REASONING_EFFORT`, `DEEPSEEK_MAX_TOKENS`, `DEEPSEEK_TIMEOUT_SECONDS` | see `config/app_config.json` | LLM settings shared with `/chat`. Any OpenAI-compatible endpoint works, including gateways that wrap responses in `{"data": ...}`. |
 | `DEEPSEEK_REASONING_STYLE` | `auto` | How per-node reasoning levels are sent: `deepseek` (`thinking` + `reasoning_effort`), `openrouter` (`reasoning` object, e.g. the Cline gateway) or `none`; `auto` picks from the base URL. |
-| `QI_LLM_FALLBACK_MODELS` | unset | Comma-separated failover models on the same endpoint; circuit breaker per model ([details](a2a-and-observability.md#llm-gateway-failover-and-cost)). |
+| `QI_LLM_FALLBACK_MODELS` | unset | Comma-separated failover models on the same endpoint. Each model has a breaker: open after 3 consecutive failures, a trial call after 60 s (half-open), closed on success; `FallbackLLM.stats()` reports `closed` / `open` / `half_open` and `/metrics` exports it ([details](a2a-and-observability.md#llm-gateway-failover-and-cost)). |
 | `QI_PROMPT_VERSION` | `v3` | Active prompt version from the registry in `agent/prompts.py` (`v1`, `v2`, `v3`). |
 | `QI_LLM_PRICE_INPUT_MISS`, `QI_LLM_PRICE_INPUT_HIT`, `QI_LLM_PRICE_OUTPUT`, `QI_LLM_PRICE_CURRENCY` | unset | Price per million tokens. Without them the gateway-reported cost (`usage.cost`, USD) is used when present. |
 | `QI_LLM_USD_CNY` | unset | Exchange rate to report gateway costs in CNY. |
@@ -127,9 +151,14 @@ The browser page at `/` uses these endpoints: pick a mode, watch steps stream in
 | `QI_RATE_LIMIT_PER_MINUTE` | `0` (off) | Per-client token bucket; 429 with `Retry-After`. |
 | `QI_CORS_ORIGINS` | unset | Comma-separated allowed browser origins. |
 | `QI_MAX_REQUEST_BYTES` | `1048576` | Larger bodies get 413. |
-| `QI_SOURCE_CALL_TIMEOUT_SECONDS`, `QI_SOURCE_FAILURE_THRESHOLD`, `QI_SOURCE_COOLDOWN_SECONDS`, `QI_SOURCE_CACHE` | `10`, `3`, `60`, `true` | Live data source hard timeout, circuit breaker, and TTL cache ([details](data-sources.md#configuration)). |
+| `QI_SOURCE_CALL_TIMEOUT_SECONDS`, `QI_SOURCE_FAILURE_THRESHOLD`, `QI_SOURCE_COOLDOWN_SECONDS`, `QI_SOURCE_CACHE`, `QI_SOURCE_MAX_WORKERS`, `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS`, `QI_SOURCE_CROSS_CHECK` | `10`, `3`, `60`, `true`, `32`, `60`, `true` | Live data source hard timeout, circuit breaker, TTL cache, bounded call pool, active-probe rate limit and Sina/THS cross-check ([details](data-sources.md#configuration)). |
+| `QI_FEEDBACK_PATH` | `outputs/feedback/feedback.jsonl` | Where `/agent/feedback` appends records. |
+| `QI_TFIDF_CACHE_DIR` | unset | Directory for the fitted TF-IDF document index (keyed by a hash of the corpus). The index is always memoised per process, which cut a rebuilt service's start from about 39 s to 6 s; with this set, a restart loads it from disk (about 4.5 s) instead of refitting. The file is about 350 MB, so it is not baked into the image. |
+| `QI_TEST_LIVE` | unset | Tests only: `tests/conftest.py` sets the `QI_USE_LIVE_*` defaults to `false` unless `QI_TEST_LIVE=1`, so the suite never waits for upstream sites. |
 
-Agent budgets (`max_llm_steps=6`, `max_tool_calls=16`, `max_parallel_tools=4`, `token_budget=80000`, `max_revisions=1`, `run_deadline_s=90`) and per-node reasoning levels (`agent_reasoning=None` i.e. the client default, `compose_reasoning`, `revise_reasoning` and `final_reasoning` = `low`) are fields of `AgentConfig` in `agent/state.py`.
+Agent budgets (`max_llm_steps=6`, `max_tool_calls=16`, `max_parallel_tools=4`, `token_budget=80000`, `max_revisions=1`, `run_deadline_s=90`, `answer_grace_s=20`) and per-node reasoning levels (`agent_reasoning=None` i.e. the client default, `compose_reasoning`, `revise_reasoning` and `final_reasoning` = `low`) are fields of `AgentConfig` in `agent/state.py`.
+
+**Deadlines.** `run_deadline_s` stops the tool loop; it also bounds every LLM request. Each HTTP request, including retries and failover models, gets `min(DEEPSEEK_TIMEOUT_SECONDS, time left)`: tool-loop steps until `run_deadline_s`, answer-producing calls (compose, the forced final answer, revise) until `run_deadline_s + answer_grace_s`. A retry whose back-off would overrun the deadline is not attempted, and with less than 2 s left the call fails fast with a non-retryable error, so the graph answers from its deterministic path (template or repaired draft). With the defaults a run stays under `QI_AGENT_REQUEST_TIMEOUT_S` (120 s): in the round-1 chaos drill a slow fallback model had pushed one request to a 504 ([chaos drill](a2a-and-observability.md#chaos-drill)); the bound has not yet been re-measured under load.
 
 ## Observability
 
@@ -168,7 +197,7 @@ All agent tests run offline: `ScriptedLLM` replays fixed assistant turns and `te
 
 ## Limits
 
-- The agent path is only as good as the LLM behind it. Offline evaluation measures the deterministic path and the graph's safety checks; the online evaluation in [agent-eval.md](agent-eval.md) measures one model (DeepSeek V4.1 Flash through a gateway).
-- Numeric verification is claim-level (each number must be in the evidence cited in its sentence, with unit- and precision-aware matching; 2.8% false-accept rate on corrupted gold answers), but it does not check that a number is used for the right period or metric when the cited evidence holds several.
-- Pronoun resolution is rule-based and only resolves to a single previously listed entity; ambiguous references trigger a clarification.
-- English aliases are limited to what `data/runtime/alias_table.csv` contains.
+- The agent path is only as good as the LLM behind it. Offline evaluation measures the deterministic path and the graph's safety checks; the online evaluation in [agent-eval.md](agent-eval.md) measures two flash-class models (DeepSeek V4.1 Flash, GLM-5.3 Flash) through one gateway, and the agent loop's advantage over LLM composition is not significant with DeepSeek.
+- Numeric verification is claim-level (2.6% false-accept rate on 2,314 corrupted gold answers, `evaluation/results/verifier_stress.json`), but it does not check that a number is used for the right period or metric when the cited evidence holds several, and a number planted in a document passes because it is in the evidence.
+- Follow-up resolution is rule-based: it covers pronouns, plurals and short elliptical questions; longer paraphrases ("回到刚才那只股票…") and ambiguous references lead to a clarification rather than a guess.
+- English aliases cover the major A-shares added in round 2 plus what `data/runtime/alias_table.csv` contains.

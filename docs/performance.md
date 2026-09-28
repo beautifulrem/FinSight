@@ -1,5 +1,7 @@
 # Performance and Load
 
+Languages: English | [中文](zh/performance.md)
+
 This page records measured throughput, latency and cost for the two answer paths, the checkpointing
 bottleneck and its fix, and multi-replica scaling on k3s. Every number links to a committed JSON file
 under [`docs/results/perf/`](results/perf/) that records the command, the run time, the load
@@ -120,7 +122,7 @@ run (98 s), the first draft failed verification and the `llm.revise` call alone 
 ([Jaeger screenshot](assets/ops/jaeger-trace.png)). During the LLM chaos drill, answers on the fallback
 model took 48–81 s and one hit the API's 120 s request timeout (504), because GLM-5.3-flash was 2–7x
 slower per call than DeepSeek (see [a2a-and-observability.md](a2a-and-observability.md#chaos-drill)).
-A shorter per-call timeout for revise and fallback calls is the next latency fix (agent layer).
+The fix is in the agent layer since `d1c007c`: every LLM request, including retries, revise and failover calls, gets `min(client timeout, time left before the run deadline)` (90 s for the tool loop, 20 s more for the answer), so the fallback path ends in the deterministic answer instead of a 504. It has not been re-measured under load yet.
 
 ## 3. Multi-replica scaling on k3s with Postgres sessions
 
@@ -188,3 +190,18 @@ SKIP_LOAD=1 deploy/k8s/scale_test.sh                    # only the cross-replica
 `QI_AGENT_DURABILITY=async` (or `sync`) restores per-step checkpoints. The trade-off of `exit`,
 documented by LangGraph, is that a crash in the middle of a run loses that turn; runs take seconds
 and the next turn starts from the last completed one.
+
+## Service start-up
+
+The slowest step of building the service is fitting the char n-gram TF-IDF index over the 43 MB
+document corpus, about 39 s.
+
+- **Per-process memo.** Since `da3ec8b` the fitted index is memoised by a hash of the corpus, and
+  `clear_service_caches()` does not drop it. A service rebuilt in the same process now starts in
+  about 6 s instead of 39 s, so the full test suite no longer refits it for every test.
+- **Optional disk cache.** With `QI_TFIDF_CACHE_DIR` set, the index is also written to that
+  directory, and a restart loads it in about 4.5 s. The file is about 350 MB, so it is not baked into
+  the image; it suits a volume shared by the replicas.
+
+These timings were measured on the development machine while making the change (stated in the
+commit message of `da3ec8b`); there is no separate committed result file.
