@@ -50,9 +50,11 @@ from .runner import (
     _make_llm,
     _task_meta,
     _turn_record,
+    add_llm_arguments,
     agent_config_from_overrides,
     build_offline_service,
     build_registry,
+    llm_config,
     load_tasks,
     map_tasks,
     run_agent_tasks,
@@ -186,7 +188,7 @@ def comparisons(modes: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
 def main(argv: list[str] | None = None) -> dict[str, Any]:
     _git_commit()  # record the commit at start, not when the run finishes
     parser = argparse.ArgumentParser(description="Ablation over answer paths.")
-    parser.add_argument("--llm", choices=["none", "deepseek"], default="none")
+    add_llm_arguments(parser)
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--workers", type=int, default=1, help="Run tasks concurrently in LLM modes.")
     parser.add_argument(
@@ -216,7 +218,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     if unknown:
         raise SystemExit(f"unknown --modes: {unknown}")
 
-    llm = _make_llm(args.llm)
+    llm = _make_llm(args.llm, args.model)
     service = build_offline_service()
     requested = [item.strip() for item in args.sets.split(",") if item.strip()]
     unknown_sets = sorted(set(requested) - set(TASK_SETS))
@@ -264,7 +266,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
 
     report = {
         "config": {
-            "llm": getattr(llm, "model", None),
+            **llm_config(args.llm, args.model, llm),
             "repeats": args.repeats,
             "prompts": prompt_refs(),
             "commit": _git_commit(),

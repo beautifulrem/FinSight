@@ -130,7 +130,9 @@ def slim_mode(
             )
             summary["repeats"] = 1
     if outcomes:
-        summary["ci"] = outcome_cis(outcomes)
+        # Recompute the outcome CIs; keep CIs the run computed for other metrics (task_success_uncited).
+        kept = {key: ci for key, ci in (summary.get("ci") or {}).items() if key.endswith("_uncited")}
+        summary["ci"] = {**outcome_cis(outcomes), **kept}
         summary["ci_method"] = CI_METHOD
     entry = {
         "summary": summary,
@@ -185,7 +187,9 @@ def slim_run(report: dict[str, Any]) -> dict[str, Any]:
         outcomes = dict(outcomes)
     summary = dict(report["summary"])
     if outcomes:
-        summary["ci"] = outcome_cis(outcomes)
+        # Recompute the outcome CIs; keep CIs the run computed for other metrics (task_success_uncited).
+        kept = {key: ci for key, ci in (summary.get("ci") or {}).items() if key.endswith("_uncited")}
+        summary["ci"] = {**outcome_cis(outcomes), **kept}
         summary["ci_method"] = CI_METHOD
     return {
         "kind": "run",
