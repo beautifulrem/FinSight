@@ -124,7 +124,14 @@ def score_turn(response: dict[str, Any], expect: dict[str, Any]) -> dict[str, An
         "cost": llm.get("cost"),
         "cost_currency": llm.get("currency"),
         "llm_calls": llm.get("calls", 0),
+        # JSON status of each answer-producing LLM call (compose, final agent turn, revise): ok/repaired/failed.
+        "json_statuses": [entry["json_status"] for entry in llm.get("log") or [] if entry.get("json_status")],
     }
+
+
+def _status_rate(scores: list[dict[str, Any]], status: str) -> float | None:
+    statuses = [value for score in scores for value in score.get("json_statuses") or []]
+    return round(statuses.count(status) / len(statuses), 4) if statuses else None
 
 
 def _first_pass_verified(response: dict[str, Any], llm: dict[str, Any]) -> bool | None:
@@ -348,6 +355,9 @@ def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, A
                 if str(flag).startswith(_LLM_FAILURE_FLAGS)
             ).most_common(5)
         ),
+        # Share of answer drafts that were not valid JSON: repaired with json_repair, or used as plain text.
+        "json_repair_rate": _status_rate(scores, "repaired"),
+        "json_failure_rate": _status_rate(scores, "failed"),
         "cost_per_turn": round(statistics.fmean(costs), 6) if costs else None,
         "cost_per_task": round(statistics.fmean(task_costs), 6) if task_costs else None,
         "cost_currency": "/".join(currencies) if currencies else None,

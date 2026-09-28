@@ -79,6 +79,8 @@ python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 
 | LLM draft verified on first pass | – | – | – | – | 0.812 | 0.486 |
 | LLM drafts sent back for revision | – | – | – | – | 0.188 | 0.491 |
 | Turns with an LLM error (fallback used) | – | – | – | – | – | – |
+| Answer drafts that needed JSON repair | – | – | – | – | – | – |
+| Answer drafts that were not JSON (used as text) | – | – | – | – | – | – |
 | Cost per task (USD) | – | – | – | 0.00090 | 0.00084 | 0.00159 |
 
 Task success by category (development set):
@@ -140,6 +142,8 @@ Remaining agent failures (development set; each task once across repeats):
 | LLM draft verified on first pass | – | – | – | – | 0.886 | 0.650 |
 | LLM drafts sent back for revision | – | – | – | – | 0.114 | 0.310 |
 | Turns with an LLM error (fallback used) | – | – | – | – | – | – |
+| Answer drafts that needed JSON repair | – | – | – | – | – | – |
+| Answer drafts that were not JSON (used as text) | – | – | – | – | – | – |
 | Cost per task (USD) | – | – | – | 0.00090 | 0.00070 | 0.00100 |
 
 Task success by category (held-out set):
@@ -225,6 +229,8 @@ python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 
 | LLM draft verified on first pass | – | – | – | 0.758 | 0.493 |
 | LLM drafts sent back for revision | – | – | – | 0.239 | 0.487 |
 | Turns with an LLM error (fallback used) | 0.000 | 0.000 | 0.004 | 0.008 | 0.239 |
+| Answer drafts that needed JSON repair | – | – | – | – | – |
+| Answer drafts that were not JSON (used as text) | – | – | – | – | – |
 | Cost per task (USD) | – | – | 0.00117 | 0.00081 | 0.00170 |
 
 Task success by category (untouched test set v2):
