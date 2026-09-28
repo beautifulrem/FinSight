@@ -240,6 +240,8 @@ export interface ClaimCheckItem {
   target?: string | null;
   metric?: string | null;
   claimed: number;
+  /** Unit written after the number in the claim: "亿", "%", "倍", "billion", ... */
+  claimed_unit?: string | null;
   actual?: number | null;
   status: ClaimStatus;
   evidence_id?: string | null;
@@ -253,7 +255,13 @@ export interface ClaimReport {
   verdict: ClaimVerdict;
   checks: ClaimCheckItem[];
   targets?: { name?: string | null; symbol?: string | null }[];
-  evidence_sources?: { evidence_id: string; source_name?: string | null; as_of?: string | null; title?: string | null }[];
+  evidence_sources?: {
+    evidence_id: string;
+    source_name?: string | null;
+    as_of?: string | null;
+    title?: string | null;
+    provenance?: Provenance | null;
+  }[];
   disclaimer: string;
 }
 

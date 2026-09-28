@@ -23,9 +23,13 @@ const MONEY_UNITS: [RegExp, number][] = [
 
 /**
  * The claimed amount in CNY, using the unit written after the number in the claim ("营收1700亿" → 1.7e11).
- * The report only carries the bare number, so the unit is read back from the claim text.
+ * Uses the report's ``claimed_unit`` when present, otherwise reads the unit back from the claim text.
  */
-export function claimedAmount(claim: string, value: number): number {
+export function claimedAmount(claim: string, value: number, unit?: string | null): number {
+  if (unit) {
+    for (const [pattern, scale] of MONEY_UNITS) if (pattern.test(unit)) return value * scale;
+    if (/^(?:元|yuan)$/i.test(unit)) return value;
+  }
   const digits = String(Math.abs(value)).replace(/\.0+$/, "");
   const pattern = new RegExp(`${digits.replace(".", "\\.")}(?:\\.0+)?`, "g");
   for (const match of claim.replace(/,/g, "").matchAll(pattern)) {
@@ -43,6 +47,7 @@ export function formatClaimValue(
   value: number,
   side: "claimed" | "actual",
   claim = "",
+  unit?: string | null,
 ): string {
   switch (metric) {
     case "close":
@@ -58,7 +63,7 @@ export function formatClaimValue(
       return side === "claimed" ? `${trim(value, 1)}%` : formatKpi(lang, value, "fraction");
     case "revenue":
     case "net_profit": {
-      const amount = side === "claimed" ? claimedAmount(claim, value) : value;
+      const amount = side === "claimed" ? claimedAmount(claim, value, unit) : value;
       // "1,741.2 亿元" / "174.12B CNY"
       return `${formatMoney(lang, amount)}${lang === "zh" ? "" : " "}${t("claim.unit.yuan")}`;
     }
@@ -98,5 +103,6 @@ export function checkEvidence(check: ClaimCheckItem, report: ClaimReport): Evide
     source_name: check.source ?? listed?.source_name ?? null,
     title: listed?.title ?? null,
     as_of: check.as_of ?? listed?.as_of ?? null,
+    provenance: listed?.provenance ?? undefined,
   };
 }

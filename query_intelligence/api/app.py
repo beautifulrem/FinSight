@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi import Path as ApiPath
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..agent.a2a_server import install_a2a
 from ..agent.errors import SessionAccessError
@@ -92,6 +92,14 @@ TRACE_ID_PATTERN = r"^[A-Za-z0-9_-]{1,80}$"
 
 class ClaimCheckRequest(BaseModel):
     claim: str = Field(min_length=2, max_length=MAX_QUERY_LENGTH)
+    language: Literal["zh", "en"] | None = Field(default=None, description="Language of notes and disclaimer.")
+
+    @field_validator("claim")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if len(value.strip()) < 2:
+            raise ValueError("claim must contain at least 2 non-space characters")
+        return value
 
 
 class FeedbackRequest(BaseModel):
@@ -348,7 +356,7 @@ def create_app(
             claim,
             service=agent.runtime.service,
             registry=agent.runtime.registry,
-            zh=detect_query_language(claim) == "zh",
+            zh=(payload.language or detect_query_language(claim)) == "zh",
         )
         return report.model_dump()
 
