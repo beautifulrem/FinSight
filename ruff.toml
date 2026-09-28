@@ -19,6 +19,7 @@ include = [
     "query_intelligence/integrations/ops_metrics.py",
     "query_intelligence/integrations/akshare_market_provider.py",
     "scripts/load_test.py",
+    "scripts/measure_container_startup.py",
     "scripts/chaos_*.py",
     "monitoring/**/*.py",
     "tests/test_source_reliability.py",
