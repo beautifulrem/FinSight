@@ -47,7 +47,7 @@ def test_supported_answer_passes_with_unit_conversions_and_ignored_parameters():
             "PE(TTM) 为 24.6 倍，ROE 为 33%，营收约 1741.2 亿元 [fundamental_600519.SH]。"
             "新闻显示净利润 823.2 亿元，同比增长 4.5% [news_1]。RSI(14) 与近5日走势需结合更多数据。"
         ),
-        "key_points": ["收盘价 1409.5 元", "2025年报净利润同比增长 4.5%"],
+        "key_points": ["收盘价 1409.5 元 [price_600519.SH]", "2025年报净利润同比增长 4.5% [news_1]"],
         "evidence_used": ["price_600519.SH"],
     }
 
@@ -91,7 +91,7 @@ def test_repair_removes_unsupported_sentences_and_bad_citations():
         "answer": (
             "收盘价 1409.5 元 [price_600519.SH]。目标价 2000 元 [made_up_id]。ROE 为 33% [fundamental_600519.SH]。"
         ),
-        "key_points": ["市盈率 99 倍", "收盘价 1409.5 元"],
+        "key_points": ["市盈率 99 倍", "收盘价 1409.5 元 [price_600519.SH]", "收盘价 1409.5 元"],
         "evidence_used": ["made_up_id"],
     }
     store = _store()
@@ -101,7 +101,8 @@ def test_repair_removes_unsupported_sentences_and_bad_citations():
 
     assert "2000" not in repaired["answer"] and "made_up_id" not in repaired["answer"]
     assert "1409.5" in repaired["answer"] and "33%" in repaired["answer"]
-    assert repaired["key_points"] == ["收盘价 1409.5 元"]
+    # the uncited restatement is dropped; the cited sentence with the same figure stays
+    assert repaired["key_points"] == ["收盘价 1409.5 元 [price_600519.SH]"]
     assert repaired["evidence_used"] == ["price_600519.SH", "fundamental_600519.SH"]
     assert any("删除" in note for note in notes)
     assert verify_answer(repaired, store).passed
@@ -182,7 +183,8 @@ def test_uncited_sentences_fall_back_to_all_evidence():
         "evidence_used": ["fundamental_000858.SZ"],
     }
 
-    assert verify_answer(answer, _two_company_store()).passed
+    assert verify_answer(answer, _two_company_store(), require_citations=False).passed
+    assert verify_answer(answer, _two_company_store()).uncited_numbers == [20.9]  # strict by default
 
 
 def test_precision_aware_tolerance_rejects_last_digit_errors():
@@ -400,4 +402,37 @@ def test_llm_drafts_need_a_citation_next_to_every_number():
     report = verify_answer(uncited, store, require_citations=True)
     assert not report.passed and report.uncited_numbers == [21.4]
     assert "without a citation" in report.feedback()
-    assert verify_answer(uncited, store).passed  # templates keep the run-level fallback
+    assert not verify_answer(uncited, store).passed  # B17: strict by default (round-2 probe passed here)
+    assert verify_answer(uncited, store, require_citations=False).passed  # the old run-level fallback
+
+
+def test_chinese_numerals_are_checked_claims():
+    """B17 (round-2 review): "市盈率约为三十倍" passed against a PE of 21.4."""
+    store = _probe_store()  # pe_ttm 21.4, close 1420.50, pct_change_1d -2.35
+
+    wrong = verify_answer({"answer": "贵州茅台市盈率约为三十倍[price_600519.SH]。"}, store)
+    assert not wrong.passed and wrong.unsupported_numbers == [30.0]
+    assert not verify_answer({"answer": "市盈率约十五倍 [price_600519.SH]。"}, store).passed
+    assert verify_answer({"answer": "市盈率约为二十倍 [price_600519.SH]。"}, store).passed  # round figure: 20 +- 5
+    assert verify_answer({"answer": "市盈率二十一点四倍 [price_600519.SH]。"}, store).passed
+    assert not verify_answer({"answer": "当日上涨百分之二点三五 [price_600519.SH]。"}, store).passed  # sign
+    roe = _store()  # roe 0.33
+    assert verify_answer({"answer": "ROE 约三成 [fundamental_600519.SH]。"}, roe).passed
+    assert not verify_answer({"answer": "ROE 约五成 [fundamental_600519.SH]。"}, roe).passed
+    assert verify_answer({"answer": "营收约一千七百四十一亿元 [fundamental_600519.SH]。"}, roe).passed
+
+
+def test_ordinary_chinese_words_are_not_numbers():
+    text = "一些公司统一在一季度披露，十分重要，千万不要追高，几十倍的估值，一成不变，第一手资料，成长性"
+
+    assert claim_numbers(text) == []
+    assert claim_numbers("约三十倍，三成，百分之十五，提高两个百分点") == [30.0, 30.0, 15.0, 2.0]
+
+
+def test_repair_drops_sentences_with_unsupported_chinese_numerals():
+    store = _probe_store()
+    answer = {"answer": "收盘价 1420.50 [price_600519.SH]。市盈率约为三十倍 [price_600519.SH]。", "evidence_used": []}
+
+    repaired, _notes = repair_answer(answer, verify_answer(answer, store), store, zh=True)
+
+    assert repaired["answer"] == "收盘价 1420.50 [price_600519.SH]。"
