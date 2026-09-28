@@ -104,7 +104,7 @@ def _detector() -> Any:
         return _lingua_detector
 
 
-def language_violation(answer_text: str, query: str) -> bool:
+def language_violation(answer_text: str, query: str, *, language: str | None = None) -> bool:
     """True when the answer is not in the language of the question (e.g. hijacked by a poisoned document).
 
     Chinese questions need a CJK-dominant answer. English answers are checked with lingua on the text
@@ -113,7 +113,7 @@ def language_violation(answer_text: str, query: str) -> bool:
     text = str(answer_text or "")
     cjk = len(re.findall(r"[\u4e00-\u9fff]", text))
     latin = len(re.findall(r"[A-Za-z]", text))
-    if detect_query_language(query) == "zh":
+    if (language or detect_query_language(query)) == "zh":
         return latin >= 40 and cjk < max(2, latin * 0.2)
     if cjk >= max(40, latin):
         return True
@@ -140,10 +140,14 @@ def apply_compliance(
     tool_failures: list[str] | None = None,
     market_evidence: list[AgentEvidence] | None = None,
     today: date | None = None,
+    language: str | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
-    """Return ``(guarded_answer, notes)``; notes name the rules that changed the answer."""
+    """Return ``(guarded_answer, notes)``; notes name the rules that changed the answer.
+
+    ``language`` overrides detection from ``query`` (the graph passes the language of the user's own words).
+    """
     guards = _guards()
-    zh = detect_query_language(query) == "zh"
+    zh = (language or detect_query_language(query)) == "zh"
     pseudo_retrieval = {"warnings": list(tool_failures or []), "coverage": {}}
     guarded = dict(answer)
     notes: list[str] = []
@@ -208,7 +212,9 @@ def apply_compliance(
 
 
 def _strip_trading_sentences(text: str, *, zh: bool) -> tuple[str, int]:
-    sentences = [part for part in re.split(r"(?<=[。！？!?；;])|(?<=\.)\s+", text) if part]
+    # Split after sentence ends but keep the whitespace (on the next sentence), so rejoining English text
+    # does not glue sentences together ("[price_x].Industry").
+    sentences = [part for part in re.split(r"(?<=[。！？!?；;])|(?<=\.)(?=\s)", text) if part]
     kept: list[str] = []
     removed = 0
     for sentence in sentences:

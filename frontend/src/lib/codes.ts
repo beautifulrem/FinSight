@@ -126,6 +126,8 @@ const EXACT: Record<string, Text> = {
     zh: "已移除问题中疑似指令的文本",
     en: "Removed instruction-like text from the question",
   },
+  "coverage:crypto": { zh: "加密资产不在数据覆盖范围内", en: "Crypto assets are not covered" },
+  "coverage:foreign_equity": { zh: "美股/港股不在数据覆盖范围内", en: "US / Hong Kong stocks are not covered" },
   "override:out_of_scope_dangling_reference": {
     zh: "指代不明的金融追问，改为澄清",
     en: "Dangling finance follow-up: asked to clarify",
@@ -171,6 +173,10 @@ const EXACT: Record<string, Text> = {
   // NLU risk flags and retrieval warnings
   out_of_scope_query: { zh: "问题不属于金融范畴", en: "Question is outside finance" },
   prompt_injection_request: { zh: "请求包含改变系统设定的指令", en: "Request tried to change the system setup" },
+  out_of_coverage: {
+    zh: "超出数据覆盖范围（仅覆盖 A 股、基金、ETF、指数和中国宏观）",
+    en: "Outside data coverage (A-shares, funds, ETFs, indices and China macro only)",
+  },
   entity_ambiguous: { zh: "证券名称有歧义", en: "Ambiguous security name" },
   entity_not_found: { zh: "未找到对应证券", en: "Security not found" },
   investment_advice_like: { zh: "类似投资建议的问题", en: "Advice-like question" },
@@ -200,6 +206,7 @@ const REWRITES: [RegExp, (m: RegExpExecArray) => Text][] = [
     (m) => ({ zh: `沿用上一轮的问题：${aspects(m[1]!, "、")}`, en: `Kept the question from the last turn: ${aspects(m[1]!, ", ")}` }),
   ],
   [/^ellipsis(?::.*)?$/, () => ({ zh: "补全了省略的追问", en: "Completed a shortened follow-up" })],
+  [/^dangling_why:target->(.+)$/, (m) => ({ zh: `追问原因，沿用上一轮的标的 ${m[1]}`, en: `“Why” follow-up about the last turn's ${m[1]}` })],
   [/^coreference:(.+?)->(.+)$/, (m) => ({ zh: `将“${m[1]}”理解为 ${m[2]}`, en: `Read “${m[1]}” as ${m[2]}` })],
   [/^coreference(?::.*)?$/, () => ({ zh: "根据上文解析了指代", en: "Resolved a reference from earlier turns" })],
   [/^clarified:(.+)$/, (m) => ({ zh: `按澄清回复补全为 ${m[1]}`, en: `Completed with your clarification: ${m[1]}` })],
@@ -211,7 +218,7 @@ const REWRITES: [RegExp, (m: RegExpExecArray) => Text][] = [
 
 const RULES: Rule[] = [
   {
-    test: /^(?:ellipsis|coreference|clarified|dropped_fuzzy_concept)(?::|$)/,
+    test: /^(?:ellipsis|coreference|clarified|dropped_fuzzy_concept|dangling_why)(?::|$)/,
     label: (m, lang) => {
       for (const [pattern, text] of REWRITES) {
         const hit = pattern.exec(m.input);

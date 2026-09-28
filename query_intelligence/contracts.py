@@ -286,13 +286,20 @@ class AgentChatResponse(BaseModel):
     verification: AgentVerification | None = None
     compliance_notes: list[str] = Field(default_factory=list)
     degraded: list[str] = Field(default_factory=list)
-    answer_source: str | None = Field(default=None, description="template, llm_compose, llm_agent, clarification or guardrail")
+    answer_source: str | None = Field(
+        default=None, description="template, llm_compose, llm_agent, clarification or guardrail"
+    )
     llm: AgentLLMInfo | None = None
     nlu_summary: dict[str, Any] | None = None
     spans: list[dict[str, Any]] = Field(default_factory=list)
     turn_index: int | None = None
     sentiment: dict[str, Any] | None = None
     next_questions: list[dict[str, Any]] = Field(default_factory=list)
+    replayed: bool = Field(
+        default=False,
+        description="True when /agent/resume received a reply it had already applied: the stored result is "
+        "returned and the turn is not run again",
+    )
 
 
 class PipelineRequest(BaseModel):

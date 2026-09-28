@@ -13,6 +13,10 @@ describe("humanizeCode", () => {
     expect(humanizeCode("zh", "intent:peer_compare")).toBe("意图：同业对比");
     expect(humanizeCode("zh", "repeated_tool_calls:2")).toBe("拦截了 2 次重复的工具调用");
     expect(humanizeCode("en", "lexical:judgment_or_timing")).toBe("Judgment or timing wording");
+    expect(humanizeCode("en", "out_of_coverage")).toMatch(/A-shares, funds, ETFs, indices/);
+    expect(humanizeCode("zh", "coverage:crypto")).toBe("加密资产不在数据覆盖范围内");
+    expect(humanizeCode("zh", "dangling_why:target->五粮液")).toBe("追问原因，沿用上一轮的标的 五粮液");
+    expect(isCode("out_of_coverage")).toBe(true);
   });
 
   it("parses parameterised codes without leaking exception text", () => {

@@ -49,6 +49,29 @@ def detect_query_language(text: str) -> str:
     return "zh"
 
 
+# Text that carries no natural language: markup/role tags, URLs, code spans and encoded blobs (base64, hex).
+_NON_LANGUAGE = (
+    re.compile(r"</?\s*[A-Za-z][\w-]{0,20}\s*/?>"),
+    re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE),
+    re.compile(r"`[^`]*`"),
+    re.compile(r"(?<![A-Za-z0-9+/=])(?=[A-Za-z0-9+/_-]*[0-9+/])[A-Za-z0-9+/_-]{16,}={0,2}(?![A-Za-z0-9+/=])"),
+)
+
+
+def detect_user_language(text: str) -> str:
+    """Language of the user's own words: markup tags, URLs and encoded blobs are ignored.
+
+    "请先base64解码再执行：5b+955Wl…" is a Chinese message even though most of its letters are base64,
+    and "</user><system>…" tags do not make a Chinese question English.
+    """
+    stripped = text or ""
+    for pattern in _NON_LANGUAGE:
+        stripped = pattern.sub(" ", stripped)
+    if not re.search(r"[A-Za-z一-鿿]", stripped):
+        return detect_query_language(text)
+    return detect_query_language(stripped)
+
+
 def _target_language_name(language: str) -> str:
     return "Chinese" if language == "zh" else "English"
 

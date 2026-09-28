@@ -17,7 +17,7 @@ from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
 
-from .router import has_macro_content
+from .router import has_macro_content, is_dangling_why
 
 MAX_CONTEXT_TURNS = 3
 MAX_HISTORY_TURNS = 2
@@ -59,8 +59,11 @@ def _postgres_checkpointer(dsn: str) -> Any:
 
 
 def turn_record(state: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+    """One finished turn. ``entities`` are those of the *effective* question (after coreference/ellipsis
+    rewrites), so a target introduced by "换成比亚迪呢" or carried by "ROE呢" counts as discussed."""
     return {
         "query": state.get("query", ""),
+        "effective_query": state.get("effective_query") or state.get("query", ""),
         "route": result.get("route"),
         "answer": str(result.get("answer") or "")[:_HISTORY_ANSWER_CHARS],
         "entities": result.get("nlu_summary", {}).get("entities", []),
@@ -70,8 +73,12 @@ def turn_record(state: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
 
 def dialog_context_from_turns(turns: list[dict[str, Any]], explicit: list[dict[str, Any]] | None = None) -> list[dict]:
     """Previous user questions (oldest first) followed by any context supplied with the request."""
-    context = [{"role": "user", "content": turn["query"]} for turn in turns[-MAX_CONTEXT_TURNS:] if turn.get("query")]
+    context = [{"role": "user", "content": _effective(turn)} for turn in turns[-MAX_CONTEXT_TURNS:] if _effective(turn)]
     return [*context, *(explicit or [])]
+
+
+def _effective(turn: dict[str, Any]) -> str:
+    return str(turn.get("effective_query") or turn.get("query") or "")
 
 
 def history_messages(turns: list[dict[str, Any]]) -> list[dict[str, str]]:
@@ -98,8 +105,12 @@ def listed_entities(nlu_result: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-_PLURAL_ZH = re.compile(r"这两家公司|这两家|这两只|这两个|两者|它们|他们俩|二者")
+_PLURAL_ZH = re.compile(r"这两家公司|这两家|这两只|这两个|两家公司|两只股票|两者|它们|他们俩|二者")
 _PLURAL_EN = re.compile(r"\b(?:both of them|both|them|these two|the two)\b", re.IGNORECASE)
+
+
+def has_plural_reference(query: str) -> bool:
+    return bool(_PLURAL_ZH.search(query) or _PLURAL_EN.search(query))
 
 
 def recent_entities(turns: list[dict[str, Any]], limit: int = 6) -> list[dict[str, Any]]:
@@ -187,7 +198,7 @@ def _last_targets(turns: list[dict[str, Any]], limit: int = 3) -> list[dict[str,
 
 def _last_aspects(turns: list[dict[str, Any]]) -> list[str]:
     for turn in reversed(turns[-MAX_CONTEXT_TURNS:]):
-        aspects = list(dict.fromkeys(match.group(0) for match in _ASPECT.finditer(str(turn.get("query") or ""))))
+        aspects = list(dict.fromkeys(match.group(0) for match in _ASPECT.finditer(_effective(turn))))
         if aspects:
             return aspects[:3]
     return []
@@ -234,6 +245,32 @@ def resolve_ellipsis(
         rewritten = f"{name}的{'、'.join(aspects)}呢？" if zh else f"What is {name}'s {', '.join(aspects)}?"
         return rewritten, f"ellipsis:aspect->{'+'.join(aspects)}"
     return None
+
+
+def resolve_dangling_why(query: str, turns: list[dict[str, Any]]) -> tuple[str, str] | None:
+    """Anchor "为什么会这样" / "why did that happen?" to the targets (and aspect) of the previous turn.
+
+    "五粮液的营收增速呢" → "为什么会这样" becomes "五粮液的营收为什么会这样"; the rewritten question keeps its
+    why-marker, so it is routed as a causal question about that stock. ``None`` when nothing was discussed.
+    """
+    text = query.strip()
+    if not turns or not is_dangling_why(text):
+        return None
+    targets = _last_targets(turns)
+    if not targets:
+        return None
+    names = [str(entity.get("name") or entity["symbol"]) for entity in targets]
+    aspects = _last_aspects(turns[-1:])
+    zh = bool(re.search(r"[\u4e00-\u9fff]", text))
+    if zh:
+        joined = "和".join(names)
+        aspect = f"的{'、'.join(aspects)}" if aspects else ""
+        rewritten = f"{joined}{aspect}{text}"
+    else:
+        joined = " and ".join(names)
+        aspect = f" ({', '.join(aspects)})" if aspects else ""
+        rewritten = f"{text.rstrip('?.! ')} for {joined}{aspect}?"
+    return rewritten, f"dangling_why:target->{joined}"
 
 
 _CONSTRAINTS: tuple[tuple[str, re.Pattern[str]], ...] = (

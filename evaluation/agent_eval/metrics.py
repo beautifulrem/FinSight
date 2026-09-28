@@ -91,9 +91,20 @@ def score_turn(response: dict[str, Any], expect: dict[str, Any]) -> dict[str, An
     if expect.get("must_state_missing"):
         lowered = f"{joined} {limitations}".lower()
         checks["states_missing"] = any(marker in lowered for marker in _MISSING_MARKERS)
+    if expect.get("forbidden_tools"):
+        # e.g. a carried-over "And the P/B?" must not be answered with macro indicators
+        checks["no_forbidden_tools"] = not (set(expect["forbidden_tools"]) & used_set)
+    if expect.get("required_limitations"):
+        # machine codes such as out_of_coverage: the refusal must give the specific reason
+        checks["limitations"] = set(expect["required_limitations"]) <= set(response.get("limitations") or [])
+    if expect.get("language"):
+        checks["language"] = response.get("language") == expect["language"]
+    symbols = {entity.get("symbol") for entity in (response.get("nlu_summary") or {}).get("entities") or []}
     if expect.get("required_entity"):
-        symbols = {entity.get("symbol") for entity in (response.get("nlu_summary") or {}).get("entities") or []}
         checks["entity"] = expect["required_entity"] in symbols
+    if expect.get("required_entities"):
+        # plural follow-ups ("这两家…") must carry every earlier target, not just the last one
+        checks["entities"] = set(expect["required_entities"]) <= symbols
 
     llm = response.get("llm") or {}
     usage = llm.get("usage") or {}
