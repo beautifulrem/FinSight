@@ -152,7 +152,7 @@ Sessions are LangGraph checkpoints (memory, SQLite or Postgres). This lets a cla
 - **Evidence tools**
   - Entity resolution, price history, technical indicators, fundamentals, macro indicators, news, announcements, knowledge search and document sentiment.
   - Each has a Pydantic schema, a timeout, retries, a TTL cache and actionable error hints.
-- **Claim check** (`POST /agent/claim-check`): paste a claim such as "茅台市盈率只有15倍，股价跌了5%". Each number is tied to a metric and compared with market and fundamental data, with no LLM involved. The result is supported, contradicted, partially supported or unverifiable, with the evidence id, source and as-of date.
+- **Claim check** (`POST /agent/claim-check`): paste a claim such as "茅台市盈率只有15倍，股价跌了5%". Each number is tied to a metric and compared with market and fundamental data, with no LLM involved. The result is supported, contradicted, partially supported or unverifiable, with the evidence id, source and as-of date. Comparators (超过/不到/以上/between), negation, ranges, YoY growth and Chinese numerals are handled; on a held-out set of 47 labelled claims the verdict accuracy is 0.936 (95% CI 0.851–1.000), see [docs/claim-check.md](docs/claim-check.md).
 - **Live data**
   - Eastmoney → Sina → Tencent → cache → last-known-good → snapshot chains, with a circuit breaker per source.
   - Upstream calls run on a bounded pool.

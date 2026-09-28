@@ -109,7 +109,7 @@ flowchart LR
 | `POST` | `/agent/chat/stream` | 同上，以 Server-Sent Events 流式返回（见下）。 |
 | `POST` | `/agent/resume` | 回答待处理的澄清问题。请求体：`AgentResumeRequest`；没有待澄清问题时返回 409。 |
 | `GET` | `/agent/sessions/{session_id}` | 会话历史与待处理的澄清问题（别人的会话返回 404）。 |
-| `POST` | `/agent/claim-check` | 请求体为 `{"claim": "茅台市盈率只有15倍，股价跌了5%"}`。逐个数字给出结论：`supported`（在写出的精度或 2% 以内，写了「约/about」则放宽到 5%）、`contradicted`（附实际值）、`unverifiable`；再给整体结论（`supported`、`contradicted`、`partially_supported`、`unverifiable`），附证据 id、来源、数据日期和免责声明。全程确定性：经典 NLU 找标的，用校验器的数字抽取，调用行情与基本面工具，不用 LLM。 |
+| `POST` | `/agent/claim-check` | 请求体如 `{"claim": "贵州茅台ROE超过30%，市盈率不是15倍"}`。逐个数字给出指标、标的、比较符 `comparator`（`eq ne gt ge lt le approx range`）、`supported`/`contradicted`/`unverifiable`（附原因 `reason`）、实际值、证据 id、来源和 `as_of` 及其依据 `as_of_basis`，再给整体结论和免责声明。全程确定性，不用 LLM。规则、局限和 131+47 条说法的基准见 [claim-check.md](claim-check.md)。 |
 | `POST` | `/agent/feedback` | 请求体为 `{"trace_id", "rating": "up" \| "down", "comment"?, "session_id"?}`。连同问题和路由追加写入 `QI_FEEDBACK_PATH`（默认 `outputs/feedback/feedback.jsonl`），并计入 `finsight_feedback_total`；trace 不属于调用方时返回 404。`scripts/feedback_to_tasks.py` 会把点踩的 trace 转成待人工审核的候选评测任务。 |
 | `GET` | `/agent/traces`、`/agent/traces/{trace_id}` | 最近运行摘要与完整 trace，只返回调用方自己的（[详情](a2a-and-observability.md#运行查看器)）。 |
 | `GET` | `/metrics`、`/sources/health[?probe=1]` | Prometheus 指标；数据源状态，可选的限频主动探测（[详情](data-sources.md#健康检查接口)）。 |
