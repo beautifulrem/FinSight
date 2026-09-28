@@ -43,10 +43,11 @@ def replicas(monkeypatch):
         yield [stack.enter_context(_replica(monkeypatch)) for _ in range(2)]
 
 
-def _replica(monkeypatch) -> TestClient:
+def _replica(monkeypatch, *, keep_store_env: bool = False) -> TestClient:
     monkeypatch.setenv("QI_AGENT_CHECKPOINT_DB", DSN)  # traces and A2A tasks follow the checkpointer's DSN
-    monkeypatch.delenv("QI_AGENT_TRACE_DB", raising=False)
-    monkeypatch.delenv("QI_A2A_TASK_DB", raising=False)
+    if not keep_store_env:
+        monkeypatch.delenv("QI_AGENT_TRACE_DB", raising=False)
+        monkeypatch.delenv("QI_A2A_TASK_DB", raising=False)
     monkeypatch.setenv("QI_AGENT_TRACE_DIR", "off")
     stub = StubService()
     runtime = AgentRuntime(stub, build_fake_registry(), None, today=lambda: date(2026, 9, 24))
@@ -149,3 +150,23 @@ def test_trace_retention_by_count_and_age():
         with pool.connection() as conn:
             conn.execute(f"DROP TABLE IF EXISTS {table}")
         store.close()
+
+
+def test_control_in_memory_stores_are_not_shared(monkeypatch):
+    """Negative control: with the stores forced to memory, replica 2 cannot see replica 1's task or trace."""
+    with ExitStack() as stack:
+        replica_1 = stack.enter_context(_replica(monkeypatch))
+        replica_2 = stack.enter_context(_replica(monkeypatch))
+        monkeypatch.setenv("QI_A2A_TASK_DB", "memory")
+        monkeypatch.setenv("QI_AGENT_TRACE_DB", "memory")
+        memory_1 = stack.enter_context(_replica(monkeypatch, keep_store_env=True))
+        memory_2 = stack.enter_context(_replica(monkeypatch, keep_store_env=True))
+
+        pending = _send(memory_1, "它的市盈率呢", KEY_A)
+        assert "error" in _rpc(memory_2, "GetTask", {"id": pending["id"]}, KEY_A)
+        session = f"pg-control-{uuid.uuid4().hex[:8]}"
+        memory_1.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": session}, headers=KEY_A)
+        assert memory_2.get("/agent/traces", params={"session_id": session}, headers=KEY_A).json()["traces"] == []
+        # ...while the Postgres-backed pair does share them.
+        shared = _send(replica_1, "它的市盈率呢", KEY_A)
+        assert _rpc(replica_2, "GetTask", {"id": shared["id"]}, KEY_A)["result"]["id"] == shared["id"]
