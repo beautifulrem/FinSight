@@ -635,11 +635,21 @@ class AgentRuntime:
         draft = state.get("draft") or {}
         store = _store(state)
         llm_draft = state.get("draft_source") in {"llm_agent", "llm_compose"}
-        report = verify_answer(draft, store, query=state["query"], market_precedence=llm_draft, require_citations=True)
+        derived = llm_draft and self.config.verify_derived
+        report = verify_answer(
+            draft,
+            store,
+            query=state["query"],
+            market_precedence=llm_draft,
+            require_citations=True,
+            allow_derived=derived,
+        )
         if not report.passed and llm_draft and self.config.revise_policy == "cite_repair":
             fixed = cite_repair(draft, report, store, query=state["query"], market_precedence=True)
             if fixed is not None:
-                fixed_report = verify_answer(fixed, store, query=state["query"], market_precedence=True)
+                fixed_report = verify_answer(
+                    fixed, store, query=state["query"], market_precedence=True, allow_derived=derived
+                )
                 if fixed_report.passed:
                     # Only citations changed: skip the LLM revision round trip.
                     return {

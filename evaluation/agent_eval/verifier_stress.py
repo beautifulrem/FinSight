@@ -17,6 +17,8 @@ Every corrupted answer is checked by three verifier modes:
   unit in the last place) but still against all evidence of the run.
 * ``claim``: the current verifier. Like ``run``, but each number must be found in the evidence cited
   in its own sentence.
+* ``claim_derived``: ``claim`` plus the opt-in derived-number rule (a number equal to the difference, sum,
+  ratio or percent change of two supported numbers stated in the same cited sentence passes).
 
 The false-accept rate is the share of corrupted answers that still pass. The true-accept rate is the
 share of gold answers that pass; it must stay at 1.0 for every mode.
@@ -67,7 +69,7 @@ from .runner import (
 
 PERTURBATIONS = (0.01, 0.05, 0.2)
 _NUMBER = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?![\w])")
-_MODES = ("legacy", "run", "claim")
+_MODES = ("legacy", "run", "claim", "claim_derived")
 
 
 def gold_answers(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -160,7 +162,16 @@ def _variant(gold: dict[str, Any], answer: str, start: int, end: int, replacemen
 
 def _check(draft: dict[str, Any], gold: dict[str, Any], mode: str) -> bool:
     # Gold answers are template answers, for which the graph turns market precedence off.
-    return verify_answer(draft, gold["store"], query=gold["query"], binding=mode, market_precedence=False).passed
+    # ``claim_derived``: claim binding plus the opt-in derived-number rule (AgentConfig.verify_derived).
+    binding = "claim" if mode == "claim_derived" else mode
+    return verify_answer(
+        draft,
+        gold["store"],
+        query=gold["query"],
+        binding=binding,
+        market_precedence=False,
+        allow_derived=mode == "claim_derived",
+    ).passed
 
 
 def _repair(variant: dict[str, Any], gold: dict[str, Any]) -> dict[str, Any]:

@@ -54,6 +54,8 @@ _DATE_PATTERNS = (
     re.compile(r"(?:\bin|\bsince|\bby|\bFY|财年)\s*(?:19|20)\d{2}\b", re.IGNORECASE),
     re.compile(r"(?:19|20)\d{2}\s*(?:年报|年度|annual|fiscal|full[- ]year)", re.IGNORECASE),
     re.compile(r"\bQ[1-4]\b", re.IGNORECASE),
+    # "04-16": month-day without a year, as models write daily series ("4.746（04-16）"); not "10-15%"
+    re.compile(r"(?<![\d.\-/])(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])(?![\d.%％])"),
 )
 _PARAMETER_PATTERNS = (
     re.compile(r"(?:RSI|MA|EMA|SMA|MACD|BOLL)\s*[\(（]?\s*\d+(?:\s*[,，]\s*\d+)*\s*[\)）]?", re.IGNORECASE),
@@ -63,6 +65,10 @@ _PARAMETER_PATTERNS = (
         r"\b\d+[- ]?(?:day|days|week|weeks|month|months|year|years|articles?|items?|documents?)\b", re.IGNORECASE
     ),
     re.compile(r"\d{6}\.(?:SH|SZ|BJ)", re.IGNORECASE),
+    # bond tenors ("10年期国债") and list markers ("3) …", "（2）…", "1. …", "2、…")
+    re.compile(r"\d+\s*年期"),
+    re.compile(r"(?:^|(?<=[\s。；;：:，,]))[（(]?\d{1,2}[)）](?=\s|[一-鿿A-Za-z])"),
+    re.compile(r"(?:^|(?<=\n))\s*\d{1,2}[.、](?=\s|[一-鿿])"),
 )
 
 
@@ -311,6 +317,7 @@ def verify_answer(
     binding: str = "claim",
     market_precedence: bool = True,
     require_citations: bool = True,
+    allow_derived: bool = False,
 ) -> VerificationReport:
     """``binding="claim"`` (default) checks each number against the evidence cited in its sentence with a
     unit- and precision-aware tolerance. ``"run"`` checks against all evidence of the run, and ``"legacy"``
@@ -327,7 +334,12 @@ def verify_answer(
     Known limits: numbers are bound to the *evidence items* cited in their sentence, not to fields, so a value
     reused for another metric of the same cited item (a PE of 21.4 restated as "涨幅21.4%" with the same
     citation) still passes; the claim checker (``claim_check.py``) binds metrics, the verifier does not.
-    Stated directions are checked against signed structured values: "上涨2.35%" does not match -2.35."""
+    Stated directions are checked against signed structured values: "上涨2.35%" does not match -2.35.
+
+    ``allow_derived`` (off by default; ``AgentConfig.verify_derived``) also accepts, in a sentence that cites
+    evidence, a number equal to the difference, sum, ratio or percent change of two other numbers stated in
+    the same sentence that the cited evidence supports ("茅台 ROE 33%，平安 15.2%，高 17.8 个百分点"). The
+    operands must be written next to the result, so the arithmetic can be checked by the reader too."""
     ids = cited_ids(answer)
     invalid = [evidence_id for evidence_id in ids if evidence_id not in store]
     known = _evidence_numbers(store)
@@ -350,7 +362,13 @@ def verify_answer(
             if binding == "claim" and market_precedence and _MARKET_METRIC.search(unit)
             else None
         )
-        for value, scales, rounding, sign in claim_values(unit):
+        claims = claim_values(unit)
+        operands = (
+            [v for v, sc, r, sg in claims if v and _is_supported(v, scope, sc, r, sg)]
+            if allow_derived and unit_ids and binding == "claim"
+            else []
+        )
+        for value, scales, rounding, sign in claims:
             if binding == "legacy":
                 scales, rounding, sign = _SCALES, None, None
             if value == 0 and binding != "legacy":
@@ -369,6 +387,8 @@ def verify_answer(
                     document_market.append(value)
                 if require_citations and not unit_ids and binding == "claim" and value not in uncited:
                     uncited.append(value)
+                continue
+            if operands and _is_derived(value, rounding, [v for v in operands if v != value]):
                 continue
             if unit_ids and _is_supported(value, known, scales, rounding, sign):
                 if value not in misattributed:
@@ -505,11 +525,11 @@ def cite_repair(
     """Fix a draft whose only problems are citations, without an LLM call; ``None`` when that is not possible.
 
     Applies when every failed check is in ``CITATION_REPAIRABLE``: numbers stated without a citation, numbers
-    cited with the wrong evidence id, ids that do not exist, or no valid citation at all. Invalid ids are removed; a number that its
-    sentence does not support gets the id of the **one** evidence item of the run that contains it (structured
-    evidence preferred over document text) appended to its sentence. A number found in two or more items is
-    ambiguous and is not guessed. The text is otherwise unchanged; the caller re-verifies the result and only
-    uses it when it passes.
+    cited with the wrong evidence id, ids that do not exist, or no valid citation at all. Invalid ids are
+    removed; a number that its sentence does not support gets the id of the **one** evidence item of the run
+    that contains it (structured evidence preferred over document text) appended to its sentence. A number
+    found in two or more items is ambiguous and is not guessed. The text is otherwise unchanged; the caller
+    re-verifies the result and only uses it when it passes.
     """
     if report.passed or not set(failure_kinds(report)) <= CITATION_REPAIRABLE:
         return None
@@ -641,6 +661,22 @@ def _is_supported(
             # Signs are otherwise compared loosely: "下跌 1.2%" legitimately restates a change of -1.2.
             if abs(abs(value) - abs(target)) <= tolerance:
                 return True
+    return False
+
+
+def _is_derived(value: float, rounding: float | None, operands: list[float]) -> bool:
+    """``value`` is a - b, a + b, a / b or the percent change (a - b) / b of two stated operands."""
+    tolerance = 0.5 if rounding is None else rounding
+    for i, a in enumerate(operands):
+        for j, b in enumerate(operands):
+            if i == j:
+                continue
+            candidates = [a - b, a + b]
+            if b:
+                candidates += [a / b, (a - b) / abs(b) * 100]
+            for candidate in candidates:
+                if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
+                    return True
     return False
 
 
