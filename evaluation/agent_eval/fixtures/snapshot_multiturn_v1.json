@@ -1,7 +1,7 @@
 {
  "version": 1,
  "snapshot": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
- "recorded_at": "2026-09-28T09:28:16+00:00",
+ "recorded_at": "2026-09-28T10:57:05+00:00",
  "calls": {
   "analyze_sentiment:{\"query\": \"\", \"targets\": [\"000858.SZ\"], \"top_k\": 6}": {
    "ok": true,
@@ -86,7 +86,7 @@
      "as_of": "2026-04-16T18:08:00",
      "text_excerpt": "接棒者则是来自大股东五粮液的蒋琳，这位曾在五粮液（000858.SZ）担任副总经理、董事会秘书的“酒系”高管，于2025年6月被委任为新任行长。但令人意外的是，在蒋琳上任仅4个月后的10月30日，其因个人原因辞去宜宾银行行长职务。",
      "payload": {
-      "rank_score": 0.1441,
+      "rank_score": 0.144,
       "retrieval_score": 0.2129
      },
      "produced_by": "analyze_sentiment"
@@ -162,7 +162,7 @@
       "confidence": 0.5549
      }
     ],
-    "overall_label": "neutral",
+    "overall_label": "positive",
     "mean_score": 0.5548,
     "label_counts": {
      "positive": 3
@@ -182,7 +182,7 @@
      "as_of": null,
      "text_excerpt": null,
      "payload": {
-      "overall_label": "neutral",
+      "overall_label": "positive",
       "mean_score": 0.5548,
       "label_counts": {
        "positive": 3
@@ -334,7 +334,7 @@
      "as_of": "2026-04-17T18:00:00+08:00",
      "text_excerpt": "披露年度经营与利润情况。",
      "payload": {
-      "rank_score": 0.2344,
+      "rank_score": 0.2343,
       "retrieval_score": 0.3071
      },
      "produced_by": "analyze_sentiment"
@@ -521,6 +521,12 @@
       "attempts": [],
       "cache_hit": false,
       "note": "数据来自离线快照，截至2026-04-21，非实时（离线快照），数据可能已过时；因未开启实时行情降级"
+     },
+     "metric_units": {
+      "pct_change": "%",
+      "pe": "x",
+      "pb": "x",
+      "turnover": "%"
      }
     },
     "provenance": {
@@ -538,7 +544,16 @@
      "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
      "original_source": "seed"
     },
-    "valuation_provenance": null
+    "valuation_provenance": null,
+    "metric_units": {
+     "revenue": "CNY",
+     "net_profit": "CNY",
+     "roe": "%",
+     "gross_margin": "%",
+     "pe_ttm": "x",
+     "pb": "x"
+    },
+    "period": "FY2025"
    },
    "evidence": [
     {
@@ -575,7 +590,16 @@
        "cache_hit": false,
        "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
        "original_source": "seed"
-      }
+      },
+      "metric_units": {
+       "revenue": "CNY",
+       "net_profit": "CNY",
+       "roe": "%",
+       "gross_margin": "%",
+       "pe_ttm": "x",
+       "pb": "x"
+      },
+      "period": "FY2025"
      },
      "produced_by": "get_fundamentals"
     },
@@ -609,6 +633,12 @@
        "attempts": [],
        "cache_hit": false,
        "note": "数据来自离线快照，截至2026-04-21，非实时（离线快照），数据可能已过时；因未开启实时行情降级"
+      },
+      "metric_units": {
+       "pct_change": "%",
+       "pe": "x",
+       "pb": "x",
+       "turnover": "%"
       }
      },
      "produced_by": "get_fundamentals"
@@ -645,13 +675,13 @@
     "name": "贵州茅台",
     "report_date": "2025-12-31",
     "metrics": {
-     "revenue": 174120000000,
-     "net_profit": 85000000000,
-     "roe": 0.33,
+     "revenue": 168838000000,
+     "net_profit": 82320000000,
+     "roe": 33.0,
      "pe_ttm": 24.6,
      "pb": 8.1
     },
-    "source": null,
+    "source": "seed",
     "evidence_id": "fundamental_600519.SH",
     "industry": {
      "industry_name": "白酒",
@@ -676,6 +706,12 @@
       "attempts": [],
       "cache_hit": false,
       "note": "数据来自离线快照，截至2026-04-21，非实时（离线快照），数据可能已过时；因未开启实时行情降级"
+     },
+     "metric_units": {
+      "pct_change": "%",
+      "pe": "x",
+      "pb": "x",
+      "turnover": "%"
      }
     },
     "provenance": {
@@ -690,9 +726,18 @@
      "fallback_reason": "live market data disabled",
      "attempts": [],
      "cache_hit": false,
-     "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级"
+     "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
+     "original_source": "seed"
     },
-    "valuation_provenance": null
+    "valuation_provenance": null,
+    "metric_units": {
+     "revenue": "CNY",
+     "net_profit": "CNY",
+     "roe": "%",
+     "pe_ttm": "x",
+     "pb": "x"
+    },
+    "period": "FY2025"
    },
    "evidence": [
     {
@@ -708,11 +753,12 @@
      "payload": {
       "symbol": "600519.SH",
       "report_date": "2025-12-31",
-      "revenue": 174120000000,
-      "net_profit": 85000000000,
-      "roe": 0.33,
+      "revenue": 168838000000,
+      "net_profit": 82320000000,
+      "roe": 33.0,
       "pe_ttm": 24.6,
       "pb": 8.1,
+      "source_name": "seed",
       "provenance": {
        "source": "offline_snapshot",
        "source_label": "离线快照",
@@ -725,8 +771,17 @@
        "fallback_reason": "live market data disabled",
        "attempts": [],
        "cache_hit": false,
-       "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级"
-      }
+       "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
+       "original_source": "seed"
+      },
+      "metric_units": {
+       "revenue": "CNY",
+       "net_profit": "CNY",
+       "roe": "%",
+       "pe_ttm": "x",
+       "pb": "x"
+      },
+      "period": "FY2025"
      },
      "produced_by": "get_fundamentals"
     },
@@ -760,6 +815,12 @@
        "attempts": [],
        "cache_hit": false,
        "note": "数据来自离线快照，截至2026-04-21，非实时（离线快照），数据可能已过时；因未开启实时行情降级"
+      },
+      "metric_units": {
+       "pct_change": "%",
+       "pe": "x",
+       "pb": "x",
+       "turnover": "%"
       }
      },
      "produced_by": "get_fundamentals"
@@ -806,6 +867,12 @@
       "cache_hit": false,
       "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
       "original_source": "seed"
+     },
+     "metric_units": {
+      "pct_change": "%",
+      "pe": "x",
+      "pb": "x",
+      "turnover": "%"
      }
     },
     "provenance": {
@@ -823,7 +890,15 @@
      "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
      "original_source": "seed"
     },
-    "valuation_provenance": null
+    "valuation_provenance": null,
+    "metric_units": {
+     "revenue": "CNY",
+     "net_profit": "CNY",
+     "roe": "%",
+     "pe_ttm": "x",
+     "pb": "x"
+    },
+    "period": "FY2025"
    },
    "evidence": [
     {
@@ -860,7 +935,16 @@
        "cache_hit": false,
        "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
        "original_source": "seed"
-      }
+      },
+      "metric_units": {
+       "revenue": "CNY",
+       "net_profit": "CNY",
+       "roe": "%",
+       "gross_margin": "%",
+       "pe_ttm": "x",
+       "pb": "x"
+      },
+      "period": "FY2025"
      },
      "produced_by": "get_fundamentals"
     },
@@ -896,6 +980,12 @@
        "cache_hit": false,
        "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
        "original_source": "seed"
+      },
+      "metric_units": {
+       "pct_change": "%",
+       "pe": "x",
+       "pb": "x",
+       "turnover": "%"
       }
      },
      "produced_by": "get_fundamentals"
@@ -3038,7 +3128,7 @@
     ],
     "source": "seed",
     "evidence_id": "price_000300.SH",
-    "volume_unit": null,
+    "volume_unit": "unknown",
     "provenance": {
      "source": "offline_snapshot",
      "source_label": "离线快照",
@@ -3053,6 +3143,12 @@
      "cache_hit": false,
      "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
      "original_source": "seed"
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "unknown",
+     "amount": "CNY"
     }
    },
    "evidence": [
@@ -3089,7 +3185,7 @@
        }
       ],
       "source": "seed",
-      "volume_unit": null,
+      "volume_unit": "unknown",
       "provenance": {
        "source": "offline_snapshot",
        "source_label": "离线快照",
@@ -3104,6 +3200,12 @@
        "cache_hit": false,
        "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
        "original_source": "seed"
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "unknown",
+       "amount": "CNY"
       }
      },
      "produced_by": "get_price_history"
@@ -3123,8 +3225,8 @@
     "high": 101.08,
     "low": 100.46,
     "pct_change_1d": -0.5337,
-    "volume": 144382.61,
-    "amount": 1452833.705,
+    "volume": 14438261.0,
+    "amount": 1452833705.0,
     "recent_closes": [
      {
       "date": "2026-04-22",
@@ -3133,7 +3235,7 @@
     ],
     "source": "tushare",
     "evidence_id": "price_000858.SZ",
-    "volume_unit": null,
+    "volume_unit": "share",
     "provenance": {
      "source": "offline_snapshot",
      "source_label": "离线快照",
@@ -3148,6 +3250,13 @@
      "cache_hit": false,
      "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
      "original_source": "tushare"
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "tushare",
+     "amount": "thousand CNY",
+     "volume": "lot (100 shares) (from turnover / close)"
     }
    },
    "evidence": [
@@ -3171,8 +3280,8 @@
       "high": 101.08,
       "low": 100.46,
       "pct_change_1d": -0.5337,
-      "volume": 144382.61,
-      "amount": 1452833.705,
+      "volume": 14438261.0,
+      "amount": 1452833705.0,
       "recent_closes": [
        {
         "date": "2026-04-22",
@@ -3180,7 +3289,7 @@
        }
       ],
       "source": "tushare",
-      "volume_unit": null,
+      "volume_unit": "share",
       "provenance": {
        "source": "offline_snapshot",
        "source_label": "离线快照",
@@ -3195,6 +3304,13 @@
        "cache_hit": false,
        "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
        "original_source": "tushare"
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "tushare",
+       "amount": "thousand CNY",
+       "volume": "lot (100 shares) (from turnover / close)"
       }
      },
      "produced_by": "get_price_history"
@@ -3228,7 +3344,7 @@
     ],
     "source": "seed",
     "evidence_id": "price_159915.SZ",
-    "volume_unit": null,
+    "volume_unit": "share",
     "provenance": {
      "source": "offline_snapshot",
      "source_label": "离线快照",
@@ -3243,6 +3359,13 @@
      "cache_hit": false,
      "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
      "original_source": "seed"
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "unknown",
+     "amount": "CNY",
+     "volume": "share (from turnover / close)"
     }
    },
    "evidence": [
@@ -3279,7 +3402,7 @@
        }
       ],
       "source": "seed",
-      "volume_unit": null,
+      "volume_unit": "share",
       "provenance": {
        "source": "offline_snapshot",
        "source_label": "离线快照",
@@ -3294,6 +3417,13 @@
        "cache_hit": false,
        "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
        "original_source": "seed"
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "unknown",
+       "amount": "CNY",
+       "volume": "share (from turnover / close)"
       }
      },
      "produced_by": "get_price_history"
@@ -3350,7 +3480,7 @@
     ],
     "source": "akshare",
     "evidence_id": "price_510300.SH",
-    "volume_unit": null,
+    "volume_unit": "share",
     "provenance": {
      "source": "offline_snapshot",
      "source_label": "离线快照",
@@ -3365,6 +3495,13 @@
      "cache_hit": false,
      "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
      "original_source": "akshare"
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "akshare",
+     "amount": "CNY",
+     "volume": "share (from turnover / close)"
     }
    },
    "evidence": [
@@ -3413,7 +3550,7 @@
        }
       ],
       "source": "akshare",
-      "volume_unit": null,
+      "volume_unit": "share",
       "provenance": {
        "source": "offline_snapshot",
        "source_label": "离线快照",
@@ -3428,6 +3565,13 @@
        "cache_hit": false,
        "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
        "original_source": "akshare"
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "akshare",
+       "amount": "CNY",
+       "volume": "share (from turnover / close)"
       }
      },
      "produced_by": "get_price_history"
@@ -3461,7 +3605,7 @@
     ],
     "source": "seed",
     "evidence_id": "price_512880.SH",
-    "volume_unit": null,
+    "volume_unit": "share",
     "provenance": {
      "source": "offline_snapshot",
      "source_label": "离线快照",
@@ -3476,6 +3620,13 @@
      "cache_hit": false,
      "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
      "original_source": "seed"
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "unknown",
+     "amount": "CNY",
+     "volume": "share (from turnover / close)"
     }
    },
    "evidence": [
@@ -3512,7 +3663,7 @@
        }
       ],
       "source": "seed",
-      "volume_unit": null,
+      "volume_unit": "share",
       "provenance": {
        "source": "offline_snapshot",
        "source_label": "离线快照",
@@ -3527,6 +3678,13 @@
        "cache_hit": false,
        "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
        "original_source": "seed"
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "unknown",
+       "amount": "CNY",
+       "volume": "share (from turnover / close)"
       }
      },
      "produced_by": "get_price_history"
@@ -3557,8 +3715,8 @@
     "high": 1419.0,
     "low": 1404.98,
     "pct_change_1d": -0.1778,
-    "volume": 26915.93,
-    "amount": 3793827.534,
+    "volume": 2691593.0,
+    "amount": 3793827534.0,
     "recent_closes": [
      {
       "date": "2026-04-22",
@@ -3567,7 +3725,7 @@
     ],
     "source": "tushare",
     "evidence_id": "price_600519.SH",
-    "volume_unit": null,
+    "volume_unit": "share",
     "provenance": {
      "source": "offline_snapshot",
      "source_label": "离线快照",
@@ -3582,6 +3740,13 @@
      "cache_hit": false,
      "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
      "original_source": "tushare"
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "tushare",
+     "amount": "thousand CNY",
+     "volume": "lot (100 shares) (from turnover / close)"
     }
    },
    "evidence": [
@@ -3605,8 +3770,8 @@
       "high": 1419.0,
       "low": 1404.98,
       "pct_change_1d": -0.1778,
-      "volume": 26915.93,
-      "amount": 3793827.534,
+      "volume": 2691593.0,
+      "amount": 3793827534.0,
       "recent_closes": [
        {
         "date": "2026-04-22",
@@ -3614,7 +3779,7 @@
        }
       ],
       "source": "tushare",
-      "volume_unit": null,
+      "volume_unit": "share",
       "provenance": {
        "source": "offline_snapshot",
        "source_label": "离线快照",
@@ -3629,6 +3794,13 @@
        "cache_hit": false,
        "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
        "original_source": "tushare"
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "tushare",
+       "amount": "thousand CNY",
+       "volume": "lot (100 shares) (from turnover / close)"
       }
      },
      "produced_by": "get_price_history"
@@ -3662,7 +3834,7 @@
     ],
     "source": "seed",
     "evidence_id": "price_601318.SH",
-    "volume_unit": null,
+    "volume_unit": "share",
     "provenance": {
      "source": "offline_snapshot",
      "source_label": "离线快照",
@@ -3677,6 +3849,13 @@
      "cache_hit": false,
      "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
      "original_source": "seed"
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "unknown",
+     "amount": "CNY",
+     "volume": "share (from turnover / close)"
     }
    },
    "evidence": [
@@ -3713,7 +3892,7 @@
        }
       ],
       "source": "seed",
-      "volume_unit": null,
+      "volume_unit": "share",
       "provenance": {
        "source": "offline_snapshot",
        "source_label": "离线快照",
@@ -3728,6 +3907,13 @@
        "cache_hit": false,
        "note": "数据来自离线快照，截至2026-04-22，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
        "original_source": "seed"
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "unknown",
+       "amount": "CNY",
+       "volume": "share (from turnover / close)"
       }
      },
      "produced_by": "get_price_history"
@@ -3758,7 +3944,7 @@
       "publish_time": "2026-04-17T18:00:00+08:00",
       "url": null,
       "excerpt": "披露年度经营与利润情况。",
-      "rank_score": 0.2344,
+      "rank_score": 0.2343,
       "provenance": {
        "source": "local_corpus",
        "source_label": "本地文档库",
@@ -3793,7 +3979,7 @@
      "as_of": "2026-04-17T18:00:00+08:00",
      "text_excerpt": "披露年度经营与利润情况。",
      "payload": {
-      "rank_score": 0.2344,
+      "rank_score": 0.2343,
       "retrieval_score": 0.3071,
       "provenance": {
        "source": "local_corpus",
@@ -5244,7 +5430,7 @@
       "publish_time": "2026-04-16T18:08:00",
       "url": "http://finance.eastmoney.com/a/202604163707558436.html",
       "excerpt": "接棒者则是来自大股东五粮液的蒋琳，这位曾在五粮液（000858.SZ）担任副总经理、董事会秘书的“酒系”高管，于2025年6月被委任为新任行长。但令人意外的是，在蒋琳上任仅4个月后的10月30日，其因个人原因辞去宜宾银行行长职务。",
-      "rank_score": 0.1441,
+      "rank_score": 0.144,
       "provenance": {
        "source": "local_corpus",
        "source_label": "本地文档库",
@@ -5329,7 +5515,7 @@
      "as_of": "2026-04-16T18:08:00",
      "text_excerpt": "接棒者则是来自大股东五粮液的蒋琳，这位曾在五粮液（000858.SZ）担任副总经理、董事会秘书的“酒系”高管，于2025年6月被委任为新任行长。但令人意外的是，在蒋琳上任仅4个月后的10月30日，其因个人原因辞去宜宾银行行长职务。",
      "payload": {
-      "rank_score": 0.1441,
+      "rank_score": 0.144,
       "retrieval_score": 0.2129,
       "provenance": {
        "source": "local_corpus",
@@ -5673,7 +5859,7 @@
       "publish_time": "2026-04-16T18:08:00",
       "url": "http://finance.eastmoney.com/a/202604163707558436.html",
       "excerpt": "接棒者则是来自大股东五粮液的蒋琳，这位曾在五粮液（000858.SZ）担任副总经理、董事会秘书的“酒系”高管，于2025年6月被委任为新任行长。但令人意外的是，在蒋琳上任仅4个月后的10月30日，其因个人原因辞去宜宾银行行长职务。",
-      "rank_score": 0.1406,
+      "rank_score": 0.1405,
       "provenance": {
        "source": "local_corpus",
        "source_label": "本地文档库",
@@ -5764,7 +5950,7 @@
      "as_of": "2026-04-16T18:08:00",
      "text_excerpt": "接棒者则是来自大股东五粮液的蒋琳，这位曾在五粮液（000858.SZ）担任副总经理、董事会秘书的“酒系”高管，于2025年6月被委任为新任行长。但令人意外的是，在蒋琳上任仅4个月后的10月30日，其因个人原因辞去宜宾银行行长职务。",
      "payload": {
-      "rank_score": 0.1406,
+      "rank_score": 0.1405,
       "retrieval_score": 0.1847,
       "provenance": {
        "source": "local_corpus",
