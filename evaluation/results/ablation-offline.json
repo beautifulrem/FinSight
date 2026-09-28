@@ -27,7 +27,8 @@
   ],
   "online_modes": [],
   "workers": 1,
-  "command": "python -m evaluation.agent_eval.ablation --sets dev,holdout,test_v2 --out /Volumes/Remi/FinSight-eval/outputs/agent_eval/ablation-offline.json"
+  "command": "python -m evaluation.agent_eval.ablation --sets dev,holdout,test_v2 --out outputs/agent_eval/ablation-offline.json",
+  "notes_on_provenance": "command paths made repo-relative after the run"
  },
  "notes": [],
  "results": {
