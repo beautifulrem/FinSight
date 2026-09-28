@@ -1,0 +1,68 @@
+name: Data source audit
+
+# Live audit of every upstream data source (scripts/audit_data_sources.py): one real call per source and
+# target, plus the runtime fallback chains. Runs weekly and on demand; the JSON is uploaded as an
+# artifact (90 days). It never fails on upstream outages, since recording them is the point; it fails only
+# if the script itself breaks. Results from GitHub's US runners differ from a mainland-China network
+# (several Chinese endpoints throttle or block foreign IPs), so compare runs from the same place;
+# audits quoted in the docs are committed under docs/results/data_sources/.
+
+on:
+  schedule:
+    - cron: "30 1 * * 1"  # Mondays 01:30 UTC (09:30 Beijing, market open)
+  workflow_dispatch:
+    inputs:
+      timeout:
+        description: Per-call hard timeout in seconds
+        required: false
+        default: "15"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data-source-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install dependencies (without torch)
+        run: |
+          grep -vE '^(torch|transformers|accelerate|sentencepiece)' requirements.txt > requirements-core.txt
+          pip install -r requirements-core.txt
+      - name: Run the audit
+        env:
+          AUDIT_TIMEOUT: ${{ github.event.inputs.timeout || '15' }}
+        run: |
+          out="data_source_audit-$(date -u +%Y%m%d)-${GITHUB_SHA::7}.json"
+          echo "AUDIT_FILE=$out" >> "$GITHUB_ENV"
+          python -m scripts.audit_data_sources --timeout "$AUDIT_TIMEOUT" --no-legacy --json "$out" | tee audit.md
+      - name: Summary
+        run: |
+          python - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          report = json.load(open(os.environ["AUDIT_FILE"]))
+          s = report["summary"]
+          print(f"### Data source audit {report['generated_at']} at `{report['commit']}`\n")
+          print(f"- probes ok: {s['probes_ok']}/{s['probes']}\n- chains ok: {s['chains_ok']}/{s['chains']}\n")
+          print("| Source | Target | OK | ms | Error |\n|---|---|---|---:|---|")
+          for row in report["probes"]:
+              error = str(row.get("error") or "").replace("|", "/")[:80]
+              print(f"| {row['source']} | {row['target']} | {'yes' if row['ok'] else 'no'} | {row['latency_ms']} | {error} |")
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data-source-audit-${{ github.run_id }}
+          path: |
+            ${{ env.AUDIT_FILE }}
+            audit.md
+          retention-days: 90
