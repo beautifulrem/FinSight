@@ -115,6 +115,22 @@ class VerificationReport(BaseModel):
         return " ".join(problems)
 
 
+_FAILURE_KINDS = (
+    "invalid_citations",
+    "unsupported_numbers",
+    "misattributed_numbers",
+    "document_market_numbers",
+    "uncited_numbers",
+    "missing_citations",
+)
+
+
+def failure_kinds(report: VerificationReport | dict[str, Any]) -> list[str]:
+    """Names of the checks a verification report failed (e.g. ``["uncited_numbers"]``)."""
+    data = report.model_dump() if isinstance(report, VerificationReport) else report
+    return [kind for kind in _FAILURE_KINDS if data.get(kind)]
+
+
 def answer_texts(answer: dict[str, Any]) -> list[str]:
     texts = [str(answer.get("answer") or "")]
     texts.extend(str(point) for point in answer.get("key_points") or [])

@@ -120,6 +120,34 @@ def map_tasks(
     return [record for records in results for record in records]
 
 
+def streamed_chat(
+    agent: AgentService, query: str, *, session_id: str, mode: str
+) -> tuple[dict[str, Any], float | None]:
+    """Run one turn through ``AgentService.stream`` (the SSE path) and return ``(response, ttft_ms)``.
+
+    ``ttft_ms`` is the time from the call to the first ``answer_delta`` event, i.e. the first answer text a
+    streaming client can show; ``None`` when the turn streamed no answer text (template answers, refusals,
+    clarifications). The response has the same shape as ``AgentService.chat``.
+    """
+    started = time.perf_counter()
+    ttft_ms: float | None = None
+    response: dict[str, Any] | None = None
+    for event in agent.stream(query, session_id=session_id, mode=mode):
+        kind, data = event.get("event"), event.get("data") or {}
+        if kind == "answer_delta" and ttft_ms is None and data.get("text"):
+            ttft_ms = round((time.perf_counter() - started) * 1000, 2)
+        elif kind == "answer":
+            response = dict(data)
+        elif kind == "clarification":
+            payload = {key: value for key, value in data.items() if key != "session_id"}
+            response = {"status": "needs_clarification", "session_id": session_id, "clarification": payload}
+        elif kind == "error":
+            raise RuntimeError(f"agent stream failed: {data.get('message')}")
+    if response is None:
+        raise RuntimeError("agent stream ended without an answer or clarification event")
+    return response, ttft_ms
+
+
 def run_agent_tasks(
     tasks: list[dict[str, Any]],
     agent: AgentService,
@@ -128,7 +156,10 @@ def run_agent_tasks(
     repeats: int = 1,
     progress: Callable[[str], None] | None = None,
     workers: int = 1,
+    stream: bool = False,
 ) -> list[dict[str, Any]]:
+    """``stream=True`` runs every turn through the streaming path and records time to first answer token."""
+
     def run_task(task: dict[str, Any]) -> list[dict[str, Any]]:
         records = []
         for repeat in range(repeats):
@@ -136,9 +167,13 @@ def run_agent_tasks(
             turns = []
             for turn in task["turns"]:
                 started = time.perf_counter()
-                response = agent.chat(turn["query"], session_id=session, mode=mode)
+                ttft_ms = None
+                if stream:
+                    response, ttft_ms = streamed_chat(agent, turn["query"], session_id=session, mode=mode)
+                else:
+                    response = agent.chat(turn["query"], session_id=session, mode=mode)
                 latency_ms = round((time.perf_counter() - started) * 1000, 2)
-                turns.append(_turn_record(turn, response, latency_ms))
+                turns.append(_turn_record(turn, response, latency_ms, ttft_ms=ttft_ms))
             records.append({"task": _task_meta(task), "repeat": repeat, "turns": turns})
         return records
 
@@ -227,13 +262,54 @@ def summarize(records: list[dict[str, Any]], *, config: dict[str, Any], repeats:
     }
 
 
-def _turn_record(turn: dict[str, Any], response: dict[str, Any], latency_ms: float) -> dict[str, Any]:
-    return {
+def _turn_record(
+    turn: dict[str, Any], response: dict[str, Any], latency_ms: float, *, ttft_ms: float | None = None
+) -> dict[str, Any]:
+    record = {
         "query": turn["query"],
         "latency_ms": latency_ms,
         "score": score_turn(response, turn["expect"]),
         "answer_excerpt": str(response.get("answer") or (response.get("clarification") or {}).get("question") or "")[
             :300
+        ],
+        "profile": turn_profile(response),
+    }
+    if ttft_ms is not None:
+        record["ttft_ms"] = ttft_ms
+    return record
+
+
+_LLM_PROFILE_KEYS = (
+    "node",
+    "step",
+    "model",
+    "latency_ms",
+    "prompt_tokens",
+    "completion_tokens",
+    "prompt_cache_hit_tokens",
+    "reasoning_tokens",
+    "context_chars",
+    "tool_calls",
+    "finish_reason",
+    "trigger",
+)
+
+
+def turn_profile(response: dict[str, Any]) -> dict[str, Any]:
+    """Where the time of one turn went: every LLM call (node, latency, tokens, context composition), every
+    tool call (latency, step, cache) and every graph node (duration). Read by ``evaluation.agent_eval.profile``."""
+    llm = response.get("llm") or {}
+    return {
+        "route": response.get("route"),
+        "answer_source": response.get("answer_source"),
+        "degraded": response.get("degraded") or [],
+        "llm_calls": [{key: entry.get(key) for key in _LLM_PROFILE_KEYS} for entry in llm.get("log") or []],
+        "tools": [
+            {key: call.get(key) for key in ("tool", "ok", "latency_ms", "step", "source", "cached")}
+            for call in response.get("tool_calls") or []
+        ],
+        "spans": [
+            {"node": span.get("node"), "duration_ms": span.get("duration_ms")} for span in response.get("spans") or []
         ],
     }
 
@@ -275,6 +351,32 @@ def _git_commit() -> str | None:
     except (OSError, subprocess.CalledProcessError):
         return None
     return f"{commit}-dirty" if status else commit
+
+
+def agent_config_from_overrides(pairs: list[str]) -> AgentConfig:
+    """``AgentConfig`` with ``FIELD=VALUE`` overrides (values parsed by the field's default type; ``none`` → None)."""
+    import dataclasses
+
+    base = AgentConfig()
+    fields = {item.name: getattr(base, item.name) for item in dataclasses.fields(AgentConfig)}
+    updates: dict[str, Any] = {}
+    for pair in pairs:
+        name, sep, raw = pair.partition("=")
+        name = name.strip()
+        if not sep or name not in fields:
+            raise SystemExit(f"--agent-config expects FIELD=VALUE with a known field, got {pair!r}")
+        current = fields[name]
+        value: Any = raw.strip()
+        if value.lower() in {"none", "null"}:
+            value = None
+        elif isinstance(current, bool):
+            value = value.lower() in {"1", "true", "on", "yes"}
+        elif isinstance(current, int):
+            value = int(value)
+        elif isinstance(current, float):
+            value = float(value)
+        updates[name] = value
+    return dataclasses.replace(base, **updates)
 
 
 def _make_llm(kind: str) -> LLMClient | None:

@@ -66,7 +66,7 @@ from .router import apply_finance_overrides, decide_route, drop_fuzzy_concepts, 
 from .state import RESET, AgentConfig, AgentState
 from .streaming import AnswerTextStream, stream_writer
 from .tools import ToolRegistry, ToolResult
-from .verifier import cited_ids, repair_answer, verify_answer
+from .verifier import cited_ids, failure_kinds, repair_answer, verify_answer
 
 if TYPE_CHECKING:
     from ..service import QueryIntelligenceService
@@ -667,6 +667,7 @@ class AgentRuntime:
                         messages=messages,
                         json_status=answer_json_status(turn.content),
                     )
+                    | {"trigger": failure_kinds(state.get("verification") or {})}
                 ],
             }
         )
