@@ -32,6 +32,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 _CALL_DEADLINE: contextvars.ContextVar[float | None] = contextvars.ContextVar("llm_call_deadline", default=None)
+_STALL_TIMEOUT: contextvars.ContextVar[float | None] = contextvars.ContextVar("llm_stall_timeout", default=None)
 _MIN_CALL_SECONDS = 2.0
 
 
@@ -43,28 +44,47 @@ class llm_deadline:
     its deterministic path instead of waiting for a slow model past the run's deadline.
     """
 
-    def __init__(self, deadline: float | None) -> None:
+    def __init__(self, deadline: float | None, *, stall_s: float | None = None) -> None:
         self.deadline = deadline
+        self.stall_s = stall_s if stall_s and stall_s > 0 else None
         self._token: contextvars.Token[float | None] | None = None
+        self._stall_token: contextvars.Token[float | None] | None = None
 
     def __enter__(self) -> llm_deadline:
         self._token = _CALL_DEADLINE.set(self.deadline)
+        self._stall_token = _STALL_TIMEOUT.set(self.stall_s)
         return self
 
     def __exit__(self, *_exc: object) -> None:
         if self._token is not None:
             _CALL_DEADLINE.reset(self._token)
+        if self._stall_token is not None:
+            _STALL_TIMEOUT.reset(self._stall_token)
 
 
-def call_timeout(default_s: float) -> float:
-    """Timeout for the next LLM request: the client's timeout, capped by the active deadline."""
+def call_timeout(default_s: float, *, streaming: bool = False) -> float:
+    """Timeout for the next LLM request: the client's timeout, capped by the active deadline.
+
+    For a streamed request httpx's read timeout is the longest wait for the next chunk, so the stall timeout
+    of ``llm_deadline(..., stall_s=...)`` caps it too: a stream that stops sending fails fast and is retried
+    instead of hanging until the run deadline. Non-streamed requests keep the full timeout (there the read
+    timeout covers the whole generation).
+    """
+    timeout = default_s
+    stall = _STALL_TIMEOUT.get()
+    if streaming and stall is not None:
+        timeout = min(timeout, stall)
     deadline = _CALL_DEADLINE.get()
     if deadline is None:
-        return default_s
+        return timeout
     remaining = deadline - time.time()
     if remaining < _MIN_CALL_SECONDS:
         raise LLMError("run deadline reached; LLM call skipped", retryable=False)
-    return min(default_s, remaining)
+    return min(timeout, remaining)
+
+
+def stall_timeout_active() -> bool:
+    return _STALL_TIMEOUT.get() is not None
 
 
 class LLMError(RuntimeError):
@@ -447,7 +467,7 @@ class DeepSeekToolClient:
         model = self.model
         try:
             with client.stream(
-                "POST", self.url, headers=headers, json=payload, timeout=call_timeout(self.timeout_s)
+                "POST", self.url, headers=headers, json=payload, timeout=call_timeout(self.timeout_s, streaming=True)
             ) as response:
                 if response.status_code >= 400:
                     text = response.read().decode("utf-8", "replace")

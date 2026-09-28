@@ -214,7 +214,10 @@ class AgentRuntime:
         """
         started = float(state.get("started_at") or time.time())
         deadline = started + self.config.run_deadline_s + (self.config.answer_grace_s if final else 0.0)
-        with llm_deadline(deadline):
+        with llm_deadline(deadline, stall_s=self.config.llm_stall_timeout_s):
+            if self.config.llm_stall_timeout_s and kwargs.get("on_delta") is None:
+                # Stream every call so the stall timeout applies (it bounds the wait for the next chunk).
+                kwargs["on_delta"] = _ignore_delta
             return self.llm.chat(*args, **kwargs)  # type: ignore[union-attr]
 
     def guard_in(self, state: AgentState) -> dict[str, Any]:
@@ -887,6 +890,10 @@ def _context_composition(messages: list[dict[str, Any]], tools: list[dict[str, A
     if tools:
         parts["tool_schemas"] = len(json.dumps(tools, ensure_ascii=False))
     return parts
+
+
+def _ignore_delta(_text: str) -> None:
+    return None
 
 
 def _answer_delta_callback() -> Callable[[str], None]:

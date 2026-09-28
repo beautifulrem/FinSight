@@ -105,6 +105,9 @@ class AgentConfig:
     # Run the deterministic planner's tool calls before the first LLM call and give the results to the model,
     # so a question the planner covers can be answered in one LLM round trip (the model may still call tools).
     planner_prefetch: bool = field(default_factory=lambda: _env("QI_AGENT_PREFETCH", "0") in {"1", "true", "on"})
+    # Per-call stall timeout (s) for LLM requests: every call is streamed and fails when no chunk arrives for
+    # this long, then is retried (or fails over) instead of hanging until the run deadline. 0 = off.
+    llm_stall_timeout_s: float = field(default_factory=lambda: float(_env("QI_AGENT_LLM_STALL_TIMEOUT_S", "0") or 0))
     # Accept derived numbers (difference / sum / ratio / percent change of two supported numbers stated in the
     # same cited sentence) in LLM drafts instead of sending them back for revision (see verify_answer).
     verify_derived: bool = field(default_factory=lambda: _env("QI_AGENT_VERIFY_DERIVED", "0") in {"1", "true", "on"})
