@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 
 import httpx
 import pytest
+from agent_fakes import StubService, build_fake_registry
 
 from evaluation.agent_eval.profile import profile_records
 from evaluation.agent_eval.runner import agent_config_from_overrides, turn_profile
-from query_intelligence.agent.llm import DeepSeekToolClient, FallbackLLM
-from query_intelligence.agent.verifier import VerificationReport, failure_kinds
+from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
+from query_intelligence.agent.graph import AgentRuntime
+from query_intelligence.agent.llm import DeepSeekToolClient, FallbackLLM, ScriptedLLM, final_turn, tool_call_turn
+from query_intelligence.agent.state import AgentConfig
+from query_intelligence.agent.verifier import VerificationReport, cite_repair, failure_kinds, verify_answer
 
 
 def _completion() -> dict:
@@ -89,3 +94,167 @@ def test_profile_breaks_down_llm_time_by_node():
     assert profile["llm_nodes"]["agent_llm[1]"]["prompt_tokens_mean"] == 300
     assert profile["ttft_ms_p50"] == 3000.0
     json.dumps(profile)  # serialisable for the committed result
+
+
+# --------------------------------------------------------------------------- graph switches
+
+
+def _runtime(llm, **config) -> AgentRuntime:
+    return AgentRuntime(
+        StubService(), build_fake_registry(), llm, config=AgentConfig(**config), today=lambda: date(2026, 9, 24)
+    )
+
+
+_UNCITED = {"answer": "茅台最新收盘价为 1409.5 元。PE(TTM) 为 24.6 [fundamental_600519.SH]。", "evidence_used": []}
+
+
+def test_cite_repair_skips_the_llm_revision_for_uncited_numbers():
+    llm = ScriptedLLM(
+        [
+            tool_call_turn(
+                ("get_price_history", {"target": "600519.SH"}), ("get_fundamentals", {"target": "600519.SH"})
+            ),
+            final_turn(_UNCITED),
+        ]
+    )
+    result = _runtime(llm, revise_policy="cite_repair").run("茅台为什么跌了")
+
+    assert result["llm"]["calls"] == 2  # no revise call
+    assert result["verification"]["passed"] is True
+    assert "1409.5 元[price_600519.SH]。" in result["answer"]
+    assert "verification_failed:citations_repaired:uncited_numbers" in result["degraded"]
+    assert {"price_600519.SH", "fundamental_600519.SH"} <= set(result["evidence_used"])
+
+
+def test_default_policy_still_revises_with_the_llm():
+    llm = ScriptedLLM(
+        [
+            tool_call_turn(
+                ("get_price_history", {"target": "600519.SH"}), ("get_fundamentals", {"target": "600519.SH"})
+            ),
+            final_turn(_UNCITED),
+            final_turn({"answer": "茅台最新收盘价为 1409.5 元 [price_600519.SH]。", "evidence_used": []}),
+        ]
+    )
+    result = _runtime(llm).run("茅台为什么跌了")
+
+    assert result["llm"]["calls"] == 3
+    assert [entry["node"] for entry in result["llm"]["log"]][-1] == "revise"
+    assert result["llm"]["log"][-1]["trigger"] == ["uncited_numbers"]
+
+
+def test_cite_repair_leaves_unsupported_numbers_to_the_llm():
+    invented = {"answer": "茅台最新收盘价为 1409.5 元，目标价 2600 元。", "evidence_used": []}
+    llm = ScriptedLLM(
+        [
+            tool_call_turn(("get_price_history", {"target": "600519.SH"})),
+            final_turn(invented),
+            final_turn({"answer": "茅台最新收盘价为 1409.5 元 [price_600519.SH]。", "evidence_used": []}),
+        ]
+    )
+    result = _runtime(llm, revise_policy="cite_repair").run("茅台为什么跌了")
+
+    assert result["llm"]["log"][-1]["node"] == "revise"
+    assert "2600" not in result["answer"]
+
+
+def test_planner_prefetch_answers_in_one_llm_call():
+    def answer(messages, _tools):
+        prefetch = messages[-1]["content"]
+        assert messages[-1]["role"] == "user" and '<tool_result name="get_fundamentals">' in prefetch
+        assert "fundamental_600519.SH" in prefetch
+        return final_turn({"answer": "茅台 PE(TTM) 为 24.6 [fundamental_600519.SH]。", "evidence_used": []})
+
+    llm = ScriptedLLM([answer])
+    result = _runtime(llm, planner_prefetch=True).run("贵州茅台的市盈率是多少", mode="agent")
+
+    assert result["llm"]["calls"] == 1
+    assert result["verification"]["passed"] is True
+    assert [(call["tool"], call["source"]) for call in result["tool_calls"]] == [("get_fundamentals", "prefetch")]
+    assert [span["node"] for span in result["spans"]][:3] == ["guard_in", "agent_prefetch", "agent_llm"]
+
+
+def test_prefetched_calls_are_not_repeated():
+    llm = ScriptedLLM(
+        [
+            tool_call_turn(("get_fundamentals", {"target": "600519.SH"})),
+            final_turn({"answer": "茅台 PE(TTM) 为 24.6 [fundamental_600519.SH]。", "evidence_used": []}),
+        ]
+    )
+    result = _runtime(llm, planner_prefetch=True).run("贵州茅台的市盈率是多少", mode="agent")
+
+    assert "repeated_tool_calls:1" in result["degraded"]
+    assert [call["source"] for call in result["tool_calls"]] == ["prefetch"]
+
+
+# --------------------------------------------------------------------------- cite_repair / keep-alive
+
+
+def _store() -> EvidenceStore:
+    store = EvidenceStore()
+    store.add(
+        AgentEvidence(
+            evidence_id="price_600519.SH", kind="structured", source_type="market_api", payload={"close": 1409.5}
+        )
+    )
+    store.add(
+        AgentEvidence(
+            evidence_id="fundamental_600519.SH",
+            kind="structured",
+            source_type="fundamental_sql",
+            payload={"pe_ttm": 24.6, "roe": 0.33},
+        )
+    )
+    store.add(
+        AgentEvidence(
+            evidence_id="fundamental_000858.SZ",
+            kind="structured",
+            source_type="fundamental_sql",
+            payload={"pe_ttm": 24.6, "roe": 0.24},
+        )
+    )
+    return store
+
+
+def _repair(answer: dict) -> dict | None:
+    store = _store()
+    report = verify_answer(answer, store)
+    return cite_repair(answer, report, store)
+
+
+def test_cite_repair_moves_a_misattributed_number_to_its_evidence():
+    answer = {"answer": "茅台 ROE 为 33%，收盘价 1409.5 元 [price_600519.SH]。"}
+    repaired = _repair(answer)
+    assert repaired is not None
+    assert repaired["answer"] == "茅台 ROE 为 33%，收盘价 1409.5 元 [price_600519.SH][fundamental_600519.SH]。"
+    assert verify_answer(repaired, _store()).passed
+
+
+def test_cite_repair_does_not_guess_between_items_with_the_same_value():
+    # 24.6 is the PE of both companies: citing either would be a guess.
+    assert _repair({"answer": "市盈率为 24.6 倍。"}) is None
+
+
+def test_cite_repair_drops_invalid_ids_and_cites_key_points():
+    answer = {"answer": "收盘价 1409.5 元 [price_x]。", "key_points": ["ROE 33%"], "evidence_used": ["price_x"]}
+    repaired = _repair(answer)
+    assert repaired is not None
+    assert repaired["answer"] == "收盘价 1409.5 元[price_600519.SH]。"
+    assert repaired["key_points"] == ["ROE 33%[fundamental_600519.SH]"]
+    assert repaired["evidence_used"] == ["price_600519.SH", "fundamental_600519.SH"]
+    assert verify_answer(repaired, _store()).passed
+
+
+def test_cite_repair_refuses_unsupported_numbers():
+    assert _repair({"answer": "收盘价 1409.5 元，目标价 2600 元。"}) is None
+
+
+def test_llm_client_reuses_one_pooled_connection_client():
+    pooled = DeepSeekToolClient(api_key="sk-test", keepalive=True)
+    first, owned = pooled._client()
+    assert owned is False and pooled._client()[0] is first
+    pooled.close()
+    one_off = DeepSeekToolClient(api_key="sk-test", keepalive=False)
+    client, owned = one_off._client()
+    assert owned is True
+    client.close()

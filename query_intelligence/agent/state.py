@@ -43,6 +43,7 @@ class AgentState(TypedDict, total=False):
     llm_calls: int
     usage: dict[str, int]
     next: str
+    prefetched: list[dict[str, Any]]  # planner results given to the first LLM call (planner_prefetch)
     # evidence
     tool_log: Annotated[list[dict[str, Any]], add_or_reset]
     evidence: Annotated[dict[str, dict[str, Any]], merge_dicts]
@@ -96,3 +97,15 @@ class AgentConfig:
     memory_summary_tokens: int = field(
         default_factory=lambda: int(os.getenv("QI_AGENT_MEMORY_SUMMARY_TOKENS", "300") or 300)
     )
+    # Latency switches (docs/performance.md has the measured effect of each; defaults follow those runs).
+    # revise_policy: "llm" sends every failed LLM draft back to the model once; "cite_repair" first tries a
+    # deterministic citation fix (uncited / misattributed numbers, invalid ids) and calls the LLM only if
+    # the fixed draft still fails verification.
+    revise_policy: str = field(default_factory=lambda: _env("QI_AGENT_REVISE_POLICY", "llm"))
+    # Run the deterministic planner's tool calls before the first LLM call and give the results to the model,
+    # so a question the planner covers can be answered in one LLM round trip (the model may still call tools).
+    planner_prefetch: bool = field(default_factory=lambda: _env("QI_AGENT_PREFETCH", "0") in {"1", "true", "on"})
+
+
+def _env(name: str, default: str) -> str:
+    return (os.getenv(name, default) or default).strip().lower()

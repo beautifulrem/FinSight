@@ -491,6 +491,93 @@ def repair_answer(
     return repaired, notes
 
 
+CITATION_REPAIRABLE = frozenset({"uncited_numbers", "misattributed_numbers", "invalid_citations", "missing_citations"})
+
+
+def cite_repair(
+    answer: dict[str, Any],
+    report: VerificationReport,
+    store: EvidenceStore,
+    *,
+    query: str = "",
+    market_precedence: bool = True,
+) -> dict[str, Any] | None:
+    """Fix a draft whose only problems are citations, without an LLM call; ``None`` when that is not possible.
+
+    Applies when every failed check is in ``CITATION_REPAIRABLE``: numbers stated without a citation, numbers
+    cited with the wrong evidence id, ids that do not exist, or no valid citation at all. Invalid ids are removed; a number that its
+    sentence does not support gets the id of the **one** evidence item of the run that contains it (structured
+    evidence preferred over document text) appended to its sentence. A number found in two or more items is
+    ambiguous and is not guessed. The text is otherwise unchanged; the caller re-verifies the result and only
+    uses it when it passes.
+    """
+    if report.passed or not set(failure_kinds(report)) <= CITATION_REPAIRABLE:
+        return None
+    invalid = set(report.invalid_citations)
+    query_numbers = claim_numbers(query)
+    structured = [evidence_id for evidence_id in store.ids() if _is_structured(store, evidence_id)]
+    documents = [evidence_id for evidence_id in store.ids() if evidence_id not in structured]
+    numbers = {evidence_id: _evidence_numbers(store, [evidence_id]) for evidence_id in store.ids()}
+
+    def owner(value: float, scales: tuple[float, ...], rounding: float, sign: int | None, market: bool) -> str | None:
+        for group in (structured,) if market else (structured, documents):
+            found = [i for i in group if _is_supported(value, numbers[i], scales, rounding, sign)]
+            if len(found) == 1:
+                return found[0]
+            if found:
+                return None  # ambiguous: several items state this value
+        return None
+
+    def fix(text: str) -> str | None:
+        if invalid:
+            text = _CITATION.sub(lambda match: "" if match.group(1) in invalid else match.group(0), text)
+            text = re.sub(r"[ \t]+([。．.，,；;！？!?])", r"\1", text)
+        out = []
+        for sentence in whole_sentences(text):
+            sentence_ids = [m.group(1) for m in _CITATION.finditer(sentence) if m.group(1) in store]
+            for unit in _split_sentences(sentence):
+                if not unit.strip():
+                    continue
+                unit_ids = [m.group(1) for m in _CITATION.finditer(unit) if m.group(1) in store] or sentence_ids
+                scope = _evidence_numbers(store, unit_ids) if unit_ids else []
+                market = market_precedence and bool(_MARKET_METRIC.search(unit))
+                echo_allowed = not unit_ids or bool(_HYPOTHETICAL.search(unit))
+                added: list[str] = []
+                for value, scales, rounding, sign in claim_values(unit):
+                    if value == 0 or (echo_allowed and _is_supported(value, query_numbers, _BARE_SCALES)):
+                        continue
+                    if unit_ids and _is_supported(value, scope, scales, rounding, sign):
+                        continue
+                    evidence_id = owner(value, scales, rounding, sign, market)
+                    if evidence_id is None:
+                        return None
+                    if evidence_id not in added and evidence_id not in unit_ids:
+                        added.append(evidence_id)
+                if added:
+                    citation = "".join(f"[{evidence_id}]" for evidence_id in added)
+                    body = unit.rstrip()
+                    terminal = re.search(r"[。！？!?；;.]+$", body)
+                    cut = terminal.start() if terminal else len(body)
+                    sentence = sentence.replace(unit, body[:cut] + citation + body[cut:] + unit[len(body) :], 1)
+            out.append(sentence)
+        return "".join(out)
+
+    repaired = dict(answer)
+    text = fix(str(answer.get("answer") or ""))
+    if text is None:
+        return None
+    points = []
+    for point in answer.get("key_points") or []:
+        fixed = fix(str(point))
+        if fixed is None:
+            return None
+        points.append(fixed)
+    repaired["answer"] = text
+    repaired["key_points"] = points
+    repaired["evidence_used"] = [evidence_id for evidence_id in cited_ids(repaired) if evidence_id in store]
+    return repaired
+
+
 def _cites_store(text: str, store: EvidenceStore) -> bool:
     """True when ``text`` keeps at least one citation of this run (or the run has no evidence and text remains)."""
     if not len(store):
