@@ -19,8 +19,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from ..agent.a2a_server import install_a2a
+from ..agent.audit import AuditTraceSink
 from ..agent.errors import SessionAccessError
-from ..agent.telemetry import PrometheusTraceSink, RecentTraceStore
+from ..agent.telemetry import PrometheusTraceSink, prompt_version_of
+from ..agent.trace_store import build_trace_store
 from ..agent.tracing import DEFAULT_TRACE_DIR, sinks_from_env
 from ..artifacts import ArtifactWriter
 from ..chat.page import DIST_DIR
@@ -156,14 +158,16 @@ def create_app(
     agent_holder: dict[str, Any] = {"service": agent_service}
     agent_lock = threading.Lock()
     trace_dir = os.getenv("QI_AGENT_TRACE_DIR", DEFAULT_TRACE_DIR).strip()
-    trace_store = RecentTraceStore(
-        trace_dir=None if trace_dir.lower() in {"", "off", "0", "false", "none"} else trace_dir
-    )
+    # In-process ring by default; a Postgres table shared by all replicas when QI_AGENT_TRACE_DB (or a Postgres
+    # QI_AGENT_CHECKPOINT_DB) is set. Same interface, owner-scoped either way.
+    trace_store = build_trace_store(None if trace_dir.lower() in {"", "off", "0", "false", "none"} else trace_dir)
     metrics_sink = PrometheusTraceSink()
+    # Refusals and compliance edits: JSON log line, rotated JSONL file and finsight_audit_events_total.
+    audit_sink = AuditTraceSink(registry=metrics_sink.registry)
     feedback_log = Path(os.getenv("QI_FEEDBACK_PATH", "outputs/feedback/feedback.jsonl"))
     feedback_lock = threading.Lock()
     if agent_service is not None and isinstance(getattr(agent_service, "trace_sinks", None), list):
-        agent_service.trace_sinks.extend([trace_store, metrics_sink])
+        agent_service.trace_sinks.extend([trace_store, metrics_sink, audit_sink])
 
     def get_agent():
         # Built lazily: the agent layer is only constructed when an agent endpoint is used.
@@ -172,7 +176,7 @@ def create_app(
                 from ..agent.service import AgentService
 
                 agent_holder["service"] = AgentService.from_service(
-                    runtime, chatbot_config=chatbot_config, trace_sinks=[*sinks_from_env(), trace_store, metrics_sink]
+                    runtime, chatbot_config=chatbot_config, trace_sinks=[*sinks_from_env(), trace_store, metrics_sink, audit_sink]
                 )
             return agent_holder["service"]
 
@@ -381,7 +385,7 @@ def create_app(
         feedback_log.parent.mkdir(parents=True, exist_ok=True)
         with feedback_lock, feedback_log.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-        metrics_sink.record_feedback(payload.rating)
+        metrics_sink.record_feedback(payload.rating, prompt_version_of(trace))
         return {"ok": True}
 
     @app.get("/metrics")
@@ -393,6 +397,17 @@ def create_app(
 
     if install_a2a(app, get_agent):
         logger.info("[startup] A2A agent card at /.well-known/agent-card.json, JSON-RPC at /a2a.")
+
+    app.state.trace_store = trace_store
+
+    def close_shared_stores() -> None:
+        # Postgres-backed stores own connection pools; the in-memory ones have nothing to close.
+        for store in (trace_store, getattr(app.state, "a2a_task_store", None), audit_sink):
+            close = getattr(store, "close", None)
+            if callable(close):
+                close()
+
+    app.router.on_shutdown.append(close_shared_stores)
 
     @app.post("/nlu/analyze")
     def analyze(payload: AnalyzeRequest) -> dict:

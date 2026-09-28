@@ -64,7 +64,7 @@ kubectl -n finsight rollout status deployment/finsight-api
 
 会话还按调用方隔离：设置 `QI_API_KEYS` 后，会话归属于 API Key 的哈希，别的 Key 访问得到 404。
 
-不共享、每个副本各自一份的状态：A2A 任务表、`/agent/traces` 背后的内存 trace 缓冲（JSON trace 按 Pod 分开；需要共享视图就导出 OTLP），以及工具和数据源的 TTL 缓存。
+同一个 DSN 也会把 A2A 任务表（`finsight_a2a_tasks`）和 `/agent/traces` 背后的 trace 表（`finsight_agent_traces`）放进 Postgres。这样任何副本都能响应 `GetTask`、接着处理 `input-required` 任务，并在运行查看器里显示任何一次运行（见 [A2A、容灾与可观测性](a2a-and-observability.md#多副本共享存储)；设置 `QI_A2A_TASK_DB` / `QI_AGENT_TRACE_DB=memory` 可退出）。仍然每个副本各自一份的：限流器，以及工具和数据源的 TTL 缓存。
 
 ### 只读根文件系统
 

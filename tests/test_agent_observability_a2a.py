@@ -249,7 +249,7 @@ def test_feedback_is_recorded_for_known_traces(client, tmp_path):
 
     record = json.loads((tmp_path / "feedback.jsonl").read_text(encoding="utf-8"))
     assert record["trace_id"] == answer["trace_id"] and record["query"] == "贵州茅台的市盈率是多少"
-    assert 'finsight_feedback_total{rating="down"} 1.0' in client.get("/metrics").text
+    assert 'finsight_feedback_total{prompt_version="none",rating="down"} 1.0' in client.get("/metrics").text
 
 
 def test_agent_card_url_follows_the_request():

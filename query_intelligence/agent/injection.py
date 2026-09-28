@@ -94,6 +94,9 @@ def tool_message_content(tool: str, observation: dict[str, Any], *, max_chars: i
     remains citable from the evidence store.
     """
     sanitized, flagged = sanitize_observation(observation)
+    # Tools that sanitise their own output (external MCP tools) report redactions in their data.
+    data = observation.get("data") if isinstance(observation, dict) else None
+    flagged = flagged or (isinstance(data, dict) and data.get("instruction_like_text_removed") is True)
     envelope: dict[str, Any] = {
         "notice": UNTRUSTED_NOTICE,
         "tool": tool,

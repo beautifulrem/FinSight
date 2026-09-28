@@ -24,6 +24,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from .telemetry import prompt_version_of
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_TRACE_DIR = "outputs/traces"
@@ -80,9 +82,24 @@ def build_trace(result: dict[str, Any], *, session_id: str | None = None) -> dic
         "unsupported_numbers": verification.get("unsupported_numbers") or [],
         "invalid_citations": verification.get("invalid_citations") or [],
         "compliance_notes": result.get("compliance_notes") or [],
+        "refusal_category": _refusal_category(result),
+        "prompt_version": prompt_version_of({"llm_calls": llm.get("log") or []}),
         "degraded": result.get("degraded") or [],
         "evidence_count": len(result.get("evidence_sources") or []),
     }
+
+
+_REFUSAL_CATEGORIES = {"prompt_injection_request": "prompt_injection", "out_of_scope_query": "out_of_scope"}
+
+
+def _refusal_category(result: dict[str, Any]) -> str | None:
+    """Why the guard refused (``prompt_injection`` / ``out_of_scope``), or ``None`` for answered runs."""
+    if result.get("route") != "refuse":
+        return None
+    for limitation in result.get("limitations") or []:
+        if limitation in _REFUSAL_CATEGORIES:
+            return _REFUSAL_CATEGORIES[limitation]
+    return "other"
 
 
 class JsonFileTraceSink:

@@ -52,8 +52,7 @@ _OFFLINE_TOOLS = {"resolve_entity", "search_knowledge"}
 def build_tool_definitions(registry: ToolRegistry) -> list[Tool]:
     tools: list[Tool] = []
     for spec in registry.specs():
-        schema = spec.input_model.model_json_schema()
-        schema.pop("title", None)
+        schema = spec.input_schema()
         tools.append(
             Tool(
                 name=spec.name,
