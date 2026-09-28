@@ -10,6 +10,7 @@ The original `PPT_Overleaf` backup contained older browser screenshots, LaTeX bu
 |---|---|
 | [slide-outline.md](slide-outline.md) | Presentation-ready structure, talking points, and demo flow. |
 | [agent-design-notes.md](agent-design-notes.md) | Agent layer design review (Chinese): decisions and trade-offs, failure cases, ablation conclusions, limits, interview Q&A. |
+| [interview-script.md](interview-script.md) | One-page interview script (Chinese): 30-second pitch, 2-minute architecture walk-through, three defended numbers with method and CI, a failure story, follow-up answers, whiteboard outline, and a note on AI coding-tool use. |
 | [../assets/frontend-chatbot-zh.png](../assets/frontend-chatbot-zh.png) | Current Chinese chatbot demo screenshot. |
 | [../assets/frontend-chatbot-en.png](../assets/frontend-chatbot-en.png) | Current English chatbot demo screenshot. |
 | [../frontend-chatbot.md](../frontend-chatbot.md) | Full frontend runbook and verified local test notes. |

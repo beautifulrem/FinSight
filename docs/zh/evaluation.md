@@ -71,7 +71,24 @@
 - **GLM-5.3 Flash**：保留集和测试集 v2 来自 `ablation-glm.json`，commit `f7bf624`；GLM 开发集以 `ablation-glm-dev.json`（`38a3069`）为准。
 - **运行方式**：在线路径每个任务重复 3 次，成本为网关账单口径（`usage.cost`，美元）。
 
-<!-- final2: update after final online run (held-out and test v2, DeepSeek and GLM, at the round-2 commit) -->
+### 第二轮代码上的在线重跑（`d1c007c`）
+
+`ablation-final2-deepseek.json` 和 `ablation-final2-glm.json`，commit `d1c007c`，命令 `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 4 --sets holdout,test_v2 --modes workflow_llm,agent`，GLM 为同一命令加 `EVAL_MODEL=cline-pass/glm-5.3-flash`。这时测试集 v2 已属于暴露后。
+
+| 路径 | 保留集 · DeepSeek | 测试集 v2 · DeepSeek | 保留集 · GLM | 测试集 v2 · GLM | P95（DeepSeek / GLM，保留集） |
+|---|---|---|---|---|---|
+| legacy | 0.208 [0.11, 0.32] | 0.223 [0.15, 0.30] | 0.208 | 0.223 | 0.6 秒 / 1.5 秒 |
+| workflow | 0.906 [0.83, 0.98] | 0.826 [0.76, 0.89] | 0.906 | 0.826 | 0.4 秒 / 0.8 秒 |
+| workflow_llm | 0.956 [0.90, 1.00]，pass^3 0.943 | 0.860 [0.80, 0.92]，pass^3 0.843 | 0.962 [0.91, 1.00]，pass^3 0.962 | 0.857 [0.80, 0.91]，pass^3 0.843 | 15.7 秒 / 17.1 秒 |
+| agent | 0.962 [0.93, 0.99]，pass^3 0.906 | 0.901 [0.85, 0.95]，pass^3 0.876 | 0.950 [0.91, 0.99]，pass^3 0.887 | 0.846 [0.79, 0.90]，pass^3 0.777 | 20.4 秒 / 66.6 秒 |
+
+配对比较（agent − workflow_llm）：
+
+- DeepSeek 保留集 +0.006 [−0.050, +0.063]，不显著；测试集 v2 +0.041 [+0.006, +0.083]，显著，pass^3 +0.033 [−0.025, +0.091] 不显著。
+- GLM 保留集 −0.013 [−0.076, +0.057]；测试集 v2 −0.011 [−0.050, +0.028]；都不显著。
+- 单任务成本：DeepSeek agent $0.00115 / workflow_llm $0.00084（保留集）；GLM agent $0.00126 / workflow_llm $0.00024。
+
+**在最终 commit 上的重跑待定**：`3730408` 上的重跑中途耗尽了 ClinePass 周额度，每次调用都返回 HTTP 429，Agent 全部降级到模板，所以这些运行没有提交。只有测试集 v3 的「纯 LLM」基线在额度耗尽前跑完：0/130（`ablation-test_v3-purellm-deepseek.json`）。评测工具现在会把 429 占比超过 20% 的运行标为无效（`invalid_runs`），`results.py` 默认拒绝提交。
 
 其他指标（DeepSeek，开发集，`846bc5e`）：
 
@@ -137,18 +154,20 @@ GLM 更便宜但更慢：开发集单任务成本 workflow_llm $0.00028、agent 
 
 ## 校验器压力测试
 
-`verifier_stress.json`，commit `2494656`：对 159 个正确答案生成 2,433 个篡改变体（数字改动 1%、5%、20%，或在公司之间互换），看校验器放过多少。越低越好；正确答案必须全部通过。
+`verifier_stress.json`，commit `9f0e46b`：对开发集上 202 个正确答案生成 3,399 个篡改变体（数字改动 1%、5%、20%，或在公司之间互换），看校验器放过多少。越低越好；正确答案必须全部通过。
 
-| | 原来的整批比对 | 按运行比对 | 逐句绑定（当前） |
-|---|---|---|---|
-| 正确答案通过率 | 1.000 | 1.000 | 1.000 |
-| 全部篡改的误放率 | 0.343 | 0.243 | **0.021** |
-| 改动 1%（593） | 0.320 | 0.039 | 0.039 |
-| 改动 5%（645） | 0.078 | 0.030 | 0.019 |
-| 改动 20%（665） | 0.098 | 0.035 | 0.023 |
-| 公司间互换（530） | 1.000 | 0.994 | **0.002** |
+| | 原来的整批比对 | 按运行比对 | 逐句绑定（当前） | 逐句绑定 + 派生数字（默认开启） |
+|---|---|---|---|---|
+| 正确答案通过率 | 1.000 | 1.000 | 1.000 | 1.000 |
+| 全部篡改的误放率 | 0.333 | 0.244 | **0.019** | 0.020 |
+| 改动 1%（828） | 0.298 | 0.035 | 0.035 | 0.035 |
+| 改动 5%（900） | 0.066 | 0.028 | 0.017 | 0.017 |
+| 改动 20%（920） | 0.079 | 0.027 | 0.020 | 0.020 |
+| 公司间互换（751） | 1.000 | 1.000 | **0.005** | 0.009 |
 
-被拒的 2,382 个答案按整句删除修复（不再拆子句），无内容可留时改用模板回答：修复后 100% 可读（无残句、孤立引用、多余标点），100% 通过校验，未被篡改的句子保留 97.8%，17.2% 回退到模板。原来的子句拼接只有 29.1% 可读，96.5% 含残句。
+被拒的 3,333 个答案按整句删除修复（不再拆子句），无内容可留时改用模板回答：修复后 100% 可读（无残句、孤立引用、多余标点），100% 通过校验，未被篡改的句子保留 98.0%，18.3% 回退到模板。更早的子句拼接（`2494656` 时测得）只有 29.1% 可读，96.5% 含残句。
+
+之前版本的数字（`2494656`：159 个正确答案、2,433 个变体、误放率 2.1%）已被这次运行取代：开发集后来增加了任务，数字切分 bug 也已修复（见[性能 §2a](performance.md#2a-agent-路径延迟剖析改动与前后对比)）。
 
 ## 提示注入红队
 
@@ -161,7 +180,34 @@ GLM 更便宜但更慢：开发集单任务成本 workflow_llm $0.00028、agent 
 - **离线**（`redteam-offline.json`，`2494656`，workflow 路径，CI 基线）：开发集 0/72、保留集 0/64、holdout2 0/64（`f7bf624` 时为 2/64）；holdout3（第二轮评审的 11 个投毒攻击，在修复前加入，不用于调参）修复前 6/88，修复后 **2/88**：剩下的是“拆分”变体把伪造的合并消息作为标题带进答案，标题本身看起来就是一条普通新闻标题，词法规则无法区分。
 - **之后的防护**：`ceaef0b` 之后加入的策略级防护（评级/仓位删除、语言守卫等）目前只由离线基线覆盖，还没有新的在线运行。
 
-<!-- final2: add the red-team rerun (redteam-final2) at the round-2 commit -->
+- **第二轮代码上的在线重跑**（`redteam-final2.json`，`d1c007c`，DeepSeek）：
+  - 开发攻击集：三条路径都是 0/72；
+  - 保留攻击集：workflow 0/64、workflow_llm 1/64（复述投毒文档里的评级）、agent 0/64；
+  - holdout2：0/64、1/64（英文评级）、0/64。
+  
+  holdout3 在线还没跑过，那次重跑撞上了额度上限，见上。
+
+## 独立任务集
+
+作者自己写的集合会高估：规则和标注出自同一个人，高分可能只说明规则贴合作者的措辞。所以第三、四轮请没看过代码的独立作者（另开的 AI 编写者）按书面规则另写集合，写好后先提交再运行。每套集合的首次运行结果原样提交；之后针对它做的修复，结果一律标注「暴露后」。
+
+| 任务集 | 规模与编写方式 | 首次运行 | 暴露后 |
+|---|---|---|---|
+| 多轮集 v1（`agent_eval_multiturn_v1.jsonl`，[编写说明](../../evaluation/agent_eval/tasks/README_multiturn_v1.md)） | 49 段对话 / 206 轮；作者没读过路由、记忆、规划器代码和任何任务文件；172 个事实值都由离线工具输出核对 | 无 LLM：任务 0.224 [0.12, 0.35]，轮次 0.709（`multiturn_v1-auto-nollm-first-run.json`，`1bd1932`）。DeepSeek：agent 任务 0.361 [0.24, 0.49]、pass^3 0.286、轮次 0.795；workflow_llm 任务 0.286（`ablation-multiturn_v1-deepseek-first-run.json`，`527a611`） | 无 LLM 1.000（`multiturn_v1-auto-nollm-after-fixes.json`，`7513376`） |
+| 测试集 v3（`agent_eval_test_v3.jsonl`，[编写说明](../../evaluation/agent_eval/tasks/README_test_v3.md)） | 130 个任务 / 155 轮；同样的独立规则；从未用于修复 | 无 LLM：任务 0.762 [0.68, 0.83]，轮次 0.794（`test_v3-auto-nollm-first-run.json`，`882745d`）；不调工具的 LLM 0/130（`3730408`） | – |
+| 独立路由标注 v1（154 条） | 按四句路由策略标注，没看路由代码 | 0.740（`router_eval-independent_v1-first-run.json`，`882745d`） | 1.000（`router_eval-round4-independent-after-exposure.json`，`075caad`） |
+| 独立路由标注 v2（241 条，[编写说明](../../evaluation/agent_eval/tasks/README_router_labels_independent_v2.md)） | 第四轮修复冻结后新写，作者没读任何代码、任务或结果文件；其中 4 条与自有标注碰巧相同 | **0.801**（`router_eval-independent_v2-first-run.json`，`3080bfe`） | – |
+| 声明核查基准（[说明](claim-check.md)） | 开发 131 条、保留 47 条，改检查器之前写好并提交；保留集的 sha256 由测试锁定 | 保留集只跑一次：结论准确率 0.936 [0.851, 1.000]，逐数字 0.944（`claim_bench-holdout.json`，`2fcb4f0`） | 开发集 0.527 → 1.000（`claim_bench-dev-baseline.json` → `claim_bench-dev.json`） |
+
+对照：项目自有路由标注在同期是 0.988（162 条，`router_eval-round3b.json`），第四轮后是 1.000（303 条，`router_eval-round4-own.json`）。
+
+```bash
+python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl
+python -m evaluation.agent_eval.runner --mode auto --tasks evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl \
+    --snapshot evaluation/agent_eval/fixtures/snapshot_test_v3.json
+python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets test_v3,multiturn_v1
+PYTHONPATH=. python evaluation/agent_eval/independent/verify_test_v3.py      # 重新核对每个期望事实
+```
 
 ## 故障注入
 

@@ -22,11 +22,21 @@ FinSight answers questions about Chinese listed companies, funds, indices and ma
 
 **In 30 seconds**
 
-- **Numbers you can trace.** The claim-level verifier rejected 97.9% of 2,433 corrupted answers and accepted all 159 correct ones. A number swapped from another company passes 0.2% of the time, down from 100% with the original check. Rejected answers are repaired by deleting whole sentences (100% readable, no fragments; it was 29% readable with clause salvage).
-- **Tools are what make it work.** An LLM without tools passes 0 of 381 tasks under strict scoring. The tool-using LLM paths pass 0.91–0.98 of the held-out tasks with two model families (DeepSeek V4.1 Flash, GLM-5.3 Flash). They pass 0.76–0.81 of a 121-task test set that was written later, blind, and was untouched when it was run.
-- **Honest statistics.** Every rate comes with a 95% bootstrap CI, and paths are compared with paired tests. The LLM agent's lead over "fixed workflow + LLM writing" is **not significant** with DeepSeek. With GLM it is significant on per-run success but not on pass^3, and the agent costs 2–5x as much.
-- **Runs like a service.** It works without an LLM, is bounded by deadlines and circuit breakers, and has been load-tested and chaos-tested. It runs on k3s with Postgres-shared sessions, exposes MCP and A2A, and ships with Prometheus/Grafana/Jaeger monitoring.
-- **Why not just use 豆包 / 问财?** See [docs/comparison.md](docs/comparison.md): what they do better, what nobody publishes, and a fair head-to-head test (designed but not run).
+- **Numbers you can trace.** The claim-level verifier rejected 98.1% of 3,399 corrupted answers and accepted all 202 correct ones. A number swapped in from another company passes 0.5% of the time; with the original check it passed 100% of the time. Answers that fail are repaired by deleting whole sentences: 100% readable, where clause salvage left 29% readable.
+- **Tools are what make it work.** An LLM without tools passes 0 of 511 tasks under strict scoring, across four task sets. With tools, the LLM paths pass 0.95–0.96 of the held-out tasks with both model families (DeepSeek V4.1 Flash, GLM-5.3 Flash).
+- **Measured on sets it was not written for.** Separate authors wrote a multi-turn set, a test set and two router label sets without seeing the code. Every first run is reported as is:
+  - multi-turn: the agent completed 36% of conversations;
+  - router labels: 74% of routing decisions matched;
+  - test v3: the no-LLM path passed 76% of tasks.
+  
+  Numbers measured after fixing what a set exposed are labelled "after exposure". A fresh router set, run once after the fixes, scores 80%.
+- **Honest statistics.** Every rate has a 95% bootstrap CI, and paths are compared with paired tests. The LLM agent is **not significantly better** than "fixed workflow + LLM writing" on held-out with either model. It costs about 1.4–6x as much.
+- **Runs like a service.**
+  - It works without an LLM, and every LLM call is bounded by the run deadline.
+  - The DeepSeek agent's P95 is 15–17 s, and the first answer token arrives after about 3 s.
+  - It has been load- and chaos-tested, and runs on k3s with Postgres-shared sessions, tasks and traces.
+  - It exposes MCP (server and client) and A2A, and ships Prometheus/Grafana/Jaeger monitoring.
+- **Why not just use 豆包 / 问财?** [docs/comparison.md](docs/comparison.md) covers what they do better, what none of them publishes, and a fair head-to-head test (designed, not run).
 
 <p align="center"><img src="docs/assets/ui/chrome-agent-trace.png" alt="Agent answer with live run trace and evidence ledger" width="900"></p>
 
@@ -49,70 +59,71 @@ Strict ("dealbreaker") scoring: a task succeeds only if every one of these holds
 - a judgment question gets hedged;
 - no trading instruction appears anywhere.
 
-Online runs use 3 repeats per task, and costs are as billed by the gateway. Each cell below comes from a committed file in [`evaluation/results/`](evaluation/results/), which records the commit, prompts and command of its run. Details, per-category tables and every paired comparison are in [docs/agent-eval.md](docs/agent-eval.md). The three sets:
+Online runs use 3 repeats per task, and costs are as billed by the gateway. Each number below comes from a committed file in [`evaluation/results/`](evaluation/results/), which records the commit, the prompt hashes and the command of its run. Per-category tables and every paired comparison are in [docs/agent-eval.md](docs/agent-eval.md). A Chinese summary is in [docs/zh/evaluation.md](docs/zh/evaluation.md).
 
-- **Development set:** 207 tasks, used to drive fixes.
-- **Held-out set:** 53 tasks, written after the rules were tuned. It was also used to choose prompts.
-- **Test v2:** 121 tasks / 174 turns, written blind in one pass; untouched when the runs below were made (see round 2 below).
+### Task sets and who wrote them
 
-Task success, with 95% CIs where the table has room:
+| Set | Size | Written by | Status |
+|---|---|---|---|
+| Development | 271 tasks | project author | used to drive fixes |
+| Held-out | 53 tasks | project author, after the rules were tuned | also used to choose prompts, so a validation set |
+| Test v2 | 121 tasks / 174 turns | project author, blind, in one pass | failure classes read after its first runs and fixed on dev-style tasks, so **after exposure** since round 2 |
+| Multi-turn v1 | 49 conversations / 206 turns | a separate author who did not read the routing code or any task file ([protocol](evaluation/agent_eval/tasks/README_multiturn_v1.md)) | first runs below; fixed afterwards, so after exposure |
+| Test v3 | 130 tasks / 155 turns | a separate author, same rules ([protocol](evaluation/agent_eval/tasks/README_test_v3.md)) | **untouched**: no fix has looked at it |
+| Router labels, independent v1 / v2 | 154 / 241 queries | separate authors labelling against a written policy ([v2 protocol](evaluation/agent_eval/tasks/README_router_labels_independent_v2.md)) | v1 exposed after its first run; v2 run once |
 
-| Answer path | Dev · DeepSeek | Held-out · DeepSeek | Test v2 · DeepSeek | Held-out · GLM | Test v2 · GLM | Cost / task (DeepSeek dev) | P95 (DeepSeek dev) |
+### LLM paths online (DeepSeek and GLM, commit `d1c007c`)
+
+Task success with 95% CIs. Sources:
+
+- held-out and test v2: `ablation-final2-deepseek.json` and `ablation-final2-glm.json`, commit `d1c007c`;
+- the development column: `ablation-final.json`, commit `846bc5e`.
+
+| Answer path | Dev · DeepSeek | Held-out · DeepSeek | Test v2 · DeepSeek | Held-out · GLM | Test v2 · GLM | Cost / task (DeepSeek, held-out) | P95 (DeepSeek, held-out) |
 |---|---|---|---|---|---|---|---|
-| Original `/chat`, no LLM | 0.256 | 0.189 | 0.223 | 0.207 | 0.223 | – | 1.0 s |
-| Original `/chat` + LLM rewrite (1 run) | 0.440 | 0.679 | not run | not run | not run | not recorded | 13.4 s |
-| LLM alone, no tools | 0.000 | 0.000 | 0.000 | – | – | $0.0009 | 18.3 s |
-| Deterministic workflow (no LLM) | 0.981 | 0.849 [0.75, 0.94] | 0.727 [0.64, 0.80] | 0.849 | 0.727 | $0 | 0.8 s |
-| Workflow + LLM composition | 0.979 | 0.906 [0.83, 0.98] | 0.766 [0.69, 0.83] | 0.906 [0.83, 0.98] | 0.760 [0.68, 0.83] | $0.0008 | 16.7 s |
-| **LLM agent (tool loop)** | **0.986** | **0.956** [0.91, 0.99] | **0.804** [0.73, 0.86] | **0.981** [0.94, 1.00] | **0.810** [0.74, 0.87] | $0.0016 | 25.2 s |
+| Original `/chat`, no LLM | 0.256 | 0.208 [0.11, 0.32] | 0.223 [0.15, 0.30] | 0.208 | 0.223 | – | 0.6 s |
+| Deterministic workflow (no LLM) | 0.981 | 0.906 [0.83, 0.98] | 0.826 [0.76, 0.89] | 0.906 | 0.826 | $0 | 0.4 s |
+| Workflow + LLM composition | 0.979 | 0.956 [0.90, 1.00] | 0.860 [0.80, 0.92] | 0.962 [0.91, 1.00] | 0.857 [0.80, 0.91] | $0.00084 | 15.7 s |
+| **LLM agent (tool loop)** | **0.986** | **0.962** [0.93, 0.99] | **0.901** [0.85, 0.95] | **0.950** [0.91, 0.99] | **0.846** [0.79, 0.90] | $0.00115 | 20.4 s |
 
-Sources:
+- **The LLM alone passes nothing.** Without tools it passes 0 of 381 tasks on dev, held-out and test v2 (`ablation-final.json`, `ablation-test_v2-deepseek.json`), and 0 of 130 on test v3 (`ablation-test_v3-purellm-deepseek.json`, `3730408`). It cannot cite evidence, and its prices cannot be verified.
+- **Agent vs LLM composition:**
+  - Held-out: no significant difference with either model. DeepSeek +0.006 [−0.050, +0.063]; GLM −0.013 [−0.076, +0.057].
+  - Test v2 (after exposure): the DeepSeek agent is ahead per run, +0.041 [+0.006, +0.083], but not on pass^3 (+0.033 [−0.025, +0.091]). With GLM there is no difference, −0.011 [−0.050, +0.028].
+  - `mode=auto` is therefore a cost and latency choice, not a proven quality gain.
+- **GLM latency.** With GLM the agent's P95 is 67–78 s, against 17 s for GLM composition.
+- **Prompt versions.** The prompt-v2/v3 quality gain claimed earlier was withdrawn because it sat inside the run-to-run spread. The supported result is the cost cut: −69% agent cost per dev task from v1 to v2.
+- **Pending rerun.** A rerun of these paths at the final round-4 commit, adding test v3 and multi-turn v1, is **pending**. The ClinePass weekly quota ran out during it: every call returned HTTP 429, so those runs measured the fallback path and were not committed. The evaluation tooling now marks such runs invalid instead of reporting them.
 
-- DeepSeek dev / held-out: `ablation-final.json`, commit `846bc5e`.
-- DeepSeek test v2: `ablation-test_v2-deepseek.json`, commit `38a3069`.
-- GLM: `ablation-glm.json`, commit `f7bf624`.
+### Independent sets: first runs vs after exposure
 
-<!-- final2: update after final online run (held-out and test v2, DeepSeek and GLM, at the round-2 commit) -->
-
-What the confidence intervals support:
-
-- **Tools and verification are the precondition.** The LLM alone passes 0 of 381 tasks across the three sets: it cannot cite evidence, and its prices cannot be verified.
-- **LLM paths help on phrasings the rules were not written for.** On test v2, both LLM paths beat the deterministic workflow by 3–8 points of per-run success, with both models.
-- **Agent vs LLM composition, with DeepSeek: no significant difference.**
-  - Held-out: Δ +0.050 [−0.006, +0.119].
-  - Test v2, rerun at lower concurrency: Δ +0.036 [−0.011, +0.085].
-  - Held-out pass^3 is 0.906 for both paths.
-- **Agent vs LLM composition, with GLM: significant on per-run success, not on pass^3.**
-  - Held-out: +0.075 [+0.019, +0.151] (pass^3 McNemar p = 0.125).
-  - Test v2: +0.050 [+0.008, +0.091] (pass^3 p = 0.23).
-  - Dev set: the GLM agent is significantly *worse*, −0.021 [−0.035, −0.008].
-- **`mode=auto` is therefore a cost and latency choice, not a proven quality gain.** The agent costs 2–5x as much as LLM composition, and its P95 was 25 s with DeepSeek (dev set) and about 80 s with GLM before the round-3 latency work; with DeepSeek it is now 15.4 s on held-out and 17.3 s on test v2 ([performance.md](docs/performance.md#2a-agent-path-latency-profile-changes-and-beforeafter)).
-- **The claimed prompt-v2/v3 quality gain was withdrawn.** It sat inside the run-to-run spread. The supported result is the cost cut: −69% agent cost per dev task from v1 to v2 ($0.0040 → $0.0013).
-
-What changed after these runs (round 2), measured offline:
-
-- **Where test v2 failed:**
-  - follow-ups that name no company, e.g. "ROE呢" (multi-turn 0.21–0.32);
-  - dangling questions that should get a clarifying question (0.33).
-- **The fixes:** elliptical follow-ups, a metric asked without a company, and a fuzzy-concept filter. They were built and validated on new development-style tasks, not on test v2. Because the failure classes were read from test v2, **test v2 is now a validation set too**; a fresh test set is needed for an unbiased estimate.
-- **Offline gate at `d3c1495` (round 3):**
-  - dev (now 238 tasks; round 3 added 22 regressions for the round-2 review bugs, of which the round-2 code passed 5/22): 1.000;
-  - held-out, deterministic workflow: 0.849 → 0.906 [0.83, 0.98] (`gate-*.json`);
-  - router accuracy: 0.715 on 158 labelled queries at `d78b313` → 0.975 on 162 (`router_eval-*.json`; unchanged at 0.975 in round 3).
-  - These labels were written by the author: they check routing policy, not independent quality.
-
-| Other measurements | Result | Evidence |
+| Set | First run (honest estimate) | After exposure (tuned, not an estimate) |
 |---|---|---|
-| Verifier stress test: 159 correct answers, 2,433 corrupted variants | False accepts: 34.3% (original run-level check) → **2.1%** (claim-level). Numbers swapped between companies: 100% → **0.2%**. Correct answers accepted: 100%. Repaired answers: 100% readable and verified, 0% fragments (clause salvage before: 29% readable, 97% with fragments). | `verifier_stress.json` (`2494656`) |
-| Prompt-injection red team: 17 attacks × 4 obfuscations, planted in search results | Dev attacks: **0** successes in 216 runs on the three paths. Unseen held-out attacks: 0/64 template, 2/64 LLM composition, 1/64 agent (`846bc5e`). Offline template path at `2494656`: holdout2 0/64; holdout3 (the round-2 reviewer's 11 planted attacks, added before the fix) 6/88 → **2/88**. | `redteam-online.json`, `redteam-offline.json` |
-| Fault injection: timeouts, 5xx, empty data, huge documents, LLM down, malformed tool calls, endless loops | 11/11 scenarios degrade gracefully | `fault_injection.json` |
-| Load, deterministic path | One checkpoint per run instead of per step: 4.8 → 6.5 req/s at 1 user, session store 64 MB → 9.4 MB for the same 820 requests. An earlier "11x" claim did not reproduce; the real gain is 1.3–1.6x. | [performance.md](docs/performance.md) |
-| Load, LLM agent path | 0 failed requests at 4, 8 and 16 users. The ceiling is the gateway's rate limit (HTTP 429), not the service: rate-limited turns fell back to the deterministic answer. **¥19.7 per 1,000 agent questions** (4.1 LLM calls, 22k tokens each). | [performance.md](docs/performance.md) |
-| k3s, Postgres-shared sessions | 1 → 3 replicas: 3.75 → 11.72 req/s at 32 users, 0 errors. A follow-up sent to pod B resolved "它" from a turn served by pod A. | [performance.md](docs/performance.md) |
-| Chaos drill against the real gateway and live sources | **LLM:** primary model broken → breaker opened → GLM answered → half-open trial → closed. **Sources:** Sina/Tencent/Eastmoney blocked → 60 s cache → last-known-good → the answer states the limitation instead of serving an April price. | [a2a-and-observability.md](docs/a2a-and-observability.md#chaos-drill) |
-| Live data audit: 64 probes | 49 OK. Fixed a wrong M2 series, stale CPI/PMI, always-null PE/PB and empty announcements. Sina/THS growth rates cross-checked against reported levels. | [data-sources.md](docs/data-sources.md) |
+| Multi-turn v1, deterministic path | task 0.224 [0.12, 0.35], turn 0.709 (`multiturn_v1-auto-nollm-first-run.json`, `1bd1932`) | task 1.000, turn 1.000 (`multiturn_v1-auto-nollm-after-fixes.json`, `7513376`) |
+| Multi-turn v1, DeepSeek | agent task 0.361 [0.24, 0.49], pass^3 0.286, turn 0.795. Composition task 0.286, pass^3 0.245 (`ablation-multiturn_v1-deepseek-first-run.json`, `527a611`) | rerun pending |
+| Router labels, independent v1 (154) | 0.740 (`router_eval-independent_v1-first-run.json`, `882745d`) | 1.000 (`router_eval-round4-independent-after-exposure.json`, `075caad`) |
+| Router labels, independent v2 (241, fresh) | **0.801** after the round-4 router changes (`router_eval-independent_v2-first-run.json`, `3080bfe`) | – |
+| Router labels, own (not independent) | 0.988 on 162 (`router_eval-round3b.json`) | 1.000 on 303 (`router_eval-round4-own.json`) |
+| Test v3, deterministic path | task 0.762 [0.68, 0.83], turn 0.794 (`test_v3-auto-nollm-first-run.json`, `882745d`) | – (untouched) |
+| Claim check, held-out claims (47) | verdict accuracy **0.936 [0.851, 1.000]**, per-number check accuracy 0.944 (`claim_bench-holdout.json`, `2fcb4f0`) | the dev claims went 0.527 → 1.000 after tuning (`claim_bench-dev-baseline.json`, `claim_bench-dev.json`) |
 
-<!-- final2: add the red-team rerun (redteam-final2) at the round-2 commit -->
+The gap between the author's own router labels (0.988) and the first independent set (0.740) was the most useful finding of round 3. The rules had been fitted to the phrasings their author thought of. Each fix after that was generalised into a policy class, and a new independent set measured the result. The multi-turn story follows the same pattern and is described in [docs/presentation/agent-design-notes.md](docs/presentation/agent-design-notes.md).
+
+### Other measurements
+
+| Measurement | Result | Evidence |
+|---|---|---|
+| Verifier stress test: 202 correct answers, 3,399 corrupted variants | False accepts: original check 33.3%, run-level check 24.4%, claim-level **1.94%** (2.03% with derived numbers allowed). Numbers swapped between companies: 100% → **0.53%**. Correct answers accepted: 100%. | `verifier_stress.json` (`9f0e46b`) |
+| Repair of failed answers (3,333 rejected variants) | Whole-sentence deletion: 100% readable and verified, 0% fragments, 98.0% of untouched sentences kept, 18.3% fall back to the template answer. Clause salvage, measured at `2494656`, had been 29% readable with fragments in 97%. | `verifier_stress.json` (`9f0e46b`) |
+| Prompt-injection red team: attacks planted in search results, 4 obfuscations each | **Online, DeepSeek, `d1c007c`** (`redteam-final2.json`): dev 0/72 on all three paths. Unseen holdout: 0/64 template, 1/64 LLM composition, 0/64 agent. Holdout2: 0/64, 1/64, 0/64. **Offline template, `9f0e46b`** (`redteam-offline.json`): holdout3, the round-2 reviewer's 11 planted attacks, 2/88. | `redteam-final2.json`, `redteam-offline.json` |
+| Fault injection: timeouts, 5xx, empty data, huge documents, LLM down, malformed tool calls, endless loops | 11/11 scenarios degrade gracefully | `fault_injection.json` |
+| Agent latency, DeepSeek, held-out / test v2 | P95 27.1 → **15.4 s** / 24.2 → **17.3 s**. First token P50 about 5.5 → **3.0 / 2.8 s**. LLM calls per turn 2.30 → 1.39. Task success unchanged or higher: paired Δ +0.006 [0.000, +0.019] on held-out, +0.003 [−0.005, +0.014] on test v2 against the same code with the switches off. | [performance.md §2a](docs/performance.md#2a-agent-path-latency-profile-changes-and-beforeafter), `perf-*.json` |
+| Load, LLM agent path, 4 users, streamed | P95 26.7 s on harder multi-tool questions (29.6 s with the switches off), 0 errors, ¥12.6 per 1,000 questions | `docs/results/perf/agent/load_test-agent-4-*.json` |
+| Load, deterministic path | One checkpoint per run instead of per step: 4.8 → 6.5 req/s at 1 user, session store 64 MB → 9.4 MB for the same 820 requests. An earlier "11x" claim did not reproduce; the real gain is 1.3–1.6x. | [performance.md](docs/performance.md) |
+| Start-up | Service build 24.1 s cold, 3.7 s rebuilt in-process, 6.8 s after a restart with the index cached on disk. Container from `docker run` to `/ready` 200: median 46 s. | `docs/results/perf/startup.json`, `startup-container.json` |
+| k3s, Postgres-shared sessions | 1 → 3 replicas: 3.75 → 11.72 req/s at 32 users, 0 errors. A follow-up sent to pod B resolved "它" from a turn served by pod A. A2A tasks and traces are shared as well: a task paused on replica 1 was resumed on replica 2. | [performance.md](docs/performance.md), `docs/results/protocols/` |
+| Chaos drill against the real gateway and live sources | **LLM:** primary model broken → breaker opened → GLM answered → half-open trial → closed. **Sources:** Sina/Tencent/Eastmoney blocked → 60 s cache → last-known-good → the answer states the limitation instead of serving an April price. | [a2a-and-observability.md](docs/a2a-and-observability.md#chaos-drill) |
+| Live data audit: 64 probes | 49 OK, 10/10 fallback chains OK. Fixed a wrong M2 series, stale CPI/PMI, always-null PE/PB and empty announcements. Sina/THS growth rates are cross-checked against reported levels. | `docs/results/data_sources/audit-20260928-6dde495.json`, [data-sources.md](docs/data-sources.md) |
 
 ## Architecture
 
@@ -146,7 +157,8 @@ Sessions are LangGraph checkpoints (memory, SQLite or Postgres). This lets a cla
   - One LLM revision after failed verification.
   - Clarification interrupts with resume.
   - Session memory: recent targets, stated constraints and holdings.
-  - Follow-ups: pronouns ("它"), plurals ("这两家", "both") and elliptical questions ("ROE呢", "换成五粮液呢", "And the P/B?").
+  - Follow-ups: pronouns ("它"), plurals and group references ("这两家", "三家里哪家", "前者/后者", "the latter"), elliptical questions ("ROE呢", "换成五粮液呢", "And the P/B?"), bare "why" follow-ups, and questions about a discussed stock's sector. Off-topic requests are still refused inside a finance conversation, and every rewrite is logged as a route reason.
+  - Coverage: crypto and US/HK stocks get a clear "not covered" refusal. Periods or metrics the data lacks are stated rather than silently replaced ("没有2019年数据，以下为2025年报").
   - Per-node reasoning levels, and model failover with a circuit breaker.
   - Versioned prompts pinned by hash.
 - **Evidence tools**
@@ -163,10 +175,12 @@ Sessions are LangGraph checkpoints (memory, SQLite or Postgres). This lets a cla
   - A trace for every run: nodes, tools, LLM calls with context composition and JSON status, tokens, cost and prompt versions.
   - A run inspector API and OpenTelemetry export.
   - Prometheus metrics, labelled by the model that actually answered.
-  - A Grafana dashboard with 19 panels, 10 alert rules, and Jaeger.
+  - A Grafana dashboard (27 panels, including verification failure and repair rate by prompt version and the user-feedback ratio), 13 alert rules, and Jaeger.
+  - An audit log: one structured event per refusal and per compliance edit, with hashed ids and no user text.
   - User feedback (`POST /agent/feedback`), turned into candidate evaluation tasks by `scripts/feedback_to_tasks.py`.
 - **Web UI** (React 19, TypeScript, Tailwind v4, Radix, Motion, Lightweight Charts)
-  - The answer streams as it is written, next to a streamed run timeline.
+  - Before the first token, a live progress panel shows the current step (plan → data → draft → verify), the tools being called with their targets, elapsed time and a Stop button. The answer then streams as it is written, next to the run timeline. Time to first token and total time appear in the run details.
+  - A fact-check view for pasted claims shows each number's comparator, claimed vs actual value, source and date. A chat message like "听说…是真的吗" offers to open it.
   - Citation chips link to an evidence ledger that shows freshness.
   - Price charts, run cost and latency.
   - Feedback buttons and Markdown export.
@@ -175,7 +189,8 @@ Sessions are LangGraph checkpoints (memory, SQLite or Postgres). This lets a cla
   - Optional API keys, with sessions and traces scoped to the key (a hash, never the key itself).
   - Rate limiting, CORS and body limits.
   - An input guard against instructions in the user turn.
-  - The container runs as non-root on a read-only root filesystem.
+  - The container runs as non-root on a read-only root filesystem. The Kubernetes manifests carry NetworkPolicies and no plaintext Secret.
+  - CI scans the full git history with gitleaks, and pre-commit hooks run the same scan ([SECURITY.md](SECURITY.md)).
 
 <p align="center">
   <img src="docs/assets/ui/chrome-run-details.png" alt="Run details: tokens, cost, latency" width="440">
@@ -263,6 +278,8 @@ CI runs the following:
 | Performance, load and scaling | [docs/performance.md](docs/performance.md) |
 | Deployment | [docs/deployment.md](docs/deployment.md) |
 | Design notes: trade-offs, built vs reused, failure cases (Chinese) | [docs/presentation/agent-design-notes.md](docs/presentation/agent-design-notes.md) |
+| Interview script: 30-second pitch, three defended numbers, a failure story, whiteboard outline (Chinese) | [docs/presentation/interview-script.md](docs/presentation/interview-script.md) |
+| Claim check: rules, comparators, benchmark | [docs/claim-check.md](docs/claim-check.md) |
 | Agent and prompt-engineering practice research | [docs/research/agent-architecture-practices-2026.md](docs/research/agent-architecture-practices-2026.md) |
 | Query Intelligence (classical NLU and retrieval) | [docs/query-intelligence.md](docs/query-intelligence.md) |
 | Web UI | [docs/frontend-chatbot.md](docs/frontend-chatbot.md) |
@@ -270,12 +287,13 @@ CI runs the following:
 
 ## Limits
 
-- **Two model families, both flash-class.** Both online models are served through one gateway, and the online numbers above come from commits before the round-2 fixes.
-- **No clean test set remains.** The held-out set was used to choose prompts. Test v2's failure classes drove the round-2 follow-up fixes. Both are now validation sets, and a fresh test set is needed.
-- **The agent loop is not proven better than LLM composition.** Its edge is not significant with DeepSeek, and it is smaller than its extra cost with GLM.
+- **Two model families, both flash-class, both through one gateway.** The online table comes from `d1c007c`, the round-2 code. Its rerun at the final commit is pending because the gateway's weekly quota ran out.
+- **Only one untouched task set.** Test v3 has never been used for a fix, but so far only the deterministic path and the no-tools LLM have run on it. Held-out chose prompts; test v2, multi-turn v1 and router labels v1 are after exposure.
+- **Routing still misses about one question in five on fresh phrasing.** The fresh independent router set scores 0.801. Advice with no target and borderline clarify-or-refuse cases are the main misses.
+- **The agent loop is not proven better than LLM composition.** On held-out the difference is not significant with either model, and the agent costs 1.4–6x as much.
 - **The verifier proves traceability, not truth.** It checks that numbers come from the cited evidence. It cannot tell whether the right period or metric was chosen when one evidence item holds several. A fake price planted inside a news excerpt passes, because it *is* in the evidence.
 - **The injection filter does not generalise.** The lexical filter redacted none of the held-out attacks; protection comes mostly from structure (read-only tools, the untrusted-data envelope, verification, compliance and the language guard).
-- **Follow-up handling is rule-based.** Pronouns, plurals and ellipsis are resolved by rules, and English company aliases cover major names only.
+- **Follow-up handling is rule-based.** Session rules resolve pronouns, plurals, group references and ellipsis, and every rewrite is logged. Their wording lists came from what their author and the exposed sets showed. English company aliases cover major names only.
 - **Latency.** With DeepSeek the agent's P95 is 15.4 s on held-out and 17.3 s on test v2, and the first answer token arrives after about 3 s (P50). Planner prefetch, citation repair and a 20 s stall timeout brought it down from 22–27 s without a loss in task success ([performance.md](docs/performance.md#2a-agent-path-latency-profile-changes-and-beforeafter)). On harder multi-tool questions at 4 concurrent users the P95 is 26.7 s. With GLM the P95 is still about 60–70 s, driven by per-call variance. Every LLM request is capped by the run deadline (90 s + 20 s for the answer, below the API's 120 s timeout).
 - **Free data sources throttle.** Eastmoney refused this machine's connections during the audit, and the fallbacks carried the load. With a Postgres checkpointer, A2A tasks and traces are shared by all replicas too; the rate limiter and the caches are still per replica.
 

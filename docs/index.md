@@ -20,7 +20,8 @@ The root README is intentionally short; use these pages when you need contracts,
 | [Data Sources](data-sources.md) | Live source audit, fallback chains, circuit breakers, bounded call pool, cache, Sina/THS cross-check, provenance, `/sources/health` (with an active probe). |
 | [Performance](performance.md) | Load tests of the deterministic and LLM agent paths (cost in CNY), the checkpoint fix reproduced, k3s multi-replica scaling, service start-up. |
 | [Deployment](deployment.md) | Docker image, monitoring profile, Kubernetes manifests (replicas sharing sessions through Postgres), read-only root filesystem. |
-| [Design notes (Chinese)](presentation/agent-design-notes.md) | Trade-offs, built vs reused, 28 real failure cases with root cause and fix, ablation conclusions with CIs, interview FAQ. |
+| [Design notes (Chinese)](presentation/agent-design-notes.md) | Trade-offs, built vs reused, 32 real failure cases with root cause and fix, ablation conclusions with CIs, independent-set results, interview FAQ. |
+| [Interview script (Chinese)](presentation/interview-script.md) | 30-second pitch, architecture walk-through, three defended numbers, a failure story, whiteboard outline, AI coding-tool note. |
 | [Agent practices research](research/agent-architecture-practices-2026.md) | 2025–2026 agent and prompt-engineering practice from primary sources, and the gap analysis that drove the latest changes. |
 | [Query Intelligence](query-intelligence.md) | Scope, architecture, API, NLU and retrieval output contracts, live providers, environment variables, troubleshooting. |
 | [Local Frontend Chatbot](frontend-chatbot.md) | Browser UI, `/chat` contract, LLM API settings, real local screenshots, and troubleshooting. |
