@@ -23,6 +23,7 @@ from query_intelligence.data_loader import DATA_DIR, load_structured_data
 from query_intelligence.integrations.akshare_market_provider import AKShareMarketProvider
 from query_intelligence.integrations.ops_metrics import OpsMetricsCollector, llm_circuit_states
 from query_intelligence.integrations.sources.cache import SourceCache
+from query_intelligence.integrations.sources.catalog import CATALOG
 from query_intelligence.integrations.sources.crosscheck import (
     SINA,
     THS,
@@ -31,7 +32,7 @@ from query_intelligence.integrations.sources.crosscheck import (
     reconcile_fundamentals,
 )
 from query_intelligence.integrations.sources.health import SourceHealthRegistry
-from query_intelligence.integrations.sources.probe import ActiveProber, Probe
+from query_intelligence.integrations.sources.probe import ActiveProber, Probe, default_probes, unprobeable_sources
 from query_intelligence.integrations.sources.provenance import build_provenance
 from query_intelligence.integrations.sources.report import sources_health_report
 from query_intelligence.integrations.sources.runtime import (
@@ -214,19 +215,57 @@ def test_probe_is_skipped_when_live_data_is_off():
     assert report["probe"]["status"] == "skipped"
 
 
-def _app_is_wired() -> bool:
-    """The API wiring lives in ``api/app.py`` (owned elsewhere); see ``deploy/patches/app-ops-wiring.patch``."""
-    import inspect
+def test_probe_marks_sources_it_did_not_cover():
+    calls: list[str] = []
+    prober = ActiveProber(
+        probes_factory=lambda: _probes(calls), unprobeable=lambda: {"tushare": "no TUSHARE_TOKEN configured"}
+    )
 
-    from query_intelligence.api import app as app_module
+    class _Pipeline:
+        source_runtime = SourceRuntime()
+        market_provider = object()
 
-    return "OpsMetricsCollector" in inspect.getsource(app_module)
+    report = sources_health_report(_Pipeline(), probe=True, prober=prober)
+
+    assert report["probe"]["catalog_total"] == len(CATALOG)
+    not_probed = {item["source"]: item["reason"] for item in report["probe"]["not_probed"]}
+    assert set(not_probed) == set(CATALOG) - {"sina.kline", "eastmoney.quote"}
+    assert not_probed["tushare"] == "no TUSHARE_TOKEN configured"
+    assert not_probed["cninfo.profile"] == "no probe defined"
+    rows = {row["source"]: row for row in report["sources"]}
+    assert rows["sina.kline"]["probe"]["probed"] is True and rows["sina.kline"]["probe"]["ok"] is True
+    assert rows["eastmoney.quote"]["probe"]["ok"] is False
+    assert rows["tushare"]["probe"] == {"probed": False, "reason": "no TUSHARE_TOKEN configured"}
+
+    # A rate-limited request reports coverage from the previous round.
+    again = sources_health_report(_Pipeline(), probe=True, prober=prober)
+    assert again["probe"]["status"] == "rate_limited"
+    assert {row["source"]: row for row in again["sources"]}["sina.kline"]["probe"]["probed"] is True
 
 
-needs_app_wiring = pytest.mark.skipif(not _app_is_wired(), reason="api/app.py ops wiring not applied yet")
+def test_default_probes_cover_the_catalog(monkeypatch):
+    # Every catalogued source has a probe; only Tushare depends on a token.
+    monkeypatch.delenv("TUSHARE_TOKEN", raising=False)
+    without_token = {probe.source_id for probe in default_probes()}
+    assert without_token == set(CATALOG) - {"tushare"}
+    assert unprobeable_sources() == {"tushare": "no TUSHARE_TOKEN configured"}
+
+    monkeypatch.setenv("TUSHARE_TOKEN", "token-for-test")
+    assert {probe.source_id for probe in default_probes()} == set(CATALOG)
+    assert unprobeable_sources() == {}
 
 
-@needs_app_wiring
+def test_skipped_probe_marks_every_source_unprobed():
+    class _Pipeline:
+        source_runtime = SourceRuntime()
+        market_provider = None
+
+    report = sources_health_report(_Pipeline(), probe=True, prober=ActiveProber(probes_factory=list))
+
+    assert all(row["probe"]["probed"] is False for row in report["sources"])
+    assert "QI_USE_LIVE_MARKET" in report["sources"][0]["probe"]["reason"]
+
+
 def test_sources_health_endpoint_accepts_probe_parameter():
     from fastapi.testclient import TestClient
 
@@ -633,7 +672,6 @@ def test_ops_collector_renders_source_pool_and_llm_metrics():
     assert 'finsight_llm_client_calls_total{model="backup"} 1.0' in text
 
 
-@needs_app_wiring
 def test_metrics_endpoint_includes_ops_metrics():
     from fastapi.testclient import TestClient
 

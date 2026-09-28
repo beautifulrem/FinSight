@@ -281,11 +281,15 @@ an upstream. For each source it returns status (`up`, `degraded`, `down`, or `un
 state, call/success/failure counts, last and average latency, last error, `retry_in_s` for open
 circuits, the breaker and cache configuration, and the source-call pool counters (`worker_pool`).
 
-**Active probe (opt-in).** `GET /sources/health?probe=1` first runs one cheap request per source
-(Eastmoney quote/datacenter/news, Sina kline/quote, Tencent kline/quote, THS finance/industry, cninfo
-profile) through the same guarded `SourceRuntime.call`, so breakers, latency and errors are recorded
-exactly as for real traffic, then returns the report with a `probe` block (per-source `ok`, `outcome`,
-`latency_ms`, `error`). Several upstreams throttle bursts from one IP, so probing is rate limited
+**Active probe (opt-in).** `GET /sources/health?probe=1` first runs one cheap request for every
+catalogued source (all 19: Eastmoney quote/datacenter/fund/news/announcements, Sina kline/quote/finance,
+Tencent kline/quote, THS finance/industry, CSIndex, ChinaBond, cninfo announcements/profile, Xueqiu,
+efinance, and Tushare when `TUSHARE_TOKEN` is set) through the same guarded `SourceRuntime.call`, so
+breakers, latency and errors are recorded exactly as for real traffic, then returns the report with a
+`probe` block (per-source `ok`, `outcome`, `latency_ms`, `error`; `catalog_total`; and `not_probed`,
+each skipped source with its reason). Every source row also gets a `probe` field: the latest probe
+result, or `{"probed": false, "reason": ...}` (for example Tushare without a token), so an unprobed
+source is never mistaken for a healthy or merely idle one. Slow multi-page upstreams get 15 s, the rest 6 s. Several upstreams throttle bursts from one IP, so probing is rate limited
 process-wide: one round per `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS` (default 60). Inside that window
 the previous round is returned with `status: rate_limited` and `retry_in_s`; a request during a
 running round gets `in_progress`. With live market data off the probe is `skipped`.
