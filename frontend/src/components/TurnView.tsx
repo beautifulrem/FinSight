@@ -1,4 +1,4 @@
-import { AnimatePresence, m as motion } from "motion/react";
+import { AnimatePresence, m as motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
   ChevronDown,
@@ -16,6 +16,7 @@ import {
 import { useEffect, useId, useMemo, useState } from "react";
 
 import type { Turn } from "@/hooks/useChat";
+import { useElapsed } from "@/hooks/useElapsed";
 import { evidenceIndex, stripCitations } from "@/lib/citations";
 import { claimInMessage } from "@/lib/claims";
 import { cn } from "@/lib/cn";
@@ -24,6 +25,7 @@ import { answerEdited, streamingText } from "@/lib/streaming";
 import { formatMs } from "@/lib/format";
 import { evidenceFreshness, summarizeFreshness } from "@/lib/freshness";
 import { useI18n, type MessageKey } from "@/lib/i18n";
+import { turnProgress, type Progress } from "@/lib/progress";
 import { liveTrace, traceStats } from "@/lib/trace";
 import type { AnswerView } from "@/lib/view";
 
@@ -32,6 +34,7 @@ import { CodeText } from "./CodeLabel";
 import { DataPanel } from "./DataPanel";
 import { FreshnessBanner } from "./Freshness";
 import { RichText, type CiteHandler } from "./RichText";
+import { RunProgress } from "./RunProgress";
 import { SentimentBar } from "./SentimentBar";
 import { TraceTimeline } from "./TraceTimeline";
 import { Badge } from "./ui/badge";
@@ -46,6 +49,8 @@ export interface TurnActions {
   onFeedback: FeedbackSender;
   /** Open the fact-check view with this claim (the "听说…是真的吗" hint). */
   onCheckClaim?: (claim: string) => void;
+  /** Stop the running turn (the composer's Stop, repeated next to the progress). */
+  onStop?: () => void;
 }
 
 interface Props extends TurnActions {
@@ -133,10 +138,13 @@ function VerificationBadge({ view }: { view: AnswerView }) {
 function TraceDisclosure({
   view,
   turn,
+  live: liveState,
   onEvidence,
 }: {
   view?: AnswerView | null;
   turn: Turn;
+  /** While the turn runs: what it is doing now and for how long (seconds). */
+  live?: { progress: Progress; elapsed: number };
   onEvidence: (id: string) => void;
 }) {
   const { t } = useI18n();
@@ -148,7 +156,8 @@ function TraceDisclosure({
   const panelId = useId();
   if (!nodes.length && !live) return null;
   const stats = traceStats(nodes);
-  const ms = view?.serverMs ?? view?.wallMs;
+  const ms = view?.serverMs ?? view?.wallMs ?? (liveState ? liveState.elapsed * 1000 : undefined);
+  const liveLabel = liveState ? t(`progress.activity.${liveState.progress.activity}`) : t("trace.live");
   return (
     <div className="trace rounded-xl border border-line bg-bg/60">
       <button
@@ -159,12 +168,20 @@ function TraceDisclosure({
         aria-label={open ? t("trace.collapse") : t("trace.expand")}
         onClick={() => setOpen(!open)}
       >
-        <span className={cn("size-1.5 rounded-full", live ? "animate-pulse bg-gilt" : "bg-cobalt")} aria-hidden />
-        <span className="font-medium">{live ? <span className="shimmer">{t("trace.live")}…</span> : t("trace.title")}</span>
-        <span className="text-faint tabular-nums">
-          {t("trace.summary", { steps: stats.steps, tools: stats.tools, ms: ms !== undefined ? formatMs(ms) : "…" })}
+        <span className={cn("size-1.5 shrink-0 rounded-full", live ? "bg-gilt motion-safe:animate-pulse" : "bg-cobalt")} aria-hidden />
+        <span className="min-w-0 truncate font-medium">{live ? <span className="shimmer">{liveLabel}…</span> : t("trace.title")}</span>
+        <span className={cn("text-faint tabular-nums", liveState && !view && "hidden sm:inline")}>
+          {t("trace.summary", {
+            steps: stats.steps,
+            tools: stats.tools,
+            ms: ms === undefined ? "…" : liveState && !view ? t("progress.elapsed", { s: liveState.elapsed }) : formatMs(ms),
+          })}
         </span>
-        <ChevronDown className={cn("ml-auto size-4 text-faint transition-transform", open && "rotate-180")} aria-hidden />
+        {liveState && !view && (
+          // Phones show only the elapsed time next to the step; the counts wrap badly at 390 px.
+          <span className="shrink-0 text-faint tabular-nums sm:hidden">{t("progress.elapsed", { s: liveState.elapsed })}</span>
+        )}
+        <ChevronDown className={cn("ml-auto size-4 shrink-0 text-faint transition-transform", open && "rotate-180")} aria-hidden />
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -188,11 +205,10 @@ function TraceDisclosure({
 }
 
 function StreamingAnswer({ draft }: { draft: string }) {
-  const { t } = useI18n();
   const text = streamingText(draft);
   return (
-    <div className="streaming-answer" data-streaming="true">
-      <span className="sr-only">{t("stream.writing")}</span>
+    // Tokens render silently (aria-busy, no live region): the status region announces the step instead.
+    <div className="streaming-answer" data-streaming="true" aria-busy="true">
       {text.trim() ? (
         <RichText text={text} className="answer-text streaming-text text-[15px] leading-[1.8] text-ink" />
       ) : (
@@ -407,6 +423,53 @@ function ErrorCard({ turn, onRetry }: { turn: Turn; onRetry: (turn: Turn) => voi
   );
 }
 
+/**
+ * A turn that is still running. Before the first answer token it shows the progress panel (step, tools,
+ * elapsed time, answer skeleton); once text streams, the panel folds into the collapsed run trace above
+ * the streaming answer. One polite status region announces step changes; nothing else here is live.
+ */
+function RunningCard({ turn, onStop }: { turn: Turn; onStop?: () => void }) {
+  const { t } = useI18n();
+  const reduceMotion = useReducedMotion();
+  const staged = turn.via === "stream";
+  const progress = useMemo(() => turnProgress(turn), [turn]);
+  const elapsed = useElapsed(turn.startedAt);
+  const status = staged
+    ? t("progress.status", { phase: t(`progress.phase.${progress.phase}`), activity: t(`progress.activity.${progress.activity}`) })
+    : t("app.running");
+  return (
+    <div
+      className="answer-card running-card rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5"
+      data-phase={staged ? progress.phase : undefined}
+    >
+      <p role="status" className="progress-status sr-only">
+        {status}
+      </p>
+      <div aria-live="off">
+        {/* "wait": the panel fades out before the trace and the text take its place, so the two never stack. */}
+        <AnimatePresence initial={false} mode="wait">
+          {progress.streaming ? (
+            <motion.div
+              key="stream"
+              className="space-y-3.5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: reduceMotion ? 0 : 0.18 }}
+            >
+              <TraceDisclosure turn={turn} live={{ progress, elapsed }} onEvidence={() => undefined} />
+              <StreamingAnswer draft={turn.draft ?? ""} />
+            </motion.div>
+          ) : (
+            <motion.div key="progress" exit={{ opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.15 }}>
+              <RunProgress progress={progress} elapsed={elapsed} staged={staged} onStop={onStop} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
 export function TurnView(props: Props) {
   const { turn, view, onCheckClaim } = props;
   const { t } = useI18n();
@@ -421,26 +484,15 @@ export function TurnView(props: Props) {
     >
       <UserBubble turn={turn} />
       {claim && onCheckClaim && <ClaimHint claim={claim} onCheck={onCheckClaim} />}
-      {turn.status === "running" && (
-        <div className="answer-card rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5" aria-busy="true">
-          {turn.via === "stream" ? (
-            <div className="space-y-3.5">
-              <TraceDisclosure turn={turn} onEvidence={() => undefined} />
-              {turn.draft !== undefined && <StreamingAnswer draft={turn.draft} />}
-            </div>
-          ) : (
-            <p className="text-[14px]">
-              <span className="shimmer font-medium">{t("app.running")}…</span>
-            </p>
-          )}
-        </div>
-      )}
+      {turn.status === "running" && <RunningCard turn={turn} onStop={props.onStop} />}
       {turn.status === "clarify" && <ClarificationCard turn={turn} />}
       {turn.status === "error" && <ErrorCard turn={turn} onRetry={props.onRetry} />}
       {turn.status === "stopped" && (
-        <p className="flex items-center gap-1.5 text-[13px] text-faint">
+        <p className="stopped-note flex items-center gap-1.5 text-[13px] text-faint">
           <Square className="size-3" aria-hidden />
-          {t("answer.stopped")}
+          {turn.finishedAt !== undefined
+            ? t("progress.stoppedAfter", { s: Math.max(0, Math.round((turn.finishedAt - turn.startedAt) / 1000)) })
+            : t("answer.stopped")}
         </p>
       )}
       {turn.status === "done" && view && <AnswerCard {...props} view={view} />}
