@@ -124,7 +124,7 @@ address as an `ipBlock` in place of the Postgres pod selector.
 
 ### Why replicas can share a conversation
 
-Every turn is a LangGraph run on thread `session_id`. With `QI_AGENT_CHECKPOINT_DB=postgresql://...` the checkpoints (conversation turns, a paused clarification, the last resolved entity) are in Postgres, so the next turn can land on any replica. `tests/test_agent_checkpoint_postgres.py` checks this with two service instances; on the k3s deployment a follow-up sent to replica B ("它的市净率呢") resolved the pronoun from a turn served by replica A.
+Every turn is a LangGraph run on thread `session_id`. With `QI_AGENT_CHECKPOINT_DB=postgresql://...` the checkpoints (conversation turns, a paused clarification, the last resolved entity) are in Postgres, so the next turn can land on any replica. `tests/test_agent_checkpoint_postgres.py` checks this with two service instances (it runs in CI against a Postgres service; a recorded local run with the checkpoint rows is in [results/postgres/two-replica-checkpointer.md](results/postgres/two-replica-checkpointer.md)); on the k3s deployment a follow-up sent to replica B ("它的市净率呢") resolved the pronoun from a turn served by replica A.
 
 Per-replica state that is not shared: the A2A task store, the in-memory trace buffer behind `/agent/traces` (JSON traces are per pod; export OTLP for a shared view) and the TTL caches of tools and live sources.
 
