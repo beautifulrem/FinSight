@@ -101,7 +101,7 @@ kubelet 探针不受影响（节点到本机 Pod 的流量总是放行）。Netw
 ### 为什么多个副本能共享一段对话
 
 - **每一轮都是一次 LangGraph 运行**，thread 就是 `session_id`。设置 `QI_AGENT_CHECKPOINT_DB=postgresql://...` 后，检查点都在 Postgres 里：对话轮次、暂停中的澄清、上一次解析出的实体。所以下一轮落到哪个副本都可以。
-- **测试覆盖**：`tests/test_agent_checkpoint_postgres.py` 用两个服务实例验证了这一点。
+- **测试覆盖**：`tests/test_agent_checkpoint_postgres.py` 用两个服务实例验证了这一点（CI 里连 Postgres 服务运行；一次本地运行的输出和检查点记录见 [results/postgres/two-replica-checkpointer.md](../results/postgres/two-replica-checkpointer.md)）。
 - **k3s 上的实测**：发给副本 B 的追问（「它的市净率呢」）从副本 A 处理过的那一轮里解析出了代词。
 
 会话还按调用方隔离：设置 `QI_API_KEYS` 后，会话归属于 API Key 的哈希，别的 Key 访问得到 404。
