@@ -1,0 +1,1106 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "tasks_file": "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v3#e419eb84d58e",
+   "compose_system": "compose_system@v3#b9a704272c6d"
+  },
+  "commit": "1bd1932",
+  "run_at": "2026-09-28T09:25:39+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 116.4,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl --out outputs/agent_eval/multiturn_v1-workflow.json"
+ },
+ "summary": {
+  "tasks": 49,
+  "turns": 206,
+  "repeats": 1,
+  "task_success": 0.2245,
+  "pass^1": 0.2245,
+  "ci": {
+   "task_success": [
+    0.1224,
+    0.3469
+   ],
+   "pass^1": [
+    0.1224,
+    0.3469
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "turn_success": 0.7087,
+  "behavior_accuracy": 0.8786,
+  "fact_recall": 0.7907,
+  "fact_stated": 0.7907,
+  "tool_recall": 0.8291,
+  "tool_precision": 0.7282,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 0.5,
+  "states_missing_when_required": 0.6667,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 93.57,
+  "latency_ms_p95": 1171.03,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "advice_bait": {
+   "tasks": 2,
+   "task_success": 0.0,
+   "latency_ms_p95": 1143.7
+  },
+  "coreference": {
+   "tasks": 6,
+   "task_success": 0.1667,
+   "latency_ms_p95": 648.13
+  },
+  "cross_turn_comparison": {
+   "tasks": 3,
+   "task_success": 0.3333,
+   "latency_ms_p95": 1520.1
+  },
+  "dangling_clarify": {
+   "tasks": 4,
+   "task_success": 0.0,
+   "latency_ms_p95": 4545.23
+  },
+  "ellipsis_followup": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 53.66
+  },
+  "macro_switch": {
+   "tasks": 5,
+   "task_success": 0.2,
+   "latency_ms_p95": 1169.88
+  },
+  "missing_or_wrong_period": {
+   "tasks": 8,
+   "task_success": 0.125,
+   "latency_ms_p95": 1623.49
+  },
+  "mixed_language": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 3895.68
+  },
+  "oos_in_conversation": {
+   "tasks": 5,
+   "task_success": 0.4,
+   "latency_ms_p95": 1124.6
+  },
+  "outside_a_share_scope": {
+   "tasks": 6,
+   "task_success": 0.1667,
+   "latency_ms_p95": 816.95
+  },
+  "why_followup": {
+   "tasks": 5,
+   "task_success": 0.0,
+   "latency_ms_p95": 649.95
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 18,
+   "task_success": 0.2222,
+   "latency_ms_p95": 1623.49
+  },
+  "mixed": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 3895.68
+  },
+  "zh": {
+   "tasks": 28,
+   "task_success": 0.1786,
+   "latency_ms_p95": 1007.55
+  }
+ },
+ "failed_checks": {
+  "facts": 29,
+  "required_tools": 27,
+  "entity": 26,
+  "behavior": 25,
+  "hedged": 17,
+  "states_missing": 9,
+  "disclaimer": 7,
+  "any_of_tools": 3
+ },
+ "failures": [
+  {
+   "task": "mt-zh-02",
+   "category": "coreference",
+   "query": "白酒行业整体市盈率是多少，它们比行业贵还是便宜？",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。五粮液 基本面（报告期 2025-12-31）：PE(TTM) 20.9，PB 5.4，ROE 29.4%，营业收入 1085 亿元，净利润 378"
+  },
+  {
+   "task": "mt-zh-03",
+   "category": "macro_switch",
+   "query": "利率低的环境对保险股是不是利好？",
+   "failed_checks": [
+    "entity"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_macro_indicators"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：CN10Y 最新值 2.31%（2026-03-31） [macro_CN10Y]。以上证据只能提示可能的影响因素，不能据此确定因果关系。"
+  },
+  {
+   "task": "mt-zh-04",
+   "category": "why_followup",
+   "query": "白酒板块整体呢？",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_macro_indicators",
+    "search_knowledge"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：CPI_CN 最新值 0.8%（2026-03-31） [macro_CPI_CN]。PMI_CN 最新值 50.6（2026-03-31） [macro_PMI_CN]。M2_CN 最新值 8.1%（2026-03-31） [macro_M2_CN]。CN10Y 最新值 2.31%（2026-0"
+  },
+  {
+   "task": "mt-zh-04",
+   "category": "why_followup",
+   "query": "那现在是不是该抄底了？",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。"
+  },
+  {
+   "task": "mt-zh-05",
+   "category": "dangling_clarify",
+   "query": "最近五个交易日的收盘价列一下",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "search_news"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：沪深300ETF（510300.SH）最新可用收盘价为 4.811（2026-04-22） [price_510300.SH]。相关资料：《宽基ETF成交活跃，定投资金持续流入》（fund_public，2026-04-13） [news_etf_001]。以上证据只能提示可能的影响因素，不能据此"
+  },
+  {
+   "task": "mt-zh-05",
+   "category": "dangling_clarify",
+   "query": "MA5是多少？站上了吗？",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "mt-zh-07",
+   "category": "missing_or_wrong_period",
+   "query": "2024年的呢？",
+   "failed_checks": [
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "当前数据中没有贵州茅台2024年的行情，只有截至 2026-04-22 的最新数据。根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  },
+  {
+   "task": "mt-zh-07",
+   "category": "missing_or_wrong_period",
+   "query": "那今年一季度的净利润呢？",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒"
+  },
+  {
+   "task": "mt-zh-09",
+   "category": "outside_a_share_scope",
+   "query": "ROE跟保险行业平均比呢？",
+   "failed_checks": [
+    "facts",
+    "required_tools",
+    "states_missing",
+    "entity"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_macro_indicators",
+    "search_knowledge"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：CPI_CN 最新值 0.8%（2026-03-31） [macro_CPI_CN]。PMI_CN 最新值 50.6（2026-03-31） [macro_PMI_CN]。M2_CN 最新值 8.1%（2026-03-31） [macro_M2_CN]。CN10Y 最新值 2.31%（2026-0"
+  },
+  {
+   "task": "mt-zh-10",
+   "category": "missing_or_wrong_period",
+   "query": "它的市盈率是多少？",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "search_news"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：创业板ETF（159915.SZ）最新可用收盘价为 2.465（2026-04-22），当日涨跌幅 0.86% [price_159915.SZ]。相关资料：《宽基ETF成交活跃，定投资金持续流入》（fund_public，2026-04-13） [news_etf_001]。以上证据只能提示可能"
+  },
+  {
+   "task": "mt-zh-10",
+   "category": "missing_or_wrong_period",
+   "query": "跟沪深300ETF比，最新收盘价分别是多少？",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：沪深300ETF（510300.SH）最新可用收盘价为 4.811（2026-04-22） [price_510300.SH]。"
+  },
+  {
+   "task": "mt-zh-11",
+   "category": "cross_turn_comparison",
+   "query": "三家里面哪家最便宜？",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "hedged",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "mt-zh-15",
+   "category": "advice_bait",
+   "query": "我有10万块，全仓平安行不行？",
+   "failed_checks": [
+    "hedged",
+    "entity"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "本次没有检索到可用于回答该问题的证据。当前数据源中没有平安银行（000001.SZ）的行情数据。"
+  },
+  {
+   "task": "mt-zh-15",
+   "category": "advice_bait",
+   "query": "那保险行业的市净率是多少？",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_macro_indicators",
+    "search_knowledge"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：CPI_CN 最新值 0.8%（2026-03-31） [macro_CPI_CN]。PMI_CN 最新值 50.6（2026-03-31） [macro_PMI_CN]。M2_CN 最新值 8.1%（2026-03-31） [macro_M2_CN]。CN10Y 最新值 2.31%（2026-0"
+  },
+  {
+   "task": "mt-zh-16",
+   "category": "why_followup",
+   "query": "为什么涨？",
+   "failed_checks": [
+    "behavior",
+    "any_of_tools",
+    "hedged",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "mt-zh-17",
+   "category": "oos_in_conversation",
+   "query": "毛利率呢？",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "disclaimer",
+    "entity"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "mt-zh-18",
+   "category": "dangling_clarify",
+   "query": "五粮液",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。"
+  },
+  {
+   "task": "mt-zh-19",
+   "category": "outside_a_share_scope",
+   "query": "增速是多少？",
+   "failed_checks": [
+    "behavior",
+    "required_tools",
+    "states_missing",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "mt-zh-20",
+   "category": "missing_or_wrong_period",
+   "query": "当天最高价和最低价呢？",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  },
+  {
+   "task": "mt-zh-20",
+   "category": "missing_or_wrong_period",
+   "query": "成交量呢？",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  },
+  {
+   "task": "mt-zh-21",
+   "category": "coreference",
+   "query": "这是不是牛市信号？",
+   "failed_checks": [
+    "behavior",
+    "hedged"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "mt-zh-22",
+   "category": "missing_or_wrong_period",
+   "query": "哪家赚得多？",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "mt-zh-23",
+   "category": "macro_switch",
+   "query": "这说明什么？通缩压力大吗？",
+   "failed_checks": [
+    "behavior",
+    "any_of_tools",
+    "hedged"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "mt-zh-24",
+   "category": "oos_in_conversation",
+   "query": "茅台市值多少？",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒"
+  },
+  {
+   "task": "mt-zh-24",
+   "category": "oos_in_conversation",
+   "query": "你能帮我写个Python爬虫抓股价吗？",
+   "failed_checks": [
+    "behavior"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  },
+  {
+   "task": "mt-zh-24",
+   "category": "oos_in_conversation",
+   "query": "跌了多少？",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "disclaimer",
+    "entity"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "mt-zh-25",
+   "category": "why_followup",
+   "query": "为什么平安的估值比行业低？",
+   "failed_checks": [
+    "entity"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "search_news"
+   ],
+   "answer_excerpt": "现有证据不足以把结果归因于单一原因，以下只能作为可能解释。根据本次检索到的证据：相关资料：《平安银行零售业务修复预期升温》（public_news，2026-04-18） [news_000001SZ_001]。以上证据只能提示可能的影响因素，不能据此确定单一原因。"
+  },
+  {
+   "task": "mt-zh-25",
+   "category": "why_followup",
+   "query": "低估值是不是意味着一定会涨？",
+   "failed_checks": [
+    "entity"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。本次没有检索到可用于回答该问题的证据。当前数据源中没有平安银行（000001.SZ）的行情、基本面数据。"
+  },
+  {
+   "task": "mt-zh-26",
+   "category": "coreference",
+   "query": "整体舆情偏正面还是负面？",
+   "failed_checks": [
+    "behavior",
+    "any_of_tools",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "mt-zh-26",
+   "category": "coreference",
+   "query": "股价反映了吗？最新涨跌幅多少？",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。"
+  },
+  {
+   "task": "mt-zh-27",
+   "category": "outside_a_share_scope",
+   "query": "MA5和MA20给我看看",
+   "failed_checks": [
+    "behavior",
+    "required_tools",
+    "states_missing",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "mt-zh-28",
+   "category": "coreference",
+   "query": "前者的毛利率呢？",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "disclaimer",
+    "entity"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "mt-zh-28",
+   "category": "coreference",
+   "query": "后者呢？",
+   "failed_checks": [
+    "required_tools",
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。中国平安（601318.SH）最新可用收盘价为 53.61（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。"
+  },
+  {
+   "task": "mt-zh-29",
+   "category": "missing_or_wrong_period",
+   "query": "照这个趋势下周能涨到5块吗？",
+   "failed_checks": [
+    "behavior",
+    "disclaimer",
+    "hedged",
+    "entity"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "mt-en-03",
+   "category": "macro_switch",
+   "query": "Does a PMI above 50 mean insurers will rally?",
+   "failed_checks": [
+    "hedged",
+    "entity"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_macro_indicators"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: PMI_CN latest value 50.6 (2026-03-31) [macro_PMI_CN]."
+  },
+  {
+   "task": "mt-en-04",
+   "category": "dangling_clarify",
+   "query": "I mean the CSI 300 ETF.",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 沪深300ETF (510300.SH) last available close was 4.811 on 2026-04-22 [price_510300.SH]."
+  },
+  {
+   "task": "mt-en-04",
+   "category": "dangling_clarify",
+   "query": "What's the 3-day return?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "mt-en-05",
+   "category": "why_followup",
+   "query": "Did the whole baijiu sector fall too?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "disclaimer"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+  },
+  {
+   "task": "mt-en-05",
+   "category": "why_followup",
+   "query": "So is this a buying opportunity?",
+   "failed_checks": [
+    "behavior",
+    "hedged",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "mt-en-07",
+   "category": "outside_a_share_scope",
+   "query": "Fine. What about Moutai's?",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 贵州茅台 (600519.SH) last available close was 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
+  },
+  {
+   "task": "mt-en-08",
+   "category": "missing_or_wrong_period",
+   "query": "And in 2022?",
+   "failed_checks": [
+    "required_tools",
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "There is no FY2022 market data for 中国平安; only the latest data (as of 2026-04-22) is available. Based on the evidence retrieved for this question: 中国平安 (601318.S"
+  },
+  {
+   "task": "mt-en-09",
+   "category": "missing_or_wrong_period",
+   "query": "How does that compare to the insurance sector?",
+   "failed_checks": [
+    "facts",
+    "entity"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "No usable evidence was retrieved for this question. The current data sources have no market data, fundamentals for 招商银行 (600036.SH)."
+  },
+  {
+   "task": "mt-en-10",
+   "category": "outside_a_share_scope",
+   "query": "What's the latest level of the CSI 300 index?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "mt-en-10",
+   "category": "outside_a_share_scope",
+   "query": "And the previous close of the CSI 300?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "mt-en-10",
+   "category": "outside_a_share_scope",
+   "query": "What's the 10-year CGB yield?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "mt-en-11",
+   "category": "cross_turn_comparison",
+   "query": "What were the CSI 300 ETF's closes over the last five sessions?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 沪深300ETF (510300.SH) last available close was 4.811 on 2026-04-22 [price_510300.SH]."
+  },
+  {
+   "task": "mt-en-11",
+   "category": "cross_turn_comparison",
+   "query": "Is it trending up?",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 沪深300ETF (510300.SH) last available close was 4.811 on 2026-04-22 [price_510300.SH]."
+  },
+  {
+   "task": "mt-en-12",
+   "category": "advice_bait",
+   "query": "Just tell me: buy or sell?",
+   "failed_checks": [
+    "behavior",
+    "disclaimer",
+    "hedged",
+    "entity"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+  },
+  {
+   "task": "mt-en-13",
+   "category": "macro_switch",
+   "query": "Given all that, where did the CSI 300 index close last?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "mt-en-13",
+   "category": "macro_switch",
+   "query": "Does loose money supply guarantee stocks go up?",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_macro_indicators"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 沪深300 (000300.SH) last available close was 4005.2 on 2026-04-22, daily change 0.42% [price_000300.SH]. M2_CN "
+  },
+  {
+   "task": "mt-en-14",
+   "category": "why_followup",
+   "query": "Then just give me its last two closes.",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 创业板ETF (159915.SZ) last available close was 2.465 on 2026-04-22, daily change 0.86% [price_159915.SZ]."
+  },
+  {
+   "task": "mt-en-14",
+   "category": "why_followup",
+   "query": "What's the daily high and low?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "mt-en-15",
+   "category": "coreference",
+   "query": "Which of the two is cheaper relative to its own industry?",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 fundamentals (period 2025-12-31): PE(TTM) 20.9, PB 5.4, ROE 29.4%, revenue 1085 hundred million CNY, net "
+  },
+  {
+   "task": "mt-en-15",
+   "category": "coreference",
+   "query": "What's the latter's gross margin?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "disclaimer",
+    "entity"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+  },
+  {
+   "task": "mt-en-15",
+   "category": "coreference",
+   "query": "And the former's?",
+   "failed_checks": [
+    "required_tools",
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]. 中国平安 "
+  },
+  {
+   "task": "mt-en-16",
+   "category": "dangling_clarify",
+   "query": "What about the P/E?",
+   "failed_checks": [
+    "behavior"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "search_knowledge"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Related document: \"\"Where are you getting the idea that I think there is any altruism whatsoever in what Whol"
+  },
+  {
+   "task": "mt-en-16",
+   "category": "dangling_clarify",
+   "query": "For Wuliangye.",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]."
+  },
+  {
+   "task": "mt-en-16",
+   "category": "dangling_clarify",
+   "query": "Is that bigger than Moutai's?",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 贵州茅台 (600519.SH) last available close was 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
+  },
+  {
+   "task": "mt-en-17",
+   "category": "oos_in_conversation",
+   "query": "Ok. What was its percentage change?",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 中国平安 fundamentals (period 2025-12-31): PE(TTM) 8.7, PB 1.1, ROE 15.2%, revenue 12180 hundred million CNY, net"
+  },
+  {
+   "task": "mt-mx-02",
+   "category": "mixed_language",
+   "query": "OK 那 ROE 呢，两家都说一下",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1741.2 亿元，净利润 850 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒"
+  }
+ ],
+ "task_outcomes": {
+  "mt-zh-01": "1",
+  "mt-zh-02": "0",
+  "mt-zh-03": "0",
+  "mt-zh-04": "0",
+  "mt-zh-05": "0",
+  "mt-zh-06": "1",
+  "mt-zh-07": "0",
+  "mt-zh-08": "1",
+  "mt-zh-09": "0",
+  "mt-zh-10": "0",
+  "mt-zh-11": "0",
+  "mt-zh-12": "1",
+  "mt-zh-13": "1",
+  "mt-zh-14": "1",
+  "mt-zh-15": "0",
+  "mt-zh-16": "0",
+  "mt-zh-17": "0",
+  "mt-zh-18": "0",
+  "mt-zh-19": "0",
+  "mt-zh-20": "0",
+  "mt-zh-21": "0",
+  "mt-zh-22": "0",
+  "mt-zh-23": "0",
+  "mt-zh-24": "0",
+  "mt-zh-25": "0",
+  "mt-zh-26": "0",
+  "mt-zh-27": "0",
+  "mt-zh-28": "0",
+  "mt-zh-29": "0",
+  "mt-en-01": "1",
+  "mt-en-02": "1",
+  "mt-en-03": "0",
+  "mt-en-04": "0",
+  "mt-en-05": "0",
+  "mt-en-06": "1",
+  "mt-en-07": "0",
+  "mt-en-08": "0",
+  "mt-en-09": "0",
+  "mt-en-10": "0",
+  "mt-en-11": "0",
+  "mt-en-12": "0",
+  "mt-en-13": "0",
+  "mt-en-14": "0",
+  "mt-en-15": "0",
+  "mt-en-16": "0",
+  "mt-en-17": "0",
+  "mt-en-18": "1",
+  "mt-mx-02": "0",
+  "mt-mx-03": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/multiturn_v1-workflow.json",
+  "sha256_16": "661c66d9c60b64aa",
+  "bytes": 347409,
+  "slimmed_at": "2026-09-28T09:28:18+00:00"
+ },
+ "notes": [
+  "first and only pre-fix run of the independent multi-turn set, mode=auto without an LLM (routes to the deterministic workflow), --no-replay, at cf01eef"
+ ]
+}

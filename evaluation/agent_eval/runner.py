@@ -53,6 +53,11 @@ TASK_SETS: dict[str, tuple[Path, Path]] = {
     "dev": (DEFAULT_TASKS, DEFAULT_SNAPSHOT),
     "holdout": (EVAL_DIR / "tasks" / "agent_eval_holdout_v1.jsonl", EVAL_DIR / "fixtures" / "snapshot_holdout_v1.json"),
     "test_v2": (EVAL_DIR / "tasks" / "agent_eval_test_v2.jsonl", EVAL_DIR / "fixtures" / "snapshot_test_v2.json"),
+    # Written independently (see evaluation/agent_eval/tasks/README_multiturn_v1.md); first run at cf01eef.
+    "multiturn_v1": (
+        EVAL_DIR / "tasks" / "agent_eval_multiturn_v1.jsonl",
+        EVAL_DIR / "fixtures" / "snapshot_multiturn_v1.json",
+    ),
 }
 SNAPSHOT_NAME = "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)"
 EVAL_TODAY = date(2026, 4, 23)  # fixed "today" so freshness notes are reproducible
