@@ -42,7 +42,7 @@ curl http://127.0.0.1:8000/health
 
 | 对象 | 说明 |
 |---|---|
-| `Deployment/finsight-api` | 2 个副本。启动探针（NLU 模型加载约一分钟），就绪与存活探针都查 `/health`。请求 0.5 CPU / 2 GiB，上限 2 CPU / 3 GiB。滚动更新 `maxUnavailable: 0`。 |
+| `Deployment/finsight-api` | 2 个副本。启动与存活探针查 `/health`（NLU 模型加载约一分钟）；就绪探针查 `/ready`，它还检查 Postgres 检查点、LLM 配置和检索索引，连不上数据库的副本会停止接流量，但不会被重启。请求 0.5 CPU / 2 GiB，上限 2 CPU / 3 GiB。滚动更新 `maxUnavailable: 0`。 |
 | Pod 安全 | `runAsNonRoot`（uid 10001）、`readOnlyRootFilesystem`、去掉全部 capability、`RuntimeDefault` seccomp；`/app/outputs`、`/app/state` 和 `/tmp` 用 `emptyDir`。 |
 | `HorizontalPodAutoscaler` | 2–6 个副本，CPU 70% 时扩容。 |
 | `PodDisruptionBudget` | 节点维护时至少保留一个副本。 |

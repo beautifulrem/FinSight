@@ -169,7 +169,7 @@ curl -s localhost:8000/agent/resume -H 'Content-Type: application/json' \
 | `QI_AGENT_SENTIMENT_BACKEND` | `classical` | 设为 `finbert` 使用 FinBERT（需要 `torch`/`transformers`）。 |
 | `QI_AGENT_TRACE_DIR` | `outputs/traces` | JSON trace 输出目录；`off` 表示关闭。 |
 | `QI_AGENT_OTEL`、`OTEL_EXPORTER_OTLP_ENDPOINT`、`OTEL_EXPORTER_OTLP_HEADERS` | 未设置 | 通过 OTLP/HTTP 导出 OpenTelemetry span（Jaeger、Tempo、Langfuse 等）。 |
-| `QI_API_KEYS` | 未设置 | 逗号分隔的 API Key；设置后，除 `GET /health`、`GET /` 与 `/static/*` 外都需要 `X-API-Key` 或 `Authorization: Bearer`。 |
+| `QI_API_KEYS` | 未设置 | 逗号分隔的 API Key；设置后，除 `GET /health`、`GET /ready`、`GET /`、Agent Card 与 `/static/*` 外都需要 `X-API-Key` 或 `Authorization: Bearer`。 |
 | `QI_RATE_LIMIT_PER_MINUTE` | `0`（关闭） | 按客户端的令牌桶限流；超限返回 429 与 `Retry-After`。 |
 | `QI_CORS_ORIGINS` | 未设置 | 逗号分隔的允许来源。 |
 | `QI_MAX_REQUEST_BYTES` | `1048576` | 超过该大小的请求体返回 413。 |

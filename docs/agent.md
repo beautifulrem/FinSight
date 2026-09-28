@@ -147,7 +147,7 @@ The browser page at `/` uses these endpoints: pick a mode, watch steps stream in
 | `QI_AGENT_SENTIMENT_BACKEND` | `classical` | `finbert` to use the FinBERT sentiment model (needs `torch`/`transformers`). |
 | `QI_AGENT_TRACE_DIR` | `outputs/traces` | Where JSON traces are written; `off` disables them. |
 | `QI_AGENT_OTEL`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS` | unset | Export traces as OpenTelemetry spans over OTLP/HTTP (Jaeger, Tempo, Langfuse, …). |
-| `QI_API_KEYS` | unset | Comma-separated API keys; when set, all endpoints except `GET /health`, `GET /` and `/static/*` need `X-API-Key` or `Authorization: Bearer`. |
+| `QI_API_KEYS` | unset | Comma-separated API keys; when set, all endpoints except `GET /health`, `GET /ready`, `GET /`, the agent card and `/static/*` need `X-API-Key` or `Authorization: Bearer`. |
 | `QI_RATE_LIMIT_PER_MINUTE` | `0` (off) | Per-client token bucket; 429 with `Retry-After`. |
 | `QI_CORS_ORIGINS` | unset | Comma-separated allowed browser origins. |
 | `QI_MAX_REQUEST_BYTES` | `1048576` | Larger bodies get 413. |

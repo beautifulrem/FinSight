@@ -127,14 +127,19 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities: {drop: ["ALL"]}
-          # NLU models load at start-up (about a minute); readiness gates traffic until /health answers.
+          # NLU models and the retrieval index load at start-up (about a minute); /health (liveness) answers
+          # once HTTP is up. /ready (readiness) also checks the checkpoint store (Postgres SELECT 1), the
+          # model config and the retrieval index, so a replica that cannot reach Postgres stops taking
+          # traffic without being restarted.
           startupProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 5
             failureThreshold: 60
           readinessProbe:
-            httpGet: {path: /health, port: http}
+            httpGet: {path: /ready, port: http}
             periodSeconds: 10
+            timeoutSeconds: 6
+            failureThreshold: 3
           livenessProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 20

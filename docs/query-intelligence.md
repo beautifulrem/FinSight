@@ -68,7 +68,8 @@ API code is in `query_intelligence/api/app.py`.
 
 | Endpoint | Purpose | Input | Output |
 |---|---|---|---|
-| `GET /health` | Health check | none | `{"status":"ok"}` |
+| `GET /health` | Liveness: the process answers HTTP | none | `{"status":"ok"}` |
+| `GET /ready` | Readiness: checkpoint store reachable and writable, LLM config sane, retrieval index loaded | none | 200 `{"status":"ready","checks":{...}}` or 503 `{"status":"not_ready",...}` |
 | `GET /` | Browser chatbot UI | browser | HTML app |
 | `POST /chat` | End-to-end NLU + Retrieval + LLM API response polishing | `ChatRequest` | Chatbot response JSON |
 | `POST /nlu/analyze` | NLU only | `AnalyzeRequest` | `NLUResult` |

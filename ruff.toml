@@ -11,6 +11,8 @@ include = [
     "tests/test_web_ui.py",
     "scripts/export_agent_schemas.py",
     "query_intelligence/api/security.py",
+    "query_intelligence/api/readiness.py",
+    "tests/test_api_readiness.py",
     "query_intelligence/chat/**/*.py",
     "query_intelligence/chatbot.py",
     "query_intelligence/integrations/sources/**/*.py",
