@@ -36,10 +36,10 @@ describe("follow-up rewrite reasons", () => {
     expect(humanizeCode("zh", "ellipsis:target->贵州茅台")).toBe("沿用上一轮的标的 贵州茅台");
     expect(humanizeCode("zh", "ellipsis:target->宁德时代和比亚迪")).toBe("沿用上一轮的标的 宁德时代和比亚迪");
     expect(humanizeCode("en", "ellipsis:target->Kweichow Moutai")).toBe("Kept the security from the last turn: Kweichow Moutai");
-    expect(humanizeCode("zh", "ellipsis:aspect->市盈率/走势")).toBe("沿用上一轮的问题：市盈率、走势");
-    // The server joins aspects with "/", which P/E and P/B also contain.
-    expect(humanizeCode("en", "ellipsis:aspect->P/E/trend")).toBe("Kept the question from the last turn: P/E, trend");
-    expect(humanizeCode("zh", "ellipsis:aspect->市净率/PB")).toBe("沿用上一轮的问题：市净率、PB");
+    expect(humanizeCode("zh", "ellipsis:aspect->市盈率+走势")).toBe("沿用上一轮的问题：市盈率、走势");
+    // The server joins aspects with "+"; "P/E" keeps its slash.
+    expect(humanizeCode("en", "ellipsis:aspect->P/E+trend")).toBe("Kept the question from the last turn: P/E, trend");
+    expect(humanizeCode("zh", "ellipsis:aspect->市净率+PB")).toBe("沿用上一轮的问题：市净率、PB");
     expect(humanizeCode("zh", "ellipsis:something_new")).toBe("补全了省略的追问");
   });
 

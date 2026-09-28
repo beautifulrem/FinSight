@@ -9,7 +9,7 @@ import { TooltipProvider } from "./ui/tooltip";
 const REASONS = [
   "simple:single_lookup",
   "ellipsis:target->贵州茅台",
-  "ellipsis:aspect->市盈率/走势",
+  "ellipsis:aspect->市盈率+走势",
   "coreference:它->贵州茅台",
   "dropped_fuzzy_concept:有色金属",
   "input_guard:instruction_like_text_removed",

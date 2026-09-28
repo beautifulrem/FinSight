@@ -103,7 +103,7 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
               check.status === "contradicted" ? "text-muted line-through decoration-up/60 decoration-2" : "text-ink",
             )}
           >
-            {formatClaimValue(lang, t, check.metric, check.claimed, "claimed", report.claim)}
+            {formatClaimValue(lang, t, check.metric, check.claimed, "claimed", report.claim, check.claimed_unit)}
           </dd>
         </div>
         <div className="rounded-lg bg-surface-2/70 px-3 py-2">

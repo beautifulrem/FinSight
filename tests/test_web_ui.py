@@ -655,13 +655,30 @@ CANNED_CLAIM_REPORT = {
     ],
     "targets": [{"name": "贵州茅台", "symbol": "600519.SH"}],
     "evidence_sources": [
-        {"evidence_id": "fundamental_600519.SH", "source_name": "tushare", "as_of": "2025-12-31", "title": "贵州茅台 fundamentals"},
-        {"evidence_id": "price_600519.SH", "source_name": "tushare", "as_of": "2026-04-22", "title": "贵州茅台 daily market data"},
+        {
+            "evidence_id": "fundamental_600519.SH",
+            "source_name": "tushare",
+            "as_of": "2025-12-31",
+            "title": "贵州茅台 fundamentals",
+        },
+        {
+            "evidence_id": "price_600519.SH",
+            "source_name": "tushare",
+            "as_of": "2026-04-22",
+            "title": "贵州茅台 daily market data",
+        },
     ],
     "disclaimer": "核查只比对声明中的数字与所列数据源，不评价观点本身，也不构成投资建议。",
 }
 
-RAW_CLAIM_CODES = ["pe_ttm", "pct_change_1d", "partially_supported", "contradicted", "unverifiable", "metric not recognised"]
+RAW_CLAIM_CODES = [
+    "pe_ttm",
+    "pct_change_1d",
+    "partially_supported",
+    "contradicted",
+    "unverifiable",
+    "metric not recognised",
+]
 
 
 def test_fact_check_view_shows_verdict_values_and_sources(page):
@@ -694,7 +711,9 @@ def test_fact_check_view_shows_verdict_values_and_sources(page):
         expect(contradicted.locator(".claim-source time")).to_have_attribute("datetime", "2025-12-31")
         expect(contradicted.locator(".claim-source")).to_contain_text("可能过时")
         expect(report.locator(".claim-check")).to_have_count(3)
-        expect(report.locator('.claim-check[data-status="unverifiable"]')).to_contain_text("未能判断这个数字指的是哪个指标")
+        expect(report.locator('.claim-check[data-status="unverifiable"]')).to_contain_text(
+            "未能判断这个数字指的是哪个指标"
+        )
         expect(report.locator(".claim-disclaimer")).to_contain_text("不构成投资建议")
         visible = report.inner_text()
         for code in RAW_CLAIM_CODES:

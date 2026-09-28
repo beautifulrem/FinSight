@@ -178,14 +178,8 @@ const BUDGETS: [RegExp, (m: RegExpExecArray) => Text][] = [
   [/run deadline of ([\d.]+)s/, (m) => ({ zh: `达到运行时限（${m[1]} 秒），提前作答`, en: `Run deadline (${m[1]} s) reached; answered early` })],
 ];
 
-// Aspects are joined with "/" by the server, but "P/E" and "P/B" contain one themselves.
-const aspects = (value: string, separator: string) =>
-  value
-    .replace(/\bP\/([EB])\b/gi, (match) => match.replace("/", "\u0000"))
-    .split("/")
-    .filter(Boolean)
-    .map((part) => part.replace("\u0000", "/"))
-    .join(separator);
+// Aspects are joined with "+" by the server ("市盈率+市净率"; "P/E" keeps its slash).
+const aspects = (value: string, separator: string) => value.split("+").filter(Boolean).join(separator);
 
 /**
  * Follow-up rewrites (agent/memory.py, agent/router.py). The suffix after ":" or "->" is user-facing

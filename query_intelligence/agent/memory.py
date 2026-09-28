@@ -232,7 +232,7 @@ def resolve_ellipsis(
             return None
         name = str(current_targets[0].get("canonical_name") or current_targets[0].get("symbol"))
         rewritten = f"{name}的{'、'.join(aspects)}呢？" if zh else f"What is {name}'s {', '.join(aspects)}?"
-        return rewritten, f"ellipsis:aspect->{'/'.join(aspects)}"
+        return rewritten, f"ellipsis:aspect->{'+'.join(aspects)}"
     return None
 
 

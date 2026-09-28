@@ -42,12 +42,20 @@ _METRICS: dict[str, tuple[tuple[str, ...], re.Pattern[str]]] = {
 }
 _APPROXIMATE = re.compile(r"约|大约|左右|将近|接近|超过|不到|\babout\b|\baround\b|\broughly\b|\bnearly\b", re.I)
 _FUNDAMENTAL_METRICS = {"pe_ttm", "pb", "roe", "revenue", "net_profit"}
+# Metrics whose payload may be a fraction (0.33) while claims state a percentage (33%).
+_FRACTION_METRICS = {"roe"}
+_CLAUSE_BREAK = re.compile(r"[，,。；;！!？?\n]|\band\b|\bbut\b|而且|并且|但是|同时")
+_UNIT = re.compile(r"\s*(万亿|亿元|亿|万元|万|元|倍|%|个百分点|x\b|times\b|billion|million|yuan)", re.I)
+_LOOK_BEHIND = 40
+
+_LOOK_AHEAD = 8
 
 
 class ClaimCheck(BaseModel):
     target: str | None = None
     metric: str | None = None
     claimed: float
+    claimed_unit: str | None = None
     actual: float | None = None
     status: Status
     evidence_id: str | None = None
@@ -75,8 +83,10 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
     numbers = _metric_numbers(claim)
     evidence = _fetch(targets, {metric for _value, metric, *_ in numbers}, registry)
     checks = [
-        _check(value, metric, scales, rounding, approximate, targets, evidence)
-        for value, metric, scales, rounding, approximate in numbers
+        _check(value, metric, scales, rounding, approximate, targets, evidence).model_copy(
+            update={"claimed_unit": unit}
+        )
+        for value, metric, scales, rounding, approximate, unit in numbers
     ]
     statuses = {check.status for check in checks}
     if not checks or statuses == {"unverifiable"}:
@@ -97,17 +107,17 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
         verdict=verdict,
         checks=checks,
         targets=targets,
-        evidence_sources=[
-            {"evidence_id": item.evidence_id, "source_name": item.source_name, "as_of": item.as_of, "title": item.title}
-            for items in evidence.values()
-            for item in items
-        ],
+        evidence_sources=[_source(item) for items in evidence.values() for item in items],
         disclaimer=disclaimer,
     )
 
 
-def _metric_numbers(claim: str) -> list[tuple[float, str | None, tuple[float, ...], float, bool]]:
-    """``(value, metric, scales, rounding, approximate)`` for each number, signed by the stated direction."""
+def _metric_numbers(claim: str) -> list[tuple[float, str | None, tuple[float, ...], float, bool, str | None]]:
+    """``(value, metric, scales, rounding, approximate, unit)`` per number, signed by the stated direction.
+
+    The metric, direction and "约/about" are read only from the number's own clause, so a word after a
+    comma ("…15倍，股价…") or an "约" in the previous clause does not leak into this number.
+    """
     cleaned = _cleaned(claim)
     out = []
     for match in _NUMBER_TOKEN.finditer(cleaned):
@@ -115,12 +125,33 @@ def _metric_numbers(claim: str) -> list[tuple[float, str | None, tuple[float, ..
         (value, scales, rounding, sign), *_ = claim_values(token + cleaned[match.end() : match.end() + 24]) or [
             (0.0, (1.0,), 0.5, None)
         ]
-        before = cleaned[max(0, match.start() - 12) : match.start()]
+        before = _clause_tail(cleaned[max(0, match.start() - _LOOK_BEHIND) : match.start()])
+        after = _clause_head(cleaned[match.end() : match.end() + _LOOK_AHEAD])
         sign = sign if token.startswith("-") else _stated_direction(before)
-        metric = _nearest_metric(before, cleaned[match.end() : match.end() + 6])
+        metric = _nearest_metric(before, after)
         signed = -abs(value) if sign == -1 else abs(value)
-        out.append((signed, metric, scales, rounding, bool(_APPROXIMATE.search(before))))
+        unit = _UNIT.match(cleaned[match.end() : match.end() + 8])
+        out.append(
+            (
+                signed,
+                metric,
+                scales,
+                rounding,
+                bool(_APPROXIMATE.search(before)),
+                unit.group(1) if unit else None,
+            )
+        )
     return out
+
+
+def _clause_tail(text: str) -> str:
+    breaks = list(_CLAUSE_BREAK.finditer(text))
+    return text[breaks[-1].end() :] if breaks else text
+
+
+def _clause_head(text: str) -> str:
+    match = _CLAUSE_BREAK.search(text)
+    return text[: match.start()] if match else text
 
 
 def _stated_direction(before: str) -> int | None:
@@ -135,6 +166,7 @@ def _nearest_metric(before: str, after: str) -> str | None:
             if best is None or distance < best[0]:
                 best = (distance, metric)
         match = pattern.search(after)
+        # Ties go to the word before the number ("市盈率15倍"), which is how claims are usually written.
         if match and (best is None or match.start() < best[0]):
             best = (match.start(), metric)
     return best[1] if best else None
@@ -190,7 +222,7 @@ def _check(
         )
     for target, item, actual in candidates:
         for scale in scales:
-            if scale == 100.0 and abs(actual) > 1.5:
+            if scale == 100.0 and (metric not in _FRACTION_METRICS or abs(actual) > 1.5):
                 continue
             expected = actual * scale
             tolerance = max(rounding, abs(expected) * relative) + 1e-9
@@ -199,6 +231,18 @@ def _check(
                 return _result(value, metric, target, item, actual, "supported")
     target, item, actual = candidates[0]
     return _result(value, metric, target, item, actual, "contradicted")
+
+
+def _source(item: AgentEvidence) -> dict[str, Any]:
+    provenance = item.payload.get("provenance") if isinstance(item.payload.get("provenance"), dict) else {}
+    return {
+        "evidence_id": item.evidence_id,
+        "source_name": item.source_name or provenance.get("source_label") or item.provider or item.produced_by,
+        "as_of": item.as_of,
+        "title": item.title,
+        "provenance": provenance
+        or ({"mode": "snapshot", "is_live": False} if (item.source_name or "") in {"seed", "snapshot"} else None),
+    }
 
 
 def _result(
@@ -211,6 +255,6 @@ def _result(
         actual=actual,
         status=status,
         evidence_id=item.evidence_id,
-        source=item.source_name,
+        source=_source(item)["source_name"],
         as_of=item.as_of,
     )
