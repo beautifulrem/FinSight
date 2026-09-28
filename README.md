@@ -95,10 +95,10 @@ What changed after these runs (round 2), measured offline:
   - follow-ups that name no company, e.g. "ROE呢" (multi-turn 0.21–0.32);
   - dangling questions that should get a clarifying question (0.33).
 - **The fixes:** elliptical follow-ups, a metric asked without a company, and a fuzzy-concept filter. They were built and validated on new development-style tasks, not on test v2. Because the failure classes were read from test v2, **test v2 is now a validation set too**; a fresh test set is needed for an unbiased estimate.
-- **Offline gate at `da3ec8b`:**
-  - dev (now 216 tasks): 1.000;
+- **Offline gate at `d3c1495` (round 3):**
+  - dev (now 238 tasks; round 3 added 22 regressions for the round-2 review bugs, of which the round-2 code passed 5/22): 1.000;
   - held-out, deterministic workflow: 0.849 → 0.906 [0.83, 0.98] (`gate-*.json`);
-  - router accuracy: 0.715 on 158 labelled queries at `d78b313` → 0.975 on 162 (`router_eval-*.json`).
+  - router accuracy: 0.715 on 158 labelled queries at `d78b313` → 0.975 on 162 (`router_eval-*.json`; unchanged at 0.975 in round 3).
   - These labels were written by the author: they check routing policy, not independent quality.
 
 | Other measurements | Result | Evidence |
