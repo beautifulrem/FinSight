@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import operator
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, field
 from typing import Annotated, Any, TypedDict
 
 RESET = "__reset__"
@@ -60,9 +61,11 @@ class AgentState(TypedDict, total=False):
     llm_log: Annotated[list[dict[str, Any]], add_or_reset]
     # session memory (persists across turns on the same thread)
     turns: Annotated[list[dict[str, Any]], operator.add]
+    memory_card: dict[str, Any]  # optional LLM summary of older turns (see memory_summary.py)
     clarification_rounds: int
     clarification_reply: str
     effective_query: str
+    language: str  # "zh"/"en": the language of the user's own words (markup and encoded blobs ignored)
     refusal_category: str
     owner: str
 
@@ -85,3 +88,11 @@ class AgentConfig:
     compose_reasoning: str | None = "low"
     revise_reasoning: str | None = "low"
     final_reasoning: str | None = "low"
+    # Optional LLM summary of turns older than the verbatim history window, under a token budget. Off by
+    # default: the rule-based memory card is the default until the summary is ablated (docs/agent.md).
+    memory_summary: bool = field(
+        default_factory=lambda: os.getenv("QI_AGENT_MEMORY_SUMMARY", "").strip().lower() in {"1", "true", "on"}
+    )
+    memory_summary_tokens: int = field(
+        default_factory=lambda: int(os.getenv("QI_AGENT_MEMORY_SUMMARY_TOKENS", "300") or 300)
+    )
