@@ -15,7 +15,13 @@ from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
 from query_intelligence.agent.graph import AgentRuntime
 from query_intelligence.agent.llm import DeepSeekToolClient, FallbackLLM, ScriptedLLM, final_turn, tool_call_turn
 from query_intelligence.agent.state import AgentConfig
-from query_intelligence.agent.verifier import VerificationReport, cite_repair, failure_kinds, verify_answer
+from query_intelligence.agent.verifier import (
+    VerificationReport,
+    cite_repair,
+    claim_numbers,
+    failure_kinds,
+    verify_answer,
+)
 
 
 def _completion() -> dict:
@@ -258,3 +264,39 @@ def test_llm_client_reuses_one_pooled_connection_client():
     client, owned = one_off._client()
     assert owned is True
     client.close()
+
+
+# --------------------------------------------------------------------------- verifier false positives (profile)
+
+
+@pytest.mark.parametrize(
+    ("text", "numbers"),
+    [
+        ("PE(TTM) 20.9x, PB 5.4x", [20.9, 5.4]),  # was [20, 5]: the token backtracked before the "x"
+        ("revenue CNY 108.5bn, net profit CNY 37.8bn", [108.5, 37.8]),  # was [108, 37]
+        ("4.746（04-16）、4.739（04-17）", [4.746, 4.739]),  # month-day dates are not claims
+        ("中国10年期国债收益率 2.31%", [2.31]),  # bond tenor
+        ("3) 板块情绪与资金面。", []),  # list marker
+        ("增长 10-15%", [10.0, 15.0]),  # a range is still checked
+        ("version v2x 3.5.2", []),
+    ],
+)
+def test_claim_numbers_without_false_positives(text, numbers):
+    assert claim_numbers(text) == numbers
+
+
+def test_english_multiples_verify_against_fundamentals():
+    answer = {"answer": "Moutai trades at 24.6x trailing earnings [fundamental_600519.SH]."}
+    assert verify_answer(answer, _store()).passed
+
+
+def test_derived_numbers_are_opt_in_and_need_their_operands():
+    store = _store()
+    derived = {
+        "answer": "茅台 PE 24.6 倍，收盘价 1409.5 元，两者之比约 57.3 [fundamental_600519.SH][price_600519.SH]。"
+    }
+    assert not verify_answer(derived, store).passed
+    assert verify_answer(derived, store, allow_derived=True).passed
+    # without both operands in the sentence the result is not accepted
+    alone = {"answer": "两者之比约 57.3 [fundamental_600519.SH][price_600519.SH]。"}
+    assert not verify_answer(alone, store, allow_derived=True).passed

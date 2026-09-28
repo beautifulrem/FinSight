@@ -149,7 +149,14 @@ class EvidenceStore:
         return len(self._items)
 
 
-_NUMBER = re.compile(r"(?<![A-Za-z_\d.])[-+]?\d+(?:,\d{3})*(?:\.\d+)?(?![A-Za-z_\d]|\.[A-Za-z])")
+# A number token: not part of an identifier ("v2", "600519.SH"), and never a truncated prefix of a longer
+# number. A unit suffix written without a space ("20.9x", "108.5bn", "3m", "5pp") still ends the token;
+# before this rule "20.9x" backtracked to "20" and "108.5bn" to "108", and both were then reported as
+# unsupported numbers.
+_NUMBER = re.compile(
+    r"(?<![A-Za-z_\d.])[-+]?\d+(?:,\d{3})*(?:\.\d+)?"
+    r"(?:(?=(?:x|X|bn|mn|m|k|pp|pct)(?![A-Za-z]))|(?![A-Za-z_\d]|\.[A-Za-z\d]))"
+)
 
 
 def extract_numbers(text: str) -> list[float]:
