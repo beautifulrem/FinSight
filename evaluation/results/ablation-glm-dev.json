@@ -2,6 +2,9 @@
  "kind": "ablation",
  "config": {
   "llm": "cline-pass/glm-5.3-flash",
+  "model": "cline-pass/glm-5.3-flash",
+  "llm_client": "deepseek",
+  "model_source": "DEEPSEEK_MODEL (environment, not in the command)",
   "repeats": 3,
   "prompts": {
    "agent_system": "agent_system@v3#e419eb84d58e",
@@ -25,7 +28,8 @@
   ],
   "workers": 6,
   "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6 --sets dev --modes workflow_llm,agent --out outputs/agent_eval/ablation-glm-dev.json",
-  "notes_on_provenance": "command paths made repo-relative after the run"
+  "notes_on_provenance": "command paths made repo-relative after the run",
+  "model_note": "the command's --llm deepseek names the OpenAI-compatible client; the model was selected with DEEPSEEK_MODEL=cline-pass/glm-5.3-flash in the environment (runner._make_llm reads DEEPSEEK_MODEL / deepseek.model), which the command line does not show; recorded here on 2026-09-29. Runs since record config.model and accept --model"
  },
  "notes": [],
  "results": {

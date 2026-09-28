@@ -185,7 +185,7 @@ def test_aggregate_labels_pass_k_by_runs_present_and_adds_cis():
     summary = aggregate(records, repeats=3)  # asked for 3 repeats, but every task ran once
 
     assert "pass^1" in summary and "pass^3" not in summary and summary["repeats"] == 1
-    assert summary["ci"] == {"task_success": [1.0, 1.0], "pass^1": [1.0, 1.0]}
+    assert summary["ci"] == {"task_success": [1.0, 1.0], "pass^1": [1.0, 1.0], "task_success_uncited": [1.0, 1.0]}
 
 
 def test_bootstrap_ci_is_seeded_and_brackets_the_mean():
@@ -415,3 +415,112 @@ def test_runs_with_mostly_rejected_llm_calls_are_invalid(tmp_path):
     source.write_text('{"invalid_runs": [{"set": "test_v3", "mode": "agent"}]}', encoding="utf-8")
     with pytest.raises(SystemExit, match="invalid runs"):
         results_main([str(source)])
+
+
+def test_uncited_correctness_scores_right_numbers_without_citations_or_tools():
+    # A no-tools answer: the right number, no evidence id, no tool call, no disclaimer field.
+    no_tools = _response(
+        answer="可能受多因素影响。最新收盘价 1409.5 元。", evidence_used=[], tool_calls=[], risk_disclaimer=""
+    )
+    wrong = _response(
+        answer="可能受多因素影响。最新收盘价 1500 元。", evidence_used=[], tool_calls=[], risk_disclaimer=""
+    )
+    trading = _response(answer="可能。收盘价 1409.5 元，建议买入。", evidence_used=[], tool_calls=[])
+
+    right_score, wrong_score = score_turn(no_tools, EXPECT), score_turn(wrong, EXPECT)
+    assert not right_score["success"] and right_score["uncited_success"]
+    assert not wrong_score["uncited_success"] and not wrong_score["uncited_checks"]["facts_stated"]
+    # hedging, behaviour and compliance still apply
+    assert not score_turn(trading, EXPECT)["uncited_success"]
+
+    records = [
+        {
+            "task": {"id": "a", "category": "c", "language": "zh"},
+            "repeat": 0,
+            "turns": [{"score": right_score, "latency_ms": 1.0}],
+        },
+        {
+            "task": {"id": "b", "category": "c", "language": "zh"},
+            "repeat": 0,
+            "turns": [{"score": wrong_score, "latency_ms": 1.0}],
+        },
+    ]
+    summary = aggregate(records)
+    assert summary["task_success"] == 0.0
+    assert summary["task_success_uncited"] == 0.5 and summary["ci"]["task_success_uncited"]
+    assert summary["fact_stated"] == 0.5 and summary["fact_recall"] == 0.0
+
+
+def test_aggregate_reports_the_429_share_of_llm_errors():
+    limited = score_turn(_response(degraded=["llm_error:LLM API returned HTTP 429: quota"]), EXPECT)
+    timeout = score_turn(_response(degraded=["llm_error:LLM request timed out"]), EXPECT)
+    clean = score_turn(_response(), EXPECT)
+    records = [
+        {
+            "task": {"id": str(i), "category": "c", "language": "zh"},
+            "repeat": 0,
+            "turns": [{"score": s, "latency_ms": 1.0}],
+        }
+        for i, s in enumerate([limited, timeout, clean, clean])
+    ]
+    summary = aggregate(records)
+    assert summary["llm_error_rate"] == 0.5 and summary["llm_429_rate"] == 0.25
+
+
+def test_report_llm_error_cell_shows_the_429_share():
+    from evaluation.agent_eval.report import llm_error_cell
+
+    old = {
+        "llm_error_rate": 0.0714,
+        "llm_error_kinds": {"llm_error:LLM API returned HTTP 429: x": 6, "llm_error:timed out": 1},
+    }
+    assert llm_error_cell(old) == "0.071 (429: 6 of 7 error flags)"
+    assert llm_error_cell({"llm_error_rate": 0.05, "llm_429_rate": 0.04}) == "0.050 (429: 0.040 of turns)"
+    assert llm_error_cell({}) == "not recorded"
+    assert llm_error_cell({"llm_error_rate": 0.0, "llm_error_kinds": {}}) == "0.000"
+
+
+def test_report_labels_first_runs_and_after_exposure():
+    from evaluation.agent_eval.report import render, status_label
+
+    assert "first runs" in status_label("ablation-test_v2-deepseek", "test_v2", "38a3069")
+    assert "after exposure" in status_label("ablation-final2-deepseek", "test_v2", "d1c007c")
+    assert "after exposure" in status_label("multiturn_v1-auto-nollm-after-fixes", "multiturn_v1", "7513376")
+    assert "first run" in status_label("ablation-test_v3-purellm-deepseek", "test_v3", "3730408")
+    block = render()
+    assert "Untouched test set v2" not in block
+    for name in (
+        "ablation-final2-glm",
+        "redteam-final2",
+        "claim_bench-holdout",
+        "router_eval-independent_v2-first-run",
+    ):
+        assert f"`{name}.json`" in block
+    # --llm deepseek names the client; the page must say where the model came from
+    assert "`--llm deepseek` names the OpenAI-compatible client" in block
+
+
+def test_report_check_fails_when_readme_cites_missing_or_unrendered_results(tmp_path):
+    from evaluation.agent_eval.report import citation_problems, cited_json, render_with_sources
+
+    readme = tmp_path / "README.md"
+    readme.write_text(
+        "See `ablation-final.json`, `perf-*.json`, `no-such-run.json`, `docs/results/perf/startup.json`, "
+        "`docs/results/nope/*.json`, `schemas/agent_*.schema.json` and GET `/.well-known/agent-card.json`.",
+        encoding="utf-8",
+    )
+    assert "/.well-known/agent-card.json" not in cited_json(readme.read_text(encoding="utf-8"))
+    _block, rendered = render_with_sources()
+    problems = citation_problems(rendered, readmes=(readme,))
+    assert problems == [
+        "README.md cites no-such-run.json, which does not exist",
+        "README.md cites docs/results/nope/*.json, which does not exist",
+    ]
+    unrendered = citation_problems([name for name in rendered if not name.startswith("perf-")], readmes=(readme,))
+    assert any("perf-baseline-deepseek.json is not rendered" in problem for problem in unrendered)
+
+
+def test_every_result_the_readmes_cite_exists_and_is_rendered():
+    from evaluation.agent_eval.report import citation_problems, render_with_sources
+
+    assert citation_problems(render_with_sources()[1]) == []

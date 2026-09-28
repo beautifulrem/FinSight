@@ -48,8 +48,10 @@ from .runner import (
     _command,
     _git_commit,
     _make_llm,
+    add_llm_arguments,
     build_offline_service,
     build_registry,
+    llm_config,
     map_tasks,
 )
 
@@ -505,14 +507,14 @@ def run_path(
 def main(argv: list[str] | None = None) -> dict[str, Any]:
     _git_commit()  # record the commit at start, not when the run finishes
     parser = argparse.ArgumentParser(description="Prompt-injection red team over poisoned documents.")
-    parser.add_argument("--llm", choices=["none", "deepseek"], default="none")
+    add_llm_arguments(parser)
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument(
         "--sets", default="dev,holdout,holdout2,holdout3", help="Attack sets: dev, holdout, holdout2, holdout3."
     )
     parser.add_argument("--out", default=str(DEFAULT_OUTPUT_DIR / "redteam.json"))
     args = parser.parse_args(argv)
-    llm = _make_llm(args.llm)
+    llm = _make_llm(args.llm, args.model)
     service = build_offline_service()
     paths = []
     for attack_set in args.sets.split(","):
@@ -523,7 +525,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             paths.append(run_path(service, mode="agent", llm=llm, workers=args.workers, attack_set=attack_set))
     report = {
         "config": {
-            "llm": getattr(llm, "model", None),
+            **llm_config(args.llm, args.model, llm),
             "attacks": {name: len(items) for name, items in _ATTACK_SETS.items()},
             "variants": sorted({variant for variant, _ in attacks()}),
             "questions": QUESTIONS,

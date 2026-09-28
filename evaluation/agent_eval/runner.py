@@ -381,23 +381,52 @@ def agent_config_from_overrides(pairs: list[str]) -> AgentConfig:
     return dataclasses.replace(base, **updates)
 
 
-def _make_llm(kind: str) -> LLMClient | None:
+LLM_HELP = (
+    "LLM client. 'deepseek' is the OpenAI-compatible client configured by DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL; "
+    "it names the client, not the model."
+)
+MODEL_HELP = (
+    "Model id sent to the client (e.g. cline-pass/glm-5.3-flash). Defaults to DEEPSEEK_MODEL, else "
+    "deepseek.model in the config. Passing it here puts the model into the recorded command."
+)
+
+
+def add_llm_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--llm", choices=["none", "deepseek"], default="none", help=LLM_HELP)
+    parser.add_argument("--model", default="", help=MODEL_HELP)
+
+
+def _make_llm(kind: str, model: str = "") -> LLMClient | None:
     if kind == "none":
         return None
     from query_intelligence.agent.llm import build_llm_from_config
     from query_intelligence.chatbot import load_chatbot_config
 
-    client = build_llm_from_config(load_chatbot_config())
+    config = load_chatbot_config()
+    if model:
+        config = {**config, "deepseek": {**(config.get("deepseek") or {}), "model": model}}
+    client = build_llm_from_config(config)
     if client is None:
         raise SystemExit("--llm deepseek requires DEEPSEEK_API_KEY (or deepseek.api_key in config/app_config.json)")
     return client
+
+
+def llm_config(kind: str, model_arg: str, llm: LLMClient | None) -> dict[str, Any]:
+    """Which client and model a run used. ``llm`` is kept for older readers; ``model`` is explicit."""
+    model = getattr(llm, "model", None) if llm is not None else None
+    return {
+        "llm": model,
+        "model": model,
+        "llm_client": kind,
+        "model_source": None if llm is None else ("--model" if model_arg else "DEEPSEEK_MODEL / deepseek.model"),
+    }
 
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
     _git_commit()  # record the commit at start, not when the run finishes
     parser = argparse.ArgumentParser(description="Run the FinSight agent evaluation.")
     parser.add_argument("--mode", choices=["workflow", "agent", "auto", "pure_llm"], default="workflow")
-    parser.add_argument("--llm", choices=["none", "deepseek"], default="none")
+    add_llm_arguments(parser)
     parser.add_argument("--tasks", default=str(DEFAULT_TASKS))
     parser.add_argument("--snapshot", default=str(DEFAULT_SNAPSHOT))
     parser.add_argument("--no-replay", action="store_true", help="Use the offline tools directly.")
@@ -420,7 +449,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         tasks = [task for task in tasks if task["category"] in set(args.category)]
     if args.limit:
         tasks = tasks[: args.limit]
-    llm = _make_llm(args.llm)
+    llm = _make_llm(args.llm, args.model)
     started = time.perf_counter()
 
     if args.mode == "pure_llm":
@@ -452,7 +481,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
 
     config = {
         "mode": args.mode,
-        "llm": getattr(llm, "model", None) if llm else None,
+        **llm_config(args.llm, args.model, llm),
         "tasks_file": _display_path(args.tasks),
         "snapshot": snapshot_info,
         "repeats": args.repeats,
