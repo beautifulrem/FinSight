@@ -681,6 +681,12 @@
       },
       "title": "Next Questions",
       "type": "array"
+    },
+    "replayed": {
+      "default": false,
+      "description": "True when /agent/resume received a reply it had already applied: the stored result is returned and the turn is not run again",
+      "title": "Replayed",
+      "type": "boolean"
     }
   },
   "required": [

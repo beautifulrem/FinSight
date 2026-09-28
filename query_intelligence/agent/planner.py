@@ -29,9 +29,9 @@ _PRICE_TERMS = re.compile(
 )
 _VALUATION_TERMS = re.compile(
     r"估值|市盈率|市净率|(?<![A-Za-z])(?:P/?E|P/?B)(?![A-Za-z])|ROE|净资产收益率|盈利|业绩|利润|营收|收入|基本面|"
-    r"财务|贵不贵|便宜|毛利率|股息率|市值|"
+    r"财务|贵不贵|便宜|毛利率|股息率|股息|市值|负债率|负债|杠杆|增速|现金流|净利率|"
     r"valuation|valued|earnings|profit|revenue|fundamental|price-to-(?:book|earnings)|expensive|cheap|margin|"
-    r"dividend yield|market cap",
+    r"dividend|market cap|debt|leverage|cash ?flow|growth rate",
     re.IGNORECASE,
 )
 _INDUSTRY_TERMS = re.compile(r"行业|板块|sector|industry", re.IGNORECASE)
@@ -154,7 +154,9 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
             add("analyze_sentiment", {"targets": [symbol], "top_k": 6}, f"{name}: tone of recent documents")
 
     macro_topics = _macro_topics(entities, text)
-    if macro_topics or product == "macro" or (not listed and "macro_sql" in sources):
+    # A question about a named security asks for macro data only when it names a macro topic: the product
+    # classifier alone ("And the P/B?" read as macro) must not replace the carried target's metric with CPI/PMI.
+    if macro_topics or (product == "macro" and not listed) or (not listed and "macro_sql" in sources):
         add(
             "get_macro_indicators",
             {"topics": macro_topics, "query": query},

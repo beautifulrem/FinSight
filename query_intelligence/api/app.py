@@ -8,8 +8,8 @@ import sys
 import threading
 import time
 from collections.abc import Iterator
-from pathlib import Path
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from ..agent.a2a_server import install_a2a
 from ..agent.audit import AuditTraceSink
-from ..agent.errors import SessionAccessError
+from ..agent.errors import NoPendingClarificationError, SessionAccessError
 from ..agent.telemetry import PrometheusTraceSink, prompt_version_of
 from ..agent.trace_store import build_trace_store
 from ..agent.tracing import DEFAULT_TRACE_DIR, sinks_from_env
@@ -35,25 +35,24 @@ from ..chatbot import (
     render_index_html,
 )
 from ..contracts import (
-    AgentChatRequest,
-    AgentMode,
-    AgentResumeRequest,
-    AnalyzeRequest,
-    ArtifactRequest,
-    ArtifactResponse,
     MAX_DIALOG_CONTEXT_ITEMS,
     MAX_QUERY_LENGTH,
     MAX_RETRIEVAL_TOP_K,
     MAX_USER_PROFILE_FIELDS,
     MIN_RETRIEVAL_TOP_K,
     SESSION_ID_PATTERN,
+    AgentChatRequest,
+    AgentMode,
+    AgentResumeRequest,
+    AnalyzeRequest,
+    ArtifactRequest,
+    ArtifactResponse,
     PipelineRequest,
     PipelineResponse,
     RetrievalRequest,
 )
 from ..service import QueryIntelligenceService, build_default_service
 from .security import SecuritySettings, install_security, principal_of
-
 
 logger = logging.getLogger("finsight.api")
 
@@ -75,7 +74,7 @@ def _elapsed_seconds(started_at: float) -> str:
 
 
 def _short_query(query: str, *, limit: int = 80) -> str:
-    return query if len(query) <= limit else f"{query[:limit - 3]}..."
+    return query if len(query) <= limit else f"{query[: limit - 3]}..."
 
 
 class ChatRequest(BaseModel):
@@ -143,7 +142,10 @@ def create_app(
     security_settings = install_security(app, security)
     if security_settings.api_keys:
         logger.info("[startup] API key authentication enabled for %d key(s).", len(security_settings.api_keys))
-    if str((chatbot_config.get("deepseek") or {}).get("api_key") or "").strip() and os.getenv("DEEPSEEK_API_KEY") is None:
+    if (
+        str((chatbot_config.get("deepseek") or {}).get("api_key") or "").strip()
+        and os.getenv("DEEPSEEK_API_KEY") is None
+    ):
         logger.warning("[startup] An LLM API key is stored in the config file; prefer the DEEPSEEK_API_KEY variable.")
     if service is None:
         service_started_at = time.perf_counter()
@@ -152,7 +154,9 @@ def create_app(
         logger.info("[startup] Query Intelligence service loaded in %s.", _elapsed_seconds(service_started_at))
     else:
         runtime = service
-    artifact_writer = ArtifactWriter(artifact_output_dir or os.getenv("QI_API_OUTPUT_DIR", "outputs/query_intelligence"))
+    artifact_writer = ArtifactWriter(
+        artifact_output_dir or os.getenv("QI_API_OUTPUT_DIR", "outputs/query_intelligence")
+    )
     logger.info("[startup] Preparing DeepSeek response client...")
     response_client = deepseek_client or DeepSeekClient(chatbot_config)
     agent_holder: dict[str, Any] = {"service": agent_service}
@@ -176,7 +180,9 @@ def create_app(
                 from ..agent.service import AgentService
 
                 agent_holder["service"] = AgentService.from_service(
-                    runtime, chatbot_config=chatbot_config, trace_sinks=[*sinks_from_env(), trace_store, metrics_sink, audit_sink]
+                    runtime,
+                    chatbot_config=chatbot_config,
+                    trace_sinks=[*sinks_from_env(), trace_store, metrics_sink, audit_sink],
                 )
             return agent_holder["service"]
 
@@ -317,8 +323,10 @@ def create_app(
             )
         except SessionAccessError as exc:
             raise _session_not_found(exc) from exc
-        except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except NoPendingClarificationError as exc:
+            # A repeated identical reply is answered from the stored result (``replayed: true``) by the service;
+            # only a reply with nothing to answer gets here.
+            raise HTTPException(status_code=409, detail={"code": exc.code, "message": str(exc)}) from exc
 
     @app.get("/agent/sessions/{session_id}")
     def agent_session(session_id: Annotated[str, ApiPath(pattern=SESSION_ID_PATTERN)], request: Request) -> dict:
@@ -422,7 +430,9 @@ def create_app(
 
     @app.post("/retrieval/search")
     def retrieval(payload: RetrievalRequest) -> dict:
-        return runtime.retrieve_evidence(payload.nlu_result.model_dump(mode="json"), top_k=payload.top_k, debug=payload.debug)
+        return runtime.retrieve_evidence(
+            payload.nlu_result.model_dump(mode="json"), top_k=payload.top_k, debug=payload.debug
+        )
 
     @app.post("/query/intelligence", response_model=PipelineResponse)
     def pipeline(payload: PipelineRequest) -> dict:

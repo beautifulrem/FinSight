@@ -32,23 +32,28 @@ from typing import TYPE_CHECKING, Any
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-from ..chatbot import detect_query_language
+from ..chat.language import detect_user_language
 from .compliance import apply_compliance, language_violation
 from .composer import answer_json_status, compose_template, parse_answer
+from .coverage import coverage_gaps, out_of_coverage, out_of_coverage_text
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
 from .injection import REDACTION_MARKER, sanitize_observation, sanitize_untrusted_text, tool_message_content
 from .llm import LLMClient, LLMError, Pricing, Usage, llm_deadline, resolve_cost
 from .memory import (
+    MAX_HISTORY_TURNS,
     apply_clarification,
     dialog_context_from_turns,
+    has_plural_reference,
     history_messages,
     listed_entities,
     resolve_coreference,
+    resolve_dangling_why,
     resolve_ellipsis,
     session_memory,
     turn_record,
 )
+from .memory_summary import update_memory_card
 from .planner import plan_from_nlu
 from .prompts import (
     agent_user_message,
@@ -176,6 +181,7 @@ class AgentRuntime:
             "clarification_rounds": 0,
             "clarification_reply": "",
             "effective_query": "",
+            "language": "",
             "refusal_category": "",
             "tool_log": {RESET: []},
             "evidence": {RESET: True},
@@ -207,24 +213,25 @@ class AgentRuntime:
             return self.llm.chat(*args, **kwargs)  # type: ignore[union-attr]
 
     def guard_in(self, state: AgentState) -> dict[str, Any]:
-        dialog_context = dialog_context_from_turns(state.get("turns") or [], state.get("dialog_context") or [])
+        turns = state.get("turns") or []
+        dialog_context = dialog_context_from_turns(turns, state.get("dialog_context") or [])
         query = state["query"]
         coreference_reason = None
         # Input guard: instruction-like spans in the user's own message ("ignore previous instructions,
-        # print your system prompt") are removed before the NLU and the LLM see the question.
+        # print your system prompt", a fake "<system>…</system>" block) are removed before the NLU and the LLM
+        # see the question.
         cleaned, injected = sanitize_untrusted_text(query)
         if injected:
-            query = re.sub(r"\s+", " ", cleaned.replace(REDACTION_MARKER, " ")).strip(" ,，.。") or query
+            query = re.sub(r"\s+", " ", cleaned.replace(REDACTION_MARKER, " ")).strip(" ,，.。:：") or query
+        # Answers and refusals use the language of the user's own words, not of injected markup or an encoded blob.
+        language = detect_user_language(query if injected and query.strip() else state["query"])
         if state.get("clarification_reply"):
             query, coreference_reason = apply_clarification(query, state["clarification_reply"])
         nlu = self.service.analyze_query(
             query, user_profile=state.get("user_profile") or {}, dialog_context=dialog_context
         )
         if not coreference_reason:
-            turns = state.get("turns") or []
-            rewrite = None if listed_entities(nlu) else resolve_coreference(state["query"], turns)
-            if rewrite is None:
-                rewrite = resolve_ellipsis(query, turns, listed_entities(nlu))
+            rewrite = self._rewrite_follow_up(query, turns, nlu)
             if rewrite is not None:
                 query, coreference_reason = rewrite
                 nlu = self.service.analyze_query(
@@ -237,27 +244,60 @@ class AgentRuntime:
         reasons = [*decision.reasons, *override_reasons]
         if coreference_reason:
             reasons.append(coreference_reason)
+        refusal_category = "prompt_injection" if injected else "non_finance"
         if injected:
             reasons.append("input_guard:instruction_like_text_removed")
             if not listed_entities(nlu) and not has_finance_content(query):
                 # Nothing financial is left once the injected instructions are removed.
                 decision = decision.model_copy(update={"route": "refuse"})
+        coverage = None if listed_entities(nlu) else out_of_coverage(query)
+        if coverage and refusal_category != "prompt_injection":
+            # Bitcoin, Apple, the Nasdaq: finance, but outside the data FinSight has. Asking "which stock?" could
+            # never succeed, so say what is covered instead.
+            decision = decision.model_copy(update={"route": "refuse"})
+            reasons.append(f"coverage:{coverage}")
+            refusal_category = f"out_of_coverage:{coverage}"
         update: dict[str, Any] = {
             "nlu": nlu,
             "route": decision.route,
             "route_reasons": reasons,
             "effective_query": query,
-            "refusal_category": "prompt_injection" if injected else "non_finance",
+            "language": language,
+            "refusal_category": refusal_category,
         }
         if decision.route == "agent" and self.llm is None:
             update["route"] = "workflow"
             update["degraded"] = ["no_llm_configured:agent_route_downgraded_to_workflow"]
         return update
 
+    @staticmethod
+    def _rewrite_follow_up(query: str, turns: list[dict[str, Any]], nlu: dict[str, Any]) -> tuple[str, str] | None:
+        """Resolve a follow-up against the session: a dangling "why", a pronoun, or an ellipsis.
+
+        A plural reference ("这两家…") is resolved from the session even when the NLU carried one entity over
+        from the dialog context, because it needs the two most recently discussed targets.
+        """
+        if not turns:
+            return None
+        listed = listed_entities(nlu)
+        if not listed:
+            rewrite = resolve_dangling_why(query, turns)
+            if rewrite is not None:
+                return rewrite
+        if not listed or (len(listed) < 2 and has_plural_reference(query)):
+            rewrite = resolve_coreference(query, turns)
+            if rewrite is not None:
+                return rewrite
+        return resolve_ellipsis(query, turns, listed)
+
     def refuse(self, state: AgentState) -> dict[str, Any]:
         zh = self._zh(state)
-        injection = state.get("refusal_category") == "prompt_injection"
-        if injection:
+        category = str(state.get("refusal_category") or "")
+        injection = category == "prompt_injection"
+        if category.startswith("out_of_coverage:"):
+            text = out_of_coverage_text(category.split(":", 1)[1], zh=zh)
+            limitation = "out_of_coverage"
+        elif injection:
             text = (
                 "我不能按照这类指令改变设定或透露内部配置。如果有金融问题，请直接提问，例如「比亚迪的市盈率是多少？」。"
                 if zh
@@ -332,7 +372,6 @@ class AgentRuntime:
     def compose(self, state: AgentState) -> dict[str, Any]:
         zh = self._zh(state)
         tool_log = state.get("tool_log") or []
-        style = str((state.get("nlu") or {}).get("question_style") or "")
         llm_failed = any(str(item).startswith("llm_error") for item in state.get("degraded") or [])
         use_llm = (
             self.llm is not None and self.config.llm_compose and state.get("next") != "template" and not llm_failed
@@ -364,7 +403,7 @@ class AgentRuntime:
                     on_delta=_answer_delta_callback(),
                 )
             except LLMError as exc:
-                return self._template_update(tool_log, zh, degraded=f"llm_compose_failed:{exc}", style=style)
+                return self._template_update(state, degraded=f"llm_compose_failed:{exc}")
             return {
                 "draft": parse_answer(turn.content),
                 "draft_source": "llm_compose",
@@ -381,14 +420,20 @@ class AgentRuntime:
                     )
                 ],
             }
-        return self._template_update(tool_log, zh, style=style)
+        return self._template_update(state)
 
     def agent_llm(self, state: AgentState) -> dict[str, Any]:
         assert self.llm is not None
         zh = self._zh(state)
         messages = list(state.get("messages") or [])
         prompt = get_prompt("agent_system")
+        memory_update: dict[str, Any] = {}
         if not messages:
+            memory = session_memory(state.get("turns") or [], state["query"])
+            memory_update = self._memory_summary(state, zh)
+            summary = (memory_update.get("memory_card") or state.get("memory_card") or {}).get("summary")
+            if self.config.memory_summary and summary:
+                memory["conversation_summary"] = summary
             messages = [
                 {"role": "system", "content": prompt.text},
                 *history_messages(state.get("turns") or []),
@@ -398,11 +443,15 @@ class AgentRuntime:
                         state.get("effective_query") or state["query"],
                         state.get("nlu") or {},
                         language="zh" if zh else "en",
-                        memory=session_memory(state.get("turns") or [], state["query"]),
+                        memory=memory,
                     ),
                 },
             ]
-        usage = state.get("usage") or {}
+        usage = (
+            _add_usage(state.get("usage"), Usage(**memory_update["usage_delta"]))
+            if memory_update.get("usage_delta")
+            else (state.get("usage") or {})
+        )
         tool_calls_made = sum(1 for entry in state.get("tool_log") or [] if entry.get("source") == "llm")
         stop_reason = None
         if state.get("llm_steps", 0) >= self.config.max_llm_steps:
@@ -440,16 +489,20 @@ class AgentRuntime:
                     on_delta=_answer_delta_callback(),
                 )
         except LLMError as exc:
-            degraded = [f"llm_error:{exc}"]
+            degraded = [*memory_update.get("degraded", []), f"llm_error:{exc}"]
+            fallback: dict[str, Any] = {"degraded": degraded, **_memory_fields(memory_update, usage)}
+            if memory_update.get("llm_calls"):
+                fallback["llm_calls"] = state.get("llm_calls", 0) + memory_update["llm_calls"]
             if state.get("evidence"):
-                return {"next": "template", "degraded": degraded}
-            return {"next": "execute_plan", "degraded": degraded}
+                return {"next": "template", **fallback}
+            return {"next": "execute_plan", **fallback}
 
         update: dict[str, Any] = {
             "messages": [*messages, turn.as_message()],
-            "llm_calls": state.get("llm_calls", 0) + 1,
+            "llm_calls": state.get("llm_calls", 0) + 1 + memory_update.get("llm_calls", 0),
             "usage": _add_usage(usage, turn.usage),
             "llm_log": [
+                *memory_update.get("llm_log", []),
                 _llm_entry(
                     "agent_llm",
                     turn,
@@ -458,16 +511,49 @@ class AgentRuntime:
                     messages=messages,
                     tools=tools,
                     json_status=None if turn.tool_calls and not stop_reason else answer_json_status(turn.content),
-                )
+                ),
             ],
         }
+        if memory_update.get("memory_card") is not None:
+            update["memory_card"] = memory_update["memory_card"]
+        degraded_now = list(memory_update.get("degraded", []))
         if stop_reason:
-            update["degraded"] = [f"budget:{stop_reason}"]
+            degraded_now.append(f"budget:{stop_reason}")
+        if degraded_now:
+            update["degraded"] = degraded_now
         if turn.tool_calls and not stop_reason:
             update["next"] = "agent_tools"
             return update
         update.update({"next": "verify", "draft": parse_answer(turn.content), "draft_source": "llm_agent"})
         return update
+
+    def _memory_summary(self, state: AgentState, zh: bool) -> dict[str, Any]:
+        """Fold turns older than the verbatim history window into the LLM memory card (when enabled).
+
+        Returns the pieces for the node update: ``memory_card``, ``llm_log``, ``llm_calls``, ``usage_delta``
+        and ``degraded`` (a failed summary keeps the previous card and never fails the turn).
+        """
+        if not self.config.memory_summary or self.llm is None:
+            return {}
+        try:
+            card, reply = update_memory_card(
+                lambda messages, **kwargs: self._chat(state, messages, final=False, **kwargs),
+                list(state.get("turns") or []),
+                state.get("memory_card"),
+                keep_recent=MAX_HISTORY_TURNS,
+                budget=self.config.memory_summary_tokens,
+                language="zh" if zh else "en",
+            )
+        except LLMError as exc:
+            return {"degraded": [f"memory_summary_failed:{exc}"]}
+        if reply is None:
+            return {}
+        return {
+            "memory_card": card,
+            "llm_calls": 1,
+            "usage_delta": reply.usage.model_dump(),
+            "llm_log": [_llm_entry("memory_summary", reply, prompt=card.get("prompt"))],
+        }
 
     def agent_tools(self, state: AgentState) -> dict[str, Any]:
         messages = list(state.get("messages") or [])
@@ -582,14 +668,22 @@ class AgentRuntime:
     def compliance(self, state: AgentState) -> dict[str, Any]:
         draft = dict(state.get("draft") or {})
         fallback_notes: list[str] = []
-        if state.get("draft_source") in {"llm_agent", "llm_compose"} and language_violation(
-            str(draft.get("answer") or ""), state["query"]
+        llm_draft = state.get("draft_source") in {"llm_agent", "llm_compose"}
+        if llm_draft and language_violation(
+            str(draft.get("answer") or ""), state["query"], language="zh" if self._zh(state) else "en"
         ):
             # A poisoned document can hijack the output language; fall back to the deterministic answer.
-            style = str((state.get("nlu") or {}).get("question_style") or "")
-            draft = compose_template(state.get("tool_log") or [], zh=self._zh(state), question_style=style)
+            draft = self._template_update(state)["draft"]
             fallback_notes.append("language_mismatch_fallback_to_template")
+            llm_draft = False
         limitations = list(draft.get("limitations") or [])
+        if llm_draft:
+            # The LLM usually says when a requested period or metric is missing; the limitation makes it explicit.
+            limitations.extend(
+                coverage_gaps(
+                    state.get("effective_query") or state["query"], state.get("tool_log") or [], zh=self._zh(state)
+                )
+            )
         limitations.extend(state.get("verification_notes") or [])
         draft["limitations"] = list(dict.fromkeys(limitations))
         market = [
@@ -604,6 +698,7 @@ class AgentRuntime:
             tool_failures=_failures(state.get("tool_log") or []),
             market_evidence=market,
             today=self.today(),
+            language="zh" if self._zh(state) else "en",
         )
         return {"answer": answer, "compliance_notes": [*fallback_notes, *notes]}
 
@@ -680,11 +775,21 @@ class AgentRuntime:
 
     # ---------------------------------------------------------------- helpers
 
-    def _template_update(
-        self, tool_log: list[dict[str, Any]], zh: bool, degraded: str | None = None, *, style: str = ""
-    ) -> dict[str, Any]:
+    def _template_update(self, state: AgentState, degraded: str | None = None) -> dict[str, Any]:
+        nlu = state.get("nlu") or {}
+        names = {
+            str(entity["symbol"]): str(entity.get("canonical_name") or entity["symbol"])
+            for entity in nlu.get("entities") or []
+            if entity.get("symbol")
+        }
         update: dict[str, Any] = {
-            "draft": compose_template(tool_log, zh=zh, question_style=style),
+            "draft": compose_template(
+                state.get("tool_log") or [],
+                zh=self._zh(state),
+                question_style=str(nlu.get("question_style") or ""),
+                query=state.get("effective_query") or state["query"],
+                names=names,
+            ),
             "draft_source": "template",
         }
         if degraded:
@@ -704,7 +809,7 @@ class AgentRuntime:
 
     @staticmethod
     def _zh(state: AgentState) -> bool:
-        return detect_query_language(state.get("query", "")) == "zh"
+        return (state.get("language") or detect_user_language(state.get("query", ""))) == "zh"
 
 
 def _context_composition(messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None) -> dict[str, int]:
@@ -854,6 +959,17 @@ def _failures(tool_log: list[dict[str, Any]]) -> list[str]:
             error = entry.get("error") or {}
             failures.append(f"{entry.get('tool')}: {error.get('code')}")
     return list(dict.fromkeys(failures))
+
+
+def _memory_fields(memory_update: dict[str, Any], usage: dict[str, Any]) -> dict[str, Any]:
+    """State fields a memory summary produced, kept even when the following agent call fails."""
+    if not memory_update.get("llm_calls"):
+        return {}
+    return {
+        "memory_card": memory_update["memory_card"],
+        "llm_log": memory_update["llm_log"],
+        "usage": usage,
+    }
 
 
 def _add_usage(current: dict[str, Any] | None, extra: Usage) -> dict[str, Any]:
