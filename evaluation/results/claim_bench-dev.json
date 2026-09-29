@@ -1,15 +1,16 @@
 {
  "config": {
   "claims": "evaluation/claim_bench/claims_v1.jsonl",
-  "claims_sha256": "da2bb882837fdd1b43f38a0c5c377b72d2d0b5e629aab16db92e1756b2d4bd56",
+  "claims_sha256": "097cb0d6a9d7d46844452d93130da820e25aa3e83bbeef8f115a6eac3439189a",
   "set": "dev",
   "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
-  "commit": "be88027",
-  "run_at": "2026-09-29T03:01:43+00:00",
+  "model": null,
+  "commit": "c731dba",
+  "run_at": "2026-09-29T15:29:35+00:00",
   "command": "python -m evaluation.claim_bench.run --set dev"
  },
- "claims": 173,
- "checks": 180,
+ "claims": 204,
+ "checks": 214,
  "verdict_accuracy": 1.0,
  "verdict_accuracy_ci": [
   1.0,
@@ -24,47 +25,47 @@
  "ci_method": "percentile bootstrap over claims, 2000 resamples, seed 20260926, 95%",
  "verdict_confusion": {
   "supported": {
-   "supported": 87,
+   "supported": 106,
    "contradicted": 0,
    "partially_supported": 0,
    "unverifiable": 0
   },
   "contradicted": {
    "supported": 0,
-   "contradicted": 51,
+   "contradicted": 59,
    "partially_supported": 0,
    "unverifiable": 0
   },
   "partially_supported": {
    "supported": 0,
    "contradicted": 0,
-   "partially_supported": 4,
+   "partially_supported": 5,
    "unverifiable": 0
   },
   "unverifiable": {
    "supported": 0,
    "contradicted": 0,
    "partially_supported": 0,
-   "unverifiable": 31
+   "unverifiable": 34
   }
  },
  "check_status_confusion": {
   "supported": {
-   "supported": 98,
+   "supported": 120,
    "contradicted": 0,
    "unverifiable": 0,
    "missing": 0
   },
   "contradicted": {
    "supported": 0,
-   "contradicted": 55,
+   "contradicted": 64,
    "unverifiable": 0,
    "missing": 0
   },
   "unverifiable": {
    "supported": 0,
    "contradicted": 0,
-   "unverifiable": 27,
+   "unverifiable": 30,
    "missing": 0
   },
   "extra": {
@@ -85,6 +86,10 @@
   },
   "comparator": {
    "claims": 18,
+   "verdict_accuracy": 1.0
+  },
+  "date": {
+   "claims": 4,
    "verdict_accuracy": 1.0
   },
   "direction": {
@@ -112,11 +117,19 @@
    "verdict_accuracy": 1.0
   },
   "macro": {
-   "claims": 14,
+   "claims": 16,
    "verdict_accuracy": 1.0
   },
   "move_bound": {
-   "claims": 14,
+   "claims": 19,
+   "verdict_accuracy": 1.0
+  },
+  "move_multi_target": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "move_vague": {
+   "claims": 5,
    "verdict_accuracy": 1.0
   },
   "multi": {
@@ -147,8 +160,28 @@
    "claims": 5,
    "verdict_accuracy": 1.0
   },
+  "ratio": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
   "relation": {
    "claims": 11,
+   "verdict_accuracy": 1.0
+  },
+  "relational": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "relational_industry": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "relational_move": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "sector_move": {
+   "claims": 3,
    "verdict_accuracy": 1.0
   },
   "sign": {
@@ -170,11 +203,11 @@
  },
  "by_language": {
   "en": {
-   "claims": 28,
+   "claims": 40,
    "verdict_accuracy": 1.0
   },
   "zh": {
-   "claims": 145,
+   "claims": 164,
    "verdict_accuracy": 1.0
   }
  },
