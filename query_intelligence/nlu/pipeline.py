@@ -30,6 +30,8 @@ from .source_planner import (
 from .source_plan_reranker import SourcePlanReranker
 from .typo_linker import TypoLinker
 
+# Words that join names in a list or a comparison ("比亚迪和宁得时代", "A与B", "A还是B", "A vs B").
+_NAME_LIST_JOINER = re.compile(r"[和与跟及、]|还是|\bvs\.?\b|\band\b", re.IGNORECASE)
 GENERIC_PRODUCT_TARGETS = {
     "etf",
     "lof",
@@ -263,9 +265,28 @@ class NLUPipeline:
         operation = self.normalizer.detect_operation(normalized_query)
 
         precheck_entities, precheck_comparison_targets, precheck_trace = self.entity_resolver.resolve_exact(normalized_query)
+        if precheck_entities and (
+            not any(entity.get("entity_type") in {"stock", "etf", "fund", "index"} for entity in precheck_entities)
+            or _NAME_LIST_JOINER.search(normalized_query)
+        ):
+            # "贵州矛台的市盈率": only the metric matched exactly; a typo'd company name beside it still counts.
+            # "比亚迪和宁得时代哪个好": in a list of names, one typo'd name beside an exact one still counts.
+            typo_entities, typo_trace = self.entity_resolver.resolve_typos_beside(normalized_query, precheck_entities)
+            if typo_entities:
+                precheck_entities = sorted(
+                    [*typo_entities, *precheck_entities],
+                    key=lambda item: normalized_query.find(item["mention"]) if item["mention"] in normalized_query else 999,
+                )
+                precheck_trace = [*precheck_trace, *typo_trace]
         out_of_scope_score = self.out_of_scope_detector.predict_probability(query) if self.out_of_scope_detector else None
         if out_of_scope_score is not None and self._should_early_reject_out_of_scope(query, operation, out_of_scope_score, precheck_entities):
-            return self._build_out_of_scope_result(query, normalized_query, out_of_scope_score)
+            # "贵州矛台今天涨了吗": nothing matched exactly, but a typo'd security name (3+ characters) keeps it in scope.
+            typo_entities, typo_trace = (
+                ([], []) if precheck_entities else self.entity_resolver.resolve_typos_beside(normalized_query, [])
+            )
+            if not typo_entities:
+                return self._build_out_of_scope_result(query, normalized_query, out_of_scope_score)
+            precheck_entities, precheck_trace = typo_entities, [*precheck_trace, *typo_trace]
 
         if precheck_entities:
             entities = precheck_entities

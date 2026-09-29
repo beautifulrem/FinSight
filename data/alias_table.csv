@@ -39,3 +39,4 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 91380,29852,资产负债率,资产负债率,official_name,1,true
 91381,29852,debt-to-asset ratio,debt-to-asset ratio,common_alias,1,false
 91390,3,CSI 300 Index,csi 300 index,common_alias,2,false
+91394,1,茅子,茅子,colloquial_alias,1,false

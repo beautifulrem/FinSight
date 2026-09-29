@@ -91332,3 +91332,32 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 91391,49,10-year CGB yield,10-year cgb yield,common_alias,2,false
 91392,49,China 10-year government bond yield,china 10-year government bond yield,common_alias,2,false
 91393,23,baijiu,baijiu,common_alias,2,false
+91394,1,茅子,茅子,colloquial_alias,1,false
+91395,117,美的,美的,colloquial_alias,1,false
+91396,244,格力,格力,colloquial_alias,1,false
+91397,4152,海天,海天,colloquial_alias,1,false
+91398,2243,宁王,宁王,colloquial_alias,1,false
+91399,1137,迪王,迪王,colloquial_alias,1,false
+91400,2969,招行,招行,colloquial_alias,1,false
+91401,3800,工行,工行,colloquial_alias,1,false
+91402,3897,建行,建行,colloquial_alias,1,false
+91403,3782,农行,农行,colloquial_alias,1,false
+91404,3909,中行,中行,colloquial_alias,1,false
+91405,3830,国寿,国寿,colloquial_alias,1,false
+91406,3146,恒瑞,恒瑞,colloquial_alias,1,false
+91407,2252,迈瑞,迈瑞,colloquial_alias,1,false
+91408,5250,中芯,中芯,colloquial_alias,1,false
+91409,3705,隆基,隆基,colloquial_alias,1,false
+91410,3625,伊利,伊利,colloquial_alias,1,false
+91411,3560,汾酒,汾酒,colloquial_alias,1,false
+91412,197,老窖,老窖,colloquial_alias,1,false
+91413,868,洋河,洋河,colloquial_alias,1,false
+91414,973,海康,海康,colloquial_alias,1,false
+91415,1600,东财,东财,colloquial_alias,1,false
+91416,3883,中免,中免,colloquial_alias,1,false
+91417,4128,药明,药明,colloquial_alias,1,false
+91418,3869,中石油,中石油,colloquial_alias,1,false
+91419,2962,中石化,中石化,colloquial_alias,1,false
+91420,3655,中移动,中移动,colloquial_alias,1,false
+91421,1245,牧原,牧原,colloquial_alias,1,false
+91422,1026,立讯,立讯,colloquial_alias,1,false
