@@ -2,6 +2,9 @@
  "kind": "ablation",
  "config": {
   "llm": "cline-pass/glm-5.3-flash",
+  "model": "cline-pass/glm-5.3-flash",
+  "llm_client": "deepseek",
+  "model_source": "DEEPSEEK_MODEL (environment, not in the command)",
   "repeats": 1,
   "prompts": {
    "agent_system": "agent_system@v3#e419eb84d58e",
@@ -48,7 +51,8 @@
   },
   "agent_config_overrides": [],
   "limit": null,
-  "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 1 --workers 3 --sets holdout --modes agent --stream --out outputs/agent_eval/perf-glm-on.json"
+  "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 1 --workers 3 --sets holdout --modes agent --stream --out outputs/agent_eval/perf-glm-on.json",
+  "model_note": "the command's --llm deepseek names the OpenAI-compatible client; the model was selected with DEEPSEEK_MODEL=cline-pass/glm-5.3-flash in the environment (runner._make_llm reads DEEPSEEK_MODEL / deepseek.model), which the command line does not show; recorded here on 2026-09-29. Runs since record config.model and accept --model"
  },
  "notes": [
   "GLM-5.3 flash spot check on held-out (1 repeat, 3 workers, streamed), run order off, on, on2, off2 to expose gateway drift. off = QI_AGENT_PREFETCH/REVISE_POLICY/STALL/DERIVED set to the previous path via --agent-config; on = defaults at 8a85ae5."

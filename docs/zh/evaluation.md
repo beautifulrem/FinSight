@@ -73,7 +73,7 @@
 
 ### 第二轮代码上的在线重跑（`d1c007c`）
 
-`ablation-final2-deepseek.json` 和 `ablation-final2-glm.json`，commit `d1c007c`，命令 `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 4 --sets holdout,test_v2 --modes workflow_llm,agent`，GLM 为同一命令加 `EVAL_MODEL=cline-pass/glm-5.3-flash`。这时测试集 v2 已属于暴露后。
+`ablation-final2-deepseek.json` 和 `ablation-final2-glm.json`，commit `d1c007c`，命令 `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 4 --sets holdout,test_v2 --modes workflow_llm,agent`，GLM 为同一命令加环境变量 `DEEPSEEK_MODEL=cline-pass/glm-5.3-flash`（`--llm deepseek` 只指定 OpenAI 兼容客户端，模型来自 `DEEPSEEK_MODEL`，因此命令行里看不到模型；结果文件的 `config.model` 记录了实际模型，今后的运行也可以用 `--model` 把模型写进命令）。这时测试集 v2 已属于暴露后。
 
 | 路径 | 保留集 · DeepSeek | 测试集 v2 · DeepSeek | 保留集 · GLM | 测试集 v2 · GLM | P95（DeepSeek / GLM，保留集） |
 |---|---|---|---|---|---|

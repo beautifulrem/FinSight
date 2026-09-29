@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, model_serializer
 
+from ...integrations.intraday import INTRADAY_SESSIONS, market_session
+from ...integrations.sources.catalog import source_label
 from ..evidence import AgentEvidence, safe_evidence_id
 from .base import ToolFailure, ToolOutput, ToolSpec, TransientToolError
 from .context import ResolvedTarget, ToolContext, provider_warnings
@@ -22,11 +24,41 @@ class MarketTargetInput(BaseModel):
 
 class PriceHistoryInput(MarketTargetInput):
     days: int = Field(default=10, ge=1, le=30, description="How many recent daily closes to return.")
+    intraday: bool = Field(
+        default=False,
+        description=(
+            "Set true only for questions about today (今天/今日/today): during A-share trading hours the latest "
+            "real-time quote is added and labelled intraday; otherwise the daily close is returned with the reason."
+        ),
+    )
+
+    @model_serializer(mode="wrap")
+    def _omit_default_intraday(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        # Normalised arguments key the tool cache and the evaluation snapshots: leaving the default out keeps
+        # every call recorded before this field existed byte-identical.
+        data = handler(self)
+        if not data.get("intraday"):
+            data.pop("intraday", None)
+        return data
 
 
 class DailyClose(BaseModel):
     date: str | None
     close: float
+
+
+class IntradayQuote(BaseModel):
+    price: float = Field(description="Latest traded price during the session (not a close).")
+    prev_close: float | None = None
+    pct_change: float | None = Field(default=None, description="Change against the previous close, in percent.")
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    volume: float | None = None
+    volume_unit: str | None = None
+    amount: float | None = Field(default=None, description="Turnover so far today, CNY.")
+    quote_time: str = Field(description="Beijing time of the quote, ISO 8601 with +08:00.")
+    source: str | None = None
 
 
 class PriceHistoryOutput(BaseModel):
@@ -51,6 +83,21 @@ class PriceHistoryOutput(BaseModel):
     provenance: SourceProvenance | None = Field(
         default=None, description="Where the quote came from, its as-of date, and why a fallback was used."
     )
+    price_basis: str = Field(
+        default="daily_close", description="'intraday' when `intraday` holds a real-time quote, else 'daily_close'."
+    )
+    intraday: IntradayQuote | None = Field(default=None, description="Real-time quote (intraday requests only).")
+    market_session: str | None = Field(
+        default=None,
+        description="Beijing-time session when intraday was requested: pre_open, morning, lunch_break, afternoon, "
+        "closed or non_trading_day.",
+    )
+    basis_reason: str | None = Field(
+        default=None,
+        description="Why an intraday request got the daily close: outside_trading_hours, intraday_unavailable "
+        "(no live source) or intraday_failed.",
+    )
+    intraday_provenance: SourceProvenance | None = None
 
 
 class IndicatorsOutput(BaseModel):
@@ -108,6 +155,7 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
         if not recent and payload.get("close") is not None:
             recent = [DailyClose(date=_as_str(payload.get("trade_date")), close=float(payload["close"]))]
         evidence_id = safe_evidence_id(f"price_{resolved.symbol}")
+        intraday_fields = _intraday_fields(args, resolved) if args.intraday else {}
         output = PriceHistoryOutput(
             symbol=resolved.symbol,
             name=resolved.name,
@@ -125,19 +173,58 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
             evidence_id=evidence_id,
             volume_unit=payload.get("volume_unit"),
             provenance=provenance_from(payload),
+            **intraday_fields,
         )
+        quote = output.intraday
         evidence = AgentEvidence(
             evidence_id=evidence_id,
             kind="structured",
             source_type="market_api",
-            title=f"{resolved.name} ({resolved.symbol}) daily market data",
+            title=(
+                f"{resolved.name} ({resolved.symbol}) intraday quote and daily market data"
+                if quote
+                else f"{resolved.name} ({resolved.symbol}) daily market data"
+            ),
             source_name=output.source,
             provider=item.get("provider"),
-            as_of=output.as_of,
+            as_of=quote.quote_time if quote else output.as_of,
             payload=output.model_dump(exclude={"evidence_id"}, mode="json"),
             produced_by="get_price_history",
         )
         return ToolOutput(data=output, evidence=[evidence])
+
+    def _intraday_fields(args: PriceHistoryInput, resolved: ResolvedTarget) -> dict[str, Any]:
+        """The real-time quote during trading hours, else the reason the daily close stands."""
+        now = context.clock()
+        session = market_session(now)
+        fields: dict[str, Any] = {"market_session": session}
+        if session not in INTRADAY_SESSIONS:
+            return {**fields, "basis_reason": "outside_trading_hours"}
+        if context.intraday_provider is None:
+            return {**fields, "basis_reason": "intraday_unavailable"}
+        try:
+            quote = context.intraday_provider.fetch(resolved.symbol, resolved.product_type, now=now)
+        except Exception as exc:  # the daily close still answers; the reason is recorded and stated
+            return {**fields, "basis_reason": f"intraday_failed: {str(exc)[:200]}"}
+        provenance = SourceProvenance(
+            source=quote.get("source"),
+            source_label=source_label(quote.get("source")) if quote.get("source") else None,
+            endpoint=quote.get("endpoint"),
+            is_live=True,
+            mode="live",
+            fetched_at=quote.get("fetched_at"),
+            as_of=quote.get("quote_time"),
+            freshness="fresh",
+            fallback_reason=quote.get("fallback_reason"),
+            attempts=list(quote.get("attempts") or []),
+            note="盘中实时行情（非收盘价） / intraday quote, not a close",
+        )
+        return {
+            **fields,
+            "price_basis": "intraday",
+            "intraday": IntradayQuote.model_validate(quote),
+            "intraday_provenance": provenance,
+        }
 
     def indicators(args: MarketTargetInput) -> ToolOutput:
         resolved, item, payload = fetch_market(args.target)

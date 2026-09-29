@@ -476,8 +476,10 @@
    ]
   }
  ],
- "command": "python -m scripts.chaos_drill --scenario llm --port 8821 --out /Volumes/Remi/FinSight-ops/docs/results/chaos/llm/chaos-llm.json",
+ "command": "python -m scripts.chaos_drill --scenario llm --port 8821 --out docs/results/chaos/llm/chaos-llm.json",
  "run_at": "2026-09-26T13:41:52+00:00",
  "duration_s": 449.9,
- "commit": ""
+ "commit": "8dc388b-dirty",
+ "commit_recorded_at_run": "",
+ "commit_derivation": "The drill recorded an empty commit (git rev-parse failed inside the run). Re-derived from git history on 2026-09-29: the run started at 2026-09-26T13:41:52+00:00 (UTC) in the ops worktree, whose HEAD was 8dc388b (2026-09-26 17:53 +0800); the next commit on that branch, 3b00e8d, was made at 22:27 +0800, after the drill. 8dc388b..3b00e8d changes no file under query_intelligence/, so the server code is exactly 8dc388b. The drill script itself carried the 15-line change that 3b00e8d committed (uncommitted at run time), hence -dirty. The results were committed in baf7fee."
 }

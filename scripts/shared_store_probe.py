@@ -32,6 +32,10 @@ from a2a.client import A2ACardResolver, A2AClientError, ClientConfig, ClientFact
 from a2a.helpers import get_artifact_text, new_text_message
 from a2a.types import GetTaskRequest, Role, SendMessageRequest, TaskState
 from a2a.utils.errors import A2AError
+try:
+    from scripts.provenance import commit_label, git_state
+except ModuleNotFoundError:  # run as a file (python scripts/x.py): scripts/ itself is on sys.path
+    from provenance import commit_label, git_state  # type: ignore[no-redef]
 
 
 async def _client(base: str, http: httpx.AsyncClient) -> Any:
@@ -114,10 +118,7 @@ async def probe(replicas: list[str], key: str, other_key: str) -> dict[str, Any]
 
 
 def _commit() -> str:
-    try:
-        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
-    except OSError:
-        return ""
+    return commit_label(git_state())
 
 
 def main(argv: list[str] | None = None) -> int:

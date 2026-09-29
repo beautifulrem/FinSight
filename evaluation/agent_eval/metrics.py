@@ -35,6 +35,20 @@ _HEDGE_MARKERS = (
     "does not establish",
 )
 _LLM_FAILURE_FLAGS = ("llm_error", "llm_compose_failed", "llm_revision_failed")
+
+
+def llm_failure_flags(degraded: Any) -> list[str]:
+    """The ``degraded`` flags of a response that mean an LLM call failed and a fallback answered."""
+    return [str(flag) for flag in degraded or [] if str(flag).startswith(_LLM_FAILURE_FLAGS)]
+
+
+# Checks that only a path with tools, evidence ids and the NLU pipeline can pass (cited facts, tool use, the
+# product's risk-disclaimer field, the resolved entities in ``nlu_summary``); dropped for the uncited score.
+_TOOL_ONLY_CHECKS = frozenset({"facts", "required_tools", "any_of_tools", "disclaimer", "entity", "entities"})
+# Of the failed checks kept in committed failure rows, these cannot be re-decided without the answer text:
+# a failed ``facts`` may be an uncited but correct number, and before pure_llm runs recorded the answer
+# language every such turn failed ``language``.
+_UNDECIDABLE_FROM_ROWS = frozenset({"facts", "language"})
 _MISSING_MARKERS = ("未返回", "没有", "未获取", "缺少", "不足", "无法", "not ", "no usable", "unavailable", "missing")
 
 
@@ -106,11 +120,20 @@ def score_turn(response: dict[str, Any], expect: dict[str, Any]) -> dict[str, An
         # plural follow-ups ("这两家…") must carry every earlier target, not just the last one
         checks["entities"] = set(expect["required_entities"]) <= symbols
 
+    # Uncited correctness: the same turn scored without the requirements only a tool-using path can meet
+    # (facts cited with an evidence id, required tools, the product's risk-disclaimer field), with every
+    # required number still compared against the snapshot value. A no-tools LLM fails the strict score by
+    # construction; this says whether its numbers were right anyway.
+    uncited_checks = {name: passed for name, passed in checks.items() if name not in _TOOL_ONLY_CHECKS}
+    uncited_checks["facts_stated"] = all(item["stated"] for item in facts)
+
     llm = response.get("llm") or {}
     usage = llm.get("usage") or {}
     return {
         "success": all(checks.values()),
         "checks": checks,
+        "uncited_success": all(uncited_checks.values()),
+        "uncited_checks": uncited_checks,
         "behavior": behavior,
         "expected_behavior": expected_behavior,
         "facts": facts,
@@ -182,6 +205,47 @@ def task_outcomes(records: list[dict[str, Any]]) -> dict[str, list[bool]]:
     for record in sorted(records, key=lambda item: item.get("repeat", 0)):
         outcomes[record["task"]["id"]].append(all(turn["score"]["success"] for turn in record["turns"]))
     return dict(outcomes)
+
+
+def uncited_task_outcomes(records: list[dict[str, Any]]) -> dict[str, list[bool]]:
+    """Like ``task_outcomes`` with each turn's ``uncited_success``; empty for records scored before it existed."""
+    if any("uncited_success" not in turn["score"] for record in records for turn in record["turns"]):
+        return {}
+    outcomes: dict[str, list[bool]] = defaultdict(list)
+    for record in sorted(records, key=lambda item: item.get("repeat", 0)):
+        outcomes[record["task"]["id"]].append(all(turn["score"]["uncited_success"] for turn in record["turns"]))
+    return dict(outcomes)
+
+
+def uncited_success_bounds(
+    failures: list[dict[str, Any]], task_outcomes: Mapping[str, Sequence[bool]]
+) -> tuple[float, float] | None:
+    """Bounds on ``task_success_uncited`` for runs that only kept failure rows and per-task outcomes.
+
+    A failure row (task, query, failed checks, count across repeats) whose failed checks are all tool-only
+    certainly passes the uncited score; one that also failed ``facts`` or ``language`` may or may not; any
+    other failed check (behaviour, hedging, forbidden content, ...) certainly fails it. The lower bound counts
+    the undecidable rows as failures, the upper bound as passes. Failed repeats per task are the largest
+    per-turn count, as in ``results.reconstruct_outcomes``.
+    """
+    if not task_outcomes:
+        return None
+
+    def success(undecidable_fails: bool) -> float:
+        counts: dict[str, Counter] = defaultdict(Counter)
+        for row in failures:
+            failed = set(row.get("failed_checks") or [])
+            certain_fail = bool(failed - _TOOL_ONLY_CHECKS - _UNDECIDABLE_FROM_ROWS)
+            undecidable = bool(failed & _UNDECIDABLE_FROM_ROWS)
+            if certain_fail or (undecidable and undecidable_fails):
+                counts[row["task"]][row["query"]] += int(row.get("count") or 1)
+        values = []
+        for task, runs in task_outcomes.items():
+            failed_runs = min(len(runs), max(counts.get(task, Counter()).values(), default=0))
+            values.append((len(runs) - failed_runs) / len(runs))
+        return round(statistics.fmean(values), 4)
+
+    return success(True), success(False)
 
 
 def task_success_value(runs: Sequence[bool]) -> float:
@@ -304,14 +368,23 @@ def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, A
         for record in records
         if record["turns"] and all(turn["score"]["cost"] is not None for turn in record["turns"])
     ]
+    uncited_runs = uncited_task_outcomes(records)
+    cis = outcome_cis(task_runs)
+    if uncited_runs:
+        cis["task_success_uncited"] = bootstrap_ci([task_success_value(runs) for runs in uncited_runs.values()])
     summary = {
         "tasks": len(task_runs),
         "turns": len(turns),
         "repeats": k,
         "task_success": mean([task_success_value(runs) for runs in task_runs.values()]),
         f"pass^{k}": mean([pass_all_value(runs) for runs in task_runs.values()]),
-        "ci": outcome_cis(task_runs),
+        "ci": cis,
         "ci_method": CI_METHOD,
+        # Scoring property, not a model property: see score_turn. Every path gets it, so the no-tools LLM
+        # baseline can be compared on whether its numbers were right, not only on whether it cited them.
+        "task_success_uncited": (
+            mean([task_success_value(runs) for runs in uncited_runs.values()]) if uncited_runs else None
+        ),
         "turn_success": mean([1.0 if score["success"] else 0.0 for score in scores]),
         "behavior_accuracy": mean([1.0 if score["checks"]["behavior"] else 0.0 for score in scores]),
         "fact_recall": mean([1.0 if fact["stated"] and fact["cited"] else 0.0 for fact in facts]),
@@ -368,6 +441,19 @@ def aggregate(records: list[dict[str, Any]], *, repeats: int = 1) -> dict[str, A
         "llm_error_rate": mean(
             [
                 1.0 if any(str(flag).startswith(_LLM_FAILURE_FLAGS) for flag in score.get("degraded") or []) else 0.0
+                for score in scores
+            ]
+        ),
+        # Turns with an LLM failure caused by HTTP 429 (gateway rate limit / quota): the part of
+        # llm_error_rate that measures the gateway, not the model.
+        "llm_429_rate": mean(
+            [
+                1.0
+                if any(
+                    str(flag).startswith(_LLM_FAILURE_FLAGS) and "HTTP 429" in str(flag)
+                    for flag in score.get("degraded") or []
+                )
+                else 0.0
                 for score in scores
             ]
         ),

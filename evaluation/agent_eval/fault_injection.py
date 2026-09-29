@@ -285,6 +285,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     scenarios = [run_scenario(name, SCENARIOS[name], service) for name in names]
     report = {
         "config": {
+            "model": None,  # no real model: scripted stand-in LLMs only
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "questions": QUESTIONS,
