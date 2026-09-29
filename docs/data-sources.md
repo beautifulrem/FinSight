@@ -34,6 +34,20 @@ families: Eastmoney `push2`/`push2his` hosts 0/11 (proxy error, root cause 1; ef
 host), Xueqiu 0/1 (login token), the removed `macro_china_pmi_monthly`, and one empty announcement
 result each for cninfo and the Eastmoney notice API (the ETF, which has no company announcements).
 
+**Trend across committed runs.** Each file records its commit and `working_tree_clean: true`.
+
+| Run (UTC / Beijing) | Commit | Probes OK | Chains OK | Failures |
+|---|---|---|---|---|
+| 2026-09-28 09:14 / 17:14 | `6dde495` | 49/64 | 10/10 | the families listed above |
+| 2026-09-28 19:55 / 09-29 03:55 | `4742453` | 49/64 | 10/10 | the same 15 probes |
+| 2026-09-29 02:57 / 10:57 (morning session) | `5d4c192` | 52/67 | 10/10 | the same 15 probes; the 3 new intraday probes (Sina real-time quote dated today, 33–106 ms) all OK |
+
+Files: [`audit-20260928-6dde495.json`](results/data_sources/audit-20260928-6dde495.json),
+[`audit-20260928T1955Z-4742453.json`](results/data_sources/audit-20260928T1955Z-4742453.json),
+[`audit-20260929T0257Z-5d4c192.json`](results/data_sources/audit-20260929T0257Z-5d4c192.json). Three runs at
+different times of day (afternoon close, night, during the session) fail the same way, so the Eastmoney
+proxy errors and the Xueqiu token are properties of this network, not of the time of day.
+
 **Schedule.** [`.github/workflows/data-source-audit.yml`](../.github/workflows/data-source-audit.yml)
 runs the audit every Monday at 01:30 UTC and on demand (`workflow_dispatch`), writes a summary table to
 the job page and uploads the JSON as an artifact for 90 days. GitHub's runners are outside mainland
