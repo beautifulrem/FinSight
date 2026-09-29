@@ -303,6 +303,10 @@ _DOWN_MOVE = re.compile(
     r"\b(?:was|is|closed) (?:down|lower)\b",
     re.I,
 )
+# Change words used of macro series only ("PMI回落了", "CPI回升"): for a share, 回落 is not a daily move.
+_MACRO_MOVE = re.compile(r"回落|回升|上升|下降|下滑|下行|反弹|攀升|\b(?:increased|decreased|eased|picked up)\b", re.I)
+# Of those, the words for a change from the previous reading ("CPI同比回升": the YoY rate rose, not "YoY > 0").
+_MACRO_CHANGE = re.compile(r"回落|回升|反弹|攀升|下行|\b(?:eased|picked up)\b", re.I)
 # The direction a word gives a change ("跌超1%", "fell more than 1%", "营收同比增长", "CPI同比下降").
 _UP_WORDS = re.compile(
     r"大涨|收涨|上涨|涨幅|涨了|走高|上扬|上升|增长|增加|提高|反弹|攀升|回升|涨(?![跌停破到至])|"
@@ -832,18 +836,23 @@ def _context(number: _Number, norm: str, clause_start: int, clause_end: int, pla
 def _moves(text: str, norm: str, taken: list[tuple[int, int]], plain: str = "") -> list[_Number]:
     """Number-less moves: "昨天下跌了" (< 0), "并没有跌" (≥ 0), "did not fall", "CPI同比上涨" (> 0)."""
     moves: list[_Number] = []
-    for match in _MOVE.finditer(text):
+    found = [(match, False) for match in _MOVE.finditer(text)]
+    found += [(match, True) for match in _MACRO_MOVE.finditer(text)]  # "PMI回落了": macro series only
+    for match, macro_only in sorted(found, key=lambda pair: pair[0].start()):
         clause_start, clause_end = _clause_bounds(text, match.start())
         if any(clause_start <= start < clause_end for start, _end in taken):
             continue  # the clause states a number (the move is its direction) or a relation
         if any(clause_start <= move.start < clause_end for move in moves):
             continue
         clause = norm[clause_start:clause_end]
-        comparator: Comparator = "lt" if _DOWN_MOVE.search(match.group(0)) else "gt"
+        down = _DOWN_WORDS if macro_only else _DOWN_MOVE
+        comparator: Comparator = "lt" if down.search(match.group(0)) else "gt"
         negated = bool(_NEGATION.search(text[clause_start : match.start()]))
         macro = _nearest_metrics((plain or norm)[clause_start : match.start()], "", macro=True) or _nearest_metrics(
             "", (plain or norm)[match.end() : clause_end], macro=True
         )
+        if macro_only and not macro:
+            continue
         metric = macro[0][1] if macro else "pct_change_1d"
         number = _Number(
             start=match.start(),
@@ -859,7 +868,7 @@ def _moves(text: str, norm: str, taken: list[tuple[int, int]], plain: str = "") 
         )
         if _FORECAST.search(clause) or _HYPOTHETICAL.search(clause):
             number.reasons.append(("forecast", "a forecast or hypothetical, not a reported fact"))
-        elif macro and not _METRICS[metric].directional:
+        elif macro and (not _METRICS[metric].directional or _MACRO_CHANGE.fullmatch(match.group(0))):
             # "PMI回落了": a change from the previous reading; only the latest level is available.
             number.reasons.append(("no_data", "only the latest reading is available, not its change"))
         elif not macro and _MULTI_DAY.search(clause):
