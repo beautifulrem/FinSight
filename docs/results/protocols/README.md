@@ -67,3 +67,18 @@ The output is in [`a2a-client-demo.txt`](a2a-client-demo.txt), from `python scri
 ## 4. MCP client
 
 `python -m pytest tests/test_agent_mcp_client.py -q`: 12 passed in about 30 s. This spawns `tests/fixtures/mcp_trading_calendar_server.py` over stdio. See [docs/mcp.md](../../mcp.md#the-fixture-server-and-tests).
+
+## 5. A2A interop with the JavaScript SDK client
+
+Date: 2026-09-28. `node tools/a2a-js-client/interop.mjs --url http://127.0.0.1:8861` (@a2a-js/sdk 1.2.1, Node v26.9.0) against an offline uvicorn server with no LLM key:
+
+- [`a2a-js-interop-before-fix.txt`](a2a-js-interop-before-fix.txt): server at `6ae375f`, 15/16. `SubscribeToTask` on a finished task returned -32602 (`InvalidParams`), which the JS SDK reports as `JsonRpcRequestMalformedError`.
+- [`a2a-js-interop.txt`](a2a-js-interop.txt): server at `1535922`, 16/16. The same call now returns `UnsupportedOperationError` (-32004), as A2A 1.0 §9.4.6 requires.
+
+See [docs/a2a-and-observability.md](../../a2a-and-observability.md#interop-with-another-framework-the-javascript-sdk-client).
+
+## 6. MCP client against real third-party servers
+
+[`mcp-third-party-demo.txt`](mcp-third-party-demo.txt), from `python scripts/mcp_third_party_demo.py 2>/dev/null` at `1535922` (uvx 0.12.18): the official `mcp-server-time` and `mcp-server-fetch` (2026.8.18, MCP SDK 1.x) attached through `QI_MCP_SERVERS`. Namespaced tools and schemas, a structured call with evidence, local schema rejection, an injected page redacted and wrapped as untrusted, and a scripted-LLM agent run citing both MCP evidence ids with verification passed. See [docs/mcp.md](../../mcp.md#real-third-party-servers).
+
+`python -m pytest tests/test_a2a_js_interop.py tests/test_mcp_third_party_demo.py -q`: 5 passed in 27 s.

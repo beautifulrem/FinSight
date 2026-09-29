@@ -1,0 +1,93 @@
+# node tools/a2a-js-client/interop.mjs --url http://127.0.0.1:8861
+# client: @a2a-js/sdk 1.2.1 on node v26.9.0; server: FinSight commit 1535922, a2a-sdk 1.1.5 (Python)
+# server: QI_USE_LIVE_MARKET=0 QI_USE_LIVE_MACRO=0 QI_USE_LIVE_NEWS=0 QI_USE_LIVE_ANNOUNCEMENT=0 QI_AGENT_TRACE_DIR=off uvicorn query_intelligence.api.app:create_app --factory --port 8861 (offline data, no LLM key)
+# run at 2026-09-28T21:22:47Z
+
+== 1. Agent card via ClientFactory.createFromUrl(http://127.0.0.1:8861)
+   FinSight 1.0.0; interface http://127.0.0.1:8861/a2a (JSONRPC 1.0)
+   streaming=true pushNotifications=false
+   skills: equity_research, comparison, macro_linkage; client protocol version 1.0
+   [PASS] agent card parsed by the JS SDK
+
+== 2. sendMessage: 贵州茅台的市盈率是多少
+   state=TASK_STATE_COMPLETED artifacts=answer,evidence trace=b74f7e0834c8415995a3e0a3facdd60a
+   evidence_used: fundamental_600519.SH, industry_白酒
+   > 根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1688.38 亿元，净利润 823.2 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒]。
+   [PASS] SendMessage returns a completed task
+   [PASS] answer artifact cites evidence
+
+== 3. getTask(60e36b32…, historyLength=10)
+   state=TASK_STATE_COMPLETED artifacts=answer,evidence history=8
+   [PASS] GetTask returns the same completed task
+   [PASS] GetTask honours historyLength=0 (history=0)
+   [PASS] GetTask on an unknown id raises TaskNotFoundError (JsonRpcTaskNotFoundError)
+
+== 4. sendMessage (needs clarification): 它的市盈率呢
+   state=TASK_STATE_INPUT_REQUIRED question: 请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。
+   [PASS] vague question pauses in input-required
+   reply "贵州茅台" on the same task -> state=TASK_STATE_COMPLETED
+   > 根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 24.6，PB 8.1，ROE 33%，营业收入 1688.38 亿元，净利润 823.2 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3，PB 6.2，涨跌幅% -1.05 [industry_白酒]。
+   [PASS] reply resumes the same task to completed
+
+== 5. sendMessageStream: 贵州茅台最近走势怎么样
+   [task] task 4507e68f TASK_STATE_SUBMITTED
+   [statusUpdate] TASK_STATE_WORKING
+   [statusUpdate] TASK_STATE_WORKING NLU and routing…
+   [statusUpdate] TASK_STATE_WORKING deterministic tool plan…
+   [statusUpdate] TASK_STATE_WORKING calling get_price_history
+   [statusUpdate] TASK_STATE_WORKING calling compute_indicators
+   [statusUpdate] TASK_STATE_WORKING calling get_fundamentals
+   [statusUpdate] TASK_STATE_WORKING answer composition…
+   [statusUpdate] TASK_STATE_WORKING evidence verification…
+   [statusUpdate] TASK_STATE_WORKING compliance guard…
+   [statusUpdate] TASK_STATE_WORKING finalize…
+   [artifactUpdate] artifact answer: 根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [
+   [artifactUpdate] artifact evidence: (structured data part)
+   [statusUpdate] TASK_STATE_COMPLETED
+   [PASS] stream starts with the task and ends completed
+   [PASS] stream carries working updates and both artifacts
+
+== 6. resubscribeTask on a running task (sendMessage with returnImmediately=true first)
+   sendMessage(returnImmediately) -> task 34cdc1f0 TASK_STATE_SUBMITTED
+   [task] task 34cdc1f0 TASK_STATE_WORKING
+   [statusUpdate] TASK_STATE_WORKING deterministic tool plan…
+   [statusUpdate] TASK_STATE_WORKING calling get_price_history
+   [statusUpdate] TASK_STATE_WORKING calling compute_indicators
+   [statusUpdate] TASK_STATE_WORKING calling get_fundamentals
+   [statusUpdate] TASK_STATE_WORKING answer composition…
+   [statusUpdate] TASK_STATE_WORKING evidence verification…
+   [statusUpdate] TASK_STATE_WORKING compliance guard…
+   [statusUpdate] TASK_STATE_WORKING finalize…
+   [artifactUpdate] artifact answer: 根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5（2026-04-22），当日涨跌幅 -0.1778% [
+   [artifactUpdate] artifact evidence: (structured data part)
+   [statusUpdate] TASK_STATE_COMPLETED
+   [PASS] returnImmediately returns before the run finishes (TASK_STATE_SUBMITTED)
+   [PASS] resubscribe streams the running task to completion (TASK_STATE_COMPLETED)
+   [PASS] resubscribe on a completed task raises UnsupportedOperationError (A2A 1.0 §9.4.6) (JsonRpcUnsupportedOperationError: Task 60e36b32-a403-4b90-b95e-1e732101bc47 is in a terminal state (TASK_STATE_COMPLETED); SubscribeToTask only streams running tasks. Use GetTask to read the result.)
+
+== 7. cancelTask on a running task
+   sendMessage(returnImmediately) -> task 52b731ea TASK_STATE_SUBMITTED
+   cancelTask -> TASK_STATE_CANCELED
+   getTask after 3000 ms -> TASK_STATE_CANCELED; artifacts=0
+   [PASS] cancelTask returns a canceled task
+   [PASS] a canceled task stays canceled (no late answer)
+   [PASS] cancelTask on a completed task raises TaskNotCancelableError (JsonRpcTaskNotCancelableError)
+
+== Wire log (JS SDK fetch calls)
+   GET /.well-known/agent-card.json A2A-Version=1.0 -> 200 application/json
+   POST SendMessage /a2a A2A-Version=1.0 -> 200 application/json
+   POST GetTask /a2a A2A-Version=1.0 -> 200 application/json
+   POST GetTask /a2a A2A-Version=1.0 -> 200 application/json
+   POST GetTask /a2a A2A-Version=1.0 -> 200 application/json
+   POST SendMessage /a2a A2A-Version=1.0 -> 200 application/json
+   POST SendMessage /a2a A2A-Version=1.0 -> 200 application/json
+   POST SendStreamingMessage /a2a A2A-Version=1.0 -> 200 text/event-stream; charset=utf-8
+   POST SendMessage /a2a A2A-Version=1.0 -> 200 application/json
+   POST SubscribeToTask /a2a A2A-Version=1.0 -> 200 text/event-stream; charset=utf-8
+   POST SubscribeToTask /a2a A2A-Version=1.0 -> 200 application/json
+   POST SendMessage /a2a A2A-Version=1.0 -> 200 application/json
+   POST CancelTask /a2a A2A-Version=1.0 -> 200 application/json
+   POST GetTask /a2a A2A-Version=1.0 -> 200 application/json
+   POST CancelTask /a2a A2A-Version=1.0 -> 200 application/json
+
+== 16/16 checks passed

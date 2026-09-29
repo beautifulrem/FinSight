@@ -78,6 +78,52 @@ Output against a real replica (offline data, no LLM) is in [`docs/results/protoc
 
 The in-process test also checks that the demo's API key reaches the server, and that a second key cannot `GetTask` the demo's task.
 
+### Interop with another framework: the JavaScript SDK client
+
+The Python demo above uses the same SDK family as the server. To check real interoperability, `tools/a2a-js-client/interop.mjs` drives FinSight with the official **JavaScript** SDK client ([`@a2a-js/sdk`](https://github.com/a2aproject/a2a-js) 1.2.1, pinned in `package-lock.json`). It uses `ClientFactory.createFromUrl` (card resolution plus JSON-RPC transport), and its `fetch` wrapper logs every HTTP call (JSON-RPC method, `A2A-Version` header, status, content type). It runs 16 checks:
+
+| Step | JS SDK call | Check |
+|---|---|---|
+| 1 | `createFromUrl`, `getAgentCard` | The card parses; JSONRPC interface, protocol 1.0 |
+| 2 | `sendMessage` | Completed task; the `answer` artifact cites evidence ids |
+| 3 | `getTask` | Same task; `historyLength: 0` honoured; unknown id gives `TaskNotFoundError` |
+| 4 | `sendMessage` twice | `它的市盈率呢` gives `input-required`; the reply on the same `taskId`/`contextId` completes that task |
+| 5 | `sendMessageStream` | `task` first, then `working` updates per node and tool call, 2 artifact updates, `completed` |
+| 6 | `sendMessage` with `returnImmediately: true`, then `resubscribeTask` | The running task streams to `completed`; resubscribing to a finished task gives `UnsupportedOperationError` |
+| 7 | `returnImmediately`, then `cancelTask` | `canceled`, and still `canceled` with no artifacts 3 s later; cancelling a finished task gives `TaskNotCancelableError` |
+
+Run it against a local offline server (from the repository root):
+
+```bash
+# terminal 1: the server
+QI_USE_LIVE_MARKET=0 QI_USE_LIVE_MACRO=0 QI_USE_LIVE_NEWS=0 QI_USE_LIVE_ANNOUNCEMENT=0 QI_AGENT_TRACE_DIR=off \
+  uvicorn query_intelligence.api.app:create_app --factory --port 8861
+# terminal 2: the JS client
+(cd tools/a2a-js-client && npm ci)
+node tools/a2a-js-client/interop.mjs --url http://127.0.0.1:8861   # --api-key KEY with QI_API_KEYS; --json out.json for a summary
+python -m pytest tests/test_a2a_js_interop.py -q                   # same script against uvicorn + the stub agent; skipped without node/node_modules
+```
+
+Result: **16/16 checks passed** with @a2a-js/sdk 1.2.1 on Node v26.9.0 against commit `1535922` (offline data, no LLM key). The transcript is in [`docs/results/protocols/a2a-js-interop.txt`](results/protocols/a2a-js-interop.txt). `python -m pytest tests/test_a2a_js_interop.py -q` also passes (1 test, run together with the 4 MCP third-party tests: 5 passed in 27 s). Wire log excerpt:
+
+```text
+GET /.well-known/agent-card.json A2A-Version=1.0 -> 200 application/json
+POST SendStreamingMessage /a2a A2A-Version=1.0 -> 200 text/event-stream; charset=utf-8
+POST SubscribeToTask /a2a A2A-Version=1.0 -> 200 text/event-stream; charset=utf-8
+POST CancelTask /a2a A2A-Version=1.0 -> 200 application/json
+```
+
+**Interop bug found and fixed.** A2A 1.0 (§3.1.6, §9.4.6) says `SubscribeToTask` on a task in a terminal state returns `UnsupportedOperationError` (-32004). `a2a-sdk` 1.1.5's `DefaultRequestHandler` returned `InvalidParams` (-32602) instead, and the JS client reported it as `JsonRpcRequestMalformedError`, as if the client had sent a bad request. The first run was therefore 15/16 ([`a2a-js-interop-before-fix.txt`](results/protocols/a2a-js-interop-before-fix.txt)).
+
+`a2a_server.build_request_handler` now checks the owner-scoped task before the SDK does. It returns `UnsupportedOperationError` with the state name and a pointer to `GetTask`, and it maps the SDK's late error the same way when a task finishes between the check and the subscription. The regression test is `test_a2a_subscribe_to_a_finished_task_is_unsupported_operation`, which fails with -32602 without the fix.
+
+Other observations, not bugs:
+
+- `GetTask` history contains every `working` progress message (8 messages for one blocking `SendMessage`). This is how the SDK's task manager behaves. Use `historyLength` to trim it.
+- Cancelling stops the run between graph steps. A tool call already in flight finishes in its worker thread, and its result is dropped.
+
+The MCP counterpart (FinSight's MCP client against the official `mcp-server-time` and `mcp-server-fetch` servers) is in [docs/mcp.md](mcp.md#real-third-party-servers).
+
 ## Shared stores for several replicas
 
 With one process, sessions, A2A tasks and traces can all live in memory. With several replicas behind a load balancer, three things must be shared so that any replica can serve any request:
