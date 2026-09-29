@@ -46,6 +46,11 @@ _MARKET_METRIC = re.compile(
     re.IGNORECASE,
 )
 _CITATION = re.compile(r"\[([^\[\]\s]{2,160})\]")
+# English month names ("May" only capitalised: "may 5%" is the verb).
+EN_MONTH = (
+    r"(?:(?i:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|"
+    r"oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)|May)"
+)
 _DATE_PATTERNS = (
     re.compile(r"\d{4}-\d{1,2}-\d{1,2}(?:[T ]\d{1,2}:\d{2}(?::\d{2})?)?"),
     re.compile(r"\d{4}/\d{1,2}/\d{1,2}"),
@@ -56,6 +61,9 @@ _DATE_PATTERNS = (
     re.compile(r"\bQ[1-4]\b", re.IGNORECASE),
     # "04-16": month-day without a year, as models write daily series ("4.746（04-16）"); not "10-15%"
     re.compile(r"(?<![\d.\-/])(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])(?![\d.%％])"),
+    # English dates: "April 22", "Apr. 22nd, 2026", "22 April"
+    re.compile(rf"\b{EN_MONTH}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?\b(?:,?\s+(?:19|20)\d{{2}}\b)?"),
+    re.compile(rf"\b\d{{1,2}}(?:st|nd|rd|th)?\s+(?:of\s+)?{EN_MONTH}\b(?:,?\s+(?:19|20)\d{{2}}\b)?"),
 )
 _PARAMETER_PATTERNS = (
     re.compile(r"(?:RSI|MA|EMA|SMA|MACD|BOLL)\s*[\(（]?\s*\d+(?:\s*[,，]\s*\d+)*\s*[\)）]?", re.IGNORECASE),
