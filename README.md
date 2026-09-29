@@ -23,9 +23,9 @@ FinSight answers questions about Chinese listed companies, funds, indices and ma
 **In 30 seconds**
 
 - **Numbers you can trace.** The claim-level verifier rejected 98.1% of 3,399 corrupted answers and accepted all 202 correct ones. A number swapped in from another company passes 0.5% of the time; with the original check it passed 100% of the time. Answers that fail are repaired by deleting whole sentences: 100% readable, where clause salvage left 29% readable.
-- **Tools are what make it work.** An LLM without tools passes 0 of 511 tasks under strict scoring, across four task sets. With tools, the LLM paths pass 0.95–0.96 of the held-out tasks with both model families (DeepSeek V4.1 Flash, GLM-5.3 Flash).
+- **Tools are what make it work.** An LLM without tools passes 0 of 511 tasks under strict scoring, across four task sets. With tools, the LLM paths pass 0.95–0.96 of the held-out tasks with both model families (DeepSeek V4.1 Flash, GLM-5.3 Flash). On 7.1% of the DeepSeek agent's held-out turns (4.4% on test v2) an LLM call failed, almost always with HTTP 429, and the fallback answered; GLM and LLM composition stayed at or below 1%.
 - **Measured on sets it was not written for.** Separate authors wrote a multi-turn set, a test set and two router label sets without seeing the code. Every first run is reported as is:
-  - multi-turn: the agent completed 36% of conversations;
+  - multi-turn: the agent completed 36% of conversations (LLM errors on 0.3% of turns, none 429);
   - router labels: 74% of routing decisions matched;
   - test v3: the no-LLM path passed 76% of tasks.
   
@@ -79,14 +79,15 @@ Task success with 95% CIs. Sources:
 - held-out and test v2: `ablation-final2-deepseek.json` and `ablation-final2-glm.json`, commit `d1c007c`;
 - the development column: `ablation-final.json`, commit `846bc5e`.
 
-| Answer path | Dev · DeepSeek | Held-out · DeepSeek | Test v2 · DeepSeek | Held-out · GLM | Test v2 · GLM | Cost / task (DeepSeek, held-out) | P95 (DeepSeek, held-out) |
-|---|---|---|---|---|---|---|---|
-| Original `/chat`, no LLM | 0.256 | 0.208 [0.11, 0.32] | 0.223 [0.15, 0.30] | 0.208 | 0.223 | – | 0.6 s |
-| Deterministic workflow (no LLM) | 0.981 | 0.906 [0.83, 0.98] | 0.826 [0.76, 0.89] | 0.906 | 0.826 | $0 | 0.4 s |
-| Workflow + LLM composition | 0.979 | 0.956 [0.90, 1.00] | 0.860 [0.80, 0.92] | 0.962 [0.91, 1.00] | 0.857 [0.80, 0.91] | $0.00084 | 15.7 s |
-| **LLM agent (tool loop)** | **0.986** | **0.962** [0.93, 0.99] | **0.901** [0.85, 0.95] | **0.950** [0.91, 0.99] | **0.846** [0.79, 0.90] | $0.00115 | 20.4 s |
+| Answer path | Dev · DeepSeek | Held-out · DeepSeek | Test v2 · DeepSeek | Held-out · GLM | Test v2 · GLM | Cost / task (DeepSeek, held-out) | P95 (DeepSeek, held-out) | LLM-error turns, held-out / test v2 (DeepSeek · GLM) |
+|---|---|---|---|---|---|---|---|---|
+| Original `/chat`, no LLM | 0.256 | 0.208 [0.11, 0.32] | 0.223 [0.15, 0.30] | 0.208 | 0.223 | – | 0.6 s | – (no LLM) |
+| Deterministic workflow (no LLM) | 0.981 | 0.906 [0.83, 0.98] | 0.826 [0.76, 0.89] | 0.906 | 0.826 | $0 | 0.4 s | – (no LLM) |
+| Workflow + LLM composition | 0.979 | 0.956 [0.90, 1.00] | 0.860 [0.80, 0.92] | 0.962 [0.91, 1.00] | 0.857 [0.80, 0.91] | $0.00084 | 15.7 s | 0.000 / 0.000 · 0.000 / 0.000 |
+| **LLM agent (tool loop)** | **0.986** | **0.962** [0.93, 0.99] | **0.901** [0.85, 0.95] | **0.950** [0.91, 0.99] | **0.846** [0.79, 0.90] | $0.00115 | 20.4 s | **0.071 / 0.044** (HTTP 429: 11 of 12 and 21 of 23 error flags) · 0.006 / 0.010 (no 429) |
 
-- **The LLM alone passes nothing.** Without tools it passes 0 of 381 tasks on dev, held-out and test v2 (`ablation-final.json`, `ablation-test_v2-deepseek.json`), and 0 of 130 on test v3 (`ablation-test_v3-purellm-deepseek.json`, `3730408`). It cannot cite evidence, and its prices cannot be verified.
+- **LLM-error turns** are turns where an LLM call failed and the deterministic fallback answered (`llm_error_rate`). On the DeepSeek agent they were almost all gateway HTTP 429s: 7.1% of held-out and 4.4% of test-v2 agent turns are partly fallback answers, so those two cells mix the agent with the template path. The dev column (`ablation-final.json`) predates the metric: not recorded. [agent-eval.md](docs/agent-eval.md) shows this share next to every online table.
+- **The LLM alone passes nothing.** Without tools it passes 0 of 381 tasks on dev, held-out and test v2 (`ablation-final.json`, `ablation-test_v2-deepseek.json`), and 0 of 130 on test v3 (`ablation-test_v3-purellm-deepseek.json`, `3730408`). It cannot cite evidence, and its prices cannot be verified, so under citation-gated scoring its 0 is by construction. Scored without citations, tools or the disclaimer field, 4–8% of the required numbers in its answers match the snapshot (`fact_stated`); task-level uncited success is bounded from the committed failure rows at [0.20, 0.82] on dev, held-out and test v2 and [0.00, 0.70] on test v3, and is recorded exactly from now on ([agent-eval.md](docs/agent-eval.md#the-no-tools-llm-baseline-strict-scoring-vs-uncited-correctness)).
 - **Agent vs LLM composition:**
   - Held-out: no significant difference with either model. DeepSeek +0.006 [−0.050, +0.063]; GLM −0.013 [−0.076, +0.057].
   - Test v2 (after exposure): the DeepSeek agent is ahead per run, +0.041 [+0.006, +0.083], but not on pass^3 (+0.033 [−0.025, +0.091]). With GLM there is no difference, −0.011 [−0.050, +0.028].
@@ -100,7 +101,7 @@ Task success with 95% CIs. Sources:
 | Set | First run (honest estimate) | After exposure (tuned, not an estimate) |
 |---|---|---|
 | Multi-turn v1, deterministic path | task 0.224 [0.12, 0.35], turn 0.709 (`multiturn_v1-auto-nollm-first-run.json`, `1bd1932`) | task 1.000, turn 1.000 (`multiturn_v1-auto-nollm-after-fixes.json`, `7513376`) |
-| Multi-turn v1, DeepSeek | agent task 0.361 [0.24, 0.49], pass^3 0.286, turn 0.795. Composition task 0.286, pass^3 0.245 (`ablation-multiturn_v1-deepseek-first-run.json`, `527a611`) | rerun pending |
+| Multi-turn v1, DeepSeek | agent task 0.361 [0.24, 0.49], pass^3 0.286, turn 0.795. Composition task 0.286, pass^3 0.245. LLM-error turns: agent 0.003 (no 429), composition 0.000 (`ablation-multiturn_v1-deepseek-first-run.json`, `527a611`) | rerun pending |
 | Router labels, independent v1 (154) | 0.740 (`router_eval-independent_v1-first-run.json`, `882745d`) | 1.000 (`router_eval-round4-independent-after-exposure.json`, `075caad`) |
 | Router labels, independent v2 (241, fresh) | **0.801** after the round-4 router changes (`router_eval-independent_v2-first-run.json`, `3080bfe`) | – |
 | Router labels, own (not independent) | 0.988 on 162 (`router_eval-round3b.json`) | 1.000 on 303 (`router_eval-round4-own.json`) |
@@ -115,10 +116,10 @@ The gap between the author's own router labels (0.988) and the first independent
 |---|---|---|
 | Verifier stress test: 202 correct answers, 3,399 corrupted variants | False accepts: original check 33.3%, run-level check 24.4%, claim-level **1.94%** (2.03% with derived numbers allowed). Numbers swapped between companies: 100% → **0.53%**. Correct answers accepted: 100%. | `verifier_stress.json` (`9f0e46b`) |
 | Repair of failed answers (3,333 rejected variants) | Whole-sentence deletion: 100% readable and verified, 0% fragments, 98.0% of untouched sentences kept, 18.3% fall back to the template answer. Clause salvage, measured at `2494656`, had been 29% readable with fragments in 97%. | `verifier_stress.json` (`9f0e46b`) |
-| Prompt-injection red team: attacks planted in search results, 4 obfuscations each | **Online, DeepSeek, `d1c007c`** (`redteam-final2.json`): dev 0/72 on all three paths. Unseen holdout: 0/64 template, 1/64 LLM composition, 0/64 agent. Holdout2: 0/64, 1/64, 0/64. **Offline template, `9f0e46b`** (`redteam-offline.json`): holdout3, the round-2 reviewer's 11 planted attacks, 2/88. | `redteam-final2.json`, `redteam-offline.json` |
+| Prompt-injection red team: attacks planted in search results, 4 obfuscations each | **Online, DeepSeek, `d1c007c`** (`redteam-final2.json`): dev 0/72 on all three paths. Unseen holdout: 0/64 template, 1/64 LLM composition, 0/64 agent. Holdout2: 0/64, 1/64, 0/64. LLM-error runs were not recorded by the red team at that commit; it records them from now on (`llm_error_rate`, `llm_429_rate` per path). **Offline template, `9f0e46b`** (`redteam-offline.json`): holdout3, the round-2 reviewer's 11 planted attacks, 2/88. | `redteam-final2.json`, `redteam-offline.json` |
 | Fault injection: timeouts, 5xx, empty data, huge documents, LLM down, malformed tool calls, endless loops | 11/11 scenarios degrade gracefully | `fault_injection.json` |
-| Agent latency, DeepSeek, held-out / test v2 | P95 27.1 → **15.4 s** / 24.2 → **17.3 s**. First token P50 about 5.5 → **3.0 / 2.8 s**. LLM calls per turn 2.30 → 1.39. Task success unchanged or higher: paired Δ +0.006 [0.000, +0.019] on held-out, +0.003 [−0.005, +0.014] on test v2 against the same code with the switches off. | [performance.md §2a](docs/performance.md#2a-agent-path-latency-profile-changes-and-beforeafter), `perf-*.json` |
-| Load, LLM agent path, 4 users, streamed | P95 26.7 s on harder multi-tool questions (29.6 s with the switches off), 0 errors, ¥12.6 per 1,000 questions | `docs/results/perf/agent/load_test-agent-4-*.json` |
+| Agent latency, DeepSeek, held-out / test v2 | P95 27.1 → **15.4 s** / 24.2 → **17.3 s**. First token P50 about 5.5 → **3.0 / 2.8 s**. LLM calls per turn 2.30 → 1.39. Task success unchanged or higher: paired Δ +0.006 [0.000, +0.019] on held-out, +0.003 [−0.005, +0.014] on test v2 against the same code with the switches off. LLM-error turns 0.000 / 0.000 in the final run (`perf-merged-prefetch-deepseek.json`); 0.018 / 0.006 in the baseline, none of them HTTP 429. | [performance.md §2a](docs/performance.md#2a-agent-path-latency-profile-changes-and-beforeafter), `perf-*.json` |
+| Load, LLM agent path, 4 users, streamed | P95 26.7 s on harder multi-tool questions (29.6 s with the switches off), 0 errors, 0 of 24 requests with an LLM error, ¥12.6 per 1,000 questions | `docs/results/perf/agent/load_test-agent-4-*.json` |
 | Load, deterministic path | One checkpoint per run instead of per step: 4.8 → 6.5 req/s at 1 user, session store 64 MB → 9.4 MB for the same 820 requests. An earlier "11x" claim did not reproduce; the real gain is 1.3–1.6x. | [performance.md](docs/performance.md) |
 | Start-up | Service build 24.1 s cold, 3.7 s rebuilt in-process, 6.8 s after a restart with the index cached on disk. Container from `docker run` to `/ready` 200: median 46 s. | `docs/results/perf/startup.json`, `startup-container.json` |
 | k3s, Postgres-shared sessions | 1 → 3 replicas: 3.75 → 11.72 req/s at 32 users, 0 errors. A follow-up sent to pod B resolved "它" from a turn served by pod A. A2A tasks and traces are shared as well: a task paused on replica 1 was resumed on replica 2. | [performance.md](docs/performance.md), `docs/results/protocols/` |
