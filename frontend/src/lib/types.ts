@@ -276,6 +276,8 @@ export interface ClaimCheckItem {
   reference?: string | null;
   reference_value?: number | null;
   reference_evidence_id?: string | null;
+  /** A multiple claim ("市净率是五粮液的1.5倍"): the target's value divided by the reference's; `claimed` is the multiple. */
+  ratio?: number | null;
   actual?: number | null;
   status: ClaimStatus;
   reason?: ClaimReason | null;

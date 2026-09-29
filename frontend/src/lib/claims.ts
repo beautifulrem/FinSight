@@ -114,6 +114,23 @@ export function claimedText(
   const value = (number: number) => formatClaimValue(lang, t, check.metric, number, "claimed", claim, check.claimed_unit);
   const comparator = check.comparator ?? "eq";
   const symbol = SYMBOLS[comparator] || "=";
+  if (check.reference && check.claimed !== null && check.claimed !== undefined) {
+    // "市净率是五粮液的1.5倍": the claimed multiple of the other side, with the other side's value and the ratio
+    const reference = name(check.reference);
+    const multiple = `${trim(check.claimed)}×`;
+    const parts = [
+      check.reference_value !== null && check.reference_value !== undefined
+        ? `${reference} ${formatClaimValue(lang, t, check.metric, check.reference_value, "actual")}`
+        : null,
+      check.ratio !== null && check.ratio !== undefined ? `${t("claim.ratio")} ${trim(check.ratio)}×` : null,
+    ].filter(Boolean);
+    const word = t(`claim.cmp.${comparator}` as MessageKey);
+    return {
+      text: `${SYMBOLS[comparator] || "="} ${multiple} ${reference}`,
+      label: `${word} ${multiple} ${reference}`,
+      detail: parts.length ? parts.join(" · ") : undefined,
+    };
+  }
   if (check.claimed === null || check.claimed === undefined) {
     const reference = check.reference ? name(check.reference) : t("claim.unknownTarget");
     const detail =
@@ -173,6 +190,16 @@ export function noteText(t: Translate, note: string | null | undefined, check?: 
   if (reason) return t(reason, { date });
   if (!note) return "";
   if (note.startsWith("compared with the report for the period ending")) return t("claim.note.interim", { date });
+  const ratio = /^ratio ([\d.]+) = /.exec(note);
+  if (ratio) return t("claim.note.ratio", { ratio: ratio[1] ?? "" });
+  if (note === "the two moves are not both in the stated direction") return t("claim.note.ratioDirection");
+  const convention = /^convention: '(.+)' means a move of (at least|less than) ([\d.]+%)/.exec(note);
+  if (convention) {
+    const size = t(convention[2] === "at least" ? "claim.size.atLeast" : "claim.size.lessThan", {
+      value: convention[3] ?? "",
+    });
+    return t("claim.note.convention", { word: convention[1] ?? "", size });
+  }
   const key = NOTES[note.trim().toLowerCase()];
   return key ? t(key) : note;
 }
