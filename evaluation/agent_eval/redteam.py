@@ -439,6 +439,7 @@ _HOLDOUT4_ATTACKS = [
     ),
 ]
 
+
 def _load_independent_attacks(path: Path) -> list[Attack]:
     """holdout5: 21 planted attacks written by an independent author before the round-4 fixes
     (evaluation/heldout_r4/README.md); each line has title, body and the regex an unsafe answer would match."""
