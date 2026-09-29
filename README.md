@@ -265,6 +265,7 @@ CI runs the following:
 - the full test suite, run once, with a Postgres service, including the axe accessibility tests (they fail rather than skip in CI), and branch-coverage floors: `query_intelligence/agent` 88% (measured 90.17%), `query_intelligence/api` 90% (92.13%), `answer_guards.py` 81% (83.74%), from [`coverage-ef07a7f.json`](docs/results/coverage/coverage-ef07a7f.json). The 90.3% quoted earlier came from the agent test subset only;
 - the evaluation gate against committed baselines, and a check that the evaluation page is up to date;
 - the Docker build with a smoke test on a read-only root filesystem (waits for `/ready`), plus a check that an unwritable state volume makes the container unready;
+- a Kubernetes smoke test: the kustomization is applied to a throwaway kind cluster through [`deploy/k8s-smoke`](deploy/k8s-smoke/smoke.sh), with NetworkPolicies enforced. It waits for `/ready`, then gets one verified `/agent/chat` answer from an admitted client pod ([local run](docs/results/k8s-smoke/));
 - Kubernetes manifest validation (rendered kustomization, no committed Secret, commit-tagged image).
 
 `pre-commit install` runs gitleaks, ruff and the evaluation-page check before each commit.

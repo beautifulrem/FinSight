@@ -269,6 +269,7 @@ CI 包括：
 - 带 Postgres 服务的全量测试（只跑一遍），包括 axe 无障碍测试（在 CI 里缺依赖会失败而不是跳过），以及分支覆盖率下限：`query_intelligence/agent` 88%（实测 90.17%）、`query_intelligence/api` 90%（92.13%）、`answer_guards.py` 81%（83.74%），数据见 [`coverage-ef07a7f.json`](docs/results/coverage/coverage-ef07a7f.json)。之前写的 90.3% 只是 Agent 测试子集的结果；
 - 与已提交基线比较的评测门禁，以及评测文档是否最新的检查；
 - Docker 构建与只读根文件系统下的冒烟测试（等待 `/ready`），以及「状态目录不可写时容器不就绪」的检查；
+- Kubernetes 冒烟测试：通过 [`deploy/k8s-smoke`](deploy/k8s-smoke/smoke.sh) 把 kustomization 部署到临时 kind 集群，NetworkPolicy 生效。先等 `/ready`，再从被放行的客户端 Pod 拿到一次通过校验的 `/agent/chat` 回答（[本地运行记录](docs/results/k8s-smoke/)）；
 - Kubernetes 清单校验（渲染后的 kustomization、不提交 Secret、镜像按 commit 打标签）。
 
 `pre-commit install` 后每次提交前会跑 gitleaks、ruff 和评测文档检查。
