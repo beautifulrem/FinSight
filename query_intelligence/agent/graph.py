@@ -1284,4 +1284,12 @@ def _source_view(item: dict[str, Any]) -> dict[str, Any]:
     # Document payloads are omitted: their text is already summarised by title/source and can be large.
     if item.get("kind") == "structured" and isinstance(item.get("payload"), dict):
         view["payload"] = item["payload"]
+    elif item.get("kind") == "document" and view.get("title"):
+        # Third-party headlines are listed only when they pass the positive shape check (no links, contact
+        # handles, instructions, advice or guarantee wording, no mixed-script homoglyphs); otherwise hidden.
+        from ..text_safety import safe_headline
+
+        if safe_headline(str(view["title"])) is None:
+            view["title"] = None
+            view["title_withheld"] = True
     return view

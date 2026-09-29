@@ -23,7 +23,6 @@ from .coverage import (
     requested_metrics,
     requested_price_fields,
 )
-from .verifier import _MARKET_METRIC
 
 _MAX_DOCS_PER_TOOL = 3
 
@@ -120,6 +119,8 @@ def compose_template(
         for sentence in sentences:
             if sentence and sentence not in facts:
                 facts.append(sentence)
+        if sentences and renderer is _documents:
+            limitations.append(DOCUMENT_TEXT_LIMITATION_ZH if zh else DOCUMENT_TEXT_LIMITATION_EN)
         for evidence_id in entry.get("evidence_ids") or []:
             if evidence_id not in evidence_used:
                 evidence_used.append(evidence_id)
@@ -392,69 +393,50 @@ def _macro(data: dict[str, Any], zh: bool) -> list[str]:
     return sentences
 
 
-_MAX_TITLE_CHARS = 60
-# A quoted headline must be inert text: no links, markup or code, and nothing addressed to the reader or to
-# an AI ("请…", "AI 助手…", "readers should…"), and no advice or ratings (the compliance guard would strip
-# them from the model's own words, so a quoted title must not smuggle them in either).
-_ACTIVE_TITLE = re.compile(
-    r"[a-z][a-z0-9+.-]*:(?://|[^\s]*\()|javascript:|data:|www\.|\]\(|[<>{}`|]|&#|\\u[0-9a-f]{4}",
-    re.IGNORECASE,
+# Neutral document categories by source type: the template names what kind of document it cites, never its title.
+_DOCUMENT_CATEGORY = {
+    "news": ("新闻", "news article"),
+    "announcement": ("公告", "company announcement"),
+    "research_note": ("研究报告", "research note"),
+    "product_doc": ("产品资料", "product document"),
+    "faq": ("常见问题解答", "FAQ entry"),
+}
+_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+DOCUMENT_TEXT_LIMITATION_ZH = "资料标题和原文属于第三方内容，未经核实，回答中不引用；可在证据列表中查看。"
+DOCUMENT_TEXT_LIMITATION_EN = (
+    "Document titles and text are unverified third-party content and are not quoted in the answer; "
+    "see the evidence list."
 )
-_DIRECTIVE_TITLE = re.compile(
-    r"请|务必|必须|不得|助手|机器人|读者|建议|推荐|评级|建仓|加仓|减仓|买入|卖出|"
-    r"\b(?:assistant|chatbot|readers?|you|your|must|should|recommend\w*|rated|must-buy|"
-    r"(?:include|mention|report|summari[sz]e|repeat|output) (?:this|that|the following)|ignore)\b",
-    re.IGNORECASE,
-)
-
-
-def quotable_title(title: str) -> str | None:
-    """The title as inert text for the template answer, or ``None`` when it must not be echoed.
-
-    Document titles are third-party text, like excerpts: the untrusted-data envelope protects the model, but
-    the template path copies titles into the answer verbatim, so a title is only quoted when it is plainly a
-    headline. Invisible characters are removed and matching runs on the NFKC form (so full-width and
-    zero-width obfuscation does not hide a payload); the title is withheld when the injection filter flags
-    it or it carries links/markup, directives, advice or ratings, and it is cut to ``_MAX_TITLE_CHARS``.
-    """
-    from .compliance import contains_trading_instruction
-    from .injection import _INVISIBLE, _normalise, sanitize_untrusted_text
-
-    text = re.sub(r"\s+", " ", _INVISIBLE.sub("", title)).strip()
-    plain = _normalise(text)  # full-width letters folded for matching only; the quote keeps CJK punctuation
-    if not text:
-        return None
-    _cleaned, flagged = sanitize_untrusted_text(plain)
-    if flagged or _ACTIVE_TITLE.search(plain) or _DIRECTIVE_TITLE.search(plain) or contains_trading_instruction(plain):
-        return None
-    if len(text) > _MAX_TITLE_CHARS:
-        text = text[: _MAX_TITLE_CHARS - 1].rstrip("，,、；;：: ") + "…"
-    return text.replace("《", "〈").replace("》", "〉").replace('"', "'")
 
 
 def _documents(data: dict[str, Any], zh: bool) -> list[str]:
-    """Cite retrieved documents by source and date, quoting the title only when it is inert text.
+    """Cite retrieved documents by category, source and date; never by title.
 
-    Titles that state market metrics with numbers ("shares closed up 12.34%", "市盈率55倍") are not
-    repeated: prices, multiples and daily moves come only from market data (the same source-precedence
-    rule the verifier applies to LLM drafts). Titles that fail ``quotable_title`` are withheld and only the
-    source and date are given. The documents stay in the evidence list either way.
+    Titles and excerpts are third-party text. A blocklist over titles (links, directives, advice words) was
+    bypassed by homoglyphs, slang and plausible fake headlines ("证监会：…立案调查", "每10股派现1000元"), which no
+    shape check can tell from real ones. So the deterministic answer states only facts FinSight controls: the
+    document category (from the source type), the publisher when it is a plain name, and the date. The title
+    stays visible in the evidence list, labelled as a source.
     """
+    from ..text_safety import safe_headline
+
     sentences = []
     for document in (data.get("documents") or [])[:_MAX_DOCS_PER_TOOL]:
-        raw_title = str(document.get("title") or "").strip()
-        if not raw_title or (_MARKET_METRIC.search(raw_title) and re.search(r"\d", raw_title)):
-            continue
-        title = quotable_title(raw_title)
-        source = document.get("source_name") or document.get("source_type")
-        when = str(document.get("publish_time") or "")[:10]
         eid = document.get("evidence_id")
+        if not eid:
+            continue
+        category_zh, category_en = _DOCUMENT_CATEGORY.get(str(document.get("source_type") or ""), ("资料", "document"))
+        # the publisher name comes from the data provider, but is still shown only when it is inert text
+        source = safe_headline(str(document.get("source_name") or "")[:40]) if document.get("source_name") else None
+        when = str(document.get("publish_time") or "")[:10]
+        when = when if _DATE.match(when) else ""
         if zh:
-            quoted = f"《{title}》" if title else "一篇资料（标题未引用）"
-            sentences.append(f"相关资料：{quoted}（{source}，{when}） [{eid}]。")
+            origin = f"{source}{'于' + when if when else ''}发布的" if source else (f"{when}的" if when else "")
+            sentences.append(f"相关资料：{origin}一篇{category_zh} [{eid}]。")
         else:
-            quoted = f'"{title}"' if title else "a document (title not quoted)"
-            sentences.append(f"Related document: {quoted} ({source}, {when}) [{eid}].")
+            origin = f" from {source}" if source else ""
+            dated = f" ({when})" if when else ""
+            sentences.append(f"Related document: a {category_en}{origin}{dated} [{eid}].")
     return sentences
 
 
