@@ -364,6 +364,56 @@ def foreign_macro_gaps(query: str, *, zh: bool) -> list[str]:
     ]
 
 
+# Positions and fund flows of an investor group ("国家队最近是不是在加仓中国平安", "Is northbound money flowing into
+# Moutai?"): no configured source carries holdings, flows or margin balances. A company's own shareholders are not
+# included: their increases and reductions are disclosed in announcements.
+_FLOW_SUBJECT = re.compile(
+    r"国家队|中央汇金|汇金|证金|社保基金|社保|养老金|险资|公募基金|私募基金|机构投资者|主力资金|主力|游资|北向资金|南向资金|"
+    r"北上资金|外资|陆股通|沪股通|深股通|聪明钱|\bnational team\b|\bstate(?:-backed)? funds?\b|"
+    r"\b(?:northbound|southbound) (?:money|funds?|capital|investors|flows?)\b|"
+    r"\bforeign (?:investors|funds|money|capital)\b|\binstitutional investors?\b|\bsmart money\b",
+    re.IGNORECASE,
+)
+_FLOW_ACTION = re.compile(
+    r"加仓|减仓|增持|减持|建仓|清仓|持仓|持股|抄底|出货|买入|卖出|买进|抛售|扫货|买了|卖了|在买|在卖|流入|流出|净买|净卖|"
+    r"进场|离场|"
+    r"\b(?:buy(?:ing)?|sell(?:ing)?|bought|sold|adding|trimming|accumulating|dumping|inflows?|outflows?|flow(?:ing|ed)?|"
+    r"holdings?|positions?|stakes?|net (?:buying|selling|purchases?))\b",
+    re.IGNORECASE,
+)
+_FLOW_DIRECT = re.compile(
+    r"资金流向|资金流入|资金流出|两融余额|融资余额|融券余额|持仓数据|\b(?:fund|money|capital) flows?\b|"
+    r"\bmargin (?:balance|debt|financing balance)\b|\binstitutional holdings\b",
+    re.IGNORECASE,
+)
+
+
+def flow_gaps(query: str, tool_log: list[dict[str, Any]] | None = None, *, zh: bool) -> list[str]:
+    """State that holdings and fund-flow data are not covered, when the question asks about them."""
+    subject = _FLOW_SUBJECT.search(query or "")
+    direct = _FLOW_DIRECT.search(query or "")
+    if not direct and not (subject and _FLOW_ACTION.search(query or "")):
+        return []
+    concept = any(entry.get("tool") == "explain_concept" and entry.get("ok") for entry in tool_log or [])
+    if concept and not (subject and _FLOW_ACTION.search(query or "")):
+        return []  # a glossary answer already says the concept has no data series
+    if subject and _FLOW_ACTION.search(query or ""):
+        who = subject.group(0)
+        if zh:
+            return [f"当前数据源没有{who}的持仓或资金流向数据，无法判断其是否在买入或卖出；以下只列出可得的证据。"]
+        return [
+            f"The configured sources have no holdings or fund-flow data for {who}, so whether they are buying or "
+            "selling cannot be shown; only the available evidence is listed."
+        ]
+    what = direct.group(0)  # type: ignore[union-attr]
+    if zh:
+        return [f"当前数据源没有{what}数据，无法回答这一项；以下只列出可得的证据。"]
+    return [
+        f"The configured sources do not include {what} data, so that part cannot be answered; only the available "
+        "evidence is listed."
+    ]
+
+
 def _years_text(years: list[int], *, zh: bool) -> str:
     # "2019年" / "FY2019": forms the verifier reads as dates, not as claimed values.
     return "、".join(f"{year}年" for year in years) if zh else ", ".join(f"FY{year}" for year in years)
