@@ -415,11 +415,12 @@ class EntityResolver:
         return groups
 
     def _splits_a_word(self, query: str, match: dict) -> bool:
-        """A fuzzy window that starts (or, for Latin text, ends) inside a word of the question is not a typo'd name.
+        """A fuzzy window that starts or ends inside a word of the question is not a typo'd name.
 
-        "价格挺美的" segments as 价格/挺/美的, so the window "格挺美" (one edit from 格林美) starts inside 价格. A typo'd
-        name ("贵州矛台", "五梁液") starts where a word starts. Only CJK windows of up to three characters are checked:
-        longer windows are rarely accidental.
+        "价格挺美的" segments as 价格/挺/美的, so the window "格挺美" (one edit from 格林美) starts inside 价格; in
+        "有什么影响" the window "有什" (one edit from 有色) ends inside 什么. A typo'd name ("贵州矛台", "五梁液")
+        starts and ends at word edges. Only CJK windows of up to three characters are checked: longer windows are
+        rarely accidental.
         """
         text = str(match["text"])
         start, end = int(match["start"]), int(match["end"])
@@ -430,8 +431,10 @@ class EntityResolver:
             return before.isalnum() or after.isalnum()
         if len(text) > 3 or not self._is_cjk_string(text):
             return False
-        starts = {start for start, _end in self._word_boundaries.spans(query)}
-        return int(match["start"]) not in starts
+        spans = self._word_boundaries.spans(query)
+        starts = {span_start for span_start, _span_end in spans}
+        ends = {span_end for _span_start, span_end in spans}
+        return start not in starts or end not in ends
 
     def _candidate_fuzzy_aliases(self, query: str, query_has_product_term: bool) -> list[str]:
         if len(self._alias_rows_by_normalized) <= 5_000:
