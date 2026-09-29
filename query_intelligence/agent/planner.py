@@ -13,6 +13,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from .coverage import requested_price_fields
+from .glossary import lookup_concept
 
 MAX_TARGETS = 3
 MAX_CALLS = 14
@@ -86,11 +87,23 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
 
     entities = nlu_result.get("entities") or []
     listed = _listed_targets(entities)
+    query = str(nlu_result.get("normalized_query") or nlu_result.get("raw_query") or "")
+    raw_query = str(nlu_result.get("raw_query") or query)
+    # "北向资金是啥", "什么是两融": a market concept in the curated glossary is evidence of its own.
+    concept = None if listed else lookup_concept(f"{raw_query} {query}")
+    if concept is not None:
+        return Plan(
+            calls=[
+                PlannedCall(
+                    tool="explain_concept",
+                    arguments={"term": concept.term, "query": raw_query[:200]},
+                    reason=f"glossary concept: {concept.term}",
+                )
+            ]
+        )
     if not listed and "missing_entity" in (nlu_result.get("missing_slots") or []):
         return Plan(skipped_reason="missing_entity")
 
-    query = str(nlu_result.get("normalized_query") or nlu_result.get("raw_query") or "")
-    raw_query = str(nlu_result.get("raw_query") or query)
     text = f"{raw_query} {query}"
     source_plan = list(nlu_result.get("source_plan") or [])
     sources = set(source_plan)

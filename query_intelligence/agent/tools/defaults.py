@@ -7,6 +7,7 @@ from .context import ToolContext
 from .documents import build_document_tools
 from .entity import build_resolve_entity
 from .fundamentals import build_fundamentals_tool
+from .glossary import build_explain_concept
 from .macro import build_macro_tool
 from .market import build_market_tools
 from .sentiment import build_sentiment_tool
@@ -24,6 +25,7 @@ DEFAULT_TOOL_NAMES = (
     "search_announcements",
     "search_knowledge",
     "analyze_sentiment",
+    "explain_concept",
 )
 
 
@@ -37,6 +39,7 @@ def build_default_registry(context: ToolContext) -> ToolRegistry:
     for spec in build_document_tools(context):
         registry.register(spec)
     registry.register(build_sentiment_tool(context))
+    registry.register(build_explain_concept(context))
     return registry
 
 

@@ -256,6 +256,12 @@ def apply_finance_overrides(nlu_result: dict[str, Any], query: str) -> tuple[dic
         patched["product_type"] = {"label": "macro", "score": 0.5}
         patched["source_plan"] = ["macro_sql", "news"]
         return patched, ["override:out_of_scope_with_macro_anchor"]
+    concept = glossary_concept(query)
+    if concept:
+        # "北向资金是啥", "融资融券是什么意思": no security, but the curated glossary answers it.
+        patched["product_type"] = {"label": "unknown", "score": 0.5}
+        patched["missing_slots"] = [slot for slot in nlu_result.get("missing_slots") or [] if slot != "missing_entity"]
+        return patched, [f"override:out_of_scope_glossary_concept:{concept}"]
     if _FINANCE_ANCHOR.search(query):
         patched["product_type"] = {"label": "unknown", "score": 0.5}
         patched["missing_slots"] = sorted({*(nlu_result.get("missing_slots") or []), "missing_entity"})
@@ -324,6 +330,17 @@ _TARGET_VALUE = re.compile(
 
 def is_concept_question(query: str) -> bool:
     return bool(_CONCEPT_QUESTION.search(query or ""))
+
+
+def glossary_concept(query: str) -> str | None:
+    """The curated glossary term a question is about ("北向资金是啥", "两融余额高不高"), or ``None``.
+
+    Such a question names no security, but FinSight can answer it from ``agent/glossary.py``, so it is in scope.
+    """
+    from .glossary import lookup_concept
+
+    entry = lookup_concept(query or "")
+    return None if entry is None else entry.term
 
 
 def names_market_target(query: str) -> bool:
@@ -457,7 +474,7 @@ def decide_route(nlu_result: dict[str, Any], *, mode: Mode = "auto", query: str 
     # A metric alone ("市净率是多少") names no target: only listed, macro, policy or sector entities count.
     targeted = listed or entity_types_of(entities) & {"macro_indicator", "policy", "sector"}
     dangling = has_dangling_reference(text) or is_dangling_why(text)
-    concept = is_concept_question(text)
+    concept = is_concept_question(text) or bool(glossary_concept(text))
     # The market, a group of stocks ("银行股", "consumer stocks") or a macro topic written out in words is a target
     # for a judgment or a macro link, although the NLU resolves no entity for it.
     market = names_market_target(text) or has_macro_content(text)
@@ -556,5 +573,9 @@ def decide_route(nlu_result: dict[str, Any], *, mode: Mode = "auto", query: str 
         return RouteDecision(route="agent", reasons=["mode:agent", *reasons], complexity_score=score, features=features)
     route: Route = "agent" if score >= 1 else "workflow"
     if not reasons:
-        reasons.append("concept:definition" if concept else "simple:single_lookup")
+        term = glossary_concept(text) if not listed else None
+        if term:
+            reasons.append(f"concept:glossary:{term}")
+        else:
+            reasons.append("concept:definition" if concept else "simple:single_lookup")
     return RouteDecision(route=route, reasons=reasons, complexity_score=score, features=features)
