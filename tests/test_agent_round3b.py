@@ -125,7 +125,12 @@ def test_ordinal_references_follow_the_order_the_user_named_them():
 def test_triple_and_bare_which_references():
     turns = [_turn("茅台PB", MOUTAI), _turn("五粮液PB", WULIANGYE), _turn("平安PB", PINGAN)]
     assert resolve_group_reference("这三家谁更贵", turns)[0] == "贵州茅台和五粮液和中国平安谁更贵"
-    assert resolve_group_reference("这三家谁更贵", turns[:2]) is None
+    # round 5 (C7): with only two discussed, "三家" compares those two and the reason records the mismatch
+    assert resolve_group_reference("这三家谁更贵", turns[:2]) == (
+        "贵州茅台和五粮液谁更贵",
+        "group_reference_count_mismatch:这三家->贵州茅台和五粮液",
+    )
+    assert resolve_group_reference("这三家谁更贵", turns[:1]) is None
 
     pair = [_turn("平安和五粮液的营收", PINGAN, WULIANGYE)]
     assert resolve_group_reference("哪家利润更多", pair)[0] == "中国平安和五粮液哪家利润更多"
