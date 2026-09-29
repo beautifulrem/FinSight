@@ -301,6 +301,8 @@ from query_intelligence.answer_guards import (  # noqa: F401  (re-exported for c
     _append_unique,
     _soften_answer_text,
     _soften_key_points,
+    contains_prohibited_promotion,
+    strip_prohibited_promotion,
     _contains_direct_trading_action,
     _safe_judgment_followups,
     _safe_causal_followups,
@@ -794,6 +796,9 @@ def normalize_answer(
         zh=zh,
     )
     answer["key_points"] = _soften_key_points(answer["key_points"], nlu_result, query=query, zh=zh)
+    # guaranteed returns, stock-tip solicitation and private contact details never reach the reader
+    answer["answer"], _removed = strip_prohibited_promotion(answer["answer"], zh=zh)
+    answer["key_points"] = [point for point in answer["key_points"] if not contains_prohibited_promotion(point)]
     guardrail_limitations = _guardrail_limitations(retrieval_result, nlu_result, statistical_result, zh=zh, query=query)
     answer["limitations"] = _append_unique(answer["limitations"], guardrail_limitations)[:8]
     if _needs_conditional_answer_guard(nlu_result, retrieval_result, statistical_result, query):
