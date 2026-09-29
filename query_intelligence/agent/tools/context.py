@@ -11,9 +11,12 @@ from __future__ import annotations
 import re
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from ...integrations.intraday import IntradayQuoteProvider, now_shanghai
 from .base import ToolFailure
 
 if TYPE_CHECKING:
@@ -42,13 +45,23 @@ class ToolContext:
     nlu_pipeline: NLUPipeline
     retrieval_pipeline: RetrievalPipeline
     structured_ttl_s: float = 60.0
+    # Real-time quotes for ``get_price_history(intraday=true)``: set when live market data is on (``from_service``),
+    # ``None`` for the offline snapshot, where 今天 questions get the daily close and say so.
+    intraday_provider: Any | None = None
+    # Beijing-time clock deciding whether the market is open; injectable for frozen-clock tests.
+    clock: Callable[[], datetime] = now_shanghai
     _structured_cache: dict[str, tuple[float, list[dict]]] = field(default_factory=dict, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     _symbol_index: dict[str, dict[str, str]] | None = field(default=None, repr=False)
 
     @classmethod
     def from_service(cls, service: QueryIntelligenceService) -> ToolContext:
-        return cls(nlu_pipeline=service.nlu_pipeline, retrieval_pipeline=service.retrieval_pipeline)
+        live_market = getattr(service.retrieval_pipeline, "market_provider", None) is not None
+        return cls(
+            nlu_pipeline=service.nlu_pipeline,
+            retrieval_pipeline=service.retrieval_pipeline,
+            intraday_provider=IntradayQuoteProvider() if live_market else None,
+        )
 
     # ---- entity helpers -------------------------------------------------
 
