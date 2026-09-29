@@ -74,6 +74,8 @@ def turn_record(state: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
         "macro_topics": macro_topics_of(state.get("nlu") or {}, effective) if result.get("route") != "refuse" else [],
         "named": effective == query,
         "evidence_used": result.get("evidence_used", []),
+        # the answer language a "继续用英文" instruction set for later turns (carried from turn to turn)
+        "answer_language": state.get("answer_language") or "",
     }
 
 
@@ -135,8 +137,17 @@ def listed_entities(nlu_result: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-_PLURAL_ZH = re.compile(r"这两家公司|这两家|这两只|这两个|两家公司|两只股票|两家|两只|两者|它们|他们俩|二者|俩")
-_PLURAL_EN = re.compile(r"\b(?:both of them|both|them|these two|the two)\b", re.IGNORECASE)
+_PLURAL_ZH = re.compile(
+    r"这两家公司|这两家|这两只|这两个|两家公司|两只股票|两家|两只|两者|它们|他们俩|二者|俩|这几家|这几只|这些公司|这些"
+)
+_PLURAL_EN = re.compile(
+    r"\b(?:both of them|both|them|these two|the two|the pair|all of them|those|these|they)\b(?! (?:days?|years?)\b)",
+    re.IGNORECASE,
+)
+# "它们 / them / those": every target of the last turn that named several; "两家 / both / the two": two.
+_GROUP_PRONOUN = re.compile(
+    r"它们|这几家|这几只|这些公司|这些|\b(?:them|all of them|those|these|they)\b", re.IGNORECASE
+)
 # "三家里面哪家最便宜", "all three": the three most recently discussed targets.
 # "三个月", "the three months" are periods, and "给我三只…" / "推荐三只" ask for new targets: neither is a reference.
 _TRIPLE = re.compile(
@@ -213,14 +224,23 @@ def _last_group(turns: list[dict[str, Any]], *, named_only: bool = False) -> lis
 GROUP_COUNT_MISMATCH = "group_reference_count_mismatch"
 
 
-def group_count_note(reasons: list[str], zh: bool) -> str | None:
-    """The sentence that tells the user a "three of them" reference covered fewer discussed targets."""
+def group_count_question(reasons: list[str], zh: bool) -> str | None:
+    """The clarification for a "three of them" reference when fewer targets were discussed.
+
+    Policy (round 6): the missing referent cannot be resolved, and a comparison or ranking over only the discussed
+    targets could name the wrong "highest" one, so the turn asks instead of answering; the question names the
+    targets that were discussed.
+    """
     for reason in reasons:
         if reason.startswith(f"{GROUP_COUNT_MISMATCH}:"):
             word, _, joined = reason.split(":", 1)[1].partition("->")
             if zh:
-                return f"您提到「{word}」，但本次对话只讨论过{joined}，以下按这两者比较。"
-            return f'You said "{word}", but this conversation has only covered {joined}; comparing those two.'
+                ask = "请告诉我另一家是哪家；如果只比较这两家，请直接说明。"
+                return f"您提到「{word}」，但本次对话只讨论过{joined}。{ask}"
+            return (
+                f'You said "{word}", but this conversation has only covered {joined}. Which other one do you mean? '
+                "If you only want those two compared, say so."
+            )
     return None
 
 
@@ -284,7 +304,14 @@ def resolve_coreference(query: str, turns: list[dict[str, Any]]) -> tuple[str, s
     plural = _PLURAL_ZH.search(query) or _PLURAL_EN.search(query)
     if plural:
         entities = discussed_targets(turns, limit=2)
-        if len(entities) != 2:
+        if _GROUP_PRONOUN.fullmatch(plural.group(0)):
+            # "And the highest ROE among them?" after three names: all of the last group, not only two
+            latest = _last_targets(turns, limit=6)
+            if len(latest) >= 2:
+                entities = [
+                    {"name": entity.get("name") or entity["symbol"], "symbol": entity["symbol"]} for entity in latest
+                ]
+        if len(entities) < 2:
             return None
         zh = bool(_PLURAL_ZH.search(query))
         joined = _join([entity["name"] for entity in entities], zh)
@@ -322,7 +349,8 @@ _ASPECT = re.compile(
     r"市盈率|市净率|净资产收益率|营收|营业收入|净利润|净利|毛利率|股息率|市值|负债率|收盘价?|股价|走势|最高价?|最低价?|"
     r"开盘价?|成交量|成交额|涨跌幅?|估值|公告|新闻|分红|业绩|财报|舆情|均线|波动率|"
     r"(?<![A-Za-z])(?:P/?E|P/?B|ROE|RSI|MACD|MA\d+)(?![A-Za-z])|"
-    r"revenue|net (?:profit|income)|gross margin|net margin|"
+    r"revenue|net (?:profit|income)|gross margin|net margin|returns? on equity|price[- ]to[- ](?:book|earnings)|"
+    r"book(?:[- ]value)? multiple|earnings multiple|"
     r"dividend|market cap|valuation|\bprice\b|\bclos(?:e|es|ing price)\b|\bhigh\b|\blow\b|\bvolume\b|"
     r"percentage change|\breturn\b|\bgrowth\b|volatility|moving average|announcements?|news|trend",
     re.IGNORECASE,
@@ -410,12 +438,15 @@ def resolve_ellipsis(
 
 # "跟沪深300ETF比…", "Is that bigger than Moutai's?": a comparison that names only the new side.
 _COMPARE_ZH = re.compile(
-    r"(?:跟|与|和|同)\S{1,16}?(?:比|相比|对比)|比\S{1,12}?(?:高|低|大|小|多|少|贵|便宜|强|弱|好)|相比|对比"
+    r"(?:跟|与|和|同)\S{1,16}?(?:比|相比|对比)|比\S{1,12}?(?:高|低|大|小|多|少|贵|便宜|强|弱|好)|相比|对比|"
+    r"放(?:在)?一起|并排|对照|比较一下|比一比|比比看|\bPK\b"
 )
 # "Compare it with Moutai", "put that against BYD": the object pronoun sits between the verb and the preposition.
 _COMPARE_EN = re.compile(
     r"\bthan\b|\bcompared? (?:(?:it|that|this|this one|that one) )?(?:with|to|against)\b|\bversus\b|\bvs\.?(?=\s)|"
-    r"\brelative to\b|\bstack(?:s)? (?:it |that )?up against\b|\b(?:put|set|measure|weigh) (?:it|that|this) against\b",
+    r"\brelative to\b|\bstack(?:s)? (?:it |that )?up against\b|\b(?:put|set|measure|weigh) (?:it|that|this) against\b|"
+    r"\bside[- ]by[- ]side\b|\bnext to\b|\balongside\b|\bhead[- ]to[- ]head\b|"
+    r"\b(?:put|set|line|place|lay) (?:it|that|this) (?:up )?(?:beside|by)\b",
     re.IGNORECASE,
 )
 _BACK_REFERENCE = re.compile(r"^(?P<lead>.*?)\b(?P<ref>that|this|it)\b", re.IGNORECASE)

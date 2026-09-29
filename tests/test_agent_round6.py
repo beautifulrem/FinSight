@@ -177,3 +177,163 @@ def test_a_list_without_a_shared_word_keeps_the_nearest_target(offline_service, 
     report = _check("茅台和五粮液里，五粮液市净率5.4倍", offline_service, registry)
 
     assert _summary(report) == [("五粮液", "pb", "eq", "supported")]
+
+
+# --- class 6: comparison follow-ups keep every earlier target ----------------------------------------------------
+def _turn(query: str, *entities: tuple[str, str], named: bool = True) -> dict:
+    return {
+        "query": query,
+        "effective_query": query,
+        "entities": [{"name": name, "symbol": symbol} for name, symbol in entities],
+        "named": named,
+    }
+
+
+MOUTAI, WULIANGYE, PINGAN = ("贵州茅台", "600519.SH"), ("五粮液", "000858.SZ"), ("中国平安", "601318.SH")
+
+
+@pytest.mark.parametrize(
+    "query", ["Stack it side by side with Wuliangye", "Line that up next to Wuliangye", "把它跟五粮液放在一起看"]
+)
+def test_comparison_verbs_anchor_the_earlier_target(query):
+    from query_intelligence.agent.memory import resolve_comparison_anchor
+
+    turns = [_turn("茅台的市净率", MOUTAI)]
+    rewritten, reason = resolve_comparison_anchor(query, turns, [{"canonical_name": "五粮液", "symbol": "000858.SZ"}])
+    assert reason == "comparison_anchor:+贵州茅台" and "贵州茅台" in rewritten
+
+
+def test_group_pronouns_keep_the_whole_last_group_and_dual_words_keep_two():
+    from query_intelligence.agent.memory import has_plural_reference, resolve_coreference
+
+    turns = [_turn("三家的市盈率", WULIANGYE, PINGAN, MOUTAI)]
+    rewritten, _ = resolve_coreference("And the lowest P/B among those?", turns)
+    assert all(name in rewritten for name in ("五粮液", "中国平安", "贵州茅台"))
+    rewritten, _ = resolve_coreference("它们谁的ROE最高", turns)
+    assert all(name in rewritten for name in ("五粮液", "中国平安", "贵州茅台"))
+    rewritten, _ = resolve_coreference("这两家谁更便宜", [_turn("茅台", MOUTAI), _turn("平安", PINGAN)])
+    assert rewritten == "贵州茅台和中国平安谁更便宜"
+    assert not has_plural_reference("How did the market do these days?")
+
+
+@pytest.fixture
+def agent(offline_service):
+    from query_intelligence.agent.graph import AgentRuntime
+    from query_intelligence.agent.llm import ScriptedLLM
+    from query_intelligence.agent.service import AgentService
+
+    runtime = AgentRuntime(offline_service, build_registry_for_service(offline_service), ScriptedLLM([]))
+    service = AgentService(runtime, trace_sinks=[])
+    yield service
+    runtime.close()
+
+
+def _targets(result: dict) -> set[str]:
+    return {call["arguments"].get("target") for call in result.get("tool_calls") or []}
+
+
+def test_a_count_above_the_discussed_targets_is_clarified_and_the_reply_joins_them(agent):
+    session = "r6-three-of-two"
+    agent.chat("五粮液跟茅台的ROE各多少", session_id=session)
+    asked = agent.chat("这三家谁的市净率最高", session_id=session)
+    assert asked.get("status") == "needs_clarification"
+    assert "只讨论过五粮液和贵州茅台" in asked["clarification"]["question"]
+    answered = agent.chat("中国平安", session_id=session)
+    assert {"000858.SZ", "600519.SH", "601318.SH"} <= _targets(answered)
+
+
+# --- class 7: English typos of company names -----------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("query", "symbol"),
+    [("What's the ROE of Wulaingye?", "000858.SZ"), ("Kweichow Mouati closing price", "600519.SH")],
+)
+def test_english_typos_resolve(query, symbol, offline_service):
+    entities = offline_service.analyze_query(query)["entities"]
+    assert symbol in {entity.get("symbol") for entity in entities}
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Why are insured deposits rising?",  # "insured" vs the alias "insurers"
+        "Is the mountain region economy growing?",
+        "Industrial banks lend to factories",  # a plural of the alias word is not a typo
+        "The Cambrian explosion and ping pong",
+        "Sinologists study Chinese history",
+    ],
+)
+def test_english_words_are_not_read_as_typod_names(query, offline_service):
+    corrected, trace = offline_service.nlu_pipeline.normalizer._correct_english_typos(query)
+
+    assert (corrected, trace) == (query, [])
+
+
+def test_dictionary_words_rarely_look_like_typod_names(offline_service):
+    """Every word of the system dictionary (when present) through the typo corrector: only a handful of rare words
+    are one edit from a security's English name."""
+    from pathlib import Path
+
+    words_file = Path("/usr/share/dict/words")
+    if not words_file.exists():
+        pytest.skip("no system word list")
+    normalizer = offline_service.nlu_pipeline.normalizer
+    words = sorted({line.strip().lower() for line in words_file.read_text().splitlines() if line.strip().isalpha()})
+    hits = [word for word in words if normalizer._correct_english_typos(word)[1]]
+    assert len(hits) <= 5, hits
+
+
+# --- class 8: a persisted answer language --------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("text", "requested", "persistent"),
+    [
+        ("接下来都用英文回答", "en", "en"),
+        ("继续用英文，市盈率呢", "en", "en"),
+        ("Keep answering in Chinese", "zh", "zh"),
+        ("From now on, reply in English", "en", "en"),
+        ("请用英文回答：平安的ROE", "en", None),  # one-off
+        ("市盈率的英文说法是什么", None, None),
+    ],
+)
+def test_persistent_language_instructions(text, requested, persistent):
+    from query_intelligence.chat.language import persistent_answer_language, requested_answer_language
+
+    assert (requested_answer_language(text), persistent_answer_language(text)) == (requested, persistent)
+
+
+def test_a_persisted_language_holds_until_a_new_instruction(agent):
+    session = "r6-language"
+    first = agent.chat("茅台的市盈率？以后都用英文回答", session_id=session)
+    later = agent.chat("那它的市净率呢", session_id=session)
+    one_off = agent.chat("用中文说一下它的ROE", session_id=session)
+    after = agent.chat("它的净利润呢", session_id=session)
+    assert [detect(item) for item in (first, later, one_off, after)] == ["en", "en", "zh", "en"]
+
+
+def detect(result: dict) -> str:
+    from query_intelligence.chat.language import detect_query_language
+
+    return detect_query_language(str(result.get("answer") or ""))
+
+
+# --- class 9: holdings and fund flows ------------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("query", "stated"),
+    [
+        ("社保基金最近有没有买入茅台", True),
+        ("Are foreign investors dumping Wuliangye?", True),
+        ("茅台最近主力资金流入吗", True),
+        ("机构给了茅台买入评级吗", False),  # a rating, not holdings
+        ("茅台大股东最近增持了吗", False),  # disclosed in announcements
+        ("北向资金是什么意思", False),  # a definition
+    ],
+)
+def test_flow_questions_state_the_missing_data(query, stated):
+    from query_intelligence.agent.coverage import flow_gaps
+
+    assert bool(flow_gaps(query, [], zh=not query.isascii())) is stated
+
+
+def test_a_flow_question_about_a_stock_says_so_in_the_answer(agent):
+    result = agent.chat("险资这阵子在加仓五粮液吗", session_id="r6-flows")
+    assert "没有险资的持仓或资金流向数据" in str(result["answer"])
+    assert "000858.SZ" in _targets(result)

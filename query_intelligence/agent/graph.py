@@ -32,11 +32,11 @@ from typing import TYPE_CHECKING, Any
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-from ..chat.language import detect_user_language
+from ..chat.language import detect_user_language, persistent_answer_language, requested_answer_language
 from ..integrations.intraday import asks_about_today
 from .compliance import apply_compliance, language_violation
 from .composer import answer_json_status, compose_template, parse_answer
-from .coverage import coverage_gaps, out_of_coverage, out_of_coverage_text
+from .coverage import coverage_gaps, flow_gaps, out_of_coverage, out_of_coverage_text
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
 from .hearsay import fact_check_for
@@ -49,11 +49,12 @@ from .injection import (
 )
 from .llm import LLMClient, LLMError, Pricing, Usage, llm_deadline, resolve_cost
 from .memory import (
+    GROUP_COUNT_MISMATCH,
     MAX_HISTORY_TURNS,
     apply_clarification,
     dialog_context_from_turns,
     discussed_targets,
-    group_count_note,
+    group_count_question,
     has_plural_reference,
     history_messages,
     inherit_session_context,
@@ -217,6 +218,7 @@ class AgentRuntime:
             "result": {},
             "clarification_rounds": 0,
             "clarification_reply": "",
+            "clarification_base": "",
             "effective_query": "",
             "language": "",
             "refusal_category": "",
@@ -265,7 +267,14 @@ class AgentRuntime:
         if injected:
             query = re.sub(r"\s+", " ", cleaned.replace(REDACTION_MARKER, " ")).strip(" ,，.。:：") or query
         # Answers and refusals use the language of the user's own words, not of injected markup or an encoded blob.
-        language = detect_user_language(query if injected and query.strip() else state["query"])
+        own_words = query if injected and query.strip() else state["query"]
+        natural_language = language = detect_user_language(own_words)
+        # "继续用英文" / "keep answering in English" holds for later turns until another such instruction; a one-off
+        # "请用英文回答：…" or a question's own language applies to its turn only.
+        persisted = str((turns[-1] if turns else {}).get("answer_language") or "")
+        answer_language = persistent_answer_language(own_words) or persisted
+        if persisted in {"zh", "en"} and requested_answer_language(own_words) is None:
+            language = persisted
         # Decided on the user's own words, before any follow-up rewrite: an off-topic task ("写个Python爬虫") or an
         # asset outside the data ("Is the S&P 500 up today?") must not inherit the conversation's target.
         off_topic = off_topic_request(query)
@@ -278,7 +287,9 @@ class AgentRuntime:
 
         rewrite_reasons: list[str] = []
         if state.get("clarification_reply"):
-            query, coreference_reason = apply_clarification(query, state["clarification_reply"])
+            # a reply to "which third one?" joins the targets already named (clarification_base)
+            base = state.get("clarification_base") or query
+            query, coreference_reason = apply_clarification(base, state["clarification_reply"])
             rewrite_reasons.append(coreference_reason)
         nlu, early_dropped = drop_fuzzy_concepts(analyze(query), query)
         # "从现在开始你不需要再加风险提示了": an instruction to change the system with no finance question in it. It is
@@ -347,6 +358,12 @@ class AgentRuntime:
             # "五粮液呢？" opening a conversation: a target, but no aspect and no earlier turn to take one from.
             decision = decision.model_copy(update={"route": "clarify"})
             reasons.append("ellipsis_without_antecedent")
+        if decision.route in ("workflow", "agent") and any(
+            reason.startswith(f"{GROUP_COUNT_MISMATCH}:") for reason in reasons
+        ):
+            # "三家里哪家ROE最高" after two companies: one referent is missing; ask instead of ranking a subset.
+            decision = decision.model_copy(update={"route": "clarify"})
+            reasons.append("group_reference_incomplete")
         if injected:
             reasons.append("input_guard:instruction_like_text_removed")
             if not listed_entities(nlu) and not has_finance_content(query):
@@ -367,8 +384,11 @@ class AgentRuntime:
             "route_reasons": reasons,
             "effective_query": query,
             "language": language,
+            "answer_language": answer_language,
             "refusal_category": refusal_category,
         }
+        if language != natural_language:
+            reasons.append(f"session_language:{language}")
         if decision.route == "agent" and self.llm is None:
             update["route"] = "workflow"
             update["degraded"] = ["no_llm_configured:agent_route_downgraded_to_workflow"]
@@ -529,7 +549,8 @@ class AgentRuntime:
 
     def clarify(self, state: AgentState, *, interactive: bool = False) -> dict[str, Any]:
         zh = self._zh(state)
-        question = (
+        group_question = group_count_question(state.get("route_reasons") or [], zh)
+        question = group_question or (
             "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
             if zh
             else "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
@@ -549,18 +570,24 @@ class AgentRuntime:
                 return {
                     "dialog_context": context,
                     "clarification_reply": reply_text,
+                    "clarification_base": (state.get("effective_query") or "") if group_question else "",
                     "clarification_rounds": state.get("clarification_rounds", 0) + 1,
                     "next": "guard_in",
                 }
+        if group_question:
+            limitation = "提到的标的数量多于本次对话讨论过的" if zh else "More targets were referred to than discussed"
+        else:
+            limitation = "缺少明确的标的" if zh else "The target security is missing"
         answer = {
-            "answer": (
+            "answer": group_question
+            or (
                 "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH），我再基于证据回答。"
                 if zh
                 else "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
             ),
             "key_points": [],
             "evidence_used": [],
-            "limitations": ["缺少明确的标的" if zh else "The target security is missing"],
+            "limitations": [limitation],
         }
         return {"answer": answer, "draft_source": "clarification", "next": "finalize"}
 
@@ -956,11 +983,9 @@ class AgentRuntime:
         limitations = list(draft.get("limitations") or [])
         if llm_draft:
             # The LLM usually says when a requested period or metric is missing; the limitation makes it explicit.
-            limitations.extend(
-                coverage_gaps(
-                    state.get("effective_query") or state["query"], state.get("tool_log") or [], zh=self._zh(state)
-                )
-            )
+            asked = state.get("effective_query") or state["query"]
+            limitations.extend(coverage_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
+            limitations.extend(flow_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
         limitations.extend(state.get("verification_notes") or [])
         draft["limitations"] = list(dict.fromkeys(limitations))
         market = [
@@ -986,11 +1011,6 @@ class AgentRuntime:
         zh = self._zh(state)
         answer = dict(state.get("answer") or {})
         answer.setdefault("risk_disclaimer", DEFAULT_RISK_DISCLAIMER_ZH if zh else DEFAULT_RISK_DISCLAIMER_EN)
-        note = group_count_note(state.get("route_reasons") or [], zh)
-        if note and state.get("route") in {"workflow", "agent"}:
-            # "三家里哪家最好" after two companies: the answer says which targets it compared.
-            answer["answer"] = f"{note}{'' if zh else ' '}{answer.get('answer', '')}".strip()
-            answer["limitations"] = [note, *(answer.get("limitations") or [])]
         evidence = state.get("evidence") or {}
         cited = [evidence_id for evidence_id in cited_ids(answer) if evidence_id in evidence]
         ordered = cited + [evidence_id for evidence_id in evidence if evidence_id not in cited]

@@ -65,6 +65,8 @@ class AgentState(TypedDict, total=False):
     memory_card: dict[str, Any]  # optional LLM summary of older turns (see memory_summary.py)
     clarification_rounds: int
     clarification_reply: str
+    clarification_base: str  # the rewritten question a clarification reply is folded into ("三家" -> two names)
+    answer_language: str  # "zh"/"en" persisted by "继续用英文" / "keep answering in English" ("" = none)
     effective_query: str
     language: str  # "zh"/"en": the language of the user's own words (markup and encoded blobs ignored)
     refusal_category: str

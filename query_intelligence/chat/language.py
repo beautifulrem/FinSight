@@ -37,12 +37,36 @@ _ACRONYM = re.compile(r"(?<![A-Za-z])(?:[A-Z]{1,5}(?:/[A-Z]{1,3})?|\d{6}\.[A-Z]{
 
 # An explicit instruction about the answer language ("请用英文回答：五粮液的ROE", "Answer in Chinese: …") overrides
 # the language the question is written in. The last instruction in the message wins.
+# Words that make the instruction hold for the rest of the conversation ("继续用英文", "keep answering in English").
+_PERSIST_ZH = r"(?:继续|还是|接着|一直|之后|以后|后面|接下来|今后|往后|从现在(?:开始|起)|从今以后)(?:都|也|就)?"
+_PERSIST_EN = (
+    r"(?:keep|stay|continue|carry on|stick|go on)(?: (?:answering|replying|responding|writing|talking|going))?"
+    r"(?: (?:in|with))?|switch(?: back)? to"
+)
+_EN_WORD, _ZH_WORD = r"(?:英文|英语)", r"(?:中文|汉语|普通话)"
+_ANSWER_VERB = r"(?:来)?(?:回答|回复|作答|答复|解答|说明|写|输出)"
+
+
+def _language_pattern(zh_word: str, en_words: str) -> str:
+    return (
+        rf"{_PERSIST_ZH}(?:用|以|说|使用){zh_word}|"
+        rf"(?:用|以|使用|请用)?{zh_word}{_ANSWER_VERB}|用{zh_word}(?:吧|就行|就好|说|讲)|"
+        rf"\b(?:answer|reply|respond|write|explain)(?: (?:this|it|me))?(?: back)? in {en_words}\b|"
+        rf"\bin {en_words},? please\b|\b(?:{_PERSIST_EN}) {en_words}\b|"
+        rf"\b(?:in )?{en_words} from now on\b|\bfrom now on,? (?:\w+ )?in {en_words}\b"
+    )
+
+
+# An explicit instruction about the answer language ("请用英文回答：五粮液的ROE", "Answer in Chinese: …") overrides
+# the language the question is written in. The last instruction in the message wins.
 _ANSWER_LANGUAGE = re.compile(
-    r"(?P<en>(?:用|以|使用|请用)?(?:英文|英语)(?:来)?(?:回答|回复|作答|答复|解答|说明|写|输出)|"
-    r"\b(?:answer|reply|respond|write|explain)(?: (?:this|it|me))?(?: back)? in english\b|\bin english,? please\b)|"
-    r"(?P<zh>(?:用|以|使用|请用)?(?:中文|汉语|普通话)(?:来)?(?:回答|回复|作答|答复|解答|说明|写|输出)|"
-    r"\b(?:answer|reply|respond|write|explain)(?: (?:this|it|me))?(?: back)? in (?:chinese|mandarin)\b|"
-    r"\bin (?:chinese|mandarin),? please\b)",
+    rf"(?P<en>{_language_pattern(_EN_WORD, 'english')})|(?P<zh>{_language_pattern(_ZH_WORD, '(?:chinese|mandarin)')})",
+    re.IGNORECASE,
+)
+_PERSISTENT = re.compile(
+    rf"{_PERSIST_ZH}(?:用|以|说|使用)(?:{_EN_WORD}|{_ZH_WORD})|"
+    rf"\b(?:{_PERSIST_EN}) (?:english|chinese|mandarin)\b|\b(?:english|chinese|mandarin) from now on\b|"
+    rf"\bfrom now on,? (?:\w+ )?in (?:english|chinese|mandarin)\b",
     re.IGNORECASE,
 )
 
@@ -52,6 +76,15 @@ def requested_answer_language(text: str) -> str | None:
     last = None
     for match in _ANSWER_LANGUAGE.finditer(text or ""):
         last = "en" if match.group("en") else "zh"
+    return last
+
+
+def persistent_answer_language(text: str) -> str | None:
+    """The language an instruction sets for the rest of the conversation ("继续用英文", "keep answering in
+    English", "from now on in Chinese"); ``None`` for a one-off instruction ("请用英文回答：…") or none."""
+    last = None
+    for match in _PERSISTENT.finditer(text or ""):
+        last = requested_answer_language(match.group(0))
     return last
 
 

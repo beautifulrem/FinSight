@@ -95,7 +95,9 @@ def test_compare_it_session_compares_both_and_the_next_which_keeps_both(agent):
 # --------------------------------------------------------------------------- C7: "three of them" after two
 
 
-def test_three_of_them_after_two_targets_uses_both_and_says_so(agent):
+def test_three_of_them_after_two_targets_asks_which_third(agent):
+    """Round 6 changed the C7 policy: the reference names one more target than were discussed, so the turn asks
+    for it (naming the two it knows) instead of ranking the two."""
     from query_intelligence.agent.memory import resolve_group_reference
 
     rewritten, reason = resolve_group_reference("这三只谁的市净率最低", [_turn(*PING_AN), _turn(*WULIANGYE)])
@@ -104,8 +106,9 @@ def test_three_of_them_after_two_targets_uses_both_and_says_so(agent):
     session = "r5-c7"
     agent.chat("中国平安和五粮液的市净率各是多少", session_id=session)
     result = agent.chat("这三只谁的市净率最低", session_id=session)
-    assert "只讨论过中国平安和五粮液" in str(result["answer"])
-    assert {"601318.SH", "000858.SZ"} <= {call["arguments"].get("target") for call in result["tool_calls"]}
+    question = str((result.get("clarification") or {}).get("question") or result.get("answer"))
+    assert result.get("status") == "needs_clarification" or result.get("route") == "clarify"
+    assert "只讨论过中国平安和五粮液" in question and not result.get("tool_calls")
 
 
 @pytest.mark.parametrize(
