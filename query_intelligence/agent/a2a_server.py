@@ -152,7 +152,7 @@ def build_agent_card(base_url: str, *, api_key_required: bool = False) -> Any:
 
 
 def principal_of_context(context: Any) -> str:
-    """The FinSight principal (API-key hash or ``local``) that ``PrincipalContextBuilder`` put on the call."""
+    """The FinSight principal (``key:``/``anon:`` hash, or ``local``) set by ``PrincipalContextBuilder``."""
     call_context = getattr(context, "call_context", None)
     name = getattr(getattr(call_context, "user", None), "user_name", "") if call_context is not None else ""
     return name or "local"
@@ -254,7 +254,7 @@ def build_context_builder() -> Any:
 
         @property
         def is_authenticated(self) -> bool:
-            return self._principal != "local"
+            return self._principal != "local" and not self._principal.startswith("anon:")
 
         @property
         def user_name(self) -> str:

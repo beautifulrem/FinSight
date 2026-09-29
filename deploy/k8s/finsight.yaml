@@ -7,11 +7,20 @@
 #   kubectl -n finsight create secret generic finsight-db \
 #     --from-literal=POSTGRES_PASSWORD="$PG_PASSWORD" \
 #     --from-literal=QI_AGENT_CHECKPOINT_DB="postgresql://postgres:$PG_PASSWORD@finsight-postgres:5432/finsight"
+#   kubectl -n finsight create secret generic finsight-api-keys \
+#     --from-literal=QI_API_KEYS="$(openssl rand -hex 24),$(openssl rand -hex 24)" \
+#     --from-literal=QI_ANON_COOKIE_SECRET="$(openssl rand -hex 32)"
 #   kubectl -n finsight create secret generic finsight-llm --from-literal=DEEPSEEK_API_KEY=...   # optional
 #   kubectl apply -k deploy/k8s
 #
-# No Secret is committed: create finsight-db as above, from deploy/k8s/secret.template.yaml with envsubst,
-# or sync it from a secret manager (see docs/deployment.md). The pods do not start until it exists.
+# No Secret is committed: create finsight-db and finsight-api-keys as above, from
+# deploy/k8s/secret.template.yaml with envsubst, or sync them from a secret manager (see docs/deployment.md).
+# The pods do not start until both exist.
+#
+# Authentication is required: QI_PROFILE=production makes the app refuse to start without QI_API_KEYS, and the
+# key comes from a non-optional secretKeyRef, so a missing Secret stops the pod instead of running it open.
+# Anonymous access is an explicit choice (QI_ALLOW_ANONYMOUS=1 in the ConfigMap; each browser then gets its own
+# signed-cookie identity and no access to /agent/traces). See SECURITY.md.
 #
 # The Postgres StatefulSet is for a self-contained demo; point QI_AGENT_CHECKPOINT_DB at a managed
 # database in production. Replicas are stateless apart from the checkpointer: sessions, clarification
@@ -35,6 +44,7 @@ data:
   QI_AGENT_DURABILITY: exit
   QI_AGENT_REQUEST_TIMEOUT_S: "120"
   QI_RATE_LIMIT_PER_MINUTE: "120"
+  QI_PROFILE: production
   QI_AGENT_TRACE_DIR: /app/outputs/traces
   DEEPSEEK_BASE_URL: https://api.deepseek.com
   DEEPSEEK_MODEL: deepseek-v4-flash
@@ -125,6 +135,13 @@ spec:
             - configMapRef: {name: finsight-config}
             - secretRef: {name: finsight-db}
             - secretRef: {name: finsight-llm, optional: true}
+          env:
+            # Required: no Secret, no pod (the app also refuses to start in production without keys).
+            - name: QI_API_KEYS
+              valueFrom: {secretKeyRef: {name: finsight-api-keys, key: QI_API_KEYS}}
+            # Shared by every replica so an anonymous browser (only with QI_ALLOW_ANONYMOUS=1) keeps its identity.
+            - name: QI_ANON_COOKIE_SECRET
+              valueFrom: {secretKeyRef: {name: finsight-api-keys, key: QI_ANON_COOKIE_SECRET, optional: true}}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
