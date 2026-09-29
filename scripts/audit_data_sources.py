@@ -35,6 +35,7 @@ from query_intelligence.integrations.announcement_sources import (  # noqa: E402
     FallbackAnnouncementProvider,
 )
 from query_intelligence.integrations.cninfo_provider import CninfoAnnouncementProvider  # noqa: E402
+from query_intelligence.integrations.intraday import IntradayQuoteProvider, market_session  # noqa: E402
 from query_intelligence.integrations.sources import SourceCache, SourceHealthRegistry, SourceRuntime  # noqa: E402
 from query_intelligence.integrations.sources.values import to_iso_date  # noqa: E402
 
@@ -90,6 +91,15 @@ def probe(results: list[dict], group: str, source: str, target: str, fn: Callabl
     results.append(record)
     status = "ok" if record["ok"] else f"FAIL {record.get('error')}"
     print(f"[{group}] {source} {target}: {status} {record['latency_ms']} ms as_of={record.get('as_of')}", flush=True)
+
+
+def _intraday_summary(quote: dict[str, Any]) -> dict[str, Any]:
+    keys = ("source", "price", "prev_close", "pct_change", "quote_time", "fetched_at", "attempts", "fallback_reason")
+    return {
+        **{key: quote.get(key) for key in keys},
+        "as_of": quote.get("quote_time"),
+        "market_session": market_session(),
+    }
 
 
 def run_audit(timeout: float, include_legacy: bool) -> dict[str, Any]:
@@ -153,6 +163,19 @@ def run_audit(timeout: float, include_legacy: bool) -> dict[str, Any]:
             "efinance (get_quote_history)",
             target,
             lambda code=code: ef.stock.get_quote_history(code, beg=start, end=end, klt=101, fqt=1),
+            timeout,
+        )
+
+    # The intraday path for 今天 questions (query_intelligence/integrations/intraday.py): Sina, then Tencent,
+    # rejecting a quote not dated today. Outside the session the failure ("not today") is expected.
+    intraday = IntradayQuoteProvider(timeout=timeout)
+    for code, name in STOCKS:
+        probe(
+            results,
+            "intraday",
+            "intraday.quote (sina -> tencent)",
+            f"{code} {name}",
+            lambda code=code: _intraday_summary(intraday.fetch(code)),
             timeout,
         )
 
