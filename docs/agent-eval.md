@@ -967,7 +967,7 @@ Deterministic claim check (`POST /agent/claim-check`, no LLM) against labelled c
 | Result file | Set | Status | Commit | Claims | Verdict accuracy [95% CI] | Check accuracy [95% CI] | Comparator accuracy | Claims sha256 (first 16) | Command |
 |---|---|---|---|---|---|---|---|---|---|
 | `claim_bench-dev-baseline.json` | dev | development claims, before tuning | `3da1a48` | 131 | 0.527 [0.44, 0.61] | 0.497 [0.40, 0.58] | 0.652 | `39223b500d603e40` | `python -m evaluation.claim_bench.run --set dev --out evaluation/results/claim_bench-dev-baseline.json` |
-| `claim_bench-dev.json` | dev | development claims, after tuning (tuned on) | `be88027` | 173 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `da2bb882837fdd1b` | `python -m evaluation.claim_bench.run --set dev` |
+| `claim_bench-dev.json` | dev | development claims, after tuning (tuned on) | `c731dba` | 204 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `097cb0d6a9d7d468` | `python -m evaluation.claim_bench.run --set dev` |
 | `claim_bench-holdout.json` | holdout | **held-out claims, run once** (hashed file; later fixes are not re-scored here) | `2fcb4f0` | 47 | 0.936 [0.85, 1.00] | 0.944 [0.88, 1.00] | 1.000 | `a48aa59412a06f81` | `python -m evaluation.claim_bench.run --set holdout` |
 
 ### Latency profile runs (agent path, streamed)
@@ -1114,8 +1114,8 @@ v2 − v1: task success -0.031 [-0.113, +0.038], pass^3 +0.038 [-0.075, +0.151],
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `6c34abc` | 285 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
-| gate-holdout | `6c34abc` | 53 | 0.925 [0.85, 0.98] | 1.000 | 0.975 | 0 |
+| gate-dev | `774df5c` | 295 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-holdout | `774df5c` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
 
 ### Fault injection (overall graceful rate 1.00)
 
@@ -1300,7 +1300,7 @@ Paired comparisons (same tasks, a − b):
 | `router_eval-round4-independent-after-exposure.json` | router_eval | `075caad` | 2026-09-28T17:50:05+00:00 | – | written directly |
 | `router_eval-independent_v2-first-run.json` | router_eval | `3080bfe` | 2026-09-28T17:55:58+00:00 | – | written directly |
 | `claim_bench-dev-baseline.json` | claim_bench | `3da1a48` | 2026-09-28T06:30:24+00:00 | – | written directly |
-| `claim_bench-dev.json` | claim_bench | `be88027` | 2026-09-29T03:01:43+00:00 | – | written directly |
+| `claim_bench-dev.json` | claim_bench | `c731dba` | 2026-09-29T15:29:35+00:00 | – | written directly |
 | `claim_bench-holdout.json` | claim_bench | `2fcb4f0` | 2026-09-28T07:14:56+00:00 | – | written directly |
 | `perf-baseline-deepseek.json` | ablation | `8e81f48` | 2026-09-28T11:22:44+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-baseline.json` (12a1415984f0c9e3) |
 | `perf-verifierfix-deepseek.json` | ablation | `52e80dc` | 2026-09-28T12:16:08+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-verifierfix.json` (3820381e8007ecca) |
@@ -1314,8 +1314,8 @@ Paired comparisons (same tasks, a − b):
 | `ablation-online-deepseek-v4.1-flash.json` | ablation | `c1c3388` | 2026-09-25T09:46:46+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-deepseek-v4.1-flash.json` (ebd1d3322c4c4708) |
 | `ablation-online-v1.json` | ablation | `1beb760` | 2026-09-25T14:12:49+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-v1.json` (fc69345d844bdd6e) |
 | `ablation-online-v2.json` | ablation | `1beb760` | 2026-09-25T13:32:10+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-v2.json` (f5ba8190178dfe74) |
-| `gate-dev.json` | run | `6c34abc` | 2026-09-29T14:18:09+00:00 | – | `outputs/agent_eval/gate-dev.json` (3a87f4c9c6d5724d) |
-| `gate-holdout.json` | run | `6c34abc` | 2026-09-29T14:18:19+00:00 | – | `outputs/agent_eval/gate-holdout.json` (f30eafde32466623) |
+| `gate-dev.json` | run | `774df5c` | 2026-09-29T15:28:05+00:00 | – | `outputs/agent_eval/gate-dev.json` (903f7ab9ecdeb2b6) |
+| `gate-holdout.json` | run | `774df5c` | 2026-09-29T15:28:24+00:00 | – | `outputs/agent_eval/gate-holdout.json` (86ef24648564f0b2) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `9f0e46b` | 2026-09-28T17:04:55+00:00 | – | `outputs/agent_eval/verifier_stress.json` (94d2b01f3bd98c53) |
 | `verifier_stress-perf-8a85ae5.json` | verifier_stress | `8a85ae5` | 2026-09-28T16:22:43+00:00 | – | `outputs/agent_eval/verifier_stress.json` (bd1a6d143c0b398f) |

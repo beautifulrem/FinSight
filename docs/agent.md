@@ -139,7 +139,7 @@ Written from the reviewer's round-3 failures (C5–C12, C20), each with new own 
 | Case | Example | Behaviour | Reason code / where |
 |---|---|---|---|
 | Object pronoun inside an English comparison (C5) | "What's Wuliangye's ROE?" → "Compare it with Moutai" → "Which one should I buy?" | "compare it/that with", "put it against", "stack it up against" count as a comparison that names only the new side, so the earlier target joins; the next "which one" then has both | `comparison_anchor:+五粮液`, `group_reference:which->…` |
-| "Three of them" when two were discussed (C7) | 茅台和五粮液… → "三家里哪家最好" / "Which of those three…" | Compares the two that were discussed and says so first ("您提到「三家」，但本次对话只讨论过贵州茅台和五粮液，以下按这两者比较。"); "三个月", "the three months", "给我三只…", "推荐三只" are not references | `group_reference_count_mismatch:三家->…` |
+| "Three of them" when two were discussed (C7) | 茅台和五粮液… → "三家里哪家最好" / "Which of those three…" | Round 5 compared the two and said so; **round 6 replaced this with a clarification** (see below). "三个月", "the three months", "给我三只…", "推荐三只" are not references | `group_reference_count_mismatch:三家->…` |
 | Colloquial short names (C6) | 美的, 格力, 宁王, 迪王, 茅子, 工行, 招行, 海天 (→ 海天味业, while "海天精工" stays 海天精工), … | `colloquial_alias` rows in the alias tables, generated from `runtime_entity_assets.COLLOQUIAL_ALIASES`. They match only exactly, only as a whole jieba token, never fuzzily and not after a degree adverb, so "完美的", "施工行业", "价格挺美的" stay plain words | NLU `alias_exact` |
 | Market concept questions (C6) | "北向资金是啥", "什么是两融", "What are northbound funds?" | Answered from the glossary with the `explain_concept` tool instead of refused; a number request ("两融余额现在多少") gets the definition plus "当前数据源不包含…的数据序列". Words with an everyday meaning (国家队, 主力) need a definition or market cue ("国家队队员名单" is not a finance question); a request for picks is never a concept question | `override:out_of_scope_glossary_concept:*`, `concept:glossary:*` |
 | Companies without offline data (C6) | "美的和格力选哪个" | Resolved and answered with a no-data statement per company ("当前数据源中没有美的集团（000333.SZ）的行情、基本面数据"), hedged, never refused | template + `failed_target_statements` |
@@ -149,6 +149,26 @@ Written from the reviewer's round-3 failures (C5–C12, C20), each with new own 
 | Explicit answer language (C12) | "请用英文回答：五粮液的ROE", "Answer in Chinese: …" | `chat.language.requested_answer_language` overrides script counting; the last instruction wins | `language` field |
 | Units in template text (C11) | "成交额 3793827534", "1688.38 hundred million CNY" | Prices in 元 / CNY (index levels in 点 / points), amounts scaled to 亿元/万元 or "CNY 168.84 bn"/"mn", PE/PB as 倍 / x, changes and ratios in % | `agent/composer.py` |
 | Foreign central banks (C20) | "美联储加息对A股有什么影响", "Will a Fed rate hike hurt A-shares?" | Answered with the domestic macro evidence, led by a coverage statement (only China macro series; no Fed/ECB/BoJ rates or US data) that is also a limitation; no spurious fuzzy concept | `coverage.foreign_macro_gaps` |
+
+### Rules added in round 6 (after exposure of the round-4 held-out slices)
+
+Written after the independent round-4 slices (`evaluation/heldout_r4/`, written by a separate author) were run once at
+817a2d8 and their failures read. Each class has new own dev tasks (`build_tasks._round6_tasks`, 11 conversations),
+unit tests (`tests/test_agent_round6.py`) and an overlap test against every held-out text (`tests/test_agent_eval.py`).
+
+| Case | Example (own wording) | Behaviour | Reason code / where |
+|---|---|---|---|
+| More comparison verbs | "What's Ping An's return on equity?" → "Line it up next to Wuliangye"; "把它和中国平安放在一起看看" | "side by side", "next to", "alongside", "head to head", "put/set/line it beside", 放在一起 / 并排 / 对照 / 比较一下 count as a comparison that names only the new side; English metric names ("return on equity", "price-to-book", "book multiple") are aspects that are carried | `comparison_anchor:+…` |
+| "them / those" after a group | "P/B of Wuliangye, Ping An and Moutai" → "What ROE does each of them have?" | "them / those / these / they / 它们 / 这些 / 这几家" take every target of the last turn that named several; "both / the two / 两家 / 二者" still take two | `coreference:them->…` |
+| A count above the targets discussed (policy change) | 五粮液跟茅台… → "这三家谁的市净率最高" | **Clarified**, naming the targets that were discussed: "您提到「这三家」，但本次对话只讨论过五粮液和贵州茅台。请告诉我另一家是哪家；如果只比较这两家，请直接说明。" A reply that names a target (in a session with a checkpointer) is folded into the question together with the two known ones. Why the change: the referent is missing, and a ranking over the discussed subset ("哪家最高") can name the wrong one; this is the same rule as for other unresolved references (ask, do not guess). Round 5 answered on the two with a note; the round-4 held-out author also scores `clarify` but calls the round-5 behaviour defensible | `group_reference_count_mismatch:…`, `group_reference_incomplete` |
+| English typos of company names | "Kweichow Mouati", "Wulaingye's ROE" | The normalizer corrects an English alias of a listed security with one typo: the words must line up with the alias's, exactly one may differ, it has at least six letters and the same first letter, and it is one edit away (a swap of neighbouring letters is one edit; two edits from ten letters on); plurals and "-ed" forms are not typos. Checked against the 234,454 alphabetic words of the macOS system dictionary: 3 rare words are corrected (`moutan`, `sinopic`, `sunglow`); the test allows at most 5 | NLU trace `alias_typo_en: …` |
+| A persisted answer language | "…？以后都用英文回答" → "那它的市净率呢" (English); "Keep replying in Chinese" | "继续 / 以后 / 接下来 / 从现在开始 …用英文", "keep answering / stay / continue / switch to … in English", "from now on in Chinese" set the answer language for later turns (`answer_language` in the turn record) until another such instruction; a one-off instruction ("请用英文回答：…", "用中文说一下…") applies to its own turn only | `session_language:en` |
+| Holdings and fund flows | "外资这段时间有没有增持五粮液", "Has the national team been accumulating Ping An shares?" | An investor group (国家队, 汇金, 社保, 险资, 北向资金, 外资, 主力资金, national team, northbound money, …) with a buying/selling/flow word, or a flow term (资金流向, 两融余额, fund flows), gets "当前数据源没有…的持仓或资金流向数据，无法判断其是否在买入或卖出" first, also as a limitation of LLM answers; a company's own shareholders (增持 by 大股东) and ratings (买入评级) are not flows | `coverage.flow_gaps` |
+
+**Concept questions and `search_knowledge` (left as is).** Two round-4 held-out turns ("北向资金指的是什么", "两融是啥…")
+expect `search_knowledge`; the agent answers them with `explain_concept`, a curated glossary lookup with a stated
+"no data series" line. The scorer was not changed to count `explain_concept` as knowledge retrieval: doing so after
+seeing the slice would only move the held-out number. Those turns are reported as the remaining failures instead.
 
 ### Session memory card
 
@@ -268,6 +288,25 @@ python -m evaluation.agent_eval.runner --mode auto --tasks evaluation/agent_eval
 
 **Round 5 (own examples, offline, no LLM).** At 5c11bf6 / 6c34abc: dev gate 285 tasks, task success **1.000** (was 271 tasks, 1.000); held-out gate **0.9245**, unchanged; multiturn_v1 replay task and turn success **1.000**, unchanged (`evaluation/results/multiturn_v1-auto-nollm-round5.json`); own router labels **1.000** over 319 (`evaluation/results/router_eval-round5-own.json`); offline red team unchanged (attack success 0.0 on dev/holdout/holdout2, 0.0227 on holdout3). These are own examples written for the fixes, so they show the classes are covered, not generalisation; the reviewer's own phrasings were not added to any set.
 
+**Round 6: independent round-4 held-out slices (offline, no LLM).** Written by a separate author against the
+round-3 bug classes (`evaluation/heldout_r4/README.md`), first run once at 817a2d8: multi-turn (24 conversations / 58
+turns) task success **0.667** [0.50, 0.83], turn success 0.810 (`evaluation/results/multiturn_r4_heldout-auto-nollm-first-run.json`);
+claims 0.716 (see [claim-check.md](claim-check.md#benchmark)). The round-6 rules above were written after reading those
+failures, so the reruns at c731dba are **after exposure**: multi-turn task success **0.917** [0.79, 1.00], turn success
+0.948 (`evaluation/results/multiturn_r4_heldout-after-exposure.json`). The two conversations still failing (mt4-09,
+mt4-10; three turns) expect `search_knowledge` for concept questions that the agent answers with `explain_concept`
+(left as is, see above). The count-mismatch turns (mt4-06, mt4-07) pass because the policy is now to clarify; under the
+round-5 policy they would fail. Sets not used for the fixes: dev gate 295 tasks **1.000**; held-out gate 0.9245 →
+**0.9434** (no task that passed before fails; `evaluation/results/gate-holdout.json`, baselines refreshed at 774df5c);
+multiturn_v1 replay **1.000**, unchanged (`evaluation/results/multiturn_v1-auto-nollm-round6.json`); offline red team
+attack success 0.0 and no crashes on all six attack sets (`evaluation/results/redteam-offline-r6.json`).
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r4/multiturn_r4_heldout.jsonl \
+  --out outputs/agent_eval/mt4.json
+python -m evaluation.agent_eval.results outputs/agent_eval/mt4.json --name multiturn_r4_heldout-after-exposure --note "after exposure"
+```
+
 **Independent router labels (`router_labels_independent_v1`, 154 queries).** Written against the policy text only, without reading the router (`evaluation/agent_eval/tasks/README_test_v3.md`). First run at 882745d: **0.740**, while the project's own labels scored 0.988 at the same code (`evaluation/results/router_eval-independent_v1-first-run.json`). The 40 errors were rule gaps, not label noise: advice and recommendations with no target were answered or refused, definitions were clarified, "分别" and a forecast style made lookups complex, and judgments, macro links and analysis requests phrased differently from the author's own examples went to the workflow. The round-4 rules in [Routing policy](#routing-policy) were written against those classes after 99 new own examples had been added to `router_labels_v1.jsonl` (`route_162`–`route_260`, 60 of them wrong at the time). A further 42 probe queries written after the rules were frozen scored **0.905** on their first run (0.452 on the pre-change router); their 4 errors were then fixed, and they were added as `route_261`–`route_302`. At 075caad: own labels 1.000 over 303 (`evaluation/results/router_eval-round4-own.json`), independent labels **1.000 after exposure** (`evaluation/results/router_eval-round4-independent-after-exposure.json`). The second number measures that the error classes are covered, not generalisation; 0.740 stays the independent measurement. Gates (dev 1.000, held-out 0.925) and the multiturn_v1 replay (1.000) did not move.
 
 ```bash
@@ -294,4 +333,9 @@ All agent tests run offline: `ScriptedLLM` replays fixed assistant turns and `te
 - A sector question keeps a discussed member of that sector in scope; with no member it gets only the industry snapshot (PE, PB, daily change), and only for the industries in the offline data (白酒, 保险, 券商, 宽基指数, 成长指数); for other sectors the answer states that no snapshot exists.
 - The glossary is small and hand-written (16 concepts, no figures); a concept outside it is still refused or clarified, and it has no data series for any concept. Colloquial names cover 29 companies (`COLLOQUIAL_ALIASES`); others are resolved only by their official names, aliases or typos of them.
 - The optional LLM memory summary has not been ablated; the rule-based card is the measured default.
+- English typo correction covers only the English aliases of listed securities with at least one word of six or more
+  letters; "BYD", "Gree", "CATL" typos are not corrected. A persisted answer language lives in the session's turn
+  records, so it ends with the session.
+- Holdings and fund-flow questions are recognised from a hand-written list of investor groups and flow words; other
+  phrasings get the ordinary answer without the "no holdings data" statement.
 - English aliases cover the major A-shares added in round 2, "CSI 300 index", "10-year CGB yield", "baijiu" and "insurers" (round 3b, `data/synonym_dict.json` and the alias tables) plus what `data/runtime/alias_table.csv` contains. A question such as "Did the whole baijiu sector fall too?" opening a conversation is now routed as a lookup (the sector is a market target), but the NLU rejects it before recognising the sector, so no sector entity reaches the planner; inside a conversation about a baijiu stock it is answered with the industry snapshot.

@@ -146,7 +146,7 @@ flowchart LR
 | 情形 | 例子 | 行为 | 原因代码 / 位置 |
 |---|---|---|---|
 | 英文比较中的宾语代词（C5） | 「What's Wuliangye's ROE?」→「Compare it with Moutai」→「Which one should I buy?」 | 「compare it/that with」「put it against」「stack it up against」算作只点名新一方的比较，之前的标的一起加入；随后的「which one」就有两个标的 | `comparison_anchor:+五粮液`、`group_reference:which->…` |
-| 只讨论过两家却说「三家」（C7） | 茅台和五粮液… →「三家里哪家最好」/「Which of those three…」 | 比较讨论过的两家，并先说明（「您提到「三家」，但本次对话只讨论过贵州茅台和五粮液，以下按这两者比较。」）；「三个月」「the three months」「给我三只…」「推荐三只」不算指代 | `group_reference_count_mismatch:三家->…` |
+| 只讨论过两家却说「三家」（C7） | 茅台和五粮液… →「三家里哪家最好」/「Which of those three…」 | 第 5 轮的做法是比较两家并说明；**第 6 轮改为澄清**（见下）。「三个月」「the three months」「给我三只…」「推荐三只」不算指代 | `group_reference_count_mismatch:三家->…` |
 | 口语简称（C6） | 美的、格力、宁王、迪王、茅子、工行、招行、海天（→ 海天味业，「海天精工」仍是海天精工）等 | 别名表中的 `colloquial_alias` 行，由 `runtime_entity_assets.COLLOQUIAL_ALIASES` 生成。只做精确匹配、必须是 jieba 切出的完整词、不做模糊匹配、不接在程度副词后，所以「完美的」「施工行业」「价格挺美的」仍是普通词 | NLU `alias_exact` |
 | 市场概念问题（C6） | 「北向资金是啥」「什么是两融」「What are northbound funds?」 | 用术语表通过 `explain_concept` 工具回答，不再拒答；问数值（「两融余额现在多少」）时给出定义并说明「当前数据源不包含…的数据序列」。有日常含义的词（国家队、主力）需要定义或市场线索（「国家队队员名单」不是金融问题）；要求荐股的问题不算概念问题 | `override:out_of_scope_glossary_concept:*`、`concept:glossary:*` |
 | 没有离线数据的公司（C6） | 「美的和格力选哪个」 | 能识别，并逐家说明没有数据（「当前数据源中没有美的集团（000333.SZ）的行情、基本面数据」），加条件性表述，不拒答 | 模板 + `failed_target_statements` |
@@ -156,6 +156,25 @@ flowchart LR
 | 明确指定回答语言（C12） | 「请用英文回答：五粮液的ROE」「Answer in Chinese: …」 | `chat.language.requested_answer_language` 优先于按文字判断语言；以最后一条指令为准 | `language` 字段 |
 | 模板文本的单位（C11） | 「成交额 3793827534」「1688.38 hundred million CNY」 | 价格带 元 / CNY（指数点位用 点 / points），金额换算为 亿元/万元 或「CNY 168.84 bn」「mn」，市盈率/市净率用 倍 / x，涨跌幅和比率用 % | `agent/composer.py` |
 | 境外央行（C20） | 「美联储加息对A股有什么影响」「Will a Fed rate hike hurt A-shares?」 | 用国内宏观证据回答，并先给出覆盖说明（只有中国宏观序列，没有美联储/欧洲央行/日本央行利率和美国数据），同时列为局限；不再出现误匹配的模糊概念 | `coverage.foreign_macro_gaps` |
+
+### 第 6 轮新增的规则（第 4 轮独立留出集暴露之后）
+
+写于第 4 轮独立留出集（`evaluation/heldout_r4/`，另一位作者编写）在 817a2d8 上运行一次、读过其失败之后。每个类别都有新的
+自写 dev 任务（`build_tasks._round6_tasks`，11 个会话）、单元测试（`tests/test_agent_round6.py`），以及与所有留出集文本的
+重合检查（`tests/test_agent_eval.py`）。
+
+| 情形 | 例子（自写） | 行为 | 原因码 / 位置 |
+|---|---|---|---|
+| 更多比较说法 | 「What's Ping An's return on equity?」→「Line it up next to Wuliangye」；「把它和中国平安放在一起看看」 | 「side by side」「next to」「alongside」「head to head」「put/set/line it beside」、放在一起 / 并排 / 对照 / 比较一下都算只点名新一方的比较；英文指标名（return on equity、price-to-book、book multiple）作为沿用的维度 | `comparison_anchor:+…` |
+| 一组标的之后的「them / those」 | 五粮液、平安、茅台的市净率 →「What ROE does each of them have?」 | 「them / those / these / they / 它们 / 这些 / 这几家」取上一轮点名多个标的的全部标的；「both / the two / 两家 / 二者」仍取两个 | `coreference:them->…` |
+| 所说数量多于讨论过的标的（政策变更） | 五粮液跟茅台… →「这三家谁的市净率最高」 | **改为澄清**，并列出讨论过的标的：「您提到「这三家」，但本次对话只讨论过五粮液和贵州茅台。请告诉我另一家是哪家；如果只比较这两家，请直接说明。」（有检查点的会话里）回复一个标的时，它与已知的两家一起并入原问题。原因：缺少一个指代对象，只在讨论过的子集里排名（「哪家最高」）可能给出错误答案；这与其他无法解析的指代一样（先问，不猜）。第 5 轮是按两家回答并注明；第 4 轮留出集作者也按 `clarify` 评分，但认为第 5 轮的做法也说得通 | `group_reference_count_mismatch:…`、`group_reference_incomplete` |
+| 英文公司名的拼写错误 | 「Kweichow Mouati」「Wulaingye's ROE」 | 规范化器纠正上市证券英文别名中的一处拼写错误：词要与别名的词一一对应，只能有一个词不同，该词至少 6 个字母、首字母相同、只差一次编辑（相邻字母互换算一次；10 个字母以上允许两次）；复数和 -ed 形式不算拼写错误。用 macOS 系统词典的 234,454 个字母词检验：只有 3 个生僻词会被纠正（`moutan`、`sinopic`、`sunglow`），测试允许至多 5 个 | NLU 轨迹 `alias_typo_en: …` |
+| 保持回答语言 | 「…？以后都用英文回答」→「那它的市净率呢」（英文）；「Keep replying in Chinese」 | 「继续 / 以后 / 接下来 / 从现在开始……用英文」「keep answering / stay / continue / switch to … in English」「from now on in Chinese」为后续轮次设定回答语言（存于轮次记录的 `answer_language`），直到下一条同类指令；一次性指令（「请用英文回答：…」「用中文说一下…」）只作用于本轮 | `session_language:en` |
+| 持仓与资金流向 | 「外资这段时间有没有增持五粮液」「Has the national team been accumulating Ping An shares?」 | 投资者群体（国家队、汇金、社保、险资、北向资金、外资、主力资金、national team、northbound money 等）加上买卖/流向词，或资金流向类词语（资金流向、两融余额、fund flows），答案先说明「当前数据源没有…的持仓或资金流向数据，无法判断其是否在买入或卖出」，LLM 答案也加为局限说明；公司自身股东的增减持（大股东增持）和评级（买入评级）不算资金流向 | `coverage.flow_gaps` |
+
+**概念问题与 `search_knowledge`（保持不变）。** 第 4 轮留出集有两轮（「北向资金指的是什么」「两融是啥…」）期望调用
+`search_knowledge`；Agent 用 `explain_concept`（人工整理的术语表，并注明「没有数据序列」）回答。评分器没有改成把
+`explain_concept` 算作知识检索：看过这个集之后再改，只会抬高留出集的数字。这几轮作为剩余失败如实报告。
 
 ### 会话记忆卡片
 
@@ -300,6 +319,23 @@ python -m evaluation.agent_eval.runner --mode auto --tasks evaluation/agent_eval
 
 **第 5 轮（自写例子，离线，无 LLM）。** 在 5c11bf6 / 6c34abc 上：dev 门禁 285 个任务，任务成功率 **1.000**（原为 271 个任务、1.000）；保留集门禁 **0.9245**，不变；multiturn_v1 回放任务与轮次成功率 **1.000**，不变（`evaluation/results/multiturn_v1-auto-nollm-round5.json`）；自有路由标注 319 条 **1.000**（`evaluation/results/router_eval-round5-own.json`）；离线红队不变（dev/holdout/holdout2 攻击成功率 0.0，holdout3 为 0.0227）。这些都是为修复新写的自有例子，只说明这些类别已被覆盖，不能证明泛化；评审自己的原句没有加入任何集合。
 
+**第 6 轮：第 4 轮独立留出集（离线，无 LLM）。** 由另一位作者针对第 3 轮的缺陷类别编写（`evaluation/heldout_r4/README.md`），
+在 817a2d8 上首次运行一次：多轮集（24 个会话 / 58 轮）任务成功率 **0.667** [0.50, 0.83]、轮次成功率 0.810
+（`evaluation/results/multiturn_r4_heldout-auto-nollm-first-run.json`）；说法集 0.716（见 [claim-check.md](claim-check.md#基准)）。
+上面的第 6 轮规则写于读过这些失败之后，所以在 c731dba 上的重跑属于**暴露之后**：多轮任务成功率 **0.917** [0.79, 1.00]、
+轮次成功率 0.948（`evaluation/results/multiturn_r4_heldout-after-exposure.json`）。仍失败的两个会话（mt4-09、mt4-10，共三轮）
+期望概念问题调用 `search_knowledge`，而 Agent 用 `explain_concept` 回答（保持不变，见上）。数量不符的轮次（mt4-06、mt4-07）
+能通过是因为政策改为澄清；按第 5 轮政策它们会失败。未用于修复的集合：dev 门禁 295 个任务 **1.000**；保留集门禁 0.9245 →
+**0.9434**（之前通过的任务没有变为失败；`evaluation/results/gate-holdout.json`，基线在 774df5c 上刷新）；multiturn_v1 回放
+**1.000**，不变（`evaluation/results/multiturn_v1-auto-nollm-round6.json`）；离线红队在全部六个攻击集上攻击成功率 0.0、无崩溃
+（`evaluation/results/redteam-offline-r6.json`）。
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r4/multiturn_r4_heldout.jsonl \
+  --out outputs/agent_eval/mt4.json
+python -m evaluation.agent_eval.results outputs/agent_eval/mt4.json --name multiturn_r4_heldout-after-exposure --note "after exposure"
+```
+
 **独立路由标注（`router_labels_independent_v1`，154 条问题）。** 编写者只依据策略文字、没有阅读路由代码（见 `evaluation/agent_eval/tasks/README_test_v3.md`）。在 882745d 上第一次运行为 **0.740**，而同一份代码在项目自己的标注上是 0.988（`evaluation/results/router_eval-independent_v1-first-run.json`）。40 个错误都是规则缺口而不是标注噪声：没有标的的建议和推荐被直接回答或拒答，定义问题被要求澄清，「分别」和预测风格把查数问题变成复杂问题，说法和作者自己的例子不同的判断、宏观传导和分析请求都进了 workflow。第 4 轮规则（见[路由策略](#路由策略)）是在先往 `router_labels_v1.jsonl` 加入 99 条新写的例子（`route_162`–`route_260`，当时有 60 条判错）之后，针对这些类别编写的。规则冻结后又写了 42 条探针问题，第一次运行为 **0.905**（改动前的路由为 0.452）；随后修了其中 4 个错误，并作为 `route_261`–`route_302` 加入。在 075caad 上：自有标注 303 条为 1.000（`evaluation/results/router_eval-round4-own.json`），独立标注为 **1.000（曝光后）**（`evaluation/results/router_eval-round4-independent-after-exposure.json`）。后一个数字说明这些错误类别已被覆盖，不能证明泛化；独立测量仍以 0.740 为准。门禁（dev 1.000、保留集 0.925）和 multiturn_v1 回放（1.000）没有变化。
 
 ```bash
@@ -324,6 +360,9 @@ python -m pytest -q tests/test_web_ui.py      # 通过 Playwright 驱动无头 C
 - **行业问题**：对话中讨论过该行业的成员时保留该成员；没有成员时只返回行业快照（市盈率、市净率、当日涨跌幅），且只覆盖离线数据中有的行业（白酒、保险、券商、宽基指数、成长指数）；其他行业会说明没有快照。
 - **术语表和口语简称有限**：术语表是人工编写的 16 个概念（不含数值），表外的概念仍会被拒答或要求澄清，且没有任何概念的数据序列；口语简称覆盖 29 家公司（`COLLOQUIAL_ALIASES`），其他公司只能通过正式名称、别名或其错别字识别。
 - **可选的 LLM 记忆摘要尚未消融**；规则卡片是经过测量的默认方案。
+- **英文拼写纠错**只覆盖上市证券的英文别名，且别名中至少有一个 6 个字母以上的词；「BYD」「Gree」「CATL」的拼写错误不纠正。
+  保持的回答语言存在会话的轮次记录里，会话结束即失效。
+- **持仓与资金流向问题**靠人工编写的投资者群体词和流向词识别；其他说法会得到普通回答，没有「无持仓数据」的说明。
 - **追问补全基于规则**：覆盖代词、复数、序数和群组指代、短的省略问法、单独的「为什么」追问，以及带金融线索词的短追问；更长的转述（「回到刚才那只股票…」）和有歧义的指代会触发澄清而不是猜测。线索词表和离题任务词表是手写的：不含这些词的离题任务仍会被回答，不含线索词的无标的追问仍按原来的方式澄清或拒答。
 - **路由基于经典 NLU 之上的词汇规则**：第 4 轮的标记类别（判断、预测、分析、关系、市场标的、改变系统的指令）比作者自己的说法覆盖更广，但不属于任何类别的问题仍会进 workflow；由他人编写的集合只测过一个，而且是在修复它的错误之前测的（0.740）。
 - **英文别名覆盖有限**：包括第二轮加入的主要 A 股英文名，第 3b 轮加入的「CSI 300 index」「10-year CGB yield」「baijiu」「insurers」（`data/synonym_dict.json` 和别名表），以及 `data/runtime/alias_table.csv` 中已有的条目。以「Did the whole baijiu sector fall too?」开场的对话现在按查数路由（行业算作市场标的），但 NLU 在识别出行业之前就拒识了它，规划器拿不到行业实体；在讨论白酒股的对话中则会用行业快照回答。
