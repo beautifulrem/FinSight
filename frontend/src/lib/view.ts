@@ -4,6 +4,7 @@ import { hasMarketData, marketDataFromAgent, marketDataFromClassic, type MarketD
 import { finalTrace, liveTrace, serverDurationMs, type TraceNode } from "./trace";
 import type {
   AgentResponse,
+  ClaimReport,
   ClassicResponse,
   EvidenceSource,
   NextQuestion,
@@ -35,6 +36,31 @@ export interface AnswerView {
   /** Client-side time from sending the question to the first streamed answer token. */
   firstTokenMs?: number;
   llmStatus?: string;
+  /** A hearsay question's claim, checked against the data by the server (`fact_check`). */
+  factCheck?: ClaimReport | null;
+  /** English names by Chinese name and by symbol, from the API's `name_en` (the alias table). */
+  englishNames?: Map<string, string>;
+}
+
+type Named = { name?: string | null; canonical_name?: string | null; symbol?: string | null; name_en?: string | null };
+
+/** Chinese name / symbol → English name, from every entity list the response carries. */
+export function englishNames(...lists: (Named[] | null | undefined)[]): Map<string, string> {
+  const names = new Map<string, string>();
+  for (const list of lists) {
+    for (const item of list ?? []) {
+      if (!item?.name_en) continue;
+      const name = item.name ?? item.canonical_name;
+      if (name) names.set(name, item.name_en);
+      if (item.symbol) names.set(item.symbol, item.name_en);
+    }
+  }
+  return names;
+}
+
+/** The name to show: the English name in the English UI when the API gave one. */
+export function displayName(names: Map<string, string> | undefined, lang: string, name: string): string {
+  return lang === "en" ? (names?.get(name) ?? name) : name;
 }
 
 function normalize(text: string): string {
@@ -116,6 +142,8 @@ export function answerView(turn: Turn): AnswerView | null {
       serverMs: serverDurationMs(response),
       wallMs,
       firstTokenMs,
+      factCheck: response.fact_check ?? null,
+      englishNames: englishNames(response.nlu_summary?.entities, response.fact_check?.targets),
     };
   }
   if (turn.classic) {
@@ -137,6 +165,8 @@ export function answerView(turn: Turn): AnswerView | null {
       trace: [],
       wallMs,
       llmStatus: response.llm?.status,
+      factCheck: response.fact_check ?? null,
+      englishNames: englishNames(response.nlu_result?.entities, response.fact_check?.targets),
     };
   }
   return null;

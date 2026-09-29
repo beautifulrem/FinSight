@@ -927,6 +927,69 @@ def test_fact_check_errors_are_explained(page, page_errors):
     page_errors[:] = [error for error in page_errors if "status of 500" not in error]
 
 
+def test_compare_answer_shows_kpi_tiles_for_each_company(page):
+    """C18: "贵州茅台和五粮液对比一下" shows the same tiles for both companies, not 8 Moutai tiles."""
+    page.get_by_role("radio", name="自动").click()
+    _ask(page, "贵州茅台和五粮液对比一下")
+    card = _last_turn(page).locator(".answer-card")
+    expect(card.locator(".kpi-tile").first).to_be_visible(timeout=15000)
+    _wait_idle(page)
+    texts = card.locator(".kpi-tile").all_inner_texts()
+    moutai = [text for text in texts if text.startswith("贵州茅台")]
+    wuliangye = [text for text in texts if text.startswith("五粮液")]
+    assert len(moutai) == len(wuliangye) >= 2, texts
+
+    # the same metrics, in the same order
+    def labels(tiles: list[str]) -> list[str]:
+        return [tile.split("\n")[0].split(" · ")[1] for tile in tiles]
+
+    assert labels(moutai) == labels(wuliangye)
+    # C17: this turn's data region has its own name
+    number = page.locator(".turn").count()
+    expect(card.get_by_role("region", name=f"数据（第 {number} 轮）")).to_be_visible()
+    if AXE_JS.is_file():
+        _assert_accessible(page, "compare answer with KPI tiles")
+    _screenshot(page, card, "compare-kpi-tiles.png")
+
+
+def test_hearsay_move_claim_is_checked_inline_and_in_the_fact_check_view(page):
+    """C2 in the UI: "茅台昨天跌超0.1%" (actual -0.18%) is supported, shown as a fall bigger than 0.1%."""
+    _ask(page, "听说茅台昨天跌超0.1%，是真的吗")
+    card = _last_turn(page).locator(".answer-card")
+    inline = card.locator(".inline-fact-check")
+    expect(inline).to_be_visible(timeout=15000)
+    _wait_idle(page)
+    expect(inline.locator(".claim-verdict")).to_have_attribute("data-verdict", "supported")
+    expect(inline.locator(".claim-claimed")).to_contain_text("跌幅 > 0.1%")
+    expect(inline.locator(".claim-actual")).to_have_text("-0.18%")
+    expect(_last_turn(page).locator(".claim-hint")).to_have_count(0)
+    _screenshot(page, card, "move-claim-inline.png")
+
+    inline.locator(".inline-fact-check-open").click()
+    try:
+        report = page.locator(".claim-check-view .claim-report")
+        expect(report.locator(".claim-verdict")).to_have_attribute("data-verdict", "supported", timeout=15000)
+        expect(report.locator(".claim-claimed")).to_contain_text("跌幅 > 0.1%")
+        page.fill("#claim-input", "茅台昨天跌了超过1%")
+        page.keyboard.press("Enter")
+        expect(report.locator(".claim-verdict")).to_have_attribute("data-verdict", "contradicted", timeout=15000)
+        expect(report.locator(".claim-claimed")).to_contain_text("跌幅 > 1%")
+        if AXE_JS.is_file():
+            _assert_accessible(page, "move-claim card")
+        _screenshot(page, report, "move-claim-card.png")
+    finally:
+        page.get_by_role("tab", name="问答").click()
+    expect(page.locator("#query-input")).to_be_visible()
+
+
+def _screenshot(page: Page, locator, name: str) -> None:
+    """Saved only when QI_UI_SHOTS names a directory (the committed shots come from the real Chrome run)."""
+    folder = os.environ.get("QI_UI_SHOTS")
+    if folder:
+        Path(folder).mkdir(parents=True, exist_ok=True)
+        locator.screenshot(path=str(Path(folder) / name))
+
+
 def test_refusal_limitations_are_human_readable(page):
     _ask(page, "明天天气怎么样")
     card = _last_turn(page).locator(".answer-card")

@@ -136,7 +136,8 @@ export interface Clarification {
 export interface NluSummary {
   question_style?: string | null;
   product_type?: string | null;
-  entities?: { name?: string | null; symbol?: string | null }[];
+  /** `name_en`: the English name from the alias table (data/synonym_dict.json), for the English UI. */
+  entities?: { name?: string | null; symbol?: string | null; name_en?: string | null }[];
   risk_flags?: string[];
 }
 
@@ -167,6 +168,8 @@ export interface AgentResponse {
   turn_index?: number | null;
   sentiment?: SentimentSummary | null;
   next_questions?: NextQuestion[];
+  /** A hearsay question ("听说茅台市盈率只有15倍，是真的吗"): the claim inside it, checked against the data. */
+  fact_check?: ClaimReport | null;
 }
 
 export interface StructuredItem {
@@ -190,7 +193,7 @@ export interface ClassicResponse {
     question_style?: string;
     product_type?: { label?: string };
     intent_labels?: { label: string; score?: number }[];
-    entities?: { canonical_name?: string; symbol?: string }[];
+    entities?: { canonical_name?: string; symbol?: string; name_en?: string | null }[];
     source_plan?: string[];
     risk_flags?: string[];
   };
@@ -201,6 +204,8 @@ export interface ClassicResponse {
     warnings?: string[];
     analysis_summary?: Record<string, unknown> | null;
   };
+  /** As on the agent path: the inline check of a hearsay question. */
+  fact_check?: ClaimReport | null;
 }
 
 export interface SessionTurn {
@@ -251,18 +256,26 @@ export type ClaimReason =
   | "no_unit"
   | "forecast"
   | "period_mismatch"
-  | "multi_day";
+  | "multi_day"
+  | "no_reference";
 
 export interface ClaimCheckItem {
   target?: string | null;
   metric?: string | null;
-  claimed: number;
+  /** The claimed number, signed by its move word ("跌超1%" is -1); null for a relation ("比五粮液高"). */
+  claimed: number | null;
   /** Upper bound of a range claim ("20到30倍"). */
   claimed_high?: number | null;
   /** Unit written after the number in the claim: "亿", "%", "倍", "billion", ... */
   claimed_unit?: string | null;
   comparator?: ClaimComparator;
   negated?: boolean;
+  /** The direction a move word states ("跌超1%" is down): a bound then applies to the size of the move. */
+  direction?: "up" | "down" | null;
+  /** A relational claim's other side ("茅台PE比五粮液高": 五粮液, or "白酒行业平均"), with its value. */
+  reference?: string | null;
+  reference_value?: number | null;
+  reference_evidence_id?: string | null;
   actual?: number | null;
   status: ClaimStatus;
   reason?: ClaimReason | null;
@@ -270,7 +283,7 @@ export interface ClaimCheckItem {
   source?: string | null;
   as_of?: string | null;
   /** What `as_of` is: the trade date of a price, the valuation date of P/E and P/B, or the report period. */
-  as_of_basis?: "trade_date" | "valuation_date" | "report_date" | null;
+  as_of_basis?: "trade_date" | "valuation_date" | "report_date" | "indicator_date" | null;
   note?: string;
 }
 
@@ -278,7 +291,7 @@ export interface ClaimReport {
   claim: string;
   verdict: ClaimVerdict;
   checks: ClaimCheckItem[];
-  targets?: { name?: string | null; symbol?: string | null }[];
+  targets?: { name?: string | null; symbol?: string | null; name_en?: string | null }[];
   evidence_sources?: {
     evidence_id: string;
     source_name?: string | null;
