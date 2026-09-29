@@ -10,7 +10,10 @@ Two users:
   no instruction or second-person address, and no advice, rating or guarantee wording.
 * ``find_prohibited_promotion`` finds what must never appear in *any* answer, whoever wrote it: guaranteed-
   return claims (稳赚不赔, 保本, 保证收益), stock-tip solicitation (荐股, 带单, 喊单, 加微信, 私信, 内幕消息)
-  and contact handles offered to the reader. The compliance guard removes the sentences that contain them.
+  and contact handles offered to the reader, plus (round 7) doubling-and-compensation schemes (资金翻倍，亏损全额
+  赔付), principal/interest promises (本金无忧, principal-protected), hype about an imminent move (直接拉升,
+  错过再等), tip-sheet hooks (牛股, 建仓名单), ``@handles`` and domains written with spaced dots. The compliance
+  guard removes the sentences that contain them.
   Negated or warning uses ("不保证收益", "谨防非法荐股", "no guaranteed return") are left alone.
 
 The template answer never quotes titles at all (``agent/composer.py``); these checks are the layer for
@@ -95,7 +98,8 @@ _MESSAGING = re.compile(
     + _GROUP
     + r"|私信|私聊|扫码(?:加|进|入|关注|领取)"
     rf"|{_WECHAT_WORD}\s*(?:号|id)?\s*[:：]?\s*{_HANDLE}"
-    r"|(?<![a-z])(?:qq|扣扣|企鹅)\s*(?:群|号)?\s*[:：]?\s*\d{5,11}"
+    # "QQ群736291845", "QQ群号：736291845", "QQ 群（736291845）"
+    r"|(?<![a-z])(?:qq|扣扣|企鹅)\s*(?:群号?|号码?)?\s*[:：(（]?\s*\d{5,11}"
     r"|\b(?:telegram|tg)\b\s*(?:群|频道|号|channel|group)?\s*[:：]?\s*@?[A-Za-z][A-Za-z0-9_]{4,31}"
     r"|(?:电报|纸飞机|飞机)\s*(?:群|频道|号)\s*[:：]?\s*@?[A-Za-z0-9_]{4,32}"
     r"|\b(?:whatsapp|discord|signal)\s*[:：]\s*[@+]?[A-Za-z0-9_]{5,}"
@@ -119,7 +123,20 @@ _PROMOTION = re.compile(
     r"\b(?:can(?:no|')?t|cannot)\s+lose\b|\bno[- ]lose\b|\bsure[- ]?(?:fire|thing)\s+(?:win|profit|bet|pick)|"
     r"\bstock\s+tips?\s+(?:group|channel|service)|\binsider\s+(?:tips?|info(?:rmation)?|list)|"
     r"\bback\s+up\s+the\s+truck\b|"
-    r"\bonce[- ]in[- ]a[- ](?:decade|lifetime|generation)\s+(?:entry|opportunit|chance|buy)",
+    r"\bonce[- ]in[- ]a[- ](?:decade|lifetime|generation)\s+(?:entry|opportunit|chance|buy)|"
+    # doubling-plus-compensation schemes (资金翻倍，亏损全额赔付), principal/interest promises, and hype about an
+    # imminent move (直接拉升, 错过再等十年, 必涨停)
+    r"(?:资金|收益|本金|账户|利润)翻倍|翻倍[^。；;！!？?\n]{0,12}(?:赔付|包赔|保本|退款|兜底)|"
+    r"(?:亏损|亏了|亏本|赔了)[^。；;！!？?\n]{0,6}(?:全额)?(?:赔付|包赔|赔偿|补偿|兜底)|全额赔付|包赔|"
+    r"本金无忧|月月付息|保本保息|刚性兑付|"
+    r"直接拉升|拉升在即|(?:明早|明天|明日|开盘)[^。；;！!？?\n]{0,6}(?:直接)?拉升|错过(?:就|这次)?再等|必涨停|"
+    r"(?:下周|明天|明日|本周)[^。；;！!？?\n]{0,4}必(?:涨|大涨|涨停)|"
+    # tip-sheet hooks: 送牛股, 涨停票, 主力建仓名单, 一对一指导, 名额有限
+    r"牛股|涨停票|(?:主力|庄家)?建仓名单|一对一(?:指导|带)|名额有限|开户即送|"
+    r"\bguaranteed?\s+(?:\d+(?:\.\d+)?\s*%\s+)?(?:annual\s+)?(?:returns?|profits?|gains?|income|yield|payouts?)|"
+    r"\bprincipal[- ](?:protected|guaranteed)\b|\bcapital[- ]guaranteed\b|\bno\s+downside\b(?!\s+protection)|"
+    r"\bbreakout\s+(?:call|alert|signal)s?\b|\b(?:stock|trading)\s+signals?\s+(?:group|channel)\b|"
+    r"\bdouble\s+your\s+money\b",
     re.IGNORECASE,
 )
 _NEGATION_ZH = re.compile(
@@ -196,7 +213,18 @@ def find_prohibited_promotion(text: str) -> list[Finding]:
             break
     contacts = contact_findings(text, strict=False)
     found += [item for item in contacts if item.kind != "link" or not _allowed_domain(item.text)]
+    # An answer never needs to name a social-media handle ("@AshareAlphaSignals") or a domain written with
+    # spaces around the dots to dodge link detection ("ping-an-insider . example . com").
+    found += [Finding("messaging", m.group(0)) for m in _AT_HANDLE.finditer(folded)]
+    found += [Finding("link", m.group(0)) for m in _SPACED_DOMAIN.finditer(folded) if re.search(r"\s", m.group(0))]
     return found
+
+
+# lower-case labels only, the first one with a letter: "2025. Com…" at a sentence end is not a domain
+_SPACED_DOMAIN = re.compile(
+    r"\b(?=[a-z0-9-]*[a-z])[a-z0-9][a-z0-9-]{1,62}(?:\s?\.\s?[a-z0-9-]{1,63})*\s?\.\s?"
+    r"(?:com|cn|net|org|example|io|top|xyz|vip|cc|info|biz)\b"
+)
 
 
 # Domains an answer may name: exchanges, regulators and statistics offices.
