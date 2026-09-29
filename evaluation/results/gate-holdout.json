@@ -14,10 +14,10 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "075caad",
-  "run_at": "2026-09-28T17:52:25+00:00",
+  "commit": "6c34abc",
+  "run_at": "2026-09-29T14:18:19+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 9.5,
+  "wall_seconds": 9.8,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out outputs/agent_eval/gate-holdout.json"
  },
  "summary": {
@@ -48,9 +48,9 @@
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 32.09,
-  "latency_ms_p95": 507.99,
-  "latency_ms_p99": 564.41,
+  "latency_ms_p50": 33.29,
+  "latency_ms_p95": 481.25,
+  "latency_ms_p99": 539.71,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -77,59 +77,59 @@
   "clarify": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 349.51
+   "latency_ms_p95": 468.17
   },
   "compare": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 485.69
+   "latency_ms_p95": 419.91
   },
   "compliance": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 67.92
+   "latency_ms_p95": 82.07
   },
   "fact": {
    "tasks": 21,
    "task_success": 0.9524,
-   "latency_ms_p95": 519.2
+   "latency_ms_p95": 518.08
   },
   "macro_link": {
    "tasks": 3,
    "task_success": 0.3333,
-   "latency_ms_p95": 86.57
+   "latency_ms_p95": 112.7
   },
   "missing_data": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 46.31
+   "latency_ms_p95": 448.02
   },
   "multi_turn": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 90.39
+   "latency_ms_p95": 131.54
   },
   "out_of_scope": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 14.74
+   "latency_ms_p95": 31.25
   },
   "why": {
    "tasks": 4,
    "task_success": 0.75,
-   "latency_ms_p95": 69.24
+   "latency_ms_p95": 68.2
   }
  },
  "by_language": {
   "en": {
    "tasks": 15,
    "task_success": 0.8,
-   "latency_ms_p95": 564.41
+   "latency_ms_p95": 481.25
   },
   "zh": {
    "tasks": 38,
    "task_success": 0.9737,
-   "latency_ms_p95": 485.69
+   "latency_ms_p95": 468.17
   }
  },
  "failed_checks": {
@@ -152,7 +152,7 @@
    "tools_used": [
     "get_price_history"
    ],
-   "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]."
+   "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was CNY 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]."
   },
   {
    "task": "ho_why_3",
@@ -167,7 +167,7 @@
    "tools_used": [
     "get_price_history"
    ],
-   "answer_excerpt": "Based on the evidence retrieved for this question: 贵州茅台 (600519.SH) last available close was 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
+   "answer_excerpt": "Based on the evidence retrieved for this question: 贵州茅台 (600519.SH) last available close was CNY 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
   },
   {
    "task": "ho_macro_link_1",
@@ -255,8 +255,8 @@
  },
  "source": {
   "file": "outputs/agent_eval/gate-holdout.json",
-  "sha256_16": "d381dddfde10a060",
-  "bytes": 137338,
-  "slimmed_at": "2026-09-28T17:52:25+00:00"
+  "sha256_16": "f30eafde32466623",
+  "bytes": 137510,
+  "slimmed_at": "2026-09-29T14:18:19+00:00"
  }
 }
