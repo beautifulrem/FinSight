@@ -16,6 +16,7 @@ from .coverage import (
     asks_about_industry,
     coverage_gaps,
     failed_target_statements,
+    foreign_macro_gaps,
     indicator_gaps,
     industry_gaps,
     macro_gaps,
@@ -134,6 +135,7 @@ def compose_template(
             *industry_gaps(query, tool_log, zh=zh),
             *non_stock_fundamental_gaps(query, tool_log, zh=zh, names=names, types=types),
             *macro_gaps(query, tool_log, zh=zh),
+            *foreign_macro_gaps(query, zh=zh),
             # a failed indicator tool is already named by failed_target_statements when nothing else was found
             *(indicator_gaps(query, tool_log, zh=zh, names=names) if facts else []),
         ]

@@ -61,11 +61,24 @@ def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
     def industry_only(name: str) -> ToolOutput:
         """Industry snapshot for a sector question with no member stock ("白酒板块整体跌了吗")."""
         bundle = context.bundle(source_plan=["industry_sql"], query=name, product_type="stock")
+        # the industry table may use another alias of the sector ("券商" for the NLU's 证券)
+        names = context.sector_aliases(name) if hasattr(context, "sector_aliases") else {name}
         items = [
             item
             for item in context.fetch_structured(bundle)
-            if item.get("source_type") == "industry_sql" and (item.get("payload") or {}).get("industry_name") == name
+            if item.get("source_type") == "industry_sql" and (item.get("payload") or {}).get("industry_name") in names
         ]
+        if not items and names != {name}:
+            for alias in sorted(names - {name}):
+                alias_bundle = context.bundle(source_plan=["industry_sql"], query=alias, product_type="stock")
+                items = [
+                    item
+                    for item in context.fetch_structured(alias_bundle)
+                    if item.get("source_type") == "industry_sql"
+                    and (item.get("payload") or {}).get("industry_name") in names
+                ]
+                if items:
+                    break
         if not items:
             warnings = provider_warnings(items)
             if warnings:
@@ -93,6 +106,11 @@ def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
         name = args.target.strip()
         if name in INDUSTRY_TERMS:
             return industry_only(name)
+        sector = context.sector_name(name)
+        if sector is not None:
+            # "半导体", "光伏": a sector the NLU knows, not a security; answer with its industry snapshot (or say
+            # that the sources have none) instead of failing to find a listed company of that name.
+            return industry_only(sector)
         resolved = context.resolve_target(args.target)
         if resolved.product_type != "stock":
             raise ToolFailure("unavailable", f"fundamentals are only available for stocks, not {resolved.product_type}")
