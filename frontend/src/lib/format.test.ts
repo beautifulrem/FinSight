@@ -37,5 +37,7 @@ describe("evidenceTitle", () => {
     expect(evidenceTitle("zh", "Document sentiment for 600519.SH")).toBe("600519.SH 文档情绪");
     expect(evidenceTitle("en", "五粮液 (000858.SZ) daily market data")).toBe("五粮液 (000858.SZ) daily market data");
     expect(evidenceTitle("zh", "茅台2025年年报发布")).toBe("茅台2025年年报发布");
+    const names = new Map([["贵州茅台", "Kweichow Moutai"]]);
+    expect(evidenceTitle("en", "贵州茅台 (600519.SH) fundamentals", names)).toBe("Kweichow Moutai (600519.SH) fundamentals");
   });
 });

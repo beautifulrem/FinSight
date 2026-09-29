@@ -57,7 +57,13 @@ export function Inspector({ turn, view, tab, onTab, highlight, highlightNonce, s
         {/* Every trigger's aria-controls must point at a rendered panel, so panels exist even when empty. */}
         <Tabs.Content value="evidence" className="outline-none">
           {view && turn ? (
-            <EvidenceList sources={view.evidence} cited={view.cited} highlight={highlight} highlightNonce={highlightNonce} />
+            <EvidenceList
+              sources={view.evidence}
+              cited={view.cited}
+              highlight={highlight}
+              highlightNonce={highlightNonce}
+              englishNames={view.englishNames}
+            />
           ) : (
             <EmptyInspector />
           )}
