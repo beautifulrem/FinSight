@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-from agent_fakes import FUNDAMENTALS, StubService, build_fake_registry
+from agent_fakes import FUNDAMENTALS, PRICES, StubService, build_fake_registry
 from fastapi.testclient import TestClient
 
 from query_intelligence.agent.claim_check import check_claim, normalise
@@ -294,3 +294,56 @@ def test_roe_claims_use_the_declared_percent_unit():
     report = check_claim("贵州茅台ROE高达80%", service=StubService(), registry=low_roe)
 
     assert report.checks[0].status == "contradicted" and report.checks[0].actual == 0.8
+
+
+@pytest.mark.parametrize(
+    ("claim", "comparator", "direction", "status"),
+    [
+        # C2: a bound after a move word is about the size of the move in that direction (fake: Moutai -0.1778%).
+        ("茅台昨天跌超0.1%", "gt", "down", "supported"),
+        ("茅台昨天跌了超过1%", "gt", "down", "contradicted"),
+        ("茅台昨日大跌超过3%", "gt", "down", "contradicted"),
+        ("茅台昨天跌了不到1%", "lt", "down", "supported"),
+        ("茅台昨天跌幅不超过0.1%", "le", "down", "contradicted"),
+        ("茅台昨天没有跌超过1%", "le", "down", "supported"),
+        ("Moutai fell more than 0.1% yesterday", "gt", "down", "supported"),
+        ("Moutai dropped more than 1% yesterday", "gt", "down", "contradicted"),
+        # a move the other way contradicts the bound, even a "smaller" one
+        ("茅台昨天涨超0.1%", "gt", "up", "contradicted"),
+        ("茅台昨天涨了不到1%", "lt", "up", "contradicted"),
+        # a range after a move word is the size of the move
+        ("茅台昨天跌了0.1%到0.3%", "range", "down", "supported"),
+        ("茅台昨天跌了0.5%到1%", "range", "down", "contradicted"),
+    ],
+)
+def test_bounds_on_a_move_compare_its_size_in_the_stated_direction(claim, comparator, direction, status):
+    (check,) = _check(claim).checks
+    _assert_move_check(check, comparator, direction, status)
+
+
+@pytest.mark.parametrize(
+    ("claim", "comparator", "direction", "status"),
+    [
+        ("茅台昨天跌了不到2%", "lt", "down", "contradicted"),  # it rose 1.25%: not a fall at all
+        ("茅台昨天涨超1%", "gt", "up", "supported"),
+        ("茅台昨天大涨超过3%", "gt", "up", "contradicted"),
+        ("Moutai rose less than 2% yesterday", "lt", "up", "supported"),
+        ("Moutai fell more than 1% yesterday", "gt", "down", "contradicted"),
+    ],
+)
+def test_bounds_on_a_rise(monkeypatch, claim, comparator, direction, status):
+    monkeypatch.setitem(PRICES["600519.SH"], "pct_change_1d", 1.25)
+    (check,) = _check(claim).checks
+    _assert_move_check(check, comparator, direction, status)
+
+
+def _assert_move_check(check, comparator, direction, status):
+
+    assert (check.metric, check.comparator, check.direction, check.status) == (
+        "pct_change_1d",
+        comparator,
+        direction,
+        status,
+    )
+    if direction == "down":
+        assert check.claimed < 0  # "跌超1%" is shown as a move below -1%
