@@ -51,3 +51,39 @@ minutes later. Both commits are part of the published history of `master`.
   used by any current code or configuration, and this repository does not reproduce its value anywhere.
 - The CI and pre-commit scans allowlist this single finding (commit `302077a`, file
   `config/app_config.json`, rule `generic-api-key`) so that every other secret still fails the build.
+
+## Runtime security (what the deployment enforces, and its limits)
+
+**Authentication and tenancy.**
+- `QI_API_KEYS` enables key authentication (`X-API-Key` or `Authorization: Bearer`).
+- The Kubernetes manifest sets `QI_PROFILE=production` and reads the keys from a required Secret. In that profile the app refuses to start without keys unless `QI_ALLOW_ANONYMOUS=1` is set explicitly ([docs/deployment.md](docs/deployment.md#authentication)).
+- Sessions, traces and A2A tasks are scoped to the caller: the SHA-256 prefix of the key, or for keyless callers a per-browser id from an HMAC-signed HttpOnly cookie.
+- Keyless callers never see `/agent/traces` (403).
+
+**Web UI API key.**
+- The key is kept in `sessionStorage`: it is gone when the tab closes and is not shared with other tabs. It moves to `localStorage` only if the user ticks "Remember on this device"; that option is off by default and the dialog states the trade-off.
+- Keys stored in `localStorage` by older builds are moved to `sessionStorage` on first load.
+- Trade-off: both storages are readable by any script on the page's origin, so an XSS bug would expose the key either way. `sessionStorage` only limits how long the key stays on disk and in which tabs it is visible.
+- A login endpoint that exchanges the key for an HttpOnly session cookie (with CSRF protection) would hide it from scripts. It is not implemented.
+
+**Rate limiting.**
+- `QI_RATE_LIMIT_PER_MINUTE` applies per validated key, or per remote address.
+- When a Postgres DSN is configured, the bucket is shared by all replicas. If the database fails, it degrades to a per-replica bucket ([results](docs/results/security/shared-rate-limiter.md)).
+
+**Prompt injection in retrieved documents.** Layers, from structural to heuristic:
+1. Read-only tools.
+2. An untrusted-data envelope around tool output.
+3. Claim-level number and citation verification.
+4. The deterministic (no-LLM) answer never quotes document titles or text. It cites documents by category, publisher and date. The evidence list hides titles that fail a positive shape check: NFKC and confusable folding; no links, domains, phones or messaging handles; no instructions and no advice or guarantee wording.
+5. A compliance guard removes guaranteed-return claims (稳赚不赔, 保本, 保证收益), stock-tip solicitation (荐股, 带单, 加微信, 私信) and contact details from every answer.
+6. A lexical filter, plus a small character n-gram classifier on document text.
+
+The classifier catches about 4 in 10 held-out attacks and flags 0.5% of clean documents ([results](evaluation/results/injection_classifier-r4.json)). It does not generalise to attacks that are hype or planted facts rather than instructions. The filters are defense in depth; the structural layers carry the guarantee.
+
+**Audit.**
+- Refusals, compliance edits and injection-filter redactions are written to the audit log and counted in `finsight_audit_events_total` and `finsight_injection_redactions_total`. This includes a redacted user message whose turn was still answered.
+- The audit log stores principal and query hashes, never text.
+
+**Not covered.**
+- The LLM-path red team (holdout3 and holdout4) has not been rerun at the current commit: it needs LLM quota.
+- Key revocation for the historical exposure above must be confirmed by the owner at the provider.

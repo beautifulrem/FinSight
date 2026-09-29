@@ -39,7 +39,13 @@ from .composer import answer_json_status, compose_template, parse_answer
 from .coverage import coverage_gaps, out_of_coverage, out_of_coverage_text
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
-from .injection import REDACTION_MARKER, sanitize_observation, sanitize_untrusted_text, tool_message_content
+from .injection import (
+    REDACTION_MARKER,
+    sanitize_document_text,
+    sanitize_observation,
+    sanitize_untrusted_text,
+    tool_message_content,
+)
 from .llm import LLMClient, LLMError, Pricing, Usage, llm_deadline, resolve_cost
 from .memory import (
     MAX_HISTORY_TURNS,
@@ -1243,7 +1249,7 @@ def _evidence_update(results: list[ToolResult]) -> tuple[dict[str, dict[str, Any
             dumped = item.model_dump(mode="json")
             for field in ("title", "text_excerpt"):
                 if isinstance(dumped.get(field), str):
-                    dumped[field], flagged = sanitize_untrusted_text(dumped[field])
+                    dumped[field], flagged = sanitize_document_text(dumped[field])
                     flagged_any = flagged_any or flagged
             update[item.evidence_id] = dumped
     return update, flagged_any
@@ -1300,4 +1306,12 @@ def _source_view(item: dict[str, Any]) -> dict[str, Any]:
     # Document payloads are omitted: their text is already summarised by title/source and can be large.
     if item.get("kind") == "structured" and isinstance(item.get("payload"), dict):
         view["payload"] = item["payload"]
+    elif item.get("kind") == "document" and view.get("title"):
+        # Third-party headlines are listed only when they pass the positive shape check (no links, contact
+        # handles, instructions, advice or guarantee wording, no mixed-script homoglyphs); otherwise hidden.
+        from ..text_safety import safe_headline
+
+        if safe_headline(str(view["title"])) is None:
+            view["title"] = None
+            view["title_withheld"] = True
     return view

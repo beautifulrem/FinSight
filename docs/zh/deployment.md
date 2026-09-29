@@ -50,8 +50,8 @@ curl http://127.0.0.1:8000/ready                  # 就绪：检查点、模型�
 | `HorizontalPodAutoscaler` | 2–6 个副本，CPU 70% 时扩容。 |
 | `PodDisruptionBudget` | 节点维护时至少保留一个副本。 |
 | `StatefulSet/finsight-postgres` | 演示用的会话 Postgres；生产环境请用托管数据库。 |
-| `ConfigMap` | 实时数据开关、超时、限流、LLM 端点和模型。 |
-| Secret（不提交） | 按名字引用 `finsight-db`（Postgres 密码和检查点 DSN，必需）和 `finsight-llm`（`DEEPSEEK_API_KEY`，可选），见[密钥](#密钥)。 |
+| `ConfigMap` | 实时数据开关、超时、限流、LLM 端点和模型，以及 `QI_PROFILE=production`（见[认证](#认证)）。 |
+| Secret（不提交） | 按名字引用 `finsight-db`（Postgres 密码和检查点 DSN，必需）、`finsight-api-keys`（`QI_API_KEYS`，必需；`QI_ANON_COOKIE_SECRET`）和 `finsight-llm`（`DEEPSEEK_API_KEY`，可选），见[密钥](#密钥)。 |
 | `NetworkPolicy` ×2（`networkpolicy.yaml`） | 见[网络策略](#网络策略)。 |
 
 ```bash
@@ -60,6 +60,9 @@ kubectl create namespace finsight
 kubectl -n finsight create secret generic finsight-db \
   --from-literal=POSTGRES_PASSWORD="$PG_PASSWORD" \
   --from-literal=QI_AGENT_CHECKPOINT_DB="postgresql://postgres:$PG_PASSWORD@finsight-postgres:5432/finsight"
+kubectl -n finsight create secret generic finsight-api-keys \
+  --from-literal=QI_API_KEYS="$(openssl rand -hex 24)" \
+  --from-literal=QI_ANON_COOKIE_SECRET="$(openssl rand -hex 32)"
 kubectl -n finsight create secret generic finsight-llm --from-literal=DEEPSEEK_API_KEY=...   # 可选
 kubectl apply -k deploy/k8s
 kubectl -n finsight rollout status deployment/finsight-api
@@ -82,10 +85,24 @@ docker build -f docker/Dockerfile -t finsight:$TAG .   # 按需推送到镜像�
 仓库里不提交任何 Secret（之前的清单带着明文 `change-me` 密码）。三选一：
 
 - 如上用 `kubectl create secret generic`；
-- 带占位符的模板 `deploy/k8s/secret.template.yaml`：`POSTGRES_PASSWORD=$(openssl rand -hex 24) envsubst '$POSTGRES_PASSWORD' < deploy/k8s/secret.template.yaml | kubectl apply -f -`；
+- 带占位符的模板 `deploy/k8s/secret.template.yaml`（包含两个 Secret）：先导出 `POSTGRES_PASSWORD`、`QI_API_KEYS` 和 `QI_ANON_COOKIE_SECRET`（例如 `openssl rand -hex 24`），再执行 `envsubst '$POSTGRES_PASSWORD $QI_API_KEYS $QI_ANON_COOKIE_SECRET' < deploy/k8s/secret.template.yaml | kubectl apply -f -`；
 - 通过 [External Secrets Operator](https://external-secrets.io/) 从密钥管理服务同步，`ExternalSecret` 示例见[英文文档](../deployment.md#secrets)。
 
-Deployment 和 StatefulSet 引用 `finsight-db` 时没有 `optional`，Secret 不存在时 Pod 会一直等待。
+Deployment 和 StatefulSet 引用 `finsight-db` 时没有 `optional`，Secret 不存在时 Pod 会一直等待。`finsight-api-keys` 里的 `QI_API_KEYS` 也一样。
+
+### 认证
+
+随仓库发布的清单不再以匿名方式运行（第三轮评审 C3：不设 Key 时所有调用方共用一个身份，`/agent/traces` 会列出所有用户的问题和会话 ID）。
+
+- ConfigMap 设置 `QI_PROFILE=production`：没有 `QI_API_KEYS` 时应用拒绝启动（`InsecureConfigurationError`），除非显式设置 `QI_ALLOW_ANONYMOUS=1`。
+- `QI_API_KEYS` 来自不带 `optional` 的 `secretKeyRef`（`finsight-api-keys`）。Secret 不存在时 Pod 一直等待，不会以开放状态启动。每个客户端一个 Key，用逗号分隔。轮换方法：先加入新 Key 并滚动发布，再删掉旧 Key。
+- 如果显式开启匿名访问（ConfigMap 里 `QI_ALLOW_ANONYMOUS: "1"`；共享部署没有理由这样做）：
+  - 每个浏览器通过 HMAC 签名的 HttpOnly、`SameSite=Lax` Cookie `finsight_anon` 获得自己的身份，一个浏览器无法读取或继续另一个浏览器的会话；
+  - 匿名调用方访问 `/agent/traces` 得到 403；
+  - `finsight-api-keys` 里的 `QI_ANON_COOKIE_SECRET` 要在所有副本上设为同一个值，否则浏览器被分到另一个副本时会得到新身份。
+- 不在 Kubernetes 上运行时，默认配置是 `development`：不需要 Key，按单个本地用户处理，但每个浏览器仍按 Cookie 隔离。
+
+调用方发送 `X-API-Key: <key>` 或 `Authorization: Bearer <key>`。网页界面默认把 Key 放在 `sessionStorage`，只有用户勾选“在此设备上记住”时才写入 `localStorage`（见 [SECURITY.md](../../SECURITY.md)）。
 
 ### 网络策略
 
@@ -104,9 +121,9 @@ kubelet 探针不受影响（节点到本机 Pod 的流量总是放行）。Netw
 - **测试覆盖**：`tests/test_agent_checkpoint_postgres.py` 用两个服务实例验证了这一点（CI 里连 Postgres 服务运行；一次本地运行的输出和检查点记录见 [results/postgres/two-replica-checkpointer.md](../results/postgres/two-replica-checkpointer.md)）。
 - **k3s 上的实测**：发给副本 B 的追问（「它的市净率呢」）从副本 A 处理过的那一轮里解析出了代词。
 
-会话还按调用方隔离：设置 `QI_API_KEYS` 后，会话归属于 API Key 的哈希，别的 Key 访问得到 404。
+会话还按调用方隔离：设置 `QI_API_KEYS` 后，会话归属于 API Key 的哈希，别的 Key 访问得到 404；没有 Key 的调用方按浏览器 Cookie 各自隔离。
 
-同一个 DSN 也会把 A2A 任务表（`finsight_a2a_tasks`）和 `/agent/traces` 背后的 trace 表（`finsight_agent_traces`）放进 Postgres。这样任何副本都能响应 `GetTask`、接着处理 `input-required` 任务，并在运行查看器里显示任何一次运行（见 [A2A、容灾与可观测性](a2a-and-observability.md#多副本共享存储)；设置 `QI_A2A_TASK_DB` / `QI_AGENT_TRACE_DB=memory` 可退出）。仍然每个副本各自一份的：限流器，以及工具和数据源的 TTL 缓存。
+同一个 DSN 也会把 A2A 任务表（`finsight_a2a_tasks`）和 `/agent/traces` 背后的 trace 表（`finsight_agent_traces`）放进 Postgres。这样任何副本都能响应 `GetTask`、接着处理 `input-required` 任务，并在运行查看器里显示任何一次运行（见 [A2A、容灾与可观测性](a2a-and-observability.md#多副本共享存储)；设置 `QI_A2A_TASK_DB` / `QI_AGENT_TRACE_DB=memory` 可退出）。限流器也跟随同一开关（`QI_RATE_LIMIT_DB`，每个客户端在 `finsight_rate_buckets` 里一行），所以 `QI_RATE_LIMIT_PER_MINUTE` 是每个客户端在所有副本上的总限额，而不是每个副本各算一份（[结果](../results/security/shared-rate-limiter.md)）。仍然每个副本各自一份的：工具和数据源的 TTL 缓存。
 
 ### 只读根文件系统
 

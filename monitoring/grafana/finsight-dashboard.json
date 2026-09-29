@@ -6,7 +6,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "editable": true,
   "refresh": "10s",
   "time": {
@@ -1215,6 +1215,92 @@
         }
       },
       "description": "finsight_audit_events_total: guard refusals by category (prompt_injection, out_of_scope) and compliance edits by rule. Details per event are in the audit log (agent/audit.py)."
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "Injection-filter redactions per hour (source, answered / refused)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 62,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (source, outcome) (increase(finsight_injection_redactions_total[1h]))",
+          "legendFormat": "{{source}} / {{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "finsight_injection_redactions_total: runs in which the injection filter (lexical patterns; plus the classifier for documents) removed text. user_message / answered = the input guard stripped instruction-like text and the rest of the question was answered (audit event input_guard_redaction). evidence / tool_output = retrieved third-party text was redacted (audit event document_redaction)."
+    },
+    {
+      "id": 29,
+      "type": "stat",
+      "title": "Answered after input-guard redaction (24 h)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 62,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(increase(finsight_injection_redactions_total{source=\"user_message\",outcome=\"answered\"}[24h]))",
+          "legendFormat": "answered",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "description": "User messages from which injection-like text was removed but the turn was still answered. Each has an input_guard_redaction audit event (principal and query hash, no text)."
     }
   ]
 }

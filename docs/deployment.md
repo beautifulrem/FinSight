@@ -48,8 +48,8 @@ tag. `finsight.yaml` contains:
 | `HorizontalPodAutoscaler` | 2–6 replicas at 70% CPU. |
 | `PodDisruptionBudget` | At least one replica stays up during node maintenance. |
 | `StatefulSet/finsight-postgres` | Demo Postgres for sessions; use a managed database in production. |
-| `ConfigMap` | Live-data switches, timeouts, rate limit, LLM endpoint and model. |
-| Secrets (not committed) | `finsight-db` (Postgres password and checkpoint DSN, required) and `finsight-llm` (`DEEPSEEK_API_KEY`, optional) are referenced by name; see [Secrets](#secrets). |
+| `ConfigMap` | Live-data switches, timeouts, rate limit, LLM endpoint and model, and `QI_PROFILE=production` (see [Authentication](#authentication)). |
+| Secrets (not committed) | `finsight-db` (Postgres password and checkpoint DSN, required), `finsight-api-keys` (`QI_API_KEYS`, required; `QI_ANON_COOKIE_SECRET`) and `finsight-llm` (`DEEPSEEK_API_KEY`, optional) are referenced by name; see [Secrets](#secrets). |
 | `NetworkPolicy` ×2 (`networkpolicy.yaml`) | See [Network policy](#network-policy). |
 
 ```bash
@@ -58,6 +58,9 @@ kubectl create namespace finsight
 kubectl -n finsight create secret generic finsight-db \
   --from-literal=POSTGRES_PASSWORD="$PG_PASSWORD" \
   --from-literal=QI_AGENT_CHECKPOINT_DB="postgresql://postgres:$PG_PASSWORD@finsight-postgres:5432/finsight"
+kubectl -n finsight create secret generic finsight-api-keys \
+  --from-literal=QI_API_KEYS="$(openssl rand -hex 24)" \
+  --from-literal=QI_ANON_COOKIE_SECRET="$(openssl rand -hex 32)"
 kubectl -n finsight create secret generic finsight-llm --from-literal=DEEPSEEK_API_KEY=...   # optional
 kubectl apply -k deploy/k8s
 kubectl -n finsight rollout status deployment/finsight-api
@@ -83,7 +86,7 @@ kustomize fails visibly instead of running an unknown build. CI builds every pus
 No Secret is committed (the earlier manifest carried a plaintext `change-me` password). Choose one:
 
 - `kubectl create secret generic` as above;
-- `deploy/k8s/secret.template.yaml` with placeholders: `POSTGRES_PASSWORD=$(openssl rand -hex 24) envsubst '$POSTGRES_PASSWORD' < deploy/k8s/secret.template.yaml | kubectl apply -f -`;
+- `deploy/k8s/secret.template.yaml` with placeholders (both Secrets): export `POSTGRES_PASSWORD`, `QI_API_KEYS` and `QI_ANON_COOKIE_SECRET` (e.g. `openssl rand -hex 24`), then `envsubst '$POSTGRES_PASSWORD $QI_API_KEYS $QI_ANON_COOKIE_SECRET' < deploy/k8s/secret.template.yaml | kubectl apply -f -`;
 - a secret manager through the [External Secrets Operator](https://external-secrets.io/), for example:
 
   ```yaml
@@ -100,7 +103,30 @@ No Secret is committed (the earlier manifest carried a plaintext `change-me` pas
   ```
 
 The Deployment and the StatefulSet reference `finsight-db` without `optional`, so pods stay pending
-until it exists.
+until it exists. The same holds for the `QI_API_KEYS` key of `finsight-api-keys`.
+
+### Authentication
+
+The shipped manifest does not run anonymous (C3, round-3 review: with keys off, every caller shared one
+identity, and `/agent/traces` listed every user's queries and session ids).
+
+- `QI_PROFILE=production` (ConfigMap): the app refuses to start without `QI_API_KEYS`
+  (`InsecureConfigurationError`) unless `QI_ALLOW_ANONYMOUS=1` is set.
+- `QI_API_KEYS` comes from a non-optional `secretKeyRef` (`finsight-api-keys`). A missing Secret keeps the pod
+  pending; it never starts open. Use one key per client, comma-separated. To rotate, add the new key, roll
+  out, then remove the old one.
+- Opting in to anonymous access (`QI_ALLOW_ANONYMOUS: "1"` in the ConfigMap; there is no reason to on a
+  shared deployment):
+  - each browser gets its own identity, an HMAC-signed HttpOnly `SameSite=Lax` cookie `finsight_anon`, so
+    one browser cannot read or continue another's sessions;
+  - anonymous callers get 403 on `/agent/traces`;
+  - set `QI_ANON_COOKIE_SECRET` (in `finsight-api-keys`) to the same value on every replica, or a browser
+    that lands on another replica starts a new identity.
+- Outside Kubernetes the default profile is `development`: no keys, one local user, each browser still
+  scoped by its cookie.
+
+Callers send `X-API-Key: <key>` or `Authorization: Bearer <key>`. The web UI keeps the key in
+`sessionStorage` unless the user ticks "Remember on this device" (see [SECURITY.md](../SECURITY.md)).
 
 ### Network policy
 
@@ -126,7 +152,7 @@ address as an `ipBlock` in place of the Postgres pod selector.
 
 Every turn is a LangGraph run on thread `session_id`. With `QI_AGENT_CHECKPOINT_DB=postgresql://...` the checkpoints (conversation turns, a paused clarification, the last resolved entity) are in Postgres, so the next turn can land on any replica. `tests/test_agent_checkpoint_postgres.py` checks this with two service instances (it runs in CI against a Postgres service; a recorded local run with the checkpoint rows is in [results/postgres/two-replica-checkpointer.md](results/postgres/two-replica-checkpointer.md)); on the k3s deployment a follow-up sent to replica B ("它的市净率呢") resolved the pronoun from a turn served by replica A.
 
-The same DSN also moves the A2A task store (`finsight_a2a_tasks`) and the trace store behind `/agent/traces` (`finsight_agent_traces`) to Postgres, so any replica can serve `GetTask`, continue an `input-required` task, or show any run in the inspector (see [a2a-and-observability.md](a2a-and-observability.md#shared-stores-for-several-replicas); `QI_A2A_TASK_DB` / `QI_AGENT_TRACE_DB=memory` opt out). Still per replica: the rate limiter and the TTL caches of tools and live sources.
+The same DSN also moves the A2A task store (`finsight_a2a_tasks`) and the trace store behind `/agent/traces` (`finsight_agent_traces`) to Postgres, so any replica can serve `GetTask`, continue an `input-required` task, or show any run in the inspector (see [a2a-and-observability.md](a2a-and-observability.md#shared-stores-for-several-replicas); `QI_A2A_TASK_DB` / `QI_AGENT_TRACE_DB=memory` opt out). The rate limiter follows the same switch (`QI_RATE_LIMIT_DB`, one bucket row per client in `finsight_rate_buckets`), so `QI_RATE_LIMIT_PER_MINUTE` is the limit per client across all replicas, not per replica ([results/security/shared-rate-limiter.md](results/security/shared-rate-limiter.md)). Still per replica: the TTL caches of tools and live sources.
 
 ### Read-only root filesystem
 

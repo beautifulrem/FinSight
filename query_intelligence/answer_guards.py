@@ -3,12 +3,48 @@
 Softening of judgment and causal wording, conditional-answer prefixes, guardrail limitations and safe
 follow-up questions. Moved here from ``scripts/llm_response.py`` so the package does not import from
 ``scripts/`` (which required editing ``sys.path`` at runtime); that script re-exports these names.
+
+``strip_prohibited_promotion`` removes, from any answer, sentences that promise returns (稳赚不赔, 保本,
+保证收益), solicit stock tips (荐股, 带单, 喊单, 内幕消息) or move the reader to a private channel (加微信,
+私信, phone numbers, QQ / Telegram / WeChat handles, non-official links). Matching runs on NFKC +
+confusable-folded text (``query_intelligence/text_safety.py``); negated or warning uses are kept.
 """
 
 from __future__ import annotations
 
 import re
 from typing import Any
+
+from .text_safety import find_prohibited_promotion
+
+PROMOTION_NOTE_ZH = "部分内容涉及收益保证、荐股或私下联系方式，已按合规要求删除。"
+PROMOTION_NOTE_EN = (
+    "Content promising returns, offering stock tips or private contact details was removed for compliance."
+)
+_SENTENCE_END = re.compile(r"(?<=[。！？!?；;\n])|(?<=\.)(?=\s)")
+
+
+def contains_prohibited_promotion(text: str) -> bool:
+    return bool(find_prohibited_promotion(text or ""))
+
+
+def strip_prohibited_promotion(text: str, *, zh: bool) -> tuple[str, int]:
+    """Drop the sentences of ``text`` with guarantee / solicitation / contact wording; append one note."""
+    if not text or not contains_prohibited_promotion(text):
+        return text, 0
+    kept: list[str] = []
+    removed = 0
+    for sentence in (part for part in _SENTENCE_END.split(text) if part):
+        if contains_prohibited_promotion(sentence):
+            removed += 1
+            continue
+        kept.append(sentence)
+    if not removed:
+        # the match spans a sentence boundary (e.g. "加 微 信。caifu8888"): drop the whole text
+        kept, removed = [], 1
+    note = PROMOTION_NOTE_ZH if zh else PROMOTION_NOTE_EN
+    return ("".join(kept).strip() + ("" if zh else " ") + note).strip(), removed
+
 
 def strip_history(value: Any) -> Any:
     if isinstance(value, dict):

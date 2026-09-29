@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useChat, type Turn } from "@/hooks/useChat";
 import { fetchHealth, fetchSession, sendFeedback } from "@/lib/api";
+import { loadApiKey, saveApiKey, type StoredApiKey } from "@/lib/apiKey";
 import { I18nContext, makeTranslate, type Lang } from "@/lib/i18n";
 import { newSessionId, readStorage, STORAGE_KEYS, writeStorage } from "@/lib/storage";
 import type { FeedbackRequest, UiMode } from "@/lib/types";
@@ -57,7 +58,8 @@ export default function App() {
     const stored = readStorage(STORAGE_KEYS.mode) as UiMode;
     return MODES.includes(stored) ? stored : "auto";
   });
-  const [apiKey, setApiKey] = useState(() => readStorage(STORAGE_KEYS.apiKey));
+  const [storedKey, setStoredKey] = useState<StoredApiKey>(loadApiKey);
+  const apiKey = storedKey.key;
   const [view, setView] = useState<AppView>(() => (readStorage(STORAGE_KEYS.view) === "check" ? "check" : "chat"));
   const [sessionId, setSessionId] = useState(() => readStorage(STORAGE_KEYS.session) || newSessionId());
   const [online, setOnline] = useState(true);
@@ -353,9 +355,10 @@ export default function App() {
             open={settingsOpen}
             onOpenChange={setSettingsOpen}
             apiKey={apiKey}
-            onApiKey={(key) => {
-              setApiKey(key);
-              writeStorage(STORAGE_KEYS.apiKey, key);
+            rememberKey={storedKey.remember}
+            onApiKey={(key, remember) => {
+              setStoredKey({ key, remember });
+              saveApiKey(key, remember);
             }}
             sessionId={sessionId}
             lang={lang}

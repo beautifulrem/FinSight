@@ -52,7 +52,7 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from ..evidence import AgentEvidence, safe_evidence_id
-from ..injection import sanitize_untrusted_text
+from ..injection import sanitize_document_text, sanitize_untrusted_text
 from .base import ToolFailure, ToolOutput, ToolRegistry, ToolSpec
 
 logger = logging.getLogger(__name__)
@@ -442,7 +442,7 @@ def _sanitize_deep(value: Any, max_chars: int, flags: dict[str, bool], depth: in
     if depth > _MAX_DEPTH:
         return "[nested content omitted]"
     if isinstance(value, str):
-        cleaned, hit = sanitize_untrusted_text(value)
+        cleaned, hit = sanitize_document_text(value)  # remote tool text is third-party: both layers
         flags["hit"] = flags["hit"] or hit
         return cleaned if len(cleaned) <= max_chars else f"{cleaned[: max_chars - 1]}…"
     if isinstance(value, dict):

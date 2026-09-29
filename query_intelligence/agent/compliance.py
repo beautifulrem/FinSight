@@ -181,6 +181,13 @@ def apply_compliance(
     if removed_answer or removed_points:
         notes.append("removed_trading_instruction")
 
+    # Guaranteed returns, stock-tip solicitation and private contact details: removed whoever wrote them.
+    softened, removed_promotion = guards.strip_prohibited_promotion(softened, zh=zh)
+    promotion_points = [point for point in cleaned_points if guards.contains_prohibited_promotion(point)]
+    cleaned_points = [point for point in cleaned_points if point not in promotion_points]
+    if removed_promotion or promotion_points:
+        notes.append("removed_prohibited_promotion")
+
     if guards._needs_conditional_answer_guard(nlu_result, pseudo_retrieval, None, query):
         prefix = guards._conditional_answer_prefix(nlu_result, zh=zh, query=query).strip()
         if prefix and prefix not in softened:
@@ -218,7 +225,7 @@ def apply_compliance(
     guarded["limitations"] = limitations
     disclaimer = str(guarded.get("risk_disclaimer") or "").strip()
     default_disclaimer = DEFAULT_RISK_DISCLAIMER_ZH if zh else DEFAULT_RISK_DISCLAIMER_EN
-    if not disclaimer or contains_trading_instruction(disclaimer):
+    if not disclaimer or contains_trading_instruction(disclaimer) or guards.contains_prohibited_promotion(disclaimer):
         guarded["risk_disclaimer"] = default_disclaimer
     return guarded, notes
 
