@@ -376,6 +376,16 @@ def test_results_slimming_reconstructs_outcomes_and_relabels_single_runs():
     assert entry["task_outcomes"] == {"a": "0", "b": "0"}
 
 
+def test_slimmed_results_always_name_the_model(tmp_path, monkeypatch):
+    from evaluation.agent_eval import results
+
+    monkeypatch.setattr(results, "RESULTS_DIR", tmp_path / "results")
+    source = tmp_path / "router.json"
+    source.write_text(json.dumps({"config": {"llm": "cline-pass/glm-5.3-flash"}, "summary": {}}), encoding="utf-8")
+    written = json.loads(results.write_slim(source, "r").read_text(encoding="utf-8"))
+    assert written["config"]["model"] == "cline-pass/glm-5.3-flash"
+
+
 def test_report_formats_cis_and_verdicts():
     from evaluation.agent_eval.report import cell, fmt_ci, splice, verdict
 

@@ -259,6 +259,8 @@ python -m scripts.load_test --base-url http://127.0.0.1:8000 --users 8
 python -m scripts.chaos_drill --scenario sources           # 对运行中的服务屏蔽上游数据源
 ```
 
+`--llm deepseek` 选择的是客户端，即由 `DEEPSEEK_API_KEY`、`DEEPSEEK_BASE_URL` 配置的 OpenAI 兼容客户端，不决定模型。模型依次取自 `--model`、`DEEPSEEK_MODEL`、`config/app_config.json` 中的 `deepseek.model`；因此 GLM 的运行命令也是 `--llm deepseek`，模型由 `DEEPSEEK_MODEL=cline-pass/glm-5.3-flash` 指定。每个结果文件都记录实际调用的模型（`config.model`）、客户端（`llm_client`）和模型来源（`model_source`）。
+
 CI 包括：
 
 - 代码检查；

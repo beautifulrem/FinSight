@@ -255,6 +255,8 @@ python -m scripts.load_test --base-url http://127.0.0.1:8000 --users 8
 python -m scripts.chaos_drill --scenario sources           # blocked upstreams against a live server
 ```
 
+`--llm deepseek` selects the client, the OpenAI-compatible one configured by `DEEPSEEK_API_KEY` and `DEEPSEEK_BASE_URL`. It does not select the model. The model comes from `--model`, else `DEEPSEEK_MODEL`, else `deepseek.model` in `config/app_config.json`, so the GLM runs were started with `--llm deepseek` and `DEEPSEEK_MODEL=cline-pass/glm-5.3-flash`. Every result file records the model it actually called (`config.model`), the client (`llm_client`) and where the model came from (`model_source`).
+
 CI runs the following:
 
 - lint;

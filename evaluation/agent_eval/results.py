@@ -243,6 +243,10 @@ def slim(report: dict[str, Any]) -> dict[str, Any]:
 def write_slim(source: Path, name: str, *, extra_notes: list[str] | None = None) -> Path:
     report = json.loads(source.read_text(encoding="utf-8"))
     slimmed = slim(report)
+    config = slimmed.get("config")
+    if isinstance(config, dict) and "model" not in config:
+        # Every committed result names its model (None = no LLM); older runs only had ``llm``.
+        slimmed["config"] = {**config, "model": config.get("llm")}
     slimmed["source"] = {
         "file": str(source.resolve().relative_to(ROOT)) if source.resolve().is_relative_to(ROOT) else source.name,
         "sha256_16": _sha256(source),
