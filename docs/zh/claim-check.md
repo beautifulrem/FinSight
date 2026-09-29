@@ -15,6 +15,7 @@
 - `target`、`metric`、`claimed`，以及区间上限 `claimed_high`；`claimed` 带涨跌词给出的符号（“跌超1%”是 −1），关系型说法为 `null`；
 - `claimed_unit`、`comparator`、`negated`，以及 `direction`（涨跌词给出的方向 `up` / `down`）；
 - 关系型说法另有 `reference`（比较对象）、`reference_value` 和 `reference_evidence_id`；
+- 倍数说法（“市净率是五粮液的1.5倍”）的 `claimed` 是所说的倍数，`ratio` 是标的数值除以比较对象数值；
 - `actual`、`status`，以及无法核实时的原因 `reason`；
 - `evidence_id`、`source`、`as_of` 和 `as_of_basis`；
 - `note`。
@@ -155,6 +156,58 @@ fell / dropped / down 和 涨 / 上涨 / 涨幅 / rose / up（增速和宏观序
 
 句子里同时写了数字时按数字核对（“五粮液市盈率24.6倍，比茅台低”核对的是五粮液的 24.6）。
 
+### 第 6 轮：涨跌、日期、倍数、板块（第 4 轮独立留出集暴露之后）
+
+以下规则写于第 4 轮独立说法留出集（`evaluation/heldout_r4/`）运行一次并读过其错误之后。此后该集上的所有数字都标注为
+“暴露之后”（after exposure）。
+
+**有界涨跌。** “跌了不到X%”“跌幅不足X%”“涨幅不到X%”“fell less than half a percent”“rose by less than two
+percent”都是对“所述方向上的涨跌幅大小”的检查，且走势必须与所述方向一致：股价上涨当天说“跌了不到1%”是矛盾，下跌当天说
+“rose less than 1%”也是矛盾；平盘不算“小幅下跌”。英文分数和数词按数字处理：“half a percent”为 0.5，“a quarter of a
+percent”为 0.25，“three times”为 3，“twice”为 2。
+
+**定性涨跌词（约定）。** 不带数字的涨跌词按明示的阈值核对，检查的 `note` 写明词语和阈值，例如
+`convention: '大跌' means a move of at least 3% in that direction`（界面显示为“按约定，「大跌」指该方向的涨跌幅至少 3%”）。
+
+| 词语 | 含义 | 检查 |
+| --- | --- | --- |
+| 大跌、暴跌、重挫、大幅下跌、跳水、plunged、tumbled、crashed | 跌幅至少 3% | 幅度 ≥ 3，下跌 |
+| 大涨、暴涨、飙升、大幅上涨、soared、surged | 涨幅至少 3% | 幅度 ≥ 3，上涨 |
+| 小幅下跌、微跌、小跌、edged down、dipped、fell slightly | 跌幅小于 1% | 0 < 幅度 < 1，下跌 |
+| 小幅上涨、微涨、小涨、edged up、inched up、rose slightly | 涨幅小于 1% | 0 < 幅度 < 1，上涨 |
+
+否定会翻转检查：“没有暴跌”对任何不是 3% 以上下跌的走势都成立。带数字时以数字为准：“大跌超过3%”的界限是 3。“跌幅较前一交易日
+扩大”需要与前一交易日的涨跌幅比较，数据源没有，因此无法核实（`multi_day`）。
+
+**明确的日期。** “4月22日”“2026年4月22日”“2026-04-22”“April 22”“Apr 22nd, 2026”“22 April”都是日期，不是所述数字（英文日期
+在答案核验器里同样被去除）。日度数值（收盘价、当日涨跌幅）上的日期与证据的交易日比较：一致则照常核查；不一致则无法核实，
+原因 `period_mismatch`（“the claim is about 04-21; the data is for the trading day 2026-04-22”）。“最近一个交易日”“近1个
+交易日”“the latest session”指最近一个交易日，不是多日涨跌；“近5个交易日”仍是多日涨跌。
+
+**倍数。** “茅台的市净率大约是五粮液的1.5倍”“中国平安的净利润是五粮液的三倍多”“五粮液的跌幅大约是茅台的三倍”“Wuliangye's
+P/B is roughly twice Moutai's”“revenue is more than ten times Wuliangye's”把两者数值之比与所说的倍数比较（`eq`/`approx`
+沿用通常的容差，“三倍多”/“more than”为 `gt`）。`ratio` 给出算得的比值，`note` 给出算式（“ratio 1.50 = 8.1 / 5.4”）。
+涨跌的倍数要求两边都朝所述方向变动（其中一只上涨时说“跌幅是茅台的4倍”为矛盾）。负数或零的倍数无法核实。“的一半”是 0.5 倍。
+
+**更多关系型说法。** “超过了茅台”“营收高于中国平安”“净利润超过了贵州茅台”适用于数据中有的任何指标。未点名指标时，表现类
+词语比较当日涨跌幅：“跑赢/跑输沪深300”“outperformed / underperformed / lagged / beat the CSI 300”。“is higher than”
+不再被当成涨跌。
+
+**板块。** 以板块形式写出的板块（“白酒板块”“保险行业”“券商板块”“the baijiu industry”“the insurance sector”
+“brokerage stocks”）作为标的，用 `get_fundamentals` 返回的行业快照核对（当日涨跌幅用 `pct_change`，另有 `pe`、`pb`）。
+其日期是快照的交易日：快照日期为 2026-04-21 时，“白酒板块4月22日收跌”无法核实，而“白酒板块最近一个交易日跌超1%”照常核对。
+只用来修饰公司的板块词（“白酒龙头茅台”）不是标的。公司与点名板块的比较（“市净率高于白酒板块”“P/E above the baijiu
+industry average”“比保险行业整体便宜”）使用该板块的快照。
+
+**多个标的共用一个说法。** 两个以上标的之后出现“都 / 均 / 皆 / both / all”时，每个标的各有一条检查，按提及顺序排列：
+2026-04-22 的“茅台和五粮液都跌超0.5%”对茅台（−0.18%）是矛盾，对五粮液（−0.53%）是支持，结论为 `partially_supported`。
+
+**荣枯线。** “荣枯线”与“the boom-bust / expansion-contraction line”即 50：“3月制造业PMI跌破荣枯线”是 `pmi lt 50`，
+被 50.6 否定。数字后的“上方 / 之上”为 `gt`，“下方 / 之下”为 `lt`。
+
+**预测词。** 小写的 “may” 与 could / might / would 一样表示预测（“Moutai may trade at 30 times earnings”）；首字母大写的
+“May” 是月份。
+
 ### 宏观数值（C13）
 
 宏观说法与 `get_macro_indicators` 的最新一期读数比对，`as_of` 是读数所属期间（`as_of_basis: indicator_date`）。
@@ -283,9 +336,18 @@ python -m evaluation.claim_bench.run --set holdout
 | dev，修复后 | `2fcb4f0` | 131 / 138 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 | **held-out，只跑一次** | `2fcb4f0` | 47 / 54 | **0.936 [0.851, 1.000]** | **0.944 [0.880, 1.000]** | 1.000 |
 | dev，加入第 4 轮 42 条（涨跌上下限、关系、x 倍市盈率、宏观） | `be88027` | 173 / 180 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| **第 4 轮独立留出集，首次运行** | `817a2d8` | 67 / 83 | **0.716 [0.612, 0.821]** | **0.639 [0.541, 0.730]** | 0.435 |
+| 第 4 轮独立留出集，**暴露之后** | `c731dba` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
+| dev，加入第 5 批 31 条（d174-d204） | `c731dba` | 204 / 214 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 
-结果文件为 `evaluation/results/claim_bench-dev-baseline.json`、`claim_bench-dev.json` 和
-`claim_bench-holdout.json`，每个文件都记录了提交、命令和说法文件的 sha256。
+结果文件为 `evaluation/results/claim_bench-dev-baseline.json`、`claim_bench-dev.json`、`claim_bench-holdout.json`、
+`claim_bench-heldout_r4-first-run.json` 和 `claim_bench-heldout_r4-after-exposure.json`，每个文件都记录了提交、命令和说法
+文件的 sha256。
+
+```bash
+python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \
+  --out evaluation/results/claim_bench-heldout_r4-after-exposure.json
+```
 
 ### 如何看这些数字
 
@@ -299,6 +361,15 @@ python -m evaluation.claim_bench.run --set holdout
 - **h038** “中国平安市盈率8.7倍，而行业平均11.8倍”：行业均值被拿去和公司自己的市盈率比。核查器目前不使用行业快照。
 - **h039** “Kweichow Moutai trades at 24.6 times earnings”：没有把 “times earnings” 识别为市盈率。
 
+**第 4 轮独立留出集（另一位作者编写）已经暴露。** 首次运行的 0.716 才是当时核查器的可信数字。上面的第 6 轮规则写于读过它的
+30 个错误之后，并配有新的自写 dev 样例，所以暴露之后的 1.000 只说明这些错误类别已覆盖，不代表泛化能力。剩下的差异：
+
+- 6 条（宏观与无数据）说法带有该集不期望的检查（该集把 CPI/PMI/10Y 视为指标词表之外、对无数据的概念不设检查），所以在
+  结论全对的情况下逐项准确率为 0.920；
+- 比较词准确率 0.522 反映的是约定不同，而不是状态不同：该集把涨跌的界限写在带符号的涨跌幅上（“跌超1%”记为 `le` −1，
+  “跌了不到1%”记为 `range`），本核查器写在涨跌幅大小与方向上（下跌方向的 `gt` 1、`lt` 1），且该集把“跌超”视为不严格。
+  两者的状态一致。
+
 **两个数据集的共同局限：**
 
 - 用的是同一个离线快照：3 只股票、3 只 ETF、1 个指数；
@@ -309,10 +380,14 @@ python -m evaluation.claim_bench.run --set holdout
 
 - **离线数据覆盖面小**：离线数据只有 3 只股票、3 只 ETF 和 1 个指数。
 - **离线缺失的指标**：增速、指数估值、股息率、市值、负债率、EPS。实时数据的覆盖面取决于数据源。
-- **只核对当日涨跌幅**：多日涨跌判为无法核实；“涨停”只按“上涨”核对。
+- **只核对当日涨跌幅**：多日涨跌和与前一交易日的比较（“跌幅扩大”）判为无法核实；“涨停”只按“上涨”核对。
+- **定性涨跌词是约定**：大跌/大涨 ≥ 3%、小幅 < 1% 是本项目的阈值，写在每条检查的 note 里；采用其他阈值的读者在阈值附近
+  可能有不同判断。表外的词（例如单独的“下挫”）按普通涨跌处理。
+- **日期**：只有写明月日的日期会与交易日比较；“昨天/今天”不按快照日期解析。
 - **中文数字**：只处理单位前的简单写法（十五倍、一点一倍、三成、百分之三十），不处理两成多、十几倍、上千亿。
 - **比较词靠词表识别**：不理解反讽、反问。
-- **关系型说法**：支持两个标的之间、标的与其行业快照之间的比较；不支持同行、一致预期和市场均值。
+- **关系型说法**：支持两个标的之间、标的与其行业快照之间、标的与点名的有快照板块（离线为白酒、保险、券商）之间的比较；
+  不支持同行、一致预期和市场均值。英文板块名只识别 baijiu/liquor、insurance、brokerage/securities 和 banking。
   写了行业数字的说法（“而行业平均11.8倍”）仍会拿去和公司自身比。
 - **宏观**：每个序列只有最新一期读数，相对上一期的变化和其他月份的读数判为无法核实。
 - **期间识别有限**：
