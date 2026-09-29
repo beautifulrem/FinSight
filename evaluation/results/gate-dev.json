@@ -3,6 +3,9 @@
  "config": {
   "mode": "workflow",
   "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
   "tasks_file": "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
   "snapshot": {
    "path": "evaluation/agent_eval/fixtures/snapshot_v1.json",
@@ -14,15 +17,15 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "6c34abc",
-  "run_at": "2026-09-29T14:18:09+00:00",
+  "commit": "774df5c",
+  "run_at": "2026-09-29T15:28:05+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 73.3,
+  "wall_seconds": 86.4,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
-  "tasks": 285,
-  "turns": 350,
+  "tasks": 295,
+  "turns": 368,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -34,23 +37,28 @@
    "pass^1": [
     1.0,
     1.0
+   ],
+   "task_success_uncited": [
+    1.0,
+    1.0
    ]
   },
   "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 1.0,
   "turn_success": 1.0,
   "behavior_accuracy": 1.0,
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.7684,
+  "tool_precision": 0.7722,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 43.39,
-  "latency_ms_p95": 562.03,
-  "latency_ms_p99": 1043.62,
+  "latency_ms_p50": 51.29,
+  "latency_ms_p95": 739.97,
+  "latency_ms_p99": 1377.72,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -66,6 +74,7 @@
   "first_pass_verification": null,
   "revise_rate": null,
   "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
   "llm_error_kinds": {},
   "json_repair_rate": null,
   "json_failure_rate": null,
@@ -77,79 +86,79 @@
   "clarify": {
    "tasks": 18,
    "task_success": 1.0,
-   "latency_ms_p95": 447.48
+   "latency_ms_p95": 440.6
   },
   "compare": {
    "tasks": 27,
    "task_success": 1.0,
-   "latency_ms_p95": 732.12
+   "latency_ms_p95": 1282.51
   },
   "compliance": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 773.3
+   "latency_ms_p95": 745.46
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 550.23
+   "latency_ms_p95": 461.95
   },
   "fact": {
    "tasks": 65,
    "task_success": 1.0,
-   "latency_ms_p95": 570.91
+   "latency_ms_p95": 597.38
   },
   "injection": {
    "tasks": 2,
    "task_success": 1.0,
-   "latency_ms_p95": 29.99
+   "latency_ms_p95": 65.91
   },
   "macro_link": {
    "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 568.48
+   "latency_ms_p95": 692.3
   },
   "missing_data": {
-   "tasks": 34,
+   "tasks": 36,
    "task_success": 1.0,
-   "latency_ms_p95": 524.84
+   "latency_ms_p95": 1150.6
   },
   "multi_turn": {
-   "tasks": 42,
+   "tasks": 50,
    "task_success": 1.0,
-   "latency_ms_p95": 562.03
+   "latency_ms_p95": 752.37
   },
   "out_of_coverage": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 362.9
+   "latency_ms_p95": 890.18
   },
   "out_of_scope": {
    "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 74.62
+   "latency_ms_p95": 88.48
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 542.71
+   "latency_ms_p95": 389.22
   },
   "why": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 439.11
+   "latency_ms_p95": 584.27
   }
  },
  "by_language": {
   "en": {
-   "tasks": 84,
+   "tasks": 90,
    "task_success": 1.0,
-   "latency_ms_p95": 661.49
+   "latency_ms_p95": 929.16
   },
   "zh": {
-   "tasks": 201,
+   "tasks": 205,
    "task_success": 1.0,
-   "latency_ms_p95": 542.71
+   "latency_ms_p95": 617.89
   }
  },
  "failed_checks": {},
@@ -439,12 +448,22 @@
   "r5_answer_language_en": "1",
   "r5_answer_language_zh": "1",
   "r5_foreign_central_bank_zh": "1",
-  "r5_foreign_central_bank_en": "1"
+  "r5_foreign_central_bank_en": "1",
+  "r6_line_up_next_to_en": "1",
+  "r6_put_together_zh": "1",
+  "r6_them_after_three_en": "1",
+  "r6_them_after_three_zh": "1",
+  "r6_all_three_of_two_en": "1",
+  "r6_english_typo_en": "1",
+  "r6_persist_english_zh": "1",
+  "r6_persist_chinese_en": "1",
+  "r6_foreign_buying_zh": "1",
+  "r6_state_funds_en": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "3a87f4c9c6d5724d",
-  "bytes": 859604,
-  "slimmed_at": "2026-09-29T14:18:09+00:00"
+  "sha256_16": "903f7ab9ecdeb2b6",
+  "bytes": 963432,
+  "slimmed_at": "2026-09-29T15:28:05+00:00"
  }
 }

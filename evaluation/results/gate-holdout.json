@@ -3,6 +3,9 @@
  "config": {
   "mode": "workflow",
   "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
   "tasks_file": "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl",
   "snapshot": {
    "path": "evaluation/agent_eval/fixtures/snapshot_holdout_v1.json",
@@ -14,43 +17,48 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "6c34abc",
-  "run_at": "2026-09-29T14:18:19+00:00",
+  "commit": "774df5c",
+  "run_at": "2026-09-29T15:28:24+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 9.8,
+  "wall_seconds": 18.5,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out outputs/agent_eval/gate-holdout.json"
  },
  "summary": {
   "tasks": 53,
   "turns": 56,
   "repeats": 1,
-  "task_success": 0.9245,
-  "pass^1": 0.9245,
+  "task_success": 0.9434,
+  "pass^1": 0.9434,
   "ci": {
    "task_success": [
-    0.8491,
-    0.9811
+    0.8868,
+    1.0
    ],
    "pass^1": [
-    0.8491,
-    0.9811
+    0.8868,
+    1.0
+   ],
+   "task_success_uncited": [
+    0.8868,
+    1.0
    ]
   },
   "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
-  "turn_success": 0.9286,
+  "task_success_uncited": 0.9434,
+  "turn_success": 0.9464,
   "behavior_accuracy": 1.0,
-  "fact_recall": 0.975,
-  "fact_stated": 0.975,
-  "tool_recall": 0.975,
-  "tool_precision": 0.7695,
+  "fact_recall": 1.0,
+  "fact_stated": 1.0,
+  "tool_recall": 1.0,
+  "tool_precision": 0.7908,
   "compliance_clean": 1.0,
   "hedged_when_required": 0.7273,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 33.29,
-  "latency_ms_p95": 481.25,
-  "latency_ms_p99": 539.71,
+  "latency_ms_p50": 63.96,
+  "latency_ms_p95": 856.33,
+  "latency_ms_p99": 1875.15,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -66,6 +74,7 @@
   "first_pass_verification": null,
   "revise_rate": null,
   "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
   "llm_error_kinds": {},
   "json_repair_rate": null,
   "json_failure_rate": null,
@@ -77,83 +86,66 @@
   "clarify": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 468.17
+   "latency_ms_p95": 856.33
   },
   "compare": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 419.91
+   "latency_ms_p95": 770.1
   },
   "compliance": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 82.07
+   "latency_ms_p95": 125.74
   },
   "fact": {
    "tasks": 21,
-   "task_success": 0.9524,
-   "latency_ms_p95": 518.08
+   "task_success": 1.0,
+   "latency_ms_p95": 854.34
   },
   "macro_link": {
    "tasks": 3,
    "task_success": 0.3333,
-   "latency_ms_p95": 112.7
+   "latency_ms_p95": 150.35
   },
   "missing_data": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 448.02
+   "latency_ms_p95": 1875.15
   },
   "multi_turn": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 131.54
+   "latency_ms_p95": 344.4
   },
   "out_of_scope": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 31.25
+   "latency_ms_p95": 63.96
   },
   "why": {
    "tasks": 4,
    "task_success": 0.75,
-   "latency_ms_p95": 68.2
+   "latency_ms_p95": 74.14
   }
  },
  "by_language": {
   "en": {
    "tasks": 15,
-   "task_success": 0.8,
-   "latency_ms_p95": 481.25
+   "task_success": 0.8667,
+   "latency_ms_p95": 854.34
   },
   "zh": {
    "tasks": 38,
    "task_success": 0.9737,
-   "latency_ms_p95": 468.17
+   "latency_ms_p95": 856.33
   }
  },
  "failed_checks": {
   "hedged": 3,
-  "facts": 1,
-  "required_tools": 1,
   "any_of_tools": 1
  },
  "failures": [
-  {
-   "task": "ho_fact_valuation_5",
-   "category": "fact",
-   "query": "What's Wuliangye's return on equity?",
-   "failed_checks": [
-    "facts",
-    "required_tools"
-   ],
-   "count": 1,
-   "route": "workflow",
-   "tools_used": [
-    "get_price_history"
-   ],
-   "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was CNY 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]."
-  },
   {
    "task": "ho_why_3",
    "category": "why",
@@ -214,7 +206,7 @@
   "ho_fact_valuation_2": "1",
   "ho_fact_valuation_3": "1",
   "ho_fact_valuation_4": "1",
-  "ho_fact_valuation_5": "0",
+  "ho_fact_valuation_5": "1",
   "ho_fact_macro_0": "1",
   "ho_fact_macro_1": "1",
   "ho_fact_macro_2": "1",
@@ -255,8 +247,8 @@
  },
  "source": {
   "file": "outputs/agent_eval/gate-holdout.json",
-  "sha256_16": "f30eafde32466623",
-  "bytes": 137510,
-  "slimmed_at": "2026-09-29T14:18:19+00:00"
+  "sha256_16": "86ef24648564f0b2",
+  "bytes": 146177,
+  "slimmed_at": "2026-09-29T15:28:24+00:00"
  }
 }
