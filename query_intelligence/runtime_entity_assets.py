@@ -273,6 +273,78 @@ for _policy_name, _aliases in {
     )
 
 
+# Colloquial short names investors use for listed companies ("美的" for 美的集团, "宁王" for 宁德时代), by symbol.
+# They get ``alias_type = colloquial_alias``: the resolver matches them only exactly and only as a whole word of
+# the question (a jieba token), never fuzzily, so "完美的" or "施工行业" do not become 美的集团 or 工商银行.
+# Regression queries: tests/data/alias_regression.jsonl.
+COLLOQUIAL_ALIAS_TYPE = "colloquial_alias"
+COLLOQUIAL_ALIASES: dict[str, tuple[str, tuple[str, ...]]] = {
+    "600519.SH": ("贵州茅台", ("茅子",)),
+    "000333.SZ": ("美的集团", ("美的",)),
+    "000651.SZ": ("格力电器", ("格力",)),
+    "603288.SH": ("海天味业", ("海天",)),
+    "300750.SZ": ("宁德时代", ("宁王",)),  # not "宁德": also a city
+    "002594.SZ": ("比亚迪", ("迪王",)),
+    "600036.SH": ("招商银行", ("招行",)),
+    "601398.SH": ("工商银行", ("工行",)),
+    "601939.SH": ("建设银行", ("建行",)),
+    "601288.SH": ("农业银行", ("农行",)),
+    "601988.SH": ("中国银行", ("中行",)),
+    "601628.SH": ("中国人寿", ("国寿",)),
+    "600276.SH": ("恒瑞医药", ("恒瑞",)),
+    "300760.SZ": ("迈瑞医疗", ("迈瑞",)),
+    "688981.SH": ("中芯国际", ("中芯",)),
+    "601012.SH": ("隆基绿能", ("隆基",)),
+    "600887.SH": ("伊利股份", ("伊利",)),
+    "600809.SH": ("山西汾酒", ("汾酒",)),
+    "000568.SZ": ("泸州老窖", ("老窖",)),
+    "002304.SZ": ("洋河股份", ("洋河",)),
+    "002415.SZ": ("海康威视", ("海康",)),
+    "300059.SZ": ("东方财富", ("东财",)),
+    "601888.SH": ("中国中免", ("中免",)),
+    "603259.SH": ("药明康德", ("药明",)),
+    "601857.SH": ("中国石油", ("中石油",)),
+    "600028.SH": ("中国石化", ("中石化",)),
+    "600941.SH": ("中国移动", ("中移动",)),
+    "002714.SZ": ("牧原股份", ("牧原",)),
+    "002475.SZ": ("立讯精密", ("立讯",)),
+}
+
+
+def colloquial_alias_rows(
+    entities: list[dict[str, str]], aliases: list[dict[str, str]], next_alias_id: int
+) -> list[dict[str, str]]:
+    """Alias rows for ``COLLOQUIAL_ALIASES`` that the tables do not have yet (idempotent).
+
+    A colloquial alias is skipped when its symbol is missing, when the entity's canonical name differs from the
+    expected one (the symbol was reused), or when any entity already owns the alias text.
+    """
+    by_symbol = {row["symbol"]: row for row in entities if row.get("symbol")}
+    owners = {row["normalized_alias"]: str(row["entity_id"]) for row in aliases}
+    rows: list[dict[str, str]] = []
+    for symbol, (canonical_name, texts) in COLLOQUIAL_ALIASES.items():
+        entity = by_symbol.get(symbol)
+        if entity is None or entity.get("canonical_name") != canonical_name:
+            continue
+        for text in texts:
+            if text in owners:
+                continue
+            rows.append(
+                {
+                    "alias_id": str(next_alias_id),
+                    "entity_id": str(entity["entity_id"]),
+                    "alias_text": text,
+                    "normalized_alias": text,
+                    "alias_type": COLLOQUIAL_ALIAS_TYPE,
+                    "priority": "1",
+                    "is_official": "false",
+                }
+            )
+            owners[text] = str(entity["entity_id"])
+            next_alias_id += 1
+    return rows
+
+
 @dataclass(frozen=True)
 class RuntimeEntitySummary:
     entity_count: int
@@ -376,6 +448,7 @@ class RuntimeEntityAssetBuilder:
                 alias_owner_by_normalized[normalized_alias] = entity["entity_id"]
                 next_alias_id += 1
 
+        aliases.extend(colloquial_alias_rows(entities, aliases, next_alias_id))
         entities.sort(key=lambda row: (row.get("entity_type", ""), row.get("symbol", ""), row.get("canonical_name", "")))
         aliases.sort(key=lambda row: int(row["alias_id"]))
         return entities, aliases

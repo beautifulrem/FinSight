@@ -14,15 +14,15 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "075caad",
-  "run_at": "2026-09-28T17:52:16+00:00",
+  "commit": "6c34abc",
+  "run_at": "2026-09-29T14:18:09+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 65.8,
+  "wall_seconds": 73.3,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
-  "tasks": 271,
-  "turns": 333,
+  "tasks": 285,
+  "turns": 350,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -42,15 +42,15 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.7764,
+  "tool_precision": 0.7684,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 40.49,
-  "latency_ms_p95": 523.49,
-  "latency_ms_p99": 678.29,
+  "latency_ms_p50": 43.39,
+  "latency_ms_p95": 562.03,
+  "latency_ms_p99": 1043.62,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -75,81 +75,81 @@
  },
  "by_category": {
   "clarify": {
-   "tasks": 17,
+   "tasks": 18,
    "task_success": 1.0,
-   "latency_ms_p95": 465.35
+   "latency_ms_p95": 447.48
   },
   "compare": {
    "tasks": 27,
    "task_success": 1.0,
-   "latency_ms_p95": 460.27
+   "latency_ms_p95": 732.12
   },
   "compliance": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 404.95
+   "latency_ms_p95": 773.3
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 516.63
+   "latency_ms_p95": 550.23
   },
   "fact": {
-   "tasks": 58,
+   "tasks": 65,
    "task_success": 1.0,
-   "latency_ms_p95": 554.44
+   "latency_ms_p95": 570.91
   },
   "injection": {
    "tasks": 2,
    "task_success": 1.0,
-   "latency_ms_p95": 39.77
+   "latency_ms_p95": 29.99
   },
   "macro_link": {
-   "tasks": 15,
+   "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 486.12
+   "latency_ms_p95": 568.48
   },
   "missing_data": {
-   "tasks": 32,
+   "tasks": 34,
    "task_success": 1.0,
-   "latency_ms_p95": 396.51
+   "latency_ms_p95": 524.84
   },
   "multi_turn": {
-   "tasks": 40,
+   "tasks": 42,
    "task_success": 1.0,
-   "latency_ms_p95": 544.78
+   "latency_ms_p95": 562.03
   },
   "out_of_coverage": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 560.81
+   "latency_ms_p95": 362.9
   },
   "out_of_scope": {
    "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 75.74
+   "latency_ms_p95": 74.62
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 485.62
+   "latency_ms_p95": 542.71
   },
   "why": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 567.53
+   "latency_ms_p95": 439.11
   }
  },
  "by_language": {
   "en": {
-   "tasks": 80,
+   "tasks": 84,
    "task_success": 1.0,
-   "latency_ms_p95": 611.73
+   "latency_ms_p95": 661.49
   },
   "zh": {
-   "tasks": 191,
+   "tasks": 201,
    "task_success": 1.0,
-   "latency_ms_p95": 509.76
+   "latency_ms_p95": 542.71
   }
  },
  "failed_checks": {},
@@ -425,12 +425,26 @@
   "r3b_alias_csi300_en": "1",
   "r3b_ellipsis_opening_en": "1",
   "r3b_comparison_anchor_zh": "1",
-  "r3b_comparison_anchor_en": "1"
+  "r3b_comparison_anchor_en": "1",
+  "r5_compare_it_en": "1",
+  "r5_three_of_two_zh": "1",
+  "r5_colloquial_no_data_zh": "1",
+  "r5_colloquial_moutai_zh": "1",
+  "r5_glossary_zh": "1",
+  "r5_glossary_en": "1",
+  "r5_typo_beside_metric_zh": "1",
+  "r5_persona_injection_zh": "1",
+  "r5_sector_valuation_zh": "1",
+  "r5_sector_no_snapshot_zh": "1",
+  "r5_answer_language_en": "1",
+  "r5_answer_language_zh": "1",
+  "r5_foreign_central_bank_zh": "1",
+  "r5_foreign_central_bank_en": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "7945ed5c396e546a",
-  "bytes": 815202,
-  "slimmed_at": "2026-09-28T17:52:16+00:00"
+  "sha256_16": "3a87f4c9c6d5724d",
+  "bytes": 859604,
+  "slimmed_at": "2026-09-29T14:18:09+00:00"
  }
 }

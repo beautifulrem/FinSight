@@ -1,0 +1,23 @@
+{"query": "美的和格力哪家的估值更低", "expect_symbols": ["000333.SZ", "000651.SZ"], "forbid_symbols": [], "kind": "colloquial"}
+{"query": "宁王这两天走势如何", "expect_symbols": ["300750.SZ"], "forbid_symbols": [], "kind": "colloquial"}
+{"query": "茅子的股息率高吗", "expect_symbols": ["600519.SH"], "forbid_symbols": [], "kind": "colloquial"}
+{"query": "海天的毛利率是多少", "expect_symbols": ["603288.SH"], "forbid_symbols": ["601882.SH"], "kind": "colloquial"}
+{"query": "海天精工今年业绩怎样", "expect_symbols": ["601882.SH"], "forbid_symbols": ["603288.SH"], "kind": "full_name_over_colloquial"}
+{"query": "海天味业最近有公告吗", "expect_symbols": ["603288.SH"], "forbid_symbols": ["601882.SH"], "kind": "full_name_over_colloquial"}
+{"query": "招行和工行谁的ROE高", "expect_symbols": ["600036.SH", "601398.SH"], "forbid_symbols": [], "kind": "colloquial"}
+{"query": "迪王上周涨了多少", "expect_symbols": ["002594.SZ"], "forbid_symbols": [], "kind": "colloquial"}
+{"query": "中石油的分红怎么样", "expect_symbols": ["601857.SH"], "forbid_symbols": [], "kind": "colloquial"}
+{"query": "汾酒和老窖的市盈率", "expect_symbols": ["600809.SH", "000568.SZ"], "forbid_symbols": [], "kind": "colloquial"}
+{"query": "这个结果太完美的了吧", "expect_symbols": [], "forbid_symbols": ["000333.SZ"], "kind": "fragment"}
+{"query": "价格真美的样子", "expect_symbols": [], "forbid_symbols": ["000333.SZ", "002340.SZ"], "kind": "degree_adverb"}
+{"query": "施工行业的景气度", "expect_symbols": [], "forbid_symbols": ["601398.SH"], "kind": "fragment"}
+{"query": "宁德的天气冷吗", "expect_symbols": [], "forbid_symbols": ["300750.SZ"], "kind": "city_not_company"}
+{"query": "中行动计划是什么", "expect_symbols": [], "forbid_symbols": ["601988.SH"], "kind": "fragment"}
+{"query": "贵州矛台股价多少", "expect_symbols": ["600519.SH"], "forbid_symbols": [], "kind": "typo"}
+{"query": "贵州矛台的市净率是多少", "expect_symbols": ["600519.SH"], "forbid_symbols": [], "kind": "typo_beside_metric"}
+{"query": "贵州矛台昨天收涨了吗", "expect_symbols": ["600519.SH"], "forbid_symbols": [], "kind": "typo"}
+{"query": "五梁液的ROE", "expect_symbols": ["000858.SZ"], "forbid_symbols": [], "kind": "typo_beside_metric"}
+{"query": "中国平按的市盈率", "expect_symbols": ["601318.SH"], "forbid_symbols": [], "kind": "typo_beside_metric"}
+{"query": "比亚迪和宁得时代谁更便宜", "expect_symbols": ["002594.SZ", "300750.SZ"], "forbid_symbols": [], "kind": "typo_in_list"}
+{"query": "贵州茅台与五梁液的营收对比", "expect_symbols": ["600519.SH", "000858.SZ"], "forbid_symbols": [], "kind": "typo_in_list"}
+{"query": "Is the CSI 3000 index up?", "expect_symbols": [], "forbid_symbols": ["000300.SH", "510300.SH"], "kind": "latin_no_fuzzy"}
