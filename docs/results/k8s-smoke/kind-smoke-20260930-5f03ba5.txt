@@ -1,0 +1,84 @@
+# kind smoke at 5f03ba5 (production profile with API keys), 2026-09-29T05:21:16Z
+
+[05:19:26] commit 5f03ba5 (working tree clean: yes)
+
+[05:19:26] versions: kind v0.33.0 go1.27.1 darwin/arm64 / kubectl v1.37.1
+
+[05:19:26] building finsight:smoke
+sha256:a56d063820ccc24fa31c2295072aa840cc65fffa6b14aedcd0a75586f24b81a2
+No kind clusters found.
+
+[05:19:34] creating kind cluster finsight-smoke
+Creating cluster "finsight-smoke" ...
+ • Ensuring node image (kindest/node:v1.37.0) 🖼️  ...
+ ✓ Ensuring node image (kindest/node:v1.37.0) 🖼️
+ • Preparing nodes 📦   ...
+ ✓ Preparing nodes 📦 
+ • Writing configuration 📜  ...
+ ✓ Writing configuration 📜
+ • Starting control-plane 🕹️  ...
+ ✓ Starting control-plane 🕹️
+ • Installing CNI 🔌  ...
+ ✓ Installing CNI 🔌
+ • Installing StorageClass 💾  ...
+ ✓ Installing StorageClass 💾
+ • Waiting ≤ 3m0s for control-plane = Ready ⏳  ...
+ ✓ Waiting ≤ 3m0s for control-plane = Ready ⏳
+ • Ready after 17s 💚
+Set kubectl context to "kind-finsight-smoke"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-finsight-smoke
+
+Not sure what to do next? 😅  Check out https://kind.sigs.k8s.io/docs/user/quick-start/
+
+[05:20:01] loading finsight:smoke, postgres:16-alpine and curlimages/curl:8.11.1 into the cluster
+Image: "finsight:smoke" with ID "sha256:a56d063820ccc24fa31c2295072aa840cc65fffa6b14aedcd0a75586f24b81a2" not yet present on node "finsight-smoke-control-plane", loading...
+
+[05:20:22] rendering and applying deploy/k8s-smoke (base deploy/k8s)
+   1 kind: ConfigMap
+   1 kind: Deployment
+   1 kind: HorizontalPodAutoscaler
+   1 kind: Namespace
+   2 kind: NetworkPolicy
+   1 kind: PodDisruptionBudget
+   2 kind: Service
+   1 kind: StatefulSet
+namespace/finsight created
+secret/finsight-db created
+secret/finsight-api-keys created
+namespace/finsight unchanged
+configmap/finsight-config created
+service/finsight-api created
+service/finsight-postgres created
+deployment.apps/finsight-api created
+statefulset.apps/finsight-postgres created
+poddisruptionbudget.policy/finsight-api created
+horizontalpodautoscaler.autoscaling/finsight-api created
+networkpolicy.networking.k8s.io/finsight-api created
+networkpolicy.networking.k8s.io/finsight-postgres created
+
+[05:20:23] waiting for Postgres
+Waiting for 1 pods to be ready...
+partitioned roll out complete: 1 new pods have been updated...
+
+[05:20:32] waiting for the API rollout (readinessProbe = GET /ready)
+Waiting for deployment "finsight-api" rollout to finish: 0 of 1 updated replicas are available...
+deployment "finsight-api" successfully rolled out
+
+[05:21:03] API ready after 31 s
+NAME                            READY   STATUS    RESTARTS   AGE   IP           NODE                           NOMINATED NODE   READINESS GATES
+finsight-api-5c47f6c8b5-gnmdt   1/1     Running   0          40s   10.244.0.5   finsight-smoke-control-plane   <none>           <none>
+finsight-postgres-0             1/1     Running   0          40s   10.244.0.7   finsight-smoke-control-plane   <none>           <none>
+
+[05:21:03] in-cluster checks from a finsight.io/client=true pod
+pod/smoke-client created
+pod/smoke-client condition met
+GET /ready -> 200
+{"status":"ready","duration_ms":0.4,"checks":{"checkpointer":{"ok":true,"backend":"PostgresSaver","persistent":true,"database":"postgres","pool":{"size":2,"available":2}},"model_config":{"ok":true,"llm":"not configured (deterministic agent)"},"retrieval_index":{"ok":true,"backend":"DocumentRetriever","documents":38446,"index_rows":38446,"structured_tables":5}}}
+POST /agent/chat -> 200
+{"status":"ok","session_id":"337e30e825214e9f9bf779c99d019648","trace_id":"34568ad6072846899d6168ad3a9e7ac8","run_id":"34568ad6072846899d6168ad3a9e7ac8","query":"贵州茅台的市盈率是多少","language":"zh","route":"workflow","route_reasons":["mode:workflow"],"answer":"根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 24.6，PB 8.1，
+answer status: "status":"ok"
+verification: "verification":{"passed":true
+
+[05:21:06] SMOKE OK
