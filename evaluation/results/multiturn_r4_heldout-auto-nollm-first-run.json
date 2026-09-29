@@ -1,0 +1,364 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/heldout_r4/multiturn_r4_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v3#e419eb84d58e",
+   "compose_system": "compose_system@v3#b9a704272c6d"
+  },
+  "commit": "817a2d8",
+  "run_at": "2026-09-29T14:31:47+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 31.7,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r4/multiturn_r4_heldout.jsonl --out outputs/agent_eval/multiturn_r4_heldout-first.json"
+ },
+ "summary": {
+  "tasks": 24,
+  "turns": 58,
+  "repeats": 1,
+  "task_success": 0.6667,
+  "pass^1": 0.6667,
+  "ci": {
+   "task_success": [
+    0.5,
+    0.8333
+   ],
+   "pass^1": [
+    0.5,
+    0.8333
+   ],
+   "task_success_uncited": [
+    0.5417,
+    0.875
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.7083,
+  "turn_success": 0.8103,
+  "behavior_accuracy": 0.931,
+  "fact_recall": 0.9286,
+  "fact_stated": 0.9286,
+  "tool_recall": 0.95,
+  "tool_precision": 0.7333,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 0.875,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 62.91,
+  "latency_ms_p95": 883.2,
+  "latency_ms_p99": 962.16,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "advice_after_facts": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 35.01
+  },
+  "colloquial_alias": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 305.25
+  },
+  "en_group_reference": {
+   "tasks": 1,
+   "task_success": 0.0,
+   "latency_ms_p95": 90.1
+  },
+  "en_it_compare": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 897.12
+  },
+  "fed_ashare": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 962.16
+  },
+  "finance_concept": {
+   "tasks": 2,
+   "task_success": 0.0,
+   "latency_ms_p95": 216.63
+  },
+  "language_request": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 289.89
+  },
+  "sector_valuation": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 100.37
+  },
+  "typo_name": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 154.05
+  },
+  "zh_group_mismatch": {
+   "tasks": 2,
+   "task_success": 0.0,
+   "latency_ms_p95": 77.82
+  },
+  "zh_group_reference": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 269.03
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 8,
+   "task_success": 0.625,
+   "latency_ms_p95": 609.05
+  },
+  "zh": {
+   "tasks": 16,
+   "task_success": 0.6875,
+   "latency_ms_p95": 883.2
+  }
+ },
+ "failed_checks": {
+  "facts": 4,
+  "behavior": 4,
+  "any_of_tools": 3,
+  "entities": 2,
+  "required_tools": 2,
+  "entity": 2,
+  "states_missing": 1,
+  "disclaimer": 1,
+  "language": 1
+ },
+ "failures": [
+  {
+   "task": "mt4-02",
+   "category": "en_it_compare",
+   "query": "Put it side by side with Wuliangye",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 (000858.SZ) last available close was CNY 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]."
+  },
+  {
+   "task": "mt4-03",
+   "category": "en_group_reference",
+   "query": "And the highest ROE among them?",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: 五粮液 fundamentals (period 2025-12-31, FY2025): PE(TTM) 20.9x, PB 5.4x, ROE 29.4%, revenue CNY 108.5 bn, net pr"
+  },
+  {
+   "task": "mt4-06",
+   "category": "zh_group_mismatch",
+   "query": "三家里哪家ROE最高",
+   "failed_checks": [
+    "behavior"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "您提到「三家」，但本次对话只讨论过贵州茅台和中国平安，以下按这两者比较。根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 24.6 倍，PB 8.1 倍，ROE 33%，营业收入 1688.38 亿元，净利润 823.2 亿元 [fundamental_600519"
+  },
+  {
+   "task": "mt4-07",
+   "category": "zh_group_mismatch",
+   "query": "这三家谁的净利润最高",
+   "failed_checks": [
+    "behavior"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "您提到「这三家」，但本次对话只讨论过贵州茅台和五粮液，以下按这两者比较。根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 24.6 倍，PB 8.1 倍，ROE 33%，营业收入 1688.38 亿元，净利润 823.2 亿元 [fundamental_600519"
+  },
+  {
+   "task": "mt4-09",
+   "category": "finance_concept",
+   "query": "北向资金指的是什么",
+   "failed_checks": [
+    "any_of_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "explain_concept"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：北向资金：北向资金指境外投资者通过沪股通、深股通买卖A股的资金，是沪深港通机制中从香港流入内地市场的方向；与之相对的南向资金指内地资金通过港股通买卖港股。市场常用其净买入额观察外资态度。 [glossary_北向资金]。当前数据源不包含北向资金的数据序列，因此只能给出概念说明，无法给出具体数值。"
+  },
+  {
+   "task": "mt4-09",
+   "category": "finance_concept",
+   "query": "最近北向资金是净流入还是净流出",
+   "failed_checks": [
+    "any_of_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "explain_concept"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：北向资金：北向资金指境外投资者通过沪股通、深股通买卖A股的资金，是沪深港通机制中从香港流入内地市场的方向；与之相对的南向资金指内地资金通过港股通买卖港股。市场常用其净买入额观察外资态度。 [glossary_北向资金]。当前数据源不包含北向资金的数据序列，因此只能给出概念说明，无法给出具体数值。"
+  },
+  {
+   "task": "mt4-10",
+   "category": "finance_concept",
+   "query": "两融是啥，融资融券余额上升一般说明什么",
+   "failed_checks": [
+    "any_of_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "explain_concept"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：融资融券：融资融券是券商向投资者出借资金买入证券（融资）或出借证券供其卖出（融券）的信用交易业务，俗称两融。融资余额反映用借来的钱买股的规模，融券余额反映借券做空的规模；两者合称两融余额，是常用的杠杆指标。 [glossary_融资融券]。当前数据源不包含融资融券的数据序列，因此只能给出概念说明，"
+  },
+  {
+   "task": "mt4-10",
+   "category": "finance_concept",
+   "query": "国家队最近是不是在加仓中国平安",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。"
+  },
+  {
+   "task": "mt4-15",
+   "category": "typo_name",
+   "query": "What's the P/B of Kweichow Moutia?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "disclaimer",
+    "entity"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "Which stock, fund, ETF, or index do you mean? Please give a name or ticker (e.g. 600519.SH)."
+  },
+  {
+   "task": "mt4-15",
+   "category": "typo_name",
+   "query": "and Wuliangey's?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "mt4-16",
+   "category": "language_request",
+   "query": "继续用英文，市净率呢？",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 20.9 倍，PB 5.4 倍，ROE 29.4%，营业收入 1085 亿元，净利润 378 亿元 [fundamental_000858.SZ]。所属行业 白酒：PE 27.3 倍，PB 6.2 倍，涨跌幅 -1.0"
+  }
+ ],
+ "task_outcomes": {
+  "mt4-01": "1",
+  "mt4-02": "0",
+  "mt4-03": "0",
+  "mt4-04": "1",
+  "mt4-05": "1",
+  "mt4-06": "0",
+  "mt4-07": "0",
+  "mt4-08": "1",
+  "mt4-09": "0",
+  "mt4-10": "0",
+  "mt4-11": "1",
+  "mt4-12": "1",
+  "mt4-13": "1",
+  "mt4-14": "1",
+  "mt4-15": "0",
+  "mt4-16": "0",
+  "mt4-17": "1",
+  "mt4-18": "1",
+  "mt4-19": "1",
+  "mt4-20": "1",
+  "mt4-21": "1",
+  "mt4-22": "1",
+  "mt4-23": "1",
+  "mt4-24": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/multiturn_r4_heldout-first.json",
+  "sha256_16": "0bf3a2e3e0226dc7",
+  "bytes": 171359,
+  "slimmed_at": "2026-09-29T14:32:00+00:00"
+ },
+ "notes": [
+  "first run of the independent round-4 multi-turn slice (24 conversations), mode=auto without an LLM, --no-replay, at 817a2d8"
+ ]
+}

@@ -1,0 +1,1002 @@
+{
+ "config": {
+  "claims": "evaluation/heldout_r4/claims_moves_heldout.jsonl",
+  "claims_sha256": "e70b8701d12df19eba67bd326b602003bb9a12a7c6e6339141ae134acf3055ad",
+  "set": null,
+  "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
+  "model": null,
+  "commit": "817a2d8",
+  "run_at": "2026-09-29T14:30:51+00:00",
+  "command": "python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl --out outputs/agent_eval/claim_bench-heldout_r4-first.json"
+ },
+ "claims": 67,
+ "checks": 83,
+ "verdict_accuracy": 0.7164,
+ "verdict_accuracy_ci": [
+  0.6119,
+  0.8209
+ ],
+ "check_accuracy": 0.6386,
+ "check_accuracy_ci": [
+  0.5412,
+  0.7297
+ ],
+ "comparator_accuracy": 0.4348,
+ "ci_method": "percentile bootstrap over claims, 2000 resamples, seed 20260926, 95%",
+ "verdict_confusion": {
+  "supported": {
+   "supported": 18,
+   "contradicted": 1,
+   "partially_supported": 4,
+   "unverifiable": 8
+  },
+  "contradicted": {
+   "supported": 2,
+   "contradicted": 21,
+   "partially_supported": 0,
+   "unverifiable": 3
+  },
+  "partially_supported": {
+   "supported": 1,
+   "contradicted": 0,
+   "partially_supported": 2,
+   "unverifiable": 0
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 0,
+   "unverifiable": 7
+  }
+ },
+ "check_status_confusion": {
+  "supported": {
+   "supported": 27,
+   "contradicted": 1,
+   "unverifiable": 7,
+   "missing": 2
+  },
+  "contradicted": {
+   "supported": 3,
+   "contradicted": 23,
+   "unverifiable": 0,
+   "missing": 2
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "unverifiable": 3,
+   "missing": 1
+  },
+  "extra": {
+   "supported": 2,
+   "contradicted": 9,
+   "unverifiable": 3,
+   "missing": 0
+  }
+ },
+ "by_category": {
+  "level": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "macro": {
+   "claims": 3,
+   "verdict_accuracy": 0.6667
+  },
+  "move_close_dir": {
+   "claims": 4,
+   "verdict_accuracy": 1.0
+  },
+  "move_direction": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "move_down_approx": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "move_down_gt": {
+   "claims": 9,
+   "verdict_accuracy": 0.8889
+  },
+  "move_down_lt": {
+   "claims": 3,
+   "verdict_accuracy": 0.0
+  },
+  "move_industry": {
+   "claims": 2,
+   "verdict_accuracy": 0.0
+  },
+  "move_multi": {
+   "claims": 6,
+   "verdict_accuracy": 0.8333
+  },
+  "move_multi_target": {
+   "claims": 1,
+   "verdict_accuracy": 0.0
+  },
+  "move_range": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "move_up_gt": {
+   "claims": 5,
+   "verdict_accuracy": 0.8
+  },
+  "move_up_lt": {
+   "claims": 3,
+   "verdict_accuracy": 0.6667
+  },
+  "move_vague": {
+   "claims": 4,
+   "verdict_accuracy": 0.75
+  },
+  "move_widen": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "no_data": {
+   "claims": 6,
+   "verdict_accuracy": 1.0
+  },
+  "relational": {
+   "claims": 5,
+   "verdict_accuracy": 0.4
+  },
+  "relational_industry": {
+   "claims": 2,
+   "verdict_accuracy": 0.0
+  },
+  "relational_move": {
+   "claims": 3,
+   "verdict_accuracy": 0.3333
+  },
+  "x_earnings": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  }
+ },
+ "by_language": {
+  "en": {
+   "claims": 17,
+   "verdict_accuracy": 0.5882
+  },
+  "zh": {
+   "claims": 50,
+   "verdict_accuracy": 0.76
+  }
+ },
+ "errors": [
+  {
+   "id": "r4c002",
+   "category": "move_down_lt",
+   "claim": "茅台最近一个交易日跌了不到0.5%",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "range",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "lt",
+      "status": "unverifiable",
+      "claimed": -0.5,
+      "actual": null,
+      "note": "a multi-day move; only the latest daily change is available"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c005",
+   "category": "move_vague",
+   "claim": "茅台4月22日大跌",
+   "expected_verdict": "contradicted",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "le",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "lt",
+      "status": "supported",
+      "claimed": 0.0,
+      "actual": -0.1778,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c007",
+   "category": "move_down_gt",
+   "claim": "Kweichow Moutai fell more than 0.1% on April 22",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "贵州茅台",
+     "metric": "pct_change_1d",
+     "claimed": 22.0,
+     "claimed_high": null,
+     "claimed_unit": null,
+     "comparator": "eq",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": -0.1778,
+     "status": "contradicted",
+     "reason": null,
+     "evidence_id": "price_600519.SH",
+     "source": "tushare",
+     "as_of": "2026-04-22",
+     "as_of_basis": "trade_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c008",
+   "category": "move_direction",
+   "claim": "Moutai rose less than 1% on April 22",
+   "expected_verdict": "contradicted",
+   "verdict": "contradicted",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "贵州茅台",
+     "metric": "pct_change_1d",
+     "claimed": 22.0,
+     "claimed_high": null,
+     "claimed_unit": null,
+     "comparator": "eq",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": -0.1778,
+     "status": "contradicted",
+     "reason": null,
+     "evidence_id": "price_600519.SH",
+     "source": "tushare",
+     "as_of": "2026-04-22",
+     "as_of_basis": "trade_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c012",
+   "category": "move_down_gt",
+   "claim": "Moutai was down over 0.5% on April 22",
+   "expected_verdict": "contradicted",
+   "verdict": "contradicted",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "贵州茅台",
+     "metric": "pct_change_1d",
+     "claimed": 22.0,
+     "claimed_high": null,
+     "claimed_unit": null,
+     "comparator": "eq",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": -0.1778,
+     "status": "contradicted",
+     "reason": null,
+     "evidence_id": "price_600519.SH",
+     "source": "tushare",
+     "as_of": "2026-04-22",
+     "as_of_basis": "trade_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c014",
+   "category": "move_down_lt",
+   "claim": "五粮液最近一个交易日跌了不到1%",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "range",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "lt",
+      "status": "unverifiable",
+      "claimed": -1.0,
+      "actual": null,
+      "note": "a multi-day move; only the latest daily change is available"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c016",
+   "category": "move_down_gt",
+   "claim": "Wuliangye was down over 2% on April 22",
+   "expected_verdict": "contradicted",
+   "verdict": "contradicted",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "五粮液",
+     "metric": "pct_change_1d",
+     "claimed": 22.0,
+     "claimed_high": null,
+     "claimed_unit": null,
+     "comparator": "eq",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": -0.5337,
+     "status": "contradicted",
+     "reason": null,
+     "evidence_id": "price_000858.SZ",
+     "source": "tushare",
+     "as_of": "2026-04-22",
+     "as_of_basis": "trade_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c019",
+   "category": "move_down_lt",
+   "claim": "Wuliangye fell less than half a percent on April 22",
+   "expected_verdict": "contradicted",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "range",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "lt",
+      "status": "supported",
+      "claimed": 22.0,
+      "actual": -0.5337,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c026",
+   "category": "move_up_lt",
+   "claim": "Ping An rose less than 1% on April 22",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "中国平安",
+     "metric": "pct_change_1d",
+     "claimed": 22.0,
+     "claimed_high": null,
+     "claimed_unit": null,
+     "comparator": "eq",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": 0.73,
+     "status": "contradicted",
+     "reason": null,
+     "evidence_id": "price_601318.SH",
+     "source": "seed",
+     "as_of": "2026-04-22",
+     "as_of_basis": "trade_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c028",
+   "category": "move_multi",
+   "claim": "Ping An closed up about 0.7% at 53.61 yuan on April 22",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "中国平安",
+     "metric": "pct_change_1d",
+     "claimed": 22.0,
+     "claimed_high": null,
+     "claimed_unit": null,
+     "comparator": "eq",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": 0.73,
+     "status": "contradicted",
+     "reason": null,
+     "evidence_id": "price_601318.SH",
+     "source": "seed",
+     "as_of": "2026-04-22",
+     "as_of_basis": "trade_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c030",
+   "category": "move_down_gt",
+   "claim": "Ping An fell more than 0.5% on April 22",
+   "expected_verdict": "contradicted",
+   "verdict": "contradicted",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "中国平安",
+     "metric": "pct_change_1d",
+     "claimed": 22.0,
+     "claimed_high": null,
+     "claimed_unit": null,
+     "comparator": "eq",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": 0.73,
+     "status": "contradicted",
+     "reason": null,
+     "evidence_id": "price_601318.SH",
+     "source": "seed",
+     "as_of": "2026-04-22",
+     "as_of_basis": "trade_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c033",
+   "category": "move_down_gt",
+   "claim": "The CSI 300 index fell more than 0.3% on April 22",
+   "expected_verdict": "contradicted",
+   "verdict": "contradicted",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "沪深300",
+     "metric": "pct_change_1d",
+     "claimed": 22.0,
+     "claimed_high": null,
+     "claimed_unit": null,
+     "comparator": "eq",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": 0.42,
+     "status": "contradicted",
+     "reason": null,
+     "evidence_id": "price_000300.SH",
+     "source": "seed",
+     "as_of": "2026-04-22",
+     "as_of_basis": "trade_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c037",
+   "category": "move_up_gt",
+   "claim": "The ChiNext ETF 159915 was up more than 0.8% on April 22",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "创业板ETF",
+     "metric": "pct_change_1d",
+     "claimed": 22.0,
+     "claimed_high": null,
+     "claimed_unit": null,
+     "comparator": "eq",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": 0.86,
+     "status": "contradicted",
+     "reason": null,
+     "evidence_id": "price_159915.SZ",
+     "source": "seed",
+     "as_of": "2026-04-22",
+     "as_of_basis": "trade_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c041",
+   "category": "move_industry",
+   "claim": "白酒板块最近一个交易日跌超1%",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "le",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "gt",
+      "status": "unverifiable",
+      "claimed": -1.0,
+      "actual": null,
+      "note": "a multi-day move; only the latest daily change is available"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c042",
+   "category": "move_industry",
+   "claim": "保险板块4月22日涨幅不到1%",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "range",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "lt",
+      "status": "unverifiable",
+      "claimed": 1.0,
+      "actual": null,
+      "note": "no listed company, fund or index"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c043",
+   "category": "move_multi_target",
+   "claim": "茅台和五粮液4月22日都跌超0.5%",
+   "expected_verdict": "partially_supported",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "le",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "gt",
+      "status": "supported",
+      "claimed": -0.5,
+      "actual": -0.5337,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    },
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "le",
+      "status": "supported"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c045",
+   "category": "relational_move",
+   "claim": "4月22日五粮液的跌幅大约是茅台的三倍",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "approx",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "approx",
+      "status": "unverifiable",
+      "claimed": -3.0,
+      "actual": null,
+      "note": "the unit '倍' does not fit pct_change_1d"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c046",
+   "category": "relational_move",
+   "claim": "On April 22 Ping An outperformed the CSI 300 index",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "gt",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": "eq",
+      "status": "unverifiable",
+      "claimed": 22.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c047",
+   "category": "move_widen",
+   "claim": "五粮液跌幅较前一交易日进一步扩大",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "gt",
+      "status": "unverifiable"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c053",
+   "category": "relational",
+   "claim": "茅台的市净率大约是五粮液的1.5倍",
+   "expected_verdict": "supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pb",
+      "comparator": "approx",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pb",
+      "comparator": "approx",
+      "status": "contradicted",
+      "claimed": 1.5,
+      "actual": 5.4,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c054",
+   "category": "relational",
+   "claim": "中国平安2025年净利润是五粮液的三倍多",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "net_profit",
+      "comparator": "gt",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "net_profit",
+      "comparator": "eq",
+      "status": "unverifiable",
+      "claimed": 3.0,
+      "actual": null,
+      "note": "the unit '倍' does not fit net_profit"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c055",
+   "category": "relational",
+   "claim": "五粮液2025年营收超过了茅台",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "revenue",
+      "comparator": "gt",
+      "status": "contradicted"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c056",
+   "category": "relational_industry",
+   "claim": "Moutai's P/E is above the baijiu industry average",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "gt",
+      "status": "contradicted"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c057",
+   "category": "relational_industry",
+   "claim": "按市盈率看，中国平安比保险行业整体便宜",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "lt",
+      "status": "supported"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c059",
+   "category": "macro",
+   "claim": "最新CPI同比上涨0.8%",
+   "expected_verdict": "supported",
+   "verdict": "supported",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "CPI 同比",
+     "metric": "cpi_yoy",
+     "claimed": 0.8,
+     "claimed_high": null,
+     "claimed_unit": "%",
+     "comparator": "eq",
+     "negated": false,
+     "direction": "up",
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": 0.8,
+     "status": "supported",
+     "reason": null,
+     "evidence_id": "macro_CPI_CN",
+     "source": "离线快照",
+     "as_of": "2026-03-31",
+     "as_of_basis": "indicator_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c060",
+   "category": "macro",
+   "claim": "3月制造业PMI跌破荣枯线",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [],
+   "extra_checks": []
+  },
+  {
+   "id": "r4c061",
+   "category": "macro",
+   "claim": "China's 10-year government bond yield is around 2.3%",
+   "expected_verdict": "supported",
+   "verdict": "supported",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "China 10Y government bond yield",
+     "metric": "cn10y",
+     "claimed": 2.3,
+     "claimed_high": null,
+     "claimed_unit": "%",
+     "comparator": "approx",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": 2.31,
+     "status": "supported",
+     "reason": null,
+     "evidence_id": "macro_CN10Y",
+     "source": "离线快照",
+     "as_of": "2026-03-31",
+     "as_of_basis": "indicator_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c062",
+   "category": "no_data",
+   "claim": "北向资金4月22日净流入超过100亿元",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": null,
+     "metric": null,
+     "claimed": 100.0,
+     "claimed_high": null,
+     "claimed_unit": "亿元",
+     "comparator": "gt",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "as_of_basis": null,
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "r4c063",
+   "category": "no_data",
+   "claim": "美联储降息后，A股第二天普遍涨超2%",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": null,
+     "metric": "pct_change_1d",
+     "claimed": 2.0,
+     "claimed_high": null,
+     "claimed_unit": "%",
+     "comparator": "gt",
+     "negated": false,
+     "direction": "up",
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_target",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "as_of_basis": null,
+     "note": "no listed company, fund or index"
+    }
+   ]
+  },
+  {
+   "id": "r4c066",
+   "category": "no_data",
+   "claim": "两融余额已经突破2万亿元",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": null,
+     "metric": null,
+     "claimed": 2.0,
+     "claimed_high": null,
+     "claimed_unit": "万亿",
+     "comparator": "gt",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "as_of_basis": null,
+     "note": "metric not recognised"
+    }
+   ]
+  }
+ ]
+}
