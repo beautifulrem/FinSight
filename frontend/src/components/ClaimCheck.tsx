@@ -32,7 +32,7 @@ import { checkEvidence, claimedText, formatClaimValue, noteText, statusCounts, t
 import { cn } from "@/lib/cn";
 import { humanizeCode } from "@/lib/codes";
 import { evidenceFreshness } from "@/lib/freshness";
-import { sourceTypeLabel, useI18n, type MessageKey } from "@/lib/i18n";
+import { sourceNameLabel, sourceTypeLabel, useI18n, type MessageKey } from "@/lib/i18n";
 import type { ClaimCheckItem, ClaimReport, ClaimStatus, ClaimVerdict } from "@/lib/types";
 
 import { AsOf } from "./Freshness";
@@ -91,7 +91,9 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
   const hasActual = check.actual !== null && check.actual !== undefined;
   const name = targetName(lang, report);
   const claimed = claimedText(lang, t, check, report.claim, name);
-  const source = evidence?.source_name || (evidence ? sourceTypeLabel(lang, evidence.source_type) : null);
+  const source =
+    sourceNameLabel(lang, evidence?.provenance ?? null, evidence?.source_name) ||
+    (evidence ? sourceTypeLabel(lang, evidence.source_type) : null);
   return (
     <li
       className={cn("claim-check rounded-xl border border-l-4 border-line bg-surface p-3.5 sm:p-4", spec.edge)}

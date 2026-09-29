@@ -25,6 +25,7 @@ from .coverage import (
     requested_metrics,
     requested_price_fields,
 )
+from .names import english_display
 
 _MAX_DOCS_PER_TOOL = 3
 
@@ -162,11 +163,18 @@ def compose_template(
         missing = failed_target_statements(query, tool_log, zh=zh, names=names) if query else []
         if missing or gaps:
             answer += separator + separator.join([*gaps, *missing])
+    limitations = list(dict.fromkeys([*gaps, *limitations]))
+    key_points = facts[:8]
+    if not zh:
+        # English answers name targets and industries in English ("Kweichow Moutai", "baijiu"), not 贵州茅台/白酒.
+        answer = english_display(answer)
+        key_points = [english_display(point) for point in key_points]
+        limitations = [english_display(item) for item in limitations]
     return {
         "answer": answer,
-        "key_points": facts[:8],
+        "key_points": key_points,
         "evidence_used": evidence_used,
-        "limitations": list(dict.fromkeys([*gaps, *limitations])),
+        "limitations": limitations,
     }
 
 
