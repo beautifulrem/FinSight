@@ -58,6 +58,9 @@ QUESTION_BOUNDARY_CHARS = set("哪谁怎吗么该能好更不")
 COLLOQUIAL_ALIAS_TYPE = "colloquial_alias"
 # Degree adverbs ("挺美的", "很美的", "太美的"): a colloquial alias right after one is used as an adjective.
 DEGREE_ADVERB_CHARS = set("很挺真太好多更最超蛮怪够极")
+# Grammatical particles and question words: a fuzzy window that differs from an alias at one of these is part of the
+# sentence, not a misspelt name.
+PARTICLE_CHARS = set("是的了吗呢么吧啊呀有在和与及或也都就还没不要会能该多少几谁哪什怎")
 
 
 class _WordBoundaries:
@@ -223,9 +226,12 @@ class EntityResolver:
         """
         masked = query
         for entity in found:
-            mention = str(entity.get("mention") or "")
-            if mention:
-                masked = masked.replace(mention, " " * len(mention))
+            # the mention may be a ticker ("510300.SH") while the name is written too ("沪深300ETF (510300.SH)")
+            for text in sorted(
+                {str(entity.get("mention") or ""), str(entity.get("canonical_name") or "")}, key=len, reverse=True
+            ):
+                if text:
+                    masked = masked.replace(text, " " * len(text))
         if not masked.strip():
             return [], []
         resolved: list[dict] = []
@@ -379,6 +385,8 @@ class EntityResolver:
                 continue
             if self._splits_a_word(query, best_match):
                 continue
+            if self._substitutes_a_particle(best_match["text"], alias):
+                continue
             ml_score = self.typo_linker.predict_probability(query=query, mention=best_match["text"], alias=alias, heuristic_score=best_match["score"]) if self.typo_linker else best_match["score"]
             threshold = 0.72 if len(alias) <= 4 else 0.62
             if ml_score < threshold:
@@ -435,6 +443,17 @@ class EntityResolver:
         starts = {span_start for span_start, _span_end in spans}
         ends = {span_end for _span_start, span_end in spans}
         return start not in starts or end not in ends
+
+    @staticmethod
+    def _substitutes_a_particle(text: str, alias: str) -> bool:
+        """A window that differs from the alias only where it has a grammatical particle is not a typo'd name.
+
+        "最新PMI数据是多少": the window "数据是" is one edit from 数据港, but the edited character is the sentence's
+        own "是". A typo replaces a character of the name ("贵州矛台"), not with a particle of the question.
+        """
+        if len(text) != len(alias):
+            return False
+        return any(mine != theirs and mine in PARTICLE_CHARS for mine, theirs in zip(text, alias, strict=True))
 
     def _candidate_fuzzy_aliases(self, query: str, query_has_product_term: bool) -> list[str]:
         if len(self._alias_rows_by_normalized) <= 5_000:
@@ -519,7 +538,9 @@ class EntityResolver:
             return False
         previous_char = query[start - 1] if start > 0 else ""
         next_text = query[end : end + 2]
-        if previous_char and self._is_cjk_char(previous_char) and next_text not in SECTOR_CONTEXT_SUFFIXES:
+        # "影响保险公司利润", "看好银行股": a sector word followed by a company/stock noun is the sector
+        sector_context = next_text in SECTOR_CONTEXT_SUFFIXES or next_text in {"公司", "企业"} or next_text[:1] == "股"
+        if previous_char and self._is_cjk_char(previous_char) and not sector_context:
             return True
         return False
 
