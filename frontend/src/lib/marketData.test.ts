@@ -1,5 +1,5 @@
 import { formatKpi } from "./format";
-import { marketDataFromAgent, marketDataFromClassic } from "./marketData";
+import { marketDataFromAgent, marketDataFromClassic, selectKpis } from "./marketData";
 import type { AgentResponse, ClassicResponse } from "./types";
 
 describe("marketDataFromClassic", () => {
@@ -109,5 +109,49 @@ describe("marketDataFromAgent", () => {
       const amount = marketDataFromAgent(response).kpis.find((kpi) => kpi.label === "kpi.amount");
       expect(formatKpi("zh", amount!.value, amount!.format)).toBe("37.94 亿");
     }
+  });
+});
+
+describe("selectKpis (C18: compare answers)", () => {
+  const company = (symbol: string, name: string, pe: number): AgentResponse["evidence_sources"] => [
+    {
+      evidence_id: `price_${symbol}`,
+      source_type: "market_api",
+      payload: { symbol, name, close: 100, pct_change_1d: 1, high: 101, low: 99, amount: 5e9, amount_unit: "CNY" },
+    },
+    // fundamentals payloads may carry only the metrics: the tiles are named from the evidence id
+    { evidence_id: `fundamental_${symbol}`, source_type: "fundamental_sql", payload: { pe_ttm: pe, pb: 5, roe: 30, revenue: 1e11 } },
+  ];
+
+  it("gives every compared company the same tiles", () => {
+    const response = {
+      status: "ok",
+      session_id: "s",
+      evidence_sources: [
+        ...company("600519.SH", "贵州茅台", 24.6)!,
+        ...company("000858.SZ", "五粮液", 20.9)!,
+        { evidence_id: "industry_白酒", source_type: "industry_sql", payload: { industry_name: "白酒", pe: 27.3 } },
+      ],
+    } as AgentResponse;
+    const tiles = selectKpis(marketDataFromAgent(response).kpis, 8);
+
+    expect(tiles.map((kpi) => `${kpi.subject}:${kpi.label}`)).toEqual([
+      "贵州茅台:kpi.close",
+      "贵州茅台:kpi.change",
+      "贵州茅台:kpi.pe",
+      "贵州茅台:kpi.pb",
+      "五粮液:kpi.close",
+      "五粮液:kpi.change",
+      "五粮液:kpi.pe",
+      "五粮液:kpi.pb",
+    ]);
+  });
+
+  it("keeps the order for one company", () => {
+    const response = { status: "ok", session_id: "s", evidence_sources: company("600519.SH", "贵州茅台", 24.6) } as AgentResponse;
+    const kpis = marketDataFromAgent(response).kpis;
+
+    expect(selectKpis(kpis, 8)).toEqual(kpis.slice(0, 8));
+    expect(kpis.every((kpi) => kpi.subject === "贵州茅台")).toBe(true);
   });
 });

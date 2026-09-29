@@ -99,3 +99,17 @@ def test_nlu_summary_names_carry_the_english_alias(client):
     body = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"}).json()
 
     assert body["nlu_summary"]["entities"][0]["name_en"] == "Kweichow Moutai"
+
+
+def test_workflow_nlu_entities_carry_the_english_alias(client, monkeypatch):
+    import query_intelligence.api.app as app_module
+
+    monkeypatch.setattr(
+        app_module,
+        "build_chatbot_response",
+        lambda **kwargs: {"answer": "legacy", "nlu_result": kwargs["pipeline_result"]["nlu_result"]},
+    )
+
+    body = client.post("/chat", json={"query": "贵州茅台和五粮液对比一下"}).json()
+
+    assert [entity["name_en"] for entity in body["nlu_result"]["entities"]] == ["Kweichow Moutai", "Wuliangye"]

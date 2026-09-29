@@ -67,8 +67,19 @@ export function formatClaimValue(
       return side === "claimed" ? `${trim(value, 1)}%` : formatKpi(lang, value, "percentLevel");
     case "revenue_yoy":
     case "netprofit_yoy":
-      // Growth is in percent on both sides ("同比增长16%", revenue_yoy 1.47).
+    case "cpi_yoy":
+    case "ppi_yoy":
+    case "m2_yoy":
+    case "gdp_yoy":
+      // Growth is in percent on both sides ("同比增长16%", revenue_yoy 1.47, CPI YoY 0.8).
       return formatKpi(lang, value, "percent");
+    case "cn10y":
+    case "lpr_1y":
+    case "lpr_5y":
+      // A rate level: "2.31%", no sign.
+      return `${trim(value)}%`;
+    case "pmi":
+      return trim(value, 1);
     case "eps":
       return `${trim(value)} ${t("claim.unit.yuan")}`;
     case "revenue":
@@ -85,26 +96,54 @@ export function formatClaimValue(
 
 const SYMBOLS: Record<ClaimComparator, string> = { eq: "", ne: "≠", gt: ">", ge: "≥", lt: "<", le: "≤", approx: "≈", range: "" };
 
+const BOUNDS = new Set<ClaimComparator>(["gt", "ge", "lt", "le", "range"]);
+
 /**
  * The claimed side of a check with its comparator: "> 30%", "≠ 15 倍", "≈ 25 倍", "20 – 30 倍", "< 0%".
- * `label` is the same in words for screen readers ("高于 30%").
+ * A bound on a move is about its size in the stated direction: "跌超1%" is "跌幅 > 1%" ("Fall > 1%"), not
+ * "> -1%". A relation ("茅台PE比五粮液高") is "> 五粮液", with the other side's value in `detail`.
+ * `label` is the same in words for screen readers ("高于 30%", "跌幅高于 1%").
  */
 export function claimedText(
   lang: Lang,
   t: Translate,
   check: ClaimCheckItem,
   claim = "",
-): { text: string; label: string } {
+  name: (value: string) => string = (value) => value,
+): { text: string; label: string; detail?: string } {
   const value = (number: number) => formatClaimValue(lang, t, check.metric, number, "claimed", claim, check.claimed_unit);
   const comparator = check.comparator ?? "eq";
+  const symbol = SYMBOLS[comparator] || "=";
+  if (check.claimed === null || check.claimed === undefined) {
+    const reference = check.reference ? name(check.reference) : t("claim.unknownTarget");
+    const detail =
+      check.reference_value !== null && check.reference_value !== undefined
+        ? `${reference} ${formatClaimValue(lang, t, check.metric, check.reference_value, "actual")}`
+        : undefined;
+    const word = t(`claim.cmp.${comparator}` as MessageKey);
+    return { text: `${symbol} ${reference}`, label: `${word} ${reference}`, detail };
+  }
+  if (check.direction && BOUNDS.has(comparator)) {
+    const move = t(`claim.move.${check.direction}` as MessageKey);
+    const size = (number: number) => value(Math.abs(number)).replace(/^\+/, "");
+    const gap = lang === "zh" ? "" : " ";
+    if (comparator === "range" && check.claimed_high !== null && check.claimed_high !== undefined) {
+      const [low, high] = [Math.abs(check.claimed), Math.abs(check.claimed_high)].sort((a, b) => a - b) as [number, number];
+      const span = `${size(low)} – ${size(high)}`;
+      const word = t(check.negated ? "claim.cmp.outside" : "claim.cmp.range");
+      return { text: `${move} ${check.negated ? "∉ " : ""}${span}`, label: `${move}${gap}${word} ${span}` };
+    }
+    const bound = size(check.claimed);
+    const word = t(`claim.cmp.${comparator}` as MessageKey);
+    return { text: `${move} ${SYMBOLS[comparator]} ${bound}`, label: `${move}${gap}${word} ${bound}` };
+  }
   if (comparator === "range" && check.claimed_high !== null && check.claimed_high !== undefined) {
     const span = `${value(check.claimed)} – ${value(check.claimed_high)}`;
     const word = t(check.negated ? "claim.cmp.outside" : "claim.cmp.range");
     return { text: check.negated ? `∉ ${span}` : span, label: `${word} ${span}` };
   }
   const text = value(check.claimed);
-  const symbol = SYMBOLS[comparator] ?? "";
-  if (!symbol) return { text, label: text };
+  if (!SYMBOLS[comparator]) return { text, label: text };
   return { text: `${symbol} ${text}`, label: `${t(`claim.cmp.${comparator}` as MessageKey)} ${text}` };
 }
 
@@ -124,6 +163,7 @@ const REASONS: Record<ClaimReason, MessageKey> = {
   forecast: "claim.note.forecast",
   period_mismatch: "claim.note.periodMismatch",
   multi_day: "claim.note.multiDay",
+  no_reference: "claim.note.noReference",
 };
 
 /** The checker's reason (or English note), localised; unknown notes are shown as written. */
@@ -140,8 +180,9 @@ export function noteText(t: Translate, note: string | null | undefined, check?: 
 // "听说茅台市盈率只有15倍，是真的吗": a hearsay cue or a "is it true" question around a number or a move.
 const CLAIM_CUE =
   /听说|据说|传言|传闻|有人说|网上说|听人说|据传|号称|是真的吗|真的吗|是真的么|对吗|对不对|是不是真的|属实|靠谱吗|\bis it true\b|\bi heard\b|\bsomeone said\b|\brumou?r\b|\bis (?:that|this) (?:true|right)\b/i;
+// Mirrors query_intelligence/agent/hearsay.py, which checks the claim for the answer's inline fact check.
 const CLAIM_CONTENT =
-  /\d|[一二两三四五六七八九十]+(?:点[〇零一二三四五六七八九]+)?(?:倍|成|%|元|亿)|涨了|跌了|大涨|大跌|涨停|跌停|\b(?:rose|fell)\b/i;
+  /\d|[一二两三四五六七八九十]+(?:点[〇零一二三四五六七八九]+)?(?:倍|成|%|元|亿)|涨了|跌了|大涨|大跌|涨停|跌停|比.{1,12}(?:高|低|贵|便宜|多|少)|高于|低于|\b(?:rose|fell|higher than|lower than)\b/i;
 const LEADING_CUE = /^\s*(?:我)?(?:听说|据说|传言|传闻|有人说|网上说|听人说|据传|I heard(?: that)?|someone said(?: that)?|is it true(?: that)?)[，,：:\s]*/i;
 const TRAILING_QUESTION =
   /[，,。\s]*(?:这|这个|这话|这是)?(?:是真的吗|真的吗|是真的么|对吗|对不对|是不是真的|属实吗?|靠谱吗|,?\s*is (?:that|this|it) (?:true|right))?\s*[？?！!。.]*\s*$/i;
@@ -155,6 +196,16 @@ export function claimInMessage(message: string): string | null {
   if (text.length < 4 || !CLAIM_CUE.test(text) || !CLAIM_CONTENT.test(text)) return null;
   const claim = text.replace(LEADING_CUE, "").replace(TRAILING_QUESTION, "").trim();
   return claim.length >= 2 ? claim : null;
+}
+
+/** Chinese target name → the English name the server gave (`targets[].name_en`), for the English UI. */
+export function targetName(lang: Lang, report: ClaimReport): (name: string) => string {
+  if (lang !== "en") return (name) => name;
+  const names = new Map<string, string>();
+  for (const target of report.targets ?? []) {
+    if (target.name && target.name_en) names.set(target.name, target.name_en);
+  }
+  return (name) => names.get(name) ?? name;
 }
 
 export function statusCounts(report: ClaimReport): Record<ClaimStatus, number> {
@@ -171,7 +222,15 @@ export function checkEvidence(check: ClaimCheckItem, report: ClaimReport): Evide
   return {
     evidence_id: id,
     kind: "structured",
-    source_type: id.startsWith("price_") ? "market_api" : id.startsWith("fundamental_") ? "fundamental_sql" : null,
+    source_type: id.startsWith("price_")
+      ? "market_api"
+      : id.startsWith("fundamental_")
+        ? "fundamental_sql"
+        : id.startsWith("macro_")
+          ? "macro_sql"
+          : id.startsWith("industry_")
+            ? "industry_sql"
+            : null,
     source_name: check.source ?? listed?.source_name ?? null,
     title: listed?.title ?? null,
     as_of: check.as_of ?? listed?.as_of ?? null,

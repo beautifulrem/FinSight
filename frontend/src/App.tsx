@@ -259,7 +259,8 @@ export default function App() {
               tabIndex={-1}
               className="grid min-h-0 flex-1 outline-none lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]"
             >
-              <main className="flex min-h-0 flex-col" hidden={view !== "chat"}>
+              {/* One main landmark: whichever view is shown (a role switch keeps both views mounted). */}
+              <div role={view === "chat" ? "main" : undefined} className="chat-main flex min-h-0 flex-col" hidden={view !== "chat"}>
                 <div ref={scroller} onScroll={onScroll} className="scrollbar-thin relative min-h-0 flex-1 overflow-y-auto">
                   <div id="chat-messages" className="mx-auto w-full max-w-3xl space-y-6 px-3 py-5 sm:px-5 sm:py-8" aria-live="polite">
                     {empty ? (
@@ -281,6 +282,7 @@ export default function App() {
                             turn={item}
                             view={views.get(item.id) ?? null}
                             isLast={item.id === lastTurn?.id}
+                            number={turns.indexOf(item) + 1}
                             activeEvidence={inspect.turnId === item.id ? inspect.highlight : null}
                             themeKey={dark ? "dark" : "light"}
                             onCite={onCite}
@@ -311,7 +313,7 @@ export default function App() {
                   />
                   <p className="risk-footer mt-1.5 text-center text-[11.5px] text-faint">{t("disclaimer.footer")}</p>
                 </div>
-              </main>
+              </div>
               <aside
                 className="hidden min-h-0 border-l border-line bg-surface/60 p-4 lg:block"
                 aria-label={t("inspector.title")}
@@ -320,9 +322,13 @@ export default function App() {
               </aside>
             </Tabs.Content>
             <Tabs.Content value="check" forceMount hidden={view !== "check"} tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
-              <main className="scrollbar-thin min-h-0 flex-1 overflow-y-auto" hidden={view !== "check"}>
+              <div
+                role={view === "check" ? "main" : undefined}
+                className="check-main scrollbar-thin min-h-0 flex-1 overflow-y-auto"
+                hidden={view !== "check"}
+              >
                 <ClaimCheckView ref={claimView} apiKey={apiKey} />
-              </main>
+              </div>
             </Tabs.Content>
           </div>
           </Tabs.Root>

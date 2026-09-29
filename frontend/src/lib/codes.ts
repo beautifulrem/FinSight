@@ -85,6 +85,14 @@ const METRICS: Record<string, Text> = {
   market_cap: { zh: "总市值", en: "Market cap" },
   eps: { zh: "每股收益", en: "EPS" },
   debt_ratio: { zh: "资产负债率", en: "Debt-to-assets" },
+  cpi_yoy: { zh: "CPI 同比", en: "CPI (YoY)" },
+  ppi_yoy: { zh: "PPI 同比", en: "PPI (YoY)" },
+  pmi: { zh: "制造业 PMI", en: "Manufacturing PMI" },
+  m2_yoy: { zh: "M2 同比", en: "M2 (YoY)" },
+  cn10y: { zh: "10 年期国债收益率", en: "10Y government bond yield" },
+  lpr_1y: { zh: "1 年期 LPR", en: "1-year LPR" },
+  lpr_5y: { zh: "5 年期以上 LPR", en: "5-year LPR" },
+  gdp_yoy: { zh: "GDP 同比", en: "GDP (YoY)" },
 };
 
 const ANSWER_SOURCES: Record<string, Text> = {

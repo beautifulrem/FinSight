@@ -275,11 +275,20 @@ def create_app(
             _elapsed_seconds(answer_started_at),
             llm_status.get("status", "unknown"),
         )
+        _add_english_names(response.get("nlu_result"))
         fact_check = _inline_fact_check(query)
         if fact_check:
             response["fact_check"] = fact_check
         logger.info("[chat] Completed request in %s", _elapsed_seconds(request_started_at))
         return response
+
+    def _add_english_names(nlu: Any) -> None:
+        """The English UI shows "Kweichow Moutai" for 贵州茅台: ``name_en`` from the alias table."""
+        from ..agent.names import english_name
+
+        for entity in (nlu or {}).get("entities") or [] if isinstance(nlu, dict) else []:
+            if isinstance(entity, dict) and "name_en" not in entity:
+                entity["name_en"] = english_name(entity.get("canonical_name"), entity.get("symbol"))
 
     def _inline_fact_check(query: str) -> dict | None:
         """ "听说茅台市盈率只有15倍，是真的吗": the claim checked against the data, as the agent path does."""
