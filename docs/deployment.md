@@ -152,3 +152,17 @@ On 2026-09-26, k3s v1.35 in colima (4 vCPU, 8 GB):
 
 The scale test changes the deployment for the measurement (live data off, rate limit off, HPA pinned).
 Re-apply `kubectl apply -k deploy/k8s` afterwards to restore the defaults.
+
+### Smoke test on kind (CI job `k8s-smoke`)
+
+[`deploy/k8s-smoke/smoke.sh`](../deploy/k8s-smoke/smoke.sh) applies the real kustomization to a throwaway kind
+cluster. It goes through the [`deploy/k8s-smoke`](../deploy/k8s-smoke/kustomization.yaml) overlay: one API
+replica, HPA minimum 1, live data sources off. The script creates a test Secret with a random password and
+loads every image from the host, so the node pulls nothing. It waits for Postgres and for the API rollout,
+which is gated by the readinessProbe `GET /ready`. Then a pod labelled `finsight.io/client=true` checks
+`/ready` (checkpointer ok) and gets one verified `/agent/chat` answer. kindnetd enforces NetworkPolicy, so
+the policies are exercised too. CI runs it on every push with the image built from that commit (kind pinned
+by checksum). A local run is recorded in
+[`results/k8s-smoke/kind-smoke-20260929-e095837.txt`](results/k8s-smoke/kind-smoke-20260929-e095837.txt).
+
+    IMAGE=finsight:$(git rev-parse --short=7 HEAD) deploy/k8s-smoke/smoke.sh   # KEEP=1 keeps the cluster
