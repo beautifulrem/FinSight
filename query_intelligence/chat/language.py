@@ -35,7 +35,30 @@ def answer_matches_language(output: dict[str, Any], query: str) -> bool:
 _ACRONYM = re.compile(r"(?<![A-Za-z])(?:[A-Z]{1,5}(?:/[A-Z]{1,3})?|\d{6}\.[A-Z]{2})(?![A-Za-z])")
 
 
+# An explicit instruction about the answer language ("请用英文回答：五粮液的ROE", "Answer in Chinese: …") overrides
+# the language the question is written in. The last instruction in the message wins.
+_ANSWER_LANGUAGE = re.compile(
+    r"(?P<en>(?:用|以|使用|请用)?(?:英文|英语)(?:来)?(?:回答|回复|作答|答复|解答|说明|写|输出)|"
+    r"\b(?:answer|reply|respond|write|explain)(?: (?:this|it|me))?(?: back)? in english\b|\bin english,? please\b)|"
+    r"(?P<zh>(?:用|以|使用|请用)?(?:中文|汉语|普通话)(?:来)?(?:回答|回复|作答|答复|解答|说明|写|输出)|"
+    r"\b(?:answer|reply|respond|write|explain)(?: (?:this|it|me))?(?: back)? in (?:chinese|mandarin)\b|"
+    r"\bin (?:chinese|mandarin),? please\b)",
+    re.IGNORECASE,
+)
+
+
+def requested_answer_language(text: str) -> str | None:
+    """``"en"``/``"zh"`` when the message says which language to answer in, else ``None``."""
+    last = None
+    for match in _ANSWER_LANGUAGE.finditer(text or ""):
+        last = "en" if match.group("en") else "zh"
+    return last
+
+
 def detect_query_language(text: str) -> str:
+    requested = requested_answer_language(text)
+    if requested:
+        return requested
     cjk_count = len(re.findall(r"[\u4e00-\u9fff]", text or ""))
     latin_count = len(re.findall(r"[A-Za-z]", text or ""))
     if cjk_count and cjk_count >= max(2, latin_count * 0.4):
