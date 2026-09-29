@@ -1,0 +1,236 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/heldout_r4/multiturn_r4_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v3#e419eb84d58e",
+   "compose_system": "compose_system@v3#b9a704272c6d"
+  },
+  "commit": "c731dba",
+  "run_at": "2026-09-29T15:29:54+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 76.9,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r4/multiturn_r4_heldout.jsonl --out outputs/agent_eval/mt4.json"
+ },
+ "summary": {
+  "tasks": 24,
+  "turns": 58,
+  "repeats": 1,
+  "task_success": 0.9167,
+  "pass^1": 0.9167,
+  "ci": {
+   "task_success": [
+    0.7917,
+    1.0
+   ],
+   "pass^1": [
+    0.7917,
+    1.0
+   ],
+   "task_success_uncited": [
+    1.0,
+    1.0
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 1.0,
+  "turn_success": 0.9483,
+  "behavior_accuracy": 1.0,
+  "fact_recall": 1.0,
+  "fact_stated": 1.0,
+  "tool_recall": 1.0,
+  "tool_precision": 0.7697,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 125.42,
+  "latency_ms_p95": 1522.74,
+  "latency_ms_p99": 2053.29,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "advice_after_facts": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 66.29
+  },
+  "colloquial_alias": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 598.96
+  },
+  "en_group_reference": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 220.93
+  },
+  "en_it_compare": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 2053.29
+  },
+  "fed_ashare": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 1605.35
+  },
+  "finance_concept": {
+   "tasks": 2,
+   "task_success": 0.0,
+   "latency_ms_p95": 735.51
+  },
+  "language_request": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 579.71
+  },
+  "sector_valuation": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 130.41
+  },
+  "typo_name": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 276.74
+  },
+  "zh_group_mismatch": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 143.23
+  },
+  "zh_group_reference": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 581.39
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 8,
+   "task_success": 1.0,
+   "latency_ms_p95": 1522.74
+  },
+  "zh": {
+   "tasks": 16,
+   "task_success": 0.875,
+   "latency_ms_p95": 1434.86
+  }
+ },
+ "failed_checks": {
+  "any_of_tools": 3
+ },
+ "failures": [
+  {
+   "task": "mt4-09",
+   "category": "finance_concept",
+   "query": "北向资金指的是什么",
+   "failed_checks": [
+    "any_of_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "explain_concept"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：北向资金：北向资金指境外投资者通过沪股通、深股通买卖A股的资金，是沪深港通机制中从香港流入内地市场的方向；与之相对的南向资金指内地资金通过港股通买卖港股。市场常用其净买入额观察外资态度。 [glossary_北向资金]。当前数据源不包含北向资金的数据序列，因此只能给出概念说明，无法给出具体数值。"
+  },
+  {
+   "task": "mt4-09",
+   "category": "finance_concept",
+   "query": "最近北向资金是净流入还是净流出",
+   "failed_checks": [
+    "any_of_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "explain_concept"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：北向资金：北向资金指境外投资者通过沪股通、深股通买卖A股的资金，是沪深港通机制中从香港流入内地市场的方向；与之相对的南向资金指内地资金通过港股通买卖港股。市场常用其净买入额观察外资态度。 [glossary_北向资金]。当前数据源不包含北向资金的数据序列，因此只能给出概念说明，无法给出具体数值。"
+  },
+  {
+   "task": "mt4-10",
+   "category": "finance_concept",
+   "query": "两融是啥，融资融券余额上升一般说明什么",
+   "failed_checks": [
+    "any_of_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "explain_concept"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：融资融券：融资融券是券商向投资者出借资金买入证券（融资）或出借证券供其卖出（融券）的信用交易业务，俗称两融。融资余额反映用借来的钱买股的规模，融券余额反映借券做空的规模；两者合称两融余额，是常用的杠杆指标。 [glossary_融资融券]。当前数据源不包含融资融券的数据序列，因此只能给出概念说明，"
+  }
+ ],
+ "task_outcomes": {
+  "mt4-01": "1",
+  "mt4-02": "1",
+  "mt4-03": "1",
+  "mt4-04": "1",
+  "mt4-05": "1",
+  "mt4-06": "1",
+  "mt4-07": "1",
+  "mt4-08": "1",
+  "mt4-09": "0",
+  "mt4-10": "0",
+  "mt4-11": "1",
+  "mt4-12": "1",
+  "mt4-13": "1",
+  "mt4-14": "1",
+  "mt4-15": "1",
+  "mt4-16": "1",
+  "mt4-17": "1",
+  "mt4-18": "1",
+  "mt4-19": "1",
+  "mt4-20": "1",
+  "mt4-21": "1",
+  "mt4-22": "1",
+  "mt4-23": "1",
+  "mt4-24": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/mt4.json",
+  "sha256_16": "79c7b514dea5555c",
+  "bytes": 165860,
+  "slimmed_at": "2026-09-29T15:31:39+00:00"
+ },
+ "notes": [
+  "after exposure"
+ ]
+}
