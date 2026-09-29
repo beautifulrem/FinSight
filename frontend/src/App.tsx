@@ -253,79 +253,90 @@ export default function App() {
               showInspector={view === "chat"}
               views={<ViewTabs />}
             />
-            {/* Both panels stay mounted so the conversation and the last check survive switching views. */}
-            <Tabs.Content
-              value="chat"
-              forceMount
-              hidden={view !== "chat"}
-              tabIndex={-1}
-              className="grid min-h-0 flex-1 outline-none lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]"
-            >
-              <main className="flex min-h-0 flex-col" hidden={view !== "chat"}>
-                <div ref={scroller} onScroll={onScroll} className="scrollbar-thin relative min-h-0 flex-1 overflow-y-auto">
-                  <div id="chat-messages" className="mx-auto w-full max-w-3xl space-y-6 px-3 py-5 sm:px-5 sm:py-8" aria-live="polite">
-                    {empty ? (
-                      <EmptyState onAsk={ask} />
-                    ) : (
-                      <h1 className="sr-only">{t("a11y.conversation")}</h1>
-                    )}
-                    {empty ? null : (
-                      items.map((item) =>
-                        item.kind === "notice" ? (
-                          <p key={item.id} className="notice text-center text-[12.5px] text-faint">
-                            {item.text}
-                          </p>
-                        ) : item.kind === "history" ? (
-                          <HistoryView key={item.id} turns={item.turns} />
-                        ) : (
-                          <TurnView
-                            key={item.id}
-                            turn={item}
-                            view={views.get(item.id) ?? null}
-                            isLast={item.id === lastTurn?.id}
-                            activeEvidence={inspect.turnId === item.id ? inspect.highlight : null}
-                            themeKey={dark ? "dark" : "light"}
-                            onCite={onCite}
-                            onInspect={onInspect}
-                            onAsk={ask}
-                            onRetry={onRetry}
-                            onFeedback={onFeedback}
-                            onCheckClaim={onCheckClaim}
-                            onStop={onStop}
-                          />
-                        ),
-                      )
-                    )}
+            {/* One main landmark around both panels (named tabpanels count as content for axe's region rule,
+                C17); the inspector is a top-level complementary landmark beside it. Both panels stay mounted so
+                the conversation and the last check survive switching views. Radix makes a panel focusable
+                (tabIndex 0); its content is focusable, so the panels are not. */}
+            <div className={view === "chat" ? "grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]" : "flex min-h-0 flex-1 flex-col"}>
+              <main className="flex min-h-0 flex-1 flex-col">
+                <Tabs.Content
+                  value="chat"
+                  forceMount
+                  hidden={view !== "chat"}
+                  tabIndex={undefined}
+                  className="chat-main flex min-h-0 flex-1 flex-col outline-none"
+                >
+                  <div ref={scroller} onScroll={onScroll} className="scrollbar-thin relative min-h-0 flex-1 overflow-y-auto">
+                    <div id="chat-messages" className="mx-auto w-full max-w-3xl space-y-6 px-3 py-5 sm:px-5 sm:py-8" aria-live="polite">
+                      {empty ? (
+                        <EmptyState onAsk={ask} />
+                      ) : (
+                        <h1 className="sr-only">{t("a11y.conversation")}</h1>
+                      )}
+                      {empty ? null : (
+                        items.map((item) =>
+                          item.kind === "notice" ? (
+                            <p key={item.id} className="notice text-center text-[12.5px] text-faint">
+                              {item.text}
+                            </p>
+                          ) : item.kind === "history" ? (
+                            <HistoryView key={item.id} turns={item.turns} />
+                          ) : (
+                            <TurnView
+                              key={item.id}
+                              turn={item}
+                              view={views.get(item.id) ?? null}
+                              isLast={item.id === lastTurn?.id}
+                              number={turns.indexOf(item) + 1}
+                              activeEvidence={inspect.turnId === item.id ? inspect.highlight : null}
+                              themeKey={dark ? "dark" : "light"}
+                              onCite={onCite}
+                              onInspect={onInspect}
+                              onAsk={ask}
+                              onRetry={onRetry}
+                              onFeedback={onFeedback}
+                              onCheckClaim={onCheckClaim}
+                              onStop={onStop}
+                            />
+                          ),
+                        )
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="mx-auto w-full max-w-3xl shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
-                  <Composer
-                    ref={composer}
-                    busy={busy}
-                    mode={mode}
-                    onMode={setMode}
-                    pending={pending}
-                    onCancelPending={() => setPending(null)}
-                    onSend={ask}
-                    onStop={onStop}
-                    placeholder={config.placeholder}
-                    submitText={config.submitText}
-                  />
-                  <p className="risk-footer mt-1.5 text-center text-[11.5px] text-faint">{t("disclaimer.footer")}</p>
-                </div>
+                  <div className="mx-auto w-full max-w-3xl shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
+                    <Composer
+                      ref={composer}
+                      busy={busy}
+                      mode={mode}
+                      onMode={setMode}
+                      pending={pending}
+                      onCancelPending={() => setPending(null)}
+                      onSend={ask}
+                      onStop={onStop}
+                      placeholder={config.placeholder}
+                      submitText={config.submitText}
+                    />
+                    <p className="risk-footer mt-1.5 text-center text-[11.5px] text-faint">{t("disclaimer.footer")}</p>
+                  </div>
+                </Tabs.Content>
+                <Tabs.Content
+                  value="check"
+                  forceMount
+                  hidden={view !== "check"}
+                  tabIndex={undefined}
+                  className="check-main scrollbar-thin min-h-0 flex-1 overflow-y-auto outline-none"
+                >
+                  <ClaimCheckView ref={claimView} apiKey={apiKey} />
+                </Tabs.Content>
               </main>
               <aside
-                className="hidden min-h-0 border-l border-line bg-surface/60 p-4 lg:block"
+                className={view === "chat" ? "hidden min-h-0 border-l border-line bg-surface/60 p-4 lg:block" : "hidden"}
+                hidden={view !== "chat"}
                 aria-label={t("inspector.title")}
               >
                 {inspector}
               </aside>
-            </Tabs.Content>
-            <Tabs.Content value="check" forceMount hidden={view !== "check"} tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
-              <main className="scrollbar-thin min-h-0 flex-1 overflow-y-auto" hidden={view !== "check"}>
-                <ClaimCheckView ref={claimView} apiKey={apiKey} />
-              </main>
-            </Tabs.Content>
+            </div>
           </div>
           </Tabs.Root>
 

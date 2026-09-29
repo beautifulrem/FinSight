@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-from agent_fakes import FUNDAMENTALS, StubService, build_fake_registry
+from agent_fakes import FUNDAMENTALS, PRICES, StubService, build_fake_registry
 from fastapi.testclient import TestClient
 
 from query_intelligence.agent.claim_check import check_claim, normalise
@@ -294,3 +294,157 @@ def test_roe_claims_use_the_declared_percent_unit():
     report = check_claim("贵州茅台ROE高达80%", service=StubService(), registry=low_roe)
 
     assert report.checks[0].status == "contradicted" and report.checks[0].actual == 0.8
+
+
+@pytest.mark.parametrize(
+    ("claim", "comparator", "direction", "status"),
+    [
+        # C2: a bound after a move word is about the size of the move in that direction (fake: Moutai -0.1778%).
+        ("茅台昨天跌超0.1%", "gt", "down", "supported"),
+        ("茅台昨天跌了超过1%", "gt", "down", "contradicted"),
+        ("茅台昨日大跌超过3%", "gt", "down", "contradicted"),
+        ("茅台昨天跌了不到1%", "lt", "down", "supported"),
+        ("茅台昨天跌幅不超过0.1%", "le", "down", "contradicted"),
+        ("茅台昨天没有跌超过1%", "le", "down", "supported"),
+        ("Moutai fell more than 0.1% yesterday", "gt", "down", "supported"),
+        ("Moutai dropped more than 1% yesterday", "gt", "down", "contradicted"),
+        # a move the other way contradicts the bound, even a "smaller" one
+        ("茅台昨天涨超0.1%", "gt", "up", "contradicted"),
+        ("茅台昨天涨了不到1%", "lt", "up", "contradicted"),
+        # a range after a move word is the size of the move
+        ("茅台昨天跌了0.1%到0.3%", "range", "down", "supported"),
+        ("茅台昨天跌了0.5%到1%", "range", "down", "contradicted"),
+    ],
+)
+def test_bounds_on_a_move_compare_its_size_in_the_stated_direction(claim, comparator, direction, status):
+    (check,) = _check(claim).checks
+    _assert_move_check(check, comparator, direction, status)
+
+
+@pytest.mark.parametrize(
+    ("claim", "comparator", "direction", "status"),
+    [
+        ("茅台昨天跌了不到2%", "lt", "down", "contradicted"),  # it rose 1.25%: not a fall at all
+        ("茅台昨天涨超1%", "gt", "up", "supported"),
+        ("茅台昨天大涨超过3%", "gt", "up", "contradicted"),
+        ("Moutai rose less than 2% yesterday", "lt", "up", "supported"),
+        ("Moutai fell more than 1% yesterday", "gt", "down", "contradicted"),
+    ],
+)
+def test_bounds_on_a_rise(monkeypatch, claim, comparator, direction, status):
+    monkeypatch.setitem(PRICES["600519.SH"], "pct_change_1d", 1.25)
+    (check,) = _check(claim).checks
+    _assert_move_check(check, comparator, direction, status)
+
+
+def _assert_move_check(check, comparator, direction, status):
+
+    assert (check.metric, check.comparator, check.direction, check.status) == (
+        "pct_change_1d",
+        comparator,
+        direction,
+        status,
+    )
+    if direction == "down":
+        assert check.claimed < 0  # "跌超1%" is shown as a move below -1%
+
+
+def _macro_registry():
+    """The fake registry plus a macro tool serving the seed readings (March 2026)."""
+    from query_intelligence.agent.evidence import AgentEvidence
+    from query_intelligence.agent.tools import ToolOutput, ToolSpec
+    from query_intelligence.agent.tools.macro import MacroInput
+
+    readings = {"CPI_CN": 0.8, "PMI_CN": 50.6, "M2_CN": 8.1, "CN10Y": 2.31}
+
+    def handler(args):
+        items = [
+            AgentEvidence(
+                evidence_id=f"macro_{code}",
+                kind="structured",
+                source_type="macro_sql",
+                as_of="2026-03-31",
+                payload={"indicator_code": code, "metric_date": "2026-03-31", "metric_value": value},
+            )
+            for code, value in readings.items()
+        ]
+        return ToolOutput(data={"indicators": [item.payload for item in items]}, evidence=items)
+
+    registry = build_fake_registry()
+    registry.register(ToolSpec("get_macro_indicators", "Macro.", MacroInput, handler, timeout_s=2))
+    return registry
+
+
+@pytest.mark.parametrize(
+    ("claim", "metric", "comparator", "status", "reason"),
+    [
+        # C13: macro series are checked against get_macro_indicators
+        ("CPI同比上涨0.8%", "cpi_yoy", "eq", "supported", None),
+        ("CPI同比下降0.8%", "cpi_yoy", "eq", "contradicted", None),
+        ("China's CPI rose 0.8% year on year", "cpi_yoy", "eq", "supported", None),
+        ("PMI重回50以上", "pmi", "ge", "supported", None),
+        ("PMI跌破50", "pmi", "lt", "contradicted", None),
+        ("The PMI is above 50", "pmi", "gt", "supported", None),
+        ("M2同比增长10%", "m2_yoy", "eq", "contradicted", None),
+        ("10年期国债收益率低于2%", "cn10y", "lt", "contradicted", None),
+        ("十年期国债收益率在2.3%左右", "cn10y", "approx", "supported", None),
+        ("2月CPI同比上涨0.8%", "cpi_yoy", "eq", "unverifiable", "period_mismatch"),  # the reading is March's
+        ("明年CPI会上涨3%", "cpi_yoy", "eq", "unverifiable", "forecast"),
+        ("PMI回落了", "pmi", "lt", "unverifiable", "no_data"),  # a change: only the latest level is served
+    ],
+)
+def test_macro_claims(claim, metric, comparator, status, reason):
+    report = check_claim(claim, service=StubService(), registry=_macro_registry())
+
+    (check,) = report.checks
+    assert (check.metric, check.comparator, check.status, check.reason) == (metric, comparator, status, reason)
+    if status != "unverifiable":
+        assert check.evidence_id and check.evidence_id.startswith("macro_") and check.as_of == "2026-03-31"
+
+
+def test_macro_claims_without_a_macro_source_say_why():
+    (check,) = _check("CPI同比上涨0.8%").checks
+
+    assert (check.status, check.reason) == ("unverifiable", "no_data")
+
+
+@pytest.mark.parametrize(
+    ("claim", "metric", "comparator", "status"),
+    [
+        # C13: relational claims between two named targets (fake P/E: Moutai 24.6, Wuliangye 15.2)
+        ("茅台的市盈率比五粮液高", "pe_ttm", "gt", "supported"),
+        ("五粮液的市盈率比茅台高", "pe_ttm", "gt", "contradicted"),
+        ("茅台市盈率没有五粮液高", "pe_ttm", "le", "contradicted"),
+        ("五粮液ROE低于茅台", "roe", "lt", "supported"),
+        ("茅台市净率比五粮液低", "pb", "lt", "contradicted"),
+        ("五粮液的市盈率比贵州茅台低", "pe_ttm", "lt", "supported"),
+        ("茅台昨天跌得比五粮液多", "pct_change_1d", "lt", "supported"),  # -0.18% vs +1.25%
+        # English relations: stub NLU is Chinese-only here; covered by the dev bench on the offline service
+    ],
+)
+def test_relational_claims_between_two_targets(claim, metric, comparator, status):
+    (check,) = _check(claim).checks
+
+    assert (check.metric, check.comparator, check.status) == (metric, comparator, status)
+    assert check.claimed is None and check.reference and check.reference_value is not None
+    assert check.reference_evidence_id and check.reference_evidence_id != check.evidence_id
+
+
+def test_relational_claims_against_the_market_are_unverifiable():
+    (check,) = _check("茅台市盈率高于市场平均").checks
+
+    assert (check.status, check.reason) == ("unverifiable", "no_reference")
+
+
+@pytest.mark.parametrize(
+    ("claim", "comparator", "status"),
+    [
+        ("Moutai trades at 24.6 times earnings", "eq", "supported"),
+        ("Moutai trades below 10x earnings", "lt", "contradicted"),
+        ("Moutai trades at more than 20 times trailing earnings", "gt", "supported"),
+    ],
+)
+def test_times_earnings_is_a_pe_claim(claim, comparator, status):
+    (check,) = _check(claim).checks
+
+    assert (check.metric, check.comparator, check.status) == ("pe_ttm", comparator, status)

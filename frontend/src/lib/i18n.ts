@@ -336,6 +336,13 @@ const zh = {
   "claim.hint.title": "这像一条待核实的说法",
   "claim.hint.body": "在「核查」里把其中每个数字与行情和财报数据逐项比对。",
   "claim.hint.action": "核查这句话",
+  "claim.basis.indicator_date": "指标期",
+  "claim.note.noReference": "数据源中没有说法所比较的对象（例如市场平均）",
+  "claim.move.up": "涨幅",
+  "claim.move.down": "跌幅",
+  "claim.inline.title": "核查这句说法",
+  "claim.inline.open": "在「核查」中查看",
+  "a11y.inTurn": "{label}（第 {n} 轮）",
 } as const;
 
 export type MessageKey = keyof typeof zh;
@@ -674,6 +681,13 @@ const en: Record<MessageKey, string> = {
   "claim.hint.title": "This looks like a claim to verify",
   "claim.hint.body": "Fact-check compares each of its numbers with market and financial data.",
   "claim.hint.action": "Check this claim",
+  "claim.basis.indicator_date": "reading period",
+  "claim.note.noReference": "The data sources have nothing to compare with (e.g. a market average)",
+  "claim.move.up": "Rise",
+  "claim.move.down": "Fall",
+  "claim.inline.title": "Fact-check of this claim",
+  "claim.inline.open": "Open in Fact-check",
+  "a11y.inTurn": "{label} (turn {n})",
 };
 
 export const MESSAGES: Record<Lang, Record<MessageKey, string>> = { zh, en };

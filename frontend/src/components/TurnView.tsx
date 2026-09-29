@@ -27,9 +27,11 @@ import { evidenceFreshness, summarizeFreshness } from "@/lib/freshness";
 import { useI18n, type MessageKey } from "@/lib/i18n";
 import { turnProgress, type Progress } from "@/lib/progress";
 import { liveTrace, traceStats } from "@/lib/trace";
-import type { AnswerView } from "@/lib/view";
+import type { ClaimReport } from "@/lib/types";
+import { displayName, type AnswerView } from "@/lib/view";
 
 import { CopyButton, ExportMenu, FeedbackControls, type FeedbackSender } from "./AnswerActions";
+import { ClaimReportCard } from "./ClaimCheck";
 import { CodeText } from "./CodeLabel";
 import { DataPanel } from "./DataPanel";
 import { FreshnessBanner } from "./Freshness";
@@ -59,6 +61,8 @@ interface Props extends TurnActions {
   isLast: boolean;
   activeEvidence?: string | null;
   themeKey: string;
+  /** 1-based turn number: names this turn's regions uniquely ("数据（第 2 轮）"). */
+  number?: number;
 }
 
 function UserBubble({ turn }: { turn: Turn }) {
@@ -98,6 +102,28 @@ function ClaimHint({ claim, onCheck }: { claim: string; onCheck: (claim: string)
         </Button>
       </div>
     </div>
+  );
+}
+
+/** The server's check of a hearsay question ("听说…是真的吗"), shown inside the answer. */
+function InlineFactCheck({ report, number, onOpen }: { report: ClaimReport; number?: number; onOpen?: (claim: string) => void }) {
+  const { t } = useI18n();
+  const label = number === undefined ? t("claim.inline.title") : t("a11y.inTurn", { label: t("claim.inline.title"), n: number });
+  return (
+    <section className="inline-fact-check space-y-2" aria-label={label}>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="flex items-center gap-1.5 text-[13px] font-medium text-muted">
+          <SearchCheck className="size-3.5 text-cobalt" aria-hidden />
+          {t("claim.inline.title")}
+        </h2>
+        {onOpen && (
+          <Button size="sm" variant="ghost" className="inline-fact-check-open ml-auto" onClick={() => onOpen(report.claim)}>
+            {t("claim.inline.open")}
+          </Button>
+        )}
+      </div>
+      <ClaimReportCard report={report} turn={number} />
+    </section>
   );
 }
 
@@ -270,8 +296,20 @@ function Limitations({ view, cite }: { view: AnswerView; cite: CiteHandler }) {
   );
 }
 
-function AnswerCard({ turn, view, isLast, activeEvidence, themeKey, onCite, onInspect, onAsk, onFeedback }: Props & { view: AnswerView }) {
-  const { t } = useI18n();
+function AnswerCard({
+  turn,
+  view,
+  isLast,
+  activeEvidence,
+  themeKey,
+  number,
+  onCite,
+  onInspect,
+  onAsk,
+  onFeedback,
+  onCheckClaim,
+}: Props & { view: AnswerView }) {
+  const { lang, t } = useI18n();
   const streamed = Boolean(turn.draft?.trim());
   const edited = view.kind === "agent" && answerEdited(turn.draft, view.answer);
   const freshness = useMemo(() => summarizeFreshness(view.evidence, view.cited), [view.evidence, view.cited]);
@@ -326,7 +364,7 @@ function AnswerCard({ turn, view, isLast, activeEvidence, themeKey, onCite, onIn
 
       {view.kind === "agent" && <TraceDisclosure view={view} turn={turn} onEvidence={(id) => onCite(turn.id, id)} />}
 
-      <FreshnessBanner summary={freshness} onReview={() => onInspect(turn.id, "evidence")} />
+      <FreshnessBanner summary={freshness} turn={number} onReview={() => onInspect(turn.id, "evidence")} />
 
       <motion.div
         initial={streamed ? { opacity: 0.4, filter: "blur(2px)" } : false}
@@ -336,8 +374,17 @@ function AnswerCard({ turn, view, isLast, activeEvidence, themeKey, onCite, onIn
         <RichText text={view.answer} cite={cite} className="answer-text text-[15px] leading-[1.8] text-ink" />
       </motion.div>
 
+      {view.factCheck && <InlineFactCheck report={view.factCheck} number={number} onOpen={onCheckClaim} />}
+
       {view.data && (
-        <DataPanel data={view.data} themeKey={themeKey} freshness={sourceFreshness} onEvidence={(id) => onCite(turn.id, id)} />
+        <DataPanel
+          data={view.data}
+          themeKey={themeKey}
+          turn={number}
+          freshness={sourceFreshness}
+          displayName={(name) => displayName(view.englishNames, lang, name)}
+          onEvidence={(id) => onCite(turn.id, id)}
+        />
       )}
 
       {view.keyPoints.length > 0 && (
@@ -352,7 +399,7 @@ function AnswerCard({ turn, view, isLast, activeEvidence, themeKey, onCite, onIn
       {view.sentiment && <SentimentBar sentiment={view.sentiment} />}
 
       {isLast && view.next.length > 0 && (
-        <section aria-label={t("answer.next")}>
+        <section aria-label={number === undefined ? t("answer.next") : t("a11y.inTurn", { label: t("answer.next"), n: number })}>
           <h2 className="mb-1.5 text-[13px] font-medium text-muted">{t("answer.next")}</h2>
           <div className="flex flex-wrap gap-1.5">
             {view.next.map((item) => (
@@ -473,7 +520,11 @@ function RunningCard({ turn, onStop }: { turn: Turn; onStop?: () => void }) {
 export function TurnView(props: Props) {
   const { turn, view, onCheckClaim } = props;
   const { t } = useI18n();
-  const claim = useMemo(() => (onCheckClaim ? claimInMessage(turn.query) : null), [onCheckClaim, turn.query]);
+  // The server's inline check replaces the hint once the answer carries one.
+  const claim = useMemo(
+    () => (onCheckClaim && !view?.factCheck ? claimInMessage(turn.query) : null),
+    [onCheckClaim, turn.query, view?.factCheck],
+  );
   return (
     <motion.div
       className="turn space-y-3"

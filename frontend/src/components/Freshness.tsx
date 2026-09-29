@@ -80,7 +80,16 @@ export function FreshnessBadges({ source, info = evidenceFreshness(source) }: { 
 }
 
 /** Answer-level "data as of / stale / fallback" banner. Hidden when every value is live and current. */
-export function FreshnessBanner({ summary, onReview }: { summary: FreshnessSummary; onReview?: () => void }) {
+export function FreshnessBanner({
+  summary,
+  onReview,
+  turn,
+}: {
+  summary: FreshnessSummary;
+  onReview?: () => void;
+  /** The turn number, so each turn's banner region has its own name (axe landmark-unique). */
+  turn?: number;
+}) {
   const { lang, t } = useI18n();
   if (summary.level === "none") return null;
   const warn = summary.level === "warn";
@@ -104,7 +113,11 @@ export function FreshnessBanner({ summary, onReview }: { summary: FreshnessSumma
           : "freshness-banner flex items-start gap-2 rounded-lg border border-cobalt/25 bg-cobalt-soft/60 px-3 py-2 text-[12.5px] text-ink"
       }
       data-level={summary.level}
-      aria-label={t(warn ? "fresh.bannerWarn" : "fresh.bannerInfo")}
+      aria-label={
+        turn === undefined
+          ? t(warn ? "fresh.bannerWarn" : "fresh.bannerInfo")
+          : t("a11y.inTurn", { label: t(warn ? "fresh.bannerWarn" : "fresh.bannerInfo"), n: turn })
+      }
     >
       {warn ? (
         <CalendarClock className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden />
