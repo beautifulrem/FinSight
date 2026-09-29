@@ -5,7 +5,9 @@
   ``Authorization: Bearer <key>``.
 * ``QI_RATE_LIMIT_PER_MINUTE``: per-client token bucket (client = the validated API key's principal,
   else the remote address, so made-up keys do not get fresh buckets); ``0`` disables it. Exceeding it
-  returns 429 with ``Retry-After``. The bucket table is bounded (LRU, idle buckets dropped).
+  returns 429 with ``Retry-After``. Shared across replicas through Postgres when ``QI_RATE_LIMIT_DB`` (or the
+  checkpointer's ``QI_AGENT_CHECKPOINT_DB``) is a Postgres DSN, else per replica in process with a bounded
+  table (LRU, idle buckets dropped); see ``rate_limit.py``.
 * ``QI_CORS_ORIGINS``: comma-separated allowed origins for browsers (``*`` allows any origin).
 * ``QI_MAX_REQUEST_BYTES``: reject request bodies larger than this (default 1 MiB) with 413, whether
   the size is declared in ``Content-Length`` or only known while a chunked body streams in.
@@ -32,16 +34,17 @@ import hmac
 import math
 import os
 import secrets
-import threading
-import time
-from collections import OrderedDict
 from collections.abc import Awaitable, Callable, MutableMapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+from .rate_limit import DEFAULT_MAX_RATE_CLIENTS, TokenBucket, build_rate_limiter, rate_limit_dsn
+
+__all__ = ["DEFAULT_MAX_RATE_CLIENTS", "TokenBucket"]  # re-exported: TokenBucket moved to rate_limit.py
 
 PUBLIC_PATHS = {
     ("GET", "/health"),
@@ -53,7 +56,6 @@ PUBLIC_PATHS = {
     ("GET", "/.well-known/agent-card.json"),
 }
 DEFAULT_MAX_REQUEST_BYTES = 1024 * 1024
-DEFAULT_MAX_RATE_CLIENTS = 10_000
 ANON_COOKIE = "finsight_anon"
 ANON_PREFIX = "anon:"
 ANON_COOKIE_MAX_AGE = 30 * 24 * 3600
@@ -74,6 +76,8 @@ class SecuritySettings:
     profile: str = "development"
     allow_anonymous: bool = False
     anon_cookie_secret: str = ""
+    # Postgres DSN for the shared rate limiter ("" = per replica, in process); see rate_limit.py.
+    rate_limit_db: str = ""
 
     @property
     def production(self) -> bool:
@@ -100,52 +104,8 @@ class SecuritySettings:
             profile=os.getenv("QI_PROFILE", "development").strip() or "development",
             allow_anonymous=os.getenv("QI_ALLOW_ANONYMOUS", "").strip().lower() in _TRUE,
             anon_cookie_secret=os.getenv("QI_ANON_COOKIE_SECRET", ""),
+            rate_limit_db=rate_limit_dsn() or "",
         )
-
-
-@dataclass
-class TokenBucket:
-    """Per-client token buckets with bounded state.
-
-    At most ``max_clients`` buckets are kept, least recently used first out. A bucket untouched for a full
-    minute has refilled to capacity, which is the same as having no entry, so idle buckets are dropped
-    first; evicting a still-draining bucket only happens under more than ``max_clients`` active clients.
-    """
-
-    rate_per_minute: int
-    clock: callable = time.monotonic  # type: ignore[valid-type]
-    max_clients: int = DEFAULT_MAX_RATE_CLIENTS
-    _state: OrderedDict[str, tuple[float, float]] = field(default_factory=OrderedDict)
-    _lock: threading.Lock = field(default_factory=threading.Lock)
-
-    def take(self, client: str) -> float:
-        """Consume one token; return 0 when allowed, else seconds until the next token."""
-        capacity = float(self.rate_per_minute)
-        refill_per_second = capacity / 60.0
-        now = self.clock()
-        with self._lock:
-            tokens, updated = self._state.get(client, (capacity, now))
-            tokens = min(capacity, tokens + (now - updated) * refill_per_second)
-            if tokens >= 1.0:
-                self._state[client] = (tokens - 1.0, now)
-                wait = 0.0
-            else:
-                self._state[client] = (tokens, now)
-                wait = (1.0 - tokens) / refill_per_second
-            self._state.move_to_end(client)
-            self._evict(now)
-            return wait
-
-    def _evict(self, now: float) -> None:
-        while self._state:
-            oldest, (_tokens, updated) = next(iter(self._state.items()))
-            if len(self._state) > self.max_clients or now - updated >= 60.0:
-                del self._state[oldest]
-                continue
-            break
-
-    def __len__(self) -> int:
-        return len(self._state)
 
 
 Message = MutableMapping[str, Any]
@@ -239,7 +199,8 @@ def is_anonymous(principal: str) -> bool:
 def install_security(app: FastAPI, settings: SecuritySettings | None = None) -> SecuritySettings:
     settings = settings or SecuritySettings.from_env()
     settings.validate()
-    bucket = TokenBucket(settings.rate_limit_per_minute) if settings.rate_limit_per_minute else None
+    bucket = build_rate_limiter(settings.rate_limit_per_minute, dsn=settings.rate_limit_db)
+    app.state.rate_limiter = bucket  # closed with the other shared stores at shutdown
     anonymous = AnonymousIdentity(settings.anon_cookie_secret)
 
     @app.middleware("http")
