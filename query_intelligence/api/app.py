@@ -428,7 +428,12 @@ def create_app(
 
     def close_shared_stores() -> None:
         # Postgres-backed stores own connection pools; the in-memory ones have nothing to close.
-        for store in (trace_store, getattr(app.state, "a2a_task_store", None), audit_sink):
+        for store in (
+            trace_store,
+            getattr(app.state, "a2a_task_store", None),
+            audit_sink,
+            getattr(app.state, "rate_limiter", None),
+        ):
             close = getattr(store, "close", None)
             if callable(close):
                 close()
