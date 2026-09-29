@@ -51,7 +51,7 @@ QI_USE_LIVE_ANNOUNCEMENT=0 python scripts/launch_chatbot.py
 - **可读的内部代码**：路由依据、`degraded`、合规改写、NLU 风险标记、检索告警、工具错误码、回答来源、路由、问题类型与品种都显示为中英文标签（`frontend/src/lib/codes.ts`）。带参数的代码会被解析（`budget:step budget of 6 reached` → “达到推理步数上限（6 步），提前作答”；`llm_error:<异常>` 不会显示异常原文）；未知的新代码会被整理成可读文字，而不是原样显示。原始代码保留在提示框（悬停或键盘聚焦）和 `data-code` 属性中。
 - **反馈**：每个回答可点赞/点踩并附可选说明（点踩时自动展开），以 `{trace_id, session_id, rating, comment}` 调用 `POST /agent/feedback`；按 `trace_id` 保存在 `localStorage`（最近 300 条）。服务端没有该接口（404 “Not Found”、405、501）时保存在本地并提示；其他 404 表示服务端已找不到这次运行；网络错误可重试。
 - **导出**：复制纯文本，或复制/下载 Markdown：问题、路由、模型、核验、trace id、带 `[E1]` 引用的回答、要点、局限（附原始代码）、编号证据列表（id、类型、来源、截至日期、已引用/实时/备用源/快照/过时、URL 或“结构化数据”、降级原因）和风险提示。
-- 可点击的 `E1` 引用标记与证据面板、有价格序列时的收盘价走势图和 KPI（A 股配色：红涨绿跌）、运行指标（trace_id、路由、模型、token、成本、耗时）。另有模式切换、澄清续答（`/agent/resume`）、推荐追问、文本语气、会话记忆、新会话、API Key、中英文切换、深浅色主题、移动端布局和键盘/读屏支持；风险提示始终可见，界面不给出买卖建议。
+- 可点击的 `E1` 引用标记与证据面板、有价格序列时的收盘价走势图和 KPI（A 股配色：红涨绿跌）、运行指标（trace_id、路由、模型、token、成本、耗时）。另有模式切换、澄清续答（`/agent/resume`）、推荐追问、文本语气、会话记忆、新会话、API Key（默认只存在当前标签页的 `sessionStorage`；勾选默认关闭的“在此设备上记住”后才写入 `localStorage`）、中英文切换、深浅色主题、移动端布局和键盘/读屏支持；风险提示始终可见，界面不给出买卖建议。
 
 **打包体积**：恢复 Vite 默认的 500 kB 告警阈值（旧配置调到 560 kB 以掩盖 520 kB 的入口 chunk）。通过 Rolldown `output.codeSplitting.groups`（Vite 8 中替代 `manualChunks` 的方式）把 React、Radix、Motion 拆成可长期缓存的 chunk，价格图与设置对话框用 `React.lazy` 按需加载。入口从 519.6 kB（gzip 167.9）降到 162.3 kB（gzip 54.4），最大 chunk 为 react 218.8 kB，不再触发告警。详细表格见[英文文档](../frontend-chatbot.md#bundle)。
 
