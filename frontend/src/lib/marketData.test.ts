@@ -120,7 +120,12 @@ describe("selectKpis (C18: compare answers)", () => {
       payload: { symbol, name, close: 100, pct_change_1d: 1, high: 101, low: 99, amount: 5e9, amount_unit: "CNY" },
     },
     // fundamentals payloads may carry only the metrics: the tiles are named from the evidence id
-    { evidence_id: `fundamental_${symbol}`, source_type: "fundamental_sql", payload: { pe_ttm: pe, pb: 5, roe: 30, revenue: 1e11 } },
+    {
+      evidence_id: `fundamental_${symbol}`,
+      source_type: "fundamental_sql",
+      // a symbol but no name, as the offline fundamentals serve it
+      payload: symbol.startsWith("6") ? { symbol, pe_ttm: pe, pb: 5, roe: 30, revenue: 1e11 } : { pe_ttm: pe, pb: 5, roe: 30, revenue: 1e11 },
+    },
   ];
 
   it("gives every compared company the same tiles", () => {

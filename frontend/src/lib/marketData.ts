@@ -168,10 +168,10 @@ function collect(items: StructuredItem[]): MarketData {
   }
   // Fundamentals payloads may hold only the metrics: name their tiles from the evidence id's symbol, so a
   // company's price and valuation tiles group together (see selectKpis).
+  // A payload with a symbol but no name ("600519.SH") gets the name another payload gives for it.
   for (const kpi of kpis) {
-    if (kpi.subject) continue;
-    const symbol = SYMBOL_IN_ID.exec(kpi.evidenceId ?? "")?.[1]?.toUpperCase();
-    if (symbol) kpi.subject = names.get(symbol) ?? symbol;
+    const symbol = kpi.subject ?? SYMBOL_IN_ID.exec(kpi.evidenceId ?? "")?.[1];
+    if (symbol) kpi.subject = names.get(symbol.toUpperCase()) ?? symbol;
   }
   return { series, kpis };
 }
