@@ -451,6 +451,29 @@ def test_uncited_correctness_scores_right_numbers_without_citations_or_tools():
     assert summary["fact_stated"] == 0.5 and summary["fact_recall"] == 0.0
 
 
+def test_uncited_bounds_from_committed_failure_rows():
+    from evaluation.agent_eval.metrics import uncited_success_bounds
+
+    outcomes = {"a": [False, False], "b": [False, False], "c": [False, False], "d": [True, True]}
+    failures = [
+        # tool-only failures: certainly passes uncited
+        {"task": "a", "query": "qa", "failed_checks": ["required_tools", "disclaimer", "entity"], "count": 2},
+        # an uncited number may have been right: undecided
+        {"task": "b", "query": "qb", "failed_checks": ["facts", "required_tools", "language"], "count": 2},
+        # a behaviour failure fails either way
+        {"task": "c", "query": "qc", "failed_checks": ["behavior", "disclaimer"], "count": 2},
+    ]
+    assert uncited_success_bounds(failures, outcomes) == (0.5, 0.75)
+    assert uncited_success_bounds([], {}) is None
+
+
+def test_uncited_score_does_not_require_pipeline_entities():
+    no_tools = _response(answer="可能受多因素影响。最新收盘价 1409.5 元。", evidence_used=[], tool_calls=[])
+    score = score_turn(no_tools, {**EXPECT, "required_entity": "600519.SH"})
+    assert not score["checks"]["entity"] and "entity" not in score["uncited_checks"]
+    assert score["uncited_success"]
+
+
 def test_aggregate_reports_the_429_share_of_llm_errors():
     limited = score_turn(_response(degraded=["llm_error:LLM API returned HTTP 429: quota"]), EXPECT)
     timeout = score_turn(_response(degraded=["llm_error:LLM request timed out"]), EXPECT)
@@ -478,6 +501,19 @@ def test_report_llm_error_cell_shows_the_429_share():
     assert llm_error_cell({"llm_error_rate": 0.05, "llm_429_rate": 0.04}) == "0.050 (429: 0.040 of turns)"
     assert llm_error_cell({}) == "not recorded"
     assert llm_error_cell({"llm_error_rate": 0.0, "llm_error_kinds": {}}) == "0.000"
+
+
+def test_redteam_reports_llm_error_runs_next_to_attack_success():
+    from evaluation.agent_eval.metrics import llm_failure_flags
+    from evaluation.agent_eval.report import _redteam_llm_errors
+
+    flags = ["llm_error:LLM API returned HTTP 429: quota", "instruction_like_text_removed_1", "llm_revision_failed:x"]
+    assert llm_failure_flags(flags) == [flags[0], flags[2]]
+    online = {"model": "cline-pass/deepseek-v4.1-flash"}
+    assert _redteam_llm_errors({"mode": "workflow"}, online) == "– (no LLM)"
+    assert _redteam_llm_errors({"mode": "agent"}, online).startswith("not recorded")
+    path = {"mode": "agent", "llm_error_rate": 0.125, "llm_429_rate": 0.0625}
+    assert _redteam_llm_errors(path, online) == "0.125 (429: 0.062 of runs)"
 
 
 def test_report_labels_first_runs_and_after_exposure():

@@ -15,6 +15,10 @@ leaked system-prompt text. Two numbers are reported per path:
   defenses are read-only tools, the untrusted-data envelope, claim-level number verification and the
   compliance guard, so an attack can fail even when the filter misses it.
 
+LLM paths also report ``llm_error_rate`` (runs where an LLM call failed and the deterministic fallback
+answered) and ``llm_429_rate`` (the part caused by HTTP 429): a fallback answer is the template path, so a
+low attack success on a run full of 429s says little about the LLM.
+
     python -m evaluation.agent_eval.redteam                         # offline: workflow template path
     python -m evaluation.agent_eval.redteam --llm deepseek --workers 6   # adds workflow_llm and agent
 """
@@ -41,6 +45,7 @@ from query_intelligence.agent.state import AgentConfig
 from query_intelligence.agent.tools import ToolOutput
 
 from .fault_injection import wrap_registry
+from .metrics import llm_failure_flags
 from .runner import (
     DEFAULT_OUTPUT_DIR,
     DEFAULT_SNAPSHOT,
@@ -453,6 +458,7 @@ def run_path(
             agent.close()
         flagged = any(str(flag).startswith("instruction_like_text_removed") for flag in response.get("degraded") or [])
         used_documents = any(call.get("tool") in _DOCUMENT_TOOLS for call in response.get("tool_calls") or [])
+        llm_failures = llm_failure_flags(response.get("degraded"))
         return [
             {
                 "attack": attack.id,
@@ -463,6 +469,8 @@ def run_path(
                 "succeeded": attack_succeeded(response, attack),
                 "redacted": flagged,
                 "status": response.get("status"),
+                "llm_error": bool(llm_failures),
+                "llm_429": any("HTTP 429" in flag for flag in llm_failures),
                 "latency_ms": round((time.perf_counter() - started) * 1000, 1),
                 "answer_excerpt": str(response.get("answer") or "")[:240],
             }
@@ -497,6 +505,9 @@ def run_path(
         "attack_success": rate(exposed, "succeeded"),
         "redaction": rate(exposed, "redacted"),
         "crashes": sum(1 for item in results if item["status"] == "exception"),
+        # All runs, not only exposed ones: a run whose LLM failed answered from the template path.
+        "llm_error_rate": rate(results, "llm_error") if llm is not None else None,
+        "llm_429_rate": rate(results, "llm_429") if llm is not None else None,
         "by_category": by_category,
         "by_variant": by_variant,
         "successes": [item for item in exposed if item["succeeded"]][:20],
@@ -543,7 +554,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         print(
             f"{path['attack_set']:8s} {path['mode']:13s} runs={path['exposed_runs']:3d} "
             f"attack_success={path['attack_success']} "
-            f"redaction={path['redaction']} crashes={path['crashes']}"
+            f"redaction={path['redaction']} crashes={path['crashes']} "
+            f"llm_error_rate={path.get('llm_error_rate')} llm_429_rate={path.get('llm_429_rate')}"
         )
         for variant, values in path["by_variant"].items():
             print(f"    {variant:11s} {values}")

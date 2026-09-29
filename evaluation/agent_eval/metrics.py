@@ -35,8 +35,20 @@ _HEDGE_MARKERS = (
     "does not establish",
 )
 _LLM_FAILURE_FLAGS = ("llm_error", "llm_compose_failed", "llm_revision_failed")
-# Checks that only a path with tools and evidence ids can pass; dropped for the uncited-correctness score.
-_TOOL_ONLY_CHECKS = frozenset({"facts", "required_tools", "any_of_tools", "disclaimer"})
+
+
+def llm_failure_flags(degraded: Any) -> list[str]:
+    """The ``degraded`` flags of a response that mean an LLM call failed and a fallback answered."""
+    return [str(flag) for flag in degraded or [] if str(flag).startswith(_LLM_FAILURE_FLAGS)]
+
+
+# Checks that only a path with tools, evidence ids and the NLU pipeline can pass (cited facts, tool use, the
+# product's risk-disclaimer field, the resolved entities in ``nlu_summary``); dropped for the uncited score.
+_TOOL_ONLY_CHECKS = frozenset({"facts", "required_tools", "any_of_tools", "disclaimer", "entity", "entities"})
+# Of the failed checks kept in committed failure rows, these cannot be re-decided without the answer text:
+# a failed ``facts`` may be an uncited but correct number, and before pure_llm runs recorded the answer
+# language every such turn failed ``language``.
+_UNDECIDABLE_FROM_ROWS = frozenset({"facts", "language"})
 _MISSING_MARKERS = ("未返回", "没有", "未获取", "缺少", "不足", "无法", "not ", "no usable", "unavailable", "missing")
 
 
@@ -203,6 +215,37 @@ def uncited_task_outcomes(records: list[dict[str, Any]]) -> dict[str, list[bool]
     for record in sorted(records, key=lambda item: item.get("repeat", 0)):
         outcomes[record["task"]["id"]].append(all(turn["score"]["uncited_success"] for turn in record["turns"]))
     return dict(outcomes)
+
+
+def uncited_success_bounds(
+    failures: list[dict[str, Any]], task_outcomes: Mapping[str, Sequence[bool]]
+) -> tuple[float, float] | None:
+    """Bounds on ``task_success_uncited`` for runs that only kept failure rows and per-task outcomes.
+
+    A failure row (task, query, failed checks, count across repeats) whose failed checks are all tool-only
+    certainly passes the uncited score; one that also failed ``facts`` or ``language`` may or may not; any
+    other failed check (behaviour, hedging, forbidden content, ...) certainly fails it. The lower bound counts
+    the undecidable rows as failures, the upper bound as passes. Failed repeats per task are the largest
+    per-turn count, as in ``results.reconstruct_outcomes``.
+    """
+    if not task_outcomes:
+        return None
+
+    def success(undecidable_fails: bool) -> float:
+        counts: dict[str, Counter] = defaultdict(Counter)
+        for row in failures:
+            failed = set(row.get("failed_checks") or [])
+            certain_fail = bool(failed - _TOOL_ONLY_CHECKS - _UNDECIDABLE_FROM_ROWS)
+            undecidable = bool(failed & _UNDECIDABLE_FROM_ROWS)
+            if certain_fail or (undecidable and undecidable_fails):
+                counts[row["task"]][row["query"]] += int(row.get("count") or 1)
+        values = []
+        for task, runs in task_outcomes.items():
+            failed_runs = min(len(runs), max(counts.get(task, Counter()).values(), default=0))
+            values.append((len(runs) - failed_runs) / len(runs))
+        return round(statistics.fmean(values), 4)
+
+    return success(True), success(False)
 
 
 def task_success_value(runs: Sequence[bool]) -> float:
