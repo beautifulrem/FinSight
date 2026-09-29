@@ -27,7 +27,8 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from functools import lru_cache
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -36,7 +37,7 @@ from .evidence import _NUMBER as _NUMBER_TOKEN
 from .evidence import AgentEvidence
 from .names import english_aliases, english_name
 from .tools import ToolRegistry
-from .verifier import _BARE_SCALES, _DATE_PATTERNS, _HYPOTHETICAL, _PARAMETER_PATTERNS, _UNIT_SCALES
+from .verifier import _BARE_SCALES, _DATE_PATTERNS, _HYPOTHETICAL, _PARAMETER_PATTERNS, _UNIT_SCALES, EN_MONTH
 
 Status = Literal["supported", "contradicted", "unverifiable"]
 Comparator = Literal["eq", "ne", "gt", "ge", "lt", "le", "approx", "range"]
@@ -89,7 +90,9 @@ _METRICS: dict[str, _Metric] = {
         ("pct_change_1d",),
         _words(
             r"涨跌幅|涨幅|跌幅|大涨|大跌|收涨|收跌|上涨|下跌|涨了|跌了|(?<!涨)跌(?![幅破到至])|涨(?![跌幅到至])|"
-            r"\bup\b|\bdown\b|\brose\b|\bfell\b|\bgained\b|\blost\b|\bdropped\b|\bjumped\b|\bslid\b|\bclimbed\b"
+            r"\bup\b|\bdown\b|\brose\b|\bfell\b|\bgained\b|\blost\b|\bdropped\b|\bjumped\b|\bslid\b|\bclimbed\b|"
+            r"\bslipped\b|\bdipped\b|\bdeclined\b|\badvanced\b|\brallied\b|\bedged\b|\btumbled\b|\bplunged\b|"
+            r"\bsoared\b|\bsurged\b"
         ),
         _RATIO,
         fundamental=False,
@@ -218,13 +221,13 @@ _GROWTH_WORDS = re.compile(
 
 _UNIT = re.compile(
     r"\s*(万亿|亿元|亿|千万|百万|万元|万|元|块|倍|%|个百分点|百分点|个?基点|点|x(?![A-Za-z])|times\b|"
-    r"trillion|billion|million|bn\b|mn\b|tn\b|yuan\b|RMB\b|CNY\b|percentage points?\b|percent\b|pct\b|"
+    r"trillion|billion|million|bn\b|mn\b|tn\b|yuan\b|RMB\b|CNY\b|percentage points?\b|per ?cent\b|pct\b|"
     r"basis points?\b|bps?\b|points?\b|pts\b)",
     re.I,
 )
 _UNIT_CLASS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"^(?:个?基点|basis points?|bps?)$", re.I), _BASIS),  # a change in a rate: never a level
-    (re.compile(r"^(?:%|个百分点|百分点|percentage points?|percent|pct)$", re.I), _PERCENT),
+    (re.compile(r"^(?:%|个百分点|百分点|percentage points?|per ?cent|pct)$", re.I), _PERCENT),
     (re.compile(r"^(?:倍|x|times)$", re.I), _MULTIPLE),
     (re.compile(r"^(?:元|块|yuan|RMB|CNY)$", re.I), _PRICE),
     (re.compile(r"^(?:点|points?|pts)$", re.I), _POINTS),
@@ -260,6 +263,8 @@ _POST_COMPARATOR: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("ge", _words(r"^\s*(?:或?以上|\bor (?:more|above|higher)\b|\+)")),
     ("le", _words(r"^\s*(?:或?以下|以内|\bor (?:less|below|lower)\b)")),
     ("approx", _words(r"^\s*(?:左右|上下|出头)")),
+    ("gt", _words(r"^\s*(?:多(?!少)|之?上方|之上)")),  # "三倍多", "PMI在50上方"
+    ("lt", _words(r"^\s*(?:之?下方|之下)")),
 )
 _NEGATION = _words(
     r"不是|并非|并不是|绝非|并没有|没有|没(?!有)|未(?!来)|不(?=超|高于|低于|大于|小于|少于|多于|在)|"
@@ -272,11 +277,14 @@ _RESPECTIVELY = re.compile(r"分别|\brespectively\b", re.I)
 
 _FORECAST = re.compile(
     r"预计|预期|预测|有望|目标价|明年|后年|明天|将(?!近)|会(?!计|议)|\bwill\b|\bforecasts?\b|\bexpect(?:s|ed)?\b|"
-    r"\btarget price\b|\bnext (?:year|quarter|month|week)\b|\bcould\b|\bmight\b|\bwould\b",
+    r"\btarget price\b|\bnext (?:year|quarter|month|week)\b|\bcould\b|\bmight\b|\bwould\b|(?-i:\bmay\b)",
     re.I,
 )
 _MULTI_DAY = re.compile(
-    r"今年|年初|年内|本周|本月|本季|上周|上月|去年|近\s*[\d一二三四五六七八九十两几]+\s*个?\s*(?:交易日|日|天|周|月|年|季度)|"
+    # "近5个交易日" is a multi-day move; "最近一个交易日" / "近1日" is the latest daily change.
+    r"今年|年初|年内|本周|本月|本季|上周|上月|去年|"
+    r"近\s*(?![1一]\s*个?\s*(?:交易日|日|天)(?![\d一二三四五六七八九十]))[\d一二三四五六七八九十两几]+\s*个?\s*"
+    r"(?:交易日|日|天|周|月|年|季度)|"
     r"过去|累计|区间|以来|\bthis (?:year|week|month|quarter)\b|\byear[- ]to[- ]date\b|\bYTD\b|"
     r"\b(?:past|last)\s+(?:\d+\s+)?(?:days?|weeks?|months?|years?)\b|\bsince\b",
     re.I,
@@ -295,7 +303,8 @@ _PERIOD_MONTH: tuple[tuple[re.Pattern[str], str], ...] = (
 _MOVE = re.compile(
     r"大涨|大跌|收涨|收跌|上涨|下跌|走高|走低|下挫|上扬|涨了|跌了|(?<!涨)跌(?![幅破到至])|涨(?![跌幅到至])|"
     r"\b(?:rose|rise[sn]?|fell|fall(?:s|en)?|gained|gain|dropped|drop|declined|decline|climbed|climb|"
-    r"slipped|rallied|slumped|went (?:up|down)|go (?:up|down)|(?:was|is|closed) (?:up|down|higher|lower))\b",
+    r"slipped|rallied|slumped|went (?:up|down)|go (?:up|down)|(?:was|is|closed) (?:up|down|higher|lower))\b"
+    r"(?!\s+than\b)",  # "is higher than Wuliangye's" is a comparison, not a move
     re.I,
 )
 _DOWN_MOVE = re.compile(
@@ -307,6 +316,68 @@ _DOWN_MOVE = re.compile(
 _MACRO_MOVE = re.compile(r"回落|回升|上升|下降|下滑|下行|反弹|攀升|\b(?:increased|decreased|eased|picked up)\b", re.I)
 # Of those, the words for a change from the previous reading ("CPI同比回升": the YoY rate rose, not "YoY > 0").
 _MACRO_CHANGE = re.compile(r"回落|回升|反弹|攀升|下行|\b(?:eased|picked up)\b", re.I)
+# Qualitative move words without a number (a documented convention, stated in the check's note):
+# a big move is at least 3% in its direction, a small one less than 1%.
+BIG_MOVE_PCT, SMALL_MOVE_PCT = 3.0, 1.0
+_BIG_MOVE = re.compile(
+    r"大跌|暴跌|重挫|大幅(?:下跌|下挫|收跌|走低|上涨|收涨|走高|拉升)|跳水|大涨|暴涨|飙升|"
+    r"\b(?:plung(?:e|es|ed|ing)|tumbl(?:e|es|ed|ing)|plummet(?:s|ed|ing)?|crash(?:es|ed|ing)?|"
+    r"soar(?:s|ed|ing)?|surg(?:e|es|ed|ing)|skyrocket(?:s|ed|ing)?|(?:fell|dropped|rose|jumped) sharply)\b",
+    re.I,
+)
+_SMALL_MOVE = re.compile(
+    r"小幅(?:收)?(?:下跌|下挫|跌|走低|上涨|涨|走高)|微跌|微涨|小跌|小涨|"
+    r"\b(?:edged|inched|ticked) (?:up|down|higher|lower)\b|\bdipped\b|"
+    r"\b(?:fell|rose|dropped|gained|slipped) slightly\b|"
+    r"\bslightly (?:lower|higher)\b",
+    re.I,
+)
+_QUALITATIVE_DOWN = re.compile(
+    r"跌|下挫|走低|跳水|\b(?:plung|tumbl|plummet|crash|fell|dropped|slipped|dipped)|\b(?:down|lower)\b", re.I
+)
+# "跌幅较前一交易日扩大": a comparison with the previous session's move, which the sources do not carry.
+_WIDENING = re.compile(
+    r"(?:跌幅|涨幅|降幅|增幅|跌势|涨势)[^，,。；;]{0,12}?(?:扩大|收窄|缩小|加大|加深)|"
+    r"\b(?:losses|gains|decline|fall|rise)\s+(?:widened|narrowed|deepened)\b",
+    re.I,
+)
+# Explicit dates ("4月22日", "2026-04-22", "April 22", "22 April"): a daily value is checked against its date.
+_EN_MONTHS = {
+    name: index
+    for index, names in enumerate(
+        (("jan", "january"), ("feb", "february"), ("mar", "march"), ("apr", "april"), ("may",), ("jun", "june")),
+        start=1,
+    )
+    for name in names
+} | {
+    name: index
+    for index, names in enumerate(
+        (("jul", "july"), ("aug", "august"), ("sep", "sept", "september"), ("oct", "october"), ("nov", "november"),
+         ("dec", "december")),
+        start=7,
+    )
+    for name in names
+}  # fmt: skip
+_CLAIM_DATES = (
+    re.compile(r"(?P<y>(?:19|20)\d{2})-(?P<m>\d{1,2})-(?P<d>\d{1,2})"),
+    re.compile(r"(?:(?P<y>(?:19|20)\d{2})\s*年\s*)?(?P<m>\d{1,2})\s*月\s*(?P<d>\d{1,2})\s*[日号]"),
+    re.compile(rf"\b(?P<mn>{EN_MONTH})\.?\s+(?P<d>\d{{1,2}})(?:st|nd|rd|th)?\b(?:,?\s+(?P<y>(?:19|20)\d{{2}})\b)?"),
+    re.compile(
+        rf"\b(?P<d>\d{{1,2}})(?:st|nd|rd|th)?\s+(?:of\s+)?(?P<mn>{EN_MONTH})\b(?:,?\s+(?P<y>(?:19|20)\d{{2}})\b)?"
+    ),
+)
+# "茅台的市净率是五粮液的1.5倍" / "Moutai's P/B is 1.5 times Wuliangye's": a multiple of another target's value.
+_APPROX_WORDS = r"(?:约|大约|大概|接近|将近|差不多|近|约为|\babout\b|\baround\b|\broughly\b|\bnearly\b|\balmost\b)?"
+_RATIO_BEFORE = re.compile(
+    rf"(?:是|为|相当于|达到?|等于|有)\s*{_APPROX_WORDS}\s*(?P<ref>＠+)\s*(?:的|'s|’s)?\s*{_APPROX_WORDS}\s*$", re.I
+)
+_RATIO_AFTER = re.compile(  # used with .match(text, pos): anchored at the end of the number
+    r"\s*(?:(?:that|those) of\s+|as (?:high|large|big|much) as\s+)?(?:the\s+)?(?P<ref>＠+)", re.I
+)
+# Several targets sharing one claim: "茅台和五粮液都跌超0.5%", "Moutai and Wuliangye both fell ..."
+_SHARED = re.compile(r"都|均|皆|全都|\bboth\b|\ball\b(?![\s-]+(?:of|time)\b)", re.I)
+# Sector targets: a sector entity counts as a claim target only when written as a sector ("白酒板块").
+_SECTOR_WORD = re.compile(r"\s*(?:板块|行业|指数|概念)|\s*(?:sector|industry|stocks)\b", re.I)  # used with .match(pos)
 # The direction a word gives a change ("跌超1%", "fell more than 1%", "营收同比增长", "CPI同比下降").
 _UP_WORDS = re.compile(
     r"大涨|收涨|上涨|涨幅|涨了|走高|上扬|上升|增长|增加|提高|反弹|攀升|回升|涨(?![跌停破到至])|"
@@ -379,6 +450,13 @@ class ClaimCheck(BaseModel):
     )
     reference_value: float | None = None
     reference_evidence_id: str | None = None
+    ratio: float | None = Field(
+        default=None,
+        description=(
+            "For a multiple claim ('市净率是五粮液的1.5倍'): the target's value divided by the reference's. "
+            "`claimed` is then the claimed multiple."
+        ),
+    )
     actual: float | None = None
     status: Status
     reason: Reason | None = Field(default=None, description="Why a check is unverifiable (machine-readable).")
@@ -426,6 +504,9 @@ class _Number:
     relation: bool = False  # "茅台PE比五粮液高": compared with ``reference``, not with a number
     reference: dict[str, Any] | None = None
     reference_kind: Literal["target", "industry", "market"] | None = None
+    ratio: bool = False  # "是五粮液的1.5倍": ``value`` is a multiple of the reference's value
+    date: tuple[str | None, int, int] | None = None  # (year, month, day) named for a daily value
+    convention: str | None = None  # the threshold behind a qualitative move word ("大跌": at least 3%)
 
 
 def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = True) -> ClaimReport:
@@ -433,14 +514,33 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
     targets: list[dict[str, Any]] = []
     for entity in nlu.get("entities") or []:
         listed = entity.get("symbol") and entity.get("entity_type") in {"stock", "etf", "fund", "index"}
-        if listed and all(target["symbol"] != entity["symbol"] for target in targets):
+        if listed and all(target["key"] != entity["symbol"] for target in targets):
             targets.append(
                 {
                     "name": entity.get("canonical_name"),
                     "symbol": entity.get("symbol"),
+                    "key": entity.get("symbol"),
                     "_mentions": [entity.get("mention"), entity.get("canonical_name")],
                 }
             )
+        elif entity.get("entity_type") == "sector" and _written_as_sector(claim, entity):
+            # "白酒板块跌超1%", "the baijiu industry average": checked against the industry snapshot.
+            name = str(entity.get("canonical_name") or entity.get("mention"))
+            if all(target["key"] != f"sector:{name}" for target in targets):
+                targets.append(
+                    {
+                        "name": name,
+                        "symbol": None,
+                        "key": f"sector:{name}",
+                        "sector": name,
+                        "_mentions": [entity.get("mention"), name],
+                    }
+                )
+    for name, phrase in _SECTOR_EN_PHRASE.items():
+        # "the insurance industry", "brokerage stocks": English sector names the NLU does not always tag
+        match = phrase.search(claim)
+        if match and all(target.get("sector") != name for target in targets):
+            targets.append({"name": name, "symbol": None, "key": f"sector:{name}", "sector": name, "_mentions": []})
     numbers = read_numbers(claim, targets, zh=zh)
     evidence = _fetch([number for number in numbers if not number.reasons], registry)
     checks = [_check(number, evidence, zh=zh) for number in numbers]
@@ -461,6 +561,7 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
     public_targets = [
         {"name": target["name"], "symbol": target["symbol"], "name_en": english_name(target["name"], target["symbol"])}
         for target in targets
+        if target["symbol"]
     ]
     return ClaimReport(
         claim=claim,
@@ -475,9 +576,78 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
 # ---------------------------------------------------------------------------------------------------------
 # Reading the claim
 # ---------------------------------------------------------------------------------------------------------
+def _written_as_sector(claim: str, entity: dict[str, Any]) -> bool:
+    """A sector entity is a claim target when written as a sector ("白酒板块", "保险行业", "baijiu industry"),
+    not when it only describes a company ("白酒龙头茅台")."""
+    lowered = claim.lower()
+    canonical = str(entity.get("canonical_name") or "")
+    for name in (entity.get("mention"), canonical, *_sector_english(canonical)):
+        if not name:
+            continue
+        if re.search(r"(?:板块|行业)$", str(name)):
+            return True
+        start = lowered.find(str(name).lower())
+        while start >= 0:
+            if _SECTOR_WORD.match(lowered, start + len(str(name))):
+                return True
+            start = lowered.find(str(name).lower(), start + 1)
+    return False
+
+
+# English names of the sectors with an industry snapshot ("the baijiu industry", "insurance stocks"), plus any
+# English alias in the alias table.
+_SECTOR_EN = {
+    "白酒": ("baijiu", "liquor"),
+    "保险": ("insurance", "insurers"),
+    "证券": ("brokerage", "securities", "brokers"),
+    "银行": ("banking", "banks"),
+}
+_SECTOR_SAME = {"券商": "证券"}  # the NLU's canonical sector name for another alias
+_SECTOR_EN_PHRASE = {
+    name: re.compile(rf"\b(?:{'|'.join(words)})\s+(?:sector|industry|stocks)\b", re.I)
+    for name, words in _SECTOR_EN.items()
+}
+
+
+@lru_cache(maxsize=64)
+def _sector_english(name: str) -> tuple[str, ...]:
+    from ..data_loader import load_aliases
+
+    rows = load_aliases()
+    ids = {row.get("entity_id") for row in rows if row.get("alias_text") == name}
+    found = {str(row["alias_text"]) for row in rows if row.get("entity_id") in ids and str(row["alias_text"]).isascii()}
+    found.update(_SECTOR_EN.get(_SECTOR_SAME.get(name, name), ()))
+    return tuple(sorted(found, key=len, reverse=True))
+
+
+_EN_NUMBER_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+}  # fmt: skip
+_EN_FRACTION = re.compile(
+    r"\b(?:(half)|(a\s+quarter|one\s+quarter))\s+(?:of\s+)?(?:a|one)\s+(percent(?:age point)?|per cent)\b", re.I
+)
+_EN_WORD_NUMBER = re.compile(
+    r"\b(one|two|three|four|five|six|seven|eight|nine|ten)(?:\s+and\s+a\s+(half))?"
+    r"(?=\s+(?:percent|per cent|percentage points?|times)\b)",
+    re.I,
+)
+# "跌破荣枯线": the PMI's expansion/contraction line is 50 by definition.
+_PMI_LINE = re.compile(
+    r"荣枯线|荣枯分界线|枯荣线|\bthe\s+(?:50[- ]point\s+)?(?:boom[- ]bust|expansion[- ]contraction)\s+line\b", re.I
+)
+
+
 def normalise(claim: str) -> str:
-    """Full-width digits, Chinese numerals ("十五倍" → "15倍", "三成" → "30%"), "15x" → "15 x"."""
+    """Full-width digits, Chinese numerals ("十五倍" → "15倍", "三成" → "30%"), English number words ("half a
+    percent" → "0.5 percent", "three times" → "3 times"), "荣枯线" → "50", "15x" → "15 x"."""
     text = claim.translate(_FULLWIDTH).replace("个百分点", "百分点")  # "42个" would read as a count
+    text = _EN_FRACTION.sub(lambda m: f"{0.5 if m.group(1) else 0.25} {m.group(3)}", text)
+    text = _EN_WORD_NUMBER.sub(
+        lambda m: _trim(_EN_NUMBER_WORDS[m.group(1).lower()] + (0.5 if m.group(2) else 0.0)), text
+    )
+    text = re.sub(r"(?<![A-Za-z])twice\b(?!\s+(?:a|per)\b)", "2 times", text, flags=re.I)
+    text = _PMI_LINE.sub("50", text)
+    text = re.sub(r"的一半", "的0.5倍", text)
     text = _CN_PERCENT.sub(lambda m: f"{_cn_number(m.group(1))}%", text)
     text = _CN_BEFORE_UNIT.sub(lambda m: _cn_number(m.group(1)), text)
     text = _TENTHS.sub(lambda m: f"{_trim(float(m.group(1)) * 10)}%", text)
@@ -541,7 +711,8 @@ def _surface_forms(target: dict[str, Any], lowered: str) -> list[str]:
     found = [name for name in names if name.lower() in lowered]
     if found:
         return found
-    english = [alias for alias in english_aliases(target.get("name")) if alias.lower() in lowered]
+    aliases = _sector_english(str(target["name"])) if target.get("sector") else english_aliases(target.get("name"))
+    english = [alias for alias in aliases if re.search(rf"\b{re.escape(alias.lower())}\b", lowered)]
     if english:
         return english  # "Moutai's P/E is higher than Wuliangye's"
     for name in names:
@@ -627,24 +798,34 @@ def read_numbers(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) 
         before = text[max(clause_start, number.start - _LOOK_BEHIND) : number.start]
         after = text[number.end : min(clause_end, number.end + _LOOK_AHEAD)]
         _read_comparator(number, stretch, after)
-        _metric_for(
-            number,
-            before,
-            after,
-            norm[clause_start:clause_end],
-            previous,
-            plain_before=plain[max(clause_start, number.start - _LOOK_BEHIND) : number.start],
-            plain_after=plain[number.end : min(clause_end, number.end + _LOOK_AHEAD)],
-        )
-        # "跌超1%" / "fell more than 0.1%": the sign of the move word (a written "-0.18" is already negative).
-        _apply_direction(number, stretch[-_DIRECTION_WINDOW:])
+        if _ratio_reference(number, text, positions):
+            # "茅台的市净率大约是五粮液的1.5倍": the metric is the one compared, the 倍 is the multiple.
+            sentence_start, sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+            number.metric = _relation_metric(
+                text, number.start, number.end, clause_start, clause_end
+            ) or _relation_metric(text, number.start, number.end, sentence_start, sentence_end)
+            if number.metric == "pct_change_1d":
+                number.direction = _direction(text[clause_start : number.start])
+        else:
+            _metric_for(
+                number,
+                before,
+                after,
+                norm[clause_start:clause_end],
+                previous,
+                plain_before=plain[max(clause_start, number.start - _LOOK_BEHIND) : number.start],
+                plain_after=plain[number.end : min(clause_end, number.end + _LOOK_AHEAD)],
+            )
+            # "跌超1%" / "fell more than 0.1%": the sign of the move word (a written "-0.18" is already negative).
+            _apply_direction(number, stretch[-_DIRECTION_WINDOW:])
         _context(number, norm, clause_start, clause_end, plain)
         previous_end = number.end
-        previous = number if number.metric else previous
+        previous = number if number.metric and not number.ratio else previous
     relations = _relations(text, plain, positions, [number.start for number in numbers])
     taken = [(number.start, number.end) for number in [*numbers, *relations]]
     numbers.extend(_moves(text, norm, taken, plain))
-    _bind_targets(numbers, positions, targets, text)
+    numbers[:] = _bind_targets(numbers, positions, targets, text)
+    _assign_dates([*numbers, *relations], plain)
     for number in numbers:
         metric = _METRICS[number.metric] if number.metric else None
         if metric and metric.macro:
@@ -680,6 +861,50 @@ def _apply_direction(number: _Number, window: str) -> None:
         number.value = -abs(number.value)
         if number.high is not None:
             number.high = -abs(number.high)
+
+
+def _ratio_reference(number: _Number, text: str, positions: list[tuple[int, dict[str, Any]]]) -> bool:
+    """ "是五粮液的1.5倍" / "1.5 times Wuliangye's": a multiple of a named target's value. Sets ``ratio`` and
+    ``reference`` (the subject is bound in ``_bind_targets``)."""
+    if number.unit_class != _MULTIPLE or number.comparator == "range":
+        return False
+    at = dict(positions)
+    before = _RATIO_BEFORE.search(text[: number.start])
+    after = _RATIO_AFTER.match(text, number.end)
+    for match in (before, after):
+        if match is not None and match.start("ref") in at:
+            number.ratio = number.relation = True
+            number.reference = at[match.start("ref")]
+            number.reference_kind = "target"
+            return True
+    return False
+
+
+def _claim_dates(plain: str) -> list[tuple[int, tuple[str | None, int, int]]]:
+    """Explicit dates in the claim: (position, (year or None, month, day))."""
+    found: list[tuple[int, tuple[str | None, int, int]]] = []
+    for pattern in _CLAIM_DATES:
+        for match in pattern.finditer(plain):
+            if any(start <= match.start() < start + 1 for start, _date in found):
+                continue
+            groups = match.groupdict()
+            month = int(groups["m"]) if groups.get("m") else _EN_MONTHS.get(str(groups.get("mn")).lower().rstrip("."))
+            day = int(groups["d"])
+            if month and 1 <= month <= 12 and 1 <= day <= 31:
+                found.append((match.start(), (groups.get("y"), month, day)))
+    return sorted(found)
+
+
+def _assign_dates(numbers: list[_Number], plain: str) -> None:
+    """The date named in a number's sentence (the nearest before it, else the first after it)."""
+    dates = _claim_dates(plain)
+    if not dates:
+        return
+    for number in numbers:
+        start, end = _clause_bounds(plain, number.start, _SENTENCE_BREAK)
+        inside = [(position, date) for position, date in dates if start <= position < end]
+        earlier = [date for position, date in inside if position < number.start]
+        number.date = earlier[-1] if earlier else (inside[0][1] if inside else None)
 
 
 def _merge_ranges(text: str, numbers: list[_Number]) -> list[_Number]:
@@ -834,9 +1059,11 @@ def _context(number: _Number, norm: str, clause_start: int, clause_end: int, pla
 
 
 def _moves(text: str, norm: str, taken: list[tuple[int, int]], plain: str = "") -> list[_Number]:
-    """Number-less moves: "昨天下跌了" (< 0), "并没有跌" (≥ 0), "did not fall", "CPI同比上涨" (> 0)."""
+    """Number-less moves: "昨天下跌了" (< 0), "并没有跌" (≥ 0), "did not fall", "CPI同比上涨" (> 0); qualitative
+    moves by convention ("大跌": a fall of at least 3%, "小幅下跌": less than 1%); "跌幅扩大" (unverifiable)."""
     moves: list[_Number] = []
     found = [(match, False) for match in _MOVE.finditer(text)]
+    found += [(match, False) for pattern in (_BIG_MOVE, _SMALL_MOVE, _WIDENING) for match in pattern.finditer(text)]
     found += [(match, True) for match in _MACRO_MOVE.finditer(text)]  # "PMI回落了": macro series only
     for match, macro_only in sorted(found, key=lambda pair: pair[0].start()):
         clause_start, clause_end = _clause_bounds(text, match.start())
@@ -866,8 +1093,18 @@ def _moves(text: str, norm: str, taken: list[tuple[int, int]], plain: str = "") 
             negated=negated,
             metric=metric,
         )
+        segment = text[clause_start:clause_end]
+        widening = None if macro else _WIDENING.search(segment)
+        qualitative = None if macro else (_BIG_MOVE.search(segment) or _SMALL_MOVE.search(segment))
+        if widening:
+            number.comparator, number.direction = "gt", (-1 if _DOWN_WORDS.search(widening.group(0)) else 1)
+        elif qualitative:
+            _qualitative(number, qualitative.group(0), big=bool(_BIG_MOVE.fullmatch(qualitative.group(0))))
         if _FORECAST.search(clause) or _HYPOTHETICAL.search(clause):
             number.reasons.append(("forecast", "a forecast or hypothetical, not a reported fact"))
+        elif widening:
+            note = "compares with the previous session's move; only the latest daily change is available"
+            number.reasons.append(("multi_day", note))
         elif macro and (not _METRICS[metric].directional or _MACRO_CHANGE.fullmatch(match.group(0))):
             # "PMI回落了": a change from the previous reading; only the latest level is available.
             number.reasons.append(("no_data", "only the latest reading is available, not its change"))
@@ -877,22 +1114,38 @@ def _moves(text: str, norm: str, taken: list[tuple[int, int]], plain: str = "") 
     return moves
 
 
+def _qualitative(number: _Number, word: str, *, big: bool) -> None:
+    """ "大跌" / "plunged": a move of at least 3% in its direction; "小幅下跌" / "edged down": less than 1%. The
+    thresholds are a convention and the check's note says so."""
+    direction = -1 if _QUALITATIVE_DOWN.search(word) else 1
+    threshold = BIG_MOVE_PCT if big else SMALL_MOVE_PCT
+    comparator: Comparator = "ge" if big else "lt"
+    number.value = direction * threshold
+    number.direction = direction
+    number.comparator = _FLIP[comparator] if number.negated else comparator
+    size = f"at least {_trim(threshold)}%" if big else f"less than {_trim(threshold)}%"
+    number.convention = f"convention: '{word}' means a move of {size} in that direction"
+
+
 # ---------------------------------------------------------------------------------------------------------
 # Relations: "茅台的市盈率比五粮液高", "五粮液ROE低于茅台", "Moutai's P/E is higher than Wuliangye's"
 # ---------------------------------------------------------------------------------------------------------
 _REL_BI = re.compile(r"比")
-_REL_WORD = re.compile(r"高于|大于|超过|多于|强于|低于|小于|少于|不及|不如|逊于|弱于")
+_REL_WORD = re.compile(r"高于|大于|超过|多于|强于|好于|优于|跑赢|低于|小于|少于|不及|不如|逊于|弱于|差于|跑输")
 _REL_NOT_AS = re.compile(r"没有|没")
 _REL_EN = re.compile(
     r"\b(higher|greater|bigger|larger|more|lower|smaller|less|cheaper|pricier)\b[^,.;!?]{0,40}?\bthan\b|"
-    r"\b(above|below|exceeds?|exceeded|trails?|trailed|beats?)\b",
+    r"\b(above|below|exceeds?|exceeded|trails?|trailed|beats?|outperform(?:s|ed)?|underperform(?:s|ed)?|lag(?:s|ged)?)\b",
     re.I,
 )
 _REL_ADJ = re.compile(r"(?<!大)(高|大(?![涨跌])|多|贵|低|小|少|便宜)")
-_REL_GT_WORDS = {"高", "大", "多", "贵", "高于", "大于", "超过", "多于", "强于"}
+_REL_GT_WORDS = {"高", "大", "多", "贵", "高于", "大于", "超过", "多于", "强于", "好于", "优于", "跑赢"}
 _REL_GT_EN = {"higher", "greater", "bigger", "larger", "more", "pricier", "above", "exceed", "exceeds", "exceeded"}
-_REL_GT_EN |= {"beat", "beats"}
-_REFERENCE_FILLER = re.compile(r"\s*(?:that of|those of|the|its|其|它的|它)?\s*", re.I)
+_REL_GT_EN |= {"beat", "beats", "outperform", "outperforms", "outperformed"}
+# "跑赢沪深300" / "outperformed the CSI 300": with no metric named, a comparison of the daily moves.
+_PERFORMANCE_WORDS = {"跑赢", "跑输", "beat", "beats", "outperform", "outperforms", "outperformed"}
+_PERFORMANCE_WORDS |= {"underperform", "underperforms", "underperformed", "lag", "lags", "lagged"}
+_REFERENCE_FILLER = re.compile(r"\s*(?:了|过)?\s*(?:that of|those of|the|its|其|它的|它)?\s*", re.I)
 _INDUSTRY_REFERENCE = re.compile(
     r"(?:其?所在|所属|同)?(?:行业|板块|同行|同业)(?:的)?(?:平均|均值|整体|中位数)?(?:水平)?|"
     r"(?:its\s+)?(?:industry|sector|peers?)(?:\s+(?:average|median|mean|peers))?",
@@ -946,11 +1199,9 @@ def _relation_at(
     if reference is None:
         return None
     kind, ref_target, ref_end = reference
-    ref_symbol = ref_target["symbol"] if ref_target else None
+    ref_key = ref_target["key"] if ref_target else None
     subjects = [
-        target
-        for position, target in positions
-        if sentence_start <= position < start and target["symbol"] != ref_symbol
+        target for position, target in positions if sentence_start <= position < start and target["key"] != ref_key
     ]
     if not subjects:
         return None
@@ -976,6 +1227,8 @@ def _relation_at(
     metric = _relation_metric(text, start, end, clause_start, clause_end) or _relation_metric(
         text, start, end, sentence_start, sentence_end
     )
+    if metric is None and (word or "").removeprefix("en:") in _PERFORMANCE_WORDS:
+        metric = "pct_change_1d"
     fell = re.search(r"跌|\b(?:fell|fall|dropped|declined|lost)\b", text[clause_start:clause_end], re.I)
     if metric == "pct_change_1d" and fell:
         comparator = "lt" if comparator == "gt" else "gt"  # "跌幅比五粮液大": it fell more, a lower change
@@ -1040,14 +1293,18 @@ def _relation_metric(text: str, cue_start: int, cue_end: int, start: int, end: i
 
 def _bind_targets(
     numbers: list[_Number], positions: list[tuple[int, dict[str, Any]]], targets: list[dict[str, Any]], text: str
-) -> None:
-    """Each number belongs to the nearest target named before it ("分别" assigns targets in order)."""
+) -> list[_Number]:
+    """Each number belongs to the nearest target named before it ("分别" assigns targets in order; "都" gives
+    each target named before it its own check). Returns the numbers, with shared claims expanded."""
     if not targets:
-        return
+        return numbers
     placed = {id(target) for _position, target in positions}
     unplaced = [target for target in targets if id(target) not in placed]
     for number in numbers:
         before = [target for position, target in positions if position < number.start]
+        if number.ratio and number.reference is not None:
+            # "五粮液的跌幅大约是茅台的三倍": the subject is named before the reference
+            before = [target for target in before if target["key"] != number.reference["key"]]
         # No target named before the number: the first one the NLU found but we could not place (NLU order
         # is the order of appearance), else the first one named after it.
         number.target = before[-1] if before else (unplaced or [target for _p, target in positions] or targets)[0]
@@ -1060,14 +1317,41 @@ def _bind_targets(
         if len(ordered) > 1 and len(ordered) == len(in_clause):
             for number, target in zip(in_clause, ordered, strict=True):
                 number.target = target
+    expanded: list[_Number] = []
+    for number in numbers:
+        shared = [] if number.relation else _shared_targets(number, numbers, positions, text)
+        if len(shared) < 2:
+            expanded.append(number)
+            continue
+        for target in shared:
+            expanded.append(replace(number, target=target, reasons=list(number.reasons), years=list(number.years)))
+    return expanded
+
+
+def _shared_targets(
+    number: _Number, numbers: list[_Number], positions: list[tuple[int, dict[str, Any]]], text: str
+) -> list[dict[str, Any]]:
+    """ "茅台和五粮液4月22日都跌超0.5%": the targets named since the previous number of the sentence, when a
+    "都 / 均 / both / all" stands between the last of them and the number."""
+    start, _end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+    start = max([start, *(other.end for other in numbers if other is not number and other.end <= number.start)])
+    named = [(position, target) for position, target in positions if start <= position < number.start]
+    if len(named) < 2 or not _SHARED.search(text, named[-1][0], number.start):
+        return []
+    ordered: list[dict[str, Any]] = []
+    for _position, target in named:
+        if all(target["key"] != other["key"] for other in ordered):
+            ordered.append(target)
+    return ordered
 
 
 # ---------------------------------------------------------------------------------------------------------
 # Fetching and comparing
 # ---------------------------------------------------------------------------------------------------------
 def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[AgentEvidence]]:
-    """Evidence per target symbol (price and/or fundamentals), per industry (``industry:<symbol>``, the
-    target's industry snapshot) and per macro family (``macro:CPI``)."""
+    """Evidence per target key (a symbol: price and/or fundamentals; ``sector:<name>``: the industry
+    snapshot), per industry (``industry:<symbol>``, the target's industry snapshot) and per macro family
+    (``macro:CPI``)."""
     evidence: dict[str, list[AgentEvidence]] = {}
     subjects: dict[str, dict[str, Any]] = {}
     wanted_market = wanted_fundamental = False
@@ -1083,21 +1367,25 @@ def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[Age
         # The industry snapshot comes with the fundamentals.
         wanted_fundamental = wanted_fundamental or metric.fundamental or number.reference_kind == "industry"
         for subject in (number.target, number.reference):
-            if subject and subject.get("symbol"):
-                subjects.setdefault(subject["symbol"], subject)
-    for symbol in list(subjects)[:4]:
+            if subject and subject.get("key"):
+                subjects.setdefault(subject["key"], subject)
+    for key, subject in list(subjects.items())[:4]:
+        if subject.get("sector"):
+            result = registry.run("get_fundamentals", {"target": subject["sector"]})
+            evidence[key] = list(result.evidence) if result.ok else []
+            continue
         items: list[AgentEvidence] = []
         if wanted_market:
-            result = registry.run("get_price_history", {"target": symbol})
+            result = registry.run("get_price_history", {"target": key})
             items.extend(result.evidence if result.ok else [])
         if wanted_fundamental:
-            result = registry.run("get_fundamentals", {"target": symbol})
+            result = registry.run("get_fundamentals", {"target": key})
             for item in result.evidence if result.ok else []:
                 if item.evidence_id.startswith("fundamental_"):
                     items.append(item)
-                elif item.source_type == "industry_sql" or item.evidence_id.startswith("industry_"):
-                    evidence.setdefault(f"industry:{symbol}", []).append(item)
-        evidence[symbol] = items
+                elif _is_industry(item):
+                    evidence.setdefault(f"industry:{key}", []).append(item)
+        evidence[key] = items
     if families:
         result = registry.run("get_macro_indicators", {"topics": sorted(families)})
         for item in result.evidence if result.ok else []:
@@ -1105,6 +1393,17 @@ def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[Age
             if code:
                 evidence.setdefault(f"macro:{_macro_family(str(code))}", []).append(item)
     return evidence
+
+
+def _is_industry(item: AgentEvidence) -> bool:
+    return item.source_type == "industry_sql" or item.evidence_id.startswith("industry_")
+
+
+def _keys(subject: dict[str, Any] | None, metric: str) -> tuple[str, ...]:
+    """Payload keys of a metric for a target: a sector's industry snapshot names some metrics differently."""
+    if subject and subject.get("sector"):
+        return _INDUSTRY_KEYS.get(metric, ())
+    return _METRICS[metric].keys
 
 
 def _macro_family(code: str) -> str:
@@ -1128,7 +1427,7 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
     base = ClaimCheck(
         target=number.target["name"] if number.target else None,
         metric=number.metric,
-        claimed=None if number.relation else number.value,
+        claimed=None if number.relation and not number.ratio else number.value,
         claimed_high=number.high,
         claimed_unit=number.unit,
         comparator=number.comparator,
@@ -1136,6 +1435,7 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
         direction=None if number.direction is None else ("up" if number.direction > 0 else "down"),
         reference=_reference_name(number, evidence, zh=zh),
         status="unverifiable",
+        note=number.convention or "",
     )
     if number.reasons:
         reason, note = number.reasons[0]
@@ -1148,7 +1448,7 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
             note = f"the macro sources do not provide {metric.macro}"
             return base.model_copy(update={"reason": "no_data", "note": note})
     else:
-        found = _value(evidence.get(number.target["symbol"]) or [], metric.keys)
+        found = _value(evidence.get(number.target.get("key") or "") or [], _keys(number.target, number.metric))
     if found is None:
         if number.metric in {"revenue_yoy", "netprofit_yoy"}:
             note = "the fundamentals source has no year-on-year growth for this item"
@@ -1165,31 +1465,38 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
             "as_of_basis": basis,
         }
     )
-    if number.relation:
-        return _check_relation(number, base, evidence)
     if metric.macro:
         mismatch = _macro_period_mismatch(number, as_of)
+    elif basis == "trade_date":
+        mismatch = _date_mismatch(number, as_of)
     else:
         mismatch = _period_mismatch(number, item) if metric.fundamental else None
     if mismatch:
         return base.model_copy(update={"reason": "period_mismatch", "note": mismatch})
+    if number.relation:
+        return _check_relation(number, base, evidence)
     in_percent = any(
         (item.payload.get("metric_units") or {}).get(key) == "%" for key in _METRICS[number.metric or ""].keys
     )
     status = _compare(number, actual, declared_percent=in_percent)
-    return base.model_copy(update={"status": status, "note": _interim_note(number, item)})
+    note = "; ".join(part for part in (number.convention, _interim_note(number, item)) if part)
+    return base.model_copy(update={"status": status, "note": note})
 
 
 def _reference_name(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: bool) -> str | None:
     if not number.relation:
         return None
     if number.reference_kind == "target" and number.reference:
-        return str(number.reference.get("name") or number.reference.get("symbol"))
+        name = str(number.reference.get("name") or number.reference.get("symbol"))
+        if number.reference.get("sector"):
+            english = _SECTOR_EN.get(_SECTOR_SAME.get(name, name), (name,))[0]
+            return f"{name}行业" if zh else f"{english} industry"
+        return name
     if number.reference_kind == "market":
         return "市场平均" if zh else "market average"
-    symbol = (number.target or {}).get("symbol")
+    key = (number.target or {}).get("key")
     industry = next(
-        (item.payload.get("industry_name") for item in evidence.get(f"industry:{symbol}") or []),
+        (item.payload.get("industry_name") for item in evidence.get(f"industry:{key}") or []),
         None,
     )
     if zh:
@@ -1198,34 +1505,84 @@ def _reference_name(number: _Number, evidence: dict[str, list[AgentEvidence]], *
 
 
 def _check_relation(number: _Number, base: ClaimCheck, evidence: dict[str, list[AgentEvidence]]) -> ClaimCheck:
-    """ "茅台PE比五粮液高": the target's value against the reference's (a named target or the industry)."""
+    """ "茅台PE比五粮液高": the target's value against the reference's (a named target, a sector or the
+    target's industry); "是五粮液的1.5倍": their ratio against the claimed multiple."""
     metric = number.metric or ""
     if number.reference_kind == "industry":
         keys = _INDUSTRY_KEYS.get(metric)
-        items = evidence.get(f"industry:{(number.target or {}).get('symbol')}") or []
+        items = evidence.get(f"industry:{(number.target or {}).get('key')}") or []
         reference = _value(items, keys) if keys else None
         if reference is None:
             note = "the industry snapshot has no value for this metric" if items else "no industry snapshot"
             return base.model_copy(update={"reason": "no_data", "note": note})
     else:
-        reference = _value(evidence.get((number.reference or {}).get("symbol") or "") or [], _METRICS[metric].keys)
+        subject = number.reference or {}
+        reference = _value(evidence.get(subject.get("key") or "") or [], _keys(subject, metric))
         if reference is None:
             return base.model_copy(update={"reason": "no_data", "note": "no data for the compared target"})
     item, value = reference
+    as_of, basis = _as_of(item, metric)
+    mismatch = (
+        _date_mismatch(number, as_of) if basis == "trade_date" else _period_mismatch(number, item)
+        if _METRICS[metric].fundamental else None
+    )  # fmt: skip
+    if mismatch:
+        return base.model_copy(update={"reason": "period_mismatch", "note": f"{mismatch} (compared side)"})
+    base = base.model_copy(update={"reference_value": value, "reference_evidence_id": item.evidence_id})
     actual = float(base.actual or 0.0)
+    if number.ratio:
+        return _check_ratio(number, base, actual, value)
     holds = {
         "gt": actual > value,
         "ge": actual >= value,
         "lt": actual < value,
         "le": actual <= value,
     }.get(number.comparator, math.isclose(actual, value, rel_tol=_REL_TOLERANCE))
+    return base.model_copy(update={"status": "supported" if holds else "contradicted"})
+
+
+def _check_ratio(number: _Number, base: ClaimCheck, actual: float, value: float) -> ClaimCheck:
+    """ "市净率大约是五粮液的1.5倍", "跌幅大约是茅台的三倍": actual / reference against the claimed multiple. For
+    moves, both must go the stated way (a fall is not three times a rise)."""
+    if value == 0:
+        return base.model_copy(update={"reason": "no_data", "note": "the compared value is 0; no ratio"})
+    if number.metric == "pct_change_1d":
+        direction = number.direction or (1 if value > 0 else -1)
+        if actual * direction <= 0 or value * direction <= 0:
+            note = "the two moves are not both in the stated direction"
+            return base.model_copy(update={"status": "contradicted", "note": note})
+    elif actual <= 0 or value <= 0:
+        return base.model_copy(update={"reason": "no_data", "note": "a multiple of a negative value is not defined"})
+    ratio = actual / value
+    claimed, high = number.value, number.high
+    comparator = number.comparator
+    tolerance = max(number.rounding, abs(claimed) * (_APPROX_TOLERANCE if comparator == "approx" else _REL_TOLERANCE))
+    close = abs(ratio - claimed) <= tolerance + 1e-9
+    holds = {
+        "eq": close,
+        "approx": close,
+        "ne": not close,
+        "gt": ratio > claimed,
+        "ge": ratio >= claimed,
+        "lt": ratio < claimed,
+        "le": ratio <= claimed,
+        "range": claimed <= ratio <= (high if high is not None else claimed),
+    }[comparator]
+    note = f"ratio {ratio:.2f} = {_trim(actual)} / {_trim(value)}"
     return base.model_copy(
-        update={
-            "reference_value": value,
-            "reference_evidence_id": item.evidence_id,
-            "status": "supported" if holds else "contradicted",
-        }
+        update={"ratio": round(ratio, 4), "status": "supported" if holds else "contradicted", "note": note}
     )
+
+
+def _date_mismatch(number: _Number, as_of: str | None) -> str | None:
+    """ "4月21日跌超1%" against the 2026-04-22 close: another trading day (a matching date is fine)."""
+    if number.date is None or not as_of or not re.match(r"\d{4}-\d{2}-\d{2}", as_of):
+        return None
+    year, month, day = number.date
+    if (month, day) == (int(as_of[5:7]), int(as_of[8:10])) and (not year or year == as_of[:4]):
+        return None
+    named = f"{year}-{month:02d}-{day:02d}" if year else f"{month:02d}-{day:02d}"
+    return f"the claim is about {named}; the data is for the trading day {as_of[:10]}"
 
 
 def _macro_period_mismatch(number: _Number, as_of: str | None) -> str | None:
@@ -1245,6 +1602,9 @@ def _macro_period_mismatch(number: _Number, as_of: str | None) -> str | None:
 def _as_of(item: AgentEvidence, metric: str) -> tuple[str | None, str | None]:
     if item.source_type == "market_api" or item.evidence_id.startswith("price_"):
         return item.as_of, "trade_date"
+    if _is_industry(item):
+        trade_date = item.payload.get("trade_date") or item.as_of
+        return (str(trade_date) if trade_date else None), "trade_date"
     payload = item.payload
     if _METRICS[metric].macro:
         indicator_date = payload.get("metric_date") or item.as_of
@@ -1313,7 +1673,7 @@ def _compare(number: _Number, actual: float, *, declared_percent: bool = False) 
         else:
             holds = {"gt": size > bound, "ge": size >= bound, "lt": size < bound, "le": size <= bound}[comparator]
             if comparator in {"lt", "le"} and not number.negated:
-                holds = holds and size >= 0
+                holds = holds and size > 0  # "跌了不到1%" asserts a fall: a flat day or a rise contradicts it
     elif comparator == "gt":
         holds = expected > claimed
     elif comparator == "ge":
