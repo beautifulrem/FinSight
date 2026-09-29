@@ -44,12 +44,34 @@ ENGLISH_TERM_REWRITES: list[tuple[str, str]] = [
     (r"(?i)\bbuyable\b", "能买"),
     (r"(?i)\bcompare\b", "比较"),
     (r"(?i)\bdifference\b", "区别"),
+    # English metric names the alias table only knows as abbreviations ("return on equity" -> ROE)
+    (r"(?i)\breturns? on (?:shareholders'? )?equity\b", "ROE"),
+    (r"(?i)\bprice[- ]to[- ]book(?: (?:ratio|multiple|value))?\b|\bbook(?:[- ]value)? multiple\b", "P/B"),
+    (r"(?i)\bprice[- ]to[- ]earnings(?: (?:ratio|multiple))?\b|\bearnings multiple\b|\bP/E ratio\b", "P/E"),
 ]
 
 
+_LATIN_WORD = re.compile(r"[A-Za-z]+")
+_MIN_TYPO_TOKEN = 6  # shorter names ("BYD", "Gree") differ from ordinary words by one letter too often
+
+
 class QueryNormalizer:
-    def __init__(self, synonyms: dict) -> None:
+    def __init__(self, synonyms: dict, security_names: set[str] | frozenset[str] | None = None) -> None:
         self.synonyms = synonyms
+        # English aliases of listed securities, for typo correction ("Moutia" -> "moutai"); off without the list.
+        self._typo_aliases: list[tuple[str, tuple[str, ...]]] = sorted(
+            (
+                (alias, tuple(alias.lower().split()))
+                for alias, target in (synonyms.get("alias") or {}).items()
+                if security_names
+                and target in security_names
+                and alias.isascii()
+                and all(part.isalpha() for part in alias.split())
+                and any(len(part) >= _MIN_TYPO_TOKEN for part in alias.split())
+            ),
+            key=lambda item: len(item[1]),
+            reverse=True,
+        )
 
     def normalize(self, raw_query: str) -> tuple[str, list[str]]:
         text = raw_query.strip()
@@ -61,6 +83,8 @@ class QueryNormalizer:
         text = re.sub(r"(?i)lof", "LOF", text)
         trace: list[str] = []
 
+        text, typo_trace = self._correct_english_typos(text)
+        trace.extend(typo_trace)
         text, english_trace = self._rewrite_english_patterns(text)
         trace.extend(english_trace)
 
@@ -77,6 +101,52 @@ class QueryNormalizer:
         normalized = re.sub(r"([?])", " ", text)
         normalized = re.sub(r"\s+", " ", normalized).strip()
         return normalized, trace
+
+    def _correct_english_typos(self, text: str) -> tuple[str, list[str]]:
+        """English names of listed securities with one typo ("Kweichow Moutia", "Wuliangey's") -> the alias.
+
+        The same idea as the Chinese typo matching ("贵州矛台"), with a stricter rule because short English words
+        are often one letter apart: the words must line up with the alias's words, exactly one word may differ, that
+        word has at least six letters, the same first letter, and one edit (a swap of two neighbouring letters
+        counts as one; two edits from ten letters on); a plural or "-ed" form of the alias word is not a typo.
+        """
+        if not self._typo_aliases or not _LATIN_WORD.search(text):
+            return text, []
+        from rapidfuzz.distance import OSA
+
+        words = list(_LATIN_WORD.finditer(text))
+        taken: list[tuple[int, int, str]] = []
+        for alias, parts in self._typo_aliases:
+            size = len(parts)
+            for index in range(len(words) - size + 1):
+                window = words[index : index + size]
+                start, end = window[0].start(), window[-1].end()
+                if any(not (end <= a or start >= b) for a, b, _alias in taken):
+                    continue
+                if any(text[left.end() : right.start()].strip() for left, right in zip(window, window[1:], strict=False)):
+                    continue  # the alias's words are separated by spaces only
+                written = [match.group(0).lower() for match in window]
+                differing = [(mine, theirs) for mine, theirs in zip(written, parts, strict=True) if mine != theirs]
+                if len(differing) != 1:
+                    continue
+                mine, theirs = differing[0]
+                limit = 2 if len(theirs) >= 10 else 1
+                if (
+                    len(theirs) < _MIN_TYPO_TOKEN
+                    or mine[0] != theirs[0]
+                    or mine in {f"{theirs}s", f"{theirs}es", f"{theirs}ed", f"{theirs}d"}
+                    or theirs in {f"{mine}s", f"{mine}es"}
+                    or OSA.distance(mine, theirs) > limit
+                ):
+                    continue
+                taken.append((start, end, alias))
+        if not taken:
+            return text, []
+        trace = []
+        for start, end, alias in sorted(taken, reverse=True):
+            trace.append(f"alias_typo_en: {text[start:end]}->{alias}")
+            text = f"{text[:start]}{alias}{text[end:]}"
+        return text, trace[::-1]
 
     def _replace_alias_mentions(self, text: str, source: str, target: str) -> tuple[str, int]:
         if not source or source == target:

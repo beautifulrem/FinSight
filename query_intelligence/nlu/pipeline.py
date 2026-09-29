@@ -32,6 +32,16 @@ from .typo_linker import TypoLinker
 
 # Words that join names in a list or a comparison ("比亚迪和宁得时代", "A与B", "A还是B", "A vs B").
 _NAME_LIST_JOINER = re.compile(r"[和与跟及、]|还是|\bvs\.?\b|\band\b", re.IGNORECASE)
+_LISTED_TYPES = {"stock", "etf", "fund", "index"}
+
+
+def _security_names(entities: list[dict]) -> frozenset[str]:
+    """Canonical names of listed securities: the English aliases of these get typo correction."""
+    return frozenset(
+        str(row["canonical_name"])
+        for row in entities
+        if row.get("canonical_name") and row.get("symbol") and row.get("entity_type") in _LISTED_TYPES
+    )
 GENERIC_PRODUCT_TARGETS = {
     "etf",
     "lof",
@@ -91,7 +101,7 @@ class NLUPipeline:
         boundary_model = EntityBoundaryCRF.build_from_queries([text for text, _ in INTENT_SAMPLES + [(q, []) for q, _ in TOPIC_SAMPLES]], [row["normalized_alias"] for row in aliases])
         typo_linker = TypoLinker.build_from_aliases(aliases)
         return cls(
-            normalizer=QueryNormalizer(synonyms),
+            normalizer=QueryNormalizer(synonyms, security_names=_security_names(entities)),
             entity_resolver=EntityResolver(entities, aliases, linker=EntityLinker.build_from_catalog(entities, aliases), boundary_model=boundary_model, typo_linker=typo_linker),
             product_classifier=ProductTypeClassifier.build_demo(),
             intent_classifier=MultiLabelClassifier.build_demo(INTENT_SAMPLES),
@@ -237,7 +247,7 @@ class NLUPipeline:
             )
 
         return cls(
-            normalizer=QueryNormalizer(synonyms),
+            normalizer=QueryNormalizer(synonyms, security_names=_security_names(entities)),
             entity_resolver=EntityResolver(entities, aliases, linker=EntityLinker.build_from_catalog(entities, aliases), boundary_model=boundary_model, typo_linker=typo_linker),
             product_classifier=product_classifier,
             intent_classifier=intent_classifier,
