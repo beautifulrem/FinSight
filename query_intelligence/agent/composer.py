@@ -107,6 +107,9 @@ def compose_template(
         if renderer is None:
             continue
         data = entry.get("data") or {}
+        if not data.get("product_type") and (types or {}).get(str(data.get("symbol"))):
+            # indicator outputs carry no product type: an index level is in points, not CNY
+            data = {**data, "product_type": (types or {})[str(data.get("symbol"))]}
         if tool == "get_price_history":
             sentences = _price(data, zh, request)
         elif tool == "compute_indicators":
@@ -172,7 +175,7 @@ def _extra_metrics(data: dict[str, Any], keys: set[str], zh: bool) -> list[str]:
         if value is None or not eid:
             continue
         metric = EXTRA_METRIC_FIELDS[key]
-        parts.append(f"{metric.zh if zh else metric.en} {_num(value)}")
+        parts.append(f"{metric.zh if zh else metric.en} {_metric_value(key, value, data, zh)}")
     if not parts:
         return []
     if zh:
@@ -187,10 +190,10 @@ def _price(data: dict[str, Any], zh: bool, request: PriceRequest | None = None) 
         return []
     if zh:
         change = f"，当日涨跌幅 {_num(pct)}%" if pct is not None else ""
-        sentences = [f"{name}（{symbol}）最新可用收盘价为 {_num(close)}（{as_of}）{change} [{eid}]。"]
+        sentences = [f"{name}（{symbol}）最新可用收盘价为 {_px(close, data, zh)}（{as_of}）{change} [{eid}]。"]
     else:
         change = f", daily change {_num(pct)}%" if pct is not None else ""
-        sentences = [f"{name} ({symbol}) last available close was {_num(close)} on {as_of}{change} [{eid}]."]
+        sentences = [f"{name} ({symbol}) last available close was {_px(close, data, zh)} on {as_of}{change} [{eid}]."]
     if request is not None and request.needs_quote:
         sentences.extend(_price_details(data, zh, request))
     return sentences
@@ -215,7 +218,9 @@ def _price_details(data: dict[str, Any], zh: bool, request: PriceRequest) -> lis
     if request.closes:
         shown = closes[-request.closes :]
         listing = ("、" if zh else ", ").join(
-            f"{row.get('date')} {_num(row['close'])}" if zh else f"{row.get('date')}: {_num(row['close'])}"
+            f"{row.get('date')} {_px(row['close'], data, zh)}"
+            if zh
+            else f"{row.get('date')}: {_px(row['close'], data, zh)}"
             for row in shown
         )
         if zh:
@@ -232,9 +237,9 @@ def _price_details(data: dict[str, Any], zh: bool, request: PriceRequest) -> lis
         if len(closes) >= 2:
             previous = closes[-2]
             stated.append(
-                f"前一交易日（{previous.get('date')}）收盘价 {_num(previous['close'])}"
+                f"前一交易日（{previous.get('date')}）收盘价 {_px(previous['close'], data, zh)}"
                 if zh
-                else f"previous close {_num(previous['close'])} on {previous.get('date')}"
+                else f"previous close {_px(previous['close'], data, zh)} on {previous.get('date')}"
             )
         else:
             missing.append("前一交易日收盘价" if zh else "the previous close")
@@ -253,6 +258,12 @@ def _price_details(data: dict[str, Any], zh: bool, request: PriceRequest) -> lis
                 if zh
                 else {"lot": " lots", "share": " shares"}.get(str(unit_name), " (units as reported by the source)")
             )
+        if key == "amount":
+            stated.append(f"{label_zh} {_money(value, zh)}" if zh else f"{label_en} {_money(value, zh)}")
+            continue
+        if key in {"open", "high", "low"}:
+            stated.append(f"{label_zh} {_px(value, data, zh)}" if zh else f"{label_en} {_px(value, data, zh)}")
+            continue
         stated.append(f"{label_zh} {_num(value)}{unit}" if zh else f"{label_en} {_num(value)}{unit}")
     if stated:
         sentences.append(
@@ -274,7 +285,8 @@ def _indicators(data: dict[str, Any], zh: bool, request: PriceRequest | None = N
     parts = []
     for key, label in (("ma5", "MA5"), ("ma20", "MA20"), ("rsi_14", "RSI(14)"), ("volatility_20d", "20D vol")):
         if data.get(key) is not None:
-            parts.append(f"{label} {_num(data[key])}")
+            value = _px(data[key], data, zh) if key.startswith("ma") else _num(data[key])
+            parts.append(f"{label} {value}")
     returns = data.get("pct_change_nd") or {}
     for days in request.return_days if request else ():
         value = returns.get(f"pct_{days}d")
@@ -311,12 +323,14 @@ def _price_vs_ma(data: dict[str, Any], zh: bool, request: PriceRequest) -> list[
             relation = "高于" if above else "低于"
             state = "站上" if above else "位于其下方"
             sentences.append(
-                f"{name} 最新收盘价 {_num(close)} {relation} MA{days} {_num(average)}，即{state} MA{days} [{eid}]。"
+                f"{name} 最新收盘价 {_px(close, data, zh)} {relation} MA{days} {_px(average, data, zh)}，"
+                f"即{state} MA{days} [{eid}]。"
             )
         else:
             relation = "above" if above else "below"
             sentences.append(
-                f"{name}'s latest close {_num(close)} is {relation} its MA{days} of {_num(average)} [{eid}]."
+                f"{name}'s latest close {_px(close, data, zh)} is {relation} its MA{days} of "
+                f"{_px(average, data, zh)} [{eid}]."
             )
     return sentences
 
@@ -327,9 +341,9 @@ def _fundamentals(data: dict[str, Any], zh: bool, *, industry_first: bool = Fals
     name, eid, period = data.get("name"), data.get("evidence_id"), data.get("report_date")
     parts = []
     if metrics.get("pe_ttm") is not None:
-        parts.append(f"PE(TTM) {_num(metrics['pe_ttm'])}")
+        parts.append(f"PE(TTM) {_times(metrics['pe_ttm'], zh)}")
     if metrics.get("pb") is not None:
-        parts.append(f"PB {_num(metrics['pb'])}")
+        parts.append(f"PB {_times(metrics['pb'], zh)}")
     roe = metrics.get("roe")
     if roe is not None:
         # normalised payloads state ROE in percent (metric_units); older payloads may hold a fraction
@@ -339,9 +353,7 @@ def _fundamentals(data: dict[str, Any], zh: bool, *, industry_first: bool = Fals
     for key, label_zh, label_en in (("revenue", "营业收入", "revenue"), ("net_profit", "净利润", "net profit")):
         value = metrics.get(key)
         if value is not None and abs(float(value)) >= 1e6:
-            parts.append(
-                f"{label_zh} {_num(value / 1e8)} 亿元" if zh else f"{label_en} {_num(value / 1e8)} hundred million CNY"
-            )
+            parts.append(f"{label_zh if zh else label_en} {_money(value, zh)}")
     if parts and eid:
         label = data.get("period")
         if zh:
@@ -354,8 +366,8 @@ def _fundamentals(data: dict[str, Any], zh: bool, *, industry_first: bool = Fals
     industry = data.get("industry") or {}
     industry_metrics = industry.get("metrics") or {}
     industry_parts = [
-        f"{label} {_num(industry_metrics[key])}"
-        for key, label in (("pe", "PE"), ("pb", "PB"), ("pct_change", "涨跌幅%" if zh else "change %"))
+        f"{label} {_times(industry_metrics[key], zh) if key in {'pe', 'pb'} else _num(industry_metrics[key]) + '%'}"
+        for key, label in (("pe", "PE"), ("pb", "PB"), ("pct_change", "涨跌幅" if zh else "change"))
         if industry_metrics.get(key) is not None
     ]
     if industry_parts and industry.get("evidence_id"):
@@ -518,6 +530,68 @@ def _failure_text(tool: str, error: dict[str, Any], *, zh: bool) -> str:
     return (
         f"{tool} 未返回可用数据（{code}：{message}）" if zh else f"{tool} returned no usable data ({code}: {message})"
     )
+
+
+# Extra metrics that are ratios (stated in percent, like ROE) and amounts (stated in CNY).
+_PERCENT_FIELDS = {
+    "dividend_yield",
+    "dv_ratio",
+    "dv_ttm",
+    "debt_to_assets",
+    "debt_ratio",
+    "liability_ratio",
+    "gross_margin",
+    "grossprofit_margin",
+    "net_margin",
+    "netprofit_margin",
+}
+_MONEY_FIELDS = {"operating_cash_flow", "n_cashflow_act", "free_cash_flow"}
+
+
+def _metric_value(key: str, value: Any, data: dict[str, Any], zh: bool) -> str:
+    unit = (data.get("metric_units") or {}).get(key)
+    if key in _PERCENT_FIELDS or unit == "%":
+        number = float(value)
+        # normalised payloads state ratios in percent; older payloads may hold a fraction
+        return f"{_num(number if unit == '%' or abs(number) > 1 else number * 100)}%"
+    if key in _MONEY_FIELDS:
+        return _money(value, zh)
+    if key == "debt_to_equity":
+        return _times(value, zh)
+    return _num(value)
+
+
+def _money(value: Any, zh: bool) -> str:
+    """An amount in CNY with its unit: "37.94 亿元" / "CNY 3.79 bn" (two decimals at the chosen scale)."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    size = abs(number)
+    if zh:
+        if size >= 1e8:
+            return f"{_num(round(number / 1e8, 2))} 亿元"
+        if size >= 1e4:
+            return f"{_num(round(number / 1e4, 2))} 万元"
+        return f"{_num(number)} 元"
+    if size >= 1e9:
+        return f"CNY {_num(round(number / 1e9, 2))} bn"
+    if size >= 1e6:
+        return f"CNY {_num(round(number / 1e6, 2))} mn"
+    return f"CNY {_num(number)}"
+
+
+def _px(value: Any, data: dict[str, Any], zh: bool) -> str:
+    """A price with its unit: an index level in points, anything else in CNY ("1409.5 元" / "CNY 1409.5")."""
+    kind = str(data.get("product_type") or "")
+    if kind == "index":
+        return f"{_num(value)} 点" if zh else f"{_num(value)} points"
+    return f"{_num(value)} 元" if zh else f"CNY {_num(value)}"
+
+
+def _times(value: Any, zh: bool) -> str:
+    """A valuation multiple: "24.6 倍" / "24.6x"."""
+    return f"{_num(value)} 倍" if zh else f"{_num(value)}x"
 
 
 def _num(value: Any) -> str:

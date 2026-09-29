@@ -290,7 +290,7 @@ def test_template_compares_close_with_the_requested_moving_average():
     }
     english = compose_template([entry], zh=False, query="Is it above the 5-day moving average? And MA20?")
 
-    assert "latest close 4.811 is above its MA5 of 4.7674" in english["answer"]
+    assert "latest close CNY 4.811 is above its MA5 of CNY 4.7674" in english["answer"]
     assert "The current data has no MA20" in english["answer"]
 
 
@@ -520,3 +520,51 @@ def test_short_english_aliases_cause_no_fuzzy_false_hits(offline_service, query)
     nlu = offline_service.analyze_query(query)
     assert not {entity.get("symbol") for entity in nlu["entities"]} & {"000300.SH", "510300.SH"}
     assert "十年期国债收益率" not in nlu["normalized_query"] and "白酒" not in nlu["normalized_query"]
+
+
+def test_template_states_units_for_prices_amounts_and_multiples():
+    """Round-5 C11: every template figure carries its unit; English money reads "CNY 168.84 bn"."""
+    price = {
+        "tool": "get_price_history",
+        "ok": True,
+        "data": {
+            "name": "贵州茅台",
+            "symbol": "600519.SH",
+            "product_type": "stock",
+            "close": 1409.5,
+            "amount": 3793827534.0,
+            "as_of": "2026-04-22",
+            "evidence_id": "price_600519.SH",
+        },
+        "evidence_ids": ["price_600519.SH"],
+    }
+    index = {
+        "tool": "get_price_history",
+        "ok": True,
+        "data": {"name": "沪深300", "symbol": "000300.SH", "close": 4005.2, "evidence_id": "price_000300.SH"},
+        "evidence_ids": ["price_000300.SH"],
+    }
+    fundamentals = {
+        "tool": "get_fundamentals",
+        "ok": True,
+        "data": {
+            "name": "贵州茅台",
+            "evidence_id": "fundamental_600519.SH",
+            "report_date": "2025-12-31",
+            "metrics": {"pe_ttm": 24.6, "pb": 8.1, "revenue": 168838000000},
+            "industry": {
+                "industry_name": "白酒",
+                "evidence_id": "industry_白酒",
+                "metrics": {"pe": 27.3, "pct_change": -1.05},
+            },
+        },
+        "evidence_ids": ["fundamental_600519.SH", "industry_白酒"],
+    }
+    zh = compose_template([price, index, fundamentals], zh=True, query="成交额是多少", types={"000300.SH": "index"})[
+        "answer"
+    ]
+    assert "1409.5 元" in zh and "成交额 37.94 亿元" in zh and "4005.2 点" in zh
+    assert "PE(TTM) 24.6 倍" in zh and "营业收入 1688.38 亿元" in zh and "涨跌幅 -1.05%" in zh
+    en = compose_template([price, fundamentals], zh=False, query="What was the turnover?")["answer"]
+    assert "CNY 1409.5" in en and "turnover CNY 3.79 bn" in en
+    assert "PE(TTM) 24.6x" in en and "revenue CNY 168.84 bn" in en and "hundred million" not in en
