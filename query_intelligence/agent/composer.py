@@ -183,6 +183,9 @@ def _extra_metrics(data: dict[str, Any], keys: set[str], zh: bool) -> list[str]:
 def _price(data: dict[str, Any], zh: bool, request: PriceRequest | None = None) -> list[str]:
     name, symbol, eid = data.get("name"), data.get("symbol"), data.get("evidence_id")
     close, pct, as_of = data.get("close"), data.get("pct_change_1d"), data.get("as_of")
+    quote = data.get("intraday") if data.get("price_basis") == "intraday" else None
+    if quote and quote.get("price") is not None:
+        return _intraday_price(name, symbol, eid, quote, zh)
     if close is None:
         return []
     if zh:
@@ -194,6 +197,22 @@ def _price(data: dict[str, Any], zh: bool, request: PriceRequest | None = None) 
     if request is not None and request.needs_quote:
         sentences.extend(_price_details(data, zh, request))
     return sentences
+
+
+def _intraday_price(name: Any, symbol: Any, eid: Any, quote: dict[str, Any], zh: bool) -> list[str]:
+    """A 今天 question during trading hours: the real-time quote, labelled as intraday, not a close.
+
+    Date and time are written together so the verifier reads them as a timestamp, not as numbers.
+    """
+    stamp = str(quote.get("quote_time") or "")[:19].replace("T", " ")
+    price, previous, change = quote.get("price"), quote.get("prev_close"), quote.get("pct_change")
+    has_change = previous is not None and change is not None
+    if zh:
+        versus = f"，较前收 {_num(previous)} 涨跌 {_num(change)}%" if has_change else ""
+        label = f"{stamp} 北京时间，盘中价格，非收盘价"
+        return [f"{name}（{symbol}）盘中实时价为 {_num(price)}（{label}）{versus} [{eid}]。"]
+    versus = f", {_num(change)}% against the previous close of {_num(previous)}" if has_change else ""
+    return [f"{name} ({symbol}) intraday price is {_num(price)} ({stamp} Beijing time; not a close){versus} [{eid}]."]
 
 
 _QUOTE_FIELDS = (

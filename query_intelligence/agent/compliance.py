@@ -240,11 +240,57 @@ def _strip_trading_sentences(text: str, *, zh: bool) -> tuple[str, int]:
     return "".join(kept).strip(), removed
 
 
+def _price_basis_note(market_evidence: list[AgentEvidence], *, zh: bool, latest: str | None) -> str | None:
+    """What a 今天 price answer is based on, when ``get_price_history(intraday=true)`` ran.
+
+    An intraday quote is labelled as intraday (not a close); a daily close served to an intraday request says
+    why (outside trading hours, no live source, or the real-time source failed). A non-trading day is left to
+    the generic note below.
+    """
+    payloads = [item.payload or {} for item in market_evidence]
+    quotes = [p["intraday"] for p in payloads if p.get("price_basis") == "intraday" and p.get("intraday")]
+    if quotes:
+        stamp = max(str(quote.get("quote_time") or "") for quote in quotes)[:19].replace("T", " ")
+        return (
+            f"以上为盘中实时行情（截至 {stamp} 北京时间），不是收盘价，收盘前仍会变化。"
+            if zh
+            else f"Prices are intraday quotes (as of {stamp} Beijing time), not closing prices; "
+            "they change until the close."
+        )
+    reasons = [str(p.get("basis_reason")) for p in payloads if p.get("basis_reason")]
+    sessions = {str(p.get("market_session")) for p in payloads if p.get("market_session")}
+    if not reasons or sessions == {"non_trading_day"}:
+        return None
+    day = latest or "-"
+    if reasons[0] == "outside_trading_hours":
+        return (
+            f"当前为非交易时段，以下为最近交易日收盘价（{day}），不是盘中实时价格。"
+            if zh
+            else f"The market is closed now; the price below is the latest daily close ({day}), not an intraday quote."
+        )
+    if reasons[0] == "intraday_unavailable":
+        return (
+            f"未接入盘中实时行情（离线数据），以下为最近交易日收盘价（{day}），不能据此判断今天的盘中涨跌。"
+            if zh
+            else "No real-time source is configured (offline data); the price below is the latest daily close "
+            f"({day}), so today's intraday move cannot be determined."
+        )
+    return (
+        f"盘中实时行情获取失败，以下为最近交易日收盘价（{day}），不能据此判断今天的盘中涨跌。"
+        if zh
+        else f"The real-time quote could not be retrieved; the price below is the latest daily close ({day}), "
+        "so today's intraday move cannot be determined."
+    )
+
+
 def _freshness_note(query: str, market_evidence: list[AgentEvidence], *, zh: bool, today: date) -> str | None:
     if not _asks_for_current_market_data(query):
         return None
     today_text = today.isoformat()
     dates = sorted({str(item.as_of)[:10] for item in market_evidence if item.as_of}, reverse=True)
+    basis_note = _price_basis_note(market_evidence, zh=zh, latest=dates[0] if dates else None)
+    if basis_note:
+        return basis_note
     if _is_known_non_trading_day(today):
         latest = f"，最新可用交易日行情日期为 {dates[0]}" if dates and zh else ""
         latest_en = f"; the latest available trading-day quote is from {dates[0]}" if dates and not zh else ""

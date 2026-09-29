@@ -33,6 +33,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
 from ..chat.language import detect_user_language
+from ..integrations.intraday import asks_about_today
 from .compliance import apply_compliance, language_violation
 from .composer import answer_json_status, compose_template, parse_answer
 from .coverage import coverage_gaps, out_of_coverage, out_of_coverage_text
@@ -58,7 +59,7 @@ from .memory import (
     turn_record,
 )
 from .memory_summary import update_memory_card
-from .planner import plan_from_nlu
+from .planner import Plan, plan_from_nlu
 from .prompts import (
     agent_user_message,
     compose_user_message,
@@ -118,6 +119,10 @@ class AgentRuntime:
         self.config = config or AgentConfig()
         self.pricing = pricing
         self.today = today
+        # 今天 price questions request the intraday quote only when live market data is on; the offline snapshot
+        # (and evaluation replay) keeps the daily close, so recorded tool calls are unchanged.
+        pipeline = getattr(service, "retrieval_pipeline", None)
+        self.intraday_quotes = getattr(pipeline, "market_provider", None) is not None
         self._entity_index: dict[str, dict[str, Any]] | None = None
         # One pool shared by all runs, sized so that concurrent runs do not queue behind each other; each run
         # is still limited to max_parallel_tools calls at a time (see _run_tools).
@@ -550,8 +555,19 @@ class AgentRuntime:
         }
         return {"answer": answer, "draft_source": "clarification", "next": "finalize"}
 
-    def execute_plan(self, state: AgentState) -> dict[str, Any]:
+    def _plan(self, state: AgentState) -> Plan:
+        """The deterministic plan; a 今天/今日/today price question asks for the intraday quote when live data is on."""
         plan = plan_from_nlu(state.get("nlu") or {})
+        query = f"{state.get('query') or ''} {state.get('effective_query') or ''}"
+        if self.intraday_quotes and asks_about_today(query):
+            for call in plan.calls:
+                if call.tool == "get_price_history":
+                    call.arguments = {**call.arguments, "intraday": True}
+                    call.reason = f"{call.reason}; today question: intraday quote if the market is open"
+        return plan
+
+    def execute_plan(self, state: AgentState) -> dict[str, Any]:
+        plan = self._plan(state)
         existing = {(entry["tool"], _key(entry.get("arguments"))) for entry in state.get("tool_log") or []}
         calls = [call for call in plan.calls if (call.tool, _key(call.arguments)) not in existing]
         results = self._run_tools([(call.tool, call.arguments) for call in calls])
@@ -572,7 +588,7 @@ class AgentRuntime:
         one LLM round trip instead of two; the model can still call other tools. Repeating a prefetched call is
         caught by the duplicate-call guard in ``agent_tools``.
         """
-        plan = plan_from_nlu(state.get("nlu") or {})
+        plan = self._plan(state)
         calls = plan.calls[: self.config.max_tool_calls]
         if not calls:
             return {}

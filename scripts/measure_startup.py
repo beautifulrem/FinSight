@@ -18,6 +18,10 @@ import sys
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+try:
+    from scripts.provenance import commit_label, git_state
+except ModuleNotFoundError:  # run as a file (python scripts/x.py): scripts/ itself is on sys.path
+    from provenance import commit_label, git_state  # type: ignore[no-redef]
 
 ROOT = Path(__file__).resolve().parents[1]
 OFFLINE = {
@@ -54,14 +58,14 @@ def main(argv: list[str] | None = None) -> dict:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", default="")
     args = parser.parse_args(argv)
-    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout
+    commit = commit_label(git_state(ROOT))  # at the start of the run, never empty
     with tempfile.TemporaryDirectory() as cache_dir:
         in_process = _run(2, {"QI_TFIDF_CACHE_DIR": ""})
         first = _run(1, {"QI_TFIDF_CACHE_DIR": cache_dir})
         restart = _run(1, {"QI_TFIDF_CACHE_DIR": cache_dir})
         cache_mb = round(sum(path.stat().st_size for path in Path(cache_dir).iterdir()) / 1e6, 1)
     report = {
-        "commit": commit.strip(),
+        "commit": commit,
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "command": "python scripts/measure_startup.py " + " ".join(argv if argv is not None else sys.argv[1:]),
         "host": {"platform": platform.platform(), "cpus": os.cpu_count(), "load_avg": list(os.getloadavg())},

@@ -34,6 +34,20 @@ families: Eastmoney `push2`/`push2his` hosts 0/11 (proxy error, root cause 1; ef
 host), Xueqiu 0/1 (login token), the removed `macro_china_pmi_monthly`, and one empty announcement
 result each for cninfo and the Eastmoney notice API (the ETF, which has no company announcements).
 
+**Trend across committed runs.** Each file records its commit and `working_tree_clean: true`.
+
+| Run (UTC / Beijing) | Commit | Probes OK | Chains OK | Failures |
+|---|---|---|---|---|
+| 2026-09-28 09:14 / 17:14 | `6dde495` | 49/64 | 10/10 | the families listed above |
+| 2026-09-28 19:55 / 09-29 03:55 | `4742453` | 49/64 | 10/10 | the same 15 probes |
+| 2026-09-29 02:57 / 10:57 (morning session) | `5d4c192` | 52/67 | 10/10 | the same 15 probes; the 3 new intraday probes (Sina real-time quote dated today, 33–106 ms) all OK |
+
+Files: [`audit-20260928-6dde495.json`](results/data_sources/audit-20260928-6dde495.json),
+[`audit-20260928T1955Z-4742453.json`](results/data_sources/audit-20260928T1955Z-4742453.json),
+[`audit-20260929T0257Z-5d4c192.json`](results/data_sources/audit-20260929T0257Z-5d4c192.json). Three runs at
+different times of day (afternoon close, night, during the session) fail the same way, so the Eastmoney
+proxy errors and the Xueqiu token are properties of this network, not of the time of day.
+
 **Schedule.** [`.github/workflows/data-source-audit.yml`](../.github/workflows/data-source-audit.yml)
 runs the audit every Monday at 01:30 UTC and on demand (`workflow_dispatch`), writes a summary table to
 the job page and uploads the JSON as an artifact for 90 days. GitHub's runners are outside mainland
@@ -226,6 +240,45 @@ the 300750 chain in the audit run.
 - The retrieval packager treats `provenance`, `valuation_provenance` and `volume_unit` as metadata, so
   `field_coverage` and `quality_flags` are unchanged.
 - Offline records say `数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级`.
+
+### Intraday quotes for 今天/今日/today questions
+
+The daily chains answer with daily bars. A price question that says 今天, 今日 or "today" asks
+`get_price_history` for `intraday=true` (only when live market data is on). The tool first checks the
+Beijing-time session (`query_intelligence/integrations/intraday.py`). The market is open Monday–Friday
+09:30–11:30 and 13:00–15:00. The 11:30–13:00 lunch break also counts: the quote is the morning's last
+trade, labelled with its time.
+
+- **Market open.** The tool fetches a real-time quote: Sina `hq.sinajs.cn`, then Tencent `qt.gtimg.cn`.
+  It rejects a quote that is not dated today. The output has these fields:
+  - `price_basis: "intraday"`;
+  - an `intraday` block with price, previous close, change and `quote_time` (ISO with `+08:00`);
+  - its own `intraday_provenance` (source, endpoint, `fetched_at`, `as_of` = quote time, attempts).
+
+  The evidence `as_of` is the quote time. The answer says "盘中实时价为 …（HH:MM:SS 北京时间，盘中价格，
+  非收盘价）". A limitation adds that it is not a close and will change until the close.
+- **Otherwise** the tool keeps the daily close (`price_basis: "daily_close"`) and records why in
+  `basis_reason`:
+  - `outside_trading_hours`;
+  - `intraday_unavailable`: no live source, as with the offline snapshot;
+  - `intraday_failed: …`: both real-time sources failed.
+
+  The answer then says so, e.g. "当前为非交易时段，以下为最近交易日收盘价（YYYY-MM-DD）" or
+  "盘中实时行情获取失败，以下为最近交易日收盘价…". On weekends and fixed-date holidays it says
+  "今天不是 A 股常规交易日".
+- **Holidays.** Holiday detection reuses `_is_known_non_trading_day`, which covers weekends plus the fixed
+  closures (New Year, Labour Day, National Day). Movable holidays are not listed. On those days the
+  real-time quote is dated an earlier day, so it is rejected and the daily close is used, with the reason
+  stated.
+- **Evaluation.** Offline runs never request `intraday`. The argument is omitted from the normalised call
+  key when false, so recorded snapshots and the gate are unchanged.
+- **Tests.** `tests/test_intraday_quote.py` injects a frozen clock (`ToolContext.clock`) and stub providers:
+  - trading-hours morning → intraday quote with provenance, and the answer verifies;
+  - before 09:30, after 15:00 and a weekend → daily close with the stated reason;
+  - a failing real-time source → daily close, "获取失败";
+  - an English "today" question;
+  - a non-今天 question is unaffected;
+  - Sina/Tencent parsing and rejection of stale quotes.
 
 ## Cross-source validation of fundamentals
 

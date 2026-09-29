@@ -25,7 +25,6 @@ import math
 import os
 import platform
 import statistics
-import subprocess
 import sys
 import time
 from collections import Counter
@@ -33,6 +32,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
+
+try:
+    from scripts.provenance import commit_label, git_state
+except ModuleNotFoundError:  # run as a file (python scripts/x.py): scripts/ itself is on sys.path
+    from provenance import commit_label, git_state  # type: ignore[no-redef]
 
 # Rotation for the service test: price, valuation, comparison, why, English, macro, out-of-scope and a
 # dangling reference (clarification). Unchanged since the first load test so runs stay comparable.
@@ -193,13 +197,15 @@ def _rate(values: list) -> float | None:
     return round(sum(1 for value in known if value) / len(known), 4) if known else None
 
 
-def _git_commit() -> str | None:
-    try:
-        commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True)
-        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], capture_output=True, text=True)
-    except (OSError, subprocess.CalledProcessError):
-        return None
-    return commit.stdout.strip() + ("-dirty" if dirty.stdout.strip() else "")
+_START_STATE: dict | None = None
+
+
+def _git_commit() -> str:
+    """Commit at the start of the run (``abc1234`` / ``abc1234-dirty``; ``unknown`` if git failed, never empty)."""
+    global _START_STATE
+    if _START_STATE is None:
+        _START_STATE = git_state()
+    return commit_label(_START_STATE)
 
 
 def _environment() -> dict:

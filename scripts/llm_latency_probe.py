@@ -25,6 +25,10 @@ from pathlib import Path
 
 from query_intelligence.agent.llm import DeepSeekToolClient, LLMError
 from query_intelligence.chatbot import load_chatbot_config
+try:
+    from scripts.provenance import commit_label, git_state
+except ModuleNotFoundError:  # run as a file (python scripts/x.py): scripts/ itself is on sys.path
+    from provenance import commit_label, git_state  # type: ignore[no-redef]
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -37,13 +41,8 @@ def _percentile(values: list[float], q: float) -> float | None:
     return round(ordered[max(0, math.ceil(q * len(ordered)) - 1)], 1)
 
 
-def _commit() -> str | None:
-    try:
-        return subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
-        ).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
-        return None
+def _commit() -> str:
+    return commit_label(git_state(ROOT))
 
 
 def main(argv: list[str] | None = None) -> dict:

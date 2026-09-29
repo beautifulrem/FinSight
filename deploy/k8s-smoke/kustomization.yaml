@@ -1,0 +1,36 @@
+# Smoke-test overlay for a throwaway kind/k3d cluster (deploy/k8s-smoke/smoke.sh, CI job k8s-smoke).
+# Same manifests and NetworkPolicies as deploy/k8s; for a small CI node: one API replica (HPA minimum 1),
+# offline data sources (the smoke must not depend on upstream market sites), and the image tag the
+# smoke script built and loaded into the cluster.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../k8s
+images:
+  - name: finsight
+    newTag: smoke
+patches:
+  - target: {kind: Deployment, name: finsight-api}
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target: {kind: HorizontalPodAutoscaler, name: finsight-api}
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+  - target: {kind: ConfigMap, name: finsight-config}
+    patch: |-
+      - op: replace
+        path: /data/QI_USE_LIVE_MARKET
+        value: "0"
+      - op: replace
+        path: /data/QI_USE_LIVE_NEWS
+        value: "0"
+      - op: replace
+        path: /data/QI_USE_LIVE_ANNOUNCEMENT
+        value: "0"
+      - op: replace
+        path: /data/QI_USE_LIVE_MACRO
+        value: "0"

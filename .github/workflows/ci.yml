@@ -131,17 +131,23 @@ jobs:
       - name: Install frontend dependencies (axe-core)
         working-directory: frontend
         run: pnpm install --frozen-lockfile
-      - name: Agent tests with a coverage floor on query_intelligence/agent
-        # Measured 90.3% (statements + branches) on 2026-09-28; the floor sits a little below it.
-        # Pass the directory, not the dotted package: --cov=query_intelligence.agent imports it before
-        # the test session and breaks scikit-learn's compiled modules.
+      - name: Full test suite with branch coverage (run once)
+        # Pass a directory, not a dotted package: --cov=query_intelligence.agent imports it before the test
+        # session and breaks scikit-learn's compiled modules.
+        run: python -m pytest -q tests --cov=query_intelligence --cov-branch --cov-report=
+      - name: Coverage floors (statements + branches)
+        # Measured on the full suite: agent 90.17%, api 92.13%, answer_guards.py 83.74%
+        # (docs/results/coverage/coverage-ef07a7f.json); each floor sits about 2 points below.
         run: |
-          python -m pytest -q tests/test_agent_*.py tests/test_api_security.py tests/test_api_readiness.py \
-            tests/test_web_ui.py --cov=query_intelligence/agent --cov-branch \
-            --cov-report=term-missing:skip-covered --cov-report="markdown-append:$GITHUB_STEP_SUMMARY" \
-            --cov-fail-under=88
-      - name: Full test suite
-        run: python -m pytest -q tests
+          set -o pipefail
+          check() {
+            echo "### Coverage: $1 (floor $2%)" >> "$GITHUB_STEP_SUMMARY"
+            coverage report --include="$1" --skip-covered --format=markdown | tee -a "$GITHUB_STEP_SUMMARY"
+            coverage report --include="$1" --fail-under="$2" --format=total
+          }
+          check 'query_intelligence/agent/*' 88
+          check 'query_intelligence/api/*' 90
+          check 'query_intelligence/answer_guards.py' 81
 
   agent-eval-gate:
     runs-on: ubuntu-latest
@@ -218,6 +224,35 @@ jobs:
           cat ready.json; echo
           test "$code" = 503
           python3 -c "import json; c=json.load(open('ready.json'))['checks']; assert not c['checkpointer']['ok'], c"
+
+  k8s-smoke:
+    # Applies the real kustomization (through the deploy/k8s-smoke overlay: 1 replica, offline data) to a
+    # throwaway kind cluster and waits for the API's readinessProbe (GET /ready: Postgres checkpointer, model
+    # config, retrieval index), then checks /ready and one verified /agent/chat answer from a pod the
+    # NetworkPolicy admits. kindnetd enforces NetworkPolicy, so the policies are exercised too.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      KIND_VERSION: 0.33.0
+      KIND_SHA256: aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kind (pinned, checksum verified)
+        run: |
+          curl -sSfL -o kind "https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-linux-amd64"
+          echo "${KIND_SHA256}  kind" | sha256sum --check
+          chmod +x kind && sudo mv kind /usr/local/bin/kind
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: false
+          load: true
+          tags: finsight:${{ github.sha }}
+      - name: Apply deploy/k8s-smoke to kind and wait for /ready
+        run: IMAGE="finsight:${{ github.sha }}" deploy/k8s-smoke/smoke.sh
 
   kubernetes:
     runs-on: ubuntu-latest

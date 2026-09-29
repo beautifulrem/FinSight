@@ -1,0 +1,40 @@
+{
+ "measured_at": "2026-09-29T03:19:23+00:00",
+ "commit": "ef07a7f",
+ "note": "Full test suite run once with branch coverage on the ef07a7f tree; query_intelligence/ is unchanged through feeb07a (later commits touch scripts/ and docs only).",
+ "command": "QI_USE_LIVE_*=false python -m pytest -q tests --cov=query_intelligence --cov-branch; coverage report --include=<area> --format=total --precision=2",
+ "tests": "1117 passed, 66 skipped",
+ "python": "Python 3.13.13",
+ "coverage_version": "7.16.2",
+ "areas": {
+  "query_intelligence/agent": {
+   "percent_covered": 90.17,
+   "num_statements": 6146,
+   "missing_lines": 490,
+   "num_branches": 2036,
+   "missing_branches": 314,
+   "num_partial_branches": 236
+  },
+  "query_intelligence/api": {
+   "percent_covered": 92.13,
+   "num_statements": 522,
+   "missing_lines": 32,
+   "num_branches": 126,
+   "missing_branches": 19,
+   "num_partial_branches": 17
+  },
+  "query_intelligence/answer_guards.py": {
+   "percent_covered": 83.74,
+   "num_statements": 239,
+   "missing_lines": 29,
+   "num_branches": 130,
+   "missing_branches": 31,
+   "num_partial_branches": 15
+  }
+ },
+ "ci_floors": {
+  "query_intelligence/agent": 88,
+  "query_intelligence/api": 90,
+  "query_intelligence/answer_guards.py": 81
+ }
+}

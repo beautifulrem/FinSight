@@ -130,7 +130,9 @@ def slim_mode(
             )
             summary["repeats"] = 1
     if outcomes:
-        summary["ci"] = outcome_cis(outcomes)
+        # Recompute the outcome CIs; keep CIs the run computed for other metrics (task_success_uncited).
+        kept = {key: ci for key, ci in (summary.get("ci") or {}).items() if key.endswith("_uncited")}
+        summary["ci"] = {**outcome_cis(outcomes), **kept}
         summary["ci_method"] = CI_METHOD
     entry = {
         "summary": summary,
@@ -185,7 +187,9 @@ def slim_run(report: dict[str, Any]) -> dict[str, Any]:
         outcomes = dict(outcomes)
     summary = dict(report["summary"])
     if outcomes:
-        summary["ci"] = outcome_cis(outcomes)
+        # Recompute the outcome CIs; keep CIs the run computed for other metrics (task_success_uncited).
+        kept = {key: ci for key, ci in (summary.get("ci") or {}).items() if key.endswith("_uncited")}
+        summary["ci"] = {**outcome_cis(outcomes), **kept}
         summary["ci_method"] = CI_METHOD
     return {
         "kind": "run",
@@ -239,6 +243,10 @@ def slim(report: dict[str, Any]) -> dict[str, Any]:
 def write_slim(source: Path, name: str, *, extra_notes: list[str] | None = None) -> Path:
     report = json.loads(source.read_text(encoding="utf-8"))
     slimmed = slim(report)
+    config = slimmed.get("config")
+    if isinstance(config, dict) and "model" not in config:
+        # Every committed result names its model (None = no LLM); older runs only had ``llm``.
+        slimmed["config"] = {**config, "model": config.get("llm")}
     slimmed["source"] = {
         "file": str(source.resolve().relative_to(ROOT)) if source.resolve().is_relative_to(ROOT) else source.name,
         "sha256_16": _sha256(source),
