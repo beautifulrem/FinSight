@@ -3,8 +3,8 @@
 `POST /agent/claim-check` takes a sentence from a broker note, the news or social media, for example
 "听说茅台市盈率只有15倍" or "Moutai's ROE is above 30%". It checks every number in the sentence against
 market and fundamental data and returns a verdict per number. It uses no LLM: the classical NLU finds
-the targets, a rule-based reader handles the numbers, and the `get_price_history` and
-`get_fundamentals` tools supply the evidence. The code is in `query_intelligence/agent/claim_check.py`
+the targets, a rule-based reader handles the numbers, and the `get_price_history`,
+`get_fundamentals` and `get_macro_indicators` tools supply the evidence. The code is in `query_intelligence/agent/claim_check.py`
 and the UI is the "核查 / Fact-check" tab (`frontend/src/components/ClaimCheck.tsx`).
 
 ```bash
@@ -14,8 +14,10 @@ curl -s -X POST localhost:8000/agent/claim-check -H 'Content-Type: application/j
 
 Each check contains:
 
-- `target`, `metric`, `claimed` and `claimed_high` (the upper bound of a range);
-- `claimed_unit`, `comparator` and `negated`;
+- `target`, `metric`, `claimed` and `claimed_high` (the upper bound of a range); `claimed` is signed by
+  its move word ("跌超1%" is −1) and is `null` for a relation;
+- `claimed_unit`, `comparator`, `negated` and `direction` (`up` / `down` when a move word states one);
+- for a relation: `reference` (the other side), `reference_value` and `reference_evidence_id`;
 - `actual`, `status`, and `reason` (why a check is unverifiable);
 - `evidence_id`, `source`, `as_of` and `as_of_basis`;
 - `note`.
@@ -46,6 +48,10 @@ The overall `verdict` is:
   - `元` → price;
   - `亿`, `万` or `billion` → amounts;
   - `点` → an index level.
+- **"x times earnings".** "trades at 8.7 times earnings" and "below 10x earnings" are P/E claims.
+- **Macro series.** CPI, PPI, manufacturing PMI, M2, the 10-year government bond yield, the 1- and
+  5-year LPR and GDP are recognised by name ("CPI同比上涨0.8%", "PMI重回50以上", "10年期国债收益率低于2%",
+  "China's CPI rose 0.8%"). They need no company and are checked against `get_macro_indicators`.
 - **CJK acronyms (B3).** Acronyms are matched with letter look-arounds instead of `\b`, so "茅台PE为24.6倍" is recognised.
 - **Growth.** A percentage whose nearest line item is revenue or net profit is YoY growth (`revenue_yoy`, `netprofit_yoy`). Examples: "营收同比增长16%" and "net profit fell 2% year on year". "净利率48.8%" is a margin, not growth.
 - **Parallel clauses.** A clause with no metric word takes the previous number's metric when the unit is the same. "茅台市盈率24.6倍，五粮液20.9倍" checks two P/Es. "净利润850亿元，同比增长15%" becomes net-profit growth.
@@ -108,6 +114,54 @@ A move word right before the number sets its sign: "下跌0.18%", "收跌0.53%" 
 −0.18 and −0.53. A written sign ("-0.18%") is kept as is. For the daily change, the sign must match:
 "上涨0.18%" on a −0.18% day is contradicted.
 
+### Bounds on a move (C2)
+
+A bound after a move word is about the **size of the move in the stated direction**, not about the
+signed change. Direction words are 跌 / 下跌 / 跌幅 / 大跌 / fell / dropped / down and 涨 / 上涨 / 涨幅 /
+rose / up (for growth and macro series also 增长 / 下降 / grew / declined).
+
+| Claim | Meaning | Wuliangye −0.53% | Moutai −0.18% |
+| --- | --- | --- | --- |
+| 跌超1%, 跌了超过1%, fell more than 1% | change ≤ −1 | contradicted | contradicted |
+| 跌超0.1% | change ≤ −0.1 | supported | supported |
+| 跌不到1%, 跌幅不超过1%, fell less than 1% | −1 < change ≤ 0 | supported | supported |
+| 涨超0.1%, 涨了不到1% | a rise | contradicted | contradicted |
+| 跌了0.1%到0.3% | −0.3 ≤ change ≤ −0.1 | contradicted | supported |
+| 没有跌超过1% | not a fall of more than 1% (a rise passes) | supported | supported |
+
+A move the other way always contradicts a bound: "涨了不到1%" on a down day is not "a small rise".
+Before this fix the checker negated the number and kept the comparator on the signed value, so
+"五粮液昨天跌了超过1%" (−0.53%) came back supported ("> −1%") and "茅台昨天跌超0.1%" (−0.18%) came back
+contradicted. The check now carries `direction`, and the UI writes the claimed side as "跌幅 > 1%" /
+"Fall > 1%".
+
+### Relations (C13)
+
+A claim that compares two named targets, or a target with its industry, is one check with
+`claimed: null`, the `reference`, and the comparison of the two values:
+
+- "茅台的市盈率比五粮液高", "五粮液ROE低于茅台", "茅台市盈率没有五粮液高" (negated: ≤);
+- "Moutai's P/E is higher than Wuliangye's", "Wuliangye has a higher ROE than Moutai";
+- "茅台昨天跌得比五粮液多": a bigger fall is a lower daily change;
+- "茅台市盈率高于行业平均": the target's industry snapshot from `get_fundamentals` (P/E, P/B, daily
+  change);
+- "高于市场平均": no source has a market average, so the check is unverifiable (`no_reference`).
+
+A sentence that also states a number is checked on its numbers ("五粮液市盈率24.6倍，比茅台低" checks the
+24.6 against 五粮液).
+
+### Macro values (C13)
+
+Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
+period (`as_of_basis: indicator_date`).
+
+- "CPI同比上涨0.8%" and "M2同比增长8%" compare the YoY value; a stated fall gives a negative claim.
+- "PMI重回50以上" and "The PMI is above 50" are bounds on the level. Only the latest level is checked,
+  not that it was below 50 before.
+- "2月CPI同比上涨0.8%" against a March reading is unverifiable (`period_mismatch`).
+- A change from the previous reading ("PMI回落了", "CPI同比回升") is unverifiable (`no_data`): only the
+  latest level is served.
+
 ### Unverifiable, and why (`reason`)
 
 | `reason` | When |
@@ -121,6 +175,7 @@ A move word right before the number sets its sign: "下跌0.18%", "收跌0.53%" 
 | `forecast` | 预计, 将, 会, 明年, 目标价, will, expected, if, … |
 | `period_mismatch` | the claim names a year or period other than the report's; or an amount with no period is compared with an interim (Q1/H1/Q3, year-to-date) report |
 | `multi_day` | 今年以来, 近一个月, this year, … (only the latest daily change is checked) |
+| `no_reference` | a relation with something no source provides, such as the market average |
 
 ### Growth rates
 
@@ -149,13 +204,34 @@ unverifiable with `growth_unavailable`; the checker does not compare them with t
 
 The UI shows the basis next to the date.
 
-### Chat hint
+### Hearsay in the chat
 
-A chat message that reads like hearsay about a number gets a "核查这句话 / Check this claim" chip under
-the question. Examples are "听说茅台市盈率只有15倍，是真的吗" and "I heard that …, is that true?". The chip
-opens the fact-check view and checks the extracted claim ("茅台市盈率只有15倍").
+A chat question that is a claim, such as "听说茅台市盈率只有15倍，是真的吗" or "I heard that …, is that
+true?", is fact-checked inline. `query_intelligence/agent/hearsay.py` extracts the claim
+("茅台市盈率只有15倍") and runs `check_claim` on it (deterministic, no LLM). The report is returned as
+`fact_check` on:
 
-This is UI only: the backend chat route is unchanged. Hearsay with no number or move is not flagged.
+- `/agent/chat`, `/agent/resume` and the SSE `answer` event (it is part of the agent result);
+- workflow `/chat` (only when the message is hearsay).
+
+The answer card renders it as a "核查这句说法 / Fact-check of this claim" section, with a button that
+opens the full fact-check view. While the answer is still running, and on a server without
+`fact_check`, the "核查这句话 / Check this claim" chip under the question does the same by hand. Hearsay
+with no number, move or comparison is not checked. A failed check never breaks the answer: `fact_check`
+is then `null`.
+
+### English names
+
+The report's `targets` and the agent's `nlu_summary.entities` carry `name_en`, taken from the alias table
+(`data/synonym_dict.json`: `display_en`, else the longest English alias; see
+`query_intelligence/agent/names.py`). The English UI shows "Kweichow Moutai" and "Wuliangye" on the
+fact-check cards and the KPI tiles; the browser keeps no name table of its own.
+
+Screenshots (real Chrome, offline server):
+
+- a compare answer with the same KPI tiles for each company (C18): [zh](../assets/ui/chrome-compare-kpi-zh.png), [en](../assets/ui/chrome-compare-kpi-en.png);
+- a hearsay question checked inside the answer: [zh](../assets/ui/chrome-move-claim-inline-zh.png), [en](../assets/ui/chrome-move-claim-inline-en.png);
+- the move-bound card in the fact-check view ("跌幅 > 0.1%" / "Fall > 0.1%"): [zh](../assets/ui/chrome-move-claim-card-zh.png), [en](../assets/ui/chrome-move-claim-card-en.png).
 
 ## Benchmark
 
@@ -198,6 +274,7 @@ python -m evaluation.claim_bench.run --set holdout
 | dev, before the fixes | `3da1a48` | 131 / 147 | 0.527 [0.443, 0.611] | 0.497 [0.404, 0.584] | 0.652 |
 | dev, after the fixes | `2fcb4f0` | 131 / 138 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 | **held-out, single run** | `2fcb4f0` | 47 / 54 | **0.936 [0.851, 1.000]** | **0.944 [0.880, 1.000]** | 1.000 |
+| dev with the 42 round-4 rows (move bounds, relations, x earnings, macro) | `be88027` | 173 / 180 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 
 The result files are `evaluation/results/claim_bench-dev-baseline.json`, `claim_bench-dev.json` and
 `claim_bench-holdout.json`. Each records the commit, the command and the sha256 of the claims file.
@@ -227,9 +304,12 @@ The result files are `evaluation/results/claim_bench-dev-baseline.json`, `claim_
 - **Only the daily change is checked.** Multi-day moves are unverifiable; "涨停" is checked only as "up".
 - **Chinese numerals.** Only simple ones before a unit are handled: 十五倍, 一点一倍, 三成, 百分之三十.
   Ambiguous forms are not handled: 两成多, 十几倍, 上千亿.
-- **Comparator reading is lexical.** Sarcasm, rhetorical questions and comparisons between two
-  companies ("比茅台低") are not evaluated. Only the numbers are checked.
-- **Industry averages, peers and consensus.** "行业平均11.8倍" is checked against the company itself.
+- **Comparator reading is lexical.** Sarcasm and rhetorical questions are not understood.
+- **Relations.** Two named targets or a target and its industry snapshot are compared; peers, consensus
+  and the market average are not. A relation with a stated number for the industry ("而行业平均11.8倍") is
+  still checked against the company itself.
+- **Macro.** Only the latest reading of each series is available: changes from the previous reading and
+  readings for other months are unverifiable.
 - **Periods.** Named periods are checked (年份, 一季度, 上半年, 前三季度, FY, H1). Relative ones (去年,
   上季度) are not resolved, and an amount without a period is unverifiable when the latest report is
   an interim one.

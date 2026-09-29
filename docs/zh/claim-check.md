@@ -5,15 +5,16 @@
 
 - 经典 NLU 识别标的；
 - 规则读取数字；
-- `get_price_history` 和 `get_fundamentals` 两个工具提供证据。
+- `get_price_history`、`get_fundamentals` 和 `get_macro_indicators` 三个工具提供证据。
 
 代码在 `query_intelligence/agent/claim_check.py`，界面是「核查」标签页
 （`frontend/src/components/ClaimCheck.tsx`）。
 
 每条检查（check）包含：
 
-- `target`、`metric`、`claimed`，以及区间上限 `claimed_high`；
-- `claimed_unit`、`comparator`、`negated`；
+- `target`、`metric`、`claimed`，以及区间上限 `claimed_high`；`claimed` 带涨跌词给出的符号（“跌超1%”是 −1），关系型说法为 `null`；
+- `claimed_unit`、`comparator`、`negated`，以及 `direction`（涨跌词给出的方向 `up` / `down`）；
+- 关系型说法另有 `reference`（比较对象）、`reference_value` 和 `reference_evidence_id`；
 - `actual`、`status`，以及无法核实时的原因 `reason`；
 - `evidence_id`、`source`、`as_of` 和 `as_of_basis`；
 - `note`。
@@ -53,6 +54,10 @@
   - “净利润850亿元，同比增长15%”按净利润增速处理。
 - **单位不符**：附近唯一的指标词与单位不相容时，判为无法核实（`unit_mismatch`），例如“市盈率24.6%”“ROE 33倍”“股价53.61亿元”。
 - **缺少单位**：营收、利润没有单位（“营收1741”）时，判为无法核实（`no_unit`）。
+- **“x times earnings”**：“trades at 8.7 times earnings”“below 10x earnings”按市盈率处理。
+- **宏观序列**：按名称识别 CPI、PPI、制造业 PMI、M2、10 年期国债收益率、1 年期和 5 年期以上 LPR、GDP
+  （“CPI同比上涨0.8%”“PMI重回50以上”“10年期国债收益率低于2%”“China's CPI rose 0.8%”）。它们不需要公司，
+  用 `get_macro_indicators` 核对。
 
 ### 标的
 
@@ -120,6 +125,45 @@
 
 当日涨跌幅必须方向一致：当日跌 0.18% 时，“上涨0.18%”判为不符。
 
+### 涨跌幅的上下限（C2）
+
+涨跌词后面的上下限说的是**该方向上涨跌的幅度**，不是带符号的涨跌幅。方向词包括 跌 / 下跌 / 跌幅 / 大跌 /
+fell / dropped / down 和 涨 / 上涨 / 涨幅 / rose / up（增速和宏观序列还有 增长 / 下降 / grew / declined）。
+
+| 说法 | 含义 | 五粮液 −0.53% | 茅台 −0.18% |
+| --- | --- | --- | --- |
+| 跌超1%、跌了超过1%、fell more than 1% | 涨跌幅 ≤ −1 | 不符 | 不符 |
+| 跌超0.1% | 涨跌幅 ≤ −0.1 | 相符 | 相符 |
+| 跌不到1%、跌幅不超过1%、fell less than 1% | −1 < 涨跌幅 ≤ 0 | 相符 | 相符 |
+| 涨超0.1%、涨了不到1% | 上涨 | 不符 | 不符 |
+| 跌了0.1%到0.3% | −0.3 ≤ 涨跌幅 ≤ −0.1 | 不符 | 相符 |
+| 没有跌超过1% | 不是跌超 1%（上涨也算） | 相符 | 相符 |
+
+反方向的涨跌一律与上下限不符：下跌的交易日，“涨了不到1%”不算“小涨”。修复前，核查器把数字取负、却仍按带符号的值比较，
+所以“五粮液昨天跌了超过1%”（−0.53%）被判为相符（“> −1%”），“茅台昨天跌超0.1%”（−0.18%）被判为不符。
+现在检查带 `direction`，界面把声称值写成“跌幅 > 1%”（英文界面为 “Fall > 1%”）。
+
+### 关系型说法（C13）
+
+比较两个标的、或标的与其所在行业的说法算一条检查：`claimed` 为 `null`，给出 `reference`，比较两边的值：
+
+- “茅台的市盈率比五粮液高”“五粮液ROE低于茅台”“茅台市盈率没有五粮液高”（否定：≤）；
+- “Moutai's P/E is higher than Wuliangye's”“Wuliangye has a higher ROE than Moutai”；
+- “茅台昨天跌得比五粮液多”：跌得多就是涨跌幅更低；
+- “茅台市盈率高于行业平均”：用 `get_fundamentals` 返回的行业快照（市盈率、市净率、涨跌幅）；
+- “高于市场平均”：没有数据源提供市场均值，判为无法核实（`no_reference`）。
+
+句子里同时写了数字时按数字核对（“五粮液市盈率24.6倍，比茅台低”核对的是五粮液的 24.6）。
+
+### 宏观数值（C13）
+
+宏观说法与 `get_macro_indicators` 的最新一期读数比对，`as_of` 是读数所属期间（`as_of_basis: indicator_date`）。
+
+- “CPI同比上涨0.8%”“M2同比增长8%”比对同比值；说下降时声称值为负。
+- “PMI重回50以上”“The PMI is above 50”是对水平的上下限；只核对最新水平，不核对此前是否低于 50。
+- 读数是 3 月的，“2月CPI同比上涨0.8%”判为无法核实（`period_mismatch`）。
+- 相对上一期的变化（“PMI回落了”“CPI同比回升”）判为无法核实（`no_data`）：只有最新一期水平。
+
 ### 无法核实的原因（`reason`）
 
 | `reason` | 情形 |
@@ -133,6 +177,7 @@
 | `forecast` | 预测或假设：预计、将、会、明年、目标价、will、expected、if 等 |
 | `period_mismatch` | 说法点名的年份或报告期与数据不同；或者没写期间的金额遇到了季报、半年报（年初至今累计） |
 | `multi_day` | 多日涨跌：今年以来、近一个月、this year 等。只核对最近一个交易日的涨跌幅 |
+| `no_reference` | 比较对象没有数据源提供，例如市场均值 |
 
 ### 增速
 
@@ -167,16 +212,34 @@
 
 离线快照没有估值日，所以离线的市盈率显示 2025-12-31（报告期）。界面会在日期旁标出依据。
 
-### 聊天提示
+### 聊天里的传言
 
-聊天里出现像传言的数字说法时，问题下方会出现「核查这句话」按钮，例如：
+本身就是一条说法的聊天问题会在回答里直接核查，例如：
 
 - “听说茅台市盈率只有15倍，是真的吗”；
 - “I heard that …, is that true?”。
 
-点击后切到核查页，并核查提取出的说法（“茅台市盈率只有15倍”）。
+`query_intelligence/agent/hearsay.py` 提取出说法（“茅台市盈率只有15倍”），再用 `check_claim` 核查（确定性，不用 LLM）。
+报告作为 `fact_check` 字段返回：
 
-这只是界面提示，后端的聊天路由没有改。没有数字或涨跌的传言不会触发提示。
+- `/agent/chat`、`/agent/resume` 和 SSE 的 `answer` 事件（属于 agent 结果的一部分）；
+- workflow `/chat`（仅当问题是传言时）。
+
+回答卡片里显示为「核查这句说法」一节，附一个打开完整核查页的按钮。回答还在生成时、或服务端没有 `fact_check` 时，
+问题下方的「核查这句话」按钮提供同样的入口。没有数字、涨跌或比较的传言不做核查。核查失败不会影响回答，此时
+`fact_check` 为 `null`。
+
+### 英文名称
+
+核查报告的 `targets` 和 agent 的 `nlu_summary.entities` 带 `name_en`，取自别名表（`data/synonym_dict.json` 的
+`display_en`，没有时取最长的英文别名；见 `query_intelligence/agent/names.py`）。英文界面在核查卡片和 KPI 卡片上
+显示 “Kweichow Moutai”“Wuliangye”；浏览器端不再自带名称表。
+
+界面截图（真实 Chrome，离线服务）：
+
+- 对比回答，每家公司一组相同的 KPI 卡片（C18）：[中文](../../assets/ui/chrome-compare-kpi-zh.png)、[English](../../assets/ui/chrome-compare-kpi-en.png)；
+- 传言问题在回答内的核查：[中文](../../assets/ui/chrome-move-claim-inline-zh.png)、[English](../../assets/ui/chrome-move-claim-inline-en.png)；
+- 核查页里的涨跌上下限卡片（“跌幅 > 0.1%”）：[中文](../../assets/ui/chrome-move-claim-card-zh.png)、[English](../../assets/ui/chrome-move-claim-card-en.png)。
 
 ## 基准
 
@@ -219,6 +282,7 @@ python -m evaluation.claim_bench.run --set holdout
 | dev，修复前 | `3da1a48` | 131 / 147 | 0.527 [0.443, 0.611] | 0.497 [0.404, 0.584] | 0.652 |
 | dev，修复后 | `2fcb4f0` | 131 / 138 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 | **held-out，只跑一次** | `2fcb4f0` | 47 / 54 | **0.936 [0.851, 1.000]** | **0.944 [0.880, 1.000]** | 1.000 |
+| dev，加入第 4 轮 42 条（涨跌上下限、关系、x 倍市盈率、宏观） | `be88027` | 173 / 180 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 
 结果文件为 `evaluation/results/claim_bench-dev-baseline.json`、`claim_bench-dev.json` 和
 `claim_bench-holdout.json`，每个文件都记录了提交、命令和说法文件的 sha256。
@@ -247,8 +311,10 @@ python -m evaluation.claim_bench.run --set holdout
 - **离线缺失的指标**：增速、指数估值、股息率、市值、负债率、EPS。实时数据的覆盖面取决于数据源。
 - **只核对当日涨跌幅**：多日涨跌判为无法核实；“涨停”只按“上涨”核对。
 - **中文数字**：只处理单位前的简单写法（十五倍、一点一倍、三成、百分之三十），不处理两成多、十几倍、上千亿。
-- **比较词靠词表识别**：不理解反讽、反问，也不评价公司之间的比较（“比茅台低”），只核对数字。
-- **行业均值、同行和一致预期**：不支持。“行业平均11.8倍”会被拿去和公司自身比。
+- **比较词靠词表识别**：不理解反讽、反问。
+- **关系型说法**：支持两个标的之间、标的与其行业快照之间的比较；不支持同行、一致预期和市场均值。
+  写了行业数字的说法（“而行业平均11.8倍”）仍会拿去和公司自身比。
+- **宏观**：每个序列只有最新一期读数，相对上一期的变化和其他月份的读数判为无法核实。
 - **期间识别有限**：
   - 能识别的：年份、一季度、上半年、前三季度、FY、H1。
   - 不解析的：去年、上季度这类相对期间。
