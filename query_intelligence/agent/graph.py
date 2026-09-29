@@ -38,7 +38,13 @@ from .composer import answer_json_status, compose_template, parse_answer
 from .coverage import coverage_gaps, out_of_coverage, out_of_coverage_text
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
-from .injection import REDACTION_MARKER, sanitize_observation, sanitize_untrusted_text, tool_message_content
+from .injection import (
+    REDACTION_MARKER,
+    sanitize_document_text,
+    sanitize_observation,
+    sanitize_untrusted_text,
+    tool_message_content,
+)
 from .llm import LLMClient, LLMError, Pricing, Usage, llm_deadline, resolve_cost
 from .memory import (
     MAX_HISTORY_TURNS,
@@ -1227,7 +1233,7 @@ def _evidence_update(results: list[ToolResult]) -> tuple[dict[str, dict[str, Any
             dumped = item.model_dump(mode="json")
             for field in ("title", "text_excerpt"):
                 if isinstance(dumped.get(field), str):
-                    dumped[field], flagged = sanitize_untrusted_text(dumped[field])
+                    dumped[field], flagged = sanitize_document_text(dumped[field])
                     flagged_any = flagged_any or flagged
             update[item.evidence_id] = dumped
     return update, flagged_any
