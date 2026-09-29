@@ -266,7 +266,7 @@ CI 包括：
 - 代码检查；
 - 用 gitleaks 扫描全部 git 历史中的密钥（[SECURITY.md](SECURITY.md)）；
 - 前端检查（类型、lint、单测、可复现构建）；
-- 带 Postgres 服务的全量测试，包括 axe 无障碍测试（在 CI 里缺依赖会失败而不是跳过），以及 `query_intelligence/agent` 88% 的覆盖率下限（实测 90.3%）；
+- 带 Postgres 服务的全量测试（只跑一遍），包括 axe 无障碍测试（在 CI 里缺依赖会失败而不是跳过），以及分支覆盖率下限：`query_intelligence/agent` 88%（实测 90.17%）、`query_intelligence/api` 90%（92.13%）、`answer_guards.py` 81%（83.74%），数据见 [`coverage-ef07a7f.json`](docs/results/coverage/coverage-ef07a7f.json)。之前写的 90.3% 只是 Agent 测试子集的结果；
 - 与已提交基线比较的评测门禁，以及评测文档是否最新的检查；
 - Docker 构建与只读根文件系统下的冒烟测试（等待 `/ready`），以及「状态目录不可写时容器不就绪」的检查；
 - Kubernetes 清单校验（渲染后的 kustomization、不提交 Secret、镜像按 commit 打标签）。
@@ -330,7 +330,7 @@ CI 包括：
 | C19 | 低 | 网页界面把 API key 存在 `localStorage` | 未修复 |
 | C20 | 低 | “美联储加息对A股有什么影响”返回空答案，也没有说明局限 | 未修复 |
 
-本分支已修复：C4（`docs/agent-eval.md` 渲染 README 引用的每个结果，否则 `report --check` 失败，`2d368da`）；C15（每个在线主结果旁都标出 LLM 出错及 HTTP 429 比例；无 429 的重跑仍在等额度）；C16 的其余项（`--llm` 指客户端，结果配置记录 `model`；混沌演练记录 commit，`0223b25`）。新增的盘中行情路径不认识农历等浮动假日（春节、清明、端午、中秋）：这些日子里它会拒绝日期不对的实时报价，退回日线收盘价（[data-sources.md](docs/data-sources.md#intraday-quotes-for-今天今日today-questions)）。
+本分支已修复：C4（`docs/agent-eval.md` 渲染 README 引用的每个结果，否则 `report --check` 失败，`2d368da`）；C15（每个在线主结果旁都标出 LLM 出错及 HTTP 429 比例；无 429 的重跑仍在等额度）；C16 的其余项（`--llm` 指客户端，结果配置记录 `model`；混沌演练记录 commit，`0223b25`；覆盖率数字引用已提交的汇总）。新增的盘中行情路径不认识农历等浮动假日（春节、清明、端午、中秋）：这些日子里它会拒绝日期不对的实时报价，退回日线收盘价（[data-sources.md](docs/data-sources.md#intraday-quotes-for-今天今日today-questions)）。
 
 ## 安全声明
 
