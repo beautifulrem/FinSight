@@ -317,6 +317,8 @@ _MARKET_TARGET = re.compile(
 # company value ("What's the P/E?", "Is the dividend safe?", "股价多少了"). With no target they are clarified.
 _RECOMMENDATION = re.compile(
     r"推荐|荐股|哪只|哪(?:些|几只|几个|个)(?:股票|基金|ETF|etf|个股)|买什么|买啥|(?:什么)(?:股票|基金|ETF)值得|"
+    # "给我三只下周必涨的股票", "来两只能翻倍的基金": a count of securities asked for, not named
+    r"(?:给我|来|挑|选|找)(?:出)?[一二两三四五六七八九十几\d]+(?:只|支|个)[^，。,.!！?？]{0,10}?(?:股票|个股|基金|ETF|etf)|"
     r"\brecommend|\bpicks?\b|\btips?\b|\bwhich (?:stocks?|funds?|etfs?|shares?)\b|"
     r"\ba good (?:stock|fund|etf|share)\b|\b(?:stocks?|funds?|etfs?) to (?:buy|invest in|hold)\b|"
     r"\bwhat should (?:i|we) (?:buy|invest)",
@@ -335,10 +337,13 @@ def is_concept_question(query: str) -> bool:
 def glossary_concept(query: str) -> str | None:
     """The curated glossary term a question is about ("北向资金是啥", "两融余额高不高"), or ``None``.
 
-    Such a question names no security, but FinSight can answer it from ``agent/glossary.py``, so it is in scope.
+    Such a question names no security, but FinSight can answer it from ``agent/glossary.py``, so it is in scope. A
+    request for securities that uses a concept word ("挑五只明天涨停的股票") asks for picks, not for the concept.
     """
     from .glossary import lookup_concept
 
+    if _RECOMMENDATION.search(query or ""):
+        return None
     entry = lookup_concept(query or "")
     return None if entry is None else entry.term
 
