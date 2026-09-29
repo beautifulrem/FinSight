@@ -93,6 +93,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     report = {
         "config": {
             "labels": _display_path(args.labels),
+            "model": None,  # routing only, no LLM
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "command": _command("evaluation.agent_eval.router_eval", argv),

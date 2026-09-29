@@ -184,6 +184,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "claims_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
             "set": None if args.claims else args.set,
             "data": SNAPSHOT_NAME,
+            "model": None,  # deterministic claim checker, no LLM
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "command": _command("evaluation.claim_bench.run", argv),
