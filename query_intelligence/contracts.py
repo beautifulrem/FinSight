@@ -295,6 +295,11 @@ class AgentChatResponse(BaseModel):
     turn_index: int | None = None
     sentiment: dict[str, Any] | None = None
     next_questions: list[dict[str, Any]] = Field(default_factory=list)
+    fact_check: dict[str, Any] | None = Field(
+        default=None,
+        description="For a hearsay question ('听说茅台市盈率只有15倍，是真的吗'): the claim-check report of the claim "
+        "inside it (same shape as /agent/claim-check), checked deterministically without an LLM",
+    )
     replayed: bool = Field(
         default=False,
         description="True when /agent/resume received a reply it had already applied: the stored result is "
