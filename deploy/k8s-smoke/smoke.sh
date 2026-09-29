@@ -83,6 +83,12 @@ k -n "$NS" create secret generic finsight-db \
   --from-literal=POSTGRES_PASSWORD="$PG_PASSWORD" \
   --from-literal=QI_AGENT_CHECKPOINT_DB="postgresql://postgres:${PG_PASSWORD}@finsight-postgres:5432/finsight" \
   --dry-run=client -o yaml | k apply -f -
+# The production profile refuses to start without API keys (C3): a throwaway key for this run.
+API_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
+k -n "$NS" create secret generic finsight-api-keys \
+  --from-literal=QI_API_KEYS="$API_KEY" \
+  --from-literal=QI_ANON_COOKIE_SECRET="$(python3 -c 'import secrets; print(secrets.token_hex(32))')" \
+  --dry-run=client -o yaml | k apply -f -
 k apply -f /tmp/finsight-smoke-rendered.yaml
 
 log "waiting for Postgres"
@@ -97,11 +103,12 @@ log "in-cluster checks from a finsight.io/client=true pod"
 k -n "$NS" delete pod smoke-client --ignore-not-found >/dev/null
 # shellcheck disable=SC2016  # expanded by the shell inside the pod
 k -n "$NS" run smoke-client --restart=Never --labels=finsight.io/client=true \
+  --env="API_KEY=$API_KEY" \
   --image="$CURL_IMAGE" --image-pull-policy=Never --command -- sh -c '
     set -e
     curl -fsS -o /tmp/ready.json -w "GET /ready -> %{http_code}\n" http://finsight-api/ready
     cat /tmp/ready.json; echo
-    curl -fsS -X POST http://finsight-api/agent/chat -H "Content-Type: application/json" \
+    curl -fsS -X POST http://finsight-api/agent/chat -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
       -d "{\"query\":\"贵州茅台的市盈率是多少\",\"mode\":\"workflow\"}" -o /tmp/chat.json \
       -w "POST /agent/chat -> %{http_code}\n"
     head -c 400 /tmp/chat.json; echo
