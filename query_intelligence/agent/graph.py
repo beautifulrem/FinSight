@@ -15,7 +15,8 @@ Graph::
 * ``agent_llm``/``agent_tools`` is the LLM tool loop with step, tool-call, and token budgets.
 * ``verify`` checks citations and numbers; ``revise`` gives the LLM one chance to fix its draft,
   otherwise unsupported statements are removed.
-* ``compliance`` applies the financial guardrails; ``finalize`` assembles the response.
+* ``compliance`` applies the output-side safety layer (``output_safety.py``) and the financial guardrails;
+  ``finalize`` assembles the response.
 """
 
 from __future__ import annotations
@@ -69,6 +70,7 @@ from .memory import (
 )
 from .memory_summary import update_memory_card
 from .names import english_name
+from .output_safety import scrub_answer
 from .planner import Plan, plan_from_nlu
 from .prompts import (
     agent_user_message,
@@ -980,6 +982,10 @@ class AgentRuntime:
             draft = self._template_update(state)["draft"]
             fallback_notes.append("language_mismatch_fallback_to_template")
             llm_draft = False
+        # Output-side safety on every draft (LLM or template): document-sourced promotion, contact details and
+        # trading calls become a neutral note; single-source regulatory claims and disputed figures are attributed.
+        draft, safety_notes = scrub_answer(draft, _store(state), zh=self._zh(state))
+        fallback_notes.extend(safety_notes)
         limitations = list(draft.get("limitations") or [])
         if llm_draft:
             # The LLM usually says when a requested period or metric is missing; the limitation makes it explicit.
