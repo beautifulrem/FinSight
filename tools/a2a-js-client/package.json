@@ -1,0 +1,16 @@
+{
+  "name": "finsight-a2a-js-client",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A2A interop check: the official JavaScript SDK client (@a2a-js/sdk) against FinSight's A2A endpoint",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "interop": "node interop.mjs"
+  },
+  "dependencies": {
+    "@a2a-js/sdk": "1.2.1"
+  }
+}
