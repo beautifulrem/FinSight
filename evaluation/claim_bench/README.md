@@ -6,7 +6,7 @@ against the offline snapshot (`data/structured_data.json`: prices as of 2026-04-
 
 | File | Claims | Use |
 | --- | --- | --- |
-| `claims_v1.jsonl` | 131 (115 zh, 16 en) | dev set: the checker was developed against it |
+| `claims_v1.jsonl` | 204 (164 zh, 40 en) | dev set: the checker was developed against it (rows noted `round4` / `round5` were added with later rule rounds) |
 | `claims_v1_holdout.jsonl` | 47 (38 zh, 9 en) | held out: written together with the dev set, before the fixes, and run **once** at the end |
 
 Held-out file sha256 (recorded when it was written, before any checker change):
@@ -41,6 +41,14 @@ a48aa59412a06f81c603604b587dec82948ae5914fdf176bdcdb7e42c0028bb8  claims_v1_hold
   a unit that does not fit the metric (P/E in %, ROE in 倍, a price in 亿元, an amount with no unit), a
   forecast, a period other than the data's, or a multi-day move (only the daily change is available).
 * Opinions without numbers have no checks and are `unverifiable`.
+
+Round-5 rows (`note: round5`, d174-d204) were written after the independent round-4 held-out slice
+(`evaluation/heldout_r4/claims_moves_heldout.jsonl`) was run once and its failure classes exposed. They are new
+phrasings of those classes (bounded moves, qualitative move words, explicit dates, multiples and relations,
+sector moves, several targets sharing one claim); `tests/test_agent_eval.py` checks that none copies or
+near-copies a held-out claim. Labels follow this file's comparator convention: a bound after a move word is
+about the size of the move ("跌超1%" is `gt` 1 with direction down), which the held-out slice writes as a bound
+on the signed change (`le` −1), so its comparator accuracy measures that difference in convention too.
 
 Known judgement calls: "五粮液市盈率24.6倍，比茅台低" is labelled contradicted (24.6 is bound to 五粮液);
 the holdout's industry-average PE ("行业平均11.8倍") is labelled supported from the 保险 industry snapshot,

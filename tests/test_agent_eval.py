@@ -292,6 +292,7 @@ def test_round4_router_labels_do_not_overlap_independent_or_test_sets():
     others = [row["query"] for row in _router_rows("router_labels_independent_v1.jsonl")]
     for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
         others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    others += _heldout_r4_texts()
     normalised = {build_test_v2._normalise(query) for query in others}
     grams = [build_test_v2._grams(query) for query in others]
 
@@ -598,6 +599,7 @@ def test_round5_dev_tasks_do_not_overlap_independent_or_test_sets():
         "半导体板块现在估值高吗", "这两只的成交额分别是多少", "600519 PE?", "请用英文回答：五粮液的ROE",
         "美联储加息对A股有什么影响",
     ]  # fmt: skip
+    others += _heldout_r4_texts()  # the independent round-4 held-out slices (written later; checked all the same)
     normalised = {build_test_v2._normalise(query) for query in others}
     grams = [build_test_v2._grams(query) for query in others]
 
@@ -610,3 +612,43 @@ def test_round5_dev_tasks_do_not_overlap_independent_or_test_sets():
         and any(len(own & theirs) / len(own | theirs) >= 0.8 for theirs in grams)
     ]
     assert (len(exact), len(near)) == (0, 0), "round-5 dev tasks overlap a held-out or reviewer set"
+
+
+def _heldout_r4_texts() -> list[str]:
+    """Every claim, question and planted document text of the independent round-4 held-out slices."""
+    from evaluation.agent_eval.runner import ROOT
+
+    folder = ROOT / "evaluation" / "heldout_r4"
+    texts = [json.loads(line)["claim"] for line in (folder / "claims_moves_heldout.jsonl").open(encoding="utf-8")]
+    for line in (folder / "multiturn_r4_heldout.jsonl").open(encoding="utf-8"):
+        texts.extend(turn["query"] for turn in json.loads(line)["turns"])
+    for line in (folder / "injection_holdout4.jsonl").open(encoding="utf-8"):
+        row = json.loads(line)
+        texts.extend((row["title"], row["body"]))
+    return texts
+
+
+def _overlaps(mine: list[str], others: list[str]) -> tuple[int, int]:
+    """(exact, near) duplicates of ``others`` in ``mine``: normalised equality, character 3-gram Jaccard >= 0.8."""
+    from evaluation.agent_eval import build_test_v2
+
+    normalised = {build_test_v2._normalise(text) for text in others}
+    grams = [build_test_v2._grams(text) for text in others]
+    exact = [text for text in mine if build_test_v2._normalise(text) in normalised]
+    near = [
+        text
+        for text in mine
+        if len(own := build_test_v2._grams(text)) > 3
+        and any(len(own & theirs) / len(own | theirs) >= 0.8 for theirs in grams)
+    ]
+    return len(exact), len(near)
+
+
+def test_round5_claim_rows_do_not_overlap_the_round4_heldout_slices():
+    """The round-5 claim-bench rows were written after the round-4 held-out slices were exposed: none may copy or
+    near-copy a held-out claim, question or planted document (counts only; held-out text is never printed)."""
+    from evaluation.claim_bench.run import SETS, load_claims
+
+    mine = [row["claim"] for row in load_claims(SETS["dev"]) if row.get("note") == "round5"]
+    assert len(mine) >= 30
+    assert _overlaps(mine, _heldout_r4_texts()) == (0, 0), "round-5 claim rows overlap the round-4 held-out slices"
