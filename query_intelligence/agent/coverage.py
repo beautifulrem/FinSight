@@ -394,9 +394,8 @@ def flow_gaps(query: str, tool_log: list[dict[str, Any]] | None = None, *, zh: b
     direct = _FLOW_DIRECT.search(query or "")
     if not direct and not (subject and _FLOW_ACTION.search(query or "")):
         return []
-    concept = any(entry.get("tool") == "explain_concept" and entry.get("ok") for entry in tool_log or [])
-    if concept and not (subject and _FLOW_ACTION.search(query or "")):
-        return []  # a glossary answer already says the concept has no data series
+    if any(entry.get("tool") == "explain_concept" and entry.get("ok") for entry in tool_log or []):
+        return []  # the glossary answer already says the concept has no data series
     if subject and _FLOW_ACTION.search(query or ""):
         who = subject.group(0)
         if zh:
