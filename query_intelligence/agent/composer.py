@@ -481,6 +481,23 @@ def _entities(data: dict[str, Any], zh: bool) -> list[str]:
     return []
 
 
+def _concept(data: dict[str, Any], zh: bool) -> list[str]:
+    """State a glossary definition, and say that FinSight tracks no data series for the concept."""
+    term, eid = data.get("term"), data.get("evidence_id")
+    text = str((data.get("definition_zh") if zh else data.get("definition_en")) or "")
+    if not term or not text or not eid:
+        return []
+    sentences = [f"{term}：{text} [{eid}]。" if zh else f"{term}: {text} [{eid}]."]
+    if not data.get("has_data_series"):
+        sentences.append(
+            f"当前数据源不包含{term}的数据序列，因此只能给出概念说明，无法给出具体数值。"
+            if zh
+            else f"The configured sources carry no data series for {term}, so this is a definition only, with no "
+            "figures."
+        )
+    return sentences
+
+
 _RENDERERS = {
     "get_price_history": _price,
     "compute_indicators": _indicators,
@@ -491,6 +508,7 @@ _RENDERERS = {
     "search_knowledge": _documents,
     "analyze_sentiment": _sentiment,
     "resolve_entity": _entities,
+    "explain_concept": _concept,
 }
 
 
