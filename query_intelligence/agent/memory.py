@@ -138,7 +138,13 @@ def listed_entities(nlu_result: dict[str, Any]) -> list[dict[str, Any]]:
 _PLURAL_ZH = re.compile(r"这两家公司|这两家|这两只|这两个|两家公司|两只股票|两家|两只|两者|它们|他们俩|二者|俩")
 _PLURAL_EN = re.compile(r"\b(?:both of them|both|them|these two|the two)\b", re.IGNORECASE)
 # "三家里面哪家最便宜", "all three": the three most recently discussed targets.
-_TRIPLE = re.compile(r"这三家|这三只|这三个|三家|三只|三者|\ball three\b|\bthe three\b|\bthese three\b", re.IGNORECASE)
+# "三个月", "the three months" are periods, and "给我三只…" / "推荐三只" ask for new targets: neither is a reference.
+_TRIPLE = re.compile(
+    r"(?:这|那)[三3](?:家|只|个|者)(?![月季年日天周])|"
+    r"(?<!给我)(?<!推荐)(?<!挑)(?<![选买来])[三3](?:家|只|者)(?![月季年日天周])|"
+    r"\b(?:all|the|these|those) (?:three|3)\b(?! (?:months?|years?|days?|weeks?|quarters?|sessions?)\b)",
+    re.IGNORECASE,
+)
 # "哪家赚得多" with no count: the targets of the last turn that compared several.
 _WHICH = re.compile(r"哪家|哪一家|哪只|哪一只|哪个|哪一个|\bwhich (?:one|company|stock|fund|of them)\b", re.IGNORECASE)
 # "前者/后者", "the former/the latter": by the order in which the user named them.
@@ -204,6 +210,20 @@ def _last_group(turns: list[dict[str, Any]], *, named_only: bool = False) -> lis
     return []
 
 
+GROUP_COUNT_MISMATCH = "group_reference_count_mismatch"
+
+
+def group_count_note(reasons: list[str], zh: bool) -> str | None:
+    """The sentence that tells the user a "three of them" reference covered fewer discussed targets."""
+    for reason in reasons:
+        if reason.startswith(f"{GROUP_COUNT_MISMATCH}:"):
+            word, _, joined = reason.split(":", 1)[1].partition("->")
+            if zh:
+                return f"您提到「{word}」，但本次对话只讨论过{joined}，以下按这两者比较。"
+            return f'You said "{word}", but this conversation has only covered {joined}; comparing those two.'
+    return None
+
+
 def _join(names: list[str], zh: bool) -> str:
     return "和".join(names) if zh else " and ".join(names)
 
@@ -234,10 +254,13 @@ def resolve_group_reference(query: str, turns: list[dict[str, Any]]) -> tuple[st
     triple = _TRIPLE.search(query)
     if triple:
         group = discussed_targets(turns, limit=3)
-        if len(group) != 3:
+        if len(group) < 2:
             return None
         joined = _join([item["name"] for item in group], zh)
         rewritten = f"{query[: triple.start()]}{joined}{query[triple.end() :]}"
+        if len(group) < 3:
+            # "三家里哪家最好" after two companies: compare the two that were discussed, and say so.
+            return rewritten, f"{GROUP_COUNT_MISMATCH}:{triple.group(0)}->{joined}"
         return rewritten, f"group_reference:{triple.group(0)}->{joined}"
     if _WHICH.search(query) and not (_PLURAL_ZH.search(query) or _PLURAL_EN.search(query)):
         group = _last_group(turns)
@@ -389,8 +412,10 @@ def resolve_ellipsis(
 _COMPARE_ZH = re.compile(
     r"(?:跟|与|和|同)\S{1,16}?(?:比|相比|对比)|比\S{1,12}?(?:高|低|大|小|多|少|贵|便宜|强|弱|好)|相比|对比"
 )
+# "Compare it with Moutai", "put that against BYD": the object pronoun sits between the verb and the preposition.
 _COMPARE_EN = re.compile(
-    r"\bthan\b|\bcompared? (?:with|to)\b|\bversus\b|\bvs\.?(?=\s)|\brelative to\b|\bstack up against\b",
+    r"\bthan\b|\bcompared? (?:(?:it|that|this|this one|that one) )?(?:with|to|against)\b|\bversus\b|\bvs\.?(?=\s)|"
+    r"\brelative to\b|\bstack(?:s)? (?:it |that )?up against\b|\b(?:put|set|measure|weigh) (?:it|that|this) against\b",
     re.IGNORECASE,
 )
 _BACK_REFERENCE = re.compile(r"^(?P<lead>.*?)\b(?P<ref>that|this|it)\b", re.IGNORECASE)

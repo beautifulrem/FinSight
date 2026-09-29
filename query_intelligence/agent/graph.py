@@ -45,6 +45,7 @@ from .memory import (
     apply_clarification,
     dialog_context_from_turns,
     discussed_targets,
+    group_count_note,
     has_plural_reference,
     history_messages,
     inherit_session_context,
@@ -961,6 +962,11 @@ class AgentRuntime:
         zh = self._zh(state)
         answer = dict(state.get("answer") or {})
         answer.setdefault("risk_disclaimer", DEFAULT_RISK_DISCLAIMER_ZH if zh else DEFAULT_RISK_DISCLAIMER_EN)
+        note = group_count_note(state.get("route_reasons") or [], zh)
+        if note and state.get("route") in {"workflow", "agent"}:
+            # "三家里哪家最好" after two companies: the answer says which targets it compared.
+            answer["answer"] = f"{note}{'' if zh else ' '}{answer.get('answer', '')}".strip()
+            answer["limitations"] = [note, *(answer.get("limitations") or [])]
         evidence = state.get("evidence") or {}
         cited = [evidence_id for evidence_id in cited_ids(answer) if evidence_id in evidence]
         ordered = cited + [evidence_id for evidence_id in evidence if evidence_id not in cited]

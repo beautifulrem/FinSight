@@ -484,7 +484,7 @@ def _sentiment(data: dict[str, Any], zh: bool) -> list[str]:
             f"模型均值 {_num(data.get('mean_score'))}（0.5 为中性） [{eid}]。"
         ]
     return [
-        f"Tone of {total} recent documents about {targets}: {positive} positive, {neutral} neutral, "
+        f"Tone of {total} documents published recently about {targets}: {positive} positive, {neutral} neutral, "
         f"{negative} negative; mean model score {_num(data.get('mean_score'))} (0.5 is neutral) [{eid}]."
     ]
 
