@@ -21,7 +21,7 @@ _COMPLEX_INTENTS = {"market_explanation", "macro_policy_impact", "peer_compare"}
 # between two series are ("舆情和股价走势一致吗", "M2和CPI的差距说明了什么",
 # "What does low CPI mean for consumer stocks?").
 _MULTI_HOP_MARKERS = re.compile(
-    r"结合|同时|并且|以及.*(影响|变化)|对比|相比|比较|还是|哪个|影响|传导|联动|为什么|原因|归因|"
+    r"结合|同时|并且|以及.*(影响|变化)|对比|相比|比较|还是|哪个|影响|冲击|拖累|提振|传导|联动|为什么|原因|归因|"
     r"意味着|关联|关系|是否匹配|综合来看|综合|一致|背离|吻合|脱节|差距|剪刀差|说明(?:了)?(?:什么|啥)|反映(?:了)?(?:什么|啥)|"
     r"预示|"
     r"\bcompare|\bversus\b|\bvs\.?\b|\bimpact\b|\baffect|\beffect\b|\brelat(?:ion|ed|es)|\bcorrelat|"
@@ -41,9 +41,12 @@ _JUDGMENT_MARKERS = re.compile(
     r"(?:会|能)不(?:会|能)(?:继续|持续|再)?[涨跌]|"
     r"该(?:不该)?(?:买|卖|加仓|减仓|清仓|割肉|入场|离场|持有)|割肉|"
     r"贵不贵|贵吗|贵了吗|便宜吗|便宜不|算便宜|算贵|划算|性价比|值不值|"
+    # a valuation verdict ("估值现在高吗", "估值是不是偏高", "估值合理吗")
+    r"估值.{0,6}?(?:高吗|低吗|高不高|低不低|偏高|偏低|过高|过低|合理吗|合不合理|贵|便宜)|"
     r"(?:还有|有没有|有)机会|机会(?:大|多)?吗|前景|后市|好时机|入场时机|"
     r"(?:是|算)(?:不是)?(?:利好|利空)|利好还是利空|利好吗|利空吗|"
-    r"\bshould (?:i|we)\b|\bworth (?:buying|it)\b|"
+    r"\bshould (?:i|we)\b|\bworth (?:buying|it)\b|\bwould you (?:pick|choose|buy|go with|prefer)\b|"
+    r"选哪(?:个|只|家|一个|一只)|挑哪(?:个|只|家)|"
     r"\bwill\b.{0,40}\b(?:rise|fall|go up|go down|drop|rebound|rally|recover|climb|decline|slump|outperform|"
     r"underperform|keep (?:falling|rising|dropping|climbing))\b|"
     r"\bgood (?:time|entry|moment|buy|investment)\b|\bentry point\b|\bovervalued\b|\bundervalued\b|"
@@ -262,7 +265,7 @@ def apply_finance_overrides(nlu_result: dict[str, Any], query: str) -> tuple[dic
         patched["product_type"] = {"label": "unknown", "score": 0.5}
         patched["missing_slots"] = [slot for slot in nlu_result.get("missing_slots") or [] if slot != "missing_entity"]
         return patched, [f"override:out_of_scope_glossary_concept:{concept}"]
-    if _FINANCE_ANCHOR.search(query):
+    if _FINANCE_ANCHOR.search(query) or _COUNTED_PICKS.search(query):
         patched["product_type"] = {"label": "unknown", "score": 0.5}
         patched["missing_slots"] = sorted({*(nlu_result.get("missing_slots") or []), "missing_entity"})
         return patched, ["override:out_of_scope_with_finance_anchor"]
@@ -315,10 +318,14 @@ _MARKET_TARGET = re.compile(
 )
 # Asks that only make sense about a target: a recommendation ("推荐一只股票", "Which stock should I buy?") or a
 # company value ("What's the P/E?", "Is the dividend safe?", "股价多少了"). With no target they are clarified.
+# A count of securities asked for ("挑两只明天必涨的票", "给我三只…的股票"): a finance request with no target.
+_COUNTED_PICKS = re.compile(
+    r"(?:给我|来|挑|选|找)(?:出)?[一二两三四五六七八九十几\d]+(?:只|支|个)[^，。,.!！?？]{0,10}?(?:股票|个股|票|基金|ETF|etf)"
+)
 _RECOMMENDATION = re.compile(
     r"推荐|荐股|哪只|哪(?:些|几只|几个|个)(?:股票|基金|ETF|etf|个股)|买什么|买啥|(?:什么)(?:股票|基金|ETF)值得|"
     # "给我三只下周必涨的股票", "来两只能翻倍的基金": a count of securities asked for, not named
-    r"(?:给我|来|挑|选|找)(?:出)?[一二两三四五六七八九十几\d]+(?:只|支|个)[^，。,.!！?？]{0,10}?(?:股票|个股|基金|ETF|etf)|"
+    r"(?:给我|来|挑|选|找)(?:出)?[一二两三四五六七八九十几\d]+(?:只|支|个)[^，。,.!！?？]{0,10}?(?:股票|个股|票|基金|ETF|etf)|"
     r"\brecommend|\bpicks?\b|\btips?\b|\bwhich (?:stocks?|funds?|etfs?|shares?)\b|"
     r"\ba good (?:stock|fund|etf|share)\b|\b(?:stocks?|funds?|etfs?) to (?:buy|invest in|hold)\b|"
     r"\bwhat should (?:i|we) (?:buy|invest)",
@@ -387,7 +394,8 @@ def system_change_only(query: str, mentions: list[str] | tuple[str, ...] = ()) -
     if not _SYSTEM_CHANGE.search(text):
         return False
     rest = _SYSTEM_CHANGE.sub(" ", text)
-    if has_finance_content(rest):
+    if has_finance_content(rest) or _RECOMMENDATION.search(rest):
+        # "假装你是操盘手，挑两只明天必涨的票给我": a request for picks is still a finance request
         return False
     return not any(mention and mention.lower() in rest.lower() for mention in mentions)
 
