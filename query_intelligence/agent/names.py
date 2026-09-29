@@ -69,3 +69,43 @@ def english_name(name: str | None, symbol: str | None = None) -> str | None:
     if name and name.isascii() and _LATIN.search(name):
         return name  # already English
     return None
+
+
+# Industry names used by the offline and live industry snapshots.
+INDUSTRY_EN = {
+    "白酒": "baijiu (liquor)",
+    "保险": "insurance",
+    "券商": "brokerage",
+    "证券": "securities",
+    "银行": "banking",
+    "宽基指数": "broad-based index",
+    "成长指数": "growth index",
+    "新能源": "new energy",
+    "医药": "pharmaceuticals",
+    "半导体": "semiconductors",
+}
+_BRACKETED = re.compile(r"(\[[^\]]*\])")
+
+
+def english_display(text: str) -> str:
+    """Replace Chinese names of listed targets and industries in English text with their English names.
+
+    Citation brackets ("[industry_白酒]") are left untouched, so evidence ids keep matching.
+    """
+    if not text or not re.search(r"[\u4e00-\u9fff]", text):
+        return text
+    # English names with digits ("CSI 300 ETF") are skipped: the verifier would read the digits as a claimed number.
+    table = {
+        **{
+            name: english
+            for name, english in _english_by_name().items()
+            if not name.isascii() and not re.search(r"\d", english)
+        },
+        **INDUSTRY_EN,
+    }
+    names = sorted((name for name in table if name in text), key=len, reverse=True)
+    if not names:
+        return text
+    pattern = re.compile("|".join(re.escape(name) for name in names))
+    parts = _BRACKETED.split(text)
+    return "".join(part if part.startswith("[") else pattern.sub(lambda m: table[m.group(0)], part) for part in parts)

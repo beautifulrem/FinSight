@@ -50,7 +50,7 @@ def test_comparison_and_english_suggestions():
     )
 
     assert questions[0]["reason"] == "compare_targets"
-    assert questions[0]["question"].startswith("How do 贵州茅台 and 五粮液 differ")
+    assert questions[0]["question"].startswith("How do Kweichow Moutai and Wuliangye differ")
 
 
 def test_refusal_and_clarification_suggestions():

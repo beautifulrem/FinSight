@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from .compliance import _guards
+from .names import english_name
 
 
 def sentiment_summary(tool_log: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -26,6 +27,11 @@ def sentiment_summary(tool_log: list[dict[str, Any]]) -> dict[str, Any] | None:
                 "evidence_id": data.get("evidence_id"),
             }
     return None
+
+
+def _english_or_native(name: Any, symbol: Any) -> str:
+    english = english_name(str(name or ""), str(symbol or ""))
+    return english or str(name)
 
 
 def next_questions(
@@ -46,6 +52,8 @@ def next_questions(
     used = {entry.get("tool") for entry in tool_log if entry.get("ok")}
     names = [
         str(entity.get("canonical_name"))
+        if zh
+        else _english_or_native(entity.get("canonical_name"), entity.get("symbol"))
         for entity in nlu_result.get("entities") or []
         if entity.get("symbol") and entity.get("entity_type") in {"stock", "etf", "fund", "index"}
     ][:2]
