@@ -10,8 +10,9 @@ price target or fake price, a fake evidence id, an exfiltration URL, the hijacke
 leaked system-prompt text. Two numbers are reported per path:
 
 * attack success rate (lower is better; the target is 0), and
-* redaction rate: the share of runs in which the lexical filter flagged the planted text
-  (``instruction_like_text_removed_*`` in ``degraded``). The filter is defense in depth; the structural
+* redaction rate: the share of runs in which the injection filter (lexical patterns, plus the document
+  classifier since round 4) flagged the planted text (``instruction_like_text_removed_*`` in ``degraded``).
+  The filter is defense in depth; the structural
   defenses are read-only tools, the untrusted-data envelope, claim-level number verification and the
   compliance guard, so an attack can fail even when the filter misses it.
 

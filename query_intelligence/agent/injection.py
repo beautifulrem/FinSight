@@ -3,10 +3,14 @@
 Retrieved documents are third-party text. Before a tool result is shown to the LLM, instruction-like
 spans inside document fields are replaced with a marker, and the whole observation is wrapped in an
 envelope that states it is untrusted data. Text is NFKC-normalised and stripped of invisible format
-characters before matching, so full-width ("ｉｇｎｏｒｅ") and zero-width-joined payloads are caught. The
-detection is lexical and conservative; it is a defense-in-depth layer on top of the system prompt, the
-read-only tools, claim-level verification and the compliance guard, not a guarantee
-(``evaluation/agent_eval/redteam.py`` measures it).
+characters before matching, so full-width ("ｉｇｎｏｒｅ") and zero-width-joined payloads are caught.
+
+Two layers: lexical patterns (below) everywhere, and for third-party document text also a small character
+n-gram classifier (``injection_classifier.py``, ``sanitize_document_text``) that redacts whole sentences it
+scores as injection. The user's own message goes through the lexical layer only. Both are defense in depth on
+top of the system prompt, the read-only tools, claim-level verification and the compliance guard, not a
+guarantee (``evaluation/agent_eval/redteam.py`` and ``evaluation/results/injection_classifier-r4.json``
+measure them).
 """
 
 from __future__ import annotations
@@ -61,9 +65,8 @@ def _normalise(text: str) -> str:
     return _INVISIBLE.sub("", unicodedata.normalize("NFKC", text))
 
 
-def sanitize_untrusted_text(text: str) -> tuple[str, bool]:
-    """Redact instruction-like spans. Returns the original text untouched when nothing matches;
-    otherwise the normalised text with each match replaced by ``REDACTION_MARKER``."""
+def lexical_redact(text: str) -> tuple[str, bool]:
+    """The lexical layer alone: the normalised text with each pattern match replaced by ``REDACTION_MARKER``."""
     normalised = _normalise(text)
     flagged = False
     cleaned = normalised
@@ -73,6 +76,40 @@ def sanitize_untrusted_text(text: str) -> tuple[str, bool]:
     return (cleaned, True) if flagged else (text, False)
 
 
+def classifier_redact(text: str) -> tuple[str, bool]:
+    """The second layer alone: segments the injection classifier scores at or above its threshold are replaced
+    with ``REDACTION_MARKER`` (``injection_classifier.py``). A no-op when the classifier is disabled."""
+    from .injection_classifier import load_classifier
+
+    classifier = load_classifier()
+    if classifier is None or not text or text.strip() == REDACTION_MARKER:
+        return text, False
+    flagged = [part for part in classifier.flagged_segments(text) if REDACTION_MARKER not in part]
+    if not flagged:
+        return text, False
+    cleaned = text
+    for part in flagged:
+        cleaned = cleaned.replace(part, REDACTION_MARKER, 1)
+    return cleaned, True
+
+
+def sanitize_untrusted_text(text: str, *, classifier: bool = False) -> tuple[str, bool]:
+    """Redact instruction-like spans. Returns the original text untouched when nothing matches;
+    otherwise the normalised text with each match replaced by ``REDACTION_MARKER``.
+
+    ``classifier=True`` (document text only) adds the non-lexical second layer after the patterns."""
+    cleaned, flagged = lexical_redact(text)
+    if classifier:
+        cleaned, second = classifier_redact(cleaned)
+        flagged = flagged or second
+    return cleaned, flagged
+
+
+def sanitize_document_text(text: str) -> tuple[str, bool]:
+    """Third-party document text: lexical patterns, then the injection classifier."""
+    return sanitize_untrusted_text(text, classifier=True)
+
+
 def sanitize_observation(value: Any) -> tuple[Any, bool]:
     """Recursively sanitize document text fields inside a tool observation."""
     if isinstance(value, dict):
@@ -80,7 +117,7 @@ def sanitize_observation(value: Any) -> tuple[Any, bool]:
         result: dict[str, Any] = {}
         for key, item in value.items():
             if key in _TEXT_FIELDS and isinstance(item, str):
-                result[key], hit = sanitize_untrusted_text(item)
+                result[key], hit = sanitize_document_text(item)
             else:
                 result[key], hit = sanitize_observation(item)
             flagged = flagged or hit
