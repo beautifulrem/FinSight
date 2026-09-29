@@ -162,6 +162,33 @@ describe("moves, relations and macro claims (round 4)", () => {
     });
   });
 
+  it("writes a multiple of another target with both values and the ratio (round 6)", () => {
+    const multiple = {
+      target: "贵州茅台",
+      metric: "pb",
+      claimed: 1.5,
+      comparator: "approx",
+      reference: "五粮液",
+      reference_value: 5.4,
+      ratio: 1.5,
+      actual: 8.1,
+      status: "supported",
+      note: "ratio 1.50 = 8.1 / 5.4",
+    } as const;
+    expect(claimedText("zh", zh, multiple)).toEqual({
+      text: "≈ 1.5× 五粮液",
+      label: "约为 1.5× 五粮液",
+      detail: "五粮液 5.4 倍 · 比值 1.5×",
+    });
+    expect(noteText(zh, multiple.note, multiple)).toBe("两者之比为 1.50 倍");
+    expect(noteText(en, "convention: '大跌' means a move of at least 3% in that direction")).toBe(
+      "By convention, \u201c大跌\u201d means a move of at least 3% in that direction",
+    );
+    expect(noteText(zh, "convention: '小幅下跌' means a move of less than 1% in that direction")).toBe(
+      "按约定，「小幅下跌」指该方向的涨跌幅小于 1%",
+    );
+  });
+
   it("formats macro readings and names targets in English", () => {
     expect(formatClaimValue("zh", zh, "cpi_yoy", 0.8, "actual")).toBe("+0.8%");
     expect(formatClaimValue("zh", zh, "cn10y", 2.31, "actual")).toBe("2.31%");
