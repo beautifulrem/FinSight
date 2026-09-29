@@ -1,3 +1,4 @@
+import { evidenceTitle } from "@/lib/format";
 import { ExternalLink } from "lucide-react";
 import { useEffect, useRef } from "react";
 
@@ -72,7 +73,7 @@ export function EvidenceList({ sources, cited, highlight, highlightNonce }: Prop
                 <FreshnessBadges source={source} info={info} />
               </div>
               <p className="text-[13.5px] leading-snug font-medium text-pretty text-ink">
-                {source.title || source.evidence_id}
+                {evidenceTitle(lang, source.title) || source.evidence_id}
               </p>
               <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[12px]">
                 {sourceNameLabel(lang, info.provenance, source.source_name) && (

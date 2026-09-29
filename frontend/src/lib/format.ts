@@ -84,3 +84,21 @@ export function formatDate(lang: Lang, asOf: string | null | undefined): string 
     ...(hasTime ? { hour: "2-digit", minute: "2-digit", hour12: false } : {}),
   }).format(parsed);
 }
+
+// Structured evidence titles come from the tools in English ("贵州茅台 (600519.SH) daily market data");
+// the Chinese UI shows the kind in Chinese. Document titles are left as written.
+const TITLE_KINDS: [RegExp, string][] = [
+  [/ intraday quote and daily market data$/, " 盘中报价与日行情"],
+  [/ daily market data$/, " 日行情"],
+  [/ fundamentals$/, " 基本面"],
+  [/ technical indicators$/, " 技术指标"],
+  [/ industry snapshot$/, " 行业快照"],
+  [/ macro indicator$/, " 宏观指标"],
+  [/^Document sentiment for (.+)$/, "$1 文档情绪"],
+];
+
+export function evidenceTitle(lang: Lang, title: string | null | undefined): string {
+  if (!title || lang !== "zh") return title ?? "";
+  for (const [pattern, zh] of TITLE_KINDS) if (pattern.test(title)) return title.replace(pattern, zh);
+  return title;
+}

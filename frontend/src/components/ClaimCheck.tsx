@@ -1,3 +1,4 @@
+import { evidenceTitle } from "@/lib/format";
 import { m as motion } from "motion/react";
 import {
   AlertTriangle,
@@ -142,7 +143,7 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
         <div className="claim-source mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line/70 pt-2.5 text-[12px]">
           <span className="inline-flex items-center gap-1 text-muted">
             <Database className="size-3" aria-hidden />
-            <Tooltip content={evidence.title || null}>
+            <Tooltip content={evidenceTitle(lang, evidence.title) || null}>
               <span tabIndex={evidence.title ? 0 : undefined} className="font-medium text-ink">
                 {source || t("claim.sourceUnknown")}
               </span>
@@ -233,7 +234,7 @@ export function ClaimReportCard({ report, turn }: { report: ClaimReport; turn?: 
       <footer className="border-t border-line pt-3">
         <p className="claim-disclaimer disclaimer flex items-start gap-1.5 text-[12px] leading-relaxed text-muted">
           <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          <span>{report.disclaimer || t("answer.disclaimerDefault")}</span>
+          <span>{t("claim.disclaimer")}</span>
         </p>
       </footer>
     </article>
