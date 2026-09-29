@@ -1,8 +1,9 @@
-"""Audit log of refusals and compliance edits.
+"""Audit log of refusals, compliance edits and injection-filter redactions.
 
-Every agent run that the guard refused, and every compliance rule that changed an answer, produces one audit
-event. The events are for security and compliance review: *what kind* of intervention happened, for *whom*,
-and in *which run*, without storing what the user wrote.
+Every agent run that the guard refused, every compliance rule that changed an answer, and every run in which the
+injection filter removed text (from the user's message or from retrieved documents) produces one audit event.
+The events are for security and compliance review: *what kind* of intervention happened, for *whom*, and in
+*which run*, without storing what the user wrote.
 
 An event is one JSON object::
 
@@ -10,14 +11,17 @@ An event is one JSON object::
      "trace_id": "9f2c…", "principal": "key:3b7e0a51c2d4", "session_hash": "5d1f0c2a9e4b",
      "query_hash": "a41c7e02f9d3", "route": "agent", "answer_source": "llm_agent", "prompt_version": "v3"}
 
-* ``event``: ``refusal`` (``category``: ``prompt_injection`` / ``out_of_scope``) or ``compliance_edit``
-  (``category``: the compliance rule, e.g. ``removed_trading_instruction``, ``conditional_prefix``,
-  ``causal_caveat``, ``softened_judgment_or_causal_language``, ``market_freshness``,
-  ``language_mismatch_fallback_to_template``).
+* ``event``: ``refusal`` (``category``: ``prompt_injection`` / ``out_of_scope``), ``compliance_edit``
+  (``category``: the compliance rule, e.g. ``removed_trading_instruction``, ``removed_prohibited_promotion``,
+  ``conditional_prefix``, ``causal_caveat``, ``softened_judgment_or_causal_language``, ``market_freshness``,
+  ``language_mismatch_fallback_to_template``), ``input_guard_redaction`` (``category``: ``user_message``: the
+  input guard removed instruction-like text from the user's message and the rest of the turn was *answered*;
+  refused attempts are ``refusal`` events) or ``document_redaction`` (``category``: ``evidence`` /
+  ``tool_output``: instruction-like text was removed from retrieved third-party text during the run).
 * ``principal`` is the caller id the API already uses for tenancy (``key:`` + a SHA-256 prefix of the API key,
-  or ``local``). ``query_hash`` and ``session_hash`` are 12-hex-digit HMAC-SHA256 prefixes (key:
-  ``QI_AUDIT_HASH_KEY``; plain SHA-256 when unset). They let a reviewer group repeated attempts without
-  keeping the text. No query, answer or document text is written.
+  ``anon:`` + a hash of the browser's signed anonymous id, or ``local``). ``query_hash`` and ``session_hash``
+  are 12-hex-digit HMAC-SHA256 prefixes (key: ``QI_AUDIT_HASH_KEY``; plain SHA-256 when unset). They let a
+  reviewer group repeated attempts without keeping the text. No query, answer or document text is written.
 
 Sinks: the ``finsight.audit`` logger (one JSON line per event, to the service log), a daily-rotated JSONL file
 ``QI_AUDIT_LOG_PATH`` (default ``outputs/audit/audit.jsonl``; ``off`` disables it) that keeps
@@ -69,7 +73,29 @@ def audit_events(trace: dict[str, Any], *, hash_key: bytes | None = None) -> lis
         events.append({"at": stamp, "event": "refusal", "category": trace.get("refusal_category") or "other", **base})
     for note in dict.fromkeys(trace.get("compliance_notes") or []):
         events.append({"at": stamp, "event": "compliance_edit", "category": str(note).split(":")[0], **base})
+    for source in redaction_sources(trace):
+        if source == "user_message":
+            if trace.get("route") != "refuse":  # a refused attempt is already a refusal event
+                events.append({"at": stamp, "event": "input_guard_redaction", "category": source, **base})
+        else:
+            events.append({"at": stamp, "event": "document_redaction", "category": source, **base})
     return events
+
+
+INPUT_GUARD_REASON = "input_guard:instruction_like_text_removed"
+_DOCUMENT_FLAG = "instruction_like_text_removed_from_"
+
+
+def redaction_sources(trace: dict[str, Any]) -> list[str]:
+    """Where the injection filter removed text in this run: ``user_message``, ``evidence``, ``tool_output``."""
+    sources = []
+    if INPUT_GUARD_REASON in (trace.get("route_reasons") or []):
+        sources.append("user_message")
+    for flag in trace.get("degraded") or []:
+        flag = str(flag)
+        if flag.startswith(_DOCUMENT_FLAG):
+            sources.append(flag.removeprefix(_DOCUMENT_FLAG))
+    return list(dict.fromkeys(sources))
 
 
 class AuditTraceSink:
@@ -111,7 +137,7 @@ class AuditTraceSink:
 
             self.counter = Counter(
                 "finsight_audit_events_total",
-                "Audit events: guard refusals and compliance edits, by category.",
+                "Audit events: guard refusals, compliance edits and injection-filter redactions, by category.",
                 ["event", "category"],
                 registry=registry,
             )

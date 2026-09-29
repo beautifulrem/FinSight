@@ -30,7 +30,7 @@ def _panels() -> list[dict]:
 def test_dashboard_structure():
     dashboard = json.loads(DASHBOARD.read_text(encoding="utf-8"))
     panels = dashboard["panels"]
-    assert dashboard["uid"] == "finsight-ops" and len(panels) == 27
+    assert dashboard["uid"] == "finsight-ops" and len(panels) == 29
     assert len({panel["id"] for panel in panels}) == len(panels)
 
     cells: dict[tuple[int, int], int] = {}
@@ -73,7 +73,8 @@ def test_every_referenced_metric_is_exported():
         "cost": 0.1,
         "currency": "CNY",
         "verification_passed": False,
-        "degraded": ["x"],
+        "degraded": ["x", "instruction_like_text_removed_from_evidence"],
+        "route_reasons": ["input_guard:instruction_like_text_removed"],
     }
     sink.emit(sample)
     sink.record_feedback("up", "v3")
@@ -87,3 +88,12 @@ def test_every_referenced_metric_is_exported():
         if base not in exported and base.removesuffix("_total") not in exported:
             missing.append(name)
     assert missing == []
+
+
+def test_injection_redaction_panels_use_the_redaction_counter():
+    titles = {panel["title"]: panel for panel in _panels()}
+    series = titles["Injection-filter redactions per hour (source, answered / refused)"]["targets"][0]["expr"]
+    answered = titles["Answered after input-guard redaction (24 h)"]["targets"][0]["expr"]
+
+    assert "finsight_injection_redactions_total" in series and "by (source, outcome)" in series
+    assert 'source="user_message"' in answered and 'outcome="answered"' in answered
