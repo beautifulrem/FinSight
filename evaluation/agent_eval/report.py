@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .metrics import pass_all_value, task_success_value
+from .metrics import pass_all_value, task_success_value, uncited_success_bounds
 from .results import RESULTS_DIR, decode_outcomes, load_result
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -683,9 +683,15 @@ def pure_llm_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
         "* *Facts stated with the snapshot value* (`fact_stated`) counts required numbers that appear in the "
         "answer, cited or not; it is in every committed summary.",
         "* *Task success, uncited* (`task_success_uncited`) is task-level: behaviour, hedging, missing-data and "
-        "compliance checks still apply, and every required number must be right. It was added after these runs. "
-        "Their per-turn records were not committed (only per-task outcomes), so it cannot be recomputed for them; "
-        "runs from now on record it for every path.",
+        "compliance checks still apply, and every required number must be right; cited facts, tool use, the "
+        "disclaimer field and the pipeline's resolved entities are not required. It was added after these runs "
+        "and runs from now on record it for every path, including pure_llm. The committed files of these runs "
+        "keep per-task outcomes and failure rows (failed checks per turn, without the answer text), so the exact "
+        "value cannot be recomputed. The column gives bounds from those rows: a row that failed only tool-only "
+        "checks passes; one that also failed `facts` (an uncited number may still have been right) or `language` "
+        "(these runs did not record the answer language) is undecided, a failure for the lower bound and a pass "
+        "for the upper; any other failed check fails. The upper bounds are loose: only 4–8% of the required "
+        "numbers appear in these answers at all (`fact_stated`).",
         "",
         "| Result file | Set | Commit | Model | Status | Tasks | Strict task success | Facts stated, uncited "
         "| Task success, uncited | LLM-error turns (429) |",
@@ -698,12 +704,16 @@ def pure_llm_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
             if not data:
                 continue
             summary = summary_of(data)
+            uncited = cell(summary, "task_success_uncited")
+            if summary.get("task_success_uncited") is None:
+                bounds = uncited_success_bounds(data.get("failures") or [], decode_outcomes(data.get("task_outcomes")))
+                uncited = f"not recorded; bounds [{bounds[0]:.3f}, {bounds[1]:.3f}]" if bounds else "not recorded"
             lines.append(
                 f"| `{name}.json` | {set_name} | `{config.get('commit')}` "
                 f"| `{config.get('model') or config.get('llm')}` "
                 f"| {status_label(name, set_name, config.get('commit'))} | {summary['tasks']} "
                 f"| {cell(summary, 'task_success')} | {_fmt(summary.get('fact_stated'))} "
-                f"| {cell(summary, 'task_success_uncited')} | {llm_error_cell(summary)} |"
+                f"| {uncited} | {llm_error_cell(summary)} |"
             )
     lines.append("")
     return lines
@@ -903,6 +913,16 @@ def _attack_counts(attacks: Any) -> str:
     return ", ".join(f"{name} {count}" for name, count in attacks.items())
 
 
+def _redteam_llm_errors(path: dict[str, Any], config: dict[str, Any]) -> str:
+    """Share of red-team runs where an LLM call failed and the template fallback answered."""
+    if path["mode"] == "workflow" or not (config.get("model") or config.get("llm")):
+        return "– (no LLM)"
+    rate = path.get("llm_error_rate")
+    if rate is None:
+        return "not recorded (run predates the metric)"
+    return f"{rate:.3f} (429: {path.get('llm_429_rate') or 0:.3f} of runs)"
+
+
 def redteam_section(redteam: dict[str, Any], title: str) -> list[str]:
     config = redteam["config"]
     lines = [
@@ -912,13 +932,13 @@ def redteam_section(redteam: dict[str, Any], title: str) -> list[str]:
         f"Attacks: {_attack_counts(config['attacks'])}; variants: {', '.join(config['variants'])}. "
         "Only runs in which a document tool returned the poisoned text are counted.",
         "",
-        "| Attack set | Path | Runs | Attack success | Redaction by lexical filter | Crashes |",
-        "|---|---|---|---|---|---|",
+        "| Attack set | Path | Runs | Attack success | Redaction by lexical filter | Crashes | LLM-error runs (429) |",
+        "|---|---|---|---|---|---|---|",
     ]
     for path in redteam["paths"]:
         lines.append(
             f"| {path['attack_set']} | {path['mode']} | {path['exposed_runs']} | {_fmt(path['attack_success'])} | "
-            f"{_fmt(path['redaction'])} | {path['crashes']} |"
+            f"{_fmt(path['redaction'])} | {path['crashes']} | {_redteam_llm_errors(path, config)} |"
         )
     lines.append("")
     for note in redteam.get("notes") or []:

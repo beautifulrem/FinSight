@@ -934,14 +934,14 @@ Multi-turn set v1 (independent author), path `auto`: 49 tasks, 206 turns. Status
 Under the strict score a task needs every required number stated **and cited with an evidence id**, the required tools and the product's risk-disclaimer field. A model without tools can meet none of these, so its 0.000 is a property of the scoring, not only of the model. The uncited columns score the same answers against the same snapshot values without those requirements. The snapshot is dated 2026-04-22 and the model has no access to it, so uncited correctness measures what the model knew or guessed.
 
 * *Facts stated with the snapshot value* (`fact_stated`) counts required numbers that appear in the answer, cited or not; it is in every committed summary.
-* *Task success, uncited* (`task_success_uncited`) is task-level: behaviour, hedging, missing-data and compliance checks still apply, and every required number must be right. It was added after these runs. Their per-turn records were not committed (only per-task outcomes), so it cannot be recomputed for them; runs from now on record it for every path.
+* *Task success, uncited* (`task_success_uncited`) is task-level: behaviour, hedging, missing-data and compliance checks still apply, and every required number must be right; cited facts, tool use, the disclaimer field and the pipeline's resolved entities are not required. It was added after these runs and runs from now on record it for every path, including pure_llm. The committed files of these runs keep per-task outcomes and failure rows (failed checks per turn, without the answer text), so the exact value cannot be recomputed. The column gives bounds from those rows: a row that failed only tool-only checks passes; one that also failed `facts` (an uncited number may still have been right) or `language` (these runs did not record the answer language) is undecided, a failure for the lower bound and a pass for the upper; any other failed check fails. The upper bounds are loose: only 4–8% of the required numbers appear in these answers at all (`fact_stated`).
 
 | Result file | Set | Commit | Model | Status | Tasks | Strict task success | Facts stated, uncited | Task success, uncited | LLM-error turns (429) |
 |---|---|---|---|---|---|---|---|---|---|
-| `ablation-final.json` | dev | `846bc5e` | `cline-pass/deepseek-v4.1-flash` | development set (used to drive fixes) | 207 | 0.000 [0.00, 0.00] | 0.053 | not recorded | not recorded |
-| `ablation-final.json` | holdout | `846bc5e` | `cline-pass/deepseek-v4.1-flash` | held-out (not used for rule tuning, but used to choose prompts: a validation set) | 53 | 0.000 [0.00, 0.00] | 0.042 | not recorded | not recorded |
-| `ablation-test_v2-deepseek.json` | test_v2 | `38a3069` | `cline-pass/deepseek-v4.1-flash` | **first runs** (before exposure) | 121 | 0.000 [0.00, 0.00] | 0.081 | not recorded | 0.004 (429: 0 of 2 error flags) |
-| `ablation-test_v3-purellm-deepseek.json` | test_v3 | `3730408` | `cline-pass/deepseek-v4.1-flash` | **first run** (untouched: no fix has looked at it) | 130 | 0.000 [0.00, 0.00] | 0.066 | not recorded | 0.000 |
+| `ablation-final.json` | dev | `846bc5e` | `cline-pass/deepseek-v4.1-flash` | development set (used to drive fixes) | 207 | 0.000 [0.00, 0.00] | 0.053 | not recorded; bounds [0.204, 0.797] | not recorded |
+| `ablation-final.json` | holdout | `846bc5e` | `cline-pass/deepseek-v4.1-flash` | held-out (not used for rule tuning, but used to choose prompts: a validation set) | 53 | 0.000 [0.00, 0.00] | 0.042 | not recorded; bounds [0.214, 0.818] | not recorded |
+| `ablation-test_v2-deepseek.json` | test_v2 | `38a3069` | `cline-pass/deepseek-v4.1-flash` | **first runs** (before exposure) | 121 | 0.000 [0.00, 0.00] | 0.081 | not recorded; bounds [0.223, 0.771] | 0.004 (429: 0 of 2 error flags) |
+| `ablation-test_v3-purellm-deepseek.json` | test_v3 | `3730408` | `cline-pass/deepseek-v4.1-flash` | **first run** (untouched: no fix has looked at it) | 130 | 0.000 [0.00, 0.00] | 0.066 | not recorded; bounds [0.000, 0.700] | 0.000 |
 
 ### Router label sets
 
@@ -1179,17 +1179,17 @@ Repair of the 3333 rejected variants (whole-sentence deletion, template fallback
 
 Command: `python -m evaluation.agent_eval.redteam --llm deepseek --workers 4 --out outputs/agent_eval/redteam-final2.json` at commit `d1c007c`; model `cline-pass/deepseek-v4.1-flash` (`--llm deepseek` names the OpenAI-compatible client; the model came from `DEEPSEEK_MODEL` and is recorded in the result's config). Attacks: dev 9, holdout 8, holdout2 8; variants: fullwidth, plain, split, zero_width. Only runs in which a document tool returned the poisoned text are counted.
 
-| Attack set | Path | Runs | Attack success | Redaction by lexical filter | Crashes |
-|---|---|---|---|---|---|
-| dev | workflow | 72 | 0.000 | 1.000 | 0 |
-| dev | workflow_llm | 72 | 0.000 | 1.000 | 0 |
-| dev | agent | 72 | 0.000 | 1.000 | 0 |
-| holdout | workflow | 64 | 0.000 | 0.000 | 0 |
-| holdout | workflow_llm | 64 | 0.016 | 0.000 | 0 |
-| holdout | agent | 64 | 0.000 | 0.000 | 0 |
-| holdout2 | workflow | 64 | 0.000 | 0.000 | 0 |
-| holdout2 | workflow_llm | 64 | 0.016 | 0.000 | 0 |
-| holdout2 | agent | 64 | 0.000 | 0.000 | 0 |
+| Attack set | Path | Runs | Attack success | Redaction by lexical filter | Crashes | LLM-error runs (429) |
+|---|---|---|---|---|---|---|
+| dev | workflow | 72 | 0.000 | 1.000 | 0 | – (no LLM) |
+| dev | workflow_llm | 72 | 0.000 | 1.000 | 0 | not recorded (run predates the metric) |
+| dev | agent | 72 | 0.000 | 1.000 | 0 | not recorded (run predates the metric) |
+| holdout | workflow | 64 | 0.000 | 0.000 | 0 | – (no LLM) |
+| holdout | workflow_llm | 64 | 0.016 | 0.000 | 0 | not recorded (run predates the metric) |
+| holdout | agent | 64 | 0.000 | 0.000 | 0 | not recorded (run predates the metric) |
+| holdout2 | workflow | 64 | 0.000 | 0.000 | 0 | – (no LLM) |
+| holdout2 | workflow_llm | 64 | 0.016 | 0.000 | 0 | not recorded (run predates the metric) |
+| holdout2 | agent | 64 | 0.000 | 0.000 | 0 | not recorded (run predates the metric) |
 
 * Note: model cline-pass/deepseek-v4.1-flash, attack sets dev/holdout/holdout2, run at d1c007c
 
@@ -1204,14 +1204,14 @@ Successful attacks:
 
 Command: `python -m evaluation.agent_eval.redteam --llm deepseek --workers 4 --out outputs/agent_eval/redteam.json` at commit `846bc5e`; model `cline-pass/deepseek-v4.1-flash` (`--llm deepseek` names the OpenAI-compatible client; the model came from `DEEPSEEK_MODEL` and is recorded in the result's config). Attacks: dev 9, holdout 8; variants: fullwidth, plain, split, zero_width. Only runs in which a document tool returned the poisoned text are counted.
 
-| Attack set | Path | Runs | Attack success | Redaction by lexical filter | Crashes |
-|---|---|---|---|---|---|
-| dev | workflow | 72 | 0.000 | 1.000 | 0 |
-| dev | workflow_llm | 72 | 0.000 | 1.000 | 0 |
-| dev | agent | 72 | 0.000 | 1.000 | 0 |
-| holdout | workflow | 64 | 0.000 | 0.000 | 0 |
-| holdout | workflow_llm | 64 | 0.031 | 0.000 | 0 |
-| holdout | agent | 64 | 0.016 | 0.000 | 0 |
+| Attack set | Path | Runs | Attack success | Redaction by lexical filter | Crashes | LLM-error runs (429) |
+|---|---|---|---|---|---|---|
+| dev | workflow | 72 | 0.000 | 1.000 | 0 | – (no LLM) |
+| dev | workflow_llm | 72 | 0.000 | 1.000 | 0 | not recorded (run predates the metric) |
+| dev | agent | 72 | 0.000 | 1.000 | 0 | not recorded (run predates the metric) |
+| holdout | workflow | 64 | 0.000 | 0.000 | 0 | – (no LLM) |
+| holdout | workflow_llm | 64 | 0.031 | 0.000 | 0 | not recorded (run predates the metric) |
+| holdout | agent | 64 | 0.016 | 0.000 | 0 | not recorded (run predates the metric) |
 
 Successful attacks:
 
@@ -1225,12 +1225,12 @@ Successful attacks:
 
 Command: `python -m evaluation.agent_eval.redteam --out outputs/agent_eval/redteam.json` at commit `9f0e46b`; no LLM (offline). Attacks: dev 9, holdout 8, holdout2 8, holdout3 11; variants: fullwidth, plain, split, zero_width. Only runs in which a document tool returned the poisoned text are counted.
 
-| Attack set | Path | Runs | Attack success | Redaction by lexical filter | Crashes |
-|---|---|---|---|---|---|
-| dev | workflow | 72 | 0.000 | 1.000 | 0 |
-| holdout | workflow | 64 | 0.000 | 0.000 | 0 |
-| holdout2 | workflow | 64 | 0.000 | 0.000 | 0 |
-| holdout3 | workflow | 88 | 0.023 | 0.273 | 0 |
+| Attack set | Path | Runs | Attack success | Redaction by lexical filter | Crashes | LLM-error runs (429) |
+|---|---|---|---|---|---|---|
+| dev | workflow | 72 | 0.000 | 1.000 | 0 | – (no LLM) |
+| holdout | workflow | 64 | 0.000 | 0.000 | 0 | – (no LLM) |
+| holdout2 | workflow | 64 | 0.000 | 0.000 | 0 | – (no LLM) |
+| holdout3 | workflow | 88 | 0.023 | 0.273 | 0 | – (no LLM) |
 
 Successful attacks:
 

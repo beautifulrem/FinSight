@@ -39,6 +39,7 @@ from query_intelligence.agent.service import AgentService
 from query_intelligence.agent.state import AgentConfig
 from query_intelligence.agent.tools import ToolRegistry, build_registry_for_service
 from query_intelligence.agent.verifier import verify_answer
+from query_intelligence.chat.language import detect_user_language
 
 from .metrics import aggregate, breakdown, failed_checks, score_turn, task_outcomes
 from .replay import RecordingRegistry, ReplayRegistry
@@ -211,9 +212,12 @@ def run_pure_llm_tasks(
                 cost, currency, _source = resolve_cost(Usage(**usage), Pricing.from_env())
                 latency_ms = round((time.perf_counter() - started) * 1000, 2)
                 report = verify_answer(draft, EvidenceStore(), query=turn["query"])
+                answer = str(draft.get("answer") or "")
                 response = {
                     **draft,
                     "route": "pure_llm",
+                    # The answer's own language, so the language check scores the model and not a missing field.
+                    "language": detect_user_language(answer) if answer.strip() else None,
                     "degraded": degraded,
                     "tool_calls": [],
                     "verification": report.model_dump(),
