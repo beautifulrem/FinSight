@@ -262,7 +262,7 @@ CI runs the following:
 - lint;
 - a gitleaks secret scan of the full git history ([SECURITY.md](SECURITY.md));
 - the frontend checks: typecheck, lint, unit tests and a reproducible build;
-- the full test suite with a Postgres service, including the axe accessibility tests (they fail rather than skip in CI) and a coverage floor of 88% on `query_intelligence/agent` (measured 90.3%);
+- the full test suite, run once, with a Postgres service, including the axe accessibility tests (they fail rather than skip in CI), and branch-coverage floors: `query_intelligence/agent` 88% (measured 90.17%), `query_intelligence/api` 90% (92.13%), `answer_guards.py` 81% (83.74%), from [`coverage-ef07a7f.json`](docs/results/coverage/coverage-ef07a7f.json). The 90.3% quoted earlier came from the agent test subset only;
 - the evaluation gate against committed baselines, and a check that the evaluation page is up to date;
 - the Docker build with a smoke test on a read-only root filesystem (waits for `/ready`), plus a check that an unwritable state volume makes the container unready;
 - Kubernetes manifest validation (rendered kustomization, no committed Secret, commit-tagged image).
@@ -325,7 +325,7 @@ Bugs found by the round-3 independent review (ids C1–C20) that are not fixed o
 | C19 | Low | The web UI keeps the API key in `localStorage` | open |
 | C20 | Low | "美联储加息对A股有什么影响" gets an empty answer with no limitation | open |
 
-Fixed on this branch: C4 (`docs/agent-eval.md` renders every README-cited result and `report --check` fails otherwise, `2d368da`); C15 (the LLM-error and HTTP 429 share is shown next to every online headline; a rerun without 429s still waits for quota); the other C16 items (`--llm` names the client and result configs record `model`; the chaos drill records its commit, `0223b25`). The intraday quote path is new and does not know movable holidays (Spring Festival, Qingming, Dragon Boat, Mid-Autumn): on those days it rejects the stale real-time quote and falls back to the daily close ([data-sources.md](docs/data-sources.md#intraday-quotes-for-今天今日today-questions)).
+Fixed on this branch: C4 (`docs/agent-eval.md` renders every README-cited result and `report --check` fails otherwise, `2d368da`); C15 (the LLM-error and HTTP 429 share is shown next to every online headline; a rerun without 429s still waits for quota); the other C16 items (`--llm` names the client and result configs record `model`; the chaos drill records its commit, `0223b25`; the coverage figures cite a committed summary). The intraday quote path is new and does not know movable holidays (Spring Festival, Qingming, Dragon Boat, Mid-Autumn): on those days it rejects the stale real-time quote and falls back to the daily close ([data-sources.md](docs/data-sources.md#intraday-quotes-for-今天今日today-questions)).
 
 ## Safety
 
