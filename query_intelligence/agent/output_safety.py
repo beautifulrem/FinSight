@@ -77,7 +77,9 @@ def _negated(text: str, start: int) -> bool:
 # The sentence already tells the reader the claim is unverified: leave it.
 _UNVERIFIED = re.compile(
     r"未经?(?:其他来源|官方)?(?:证实|核实|确认|核验)|(?:无法|无从|不能|难以)(?:核实|证实|核验|确认)|无可核验|"
-    r"尚未(?:证实|核实|确认)|真实性(?:存疑|待|未|无法)|不能据此|传闻|网传|"
+    r"尚未(?:证实|核实|确认)|真实性(?:存疑|待|未|无法)|不能据此|传闻|网传|未(?:获|得到|在)?[^。；;]{0,16}(?:证实|印证|核实)|"
+    r"不(?:作为|能作为|应视为|视为)(?:已确认)?事实|"
+    r"\bnot\s+(?:treated|reported|taken)\s+(?:here\s+)?as\s+(?:a\s+)?fact\b|\bunsupported\b|\bno\s+official\s+\w+\s+corroborat|"
     r"\bunverified\b|\bunconfirmed\b|\bnot\s+(?:been\s+)?(?:independently\s+)?(?:corroborated|confirmed|verified)\b|"
     r"\bcould\s+not\s+be\s+(?:verified|confirmed)\b|\bcannot\s+be\s+(?:verified|confirmed)\b|\bunofficial\b|"
     r"\balleg(?:ed|es|ing|edly)\b|\bpurported(?:ly)?\b|\brumou?r",

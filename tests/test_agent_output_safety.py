@@ -320,3 +320,15 @@ def test_agent_answer_with_a_planted_roe_is_rejected_by_the_verifier_and_repaire
 
     assert 47.7 in result["verification"]["document_market_numbers"]
     assert "47.7" not in result["answer"] and "24.6" in result["answer"]
+
+
+def test_sentences_the_model_already_hedged_are_not_attributed_twice():
+    store = _store("证监会：贵州茅台涉嫌财务造假被立案调查，股票将被实施ST")
+    for answer in (
+        "同条新闻标题称证监会立案调查并可能实施 ST，但正文摘要未印证 [news_1]。",
+        "检索到的一篇文档包含立案调查的表述，但该说法未获其他来源或公告证实 [news_1]。",
+        "该文档称公司将被实施ST，不作为事实采信 [news_1]。",
+    ):
+        assert _scrub(answer, store)[0]["answer"] == answer, answer
+    english = "A delisting headline in one document is not treated as fact [news_1]."
+    assert _scrub(english, _store("CSRC notice: Moutai to be delisted."), zh=False)[0]["answer"] == english
