@@ -152,6 +152,9 @@ class MCPConnection:
         self._main: concurrent.futures.Future | None = None
         self._lock = threading.Lock()
         self._last_attempt = 0.0
+        # Filled in on connect: the negotiated MCP protocol version and the server's name/version.
+        self.protocol_version: str | None = None
+        self.server_info: dict[str, str] | None = None
 
     @property
     def connected(self) -> bool:
@@ -204,6 +207,7 @@ class MCPConnection:
         try:
             async with Client(self._target(), read_timeout_seconds=self.config.timeout_s) as client:
                 tools = await _list_all_tools(client)
+                self.protocol_version, self.server_info = _session_info(client)
                 self._stop = asyncio.Event()
                 self._client = client
                 if not ready.done():
@@ -266,6 +270,18 @@ class MCPConnection:
             self._thread.join(timeout=timeout)
         self._loop = self._thread = self._stop = self._main = None
         self._client = None
+
+
+def _session_info(client: Any) -> tuple[str | None, dict[str, str] | None]:
+    """Negotiated protocol version and ``serverInfo`` (best effort: logged and shown in demos only)."""
+    version = info = None
+    with contextlib.suppress(Exception):
+        version = str(client.protocol_version)
+    with contextlib.suppress(Exception):
+        server = client.server_info
+        if server is not None:
+            info = {"name": str(server.name), "version": str(server.version)}
+    return version, info
 
 
 async def _list_all_tools(client: Any) -> list[Any]:
@@ -484,9 +500,11 @@ def register_mcp_servers(registry: ToolRegistry, configs: list[MCPServerConfig])
         registry.on_shutdown(connection.close)
         atexit.register(connection.close)
         logger.info(
-            "[startup] MCP server %s (%s): registered %d tool(s): %s",
+            "[startup] MCP server %s (%s, %s, protocol %s): registered %d tool(s): %s",
             config.name,
             config.transport,
+            "{name} {version}".format(**connection.server_info) if connection.server_info else "unknown server",
+            connection.protocol_version or "unknown",
             len(registered),
             ", ".join(registered),
         )

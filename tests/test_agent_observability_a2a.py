@@ -260,3 +260,33 @@ def test_agent_card_url_follows_the_request():
     card = TestClient(app, base_url="http://agents.example:9000").get("/.well-known/agent-card.json").json()
 
     assert card["supportedInterfaces"][0]["url"] == "http://agents.example:9000/a2a"
+
+
+def _rpc(client: TestClient, method: str, params: dict) -> dict:
+    response = client.post(
+        "/a2a", headers=A2A_HEADERS, json={"jsonrpc": "2.0", "id": 7, "method": method, "params": params}
+    )
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_a2a_subscribe_to_a_finished_task_is_unsupported_operation(client):
+    """A2A 1.0 §9.4.6: SubscribeToTask on a terminal task returns UnsupportedOperationError (-32004), not the
+    SDK's InvalidParams (-32602). Found by the @a2a-js/sdk interop run (tools/a2a-js-client/interop.mjs)."""
+    task = _send(client, "贵州茅台的市盈率是多少")
+    assert task["status"]["state"] == "TASK_STATE_COMPLETED"
+
+    body = _rpc(client, "SubscribeToTask", {"id": task["id"]})
+
+    assert body["error"]["code"] == -32004, body
+    assert "TASK_STATE_COMPLETED" in body["error"]["message"] and "GetTask" in body["error"]["message"]
+    missing = _rpc(client, "SubscribeToTask", {"id": str(uuid.uuid4())})
+    assert missing["error"]["code"] == -32001  # TaskNotFoundError
+
+
+def test_a2a_cancel_of_a_finished_task_is_not_cancelable(client):
+    task = _send(client, "贵州茅台的市盈率是多少")
+
+    body = _rpc(client, "CancelTask", {"id": task["id"]})
+
+    assert body["error"]["code"] == -32002, body  # TaskNotCancelableError
