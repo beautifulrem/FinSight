@@ -300,6 +300,33 @@ CI runs the following:
 - **Latency.** With DeepSeek the agent's P95 is 15.4 s on held-out and 17.3 s on test v2, and the first answer token arrives after about 3 s (P50). Planner prefetch, citation repair and a 20 s stall timeout brought it down from 22–27 s without a loss in task success ([performance.md](docs/performance.md#2a-agent-path-latency-profile-changes-and-beforeafter)). On harder multi-tool questions at 4 concurrent users the P95 is 26.7 s. With GLM the P95 is still about 60–70 s, driven by per-call variance. Every LLM request is capped by the run deadline (90 s + 20 s for the answer, below the API's 120 s timeout).
 - **Free data sources throttle.** Eastmoney refused this machine's connections during the audit, and the fallbacks carried the load. With a Postgres checkpointer, A2A tasks and traces are shared by all replicas too; the rate limiter and the caches are still per replica.
 
+## Known open issues
+
+Bugs found by the round-3 independent review (ids C1–C20) that are not fixed on this branch. Each has a reproduction in the review; this list changes as the fixes merge.
+
+| Id | Severity | Issue | Status |
+|---|---|---|---|
+| C1 | High | The template answer path quotes attacker-controlled document titles; homoglyph and paraphrased payloads get past the title blocklist (52 of 192 planted runs echoed a payload) | in progress (round 4) |
+| C2 | High | Claim check inverts the comparator on down moves: "五粮液昨天跌了超过1%" (actual −0.53%) is judged supported | in progress (round 4) |
+| C3 | Medium | With API keys off (the Kubernetes default) every caller shares one principal, so `/agent/traces` lists other users' queries and session ids | in progress (round 4) |
+| C5 | Medium | English "it" inside a comparison loses the earlier company | in progress (round 4) |
+| C6 | Medium | Some A-share questions are refused or not resolved ("美的和格力选哪个", "北向资金是啥") | in progress (round 4) |
+| C7 | Low | "三家里哪家最好" after two companies inherits only the last one | in progress (round 4) |
+| C8 | Low | Typo resolution ("贵州矛台") depends on the rest of the sentence | in progress (round 4) |
+| C9 | Low | Injection wording becomes an entity ("…荐股机器人…" → `get_fundamentals('机器人')`) | in progress (round 4) |
+| C10 | Low | A sector valuation question ("半导体板块现在估值高吗") is handled as a security | in progress (round 4) |
+| C11 | Low | Template sentences miss units ("成交额 3793827534", "1688.38 hundred million CNY") | in progress (round 4) |
+| C12 | Low | An explicit answer-language instruction ("请用英文回答") is ignored | in progress (round 4) |
+| C13 | Low | Claim check cannot verify "x earnings", comparisons between two companies or macro series | in progress (round 4) |
+| C14 | Low | The audit log records no event for an injection attempt that was answered after the input guard redacted it | open |
+| C16 | Low | The "clause salvage 29% readable" figure (README, verifier row) is only in the message of commit `063aeca`; no committed result holds it | open |
+| C17 | Low | Accessibility: duplicate region labels per turn and two `main` elements | open |
+| C18 | Low | Compare answers show KPI tiles for the first company only | open |
+| C19 | Low | The web UI keeps the API key in `localStorage` | open |
+| C20 | Low | "美联储加息对A股有什么影响" gets an empty answer with no limitation | open |
+
+Fixed on this branch: C4 (`docs/agent-eval.md` renders every README-cited result and `report --check` fails otherwise, `2d368da`); C15 (the LLM-error and HTTP 429 share is shown next to every online headline; a rerun without 429s still waits for quota); the other C16 items (`--llm` names the client and result configs record `model`; the chaos drill records its commit, `0223b25`). The intraday quote path is new and does not know movable holidays (Spring Festival, Qingming, Dragon Boat, Mid-Autumn): on those days it rejects the stale real-time quote and falls back to the daily close ([data-sources.md](docs/data-sources.md#intraday-quotes-for-今天今日today-questions)).
+
 ## Safety
 
 FinSight summarises evidence; it is not an investment adviser and must not be the sole basis for trading decisions.
