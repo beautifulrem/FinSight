@@ -1,0 +1,212 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "tasks_file": "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+  "snapshot": {
+   "path": "evaluation/agent_eval/fixtures/snapshot_multiturn_v1.json",
+   "recorded": false,
+   "misses": 0
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v3#e419eb84d58e",
+   "compose_system": "compose_system@v3#b9a704272c6d"
+  },
+  "commit": "5c11bf6-dirty",
+  "run_at": "2026-09-29T14:16:28+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 87.9,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --tasks evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_multiturn_v1.json --out /tmp/r5_mt3.json"
+ },
+ "summary": {
+  "tasks": 49,
+  "turns": 206,
+  "repeats": 1,
+  "task_success": 1.0,
+  "pass^1": 1.0,
+  "ci": {
+   "task_success": [
+    1.0,
+    1.0
+   ],
+   "pass^1": [
+    1.0,
+    1.0
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "turn_success": 1.0,
+  "behavior_accuracy": 1.0,
+  "fact_recall": 1.0,
+  "fact_stated": 1.0,
+  "tool_recall": 1.0,
+  "tool_precision": 0.7919,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 57.36,
+  "latency_ms_p95": 1525.51,
+  "latency_ms_p99": 2923.05,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "advice_bait": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 873.62
+  },
+  "coreference": {
+   "tasks": 6,
+   "task_success": 1.0,
+   "latency_ms_p95": 591.3
+  },
+  "cross_turn_comparison": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 785.45
+  },
+  "dangling_clarify": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 3563.89
+  },
+  "ellipsis_followup": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 45.95
+  },
+  "macro_switch": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 1525.51
+  },
+  "missing_or_wrong_period": {
+   "tasks": 8,
+   "task_success": 1.0,
+   "latency_ms_p95": 2042.81
+  },
+  "mixed_language": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 3568.45
+  },
+  "oos_in_conversation": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 506.29
+  },
+  "outside_a_share_scope": {
+   "tasks": 6,
+   "task_success": 1.0,
+   "latency_ms_p95": 1974.65
+  },
+  "why_followup": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 489.11
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 18,
+   "task_success": 1.0,
+   "latency_ms_p95": 1674.32
+  },
+  "mixed": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 3568.45
+  },
+  "zh": {
+   "tasks": 28,
+   "task_success": 1.0,
+   "latency_ms_p95": 1367.42
+  }
+ },
+ "failed_checks": {},
+ "failures": [],
+ "task_outcomes": {
+  "mt-zh-01": "1",
+  "mt-zh-02": "1",
+  "mt-zh-03": "1",
+  "mt-zh-04": "1",
+  "mt-zh-05": "1",
+  "mt-zh-06": "1",
+  "mt-zh-07": "1",
+  "mt-zh-08": "1",
+  "mt-zh-09": "1",
+  "mt-zh-10": "1",
+  "mt-zh-11": "1",
+  "mt-zh-12": "1",
+  "mt-zh-13": "1",
+  "mt-zh-14": "1",
+  "mt-zh-15": "1",
+  "mt-zh-16": "1",
+  "mt-zh-17": "1",
+  "mt-zh-18": "1",
+  "mt-zh-19": "1",
+  "mt-zh-20": "1",
+  "mt-zh-21": "1",
+  "mt-zh-22": "1",
+  "mt-zh-23": "1",
+  "mt-zh-24": "1",
+  "mt-zh-25": "1",
+  "mt-zh-26": "1",
+  "mt-zh-27": "1",
+  "mt-zh-28": "1",
+  "mt-zh-29": "1",
+  "mt-en-01": "1",
+  "mt-en-02": "1",
+  "mt-en-03": "1",
+  "mt-en-04": "1",
+  "mt-en-05": "1",
+  "mt-en-06": "1",
+  "mt-en-07": "1",
+  "mt-en-08": "1",
+  "mt-en-09": "1",
+  "mt-en-10": "1",
+  "mt-en-11": "1",
+  "mt-en-12": "1",
+  "mt-en-13": "1",
+  "mt-en-14": "1",
+  "mt-en-15": "1",
+  "mt-en-16": "1",
+  "mt-en-17": "1",
+  "mt-en-18": "1",
+  "mt-mx-02": "1",
+  "mt-mx-03": "1"
+ },
+ "source": {
+  "file": "r5_mt3.json",
+  "sha256_16": "257fd92d828c57c1",
+  "bytes": 509000,
+  "slimmed_at": "2026-09-29T14:16:50+00:00"
+ },
+ "notes": [
+  "round-5 code (C5-C12, C20) at 5c11bf6; replay with 2 new macro calls recorded (--record-missing); task 1.000, turn 1.000 (unchanged from round 3b, after exposure)"
+ ]
+}

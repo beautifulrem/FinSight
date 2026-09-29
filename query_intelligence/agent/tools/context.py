@@ -106,6 +106,32 @@ class ToolContext:
             entity_type=str(best.get("entity_type") or "stock"),
         )
 
+    def sector_name(self, target: str) -> str | None:
+        """The canonical name of the sector ``target`` names ("半导体板块" -> 半导体), or ``None``.
+
+        Only when the text names no listed security: "贵州茅台" or a ticker is never read as a sector.
+        """
+        text = target.strip()
+        if not text or SYMBOL_PATTERN.match(text):
+            return None
+        entities, _targets, _trace = self.resolve_entities(text)
+        if any(entity.get("symbol") for entity in entities):
+            return None
+        for entity in entities:
+            if entity.get("entity_type") == "sector" and entity.get("canonical_name"):
+                return str(entity["canonical_name"])
+        return None
+
+    def sector_aliases(self, name: str) -> set[str]:
+        """Every alias of the sector entity called ``name`` ("证券" -> {证券, 券商, 券商板块, …}), plus ``name``."""
+        resolver = self.nlu_pipeline.entity_resolver
+        ids = {
+            str(row.get("entity_id"))
+            for row in resolver.entities
+            if row.get("entity_type") == "sector" and row.get("canonical_name") == name
+        }
+        return {name, *(str(row.get("alias_text")) for row in resolver.aliases if str(row.get("entity_id")) in ids)}
+
     def _symbols(self) -> dict[str, dict[str, str]]:
         if self._symbol_index is None:
             index: dict[str, dict[str, str]] = {}

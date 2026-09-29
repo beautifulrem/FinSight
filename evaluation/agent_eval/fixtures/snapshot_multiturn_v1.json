@@ -1004,6 +1004,75 @@
    ],
    "error": null
   },
+  "get_macro_indicators:{\"query\": \"CPI：对白酒消费有影响吗\", \"topics\": [\"CPI\"]}": {
+   "ok": true,
+   "data": {
+    "indicators": [
+     {
+      "code": "CPI_CN",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 0.8,
+      "unit": "%",
+      "source": "seed",
+      "evidence_id": "macro_CPI_CN",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     }
+    ],
+    "policy_events": []
+   },
+   "evidence": [
+    {
+     "evidence_id": "macro_CPI_CN",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "CPI_CN macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "CPI_CN",
+      "metric_date": "2026-03-31",
+      "metric_value": 0.8,
+      "unit": "%",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     "produced_by": "get_macro_indicators"
+    }
+   ],
+   "error": null
+  },
   "get_macro_indicators:{\"query\": \"Does a PMI above 50 mean insurers will rally\", \"topics\": [\"PMI\"]}": {
    "ok": true,
    "data": {
@@ -2261,6 +2330,75 @@
    "error": null
   },
   "get_macro_indicators:{\"query\": \"利率低的环境对保险股是不是利好\", \"topics\": [\"利率\"]}": {
+   "ok": true,
+   "data": {
+    "indicators": [
+     {
+      "code": "CN10Y",
+      "name": null,
+      "date": "2026-03-31",
+      "value": 2.31,
+      "unit": "%",
+      "source": "seed",
+      "evidence_id": "macro_CN10Y",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     }
+    ],
+    "policy_events": []
+   },
+   "evidence": [
+    {
+     "evidence_id": "macro_CN10Y",
+     "kind": "structured",
+     "source_type": "macro_sql",
+     "title": "CN10Y macro indicator",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-03-31",
+     "text_excerpt": null,
+     "payload": {
+      "indicator_code": "CN10Y",
+      "metric_date": "2026-03-31",
+      "metric_value": 2.31,
+      "unit": "%",
+      "source_name": "seed",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/structured_data.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": null,
+       "as_of": "2026-03-31",
+       "freshness": "stale",
+       "fallback_reason": "live macro data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级",
+       "original_source": "seed"
+      }
+     },
+     "produced_by": "get_macro_indicators"
+    }
+   ],
+   "error": null
+  },
+  "get_macro_indicators:{\"query\": \"十年期国债收益率：这些 macro 数据说明 A 股 will go 涨 吗\", \"topics\": [\"十年期国债收益率\", \"国债\"]}": {
    "ok": true,
    "data": {
     "indicators": [
@@ -7112,6 +7250,7 @@
   }
  },
  "extended_at": [
-  "2026-09-28T11:14:53+00:00"
+  "2026-09-28T11:14:53+00:00",
+  "2026-09-29T14:14:57+00:00"
  ]
 }

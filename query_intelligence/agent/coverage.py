@@ -340,9 +340,37 @@ def macro_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> list[
     ]
 
 
+# Foreign central banks and US macro data ("美联储加息对A股有什么影响", "Will a Fed hike hurt A-shares?"): the
+# question is in scope (its target is the A-share market), but no source carries the foreign series.
+_FOREIGN_MACRO = re.compile(
+    r"美联储|联储|FOMC|美国(?:的)?(?:加息|降息|利率|通胀|CPI|国债|经济|就业|非农)|美债|欧洲央行|欧央行|日本央行|日央行|"
+    r"\bfed\b|federal reserve|\bu\.?s\.? (?:rates?|inflation|cpi|treasur(?:y|ies)|economy|jobs)|\becb\b|\bboj\b|"
+    r"bank of japan|european central bank",
+    re.IGNORECASE,
+)
+
+
+def foreign_macro_gaps(query: str, *, zh: bool) -> list[str]:
+    """State that foreign central-bank and US macro data are not covered, when the question is about them."""
+    if not _FOREIGN_MACRO.search(query or ""):
+        return []
+    return [
+        "当前数据源只有中国的宏观指标（如CPI、PMI、货币供应量和国债收益率），没有美联储等境外央行的政策利率或美国经济数据，"
+        "因此无法用数据说明其对A股的具体影响；以下只列出可得的国内证据。"
+        if zh
+        else "The configured sources carry China macro indicators only (CPI, PMI, money supply, government bond "
+        "yields); they have no Federal Reserve or other foreign central-bank rates and no US economic data, so the "
+        "effect on A-shares cannot be shown with data. Only the available domestic evidence is listed."
+    ]
+
+
 def _years_text(years: list[int], *, zh: bool) -> str:
     # "2019年" / "FY2019": forms the verifier reads as dates, not as claimed values.
     return "、".join(f"{year}年" for year in years) if zh else ", ".join(f"FY{year}" for year in years)
+
+
+# Prefix of the get_fundamentals error for a sector without an industry snapshot (tools/fundamentals.py).
+INDUSTRY_NOT_FOUND = "no industry snapshot for"
 
 
 def failed_target_statements(
@@ -351,12 +379,18 @@ def failed_target_statements(
     """Name the targets whose data could not be retrieved (instead of a generic "no evidence" line)."""
     names = names or {}
     per_target: dict[str, list[str]] = {}
+    sectors: list[str] = []
     for entry in tool_log:
         if entry.get("ok"):
             continue
         arguments = entry.get("arguments") or {}
         target = arguments.get("target") or ((arguments.get("targets") or [None])[0])
         if not target:
+            continue
+        if str((entry.get("error") or {}).get("message") or "").startswith(INDUSTRY_NOT_FOUND):
+            # "半导体板块估值高吗": the sector is known, the sources have no snapshot for it
+            if str(target) not in sectors:
+                sectors.append(str(target))
             continue
         kind = {
             "get_fundamentals": ("基本面", "fundamentals"),
@@ -369,7 +403,13 @@ def failed_target_statements(
         label = kind[0] if zh else kind[1]
         if label not in per_target[str(target)]:
             per_target[str(target)].append(label)
-    statements = []
+    statements = [
+        f"当前数据源没有{sector}行业的估值和行情快照，因此无法判断该行业的估值高低。"
+        if zh
+        else f"The configured sources have no valuation or market snapshot for the {sector} sector, so its "
+        "valuation cannot be assessed."
+        for sector in sectors
+    ]
     for target, kinds in per_target.items():
         name = names.get(target)
         who = f"{name}（{target}）" if zh and name else (f"{name} ({target})" if name else target)

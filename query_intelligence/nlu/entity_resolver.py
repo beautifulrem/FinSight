@@ -53,6 +53,40 @@ GENERIC_ENTITY_SUFFIX_MENTIONS = {
 
 SECTOR_CONTEXT_SUFFIXES = {"板块", "行业", "赛道", "方向", "主题"}
 QUESTION_BOUNDARY_CHARS = set("哪谁怎吗么该能好更不")
+# Colloquial short names ("美的", "宁王", "工行"; see runtime_entity_assets.COLLOQUIAL_ALIASES) are common word
+# fragments ("完美的", "施工行业"): they match only exactly, only as a whole jieba token, and never fuzzily.
+COLLOQUIAL_ALIAS_TYPE = "colloquial_alias"
+# Degree adverbs ("挺美的", "很美的", "太美的"): a colloquial alias right after one is used as an adjective.
+DEGREE_ADVERB_CHARS = set("很挺真太好多更最超蛮怪够极")
+# Grammatical particles and question words: a fuzzy window that differs from an alias at one of these is part of the
+# sentence, not a misspelt name.
+PARTICLE_CHARS = set("是的了吗呢么吧啊呀有在和与及或也都就还没不要会能该多少几谁哪什怎")
+
+
+class _WordBoundaries:
+    """Lazily built jieba tokenizer that knows the colloquial aliases as words (no HMM, deterministic)."""
+
+    def __init__(self, words: set[str]) -> None:
+        self._words = sorted(words)
+        self._tokenizer = None
+        self._last: tuple[str, set[tuple[int, int]]] | None = None  # the last question's spans
+
+    def spans(self, text: str) -> set[tuple[int, int]]:
+        if self._tokenizer is None:
+            import logging
+
+            import jieba
+
+            jieba.setLogLevel(logging.ERROR)
+            tokenizer = jieba.Tokenizer()
+            for word in self._words:
+                tokenizer.add_word(word)
+            self._tokenizer = tokenizer
+        last = self._last  # one tuple, replaced whole: safe to read from several threads
+        if last is None or last[0] != text:
+            last = (text, {(start, end) for _word, start, end in self._tokenizer.tokenize(text, HMM=False)})
+            self._last = last
+        return last[1]
 
 
 @dataclass
@@ -77,6 +111,12 @@ class EntityResolver:
         self._aliases_by_first_char: dict[str, list[str]] = defaultdict(list)
         for alias in self._alias_rows_by_normalized:
             self._aliases_by_first_char[alias[0]].append(alias)
+        self._colloquial_aliases = {
+            alias
+            for alias, rows in self._alias_rows_by_normalized.items()
+            if rows and all(row.get("alias_type") == COLLOQUIAL_ALIAS_TYPE for row in rows)
+        }
+        self._word_boundaries = _WordBoundaries(self._colloquial_aliases)
 
     def resolve(self, query: str) -> tuple[list[dict], list[str], list[str]]:
         resolved_entities: list[dict] = []
@@ -176,6 +216,46 @@ class EntityResolver:
             flags = [flag for flag in flags if flag != "entity_ambiguous"]
         return resolved_entities, comparison_targets, flags + trace
 
+    def resolve_typos_beside(self, query: str, found: list[dict]) -> tuple[list[dict], list[str]]:
+        """Typo'd security names next to exact non-security mentions: ``(entities, trace)``.
+
+        ``resolve`` runs fuzzy alias matching only when nothing matched exactly, so "贵州矛台股价多少" resolved to
+        贵州茅台 while "贵州矛台的市盈率是多少" (where 市盈率 matches exactly) did not. Here the exact mentions are
+        masked out and the rest of the question gets the same fuzzy alias matching; only listed securities are
+        kept (a fuzzy metric or sector next to an exact one adds nothing).
+        """
+        masked = query
+        for entity in found:
+            # the mention may be a ticker ("510300.SH") while the name is written too ("沪深300ETF (510300.SH)")
+            for text in sorted(
+                {str(entity.get("mention") or ""), str(entity.get("canonical_name") or "")}, key=len, reverse=True
+            ):
+                if text:
+                    masked = masked.replace(text, " " * len(text))
+        if not masked.strip():
+            return [], []
+        resolved: list[dict] = []
+        trace: list[str] = []
+        flags: list[str] = []
+        for mention_group in self._fuzzy_alias_mentions(masked):
+            if len(mention_group["text"].strip()) < 3:
+                continue  # a two-character window with one edit ("高的" -> 高铁) is noise, not a typo'd name
+            if not re.search(r"[一-鿿]", mention_group["text"]):
+                # Latin names differ by one character on purpose: "CSI 3000" is its own index, not a typo of CSI 300.
+                continue
+            candidates = []
+            for row in mention_group["rows"]:
+                entity = self._entity_by_id(int(row["entity_id"]))
+                if entity is None or entity.get("entity_type") not in {"stock", "etf", "fund", "index"}:
+                    continue
+                candidates.append(self._to_candidate(entity, mention_group["text"], "alias_fuzzy", mention_group["score"]))
+                trace.append(
+                    f"alias_fuzzy_beside_exact: {mention_group['text']}->{entity['canonical_name']}:{mention_group['score']}"
+                )
+            if candidates:
+                resolved.extend(self._disambiguate(query, mention_group["text"], candidates, trace, flags))
+        return resolved, trace + flags
+
     def _disambiguate(self, query: str, mention: str, candidates: list[dict], trace: list[str], flags: list[str]) -> list[dict]:
         deduped = {}
         for candidate in candidates:
@@ -234,9 +314,14 @@ class EntityResolver:
                 continue
             if self._is_generic_product_mention(alias):
                 continue
+            colloquial = alias in self._colloquial_aliases
             for hit in re.finditer(re.escape(alias), query):
                 if self._should_skip_exact_alias_hit(query, hit.start(), hit.end(), rows, alias):
                     continue
+                if colloquial and (hit.start(), hit.end()) not in self._word_boundaries.spans(query):
+                    continue  # "完美的" is not 美的集团: a colloquial alias must be a whole word
+                if colloquial and hit.start() > 0 and query[hit.start() - 1] in DEGREE_ADVERB_CHARS:
+                    continue  # "价格挺美的", "真美的": an adjective after a degree adverb, not the company
                 raw_matches.append(
                     {
                         "start": hit.start(),
@@ -271,7 +356,7 @@ class EntityResolver:
         query_has_product_term = self._has_product_term(query)
         for alias in self._candidate_fuzzy_aliases(query, query_has_product_term):
             rows = self._alias_rows_by_normalized[alias]
-            if not alias or alias in query:
+            if not alias or alias in query or alias in self._colloquial_aliases:
                 continue
             if self._is_generic_product_mention(alias):
                 continue
@@ -297,6 +382,10 @@ class EntityResolver:
             if self._should_skip_generic_alias_fuzzy_hit(query, best_match, alias, rows):
                 continue
             if self._should_skip_generic_suffix_fuzzy_match(best_match["text"], alias):
+                continue
+            if self._splits_a_word(query, best_match):
+                continue
+            if self._substitutes_a_particle(best_match["text"], alias):
                 continue
             ml_score = self.typo_linker.predict_probability(query=query, mention=best_match["text"], alias=alias, heuristic_score=best_match["score"]) if self.typo_linker else best_match["score"]
             threshold = 0.72 if len(alias) <= 4 else 0.62
@@ -332,6 +421,39 @@ class EntityResolver:
                 }
             )
         return groups
+
+    def _splits_a_word(self, query: str, match: dict) -> bool:
+        """A fuzzy window that starts or ends inside a word of the question is not a typo'd name.
+
+        "价格挺美的" segments as 价格/挺/美的, so the window "格挺美" (one edit from 格林美) starts inside 价格; in
+        "有什么影响" the window "有什" (one edit from 有色) ends inside 什么. A typo'd name ("贵州矛台", "五梁液")
+        starts and ends at word edges. Only CJK windows of up to three characters are checked: longer windows are
+        rarely accidental.
+        """
+        text = str(match["text"])
+        start, end = int(match["start"]), int(match["end"])
+        if not re.search(r"[一-鿿]", text):
+            # Latin: "CSI 300" inside "CSI 3000" is a different name; the window must end and start at a word edge.
+            before = query[start - 1] if start > 0 else " "
+            after = query[end] if end < len(query) else " "
+            return before.isalnum() or after.isalnum()
+        if len(text) > 3 or not self._is_cjk_string(text):
+            return False
+        spans = self._word_boundaries.spans(query)
+        starts = {span_start for span_start, _span_end in spans}
+        ends = {span_end for _span_start, span_end in spans}
+        return start not in starts or end not in ends
+
+    @staticmethod
+    def _substitutes_a_particle(text: str, alias: str) -> bool:
+        """A window that differs from the alias only where it has a grammatical particle is not a typo'd name.
+
+        "最新PMI数据是多少": the window "数据是" is one edit from 数据港, but the edited character is the sentence's
+        own "是". A typo replaces a character of the name ("贵州矛台"), not with a particle of the question.
+        """
+        if len(text) != len(alias):
+            return False
+        return any(mine != theirs and mine in PARTICLE_CHARS for mine, theirs in zip(text, alias, strict=True))
 
     def _candidate_fuzzy_aliases(self, query: str, query_has_product_term: bool) -> list[str]:
         if len(self._alias_rows_by_normalized) <= 5_000:
@@ -416,7 +538,9 @@ class EntityResolver:
             return False
         previous_char = query[start - 1] if start > 0 else ""
         next_text = query[end : end + 2]
-        if previous_char and self._is_cjk_char(previous_char) and next_text not in SECTOR_CONTEXT_SUFFIXES:
+        # "影响保险公司利润", "看好银行股": a sector word followed by a company/stock noun is the sector
+        sector_context = next_text in SECTOR_CONTEXT_SUFFIXES or next_text in {"公司", "企业"} or next_text[:1] == "股"
+        if previous_char and self._is_cjk_char(previous_char) and not sector_context:
             return True
         return False
 
@@ -548,7 +672,12 @@ class EntityResolver:
             return exact_rows
         if len(mention) < 3:
             return []
-        return [row for alias, rows in self._alias_rows_by_normalized.items() if fuzz.ratio(mention, alias) >= 90 for row in rows]
+        return [
+            row
+            for alias, rows in self._alias_rows_by_normalized.items()
+            if alias not in self._colloquial_aliases and fuzz.ratio(mention, alias) >= 90
+            for row in rows
+        ]
 
     def _dedupe_resolved_entities(self, query: str, resolved_entities: list[dict]) -> list[dict]:
         deduped: dict[int, dict] = {}
