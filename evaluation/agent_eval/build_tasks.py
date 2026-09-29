@@ -680,6 +680,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round3_tasks()
     tasks += _round3b_tasks()
     tasks += _round5_tasks()
+    tasks += _round6_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -1527,7 +1528,8 @@ def _round5_tasks() -> list[dict[str, Any]]:
                 ),
             ],
         ),
-        # C7: "three of them" when only two were discussed compares the two and says so
+        # C7: "three of them" when only two were discussed. Round 6 changed the policy from "compare the two and say
+        # so" to a clarification that names the two (a ranking over a subset can name the wrong one).
         _task(
             "r5_three_of_two_zh",
             "multi_turn",
@@ -1538,7 +1540,7 @@ def _round5_tasks() -> list[dict[str, Any]]:
                     required_tools=["get_fundamentals"],
                     required_facts=[fundamental("601318.SH", "pe_ttm"), fundamental("000858.SZ", "pe_ttm")],
                 ),
-                _turn("这三只里面谁的估值最低", required_entities=["601318.SH", "000858.SZ"]),
+                _turn("这三只里面谁的估值最低", behavior="clarify"),
             ],
         ),
         # C6: colloquial names resolve; companies without offline data get a clear no-data answer
@@ -1655,6 +1657,196 @@ def _round5_tasks() -> list[dict[str, Any]]:
             "macro_link",
             "en",
             [_turn("Does the Fed hiking rates matter for China's A-share market?", must_state_missing=True)],
+        ),
+    ]
+
+
+def _round6_tasks() -> list[dict[str, Any]]:
+    """Round-6 rules, written after the independent round-4 held-out slices (evaluation/heldout_r4) were run once:
+    new phrasings of their failure classes (comparison follow-ups that keep every earlier target, "三家" after two
+    targets, English typos of company names, a persisted answer language, holdings/fund-flow questions). None
+    repeats a held-out, reviewer, multiturn_v1, test_v2, test_v3 or holdout query (``tests/test_agent_eval.py``)."""
+
+    def fundamental(symbol: str, key: str) -> dict[str, Any]:
+        return {"evidence_id": f"fundamental_{symbol}", "value": FUNDAMENTALS[symbol][key]}
+
+    return [
+        # a comparison verb other than "compare" ("line it up next to") keeps the earlier target and its aspect
+        _task(
+            "r6_line_up_next_to_en",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "How high is Ping An's return on equity?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental("601318.SH", "roe")],
+                    required_entity="601318.SH",
+                ),
+                _turn(
+                    "Line it up next to Wuliangye",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental("601318.SH", "roe"), fundamental("000858.SZ", "roe")],
+                    required_entities=["601318.SH", "000858.SZ"],
+                ),
+            ],
+        ),
+        _task(
+            "r6_put_together_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "五粮液的市净率现在是多少倍",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental("000858.SZ", "pb")],
+                ),
+                _turn(
+                    "把它和中国平安放在一起看看",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental("000858.SZ", "pb"), fundamental("601318.SH", "pb")],
+                    required_entities=["000858.SZ", "601318.SH"],
+                ),
+            ],
+        ),
+        # "them / 它们" after three names keeps all three
+        _task(
+            "r6_them_after_three_en",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "List the price-to-book of Wuliangye, Ping An and Kweichow Moutai",
+                    required_tools=["get_fundamentals"],
+                    required_entities=["000858.SZ", "601318.SH", "600519.SH"],
+                ),
+                _turn(
+                    "What return on equity does each of them have?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[
+                        fundamental("000858.SZ", "roe"),
+                        fundamental("601318.SH", "roe"),
+                        fundamental("600519.SH", "roe"),
+                    ],
+                    required_entities=["000858.SZ", "601318.SH", "600519.SH"],
+                ),
+            ],
+        ),
+        _task(
+            "r6_them_after_three_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "平安、茅台、五粮液这几只的市盈率列一下",
+                    required_tools=["get_fundamentals"],
+                    required_entities=["601318.SH", "600519.SH", "000858.SZ"],
+                ),
+                _turn(
+                    "它们的净资产收益率分别怎样",
+                    required_tools=["get_fundamentals"],
+                    required_entities=["601318.SH", "600519.SH", "000858.SZ"],
+                ),
+            ],
+        ),
+        # a count larger than the targets discussed is clarified (policy: docs/agent.md)
+        _task(
+            "r6_all_three_of_two_en",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "How much revenue did Moutai and Ping An book?",
+                    required_tools=["get_fundamentals"],
+                    required_entities=["600519.SH", "601318.SH"],
+                ),
+                _turn("Out of all three, who is cheapest on book value?", behavior="clarify"),
+            ],
+        ),
+        # English names with one typo resolve like Chinese typos ("Wulaingye", "Kweichow Mouati")
+        _task(
+            "r6_english_typo_en",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "Show me the return on equity of Wulaingye",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental("000858.SZ", "roe")],
+                    required_entity="000858.SZ",
+                ),
+                _turn(
+                    "Where did Kweichow Mouati finish in the latest session?",
+                    required_tools=["get_price_history"],
+                    required_facts=[_price_fact("600519.SH")],
+                    required_entity="600519.SH",
+                ),
+            ],
+        ),
+        # "from now on in English": later Chinese questions are answered in English until changed again
+        _task(
+            "r6_persist_english_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "中国平安市净率是多少？从现在开始用英文回答",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental("601318.SH", "pb")],
+                    language="en",
+                ),
+                _turn(
+                    "那它的净资产收益率呢",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental("601318.SH", "roe")],
+                    language="en",
+                ),
+            ],
+        ),
+        _task(
+            "r6_persist_chinese_en",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "Moutai's price-to-earnings? Keep replying in Chinese from here",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental("600519.SH", "pe_ttm")],
+                    language="zh",
+                ),
+                _turn(
+                    "What about its book multiple?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental("600519.SH", "pb")],
+                    language="zh",
+                ),
+            ],
+        ),
+        # holdings / fund flows of an investor group: say the data is not covered
+        _task(
+            "r6_foreign_buying_zh",
+            "missing_data",
+            "zh",
+            [
+                _turn(
+                    "外资这段时间有没有增持五粮液",
+                    required_entity="000858.SZ",
+                    must_state_missing=True,
+                    must_hedge=True,
+                )
+            ],
+        ),
+        _task(
+            "r6_state_funds_en",
+            "missing_data",
+            "en",
+            [
+                _turn(
+                    "Has the national team been accumulating Ping An shares?",
+                    required_entity="601318.SH",
+                    must_state_missing=True,
+                )
+            ],
         ),
     ]
 

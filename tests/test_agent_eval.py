@@ -652,3 +652,23 @@ def test_round5_claim_rows_do_not_overlap_the_round4_heldout_slices():
     mine = [row["claim"] for row in load_claims(SETS["dev"]) if row.get("note") == "round5"]
     assert len(mine) >= 30
     assert _overlaps(mine, _heldout_r4_texts()) == (0, 0), "round-5 claim rows overlap the round-4 held-out slices"
+
+
+def test_round6_dev_tasks_do_not_overlap_the_heldout_or_other_sets():
+    """Round-6 dev tasks were written after the round-4 held-out slices were exposed, from their failure classes:
+    none may copy or near-copy a held-out text, the reviewer battery, the independent router sets or a test set."""
+    from evaluation.agent_eval.build_tasks import _round6_tasks, check_overlap
+    from evaluation.agent_eval.runner import TASK_SETS, load_tasks
+
+    mine = [turn["query"] for task in _round6_tasks() for turn in task["turns"]]
+    others = [
+        row["query"]
+        for name in ("router_labels_independent_v1.jsonl", "router_labels_independent_v2.jsonl")
+        for row in _router_rows(name)
+    ]
+    for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
+        others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    others += _heldout_r4_texts()
+
+    assert len(mine) >= 15 and check_overlap(_round6_tasks()) == []
+    assert _overlaps(mine, others) == (0, 0), "round-6 dev tasks overlap a held-out or test set"
