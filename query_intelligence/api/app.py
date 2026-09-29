@@ -143,6 +143,8 @@ def create_app(
     security_settings = install_security(app, security)
     if security_settings.api_keys:
         logger.info("[startup] API key authentication enabled for %d key(s).", len(security_settings.api_keys))
+    elif security_settings.production:
+        logger.warning("[startup] QI_ALLOW_ANONYMOUS=1: production profile without API keys (anonymous callers).")
     if (
         str((chatbot_config.get("deepseek") or {}).get("api_key") or "").strip()
         and os.getenv("DEEPSEEK_API_KEY") is None
@@ -361,7 +363,7 @@ def create_app(
         limit: Annotated[int, Query(ge=1, le=200)] = 50,
         session_id: Annotated[str | None, Query(pattern=SESSION_ID_PATTERN)] = None,
     ) -> dict:
-        # Callers only see their own runs (everything is "local" when API keys are off).
+        # Callers only see their own runs; anonymous callers are refused (403) by the security middleware.
         return {"traces": trace_store.recent(limit, session_id=session_id, owner=principal_of(request))}
 
     @app.get("/agent/traces/{trace_id}")
@@ -426,7 +428,12 @@ def create_app(
 
     def close_shared_stores() -> None:
         # Postgres-backed stores own connection pools; the in-memory ones have nothing to close.
-        for store in (trace_store, getattr(app.state, "a2a_task_store", None), audit_sink):
+        for store in (
+            trace_store,
+            getattr(app.state, "a2a_task_store", None),
+            audit_sink,
+            getattr(app.state, "rate_limiter", None),
+        ):
             close = getattr(store, "close", None)
             if callable(close):
                 close()

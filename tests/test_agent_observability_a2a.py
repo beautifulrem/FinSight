@@ -45,7 +45,9 @@ def _send(client: TestClient, text: str, *, task_id: str | None = None, context_
     return body["result"]["task"]
 
 
-def test_traces_endpoint_lists_and_returns_runs(client):
+def test_traces_endpoint_lists_and_returns_runs(monkeypatch):
+    client = _keyed_client(monkeypatch)
+    client.headers["X-API-Key"] = "key-a"  # traces need an API key (anonymous callers get 403, C3)
     answer = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "obs-1"}).json()
 
     listing = client.get("/agent/traces", params={"session_id": "obs-1"}).json()["traces"]

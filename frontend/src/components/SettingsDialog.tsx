@@ -16,7 +16,9 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   apiKey: string;
-  onApiKey: (key: string) => void;
+  /** Whether the key is kept in localStorage across restarts (opt-in); otherwise sessionStorage only. */
+  rememberKey: boolean;
+  onApiKey: (key: string, remember: boolean) => void;
   sessionId: string;
   lang: Lang;
   onLang: (lang: Lang) => void;
@@ -82,9 +84,10 @@ export function SettingsDialog(props: Props) {
   );
 }
 
-function SettingsBody({ apiKey, onApiKey, sessionId, lang, onLang, theme, onTheme }: Props) {
+function SettingsBody({ apiKey, rememberKey, onApiKey, sessionId, lang, onLang, theme, onTheme }: Props) {
   const { t } = useI18n();
   const [draft, setDraft] = useState(apiKey);
+  const [remember, setRemember] = useState(rememberKey);
   const [reveal, setReveal] = useState(false);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +130,7 @@ function SettingsBody({ apiKey, onApiKey, sessionId, lang, onLang, theme, onThem
               spellCheck={false}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              onBlur={() => onApiKey(draft.trim())}
+              onBlur={() => onApiKey(draft.trim(), remember)}
               className="h-9 min-w-0 flex-1 rounded-lg border border-line bg-bg px-3 font-mono text-[13px] outline-none focus:border-cobalt"
             />
             <Button variant="outline" size="icon" aria-label={reveal ? t("settings.hide") : t("settings.show")} onClick={() => setReveal(!reveal)}>
@@ -135,6 +138,22 @@ function SettingsBody({ apiKey, onApiKey, sessionId, lang, onLang, theme, onThem
             </Button>
           </div>
           <p className="text-[12.5px] text-muted">{t("settings.apiKeyHint")}</p>
+          <label className="flex items-start gap-2 text-[13px]">
+            <input
+              id="api-key-remember"
+              type="checkbox"
+              checked={remember}
+              onChange={(event) => {
+                setRemember(event.target.checked);
+                onApiKey(draft.trim(), event.target.checked);
+              }}
+              className="mt-0.5 size-4 accent-cobalt"
+            />
+            <span>
+              {t("settings.rememberKey")}
+              <span className="block text-[12px] text-faint">{t("settings.rememberKeyHint")}</span>
+            </span>
+          </label>
         </section>
 
         <section className="flex flex-wrap items-center justify-between gap-3">
@@ -207,7 +226,7 @@ function SettingsBody({ apiKey, onApiKey, sessionId, lang, onLang, theme, onThem
       </div>
       <div className="flex justify-end border-t border-line px-5 py-3">
         <Dialog.Close asChild>
-          <Button variant="primary" onClick={() => onApiKey(draft.trim())}>
+          <Button variant="primary" onClick={() => onApiKey(draft.trim(), remember)}>
             {t("settings.done")}
           </Button>
         </Dialog.Close>

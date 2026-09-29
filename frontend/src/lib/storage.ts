@@ -1,8 +1,8 @@
 // localStorage can throw (private mode, disabled storage); the UI keeps working without it.
+// The API key is not kept here: see apiKey.ts (sessionStorage unless the user opts in to remembering it).
 export const STORAGE_KEYS = {
   mode: "finsight.mode",
   session: "finsight.session",
-  apiKey: "finsight.apiKey",
   theme: "finsight.theme",
   lang: "finsight.lang",
   feedback: "finsight.feedback",

@@ -173,6 +173,15 @@ class PrometheusTraceSink:
             registry=self.registry,
         )
 
+        # Injection-filter redactions (C14): source = user_message | evidence | tool_output; outcome = answered |
+        # refused. user_message/answered is the case the audit log previously missed.
+        self.injection_redactions = Counter(
+            "finsight_injection_redactions_total",
+            "Runs in which the injection filter removed text, by source and whether the run was answered.",
+            ["source", "outcome"],
+            registry=self.registry,
+        )
+
     @property
     def available(self) -> bool:
         return self.registry is not None
@@ -231,6 +240,11 @@ class PrometheusTraceSink:
             self.verification_outcomes.labels(prompt_version=prompt_version_of(trace), outcome=outcome).inc()
         for flag in trace.get("degraded") or []:
             self.degradations.labels(flag=str(flag).split(":")[0]).inc()
+        from .audit import redaction_sources
+
+        outcome = "refused" if route == "refuse" else "answered"
+        for source in redaction_sources(trace):
+            self.injection_redactions.labels(source=source, outcome=outcome).inc()
 
     def record_feedback(self, rating: str, prompt_version: str = "none") -> None:
         if self.registry is not None:
