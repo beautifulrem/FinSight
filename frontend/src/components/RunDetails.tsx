@@ -143,7 +143,12 @@ export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: 
         <>
           <Row label={t("run.entities")}>
             {(nlu.entities ?? []).length
-              ? (nlu.entities ?? []).map((entity) => `${entity.name ?? ""}${entity.symbol ? ` (${entity.symbol})` : ""}`).join("、")
+              ? (nlu.entities ?? [])
+                  .map((entity) => {
+                    const name = (lang === "en" && entity.name_en) || entity.name || "";
+                    return `${name}${entity.symbol ? ` (${entity.symbol})` : ""}`;
+                  })
+                  .join(lang === "en" ? ", " : "、")
               : "–"}
           </Row>
           <Row label={t("run.style")}>

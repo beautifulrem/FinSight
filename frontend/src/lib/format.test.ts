@@ -28,3 +28,14 @@ describe("format helpers", () => {
     expect(ageInDays(null)).toBeUndefined();
   });
 });
+
+describe("evidenceTitle", () => {
+  it("names structured evidence kinds in Chinese and leaves documents alone", async () => {
+    const { evidenceTitle } = await import("./format");
+    expect(evidenceTitle("zh", "五粮液 (000858.SZ) daily market data")).toBe("五粮液 (000858.SZ) 日行情");
+    expect(evidenceTitle("zh", "贵州茅台 (600519.SH) fundamentals")).toBe("贵州茅台 (600519.SH) 基本面");
+    expect(evidenceTitle("zh", "Document sentiment for 600519.SH")).toBe("600519.SH 文档情绪");
+    expect(evidenceTitle("en", "五粮液 (000858.SZ) daily market data")).toBe("五粮液 (000858.SZ) daily market data");
+    expect(evidenceTitle("zh", "茅台2025年年报发布")).toBe("茅台2025年年报发布");
+  });
+});
