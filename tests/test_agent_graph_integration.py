@@ -100,7 +100,8 @@ def test_session_memory_resolves_follow_up_pronoun(offline_service):
     follow_up = service.chat("那它的市净率呢", session_id="mem")
 
     assert follow_up["status"] == "ok"
-    assert {"name": "贵州茅台", "symbol": "600519.SH"} in follow_up["nlu_summary"]["entities"]
+    entities = [{"name": item["name"], "symbol": item["symbol"]} for item in follow_up["nlu_summary"]["entities"]]
+    assert {"name": "贵州茅台", "symbol": "600519.SH"} in entities
     assert "fundamental_600519.SH" in follow_up["evidence_used"]
     service.close()
     registry.shutdown()

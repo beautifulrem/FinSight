@@ -39,6 +39,7 @@ from .composer import answer_json_status, compose_template, parse_answer
 from .coverage import coverage_gaps, out_of_coverage, out_of_coverage_text
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
+from .hearsay import fact_check_for
 from .injection import (
     REDACTION_MARKER,
     sanitize_document_text,
@@ -65,6 +66,7 @@ from .memory import (
     turn_record,
 )
 from .memory_summary import update_memory_card
+from .names import english_name
 from .planner import Plan, plan_from_nlu
 from .prompts import (
     agent_user_message,
@@ -1021,7 +1023,11 @@ class AgentRuntime:
                 "question_style": nlu.get("question_style"),
                 "product_type": (nlu.get("product_type") or {}).get("label"),
                 "entities": [
-                    {"name": entity.get("canonical_name"), "symbol": entity.get("symbol")}
+                    {
+                        "name": entity.get("canonical_name"),
+                        "symbol": entity.get("symbol"),
+                        "name_en": english_name(entity.get("canonical_name"), entity.get("symbol")),
+                    }
                     for entity in nlu.get("entities") or []
                 ],
                 "risk_flags": nlu.get("risk_flags") or [],
@@ -1037,6 +1043,8 @@ class AgentRuntime:
                 zh=zh,
                 limit=self.config.max_next_questions,
             ),
+            # "听说茅台市盈率只有15倍，是真的吗": the claim checked against the data, inline (no LLM).
+            "fact_check": fact_check_for(state["query"], service=self.service, registry=self.registry, zh=zh),
         }
         # The result carries everything the response needs; drop the bulky turn-scoped working state so the
         # checkpoint stays small (it is reset at the start of the next turn anyway).

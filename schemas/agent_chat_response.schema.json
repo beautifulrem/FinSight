@@ -682,6 +682,20 @@
       "title": "Next Questions",
       "type": "array"
     },
+    "fact_check": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "For a hearsay question ('听说茅台市盈率只有15倍，是真的吗'): the claim-check report of the claim inside it (same shape as /agent/claim-check), checked deterministically without an LLM",
+      "title": "Fact Check"
+    },
     "replayed": {
       "default": false,
       "description": "True when /agent/resume received a reply it had already applied: the stored result is returned and the turn is not run again",

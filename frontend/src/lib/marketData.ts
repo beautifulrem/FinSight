@@ -147,20 +147,84 @@ function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asO
   return out;
 }
 
+const SYMBOL_IN_ID = /_(\d{6}\.(?:SH|SZ|BJ))$/i;
+
 function collect(items: StructuredItem[]): MarketData {
   const series: PriceSeries[] = [];
   const kpis: Kpi[] = [];
+  const names = new Map<string, string>(); // symbol -> name, from payloads that carry both
   for (const item of items) {
     const payload = item.payload;
     if (!payload || typeof payload !== "object") continue;
     const type = item.evidence_id?.startsWith("indicators_") ? "technical_indicators" : (item.source_type ?? "");
+    const symbol = str(payload.symbol);
+    const name = str(payload.name ?? payload.canonical_name);
+    if (symbol && name && name !== symbol) names.set(symbol.toUpperCase(), name);
     const points = seriesFrom(payload);
     if (points.length >= 2) {
-      series.push({ evidenceId: item.evidence_id, symbol: str(payload.symbol), name: subjectOf(payload), points });
+      series.push({ evidenceId: item.evidence_id, symbol, name: subjectOf(payload), points });
     }
     kpis.push(...kpisFrom(type, payload, item.evidence_id, isoDate(item.as_of), item.source_name ?? undefined));
   }
+  // Fundamentals payloads may hold only the metrics: name their tiles from the evidence id's symbol, so a
+  // company's price and valuation tiles group together (see selectKpis).
+  // A payload with a symbol but no name ("600519.SH") gets the name another payload gives for it.
+  for (const kpi of kpis) {
+    const symbol = kpi.subject ?? SYMBOL_IN_ID.exec(kpi.evidenceId ?? "")?.[1];
+    if (symbol) kpi.subject = names.get(symbol.toUpperCase()) ?? symbol;
+  }
   return { series, kpis };
+}
+
+// The tiles worth showing first, in order: a comparison shows the same ones for every company.
+const PRIORITY = [
+  "kpi.close",
+  "kpi.change",
+  "kpi.pe",
+  "kpi.pb",
+  "kpi.roe",
+  "kpi.revenue",
+  "kpi.netProfit",
+  "kpi.amount",
+  "kpi.high",
+  "kpi.low",
+];
+
+const rank = (kpi: Kpi) => {
+  const index = PRIORITY.indexOf(kpi.label);
+  return index < 0 ? PRIORITY.length : index;
+};
+
+/**
+ * At most `max` tiles. One subject: the first `max`. Several (a comparison, "茅台和五粮液对比"): an equal
+ * share per subject, the metrics they have in common first and in the same order, grouped by subject, so
+ * each company gets a row of comparable tiles instead of the first company taking every slot.
+ */
+export function selectKpis(kpis: Kpi[], max: number): Kpi[] {
+  const groups = new Map<string, Kpi[]>();
+  for (const kpi of kpis) {
+    const key = kpi.subject ?? "";
+    groups.set(key, [...(groups.get(key) ?? []), kpi]);
+  }
+  // Companies (price or fundamentals tiles) share the slots; industry and macro tiles fill what is left.
+  const companies = [...groups.values()].filter((tiles) => tiles.some((kpi) => PRIORITY.includes(kpi.label)));
+  if (companies.length < 2) return kpis.slice(0, max);
+  const share = Math.max(1, Math.floor(max / companies.length));
+  const seen = new Map<string, number>();
+  for (const tiles of companies) {
+    for (const label of new Set(tiles.map((kpi) => kpi.label))) seen.set(label, (seen.get(label) ?? 0) + 1);
+  }
+  const shared = (kpi: Kpi) => ((seen.get(kpi.label) ?? 0) > 1 ? 0 : 1);
+  const picked: Kpi[] = [];
+  for (const tiles of companies) {
+    const ordered = tiles
+      .map((kpi, index) => ({ kpi, index }))
+      .sort((a, b) => shared(a.kpi) - shared(b.kpi) || rank(a.kpi) - rank(b.kpi) || a.index - b.index)
+      .map(({ kpi }) => kpi);
+    picked.push(...ordered.slice(0, share));
+  }
+  const rest = [...groups.values()].filter((tiles) => !companies.includes(tiles)).flat();
+  return [...picked, ...rest].slice(0, max);
 }
 
 /** Structured data for charts/KPI tiles from an agent response (only when payloads are included). */

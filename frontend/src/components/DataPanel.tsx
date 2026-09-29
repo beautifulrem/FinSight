@@ -5,13 +5,23 @@ import { cn } from "@/lib/cn";
 import { formatDate, formatKpi } from "@/lib/format";
 import type { EvidenceFreshness } from "@/lib/freshness";
 import { useI18n, type MessageKey } from "@/lib/i18n";
-import type { Kpi, MarketData } from "@/lib/marketData";
+import { selectKpis, type Kpi, type MarketData } from "@/lib/marketData";
 
 const PriceChart = lazy(() => import("./PriceChart"));
 
 const MAX_TILES = 8;
 
-function KpiTile({ kpi, freshness, onEvidence }: { kpi: Kpi; freshness?: EvidenceFreshness; onEvidence?: (id: string) => void }) {
+function KpiTile({
+  kpi,
+  subject,
+  freshness,
+  onEvidence,
+}: {
+  kpi: Kpi;
+  subject?: string;
+  freshness?: EvidenceFreshness;
+  onEvidence?: (id: string) => void;
+}) {
   const { lang, t } = useI18n();
   const snapshot = freshness?.mode === "snapshot";
   const stale = freshness?.stale;
@@ -19,7 +29,7 @@ function KpiTile({ kpi, freshness, onEvidence }: { kpi: Kpi; freshness?: Evidenc
   const body = (
     <>
       <span className="block truncate text-[11.5px] text-muted">
-        {kpi.subject ? `${kpi.subject} · ` : ""}
+        {subject ? `${subject} · ` : ""}
         {t(kpi.label as MessageKey)}
       </span>
       <span
@@ -63,8 +73,14 @@ export function DataPanel({
   themeKey,
   freshness,
   onEvidence,
+  turn,
+  displayName = (name) => name,
 }: {
   data: MarketData;
+  /** The turn number, so each turn's data region has its own name (axe landmark-unique). */
+  turn?: number;
+  /** The name to show for a subject (the English name in the English UI). */
+  displayName?: (name: string) => string;
   themeKey: string;
   /** Per-evidence freshness, so a snapshot or stale tile is marked next to live ones. */
   freshness?: Map<string, EvidenceFreshness>;
@@ -76,13 +92,16 @@ export function DataPanel({
   const last = series?.points[series.points.length - 1];
   const trendKey = data.trend ? (`trend.${data.trend}` as MessageKey) : null;
   return (
-    <section aria-label={t("answer.data")} className="space-y-2.5">
+    <section
+      aria-label={turn === undefined ? t("answer.data") : t("a11y.inTurn", { label: t("answer.data"), n: turn })}
+      className="data-panel space-y-2.5"
+    >
       {series && first && last && (
         <figure className="price-chart rounded-xl border border-line bg-surface p-3">
           <figcaption className="mb-1 flex flex-wrap items-baseline gap-x-2 text-[13px]">
             <LineChart className="size-3.5 self-center text-cobalt" aria-hidden />
             <span className="font-medium">
-              {series.name ?? series.symbol} {t("chart.title")}
+              {displayName(series.name ?? series.symbol ?? "")} {t("chart.title")}
             </span>
             <span className="text-muted">{t("chart.points", { n: series.points.length })}</span>
             {trendKey && <span className="ml-auto text-muted">{t(trendKey)}</span>}
@@ -92,7 +111,7 @@ export function DataPanel({
               points={series.points}
               themeKey={themeKey}
               label={t("chart.label", {
-                name: series.name ?? series.symbol ?? "",
+                name: displayName(series.name ?? series.symbol ?? ""),
                 from: formatDate(lang, first.time),
                 to: formatDate(lang, last.time),
                 a: first.value,
@@ -103,11 +122,12 @@ export function DataPanel({
         </figure>
       )}
       {data.kpis.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {data.kpis.slice(0, MAX_TILES).map((kpi) => (
+        <div className="kpi-grid grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {selectKpis(data.kpis, MAX_TILES).map((kpi) => (
             <KpiTile
               key={kpi.key}
               kpi={kpi}
+              subject={kpi.subject ? displayName(kpi.subject) : undefined}
               freshness={kpi.evidenceId ? freshness?.get(kpi.evidenceId) : undefined}
               onEvidence={onEvidence}
             />

@@ -27,7 +27,7 @@ import {
 } from "react";
 
 import { checkClaim, classifyError, type ErrorKind } from "@/lib/api";
-import { checkEvidence, claimedText, formatClaimValue, noteText, statusCounts } from "@/lib/claims";
+import { checkEvidence, claimedText, formatClaimValue, noteText, statusCounts, targetName } from "@/lib/claims";
 import { cn } from "@/lib/cn";
 import { humanizeCode } from "@/lib/codes";
 import { evidenceFreshness } from "@/lib/freshness";
@@ -88,7 +88,8 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
   const metric = check.metric ? humanizeCode(lang, check.metric, "metric") : t("claim.unknownMetric");
   const note = noteText(t, check.note, check);
   const hasActual = check.actual !== null && check.actual !== undefined;
-  const claimed = claimedText(lang, t, check, report.claim);
+  const name = targetName(lang, report);
+  const claimed = claimedText(lang, t, check, report.claim, name);
   const source = evidence?.source_name || (evidence ? sourceTypeLabel(lang, evidence.source_type) : null);
   return (
     <li
@@ -99,7 +100,7 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h4 className="claim-metric text-[14.5px] leading-snug font-semibold text-ink">{metric}</h4>
-          <p className="text-[12.5px] text-muted">{check.target || t("claim.unknownTarget")}</p>
+          <p className="claim-target-name text-[12.5px] text-muted">{check.target ? name(check.target) : t("claim.unknownTarget")}</p>
         </div>
         <StatusBadge status={check.status} />
       </div>
@@ -113,6 +114,7 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
               check.status === "contradicted" ? "text-muted line-through decoration-up/60 decoration-2" : "text-ink",
             )}
             data-comparator={check.comparator ?? "eq"}
+            data-direction={check.direction ?? undefined}
           >
             {/* The symbol (">", "≠", "≈") is for the eye; screen readers get the word ("高于 30%"). */}
             {claimed.label === claimed.text ? (
@@ -124,6 +126,7 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
               </>
             )}
           </dd>
+          {claimed.detail && <dd className="claim-reference text-[12px] text-muted tabular-nums">{claimed.detail}</dd>}
         </div>
         <div className="rounded-lg bg-surface-2/70 px-3 py-2">
           <dt className="text-[11.5px] font-medium text-muted">{t("claim.actual")}</dt>
@@ -158,9 +161,12 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
   );
 }
 
-/** The report for one claim: verdict, targets, one card per number, and the disclaimer. */
-export function ClaimReportCard({ report }: { report: ClaimReport }) {
-  const { t } = useI18n();
+/**
+ * The report for one claim: verdict, targets, one card per number, and the disclaimer. `turn` (in the chat)
+ * gives its checks region a name unique to the turn (axe landmark-unique).
+ */
+export function ClaimReportCard({ report, turn }: { report: ClaimReport; turn?: number }) {
+  const { lang, t } = useI18n();
   const headingId = useId();
   const spec = VERDICTS[report.verdict] ?? VERDICTS.unverifiable;
   const counts = statusCounts(report);
@@ -195,7 +201,7 @@ export function ClaimReportCard({ report }: { report: ClaimReport }) {
           <span className="text-muted">{t("claim.targets")}:</span>
           {targets.map((target) => (
             <Badge key={`${target.symbol}-${target.name}`} tone="cobalt" className="claim-target">
-              {target.name}
+              {lang === "en" ? (target.name_en ?? target.name) : target.name}
               {target.symbol && <span className="font-mono text-[11px]">{target.symbol}</span>}
             </Badge>
           ))}
@@ -203,7 +209,10 @@ export function ClaimReportCard({ report }: { report: ClaimReport }) {
       )}
 
       {report.checks.length > 0 ? (
-        <section className="space-y-2" aria-label={t("claim.checks")}>
+        <section
+          className="space-y-2"
+          aria-label={turn === undefined ? t("claim.checks") : t("a11y.inTurn", { label: t("claim.checks"), n: turn })}
+        >
           <h3 className="text-[13px] font-medium text-muted">{t("claim.checks")}</h3>
           <ul className="claim-checks space-y-2.5">
             {report.checks.map((check, i) => (
