@@ -11,7 +11,7 @@ export function HistoryView({ turns }: { turns: SessionTurn[] }) {
     <details className="session-history group rounded-xl border border-dashed border-line px-4 py-2.5">
       <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] text-muted">
         <History className="size-3.5" aria-hidden />
-        {t("answer.restored", { n: turns.length })}
+        {turns.length === 1 ? t("answer.restoredOne") : t("answer.restored", { n: turns.length })}
       </summary>
       <ol className="mt-2 space-y-3 border-t border-line pt-3">
         {turns.map((turn, i) => (
