@@ -16,10 +16,12 @@ interface Props {
   highlight?: string | null;
   /** Changes on every citation click so the same id can be re-flashed. */
   highlightNonce?: number;
+  /** Chinese → English names of this turn's targets, for English titles. */
+  englishNames?: Map<string, string>;
 }
 
 /** The evidence ledger: numbered sources in citation order (E1, E2, … match the answer chips). */
-export function EvidenceList({ sources, cited, highlight, highlightNonce }: Props) {
+export function EvidenceList({ sources, cited, highlight, highlightNonce, englishNames }: Props) {
   const { lang, t } = useI18n();
   const refs = useRef(new Map<string, HTMLLIElement>());
 
@@ -73,7 +75,7 @@ export function EvidenceList({ sources, cited, highlight, highlightNonce }: Prop
                 <FreshnessBadges source={source} info={info} />
               </div>
               <p className="text-[13.5px] leading-snug font-medium text-pretty text-ink">
-                {evidenceTitle(lang, source.title) || source.evidence_id}
+                {evidenceTitle(lang, source.title, englishNames) || source.evidence_id}
               </p>
               <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[12px]">
                 {sourceNameLabel(lang, info.provenance, source.source_name) && (
