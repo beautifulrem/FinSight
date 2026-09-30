@@ -21,7 +21,12 @@ relay what it says. This layer looks at the answer sentence by sentence, togethe
      sentence or a document states differently for the same period and company, e.g. a planted "更正公告：归母净利润
      应为912.6亿元" next to the annual report's 823.20 亿元. This works on news questions, where no fundamentals
      were fetched; figures two different documents agree on are left alone, and so are prior-period and change
-     figures ("上年同期", "同比下降4.53%")
+     figures ("上年同期", "同比下降4.53%"), or
+   * (round 9, E3) any figure (a number with a unit: percent, amount, multiple, points, price) that the run's
+     structured data does not contain and that exactly one document wording carries: an insider's "一季度净利润同比
+     增长63.5%", a poll, a buyback size, a footnote "restatement", a statistic, and also an ordinary single-source
+     figure (a dividend, a sales number). A sentence that cites only structured evidence is left to the verifier;
+     figures two differently worded documents state are left alone
    is attributed with the layer's own marker, whatever the model wrote: "据一篇文档称，…（未经其他来源证实）" / "…
    (according to one document; not confirmed by other sources)". A sentence that already says the claim is
    unverified is left as it is; one that only names its source ("媒体报道称…") gets the suffix. A fundamental or
@@ -42,10 +47,14 @@ from typing import Any
 
 from ..text_safety import find_prohibited_promotion, fold
 from .compliance import contains_trading_instruction
-from .evidence import AgentEvidence, EvidenceStore
+from .evidence import _NUMBER as _NUMBER_TOKEN
+from .evidence import AgentEvidence, EvidenceStore, _collect_numbers
 from .verifier import (
+    _BARE_SCALES,
     _CITATION,
     _CONNECTOR_OPENING,
+    _UNIT_SCALES,
+    _cleaned,
     _is_supported,
     metric_claims,
     structured_metric_values,
@@ -157,8 +166,11 @@ _UNVERIFIED = re.compile(
     re.IGNORECASE,
 )
 # The sentence already names its source ("据…报道", "有媒体称", "according to"): only the suffix is added.
+# (round 9) "另据…", "此外据…" open with their source too, and "透露" names one ("董秘透露…").
 _REPORTED = re.compile(
-    r"^\s*(?:据|有(?:媒体|报道|文章|消息)|另有|一(?:篇|则|条)|报道|文档)|称|according to|reported", re.I
+    r"^\s*(?:(?:另外|此外|同时|另)[，,]?\s*)?(?:据|有(?:媒体|报道|文章|消息)|另有|一(?:篇|则|条)|报道|文档)|称|透露|"
+    r"according to|reported",
+    re.I,
 )
 _SENTENCE_TAIL = re.compile(
     r"(?P<tail>(?:\s*\[[^\[\]\s]{2,160}\])*\s*[。．.!?！？]?(?:\s*\[[^\[\]\s]{2,160}\])*\s*)$", re.DOTALL
@@ -222,6 +234,11 @@ class _Context:
             for figure in amount_figures(_document_text(item), self.names)
         ]
         self.structured_figures = _structured_amounts(store, self.names)
+        # (round 9) every number of the structured payloads, and every figure with a unit in each document
+        self.structured_numbers = structured_numbers(store)
+        self.document_unit_figures = {
+            item.evidence_id: unit_figures(_document_text(item), with_context=True) for item in self.documents
+        }
 
     # ---- per text field ----
 
@@ -293,6 +310,9 @@ class _Context:
                 attribute = True
         if not attribute and (document_only or not cited):
             attribute = self._uncorroborated_regulatory_claim(sentence, cites_document=document_only)
+        if not attribute and (doc_ids or not cited):
+            # a sentence citing only structured evidence states FinSight's own figures (the verifier checks them)
+            attribute = self._single_document_figure(sentence)
         if attribute and not states_unverified(sentence):
             self.notes.add("attributed_document_claim")
             return "rewrite", self._attribute(sentence)
@@ -376,6 +396,31 @@ class _Context:
         if not contexts and not cites_document:
             return False
         return len(contexts) < 2
+
+    def _single_document_figure(self, sentence: str) -> bool:
+        """(round 9, E3) The sentence states a figure (a number with a unit: percent, 亿/万/元, 倍, 点, bn, yuan …)
+        that the run's structured data does not contain and that exactly one document wording carries.
+
+        This is the general form of the round-8 rules: whatever the figure is about (an insider's growth figure, a
+        poll, a buyback size, a footnote "restatement", a statistic), one document is its only source, so it is
+        relayed with the layer's own marker, in the answer and in every key point. Figures the structured data
+        confirms, figures two differently worded documents state, and figures no document states (derived or
+        computed numbers: the verifier's business) are left alone."""
+        figures = unit_figures(sentence)
+        if not figures:
+            return False
+        for value, scales, rounding in figures:
+            if _is_supported(value, self.structured_numbers, scales, rounding):
+                continue
+            carriers = {
+                context
+                for evidence_id, document_figures in self.document_unit_figures.items()
+                for other, _scales, _rounding, context in document_figures
+                if _is_supported(value, [other], scales, rounding)
+            }
+            if len(carriers) == 1:
+                return True
+        return False
 
     def _attribute(self, sentence: str) -> str:
         lead = sentence[: len(sentence) - len(sentence.lstrip())]
@@ -527,6 +572,58 @@ def _structured_amounts(store: EvidenceStore, names: dict[str, str]) -> list[Fig
                 entity = names.get(name, name or None)
                 figures.append(Figure(metric, value, 0.005 * abs(value), year, period, entity))
     return figures
+
+
+# (round 9) A figure: a number written with a unit (percent, amount, multiple, index points, per-share price) or after a
+# currency sign. Bare numbers (counts, scores, list markers) are not figures; dates and parameters are removed first.
+_FIGURE_UNIT = re.compile(
+    r"^\s*(?:%|％|个百分点|百分点|万亿|亿|千万|百万|万|元|块钱|块|倍|点(?!钟|半)|bp\b|基点|pct\b|per\s*cent\b|"
+    r"percentage\s+points?\b|trillion\b|billion\b|bn\b|million\b|mn\b|yuan\b|rmb\b|cny\b|x\b|times\b|points?\b)",
+    re.IGNORECASE,
+)
+_CURRENCY_BEFORE = re.compile(r"(?:CNY|RMB|US\$|\$|¥|￥)\s*$", re.IGNORECASE)
+
+
+def unit_figures(text: str, *, with_context: bool = False) -> list[tuple]:
+    """``(value, scales, rounding)`` for every figure in ``text`` (see ``_FIGURE_UNIT``); with ``with_context`` also the
+    compacted text around it, so copies of one wording count as one source."""
+    cleaned = _cleaned(fold(text or ""))
+    found: list[tuple] = []
+    for match in _NUMBER_TOKEN.finditer(cleaned):
+        tail = cleaned[match.end() : match.end() + 24]
+        head = cleaned[max(0, match.start() - 5) : match.start()]
+        if not (_FIGURE_UNIT.match(tail) or _CURRENCY_BEFORE.search(head)):
+            continue
+        token = match.group(0).replace(",", "").lstrip("+-")
+        try:
+            value = float(token)
+        except ValueError:
+            continue
+        if value == 0:
+            continue
+        scales = next((scales for pattern, scales in _UNIT_SCALES if pattern.search(tail)), _BARE_SCALES)
+        decimals = len(token.split(".")[1]) if "." in token else 0
+        item: tuple = (value, scales, 0.5 * 10**-decimals)
+        if with_context:
+            item = (*item, _compact(cleaned[max(0, match.start() - 12) : match.end() + 12]))
+        found.append(item)
+    return found
+
+
+def unconfirmed_figures(text: str, numbers: list[tuple[float, bool]]) -> list[float]:
+    """Figures in ``text`` (``unit_figures``) that none of ``numbers`` (the run's structured values) supports."""
+    return [
+        value for value, scales, rounding in unit_figures(text) if not _is_supported(value, numbers, scales, rounding)
+    ]
+
+
+def structured_numbers(store: EvidenceStore) -> list[tuple[float, bool]]:
+    """Every number in the structured payloads of the run (tool data, never document text), unsigned."""
+    values: list[float] = []
+    for item in store.items():
+        if item.kind == "structured":
+            _collect_numbers(item.payload, values)
+    return [(value, False) for value in values]
 
 
 def _sentence_key(sentence: str) -> str:
