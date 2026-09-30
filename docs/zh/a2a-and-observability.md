@@ -272,6 +272,7 @@ trace 也可以导出到任何 OTLP 后端（Jaeger、Tempo、Langfuse）：设�
 | `finsight_answer_verification_total` | `prompt_version`、`outcome` | 按提示词版本统计的校验结果。版本取自本次运行第一次 LLM 调用的 `agent_system@vN#sha`（`v1`…`v3`）；模板答案记为 `none`。`outcome`：`passed`（初稿通过）、`revised`（经 LLM 修改后通过）、`repaired`（仍未通过，做了确定性修复）。拒答和澄清不计入。 |
 | `finsight_audit_events_total` | `event`、`category` | 输入防护的拒答（`event="refusal"`，类别 `prompt_injection` / `out_of_scope`）、合规改写（`event="compliance_edit"`，类别为规则名），以及注入过滤的删除（`input_guard_redaction` / `user_message`，`document_redaction` / `evidence` 或 `tool_output`）。见[审计日志](#审计日志)。 |
 | `finsight_injection_redactions_total` | `source`、`outcome` | 注入过滤删除了文本的运行，按来源（`user_message`、`evidence`、`tool_output`）和结果（`answered`、`refused`）统计。`source="user_message", outcome="answered"` 表示输入防护删掉了指令式文本、但仍回答了剩下的问题（C14）。 |
+| `finsight_output_safety_edits_total` | `kind` | 输出安全层（`agent/output_safety.py`）改动过的回答，按类别统计，每次运行每类计一次：`attribution`（单一来源的监管/股本事项或有争议的数字加上「据一篇文档称…（未经其他来源证实）」）、`promotion_or_contact`、`trading_call`（来自文档的句子换成中性说明）、`conflicting_figure`（与基本面矛盾的文档数字被删除）。第 8 轮新增。 |
 | `finsight_degradations_total` | `flag` | 各类降级，例如 `llm_error` 或工具故障。 |
 
 trace 驱动的指标只能看到已完成的运行。当前状态由 `OpsMetricsCollector`（`query_intelligence/integrations/ops_metrics.py`）在抓取时读取，它和上面的指标注册在同一个 registry 上：
@@ -330,7 +331,7 @@ python monitoring/screenshot.py --grafana http://127.0.0.1:3300 --jaeger http://
 
 | 文件 | 内容 |
 |---|---|
-| `monitoring/grafana/finsight-dashboard.json` | 29 个面板，分五行：<br>- **流量**：各路由的每秒请求数、各路由的 P50/P95、作答来源；<br>- **质量**：校验失败率、各类降级、各工具错误率；<br>- **LLM**：每小时和 24 小时成本、各模型调用次数（体现容灾）、各模型熔断状态时间线、各类 token、每次作答运行的 LLM 调用数；<br>- **数据源**：各数据源熔断状态时间线、按结果统计的调用、数据源调用池；<br>- **按提示词版本的答案质量、用户反馈、审计**：各版本的初稿校验失败率和修复率、24 小时各结果计数、各版本和整体（24 小时）的点赞率、每小时反馈量、每小时各类审计事件、每小时注入过滤删除（按来源和结果），以及 24 小时内输入防护删除后仍作答的轮数。 |
+| `monitoring/grafana/finsight-dashboard.json` | 30 个面板，分五行：<br>- **流量**：各路由的每秒请求数、各路由的 P50/P95、作答来源；<br>- **质量**：校验失败率、各类降级、各工具错误率；<br>- **LLM**：每小时和 24 小时成本、各模型调用次数（体现容灾）、各模型熔断状态时间线、各类 token、每次作答运行的 LLM 调用数；<br>- **数据源**：各数据源熔断状态时间线、按结果统计的调用、数据源调用池；<br>- **按提示词版本的答案质量、用户反馈、审计**：各版本的初稿校验失败率和修复率、24 小时各结果计数、各版本和整体（24 小时）的点赞率、每小时反馈量、每小时各类审计事件、每小时注入过滤删除（按来源和结果），24 小时内输入防护删除后仍作答的轮数，以及每小时按类别统计的输出安全层改动（第 8 轮：attribution、promotion_or_contact、trading_call、conflicting_figure）。 |
 | `monitoring/prometheus/alerts.yml` | 13 条规则。原有 10 条：`FinSightDown`、`FinSightWorkflowP95High`（10 分钟内 > 8 秒）、`FinSightAgentP95High`（> 60 秒）、`FinSightVerificationFailureRateHigh`（> 20%）、`FinSightToolErrorRateHigh`（单个工具 > 25%）、`FinSightLLMModelCircuitOpen`、`FinSightAllLLMModelsDown`、`FinSightDataSourceCircuitOpen`、`FinSightSourcePoolAbandonedCalls`、`FinSightLLMCostBurnHigh`（每小时 > ¥20）。新增 3 条：`FinSightRepairRateHighForPromptVersion`（某个 LLM 提示词版本 30 分钟内至少 20 个答案，修复率 > 25%）、`FinSightNegativeFeedbackHigh`（6 小时内至少 10 个评价，点踩 > 50%）、`FinSightInjectionAttemptsSpike`（10 分钟内注入拒答 > 20 次）。 |
 | `monitoring/prometheus/alerts_test.yml` | promtool 单元测试：三条新规则在合成数据上都会触发，而且只对不健康的那个提示词版本触发。 |
 
@@ -453,7 +454,7 @@ python -m scripts.chaos_drill --scenario sources --source-cooldown 20 --max-stal
 |---|---|
 | 日志行 | 日志器 `finsight.audit`，每条事件一行 JSON，写进服务日志。 |
 | JSONL 文件 | `QI_AUDIT_LOG_PATH`（默认 `outputs/audit/audit.jsonl`；设为 `off` 关闭）。每天 UTC 零点轮转，保留 `QI_AUDIT_RETENTION_DAYS` 个文件（默认 30）。路径不可写时（例如只读根文件系统）会关闭文件输出并警告，日志行和计数器照常工作。 |
-| Prometheus | `finsight_audit_events_total{event, category}`。看板的审计面板和 `FinSightInjectionAttemptsSpike` 告警都用它。`finsight_injection_redactions_total{source, outcome}` 供两个注入删除面板使用。 |
+| Prometheus | `finsight_audit_events_total{event, category}`。看板的审计面板和 `FinSightInjectionAttemptsSpike` 告警都用它。`finsight_injection_redactions_total{source, outcome}` 供两个注入删除面板使用。`finsight_output_safety_edits_total{kind}`（第 8 轮，取自 trace 的 compliance notes，每次运行每类计一次）供输出安全层面板使用：它上升而删除数不升，说明投毒内容到了作答阶段。 |
 
 ```bash
 python -m pytest tests/test_agent_audit_metrics.py -q
