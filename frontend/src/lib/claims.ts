@@ -103,6 +103,51 @@ export function formatClaimValue(
   }
 }
 
+// Metrics quoted in percent: a difference of them is in percentage points ("高出3.6个百分点").
+const RATE_METRICS = new Set([
+  "roe",
+  "gross_margin",
+  "net_margin",
+  "debt_ratio",
+  "dividend_yield",
+  "pct_change_1d",
+  "revenue_yoy",
+  "netprofit_yoy",
+]);
+
+const isDifference = (check: ClaimCheckItem) => check.kind === "difference" || check.kind === "relative_difference";
+
+/**
+ * A difference in the metric's unit (round 10): "+3.6 个百分点" for ROE, "+3.7 倍" for P/E, "-9.89%" relative to the
+ * other side, "+445.2 亿元" for net profit. `signed` writes "+" for a positive value (a stated direction).
+ */
+export function formatDifference(
+  lang: Lang,
+  t: Translate,
+  check: ClaimCheckItem,
+  value: number,
+  side: "claimed" | "actual",
+  claim = "",
+  signed = true,
+): string {
+  const sign = value < 0 ? "−" : signed ? "+" : "";
+  const size = Math.abs(value);
+  if (check.kind === "relative_difference") return `${sign}${trim(size)}%`;
+  if (check.metric && RATE_METRICS.has(check.metric)) {
+    return `${sign}${trim(size)} ${t("claim.unit.pp")}`;
+  }
+  return `${sign}${formatClaimValue(lang, t, check.metric, size, side, claim, check.claimed_unit)}`;
+}
+
+/** The actual side of a check: the target's value, or for a difference the actual difference of the two. */
+export function actualText(lang: Lang, t: Translate, check: ClaimCheckItem): string | null {
+  if (isDifference(check) && check.difference !== null && check.difference !== undefined) {
+    return formatDifference(lang, t, check, check.difference, "actual", "", check.direction !== null && check.direction !== undefined);
+  }
+  if (check.actual === null || check.actual === undefined) return null;
+  return formatClaimValue(lang, t, check.metric, check.actual, "actual");
+}
+
 const SYMBOLS: Record<ClaimComparator, string> = { eq: "", ne: "≠", gt: ">", ge: "≥", lt: "<", le: "≤", approx: "≈", range: "" };
 
 const BOUNDS = new Set<ClaimComparator>(["gt", "ge", "lt", "le", "range"]);
@@ -123,6 +168,26 @@ export function claimedText(
   const value = (number: number) => formatClaimValue(lang, t, check.metric, number, "claimed", claim, check.claimed_unit);
   const comparator = check.comparator ?? "eq";
   const symbol = SYMBOLS[comparator] || "=";
+  if (isDifference(check) && check.claimed !== null && check.claimed !== undefined) {
+    // "茅台ROE比五粮液高出约3.6个百分点": "差值 ≈ +3.6 个百分点", the other side's value and the actual difference below
+    const reference = check.reference ? name(check.reference) : t("claim.unknownTarget");
+    const signed = check.direction !== null && check.direction !== undefined;
+    const diff = (number: number) => formatDifference(lang, t, check, number, "claimed", claim, signed);
+    const bounded = check.claimed_high !== null && check.claimed_high !== undefined && comparator === "gt";
+    const words = bounded ? `${diff(check.claimed)} – ${diff(check.claimed_high!)}` : diff(check.claimed);
+    const stated = bounded || !SYMBOLS[comparator] ? words : `${SYMBOLS[comparator]} ${words}`;
+    const parts = [
+      check.reference_value !== null && check.reference_value !== undefined
+        ? `${reference} ${formatClaimValue(lang, t, check.metric, check.reference_value, "actual")}`
+        : reference,
+    ];
+    const word = t(bounded ? "claim.cmp.range" : (`claim.cmp.${comparator}` as MessageKey));
+    return {
+      text: `${t("claim.difference")} ${stated}`,
+      label: `${t("claim.difference")} (${reference}) ${word} ${words}`,
+      detail: parts.join(" · "),
+    };
+  }
   if (check.reference && check.claimed !== null && check.claimed !== undefined) {
     // "市净率是五粮液的1.5倍": the claimed multiple of the other side, with the other side's value and the ratio
     const reference = name(check.reference);
@@ -161,7 +226,17 @@ export function claimedText(
     }
     const bound = size(check.claimed);
     const word = t(`claim.cmp.${comparator}` as MessageKey);
+    if (comparator === "gt" && check.claimed_high !== null && check.claimed_high !== undefined) {
+      const high = size(check.claimed_high);
+      const span = `${bound} – ${high}`;
+      return { text: `${move} > ${bound}, < ${high}`, label: `${move}${gap}${t("claim.cmp.range")} ${span}` };
+    }
     return { text: `${move} ${SYMBOLS[comparator]} ${bound}`, label: `${move}${gap}${word} ${bound}` };
+  }
+  if (comparator === "gt" && check.claimed_high !== null && check.claimed_high !== undefined) {
+    // "八百多亿" (round 10): more than 800亿 and less than 900亿
+    const span = `${value(check.claimed)} – ${value(check.claimed_high)}`;
+    return { text: `> ${value(check.claimed)}, < ${value(check.claimed_high)}`, label: `${t("claim.cmp.range")} ${span}` };
   }
   if (comparator === "range" && check.claimed_high !== null && check.claimed_high !== undefined) {
     const span = `${value(check.claimed)} – ${value(check.claimed_high)}`;
@@ -193,10 +268,25 @@ const REASONS: Record<ClaimReason, MessageKey> = {
 };
 
 /** The checker's reason (or English note), localised; unknown notes are shown as written. */
-export function noteText(t: Translate, note: string | null | undefined, check?: ClaimCheckItem): string {
+export function noteText(
+  t: Translate,
+  note: string | null | undefined,
+  check?: ClaimCheckItem,
+  lang: Lang = "zh",
+  target = "",
+): string {
   const date = check?.as_of ?? "";
   const reason = check?.reason ? REASONS[check.reason] : undefined;
   if (reason) return t(reason, { date });
+  if (check && isDifference(check) && check.difference !== null && check.difference !== undefined) {
+    const signed = check.direction !== null && check.direction !== undefined;
+    const value = formatDifference(lang, t, check, check.difference, "actual", "", true);
+    const text = t(check.kind === "relative_difference" ? "claim.note.relativeDifference" : "claim.note.difference", {
+      value,
+    });
+    return signed ? text : `${text}${lang === "zh" ? "；" : ". "}${t("claim.note.differenceSize")}`;
+  }
+  if (check?.kind === "stated_reference" && !note) return t("claim.note.stated", { target: target || check.target || "" });
   if (!note) return "";
   if (note.startsWith("compared with the report for the period ending")) return t("claim.note.interim", { date });
   const ratio = /^ratio ([\d.]+) = /.exec(note);
