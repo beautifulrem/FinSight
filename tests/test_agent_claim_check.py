@@ -521,10 +521,13 @@ def test_a_relation_is_checked_next_to_a_number_in_another_clause():
 
 
 def test_a_relation_in_the_clause_of_a_number_is_read_as_that_number():
+    # "五粮液的15.2倍" is 五粮液's P/E (P/E is quoted in 倍), not 15.2 times it. Since round 10 (F1) the comparison
+    # of the two is checked too, next to the value stated for 五粮液.
     report = _check_all("茅台市盈率24.6倍比五粮液的15.2倍高")
 
-    assert [check.reference for check in report.checks] == [None, None]
-    assert [check.target for check in report.checks] == ["贵州茅台", "五粮液"]
+    assert [check.reference for check in report.checks] == [None, "五粮液", None]
+    assert [check.target for check in report.checks] == ["贵州茅台", "贵州茅台", "五粮液"]
+    assert [check.kind for check in report.checks] == ["value", "relation", "stated_reference"]
 
 
 def test_an_industry_average_named_before_a_number_is_its_subject():
@@ -626,8 +629,10 @@ def test_clauses_with_nothing_to_check_are_listed(claim, unchecked, checks):
         ("茅台PB低于10倍的行业平均水平", [("pb", "lt", "contradicted"), ("pb", "eq", "contradicted")]),
         ("茅台市净率高于行业平均水平（6.2倍）", [("pb", "gt", "supported"), ("pb", "eq", "supported")]),
         ("茅台市盈率不到行业均值27.3倍", [("pe_ttm", "lt", "supported"), ("pe_ttm", "eq", "supported")]),
-        # "行业均值的27.3倍" is 27.3 times the average (a multiple), not the average itself
-        ("茅台市盈率不到行业均值的2倍", [("pe_ttm", "lt", "supported")]),
+        # Round 10 (F1): P/E is quoted in 倍, so without a ratio cue ("是…的", "只有…的", 还/更, a fraction)
+        # "行业均值的2倍" is the average the claim states (2x, contradicted by 27.3), not twice the average
+        ("茅台市盈率不到行业均值的2倍", [("pe_ttm", "lt", "supported"), ("pe_ttm", "eq", "contradicted")]),
+        ("茅台市盈率只有行业均值的0.9倍", [("pe_ttm", "eq", "supported")]),  # "只有…的": a multiple (24.6 / 27.3)
         # a relation in the clause of the company's own number, and the stated average ("of 40x")
         (
             "Moutai's P/E of 24.6x is below the industry average of 40x",
@@ -784,3 +789,115 @@ def test_one_macro_series_against_another():
         ("m2_yoy", "gt", 0.8, "supported"),
         ("cpi_yoy", "lt", 2.31, "supported"),
     ]
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Round 10 (after the round-6 review): a stated value for the compared side (F1), stated differences (F2), and
+# numerals with 多 / 余 / 出头 / 左右 as bounded approximations (F7). Fake data: P/E 24.6 / 15.2, ROE 0.33 / 0.24,
+# revenue 1741.2亿 / 890亿; 白酒 industry P/E 27.3.
+# ---------------------------------------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("claim", "rows", "kinds"),
+    [
+        # F1: P/E is quoted in 倍, so "平均的30倍" is the average the claim states, checked against the snapshot
+        (
+            "茅台市盈率24.6倍，比白酒行业平均的30倍低不少",
+            [("pe_ttm", "eq", "supported"), ("pe_ttm", "lt", "supported"), ("pe_ttm", "eq", "contradicted")],
+            ["value", "relation", "stated_reference"],
+        ),
+        (
+            "茅台市盈率低于白酒行业平均的20倍",
+            [("pe_ttm", "lt", "supported"), ("pe_ttm", "eq", "contradicted")],
+            ["relation", "stated_reference"],
+        ),
+        # the same rule for a named target, and for a metric quoted in % ("五粮液的24%" is 五粮液's ROE)
+        (
+            "茅台市盈率低于五粮液的30倍",
+            [("pe_ttm", "lt", "contradicted"), ("pe_ttm", "eq", "contradicted")],
+            ["relation", "stated_reference"],
+        ),
+        (
+            "茅台ROE高于五粮液的24%",
+            [("roe", "gt", "supported"), ("roe", "eq", "supported")],
+            ["relation", "stated_reference"],
+        ),
+        # explicit ratio cues keep the multiple: 是…的, 还/更 after 比, a fraction
+        ("茅台市盈率是五粮液的1.6倍", [("pe_ttm", "eq", "supported")], ["ratio"]),
+        ("茅台市盈率比五粮液的1.5倍还高", [("pe_ttm", "gt", "supported")], ["ratio"]),
+        ("茅台市盈率不到白酒行业平均的三分之二", [("pe_ttm", "lt", "contradicted")], ["ratio"]),  # 0.90
+    ],
+)
+def test_a_stated_value_of_the_compared_side_is_its_own_check(claim, rows, kinds):
+    report = _check_all(claim)
+
+    assert _rows(report) == rows
+    assert [check.kind for check in report.checks] == kinds
+
+
+def test_the_stated_industry_average_is_labelled_as_the_average():
+    report = _check_all("茅台市盈率24.6倍，比白酒行业平均的30倍低不少")
+
+    stated = report.checks[-1]
+    assert stated.target == "白酒行业平均" and (stated.claimed, stated.actual) == (30.0, 27.3)
+    assert report.verdict == "partially_supported"
+
+
+@pytest.mark.parametrize(
+    ("claim", "comparator", "claimed", "difference", "status"),
+    [
+        # F2: the number is the difference of the two, not the second company's own value
+        ("茅台ROE比五粮液高出约9个百分点", "approx", 9.0, 9.0, "supported"),
+        ("五粮液ROE比茅台高9个百分点", "eq", 9.0, -9.0, "contradicted"),  # the difference is the other way
+        ("五粮液ROE比茅台低了9个百分点", "eq", -9.0, -9.0, "supported"),
+        ("茅台ROE比五粮液高出不到5个百分点", "lt", 5.0, 9.0, "contradicted"),
+        ("茅台的市盈率比五粮液高9.4倍", "eq", 9.4, 9.4, "supported"),  # P/E is quoted in 倍: 24.6 - 15.2
+        ("茅台和五粮液的市盈率相差9.4倍左右", "approx", 9.4, 9.4, "supported"),  # no direction: the size
+        ("茅台营收比五粮液多八百多亿", "gt", 800.0, 85120000000.0, "supported"),  # 800亿 < 851.2亿 < 900亿
+    ],
+)
+def test_a_stated_difference_is_checked_against_both_values(claim, comparator, claimed, difference, status):
+    (check,) = _check_all(claim).checks
+
+    assert (check.comparator, check.claimed, check.status) == (comparator, claimed, status)
+    assert check.kind == "difference" and check.reference in {"五粮液", "贵州茅台"}
+    assert check.difference == pytest.approx(difference, abs=1e-6)
+
+
+def test_a_percentage_difference_of_a_multiple_is_relative():
+    # "比行业平均低了近10%": (24.6 - 27.3) / 27.3 = -9.9%
+    (check,) = _check_all("茅台的PE比行业平均低了近10%").checks
+
+    assert (check.kind, check.comparator, check.claimed, check.status) == (
+        "relative_difference",
+        "approx",
+        -10.0,
+        "supported",
+    )
+    assert check.difference == pytest.approx(-9.89, abs=0.01) and check.reference == "白酒行业平均"
+
+
+def test_an_ambiguous_multiple_difference_is_unverifiable():
+    # "高出一倍" of revenue: one or two times more? A multiple states it ("是…的两倍").
+    (check,) = _check_all("茅台营收比五粮液高出一倍").checks
+
+    assert (check.kind, check.status, check.reason) == ("difference", "unverifiable", "unit_mismatch")
+
+
+@pytest.mark.parametrize(
+    ("claim", "normalised", "comparator", "claimed", "high", "status"),
+    [
+        # F7: 多 / 余 is more than the number and less than its next step; 出头 is the lower half of that step
+        ("茅台营收一千七百多亿", "1700多亿", "gt", 1700.0, 1800.0, "supported"),
+        ("茅台营收一千六百余亿", "1600余亿", "gt", 1600.0, 1700.0, "contradicted"),  # 1741.2 is not below 1700
+        ("茅台ROE三成出头", "30%出头", "gt", 30.0, 35.0, "supported"),
+        ("茅台ROE四成出头", "40%出头", "gt", 40.0, 45.0, "contradicted"),  # 33%
+        # 左右: 5%, or half the step of the last significant digit when wider (三成 = 30%: 25%-35%)
+        ("茅台ROE三成左右", "30%左右", "approx", 30.0, None, "supported"),
+        ("茅台ROE四成左右", "40%左右", "approx", 40.0, None, "contradicted"),  # 33% is not within 35%-45%
+    ],
+)
+def test_numerals_with_more_or_about_are_bounded_approximations(claim, normalised, comparator, claimed, high, status):
+    assert normalised in normalise(claim)
+    (check,) = _check_all(claim).checks
+
+    assert (check.comparator, check.claimed, check.claimed_high, check.status) == (comparator, claimed, high, status)
