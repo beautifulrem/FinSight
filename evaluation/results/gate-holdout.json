@@ -17,10 +17,10 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "774df5c",
-  "run_at": "2026-09-29T15:28:24+00:00",
+  "commit": "c4064d1",
+  "run_at": "2026-09-30T08:33:05+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 18.5,
+  "wall_seconds": 50.6,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out outputs/agent_eval/gate-holdout.json"
  },
  "summary": {
@@ -50,15 +50,15 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.7908,
+  "tool_precision": 0.8227,
   "compliance_clean": 1.0,
   "hedged_when_required": 0.7273,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 63.96,
-  "latency_ms_p95": 856.33,
-  "latency_ms_p99": 1875.15,
+  "latency_ms_p50": 214.25,
+  "latency_ms_p95": 2823.91,
+  "latency_ms_p99": 3166.65,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -86,59 +86,59 @@
   "clarify": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 856.33
+   "latency_ms_p95": 3017.07
   },
   "compare": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 770.1
+   "latency_ms_p95": 2535.0
   },
   "compliance": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 125.74
+   "latency_ms_p95": 257.51
   },
   "fact": {
    "tasks": 21,
    "task_success": 1.0,
-   "latency_ms_p95": 854.34
+   "latency_ms_p95": 2823.91
   },
   "macro_link": {
    "tasks": 3,
    "task_success": 0.3333,
-   "latency_ms_p95": 150.35
+   "latency_ms_p95": 449.66
   },
   "missing_data": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 1875.15
+   "latency_ms_p95": 2642.6
   },
   "multi_turn": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 344.4
+   "latency_ms_p95": 595.22
   },
   "out_of_scope": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 63.96
+   "latency_ms_p95": 254.69
   },
   "why": {
    "tasks": 4,
    "task_success": 0.75,
-   "latency_ms_p95": 74.14
+   "latency_ms_p95": 210.73
   }
  },
  "by_language": {
   "en": {
    "tasks": 15,
    "task_success": 0.8667,
-   "latency_ms_p95": 854.34
+   "latency_ms_p95": 2706.4
   },
   "zh": {
    "tasks": 38,
    "task_success": 0.9737,
-   "latency_ms_p95": 856.33
+   "latency_ms_p95": 2823.91
   }
  },
  "failed_checks": {
@@ -159,7 +159,7 @@
    "tools_used": [
     "get_price_history"
    ],
-   "answer_excerpt": "Based on the evidence retrieved for this question: 贵州茅台 (600519.SH) last available close was CNY 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
+   "answer_excerpt": "Based on the evidence retrieved for this question: Kweichow Moutai (600519.SH) last available close was CNY 1409.5 on 2026-04-22, daily change -0.1778% [price_6"
   },
   {
    "task": "ho_macro_link_1",
@@ -247,8 +247,8 @@
  },
  "source": {
   "file": "outputs/agent_eval/gate-holdout.json",
-  "sha256_16": "86ef24648564f0b2",
-  "bytes": 146177,
-  "slimmed_at": "2026-09-29T15:28:24+00:00"
+  "sha256_16": "359f19e316a31256",
+  "bytes": 145408,
+  "slimmed_at": "2026-09-30T08:36:10+00:00"
  }
 }
