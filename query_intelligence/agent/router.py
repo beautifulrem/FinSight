@@ -37,7 +37,7 @@ _MULTI_HOP_MARKERS = re.compile(
 FAIR_VALUE_MARKERS = re.compile(
     r"合理(?:的)?(?:估值|价值|价位|价格|股价|市值|定价)|内在价值|公允价值(?!变动)|真实价值|"
     r"(?<![市净])值多少钱|(?<![市净])值几个钱|(?<![市净])值多少(?=一股|每股)|"
-    r"估值(?:应该|应当|该)?(?:是|在)?多少(?:才|比较|算)?(?:合适|合理|对|靠谱)|估值应(?:该|当)?(?:是|在)?多少|"
+    r"估值[^，。？?,.!！]{0,4}?多少(?:倍)?(?:才|比较|算)?(?:合适|合理|对|靠谱)|估值应(?:该|当)?(?:是|在|给|定)?(?:个)?多少|"
     r"\bfair (?:value|price|valuation)\b|\bintrinsic value\b|\btrue value\b|\breasonable (?:valuation|price)\b|"
     r"\bwhat(?:'s| is| are)\b.{0,40}\bworth\b(?! buying)|\bhow much is\b.{0,40}\bworth\b|\bworth per share\b",
     re.IGNORECASE,
