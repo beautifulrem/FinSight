@@ -1,0 +1,61 @@
+{
+ "config": {
+  "labels": "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+  "model": null,
+  "commit": "05f418a",
+  "run_at": "2026-09-30T23:08:10+00:00",
+  "command": "python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round10-own.json",
+  "note": "Author's own router labels after round 10 at 05f418a: 358 queries (round-10 labels route_344-357 added for F5, F6, F8, F10/F11, F14 with negatives; route_313 relabelled clarify -> refuse under F14). 1.000."
+ },
+ "queries": 358,
+ "accuracy": 1.0,
+ "per_route": {
+  "refuse": {
+   "support": 56,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "clarify": {
+   "support": 77,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "workflow": {
+   "support": 98,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "agent": {
+   "support": 127,
+   "precision": 1.0,
+   "recall": 1.0
+  }
+ },
+ "confusion": {
+  "refuse": {
+   "refuse": 56,
+   "clarify": 0,
+   "workflow": 0,
+   "agent": 0
+  },
+  "clarify": {
+   "refuse": 0,
+   "clarify": 77,
+   "workflow": 0,
+   "agent": 0
+  },
+  "workflow": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 98,
+   "agent": 0
+  },
+  "agent": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 0,
+   "agent": 127
+  }
+ },
+ "errors": []
+}
