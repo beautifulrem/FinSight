@@ -304,6 +304,55 @@ def test_head_to_head_window_units_and_aggregate(tmp_path):
     assert len(result["checks"]["missing_screenshots"]) == 2
     assert result["answers"][0]["screenshot_sha256"] == common.sha256_file(shot_dir / "doubao_S01_1.png")
     assert "S02" in result["checks"]["single_fact_without_ground_truth"]
+    assert doubao["compliance_violation"]["never_violated^3"]["rate"] == 1.0
+    assert result["outside_window"]["count"] == 0 and result["time_window"]["in_window_answers"] == 3
+
+
+def test_head_to_head_window_is_asia_shanghai_and_excludes_outside_rows_from_the_headline():
+    friday = date(2026, 10, 9)
+    status = score_head_to_head.window_status
+    assert status("2026-10-09 15:00", friday) == "in_window"
+    assert status("2026-10-09 14:59", friday) == "before_window"
+    assert status("2026-10-12 09:29", friday) == "in_window"  # Monday, before the open
+    assert status("2026-10-12 09:30", friday) == "after_window"
+    assert status("2026-10-09T07:30:00Z", friday) == "in_window"  # 15:30 in Shanghai
+    assert status("2026-10-09T06:30:00Z", friday) == "before_window"  # 14:30 in Shanghai
+    assert status("2026-10-09 20:15+08:00", friday) == "in_window"
+    assert status("", friday) == "missing" and status("昨晚", friday) == "unparseable"
+
+    questions = score_head_to_head.load_questions()
+    times = ("2026-10-09 16:00", "2026-10-10 10:00", "2026-10-09 14:00", "2026-10-12 10:00", "")
+    answers = [
+        {"question_id": "S01", "product": "Kimi", "run": str(run), "answer_text": text, "asked_at": when}
+        for run, (text, when) in enumerate(
+            zip(
+                ("收盘 1258.62 元", "收盘 1258.62 元", "收盘 1300 元", "收盘 1300 元", "收盘 1300 元"),
+                times,
+                strict=True,
+            ),
+            start=1,
+        )
+    ]
+    result = score_head_to_head.score_all(questions, answers, {"S01": 1258.62}, day=friday)
+    kimi = result["per_product"]["Kimi"]
+    # only the two in-window answers count: both right
+    assert kimi["answered"] == 2 and kimi["numeric_correct"]["rate"] == 1.0
+    outside = result["outside_window"]
+    assert outside["count"] == 3
+    assert outside["by_product"] == {"Kimi": {"before_window": 1, "after_window": 1, "missing": 1}}
+    assert outside["per_product"]["Kimi"]["numeric_correct"]["rate"] == 0.0 and len(outside["rows"]) == 3
+    assert result["time_window"] == {
+        "timezone": "Asia/Shanghai",
+        "start": "2026-10-09 15:00",
+        "end": "2026-10-12 09:30",
+        "in_window_answers": 2,
+        "included_in_headline": False,
+    }
+    included = score_head_to_head.score_all(
+        questions, answers, {"S01": 1258.62}, day=friday, include_outside_window=True
+    )
+    assert included["per_product"]["Kimi"]["numeric_correct"]["rate"] == 0.4
+    assert included["time_window"]["included_in_headline"] is True
 
 
 def test_fetch_merge_replaces_only_finsight_rows():

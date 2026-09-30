@@ -85,7 +85,10 @@ def main(argv: list[str] | None = None) -> list[dict[str, Any]]:
     day = date.fromisoformat(args.date)
     now = datetime.now(BEIJING).strftime("%Y-%m-%d %H:%M")
     if not in_window(now, day):
-        print(f"warning: {now} (Beijing) is outside the window after the close on {day} and before the next open")
+        print(
+            f"warning: {now} (Asia/Shanghai) is outside the window after the close on {day} and before the next "
+            "open; score_head_to_head excludes these rows from the headline metrics"
+        )
 
     from ..agent_eval.runner import _make_llm
 

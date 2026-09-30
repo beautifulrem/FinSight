@@ -67,7 +67,15 @@ python -m evaluation.human.score_labels --llm-judge --judge-limit 100
 
 1. **选定交易日 T**：选一个普通交易日，且下一天也是交易日（避开节假日前一天，例如国庆前）。T 只在运行脚本时用
    `--date T` 传入（下文以 2026-10-13 为例）。
-2. **时间窗口**：所有产品都在 T 日 15:00 收盘后、下一个交易日 09:30 开盘前提问，同一个晚上完成最好。
+2. **时间窗口（严格执行）**：所有产品（包括 FinSight）都必须在 **T 日 15:00 收盘后、下一个交易日 09:30 开盘前**
+   提问，时间一律按**北京时间（Asia/Shanghai）**，同一个晚上完成最好。例如 T = 2026-10-09（周五）时，窗口是
+   `2026-10-09 15:00` 到 `2026-10-12 09:30`（周一开盘前）。评分脚本逐行检查 `asked_at`：
+   * 窗口外（15:00 前或下一个开盘之后）、`asked_at` 为空或格式看不懂的回答，**不计入主结果**（`per_product`），
+     而是单独列在结果文件的 `outside_window` 里（总数、各产品各原因的条数、逐行清单，以及这些行单独算出的指标），
+     运行时也会在终端打印条数；
+   * 窗口外的回答请在窗口内**重新问一遍**并覆盖该行，而不是改 `asked_at`；
+   * 只有确有理由时才用 `--include-outside-window` 把它们算进主结果（结果文件会记录用了这个参数）；
+   * 脚本不识别节假日：请选“下一个工作日也是交易日”的 T。
 3. 把 `head_to_head/answers_template.csv` 复制为 `head_to_head/answers.csv`（360 行 = 30 题 × 4 个产品 × 3 次）。
 4. **每个产品、每道题、每次（run 1/2/3）都开一个全新对话**：登录后新建会话，默认设置，不开额外插件；把问题原文粘贴进去。
    追问题（F01、F02）先在同一个新对话里问 `context` 列的那句，再问 `question`。
@@ -76,7 +84,8 @@ python -m evaluation.human.score_labels --llm-judge --judge-limit 100
    * `cited_sources`：复制产品显示的来源/链接（没有就留空）；
    * `screenshot_file`：截图文件名，截图放在 `head_to_head/screenshots/`，建议命名 `豆包_S01_1.png`
      （截图不会提交到 git，评分结果里会记录每张截图的 sha256）；
-   * `asked_at`：提问时间，格式 `2026-10-13 20:15`（北京时间）。
+   * `asked_at`：提问时间，格式 `2026-10-13 20:15`（北京时间，**必填**；空着的行不计入主结果）。
+     也可以写带时区的 ISO 时间（如 `2026-10-13T12:15:00Z`），脚本会换算成北京时间。
 6. **FinSight 的行自动填**：在同一窗口内运行（开启实时数据源；可选 LLM）：
 
    ```bash
@@ -97,7 +106,8 @@ python -m evaluation.human.score_labels --llm-judge --judge-limit 100
    ```
 
    每个产品：引用率、合规违规率（负向表述如“不建议满仓”不算违规）、缺失数据是否如实说明、单一事实数值正确率、追问实体是否正确，
-   都带 Wilson 95% 区间，并给出 pass^3（三次都通过的题目占比）。它还会列出不在时间窗口内的回答和缺截图的回答。
+   都带 Wilson 95% 区间，并给出 pass^3（三次都通过的题目占比；合规一项另给 `never_violated^3`，即三次都没有违规的题目占比，
+   不要读成“三次都违规”）。主结果只用时间窗口内的回答；窗口外的条数和清单见 `outside_window`（见第 2 步），缺截图的回答也会列出。
 9. 提交：`answers.csv`、`ground_truth.csv`、`raw/`、`evaluation/results/head_to_head-v1.json`。
 
 时间不够时：先只做每个产品的 run 1（90 次对话），评分照常运行，pass^3 会显示为空；之后再补 run 2、3。
@@ -169,8 +179,12 @@ person labels a copy; labels are on the snapshot data, not live data.
 
 **2. Head-to-head** (`score_head_to_head.py`, `fetch_finsight_answers.py`). The 30 questions follow the type
 table of `docs/comparison.md` and are frozen by sha256 (above; the scorer refuses a changed file). Protocol:
-one trading day T, all products queried between the close on T and the next open, three fresh sessions per
-question and product, raw answer text, shown sources, screenshot (hashed in the result) and time per row;
+one trading day T, all products queried between the close on T (15:00) and the next weekday's open (09:30),
+Asia/Shanghai, three fresh sessions per question and product, raw answer text, shown sources, screenshot (hashed
+in the result) and time per row. `asked_at` is validated against that window: rows outside it, or without a
+parseable time, are excluded from the headline `per_product` metrics and reported separately (`outside_window`:
+count, per-product reasons, rows and their own metrics); `--include-outside-window` overrides this and is
+recorded in the result. The compliance metric's all-runs rate is also named `never_violated^3`;
 FinSight's rows come from the same questions run in-process with live sources on. Metrics per product with
 Wilson 95% CIs and pass^3: citation presence (sources cell filled or a source named in the text), compliance
 violations (the negation-aware `FORBIDDEN` patterns the task sets use; FinSight's stricter

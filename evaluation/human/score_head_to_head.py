@@ -21,7 +21,16 @@ Per answer (automatic, so every product is scored by the same code):
   within the verifier's tolerance (0.5% or 0.011, any unit scale: 823.2亿元 = 82,320,000,000);
 * entity carried over (follow-ups) and hedging (why / compliance-trap questions), as secondary metrics.
 
-Rates carry Wilson 95% intervals; pass^3 is the share of questions where all three runs pass.
+Rates carry Wilson 95% intervals; pass^3 is the share of questions where all three runs pass (for compliance it
+is reported as ``never_violated^3``: no run of the question violated).
+
+Time window. Every answer must have been collected after the close on T (15:00) and before the next weekday's
+open (09:30), Asia/Shanghai time, from the ``asked_at`` cell (``YYYY-MM-DD HH:MM`` Beijing time, or ISO 8601 with
+an offset, converted to Asia/Shanghai). Answers outside the window, or with an empty or unparseable ``asked_at``,
+are **excluded from the headline metrics** (``per_product``) and reported separately under ``outside_window``
+with a count per product, the rows and their own metrics. ``--include-outside-window`` puts them back into the
+headline (the result records that it was used). Exchange holidays are not modelled: pick a T whose next weekday
+is a trading day.
 
     python -m evaluation.human.score_head_to_head --date 2026-10-09   # -> evaluation/results/head_to_head-v1.json
 """
@@ -34,6 +43,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from query_intelligence.agent.compliance import contains_trading_instruction
 from query_intelligence.agent.verifier import _is_supported, claim_numbers
@@ -94,22 +104,54 @@ def ground_truth_values(rows: list[dict[str, str]]) -> dict[str, float]:
     return values
 
 
-def in_window(asked_at: str, day: date) -> bool | None:
-    """Whether ``asked_at`` (Beijing time, ``YYYY-MM-DD HH:MM``) is after the close on T and before the next
-    weekday's open. ``None`` when the cell is empty or unparseable. Exchange holidays are not modelled."""
-    text = asked_at.strip().replace("T", " ").replace("/", "-")[:16]
+SHANGHAI = ZoneInfo("Asia/Shanghai")
+
+
+def parse_asked_at(asked_at: str) -> datetime | None:
+    """``asked_at`` as a naive Asia/Shanghai time. A naive value is taken as Beijing time; a value with an offset
+    (``2026-10-09T20:15+08:00``, ``...Z``) is converted. ``None`` when empty or unparseable."""
+    text = str(asked_at or "").strip().replace("/", "-")
     if not text:
         return None
     try:
-        when = datetime.strptime(text, "%Y-%m-%d %H:%M")
+        when = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError:
-        return None
+        try:
+            when = datetime.strptime(text.replace("T", " ")[:16], "%Y-%m-%d %H:%M")
+        except ValueError:
+            return None
+    if when.tzinfo is not None:
+        when = when.astimezone(SHANGHAI).replace(tzinfo=None)
+    return when
+
+
+def window_bounds(day: date) -> tuple[datetime, datetime]:
+    """(close on T, next weekday's open), naive Asia/Shanghai."""
     start = datetime(day.year, day.month, day.day, *_WINDOW_OPEN)
     nxt = day + timedelta(days=1)
     while nxt.weekday() >= 5:
         nxt += timedelta(days=1)
-    end = datetime(nxt.year, nxt.month, nxt.day, *_WINDOW_CLOSE)
-    return start <= when < end
+    return start, datetime(nxt.year, nxt.month, nxt.day, *_WINDOW_CLOSE)
+
+
+def window_status(asked_at: str, day: date) -> str:
+    """``in_window``, ``before_window``, ``after_window``, ``missing`` or ``unparseable``."""
+    if not str(asked_at or "").strip():
+        return "missing"
+    when = parse_asked_at(asked_at)
+    if when is None:
+        return "unparseable"
+    start, end = window_bounds(day)
+    if when < start:
+        return "before_window"
+    return "in_window" if when < end else "after_window"
+
+
+def in_window(asked_at: str, day: date) -> bool | None:
+    """Whether ``asked_at`` is after the close on T and before the next weekday's open (Asia/Shanghai).
+    ``None`` when the cell is empty or unparseable. Exchange holidays are not modelled."""
+    status = window_status(asked_at, day)
+    return None if status in {"missing", "unparseable"} else status == "in_window"
 
 
 def score_answer(question: dict[str, str], answer: dict[str, str], truth: float | None) -> dict[str, Any]:
@@ -158,10 +200,12 @@ def aggregate(scored: list[dict[str, Any]]) -> dict[str, Any]:
                 if metric in row["score"]:
                     by_question[row["question_id"]].append(row["score"][metric] == _GOOD.get(metric, True))
             complete = {qid: runs for qid, runs in by_question.items() if len(runs) >= 3}
-            entry[metric] = {
-                **rate(sum(bool(value) for value in values), len(values)),
-                "pass^3": rate(sum(all(runs) for runs in complete.values()), len(complete)) if complete else None,
-            }
+            all_good = rate(sum(all(runs) for runs in complete.values()), len(complete)) if complete else None
+            entry[metric] = {**rate(sum(bool(value) for value in values), len(values)), "pass^3": all_good}
+            if metric == "compliance_violation":
+                # "pass^3" of a violation rate reads as "violated all 3 times"; it is the opposite.
+                entry[metric]["never_violated^3"] = all_good
+                entry[metric]["pass^3_note"] = "share of questions where no run violated (same as never_violated^3)"
         types = sorted({row["type"] for row in answered})
         entry["citation_by_type"] = {
             qtype: rate(
@@ -181,7 +225,11 @@ def score_all(
     *,
     day: date | None,
     screenshot_dir: Path = SCREENSHOT_DIR,
+    include_outside_window: bool = False,
 ) -> dict[str, Any]:
+    """Score every answer. With ``day``, answered rows outside the collection window (or without a valid
+    ``asked_at``) are left out of ``per_product`` unless ``include_outside_window``; they are aggregated
+    separately under ``outside_window``."""
     by_id = {row["question_id"]: row for row in questions}
     scored, warnings = [], []
     outside, no_screenshot = [], []
@@ -200,10 +248,15 @@ def score_all(
             "product": product,
             "run": answer.get("run", ""),
             "answered": answered,
+            "asked_at": answer.get("asked_at", ""),
             "score": score_answer(by_id[qid], answer, truths.get(qid)) if answered else {},
         }
-        if answered and day is not None and in_window(answer.get("asked_at", ""), day) is not True:
-            outside.append(f"{product} {qid} run {row['run']}: asked_at {answer.get('asked_at')!r}")
+        if day is not None:
+            row["window"] = window_status(answer.get("asked_at", ""), day)
+            if answered and row["window"] != "in_window":
+                outside.append(
+                    f"{product} {qid} run {row['run']}: asked_at {answer.get('asked_at')!r} ({row['window']})"
+                )
         shot = answer.get("screenshot_file", "").strip()
         if shot and (screenshot_dir / shot).is_file():
             # Screenshots stay local (large); their hashes in the result tie each score to its image.
@@ -214,16 +267,43 @@ def score_all(
     missing_truth = [
         row["question_id"] for row in questions if row["type"] == "single_fact" and row["question_id"] not in truths
     ]
-    return {
-        "per_product": aggregate(scored),
-        "answers": scored,
-        "checks": {
-            "outside_time_window": outside,
-            "missing_screenshots": no_screenshot,
-            "single_fact_without_ground_truth": missing_truth,
-            "warnings": warnings,
-        },
+    out_rows = [row for row in scored if row["answered"] and row.get("window", "in_window") != "in_window"]
+    excluded = {id(row) for row in out_rows}
+    headline = scored if include_outside_window else [row for row in scored if id(row) not in excluded]
+    result: dict[str, Any] = {
+        "per_product": aggregate(headline),
+        "headline_rows": "all answers" if include_outside_window else "answers collected inside the time window",
     }
+    if day is not None:
+        start, end = window_bounds(day)
+        counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        for row in out_rows:
+            counts[row["product"]][row["window"]] += 1
+        result["time_window"] = {
+            "timezone": "Asia/Shanghai",
+            "start": start.isoformat(sep=" ", timespec="minutes"),
+            "end": end.isoformat(sep=" ", timespec="minutes"),
+            "in_window_answers": sum(1 for row in scored if row["answered"] and row["window"] == "in_window"),
+            "included_in_headline": include_outside_window,
+        }
+        result["outside_window"] = {
+            "count": len(out_rows),
+            "by_product": {product: dict(reasons) for product, reasons in counts.items()},
+            "rows": outside,
+            "per_product": aggregate(out_rows) if out_rows else {},
+        }
+    result.update(
+        {
+            "answers": scored,
+            "checks": {
+                "outside_time_window": outside,
+                "missing_screenshots": no_screenshot,
+                "single_fact_without_ground_truth": missing_truth,
+                "warnings": warnings,
+            },
+        }
+    )
+    return result
 
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
@@ -232,6 +312,11 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument("--answers", default=str(ANSWERS_PATH))
     parser.add_argument("--ground-truth", default=str(GROUND_TRUTH_PATH))
     parser.add_argument("--out", default=str(OUT_PATH))
+    parser.add_argument(
+        "--include-outside-window",
+        action="store_true",
+        help="Also count answers collected outside the window (or without asked_at) in the headline metrics.",
+    )
     args = parser.parse_args(argv)
     day = date.fromisoformat(args.date)
     questions = load_questions()
@@ -239,7 +324,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     if not answers_path.exists():
         raise SystemExit(f"{display(answers_path)} not found: copy answers_template.csv to answers.csv and fill it")
     truths = ground_truth_values(read_csv(truth_path))
-    body = score_all(questions, read_csv(answers_path), truths, day=day)
+    body = score_all(
+        questions, read_csv(answers_path), truths, day=day, include_outside_window=args.include_outside_window
+    )
     report = {
         "config": run_config(
             "evaluation.human.score_head_to_head",
@@ -263,6 +350,12 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             if metric in entry:
                 cells.append(f"{metric} {entry[metric]['rate']} {entry[metric]['ci95_wilson']}")
         print("; ".join(cells))
+    excluded = report["outside_window"]["count"]
+    if excluded:
+        verb = "INCLUDED in" if args.include_outside_window else "excluded from"
+        print(f"{excluded} answers outside the time window (or without asked_at), {verb} the headline metrics:")
+        for product, reasons in report["outside_window"]["by_product"].items():
+            print(f"  {product}: {sum(reasons.values())} {dict(reasons)}")
     for name, items in report["checks"].items():
         if items:
             print(f"check {name}: {len(items)}")
