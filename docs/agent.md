@@ -170,6 +170,22 @@ expect `search_knowledge`; the agent answers them with `explain_concept`, a cura
 "no data series" line. The scorer was not changed to count `explain_concept` as knowledge retrieval: doing so after
 seeing the slice would only move the held-out number. Those turns are reported as the remaining failures instead.
 
+### Rules added in round 8 (round-4 review, D5–D8)
+
+Written from the round-4 reviewer's probes (`round4.md` §4 and §7). Each class has new own dev tasks
+(`build_tasks._round8_tasks`, 15 tasks), router labels (`route_319`–`route_331`), alias regression rows and unit tests
+(`tests/test_agent_round8.py`); a test checks that none copies or near-copies a reviewer probe, a held-out text, the
+independent router sets or a test set. The red team (`redteam.py`) only has planted-document attacks, no user-turn set,
+so the fair-value phrasings went into the dev tasks.
+
+| Case | Example (own wording) | Behaviour | Reason code / where |
+|---|---|---|---|
+| Fair value / "what is it worth" (D5) | "按基本面算，五粮液一股合理价格该是多少", "贵州茅台的内在价值能估一下吗", "What would you say Ping An is worth per share?" | A judgment: agent route, conditional prefix, then "FinSight 不给出合理估值：下文的价格、PE、PB 和行业对比是市场数据和估值参考，不是对合理价值的判断。", and the limitation "证据中没有可据以确定合理估值的估值模型或一致预期". A sentence that presents one number as the fair value ("合理估值约为1500元", "intrinsic value is about 1320", "worth about CNY 120") is removed like a target price. Market value, NAV and plain prices ("市值多少钱", "净值多少钱", "多少钱一股") are not fair-value questions | `lexical:judgment_or_timing` (`router.FAIR_VALUE_MARKERS`), notes `conditional_prefix`, `fair_value_hedge`, `removed_trading_instruction` |
+| Crypto ETFs and funds (D6) | "比特币ETF这个月走得怎么样", "以太坊基金值得入手吗", "Should I put money into a Bitcoin ETF?" | Refused as out of coverage. The NLU no longer reads "币ETF" as a typo of 酒ETF: a fuzzy window that replaces the whole Chinese part of a mixed alias is another name ("黄今ETF" still resolves to 黄金ETF). Next to a crypto or foreign asset, only a target the question names counts: fuzzy guesses and advice phrases that are a company alias (值得买) are dropped | `coverage:crypto`, `dropped_unnamed_target_out_of_coverage:<name>` |
+| The short name 平安 (D6) | "平安的不良贷款率高不高" → 平安银行; "平安的赔付率怎么样" → 中国平安; "平安的市净率眼下几倍" → 中国平安 with a note | One policy, in order: (1) industry words elsewhere in the question (insurance: 保费, 寿险, 赔付, insurer …; bank: 不良, 存款, 贷款, 息差, bank …; other names such as 招商银行 are masked first); (2) the target under discussion in the session; (3) the alias table's default (alias row 17, 平安 → 平安银行, has priority 4, so 平安 → 中国平安), and the answer says so: "「平安」也可能指平安银行；本次按中国平安回答，如指平安银行请说明。" A blocking clarification was not used for (3): the dev, held-out and test_v2 sets expect a bare 平安 answered as 中国平安. Only one alias in the runtime table spans two industries | NLU match types `linked_context` / `linked_default`; `alias_context:平安->…`, `session_disambiguation:平安->…`, `alias_default:平安->中国平安\|平安银行`, note `alias_assumption_stated` |
+| Net margin, PEG, year to date (D7) | "按最新年报，五粮液的净利率是几成", "Compare the net profit margins of Moutai and Wuliangye", "五粮液的PEG能算出来吗", "创业板ETF今年以来的累计涨幅" | Net margin = net profit ÷ revenue from the cited fundamentals, operands in the sentence ("823.2 亿元 ÷ 1688.38 亿元 ≈ 48.76%"); several targets are ranked in words. PEG = P/E ÷ net profit growth when a source reports the growth (live `netprofit_yoy`), otherwise "无法计算…的PEG：PEG 等于市盈率除以净利润增速，当前数据没有净利润增速". Year to date: `get_price_history` reports `year_start` (first close of the latest close's year) only when its history also has a close from the year before, so that close is known to be the year's first; then both closes and the change are stated, otherwise "当前数据中没有…今年首个交易日的收盘价，无法计算今年以来的涨跌幅" (offline data always, since it has one or two closes). The verifier accepts a ratio stated in percent as derived, and template drafts are verified with derived numbers allowed | `coverage.METRICS` (`net_margin`, `peg`), `coverage.year_to_date_gaps`, `composer._derived_metrics`, `tools/market.year_start_close` |
+| Causal caveat only on causal questions (D8) | "创业板ETF近期走势如何", "市场上有哪些黄金ETF" (no caveat); "五粮液前几天为啥跌" (caveat kept) | The style classifier labels some fact and list questions `why`. The why style is kept only when the question or its resolved form has causal or effect wording (为什么, 原因, 怎么跌了, 影响, 说明了什么, why, what drove, affect …); otherwise it becomes `fact`, so the template does not append "不能据此确定单一原因", the guard does not prefix "现有证据不足以把结果归因于单一原因" and the plan fetches no news for it | `override:why_style_without_causal_cue` (`router.correct_question_style`) |
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) and `stated_holdings` ("我持有招商银行", "I own …", up to 5). It is rule-based and bounded, and it is the default.
@@ -307,6 +323,18 @@ python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluatio
 python -m evaluation.agent_eval.results outputs/agent_eval/mt4.json --name multiturn_r4_heldout-after-exposure --note "after exposure"
 ```
 
+**Round 8: the round-4 review's D5–D8 (own examples, offline, no LLM).** The rules in
+[Rules added in round 8](#rules-added-in-round-8-round-4-review-d5d8) were written from the reviewer's probes, and
+the new dev tasks and router labels are own wording, so these numbers show that the classes are covered, not
+generalisation. Dev gate 295 → 310 tasks, task success **1.000** (baselines refreshed at c4064d1, unchanged at
+ba151a2); held-out gate **0.9434** and hedged 0.7273, unchanged, with tool precision 0.7908 → 0.8227 (fact questions
+the classifier labelled "why" no longer fetch news; `evaluation/results/gate-holdout.json`); own router labels **1.000**
+over 332 (`evaluation/results/router_eval-round8-own.json`); multiturn_v1 replay task and turn success **1.000**,
+unchanged (`evaluation/results/multiturn_v1-auto-nollm-round8.json`); offline red team attack success 0.0 and no
+crashes on all six attack sets (`evaluation/results/redteam-offline-r8.json`). Verifier stress at ba151a2 (232 gold
+answers, 3,724 variants): claim-mode false accept 0.0196 and derived-mode 0.0204 (0.0201 without the net-margin rule;
+accepting any a / b × 100 would have made it 0.0282, so the rule is limited to two amounts).
+
 **Independent router labels (`router_labels_independent_v1`, 154 queries).** Written against the policy text only, without reading the router (`evaluation/agent_eval/tasks/README_test_v3.md`). First run at 882745d: **0.740**, while the project's own labels scored 0.988 at the same code (`evaluation/results/router_eval-independent_v1-first-run.json`). The 40 errors were rule gaps, not label noise: advice and recommendations with no target were answered or refused, definitions were clarified, "分别" and a forecast style made lookups complex, and judgments, macro links and analysis requests phrased differently from the author's own examples went to the workflow. The round-4 rules in [Routing policy](#routing-policy) were written against those classes after 99 new own examples had been added to `router_labels_v1.jsonl` (`route_162`–`route_260`, 60 of them wrong at the time). A further 42 probe queries written after the rules were frozen scored **0.905** on their first run (0.452 on the pre-change router); their 4 errors were then fixed, and they were added as `route_261`–`route_302`. At 075caad: own labels 1.000 over 303 (`evaluation/results/router_eval-round4-own.json`), independent labels **1.000 after exposure** (`evaluation/results/router_eval-round4-independent-after-exposure.json`). The second number measures that the error classes are covered, not generalisation; 0.740 stays the independent measurement. Gates (dev 1.000, held-out 0.925) and the multiturn_v1 replay (1.000) did not move.
 
 ```bash
@@ -338,4 +366,10 @@ All agent tests run offline: `ScriptedLLM` replays fixed assistant turns and `te
   records, so it ends with the session.
 - Holdings and fund-flow questions are recognised from a hand-written list of investor groups and flow words; other
   phrasings get the ordinary answer without the "no holdings data" statement.
+- Fair-value, causal and year-to-date questions are recognised lexically (round 8); a fair-value request phrased without
+  the listed words is answered with prices and multiples and hedged only if another judgment word is present. The 平安
+  policy uses short lists of insurance and bank words; without them and without a session target it answers with
+  中国平安 and says so rather than asking first. Year-to-date changes need a source whose history reaches back into the
+  previous year, which the offline snapshot never does, and PEG needs a reported profit growth rate, which only the
+  live sources have.
 - English aliases cover the major A-shares added in round 2, "CSI 300 index", "10-year CGB yield", "baijiu" and "insurers" (round 3b, `data/synonym_dict.json` and the alias tables) plus what `data/runtime/alias_table.csv` contains. A question such as "Did the whole baijiu sector fall too?" opening a conversation is now routed as a lookup (the sector is a market target), but the NLU rejects it before recognising the sector, so no sector entity reaches the planner; inside a conversation about a baijiu stock it is answered with the industry snapshot.
