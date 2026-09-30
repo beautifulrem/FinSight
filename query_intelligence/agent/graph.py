@@ -63,8 +63,10 @@ from .memory import (
     resolve_comparison_anchor,
     resolve_coreference,
     resolve_dangling_why,
+    resolve_difference_follow_up,
     resolve_ellipsis,
     resolve_group_reference,
+    resolve_industry_reference,
     session_memory,
     turn_record,
 )
@@ -432,6 +434,10 @@ class AgentRuntime:
         3. References: a dangling "why", "前者/后者", "三家/哪家", "这两家/both", "它/it", or a comparison that names
            only the new side ("跟沪深300ETF比…").
         4. Ellipsis: a missing target ("ROE呢") or a missing aspect ("换成五粮液呢", "And the former's?").
+
+        (round 9, E5) Before 3, a question with no target of its own resolves a demonstrative industry reference
+        ("这个行业的平均PE呢" → the discussed target's industry) or joins a bare difference question
+        ("差了多少个百分点") to the comparison it follows.
         """
         reasons: list[str] = []
         nlu, carried_nlu = _set_aside_context_carry(nlu)
@@ -442,7 +448,14 @@ class AgentRuntime:
             nlu, carried_nlu = _set_aside_context_carry(analyze(query))
         listed = listed_entities(nlu)
         rewrite = None
-        if not listed:
+        named_sector = any(entity.get("entity_type") == "sector" for entity in nlu.get("entities") or [])
+        if not listed and not named_sector:
+            # (round 9, E5) "这个行业的平均PE呢" → the discussed target's industry;
+            # "差了多少个百分点" → the last comparison
+            rewrite = resolve_industry_reference(query, turns, self._industry_of) or resolve_difference_follow_up(
+                query, turns
+            )
+        if rewrite is None and not listed:
             rewrite = resolve_dangling_why(query, turns)
         if rewrite is None and len(listed) < 2:
             rewrite = resolve_group_reference(query, turns)
@@ -560,6 +573,11 @@ class AgentRuntime:
                 reasons.append("override:out_of_scope_sector_of_discussed_target")
             return patched, reasons
         return nlu, []
+
+    def _industry_of(self, symbol: str) -> str | None:
+        """The industry name of a listed target (entity master), or ``None``."""
+        row = self._entity_rows().get(str(symbol).upper())
+        return str(row.get("industry_name") or "") or None if row else None
 
     def _entity_rows(self) -> dict[str, dict[str, Any]]:
         """Entity master rows by symbol (industry and type of a discussed target); empty for stub services."""

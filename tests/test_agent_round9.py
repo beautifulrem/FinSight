@@ -171,3 +171,54 @@ def test_a_drawdown_is_stated_as_not_computable(agent):
     result = agent.chat("中国平安过去半年的最大回撤", session_id="r9-drawdown")
     answer = str(result["answer"])
     assert answer.startswith("当前数据只有中国平安") and "无法计算所问期间的最大回撤" in answer
+
+
+# --- E5: the discussed target's industry; the difference after a comparison -----------------------------------------
+def test_an_industry_reference_resolves_to_the_discussed_targets_industry(agent):
+    session = "r9-industry"
+    agent.chat("五粮液PE多少", session_id=session)
+    result = agent.chat("该板块的平均市盈率呢", session_id=session)
+    assert "industry_reference:该板块->白酒" in result["route_reasons"]
+    assert result["route"] != "clarify"
+    assert str(result["answer"]).startswith("根据本次检索到的证据：所属行业 白酒：PE 27.3 倍")
+
+
+def test_an_industry_reference_without_a_target_is_left_alone():
+    from query_intelligence.agent.memory import resolve_industry_reference
+
+    assert resolve_industry_reference("这个行业的平均PE呢", [], lambda _symbol: "白酒") is None
+    two = [{"entities": [{"symbol": "600519.SH", "name": "贵州茅台"}, {"symbol": "601318.SH", "name": "中国平安"}]}]
+    industries = {"600519.SH": "白酒", "601318.SH": "保险"}
+    assert resolve_industry_reference("这个行业的平均PE呢", two, industries.get) is None  # two industries: ambiguous
+    one = [{"entities": [{"symbol": "601318.SH", "name": "中国平安"}]}]
+    assert resolve_industry_reference("它属于哪个行业", one, industries.get) is None  # asks for the industry
+
+
+@pytest.mark.parametrize(
+    ("query", "follow_up"),
+    [("差了多少个百分点", True), ("相差多少", True), ("两者差距多大", True), ("How big is the gap?", True),
+     ("差不多吧", False), ("茅台差多少到2000元", False), ("为什么", False)],
+)  # fmt: skip
+def test_difference_follow_ups_are_recognised(query, follow_up):
+    from query_intelligence.agent.memory import is_difference_follow_up
+
+    assert is_difference_follow_up(query) is follow_up
+
+
+def test_a_difference_follow_up_derives_the_gap_from_the_previous_comparison(agent):
+    session = "r9-difference"
+    agent.chat("中国平安和五粮液今天哪个涨得多", session_id=session)
+    result = agent.chat("相差多少", session_id=session)
+    answer = str(result["answer"])
+    assert any(reason.startswith("difference_follow_up:") for reason in result["route_reasons"])
+    assert "两者相差 1.26 个百分点（中国平安更高） [price_601318.SH][price_000858.SZ]" in answer
+    assert result["verification"]["passed"]
+
+
+def test_a_same_turn_difference_and_a_ratio_to_the_industry_are_derived(agent):
+    result = agent.chat("贵州茅台和五粮液的净利润相差多少亿", session_id="r9-gap-amount")
+    assert "两者相差 445.2 亿元（贵州茅台更高）" in str(result["answer"])
+    assert result["verification"]["passed"]
+    ratio = agent.chat("中国平安市净率是保险行业的多少倍", session_id="r9-ratio")
+    assert "中国平安市净率 1.1 倍，保险行业 1.45 倍，前者约为后者的 0.76 倍" in str(ratio["answer"])
+    assert ratio["verification"]["passed"]
