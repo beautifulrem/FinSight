@@ -17,10 +17,21 @@ from typing import Any
 
 # --------------------------------------------------------------------------- out of coverage
 
+# Crypto assets by name, ticker or shape. (round 9, E7) Tokens are also named by their ticker next to a fund word
+# ("BTC ETF", "ETH现货ETF"), by their project name ("Solana ETF", "币安币"), or as "<X>币" + a fund word ("某某币ETF");
+# 人民币 / 港币 / 美元 and money-market funds (货币ETF, 货币基金) are not crypto.
+_CRYPTO_TICKERS = r"BTC|ETH|USDT|USDC|DOGE|XRP|SOL|BNB|ADA|DOT|TRX|LTC|SHIB|AVAX|TON|LINK"
+_NOT_CRYPTO_BI = "".join(
+    f"(?<!{prefix})" for prefix in ("人民", "港", "美", "日", "外", "货", "硬", "纸", "钱", "欧", "英")
+)
 _CRYPTO = re.compile(
-    r"比特币|以太坊|狗狗币|莱特币|瑞波币|泰达币|加密货币|加密资产|数字货币|虚拟货币|币圈|山寨币|稳定币|"
-    r"(?<![A-Za-z])(?:BTC|ETH|USDT|DOGE|XRP|SOL)(?![A-Za-z])|\bbitcoin\b|\bethereum\b|\bcrypto(?:currenc(?:y|ies))?\b|"
-    r"\bdogecoin\b|\bstablecoins?\b",
+    r"比特币|以太坊|以太币|以太(?=\s*(?:ETF|ETP|现货|期货|基金))|狗狗币|莱特币|瑞波币?|泰达币|币安币?|柴犬币|波场币?|"
+    r"艾达币|波卡币|索拉纳|加密货币|加密资产|数字货币|虚拟货币|币圈|山寨币|稳定币|"
+    rf"(?<![A-Za-z])(?:{_CRYPTO_TICKERS})(?=\s*(?:ETF|ETP|现货|期货|基金|\bfunds?\b|\btrusts?\b))|"
+    r"(?<![A-Za-z])(?:BTC|ETH|USDT|USDC|DOGE|XRP|SOL|BNB|SHIB)(?![A-Za-z])|"
+    rf"{_NOT_CRYPTO_BI}币\s*(?=ETF|ETP|现货|期货|基金)|"
+    r"\bbitcoin\b|\bethereum\b|\bether\b|\bsolana\b|\bcardano\b|\bpolkadot\b|\bbinance\b|\bripple\b|\btether\b|"
+    r"\bcrypto(?:currenc(?:y|ies))?\b|\b(?:doge|lite|stable)coins?\b|\bstablecoins?\b|\btokens?\s+(?:etf|fund)s?\b",
     re.IGNORECASE,
 )
 # US / Hong Kong listed names and markets. Concept-sector phrasing ("苹果概念股", "特斯拉产业链") is an

@@ -349,7 +349,8 @@ class EntityResolver:
             return None
         context = query
         for group in self._exact_alias_mentions(query):
-            if group["text"] != mention:
+            # (round 9, E7) only other *names* are masked: a sector word ("这只银行股", "作为保险公司") is the context
+            if group["text"] != mention and not self._is_sector_mention(group):
                 context = context.replace(group["text"], " ")
         context = context.replace(mention, " ")
         cued = [
@@ -375,6 +376,14 @@ class EntityResolver:
             winner, match_type, reason = top[0], "linked_default", f"alias_priority:{best}"
         trace.append(f"ambiguous_alias:{mention}->{winner['canonical_name']}:{reason}")
         return {**winner, "mention": mention, "match_type": match_type}
+
+    def _is_sector_mention(self, group: dict) -> bool:
+        """Every entity the alias names is a sector ("银行", "保险"), not a company or product."""
+        rows = group.get("rows") or []
+        entities = [self._entity_by_id(int(row["entity_id"])) for row in rows]
+        return bool(entities) and all(
+            entity is not None and entity.get("entity_type") == "sector" for entity in entities
+        )
 
     def _exact_alias_mentions(self, query: str) -> list[dict]:
         raw_matches = []
