@@ -59,7 +59,7 @@ Limits that also apply here: one online model family; the held-out set was used 
 
 ## A fair head-to-head test (designed, not run)
 
-**Status: not run.** It needs logged-in accounts on each product (and paid tiers for Kimi's data quota, Wind credits and 问财 专业版), which this project does not use. Until it runs, this page makes no accuracy claim about any incumbent.
+**Status: not run.** It needs logged-in accounts on each product (and paid tiers for Kimi's data quota, Wind credits and 问财 专业版), which this project does not use. Until it runs, this page makes no accuracy claim about any incumbent. The 30 questions are now written and frozen by sha256, with an answer template, a ground-truth sheet, a scorer and a script that collects FinSight's own live answers: [evaluation/human/](../evaluation/human/README.md) (task 2).
 
 **Question set: 30 fixed questions**, written before any product is queried, in Chinese, frozen by hash:
 

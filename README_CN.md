@@ -271,6 +271,8 @@ CI 包括：
 
 `pre-commit install` 后每次提交前会跑 gitleaks、ruff 和评测文档检查。
 
+人工评测：[evaluation/human/](evaluation/human/README.md) 是一套只能由人完成的四项输入的工具包（100 条回答的质量标注、与问财/豆包/Kimi 在 30 道冻结题目上的对比、来自研报和社交媒体的真实说法核查、带 SUS 问卷的小型用户研究）。每项输入用一条评分命令生成结果，写入 `evaluation/results/`，并记录 commit、命令和输入文件哈希；目前还没有提交任何人工评测结果。
+
 ## 文档
 
 | 主题 | 链接 |
@@ -279,6 +281,7 @@ CI 包括：
 | 评测（中文摘要） | [docs/zh/evaluation.md](docs/zh/evaluation.md) |
 | 评测完整版：任务集、置信区间、在线消融、第二模型、Prompt A/B、红队、校验器压力测试 | [docs/agent-eval.md](docs/agent-eval.md)（英文） |
 | 与问财、豆包、Kimi、Wind Alice、妙想的对比 | [docs/zh/comparison.md](docs/zh/comparison.md) |
+| 人工评测工具包：回答标注、产品对比、真实说法、用户研究 | [evaluation/human/README.md](evaluation/human/README.md) |
 | A2A、模型容灾、网关成本、监控、看板、故障演练 | [docs/zh/a2a-and-observability.md](docs/zh/a2a-and-observability.md) |
 | 实时数据源 | [docs/zh/data-sources.md](docs/zh/data-sources.md) |
 | 性能、压测与扩展 | [docs/zh/performance.md](docs/zh/performance.md) |

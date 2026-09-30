@@ -267,6 +267,8 @@ CI runs the following:
 
 `pre-commit install` runs gitleaks, ruff and the evaluation-page check before each commit.
 
+Human evaluation: [evaluation/human/](evaluation/human/README.md) is a kit for the four inputs only a person can give (labels on 100 answers, a head-to-head against 问财 / 豆包 / Kimi on 30 frozen questions, real claims from research notes and social media, a small user study with SUS). Each input goes through one scoring command that writes a result with commit, command and input hashes to `evaluation/results/`; no human results are committed yet.
+
 ## Documentation
 
 | Topic | Link |
@@ -274,6 +276,7 @@ CI runs the following:
 | Agent layer: graph, tools, memory, API, configuration | [docs/agent.md](docs/agent.md) |
 | Evaluation: task sets, CIs, online ablation, second model, prompt A/B, red team, verifier stress | [docs/agent-eval.md](docs/agent-eval.md) |
 | Comparison with 问财, 豆包, Kimi, Wind Alice, 妙想 | [docs/comparison.md](docs/comparison.md) |
+| Human evaluation kit: answer labels, head-to-head, real claims, user study | [evaluation/human/README.md](evaluation/human/README.md) |
 | A2A, model failover, gateway cost, metrics, dashboards, chaos drill | [docs/a2a-and-observability.md](docs/a2a-and-observability.md) |
 | Live data sources | [docs/data-sources.md](docs/data-sources.md) |
 | Performance, load and scaling | [docs/performance.md](docs/performance.md) |
