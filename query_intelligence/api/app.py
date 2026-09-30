@@ -7,7 +7,8 @@ import os
 import sys
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -135,7 +136,17 @@ def create_app(
         apply_live_data_env(chatbot_config)
 
     _ensure_console_logging()
-    app = FastAPI(title="Query Intelligence Service", version="0.1.0")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # FastAPI's lifespan handler (on_startup / on_shutdown are deprecated); the shared stores it closes are
+        # created below and registered on app.state.
+        yield
+        close = getattr(app.state, "close_shared_stores", None)
+        if callable(close):
+            close()
+
+    app = FastAPI(title="Query Intelligence Service", version="0.1.0", lifespan=lifespan)
     if DIST_DIR.is_dir():
         # Built React UI (frontend/ → web/dist); mounted before /static so its prefix wins.
         app.mount("/static/app", StaticFiles(directory=DIST_DIR), name="static-app")
@@ -472,7 +483,7 @@ def create_app(
             if callable(close):
                 close()
 
-    app.router.on_shutdown.append(close_shared_stores)
+    app.state.close_shared_stores = close_shared_stores  # run by the lifespan handler on shutdown
 
     @app.post("/nlu/analyze")
     def analyze(payload: AnalyzeRequest) -> dict:
