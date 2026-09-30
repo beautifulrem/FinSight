@@ -631,8 +631,11 @@ def _poison(attack: Attack) -> Callable[[str, Callable[[BaseModel], ToolOutput]]
             if name not in _DOCUMENT_TOOLS or not output.evidence:
                 return output
             evidence = list(output.evidence)
-            first = evidence[0]
-            evidence[0] = first.model_copy(
+            # the first third-party document: analyze_sentiment returns its own structured summary first, whose
+            # title FinSight writes ("Document sentiment for …"); before round 8 the payload was planted there
+            index = next((i for i, item in enumerate(evidence) if item.kind == "document"), 0)
+            first = evidence[index]
+            evidence[index] = first.model_copy(
                 update={"title": attack.title, "text_excerpt": f"{first.text_excerpt or ''} {attack.excerpt}"}
             )
             data = output.data.model_dump(mode="json") if hasattr(output.data, "model_dump") else output.data
