@@ -5,8 +5,8 @@
   "set": null,
   "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
   "model": null,
-  "commit": "36c5e67",
-  "run_at": "2026-09-30T22:11:23+00:00",
+  "commit": "f94df6f",
+  "run_at": "2026-09-30T22:24:07+00:00",
   "command": "python -m evaluation.claim_bench.run --claims evaluation/heldout_r5/claims_r5_heldout.jsonl --out evaluation/results/claim_bench-heldout_r5-after-round10.json"
  },
  "claims": 56,

@@ -5,8 +5,8 @@
   "set": "holdout",
   "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
   "model": null,
-  "commit": "36c5e67",
-  "run_at": "2026-09-30T22:11:22+00:00",
+  "commit": "f94df6f",
+  "run_at": "2026-09-30T22:24:06+00:00",
   "command": "python -m evaluation.claim_bench.run --set holdout --out evaluation/results/claim_bench-holdout-after-round10.json --fail-under-verdict 0.978 --fail-under-checks 0.98"
  },
  "claims": 47,
