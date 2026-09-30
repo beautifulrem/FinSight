@@ -7,6 +7,8 @@ probe; ``tests/test_agent_eval.py`` checks the dev tasks and router labels for t
   keeps both single-target turns; a bare gap question in a finance session is never refused as off-topic.
 * F5: fair value asked as an estimate ("估个价"), a "worth" with a qualifier ("到底值多少") or a price level with a
   verdict word ("什么价位比较合理") is hedged.
+* F6: a Hong Kong / US listed name that contains an A-share name (平安健康 ~ 中国平安) is out of coverage, and the
+  lookalike inside it is not a target (more rows in ``tests/data/alias_regression.jsonl``).
 * F10: a comparison that names a metric says which value is higher.
 * F14: an injected message whose remainder asks for a market prediction without a target is refused, not clarified.
 """
@@ -246,3 +248,30 @@ def test_assessments_multiples_and_plain_prices_are_not_fair_value_requests(quer
 def test_an_estimate_request_gets_the_fair_value_hedge(agent):
     result = agent.chat("帮我给中国平安估个价", session_id="r10-estimate")
     assert "fair_value_hedge" in result["compliance_notes"]
+
+
+# ---- F6: Hong Kong / US listed names that contain an A-share name are out of coverage ----
+
+
+@pytest.mark.parametrize(
+    ("query", "category"),
+    [
+        ("平安健康医疗的市值多大", "foreign_equity"),
+        ("京东物流今天涨了吗", "foreign_equity"),
+        ("What's JD Health's P/E?", "foreign_equity"),
+        ("网易财经说五粮液跌了", None),
+        ("百度一下茅台的市盈率", None),
+        ("京东方A的市净率", None),
+        ("腾讯新闻报道了中国平安的业绩", None),
+    ],
+)
+def test_the_hong_kong_and_us_listing_lexicon(query, category):
+    from query_intelligence.agent.coverage import out_of_coverage
+
+    assert out_of_coverage(query) == category
+
+
+def test_a_lookalike_inside_a_foreign_name_is_never_answered(agent):
+    result = agent.chat("平安健康医疗的市值多大", session_id="r10-lookalike")
+    assert result["route"] == "refuse" and "foreign_listing_lookalike:中国平安" in result["route_reasons"]
+    assert not result.get("tool_calls")
