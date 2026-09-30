@@ -662,7 +662,7 @@ def _vocabulary_mention(claim: str, mention: str) -> bool:
     lists some such words as short names ("均值" for 武汉天源), and a number next to them would bind to that company."""
     if not mention:
         return False
-    patterns = [_INDUSTRY_SUBJECT, _INDUSTRY_REFERENCE, _MARKET_REFERENCE, _STATED_AVERAGE_WORDS]
+    patterns = [_INDUSTRY_SUBJECT, _INDUSTRY_REFERENCE, _MARKET_REFERENCE, _STATED_AVERAGE_WORDS, _AVERAGE_ALONE]
     patterns += [metric.words for metric in _METRICS.values() if metric.words is not None]
     spans = [match.span() for pattern in patterns for match in pattern.finditer(claim) if match.end() > match.start()]
     starts = [index for index in range(len(claim)) if claim.startswith(mention, index)]
@@ -962,7 +962,9 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
                 # "茅台和五粮液的市盈率，分别是24.6倍和20.9倍": the metric named earlier in the sentence (after the
                 # previous number), when its clause names none.
                 sentence_start, _sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
-                earlier = text[max(sentence_start, previous_end) : clause_start]
+                # (round 9: up to the number, so a metric beyond the look-behind window of its own clause counts:
+                # "trades at a P/E under the baijiu industry average of 30x")
+                earlier = text[max(sentence_start, previous_end) : number.start]
                 fitting = [
                     name for _d, name in _nearest_metrics(earlier, "") if number.unit_class in _METRICS[name].units
                 ]
@@ -1083,6 +1085,7 @@ _STATED_AVERAGE_WORDS = re.compile(
     r"\b(?:the\s+)?(?:(?:[a-z]+|＠+)[- ])?(?:industry|sector|peers?)(?:'s)?\s+(?:average|median|mean)\b",
     re.I,
 )
+_AVERAGE_ALONE = re.compile(_AVERAGE_WORD)  # "…6.2倍的平均值": the average word on its own
 # The number after the phrase: "行业平均11.8倍", "行业均值为1.45倍", "行业平均水平（3倍）", "sector average of 3x".
 _AVERAGE_BEFORE_NUMBER = re.compile(r"\s*(?:的|为|是|约为?|在|of|at|:|：|\(|（)?\s*", re.I)
 # The phrase after the number: "3倍的行业平均水平", "35倍的平均估值" (the sector named before the number).
