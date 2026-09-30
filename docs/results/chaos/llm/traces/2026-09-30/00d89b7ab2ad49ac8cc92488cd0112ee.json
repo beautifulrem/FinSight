@@ -1,0 +1,257 @@
+{
+  "trace_id": "00d89b7ab2ad49ac8cc92488cd0112ee",
+  "session_id": "chaos-2_primary_failing-0",
+  "turn_index": 0,
+  "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+  "route": "agent",
+  "route_reasons": [
+    "mode:agent",
+    "question_style:why",
+    "intent:market_explanation",
+    "multi_intent:3",
+    "lexical:multi_hop_marker",
+    "lexical:analysis_request"
+  ],
+  "answer_source": "template",
+  "started_at": 1790786967.575,
+  "duration_ms": 90027.61,
+  "nodes": [
+    {
+      "node": "guard_in",
+      "started_at": 1790786967.575,
+      "duration_ms": 111.98
+    },
+    {
+      "node": "agent_prefetch",
+      "started_at": 1790786967.688,
+      "duration_ms": 330.86
+    },
+    {
+      "node": "agent_llm",
+      "started_at": 1790786968.019,
+      "duration_ms": 11725.92
+    },
+    {
+      "node": "agent_tools",
+      "started_at": 1790786979.745,
+      "duration_ms": 0.24
+    },
+    {
+      "node": "agent_llm",
+      "started_at": 1790786979.746,
+      "duration_ms": 59936.2
+    },
+    {
+      "node": "agent_tools",
+      "started_at": 1790787039.683,
+      "duration_ms": 1102.33
+    },
+    {
+      "node": "agent_llm",
+      "started_at": 1790787040.787,
+      "duration_ms": 16790.43
+    },
+    {
+      "node": "compose",
+      "started_at": 1790787057.579,
+      "duration_ms": 1.15
+    },
+    {
+      "node": "verify",
+      "started_at": 1790787057.58,
+      "duration_ms": 2.92
+    },
+    {
+      "node": "compliance",
+      "started_at": 1790787057.584,
+      "duration_ms": 15.01
+    },
+    {
+      "node": "finalize",
+      "started_at": 1790787057.6,
+      "duration_ms": 2.61
+    }
+  ],
+  "tools": [
+    {
+      "tool": "get_price_history",
+      "arguments": {
+        "target": "601318.SH",
+        "days": 10
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 0.41,
+      "started_at": 1790786968.012,
+      "attempts": 1,
+      "cached": false,
+      "source": "prefetch",
+      "step": 0
+    },
+    {
+      "tool": "get_fundamentals",
+      "arguments": {
+        "target": "601318.SH"
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 0.89,
+      "started_at": 1790786968.012,
+      "attempts": 1,
+      "cached": false,
+      "source": "prefetch",
+      "step": 0
+    },
+    {
+      "tool": "search_news",
+      "arguments": {
+        "query": "下跌 新闻",
+        "targets": [
+          "601318.SH"
+        ],
+        "top_k": 5
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 322.15,
+      "started_at": 1790786967.694,
+      "attempts": 1,
+      "cached": false,
+      "source": "prefetch",
+      "step": 0
+    },
+    {
+      "tool": "compute_indicators",
+      "arguments": {
+        "target": "601318.SH"
+      },
+      "ok": false,
+      "error": {
+        "code": "unavailable",
+        "message": "only 2 daily closes for 中国平安 (601318.SH); MA5 needs 5, MA20 needs 20, RSI(14) needs 15, MACD needs 26",
+        "retryable": false,
+        "hint": null
+      },
+      "latency_ms": 0.12,
+      "started_at": 1790786979.746,
+      "attempts": 1,
+      "cached": false,
+      "source": "llm",
+      "step": 1
+    },
+    {
+      "tool": "analyze_sentiment",
+      "arguments": {
+        "targets": [
+          "601318.SH"
+        ],
+        "query": "",
+        "top_k": 6
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 1083.04,
+      "started_at": 1790787039.694,
+      "attempts": 1,
+      "cached": false,
+      "source": "llm",
+      "step": 2
+    },
+    {
+      "tool": "search_announcements",
+      "arguments": {
+        "query": "减持 业绩 公告",
+        "targets": [
+          "601318.SH"
+        ],
+        "top_k": 5
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 1067.96,
+      "started_at": 1790787039.712,
+      "attempts": 1,
+      "cached": false,
+      "source": "llm",
+      "step": 2
+    }
+  ],
+  "llm_calls": [
+    {
+      "node": "agent_llm",
+      "step": 0,
+      "prompt": "agent_system@v3#e419eb84d58e",
+      "model": "z-ai/glm-5.3-flash",
+      "started_at": 1790786968.33,
+      "latency_ms": 11414.54,
+      "prompt_tokens": 4505,
+      "completion_tokens": 119,
+      "prompt_cache_hit_tokens": 538,
+      "reasoning_tokens": 102,
+      "reported_cost_usd": 0.00067069,
+      "json_status": null,
+      "context_chars": {
+        "system": 2652,
+        "user": 5779,
+        "assistant": 0,
+        "tool": 0,
+        "tool_schemas": 6970
+      },
+      "tool_calls": [
+        "compute_indicators"
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "node": "agent_llm",
+      "step": 1,
+      "prompt": "agent_system@v3#e419eb84d58e",
+      "model": "z-ai/glm-5.3-flash",
+      "started_at": 1790786979.99,
+      "latency_ms": 59692.61,
+      "prompt_tokens": 4778,
+      "completion_tokens": 267,
+      "prompt_cache_hit_tokens": 840,
+      "reasoning_tokens": 207,
+      "reported_cost_usd": 0.0007494,
+      "json_status": null,
+      "context_chars": {
+        "system": 2652,
+        "user": 5779,
+        "assistant": 151,
+        "tool": 554,
+        "tool_schemas": 6970
+      },
+      "tool_calls": [
+        "analyze_sentiment",
+        "search_announcements"
+      ],
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "model": "cline-pass/deepseek-v4.1-flash",
+  "usage": {
+    "prompt_tokens": 9283,
+    "completion_tokens": 386,
+    "prompt_cache_hit_tokens": 1378,
+    "reasoning_tokens": 309,
+    "reported_cost_usd": 0.00142009,
+    "total_tokens": 9669
+  },
+  "cost": 0.009584,
+  "currency": "CNY",
+  "cost_source": "provider_reported",
+  "verification_passed": true,
+  "unsupported_numbers": [],
+  "invalid_citations": [],
+  "compliance_notes": [
+    "conditional_prefix"
+  ],
+  "refusal_category": null,
+  "prompt_version": "v3",
+  "degraded": [
+    "llm_error:LLM request timed out: timed out"
+  ],
+  "evidence_count": 6,
+  "owner": "anon:e58e6571a7ba"
+}

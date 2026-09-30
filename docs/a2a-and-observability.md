@@ -325,10 +325,10 @@ the first draft failed verification, and the `llm.revise` call alone took 74 s.
 
 `scripts/chaos_drill.py` injects real faults in front of a live server started by the script itself
 (nothing is stubbed inside the process under test) and records latency, traces, `/sources/health` and
-`/metrics` per phase. Results: `docs/results/chaos/llm/chaos-llm.json` (2026-09-26, merged build, see
-[performance.md](performance.md#test-host-and-builds)) and `docs/results/chaos/sources/chaos-sources.json` (rerun
-2026-09-30 at the clean commit `3d7afd5`, `working_tree_clean: true`; it replaces the 2026-09-26 run recorded as
-`8dc388b-dirty`).
+`/metrics` per phase. Results: `docs/results/chaos/llm/chaos-llm.json` and
+`docs/results/chaos/sources/chaos-sources.json`, both rerun on 2026-09-30 at clean commits (`3b03369` and `3d7afd5`,
+`working_tree_clean: true`). They replace the 2026-09-26 runs, whose `commit` fields had been hand-edited (LLM) or
+read `8dc388b-dirty` (sources).
 
 ### LLM: primary model fails, failover to GLM, breaker opens and recovers
 
@@ -342,19 +342,21 @@ source /tmp/llmenv.sh
 python -m scripts.chaos_drill --scenario llm --fallback-model cline-pass/glm-5.3-flash --usd-cny 6.7489
 ```
 
-| Phase (UTC) | Requests | What the gateway saw | `finsight_llm_circuit_state` (DeepSeek / GLM) |
+| Phase (UTC, 2026-09-30) | Requests | What the gateway saw | `finsight_llm_circuit_state` (DeepSeek / GLM) |
 |---|---|---|---|
-| 1 baseline 13:43 | 1 agent answer, 44.2 s, verified | 4 DeepSeek calls, 200 | 0 / 0 |
-| 2 primary failing 13:44–13:48 | 3 agent requests: 80.8 s and 47.5 s (verified, answered by GLM, 3 and 5 calls); the third hit the API's 120 s timeout (504) while a GLM call took 62.8 s | DeepSeek 404 three times (0.25–1.0 s each), then the breaker opened and calls went straight to GLM (13 calls, 200). After each 60 s cool-down one half-open trial reached DeepSeek, got 404 and re-opened the breaker (3 trials) | 2 (open) / 0 |
-| 3 fault healed, cool-down over 13:49 | none | none | 1 (half-open) / 0 |
-| 4 recovered 13:49 | 1 agent answer, 21.0 s, verified | 3 DeepSeek calls, 200: the trial succeeded and closed the breaker | 0 / 0 |
+| 1 baseline 16:49 | 1 agent answer, 13.5 s, verified | 2 DeepSeek calls, 200 | 0 / 0 |
+| 2 primary failing 16:49–16:54 | 3 agent requests, each ended by the run deadline: 90.0 s and 90.0 s (a GLM call timed out, so the deterministic answer was served, verified), 96.8 s (answered by GLM in 5 calls; its draft failed verification and the template answer replaced it) | DeepSeek 404 five times (0.24–0.31 s each: the first failures and the half-open trials after each cool-down), GLM 15 calls, 200, 8.8–48.7 s | 2 (open) / 0 |
+| 3 fault healed, cool-down over 16:54 | none | none | 1 (half-open) / 0 |
+| 4 recovered 16:54 | 1 agent answer, 10.7 s, verified | 2 DeepSeek calls, 200: the trial succeeded and closed the breaker | 0 / 0 |
 
-In the traces (`trace_llm_calls` per request), the LLM spans of phase 2 carry
-`gen_ai.request.model = z-ai/glm-5.3-flash`, and those of phases 1 and 4 `deepseek/deepseek-v4.1-flash`.
-Latency cost of the failover: a failed primary call costs 0.25–1.0 s (404 is not retried), and an open
-breaker costs nothing. The real cost is the fallback model: GLM calls took 2.5–62.8 s against
-2.5–9.0 s for DeepSeek, so answers took 48–81 s instead of 21–44 s, and one request exceeded
-`QI_AGENT_REQUEST_TIMEOUT_S`. Since `d1c007c` every LLM request is bounded by the run deadline (tool loop 90 s, answer-producing calls 20 s more; see [agent.md](agent.md#configuration)), so a slow fallback model now ends in the deterministic answer instead of a 504; the drill has not been rerun with it.
+Every request was HTTP 200; the gateway saw only `cline-pass/deepseek-v4.1-flash` and `cline-pass/glm-5.3-flash` (24
+calls). The server traces (`docs/results/chaos/llm/traces/`) carry the model per LLM span: `z-ai/glm-5.3-flash` in
+phase 2, `deepseek/deepseek-v4.1-flash` in phases 1 and 4 (the names the gateway reports back). The drill's own
+`trace_llm_calls` field is empty since keyless callers may not read traces (C3). Compared with the 2026-09-26 run,
+before the run deadline: then one request hit the API's 120 s timeout (504) and the others took 48–81 s; now a slow
+fallback ends at the deadline (about 90 s) with the verified deterministic answer. The cost of the failover is the
+fallback model's latency (GLM 8.8–48.7 s per call against 3.6–7.2 s for DeepSeek); a failed primary call costs
+0.3 s and an open breaker nothing.
 
 ### Data sources: Sina, Tencent and Eastmoney blocked
 
