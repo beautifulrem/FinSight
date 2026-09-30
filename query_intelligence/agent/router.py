@@ -30,10 +30,23 @@ _MULTI_HOP_MARKERS = re.compile(
     r"\bbenefit|\b(?:good|bad) (?:news )?for\b",
     re.IGNORECASE,
 )
+# A fair value asked for: "合理估值应该是多少钱一股", "值多少钱一股", "估值多少合适", "What is Moutai worth?",
+# "fair value", "intrinsic value". FinSight has prices and multiples, not a valuation model, so any single number would
+# be an opinion presented as a fact. Market value (市值) and net asset value (净值) are facts, not verdicts:
+# "市值多少钱" and "净值多少钱" do not match, and neither does a plain price question ("多少钱一股").
+FAIR_VALUE_MARKERS = re.compile(
+    r"合理(?:的)?(?:估值|价值|价位|价格|股价|市值|定价)|内在价值|公允价值(?!变动)|真实价值|"
+    r"(?<![市净])值多少钱|(?<![市净])值几个钱|(?<![市净])值多少(?=一股|每股)|"
+    r"估值(?:应该|应当|该)?(?:是|在)?多少(?:才|比较|算)?(?:合适|合理|对|靠谱)|估值应(?:该|当)?(?:是|在)?多少|"
+    r"\bfair (?:value|price|valuation)\b|\bintrinsic value\b|\btrue value\b|\breasonable (?:valuation|price)\b|"
+    r"\bwhat(?:'s| is| are)\b.{0,40}\bworth\b(?! buying)|\bhow much is\b.{0,40}\bworth\b|\bworth per share\b",
+    re.IGNORECASE,
+)
 # Judgment and timing questions need valuation, fundamentals and news plus hedging: never a single lookup.
 # Classes: buy/sell/hold advice, timing, direction forecasts ("会不会继续跌"), valuation verdicts ("贵不贵", "cheap"),
-# opportunity / outlook ("还有机会吗", "outlook") and entry points.
+# a fair value ("合理估值是多少", FAIR_VALUE_MARKERS), opportunity / outlook ("还有机会吗", "outlook") and entry points.
 _JUDGMENT_MARKERS = re.compile(
+    FAIR_VALUE_MARKERS.pattern + "|"
     r"抄底|能不能买|能买吗|值得买|值不值得|要不要|该不该|会涨|会跌|能涨|还能涨|涨吗|跌吗|见底|高估|低估|买点|卖点|"
     r"止盈|止损|逃顶|上车|还能拿|拿得住|适合定投|适合买|值得持有|长期持有|"
     r"适合(?:现在|当前|目前|长期|短期|中长期)?(?:定投|买入?|入场|建仓|持有|上车|配置|介入|抄底|加仓)|"
