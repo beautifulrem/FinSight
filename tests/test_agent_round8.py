@@ -388,3 +388,28 @@ def test_a_percent_share_is_derived_only_from_two_amounts():
     multiples = claim_values("PE 24.6 倍，PB 8.1 倍，ROE 32.93%")
     assert not [value for value, scales, _rounding, _sign in multiples if _is_amount(scales)]
     assert not _is_derived(32.93, 0.005, [24.6, 8.1], shares=[])
+
+
+def test_a_fund_without_a_daily_change_gets_one_computed_from_its_last_two_closes():
+    # Round 9: 510300 has no pct_change_1d offline; the change from the previous close is stated, labelled computed,
+    # with both closes in the sentence so the verifier accepts the derived percent.
+    from query_intelligence.agent.composer import compose_template
+    from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
+    from query_intelligence.agent.verifier import verify_answer
+
+    closes = [{"date": "2026-04-21", "close": 4.776}, {"date": "2026-04-22", "close": 4.811}]
+    data = {"symbol": "510300.SH", "name": "沪深300ETF", "close": 4.811, "as_of": "2026-04-22", "pct_change_1d": None,
+            "evidence_id": "price_510300.SH", "product_type": "etf", "recent_closes": closes}  # fmt: skip
+    log = [{"tool": "get_price_history", "ok": True, "data": data, "evidence_ids": ["price_510300.SH"]}]
+    zh = compose_template(log, zh=True, query="沪深300ETF最近一天涨了多少")
+    assert "按前一交易日收盘 4.776 元 计算的当日涨跌幅约 0.73%（数据源未提供涨跌幅）" in zh["answer"]
+    en = compose_template(log, zh=False, query="How much did the CSI 300 ETF move on the last day?")
+    assert "a daily change of about 0.73% computed from the previous close of CNY 4.776" in en["answer"]
+    store = EvidenceStore()
+    store.add(AgentEvidence(evidence_id="price_510300.SH", kind="structured", source_type="market_api",
+                            title="t", payload=data))  # fmt: skip
+    assert verify_answer(zh, store, query="沪深300ETF最近一天涨了多少", allow_derived=True).passed
+    # a reported change is used as is; closes that do not end at the quoted day are not used
+    assert "计算" not in compose_template([{**log[0], "data": {**data, "pct_change_1d": 0.73}}], zh=True)["answer"]
+    stale = {**data, "recent_closes": [closes[0], {"date": "2026-04-20", "close": 4.765}]}
+    assert "计算" not in compose_template([{**log[0], "data": stale}], zh=True)["answer"]
