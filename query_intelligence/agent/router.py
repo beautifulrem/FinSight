@@ -34,11 +34,27 @@ _MULTI_HOP_MARKERS = re.compile(
 # "fair value", "intrinsic value". FinSight has prices and multiples, not a valuation model, so any single number would
 # be an opinion presented as a fact. Market value (市值) and net asset value (净值) are facts, not verdicts:
 # "市值多少钱" and "净值多少钱" do not match, and neither does a plain price question ("多少钱一股").
+# (round 9, E6) The per-share order ("每股值多少"), a valuation model named with a value asked for ("按DCF算…值多少",
+# "用现金流折现估一下"), the value a valuation should be *given* ("估值应该给到…", "给到每股多少元") and a verdict word
+# on the number ("多少元比较公道 / 公允") are fair-value questions too; a question about the model itself ("DCF是什么")
+# is not.
+_FAIR_WORDS = r"(?:公道|公允|合理|合适|靠谱)"
 FAIR_VALUE_MARKERS = re.compile(
     r"合理(?:的)?(?:估值|价值|价位|价格|股价|市值|定价)|内在价值|公允价值(?!变动)|真实价值|"
+    r"公道(?:的)?(?:估值|价值|价位|价格|股价|定价|价)|公允(?:的)?(?:估值|价位|价格|股价|定价)|"
     r"(?<![市净])值多少钱|(?<![市净])值几个钱|(?<![市净])值多少(?=一股|每股)|"
-    r"估值[^，。？?,.!！]{0,4}?多少(?:倍)?(?:才|比较|算)?(?:合适|合理|对|靠谱)|估值应(?:该|当)?(?:是|在|给|定)?(?:个)?多少|"
+    r"(?:每股|一股)(?:到底|究竟|大概|大约|应该|应当|能|可以|实际)?值(?:多少|几)|"
+    r"估值[^，。？?,.!！]{0,4}?多少(?:倍)?(?:才|比较|算)?" + _FAIR_WORDS + r"|"
+    r"估值应(?:该|当)?(?:是|在|给|定)?(?:个)?多少|"
+    r"估值(?:应该|应当|应|该|能|可以|要|大概)?给(?:到|出|个)|"
+    r"(?:给到?|定在?|值|估)(?:每股|一股)?[^，。？?,.!！]{0,4}?多少(?:元|钱|块|倍)?[^，。？?,.!！]{0,4}?"
+    + _FAIR_WORDS
+    + r"|"
+    r"(?:(?<![A-Za-z])DCF(?![A-Za-z])|现金流折现|贴现现金流|折现现金流|绝对估值法?|估值模型)[^。？?！!]{0,12}?"
+    r"(?:值(?:多少|几)|价值(?:是|为|在|有)?(?:多少|几)|估(?:一下|算一下|算)[^。？?！!]{0,8}?(?:值|价|多少)|"
+    r"股价(?:是|为|在|该|应)|每股|一股|多少钱)|"
     r"\bfair (?:value|price|valuation)\b|\bintrinsic value\b|\btrue value\b|\breasonable (?:valuation|price)\b|"
+    r"\b(?:DCF|discounted cash flow)\b.{0,40}\b(?:worth|value|price)\b|"
     r"\bwhat(?:'s| is| are)\b.{0,40}\bworth\b(?! buying)|\bhow much is\b.{0,40}\bworth\b|\bworth per share\b",
     re.IGNORECASE,
 )

@@ -17,10 +17,21 @@ from typing import Any
 
 # --------------------------------------------------------------------------- out of coverage
 
+# Crypto assets by name, ticker or shape. (round 9, E7) Tokens are also named by their ticker next to a fund word
+# ("BTC ETF", "ETH现货ETF"), by their project name ("Solana ETF", "币安币"), or as "<X>币" + a fund word ("某某币ETF");
+# 人民币 / 港币 / 美元 and money-market funds (货币ETF, 货币基金) are not crypto.
+_CRYPTO_TICKERS = r"BTC|ETH|USDT|USDC|DOGE|XRP|SOL|BNB|ADA|DOT|TRX|LTC|SHIB|AVAX|TON|LINK"
+_NOT_CRYPTO_BI = "".join(
+    f"(?<!{prefix})" for prefix in ("人民", "港", "美", "日", "外", "货", "硬", "纸", "钱", "欧", "英")
+)
 _CRYPTO = re.compile(
-    r"比特币|以太坊|狗狗币|莱特币|瑞波币|泰达币|加密货币|加密资产|数字货币|虚拟货币|币圈|山寨币|稳定币|"
-    r"(?<![A-Za-z])(?:BTC|ETH|USDT|DOGE|XRP|SOL)(?![A-Za-z])|\bbitcoin\b|\bethereum\b|\bcrypto(?:currenc(?:y|ies))?\b|"
-    r"\bdogecoin\b|\bstablecoins?\b",
+    r"比特币|以太坊|以太币|以太(?=\s*(?:ETF|ETP|现货|期货|基金))|狗狗币|莱特币|瑞波币?|泰达币|币安币?|柴犬币|波场币?|"
+    r"艾达币|波卡币|索拉纳|加密货币|加密资产|数字货币|虚拟货币|币圈|山寨币|稳定币|"
+    rf"(?<![A-Za-z])(?:{_CRYPTO_TICKERS})(?=\s*(?:ETF|ETP|现货|期货|基金|\bfunds?\b|\btrusts?\b))|"
+    r"(?<![A-Za-z])(?:BTC|ETH|USDT|USDC|DOGE|XRP|SOL|BNB|SHIB)(?![A-Za-z])|"
+    rf"{_NOT_CRYPTO_BI}币\s*(?=ETF|ETP|现货|期货|基金)|"
+    r"\bbitcoin\b|\bethereum\b|\bether\b|\bsolana\b|\bcardano\b|\bpolkadot\b|\bbinance\b|\bripple\b|\btether\b|"
+    r"\bcrypto(?:currenc(?:y|ies))?\b|\b(?:doge|lite|stable)coins?\b|\bstablecoins?\b|\btokens?\s+(?:etf|fund)s?\b",
     re.IGNORECASE,
 )
 # US / Hong Kong listed names and markets. Concept-sector phrasing ("苹果概念股", "特斯拉产业链") is an
@@ -172,16 +183,38 @@ METRICS: tuple[Metric, ...] = (
         "gross_margin",
         "毛利率",
         "gross margin",
-        r"毛利率|gross margin",
+        r"毛利率|毛利润率|gross margin",
         ("gross_margin", "grossprofit_margin"),
     ),
+    # (round 9, E8) net profit as a share of revenue, however it is phrased: "净利润占营收的比重", "(销售)利润率",
+    # "每卖100元能落下几块净利润", "profit as a percentage of sales"; not the gross margin ("毛利润率").
     _metric(
         "net_margin",
         "净利率",
         "net margin",
-        r"净利率|净利润率|销售净利率|net (?:profit )?margin",
+        r"净利率|净利润率|销售净利率|(?<![毛])利润率|"
+        r"(?:净利润|净利|净赚|利润)[^，。？?,.!！]{0,4}?(?:占|在)[^，。？?,.!！]{0,4}?(?:营收|营业收入|收入|销售额)"
+        r"[^，。？?,.!！]{0,6}?(?:比例|比重|百分比|占比|几成|多少|多大)|"
+        r"(?:营收|营业收入|收入|销售额)[^，。？?,.!！]{0,6}?(?:中|里)[^，。？?,.!！]{0,6}?(?:净利润|净利|净赚|利润)|"
+        r"每(?:赚|卖|收|收入|实现)?[^，。？?,.!！]{0,3}?\d+\s*(?:块|元)(?:钱)?(?:的)?(?:营收|收入|销售额)?"
+        r"[^，。？?,.!！]{0,10}?(?:净利润|净利|净赚|利润|落袋)|"
+        r"net (?:profit )?margin|profit margin|(?:net )?(?:profit|income|earnings) as a (?:share|percentage|"
+        r"proportion|percent) of (?:revenue|sales)",
         ("net_margin", "netprofit_margin"),
         (("revenue",), ("net_profit",)),
+    ),
+    # P/S needs the market cap, which no configured source has: stated as not computable, never replaced by P/E.
+    _metric(
+        "ps",
+        "市销率",
+        "P/S",
+        r"市销率|(?<![A-Za-z])P/?S(?![A-Za-z])|price[- ]to[- ]sales",
+        ("ps_ttm", "ps"),
+        (),
+        (
+            "市销率等于总市值除以营业收入，当前数据没有总市值或市销率",
+            "P/S is the market cap divided by revenue, and the data has neither the market cap nor a P/S figure",
+        ),
     ),
     # PEG = P/E ÷ profit growth (percent): derivable only when a source reports the growth rate.
     _metric(
@@ -493,6 +526,39 @@ def year_to_date_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -
             if zh
             else f"The data has no close for {name} on the first trading day of this year, so the year-to-date "
             "change cannot be computed; only the latest session is listed below."
+        )
+    return list(dict.fromkeys(sentences))
+
+
+# (round 9, E8) A maximum drawdown over a period ("近一年最大回撤", "max drawdown this year") needs the whole period's
+# closes; the price tool returns the latest few. Stated as not computable instead of answering with the daily move.
+_DRAWDOWN = re.compile(r"最大回撤|回撤幅度|最大跌幅|\bmax(?:imum)?\.? drawdown\b|\bdrawdown\b", re.IGNORECASE)
+
+
+def asks_drawdown(query: str) -> bool:
+    return bool(_DRAWDOWN.search(query or ""))
+
+
+def drawdown_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> list[str]:
+    """A drawdown question: the price data holds only the latest closes, so the drawdown is stated as unavailable."""
+    if not asks_drawdown(query):
+        return []
+    sentences = []
+    for entry in tool_log:
+        if entry.get("tool") != "get_price_history" or not entry.get("ok"):
+            continue
+        data = entry.get("data") or {}
+        if data.get("close") is None:
+            continue
+        name = str(data.get("name") or data.get("symbol") or "")
+        closes = len(data.get("recent_closes") or [])
+        held_zh = f"最近 {closes} 个交易日的收盘价" if closes >= 2 else "最新一个交易日的收盘价"
+        held_en = f"the latest {closes} closes" if closes >= 2 else "the latest close"
+        sentences.append(
+            f"当前数据只有{name}{held_zh}，无法计算所问期间的最大回撤；以下只列出最新行情。"
+            if zh
+            else f"The data holds only {held_en} for {name}, so the maximum drawdown over the requested period "
+            "cannot be computed; only the latest session is listed below."
         )
     return list(dict.fromkeys(sentences))
 

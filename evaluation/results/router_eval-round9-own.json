@@ -1,0 +1,61 @@
+{
+ "config": {
+  "labels": "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+  "model": null,
+  "commit": "d78a556",
+  "run_at": "2026-09-30T15:54:44+00:00",
+  "command": "python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round9-own.json",
+  "note": "Author's own router labels after round 9 at d78a556: 344 queries (round-9 labels route_332-343 added; route_343 corrected from workflow to agent at 9f12e78, the only miss at 8814b3b)."
+ },
+ "queries": 344,
+ "accuracy": 1.0,
+ "per_route": {
+  "refuse": {
+   "support": 50,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "clarify": {
+   "support": 78,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "workflow": {
+   "support": 95,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "agent": {
+   "support": 121,
+   "precision": 1.0,
+   "recall": 1.0
+  }
+ },
+ "confusion": {
+  "refuse": {
+   "refuse": 50,
+   "clarify": 0,
+   "workflow": 0,
+   "agent": 0
+  },
+  "clarify": {
+   "refuse": 0,
+   "clarify": 78,
+   "workflow": 0,
+   "agent": 0
+  },
+  "workflow": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 95,
+   "agent": 0
+  },
+  "agent": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 0,
+   "agent": 121
+  }
+ },
+ "errors": []
+}

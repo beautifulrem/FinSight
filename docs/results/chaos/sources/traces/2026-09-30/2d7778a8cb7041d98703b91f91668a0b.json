@@ -1,6 +1,6 @@
 {
-  "trace_id": "d1906827e49e4737ba69c874b165f3ee",
-  "session_id": "chaos-src-1_live-0",
+  "trace_id": "2d7778a8cb7041d98703b91f91668a0b",
+  "session_id": "chaos-src-2_blocked_within_ttl-0",
   "turn_index": 0,
   "query": "贵州茅台最新收盘价是多少？",
   "route": "workflow",
@@ -8,38 +8,38 @@
     "mode:workflow"
   ],
   "answer_source": "template",
-  "started_at": 1790430655.018,
-  "duration_ms": 4165.43,
+  "started_at": 1790785541.026,
+  "duration_ms": 194.88,
   "nodes": [
     {
       "node": "guard_in",
-      "started_at": 1790430655.018,
-      "duration_ms": 258.84
+      "started_at": 1790785541.026,
+      "duration_ms": 172.09
     },
     {
       "node": "execute_plan",
-      "started_at": 1790430655.279,
-      "duration_ms": 3890.99
+      "started_at": 1790785541.2,
+      "duration_ms": 3.49
     },
     {
       "node": "compose",
-      "started_at": 1790430659.171,
-      "duration_ms": 4.29
+      "started_at": 1790785541.205,
+      "duration_ms": 0.72
     },
     {
       "node": "verify",
-      "started_at": 1790430659.177,
-      "duration_ms": 1.44
+      "started_at": 1790785541.206,
+      "duration_ms": 1.37
     },
     {
       "node": "compliance",
-      "started_at": 1790430659.179,
-      "duration_ms": 2.17
+      "started_at": 1790785541.208,
+      "duration_ms": 7.85
     },
     {
       "node": "finalize",
-      "started_at": 1790430659.183,
-      "duration_ms": 0.43
+      "started_at": 1790785541.218,
+      "duration_ms": 2.88
     }
   ],
   "tools": [
@@ -51,10 +51,10 @@
       },
       "ok": true,
       "error": null,
-      "latency_ms": 3885.94,
-      "started_at": 1790430655.284,
-      "attempts": 1,
-      "cached": false,
+      "latency_ms": 0.09,
+      "started_at": 1790785541.201,
+      "attempts": 0,
+      "cached": true,
       "source": "planner",
       "step": 0
     }
@@ -78,7 +78,9 @@
   "compliance_notes": [
     "market_freshness"
   ],
+  "refusal_category": null,
+  "prompt_version": "none",
   "degraded": [],
   "evidence_count": 1,
-  "owner": "local"
+  "owner": "anon:b74c2662637b"
 }

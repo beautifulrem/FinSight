@@ -78,12 +78,21 @@ PERF_PAIRS = (
     ("perf-merged-prefetch-deepseek", "perf-merged-defaults-deepseek"),
     ("perf-merged-prefetch-deepseek", "perf-merged-citerepair-stall-deepseek"),
 )
-STRESS_RUNS = ("verifier_stress", "verifier_stress-perf-8a85ae5")
+STRESS_RUNS = ("verifier_stress", "verifier_stress-round9", "verifier_stress-perf-8a85ae5")
 REDTEAM_RUNS = (
+    ("redteam-r9-holdout7-llm", "Prompt-injection red team, LLM paths on holdout7 after round 9 (3d7afd5)"),
+    (
+        "redteam-offline-r9",
+        "Prompt-injection red team, offline template path after round 9 (all eight sets, CI baseline)",
+    ),
+    (
+        "redteam-holdout7-prefix",
+        "Prompt-injection red team, round-5 reviewer's attacks (holdout7), template path, before the round-9 fix",
+    ),
     ("redteam-r8-llm", "Prompt-injection red team, LLM paths after round 8 (0473968)"),
     (
         "redteam-offline-r8",
-        "Prompt-injection red team, offline template path after round 8 (all seven sets, CI baseline)",
+        "Prompt-injection red team, offline template path after round 8 (all seven sets)",
     ),
     (
         "redteam-holdout6-prefix",
@@ -106,6 +115,8 @@ ROUTER_RUNS = (
     "router_eval-independent_v1-first-run",
     "router_eval-round4-independent-after-exposure",
     "router_eval-independent_v2-first-run",
+    "router_eval-round9-own",
+    "router_eval-independent_v2-round9",
 )
 CLAIM_BENCH_RUNS = (
     "claim_bench-dev-baseline",
@@ -121,6 +132,8 @@ CLAIM_BENCH_RUNS = (
 )
 # Round-4 held-out slices (evaluation/heldout_r4/, independent author): first run, then after exposure.
 HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_heldout-after-exposure")
+# Round-5 held-out chat slice (evaluation/heldout_r5/, independent author): first run, then after exposure (round 9).
+HELDOUT_R5_RUNS = ("chat_heldout_r5-auto-nollm-first-run", "chat_heldout_r5-auto-nollm-after-exposure")
 # Other committed evidence the READMEs cite, summarised as one row each.
 EXTRA_EVIDENCE = (
     "redteam-r7-targeted",
@@ -155,7 +168,11 @@ FILE_STATUS = {
     "router_eval-round4-own": "author's own labels (tuned against)",
     "router_eval-independent_v1-first-run": "**first run** of an independent set",
     "router_eval-round4-independent-after-exposure": "**after exposure** (fixes were generalised from its misses)",
-    "router_eval-independent_v2-first-run": "**first and only run** of a fresh independent set",
+    "router_eval-independent_v2-first-run": "**first run** of a fresh independent set",
+    "router_eval-round9-own": "author's own labels (tuned against)",
+    "router_eval-independent_v2-round9": "**after exposure** (HEAD after round 9; first run 0.8008)",
+    "chat_heldout_r5-auto-nollm-first-run": "**first run** of the independent round-5 held-out chat slice",
+    "chat_heldout_r5-auto-nollm-after-exposure": "**after exposure** (round 9 fixed the classes its first run showed)",
     "claim_bench-dev-baseline": "development claims, before tuning",
     "claim_bench-dev": "development claims, after tuning (tuned on)",
     "claim_bench-holdout": "**held-out claims, run once** (hashed file; later fixes are not re-scored here)",
@@ -1200,6 +1217,18 @@ def render_with_sources() -> tuple[str, list[str]]:
             "",
         ]
         for name, result in heldout_r4:
+            body += [f"#### `{name}.json`", "", *run_section(result, name, full=name.endswith("first-run"))]
+    heldout_r5 = [(name, take(name)) for name in HELDOUT_R5_RUNS]
+    heldout_r5 = [(name, result) for name, result in heldout_r5 if result]
+    if heldout_r5:
+        body += [
+            "### Round-5 held-out chat slice (independent author): first run, then after exposure",
+            "",
+            "38 tasks / 41 turns written before the round-8 fixes were run on it (`evaluation/heldout_r5/README.md`); "
+            "its claims are in the claim-check table below.",
+            "",
+        ]
+        for name, result in heldout_r5:
             body += [f"#### `{name}.json`", "", *run_section(result, name, full=name.endswith("first-run"))]
     pure = [
         (name, result)

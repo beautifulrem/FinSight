@@ -436,6 +436,79 @@ def resolve_ellipsis(
     return None
 
 
+# (round 9, E5) A demonstrative reference to the discussed target's industry: "这个行业的平均PE呢", "该板块整体估值",
+# "它所在的行业", "the sector's average P/B", "What about the industry?". Not "它属于哪个行业" (asks for the industry).
+_INDUSTRY_REFERENCE = re.compile(
+    r"(?:这个|这一|那个|这|那|该|此|其|本|同)(?:个)?(?:所在|所属)?(?:的)?(?:行业|板块|赛道)|"
+    r"(?:它|他|它们|他们)(?:的)?(?:所在|所属)(?:的)?(?:行业|板块)|(?:它|他)的(?:行业|板块)|"
+    r"^\s*(?:那|那么)?(?:行业|板块)(?=的|平均|整体|均值|估值|市盈率|市净率|PE|PB|呢)|"
+    r"\b(?:this|that|the same|its|their|the)\s+(?:sector|industry)(?:'s)?\b|"
+    r"^\s*(?:and\s+)?(?:sector|industry)\s+average\b",
+    re.IGNORECASE,
+)
+
+
+def resolve_industry_reference(query: str, turns: list[dict[str, Any]], industry_of: Any) -> tuple[str, str] | None:
+    """ "这个行业的平均PE呢" after a 中国平安 turn → "保险行业的平均PE呢": ``(rewritten, reason)``.
+
+    ``industry_of(symbol)`` returns the target's industry name (entity master). The reference resolves to the industry
+    of the single target of the most recent turn that named one; two targets of different industries are ambiguous
+    and return ``None`` (the router asks), and so does a target without a known industry."""
+    text = strip_filler(query)
+    match = _INDUSTRY_REFERENCE.search(text)
+    if not turns or match is None:
+        return None
+    targets = _last_targets(turns)
+    industries = {industry_of(str(entity["symbol"])) for entity in targets}
+    industries.discard(None)
+    industries.discard("")
+    if len(industries) != 1:
+        return None
+    industry = str(next(iter(industries)))
+    zh = bool(re.search(r"[一-鿿]", text))
+    replacement = f"{industry}行业" if zh else f"the {industry} industry"
+    if not zh and match.group(0).lower().rstrip().endswith("'s"):
+        replacement += "'s"
+    rewritten = f"{text[: match.start()]}{replacement}{text[match.end() :]}"
+    return rewritten, f"industry_reference:{match.group(0).strip()}->{industry}"
+
+
+# (round 9, E5) "差了多少个百分点", "相差多少", "两者差距多大", "How big is the gap?" right after a comparison: the same
+# comparison, now asking for the difference (the template derives it from the two cited values).
+_DIFFERENCE_FOLLOW_UP = re.compile(
+    r"^(?:那|那么|所以)?(?:两者|两个|二者|它们|他们|两家|两只|这两个?)?(?:之间)?(?:的)?"
+    r"(?:差了|相差|差距|差额|差值|差|高了|低了|多了|少了|高出|低出|高|低|多|少)(?:了)?(?:有|是|大概)?(?:多少|几|多大)"
+    r"(?:个)?(?:百分点|点|倍|亿元?|万元?|元|块)?(?:呢|啊|吗|吧|呀)?[？?。.!！]*$|"
+    r"^(?:and |so )?(?:what(?:'s| is) the (?:gap|difference|spread)|how (?:big|large|wide) is the (?:gap|difference)|"
+    r"by how much|how much (?:higher|lower|more|less|bigger|smaller|of a (?:gap|difference)))\b[^.?!]{0,30}[?.!]*$",
+    re.IGNORECASE,
+)
+
+
+def is_difference_follow_up(query: str) -> bool:
+    return bool(_DIFFERENCE_FOLLOW_UP.search(strip_filler(query).strip()))
+
+
+def resolve_difference_follow_up(query: str, turns: list[dict[str, Any]]) -> tuple[str, str] | None:
+    """A bare "差了多少" after a turn that compared two targets (or a target with its industry) joins that turn's
+    question: "茅台和五粮液昨天谁跌得多" + "差了多少个百分点" → "贵州茅台和五粮液昨天谁跌得多，差了多少个百分点"."""
+    text = strip_filler(query).strip()
+    if not turns or not is_difference_follow_up(text):
+        return None
+    for turn in reversed(turns[-MAX_CONTEXT_TURNS:]):
+        listed = [entity for entity in turn.get("entities") or [] if entity.get("symbol")]
+        if not listed:
+            continue
+        previous = _effective(turn).strip().rstrip("？?。.!！ ")
+        if len(listed) < 2 and not re.search(r"行业|板块|sector|industry", previous, re.IGNORECASE):
+            return None
+        zh = bool(re.search(r"[一-鿿]", text))
+        rewritten = f"{previous}，{text}" if zh else f"{previous}? {text}"
+        names = _join([str(entity.get("name") or entity["symbol"]) for entity in listed], zh)
+        return rewritten, f"difference_follow_up:{names}"
+    return None
+
+
 # "跟沪深300ETF比…", "Is that bigger than Moutai's?": a comparison that names only the new side.
 _COMPARE_ZH = re.compile(
     r"(?:跟|与|和|同)\S{1,16}?(?:比|相比|对比)|比\S{1,12}?(?:高|低|大|小|多|少|贵|便宜|强|弱|好)|相比|对比|"
