@@ -5,6 +5,8 @@ probe; ``tests/test_agent_eval.py`` checks the dev tasks and router labels for t
   off right after a figure word is hidden like a headline with an unconfirmed Arabic figure.
 * F4: a gap asked two turns after its metric keeps the metric; "谁更低" joins the comparison it follows; "两个比…"
   keeps both single-target turns; a bare gap question in a finance session is never refused as off-topic.
+* F5: fair value asked as an estimate ("估个价"), a "worth" with a qualifier ("到底值多少") or a price level with a
+  verdict word ("什么价位比较合理") is hedged.
 * F10: a comparison that names a metric says which value is higher.
 * F14: an injected message whose remainder asks for a market prediction without a target is refused, not clarified.
 """
@@ -195,3 +197,52 @@ def test_injection_plus_a_prediction_without_a_target_is_refused(agent, query):
     assert result["route"] == "refuse"
     assert "input_guard:prediction_without_target" in result["route_reasons"]
     assert "预测" in result["answer"] or "predict" in result["answer"]
+
+
+# ---- F5: fair value asked as an estimate, a "worth" with a qualifier, or a price level with a verdict word ----
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "帮我给中国平安估个价",
+        "估一下茅台的价值",
+        "给五粮液定个价吧",
+        "茅台这家公司到底值多少",
+        "五粮液应该值几个钱",
+        "五粮液身价几何",
+        "平安现在什么价位比较合理",
+        "Can you put a price on Wuliangye?",
+        "How much should Moutai shares trade at?",
+    ],
+)
+def test_fair_value_estimates_worth_and_price_levels_are_judgments(query):
+    from query_intelligence.agent.router import FAIR_VALUE_MARKERS, decide_route
+
+    assert FAIR_VALUE_MARKERS.search(query)
+    nlu = {"entities": [{"symbol": "000858.SZ", "entity_type": "stock"}], "question_style": "fact"}
+    assert "lexical:judgment_or_timing" in decide_route(nlu, query=query).reasons
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "评估一下五粮液的风险",
+        "估值方法有哪些",
+        "估算一下营收增速",
+        "估一下茅台的成交量",
+        "五粮液的PE值多少",
+        "茅台什么价格",
+        "茅台市值多少钱",
+        "手续费多少比较合理",
+    ],
+)
+def test_assessments_multiples_and_plain_prices_are_not_fair_value_requests(query):
+    from query_intelligence.agent.router import FAIR_VALUE_MARKERS
+
+    assert not FAIR_VALUE_MARKERS.search(query)
+
+
+def test_an_estimate_request_gets_the_fair_value_hedge(agent):
+    result = agent.chat("帮我给中国平安估个价", session_id="r10-estimate")
+    assert "fair_value_hedge" in result["compliance_notes"]
