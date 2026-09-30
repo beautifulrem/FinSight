@@ -89,6 +89,15 @@ _FORECAST_MARKERS = re.compile(
     r"\bnext (?:week|month|quarter|year)\b|\bforecast|\bgoing forward\b|\bin the coming\b",
     re.IGNORECASE,
 )
+_MOVE_WORDS = re.compile(r"涨|跌|反弹|回调|走势|行情|\b(?:rise|fall|rally|drop|surge|jump)\b", re.IGNORECASE)
+
+
+def asks_prediction(query: str) -> bool:
+    """(round 10, F14) The question asks for a market prediction or a pick: a future direction ("明天…会涨停",
+    "下周会反弹吗") or a judgment/timing marker (``_JUDGMENT_MARKERS``)."""
+    return bool((_FORECAST_MARKERS.search(query) and _MOVE_WORDS.search(query)) or _JUDGMENT_MARKERS.search(query))
+
+
 # Requests for an analysis or an opinion of a named target: one lookup cannot answer them ("从估值、业绩和舆情三个方面
 # 分析", "技术面怎么看", "Walk me through…", "main risks for…"). "分析师" (an analyst) is not a request.
 _ANALYSIS_MARKERS = re.compile(

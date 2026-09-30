@@ -87,6 +87,7 @@ from .prompts import (
 from .router import (
     _JUDGMENT_MARKERS,
     apply_finance_overrides,
+    asks_prediction,
     correct_question_style,
     decide_route,
     drop_fuzzy_concepts,
@@ -381,6 +382,11 @@ class AgentRuntime:
             if not listed_entities(nlu) and not has_finance_content(query):
                 # Nothing financial is left once the injected instructions are removed.
                 decision = decision.model_copy(update={"route": "refuse"})
+            elif decision.route == "clarify" and asks_prediction(query):
+                # (round 10, F14) what is left asks for a market prediction and names no target ("…明天哪只会涨停"):
+                # asking "which stock?" would invite the very prediction the guard refuses, so the injection decides
+                decision = decision.model_copy(update={"route": "refuse"})
+                reasons.append("input_guard:prediction_without_target")
         elif (
             turns
             and decision.route == "refuse"
@@ -619,6 +625,15 @@ class AgentRuntime:
                 else "I can't follow instructions to change my setup or reveal internal configuration. Ask a financial "
                 'question directly, for example "What is BYD\'s P/E ratio?"'
             )
+            if "input_guard:prediction_without_target" in (state.get("route_reasons") or []):
+                # (round 10, F14) the remainder asked for a prediction: say that it is not given either
+                text = (
+                    "我不能按照这类指令改变设定，也不会预测哪只股票会上涨或涨停。如果有金融问题，请直接提问，"
+                    "例如「比亚迪的市盈率是多少？」。"
+                    if zh
+                    else "I can't follow instructions to change my setup, and I don't predict which stocks will rise. "
+                    'Ask a financial question directly, for example "What is BYD\'s P/E ratio?"'
+                )
             limitation = "prompt_injection_request"
         else:
             text = (
