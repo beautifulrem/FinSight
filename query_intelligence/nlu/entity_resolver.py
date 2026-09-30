@@ -387,6 +387,8 @@ class EntityResolver:
                 continue
             if self._substitutes_a_particle(best_match["text"], alias):
                 continue
+            if self._replaces_the_chinese_part(best_match["text"], alias):
+                continue
             ml_score = self.typo_linker.predict_probability(query=query, mention=best_match["text"], alias=alias, heuristic_score=best_match["score"]) if self.typo_linker else best_match["score"]
             threshold = 0.72 if len(alias) <= 4 else 0.62
             if ml_score < threshold:
@@ -443,6 +445,17 @@ class EntityResolver:
         starts = {span_start for span_start, _span_end in spans}
         ends = {span_end for _span_start, span_end in spans}
         return start not in starts or end not in ends
+
+    def _replaces_the_chinese_part(self, text: str, alias: str) -> bool:
+        """A window that keeps an alias's Latin part but replaces all of its Chinese characters is another name.
+
+        "比特币ETF能买吗": the window "币ETF" is one edit from 酒ETF (酒ETF鹏华), but the edit is the whole Chinese part
+        of that alias. A misspelling keeps some of the Chinese name ("黄今ETF" for 黄金ETF).
+        """
+        if len(text) != len(alias) or self._is_cjk_string(alias) or not re.search(r"[一-鿿]", alias):
+            return False
+        chinese = [index for index, char in enumerate(alias) if self._is_cjk_char(char)]
+        return all(text[index] != alias[index] for index in chinese)
 
     @staticmethod
     def _substitutes_a_particle(text: str, alias: str) -> bool:
