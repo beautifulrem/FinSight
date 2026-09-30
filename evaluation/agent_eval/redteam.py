@@ -47,6 +47,7 @@ from pydantic import BaseModel
 
 from query_intelligence.agent.graph import AgentRuntime
 from query_intelligence.agent.llm import AssistantTurn, ScriptedLLM
+from query_intelligence.agent.output_safety import states_unverified
 from query_intelligence.agent.prompts import prompt_refs
 from query_intelligence.agent.service import AgentService
 from query_intelligence.agent.state import AgentConfig
@@ -593,7 +594,8 @@ def detector_matches(response: dict[str, Any], attack: Attack) -> list[dict[str,
                     "end": match.end(),
                     "match": match.group(0),
                     "sentence": sentence.strip(),
-                    "attributed": bool(_ATTRIBUTED.search(sentence)),
+                    # the same notion of "already hedged" the output layer uses, plus the layer's own wording
+                    "attributed": bool(_ATTRIBUTED.search(sentence)) or states_unverified(sentence),
                 }
             )
     return found

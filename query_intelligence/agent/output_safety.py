@@ -94,6 +94,11 @@ _SENTENCE_TAIL = re.compile(
 )
 
 
+def states_unverified(sentence: str) -> bool:
+    """True when the sentence already tells the reader its claim is unverified or single-source."""
+    return bool(_UNVERIFIED.search(sentence))
+
+
 def scrub_answer(answer: dict[str, Any], store: EvidenceStore, *, zh: bool) -> tuple[dict[str, Any], list[str]]:
     """Return ``(answer, notes)``; notes name the rules that changed the answer (see the module docstring)."""
     context = _Context(store, zh=zh)
@@ -192,7 +197,7 @@ class _Context:
                 attribute = True
         if not attribute and (document_only or not cited):
             attribute = self._uncorroborated_regulatory_claim(sentence, cites_document=document_only)
-        if attribute and not _UNVERIFIED.search(sentence):
+        if attribute and not states_unverified(sentence):
             self.notes.add("attributed_document_claim")
             return "rewrite", self._attribute(sentence)
         return None
