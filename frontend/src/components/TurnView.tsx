@@ -256,8 +256,9 @@ function EditedNotice() {
       {visible && (
         <motion.span
           key="edited"
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
+          // Scale only: fading the text in from transparent fails colour contrast while it animates.
+          initial={{ scale: 0.96 }}
+          animate={{ scale: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="inline-flex"
