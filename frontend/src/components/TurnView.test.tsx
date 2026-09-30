@@ -231,4 +231,58 @@ describe("inline fact check, region names and English names (round 4)", () => {
     expect(document.querySelector(".claim-target-name")).toHaveTextContent("Wuliangye");
     expect(document.querySelector(".claim-claimed")).toHaveTextContent("Fall > 1%");
   });
+
+  // D9: "那它们的ROE呢" fetches only fundamentals and has no NLU entities; the tiles are named all the same.
+  function followUp(): Turn {
+    return withData({
+      id: "follow-up",
+      query: "那它们的ROE呢",
+      agent: {
+        status: "ok",
+        session_id: "s1",
+        nlu_summary: { entities: [] },
+        evidence_sources: [
+          {
+            evidence_id: "fundamental_600519.SH",
+            kind: "structured",
+            source_type: "fundamental_sql",
+            name_en: "Kweichow Moutai",
+            payload: { symbol: "600519.SH", name: "贵州茅台", roe: 33.2, metric_units: { roe: "%" } },
+          },
+          {
+            evidence_id: "fundamental_000858.SZ",
+            kind: "structured",
+            source_type: "fundamental_sql",
+            title: "五粮液 (000858.SZ) fundamentals",
+            name_en: "Wuliangye",
+            payload: { symbol: "000858.SZ", roe: 24.1, metric_units: { roe: "%" } },
+          },
+          {
+            evidence_id: "industry_白酒",
+            kind: "structured",
+            source_type: "industry_sql",
+            name_en: "baijiu (liquor)",
+            payload: { industry_name: "白酒", pe: 22.5 },
+          },
+        ],
+      },
+    });
+  }
+
+  it("names follow-up tiles by company, never by the bare symbol (D9)", () => {
+    renderTurns([followUp()]);
+    const tiles = [...document.querySelectorAll(".kpi-tile")].map((tile) => tile.textContent ?? "");
+    expect(tiles.some((text) => text.includes("贵州茅台 ·"))).toBe(true);
+    expect(tiles.some((text) => text.includes("五粮液 ·"))).toBe(true); // no name in the payload: from the title
+    expect(tiles.join(" ")).not.toMatch(/\d{6}\.(?:SH|SZ) ·/);
+  });
+
+  it("translates company and industry names in English follow-up tiles (D9)", () => {
+    renderTurns([followUp()], "en");
+    const tiles = [...document.querySelectorAll(".kpi-tile")].map((tile) => tile.textContent ?? "").join(" ");
+    expect(tiles).toContain("Kweichow Moutai ·");
+    expect(tiles).toContain("Wuliangye ·"); // no name in the payload: the source's name_en by symbol
+    expect(tiles).toContain("Baijiu (liquor) · Industry P/E");
+    expect(tiles).not.toMatch(/[\u4e00-\u9fff]/);
+  });
 });

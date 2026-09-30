@@ -15,6 +15,7 @@ _METADATA_KEYS = {
     "source_name",
     "provider",
     "canonical_name",
+    "name",
     "report_date",
     "industry_name",
     "valuation_date",
@@ -146,6 +147,9 @@ def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
             item = AgentEvidence.from_structured(fundamental, produced_by="get_fundamentals")
             item.title = f"{resolved.name} ({resolved.symbol}) fundamentals"
             item.payload = _tidy_payload(item.payload)
+            # The company's name travels with its numbers: a follow-up turn ("那它们的ROE呢") fetches only
+            # fundamentals, and the UI's tiles would otherwise be labelled by the bare symbol.
+            item.payload.setdefault("name", resolved.name)
             item.as_of = item.as_of or _as_str(payload.get("report_date")) or _provenance_as_of(payload)
             evidence.append(item)
             fundamental_evidence_id = item.evidence_id

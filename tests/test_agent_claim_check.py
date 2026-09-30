@@ -237,8 +237,13 @@ def test_each_number_is_bound_to_the_target_named_before_it():
         ("贵州茅台", "supported"),
         ("五粮液", "supported"),
     ]
-    # 24.6 is Moutai's P/E, not Wuliangye's
-    assert _check("五粮液市盈率24.6倍，比茅台低").verdict == "contradicted"
+    # 24.6 is Moutai's P/E, not Wuliangye's; the relation of the second clause is its own check (round 8, D2)
+    report = _check("五粮液市盈率24.6倍，比茅台低")
+    assert [(check.target, check.status) for check in report.checks] == [
+        ("五粮液", "contradicted"),
+        ("五粮液", "supported"),
+    ]
+    assert report.verdict == "partially_supported"
     # parallel clause inherits the metric; "分别" assigns targets in order
     assert _check("茅台市盈率24.6倍，五粮液15.2倍").verdict == "supported"
     assert _check("茅台和五粮液的市盈率分别为24.6倍和15.2倍").verdict == "supported"
@@ -448,3 +453,158 @@ def test_times_earnings_is_a_pe_claim(claim, comparator, status):
     (check,) = _check(claim).checks
 
     assert (check.metric, check.comparator, check.status) == ("pe_ttm", comparator, status)
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Round 8: every clause gets a check (D2), industry averages as subjects (D3), turnover and bounded ratios (D4),
+# and clauses with nothing to check listed as "not checked".
+# ---------------------------------------------------------------------------------------------------------
+_AMOUNTS = {"600519.SH": 3793827534.0, "000858.SZ": 1452833705.0}
+
+
+class _IndustryRegistry:
+    """The fake tools plus what the offline service also returns: the 白酒 industry snapshot with the
+    fundamentals, and the session's turnover (CNY) on the price rows."""
+
+    def __init__(self) -> None:
+        self.inner = build_fake_registry()
+
+    def run(self, name, arguments=None):
+        from query_intelligence.agent.evidence import AgentEvidence
+
+        result = self.inner.run(name, arguments)
+        if not result.ok:
+            return result
+        if name == "get_fundamentals":
+            industry = AgentEvidence(
+                evidence_id="industry_白酒",
+                kind="structured",
+                source_type="industry_sql",
+                as_of="2026-04-22",
+                payload={
+                    "industry_name": "白酒",
+                    "trade_date": "2026-04-22",
+                    "pe": 27.3,
+                    "pb": 6.2,
+                    "pct_change": -1.05,
+                },
+            )
+            return result.model_copy(update={"evidence": [*result.evidence, industry]})
+        if name == "get_price_history":
+            evidence = [
+                item.model_copy(update={"payload": {**item.payload, "amount": _AMOUNTS[item.payload["symbol"]]}})
+                for item in result.evidence
+            ]
+            return result.model_copy(update={"evidence": evidence})
+        return result
+
+
+def _check_all(claim: str, *, zh: bool = True):
+    return check_claim(claim, service=StubService(), registry=_IndustryRegistry(), zh=zh)
+
+
+def _rows(report):
+    return [(check.metric, check.comparator, check.status) for check in report.checks]
+
+
+def test_a_relation_is_checked_next_to_a_number_in_another_clause():
+    # D2: the relation used to be dropped whenever any clause of the sentence stated a number.
+    report = _check_all("茅台的市盈率比五粮液高，五粮液市盈率15.2倍")
+
+    assert _rows(report) == [("pe_ttm", "gt", "supported"), ("pe_ttm", "eq", "supported")]
+    assert report.checks[0].reference == "五粮液" and report.verdict == "supported"
+
+    # the relation's subject may be named in the number's clause: both parts are checked
+    report = _check_all("五粮液市盈率20倍，比茅台低")
+    assert _rows(report) == [("pe_ttm", "eq", "contradicted"), ("pe_ttm", "lt", "supported")]
+    assert report.verdict == "partially_supported"
+
+
+def test_a_relation_in_the_clause_of_a_number_is_read_as_that_number():
+    report = _check_all("茅台市盈率24.6倍比五粮液的15.2倍高")
+
+    assert [check.reference for check in report.checks] == [None, None]
+    assert [check.target for check in report.checks] == ["贵州茅台", "五粮液"]
+
+
+def test_an_industry_average_named_before_a_number_is_its_subject():
+    # D3: "而行业平均27.3倍" is the industry's value, not the company's.
+    report = _check_all("茅台市盈率24.6倍，而行业平均27.3倍")
+
+    first, industry = report.checks
+    assert (first.target, first.actual, first.status) == ("贵州茅台", 24.6, "supported")
+    assert (industry.target, industry.actual, industry.status) == ("白酒行业平均", 27.3, "supported")
+    assert industry.evidence_id == "industry_白酒" and industry.as_of_basis == "trade_date"
+    assert report.verdict == "supported"
+
+    english = _check_all("Moutai's P/E is 24.6x while the industry average is 27.3x", zh=False)
+    assert english.checks[1].target == "baijiu (liquor) industry average"
+    assert english.checks[1].status == "supported"
+
+
+def test_an_industry_average_after_a_bound_is_the_other_side_of_the_comparison():
+    # "低于行业平均30倍": a bound on the company's own P/E, as before
+    (check,) = _check_all("茅台市盈率低于行业平均30倍").checks
+    assert (check.target, check.comparator, check.status) == ("贵州茅台", "lt", "supported")
+
+    # "…，低于行业均值": a relation with the industry snapshot, checked next to the number
+    report = _check_all("茅台市盈率24.6倍，低于行业均值")
+    assert _rows(report) == [("pe_ttm", "eq", "supported"), ("pe_ttm", "lt", "supported")]
+    assert report.checks[1].reference == "白酒行业平均" and report.checks[1].reference_value == 27.3
+
+
+@pytest.mark.parametrize(
+    ("claim", "comparator", "status", "reason"),
+    [
+        ("茅台昨天成交37.9亿元", "eq", "supported", None),
+        ("茅台成交额约38亿", "approx", "supported", None),
+        ("茅台成交额超过50亿", "gt", "contradicted", None),
+        ("茅台本周累计成交200亿元", "eq", "unverifiable", "multi_day"),
+        ("茅台成交额37.9%", "eq", "unverifiable", "unit_mismatch"),
+    ],
+)
+def test_turnover_claims(claim, comparator, status, reason):
+    # D4: 成交额 is the session's turnover from the price evidence (37.94 亿元 here)
+    (check,) = _check_all(claim).checks
+
+    assert (check.metric, check.comparator, check.status, check.reason) == ("amount", comparator, status, reason)
+
+
+def test_volume_is_not_read_as_turnover():
+    (check,) = _check_all("茅台成交量2.7万手").checks
+
+    assert check.metric != "amount" and check.status == "unverifiable"
+
+
+@pytest.mark.parametrize(
+    ("claim", "comparator", "status"),
+    [
+        # D4: a bound where the verb stands ("不到五粮液的1.5倍"); fake revenue 1741.2 / 890 亿 = 1.96
+        ("茅台营收不到五粮液的1.5倍", "lt", "contradicted"),
+        ("茅台营收超过五粮液的1.5倍", "gt", "supported"),
+        ("茅台营收至少是五粮液的两倍", "ge", "contradicted"),
+        ("茅台营收没有五粮液的两倍", "lt", "supported"),
+    ],
+)
+def test_bounded_ratio_claims(claim, comparator, status):
+    (check,) = _check_all(claim).checks
+
+    assert (check.metric, check.comparator, check.status) == ("revenue", comparator, status)
+    assert check.reference == "五粮液" and check.ratio == pytest.approx(1.9564, abs=1e-3)
+
+
+@pytest.mark.parametrize(
+    ("claim", "unchecked", "checks"),
+    [
+        ("茅台市盈率24.6倍，ROE很高", ["ROE很高"], 1),
+        ("茅台是好公司", ["茅台是好公司"], 0),
+        ("茅台和五粮液的市盈率，分别是24.6倍和15.2倍", [], 2),  # the first clause names what the second checks
+        ("茅台市盈率24.6倍，品牌力很强", [], 1),  # nothing factual left: no target, no metric
+    ],
+)
+def test_clauses_with_nothing_to_check_are_listed(claim, unchecked, checks):
+    report = _check_all(claim)
+
+    assert [part.text for part in report.unchecked] == unchecked
+    assert len(report.checks) == checks
+    assert all(part.reason == "no_claim" for part in report.unchecked)

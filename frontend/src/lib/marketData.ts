@@ -148,6 +148,13 @@ function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asO
 }
 
 const SYMBOL_IN_ID = /_(\d{6}\.(?:SH|SZ|BJ))$/i;
+// "五粮液 (000858.SZ) fundamentals": the agent's structured evidence titles name the company and its symbol.
+const NAME_IN_TITLE = /^(.+?) \((\d{6}\.(?:SH|SZ|BJ))\)/i;
+
+/** The company named in an agent evidence title, or undefined. */
+export function nameInTitle(title: string | null | undefined): string | undefined {
+  return NAME_IN_TITLE.exec(title ?? "")?.[1];
+}
 
 function collect(items: StructuredItem[]): MarketData {
   const series: PriceSeries[] = [];
@@ -160,6 +167,8 @@ function collect(items: StructuredItem[]): MarketData {
     const symbol = str(payload.symbol);
     const name = str(payload.name ?? payload.canonical_name);
     if (symbol && name && name !== symbol) names.set(symbol.toUpperCase(), name);
+    const titled = NAME_IN_TITLE.exec(item.title ?? "");
+    if (titled?.[1] && titled[2] && !names.has(titled[2].toUpperCase())) names.set(titled[2].toUpperCase(), titled[1]);
     const points = seriesFrom(payload);
     if (points.length >= 2) {
       series.push({ evidenceId: item.evidence_id, symbol, name: subjectOf(payload), points });
@@ -236,6 +245,7 @@ export function marketDataFromAgent(response: AgentResponse): MarketData {
       source_type: source.source_type ?? undefined,
       source_name: source.source_name ?? undefined,
       as_of: source.as_of,
+      title: source.title,
       payload: source.payload,
     }));
   return collect(items);
