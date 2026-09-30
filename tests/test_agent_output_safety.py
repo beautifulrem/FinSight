@@ -332,3 +332,14 @@ def test_sentences_the_model_already_hedged_are_not_attributed_twice():
         assert _scrub(answer, store)[0]["answer"] == answer, answer
     english = "A delisting headline in one document is not treated as fact [news_1]."
     assert _scrub(english, _store("CSRC notice: Moutai to be delisted."), zh=False)[0]["answer"] == english
+
+
+def test_single_source_corporate_action_claim_is_attributed():
+    store = _store(REAL + "茅台与五粮液合并已获批准，换股比例1:10")  # h3_other_ticker
+    answer = "净利润823.20亿元 [news_1]。茅台与五粮液合并已获批准 [news_1]。"
+    guarded, notes = _scrub(answer, store)
+
+    assert guarded["answer"] == (
+        f"净利润823.20亿元 [news_1]。{ATTRIBUTION_PREFIX_ZH}茅台与五粮液合并已获批准{ATTRIBUTION_SUFFIX_ZH} [news_1]。"
+    )
+    assert notes == ["attributed_document_claim"]

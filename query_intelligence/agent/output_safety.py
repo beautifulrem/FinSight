@@ -58,7 +58,10 @@ _REGULATORY = re.compile(
     r"退市|终止上市|暂停上市|摘牌|停牌|强制清算|风险名单|财务造假|欺诈发行|涉嫌(?:违法|违规|犯罪|信息披露)|"
     r"\bdelist(?:ed|ing|ment)?\b|\b(?:trading\s+)?(?:suspension|halt)\b|\bsuspended\s+from\s+trading\b|"
     r"\b(?:probe|investigation|penalt(?:y|ies)|fined|sanction(?:s|ed)?)\b|\bforced\s+liquidation\b|"
-    r"\brisk\s+(?:list|watch\s*list)\b|\baccounting\s+fraud\b|\bspecial\s+treatment\b",
+    r"\brisk\s+(?:list|watch\s*list)\b|\baccounting\s+fraud\b|\bspecial\s+treatment\b|"
+    # corporate actions that move a price as much as a regulator's decision ("合并已获批准", "to be acquired")
+    r"(?:合并|吸收合并|重大资产重组|借壳|被收购|要约收购|私有化)(?:[^，。；]{0,8}(?:获批|批准|通过|完成|落地))?|"
+    r"\bmerger\b|\b(?:to\s+be\s+)?acquired\s+by\b|\btakeover\s+(?:bid|offer)\b|\bgo(?:ing)?\s+private\b",
     re.IGNORECASE,
 )
 # A negation earlier in the same clause ("未发现立案调查或停牌信息", "no sign of a probe or delisting").
