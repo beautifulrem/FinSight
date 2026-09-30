@@ -81,6 +81,14 @@ docker build -f docker/Dockerfile -t finsight:$TAG .   # push to your registry a
 `finsight.yaml` alone names `finsight:set-by-kustomization`, which does not exist, so applying it without
 kustomize fails visibly instead of running an unknown build. CI builds every push as `finsight:<github.sha>`.
 
+The committed `newTag` is set **at release time**, not on every commit (a commit cannot contain its own hash). It
+names the last released image, built from a clean tree at that commit and smoke-tested (`/ready`, `/agent/chat`),
+so it normally trails HEAD by a few commits. A release is the three commands above, the smoke test
+(`IMAGE=finsight:$TAG deploy/k8s-smoke/smoke.sh` on a kind/k3d cluster), and one commit
+`release: finsight:<tag>` that changes only `newTag`. Between releases every push is still built and deployed to
+a throwaway kind cluster by CI (`docker` and `k8s-smoke` jobs), and the `kubernetes` job checks that the rendered
+image is tagged with a commit hash.
+
 ### Secrets
 
 No Secret is committed (the earlier manifest carried a plaintext `change-me` password). Choose one:
