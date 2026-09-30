@@ -17,6 +17,7 @@ from query_intelligence.agent.tools.units import (
     normalise_market,
     normalise_output,
     period_label,
+    units_in_words,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -148,6 +149,52 @@ def test_replayed_eval_snapshot_is_normalised():
     assert result.ok and result.data["amount"] == pytest.approx(3_793_827_534.0)
     assert result.data["amount_unit"] == "CNY" and result.data["volume_unit"] == "share"
     assert result.evidence[0].payload["amount_unit"] == "CNY"
+
+
+# ---------------------------------------------------------------- units in words for the LLM (round-6 review)
+
+
+def test_llm_tool_message_states_units_in_words_and_explains_units_source():
+    """``units_source: {"amount": "thousand CNY"}`` next to a CNY amount must not read as "amount in thousands"."""
+    from query_intelligence.agent.injection import tool_message_content
+
+    fundamentals = build_fake_registry().run("get_fundamentals", {"target": "600519.SH"})
+    price = normalise_market(TUSHARE_ROW)  # amount 3793827.534 thousand CNY -> CNY
+
+    price_envelope = json.loads(tool_message_content("get_price_history", {"ok": True, "data": price})[0])
+    units = price_envelope["units"]
+    assert "amount is turnover (成交额) in CNY (yuan)" in units
+    assert "volume (成交量) in shares" in units and "pct_change_1d in percent" in units
+    assert "units_source only records the data provider's original unit before conversion" in units
+    assert price_envelope["result"]["data"]["units_source"]["amount"] == "thousand CNY"  # payload unchanged
+
+    words = json.loads(tool_message_content(fundamentals.tool, fundamentals.observation())[0])["units"]
+    assert "revenue in CNY (yuan, not 万 or 亿)" in words and "roe in percent" in words
+    assert "pe_ttm a multiple (times, 倍)" in words
+
+    # compose path: the evidence views the LLM composes from carry the same sentence
+    view = AgentEvidence(
+        evidence_id="price_600519.SH", kind="structured", source_type="market_api", payload=price
+    ).prompt_view()
+    assert "amount is turnover (成交额) in CNY" in view["units"] and "units" not in view["payload"]
+    # tools without unit fields get no sentence (search results, errors)
+    news, _ = tool_message_content("search_news", {"ok": True, "data": {"documents": []}})
+    assert "units" not in json.loads(news)
+    assert units_in_words({"close": 1.0}) is None
+
+
+def test_offline_tool_result_for_the_llm_names_turnover_in_cny():
+    """The real offline tools (no fake): the LLM-facing message keeps 成交额 in CNY for 茅台."""
+    from evaluation.agent_eval.runner import build_offline_service
+    from query_intelligence.agent.injection import tool_message_content
+    from query_intelligence.agent.tools import build_registry_for_service
+
+    registry = build_registry_for_service(build_offline_service())
+    price = registry.run("get_price_history", {"target": "600519.SH"})
+    envelope = json.loads(tool_message_content(price.tool, price.observation())[0])
+
+    assert price.ok and envelope["result"]["data"]["amount"] == pytest.approx(3_793_827_534.0)
+    assert "amount is turnover (成交额) in CNY (yuan)" in envelope["units"]
 
 
 # ---------------------------------------------------------------- offline data consistency (B25)

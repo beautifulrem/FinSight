@@ -59,6 +59,66 @@ Noise removed before routing when the question asks for a target (a pronoun, a d
 
 In a session the guards are session-aware: a question the guard would clarify first inherits the conversation's target ([Memory](#memory-and-sessions)), so "Should I sell?" after a Moutai turn is a judgment about Moutai; "五粮液呢？" is only clarified when there is no earlier turn; an instruction to change the system never inherits a target and is refused with the injection message (`prompt_injection_request`).
 
+### Plan-then-execute vs tool loop: the numbers behind the routing
+
+FinSight gathers evidence in two ways. **Plan-then-execute**: the deterministic planner derives every tool call from the NLU in one step, `execute_plan` runs them in parallel, and one LLM call (or the template) writes the answer. This is the `workflow` path; with LLM composition the ablation calls it `workflow_llm`. **Tool loop**: `agent_llm` ⇄ `agent_tools`, where the LLM picks tools step by step. Since `6050ffd` the loop starts from the planner's calls (`planner_prefetch`), so the agent path is plan, execute, then loop only for what is still missing.
+
+The comparison below uses committed runs only; no LLM was called for it. Every task is forced through each path, so the per-type rows show where each design wins. The DeepSeek and GLM rows come from `ablation-final4-deepseek-testv3-holdout.json`, `ablation-final4-deepseek-testv2-multiturn.json` and `ablation-final4-glm-testv3.json`: commit `9536abf`, 3 repeats, 3 workers, no HTTP 429. Prefetch on and off comes from `perf-merged-citerepair-stall-deepseek.json` (B) and `perf-merged-prefetch-deepseek.json` (C).
+
+**Whole sets.** Test v3 is independent: this is its first and only LLM run. Held-out was used to choose prompts. Test v2 and multiturn_v1 are after exposure.
+
+- CIs are percentile-bootstrap 95% over tasks.
+- Δ is the paired bootstrap of tool loop − plan-then-execute (both with the LLM). McNemar compares tasks that pass all 3 runs on one path only.
+- "Tool calls" counts calls per LLM turn (the profile's `tools.calls_per_turn`).
+
+| Set, model | Path | Task success [95% CI] | pass^3 | LLM calls / turn | Tool calls / LLM turn | Tokens / turn | Cost / task (USD) | P50 / P95 s | Δ loop − plan [95% CI], McNemar |
+|---|---|---|---:|---:|---:|---:|---:|---:|---|
+| test v3, DeepSeek | plan, template (no LLM) | 0.769 [0.69, 0.84] | 0.769 | 0 | — | 0 | 0 | 0.1 / 2.0 | |
+| test v3, DeepSeek | plan-then-execute + LLM | 0.831 [0.76, 0.89] | 0.823 | 1.02 | 1.6 | 2,518 | 0.00100 | 4.6 / 16.7 | |
+| test v3, DeepSeek | tool loop (plan-seeded) | **0.869 [0.81, 0.92]** | 0.854 | 1.57 | 2.9 | 7,800 | 0.00114 | 5.1 / 18.4 | **+0.038 [+0.003, +0.082]**; 6 vs 2 tasks, p = 0.29 |
+| held-out, DeepSeek | plan-then-execute + LLM | 0.981 [0.94, 1.00] | 0.981 | 0.96 | 1.4 | 1,915 | 0.00076 | 6.0 / 16.8 | |
+| held-out, DeepSeek | tool loop | 1.000 [1.00, 1.00] | 1.000 | 1.43 | 2.7 | 6,646 | 0.00085 | 4.7 / 21.3 | +0.019 [0.000, +0.057]; 1 vs 0, p = 1.0 |
+| test v2 (exposed), DeepSeek | plan-then-execute + LLM | 0.931 [0.88, 0.97] | 0.926 | 1.03 | 1.7 | 2,412 | 0.00103 | 4.2 / 14.3 | |
+| test v2 (exposed), DeepSeek | tool loop | 0.959 [0.92, 0.99] | 0.942 | 1.65 | 3.1 | 8,045 | 0.00135 | 4.0 / 15.5 | +0.028 [+0.003, +0.058]; 3 vs 1, p = 0.63 |
+| multiturn_v1 (exposed), DeepSeek | plan-then-execute + LLM | 0.980 [0.94, 1.00] | 0.980 | 1.07 | 1.5 | 2,447 | 0.00293 | 4.3 / 12.1 | |
+| multiturn_v1 (exposed), DeepSeek | tool loop | 0.959 [0.90, 1.00] | 0.939 | 1.50 | 2.3 | 7,138 | 0.00391 | 3.4 / 14.8 | −0.020 [−0.054, 0.000]; 0 vs 2, p = 0.5 |
+| test v3, GLM | plan-then-execute + LLM | 0.818 [0.75, 0.88] | 0.800 | 0.98 | 1.6 | 1,559 | 0.00036 | 6.1 / 27.3 | |
+| test v3, GLM | tool loop | 0.815 [0.76, 0.87] | 0.731 | 1.74 | 2.6 | 8,315 | 0.00139 | 21.6 / 81.9 | −0.003 [−0.044, +0.041]; 4 vs 13, **p = 0.049 for plan** |
+
+**By question type** (test v3, DeepSeek). Cells are task success / P95 in seconds. Per type n is 5–20 tasks × 3 runs, so no single row is significant alone; the pattern is what matters.
+
+| Question type (tasks) | plan, template (no LLM) | plan-then-execute + LLM | tool loop | tool loop, GLM |
+|---|---|---|---|---|
+| single fact (20) | 1.000 / 1.4 | 1.000 / 7.9 | 1.000 / 8.0 | 1.000 / 30.9 |
+| missing data (13) | 0.769 / 2.1 | 1.000 / 11.6 | 1.000 / 18.7 | 0.974 / 51.2 |
+| comparison (8) | 0.875 / 0.4 | 0.875 / 13.1 | **1.000** / 10.5 | 0.958 / 58.0 |
+| why / causal (8) | 0.750 / 1.3 | 0.917 / 18.6 | **1.000** / 31.6 | 0.708 / 114.2 |
+| macro → market (7) | 0.714 / 8.5 | 0.857 / 19.4 | **0.952** / 25.1 | 0.905 / 111.1 |
+| multi-turn (16) | 0.500 / 1.2 | 0.500 / 14.3 | **0.667** / 15.5 | 0.479 / 76.7 |
+| technical (7) | 0.714 / 2.0 | 0.714 / 17.2 | 0.762 / 22.8 | 0.714 / 56.7 |
+| news / sentiment (9) | 0.667 / 1.3 | 0.889 / 19.0 | 0.889 / 11.3 | 0.852 / 62.4 |
+| judgment / advice (10) | 0.900 / 1.3 | **0.967** / 22.2 | 0.933 / 30.8 | 0.933 / 111.2 |
+| refusals, injection, out of coverage, mixed language (24) | 1.000 | 1.000 | 1.000 | 1.000 |
+| clarification (8) | 0.000 | 0.000 | 0.000 | 0.000 |
+
+**How much looping the loop does** (test v3, DeepSeek, 381 LLM turns): after the prefetched plan, 215 turns (56%) needed no further tool round. 119 (31%) made one more round and 47 (12%) made two to four. Held-out: 90 of 141 turns (64%) needed none. Where the loop gains, the extra rounds fetch tools the plan missed: tool recall is 0.964 against 0.918 for plan-then-execute on test v3.
+
+**A pure loop against the plan-seeded loop** (DeepSeek, held-out / test v2, 3 repeats, B → C). Seeding the loop with the plan:
+
+- cut LLM calls per turn from 2.09 → 1.39 and 2.50 → 1.71;
+- cut P50 from 6.5 → 3.7 s and 7.7 → 4.7 s, and P95 from 17.4 → 15.4 s and 21.7 → 17.3 s;
+- cut cost per task from 0.00092 → 0.00077 and 0.00152 → 0.00134 USD;
+- left task success unchanged: 0.987 → 0.994 and 0.956 → 0.953.
+
+GLM on held-out shows the same drop in calls: 2.21 / 2.16 → 1.36 / 1.36, with success 1.000 in all four runs. See [performance.md §2a](performance.md#2a-agent-path-latency-profile-changes-and-beforeafter).
+
+**Conclusion.** The evidence supports the hybrid design as built, and does not support either design alone.
+
+1. **Plan-then-execute for lookups, definitions and guard outcomes** (`workflow`). On single facts all three paths score 1.000. The loop only adds an LLM tool-choice step, at 5.3k more tokens per turn on average. The clarification row is 0.000 on every path for a reason outside this comparison. The guard asks the clarifying question before any evidence is gathered, and all 8 tasks fail only the scorer's `language` check. Without an LLM the plan answers in 1.4 s at P95, offline and reproducibly, so `mode=auto` sends these questions to the workflow.
+2. **A tool loop for comparisons, why, macro-to-market and multi-turn questions** (`agent`). On the independent test v3 it adds +3.8 points overall; the gain is significant by paired bootstrap but not by McNemar, so it is small. It comes from the types above: why 0.917 → 1.000, comparison 0.875 → 1.000, macro 0.857 → 0.952, multi-turn 0.500 → 0.667. It costs +0.55 LLM calls per turn, 3.1× the tokens, +14% cost per task and +1.6 s at P95.
+3. **The loop starts from the plan.** A pure loop costs about 0.7–0.8 more LLM calls and 3 s more at P50 for the same success.
+4. **The loop's advantage depends on the model.** With GLM-5.3 flash the loop does not help: −0.003 overall, and pass^3 is 0.731 against 0.800, where McNemar favours plan-then-execute (p = 0.049). Its P95 is 82 s against 27 s, and it loses on why questions (0.708). With a model like that, `mode=workflow` (plan-then-execute with LLM composition) is the better setting. `mode=auto` does not switch on the model yet. On the exposed multiturn_v1 the loop is also 0.020 lower.
+
 ## Tools
 
 All tools share one base (`tools/base.py`): Pydantic input schemas (also exported as OpenAI tool schemas and over MCP), a timeout, retries on transient errors, a TTL cache, and normalized error codes (`unknown_tool`, `invalid_arguments`, `timeout`, `upstream_error`, `not_found`, `unavailable`, `internal`). Every successful call returns `AgentEvidence` with a stable `evidence_id`, which is what answers cite.
@@ -429,7 +489,7 @@ All agent tests run offline: `ScriptedLLM` replays fixed assistant turns and `te
 
 ## Limits
 
-- The agent path is only as good as the LLM behind it. Offline evaluation measures the deterministic path and the graph's safety checks; the online evaluation in [agent-eval.md](agent-eval.md) measures two flash-class models (DeepSeek V4.1 Flash, GLM-5.3 Flash) through one gateway, and the agent loop's advantage over LLM composition is not significant with DeepSeek.
+- The agent path is only as good as the LLM behind it. Offline evaluation measures the deterministic path and the graph's safety checks; the online evaluation in [agent-eval.md](agent-eval.md) measures two flash-class models (DeepSeek V4.1 Flash, GLM-5.3 Flash) through one gateway, and the agent loop's advantage over LLM composition is small with DeepSeek and absent with GLM ([plan-then-execute vs tool loop](#plan-then-execute-vs-tool-loop-the-numbers-behind-the-routing)).
 - Numeric verification is claim-level (1.94% false-accept rate on 3,399 corrupted gold answers at `9f0e46b`, `evaluation/results/verifier_stress.json`), but it does not check that a number is used for the right period or metric when the cited evidence holds several, and a number planted in a document passes because it is in the evidence.
 - Follow-up resolution is rule-based: it covers pronouns, plurals, ordinal and group references, short elliptical questions, bare "why" follow-ups and short entity-less follow-ups with a finance cue; longer paraphrases ("回到刚才那只股票…") and ambiguous references lead to a clarification rather than a guess. The cue and off-topic lexicons are hand-written: an off-topic task phrased without their words is still answered, and an entity-less follow-up without a cue word is clarified or refused as before.
 - Routing is lexical on top of the classical NLU. The round-4 marker classes (judgment, forecast, analysis, relation, market targets, system-change instructions) are wider than the author's own phrasing, but a question outside every class goes to the workflow, and only one set written by someone else has been measured, before its errors were fixed (0.740).

@@ -79,6 +79,56 @@ def test_committed_label_csv_matches_meta_and_hides_the_automatic_score():
     assert all(not row[column] for row in rows for column in generate_answers.LABEL_COLUMNS)
     assert all(row["answer"].strip() and row["sources"].strip() for row in rows)
     assert Counter(row["path"] for row in meta) == {"deterministic": 50, "llm_agent": 50}
+    # round-6 review: no replay gaps, no evaluation wording shown to the labeller
+    assert generate_answers.check_rows(meta, rows) == []
+    generation = json.loads(generate_answers.GENERATION_PATH.read_text(encoding="utf-8"))
+    assert generation["tool_calls"]["replay_gaps"] == 0 and "snapshot_misses" not in generation
+    assert generation["llm_fallbacks"] == [] and generation["llm_stop_reason"] is None
+    assert generation["files"]["csv_sha256"] == common.sha256_file(generate_answers.CSV_PATH)
+    assert generation["files"]["meta_sha256"] == common.sha256_file(generate_answers.META_PATH)
+
+
+def test_eval_wording_check_flags_harness_terms_but_not_offline_provenance():
+    leaks = generate_answers.eval_leaks
+    for text in (
+        "价格历史不足/该数据未记录在评估快照中",
+        "search_news returned no data (unavailable: not recorded in the evaluation snapshot)",
+        "the query came back as not recorded in this snapshot",
+        "the call was replayed from a fixture",
+        "this question is from test_v3",
+    ):
+        assert leaks(text), text
+    for text in (
+        "局限: 数据来自离线快照，截至2026-04-22，非实时行情",  # the product's own offline-data label
+        "The data is an offline snapshot, not real-time",
+        "[industry_白酒] 白酒 industry snapshot | 来源: industry_sql / 离线快照",
+        "贵州茅台 收盘 1409.5 元",
+    ):
+        assert not leaks(text), text
+
+
+def test_check_rows_rejects_eval_wording_and_replay_gaps():
+    shown = [{"id": "L001", "answer": "RSI 无法计算（该数据未记录在评估快照中）", "sources": "x"}]
+    miss = {"tool": "search_news", "code": "unavailable", "message": "not recorded in the evaluation snapshot"}
+    meta = [{"id": "L002", "tools": {"calls": 1, "errors": [miss]}}]
+    problems = generate_answers.check_rows(meta, shown)
+    assert len(problems) == 2 and problems[0].startswith("L001 answer") and "replay gap" in problems[1]
+    assert generate_answers.check_rows([{"id": "L003", "tools": {"calls": 0, "errors": []}}], []) == []
+
+
+def test_generation_stops_instead_of_silently_answering_the_llm_half_deterministically():
+    items = generate_answers.sample_items()
+    with pytest.raises(generate_answers.GenerationStopped, match="--allow-fallback"):
+        generate_answers.generate(items, llm=None, max_requests=120)
+
+
+def test_generation_runs_tools_directly_without_replay_gaps():
+    items = [item for item in generate_answers.sample_items() if item["planned_path"] == "deterministic"][:3]
+    result = generate_answers.generate(items, llm=None, max_requests=0, allow_fallback=True, progress=None)
+    rows = result["rows"]
+    assert [row["id"] for row in rows] == [item["id"] for item in items]
+    assert all(row["path"] == "deterministic" for row in rows) and sum(row["tools"]["calls"] for row in rows) >= 1
+    assert generate_answers.check_rows(rows, generate_answers.csv_rows(rows)) == []
 
 
 def test_fallback_reason():
@@ -261,6 +311,55 @@ def test_head_to_head_window_units_and_aggregate(tmp_path):
     assert len(result["checks"]["missing_screenshots"]) == 2
     assert result["answers"][0]["screenshot_sha256"] == common.sha256_file(shot_dir / "doubao_S01_1.png")
     assert "S02" in result["checks"]["single_fact_without_ground_truth"]
+    assert doubao["compliance_violation"]["never_violated^3"]["rate"] == 1.0
+    assert result["outside_window"]["count"] == 0 and result["time_window"]["in_window_answers"] == 3
+
+
+def test_head_to_head_window_is_asia_shanghai_and_excludes_outside_rows_from_the_headline():
+    friday = date(2026, 10, 9)
+    status = score_head_to_head.window_status
+    assert status("2026-10-09 15:00", friday) == "in_window"
+    assert status("2026-10-09 14:59", friday) == "before_window"
+    assert status("2026-10-12 09:29", friday) == "in_window"  # Monday, before the open
+    assert status("2026-10-12 09:30", friday) == "after_window"
+    assert status("2026-10-09T07:30:00Z", friday) == "in_window"  # 15:30 in Shanghai
+    assert status("2026-10-09T06:30:00Z", friday) == "before_window"  # 14:30 in Shanghai
+    assert status("2026-10-09 20:15+08:00", friday) == "in_window"
+    assert status("", friday) == "missing" and status("昨晚", friday) == "unparseable"
+
+    questions = score_head_to_head.load_questions()
+    times = ("2026-10-09 16:00", "2026-10-10 10:00", "2026-10-09 14:00", "2026-10-12 10:00", "")
+    answers = [
+        {"question_id": "S01", "product": "Kimi", "run": str(run), "answer_text": text, "asked_at": when}
+        for run, (text, when) in enumerate(
+            zip(
+                ("收盘 1258.62 元", "收盘 1258.62 元", "收盘 1300 元", "收盘 1300 元", "收盘 1300 元"),
+                times,
+                strict=True,
+            ),
+            start=1,
+        )
+    ]
+    result = score_head_to_head.score_all(questions, answers, {"S01": 1258.62}, day=friday)
+    kimi = result["per_product"]["Kimi"]
+    # only the two in-window answers count: both right
+    assert kimi["answered"] == 2 and kimi["numeric_correct"]["rate"] == 1.0
+    outside = result["outside_window"]
+    assert outside["count"] == 3
+    assert outside["by_product"] == {"Kimi": {"before_window": 1, "after_window": 1, "missing": 1}}
+    assert outside["per_product"]["Kimi"]["numeric_correct"]["rate"] == 0.0 and len(outside["rows"]) == 3
+    assert result["time_window"] == {
+        "timezone": "Asia/Shanghai",
+        "start": "2026-10-09 15:00",
+        "end": "2026-10-12 09:30",
+        "in_window_answers": 2,
+        "included_in_headline": False,
+    }
+    included = score_head_to_head.score_all(
+        questions, answers, {"S01": 1258.62}, day=friday, include_outside_window=True
+    )
+    assert included["per_product"]["Kimi"]["numeric_correct"]["rate"] == 0.4
+    assert included["time_window"]["included_in_headline"] is True
 
 
 def test_fetch_merge_replaces_only_finsight_rows():
@@ -274,22 +373,42 @@ def test_fetch_merge_replaces_only_finsight_rows():
 
 
 # -------------------------------------------------------------------------------- real claims (input 3)
-def test_real_claims_prepare_hides_the_verdict_and_score_reports_agreement(monkeypatch):
+def test_real_claims_sheet_shows_only_raw_evidence_and_score_reports_agreement(monkeypatch):
     import query_intelligence.agent.claim_check as claim_check
+    from query_intelligence.agent.evidence import AgentEvidence
+
+    fundamentals = AgentEvidence(
+        evidence_id="fundamental_600519.SH",
+        kind="structured",
+        source_type="fundamental_sql",
+        title="贵州茅台 (600519.SH) fundamentals",
+        as_of="2025-12-31",
+        payload={
+            "report_date": "2025-12-31",
+            "revenue": 168838000000,
+            "pe_ttm": 24.6,
+            "roe": 33.0,
+            "metric_units": {"revenue": "CNY", "pe_ttm": "x", "roe": "%"},
+            "provenance": {"source_label": "离线快照", "original_source": "seed"},
+        },
+    )
+    registry = SimpleNamespace(run=lambda name, arguments: SimpleNamespace(ok=True, evidence=[fundamentals]))
 
     def fake_check(claim, *, service, registry, zh):
         verdict = "contradicted" if "15倍" in claim else "unverifiable"
         checks = []
         if verdict == "contradicted":
+            registry.run("get_fundamentals", {"target": "600519.SH"})  # through the evidence recorder
             checks = [
                 {
                     "target": "贵州茅台",
                     "metric": "pe_ttm",
                     "claimed": 15.0,
                     "claimed_unit": "倍",
-                    "comparator": "eq",
+                    "comparator": "lt",
                     "actual": 24.6,
                     "status": "contradicted",
+                    "reason": "value_mismatch",
                     "source": "离线快照",
                     "as_of": "2025-12-31",
                     "note": "claim contradicted",
@@ -300,16 +419,27 @@ def test_real_claims_prepare_hides_the_verdict_and_score_reports_agreement(monke
     monkeypatch.setattr(claim_check, "check_claim", fake_check)
     rows = import_real_claims.claim_rows(
         [
-            {"id": "", "claim_text": "茅台市盈率只有15倍", "source_type": "微博"},
+            {"id": "", "claim_text": "茅台市盈率不到15倍", "source_type": "微博", "date_seen": "2026-10-01"},
             {"id": "", "claim_text": ""},
             {"id": "X9", "claim_text": "白酒估值见底了", "source_type": "研报"},
         ]
     )
     assert [row["id"] for row in rows] == ["R001", "X9"]
-    bench, records, sheet = import_real_claims.prepare(rows, service=None, registry=None)
+    bench, records, evidence = import_real_claims.run_checker(rows, service=None, registry=registry)
     assert {"id", "lang", "category", "claim", "expected_verdict", "expected_checks"} <= set(bench[0])
-    assert "24.6" in sheet[0]["finsight_evidence"] and "声明 = 15.0倍" in sheet[0]["finsight_evidence"]
-    assert "contradicted" not in sheet[0]["finsight_evidence"]
+    assert records[0]["checks"][0]["comparator"] == "lt"  # FinSight's reading stays with the score step
+    assert evidence[0]["evidence"][0]["payload"]["pe_ttm"] == 24.6 and evidence[1]["evidence"] == []
+    sheet = import_real_claims.annotator_sheet(rows, evidence)
+    assert list(sheet[0]) == ["id", "claim_text", "date_seen", "evidence"]
+    assert set(sheet[0]) <= set(import_real_claims.SHEET_COLUMNS)
+    shown = sheet[0]["evidence"]
+    assert "市盈率(TTM) 24.6倍" in shown and "营业收入 1688.38亿元" in shown and "ROE 33%" in shown
+    assert "seed / 离线快照" in shown and "2025-12-31" in shown and sheet[0]["date_seen"] == "2026-10-01"
+    # nothing of FinSight's reading: no claimed number, comparator, metric code, status or reason
+    for leak in ("15", "声明", "<", "↔", "pe_ttm", "contradicted", "value_mismatch", "lt", "微博"):
+        assert leak not in shown, leak
+    assert "没有取到任何数据" in sheet[1]["evidence"]
+    assert import_real_claims.prepare(rows, service=None, registry=registry)[2] == sheet
     sheet[0].update(label="矛盾", label_2="contradicted")
     sheet[1].update(label="支持", label_2="unverifiable")
     result = import_real_claims.score(sheet, records)
@@ -321,6 +451,44 @@ def test_real_claims_prepare_hides_the_verdict_and_score_reports_agreement(monke
     assert [row["expected_verdict"] for row in labelled] == ["contradicted", "supported"]
     with pytest.raises(ValueError):
         import_real_claims.normalise_label("大概对")
+
+
+def test_real_claims_evidence_lines_use_units_and_dates():
+    line = import_real_claims.evidence_line(
+        {
+            "evidence_id": "price_510300.SH",
+            "title": "沪深300ETF (510300.SH) daily market data",
+            "source_name": "akshare",
+            "payload": {
+                "as_of": "2026-04-22",
+                "close": 4.811,
+                "pct_change_1d": -0.1778,
+                "amount": 4851593064.0,
+                "volume": 1012592563.0,
+                "volume_unit": "share",
+                "amount_unit": "CNY",
+                "recent_closes": [{"date": "2026-04-21", "close": 4.776}, {"date": "2026-04-22", "close": 4.811}],
+                "units_source": {"amount": "CNY"},
+            },
+        }
+    )
+    assert line.startswith("沪深300ETF (510300.SH) daily market data（来源: akshare；日期: 2026-04-22）")
+    assert "收盘价 4.811元" in line and "日涨跌幅 -0.1778%" in line and "成交额 48.52亿元" in line
+    assert "成交量 10.13亿股" in line and "近期收盘 2026-04-21 4.776，2026-04-22 4.811" in line
+    macro = import_real_claims.evidence_line(
+        {
+            "evidence_id": "macro_CPI_CN",
+            "title": "CPI_CN macro indicator",
+            "payload": {
+                "indicator_code": "CPI_CN",
+                "metric_date": "2026-03-31",
+                "metric_value": 0.8,
+                "unit": "%",
+                "source_name": "seed",
+            },
+        }
+    )
+    assert macro == "CPI_CN macro indicator（来源: seed；日期: 2026-03-31）: 数值 0.8%"
 
 
 def test_real_claims_template_columns():

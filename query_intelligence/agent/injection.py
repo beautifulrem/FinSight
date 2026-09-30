@@ -145,6 +145,12 @@ def tool_message_content(tool: str, observation: dict[str, Any], *, max_chars: i
         "instruction_like_text_removed": flagged,
         "result": sanitized,
     }
+    from .tools.units import units_in_words  # lazy: the tools package imports this module's helpers
+
+    units = units_in_words(data)
+    if units:
+        # Written by FinSight from the normalised unit fields, not third-party text: outside ``result``.
+        envelope["units"] = units
     text = json.dumps(envelope, ensure_ascii=False, default=str, sort_keys=True)
     for max_string, max_items in ((600, 12), (300, 8), (160, 5), (80, 3)):
         if len(text) <= max_chars:
