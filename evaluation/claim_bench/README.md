@@ -6,7 +6,7 @@ against the offline snapshot (`data/structured_data.json`: prices as of 2026-04-
 
 | File | Claims | Use |
 | --- | --- | --- |
-| `claims_v1.jsonl` | 204 (164 zh, 40 en) | dev set: the checker was developed against it (rows noted `round4` / `round5` were added with later rule rounds) |
+| `claims_v1.jsonl` | 224 (180 zh, 44 en) | dev set: the checker was developed against it (rows noted `round4` / `round5` / `round8` were added with later rule rounds) |
 | `claims_v1_holdout.jsonl` | 47 (38 zh, 9 en) | held out: written together with the dev set, before the fixes, and run **once** at the end |
 
 Held-out file sha256 (recorded when it was written, before any checker change):
@@ -50,9 +50,18 @@ near-copies a held-out claim. Labels follow this file's comparator convention: a
 about the size of the move ("跌超1%" is `gt` 1 with direction down), which the held-out slice writes as a bound
 on the signed change (`le` −1), so its comparator accuracy measures that difference in convention too.
 
-Known judgement calls: "五粮液市盈率24.6倍，比茅台低" is labelled contradicted (24.6 is bound to 五粮液);
-the holdout's industry-average PE ("行业平均11.8倍") is labelled supported from the 保险 industry snapshot,
-which the checker does not use today.
+Round-8 rows (`note: round8`, d205-d224) were written after the round-4 review (D2-D4), as new phrasings of its
+failure classes: a relation in its own clause next to a number in another clause, an industry average as the
+subject of a number ("而行业平均…倍", "所属行业的平均水平约…倍", "the sector average is …"), turnover (成交额), and
+ratios with a bound where the verb stands ("不足…的一半", "超过…的三倍", "至少是…的五倍", "more than twice").
+`tests/test_agent_eval.py` checks that none copies or near-copies a claim of `claims_v1_holdout.jsonl` or a text of
+the round-4 held-out slices.
+
+Known judgement calls: "五粮液市盈率24.6倍，比茅台低" is two checks since round 8, the 24.6 (bound to 五粮液:
+contradicted) and the relation of the second clause (五粮液 below 茅台: supported), so it is partially supported
+(d082 relabelled; before round 8 the relation was dropped because the sentence stated a number). The holdout's
+industry-average PE ("行业平均11.8倍") is labelled supported from the 保险 industry snapshot; the checker binds
+such a number to the target's industry snapshot since round 8.
 
 ## Run
 
