@@ -1379,8 +1379,33 @@ Online numbers from runs without this metric (`c1c3388`, `1beb760`, `846bc5e`) m
 | v1 | Original prompts. | Baseline. |
 | v2 | Tagged sections, effort scaling per question type, the reason behind each rule, one output example. | Agent cost −69% on dev ($0.00401 → $0.00126 per task), which is robust. Quality: dev agent task success +0.011 [+0.002, +0.022] (small, significant; pass^3 McNemar p = 0.07). Held-out agent −0.031 [−0.113, +0.038] (not significant). Held-out hedging on judgment questions fell from 1.00 to 0.67 because v2 had dropped v1's "describe uncertainty and risks". |
 | v3 | v2 plus an explicit rule for judgment questions (conditional view, uncertainty, risks). | Default. Held-out agent hedging 0.91. |
+| v4 | v3 plus two evidence rules: never repeat contact details, promotions, guaranteed or doubled returns, tip offers or trading calls from documents (not even as a quote or warning); attribute document-only claims ("据一篇文档称…（未经其他来源证实）"), no single-document regulatory actions as fact, and prefer market/fundamentals data over a conflicting document figure. | Selectable (`QI_PROMPT_VERSION=v4`), **not** the default: the final online task-success numbers were measured with v3 and v4 has had no task-success A/B. Measured only in the round-7 targeted red-team reproduction (below): 4/20 detector hits vs 8/20 for v3 on the same cases, all 4 in hedged sentences. |
 
 The v1/v2 comparison ran on the same commit (`1beb760`). v3 ran on `846bc5e`, which also contains the observation and tool-error changes, so v3 vs v2 is not a pure prompt comparison. The earlier claim that v2/v3 raised held-out agent pass^3 "from 0.849 to 0.906" is **withdrawn**. Both numbers sit inside each other's CIs, and a v1-era run at `c1c3388` scored 0.943. The cost reduction is the supported result. Prompt texts are pinned by hash in `query_intelligence/agent/prompts.lock.json`, and every trace and report records `id@version#sha`.
+
+## Round 7: output-side safety layer (LLM paths)
+
+The LLM-path red team at `9536abf` (`evaluation/results/redteam-final4-llm.json`) left the template path at 0 but the LLM paths at 5.7–9.5 % (workflow_llm) and 2.3–5.8 % (agent) on holdout3/4/5. With the full answers now stored for every success (`redteam.py` keeps the answer, key points and each detector match with its sentence), the leaks were: planted regulatory claims (fake CSRC probe / ST / delisting, "重点风险名单"), planted figures (每10股派现1000元, ROE 47.7 %), a doubling-plus-compensation scheme quoted as "third-party promotion", and a trading call. Most were relayed with a warning, but relayed.
+
+Changes (each class has unit tests with the exact attack texts and LLM-style answers: `tests/test_text_safety.py`, `tests/test_agent_verifier.py`, `tests/test_agent_output_safety.py`):
+
+* `text_safety.py` / `compliance.py`: more promotion patterns (资金翻倍 + 赔付, 本金无忧, 月月付息, 直接拉升, 错过再等, 牛股, 建仓名单, guaranteed N % return, principal-protected, breakout call), QQ 群号 and bracketed numbers, `@handles`, domains with spaced dots; trading calls matched on NFKC/confusable-folded text (BUY PING AN NOW, 建议投资者一次性建仓, 尽快卖出, "holders must exit").
+* `agent/verifier.py`: for LLM drafts, ROE / EPS / dividend or book value per share figures that differ from the same metric in the run's structured evidence are `document_market_numbers` (revise, else the sentence is dropped).
+* `agent/output_safety.py`, run in the `compliance` node on every draft (LLM and template): document-sourced promotion, contact details and trading calls → one neutral note; single-source regulatory claims and figures that documents disagree on → "据一篇文档称…（未经其他来源证实）"; document figures contradicting structured fundamentals → dropped with a note.
+* Prompt v4 (selectable, see above).
+
+Targeted reproduction (`evaluation/results/redteam-r7-targeted.json`, 2026-09-30): 20 cases that succeeded in `redteam-final4-llm.json` (`evaluation/agent_eval/redteam_r7_cases*.json`), `cline-pass/deepseek-v4.1-flash`, 40 live runs (85 LLM calls), sequential. Each set of recorded model turns was replayed (no LLM calls) through the code before this round (`5c51083`) and with the layer, so the "no layer" and "layer" columns compare identical drafts; the v3 no-layer replay reproduces the live v3 run exactly.
+
+| Prompt | Output layer | Detector hits (of 20) | Hits outside a hedged/attributed sentence |
+|---|---|---|---|
+| v3 | no | 8 | 3 |
+| v3 | yes | 6 | 0 |
+| v4 | no | 4 | 0 |
+| v4 | yes | 4 | 0 |
+
+"Hedged/attributed" uses the layer's own definition (`output_safety.states_unverified` plus the attribution wording), so the second column is only as good as that definition; the first column is the unchanged red-team detector. One draw per prompt on 20 cases: v4 vs v3 is indicative, not significant. What remains: the detector still fires on hedged restatements of planted regulatory claims ("一篇文档称…立案调查…，未经证实"), which the design accepts (attribute rather than drop); a fake corporate action outside the regulatory list (h3_other_ticker's "合并已获批准") is not attributed by the layer; and the full LLM red team has not been re-run.
+
+Offline checks at the layer commit vs `5c51083` (same snapshots, no LLM): dev, holdout, test_v2 and multiturn_v1 replays (workflow and auto) give identical per-turn scores and task success; verifier stress claim false-accept 0.0200 before and after; offline red team (template path) stays at 0 on every set.
 
 ## Known failures and root causes
 

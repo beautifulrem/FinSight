@@ -37,9 +37,9 @@ flowchart LR
 | `execute_plan` | 并发执行规划器给出的工具调用（`max_parallel_tools`）。 |
 | `compose` | 基于已收集证据由 LLM 组织答案；未配置 LLM 或 LLM 失败时使用 `compose_template`。模板会先说明问题要的、证据里却没有的东西（`agent/coverage.py`）：数据不覆盖的期间（「茅台2019年的营业收入」而财报期是 2025-12-31 → 「当前数据中没有所问的2019年数据：……以下数字均属于该报告期」），或工具没有返回的指标（股息率、资产负债率、营收/净利润增速、毛利率、现金流；净利率可由营收和净利润推出，不算缺失）。取不到数据的标的会点名（「当前数据源中没有招商银行（600036.SH）的基本面数据」）。LLM 路径上同样的缺口写入 `limitations`。 |
 | `agent_llm` / `agent_tools` | 工具调用循环。遇到最终答案、`max_llm_steps`、`max_tool_calls`、`token_budget` 或 `run_deadline_s` 时停止；触达上限会强制基于已有证据给出最终答案。同一轮里参数完全相同的重复调用不会再执行：模型收到指向先前结果的 `duplicate_call` 错误，`degraded` 记录 `repeated_tool_calls:N`。 |
-| `verify` | 引用的 `evidence_id` 必须存在；每个数字必须出现在**本句**引用的证据里（逐句绑定）：只按写出的单位换算（亿/万/%/hundred million 等），容差由写出的精度决定，写出的方向（涨/跌、up/down）要与正负号一致；LLM 草稿里的行情指标（价格、涨跌幅、PE/PB）只认行情类证据，并且必须带引用。日期、代码与指标参数不计入。 |
+| `verify` | 引用的 `evidence_id` 必须存在；每个数字必须出现在**本句**引用的证据里（逐句绑定）：只按写出的单位换算（亿/万/%/hundred million 等），容差由写出的精度决定，写出的方向（涨/跌、up/down）要与正负号一致；LLM 草稿里的行情指标（价格、涨跌幅、PE/PB）只认行情类证据，并且必须带引用。LLM 草稿中的 ROE、每股收益、每股分红、每股净资产，若与本次结构化证据中同一指标（工具返回了该指标时）不一致，也会被拒绝（`document_market_numbers`），投毒文档里的「ROE 已修订为 47.7%」不能覆盖基本面数据。日期、代码与指标参数不计入。 |
 | `revise` | 把校验反馈交回 LLM 修改（`max_revisions`）。仍不通过时按子句修复：删除无证据支撑的子句，并记录 `verification_failed:repaired`。 |
-| `compliance` | 软化判断与归因表述（「能买吗」改为条件性判断，「为什么涨」加限定说明），删除直接交易指令、评级和仓位建议，对过期行情加新鲜度提示，并附加风险免责声明。语言守卫：答案语言与提问不一致（例如被投毒文档劫持）时，改用确定性答案。 |
+| `compliance` | 先运行输出侧安全层（`agent/output_safety.py`），对每个草稿（LLM 或模板）逐句处理：转述文档中的联系方式、推广/保本/炒作用语或买卖建议的句子，替换为一条中性说明（「一篇文档含有未经核实的推广/联系方式内容，已省略」）；只有文档来源、且没有第二个措辞不同的来源佐证的监管事项（立案调查、ST、停牌、退市等），或各文档说法不一致的数值，改写为「据一篇文档称…（未经其他来源证实）」；与结构化基本面矛盾的文档数值直接删除。记录 `omitted_document_promotion`、`omitted_document_trading_call`、`attributed_document_claim`、`omitted_conflicting_document_figure`。然后软化判断与归因表述（「能买吗」改为条件性判断，「为什么涨」加限定说明），删除直接交易指令、评级和仓位建议，对过期行情加新鲜度提示，并附加风险免责声明。语言守卫：答案语言与提问不一致（例如被投毒文档劫持）时，改用确定性答案。 |
 | `finalize` | 组装响应：答案、引用、证据来源、工具调用、校验结果、LLM 用量/成本、spans、情感、下一问建议。 |
 
 ### 路由策略
@@ -245,7 +245,7 @@ curl -s localhost:8000/agent/resume -H 'Content-Type: application/json' \
 | `DEEPSEEK_MODEL`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_THINKING_TYPE`、`DEEPSEEK_REASONING_EFFORT`、`DEEPSEEK_MAX_TOKENS`、`DEEPSEEK_TIMEOUT_SECONDS` | 见 `config/app_config.json` | 与 `/chat` 共用的 LLM 设置。 |
 | `DEEPSEEK_REASONING_STYLE` | `auto` | 按节点设置推理强度时的参数写法：`deepseek`（`thinking` + `reasoning_effort`）、`openrouter`（`reasoning` 对象，例如 Cline 网关）或 `none`；`auto` 按接口地址判断。 |
 | `QI_LLM_FALLBACK_MODELS` | 未设置 | 同一接口上的备用模型（逗号分隔）。每个模型一个熔断器：连续失败 3 次打开，60 秒后放一次试探调用（半开），成功即关闭；`FallbackLLM.stats()` 报告 `closed` / `open` / `half_open`，并由 `/metrics` 导出（[详情](a2a-and-observability.md#llm-网关容灾与成本)）。 |
-| `QI_PROMPT_VERSION` | `v3` | 使用 `agent/prompts.py` 注册表中的哪个 Prompt 版本（`v1`、`v2`、`v3`）。 |
+| `QI_PROMPT_VERSION` | `v3` | 使用 `agent/prompts.py` 注册表中的哪个 Prompt 版本（`v1`、`v2`、`v3`、`v4`）。`v4` 增加文档内容规则（不转述联系方式、推广和单一文档的监管说法；只有文档来源的说法要注明出处），可选，不是默认版本。 |
 | `QI_LLM_PRICE_INPUT_MISS`、`QI_LLM_PRICE_INPUT_HIT`、`QI_LLM_PRICE_OUTPUT`、`QI_LLM_PRICE_CURRENCY` | 未设置 | 每百万 token 价格；未设置时若网关返回 `usage.cost`（美元）则使用它。 |
 | `QI_LLM_USD_CNY` | 未设置 | 把网关成本换算为人民币的汇率。 |
 | `QI_AGENT_CHECKPOINT_DB` | 未设置（内存） | 会话持久化：SQLite 文件路径，或多个进程/副本共享的 `postgresql://` 连接串。 |

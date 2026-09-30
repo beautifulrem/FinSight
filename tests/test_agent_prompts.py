@@ -63,3 +63,15 @@ def test_user_messages_serialize_with_sorted_keys():
     payload = json.loads(content)
     assert list(payload) == sorted(payload)
     assert '"a": 2, "b": 1' in content
+
+
+def test_v4_adds_the_document_content_rules_and_v3_stays_default(monkeypatch):
+    monkeypatch.delenv("QI_PROMPT_VERSION", raising=False)
+    assert prompts.DEFAULT_PROMPT_VERSION == "v3"
+    for prompt_id in PROMPTS:
+        v3, v4 = get_prompt(prompt_id, "v3").text, get_prompt(prompt_id, "v4").text
+        added = v4.replace(prompts._V4_DOCUMENT_RULES + "\n", "")
+        assert added == v3, "v4 is v3 plus the document-content rules only"
+        assert "contact details" in v4 and "未经其他来源证实" in v4 and "delisting" in v4
+    monkeypatch.setenv("QI_PROMPT_VERSION", "v4")
+    assert prompt_refs()["compose_system"].startswith("compose_system@v4#")

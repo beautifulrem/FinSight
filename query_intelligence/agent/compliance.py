@@ -23,6 +23,7 @@ from ..chatbot import (
     _is_known_non_trading_day,
     detect_query_language,
 )
+from ..text_safety import fold
 from .evidence import AgentEvidence
 from .router import _JUDGMENT_MARKERS as _ROUTER_JUDGMENT
 
@@ -35,6 +36,11 @@ _TRADING_ZH = re.compile(
     # Investment ratings and position sizing are advice too, whoever is quoted as their author.
     r"|(?:强烈)?(?:买入|增持|推荐|跑赢大市|优于大市|跑赢行业)(?:」|”|\"|')?\s*评级|评级(?:为|上调至|维持)?\s*(?:强烈)?(?:买入|增持|推荐)"
     r"|(?:[一二三四五六七八九十]|\d{1,2})\s*成仓位?|仓位(?:可|应|宜|提高|提升|加到|降到|降至|控制在)|逢低(?:加仓|买入|吸纳|布局)"
+    # a call addressed to readers with adverbs in between ("建议投资者一次性建仓并长期持有", "请投资者尽快卖出持仓")
+    r"|(?:建议|推荐|应该|应当|不妨|可考虑|赶紧|立即|果断|尽快|务必|必须|请)\s*(?:投资者|读者|大家|用户|股民|持有人|您|你)?\s*"
+    r"(?:一次性|逢低|逢高|适当|分批|立即|果断|继续|长期|坚定|积极|尽快|马上|全部|提前)+\s*"
+    r"(?:买入|卖出|加仓|减仓|清仓|满仓|全仓|抄底|建仓|止损|止盈|持有|增持|减持|入场|离场|上车|抛售|出货|退出)"
+    r"|(?:尽快|务必|必须|赶紧)(?:卖出|清仓|离场|抛售|出货|买入)|黄金坑|满仓(?:杀入|买入|干)|止损位"
 )
 _TRADING_EN = re.compile(
     r"\b(?:you should|we recommend|i recommend|i suggest|consider|it is a good time to|now is the time to)\s+"
@@ -42,7 +48,11 @@ _TRADING_EN = re.compile(
     r"|\b(?:strong buy|strong sell|price target|target price|go all[- ]in)\b"
     r"|\b(?:outperform|overweight|underweight|underperform|buy|sell|accumulate|market perform)\s+rating\b"
     r"|\brated\s+(?:a\s+)?(?:strong\s+)?(?:buy|sell|outperform|overweight|underweight|accumulate)\b"
-    r"|\b(?:position size|increase (?:your|the) position|raise (?:your|the) position|allocate \d+%)",
+    r"|\b(?:position size|increase (?:your|the) position|raise (?:your|the) position|allocate \d+%)"
+    # "BUY PING AN NOW" (after NFKC folding), "sell Wuliangye before Friday", "holders must exit by 30 April"
+    r"|\bbuy\s+(?:[a-z0-9.&'-]+\s+){0,3}?now\b|\b(?:sell|dump|exit)\s+(?:[a-z0-9.&'-]+\s+){0,3}?(?:now|immediately|before\s+\w+)\b"
+    r"|\b(?:holders|investors|shareholders|you|readers|users|everyone)\s+(?:must|should)\s+"
+    r"(?:exit|sell|dump|liquidate|get out)\b|\bgo all[- ]in\b|\bmust[- ]buy\b|\bfull position\b",
     re.IGNORECASE,
 )
 # Lexical triggers make hedging independent of the NLU question-style label. Besides buy/sell and timing words
@@ -137,7 +147,8 @@ def language_violation(answer_text: str, query: str, *, language: str | None = N
 
 
 def contains_trading_instruction(text: str) -> bool:
-    return bool(_TRADING_ZH.search(text) or _TRADING_EN.search(text))
+    folded = fold(text)  # full-width ("ＢＵＹ ＮＯＷ"), zero-width and homoglyph spellings match too
+    return bool(_TRADING_ZH.search(folded) or _TRADING_EN.search(folded))
 
 
 def apply_compliance(

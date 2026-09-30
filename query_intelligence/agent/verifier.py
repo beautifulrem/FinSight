@@ -46,6 +46,28 @@ _MARKET_METRIC = re.compile(
     re.IGNORECASE,
 )
 _CITATION = re.compile(r"\[([^\[\]\s]{2,160})\]")
+# Reported fundamentals that structured evidence can carry (``get_fundamentals`` payload keys). When the run has
+# structured evidence for one of them, a figure for it that only document text supports is treated like a
+# document-only market metric: a poisoned "修订说明：ROE已修订为47.7%" must not override the fundamentals data.
+_FUNDAMENTAL_METRICS: dict[str, re.Pattern[str]] = {
+    "roe": re.compile(r"(?<![A-Za-z])ROE(?![A-Za-z])|净资产收益率|return on (?:average )?equity", re.IGNORECASE),
+    "eps": re.compile(r"(?<![A-Za-z])EPS(?![A-Za-z])|每股收益|每股盈利|earnings per share", re.IGNORECASE),
+    "dps": re.compile(
+        r"每\s*(?:10|十)\s*股\s*派|每股(?:派发|派|分配)?(?:现金)?(?:红利|分红|股利|股息|派息|派现)|每股派|"
+        r"(?<![A-Za-z])DPS(?![A-Za-z])|dividends? per share|per[- ]share (?:cash )?dividend|"
+        r"(?:cash )?dividend of(?= .{0,30}?per share)|"
+        r"(?:for )?(?:every|per) 10 shares",
+        re.IGNORECASE,
+    ),
+    "bps": re.compile(r"(?<![A-Za-z])BPS(?![A-Za-z])|每股净资产|book value per share", re.IGNORECASE),
+}
+_PER_TEN_SHARES = re.compile(r"(?:10|十)\s*股|10 shares", re.IGNORECASE)
+_METRIC_KEYS: dict[str, re.Pattern[str]] = {
+    "roe": re.compile(r"^roe(?:_\w+)?$", re.IGNORECASE),
+    "eps": re.compile(r"^(?:\w+_)?eps(?:_\w+)?$", re.IGNORECASE),
+    "dps": re.compile(r"^(?:cash_)?(?:dividend_per_share|dps)(?:_\w+)?$", re.IGNORECASE),
+    "bps": re.compile(r"^(?:bps|book_value_per_share)(?:_\w+)?$", re.IGNORECASE),
+}
 # English month names ("May" only capitalised: "may 5%" is the verb).
 EN_MONTH = (
     r"(?:(?i:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|"
@@ -91,7 +113,10 @@ class VerificationReport(BaseModel):
     )
     document_market_numbers: list[float] = Field(
         default_factory=list,
-        description="Prices, valuation multiples or daily moves supported only by document text, not market data",
+        description=(
+            "Prices, valuation multiples or daily moves supported only by document text, not market data; and "
+            "ROE / EPS / dividend or book value per share figures that differ from the run's structured fundamentals"
+        ),
     )
     uncited_numbers: list[float] = Field(
         default_factory=list, description="Numbers in sentences that cite no evidence (LLM drafts only)"
@@ -115,8 +140,9 @@ class VerificationReport(BaseModel):
         if self.document_market_numbers:
             values = ", ".join(_format_number(value) for value in self.document_market_numbers)
             problems.append(
-                f"These prices or valuation figures are only backed by news or document text: {values}. State market "
-                "metrics only from market or fundamental data evidence, or drop them."
+                f"These prices, valuation figures or reported fundamentals (ROE, EPS, dividend per share) are only "
+                f"backed by news or document text, or contradict the fundamentals data: {values}. State market "
+                "metrics and fundamentals only from market or fundamental data evidence, or drop them."
             )
         if self.uncited_numbers:
             values = ", ".join(_format_number(value) for value in self.uncited_numbers)
@@ -300,6 +326,67 @@ def claim_values(text: str) -> list[tuple[float, tuple[float, ...], float, int |
     return [claim for _position, claim in sorted(values, key=lambda item: item[0])]
 
 
+class MetricClaim(BaseModel):
+    """A reported fundamental stated in text: "ROE 为 47.7%", "每10股派现1000元" (``value`` is per share: 100)."""
+
+    metric: str
+    value: float
+    stated: float
+    scales: tuple[float, ...]
+    rounding: float
+    start: int
+    end: int
+
+
+def metric_claims(text: str) -> list[MetricClaim]:
+    """ROE / EPS / dividend-per-share / book-value-per-share figures in ``text``: the first number within 24
+    characters after the metric name (for dividends also the number just before an English "per 10 shares")."""
+    cleaned = _cleaned(text)
+    found: list[MetricClaim] = []
+    for metric, pattern in _FUNDAMENTAL_METRICS.items():
+        for match in pattern.finditer(cleaned):
+            window = cleaned[match.end() : match.end() + 24]
+            values = claim_values(window)
+            offset = match.end()
+            if not values and metric == "dps":
+                window = cleaned[max(0, match.start() - 24) : match.start()]
+                values = claim_values(window)[-1:]
+                offset = max(0, match.start() - 24)
+            if not values:
+                continue
+            value, scales, rounding, _sign = values[0]
+            factor = 0.1 if metric == "dps" and _PER_TEN_SHARES.search(match.group(0)) else 1.0
+            found.append(
+                MetricClaim(
+                    metric=metric,
+                    value=value * factor,
+                    stated=value,
+                    scales=scales,
+                    rounding=rounding * factor,
+                    start=match.start(),
+                    end=offset + len(window),
+                )
+            )
+    return found
+
+
+def structured_metric_values(store: EvidenceStore, metric: str) -> list[tuple[float, bool]]:
+    """Values of ``metric`` in the structured evidence of the run (empty when no tool returned it)."""
+    key_pattern = _METRIC_KEYS[metric]
+    values: list[tuple[float, bool]] = []
+    for item in store.items():
+        if item.kind != "structured":
+            continue
+        for key, raw in (item.payload or {}).items():
+            if not key_pattern.match(str(key)) or isinstance(raw, bool):
+                continue
+            try:
+                values.append((float(str(raw).rstrip("%").replace(",", "")), True))
+            except ValueError:
+                continue
+    return values
+
+
 def claim_units(answer: dict[str, Any]) -> list[str]:
     """Sentences of the answer and of each key point: the unit a citation applies to."""
     units: list[str] = []
@@ -333,7 +420,9 @@ def verify_answer(
     ``evaluation/agent_eval/verifier_stress.py`` can measure the improvement.
 
     ``market_precedence`` (on for LLM drafts) rejects prices, valuation multiples and daily moves backed
-    only by document text. Template answers quote documents with explicit attribution ("相关资料：《…》")
+    only by document text, and ROE / EPS / dividend or book value per share figures that differ from the value
+    of the same metric in the run's structured evidence (only when a tool returned that metric). Template
+    answers quote documents with explicit attribution ("相关资料：《…》")
     and are deterministic, so the graph turns it off for them. ``require_citations`` (on by default, for
     every draft) rejects numbers in sentences that cite no evidence instead of accepting any number of the
     run, so an uncited "预计明年涨幅21.4%" cannot borrow the 21.4 of an unrelated PE; template sentences
@@ -403,6 +492,15 @@ def verify_answer(
                     misattributed.append(value)
             elif value not in unsupported:
                 unsupported.append(value)
+        if binding == "claim" and market_precedence:
+            # Reported fundamentals (ROE, EPS, dividend / book value per share) take the structured value when the
+            # run has one: a different figure for the same metric from a document is a conflict, not a fact.
+            for claim in metric_claims(unit):
+                reference = structured_metric_values(store, claim.metric)
+                if not reference or claim.stated in unsupported or claim.stated in document_market:
+                    continue
+                if not _is_supported(claim.value, reference, claim.scales, claim.rounding):
+                    document_market.append(claim.stated)
     valid_cited = [evidence_id for evidence_id in ids if evidence_id in store]
     missing = len(store) > 0 and not valid_cited
     return VerificationReport(
