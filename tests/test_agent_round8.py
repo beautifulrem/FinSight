@@ -376,3 +376,15 @@ def test_year_to_date_change_is_derived_with_both_closes_and_verifies(offline_se
     store.add(AgentEvidence(evidence_id="price_510300.SH", kind="structured", source_type="market_api",
                             title="t", payload={**data, "year_start": data["year_start"]}))  # fmt: skip
     assert verify_answer(answer, store, query="沪深300ETF今年以来涨了多少", allow_derived=True).passed
+
+
+def test_a_percent_share_is_derived_only_from_two_amounts():
+    from query_intelligence.agent.verifier import _is_amount, _is_derived, claim_values
+
+    claims = claim_values("823.2 亿元 ÷ 1688.38 亿元 ≈ 48.76% [fundamental_600519.SH]。")
+    amounts = [value for value, scales, _rounding, _sign in claims if _is_amount(scales)]
+    assert _is_derived(48.76, 0.005, [823.2, 1688.38], shares=amounts)
+    # PB / PE * 100 = 32.93 is not a figure anyone states: multiples are not amounts, so it is not "derived"
+    multiples = claim_values("PE 24.6 倍，PB 8.1 倍，ROE 32.93%")
+    assert not [value for value, scales, _rounding, _sign in multiples if _is_amount(scales)]
+    assert not _is_derived(32.93, 0.005, [24.6, 8.1], shares=[])
