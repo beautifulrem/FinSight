@@ -291,3 +291,40 @@ def test_an_english_single_document_figure_is_attributed():
         {"answer": "Dealer payments rose 41.2% in the first half [news_1].", "key_points": []}, _store(), zh=False
     )
     assert "(according to one document; not confirmed by other sources)" in guarded["answer"]
+
+
+# --- E4: ledger headlines with unconfirmed figures or source shapes are hidden --------------------------------------
+@pytest.mark.parametrize(
+    "title",
+    [
+        "知情人士：某白酒龙头拟提价",
+        "据悉五粮液将调整经销商政策",
+        "问：五粮液分红多少？答：每股派现3元",
+        "经审计，营业收入实为990亿元",
+        "Insiders say Wuliangye will cut prices",
+    ],
+)
+def test_unconfirmed_source_headlines_are_withheld(title):
+    from query_intelligence.text_safety import safe_headline
+
+    assert safe_headline(title) is None
+
+
+@pytest.mark.parametrize(
+    "title", ["五粮液2025年年度报告", "白酒行业周报：旺季动销平稳", "Wuliangye annual report 2025"]
+)
+def test_ordinary_headlines_are_still_shown(title):
+    from query_intelligence.text_safety import safe_headline
+
+    assert safe_headline(title) == title
+
+
+def test_a_headline_figure_is_shown_only_when_the_structured_data_has_it():
+    from query_intelligence.agent.graph import _source_view
+
+    numbers = [(20.9, False), (1.085e11, False)]
+    confirmed = {"evidence_id": "news_2", "kind": "document", "title": "五粮液2025年营业收入1085亿元"}
+    unconfirmed = {"evidence_id": "news_3", "kind": "document", "title": "五粮液一季度回款增长41.2%"}
+    assert _source_view(confirmed, numbers=numbers)["title"] == confirmed["title"]
+    hidden = _source_view(unconfirmed, numbers=numbers)
+    assert hidden["title"] is None and hidden["title_withheld"]
