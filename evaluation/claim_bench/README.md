@@ -6,7 +6,7 @@ against the offline snapshot (`data/structured_data.json`: prices as of 2026-04-
 
 | File | Claims | Use |
 | --- | --- | --- |
-| `claims_v1.jsonl` | 267 (220 zh, 47 en) | dev set: the checker was developed against it (rows noted `round4` / `round5` / `round8` / `round9` / `round10` were added with later rule rounds) |
+| `claims_v1.jsonl` | 268 (221 zh, 47 en) | dev set: the checker was developed against it (rows noted `round4` / `round5` / `round8` / `round9` / `round10` were added with later rule rounds) |
 | `claims_v1_holdout.jsonl` | 47 (38 zh, 9 en) | held out: written together with the dev set, before the fixes, and run **once** at the end |
 
 Held-out file sha256 (recorded when it was written, before any checker change):
@@ -69,12 +69,12 @@ the round-4 and round-5 slices or the round-5 reviewer's probes. d102 ("沪深30
 the fund's change is now computed from its closes (+0.73%, within half a unit of "1%"), so it is supported, not
 unverifiable.
 
-Round-10 rows (`note: round10`, d246-d267) were written after the round-6 review (F1, F2, F7), as new phrasings of its
+Round-10 rows (`note: round10`, d246-d268) were written after the round-6 review (F1, F2, F7), as new phrasings of its
 failure classes: a value stated for the compared side in the metric's own unit ("比白酒行业平均的8倍低", "低于保险行业
 平均的11.8倍", "比茅台的30倍低", "低于茅台的33%": the stated value is its own check next to the comparison), multiples
 kept by an explicit ratio cue ("是…的1.3倍左右", "只有茅台的85%"), stated differences ("低3.6个百分点", "多赚了四百四十多
 亿", "低4.3倍" of P/B, "相差约18个百分点", "低了大约两成" relative to the average, "高出600亿以上", a difference in the
-wrong direction, "差了5倍多", an ambiguous "高出一倍多" of an amount, "跌幅比茅台大0.36个百分点"), and numerals with
+wrong direction, "差了5倍多", an ambiguous "高出一倍多" of an amount, "跌幅比茅台大0.36个百分点", a later clause that belongs to the comparison's subject, not its compared side), and numerals with
 多/余/出头/左右 ("一千二百多亿", "三百八十亿出头", "七成多", "三成左右", "一千余亿"). They were labelled by hand from
 `data/structured_data.json` before the checker was run on them. `tests/test_agent_eval.py` checks that none copies or
 near-copies a claim of the held-out set, the round-4 and round-5 slices or the round-5 and round-6 reviewer probes.

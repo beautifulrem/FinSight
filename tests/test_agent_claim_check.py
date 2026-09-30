@@ -901,3 +901,15 @@ def test_numerals_with_more_or_about_are_bounded_approximations(claim, normalise
     (check,) = _check_all(claim).checks
 
     assert (check.comparator, check.claimed, check.claimed_high, check.status) == (comparator, claimed, high, status)
+
+
+def test_a_later_clause_belongs_to_the_subject_of_a_comparison_not_its_compared_side():
+    # "…比五粮液高出9个百分点，营收一千七百多亿": the revenue is 茅台's (the compared side is not the subject); a target
+    # named again in the later clause still takes its number
+    report = _check_all("茅台ROE比五粮液高出9个百分点，营收一千七百多亿")
+    assert [(check.target, check.kind, check.status) for check in report.checks] == [
+        ("贵州茅台", "difference", "supported"),
+        ("贵州茅台", "value", "supported"),
+    ]
+    report = _check_all("茅台的市盈率比五粮液高，五粮液市盈率15.2倍")
+    assert [check.target for check in report.checks] == ["贵州茅台", "五粮液"]

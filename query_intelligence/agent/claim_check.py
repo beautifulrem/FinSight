@@ -1915,6 +1915,9 @@ def _relation_metric(text: str, cue_start: int, cue_end: int, start: int, end: i
     return found[0][1] if found else None
 
 
+_COMPARED_SIDE = re.compile(r"(?:比|高于|低于|大于|小于|超过|不及|不如|跑赢|跑输|than)\s*(?:了|过|the|its)?\s*$", re.I)
+
+
 def _bind_targets(
     numbers: list[_Number], positions: list[tuple[int, dict[str, Any]]], targets: list[dict[str, Any]], text: str
 ) -> list[_Number]:
@@ -1924,11 +1927,24 @@ def _bind_targets(
         return numbers
     placed = {id(target) for _position, target in positions}
     unplaced = [target for target in targets if id(target) not in placed]
+    # Targets named only as the compared side ("比五粮液", "高于茅台"): not the subject of a later clause (round 10).
+    compared = {
+        position for position, _target in positions if _COMPARED_SIDE.search(text, max(0, position - 8), position)
+    }
     for number in numbers:
         before = [target for position, target in positions if position < number.start]
         if (number.ratio or number.difference) and number.reference is not None:
             # "五粮液的跌幅大约是茅台的三倍": the subject is named before the reference
             before = [target for target in before if target["key"] != number.reference["key"]]
+        clause_start, _clause_end = _clause_bounds(text, number.start)
+        subjects = [
+            target
+            for position, target in positions
+            if position < number.start and not (position in compared and position < clause_start)
+        ]
+        if subjects and before and before[-1] is not subjects[-1] and not number.relation:
+            # "茅台ROE比五粮液高出3.6个百分点，一年营收一千六百多亿": the revenue is 茅台's, not the compared side's
+            before = subjects
         # No target named before the number: the first one the NLU found but we could not place (NLU order
         # is the order of appearance), else the first one named after it.
         number.target = before[-1] if before else (unplaced or [target for _p, target in positions] or targets)[0]
