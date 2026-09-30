@@ -26,6 +26,7 @@ from ..chatbot import (
 from ..text_safety import fold
 from .evidence import AgentEvidence
 from .router import _JUDGMENT_MARKERS as _ROUTER_JUDGMENT
+from .router import FAIR_VALUE_MARKERS
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -41,6 +42,10 @@ _TRADING_ZH = re.compile(
     r"(?:一次性|逢低|逢高|适当|分批|立即|果断|继续|长期|坚定|积极|尽快|马上|全部|提前)+\s*"
     r"(?:买入|卖出|加仓|减仓|清仓|满仓|全仓|抄底|建仓|止损|止盈|持有|增持|减持|入场|离场|上车|抛售|出货|退出)"
     r"|(?:尽快|务必|必须|赶紧)(?:卖出|清仓|离场|抛售|出货|买入)|黄金坑|满仓(?:杀入|买入|干)|止损位"
+    # one number presented as the fair value ("合理估值约为1500元", "每股内在价值1320元"): an opinion, like a
+    # target price
+    r"|(?:合理|内在|真实)(?:的)?(?:估值|价值|价位|价格|股价)"
+    r"(?:区间|中枢|应该|应当|应|大概|大约|估计|约|为|是|在|看|有|:|：|\s){0,4}\d|每股(?:合理|内在)价值"
 )
 _TRADING_EN = re.compile(
     r"\b(?:you should|we recommend|i recommend|i suggest|consider|it is a good time to|now is the time to)\s+"
@@ -52,7 +57,11 @@ _TRADING_EN = re.compile(
     # "BUY PING AN NOW" (after NFKC folding), "sell Wuliangye before Friday", "holders must exit by 30 April"
     r"|\bbuy\s+(?:[a-z0-9.&'-]+\s+){0,3}?now\b|\b(?:sell|dump|exit)\s+(?:[a-z0-9.&'-]+\s+){0,3}?(?:now|immediately|before\s+\w+)\b"
     r"|\b(?:holders|investors|shareholders|you|readers|users|everyone)\s+(?:must|should)\s+"
-    r"(?:exit|sell|dump|liquidate|get out)\b|\bgo all[- ]in\b|\bmust[- ]buy\b|\bfull position\b",
+    r"(?:exit|sell|dump|liquidate|get out)\b|\bgo all[- ]in\b|\bmust[- ]buy\b|\bfull position\b"
+    # "a fair value of CNY 1,500", "intrinsic value is about 1320", "worth about CNY 1,500 a share"
+    r"|\b(?:fair|intrinsic|true) (?:value|price)\b[^.;]{0,30}?\b(?:is|of|at|around|about|near)\b\s*"
+    r"(?:about |around |roughly )?(?:cny|rmb|us\$|\$|¥)?\s*\d"
+    r"|\bworth (?:about |around |roughly |approximately )?(?:cny|rmb|us\$|\$|¥)\s*\d",
     re.IGNORECASE,
 )
 # Lexical triggers make hedging independent of the NLU question-style label. Besides buy/sell and timing words
@@ -83,6 +92,16 @@ _JUDGMENT_PREFIX_EN = (
 _CAUSAL_CAVEAT_ZH = "以上证据只能提示可能的影响因素，不能据此确定因果关系。"
 _CAUSAL_CAVEAT_EN = "This evidence only points to possible factors; it does not establish cause and effect."
 _HEDGE_MARKERS = ("条件性", "不能据此", "可能", "possible", "conditional", "does not establish", "cannot")
+
+# A fair-value question ("合理估值是多少", "What is it worth?"): the evidence has market prices and multiples, which
+# are stated, but no valuation model; the answer says so instead of letting a price read as the fair value.
+_FAIR_VALUE_ZH = "FinSight 不给出合理估值：下文的价格、PE、PB 和行业对比是市场数据和估值参考，不是对合理价值的判断。"
+_FAIR_VALUE_EN = (
+    "FinSight does not give a fair value: the prices, P/E, P/B and industry comparison below are market data and "
+    "valuation references, not a judgement of what the stock is worth."
+)
+_FAIR_VALUE_LIMITATION_ZH = "证据中没有可据以确定合理估值的估值模型或一致预期，不能给出合理价格"
+_FAIR_VALUE_LIMITATION_EN = "The evidence has no valuation model or consensus estimate from which a fair value follows"
 
 _NEUTRAL_ZH = "是否交易取决于个人风险承受能力、投资期限和持仓情况，以上仅为证据梳理，不构成买卖建议。"
 _NEUTRAL_EN = (
@@ -216,7 +235,25 @@ def apply_compliance(
         softened = f"{softened}{'' if zh else ' '}{caveat}".strip()
         notes.append("causal_caveat")
 
+    fair_value = bool(FAIR_VALUE_MARKERS.search(asked))
+    if fair_value:
+        # after the conditional prefix, before the evidence: the price that follows is not the answer to "worth"
+        note = _FAIR_VALUE_ZH if zh else _FAIR_VALUE_EN
+        if note not in softened:
+            prefixes = (
+                _JUDGMENT_PREFIX_ZH if zh else _JUDGMENT_PREFIX_EN,
+                guards._conditional_answer_prefix(nlu_result, zh=zh, query=query).strip(),
+            )
+            lead = next((prefix for prefix in prefixes if prefix and softened.startswith(prefix)), "")
+            rest = softened[len(lead) :].lstrip()
+            softened = ("" if zh else " ").join(part for part in (lead, note, rest) if part)
+        notes.append("fair_value_hedge")
+
     limitations = [str(item) for item in guarded.get("limitations") or [] if str(item).strip()]
+    if fair_value:
+        limitations = guards._append_unique(
+            limitations, [_FAIR_VALUE_LIMITATION_ZH if zh else _FAIR_VALUE_LIMITATION_EN]
+        )
     limitations = guards._append_unique(
         limitations, guards._guardrail_limitations(pseudo_retrieval, nlu_result, zh=zh, query=query)
     )
