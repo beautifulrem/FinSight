@@ -64,6 +64,15 @@ ATTRIBUTION_SUFFIX_EN = " (according to one document; not confirmed by other sou
 LIMITATION_DISAGREE_ZH = "不同文档对同一财务指标给出的数值不一致，相关数值仅作为文档说法列出。"
 LIMITATION_DISAGREE_EN = "Documents disagree on the same financial metric; those figures are reported only as claims."
 
+# Compliance notes this layer adds, by the kind of edit (the ``kind`` label of
+# ``finsight_output_safety_edits_total``, see ``agent/telemetry.py``).
+EDIT_KINDS = {
+    "omitted_document_promotion": "promotion_or_contact",
+    "omitted_document_trading_call": "trading_call",
+    "omitted_conflicting_document_figure": "conflicting_figure",
+    "attributed_document_claim": "attribution",
+}
+
 _REGULATORY = re.compile(
     r"立案(?:调查|侦查)?|行政处罚|处罚决定|监管函|警示函|纪律处分|公开谴责|(?:退市)?风险警示|(?-i:(?<![A-Za-z])\*?ST(?![A-Za-z]))|戴帽|"
     r"退市|终止上市|暂停上市|摘牌|停牌|强制清算|风险名单|财务造假|欺诈发行|涉嫌(?:违法|违规|犯罪|信息披露)|"

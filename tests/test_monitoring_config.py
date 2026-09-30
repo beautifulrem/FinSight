@@ -30,7 +30,7 @@ def _panels() -> list[dict]:
 def test_dashboard_structure():
     dashboard = json.loads(DASHBOARD.read_text(encoding="utf-8"))
     panels = dashboard["panels"]
-    assert dashboard["uid"] == "finsight-ops" and len(panels) == 29
+    assert dashboard["uid"] == "finsight-ops" and len(panels) == 30
     assert len({panel["id"] for panel in panels}) == len(panels)
 
     cells: dict[tuple[int, int], int] = {}
@@ -54,9 +54,10 @@ def test_quality_row_has_prompt_version_and_feedback_panels():
     assert 'outcome="repaired"' in repair and "by (prompt_version)" in repair
     feedback = titles["User feedback: thumbs-up ratio by prompt version"]["targets"][0]["expr"]
     assert 'rating="up"' in feedback and "by (prompt_version)" in feedback
-    assert "finsight_audit_events_total" in titles["Audit events per hour (refusals, compliance edits)"]["targets"][0][
-        "expr"
-    ]
+    assert (
+        "finsight_audit_events_total"
+        in titles["Audit events per hour (refusals, compliance edits)"]["targets"][0]["expr"]
+    )
 
 
 def test_every_referenced_metric_is_exported():
@@ -75,6 +76,7 @@ def test_every_referenced_metric_is_exported():
         "verification_passed": False,
         "degraded": ["x", "instruction_like_text_removed_from_evidence"],
         "route_reasons": ["input_guard:instruction_like_text_removed"],
+        "compliance_notes": ["attributed_document_claim"],
     }
     sink.emit(sample)
     sink.record_feedback("up", "v3")
@@ -97,3 +99,27 @@ def test_injection_redaction_panels_use_the_redaction_counter():
 
     assert "finsight_injection_redactions_total" in series and "by (source, outcome)" in series
     assert 'source="user_message"' in answered and 'outcome="answered"' in answered
+
+
+def test_output_safety_panel_counts_edits_by_kind():
+    from prometheus_client import generate_latest
+
+    titles = {panel["title"]: panel for panel in _panels()}
+    expr = titles["Output-safety edits per hour by kind"]["targets"][0]["expr"]
+    assert "finsight_output_safety_edits_total" in expr and "by (kind)" in expr
+
+    sink = PrometheusTraceSink()
+    notes = [
+        "attributed_document_claim",
+        "attributed_document_claim",  # one run, one increment per kind
+        "omitted_document_promotion",
+        "removed_prohibited_promotion",  # the compliance guard's own note: not an output-layer edit
+        "omitted_conflicting_document_figure",
+    ]
+    sink.emit({"route": "workflow", "answer_source": "llm_compose", "compliance_notes": notes})
+    sink.emit({"route": "agent", "answer_source": "llm_agent", "compliance_notes": ["omitted_document_trading_call"]})
+    sink.emit({"route": "workflow", "answer_source": "template", "compliance_notes": []})
+    exported = generate_latest(sink.registry).decode()
+    for kind in ("attribution", "promotion_or_contact", "conflicting_figure", "trading_call"):
+        assert f'finsight_output_safety_edits_total{{kind="{kind}"}} 1.0' in exported, kind
+    assert exported.count("finsight_output_safety_edits_total{") == 4
