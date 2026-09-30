@@ -267,17 +267,42 @@ def _price(data: dict[str, Any], zh: bool, request: PriceRequest | None = None) 
         return _intraday_price(name, symbol, eid, quote, zh)
     if close is None:
         return []
+    computed = _computed_change(data) if pct is None else None
     if zh:
         change = f"，当日涨跌幅 {_num(pct)}%" if pct is not None else ""
+        if computed:
+            previous, change_pct = computed
+            change = (
+                f"，按前一交易日收盘 {_px(previous, data, zh)} 计算的当日涨跌幅约 {_num(change_pct)}%"
+                "（数据源未提供涨跌幅）"
+            )
         sentences = [f"{name}（{symbol}）最新可用收盘价为 {_px(close, data, zh)}（{as_of}）{change} [{eid}]。"]
     else:
         change = f", daily change {_num(pct)}%" if pct is not None else ""
+        if computed:
+            previous, change_pct = computed
+            change = (
+                f", a daily change of about {_num(change_pct)}% computed from the previous close of "
+                f"{_px(previous, data, zh)} (the source reports no daily change)"
+            )
         sentences = [f"{name} ({symbol}) last available close was {_px(close, data, zh)} on {as_of}{change} [{eid}]."]
     if request is not None and request.needs_quote:
         sentences.extend(_price_details(data, zh, request))
     if request is not None and request.year_to_date:
         sentences.extend(_year_to_date(data, zh))
     return sentences
+
+
+def _computed_change(data: dict[str, Any]) -> tuple[float, float] | None:
+    """``(previous close, change in %)`` from the last two closes, for a fund or index whose source leaves the daily
+    change empty (510300 offline). Only when the latest close is the quoted one; labelled "computed" by the caller."""
+    closes = [row for row in data.get("recent_closes") or [] if isinstance(row, dict) and row.get("close")]
+    if len(closes) < 2 or str(closes[-1].get("date") or "")[:10] != str(data.get("as_of") or "")[:10]:
+        return None
+    previous, latest = float(closes[-2]["close"]), float(closes[-1]["close"])
+    if not previous or latest != float(data.get("close") or 0):
+        return None
+    return previous, round((latest / previous - 1) * 100, 2)
 
 
 def _year_to_date(data: dict[str, Any], zh: bool) -> list[str]:
