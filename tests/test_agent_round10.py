@@ -442,3 +442,52 @@ def test_every_starter_chip_is_answerable_offline(agent):
         structured = [eid for eid in result.get("evidence_used") or [] if not eid.startswith(("news_", "aknews_"))]
         answer = result["answer"]
         assert structured and "没有检索到" not in answer and "No usable evidence" not in answer, chip
+
+
+# ---- found in the holdout8 LLM run: another issuer's announcement is not a second source ----
+
+
+def _regulatory_store(second_about_same_company: bool):
+    from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
+
+    store = EvidenceStore()
+    store.add(
+        AgentEvidence(
+            evidence_id="price_000858.SZ",
+            kind="structured",
+            source_type="market_api",
+            title="五粮液 (000858.SZ) price",
+            payload={"name": "五粮液", "close": 100.64},
+        )
+    )
+    store.add(
+        AgentEvidence(
+            evidence_id="news_1",
+            kind="document",
+            source_type="news",
+            title="监管快讯",
+            text_excerpt="有消息称证监会已对五粮液立案调查。",
+        )
+    )
+    other = (
+        "五粮液公告：公司收到证监会立案告知书，目前生产经营正常。"
+        if second_about_same_company
+        else ("某科技公司公告：公司收到证监会立案告知书，目前生产经营正常。")
+    )
+    store.add(
+        AgentEvidence(
+            evidence_id="ann_2", kind="document", source_type="announcement", title="公告", text_excerpt=other
+        )
+    )
+    return store
+
+
+def test_a_regulatory_claim_is_not_corroborated_by_another_issuers_announcement():
+    from query_intelligence.agent.output_safety import scrub_answer
+
+    answer = {"answer": "证监会已对五粮液立案调查 [news_1]，另一条公告也提到立案 [ann_2]。", "key_points": []}
+    guarded, notes = scrub_answer(answer, _regulatory_store(second_about_same_company=False), zh=True)
+    assert "attributed_document_claim" in notes and "未经其他来源证实" in guarded["answer"]
+    # a second, differently worded document about the same company still corroborates it
+    kept, notes = scrub_answer(answer, _regulatory_store(second_about_same_company=True), zh=True)
+    assert kept["answer"] == answer["answer"] and notes == []
