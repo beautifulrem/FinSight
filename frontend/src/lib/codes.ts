@@ -175,6 +175,23 @@ const EXACT: Record<string, Text> = {
   // Compliance
   softened_judgment_or_causal_language: { zh: "已弱化判断或因果措辞", en: "Softened judgment or causal wording" },
   removed_trading_instruction: { zh: "已删除交易指令", en: "Removed a trading instruction" },
+  removed_prohibited_promotion: {
+    zh: "已删除收益保证、荐股或联系方式内容",
+    en: "Removed return guarantees, stock tips or contact details",
+  },
+  omitted_document_promotion: {
+    zh: "已省略文档中的推广或联系方式内容",
+    en: "Omitted promotional content or contact details from a document",
+  },
+  omitted_document_trading_call: { zh: "已省略文档中的买卖建议", en: "Omitted a buy/sell call from a document" },
+  attributed_document_claim: {
+    zh: "已将仅有文档来源的说法标注为未经证实",
+    en: "Marked a document-only claim as unconfirmed",
+  },
+  omitted_conflicting_document_figure: {
+    zh: "已省略与结构化数据不一致的文档数值",
+    en: "Omitted a document figure that contradicts the structured data",
+  },
   conditional_prefix: { zh: "已加上条件性说明", en: "Added a conditional preface" },
   causal_caveat: { zh: "已加上因果关系提示", en: "Added a causality caveat" },
   market_freshness: { zh: "已提示行情数据时效", en: "Added a market-data freshness note" },
