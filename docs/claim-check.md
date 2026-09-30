@@ -326,7 +326,7 @@ a sector in an English report reads "baijiu industry".
 
 ### Round 10: stated values of the compared side, stated differences, bounded numerals (after the round-6 review)
 
-These rules answer the round-6 review's F1, F2 and F7 (claim side). They were written with 22 new dev claims (d246-d267,
+These rules answer the round-6 review's F1, F2 and F7 (claim side). They were written with 23 new dev claims (d246-d268,
 `note: round10`), labelled by hand before the checker ran on them.
 
 **Ratio or stated value: the unit of the metric decides (F1).** "茅台市盈率24.6倍，比白酒行业平均的30倍低不少" was read as
@@ -373,7 +373,9 @@ the **difference** of the two values (`kind: "difference"`, `difference` = targe
 
 The comparator applies to the size of the difference in the stated direction ("高出不到5个百分点" is 0 < difference < 5);
 "跌幅比茅台大0.36个百分点" is a lower daily change. "%" on a metric quoted in percent (ROE) is read as percentage points.
-The UI shows "差值 ≈ +3.6 个百分点", the other side's value and the actual difference ("实际 +3.6 个百分点").
+The UI shows "差值 ≈ +3.6 个百分点", the other side's value and the actual difference ("实际 +3.6 个百分点"). A later clause
+with no name of its own belongs to the comparison's subject, not to its compared side: in "茅台ROE比五粮液高出约3.6个百分点，
+一年营收一千六百多亿" the revenue is 茅台's (found in the real-Chrome check; before, it bound to 五粮液, the nearest name).
 
 **Numerals with 多 / 余 / 出头 / 左右 (F7).** "一千六百多亿", "八百余亿", "三十多倍" now parse (多 / 余 between the numeral and
 its unit). They are bounded approximations, using the **step** of the number's last significant digit (800 → 100,
@@ -532,10 +534,10 @@ python -m evaluation.claim_bench.run --set holdout
 | held-out, after exposure, at the round-9 commit | `2be73d6` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 | independent round-4 slice, after exposure, at the round-9 commit | `2be73d6` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
 | independent round-5 slice, **after exposure** (round 9) | `2be73d6` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
-| dev with the 22 round-10 rows (d246-d267) | `36c5e67` | 267 / 305 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
-| held-out, after exposure, at the round-10 commit | `36c5e67` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
-| independent round-4 slice, after exposure, at the round-10 commit | `36c5e67` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
-| independent round-5 slice, after exposure, at the round-10 commit | `36c5e67` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
+| dev with the 23 round-10 rows (d246-d268) | `f94df6f` | 268 / 307 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the round-10 commit | `f94df6f` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-4 slice, after exposure, at the round-10 commit | `f94df6f` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
+| independent round-5 slice, after exposure, at the round-10 commit | `f94df6f` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
 
 The result files are `evaluation/results/claim_bench-dev-baseline.json`, `claim_bench-dev.json`,
 `claim_bench-holdout.json` (the single first run), `claim_bench-holdout-after-round8.json` (the same file after
