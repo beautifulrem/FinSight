@@ -21,6 +21,11 @@
 （`sources` 列：证据 id、来源、日期、关键数值）。其中约一半来自确定性路径、一半来自 LLM 智能体，**表格里不显示是哪条路径，
 也不显示 FinSight 的自动评分**，顺序已打乱，请不要去查 `answers_meta.jsonl`，以免影响判断。
 
+这些回答用的是离线数据（行情截至 2026-04-22，财报为 FY2025，“今天”固定为 2026-04-23），所以回答里会出现“数据来自离线快照、
+非实时”之类的说明——这是产品在离线模式下的正常表述，请按“对用户是否如实”来评，不用因此扣分。
+每次工具调用都直接跑离线数据工具（不再回放评估时录制的快照），所以回答里不会再出现“该数据未记录在评估快照中”这类评估系统的字样；
+生成脚本会检查，一旦出现就拒绝写出表格。
+
 步骤：
 
 1. 用 Excel/Numbers 打开 `labels/answers_to_label.csv`。
@@ -163,19 +168,26 @@ FinSight's behaviour. Unit tests on synthetic inputs: `tests/test_human_kit.py`.
 **1. Answer-quality labels** (`generate_answers.py`, `score_labels.py`). 100 single-turn questions were drawn
 without replacement (seed 20260930) from the pooled single-turn tasks of test v3 (114) and held-out (50): 67 from
 test v3, 33 from held-out. The last 50 drawn were answered by the LLM agent (`mode=agent`,
-`cline-pass/deepseek-v4.1-flash`, 66 sequential HTTP requests, no HTTP 429, no LLM fallback), the rest on the
-deterministic path (`mode=auto`, no LLM), both over the committed tool snapshots with the evaluation's fixed
-"today" (2026-04-23), at commit `b3eb483`. The draw is then shuffled, so ids and order do not reveal the path.
+`cline-pass/deepseek-v4.1-flash`, 68 sequential HTTP requests, no HTTP 429, no LLM fallback), the rest on the
+deterministic path (`mode=auto`, no LLM), with the evaluation's fixed "today" (2026-04-23). The draw is then
+shuffled, so ids and order do not reveal the path. The answers were regenerated at commit `83ed11a` after the
+round-6 review: the first set (`b3eb483`) replayed the recorded test v3 / held-out tool snapshots, and 43 tool
+calls of the LLM half were missing from them, so answers such as "该数据未记录在评估快照中" judged an evaluation
+artifact. Now every tool call runs against the offline tools directly (as `runner --no-replay`): 171 tool calls,
+0 replay gaps, 14 genuine tool errors (8 `unavailable`, e.g. not enough price history for RSI; 6 `not_found`, e.g.
+万科A has no offline market data), the same errors the offline product returns. Generation refuses to write the
+sheet when an answer or sources cell matches `EVAL_LEAK_PATTERNS` (evaluation snapshot, replay, fixtures, task-set
+names; the offline data's own "离线快照 / offline snapshot" provenance label is product wording and allowed), and it
+stops without writing on HTTP 429 or the request cap unless `--allow-fallback` is passed.
 The labeller sees question, answer (with limitations and disclaimer) and the cited evidence only; the path,
-FinSight's automatic score (`score_turn` task success, verification, compliance check) and the full evidence
-list are in `labels/answers_meta.jsonl`, run details in `labels/generation.json` (the LLM path had 43 snapshot
-misses, i.e. tool calls whose arguments were not recorded, which return tool errors as in the ablation runs).
+FinSight's automatic score (`score_turn` task success, verification, compliance check), the full evidence list
+and a per-answer tool call/error summary are in `labels/answers_meta.jsonl`, run details in `labels/generation.json`.
 The scorer reports label rates with Wilson 95% CIs (overall and per path) and Cohen's kappa (bootstrap 95% CI),
 observed agreement and confusion matrices for human `overall_good` vs task success and vs verification passed,
 `supported_by_sources` vs verification passed and `compliant` vs the no-trading-instruction check.
 `--llm-judge` calibrates a `cline-pass/*` judge on a fixed rubric (hash recorded) against the human labels; it
 is off by default and caches judgements. Limits: one labeller, so no inter-annotator agreement unless a second
-person labels a copy; labels are on the snapshot data, not live data.
+person labels a copy; labels are on the offline data, not live data.
 
 **2. Head-to-head** (`score_head_to_head.py`, `fetch_finsight_answers.py`). The 30 questions follow the type
 table of `docs/comparison.md` and are frozen by sha256 (above; the scorer refuses a changed file). Protocol:
