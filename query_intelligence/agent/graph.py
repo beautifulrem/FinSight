@@ -82,6 +82,7 @@ from .prompts import (
 )
 from .router import (
     apply_finance_overrides,
+    correct_question_style,
     decide_route,
     drop_fuzzy_concepts,
     has_finance_content,
@@ -339,7 +340,9 @@ class AgentRuntime:
             nlu, member_reasons = self._attach_sector_member(nlu, turns, query)
             rewrite_reasons.extend(member_reasons)
         nlu, override_reasons = apply_finance_overrides(nlu, query)
-        override_reasons = [*dropped_reasons, *override_reasons]
+        # the user's words and the resolved question: "为什么？" rewritten to "贵州茅台为什么涨" keeps its why style
+        nlu, style_reasons = correct_question_style(nlu, f"{state['query']} {query}")
+        override_reasons = [*dropped_reasons, *override_reasons, *style_reasons]
         decision = decide_route(nlu, mode=mode, query=query)  # type: ignore[arg-type]
         reasons = [*decision.reasons, *override_reasons, *rewrite_reasons]
         refusal_category = "prompt_injection" if injected else "non_finance"
