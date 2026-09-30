@@ -30,10 +30,23 @@ _MULTI_HOP_MARKERS = re.compile(
     r"\bbenefit|\b(?:good|bad) (?:news )?for\b",
     re.IGNORECASE,
 )
+# A fair value asked for: "合理估值应该是多少钱一股", "值多少钱一股", "估值多少合适", "What is Moutai worth?",
+# "fair value", "intrinsic value". FinSight has prices and multiples, not a valuation model, so any single number would
+# be an opinion presented as a fact. Market value (市值) and net asset value (净值) are facts, not verdicts:
+# "市值多少钱" and "净值多少钱" do not match, and neither does a plain price question ("多少钱一股").
+FAIR_VALUE_MARKERS = re.compile(
+    r"合理(?:的)?(?:估值|价值|价位|价格|股价|市值|定价)|内在价值|公允价值(?!变动)|真实价值|"
+    r"(?<![市净])值多少钱|(?<![市净])值几个钱|(?<![市净])值多少(?=一股|每股)|"
+    r"估值[^，。？?,.!！]{0,4}?多少(?:倍)?(?:才|比较|算)?(?:合适|合理|对|靠谱)|估值应(?:该|当)?(?:是|在|给|定)?(?:个)?多少|"
+    r"\bfair (?:value|price|valuation)\b|\bintrinsic value\b|\btrue value\b|\breasonable (?:valuation|price)\b|"
+    r"\bwhat(?:'s| is| are)\b.{0,40}\bworth\b(?! buying)|\bhow much is\b.{0,40}\bworth\b|\bworth per share\b",
+    re.IGNORECASE,
+)
 # Judgment and timing questions need valuation, fundamentals and news plus hedging: never a single lookup.
 # Classes: buy/sell/hold advice, timing, direction forecasts ("会不会继续跌"), valuation verdicts ("贵不贵", "cheap"),
-# opportunity / outlook ("还有机会吗", "outlook") and entry points.
+# a fair value ("合理估值是多少", FAIR_VALUE_MARKERS), opportunity / outlook ("还有机会吗", "outlook") and entry points.
 _JUDGMENT_MARKERS = re.compile(
+    FAIR_VALUE_MARKERS.pattern + "|"
     r"抄底|能不能买|能买吗|值得买|值不值得|要不要|该不该|会涨|会跌|能涨|还能涨|涨吗|跌吗|见底|高估|低估|买点|卖点|"
     r"止盈|止损|逃顶|上车|还能拿|拿得住|适合定投|适合买|值得持有|长期持有|"
     r"适合(?:现在|当前|目前|长期|短期|中长期)?(?:定投|买入?|入场|建仓|持有|上车|配置|介入|抄底|加仓)|"
@@ -163,6 +176,39 @@ _DANGLING_WHY_EN = re.compile(
 def is_dangling_why(query: str) -> bool:
     text = (query or "").strip()
     return bool(_DANGLING_WHY_ZH.match(text) or _DANGLING_WHY_EN.match(text))
+
+
+# A question about a cause or an effect: "为什么跌", "什么原因", "怎么跌了", "受什么影响", "是什么情况", "why",
+# "what drove", "how come".
+# "表现怎么样" and "有没有白酒ETF" ask for a fact or a list: the style classifier sometimes labels them ``why``,
+# and the answer then carried a "no single cause" caveat nobody asked for.
+_CAUSAL_QUESTION = re.compile(
+    r"为什么|为何|为啥|凭什么|何故|缘何|原因|缘由|归因|导致|引起|造成|驱动|推动|拖累|背后|因为什么|由于什么|"
+    r"怎么(?:会|就|又|还|突然|一下子|这么|那么|回事|了)|咋(?:会|就|又|回事|了|这么|[涨跌])|怎么(?:[涨跌大暴急猛狂]|上涨|下跌)|"
+    r"(?:什么|啥)情况|因素|影响|冲击|意味|预示|传导|关系|关联|利好|利空|"
+    r"(?:说明|反映|代表)(?:了)?(?:什么|啥)|"
+    r"\bwhy\b|\bhow come\b|\breasons?\b|\bcaus(?:e|ed|es|ing)\b|\bdr(?:ove|ives|iving|iven)\b|\bdrivers?\b|"
+    r"\bimpact|\baffect|\beffects?\b|\bmeans? for\b|\bimplications?\b|\bhurt\b|\bbenefit|\bsignal|"
+    r"\bbehind\b|\bexplain (?:the|its|this|that|why)\b|\bwhat happened\b|\bwhat(?:'s| is) going on\b|"
+    r"\bdue to\b|\bblame\b|\bwhat (?:pushed|sent|made|dragged|lifted)\b",
+    re.IGNORECASE,
+)
+
+
+def is_causal_question(query: str) -> bool:
+    """The question asks why something happened (a cause), not what it is."""
+    return bool(_CAUSAL_QUESTION.search(query or ""))
+
+
+def correct_question_style(nlu_result: dict[str, Any], query: str) -> tuple[dict[str, Any], list[str]]:
+    """A ``why`` style without any causal wording in the question is a fact question.
+
+    The "no single cause" caveat, the causal limitation and the news lookup of a why-plan all follow the style, so a
+    misread "黄金ETF最近表现怎么样" would otherwise be answered as a causal question.
+    """
+    if str(nlu_result.get("question_style") or "") != "why" or is_causal_question(query):
+        return nlu_result, []
+    return {**nlu_result, "question_style": "fact"}, ["override:why_style_without_causal_cue"]
 
 
 # Requests for a non-research task. They are refused even when they mention a stock or finance words

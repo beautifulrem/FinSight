@@ -87,11 +87,32 @@ class Metric:
     en: str
     pattern: re.Pattern[str]
     fields: tuple[str, ...]  # keys in get_fundamentals ``metrics`` that answer it
-    derivable_from: tuple[str, ...] = ()  # present together, the metric can be derived (net margin)
+    # One field of every group present, the metric can be derived (net margin: revenue and net profit).
+    derivable_from: tuple[tuple[str, ...], ...] = ()
+    # Why it cannot be given when the inputs are missing ("PEG needs the profit growth rate").
+    needs_zh: str = ""
+    needs_en: str = ""
+
+    def derivable(self, metrics: dict[str, Any]) -> bool:
+        return bool(self.derivable_from) and all(
+            any(metrics.get(field) is not None for field in group) for group in self.derivable_from
+        )
 
 
-def _metric(key: str, zh: str, en: str, pattern: str, fields: tuple[str, ...], derivable: tuple[str, ...] = ()):
-    return Metric(key, zh, en, re.compile(pattern, re.IGNORECASE), fields, derivable)
+def _metric(
+    key: str,
+    zh: str,
+    en: str,
+    pattern: str,
+    fields: tuple[str, ...],
+    derivable: tuple[tuple[str, ...], ...] = (),
+    needs: tuple[str, str] = ("", ""),
+) -> Metric:
+    return Metric(key, zh, en, re.compile(pattern, re.IGNORECASE), fields, derivable, *needs)
+
+
+# Profit growth rates a source may report (percent), in order of preference.
+PROFIT_GROWTH_FIELDS = ("netprofit_yoy", "net_profit_yoy", "profit_growth", "dt_netprofit_yoy")
 
 
 # Order matters: growth rates are matched before the level they grow ("营收增速" is not "营收").
@@ -158,9 +179,22 @@ METRICS: tuple[Metric, ...] = (
         "net_margin",
         "净利率",
         "net margin",
-        r"净利率|净利润率|net (?:profit )?margin",
+        r"净利率|净利润率|销售净利率|net (?:profit )?margin",
         ("net_margin", "netprofit_margin"),
-        ("revenue", "net_profit"),
+        (("revenue",), ("net_profit",)),
+    ),
+    # PEG = P/E ÷ profit growth (percent): derivable only when a source reports the growth rate.
+    _metric(
+        "peg",
+        "PEG",
+        "PEG",
+        r"(?<![A-Za-z])PEG(?![A-Za-z])|市盈增长比|市盈率相对盈利增长比率",
+        ("peg", "peg_ratio"),
+        (("pe_ttm", "pe"), PROFIT_GROWTH_FIELDS),
+        (
+            "PEG 等于市盈率除以净利润增速，当前数据没有净利润增速",
+            "PEG is the P/E divided by the net profit growth rate, and the data has no growth rate",
+        ),
     ),
     _metric(
         "cash_flow",
@@ -241,9 +275,17 @@ def coverage_gaps(
         missing = [
             metric
             for metric in wanted
-            if not any(metrics.get(field) is not None for field in metric.fields)
-            and not (metric.derivable_from and all(metrics.get(field) is not None for field in metric.derivable_from))
+            if not any(metrics.get(field) is not None for field in metric.fields) and not metric.derivable(metrics)
         ]
+        for metric in [metric for metric in missing if metric.needs_zh]:
+            # "茅台的PEG": say what the metric needs and that it is missing, not just "no PEG data"
+            missing.remove(metric)
+            sentences.append(
+                f"无法计算{name}的{metric.zh}：{metric.needs_zh}；以下只列出可得的指标。"
+                if zh
+                else f"{name}'s {metric.en} cannot be computed: {metric.needs_en}; only the available metrics are "
+                "listed below."
+            )
         if missing:
             labels = ("、".join(metric.zh for metric in missing)) if zh else ", ".join(metric.en for metric in missing)
             sentences.append(
@@ -413,6 +455,48 @@ def flow_gaps(query: str, tool_log: list[dict[str, Any]] | None = None, *, zh: b
     ]
 
 
+# A year-to-date move ("今年涨了多少", "年初至今收益", "YTD return", "how has it done this year"), not this year's
+# statements ("今年营收").
+_YEAR_TO_DATE = re.compile(
+    r"今年(?:以来|到现在|至今|迄今)?(?:的|一共|总共|累计|整体|共){0,3}(?:涨|跌|收益|回报|表现|涨幅|跌幅|走势)|"
+    r"年初(?:至今|到现在|以来)|年内(?:的|累计|共){0,2}(?:涨|跌|收益|回报|涨幅|跌幅|表现)|"
+    r"\bYTD\b|\byear[- ]to[- ]date\b|\bso far this year\b|\bsince the (?:start|beginning) of (?:the|this) year\b|"
+    r"\bthis year\b.{0,20}\b(?:return|gain|perform|rise|rose|risen|fall|fell|fallen|up|down|change|move)|"
+    r"\b(?:return|gain|performance|change|move|up|down|rise|rose|fall|fell)\b.{0,20}\bthis year\b",
+    re.IGNORECASE,
+)
+
+
+def asks_year_to_date(query: str) -> bool:
+    return bool(_YEAR_TO_DATE.search(query or ""))
+
+
+def year_to_date_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> list[str]:
+    """A year-to-date question whose price data does not reach back to the first trading day of the year.
+
+    ``get_price_history`` reports ``year_start`` (the first close of the latest close's year) only when its history
+    also has a close from the year before, so that close is known to be the year's first. Without it the change
+    since the start of the year is stated as unavailable, instead of answering with the latest daily move.
+    """
+    if not asks_year_to_date(query):
+        return []
+    sentences = []
+    for entry in tool_log:
+        if entry.get("tool") != "get_price_history" or not entry.get("ok"):
+            continue
+        data = entry.get("data") or {}
+        if data.get("year_start") or data.get("close") is None:
+            continue
+        name = str(data.get("name") or data.get("symbol") or "")
+        sentences.append(
+            f"当前数据中没有{name}今年首个交易日的收盘价，无法计算今年以来的涨跌幅；以下只列出最新一日的行情。"
+            if zh
+            else f"The data has no close for {name} on the first trading day of this year, so the year-to-date "
+            "change cannot be computed; only the latest session is listed below."
+        )
+    return list(dict.fromkeys(sentences))
+
+
 def _years_text(years: list[int], *, zh: bool) -> str:
     # "2019年" / "FY2019": forms the verifier reads as dates, not as claimed values.
     return "、".join(f"{year}年" for year in years) if zh else ", ".join(f"FY{year}" for year in years)
@@ -547,6 +631,7 @@ class PriceRequest:
     return_days: tuple[int, ...] = ()
     moving_averages: tuple[int, ...] = ()
     above_ma: bool = False
+    year_to_date: bool = False
 
     @property
     def needs_quote(self) -> bool:
@@ -587,6 +672,7 @@ def requested_price_fields(query: str) -> PriceRequest:
         return_days=tuple(returns),
         moving_averages=tuple(averages),
         above_ma=above,
+        year_to_date=asks_year_to_date(text),
     )
 
 

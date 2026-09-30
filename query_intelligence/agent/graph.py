@@ -37,7 +37,7 @@ from ..chat.language import detect_user_language, persistent_answer_language, re
 from ..integrations.intraday import asks_about_today
 from .compliance import apply_compliance, language_violation
 from .composer import answer_json_status, compose_template, parse_answer
-from .coverage import coverage_gaps, flow_gaps, out_of_coverage, out_of_coverage_text
+from .coverage import coverage_gaps, flow_gaps, out_of_coverage, out_of_coverage_text, year_to_date_gaps
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
 from .hearsay import fact_check_for, fact_check_prose
@@ -81,7 +81,9 @@ from .prompts import (
     revision_message,
 )
 from .router import (
+    _JUDGMENT_MARKERS,
     apply_finance_overrides,
+    correct_question_style,
     decide_route,
     drop_fuzzy_concepts,
     has_finance_content,
@@ -104,6 +106,8 @@ _MARKET_SCOPE = re.compile(
     r"行业|板块|同行|同业|大盘|市场|\bsector\b|\bindustry\b|\bpeers?\b|\bmarket\b", re.IGNORECASE
 )
 _OWN_TARGET_TYPES = {"stock", "etf", "fund", "index", "macro_indicator", "policy", "sector"}
+# Route reason for a short name shared by two companies and read by the alias table's default ("平安" -> 中国平安).
+ALIAS_DEFAULT = "alias_default"
 _DUPLICATE_CALL = (
     '{"ok": false, "error": {"code": "duplicate_call", "message": "already called with the same arguments in '
     'this turn", "hint": "Use the earlier result above; do not repeat identical calls."}}'
@@ -305,7 +309,7 @@ class AgentRuntime:
             and not coreference_reason
             and not off_topic
             and not instruction_only
-            and not (outside and not _own_targets(nlu))
+            and not (outside and not _named_targets(nlu))
         )
         if in_session:
             query, nlu, session_reasons, carried_nlu = self._resolve_in_session(query, turns, nlu, analyze)
@@ -339,7 +343,9 @@ class AgentRuntime:
             nlu, member_reasons = self._attach_sector_member(nlu, turns, query)
             rewrite_reasons.extend(member_reasons)
         nlu, override_reasons = apply_finance_overrides(nlu, query)
-        override_reasons = [*dropped_reasons, *override_reasons]
+        # the user's words and the resolved question: "为什么？" rewritten to "贵州茅台为什么涨" keeps its why style
+        nlu, style_reasons = correct_question_style(nlu, f"{state['query']} {query}")
+        override_reasons = [*dropped_reasons, *override_reasons, *style_reasons]
         decision = decide_route(nlu, mode=mode, query=query)  # type: ignore[arg-type]
         reasons = [*decision.reasons, *override_reasons, *rewrite_reasons]
         refusal_category = "prompt_injection" if injected else "non_finance"
@@ -373,13 +379,27 @@ class AgentRuntime:
                 decision = decision.model_copy(update={"route": "refuse"})
         # A question that itself names an A-share target is in scope ("苹果概念股里的立讯精密"); an NLU carry-over from
         # earlier turns does not count as naming one.
-        coverage = None if listed_entities({"entities": _own_targets(nlu)}) else outside
+        # A fuzzy match is a guess at a misspelt name, and an advice phrase can be a company alias (值得买); next to a
+        # crypto or foreign asset ("比特币ETF" -> 酒ETF鹏华) neither names an A-share target.
+        coverage = None if listed_entities({"entities": _named_targets(nlu, query)}) else outside
+        if coverage:
+            named = _named_targets(nlu, query)
+            guessed = [
+                entity
+                for entity in nlu.get("entities") or []
+                if entity.get("entity_type") in _OWN_TARGET_TYPES and entity.get("symbol") and entity not in named
+            ]
+            if guessed:
+                nlu = {**nlu, "entities": [entity for entity in nlu.get("entities") or [] if entity not in guessed]}
+                reasons.extend(f"dropped_unnamed_target_out_of_coverage:{e.get('canonical_name')}" for e in guessed)
         if coverage and refusal_category != "prompt_injection":
             # Bitcoin, Apple, the Nasdaq: finance, but outside the data FinSight has. Asking "which stock?" could
             # never succeed, so say what is covered instead.
             decision = decision.model_copy(update={"route": "refuse"})
             reasons.append(f"coverage:{coverage}")
             refusal_category = f"out_of_coverage:{coverage}"
+        if decision.route in ("workflow", "agent"):
+            reasons.extend(self._assumed_targets(nlu, turns))
         update: dict[str, Any] = {
             "nlu": nlu,
             "route": decision.route,
@@ -459,12 +479,43 @@ class AgentRuntime:
             name = str(entity.get("canonical_name") or "")
             if len(mention) < 2 or mention == name or mention not in query:
                 continue
+            if entity.get("match_type") == "linked_context":
+                continue  # the question's own industry words ("平安的不良率" is the bank) outrank the conversation
             for target in reversed(discussed):
                 target_name = str(target.get("name") or "")
                 if target["symbol"] != entity.get("symbol") and mention in target_name and mention != target_name:
                     rewritten = query.replace(mention, target_name, 1)
                     return rewritten, f"session_disambiguation:{mention}->{target_name}"
         return None
+
+    def _assumed_targets(self, nlu: dict[str, Any], turns: list[dict[str, Any]]) -> list[str]:
+        """``alias_default:平安->中国平安|平安银行`` for a short name read by the alias table's default, and
+        ``alias_context:平安->平安银行`` when the question's industry words chose it.
+
+        The policy for a name shared by two companies: the question's industry words decide (NLU, ``linked_context``);
+        else the target the conversation is about (``_session_disambiguation``); else the alias table's default,
+        which the answer names together with the alternative so the user can say which one was meant.
+        """
+        resolver = getattr(getattr(self.service, "nlu_pipeline", None), "entity_resolver", None)
+        if resolver is None or not hasattr(resolver, "alias_candidates"):
+            return []
+        discussed = {str(target["symbol"]) for target in discussed_targets(turns, limit=6)}
+        reasons = []
+        for entity in listed_entities(nlu):
+            mention, name = str(entity.get("mention") or ""), str(entity.get("canonical_name") or "")
+            if entity.get("match_type") == "linked_context":
+                reasons.append(f"alias_context:{mention}->{name}")
+                continue
+            if entity.get("match_type") != "linked_default" or str(entity.get("symbol")) in discussed:
+                continue
+            others = [
+                str(row.get("canonical_name"))
+                for row in resolver.alias_candidates(mention)
+                if row.get("canonical_name") and row.get("canonical_name") != name
+            ]
+            if others:
+                reasons.append(f"{ALIAS_DEFAULT}:{mention}->{name}|{'/'.join(others)}")
+        return reasons
 
     def _attach_sector_member(
         self, nlu: dict[str, Any], turns: list[dict[str, Any]], query: str
@@ -880,7 +931,9 @@ class AgentRuntime:
         draft = state.get("draft") or {}
         store = _store(state)
         llm_draft = state.get("draft_source") in {"llm_agent", "llm_compose"}
-        derived = llm_draft and self.config.verify_derived
+        # The template states derived figures itself (net margin = net profit / revenue, a year-to-date change) with
+        # their operands in the same cited sentence; LLM drafts follow AgentConfig.verify_derived.
+        derived = self.config.verify_derived if llm_draft else True
         report = verify_answer(
             draft,
             store,
@@ -920,7 +973,9 @@ class AgentRuntime:
                 # of a stub; it restates the same tool results and must pass the template checks itself.
                 style = str((state.get("nlu") or {}).get("question_style") or "")
                 template = compose_template(state.get("tool_log") or [], zh=self._zh(state), question_style=style)
-                if verify_answer(template, store, query=state["query"], market_precedence=False).passed:
+                if verify_answer(
+                    template, store, query=state["query"], market_precedence=False, allow_derived=True
+                ).passed:
                     fallback = template
             repaired, notes = repair_answer(draft, report, store, zh=self._zh(state), fallback=fallback)
             degraded = ["verification_failed:repaired"]
@@ -992,6 +1047,7 @@ class AgentRuntime:
             asked = state.get("effective_query") or state["query"]
             limitations.extend(coverage_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
             limitations.extend(flow_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
+            limitations.extend(year_to_date_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
         limitations.extend(state.get("verification_notes") or [])
         draft["limitations"] = list(dict.fromkeys(limitations))
         market = [
@@ -1009,6 +1065,16 @@ class AgentRuntime:
             language="zh" if self._zh(state) else "en",
             effective_query=state.get("effective_query") or "",
         )
+        assumed = _assumption_notes(state.get("route_reasons") or [], zh=self._zh(state))
+        if assumed:
+            # "平安" read as 中国平安 by default: say so, and name the other company, instead of answering silently
+            separator = "" if self._zh(state) else " "
+            answer = {
+                **answer,
+                "answer": separator.join([str(answer.get("answer") or ""), *assumed]).strip(),
+                "limitations": [*(answer.get("limitations") or []), *assumed],
+            }
+            notes = [*notes, "alias_assumption_stated"]
         return {"answer": answer, "compliance_notes": [*fallback_notes, *notes]}
 
     def finalize(self, state: AgentState) -> dict[str, Any]:
@@ -1176,6 +1242,44 @@ def _own_targets(nlu: dict[str, Any]) -> list[dict[str, Any]]:
         and (entity.get("symbol") or entity.get("entity_type") not in {"stock", "etf", "fund", "index"})
         and not str(entity.get("match_type") or "").startswith("context_")
     ]
+
+
+def _assumption_notes(reasons: list[str], *, zh: bool) -> list[str]:
+    """The sentence for each ``alias_default:平安->中国平安|平安银行`` route reason."""
+    notes = []
+    for reason in reasons:
+        if not reason.startswith(f"{ALIAS_DEFAULT}:"):
+            continue
+        mention, _, rest = reason.split(":", 1)[1].partition("->")
+        name, _, others_text = rest.partition("|")
+        others = [other for other in others_text.split("/") if other]
+        if not others:
+            continue
+        if zh:
+            notes.append(f"「{mention}」也可能指{'、'.join(others)}；本次按{name}回答，如指{'或'.join(others)}请说明。")
+        else:
+            english = [english_name(other) or other for other in others]
+            notes.append(
+                f'"{mention}" can also mean {", ".join(english)}; this answer is about {english_name(name) or name}. '
+                f"Say so if you meant {' or '.join(english)}."
+            )
+    return notes
+
+
+def _named_targets(nlu: dict[str, Any], query: str = "") -> list[dict[str, Any]]:
+    """Own targets the question names: not guessed by fuzzy matching, and not an advice phrase that happens to be
+    a company's alias ("以太坊基金值得买吗": 值得买 is a listed company and the question's own judgment words)."""
+    advice = [match.span() for match in _JUDGMENT_MARKERS.finditer(query)]
+    named = []
+    for entity in _own_targets(nlu):
+        if "fuzzy" in str(entity.get("match_type") or ""):
+            continue
+        mention = str(entity.get("mention") or "")
+        at = query.find(mention) if mention else -1
+        if at >= 0 and any(lo <= at and at + len(mention) <= hi for lo, hi in advice):
+            continue
+        named.append(entity)
+    return named
 
 
 def _set_aside_context_carry(nlu: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:

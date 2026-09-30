@@ -12,6 +12,7 @@ from typing import Any
 
 from .coverage import (
     EXTRA_METRIC_FIELDS,
+    PROFIT_GROWTH_FIELDS,
     PriceRequest,
     asks_about_industry,
     coverage_gaps,
@@ -24,6 +25,7 @@ from .coverage import (
     non_stock_fundamental_gaps,
     requested_metrics,
     requested_price_fields,
+    year_to_date_gaps,
 )
 from .names import english_display
 
@@ -96,7 +98,10 @@ def compose_template(
     facts: list[str] = []
     evidence_used: list[str] = []
     limitations: list[str] = []
-    extra_keys = {field for metric in requested_metrics(query) for field in metric.fields}
+    wanted = requested_metrics(query)
+    extra_keys = {field for metric in wanted for field in metric.fields}
+    derive = {metric.key for metric in wanted if metric.derivable_from}
+    margins: list[tuple[str, float]] = []
     request = requested_price_fields(query)
     industry_first = asks_about_industry(query)
     for entry in tool_log:
@@ -120,6 +125,11 @@ def compose_template(
             sentences = _fundamentals(data, zh, industry_first=industry_first)
             if extra_keys:
                 sentences = [*sentences, *_extra_metrics(data, extra_keys, zh)]
+            if derive:
+                derived, margin = _derived_metrics(data, derive, zh)
+                sentences = [*sentences, *derived]
+                if margin is not None:
+                    margins.append((str(data.get("name") or data.get("symbol") or ""), margin))
         else:
             sentences = renderer(data, zh)
         for sentence in sentences:
@@ -131,6 +141,8 @@ def compose_template(
             if evidence_id not in evidence_used:
                 evidence_used.append(evidence_id)
 
+    if len(margins) >= 2:
+        facts.append(_margin_ranking(margins, zh))
     gaps: list[str] = []
     if query:
         gaps = [
@@ -140,6 +152,7 @@ def compose_template(
             *macro_gaps(query, tool_log, zh=zh),
             *foreign_macro_gaps(query, zh=zh),
             *flow_gaps(query, tool_log, zh=zh),
+            *year_to_date_gaps(query, tool_log, zh=zh),
             # a failed indicator tool is already named by failed_target_statements when nothing else was found
             *(indicator_gaps(query, tool_log, zh=zh, names=names) if facts else []),
         ]
@@ -178,6 +191,56 @@ def compose_template(
     }
 
 
+def _derived_metrics(data: dict[str, Any], keys: set[str], zh: bool) -> tuple[list[str], float | None]:
+    """Net margin (net profit / revenue) and PEG (P/E / profit growth) from the cited fundamentals, with the operands
+    in the sentence so the verifier and the reader can check the arithmetic. Returns ``(sentences, net margin)``."""
+    metrics = data.get("metrics") or {}
+    name, eid, period = data.get("name"), data.get("evidence_id"), data.get("report_date")
+    sentences: list[str] = []
+    margin = None
+    if not eid:
+        return sentences, margin
+    revenue, profit = metrics.get("revenue"), metrics.get("net_profit")
+    reported_margin = any(metrics.get(field) is not None for field in ("net_margin", "netprofit_margin"))
+    if "net_margin" in keys and not reported_margin and revenue and profit is not None and float(revenue) > 0:
+        margin = round(float(profit) / float(revenue) * 100, 2)
+        sentences.append(
+            f"{name} 净利率（净利润 ÷ 营业收入，报告期 {period}）：{_money(profit, zh)} ÷ {_money(revenue, zh)} ≈ "
+            f"{_num(margin)}% [{eid}]。"
+            if zh
+            else f"{name} net margin (net profit / revenue, period {period}): {_money(profit, zh)} / "
+            f"{_money(revenue, zh)} ≈ {_num(margin)}% [{eid}]."
+        )
+    pe = metrics.get("pe_ttm") if metrics.get("pe_ttm") is not None else metrics.get("pe")
+    growth = next((metrics[field] for field in PROFIT_GROWTH_FIELDS if metrics.get(field) is not None), None)
+    if "peg" in keys and metrics.get("peg") is None and pe is not None and growth is not None:
+        if float(growth) > 0:
+            peg = round(float(pe) / float(growth), 2)
+            sentences.append(
+                f"{name} PEG（市盈率 ÷ 净利润增速）：{_num(pe)} ÷ {_num(growth)} ≈ {_num(peg)} [{eid}]。"
+                if zh
+                else f"{name} PEG (P/E / net profit growth): {_num(pe)} / {_num(growth)} ≈ {_num(peg)} [{eid}]."
+            )
+        else:
+            sentences.append(
+                f"{name}的净利润增速不为正，PEG 不适用 [{eid}]。"
+                if zh
+                else f"{name}'s net profit growth is not positive, so PEG does not apply [{eid}]."
+            )
+    return sentences, margin
+
+
+def _margin_ranking(margins: list[tuple[str, float]], zh: bool) -> str:
+    """Which target has the higher net margin, in words (the figures are in the sentences above)."""
+    ordered = sorted(margins, key=lambda item: item[1], reverse=True)
+    names = [name for name, _margin in ordered]
+    if ordered[0][1] == ordered[-1][1]:
+        return "按上述口径，各标的净利率相同。" if zh else "On this basis the net margins are equal."
+    if zh:
+        return f"按上述口径，净利率由高到低为：{'、'.join(names)}。"
+    return f"On this basis, net margin from highest to lowest: {', '.join(names)}."
+
+
 def _extra_metrics(data: dict[str, Any], keys: set[str], zh: bool) -> list[str]:
     """Requested metrics beyond the standard snapshot (e.g. a live source's dividend yield), when present."""
     metrics = data.get("metrics") or {}
@@ -212,7 +275,28 @@ def _price(data: dict[str, Any], zh: bool, request: PriceRequest | None = None) 
         sentences = [f"{name} ({symbol}) last available close was {_px(close, data, zh)} on {as_of}{change} [{eid}]."]
     if request is not None and request.needs_quote:
         sentences.extend(_price_details(data, zh, request))
+    if request is not None and request.year_to_date:
+        sentences.extend(_year_to_date(data, zh))
     return sentences
+
+
+def _year_to_date(data: dict[str, Any], zh: bool) -> list[str]:
+    """The change from the first close of the year to the latest close, with both closes in the sentence (the
+    verifier checks the percent change against them); without ``year_start`` the gap is stated by coverage."""
+    start, close = data.get("year_start") or {}, data.get("close")
+    if not start or start.get("close") in (None, 0) or close is None:
+        return []
+    change = (float(close) - float(start["close"])) / abs(float(start["close"])) * 100
+    name, eid, as_of = data.get("name"), data.get("evidence_id"), data.get("as_of")
+    if zh:
+        return [
+            f"{name}今年以来：今年首个交易日（{start.get('date')}）收盘 {_px(start['close'], data, zh)}，"
+            f"最新（{as_of}）收盘 {_px(close, data, zh)}，涨跌幅 {_num(round(change, 2))}% [{eid}]。"
+        ]
+    return [
+        f"{name} year to date: first close of the year ({start.get('date')}) {_px(start['close'], data, zh)}, latest "
+        f"close ({as_of}) {_px(close, data, zh)}, a change of {_num(round(change, 2))}% [{eid}]."
+    ]
 
 
 def _intraday_price(name: Any, symbol: Any, eid: Any, quote: dict[str, Any], zh: bool) -> list[str]:
