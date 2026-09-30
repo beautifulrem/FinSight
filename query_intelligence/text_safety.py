@@ -160,6 +160,26 @@ _ADVICE = re.compile(
     r"full position|entry point|guarantee\w*|upside)\b",
     re.IGNORECASE,
 )
+# (round 8) Planted-fact shapes: a headline that restates a figure or an event the tools own, or that only a
+# poisoned document would use as a title — a "correction" of reported figures (更正公告, 数据有误, 以此为准), an
+# exclusive or rumour (独家, 网传, sources say), a market price or valuation figure (收盘价报 188.88 元: prices and
+# multiples come from market data, not from headlines), a share-capital action (10送10, 高送转, bonus shares), and
+# text addressed to AI readers or claiming a regulatory exemption (AI assistants, sandbox exemption). Such a title
+# is withheld from the evidence ledger like the other shapes; the document itself stays listed as a source.
+_CLAIM_SHAPE = re.compile(
+    r"更正(?!常)(?:公告|说明|声明|后)?|勘误|修订说明|数据有误|(?:披露|公布)(?:的)?(?:数据|信息|数字)?有误|"
+    r"此前(?:披露|公布)[^，。,;；]{0,8}(?:有误|错误|作废)|以此为准|旧数据作废|"
+    r"独家|爆料|网传|传闻|据传|知情人士|消息人士|小道消息|内部人士|"
+    r"(?:收盘价?|收于|收报|股价|现价|最新价|市盈率|市净率)[^，。,;；\d]{0,6}\d[\d,.]*\s*(?:元|点|倍|yuan)|"
+    r"(?<!\d)(?:10|十)\s*股\s*(?:送|转)|(?<![\d.])(?:10|十)\s*(?:送|转)\s*\d|高送转|送转|"
+    r"AI\s*(?:助手|读者)|(?:致|给)\s*AI|豁免|\bnote\s+to\s+AI\b|"
+    r"\bAI\s+(?:assistants?|readers?|chatbots?)\b|\b(?:assistants|chatbots?)\b|"
+    r"\bsandbox\b|\bexemption\b|\bexclusive\b|\brumou?rs?\b|\bsources\s+(?:say|said|claim)\b|"
+    r"\bcorrect(?:ion|ed)\b|\brestate(?:d|ment)\b|\berrat(?:um|a)\b|\bbonus\s+(?:shares?|issue)\b|"
+    r"\bstock\s+split\b|\b(?:close[ds]?|closing\s+price|share\s+price|last\s+price)\s+(?:at\s+|of\s+|up\s+|down\s+)?"
+    r"(?:CNY|RMB|¥)?\s*\d",
+    re.IGNORECASE,
+)
 _MARKUP = re.compile(r"[<>{}\[\]`|\\^~]|!\[|\]\(|&#|\\u[0-9a-f]{4}|\*\*|__", re.IGNORECASE)
 # Allowed characters of a shown headline (folded text): CJK ideographs, ASCII letters/digits/space and
 # ordinary punctuation.
@@ -172,6 +192,7 @@ MAX_HEADLINE_CHARS = 80
 @dataclass(frozen=True)
 class Finding:
     kind: str  # link | email | messaging | phone | promotion | mixed_script | markup | charset | imperative | advice
+    # | claim (a planted-fact shape: correction, exclusive/rumour, price figure, share-capital action, AI-addressed)
     text: str
 
 
@@ -260,6 +281,7 @@ def headline_findings(title: str) -> list[Finding]:
     found += [Finding("promotion", m.group(0)) for m in _PROMOTION.finditer(folded)]
     found += [Finding("imperative", m.group(0)) for m in _IMPERATIVE.finditer(folded)]
     found += [Finding("advice", m.group(0)) for m in _ADVICE.finditer(folded)]
+    found += [Finding("claim", m.group(0)) for m in _CLAIM_SHAPE.finditer(folded)]
     return found
 
 

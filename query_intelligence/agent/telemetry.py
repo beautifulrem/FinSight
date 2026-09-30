@@ -102,6 +102,14 @@ def prompt_version_of(trace: dict[str, Any]) -> str:
     return "none"
 
 
+def output_safety_kinds(trace: dict[str, Any]) -> list[str]:
+    """Kinds of output-safety edit in the run's compliance notes (each kind once)."""
+    from .output_safety import EDIT_KINDS
+
+    kinds = (EDIT_KINDS.get(str(note).split(":")[0]) for note in trace.get("compliance_notes") or [])
+    return list(dict.fromkeys(kind for kind in kinds if kind))
+
+
 def verification_outcome(trace: dict[str, Any]) -> str | None:
     """``passed`` / ``revised`` / ``repaired`` for answered runs; ``None`` for refusals and clarifications."""
     passed = trace.get("verification_passed")
@@ -181,6 +189,14 @@ class PrometheusTraceSink:
             ["source", "outcome"],
             registry=self.registry,
         )
+        # Output-side safety edits (round 8): answers the output layer changed, by kind (attribution,
+        # promotion_or_contact, trading_call, conflicting_figure; ``output_safety.EDIT_KINDS``), once per run and kind.
+        self.output_safety_edits = Counter(
+            "finsight_output_safety_edits_total",
+            "Answers changed by the output-side safety layer, by kind of edit.",
+            ["kind"],
+            registry=self.registry,
+        )
 
     @property
     def available(self) -> bool:
@@ -245,6 +261,8 @@ class PrometheusTraceSink:
         outcome = "refused" if route == "refuse" else "answered"
         for source in redaction_sources(trace):
             self.injection_redactions.labels(source=source, outcome=outcome).inc()
+        for kind in output_safety_kinds(trace):
+            self.output_safety_edits.labels(kind=kind).inc()
 
     def record_feedback(self, rating: str, prompt_version: str = "none") -> None:
         if self.registry is not None:

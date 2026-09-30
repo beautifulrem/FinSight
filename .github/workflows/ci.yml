@@ -131,6 +131,11 @@ jobs:
       - name: Install frontend dependencies (axe-core)
         working-directory: frontend
         run: pnpm install --frozen-lockfile
+      # @a2a-js/sdk for tests/test_a2a_js_interop.py (A2A interop with the official JS SDK client); under CI=true
+      # that test fails instead of skipping when the client is not installed.
+      - name: Install the A2A JavaScript interop client
+        working-directory: tools/a2a-js-client
+        run: npm ci --no-audit --no-fund
       - name: Full test suite with branch coverage (run once)
         # Pass a directory, not a dotted package: --cov=query_intelligence.agent imports it before the test
         # session and breaks scikit-learn's compiled modules.
@@ -151,7 +156,7 @@ jobs:
 
   agent-eval-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -170,6 +175,19 @@ jobs:
           python -m evaluation.agent_eval.verifier_stress
           python -m evaluation.agent_eval.redteam
           python -m evaluation.agent_eval.gate --extras-only
+      - name: Held-out claim check against its floor (a regression below the HEAD accuracy fails)
+        # evaluation/claim_bench/claims_v1_holdout.jsonl: 47 claims / 54 checks. Floors = accuracy at the time the
+        # step was added (verdict 46/47, see docs/agent-eval.md); one more wrong verdict fails the build.
+        run: |
+          python -m evaluation.claim_bench.run --set holdout --out outputs/agent_eval/claim_bench-holdout.json \
+            --fail-under-verdict 0.978 --fail-under-checks 0.98
+      - name: Independent held-out slices still match the offline tools (verify scripts)
+        env:
+          PYTHONPATH: .
+        run: |
+          python evaluation/agent_eval/independent/verify_multiturn.py
+          python evaluation/agent_eval/independent/verify_test_v3.py
+          python evaluation/heldout_r4/verify_heldout_r4.py
       - name: docs/agent-eval.md matches the committed results
         run: python -m evaluation.agent_eval.report --check
       - uses: actions/upload-artifact@v4
