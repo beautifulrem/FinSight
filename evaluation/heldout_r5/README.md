@@ -16,8 +16,10 @@ Written 2026-09-30 against `<local path>` at commit **`fbce040`** (`git rev-pars
 |---|---|---|
 | `claims_r5_heldout.jsonl` | 56 claims, 85 checks | `fd58c903acd977c2e75c51d70fefd93326594fa929ef9d398a0f0e919585c4d1` |
 | `chat_r5_heldout.jsonl` | 38 tasks, 41 turns, 22 required facts | `ab21d777a04f447832793013142879be06c7010b3ac360bc74da98ad0f95759c` |
-| `build_heldout_r5.py` | generator (facts + labels inline) | `9e48863bd0f4c4fb2dc3e0b494ee5dc76bacf68917016423444700693d99aa79` |
-| `verify_heldout_r5.py` | re-runs tools, re-derives every label | `f012824a9de8cb9ba6d9d0b9c691328ab73b2bb3803df5ddd9122c5390056ba1` |
+| `build_heldout_r5.py` | generator (facts + labels inline) | `c540e9b4af784c66f5bee0bb191b94c3a7f3c32a40d4abe34524b45851ea453f` |
+| `verify_heldout_r5.py` | re-runs tools, re-derives every label | `5c681ffb376c4bb5c20bda0570b42e5923c134e6e55700ddf64d619862069422` |
+
+The two `.py` hashes were refreshed in round 9: the committed scripts differed from the listed hashes (the author's working copies), and `verify_heldout_r5.py` had a placeholder repository path. It now finds the repository from its own location, also checks the two jsonl hashes above, and runs in CI. The jsonl files are unchanged since they were committed.
 
 **Claims** by category: multi_clause 13 (D2), industry_average 11 (D3), turnover 10 and ratio 10 (D4), plain 11, ambiguous_derived 1. By verdict: supported 32, partially_supported 11, contradicted 9, unverifiable 4. By language: zh 49, en 7.
 
