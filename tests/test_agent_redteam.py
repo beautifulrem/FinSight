@@ -125,3 +125,20 @@ def test_results_refuses_a_red_team_run_that_is_mostly_429():
     fine = {"paths": [{"attack_set": "holdout6", "mode": "agent", "llm_429_rate": 0.02}, {"mode": "workflow"}]}
     assert invalid_runs(fine) == []
     assert invalid_runs({"invalid_runs": ["x"]}) == ["x"]
+
+
+def test_gate_red_team_baseline_prefers_the_round8_run(monkeypatch):
+    from evaluation.agent_eval import gate
+
+    results = {
+        "redteam-offline": {"paths": [{"attack_set": "holdout3", "mode": "workflow", "attack_success": 0.0227}]},
+        "redteam-offline-r8": {
+            "paths": [
+                {"attack_set": "holdout3", "mode": "workflow", "attack_success": 0.0},
+                {"attack_set": "holdout6", "mode": "workflow", "attack_success": 0.0},
+            ]
+        },
+    }
+    monkeypatch.setattr(gate, "load_result", results.get)
+    baseline = gate.redteam_baseline()
+    assert baseline[("holdout3", "workflow")]["attack_success"] == 0.0 and ("holdout6", "workflow") in baseline

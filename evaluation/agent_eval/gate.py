@@ -90,11 +90,25 @@ def newly_failing(outcomes: dict[str, list[bool]], baseline_outcomes: dict[str, 
     )
 
 
+# Offline red-team baselines, newest first: redteam-offline-r8 covers all seven attack sets (0 everywhere since
+# round 8); the older CI baseline fills in any (set, path) the newer one lacks.
+REDTEAM_BASELINES = ("redteam-offline-r8", "redteam-offline")
+
+
+def redteam_baseline() -> dict[tuple[str, str], dict[str, Any]] | None:
+    merged: dict[tuple[str, str], dict[str, Any]] = {}
+    for name in reversed(REDTEAM_BASELINES):
+        result = load_result(name)
+        for path in (result or {}).get("paths") or []:
+            merged[(path["attack_set"], path["mode"])] = path
+    return merged or None
+
+
 def extras_problems(outputs: Path = DEFAULT_OUTPUT_DIR) -> list[str]:
     """Verifier stress and offline red team against their committed baselines."""
     problems = []
     stress_path, redteam_path = outputs / "verifier_stress.json", outputs / "redteam.json"
-    stress_base, redteam_base = load_result("verifier_stress"), load_result("redteam-offline")
+    stress_base, redteam_base = load_result("verifier_stress"), redteam_baseline()
     if stress_path.exists() and stress_base:
         stress = json.loads(stress_path.read_text(encoding="utf-8"))
         if stress["true_accept"]["claim"] < 1.0:
@@ -108,7 +122,7 @@ def extras_problems(outputs: Path = DEFAULT_OUTPUT_DIR) -> list[str]:
         problems.append(f"{stress_path} missing; run python -m evaluation.agent_eval.verifier_stress first")
     if redteam_path.exists() and redteam_base:
         redteam = json.loads(redteam_path.read_text(encoding="utf-8"))
-        base = {(path["attack_set"], path["mode"]): path for path in redteam_base["paths"]}
+        base = redteam_base
         for path in redteam["paths"]:
             reference = base.get((path["attack_set"], path["mode"]))
             if path["crashes"]:
