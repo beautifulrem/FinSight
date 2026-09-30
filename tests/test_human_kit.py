@@ -81,6 +81,49 @@ def test_committed_label_csv_matches_meta_and_hides_the_automatic_score():
     assert Counter(row["path"] for row in meta) == {"deterministic": 50, "llm_agent": 50}
 
 
+def test_eval_wording_check_flags_harness_terms_but_not_offline_provenance():
+    leaks = generate_answers.eval_leaks
+    for text in (
+        "价格历史不足/该数据未记录在评估快照中",
+        "search_news returned no data (unavailable: not recorded in the evaluation snapshot)",
+        "the query came back as not recorded in this snapshot",
+        "the call was replayed from a fixture",
+        "this question is from test_v3",
+    ):
+        assert leaks(text), text
+    for text in (
+        "局限: 数据来自离线快照，截至2026-04-22，非实时行情",  # the product's own offline-data label
+        "The data is an offline snapshot, not real-time",
+        "[industry_白酒] 白酒 industry snapshot | 来源: industry_sql / 离线快照",
+        "贵州茅台 收盘 1409.5 元",
+    ):
+        assert not leaks(text), text
+
+
+def test_check_rows_rejects_eval_wording_and_replay_gaps():
+    shown = [{"id": "L001", "answer": "RSI 无法计算（该数据未记录在评估快照中）", "sources": "x"}]
+    miss = {"tool": "search_news", "code": "unavailable", "message": "not recorded in the evaluation snapshot"}
+    meta = [{"id": "L002", "tools": {"calls": 1, "errors": [miss]}}]
+    problems = generate_answers.check_rows(meta, shown)
+    assert len(problems) == 2 and problems[0].startswith("L001 answer") and "replay gap" in problems[1]
+    assert generate_answers.check_rows([{"id": "L003", "tools": {"calls": 0, "errors": []}}], []) == []
+
+
+def test_generation_stops_instead_of_silently_answering_the_llm_half_deterministically():
+    items = generate_answers.sample_items()
+    with pytest.raises(generate_answers.GenerationStopped, match="--allow-fallback"):
+        generate_answers.generate(items, llm=None, max_requests=120)
+
+
+def test_generation_runs_tools_directly_without_replay_gaps():
+    items = [item for item in generate_answers.sample_items() if item["planned_path"] == "deterministic"][:3]
+    result = generate_answers.generate(items, llm=None, max_requests=0, allow_fallback=True, progress=None)
+    rows = result["rows"]
+    assert [row["id"] for row in rows] == [item["id"] for item in items]
+    assert all(row["path"] == "deterministic" for row in rows) and sum(row["tools"]["calls"] for row in rows) >= 1
+    assert generate_answers.check_rows(rows, generate_answers.csv_rows(rows)) == []
+
+
 def test_fallback_reason():
     row = {"planned_path": "llm_agent", "path": "deterministic", "degraded": []}
     assert generate_answers.fallback_reason(row, "HTTP 429 from the gateway") == "HTTP 429 from the gateway"
