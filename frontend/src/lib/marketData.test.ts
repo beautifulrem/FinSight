@@ -71,6 +71,25 @@ describe("marketDataFromAgent", () => {
     expect(data.kpis[0]?.label).toBe("kpi.close");
   });
 
+  it("formats fund prices with three decimals (round 9, E13: 1.021 was shown as 1.02)", () => {
+    const response: AgentResponse = {
+      status: "ok",
+      session_id: "s",
+      evidence_sources: [
+        { evidence_id: "price_159915.SZ", source_type: "market_api", payload: { name: "创业板ETF", symbol: "159915.SZ", close: 1.021 } },
+        { evidence_id: "price_512880.SH", source_type: "market_api", payload: { product_type: "etf", close: 0.955, high: 0.961 } },
+        { evidence_id: "price_600519.SH", source_type: "market_api", payload: { product_type: "stock", close: 1409.5 } },
+      ],
+    };
+    const kpis = marketDataFromAgent(response).kpis.filter((kpi) => kpi.label === "kpi.close" || kpi.label === "kpi.high");
+    expect(kpis.map((kpi) => [kpi.format, formatKpi("zh", kpi.value, kpi.format)])).toEqual([
+      ["fundPrice", "1.021"],
+      ["fundPrice", "0.955"],
+      ["fundPrice", "0.961"],
+      ["price", "1,409.5"],
+    ]);
+  });
+
   it("uses the unit fields of normalised agent payloads (B7: 成交额 was 1000x too small)", () => {
     const response: AgentResponse = {
       status: "ok",

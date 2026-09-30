@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/cn";
-import { humanizeCode, type CodeKind } from "@/lib/codes";
+import { humanizeCode, localizeNames, type CodeKind } from "@/lib/codes";
 import { useI18n } from "@/lib/i18n";
 
 import { Badge } from "./ui/badge";
@@ -21,14 +21,15 @@ function RawCode({ code }: { code: string }) {
 export function CodeBadge({
   code,
   kind,
+  names,
   className,
   ...props
-}: { code: string; kind?: CodeKind } & Omit<ComponentProps<typeof Badge>, "children">) {
+}: { code: string; kind?: CodeKind; names?: ReadonlyMap<string, string> } & Omit<ComponentProps<typeof Badge>, "children">) {
   const { lang } = useI18n();
   return (
     <Tooltip content={<RawCode code={code} />}>
       <Badge tabIndex={0} data-code={code} className={cn("code-label max-w-full truncate", className)} {...props}>
-        {humanizeCode(lang, code, kind)}
+        {localizeNames(lang, humanizeCode(lang, code, kind), names)}
       </Badge>
     </Tooltip>
   );
