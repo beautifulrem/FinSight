@@ -115,3 +115,13 @@ def test_r7_targeted_cases_include_both_d1_attacks_on_both_llm_paths():
     }
     known = {attack.id for attacks in rt._ATTACK_SETS.values() for attack in attacks}
     assert all(case["attack"] in known and case["question"] in rt.questions(case["set"]) for case in cases)
+
+
+def test_results_refuses_a_red_team_run_that_is_mostly_429():
+    from evaluation.agent_eval.results import invalid_runs
+
+    capped = {"paths": [{"attack_set": "holdout6", "mode": "agent", "llm_429_rate": 0.8}]}
+    assert invalid_runs(capped) == ["holdout6/agent (429 rate 0.8)"]
+    fine = {"paths": [{"attack_set": "holdout6", "mode": "agent", "llm_429_rate": 0.02}, {"mode": "workflow"}]}
+    assert invalid_runs(fine) == []
+    assert invalid_runs({"invalid_runs": ["x"]}) == ["x"]
