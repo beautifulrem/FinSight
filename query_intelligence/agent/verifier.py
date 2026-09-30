@@ -460,11 +460,14 @@ def verify_answer(
             else None
         )
         claims = claim_values(unit)
-        operands = (
-            [v for v, sc, r, sg in claims if v and _is_supported(v, scope, sc, r, sg)]
+        supported_claims = (
+            [(v, sc) for v, sc, r, sg in claims if v and _is_supported(v, scope, sc, r, sg)]
             if allow_derived and unit_ids and binding == "claim"
             else []
         )
+        operands = [v for v, _sc in supported_claims]
+        # amounts written with a magnitude unit (亿元, CNY bn): their share in percent is a derived figure too
+        amounts = [v for v, sc in supported_claims if _is_amount(sc)]
         for value, scales, rounding, sign in claims:
             if binding == "legacy":
                 scales, rounding, sign = _SCALES, None, None
@@ -485,7 +488,8 @@ def verify_answer(
                 if require_citations and not unit_ids and binding == "claim" and value not in uncited:
                     uncited.append(value)
                 continue
-            if operands and _is_derived(value, rounding, [v for v in operands if v != value]):
+            shares = amounts if _is_percent(scales) else []
+            if operands and _is_derived(value, rounding, [v for v in operands if v != value], shares=shares):
                 continue
             if unit_ids and _is_supported(value, known, scales, rounding, sign):
                 if value not in misattributed:
@@ -770,20 +774,33 @@ def _is_supported(
     return False
 
 
-def _is_derived(value: float, rounding: float | None, operands: list[float]) -> bool:
-    """``value`` is a - b, a + b, a / b, the ratio a / b in percent (a net margin: net profit / revenue) or the
-    percent change (a - b) / b of two stated operands."""
+def _is_amount(scales: tuple[float, ...]) -> bool:
+    """A number written with a magnitude unit (亿, 万, bn, mn), not a percent or a plain multiple."""
+    return bool(scales) and min(scales) < 0.001 and 0.01 not in scales
+
+
+def _is_percent(scales: tuple[float, ...]) -> bool:
+    return 0.01 in scales and 100.0 in scales
+
+
+def _is_derived(value: float, rounding: float | None, operands: list[float], *, shares: list[float] = ()) -> bool:
+    """``value`` is a - b, a + b, a / b or the percent change (a - b) / b of two stated operands, or, for a value
+    written in percent, the share a / b of two stated amounts (a net margin: net profit / revenue, a <= b). The share
+    is limited to amounts: allowing a / b * 100 for any pair (multiples, ratios) raised the stress test's derived
+    false-accept rate from 0.020 to 0.028."""
     tolerance = 0.5 if rounding is None else rounding
-    for i, a in enumerate(operands):
-        for j, b in enumerate(operands):
-            if i == j:
-                continue
+    pairs = [(a, b, False) for i, a in enumerate(operands) for j, b in enumerate(operands) if i != j]
+    pairs += [(a, b, True) for i, a in enumerate(shares) for j, b in enumerate(shares) if i != j and 0 < a <= b]
+    for a, b, share in pairs:
+        if share:
+            candidates = [a / b * 100]
+        else:
             candidates = [a - b, a + b]
             if b:
-                candidates += [a / b, a / b * 100, (a - b) / abs(b) * 100]
-            for candidate in candidates:
-                if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
-                    return True
+                candidates += [a / b, (a - b) / abs(b) * 100]
+        for candidate in candidates:
+            if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
+                return True
     return False
 
 
