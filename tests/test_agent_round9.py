@@ -1,0 +1,94 @@
+"""Round-9 rules, written from the round-5 review (E3-E8) with the author's own wording (none repeats a reviewer probe
+or a round-5 held-out text; ``tests/test_agent_eval.py`` checks the dev tasks and router labels for that).
+
+* E6: fair value asked per share, through a valuation model or with a verdict word ("每股值多少", "按DCF…", "估值应该
+  给到…", "多少元比较公道") is a judgment: hedged with a limitation.
+* E7: a sector word in the question ("这只银行股") decides the short name 平安; crypto funds named by token (BTC, ETH,
+  Solana, "<X>币ETF") are out of coverage.
+* E8: net margin however phrased is derived from the cited revenue and net profit; P/S and a maximum drawdown are
+  stated as not computable.
+* E5: "这个行业/该板块" resolves to the discussed target's industry; "相差多少" after a comparison derives the
+  difference.
+* E3: a figure one document states and the structured data does not is attributed with the layer's marker, in the
+  answer and in the key points. E4: a ledger headline with such a figure, or with an unconfirmed-source shape, is
+  hidden.
+
+Offline snapshot values: 贵州茅台 PE 24.6 / ROE 33% / revenue 1688.38 亿 / net profit 823.2 亿; 五粮液 PE 20.9 / PB 5.4
+/ ROE 29.4% / 1085 亿 / 378 亿, daily change -0.5337%; 中国平安 PE 8.7 / PB 1.1 / 12180 亿, daily change 0.73%;
+保险 industry PE 11.8 / PB 1.45; 白酒 industry PE 27.3.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from query_intelligence.agent.tools.defaults import build_registry_for_service
+
+
+@pytest.fixture(scope="module")
+def agent(offline_service):
+    from query_intelligence.agent.graph import AgentRuntime
+    from query_intelligence.agent.llm import ScriptedLLM
+    from query_intelligence.agent.service import AgentService
+
+    runtime = AgentRuntime(offline_service, build_registry_for_service(offline_service), ScriptedLLM([]))
+    service = AgentService(runtime, trace_sinks=[])
+    yield service
+    runtime.close()
+
+
+def _targets(result: dict) -> set[str]:
+    return {call["arguments"].get("target") for call in result.get("tool_calls") or []}
+
+
+# --- E7: bank context for 平安; crypto funds by token ---------------------------------------------------------------
+@pytest.mark.parametrize("query", ["作为银行股，平安的市净率高吗", "平安这家银行的市盈率多少"])
+def test_a_sector_word_in_the_question_decides_pingan(offline_service, query):
+    entities = [e for e in offline_service.analyze_query(query)["entities"] if e.get("mention") == "平安"]
+    assert [(e["symbol"], e["match_type"]) for e in entities] == [("000001.SZ", "linked_context")]
+
+
+def test_another_bank_name_is_still_masked(offline_service):
+    # "平安和建设银行…": the 银行 of 建设银行 is part of another name, not context for 平安 (round 8, unchanged)
+    entities = [
+        e for e in offline_service.analyze_query("平安和建设银行谁的PE低")["entities"] if e.get("mention") == "平安"
+    ]
+    assert [e["symbol"] for e in entities] == ["601318.SH"]
+
+
+def test_bank_context_pingan_states_the_missing_data(agent):
+    result = agent.chat("作为银行股，平安的市净率高吗", session_id="r9-pingan-bank")
+    assert "alias_context:平安->平安银行" in result["route_reasons"]
+    assert "000001.SZ" in _targets(result)
+    assert "平安银行（000001.SZ）" in str(result["answer"])
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "SOL现货基金能买吗",
+        "索拉纳ETF表现如何",
+        "Is a Solana fund worth a look?",
+        "莱特币基金收益高吗",
+        "某某币ETF能配吗",
+    ],
+)
+def test_crypto_funds_named_by_token_are_out_of_coverage(query):
+    from query_intelligence.agent.coverage import out_of_coverage
+
+    assert out_of_coverage(query) == "crypto"
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["货币ETF收益怎么样", "货币基金年化多少", "以太网概念股有哪些", "LINK这个词什么意思", "人民币升值利好哪些板块"],
+)
+def test_money_market_funds_and_lookalikes_are_not_crypto(query):
+    from query_intelligence.agent.coverage import out_of_coverage
+
+    assert out_of_coverage(query) is None
+
+
+def test_a_token_fund_question_is_refused(agent):
+    result = agent.chat("SOL现货基金能买吗", session_id="r9-sol")
+    assert result["route"] == "refuse" and result["limitations"] == ["out_of_coverage"]
