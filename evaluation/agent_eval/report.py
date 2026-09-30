@@ -102,6 +102,7 @@ CLAIM_BENCH_RUNS = (
     "claim_bench-dev-baseline",
     "claim_bench-dev",
     "claim_bench-holdout",
+    "claim_bench-holdout-after-round8",
     "claim_bench-heldout_r4-first-run",
     "claim_bench-heldout_r4-after-exposure",
 )
@@ -140,6 +141,8 @@ FILE_STATUS = {
     "claim_bench-dev-baseline": "development claims, before tuning",
     "claim_bench-dev": "development claims, after tuning (tuned on)",
     "claim_bench-holdout": "**held-out claims, run once** (hashed file; later fixes are not re-scored here)",
+    "claim_bench-holdout-after-round8": "held-out claims **after exposure** (round 8: the review's h038 class, "
+    "industry averages, was fixed; not a fresh estimate)",
 }
 
 
