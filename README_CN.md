@@ -180,7 +180,7 @@ flowchart LR
 - **可观测性**：
   - 每次运行的 trace：节点、工具、LLM 调用（含上下文构成与 JSON 解析状态）、token、成本、Prompt 版本；
   - 运行查看接口；OpenTelemetry 导出；
-  - 按实际作答模型打标签的 Prometheus 指标；27 个面板的 Grafana 看板（含按 Prompt 版本划分的校验失败率与修复率、用户好评率）、13 条告警规则、Jaeger；
+  - 按实际作答模型打标签的 Prometheus 指标；30 个面板的 Grafana 看板（含按 Prompt 版本划分的校验失败率与修复率、用户好评率、按类别统计的输出安全层改动）、13 条告警规则、Jaeger；
   - 审计日志：每次拒答和每次合规改写各记一条结构化事件，只含哈希 id，不含用户原文；
   - 用户反馈（`POST /agent/feedback`）由 `scripts/feedback_to_tasks.py` 转成候选评测任务。
 - **网页前端**（React 19、TypeScript、Tailwind v4、Radix、Motion、Lightweight Charts）：

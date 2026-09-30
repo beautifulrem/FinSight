@@ -173,7 +173,7 @@ Sessions are LangGraph checkpoints (memory, SQLite or Postgres). This lets a cla
   - A trace for every run: nodes, tools, LLM calls with context composition and JSON status, tokens, cost and prompt versions.
   - A run inspector API and OpenTelemetry export.
   - Prometheus metrics, labelled by the model that actually answered.
-  - A Grafana dashboard (27 panels, including verification failure and repair rate by prompt version and the user-feedback ratio), 13 alert rules, and Jaeger.
+  - A Grafana dashboard (30 panels, including verification failure and repair rate by prompt version, the user-feedback ratio and output-safety edits by kind), 13 alert rules, and Jaeger.
   - An audit log: one structured event per refusal and per compliance edit, with hashed ids and no user text.
   - User feedback (`POST /agent/feedback`), turned into candidate evaluation tasks by `scripts/feedback_to_tasks.py`.
 - **Web UI** (React 19, TypeScript, Tailwind v4, Radix, Motion, Lightweight Charts)
