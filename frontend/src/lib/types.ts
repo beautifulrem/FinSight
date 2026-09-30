@@ -247,6 +247,9 @@ export type StreamEvent =
 export type ClaimStatus = "supported" | "contradicted" | "unverifiable";
 export type ClaimVerdict = ClaimStatus | "partially_supported";
 
+/** What the card's headline says: the verdict, or "partly checked" for a supported verdict with unchecked parts. */
+export type ClaimHeadline = ClaimVerdict | "partly_checked";
+
 /** How a claimed number relates to the value: "超过30%" is `gt`, "不是15倍" is `ne`, "20到30倍" is `range`. */
 export type ClaimComparator = "eq" | "ne" | "gt" | "ge" | "lt" | "le" | "approx" | "range";
 
@@ -307,6 +310,11 @@ export interface ClaimReport {
   }[];
   /** Clauses that name a target or metric but had nothing to check ("ROE很高"): shown as "not checked" rows. */
   unchecked?: ClaimUnchecked[];
+  /**
+   * How much of the claim the verdict covers: "partial" when a part is unchecked or unverifiable. A "supported"
+   * verdict with partial coverage is shown as "partly checked", never as "the numbers agree" (round 9, E2).
+   */
+  coverage?: "full" | "partial" | "none";
   disclaimer: string;
 }
 

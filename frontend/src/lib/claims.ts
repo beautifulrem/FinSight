@@ -1,6 +1,14 @@
 import { formatKpi, formatMoney } from "./format";
 import type { Lang, MessageKey, Translate } from "./i18n";
-import type { ClaimCheckItem, ClaimComparator, ClaimReason, ClaimReport, ClaimStatus, EvidenceSource } from "./types";
+import type {
+  ClaimCheckItem,
+  ClaimComparator,
+  ClaimHeadline,
+  ClaimReason,
+  ClaimReport,
+  ClaimStatus,
+  EvidenceSource,
+} from "./types";
 
 /**
  * Display helpers for `POST /agent/claim-check` reports: claimed and actual values in the metric's unit,
@@ -241,6 +249,18 @@ export function statusCounts(report: ClaimReport): Record<ClaimStatus | "uncheck
   for (const check of report.checks) counts[check.status] = (counts[check.status] ?? 0) + 1;
   counts.unchecked = report.unchecked?.length ?? 0;
   return counts;
+}
+
+/**
+ * The headline of a report. "Supported" means every *check* agreed; when parts of the claim were not checked (or a
+ * server without `coverage` lists unchecked clauses) the headline is "partly checked" instead, so the card never says
+ * "all the numbers agree" about a claim whose other parts nobody looked at (round 9, E2).
+ */
+export function claimHeadline(report: ClaimReport): ClaimHeadline {
+  if (report.verdict !== "supported") return report.verdict;
+  const counts = statusCounts(report);
+  const partial = report.coverage ? report.coverage === "partial" : counts.unchecked + counts.unverifiable > 0;
+  return partial ? "partly_checked" : "supported";
 }
 
 /** Every part of the claim the card lists: one row per check plus one per clause that was not checked. */

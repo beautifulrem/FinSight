@@ -1,5 +1,6 @@
 import {
   checkEvidence,
+  claimHeadline,
   claimedAmount,
   claimedText,
   claimInMessage,
@@ -206,5 +207,28 @@ describe("moves, relations and macro claims (round 4)", () => {
 
   it("finds relational hearsay", () => {
     expect(claimInMessage("听说茅台的市盈率比五粮液高，对吗")).toBe("茅台的市盈率比五粮液高");
+  });
+});
+
+
+describe("claimHeadline (round 9, E2)", () => {
+  const base: ClaimReport = {
+    claim: "茅台ROE 33%，中国平安市盈率只有白酒行业平均的三分之一左右",
+    verdict: "supported",
+    checks: [{ target: "贵州茅台", metric: "roe", claimed: 33, actual: 33, status: "supported", note: "" }],
+    disclaimer: "",
+  };
+
+  it("never says 'supported' when parts were not checked", () => {
+    expect(claimHeadline({ ...base, coverage: "full" })).toBe("supported");
+    expect(claimHeadline({ ...base, coverage: "partial" })).toBe("partly_checked");
+    // an older server without `coverage`: the unchecked rows decide
+    expect(claimHeadline({ ...base, unchecked: [{ text: "M2增速高于CPI", reason: "no_claim" }] })).toBe("partly_checked");
+    expect(claimHeadline(base)).toBe("supported");
+  });
+
+  it("keeps the other verdicts as they are", () => {
+    expect(claimHeadline({ ...base, verdict: "contradicted", coverage: "partial" })).toBe("contradicted");
+    expect(claimHeadline({ ...base, verdict: "partially_supported", coverage: "partial" })).toBe("partially_supported");
   });
 });

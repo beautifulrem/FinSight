@@ -14,6 +14,7 @@ import {
   SearchX,
   ShieldAlert,
   ShieldCheck,
+  ShieldEllipsis,
   ShieldQuestionMark,
   ShieldX,
 } from "lucide-react";
@@ -29,12 +30,21 @@ import {
 } from "react";
 
 import { checkClaim, classifyError, type ErrorKind } from "@/lib/api";
-import { checkEvidence, claimedText, formatClaimValue, noteText, partCount, statusCounts, targetName } from "@/lib/claims";
+import {
+  checkEvidence,
+  claimHeadline,
+  claimedText,
+  formatClaimValue,
+  noteText,
+  partCount,
+  statusCounts,
+  targetName,
+} from "@/lib/claims";
 import { cn } from "@/lib/cn";
 import { humanizeCode } from "@/lib/codes";
 import { evidenceFreshness } from "@/lib/freshness";
 import { sourceNameLabel, sourceTypeLabel, useI18n, type MessageKey } from "@/lib/i18n";
-import type { ClaimCheckItem, ClaimReport, ClaimStatus, ClaimUnchecked, ClaimVerdict } from "@/lib/types";
+import type { ClaimCheckItem, ClaimHeadline, ClaimReport, ClaimStatus, ClaimUnchecked } from "@/lib/types";
 
 import { AsOf } from "./Freshness";
 import { Badge } from "./ui/badge";
@@ -44,8 +54,10 @@ import { Tooltip } from "./ui/tooltip";
 const MAX_CLAIM = 2000;
 const EXAMPLES: MessageKey[] = ["claim.ex1", "claim.ex2", "claim.ex3"];
 
-const VERDICTS: Record<ClaimVerdict, { icon: typeof ShieldCheck; tone: "down" | "up" | "warn" | "neutral"; frame: string }> = {
+const VERDICTS: Record<ClaimHeadline, { icon: typeof ShieldCheck; tone: "down" | "up" | "warn" | "neutral"; frame: string }> = {
   supported: { icon: ShieldCheck, tone: "down", frame: "border-down/35 bg-down-soft/60" },
+  // Every check agreed but parts of the claim were not checked: not "the numbers agree" (round 9, E2).
+  partly_checked: { icon: ShieldEllipsis, tone: "warn", frame: "border-warn/35 bg-surface-2/60 border-dashed" },
   contradicted: { icon: ShieldX, tone: "up", frame: "border-up/35 bg-up-soft/60" },
   partially_supported: { icon: ShieldAlert, tone: "warn", frame: "border-warn/35 bg-warn-soft/60" },
   unverifiable: { icon: ShieldQuestionMark, tone: "neutral", frame: "border-line bg-surface-2/60" },
@@ -59,14 +71,23 @@ const STATUSES: Record<ClaimStatus, { icon: typeof CircleCheck; tone: "down" | "
 
 const COLOR: Record<string, string> = { down: "text-down", up: "text-up", warn: "text-warn", neutral: "text-muted" };
 
-/** Overall verdict: colour, icon and label (never colour alone). */
-export function VerdictBadge({ verdict, className }: { verdict: ClaimVerdict; className?: string }) {
+/**
+ * Overall verdict: colour, icon and label (never colour alone). `data-verdict` is the server's verdict; the label is
+ * the headline ("partly checked" for a supported verdict with unchecked parts), also in `data-headline`.
+ */
+export function VerdictBadge({ report, className }: { report: ClaimReport; className?: string }) {
   const { t } = useI18n();
-  const spec = VERDICTS[verdict] ?? VERDICTS.unverifiable;
+  const headline = claimHeadline(report);
+  const spec = VERDICTS[headline] ?? VERDICTS.unverifiable;
   return (
-    <Badge tone={spec.tone} className={cn("claim-verdict gap-1.5 px-2.5 py-1 text-[14px] leading-5 [&_svg]:size-4", className)} data-verdict={verdict}>
+    <Badge
+      tone={spec.tone}
+      className={cn("claim-verdict gap-1.5 px-2.5 py-1 text-[14px] leading-5 [&_svg]:size-4", className)}
+      data-verdict={report.verdict}
+      data-headline={headline}
+    >
       <spec.icon aria-hidden />
-      {t(`claim.verdict.${verdict}` as MessageKey)}
+      {t(`claim.verdict.${headline}` as MessageKey)}
     </Badge>
   );
 }
@@ -192,7 +213,8 @@ function UncheckedRow({ part }: { part: ClaimUnchecked }) {
 export function ClaimReportCard({ report, turn }: { report: ClaimReport; turn?: number }) {
   const { lang, t } = useI18n();
   const headingId = useId();
-  const spec = VERDICTS[report.verdict] ?? VERDICTS.unverifiable;
+  const headline = claimHeadline(report);
+  const spec = VERDICTS[headline] ?? VERDICTS.unverifiable;
   const counts = statusCounts(report);
   const parts = partCount(report);
   const unchecked = report.unchecked ?? [];
@@ -211,10 +233,10 @@ export function ClaimReportCard({ report, turn }: { report: ClaimReport; turn?: 
       <header className={cn("space-y-2 rounded-xl border px-3.5 py-3", spec.frame)}>
         <div className="flex flex-wrap items-center gap-2">
           <span className="sr-only">{t("claim.verdict")}: </span>
-          <VerdictBadge verdict={report.verdict} />
+          <VerdictBadge report={report} />
           {parts > 0 && <span className="claim-counts text-[12.5px] text-muted tabular-nums">{summary}</span>}
         </div>
-        <p className={cn("text-[13px] leading-relaxed", COLOR[spec.tone])}>{t(`claim.verdictHint.${report.verdict}` as MessageKey)}</p>
+        <p className={cn("text-[13px] leading-relaxed", COLOR[spec.tone])}>{t(`claim.verdictHint.${headline}` as MessageKey)}</p>
       </header>
 
       <figure className="flex gap-2 text-[15px] leading-relaxed text-ink">
@@ -397,7 +419,7 @@ export function ClaimCheckView({ apiKey, ref, active = true }: { apiKey: string;
 
   const announcement =
     state.status === "done"
-      ? t("claim.done", { v: t(`claim.verdict.${state.report.verdict}` as MessageKey) })
+      ? t("claim.done", { v: t(`claim.verdict.${claimHeadline(state.report)}` as MessageKey) })
       : state.status === "loading"
         ? `${t("claim.checking")}…`
         : "";
