@@ -34,6 +34,7 @@ _PRICE_TERMS = re.compile(
 _VALUATION_TERMS = re.compile(
     r"估值|市盈率|市净率|(?<![A-Za-z])(?:P/?E|P/?B)(?![A-Za-z])|ROE|净资产收益率|盈利|业绩|利润|营收|收入|基本面|"
     r"财务|贵不贵|便宜|毛利率|股息率|股息|市值|负债率|负债|杠杆|增速|现金流|净利率|赚钱|赚得|赚了|挣钱|盈利能力|"
+    r"(?<![A-Za-z])PEG(?![A-Za-z])|市盈增长比|"
     r"valuation|valued|earnings|profit|revenue|fundamental|price-to-(?:book|earnings)|expensive|cheap|margin|"
     r"dividend|market cap|debt|leverage|cash ?flow|growth rate|\bearns?\b|more profitable",
     re.IGNORECASE,

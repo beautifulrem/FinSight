@@ -37,7 +37,7 @@ from ..chat.language import detect_user_language, persistent_answer_language, re
 from ..integrations.intraday import asks_about_today
 from .compliance import apply_compliance, language_violation
 from .composer import answer_json_status, compose_template, parse_answer
-from .coverage import coverage_gaps, flow_gaps, out_of_coverage, out_of_coverage_text
+from .coverage import coverage_gaps, flow_gaps, out_of_coverage, out_of_coverage_text, year_to_date_gaps
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
 from .hearsay import fact_check_for
@@ -931,7 +931,9 @@ class AgentRuntime:
         draft = state.get("draft") or {}
         store = _store(state)
         llm_draft = state.get("draft_source") in {"llm_agent", "llm_compose"}
-        derived = llm_draft and self.config.verify_derived
+        # The template states derived figures itself (net margin = net profit / revenue, a year-to-date change) with
+        # their operands in the same cited sentence; LLM drafts follow AgentConfig.verify_derived.
+        derived = self.config.verify_derived if llm_draft else True
         report = verify_answer(
             draft,
             store,
@@ -971,7 +973,9 @@ class AgentRuntime:
                 # of a stub; it restates the same tool results and must pass the template checks itself.
                 style = str((state.get("nlu") or {}).get("question_style") or "")
                 template = compose_template(state.get("tool_log") or [], zh=self._zh(state), question_style=style)
-                if verify_answer(template, store, query=state["query"], market_precedence=False).passed:
+                if verify_answer(
+                    template, store, query=state["query"], market_precedence=False, allow_derived=True
+                ).passed:
                     fallback = template
             repaired, notes = repair_answer(draft, report, store, zh=self._zh(state), fallback=fallback)
             degraded = ["verification_failed:repaired"]
@@ -1043,6 +1047,7 @@ class AgentRuntime:
             asked = state.get("effective_query") or state["query"]
             limitations.extend(coverage_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
             limitations.extend(flow_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
+            limitations.extend(year_to_date_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
         limitations.extend(state.get("verification_notes") or [])
         draft["limitations"] = list(dict.fromkeys(limitations))
         market = [
