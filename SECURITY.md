@@ -47,8 +47,9 @@ minutes later. Both commits are part of the published history of `master`.
 
 - The maintainers decided **not to rewrite history**: the commits were public, so rewriting cannot make
   the key secret again, and it would break every existing clone and reference.
-- **The key must be considered compromised and must be revoked by its owner at the provider.** It is not
-  used by any current code or configuration, and this repository does not reproduce its value anywhere.
+- **The key was revoked at the provider; the repository owner confirmed the revocation on 2026-09-30.**
+  It is not used by any current code or configuration, and this repository does not reproduce its value
+  anywhere. Anyone holding a clone should still treat the value as compromised.
 - The CI and pre-commit scans allowlist this single finding (commit `302077a`, file
   `config/app_config.json`, rule `generic-api-key`) so that every other secret still fails the build.
 

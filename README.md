@@ -326,7 +326,7 @@ Still open:
 | GLM tail latency: agent P95 82 s on test v3 | per-call variance of a slow reasoning model; composition (27 s) is the better GLM path |
 | Prompt v4 has no task-success A/B | selectable, not default, until measured |
 | No human-labelled answer-quality judge, no head-to-head with 问财 / 豆包 / Kimi, no user study | need human labellers, competitor accounts and participants (owner) |
-| The key committed in `302077a` must be revoked at its provider | owner action; history is intentionally not rewritten ([SECURITY.md](SECURITY.md)) |
+| The key committed in `302077a` | revoked at the provider (owner confirmed 2026-09-30); history is intentionally not rewritten ([SECURITY.md](SECURITY.md)) |
 | Offline data covers few symbols | 7 priced symbols and 3 with fundamentals; other companies get a clear "no data" answer |
 | Intraday quotes do not know movable holidays | on those days the stale real-time quote is rejected and the daily close is used ([data-sources.md](docs/data-sources.md#intraday-quotes-for-今天今日today-questions)) |
 
