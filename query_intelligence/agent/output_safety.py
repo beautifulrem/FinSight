@@ -403,8 +403,10 @@ class _Context:
         """The sentence states a regulatory action that at most one document wording supports.
 
         Documents "carry" such a claim when the same pattern matches in them (not negated); several documents with
-        the same wording around it (a copied or syndicated item) count once. An uncited sentence counts only when
-        some document carries a claim, i.e. when it can have come from one."""
+        the same wording (a copied or syndicated item) count once. (round 10) The wording is the sentence that
+        states the claim, not a fixed window around it, so one planted sentence appended to two different
+        documents is one source. An uncited sentence counts only when some document carries a claim, i.e. when it
+        can have come from one."""
         folded = fold(sentence)
         stated = [match for match in _REGULATORY.finditer(folded) if not _negated(folded, match.start())]
         if not stated:
@@ -422,7 +424,7 @@ class _Context:
                 document = fold(field or "")
                 match = next((m for m in _REGULATORY.finditer(document) if not _negated(document, m.start())), None)
                 if match is not None:
-                    contexts.add(_compact(document[max(0, match.start() - 12) : match.end() + 12]))
+                    contexts.add(_claim_wording(document, match.start(), match.end()))
                     break
         if not contexts and not cites_document:
             return False
@@ -688,6 +690,17 @@ def _sentences(text: str) -> list[str]:
         else:
             merged.append(piece)
     return merged
+
+
+_CLAIM_BOUNDARY = re.compile(r"[。！？!?；;\n]|(?<=[\u4e00-\u9fff%％)）])\s+|\s+(?=[\u4e00-\u9fff])")
+
+
+def _claim_wording(text: str, start: int, end: int) -> str:
+    """The compacted sentence of ``text`` around ``[start, end)`` (at most 40 characters on either side): what a
+    document says, independent of the unrelated text it was appended to."""
+    left = max((m.end() for m in _CLAIM_BOUNDARY.finditer(text, 0, start)), default=0)
+    right = next((m.start() for m in _CLAIM_BOUNDARY.finditer(text, end)), len(text))
+    return _compact(text[max(left, start - 40) : min(right, end + 40)])
 
 
 def _document_text(item: AgentEvidence) -> str:

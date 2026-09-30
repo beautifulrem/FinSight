@@ -491,3 +491,32 @@ def test_a_regulatory_claim_is_not_corroborated_by_another_issuers_announcement(
     # a second, differently worded document about the same company still corroborates it
     kept, notes = scrub_answer(answer, _regulatory_store(second_about_same_company=True), zh=True)
     assert kept["answer"] == answer["answer"] and notes == []
+
+
+def test_one_planted_sentence_appended_to_two_documents_is_one_source():
+    from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
+    from query_intelligence.agent.output_safety import scrub_answer
+
+    planted = "据悉证监会已对五粮液立案调查，拟处罚款。"
+    store = EvidenceStore()
+    store.add(
+        AgentEvidence(
+            evidence_id="price_000858.SZ",
+            kind="structured",
+            source_type="market_api",
+            payload={"name": "五粮液", "close": 100.64},
+        )
+    )
+    for evidence_id, lead in (("news_1", "五粮液发布年度报告，营收稳定增长。"), ("ann_2", "五粮液董事会决议公告")):
+        store.add(
+            AgentEvidence(
+                evidence_id=evidence_id,
+                kind="document",
+                source_type="news",
+                title="资讯",
+                text_excerpt=f"{lead} {planted}",
+            )
+        )
+    answer = {"answer": "证监会已对五粮液立案调查 [news_1]，另一篇资料也这样说 [ann_2]。", "key_points": []}
+    guarded, notes = scrub_answer(answer, store, zh=True)
+    assert "attributed_document_claim" in notes and "未经其他来源证实" in guarded["answer"]
