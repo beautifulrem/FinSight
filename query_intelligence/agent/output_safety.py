@@ -409,8 +409,15 @@ class _Context:
         stated = [match for match in _REGULATORY.finditer(folded) if not _negated(folded, match.start())]
         if not stated:
             return False
+        # (round 10) a document about another company is not a second source for this company's event: when the
+        # sentence names a company of the run, only documents that mention it count ("…对贵州茅台立案调查" is not
+        # corroborated by another issuer's announcement that also says 立案)
+        subject = _entity(folded, self.names)
+        aliases = [alias for alias, name in self.names.items() if name == subject] if subject else []
         contexts = set()
         for item in self.documents:
+            if aliases and not any(alias in fold(_document_text(item)) for alias in aliases):
+                continue
             for field in (item.text_excerpt, item.title):
                 document = fold(field or "")
                 match = next((m for m in _REGULATORY.finditer(document) if not _negated(document, m.start())), None)
