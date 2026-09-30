@@ -40,7 +40,7 @@ from .composer import answer_json_status, compose_template, parse_answer
 from .coverage import coverage_gaps, flow_gaps, out_of_coverage, out_of_coverage_text
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
-from .hearsay import fact_check_for
+from .hearsay import fact_check_for, fact_check_prose
 from .injection import (
     REDACTION_MARKER,
     sanitize_document_text,
@@ -1024,13 +1024,20 @@ class AgentRuntime:
         usage_model = Usage(**usage) if usage else Usage()
         cost, currency, cost_source = resolve_cost(usage_model, self.pricing)
         nlu = state.get("nlu") or {}
+        # "听说茅台市盈率只有15倍，是真的吗": the claim checked against the data, inline (no LLM); the answer opens
+        # with the claimed number next to the actual one, the card shows the full report.
+        fact_check = fact_check_for(state["query"], service=self.service, registry=self.registry, zh=zh)
+        answer_text = str(answer.get("answer", ""))
+        prose = fact_check_prose(fact_check, zh=zh)
+        if prose:
+            answer_text = f"{prose}\n\n{answer_text}" if answer_text else prose
         result = {
             "run_id": uuid.uuid4().hex,
             "query": state["query"],
             "language": "zh" if zh else "en",
             "route": state.get("route"),
             "route_reasons": state.get("route_reasons") or [],
-            "answer": answer.get("answer", ""),
+            "answer": answer_text,
             "key_points": answer.get("key_points") or [],
             "evidence_used": cited,
             "limitations": answer.get("limitations") or [],
@@ -1075,8 +1082,7 @@ class AgentRuntime:
                 zh=zh,
                 limit=self.config.max_next_questions,
             ),
-            # "听说茅台市盈率只有15倍，是真的吗": the claim checked against the data, inline (no LLM).
-            "fact_check": fact_check_for(state["query"], service=self.service, registry=self.registry, zh=zh),
+            "fact_check": fact_check,
         }
         # The result carries everything the response needs; drop the bulky turn-scoped working state so the
         # checkpoint stays small (it is reset at the start of the next turn anyway).

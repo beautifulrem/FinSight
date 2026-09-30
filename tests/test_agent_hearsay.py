@@ -90,7 +90,7 @@ def test_workflow_path_carries_the_fact_check(client, monkeypatch):
     body = client.post("/chat", json={"query": "听说茅台市盈率只有15倍，是真的吗"}).json()
     plain = client.post("/chat", json={"query": "贵州茅台的市盈率是多少"}).json()
 
-    assert body["answer"] == "legacy" and body["fact_check"]["verdict"] == "contradicted"
+    assert body["answer"].endswith("legacy") and body["fact_check"]["verdict"] == "contradicted"
     assert body["fact_check"]["checks"][0]["claimed"] == 15.0
     assert "fact_check" not in plain
 
@@ -113,3 +113,59 @@ def test_workflow_nlu_entities_carry_the_english_alias(client, monkeypatch):
     body = client.post("/chat", json={"query": "贵州茅台和五粮液对比一下"}).json()
 
     assert [entity["name_en"] for entity in body["nlu_result"]["entities"]] == ["Kweichow Moutai", "Wuliangye"]
+
+
+# Round 8: the answer text itself names the claimed number and the actual one, not only the card.
+def test_fact_check_prose_names_the_claimed_and_the_actual_number():
+    from query_intelligence.agent.hearsay import fact_check_prose
+
+    report = fact_check_for("听说茅台市盈率只有15倍，是真的吗", service=StubService(), registry=build_fake_registry())
+    prose = fact_check_prose(report)
+
+    assert prose.startswith("**核查结论：你听到的说法与数据不符。**")
+    assert "“贵州茅台市盈率15倍”不符，数据为 24.6倍" in prose
+
+    move = fact_check_for("听说茅台昨天跌超0.1%，是真的吗", service=StubService(), registry=build_fake_registry())
+    assert "跌超过0.1%" in fact_check_prose(move) and "-0.18%" in fact_check_prose(move)
+
+    relation = fact_check_for("听说茅台的市盈率比五粮液高，对吗", service=StubService(), registry=build_fake_registry())
+    text = fact_check_prose(relation)
+    assert "贵州茅台市盈率高于五粮液" in text and "24.6倍" in text and "15.2倍" in text and "相符" in text
+
+    assert fact_check_prose(None) == ""
+
+
+def test_fact_check_prose_in_english():
+    from query_intelligence.agent.hearsay import fact_check_prose
+
+    report = fact_check_for(
+        "I heard that Moutai's P/E is only 15x, is that true?",
+        service=StubService(),
+        registry=build_fake_registry(),
+        zh=False,
+    )
+    prose = fact_check_prose(report, zh=False)
+
+    assert prose.startswith("**Fact check: the claim you heard does not match the data.**")
+    assert "Kweichow Moutai P/E 15x" in prose and "24.6x" in prose
+    assert not any("一" <= char <= "鿿" for char in prose)
+
+
+def test_agent_answer_text_names_the_claimed_and_the_actual_number(client):
+    body = client.post("/agent/chat", json={"query": "听说茅台市盈率只有15倍，是真的吗"}).json()
+
+    opening = body["answer"].split("\n\n")[0]
+    assert "15倍" in opening and "24.6倍" in opening and "不符" in opening
+    plain = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"}).json()
+    assert "核查结论" not in plain["answer"]
+
+
+def test_workflow_answer_text_names_the_claimed_and_the_actual_number(client, monkeypatch):
+    import query_intelligence.api.app as app_module
+
+    monkeypatch.setattr(app_module, "build_chatbot_response", lambda **kwargs: {"answer": "legacy"})
+
+    body = client.post("/chat", json={"query": "听说茅台市盈率只有15倍，是真的吗"}).json()
+
+    assert body["answer"].endswith("\n\nlegacy")
+    assert "15倍" in body["answer"] and "24.6倍" in body["answer"]
