@@ -129,3 +129,45 @@ def test_money_market_funds_and_lookalikes_are_not_crypto(query):
 def test_a_token_fund_question_is_refused(agent):
     result = agent.chat("SOL现货基金能买吗", session_id="r9-sol")
     assert result["route"] == "refuse" and result["limitations"] == ["out_of_coverage"]
+
+
+# --- E8: net margin however phrased; P/S and drawdown stated as not computable ------------------------------------
+@pytest.mark.parametrize(
+    "query",
+    [
+        "五粮液净利润在营业收入里占几成",
+        "中国平安的销售利润率",
+        "五粮液每卖100元能落下多少净利润",
+        "What is Wuliangye's profit as a percentage of revenue?",
+    ],
+)
+def test_net_margin_phrasings_are_recognised(query):
+    from query_intelligence.agent.coverage import requested_metrics
+
+    assert [metric.key for metric in requested_metrics(query)] == ["net_margin"]
+
+
+@pytest.mark.parametrize("query", ["五粮液的毛利润率", "五粮液的毛利率"])
+def test_gross_margin_is_not_net_margin(query):
+    from query_intelligence.agent.coverage import requested_metrics
+
+    assert [metric.key for metric in requested_metrics(query)] == ["gross_margin"]
+
+
+def test_a_share_of_revenue_question_is_derived(agent):
+    result = agent.chat("五粮液净利润在营业收入里占几成", session_id="r9-margin")
+    assert "378 亿元 ÷ 1085 亿元 ≈ 34.84% [fundamental_000858.SZ]" in str(result["answer"])
+    assert result["verification"]["passed"]
+
+
+def test_price_to_sales_is_stated_as_not_computable(agent):
+    result = agent.chat("五粮液市销率多少", session_id="r9-ps")
+    answer = str(result["answer"])
+    assert answer.startswith("无法计算五粮液的市销率") and "总市值" in answer
+    assert "000858.SZ" in _targets(result)
+
+
+def test_a_drawdown_is_stated_as_not_computable(agent):
+    result = agent.chat("中国平安过去半年的最大回撤", session_id="r9-drawdown")
+    answer = str(result["answer"])
+    assert answer.startswith("当前数据只有中国平安") and "无法计算所问期间的最大回撤" in answer
