@@ -59,6 +59,8 @@ from .memory import (
     has_plural_reference,
     history_messages,
     inherit_session_context,
+    is_comparative_follow_up,
+    is_difference_follow_up,
     listed_entities,
     resolve_comparison_anchor,
     resolve_coreference,
@@ -379,6 +381,18 @@ class AgentRuntime:
             if not listed_entities(nlu) and not has_finance_content(query):
                 # Nothing financial is left once the injected instructions are removed.
                 decision = decision.model_copy(update={"route": "refuse"})
+        elif (
+            turns
+            and decision.route == "refuse"
+            and not off_topic
+            and not instruction_only
+            and not outside
+            and (is_difference_follow_up(state["query"]) or is_comparative_follow_up(state["query"]))
+        ):
+            # (round 10, F4) "差多少" / "谁更高" in a conversation is never off-topic: when no earlier comparison
+            # resolves it, ask which two targets and which metric are meant
+            decision = decision.model_copy(update={"route": "clarify"})
+            reasons.append("difference_without_comparison")
         # A question that itself names an A-share target is in scope ("苹果概念股里的立讯精密"); an NLU carry-over from
         # earlier turns does not count as naming one.
         # A fuzzy match is a guess at a misspelt name, and an advice phrase can be a company alias (值得买); next to a
@@ -621,6 +635,13 @@ class AgentRuntime:
     def clarify(self, state: AgentState, *, interactive: bool = False) -> dict[str, Any]:
         zh = self._zh(state)
         group_question = group_count_question(state.get("route_reasons") or [], zh)
+        if group_question is None and "difference_without_comparison" in (state.get("route_reasons") or []):
+            group_question = (
+                "请问您想比较哪两个标的的哪项指标？例如「贵州茅台和五粮液的市盈率差多少？」。"
+                if zh
+                else 'Which two targets and which metric do you want compared? For example, "How much higher is '
+                "Kweichow Moutai's P/E than Wuliangye's?\""
+            )
         question = group_question or (
             "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
             if zh

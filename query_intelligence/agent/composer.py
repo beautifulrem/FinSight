@@ -286,6 +286,10 @@ def _arithmetic_operands(tool_log: list[dict[str, Any]], key: str, zh: bool) -> 
         value = None
         if entry.get("tool") == "get_price_history" and key in {"pct_change", "close"}:
             value = data.get("pct_change_1d" if key == "pct_change" else "close")
+            if key == "pct_change" and value is None and (computed := _computed_change(data)):
+                # the change the price sentence states as computed from the last two closes: it is compared, but
+                # never restated without its closes (the verifier checks it against them in that sentence)
+                value, data = computed[1], {**data, "_computed_change": True}
         elif entry.get("tool") == "get_fundamentals" and key not in {"pct_change", "close"}:
             metrics = data.get("metrics") or {}
             field = {"pe": ("pe_ttm", "pe")}.get(key, (key,))
@@ -310,10 +314,11 @@ def _arithmetic_operands(tool_log: list[dict[str, Any]], key: str, zh: bool) -> 
 
 
 def _arithmetic(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
-    """The difference or ratio a question asks for, derived from two cited values (see ``_ASKS_DIFFERENCE``)."""
+    """The difference or ratio a question asks for, derived from two cited values (see ``_ASKS_DIFFERENCE``); for a
+    comparison that asks for neither (round 10, F10: "哪个更低", "谁跌得多", "比较…的市盈率"), which value is higher."""
     difference, ratio = bool(_ASKS_DIFFERENCE.search(query or "")), bool(_ASKS_RATIO.search(query or ""))
     if not (difference or ratio):
-        return []
+        return _comparison_verdict(query, tool_log, zh) if _ASKS_COMPARISON.search(query or "") else []
     named = [
         (match.start(), key, label_zh, label_en)
         for key, label_zh, label_en, pattern in _ARITHMETIC_METRICS
@@ -339,6 +344,17 @@ def _arithmetic(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[st
             return _times(value, zh)
         return _money(value, zh)
 
+    if first[3].get("_computed_change") or second[3].get("_computed_change"):
+        # a change computed from closes has no stored value to derive a gap from: say which is higher, and why the
+        # gap is not stated
+        verdict = _comparison_verdict(query, tool_log, zh)
+        computed = next(name for name, _value, _eid, data in (first, second) if data.get("_computed_change"))
+        note = (
+            f"{computed}的涨跌幅由最近两个收盘价推算（数据源未提供），因此不另行计算两者差值。"
+            if zh
+            else f"{computed}'s change is computed from its last two closes (the source has none), so no gap is stated."
+        )
+        return [*verdict, note]
     (name_a, a, eid_a, data_a), (name_b, b, eid_b, data_b) = first, second
     cites = f"[{eid_a}]" + (f"[{eid_b}]" if eid_b != eid_a else "")
     label = label_zh if zh else label_en
@@ -371,6 +387,69 @@ def _arithmetic(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[st
         if zh
         else f"{operands}: a difference of {gap_text} ({higher} is higher) {cites}."
     ]
+
+
+# (round 10, F10) A comparison: "谁/哪个…更高/低/多/少", "比较/对比/相比", "compare", "which … higher".
+_ASKS_COMPARISON = re.compile(
+    r"(?:谁|哪个|哪一个|哪只|哪家|哪边)[^，。？?,;；]{0,10}?(?:高|低|大|小|多|少|贵|便宜|强|弱)|比较|对比|相比|"
+    r"\bcompar(?:e|ed|ing|ison)\b|\bversus\b|\bvs\.?(?=\s)|"
+    r"\bwhich\b[^.?!]{0,40}\b(?:higher|lower|bigger|smaller|more|less|cheaper|larger)\b",
+    re.IGNORECASE,
+)
+
+
+def _comparison_verdict(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
+    """One sentence saying which cited value is higher, for the metric the comparison names first: "市净率：中国平安
+    1.1 倍 低于 五粮液 5.4 倍"; three or more targets are ordered from highest to lowest. A comparison that names no
+    metric ("谁更好") is a judgment and gets no verdict."""
+    named = [
+        (match.start(), key, label_zh, label_en)
+        for key, label_zh, label_en, pattern in _ARITHMETIC_METRICS
+        if (match := pattern.search(query))
+    ]
+    if not named:
+        return []
+    _position, key, label_zh, label_en = min(named)
+    companies, industry = _arithmetic_operands(tool_log, key, zh)
+    operands = list(companies)
+    if len(operands) == 1 and industry is not None and _ASKS_INDUSTRY.search(query):
+        operands.append(industry)
+    if len(operands) < 2:
+        return []
+
+    def shown(value: float, data: dict[str, Any]) -> str:
+        if data.get("_computed_change"):
+            return "（按收盘价推算，见上文）" if zh else "(computed from closes, see above)"
+        if key in {"pct_change", "roe"}:
+            return f"{_num(value)}%"
+        if key == "close":
+            return _px(value, data, zh)
+        if key in {"pe", "pb"}:
+            return _times(value, zh)
+        return _money(value, zh)
+
+    label = label_zh if zh else label_en
+    cites = "".join(dict.fromkeys(f"[{eid}]" for _name, _value, eid, _data in operands))
+    if len(operands) == 2:
+        (name_a, a, _eid_a, data_a), (name_b, b, _eid_b, data_b) = operands
+        if a == b:
+            relation = "持平" if zh else "is level with"
+        else:
+            relation = ("高于" if a > b else "低于") if zh else ("is higher than" if a > b else "is lower than")
+        text = (
+            f"{label}：{name_a}{shown(a, data_a) if data_a.get('_computed_change') else ' ' + shown(a, data_a)} "
+            f"{relation} {name_b}{shown(b, data_b) if data_b.get('_computed_change') else ' ' + shown(b, data_b)}"
+            if zh
+            else f"{label}: {name_a} ({shown(a, data_a)}) {relation} {name_b} ({shown(b, data_b)})"
+        )
+    else:
+        ordered = sorted(operands, key=lambda item: item[1], reverse=True)
+        parts = [f"{name} {shown(value, data)}" for name, value, _eid, data in ordered]
+        text = f"{label}由高到低：{'、'.join(parts)}" if zh else f"{label} from highest to lowest: {', '.join(parts)}"
+    falling = key == "pct_change" and re.search(r"跌|\b(?:fell|dropped|lost)\b", query, re.IGNORECASE)
+    if falling and all(value > 0 for _name, value, _eid, _data in operands):
+        text += "（两者当日均为上涨）" if zh else " (both rose on the day)"
+    return [f"{text} {cites}。" if zh else f"{text} {cites}."]
 
 
 def _margin_ranking(margins: list[tuple[str, float]], zh: bool) -> str:
