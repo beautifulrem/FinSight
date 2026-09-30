@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { Turn } from "@/hooks/useChat";
@@ -77,6 +77,26 @@ describe("TurnView answer card", () => {
     expect(limitation).toHaveAttribute("data-code", "out_of_scope_query");
     expect(card).not.toHaveTextContent("out_of_scope_query");
     expect(screen.getByRole("region", { name: "部分数据不是实时的，或可能已过时" })).toHaveTextContent("1 条离线快照");
+  });
+
+  it("keeps the edited notice for the life of the turn (no timed fade that axe could scan mid-way)", () => {
+    vi.useFakeTimers();
+    try {
+      renderTurn(doneTurn());
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      const badge = document.querySelector<HTMLElement>(".answer-edited");
+      expect(badge).toBeInTheDocument();
+      // no ancestor up to the card is left half-transparent
+      let node: HTMLElement | null = badge?.parentElement ?? null;
+      while (node && node.tagName !== "ARTICLE") {
+        expect(["", "1"]).toContain(node.style.opacity);
+        node = node.parentElement;
+      }
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not flag an answer that matches its draft", () => {
