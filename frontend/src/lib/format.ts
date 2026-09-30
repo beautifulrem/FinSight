@@ -52,6 +52,8 @@ export function formatKpi(lang: Lang, value: number, format: KpiFormat, unit?: s
       return formatMoney(lang, value * 1000);
     case "price":
       return trim(value, 2);
+    case "fundPrice":
+      return trim(value, 3);
     default:
       return `${trim(value)}${unit ? ` ${unit}` : ""}`;
   }

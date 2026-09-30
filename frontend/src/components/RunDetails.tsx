@@ -50,6 +50,12 @@ export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: 
   const tools = agent?.tool_calls ?? [];
   const failed = tools.filter((call) => !call.ok).length;
   const classic = turn.classic;
+  // Chinese name -> English name for the codes that carry names (route reasons such as "ellipsis:target->…").
+  const names = new Map(
+    (agent?.nlu_summary?.entities ?? []).flatMap((entity) =>
+      entity.name && entity.name_en ? [[entity.name, entity.name_en] as [string, string]] : [],
+    ),
+  );
   return (
     <dl className="run-details">
       {agent?.trace_id && (
@@ -61,7 +67,7 @@ export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: 
         <span className="flex flex-wrap items-center gap-1">
           {view.route ? <CodeBadge code={view.route} kind="route" tone="cobalt" /> : "–"}
           {(agent?.route_reasons ?? []).map((reason) => (
-            <CodeBadge key={reason} code={reason} kind="reason" className="font-normal" />
+            <CodeBadge key={reason} code={reason} kind="reason" names={names} className="font-normal" />
           ))}
         </span>
       </Row>

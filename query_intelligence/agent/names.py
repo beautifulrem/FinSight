@@ -68,7 +68,36 @@ def english_name(name: str | None, symbol: str | None = None) -> str | None:
             return english.get(canonical)
     if name and name.isascii() and _LATIN.search(name):
         return name  # already English
+    if name and name in TERMS_EN:
+        return TERMS_EN[name]  # a metric or sector the NLU tagged ("市净率" in the English Run panel, round 9)
+    if name and name in INDUSTRY_EN:
+        return INDUSTRY_EN[name]
     return None
+
+
+# Metric entities the NLU tags (entity_master financial_metric rows and common synonyms).
+TERMS_EN = {
+    "市盈率": "P/E",
+    "市净率": "P/B",
+    "市销率": "P/S",
+    "净资产收益率": "ROE",
+    "营业收入": "revenue",
+    "营收": "revenue",
+    "净利润": "net profit",
+    "净利率": "net margin",
+    "毛利率": "gross margin",
+    "股息率": "dividend yield",
+    "总市值": "market cap",
+    "市值": "market cap",
+    "资产负债率": "debt ratio",
+    "每股收益": "EPS",
+    "成交额": "turnover",
+    "成交量": "volume",
+    "收盘价": "close",
+    "股价": "share price",
+    "涨跌幅": "daily change",
+    "换手率": "turnover rate",
+}
 
 
 # Industry names used by the offline and live industry snapshots.
