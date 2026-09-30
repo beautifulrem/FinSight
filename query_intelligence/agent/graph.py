@@ -106,6 +106,8 @@ _MARKET_SCOPE = re.compile(
     r"行业|板块|同行|同业|大盘|市场|\bsector\b|\bindustry\b|\bpeers?\b|\bmarket\b", re.IGNORECASE
 )
 _OWN_TARGET_TYPES = {"stock", "etf", "fund", "index", "macro_indicator", "policy", "sector"}
+# Route reason for a short name shared by two companies and read by the alias table's default ("平安" -> 中国平安).
+ALIAS_DEFAULT = "alias_default"
 _DUPLICATE_CALL = (
     '{"ok": false, "error": {"code": "duplicate_call", "message": "already called with the same arguments in '
     'this turn", "hint": "Use the earlier result above; do not repeat identical calls."}}'
@@ -396,6 +398,8 @@ class AgentRuntime:
             decision = decision.model_copy(update={"route": "refuse"})
             reasons.append(f"coverage:{coverage}")
             refusal_category = f"out_of_coverage:{coverage}"
+        if decision.route in ("workflow", "agent"):
+            reasons.extend(self._assumed_targets(nlu, turns))
         update: dict[str, Any] = {
             "nlu": nlu,
             "route": decision.route,
@@ -475,12 +479,43 @@ class AgentRuntime:
             name = str(entity.get("canonical_name") or "")
             if len(mention) < 2 or mention == name or mention not in query:
                 continue
+            if entity.get("match_type") == "linked_context":
+                continue  # the question's own industry words ("平安的不良率" is the bank) outrank the conversation
             for target in reversed(discussed):
                 target_name = str(target.get("name") or "")
                 if target["symbol"] != entity.get("symbol") and mention in target_name and mention != target_name:
                     rewritten = query.replace(mention, target_name, 1)
                     return rewritten, f"session_disambiguation:{mention}->{target_name}"
         return None
+
+    def _assumed_targets(self, nlu: dict[str, Any], turns: list[dict[str, Any]]) -> list[str]:
+        """``alias_default:平安->中国平安|平安银行`` for a short name read by the alias table's default, and
+        ``alias_context:平安->平安银行`` when the question's industry words chose it.
+
+        The policy for a name shared by two companies: the question's industry words decide (NLU, ``linked_context``);
+        else the target the conversation is about (``_session_disambiguation``); else the alias table's default,
+        which the answer names together with the alternative so the user can say which one was meant.
+        """
+        resolver = getattr(getattr(self.service, "nlu_pipeline", None), "entity_resolver", None)
+        if resolver is None or not hasattr(resolver, "alias_candidates"):
+            return []
+        discussed = {str(target["symbol"]) for target in discussed_targets(turns, limit=6)}
+        reasons = []
+        for entity in listed_entities(nlu):
+            mention, name = str(entity.get("mention") or ""), str(entity.get("canonical_name") or "")
+            if entity.get("match_type") == "linked_context":
+                reasons.append(f"alias_context:{mention}->{name}")
+                continue
+            if entity.get("match_type") != "linked_default" or str(entity.get("symbol")) in discussed:
+                continue
+            others = [
+                str(row.get("canonical_name"))
+                for row in resolver.alias_candidates(mention)
+                if row.get("canonical_name") and row.get("canonical_name") != name
+            ]
+            if others:
+                reasons.append(f"{ALIAS_DEFAULT}:{mention}->{name}|{'/'.join(others)}")
+        return reasons
 
     def _attach_sector_member(
         self, nlu: dict[str, Any], turns: list[dict[str, Any]], query: str
@@ -1025,6 +1060,16 @@ class AgentRuntime:
             language="zh" if self._zh(state) else "en",
             effective_query=state.get("effective_query") or "",
         )
+        assumed = _assumption_notes(state.get("route_reasons") or [], zh=self._zh(state))
+        if assumed:
+            # "平安" read as 中国平安 by default: say so, and name the other company, instead of answering silently
+            separator = "" if self._zh(state) else " "
+            answer = {
+                **answer,
+                "answer": separator.join([str(answer.get("answer") or ""), *assumed]).strip(),
+                "limitations": [*(answer.get("limitations") or []), *assumed],
+            }
+            notes = [*notes, "alias_assumption_stated"]
         return {"answer": answer, "compliance_notes": [*fallback_notes, *notes]}
 
     def finalize(self, state: AgentState) -> dict[str, Any]:
@@ -1186,6 +1231,28 @@ def _own_targets(nlu: dict[str, Any]) -> list[dict[str, Any]]:
         and (entity.get("symbol") or entity.get("entity_type") not in {"stock", "etf", "fund", "index"})
         and not str(entity.get("match_type") or "").startswith("context_")
     ]
+
+
+def _assumption_notes(reasons: list[str], *, zh: bool) -> list[str]:
+    """The sentence for each ``alias_default:平安->中国平安|平安银行`` route reason."""
+    notes = []
+    for reason in reasons:
+        if not reason.startswith(f"{ALIAS_DEFAULT}:"):
+            continue
+        mention, _, rest = reason.split(":", 1)[1].partition("->")
+        name, _, others_text = rest.partition("|")
+        others = [other for other in others_text.split("/") if other]
+        if not others:
+            continue
+        if zh:
+            notes.append(f"「{mention}」也可能指{'、'.join(others)}；本次按{name}回答，如指{'或'.join(others)}请说明。")
+        else:
+            english = [english_name(other) or other for other in others]
+            notes.append(
+                f'"{mention}" can also mean {", ".join(english)}; this answer is about {english_name(name) or name}. '
+                f"Say so if you meant {' or '.join(english)}."
+            )
+    return notes
 
 
 def _named_targets(nlu: dict[str, Any], query: str = "") -> list[dict[str, Any]]:

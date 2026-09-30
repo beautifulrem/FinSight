@@ -21,3 +21,14 @@
 {"query": "比亚迪和宁得时代谁更便宜", "expect_symbols": ["002594.SZ", "300750.SZ"], "forbid_symbols": [], "kind": "typo_in_list"}
 {"query": "贵州茅台与五梁液的营收对比", "expect_symbols": ["600519.SH", "000858.SZ"], "forbid_symbols": [], "kind": "typo_in_list"}
 {"query": "Is the CSI 3000 index up?", "expect_symbols": [], "forbid_symbols": ["000300.SH", "510300.SH"], "kind": "latin_no_fuzzy"}
+{"query": "平安的保费增速怎么样", "expect_symbols": ["601318.SH"], "forbid_symbols": ["000001.SZ"], "kind": "ambiguous_insurance_context"}
+{"query": "平安寿险业务最近如何", "expect_symbols": ["601318.SH"], "forbid_symbols": ["000001.SZ"], "kind": "ambiguous_insurance_context"}
+{"query": "平安的净息差是多少", "expect_symbols": ["000001.SZ"], "forbid_symbols": ["601318.SH"], "kind": "ambiguous_bank_context"}
+{"query": "平安存款规模多大", "expect_symbols": ["000001.SZ"], "forbid_symbols": ["601318.SH"], "kind": "ambiguous_bank_context"}
+{"query": "平安跟招行比哪个不良率低", "expect_symbols": ["000001.SZ", "600036.SH"], "forbid_symbols": ["601318.SH"], "kind": "ambiguous_bank_context"}
+{"query": "平安的市盈率跟行业比怎么样", "expect_symbols": ["601318.SH"], "forbid_symbols": ["000001.SZ"], "kind": "ambiguous_default"}
+{"query": "平安和工商银行谁的估值低", "expect_symbols": ["601318.SH", "601398.SH"], "forbid_symbols": ["000001.SZ"], "kind": "ambiguous_default_other_bank_masked"}
+{"query": "Ping An Bank deposits", "expect_symbols": ["000001.SZ"], "forbid_symbols": ["601318.SH"], "kind": "explicit_name"}
+{"query": "比特币ETF今天涨了没", "expect_symbols": [], "forbid_symbols": ["512690.SH"], "kind": "crypto_not_a_typo"}
+{"query": "以太坊ETF规模多大", "expect_symbols": [], "forbid_symbols": ["512690.SH"], "kind": "crypto_not_a_typo"}
+{"query": "黄今ETF今天收盘多少", "expect_symbols": ["518880.SH"], "forbid_symbols": [], "kind": "typo"}
