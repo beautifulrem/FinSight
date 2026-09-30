@@ -1301,6 +1301,49 @@
         "graphMode": "none"
       },
       "description": "User messages from which injection-like text was removed but the turn was still answered. Each has an input_guard_redaction audit event (principal and query hash, no text)."
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Output-safety edits per hour by kind",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 70,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (kind) (increase(finsight_output_safety_edits_total[1h]))",
+          "legendFormat": "{{kind}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "finsight_output_safety_edits_total: answers the output-side safety layer (agent/output_safety.py) changed, once per run and kind. attribution = a single-source regulatory / corporate-action claim or a disputed document figure got the layer's own marker (据一篇文档称…（未经其他来源证实）); promotion_or_contact / trading_call = a document-sourced sentence replaced by a neutral note; conflicting_figure = a document figure contradicting the fundamentals data was dropped. A rise without a matching rise in injection-filter redactions means planted content is reaching the answer stage."
     }
   ]
 }

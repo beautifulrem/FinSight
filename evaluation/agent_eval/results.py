@@ -261,6 +261,20 @@ def write_slim(source: Path, name: str, *, extra_notes: list[str] | None = None)
     return out
 
 
+# A red-team path where most runs hit HTTP 429 measured the template fallback, not the LLM.
+MAX_REDTEAM_429_RATE = 0.5
+
+
+def invalid_runs(report: dict[str, Any]) -> list[str]:
+    """Runs that must not be committed without ``--allow-invalid``: those an ablation marked invalid, and red-team
+    LLM paths where more than half of the runs got HTTP 429 (their answers came from the template fallback)."""
+    invalid = list(report.get("invalid_runs") or [])
+    for path in report.get("paths") or []:
+        if (path.get("llm_429_rate") or 0) > MAX_REDTEAM_429_RATE:
+            invalid.append(f"{path.get('attack_set')}/{path.get('mode')} (429 rate {path['llm_429_rate']})")
+    return invalid
+
+
 def load_result(name: str) -> dict[str, Any] | None:
     path = RESULTS_DIR / f"{name}.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
@@ -279,7 +293,7 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit("--name needs exactly one source")
     for source in args.sources:
         path = Path(source)
-        invalid = json.loads(path.read_text(encoding="utf-8")).get("invalid_runs") or []
+        invalid = invalid_runs(json.loads(path.read_text(encoding="utf-8")))
         if invalid and not args.allow_invalid:
             raise SystemExit(f"{source} has invalid runs {invalid}; rerun, or pass --allow-invalid with a --note")
         out = write_slim(path, args.name or path.stem, extra_notes=args.note)

@@ -1,0 +1,154 @@
+{
+ "kind": "verifier_stress_repair_comparison",
+ "config": {
+  "commit": "2494656",
+  "legacy_repair_commit": "ca18ae6",
+  "tasks": "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+  "seed": 7,
+  "run_at": "2026-09-30T07:46:38+00:00",
+  "command": "python scripts/measure_clause_salvage.py --legacy-commit ca18ae6 --out /Volumes/Remi/FinSight-quality/evaluation/results/verifier_stress-clause-salvage.json"
+ },
+ "gold_answers": 159,
+ "variants": 2433,
+ "same_rejections": true,
+ "whole_sentence_repair": {
+  "repaired_answers": 2382,
+  "readable": 1.0,
+  "passes_verification": 1.0,
+  "template_fallback": 0.1717,
+  "with_fragment": 0.0,
+  "retained_sentences": 0.9782,
+  "answers_with_issue": {},
+  "unreadable_examples": []
+ },
+ "clause_salvage_repair": {
+  "repaired_answers": 2382,
+  "readable": 0.2594,
+  "passes_verification": 0.7649,
+  "template_fallback": 0.0,
+  "with_fragment": 0.9605,
+  "retained_sentences": 0.9119,
+  "answers_with_issue": {
+   "mixed_terminators": 289,
+   "starts_lowercase": 113,
+   "stray_punctuation": 1163,
+   "unbalanced_brackets": 266,
+   "unterminated": 10
+  },
+  "unreadable_examples": [
+   {
+    "task": "fact_price_zh_0_0",
+    "kind": "perturb_1pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   },
+   {
+    "task": "fact_price_zh_0_0",
+    "kind": "perturb_5pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   },
+   {
+    "task": "fact_price_zh_0_0",
+    "kind": "perturb_20pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   },
+   {
+    "task": "fact_price_zh_0_1",
+    "kind": "perturb_1pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   },
+   {
+    "task": "fact_price_zh_0_1",
+    "kind": "perturb_5pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   },
+   {
+    "task": "fact_price_zh_0_1",
+    "kind": "perturb_20pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   }
+  ]
+ },
+ "clause_salvage_repair_legacy_report": {
+  "repaired_answers": 2382,
+  "readable": 0.2611,
+  "passes_verification": 0.7641,
+  "template_fallback": 0.0,
+  "with_fragment": 0.9605,
+  "retained_sentences": 0.9119,
+  "answers_with_issue": {
+   "mixed_terminators": 289,
+   "starts_lowercase": 109,
+   "stray_punctuation": 1163,
+   "unbalanced_brackets": 266,
+   "unterminated": 10
+  },
+  "unreadable_examples": [
+   {
+    "task": "fact_price_zh_0_0",
+    "kind": "perturb_1pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   },
+   {
+    "task": "fact_price_zh_0_0",
+    "kind": "perturb_5pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   },
+   {
+    "task": "fact_price_zh_0_0",
+    "kind": "perturb_20pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   },
+   {
+    "task": "fact_price_zh_0_1",
+    "kind": "perturb_1pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   },
+   {
+    "task": "fact_price_zh_0_1",
+    "kind": "perturb_5pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   },
+   {
+    "task": "fact_price_zh_0_1",
+    "kind": "perturb_20pct",
+    "issues": [
+     "stray_punctuation"
+    ],
+    "answer": "当日涨跌幅 -0.1778% [price_600519.SH]。。"
+   }
+  ]
+ }
+}
