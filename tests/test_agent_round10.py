@@ -9,6 +9,8 @@ probe; ``tests/test_agent_eval.py`` checks the dev tasks and router labels for t
   verdict word ("什么价位比较合理") is hedged.
 * F6: a Hong Kong / US listed name that contains an A-share name (平安健康 ~ 中国平安) is out of coverage, and the
   lookalike inside it is not a target (more rows in ``tests/data/alias_regression.jsonl``).
+* F8: prompts v3 and v4 allow a number derived from cited operands written in the same sentence, as the verifier's
+  ``allow_derived`` does; the verifier and the template also derive a net-margin gap from the four amounts.
 * F10: a comparison that names a metric says which value is higher.
 * F14: an injected message whose remainder asks for a market prediction without a target is refused, not clarified.
 """
@@ -275,3 +277,57 @@ def test_a_lookalike_inside_a_foreign_name_is_never_answered(agent):
     result = agent.chat("平安健康医疗的市值多大", session_id="r10-lookalike")
     assert result["route"] == "refuse" and "foreign_listing_lookalike:中国平安" in result["route_reasons"]
     assert not result.get("tool_calls")
+
+
+# ---- F8: derived arithmetic is allowed in the prompt as the verifier allows it ----
+
+
+def test_prompts_v3_and_v4_allow_derived_numbers_with_their_operands(monkeypatch):
+    from query_intelligence.agent import prompts
+
+    monkeypatch.delenv("QI_PROMPT_VERSION", raising=False)
+    assert prompts.DEFAULT_PROMPT_VERSION == "v3"  # the default is not changed here
+    for prompt_id in prompts.PROMPTS:
+        for version in ("v3", "v4"):
+            text = prompts.get_prompt(prompt_id, version).text
+            assert prompts._DERIVED_NUMBER_RULE in text and "same sentence" in text
+        assert prompts._DERIVED_NUMBER_RULE not in prompts.get_prompt(prompt_id, "v2").text
+
+
+def _fundamentals_store():
+    from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
+
+    store = EvidenceStore()
+    for symbol, revenue, profit in (("600519.SH", 1.6884e11, 8.232e10), ("000858.SZ", 1.085e11, 3.78e10)):
+        store.add(
+            AgentEvidence(
+                evidence_id=f"fundamental_{symbol}",
+                kind="structured",
+                source_type="fundamental_sql",
+                payload={"metrics": {"revenue": revenue, "net_profit": profit}},
+            )
+        )
+    return store
+
+
+def test_a_net_margin_gap_with_its_four_amounts_verifies():
+    from query_intelligence.agent.verifier import verify_answer
+
+    cites = "[fundamental_600519.SH][fundamental_000858.SZ]"
+    right = {
+        "answer": f"贵州茅台 823.2 亿元 ÷ 1688.4 亿元 ≈ 48.76%，五粮液 378 亿元 ÷ 1085 亿元 ≈ 34.84%，"
+        f"净利率相差约 13.92 个百分点 {cites}。"
+    }
+    assert verify_answer(right, _fundamentals_store(), allow_derived=True).passed
+    wrong = {"answer": right["answer"].replace("13.92", "15.92")}
+    assert not verify_answer(wrong, _fundamentals_store(), allow_derived=True).passed
+    # without the amounts in the sentence the gap is not accepted
+    alone = {"answer": f"两者净利率相差约 13.92 个百分点 {cites}。"}
+    assert not verify_answer(alone, _fundamentals_store(), allow_derived=True).passed
+
+
+def test_the_template_states_a_net_margin_gap_not_a_daily_change_gap(agent):
+    result = agent.chat("贵州茅台跟五粮液净利润率谁高，高几个百分点", session_id="r10-margin-gap")
+    assert "两者相差 13.92 个百分点" in result["answer"]
+    assert "当日涨跌幅" not in result["answer"].split("净利率：")[-1]
+    assert result["verification"]["passed"]
