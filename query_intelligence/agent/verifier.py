@@ -771,7 +771,8 @@ def _is_supported(
 
 
 def _is_derived(value: float, rounding: float | None, operands: list[float]) -> bool:
-    """``value`` is a - b, a + b, a / b or the percent change (a - b) / b of two stated operands."""
+    """``value`` is a - b, a + b, a / b, the ratio a / b in percent (a net margin: net profit / revenue) or the
+    percent change (a - b) / b of two stated operands."""
     tolerance = 0.5 if rounding is None else rounding
     for i, a in enumerate(operands):
         for j, b in enumerate(operands):
@@ -779,7 +780,7 @@ def _is_derived(value: float, rounding: float | None, operands: list[float]) -> 
                 continue
             candidates = [a - b, a + b]
             if b:
-                candidates += [a / b, (a - b) / abs(b) * 100]
+                candidates += [a / b, a / b * 100, (a - b) / abs(b) * 100]
             for candidate in candidates:
                 if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
                     return True

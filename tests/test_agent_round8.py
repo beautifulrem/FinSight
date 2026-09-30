@@ -283,3 +283,96 @@ def test_a_discussed_default_needs_no_note(agent):
     assert not any(reason.startswith("alias_default:") for reason in result["route_reasons"])
     assert "601318.SH" in _targets(result)
 
+
+# --- D7: derived metrics or a stated gap, never unrelated raw fields ------------------------------------------------
+def test_net_margin_is_derived_from_the_cited_fundamentals(agent):
+    result = agent.chat("茅台卖一百块钱能净赚多少，净利润率多高", session_id="r8-margin")
+    answer = str(result["answer"])
+    assert "823.2 亿元 ÷ 1688.38 亿元 ≈ 48.76% [fundamental_600519.SH]" in answer
+    assert result["verification"]["passed"]
+
+
+def test_net_margins_are_compared_in_words(agent):
+    result = agent.chat("五粮液和茅台，哪个净利润率高一些", session_id="r8-margin-compare")
+    answer = str(result["answer"])
+    assert "≈ 34.84%" in answer and "≈ 48.76%" in answer
+    assert "净利率由高到低为：贵州茅台、五粮液" in answer
+    assert result["verification"]["passed"]
+
+
+def test_peg_without_a_growth_rate_is_stated_as_not_computable(agent):
+    result = agent.chat("算算中国平安的PEG", session_id="r8-peg")
+    answer = str(result["answer"])
+    assert "无法计算中国平安的PEG" in answer and "净利润增速" in answer
+    assert "601318.SH" in _targets(result)
+
+
+def test_peg_is_derived_when_the_source_reports_growth():
+    from query_intelligence.agent.composer import compose_template
+
+    log = [
+        {
+            "tool": "get_fundamentals",
+            "ok": True,
+            "data": {"symbol": "600519.SH", "name": "贵州茅台", "evidence_id": "fundamental_600519.SH",
+                     "report_date": "2025-12-31", "metrics": {"pe_ttm": 24.6, "netprofit_yoy": 15.0}},
+            "evidence_ids": ["fundamental_600519.SH"],
+        }
+    ]  # fmt: skip
+    answer = compose_template(log, zh=True, query="茅台PEG多少")["answer"]
+    assert "PEG（市盈率 ÷ 净利润增速）：24.6 ÷ 15 ≈ 1.64 [fundamental_600519.SH]" in answer
+    assert "无法计算" not in answer
+
+
+@pytest.mark.parametrize(
+    ("query", "ytd"),
+    [
+        ("上证50今年以来累计涨了多少", True),
+        ("五粮液年初到现在跌了多少", True),
+        ("How much is Moutai up year to date?", True),
+        ("What's the YTD return of the CSI 300?", True),
+        ("茅台今年营收多少", False),  # this year's statements, not a move
+        ("五粮液今天涨了多少", False),
+    ],
+)
+def test_year_to_date_questions_are_recognised(query, ytd):
+    from query_intelligence.agent.coverage import asks_year_to_date
+
+    assert asks_year_to_date(query) is ytd
+
+
+def test_year_to_date_without_the_first_close_of_the_year_is_stated_unavailable(agent):
+    result = agent.chat("中国平安年初到现在涨了多少", session_id="r8-ytd")
+    answer = str(result["answer"])
+    assert answer.startswith("当前数据中没有中国平安今年首个交易日的收盘价，无法计算今年以来的涨跌幅")
+    assert "601318.SH" in _targets(result)
+
+
+def test_year_start_needs_a_close_from_the_year_before():
+    from query_intelligence.agent.tools.market import year_start_close
+
+    history = [
+        {"trade_date": "20260105", "close": 10.0},
+        {"trade_date": "20251231", "close": 9.5},
+        {"trade_date": "2026-04-22", "close": 12.0},
+        {"trade_date": "2026-01-06", "close": 10.2},
+    ]
+    assert year_start_close(history).model_dump() == {"date": "2026-01-05", "close": 10.0}
+    assert year_start_close(history[:1] + history[2:]) is None  # the first 2026 close might not be the year's first
+
+
+def test_year_to_date_change_is_derived_with_both_closes_and_verifies(offline_service):
+    from query_intelligence.agent.composer import compose_template
+    from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
+    from query_intelligence.agent.verifier import verify_answer
+
+    data = {"symbol": "510300.SH", "name": "沪深300ETF", "close": 4.811, "as_of": "2026-04-22",
+            "evidence_id": "price_510300.SH", "product_type": "etf",
+            "year_start": {"date": "2026-01-05", "close": 4.5}}  # fmt: skip
+    log = [{"tool": "get_price_history", "ok": True, "data": data, "evidence_ids": ["price_510300.SH"]}]
+    answer = compose_template(log, zh=True, query="沪深300ETF今年以来涨了多少")
+    assert "今年首个交易日（2026-01-05）收盘 4.5 元，最新（2026-04-22）收盘 4.811 元，涨跌幅 6.91%" in answer["answer"]
+    store = EvidenceStore()
+    store.add(AgentEvidence(evidence_id="price_510300.SH", kind="structured", source_type="market_api",
+                            title="t", payload={**data, "year_start": data["year_start"]}))  # fmt: skip
+    assert verify_answer(answer, store, query="沪深300ETF今年以来涨了多少", allow_derived=True).passed
