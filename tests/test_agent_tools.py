@@ -109,6 +109,26 @@ def test_fundamentals_include_industry_snapshot(registry):
     assert result.data["industry"]["industry_name"] == "白酒"
     assert {item.evidence_id for item in result.evidence} == {"fundamental_600519.SH", "industry_白酒"}
     assert result.data["industry"]["evidence_id"] == "industry_白酒"
+    # D9: the company's name travels with its numbers (a follow-up turn fetches only fundamentals)
+    fundamental = next(item for item in result.evidence if item.evidence_id == "fundamental_600519.SH")
+    assert fundamental.payload["name"] == "贵州茅台" and "name" not in result.data["metrics"]
+
+
+def test_structured_evidence_views_carry_english_names():
+    """D9: the English UI names follow-up tiles from `name_en` (alias table; INDUSTRY_EN for industries)."""
+    from query_intelligence.agent.graph import _source_view
+
+    company = _source_view(
+        {"evidence_id": "fundamental_600519.SH", "kind": "structured", "payload": {"symbol": "600519.SH", "roe": 33}}
+    )
+    industry = _source_view(
+        {"evidence_id": "industry_白酒", "kind": "structured", "payload": {"industry_name": "白酒", "pe": 27.3}}
+    )
+    document = _source_view({"evidence_id": "news_1", "kind": "document", "title": "贵州茅台发布年报"})
+
+    assert company["name_en"] == "Kweichow Moutai"
+    assert industry["name_en"] == "baijiu (liquor)"
+    assert "name_en" not in document
 
 
 def test_fundamentals_reject_non_stock_products(registry):
