@@ -120,6 +120,8 @@ const TITLE_KINDS: [RegExp, string][] = [
   [/^Document sentiment for (.+)$/, "$1 文档情绪"],
 ];
 
+const SYMBOL = /^\d{6}\.(?:SH|SZ|BJ)$/i;
+
 export function evidenceTitle(
   lang: Lang,
   title: string | null | undefined,
@@ -129,8 +131,9 @@ export function evidenceTitle(
   if (lang !== "zh") {
     // "贵州茅台 (600519.SH) daily market data" → "Kweichow Moutai (600519.SH) daily market data"
     let out = title;
+    // Names only: the map is also keyed by symbol, and "(600519.SH)" must stay a symbol.
     for (const [name, english] of [...(englishNames ?? []), ...INDUSTRIES_EN])
-      if (name && out.includes(name)) out = out.split(name).join(english);
+      if (name && !SYMBOL.test(name) && out.includes(name)) out = out.split(name).join(english);
     return out;
   }
   for (const [pattern, zh] of TITLE_KINDS) if (pattern.test(title)) return title.replace(pattern, zh);
