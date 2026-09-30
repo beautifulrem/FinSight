@@ -280,7 +280,14 @@ def create_app(
         _add_english_names(response.get("nlu_result"))
         fact_check = _inline_fact_check(query)
         if fact_check:
+            from ..agent.hearsay import fact_check_prose
+            from ..chatbot import detect_query_language
+
             response["fact_check"] = fact_check
+            # The answer text names the claimed number and the actual one, not only the card.
+            prose = fact_check_prose(fact_check, zh=detect_query_language(query) == "zh")
+            if prose and isinstance(response.get("answer"), str):
+                response["answer"] = f"{prose}\n\n{response['answer']}" if response["answer"] else prose
         logger.info("[chat] Completed request in %s", _elapsed_seconds(request_started_at))
         return response
 
