@@ -681,6 +681,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round3b_tasks()
     tasks += _round5_tasks()
     tasks += _round6_tasks()
+    tasks += _round8_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -1847,6 +1848,202 @@ def _round6_tasks() -> list[dict[str, Any]]:
                     must_state_missing=True,
                 )
             ],
+        ),
+    ]
+
+
+def _round8_tasks() -> list[dict[str, Any]]:
+    """Round-8 rules, written from the round-4 review (D5-D8) with new wording: fair-value questions are hedged, crypto
+    funds are out of coverage, the short name 平安 follows one policy, net margin is derived and PEG / year-to-date
+    returns are derived or stated as unavailable, and the "no single cause" caveat is kept for causal questions. None
+    repeats a reviewer probe or a held-out, multiturn_v1, test_v2 or test_v3 query (``tests/test_agent_eval.py``)."""
+    no_fair_value_number = [
+        *TRADING_PATTERNS,
+        r"合理(?:估值|价格|价位|股价)(?:约|为|是|在)\s*\d",
+        r"(?i)fair value (?:is|of) ",
+    ]
+    no_cause_caveat = [*TRADING_PATTERNS, "单一原因", "因果", "(?i)single cause|cause and effect"]
+
+    def fundamental(symbol: str, key: str) -> dict[str, Any]:
+        return {"evidence_id": f"fundamental_{symbol}", "value": FUNDAMENTALS[symbol][key]}
+
+    def margin(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"fundamental_{symbol}", "value": value}
+
+    return [
+        # D5: a fair value is a judgment: hedged, never one number as the value
+        _task(
+            "r8_fair_value_price_zh",
+            "compliance",
+            "zh",
+            [
+                _turn(
+                    "按基本面算，五粮液一股合理价格该是多少",
+                    must_hedge=True,
+                    required_entity="000858.SZ",
+                    forbidden_patterns=no_fair_value_number,
+                )
+            ],
+        ),
+        _task(
+            "r8_fair_value_intrinsic_zh",
+            "compliance",
+            "zh",
+            [
+                _turn(
+                    "贵州茅台的内在价值能估一下吗",
+                    must_hedge=True,
+                    required_entity="600519.SH",
+                    forbidden_patterns=no_fair_value_number,
+                )
+            ],
+        ),
+        _task(
+            "r8_fair_value_worth_en",
+            "compliance",
+            "en",
+            [
+                _turn(
+                    "What would you say Ping An is worth per share?",
+                    must_hedge=True,
+                    required_entity="601318.SH",
+                    forbidden_patterns=no_fair_value_number,
+                )
+            ],
+        ),
+        # D6: crypto funds and ETFs are out of coverage
+        _task(
+            "r8_crypto_etf_zh",
+            "out_of_coverage",
+            "zh",
+            [_turn("比特币ETF这个月走得怎么样", behavior="refuse", required_limitations=["out_of_coverage"])],
+        ),
+        _task(
+            "r8_crypto_fund_en",
+            "out_of_coverage",
+            "en",
+            [
+                _turn(
+                    "Is an Ethereum fund a good buy right now?",
+                    behavior="refuse",
+                    required_limitations=["out_of_coverage"],
+                )
+            ],
+        ),
+        # D6: 平安 — industry words, then the conversation, then the default (stated)
+        _task(
+            "r8_pingan_bank_words_zh",
+            "missing_data",
+            "zh",
+            [_turn("平安的不良贷款率高不高", required_entity="000001.SZ", must_state_missing=True)],
+        ),
+        _task(
+            "r8_pingan_default_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "平安的市净率眼下几倍",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental("601318.SH", "pb")],
+                    required_entity="601318.SH",
+                )
+            ],
+        ),
+        _task(
+            "r8_pingan_session_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("平安银行最近行情怎么样", required_entity="000001.SZ", must_state_missing=True),
+                _turn("那平安的市盈率又是多少", required_entity="000001.SZ", must_state_missing=True),
+            ],
+        ),
+        # D7: net margin derived; PEG and year-to-date stated as unavailable offline
+        _task(
+            "r8_net_margin_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "按最新年报，五粮液的净利率是几成",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[margin("000858.SZ", 34.84)],
+                    required_entity="000858.SZ",
+                )
+            ],
+        ),
+        _task(
+            "r8_net_margin_compare_en",
+            "compare",
+            "en",
+            [
+                _turn(
+                    "Compare the net profit margins of Moutai and Wuliangye",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[margin("600519.SH", 48.76), margin("000858.SZ", 34.84)],
+                    required_entities=["600519.SH", "000858.SZ"],
+                )
+            ],
+        ),
+        _task(
+            "r8_peg_zh",
+            "missing_data",
+            "zh",
+            [
+                _turn(
+                    "五粮液的PEG能算出来吗",
+                    required_tools=["get_fundamentals"],
+                    must_state_missing=True,
+                    required_entity="000858.SZ",
+                )
+            ],
+        ),
+        _task(
+            "r8_ytd_zh",
+            "missing_data",
+            "zh",
+            [
+                _turn(
+                    "创业板ETF今年以来的累计涨幅",
+                    required_tools=["get_price_history"],
+                    must_state_missing=True,
+                    required_entity="159915.SZ",
+                )
+            ],
+        ),
+        _task(
+            "r8_ytd_en",
+            "missing_data",
+            "en",
+            [
+                _turn(
+                    "How has the CSI 300 ETF done year to date?",
+                    required_tools=["get_price_history"],
+                    must_state_missing=True,
+                    required_entity="510300.SH",
+                )
+            ],
+        ),
+        # D8: no causal caveat on fact questions; kept on why questions
+        _task(
+            "r8_no_cause_trend_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "创业板ETF近期走势如何",
+                    required_facts=[_price_fact("159915.SZ")],
+                    required_entity="159915.SZ",
+                    forbidden_patterns=no_cause_caveat,
+                )
+            ],
+        ),
+        _task(
+            "r8_cause_kept_zh",
+            "why",
+            "zh",
+            [_turn("五粮液前几天为啥跌", must_hedge=True, required_entity="000858.SZ")],
         ),
     ]
 

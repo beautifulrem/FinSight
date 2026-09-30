@@ -317,3 +317,16 @@
 {"id": "route_316", "query": "请用英文回答：平安的市净率", "expected_route": "workflow", "note": "round5: explicit answer language"}
 {"id": "route_317", "query": "日本央行加息会冲击A股吗", "expected_route": "agent", "note": "round5: foreign central bank to A-shares"}
 {"id": "route_318", "query": "How does a Fed rate hike affect A-shares?", "expected_route": "agent", "note": "round5: foreign central bank to A-shares (en)"}
+{"id": "route_319", "query": "五粮液一股的合理价格该是多少", "expected_route": "agent", "note": "round8: fair value is a judgment (D5)"}
+{"id": "route_320", "query": "茅台估值应该给多少才合适", "expected_route": "agent", "note": "round8: fair value is a judgment (D5)"}
+{"id": "route_321", "query": "What would a fair price for Wuliangye shares be?", "expected_route": "agent", "note": "round8: fair value is a judgment (D5, en)"}
+{"id": "route_322", "query": "比特币ETF这周能涨吗", "expected_route": "refuse", "note": "round8: crypto ETF out of coverage (D6)"}
+{"id": "route_323", "query": "以太坊基金值得入手吗", "expected_route": "refuse", "note": "round8: crypto fund out of coverage (D6)"}
+{"id": "route_324", "query": "Should I put money into a Bitcoin ETF?", "expected_route": "refuse", "note": "round8: crypto ETF out of coverage (D6, en)"}
+{"id": "route_325", "query": "平安的存款余额是多少", "expected_route": "workflow", "note": "round8: 平安 with bank words, one fact (D6)"}
+{"id": "route_326", "query": "平安现在的市净率", "expected_route": "workflow", "note": "round8: 平安 by the alias default, one fact (D6)"}
+{"id": "route_327", "query": "茅台的净利润率是多少", "expected_route": "workflow", "note": "round8: net margin, one derived fact (D7)"}
+{"id": "route_328", "query": "中国平安的PEG是多少", "expected_route": "workflow", "note": "round8: PEG, one fact or a stated gap (D7)"}
+{"id": "route_329", "query": "沪深300ETF年初至今的涨幅", "expected_route": "workflow", "note": "round8: year to date, one fact or a stated gap (D7)"}
+{"id": "route_330", "query": "证券ETF这段时间表现如何", "expected_route": "workflow", "note": "round8: performance, not a why question (D8)"}
+{"id": "route_331", "query": "证券ETF这几天为什么走弱", "expected_route": "agent", "note": "round8: a why question (D8)"}
