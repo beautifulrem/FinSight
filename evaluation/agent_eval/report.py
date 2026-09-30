@@ -35,6 +35,12 @@ BEGIN = "<!-- BEGIN GENERATED: python -m evaluation.agent_eval.report -->"
 END = "<!-- END GENERATED -->"
 
 # Which committed result plays which role in the page.
+# 9536abf: test v3 (first LLM run), held-out, test v2 and multi-turn v1 (both after exposure); GLM on test v3.
+FINAL4_ONLINE = (
+    "ablation-final4-deepseek-testv3-holdout",
+    "ablation-final4-deepseek-testv2-multiturn",
+    "ablation-final4-glm-testv3",
+)
 FINAL_ONLINE = ("ablation-final2-deepseek", "ablation-final2-glm")  # d1c007c: held-out + test v2, both models
 PRIMARY = "ablation-final"  # DeepSeek, dev + held-out, all paths
 TEST_V2 = "ablation-test_v2-deepseek"  # DeepSeek, test set v2, first runs (before exposure)
@@ -74,7 +80,10 @@ PERF_PAIRS = (
 )
 STRESS_RUNS = ("verifier_stress", "verifier_stress-perf-8a85ae5")
 REDTEAM_RUNS = (
-    ("redteam-final2", "Prompt-injection red team, LLM paths at the final online commit"),
+    ("redteam-final4-llm", "Prompt-injection red team, LLM paths at the final online commit (9536abf)"),
+    ("redteam-offline-r6", "Prompt-injection red team, offline template path after round 4 (all six sets)"),
+    ("redteam-holdout5-first-run", "Prompt-injection red team, independent round-4 attacks (holdout5), first run"),
+    ("redteam-final2", "Prompt-injection red team, LLM paths at the round-2 online commit (d1c007c)"),
     ("redteam-online", "Prompt-injection red team, LLM paths (earlier online run)"),
     ("redteam-offline", "Prompt-injection red team (offline workflow path, CI baseline)"),
 )
@@ -89,7 +98,17 @@ ROUTER_RUNS = (
     "router_eval-round4-independent-after-exposure",
     "router_eval-independent_v2-first-run",
 )
-CLAIM_BENCH_RUNS = ("claim_bench-dev-baseline", "claim_bench-dev", "claim_bench-holdout")
+CLAIM_BENCH_RUNS = (
+    "claim_bench-dev-baseline",
+    "claim_bench-dev",
+    "claim_bench-holdout",
+    "claim_bench-heldout_r4-first-run",
+    "claim_bench-heldout_r4-after-exposure",
+)
+# Round-4 held-out slices (evaluation/heldout_r4/, independent author): first run, then after exposure.
+HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_heldout-after-exposure")
+# Other committed evidence the READMEs cite, summarised as one row each.
+EXTRA_EVIDENCE = ("redteam-r7-targeted", "injection_classifier-r4")
 
 SET_TITLES = {
     "dev": "Development set",
@@ -1029,13 +1048,26 @@ def render_with_sources() -> tuple[str, list[str]]:
         status_rows.extend((name, set_name, commit) for set_name in sets)
 
     body: list[str] = []
+    finals4 = [(name, take(name)) for name in FINAL4_ONLINE]
+    finals4 = [(name, result) for name, result in finals4 if result]
+    if finals4:
+        body += [
+            "### Final online run at the final commit (headline table)",
+            "",
+            "Test set v3 is untouched: this is its first LLM run. Held-out is a validation set; test set v2 and "
+            "multi-turn set v1 are **after exposure**.",
+            "",
+        ]
+        for name, result in finals4:
+            note_status(name, result)
+            body += [f"#### `{name}.json`", "", *ablation_section(result, name, full=False)]
     finals = [(name, take(name)) for name in FINAL_ONLINE]
     finals = [(name, result) for name, result in finals if result]
     if finals:
         body += [
-            "### Final online run: held-out and test set v2, DeepSeek and GLM (headline table)",
+            "### Round-2 online run: held-out and test set v2, DeepSeek and GLM",
             "",
-            "The README's LLM table comes from these two files. Test set v2 is **after exposure** in both.",
+            "Kept for history (commit `d1c007c`). Test set v2 is **after exposure** in both.",
             "",
         ]
         for name, result in finals:
@@ -1085,8 +1117,8 @@ def render_with_sources() -> tuple[str, list[str]]:
             "### Test set v3 (independent author, untouched): first runs",
             "",
             "Written by a separate author who did not read the routing code or any task file "
-            "(`evaluation/agent_eval/tasks/README_test_v3.md`). No fix has looked at it. Only the deterministic "
-            "path and the no-tools LLM have run on it; the LLM paths are pending (gateway quota).",
+            "(`evaluation/agent_eval/tasks/README_test_v3.md`). No fix has looked at it. The LLM paths' first run "
+            "is in the final online run above.",
             "",
         ]
         for name, result in test_v3:
@@ -1113,6 +1145,17 @@ def render_with_sources() -> tuple[str, list[str]]:
                 body += run_section(result, name, full=name.endswith("first-run"))
             else:
                 body += ablation_section(result, name, full=False)
+    heldout_r4 = [(name, take(name)) for name in HELDOUT_R4_RUNS]
+    heldout_r4 = [(name, result) for name, result in heldout_r4 if result]
+    if heldout_r4:
+        body += [
+            "### Round-4 held-out multi-turn slice (independent author): first run, then after exposure",
+            "",
+            "24 conversations written before the round-4 fixes (`evaluation/heldout_r4/README.md`).",
+            "",
+        ]
+        for name, result in heldout_r4:
+            body += [f"#### `{name}.json`", "", *run_section(result, name, full=name.endswith("first-run"))]
     pure = [
         (name, result)
         for name in (PRIMARY, TEST_V2, *TEST_V3)
@@ -1158,6 +1201,10 @@ def render_with_sources() -> tuple[str, list[str]]:
         redteam = take(name)
         if redteam:
             body += redteam_section(redteam, title)
+    extras = [(name, take(name)) for name in EXTRA_EVIDENCE]
+    extras = [(name, result) for name, result in extras if result]
+    if extras:
+        body += extra_evidence_section(extras)
     for name in SUPERSEDED:
         result = take(name)
         if result:
@@ -1169,6 +1216,54 @@ def render_with_sources() -> tuple[str, list[str]]:
     lines += provenance_section(used)
     lines.append(END)
     return "\n".join(lines), used
+
+
+def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
+    """One summary row per committed file of another kind (targeted replays, classifier evaluations)."""
+    lines = [
+        "### Other committed evidence",
+        "",
+        "| Result file | Commit | Summary |",
+        "|---|---|---|",
+    ]
+    for name, result in runs:
+        config = result.get("config") or {}
+        if "conditions" in result:
+            parts = [
+                f"{condition}: {values.get('detector_hits')}/{values.get('runs')} detector hits, "
+                f"{values.get('unattributed_hits')} stated as fact"
+                for condition, values in result["conditions"].items()
+            ]
+            summary = "targeted red-team replay of previously leaking cases — " + "; ".join(parts)
+        elif "attack_recall" in result:
+            combined = result["attack_recall"].get("held_out_combined") or {}
+            parts = [
+                f"{key} {_fmt(value.get('rate'))} [{_fmt((value.get('ci95') or [None, None])[0])}, "
+                f"{_fmt((value.get('ci95') or [None, None])[1])}]"
+                for key, value in combined.items()
+            ]
+            fpr = result.get("clean_false_positive_rate") or {}
+            fpr_parts = [
+                f"{key} {_fmt(value.get('rate'))}"
+                for key, value in fpr.items()
+                if isinstance(value, dict) and "rate" in value and key != "by_source_type"
+            ]
+            summary = (
+                "injection classifier, recall on unseen attacks (holdout2-4): "
+                + "; ".join(parts)
+                + f"; false positives on {fpr.get('documents')} clean documents: "
+                + "; ".join(fpr_parts)
+            )
+        else:
+            summary = ", ".join(sorted(result))[:160]
+        commit = config.get("commit") or ", ".join(
+            sorted(
+                {str(source.get("commit")) for source in (config.get("sources") or {}).values() if source.get("commit")}
+            )
+        )
+        lines.append(f"| `{name}.json` | `{commit or 'n/a'}` | {summary} |")
+    lines.append("")
+    return lines
 
 
 def render() -> str:

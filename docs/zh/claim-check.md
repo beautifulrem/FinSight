@@ -290,9 +290,9 @@ industry average”“比保险行业整体便宜”）使用该板块的快照�
 
 界面截图（真实 Chrome，离线服务）：
 
-- 对比回答，每家公司一组相同的 KPI 卡片（C18）：[中文](../../assets/ui/chrome-compare-kpi-zh.png)、[English](../../assets/ui/chrome-compare-kpi-en.png)；
-- 传言问题在回答内的核查：[中文](../../assets/ui/chrome-move-claim-inline-zh.png)、[English](../../assets/ui/chrome-move-claim-inline-en.png)；
-- 核查页里的涨跌上下限卡片（“跌幅 > 0.1%”）：[中文](../../assets/ui/chrome-move-claim-card-zh.png)、[English](../../assets/ui/chrome-move-claim-card-en.png)。
+- 对比回答，每家公司一组相同的 KPI 卡片（C18）：[中文](../assets/ui/chrome-compare-kpi-zh.png)、[English](../assets/ui/chrome-compare-kpi-en.png)；
+- 传言问题在回答内的核查：[中文](../assets/ui/chrome-move-claim-inline-zh.png)、[English](../assets/ui/chrome-move-claim-inline-en.png)；
+- 核查页里的涨跌上下限卡片（“跌幅 > 0.1%”）：[中文](../assets/ui/chrome-move-claim-card-zh.png)、[English](../assets/ui/chrome-move-claim-card-en.png)。
 
 ## 基准
 

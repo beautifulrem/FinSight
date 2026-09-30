@@ -292,9 +292,9 @@ fact-check cards and the KPI tiles; the browser keeps no name table of its own.
 
 Screenshots (real Chrome, offline server):
 
-- a compare answer with the same KPI tiles for each company (C18): [zh](../assets/ui/chrome-compare-kpi-zh.png), [en](../assets/ui/chrome-compare-kpi-en.png);
-- a hearsay question checked inside the answer: [zh](../assets/ui/chrome-move-claim-inline-zh.png), [en](../assets/ui/chrome-move-claim-inline-en.png);
-- the move-bound card in the fact-check view ("跌幅 > 0.1%" / "Fall > 0.1%"): [zh](../assets/ui/chrome-move-claim-card-zh.png), [en](../assets/ui/chrome-move-claim-card-en.png).
+- a compare answer with the same KPI tiles for each company (C18): [zh](assets/ui/chrome-compare-kpi-zh.png), [en](assets/ui/chrome-compare-kpi-en.png);
+- a hearsay question checked inside the answer: [zh](assets/ui/chrome-move-claim-inline-zh.png), [en](assets/ui/chrome-move-claim-inline-en.png);
+- the move-bound card in the fact-check view ("跌幅 > 0.1%" / "Fall > 0.1%"): [zh](assets/ui/chrome-move-claim-card-zh.png), [en](assets/ui/chrome-move-claim-card-en.png).
 
 ## Benchmark
 
