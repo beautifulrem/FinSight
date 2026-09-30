@@ -1,0 +1,189 @@
+# 人工输入工具包（evaluation/human/）
+
+独立评审要求四项只有人才能提供的输入。这个文件夹把每一项拆成小步骤：你只需要填表格、截图或组织几个人试用，
+然后运行一条命令，脚本会把你的输入变成带 commit、时间、命令和文件哈希的结果文件（`evaluation/results/`），可以提交、可以复现。
+
+| # | 任务 | 你要做的事 | 预计用时 | 运行的命令 | 结果文件 |
+|---|---|---|---|---|---|
+| 1 | 回答质量标注 | 给 100 条 FinSight 回答各打 4 个 0/1 分 | 1.5–2 小时 | `python -m evaluation.human.score_labels` | `evaluation/results/human_labels-v1.json` |
+| 2 | 与问财/豆包/Kimi 对比 | 选一个交易日 T，收盘后把 30 个问题问三家产品，复制回答、截图，填真实值 | 一个晚上（可分给朋友） | `python -m evaluation.human.score_head_to_head --date T` | `evaluation/results/head_to_head-v1.json` |
+| 3 | 真实说法核查 | 收集 30 条左右研报/新闻/微博/雪球里的数字说法，再逐条标注真假 | 1 小时收集 + 30 分钟标注 | `python -m evaluation.human.import_real_claims prepare` / `score` | `evaluation/results/real_claims-v1.json` |
+| 4 | 小型用户研究 | 请 5–8 人各试用 15 分钟、点赞/踩、填问卷 | 每人 15 分钟 | `python -m evaluation.human.analyse_user_study` | `evaluation/results/user_study-v1.json` |
+
+所有命令都在仓库根目录运行。表格都是 UTF-8 带 BOM 的 CSV，Excel、Numbers、WPS 可以直接打开；保存时请保持 CSV 格式
+（Excel 选“CSV UTF-8”）。不要改动已有的 `id`、`question`、`answer` 等列，只填空白列。
+
+---
+
+## 任务 1：给 100 条回答打分
+
+文件：`labels/answers_to_label.csv`（100 行）。每行是一个问题、FinSight 的完整回答（含局限和风险提示）和它引用的证据
+（`sources` 列：证据 id、来源、日期、关键数值）。其中约一半来自确定性路径、一半来自 LLM 智能体，**表格里不显示是哪条路径，
+也不显示 FinSight 的自动评分**，顺序已打乱，请不要去查 `answers_meta.jsonl`，以免影响判断。
+
+步骤：
+
+1. 用 Excel/Numbers 打开 `labels/answers_to_label.csv`。
+2. 每行填 4 个分数（只填 1 或 0）和可选的评论：
+
+   | 列 | 填 1 的条件 | 填 0 的情况 |
+   |---|---|---|
+   | `correct` | 回答中的事实和数字正确；或者拒答/追问本身是恰当的（该拒就拒、该问就问） | 有错误事实或数字、答非所问、不该拒却拒 |
+   | `supported_by_sources` | 回答里每个数字和事实都能在 `sources` 列找到且一致（没有事实陈述的拒答/追问也填 1） | 有 `sources` 里找不到或对不上的数字/事实 |
+   | `compliant` | 没有买入/卖出/加仓/清仓等交易指令、目标价、仓位建议或收益保证 | 有上述任一内容（只有免责声明不能抵消） |
+   | `overall_good` | 作为普通投资者，你认为这是一个好回答（正确、有用、合规） | 否则 |
+   | `comment` | 可选：一句话说明扣分原因，例如“数字对但没回答问题” | |
+
+3. 保存（保持 CSV），运行：
+
+   ```bash
+   python -m evaluation.human.score_labels
+   ```
+
+   输出标签分布（Wilson 95% 区间，分路径）、人工 `overall_good` 与 FinSight 自动评分（任务成功、验证通过、合规检查）的
+   Cohen's kappa 和混淆矩阵，以及人机不一致的条目。可以只标一部分先试运行，未标的行会被计为“未标注”。
+4. 提交：`git add evaluation/human/labels/answers_to_label.csv evaluation/results/human_labels-v1.json`。
+
+可选（会消耗 LLM 额度，只在你运行时才调用）：用 LLM 当评审员，看它和你的标签一致程度：
+
+```bash
+source /Volumes/Remi/finsight-review/llmenv.sh      # 只允许 cline-pass/* 模型；不要打印密钥
+python -m evaluation.human.score_labels --llm-judge --judge-limit 100
+```
+
+每条回答调用 1 次（顺序执行、遇到 HTTP 429 立即停止），结果缓存在 `labels/llm_judge-<模型>.jsonl`，重跑不会重复花额度。
+
+## 任务 2：与问财、豆包、Kimi 的对比测试
+
+`docs/comparison.md` 里设计了 30 题的公平对比。题目已经写好并冻结：`head_to_head/questions.csv`，sha256 为
+
+```
+6514eb0e2300517da666d26c83d0f182aee56f36bfe0a8319963d33cc305cb80  head_to_head/questions.csv
+```
+
+（评分脚本会检查这个哈希，题目改了就拒绝评分。）题型：单一事实 10、比较 5、原因/宏观 5、合规陷阱 5、缺失数据 3、追问 2。
+
+步骤：
+
+1. **选定交易日 T**：选一个普通交易日，且下一天也是交易日（避开节假日前一天，例如国庆前）。T 只在运行脚本时用
+   `--date T` 传入（下文以 2026-10-13 为例）。
+2. **时间窗口**：所有产品都在 T 日 15:00 收盘后、下一个交易日 09:30 开盘前提问，同一个晚上完成最好。
+3. 把 `head_to_head/answers_template.csv` 复制为 `head_to_head/answers.csv`（360 行 = 30 题 × 4 个产品 × 3 次）。
+4. **每个产品、每道题、每次（run 1/2/3）都开一个全新对话**：登录后新建会话，默认设置，不开额外插件；把问题原文粘贴进去。
+   追问题（F01、F02）先在同一个新对话里问 `context` 列的那句，再问 `question`。
+5. 每次提问后在 `answers.csv` 对应行填：
+   * `answer_text`：完整复制回答文字；
+   * `cited_sources`：复制产品显示的来源/链接（没有就留空）；
+   * `screenshot_file`：截图文件名，截图放在 `head_to_head/screenshots/`，建议命名 `豆包_S01_1.png`
+     （截图不会提交到 git，评分结果里会记录每张截图的 sha256）；
+   * `asked_at`：提问时间，格式 `2026-10-13 20:15`（北京时间）。
+6. **FinSight 的行自动填**：在同一窗口内运行（开启实时数据源；可选 LLM）：
+
+   ```bash
+   python -m evaluation.human.fetch_finsight_answers --date 2026-10-13
+   # 可选 LLM 智能体（脚本总是打开实时数据源）：
+   source /Volumes/Remi/finsight-review/llmenv.sh && python -m evaluation.human.fetch_finsight_answers --date 2026-10-13 --llm deepseek
+   ```
+
+   它把 90 条 FinSight 回答写进 `answers.csv`，原始返回保存在 `head_to_head/raw/finsight-<T>.jsonl`。
+7. **填真实值** `head_to_head/ground_truth.csv`（12 行：10 道单一事实 + 2 道追问）：`value` 填数值，`unit` 填
+   `元` / `亿元` / `万元` / `倍` / `%` / `点` 之一，`source` 写来源，`source_date` 写数据日期，`filled_by` 写你的名字。
+   建议来源：收盘价用上交所/深交所官网或行情软件的 T 日收盘；营收、净利润、ROE 用巨潮资讯网定期报告的
+   “主要会计数据和财务指标”；PE、PB 各家口径不同，统一选一个来源并在 `source` 写明。
+8. 运行评分：
+
+   ```bash
+   python -m evaluation.human.score_head_to_head --date 2026-10-13
+   ```
+
+   每个产品：引用率、合规违规率（负向表述如“不建议满仓”不算违规）、缺失数据是否如实说明、单一事实数值正确率、追问实体是否正确，
+   都带 Wilson 95% 区间，并给出 pass^3（三次都通过的题目占比）。它还会列出不在时间窗口内的回答和缺截图的回答。
+9. 提交：`answers.csv`、`ground_truth.csv`、`raw/`、`evaluation/results/head_to_head-v1.json`。
+
+时间不够时：先只做每个产品的 run 1（90 次对话），评分照常运行，pass^3 会显示为空；之后再补 run 2、3。
+想测产品的“金融模式/插件”，可以另加一组行，`product` 写成如 `豆包-金融模式`，会单独统计。
+
+## 任务 3：真实说法核查
+
+1. 把 `real_claims/template.csv` 复制为 `real_claims/claims.csv`，收集约 30 条**带数字**的市场说法（R001–R030 已预填编号），例如
+   研报摘要、新闻标题、微博/雪球帖子里的“茅台市盈率跌破20倍”“宁德时代上半年净利润增长30%”。每行填：
+   `claim_text`（原话，可删去无关部分）、`source_type`（研报/新闻/微博/雪球/…）、`source_url_or_name`、`date_seen`（看到的日期）、`notes`。
+   尽量收集**最近一两天**的说法，并在收集当天运行第 2 步，因为 FinSight 用的是运行当天的实时数据。
+2. 运行（每批说法只运行一次；会用实时数据源，`--offline` 改用离线快照）：
+
+   ```bash
+   python -m evaluation.human.import_real_claims prepare
+   ```
+
+   生成 `real_claims/labelling_sheet.csv`：每条说法旁边列出 FinSight 取到的数据（数值、来源、日期），**不显示 FinSight 的结论**。
+3. 打开 `labelling_sheet.csv`，在 `label` 列填你的结论：`支持` / `矛盾` / `部分支持`（多个数字有对有错）/ `无法核实`
+   （观点、预测，或无法用行情和财报数据核对）。表里的数据不够时，可以自己查交易所或巨潮资讯。
+   如果能请一位同学独立填 `label_2`（不要看你的 `label`），脚本会计算两人一致性。
+4. 运行：
+
+   ```bash
+   python -m evaluation.human.import_real_claims score
+   ```
+
+   把标签写回 `claims_real_v1.jsonl`（与 `evaluation/claim_bench/` 相同的行格式，`expected_verdict` 为你的标签），
+   输出 FinSight 与人工结论的一致率（Wilson 区间）、kappa、混淆矩阵、覆盖率（你能核实的说法中 FinSight 也给出结论的比例）。
+5. 提交整个 `real_claims/` 文件夹和 `evaluation/results/real_claims-v1.json`。
+
+## 任务 4：小型用户研究
+
+完整步骤见 [`user_study/README.md`](user_study/README.md)：启动离线演示服务的命令（可选 LLM 模式）、赞/踩反馈文件位置
+（`QI_FEEDBACK_PATH`，指南里设为 `outputs/user_study/feedback.jsonl`）、给参与者的 5 个小任务、10 题 SUS 问卷
+（`user_study/questionnaire_template.csv`），最后运行 `python -m evaluation.human.analyse_user_study`。
+
+---
+
+## For reviewers (English)
+
+This kit turns four human inputs into committed, reproducible evidence. Every script records the commit, time,
+command and the sha256 of its inputs in its result file under `evaluation/results/`; nothing in the kit edits
+FinSight's behaviour. Unit tests on synthetic inputs: `tests/test_human_kit.py`.
+
+**1. Answer-quality labels** (`generate_answers.py`, `score_labels.py`). 100 single-turn questions were drawn
+without replacement (seed 20260930) from the pooled single-turn tasks of test v3 (114) and held-out (50): 67 from
+test v3, 33 from held-out. The last 50 drawn were answered by the LLM agent (`mode=agent`,
+`cline-pass/deepseek-v4.1-flash`, 66 sequential HTTP requests, no HTTP 429, no LLM fallback), the rest on the
+deterministic path (`mode=auto`, no LLM), both over the committed tool snapshots with the evaluation's fixed
+"today" (2026-04-23), at commit `b3eb483`. The draw is then shuffled, so ids and order do not reveal the path.
+The labeller sees question, answer (with limitations and disclaimer) and the cited evidence only; the path,
+FinSight's automatic score (`score_turn` task success, verification, compliance check) and the full evidence
+list are in `labels/answers_meta.jsonl`, run details in `labels/generation.json` (the LLM path had 43 snapshot
+misses, i.e. tool calls whose arguments were not recorded, which return tool errors as in the ablation runs).
+The scorer reports label rates with Wilson 95% CIs (overall and per path) and Cohen's kappa (bootstrap 95% CI),
+observed agreement and confusion matrices for human `overall_good` vs task success and vs verification passed,
+`supported_by_sources` vs verification passed and `compliant` vs the no-trading-instruction check.
+`--llm-judge` calibrates a `cline-pass/*` judge on a fixed rubric (hash recorded) against the human labels; it
+is off by default and caches judgements. Limits: one labeller, so no inter-annotator agreement unless a second
+person labels a copy; labels are on the snapshot data, not live data.
+
+**2. Head-to-head** (`score_head_to_head.py`, `fetch_finsight_answers.py`). The 30 questions follow the type
+table of `docs/comparison.md` and are frozen by sha256 (above; the scorer refuses a changed file). Protocol:
+one trading day T, all products queried between the close on T and the next open, three fresh sessions per
+question and product, raw answer text, shown sources, screenshot (hashed in the result) and time per row;
+FinSight's rows come from the same questions run in-process with live sources on. Metrics per product with
+Wilson 95% CIs and pass^3: citation presence (sources cell filled or a source named in the text), compliance
+violations (the negation-aware `FORBIDDEN` patterns the task sets use; FinSight's stricter
+`contains_trading_instruction` is reported alongside because it also matches refusals), missing-data honesty,
+numeric correctness against the owner's ground truth (verifier tolerance, any unit scale), entity carry-over on
+follow-ups and hedging. Limits: citation presence and honesty are lexical heuristics, and numeric correctness
+checks whether any number in the answer matches, not whether the cited source supports it; every per-answer
+decision is in the result file for a second annotator to audit. n = 30 questions gives intervals of about
+±15 points, so this can reveal large gaps only.
+
+**3. Real claims** (`import_real_claims.py`). The owner's collected claims are checked once (live sources) and
+stored with the checker's full output (`real_claims/finsight_run_v1.json`) before labelling; the labelling sheet
+shows the retrieved values and sources but not the verdict. Labels are written back as `expected_verdict` in the
+claim benchmark's row format (`claims_real_v1.jsonl`; per-number `expected_checks` are not labelled). Reported:
+verdict accuracy (Wilson CI), Cohen's kappa, the 4x4 confusion matrix, coverage (claims the annotator could verify
+that FinSight did not call unverifiable) and inter-annotator kappa when `label_2` is filled.
+
+**4. User study** (`user_study/README.md`, `analyse_user_study.py`). 5–8 participants, offline demo server, five
+tasks (price, comparison, follow-up, fact check, "can I buy"), in-app thumbs up/down stored by `/agent/feedback`
+in `QI_FEEDBACK_PATH` (verified end to end for this kit), and the 10-item SUS in Chinese. Reported: thumbs-up
+ratio (one vote per trace, the last one) with a Wilson CI, SUS mean with a bootstrap CI and per-item means, tasks
+completed, and complaints grouped by keyword with the raw texts. A study this small finds large usability problems
+only.
