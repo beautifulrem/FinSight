@@ -69,7 +69,7 @@ from .memory import (
     turn_record,
 )
 from .memory_summary import update_memory_card
-from .names import english_name
+from .names import INDUSTRY_EN, english_name
 from .output_safety import scrub_answer
 from .planner import Plan, plan_from_nlu
 from .prompts import (
@@ -1366,6 +1366,14 @@ def _feedback_text(verification: dict[str, Any]) -> str:
     return VerificationReport.model_validate(verification).feedback() if verification else ""
 
 
+def _english_subject(payload: dict[str, Any]) -> str | None:
+    industry = payload.get("industry_name")
+    if industry and not payload.get("symbol"):
+        return INDUSTRY_EN.get(str(industry))
+    name = payload.get("name") or payload.get("canonical_name")
+    return english_name(str(name) if name else None, str(payload.get("symbol") or "") or None)
+
+
 def _source_view(item: dict[str, Any]) -> dict[str, Any]:
     view = {
         key: item.get(key)
@@ -1375,6 +1383,11 @@ def _source_view(item: dict[str, Any]) -> dict[str, Any]:
     # Document payloads are omitted: their text is already summarised by title/source and can be large.
     if item.get("kind") == "structured" and isinstance(item.get("payload"), dict):
         view["payload"] = item["payload"]
+        # The English UI names every tile ("Kweichow Moutai · ROE", "Baijiu (liquor) · Industry P/E") from the
+        # server's tables, on follow-up turns too, where the NLU entities of "那它们的ROE呢" are empty.
+        name_en = _english_subject(item["payload"])
+        if name_en:
+            view["name_en"] = name_en
     elif item.get("kind") == "document" and view.get("title"):
         # Third-party headlines are listed only when they pass the positive shape check (no links, contact
         # handles, instructions, advice or guarantee wording, no mixed-script homoglyphs); otherwise hidden.
