@@ -144,6 +144,9 @@ def compose_template(
 
     if len(margins) >= 2:
         facts.append(_margin_ranking(margins, zh))
+    for sentence in _arithmetic(query, tool_log, zh):
+        if sentence not in facts:
+            facts.append(sentence)
     gaps: list[str] = []
     if query:
         gaps = [
@@ -230,6 +233,144 @@ def _derived_metrics(data: dict[str, Any], keys: set[str], zh: bool) -> tuple[li
                 else f"{name}'s net profit growth is not positive, so PEG does not apply [{eid}]."
             )
     return sentences, margin
+
+
+# (round 9, E5/E8) A question that asks for the difference ("差了多少个百分点", "营收差多少亿", "How big is the gap?")
+# or the ratio ("PE是行业的几倍") of one metric for two targets, or for a target and its industry: the template derives
+# it from the two cited values and writes both operands next to the result, so the verifier (``allow_derived``) and the
+# reader can check the arithmetic.
+_ASKS_DIFFERENCE = re.compile(
+    r"差了?(?:有|是|大概)?(?:多少|几|多大)|相差|差距|差额|差值|(?:高|低|多|少)(?:了|出)?(?:多少|几)|"
+    r"\bdifference\b|\bgap\b|\bspread\b|\bhow much (?:higher|lower|more|less|bigger|smaller)\b",
+    re.IGNORECASE,
+)
+_ASKS_RATIO = re.compile(r"(?:是|为|相当于)[^，。？?,]{0,12}?的?(?:几|多少)倍|几倍于|\bhow many times\b", re.IGNORECASE)
+_ASKS_INDUSTRY = re.compile(r"行业|板块|\bsector\b|\bindustry\b", re.IGNORECASE)
+# (key, zh label, en label, pattern): the metric the question names first is the one compared
+_ARITHMETIC_METRICS: tuple[tuple[str, str, str, re.Pattern[str]], ...] = (
+    (
+        "pct_change",
+        "当日涨跌幅",
+        "daily change",
+        re.compile(
+            r"涨跌幅|涨幅|跌幅|百分点|涨|跌|\bdaily change\b|\bpercent(?:age)? change\b|"
+            r"\b(?:rose|fell|gained|dropped|moved)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    ("close", "收盘价", "close", re.compile(r"收盘价?|股价|\bclos(?:e|ing price)\b|\bshare price\b", re.IGNORECASE)),
+    ("pe", "市盈率", "P/E", re.compile(r"市盈率|(?<![A-Za-z])P/?E(?![A-Za-z])|price[- ]to[- ]earnings", re.IGNORECASE)),
+    ("pb", "市净率", "P/B", re.compile(r"市净率|(?<![A-Za-z])P/?B(?![A-Za-z])|price[- ]to[- ]book", re.IGNORECASE)),
+    ("roe", "ROE", "ROE", re.compile(r"净资产收益率|(?<![A-Za-z])ROE(?![A-Za-z])|return on equity", re.IGNORECASE)),
+    ("revenue", "营业收入", "revenue", re.compile(r"营收|营业收入|收入|\brevenues?\b|\bsales\b", re.IGNORECASE)),
+    (
+        "net_profit",
+        "净利润",
+        "net profit",
+        re.compile(r"净利润|净利(?!率)|(?<!毛)利润(?!率)|净赚|\bnet (?:profit|income)\b|\bearnings\b", re.IGNORECASE),
+    ),
+)
+
+
+def _arithmetic_operands(tool_log: list[dict[str, Any]], key: str, zh: bool) -> tuple[list[tuple], tuple | None]:
+    """``(companies, industry)``: ``(name, value, evidence id, data)`` per target for ``key`` in tool order, and the
+    first target's industry value when the industry snapshot has it."""
+    companies: list[tuple] = []
+    industry = None
+    seen: set[str] = set()
+    for entry in tool_log:
+        if not entry.get("ok"):
+            continue
+        data = entry.get("data") or {}
+        eid, symbol = data.get("evidence_id"), str(data.get("symbol") or "")
+        value = None
+        if entry.get("tool") == "get_price_history" and key in {"pct_change", "close"}:
+            value = data.get("pct_change_1d" if key == "pct_change" else "close")
+        elif entry.get("tool") == "get_fundamentals" and key not in {"pct_change", "close"}:
+            metrics = data.get("metrics") or {}
+            field = {"pe": ("pe_ttm", "pe")}.get(key, (key,))
+            value = next((metrics[name] for name in field if metrics.get(name) is not None), None)
+            if key == "roe" and value is not None:
+                in_percent = (data.get("metric_units") or {}).get("roe") == "%"
+                value = value if in_percent or abs(float(value)) > 1 else value * 100
+            if key in {"revenue", "net_profit"} and value is not None and abs(float(value)) < 1e6:
+                value = None  # an amount the template does not state (see _fundamentals)
+        if key in {"pe", "pb", "pct_change"} and industry is None and entry.get("tool") == "get_fundamentals":
+            snapshot = data.get("industry") or {}
+            industry_value = (snapshot.get("metrics") or {}).get(key)
+            if industry_value is not None and snapshot.get("evidence_id") and key != "pct_change":
+                sector = snapshot.get("industry_name")
+                label = f"{sector}行业" if zh else f"the {sector} industry"
+                industry = (label, industry_value, snapshot["evidence_id"], {})
+        if value is None or not eid or not symbol or symbol in seen:
+            continue
+        seen.add(symbol)
+        companies.append((str(data.get("name") or symbol), float(value), eid, data))
+    return companies, industry
+
+
+def _arithmetic(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
+    """The difference or ratio a question asks for, derived from two cited values (see ``_ASKS_DIFFERENCE``)."""
+    difference, ratio = bool(_ASKS_DIFFERENCE.search(query or "")), bool(_ASKS_RATIO.search(query or ""))
+    if not (difference or ratio):
+        return []
+    named = [
+        (match.start(), key, label_zh, label_en)
+        for key, label_zh, label_en, pattern in _ARITHMETIC_METRICS
+        if (match := pattern.search(query))
+    ]
+    if not named:
+        return []
+    _position, key, label_zh, label_en = min(named)
+    companies, industry = _arithmetic_operands(tool_log, key, zh)
+    if len(companies) >= 2:
+        first, second = companies[0], companies[1]
+    elif len(companies) == 1 and industry is not None and _ASKS_INDUSTRY.search(query):
+        first, second = companies[0], industry
+    else:
+        return []
+
+    def shown(value: float, data: dict[str, Any]) -> str:
+        if key in {"pct_change", "roe"}:
+            return f"{_num(value)}%"
+        if key == "close":
+            return _px(value, data, zh)
+        if key in {"pe", "pb"}:
+            return _times(value, zh)
+        return _money(value, zh)
+
+    (name_a, a, eid_a, data_a), (name_b, b, eid_b, data_b) = first, second
+    cites = f"[{eid_a}]" + (f"[{eid_b}]" if eid_b != eid_a else "")
+    label = label_zh if zh else label_en
+    operands = (
+        f"{name_a}{label} {shown(a, data_a)}，{name_b} {shown(b, data_b)}"
+        if zh
+        else f"{name_a} {label} {shown(a, data_a)}, {name_b} {shown(b, data_b)}"
+    )
+    if ratio and b:
+        times = _num(round(a / b, 2))
+        return [
+            f"{operands}，前者约为后者的 {times} 倍 {cites}。"
+            if zh
+            else f"{operands}: the former is about {times} times the latter {cites}."
+        ]
+    gap = abs(a - b)
+    if key in {"pct_change", "roe"}:
+        gap_text = f"{_num(round(gap, 2))} 个百分点" if zh else f"{_num(round(gap, 2))} percentage points"
+    elif key == "close":
+        gap_text = _px(round(gap, 3), data_a, zh)
+    elif key in {"pe", "pb"}:
+        gap_text = _num(round(gap, 2))
+    else:
+        gap_text = _money(gap, zh)
+    if a == b:
+        return [f"{operands}，两者相同 {cites}。" if zh else f"{operands}: they are equal {cites}."]
+    higher = name_a if a > b else name_b
+    return [
+        f"{operands}，两者相差 {gap_text}（{higher}更高） {cites}。"
+        if zh
+        else f"{operands}: a difference of {gap_text} ({higher} is higher) {cites}."
+    ]
 
 
 def _margin_ranking(margins: list[tuple[str, float]], zh: bool) -> str:
