@@ -317,22 +317,42 @@ def test_fetch_merge_replaces_only_finsight_rows():
 
 
 # -------------------------------------------------------------------------------- real claims (input 3)
-def test_real_claims_prepare_hides_the_verdict_and_score_reports_agreement(monkeypatch):
+def test_real_claims_sheet_shows_only_raw_evidence_and_score_reports_agreement(monkeypatch):
     import query_intelligence.agent.claim_check as claim_check
+    from query_intelligence.agent.evidence import AgentEvidence
+
+    fundamentals = AgentEvidence(
+        evidence_id="fundamental_600519.SH",
+        kind="structured",
+        source_type="fundamental_sql",
+        title="贵州茅台 (600519.SH) fundamentals",
+        as_of="2025-12-31",
+        payload={
+            "report_date": "2025-12-31",
+            "revenue": 168838000000,
+            "pe_ttm": 24.6,
+            "roe": 33.0,
+            "metric_units": {"revenue": "CNY", "pe_ttm": "x", "roe": "%"},
+            "provenance": {"source_label": "离线快照", "original_source": "seed"},
+        },
+    )
+    registry = SimpleNamespace(run=lambda name, arguments: SimpleNamespace(ok=True, evidence=[fundamentals]))
 
     def fake_check(claim, *, service, registry, zh):
         verdict = "contradicted" if "15倍" in claim else "unverifiable"
         checks = []
         if verdict == "contradicted":
+            registry.run("get_fundamentals", {"target": "600519.SH"})  # through the evidence recorder
             checks = [
                 {
                     "target": "贵州茅台",
                     "metric": "pe_ttm",
                     "claimed": 15.0,
                     "claimed_unit": "倍",
-                    "comparator": "eq",
+                    "comparator": "lt",
                     "actual": 24.6,
                     "status": "contradicted",
+                    "reason": "value_mismatch",
                     "source": "离线快照",
                     "as_of": "2025-12-31",
                     "note": "claim contradicted",
@@ -343,16 +363,27 @@ def test_real_claims_prepare_hides_the_verdict_and_score_reports_agreement(monke
     monkeypatch.setattr(claim_check, "check_claim", fake_check)
     rows = import_real_claims.claim_rows(
         [
-            {"id": "", "claim_text": "茅台市盈率只有15倍", "source_type": "微博"},
+            {"id": "", "claim_text": "茅台市盈率不到15倍", "source_type": "微博", "date_seen": "2026-10-01"},
             {"id": "", "claim_text": ""},
             {"id": "X9", "claim_text": "白酒估值见底了", "source_type": "研报"},
         ]
     )
     assert [row["id"] for row in rows] == ["R001", "X9"]
-    bench, records, sheet = import_real_claims.prepare(rows, service=None, registry=None)
+    bench, records, evidence = import_real_claims.run_checker(rows, service=None, registry=registry)
     assert {"id", "lang", "category", "claim", "expected_verdict", "expected_checks"} <= set(bench[0])
-    assert "24.6" in sheet[0]["finsight_evidence"] and "声明 = 15.0倍" in sheet[0]["finsight_evidence"]
-    assert "contradicted" not in sheet[0]["finsight_evidence"]
+    assert records[0]["checks"][0]["comparator"] == "lt"  # FinSight's reading stays with the score step
+    assert evidence[0]["evidence"][0]["payload"]["pe_ttm"] == 24.6 and evidence[1]["evidence"] == []
+    sheet = import_real_claims.annotator_sheet(rows, evidence)
+    assert list(sheet[0]) == ["id", "claim_text", "date_seen", "evidence"]
+    assert set(sheet[0]) <= set(import_real_claims.SHEET_COLUMNS)
+    shown = sheet[0]["evidence"]
+    assert "市盈率(TTM) 24.6倍" in shown and "营业收入 1688.38亿元" in shown and "ROE 33%" in shown
+    assert "seed / 离线快照" in shown and "2025-12-31" in shown and sheet[0]["date_seen"] == "2026-10-01"
+    # nothing of FinSight's reading: no claimed number, comparator, metric code, status or reason
+    for leak in ("15", "声明", "<", "↔", "pe_ttm", "contradicted", "value_mismatch", "lt", "微博"):
+        assert leak not in shown, leak
+    assert "没有取到任何数据" in sheet[1]["evidence"]
+    assert import_real_claims.prepare(rows, service=None, registry=registry)[2] == sheet
     sheet[0].update(label="矛盾", label_2="contradicted")
     sheet[1].update(label="支持", label_2="unverifiable")
     result = import_real_claims.score(sheet, records)
@@ -364,6 +395,44 @@ def test_real_claims_prepare_hides_the_verdict_and_score_reports_agreement(monke
     assert [row["expected_verdict"] for row in labelled] == ["contradicted", "supported"]
     with pytest.raises(ValueError):
         import_real_claims.normalise_label("大概对")
+
+
+def test_real_claims_evidence_lines_use_units_and_dates():
+    line = import_real_claims.evidence_line(
+        {
+            "evidence_id": "price_510300.SH",
+            "title": "沪深300ETF (510300.SH) daily market data",
+            "source_name": "akshare",
+            "payload": {
+                "as_of": "2026-04-22",
+                "close": 4.811,
+                "pct_change_1d": -0.1778,
+                "amount": 4851593064.0,
+                "volume": 1012592563.0,
+                "volume_unit": "share",
+                "amount_unit": "CNY",
+                "recent_closes": [{"date": "2026-04-21", "close": 4.776}, {"date": "2026-04-22", "close": 4.811}],
+                "units_source": {"amount": "CNY"},
+            },
+        }
+    )
+    assert line.startswith("沪深300ETF (510300.SH) daily market data（来源: akshare；日期: 2026-04-22）")
+    assert "收盘价 4.811元" in line and "日涨跌幅 -0.1778%" in line and "成交额 48.52亿元" in line
+    assert "成交量 10.13亿股" in line and "近期收盘 2026-04-21 4.776，2026-04-22 4.811" in line
+    macro = import_real_claims.evidence_line(
+        {
+            "evidence_id": "macro_CPI_CN",
+            "title": "CPI_CN macro indicator",
+            "payload": {
+                "indicator_code": "CPI_CN",
+                "metric_date": "2026-03-31",
+                "metric_value": 0.8,
+                "unit": "%",
+                "source_name": "seed",
+            },
+        }
+    )
+    assert macro == "CPI_CN macro indicator（来源: seed；日期: 2026-03-31）: 数值 0.8%"
 
 
 def test_real_claims_template_columns():

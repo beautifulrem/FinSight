@@ -1,15 +1,21 @@
 """Turn real market claims the owner collected (研报, 新闻, 微博, 雪球 …) into a held-out claim-check set.
 
-Two steps, so the checker runs once and the labels are written without seeing its verdicts:
+Two steps, so the checker runs once and the labels are written without seeing its verdict or its reading:
 
 1. ``prepare``: reads the filled ``real_claims/claims.csv`` (a copy of ``template.csv``), runs FinSight's claim
-   checker **once** on every claim (live sources by default, ``--offline`` for the snapshot), and writes
+   checker **once** on every claim (live sources by default, ``--offline`` for the offline data), and writes
+   two things kept apart:
 
-   * ``claims_real_v1.jsonl``: the claims in the claim benchmark's row format (``expected_verdict`` empty until
-     step 2; ``expected_checks`` is not labelled for real claims);
-   * ``finsight_run_v1.json``: the checker's verdict and checks for every claim, with commit and time;
-   * ``labelling_sheet.csv``: one row per claim with the evidence FinSight retrieved (values, sources, dates)
-     but **not** its verdict, and empty ``label`` / ``label_2`` columns for the owner and a second annotator.
+   * for the **score step only** (annotators do not open these):
+     ``finsight_run_v1.json``: FinSight's verdict and its reading of every claim (target, metric, claimed
+     number, comparator, per-number status), with commit and time; and ``claims_real_v1.jsonl``: the claims in
+     the claim benchmark's row format (``expected_verdict`` empty until step 2);
+   * for the **annotators**: ``evidence_v1.jsonl``: the raw records the checker's tools returned for each claim;
+     and ``labelling_sheet.csv``: one row per claim with only the claim text, the date it was seen and those
+     raw values (every numeric field with unit, source and date; 1688.38亿元, not 168838000000). It is built
+     from ``evidence_v1.jsonl`` alone (``annotator_sheet``), so nothing of FinSight's reading can leak into
+     it: no metric it picked, no comparator, no claimed-vs-actual pairing, no status or reason code. Empty
+     ``label`` / ``label_2`` columns are for the owner and a second annotator.
 
 2. ``score``: reads the filled labelling sheet, writes the labels into ``claims_real_v1.jsonl``
    (``expected_verdict``) and reports FinSight's agreement with them (accuracy with a Wilson 95% interval,
@@ -46,10 +52,11 @@ TEMPLATE_PATH = CLAIMS_DIR / "template.csv"
 INPUT_PATH = CLAIMS_DIR / "claims.csv"
 CLAIMS_OUT = CLAIMS_DIR / "claims_real_v1.jsonl"
 RUN_OUT = CLAIMS_DIR / "finsight_run_v1.json"
+EVIDENCE_OUT = CLAIMS_DIR / "evidence_v1.jsonl"
 SHEET_PATH = CLAIMS_DIR / "labelling_sheet.csv"
 OUT_PATH = RESULTS_DIR / "real_claims-v1.json"
 TEMPLATE_COLUMNS = ("id", "claim_text", "source_type", "source_url_or_name", "date_seen", "notes")
-SHEET_COLUMNS = ("id", "claim_text", "source_type", "date_seen", "finsight_evidence", "label", "label_2", "notes")
+SHEET_COLUMNS = ("id", "claim_text", "date_seen", "evidence", "label", "label_2", "notes")
 VERDICTS = ("supported", "contradicted", "partially_supported", "unverifiable")
 _LABEL_ALIASES = {
     "supported": "supported",
@@ -145,62 +152,178 @@ def run_record(claim_id: str, report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-_COMPARATOR_SIGN = {"eq": "=", "ne": "≠", "gt": ">", "ge": "≥", "lt": "<", "le": "≤", "approx": "≈", "range": "区间"}
+# ------------------------------------------------------------------ what the annotator sees (raw evidence)
+# Plain names for the raw payload fields of the retrieved records. These are the data's own fields (every field
+# of every record the checker fetched), not FinSight's reading of the claim: which metric it thought the claim
+# is about, the comparator, the claimed number and the per-number status stay in ``finsight_run_v1.json``.
+_FIELD_NAMES = {
+    "close": "收盘价",
+    "open": "开盘价",
+    "high": "最高价",
+    "low": "最低价",
+    "pct_change_1d": "日涨跌幅",
+    "pct_change": "涨跌幅",
+    "amount": "成交额",
+    "volume": "成交量",
+    "turnover": "换手率",
+    "turnover_rate": "换手率",
+    "revenue": "营业收入",
+    "net_profit": "净利润",
+    "roe": "ROE",
+    "roa": "ROA",
+    "gross_margin": "毛利率",
+    "grossprofit_margin": "毛利率",
+    "net_margin": "净利率",
+    "netprofit_margin": "净利率",
+    "netprofit_yoy": "净利润同比",
+    "revenue_yoy": "营收同比",
+    "pe_ttm": "市盈率(TTM)",
+    "pe": "市盈率",
+    "pb": "市净率",
+    "ps": "市销率",
+    "dividend_yield": "股息率",
+    "eps": "每股收益",
+    "bps": "每股净资产",
+    "metric_value": "数值",
+}
+_DATE_FIELDS = ("as_of", "trade_date", "report_date", "metric_date", "period")
+_SKIP_FIELDS = {
+    "symbol",
+    "name",
+    "product_type",
+    "source",
+    "source_name",
+    "evidence_id",
+    "provenance",
+    "units_source",
+    "units_inferred",
+    "metric_units",
+    "amount_unit",
+    "volume_unit",
+    "change_unit",
+    "unit",
+    "indicator_code",
+    "industry_name",
+    "price_basis",
+    "recent_closes",
+    *_DATE_FIELDS,
+}
 
 
-def evidence_text(record: dict[str, Any]) -> str:
-    """What FinSight retrieved for a claim, without its verdict or per-number status."""
-    lines = []
-    for check in record["checks"]:
-        subject = " ".join(str(part) for part in (check.get("target"), check.get("metric")) if part) or "（未识别对象）"
-        sign = _COMPARATOR_SIGN.get(str(check.get("comparator") or "eq"), str(check.get("comparator")))
-        if check.get("claimed") is None:
-            claimed = f"声明: 与 {check['reference']} 比较（{sign}）" if check.get("reference") else "声明: 涨跌方向"
-        else:
-            high = f"~{check['claimed_high']}" if check.get("claimed_high") is not None else ""
-            claimed = f"声明 {sign} {check['claimed']}{high}{check.get('claimed_unit') or ''}"
-        if check.get("actual") is not None:
-            data = f"数据值 {check['actual']}"
-            if check.get("reference") and check.get("reference_value") is not None:
-                data += f"（对比 {check['reference']}: {check['reference_value']}）"
-            where = "，".join(str(part) for part in (check.get("source"), check.get("as_of")) if part)
-            lines.append(f"{subject}: {claimed} ↔ {data}" + (f"（{where}）" if where else ""))
-        else:
-            lines.append(f"{subject}: {claimed} ↔ 未取到可比数据（{check.get('reason') or '无'}）")
-    for text in record["unchecked"]:
-        lines.append(f"未核对的片段: {text}")
-    if not lines:
-        lines.append("FinSight 没有从这条声明中读出可核对的数字或比较")
+def _plain_number(value: float) -> str:
+    return f"{value:,.4f}".rstrip("0").rstrip(".").replace(",", "")
+
+
+def _scaled(value: float, unit: str) -> str:
+    """``168838000000`` CNY -> ``1688.38亿元``; shares -> ``万股``/``亿股``."""
+    for size, prefix in ((1e8, "亿"), (1e4, "万")):
+        if abs(value) >= size:
+            return f"{_plain_number(round(value / size, 2))}{prefix}{unit}"
+    return f"{_plain_number(value)}{unit}"
+
+
+def _value_text(key: str, value: float, payload: dict[str, Any]) -> str:
+    from query_intelligence.agent.tools.units import metric_unit
+
+    units = payload.get("metric_units") if isinstance(payload.get("metric_units"), dict) else {}
+    unit = units.get(key) or (payload.get("unit") if key == "metric_value" else None)
+    if key == "amount" or unit == "CNY":
+        return _scaled(value, "元")
+    if key == "volume":
+        return _scaled(value, "股" if payload.get("volume_unit") == "share" else "（单位未知）")
+    if key in {"close", "open", "high", "low"}:
+        return f"{_plain_number(value)}元"
+    unit = unit or ("%" if key == "pct_change_1d" else metric_unit(key))
+    suffix = {"%": "%", "x": "倍", "CNY/share": "元/股"}.get(str(unit), str(unit or ""))
+    return f"{_plain_number(value)}{suffix}"
+
+
+def evidence_line(item: dict[str, Any]) -> str:
+    """One retrieved record as the annotator sees it: what it is, source, date and every numeric value."""
+    payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+    provenance = payload.get("provenance") if isinstance(payload.get("provenance"), dict) else {}
+    title = item.get("title") or payload.get("name") or payload.get("indicator_code") or item.get("evidence_id")
     sources = [
-        f"[{item.get('evidence_id')}] {item.get('source_name') or ''} 截至 {item.get('as_of') or '?'}".strip()
-        for item in record["evidence_sources"]
+        provenance.get("original_source") or payload.get("source_name") or payload.get("source"),
+        item.get("source_name"),
+        provenance.get("source_label"),
     ]
-    if sources:
-        lines.append("证据: " + "; ".join(dict.fromkeys(sources)))
-    return "\n".join(lines)
+    source = " / ".join(dict.fromkeys(str(name) for name in sources if name))
+    date = next((str(payload[key]) for key in _DATE_FIELDS if payload.get(key)), None) or item.get("as_of")
+    values = []
+    for key, value in payload.items():
+        if key in _SKIP_FIELDS or isinstance(value, bool) or not isinstance(value, int | float):
+            continue
+        values.append(f"{_FIELD_NAMES.get(key, key)} {_value_text(key, float(value), payload)}")
+    closes = payload.get("recent_closes")
+    if isinstance(closes, list) and len(closes) > 1:
+        values.append(
+            "近期收盘 " + "，".join(f"{row.get('date')} {row.get('close')}" for row in closes if isinstance(row, dict))
+        )
+    head = f"{title}（来源: {source or '未注明'}；日期: {date or '未注明'}）"
+    return f"{head}: {'；'.join(values) if values else '（无数值）'}"
 
 
-def prepare(rows: list[dict[str, Any]], *, service: Any, registry: Any) -> tuple[list[dict], list[dict], list[dict]]:
+def evidence_text(evidence: list[dict[str, Any]]) -> str:
+    """The raw evidence values of one claim, one record per line, with no reference to FinSight's reading."""
+    lines = [evidence_line(item) for item in evidence]
+    return "\n".join(lines) or "（没有取到任何数据；请只凭公开资料判断）"
+
+
+class _EvidenceRecorder:
+    """Wraps the tool registry during one claim check and keeps every evidence record the tools returned."""
+
+    def __init__(self, registry: Any) -> None:
+        self.registry = registry
+        self.items: dict[str, dict[str, Any]] = {}
+
+    def run(self, name: str, arguments: Any) -> Any:
+        result = self.registry.run(name, arguments)
+        for item in getattr(result, "evidence", None) or []:
+            dumped = item.model_dump(mode="json") if hasattr(item, "model_dump") else dict(item)
+            self.items.setdefault(str(dumped.get("evidence_id")), dumped)
+        return result
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.registry, name)
+
+
+def run_checker(
+    rows: list[dict[str, Any]], *, service: Any, registry: Any
+) -> tuple[list[dict], list[dict], list[dict]]:
+    """Step 1a: run the checker once per claim. Returns the bench rows, FinSight's reading and verdict
+    (``records``, for the score step only) and the raw evidence each check retrieved (``evidence``)."""
     from query_intelligence.agent.claim_check import check_claim
     from query_intelligence.chatbot import detect_query_language
 
-    bench, records, sheet = [], [], []
+    bench, records, evidence = [], [], []
     for row in rows:
         lang = detect_query_language(row["claim_text"])
-        report = check_claim(row["claim_text"], service=service, registry=registry, zh=lang == "zh").model_dump()
-        record = run_record(row["id"], report)
+        recorder = _EvidenceRecorder(registry)
+        report = check_claim(row["claim_text"], service=service, registry=recorder, zh=lang == "zh").model_dump()
         bench.append(bench_row(row, lang))
-        records.append(record)
-        sheet.append(
-            {
-                "id": row["id"],
-                "claim_text": row["claim_text"],
-                "source_type": row.get("source_type", ""),
-                "date_seen": row.get("date_seen", ""),
-                "finsight_evidence": evidence_text(record),
-            }
-        )
-    return bench, records, sheet
+        records.append(run_record(row["id"], report))
+        evidence.append({"id": row["id"], "evidence": list(recorder.items.values())})
+    return bench, records, evidence
+
+
+def annotator_sheet(rows: list[dict[str, Any]], evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Step 1b: the labelling sheet from the claim rows and the raw evidence only (never from ``records``)."""
+    by_id = {entry["id"]: entry["evidence"] for entry in evidence}
+    return [
+        {
+            "id": row["id"],
+            "claim_text": row["claim_text"],
+            "date_seen": row.get("date_seen", ""),
+            "evidence": evidence_text(by_id.get(row["id"], [])),
+        }
+        for row in rows
+    ]
+
+
+def prepare(rows: list[dict[str, Any]], *, service: Any, registry: Any) -> tuple[list[dict], list[dict], list[dict]]:
+    bench, records, evidence = run_checker(rows, service=service, registry=registry)
+    return bench, records, annotator_sheet(rows, evidence)
 
 
 # --------------------------------------------------------------------------------------------- score
@@ -268,7 +391,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     sub = parser.add_subparsers(dest="command", required=True)
     prep = sub.add_parser("prepare", help="Run the checker once and write the labelling sheet.")
     prep.add_argument("--input", default=str(INPUT_PATH))
-    prep.add_argument("--offline", action="store_true", help="Use the offline snapshot instead of live sources.")
+    prep.add_argument("--offline", action="store_true", help="Use the offline data instead of live sources.")
     prep.add_argument("--force", action="store_true", help="Overwrite an existing run (it is meant to run once).")
     scr = sub.add_parser("score", help="Score the filled labelling sheet.")
     scr.add_argument("--sheet", default=str(SHEET_PATH))
@@ -287,17 +410,28 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         from query_intelligence.agent.tools import build_registry_for_service
 
         service = _build_service(args.offline)
-        bench, records, sheet = prepare(rows, service=service, registry=build_registry_for_service(service))
+        bench, records, evidence = run_checker(rows, service=service, registry=build_registry_for_service(service))
         write_jsonl(CLAIMS_OUT, bench)
+        write_jsonl(EVIDENCE_OUT, evidence)
+        sheet = annotator_sheet(rows, evidence)
         config = run_config(
             "evaluation.human.import_real_claims",
             argv,
             input=display(input_path),
             input_sha256=sha256_file(input_path),
-            data="offline snapshot" if args.offline else "live market and macro sources",
+            data="offline data" if args.offline else "live market and macro sources",
             model=None,
         )
-        write_result(RUN_OUT, {"config": config, "claims_sha256": sha256_file(CLAIMS_OUT), "results": records})
+        write_result(
+            RUN_OUT,
+            {
+                "config": config,
+                "note": "FinSight's verdicts and readings: used by the score step only; not for annotators",
+                "claims_sha256": sha256_file(CLAIMS_OUT),
+                "evidence_sha256": sha256_file(EVIDENCE_OUT),
+                "results": records,
+            },
+        )
         write_csv(SHEET_PATH, SHEET_COLUMNS, sheet)
         print(f"checked {len(records)} claims; fill {display(SHEET_PATH)} (label, optional label_2), then run score")
         return {"config": config, "claims": len(records)}

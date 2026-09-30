@@ -109,15 +109,22 @@ python -m evaluation.human.score_labels --llm-judge --judge-limit 100
    研报摘要、新闻标题、微博/雪球帖子里的“茅台市盈率跌破20倍”“宁德时代上半年净利润增长30%”。每行填：
    `claim_text`（原话，可删去无关部分）、`source_type`（研报/新闻/微博/雪球/…）、`source_url_or_name`、`date_seen`（看到的日期）、`notes`。
    尽量收集**最近一两天**的说法，并在收集当天运行第 2 步，因为 FinSight 用的是运行当天的实时数据。
-2. 运行（每批说法只运行一次；会用实时数据源，`--offline` 改用离线快照）：
+2. 运行（每批说法只运行一次；会用实时数据源，`--offline` 改用离线数据）：
 
    ```bash
    python -m evaluation.human.import_real_claims prepare
    ```
 
-   生成 `real_claims/labelling_sheet.csv`：每条说法旁边列出 FinSight 取到的数据（数值、来源、日期），**不显示 FinSight 的结论**。
+   这一步把输出分成两份，互不混用：
+   * **给你标注用**：`real_claims/labelling_sheet.csv`，每行只有 `id`、说法原文 `claim_text`、`date_seen`，以及
+     `evidence` 列——FinSight 的数据工具为这条说法取到的**原始数据**：每条记录的名称、来源、日期和全部数值
+     （带单位，如“营业收入 1688.38亿元；市盈率(TTM) 24.6倍；ROE 33%”）。原始记录另存于 `real_claims/evidence_v1.jsonl`。
+     表里**没有** FinSight 对说法的解读：不显示它认为说的是哪个指标、声明值、比较方向（大于/小于/约等于）、
+     逐项“相符/不符”状态、原因代码或最终结论。
+   * **只给评分脚本用**：`real_claims/finsight_run_v1.json`（FinSight 的解读和结论）。**标注完成前请不要打开它。**
 3. 打开 `labelling_sheet.csv`，在 `label` 列填你的结论：`支持` / `矛盾` / `部分支持`（多个数字有对有错）/ `无法核实`
-   （观点、预测，或无法用行情和财报数据核对）。表里的数据不够时，可以自己查交易所或巨潮资讯。
+   （观点、预测，或无法用行情和财报数据核对）。请你自己读说法、自己对照 `evidence` 列的数值判断；表里的数据不够或
+   不对应（例如取到的是别的公司、别的日期）时，自己查交易所或巨潮资讯。`notes` 列可写你的判断依据。
    如果能请一位同学独立填 `label_2`（不要看你的 `label`），脚本会计算两人一致性。
 4. 运行：
 
@@ -175,8 +182,13 @@ decision is in the result file for a second annotator to audit. n = 30 questions
 ±15 points, so this can reveal large gaps only.
 
 **3. Real claims** (`import_real_claims.py`). The owner's collected claims are checked once (live sources) and
-stored with the checker's full output (`real_claims/finsight_run_v1.json`) before labelling; the labelling sheet
-shows the retrieved values and sources but not the verdict. Labels are written back as `expected_verdict` in the
+stored with the checker's full output (`real_claims/finsight_run_v1.json`, read only by `score`) before
+labelling. `prepare` is split so the sheet cannot anchor the annotator: `run_checker` returns FinSight's reading
+and verdict separately from the raw evidence records its tools returned (`real_claims/evidence_v1.jsonl`), and
+`annotator_sheet` builds `labelling_sheet.csv` from the claim rows and those raw records only. The sheet has the
+claim text, the date seen and every numeric field of every retrieved record with unit, source and date
+(1688.38亿元, not 168838000000.0); none of FinSight's metric choice, claimed value, comparator, per-number status
+or reason codes (the round-6 review found "声明 < 20.0倍 ↔ 数据值 24.6" in the earlier sheet). Labels are written back as `expected_verdict` in the
 claim benchmark's row format (`claims_real_v1.jsonl`; per-number `expected_checks` are not labelled). Reported:
 verdict accuracy (Wilson CI), Cohen's kappa, the 4x4 confusion matrix, coverage (claims the annotator could verify
 that FinSight did not call unverifiable) and inter-annotator kappa when `label_2` is filled.
