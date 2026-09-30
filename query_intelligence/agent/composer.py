@@ -248,6 +248,14 @@ _ASKS_RATIO = re.compile(r"(?:是|为|相当于)[^，。？?,]{0,12}?的?(?:几|
 _ASKS_INDUSTRY = re.compile(r"行业|板块|\bsector\b|\bindustry\b", re.IGNORECASE)
 # (key, zh label, en label, pattern): the metric the question names first is the one compared
 _ARITHMETIC_METRICS: tuple[tuple[str, str, str, re.Pattern[str]], ...] = (
+    # (round 10, F8) net margin, derived from the cited revenue and net profit: named before "百分点" so a margin gap
+    # "差几个百分点" is not read as a gap in daily change
+    (
+        "net_margin",
+        "净利率",
+        "net margin",
+        re.compile(r"净利率|净利润率|销售净利率|\bnet (?:profit )?margins?\b", re.IGNORECASE),
+    ),
     (
         "pct_change",
         "当日涨跌幅",
@@ -290,6 +298,11 @@ def _arithmetic_operands(tool_log: list[dict[str, Any]], key: str, zh: bool) -> 
                 # the change the price sentence states as computed from the last two closes: it is compared, but
                 # never restated without its closes (the verifier checks it against them in that sentence)
                 value, data = computed[1], {**data, "_computed_change": True}
+        elif entry.get("tool") == "get_fundamentals" and key == "net_margin":
+            metrics = data.get("metrics") or {}
+            revenue, profit = metrics.get("revenue"), metrics.get("net_profit")
+            if revenue and profit is not None and float(revenue) >= 1e6:
+                value = round(float(profit) / float(revenue) * 100, 2)
         elif entry.get("tool") == "get_fundamentals" and key not in {"pct_change", "close"}:
             metrics = data.get("metrics") or {}
             field = {"pe": ("pe_ttm", "pe")}.get(key, (key,))
@@ -357,6 +370,8 @@ def _arithmetic(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[st
         return [*verdict, note]
     (name_a, a, eid_a, data_a), (name_b, b, eid_b, data_b) = first, second
     cites = f"[{eid_a}]" + (f"[{eid_b}]" if eid_b != eid_a else "")
+    if key == "net_margin":
+        return [] if ratio else [_margin_gap(first, second, cites, zh)]
     label = label_zh if zh else label_en
     operands = (
         f"{name_a}{label} {shown(a, data_a)}，{name_b} {shown(b, data_b)}"
@@ -398,6 +413,22 @@ _ASKS_COMPARISON = re.compile(
 )
 
 
+def _margin_gap(first: tuple, second: tuple, cites: str, zh: bool) -> str:
+    """Two net margins and their gap in percentage points, each margin with its net profit and revenue in the same
+    sentence (the verifier derives the margins and the gap from the four cited amounts)."""
+    parts = []
+    for name, margin, _eid, data in (first, second):
+        metrics = data.get("metrics") or {}
+        profit, revenue = _money(metrics.get("net_profit"), zh), _money(metrics.get("revenue"), zh)
+        parts.append(f"{name} {profit} {'÷' if zh else '/'} {revenue} ≈ {_num(margin)}%")
+    (name_a, a, _ea, _da), (name_b, b, _eb, _db) = first, second
+    gap = _num(round(abs(a - b), 2))
+    higher = name_a if a > b else name_b
+    if zh:
+        return f"净利率：{'，'.join(parts)}，两者相差 {gap} 个百分点（{higher}更高） {cites}。"
+    return f"Net margin: {', '.join(parts)}, a gap of {gap} percentage points ({higher} is higher) {cites}."
+
+
 def _comparison_verdict(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
     """One sentence saying which cited value is higher, for the metric the comparison names first: "市净率：中国平安
     1.1 倍 低于 五粮液 5.4 倍"; three or more targets are ordered from highest to lowest. A comparison that names no
@@ -410,6 +441,8 @@ def _comparison_verdict(query: str, tool_log: list[dict[str, Any]], zh: bool) ->
     if not named:
         return []
     _position, key, label_zh, label_en = min(named)
+    if key == "net_margin":
+        return []  # the margins are ranked in words next to their derivation (``_margin_ranking``)
     companies, industry = _arithmetic_operands(tool_log, key, zh)
     operands = list(companies)
     if len(operands) == 1 and industry is not None and _ASKS_INDUSTRY.search(query):
