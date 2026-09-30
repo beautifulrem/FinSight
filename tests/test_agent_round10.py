@@ -3,6 +3,9 @@ probe; ``tests/test_agent_eval.py`` checks the dev tasks and router labels for t
 
 * F3: a ledger headline that states a figure in Chinese numerals ("百分之三十五"), a delimited data row, or a title cut
   off right after a figure word is hidden like a headline with an unconfirmed Arabic figure.
+* F4: a gap asked two turns after its metric keeps the metric; "谁更低" joins the comparison it follows; "两个比…"
+  keeps both single-target turns; a bare gap question in a finance session is never refused as off-topic.
+* F10: a comparison that names a metric says which value is higher.
 """
 
 from __future__ import annotations
@@ -70,3 +73,108 @@ def test_a_headline_with_a_chinese_numeral_figure_is_hidden_unless_confirmed():
     assert _source_view(confirmed, numbers=numbers)["title"] == confirmed["title"]
     hidden = _source_view(unconfirmed, numbers=numbers)
     assert hidden["title"] is None and hidden["title_withheld"]
+
+
+# ---- F4: difference and comparison follow-ups keep the metric and both targets ----
+
+
+@pytest.fixture(scope="module")
+def agent(offline_service):
+    from query_intelligence.agent.graph import AgentRuntime
+    from query_intelligence.agent.llm import ScriptedLLM
+    from query_intelligence.agent.service import AgentService
+    from query_intelligence.agent.tools.defaults import build_registry_for_service
+
+    runtime = AgentRuntime(offline_service, build_registry_for_service(offline_service), ScriptedLLM([]))
+    service = AgentService(runtime, trace_sinks=[])
+    yield service
+    runtime.close()
+
+
+def _session(agent, name: str, *queries: str) -> list[dict]:
+    return [agent.chat(query, session_id=f"r10-{name}") for query in queries]
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("谁更高呢", True),
+        ("它们中哪个更便宜", True),
+        ("两者谁低一些", True),
+        ("Which one is lower?", True),
+        ("谁更值得买", False),
+        ("哪个行业更好", False),
+        ("五粮液和茅台谁更高", False),
+    ],
+)
+def test_comparative_follow_ups_are_recognised(query, expected):
+    from query_intelligence.agent.memory import is_comparative_follow_up
+
+    assert is_comparative_follow_up(query) is expected
+
+
+@pytest.mark.parametrize(
+    ("query", "plural"),
+    [
+        ("两个比谁涨得多", True),
+        ("两个里哪个成交额大", True),
+        ("两个ETF谁更贵", True),
+        ("最近两个月涨了多少", False),
+        ("高了两个百分点", False),
+        ("第两个是什么", False),
+    ],
+)
+def test_a_bare_two_is_a_plural_reference_only_when_compared(query, plural):
+    from query_intelligence.agent.memory import has_plural_reference
+
+    assert has_plural_reference(query) is plural
+
+
+def test_a_gap_two_turns_after_the_metric_keeps_the_metric(agent):
+    *_, gap = _session(agent, "metric-carry", "五粮液市盈率是多少", "那行业平均呢", "高了多少")
+    assert any(reason.startswith("difference_follow_up:五粮液+aspect->市盈率") for reason in gap["route_reasons"])
+    assert "两者相差 6.4" in gap["answer"]
+
+
+def test_an_english_gap_two_turns_after_the_metric_keeps_the_metric(agent):
+    *_, gap = _session(agent, "metric-carry-en", "What is Moutai's P/E?", "and the sector average?", "what's the gap?")
+    assert "a difference of 2.7" in gap["answer"]
+
+
+def test_which_is_lower_then_by_how_much_after_a_two_target_turn(agent):
+    _first, which, gap = _session(agent, "which-lower", "中国平安和五粮液的市净率各是多少", "谁更低呢", "低了多少")
+    assert any(reason.startswith("comparison_follow_up:") for reason in which["route_reasons"])
+    assert "市净率：中国平安 1.1 倍 低于 五粮液 5.4 倍" in which["answer"]
+    assert "两者相差 4.3" in gap["answer"]
+
+
+def test_two_compared_after_two_single_target_turns_keeps_both_and_a_gap_is_never_off_topic(agent):
+    *_, both, gap = _session(agent, "two-etfs", "看下沪深300ETF", "那证券ETF呢", "两个比最近一天谁跌得多", "差了多少呢")
+    assert "coreference:两个->沪深300ETF和证券ETF" in both["route_reasons"]
+    assert {"510300.SH", "512880.SH"} <= {call["arguments"].get("target") for call in both["tool_calls"]}
+    assert "高于 证券ETF 0.59%" in both["answer"]
+    assert gap["route"] != "refuse"
+    assert any(reason.startswith("difference_follow_up:") for reason in gap["route_reasons"])
+
+
+@pytest.mark.parametrize("follow_up", ["那差了多少呢", "相差几个点", "谁更高呢"])
+def test_an_unresolvable_gap_in_a_finance_session_is_never_refused(agent, follow_up):
+    _first, gap = _session(agent, f"gap-unresolved-{follow_up}", "五粮液PE多少", follow_up)
+    assert gap.get("route") != "refuse" and "不在 FinSight 的服务范围内" not in str(gap.get("answer") or "")
+
+
+# ---- F10: a comparison says which value is higher ----
+
+
+def test_a_comparison_states_which_value_is_higher(agent):
+    result = agent.chat("比较一下中国平安和五粮液的市盈率", session_id="r10-compare-pe")
+    assert "市盈率：中国平安 8.7 倍 低于 五粮液 20.9 倍" in result["answer"]
+    english = agent.chat("Compare Wuliangye and Moutai on P/E", session_id="r10-compare-pe-en")
+    assert "is lower than" in english["answer"] or "is higher than" in english["answer"]
+
+
+def test_a_comparison_without_a_metric_gets_no_verdict():
+    from query_intelligence.agent.composer import _comparison_verdict
+
+    assert _comparison_verdict("茅台和五粮液谁更好", [], zh=True) == []
+
