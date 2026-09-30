@@ -176,6 +176,20 @@ flowchart LR
 `search_knowledge`；Agent 用 `explain_concept`（人工整理的术语表，并注明「没有数据序列」）回答。评分器没有改成把
 `explain_concept` 算作知识检索：看过这个集之后再改，只会抬高留出集的数字。这几轮作为剩余失败如实报告。
 
+### 第 8 轮新增的规则（第 4 轮评审，D5–D8）
+
+依据第 4 轮评审的探针（`round4.md` 第 4、7 节）编写。每一类都有新写的自有 dev 任务（`build_tasks._round8_tasks`，15 个）、
+路由标注（`route_319`–`route_331`）、别名回归行和单元测试（`tests/test_agent_round8.py`）；另有测试检查它们没有照抄或近似照抄
+评审探针、留出集文本、独立路由集或测试集。红队（`redteam.py`）只有文档投毒攻击，没有用户输入攻击集，所以合理估值类说法加进了 dev 任务。
+
+| 情形 | 例子（自写说法） | 行为 | 原因码 / 位置 |
+|---|---|---|---|
+| 合理估值 /「值多少钱」（D5） | 「按基本面算，五粮液一股合理价格该是多少」「贵州茅台的内在价值能估一下吗」「What would you say Ping An is worth per share?」 | 视为判断：走 agent 路由，加条件性前缀，再说明「FinSight 不给出合理估值：下文的价格、PE、PB 和行业对比是市场数据和估值参考，不是对合理价值的判断。」，并加局限说明「证据中没有可据以确定合理估值的估值模型或一致预期」。把某个数字当作合理估值的句子（「合理估值约为1500元」「intrinsic value is about 1320」「worth about CNY 120」）像目标价一样删除。市值、净值和普通价格问题（「市值多少钱」「净值多少钱」「多少钱一股」）不算 | `lexical:judgment_or_timing`（`router.FAIR_VALUE_MARKERS`），备注 `conditional_prefix`、`fair_value_hedge`、`removed_trading_instruction` |
+| 加密货币 ETF 和基金（D6） | 「比特币ETF这个月走得怎么样」「以太坊基金值得入手吗」「Should I put money into a Bitcoin ETF?」 | 按不在覆盖范围拒答。NLU 不再把「币ETF」当作「酒ETF」的错别字：模糊窗口如果把混合别名的中文部分整个换掉，就是另一个名字（「黄今ETF」仍识别为黄金ETF）。问题涉及加密或海外资产时，只有问题自己点名的标的才算：模糊猜测和恰好是公司别名的建议用语（值得买）都会被去掉 | `coverage:crypto`、`dropped_unnamed_target_out_of_coverage:<名称>` |
+| 简称「平安」（D6） | 「平安的不良贷款率高不高」→ 平安银行；「平安的赔付率怎么样」→ 中国平安；「平安的市净率眼下几倍」→ 中国平安并附说明 | 统一规则，按顺序：(1) 问题中其他位置的行业用语（保险：保费、寿险、赔付、insurer 等；银行：不良、存款、贷款、息差、bank 等；先屏蔽招商银行等其他名称）；(2) 会话中正在讨论的标的；(3) 别名表的默认值（别名第 17 行「平安 → 平安银行」优先级改为 4，所以「平安」默认指中国平安），并在答案中说明：「「平安」也可能指平安银行；本次按中国平安回答，如指平安银行请说明。」第 (3) 步没有改为先澄清：dev、保留集和 test_v2 都期望把单独的「平安」按中国平安回答。运行时别名表中只有这一个别名跨两个行业 | NLU 匹配类型 `linked_context` / `linked_default`；`alias_context:平安->…`、`session_disambiguation:平安->…`、`alias_default:平安->中国平安\|平安银行`，备注 `alias_assumption_stated` |
+| 净利率、PEG、年初至今（D7） | 「按最新年报，五粮液的净利率是几成」「Compare the net profit margins of Moutai and Wuliangye」「五粮液的PEG能算出来吗」「创业板ETF今年以来的累计涨幅」 | 净利率 = 净利润 ÷ 营业收入，取自所引基本面，算式写在同一句（「823.2 亿元 ÷ 1688.38 亿元 ≈ 48.76%」）；多个标的用文字排序。PEG = 市盈率 ÷ 净利润增速，数据源给出增速时计算（实时源的 `netprofit_yoy`），否则说明「无法计算…的PEG：PEG 等于市盈率除以净利润增速，当前数据没有净利润增速」。年初至今：`get_price_history` 只有在历史数据还含上一年的收盘价（从而能确定今年第一条就是首个交易日）时才给出 `year_start`，此时写出两个收盘价和涨跌幅；否则说明「当前数据中没有…今年首个交易日的收盘价，无法计算今年以来的涨跌幅」（离线数据只有一两条收盘价，总是这种情况）。校验器把以百分数表示的比值算作可推导数字，模板答案在校验时允许推导数字 | `coverage.METRICS`（`net_margin`、`peg`）、`coverage.year_to_date_gaps`、`composer._derived_metrics`、`tools/market.year_start_close` |
+| 因果提示只用于因果问题（D8） | 「创业板ETF近期走势如何」「市场上有哪些黄金ETF」（不加提示）；「五粮液前几天为啥跌」（保留提示） | 问题风格分类器会把一些事实和列举问题标成 `why`。只有问题本身或补全后的问题含因果或影响用语（为什么、原因、怎么跌了、影响、说明了什么、why、what drove、affect 等）时才保留 why 风格；否则改为 `fact`，模板不再追加「不能据此确定单一原因」，合规层不再加「现有证据不足以把结果归因于单一原因」的前缀，规划器也不为它检索新闻 | `override:why_style_without_causal_cue`（`router.correct_question_style`） |
+
 ### 会话记忆卡片
 
 `session_memory(turns, query)` 生成一张抽取式的小卡片，以「Session memory (from earlier turns)」的形式放进 Agent 的用户消息。卡片包含：
@@ -336,6 +350,15 @@ python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluatio
 python -m evaluation.agent_eval.results outputs/agent_eval/mt4.json --name multiturn_r4_heldout-after-exposure --note "after exposure"
 ```
 
+**第 8 轮：第 4 轮评审的 D5–D8（自写例子，离线，无 LLM）。** [第 8 轮新增的规则](#第-8-轮新增的规则第-4-轮评审d5d8)依据评审探针编写，
+新的 dev 任务和路由标注都是自写说法，所以这些数字只说明这些类别已被覆盖，不能证明泛化。dev 门禁 295 → 310 个任务，任务成功率
+**1.000**（基线在 c4064d1 上刷新，ba151a2 上不变）；保留集门禁 **0.9434**、对冲率 0.7273，均不变，工具精确率 0.7908 → 0.8227
+（被分类器标成「why」的事实问题不再检索新闻；`evaluation/results/gate-holdout.json`）；自有路由标注 332 条 **1.000**
+（`evaluation/results/router_eval-round8-own.json`）；multiturn_v1 回放任务与轮次成功率 **1.000**，不变
+（`evaluation/results/multiturn_v1-auto-nollm-round8.json`）；离线红队在全部六个攻击集上攻击成功率 0.0、无崩溃
+（`evaluation/results/redteam-offline-r8.json`）。ba151a2 上的校验器压力测试（232 个金标答案、3,724 个变体）：逐句模式误放率
+0.0196，允许推导模式 0.0204（不含净利率规则时为 0.0201；若任意 a / b × 100 都算推导会升到 0.0282，所以该规则只用于两个金额）。
+
 **独立路由标注（`router_labels_independent_v1`，154 条问题）。** 编写者只依据策略文字、没有阅读路由代码（见 `evaluation/agent_eval/tasks/README_test_v3.md`）。在 882745d 上第一次运行为 **0.740**，而同一份代码在项目自己的标注上是 0.988（`evaluation/results/router_eval-independent_v1-first-run.json`）。40 个错误都是规则缺口而不是标注噪声：没有标的的建议和推荐被直接回答或拒答，定义问题被要求澄清，「分别」和预测风格把查数问题变成复杂问题，说法和作者自己的例子不同的判断、宏观传导和分析请求都进了 workflow。第 4 轮规则（见[路由策略](#路由策略)）是在先往 `router_labels_v1.jsonl` 加入 99 条新写的例子（`route_162`–`route_260`，当时有 60 条判错）之后，针对这些类别编写的。规则冻结后又写了 42 条探针问题，第一次运行为 **0.905**（改动前的路由为 0.452）；随后修了其中 4 个错误，并作为 `route_261`–`route_302` 加入。在 075caad 上：自有标注 303 条为 1.000（`evaluation/results/router_eval-round4-own.json`），独立标注为 **1.000（曝光后）**（`evaluation/results/router_eval-round4-independent-after-exposure.json`）。后一个数字说明这些错误类别已被覆盖，不能证明泛化；独立测量仍以 0.740 为准。门禁（dev 1.000、保留集 0.925）和 multiturn_v1 回放（1.000）没有变化。
 
 ```bash
@@ -363,6 +386,9 @@ python -m pytest -q tests/test_web_ui.py      # 通过 Playwright 驱动无头 C
 - **英文拼写纠错**只覆盖上市证券的英文别名，且别名中至少有一个 6 个字母以上的词；「BYD」「Gree」「CATL」的拼写错误不纠正。
   保持的回答语言存在会话的轮次记录里，会话结束即失效。
 - **持仓与资金流向问题**靠人工编写的投资者群体词和流向词识别；其他说法会得到普通回答，没有「无持仓数据」的说明。
+- **合理估值、因果和年初至今问题靠词表识别**（第 8 轮）：不含所列用语的合理估值问题会得到价格和估值倍数，只有含其他判断用语时才加条件性说明。
+  「平安」规则只用了简短的保险和银行用语表；没有这些用语、会话中也没有标的时，按中国平安回答并注明，而不是先澄清。年初至今涨跌幅需要数据源的
+  历史数据覆盖到上一年，离线快照永远达不到；PEG 需要数据源给出净利润增速，只有实时数据源有。
 - **追问补全基于规则**：覆盖代词、复数、序数和群组指代、短的省略问法、单独的「为什么」追问，以及带金融线索词的短追问；更长的转述（「回到刚才那只股票…」）和有歧义的指代会触发澄清而不是猜测。线索词表和离题任务词表是手写的：不含这些词的离题任务仍会被回答，不含线索词的无标的追问仍按原来的方式澄清或拒答。
 - **路由基于经典 NLU 之上的词汇规则**：第 4 轮的标记类别（判断、预测、分析、关系、市场标的、改变系统的指令）比作者自己的说法覆盖更广，但不属于任何类别的问题仍会进 workflow；由他人编写的集合只测过一个，而且是在修复它的错误之前测的（0.740）。
 - **英文别名覆盖有限**：包括第二轮加入的主要 A 股英文名，第 3b 轮加入的「CSI 300 index」「10-year CGB yield」「baijiu」「insurers」（`data/synonym_dict.json` 和别名表），以及 `data/runtime/alias_table.csv` 中已有的条目。以「Did the whole baijiu sector fall too?」开场的对话现在按查数路由（行业算作市场标的），但 NLU 在识别出行业之前就拒识了它，规划器拿不到行业实体；在讨论白酒股的对话中则会用行业快照回答。
