@@ -2,6 +2,8 @@
 
 This page reports how the agent layer (`query_intelligence/agent/`) performs end to end, how the numbers were produced, how uncertain they are, and what they do **not** show. Every number in the generated section comes from a committed file in [`evaluation/results/`](../evaluation/results/), which records the commit, prompts, date and command of its run; the provenance table at the end of the block lists them all.
 
+Everything on this page is scored by code. The measurements that need a person (labels on 100 FinSight answers compared with the automatic scores, a head-to-head against 问财 / 豆包 / Kimi on 30 frozen questions, real claims collected from research notes and social media, and a small user study) have their own kit in [`evaluation/human/`](../evaluation/human/README.md), with one scoring command per input; no human input has been collected yet.
+
 ## What is measured
 
 | Item | Where |
