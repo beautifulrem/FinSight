@@ -341,4 +341,4 @@
 {"id": "route_340", "query": "贵州茅台的净利润在营收中占比多大", "expected_route": "workflow", "note": "round9: net margin phrased as a share of revenue; a lookup (E8)"}
 {"id": "route_341", "query": "中国平安眼下的市销率", "expected_route": "workflow", "note": "round9: P/S stated as not computable; a lookup (E8)"}
 {"id": "route_342", "query": "What was Wuliangye's maximum drawdown over the past year?", "expected_route": "workflow", "note": "round9: drawdown stated as not computable (E8, en)"}
-{"id": "route_343", "query": "五粮液和贵州茅台的营业收入差了多少亿", "expected_route": "workflow", "note": "round9: a difference of two cited values; a lookup (E5/E8)"}
+{"id": "route_343", "query": "五粮液和贵州茅台的营业收入差了多少亿", "expected_route": "agent", "note": "round9: a difference of two targets' values; two targets go to the agent (E5/E8)"}
