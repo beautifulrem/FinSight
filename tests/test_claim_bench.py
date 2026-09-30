@@ -78,3 +78,16 @@ def test_claim_files_are_well_formed_and_the_holdout_is_unchanged():
     recorded = re.search(r"([0-9a-f]{64})\s+claims_v1_holdout\.jsonl", (BENCH_DIR / "README.md").read_text())
     assert recorded is not None
     assert hashlib.sha256(SETS["holdout"].read_bytes()).hexdigest() == recorded.group(1)
+
+
+def test_ci_floors_fail_only_below_the_committed_accuracy():
+    from evaluation.claim_bench.run import regressions
+
+    at_head = {"verdict_accuracy": 0.9787, "check_accuracy": 0.9815}  # 46/47 verdicts, 53/54 checks
+    assert regressions(at_head, verdict_floor=0.978, check_floor=0.98) == []
+    one_more_error = {"verdict_accuracy": 0.9574, "check_accuracy": 0.963}
+    assert regressions(one_more_error, verdict_floor=0.978, check_floor=0.98) == [
+        "verdict accuracy 0.9574 < 0.978",
+        "check accuracy 0.963 < 0.98",
+    ]
+    assert regressions(one_more_error, verdict_floor=None, check_floor=None) == []

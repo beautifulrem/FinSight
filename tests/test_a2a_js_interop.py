@@ -3,12 +3,14 @@
 ``tools/a2a-js-client/interop.mjs`` runs discovery, SendMessage, GetTask, input-required + reply,
 SendStreamingMessage, SubscribeToTask (running and finished tasks) and CancelTask (running and finished
 tasks) against a real HTTP server: the FastAPI app with the stub agent, served by uvicorn on a free port.
-Skipped when ``node`` or ``tools/a2a-js-client/node_modules`` is missing (``cd tools/a2a-js-client && npm ci``).
+Skipped when ``node`` or ``tools/a2a-js-client/node_modules`` is missing (``cd tools/a2a-js-client && npm ci``),
+except under ``CI=true``: the CI tests job installs the client, so a missing install fails instead of skipping.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import socket
 import subprocess
@@ -25,14 +27,25 @@ from agent_fakes import StubService, build_fake_registry
 from query_intelligence.agent.graph import AgentRuntime
 from query_intelligence.agent.service import AgentService
 from query_intelligence.api.app import create_app
+from query_intelligence.api.security import SecuritySettings
 
 CLIENT_DIR = Path(__file__).resolve().parents[1] / "tools" / "a2a-js-client"
+# The client authenticates with a key: since C3 an anonymous caller without the browser cookie gets a new identity
+# per request, so a key-less client could not GetTask / SubscribeToTask the task it created (TaskNotFound).
+API_KEY = "interop-test-key"
 NODE = shutil.which("node")
 
+_MISSING = NODE is None or not (CLIENT_DIR / "node_modules" / "@a2a-js" / "sdk").is_dir()
+_IN_CI = os.getenv("CI", "").strip().lower() in {"1", "true", "yes"}
 pytestmark = pytest.mark.skipif(
-    NODE is None or not (CLIENT_DIR / "node_modules" / "@a2a-js" / "sdk").is_dir(),
+    _MISSING and not _IN_CI,
     reason="node or tools/a2a-js-client/node_modules missing (run: cd tools/a2a-js-client && npm ci)",
 )
+
+
+def test_js_client_is_installed_in_ci():
+    """Under CI the interop run must not silently skip (the tests job runs ``npm ci`` in tools/a2a-js-client)."""
+    assert not _MISSING, "node or tools/a2a-js-client/node_modules missing; the CI tests job must run npm ci"
 
 
 class SlowAgentService(AgentService):
@@ -57,7 +70,12 @@ def server_url() -> Iterator[str]:
 
     stub = StubService()
     runtime = AgentRuntime(stub, build_fake_registry(), None, today=lambda: date(2026, 9, 24))
-    app = create_app(service=stub, app_config={"deepseek": {"api_key": ""}}, agent_service=SlowAgentService(runtime))
+    app = create_app(
+        service=stub,
+        app_config={"deepseek": {"api_key": ""}},
+        agent_service=SlowAgentService(runtime),
+        security=SecuritySettings(api_keys=(API_KEY,)),
+    )
     port = _free_port()
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", ws="none"))
     thread = threading.Thread(target=server.run, daemon=True)
@@ -75,7 +93,18 @@ def test_js_sdk_client_interoperates_with_finsight(server_url, tmp_path, monkeyp
     monkeypatch.setenv("QI_AGENT_TRACE_DIR", "off")
     summary_path = tmp_path / "summary.json"
     completed = subprocess.run(
-        [NODE, "interop.mjs", "--url", server_url, "--json", str(summary_path), "--settle-ms", "2500"],
+        [
+            NODE,
+            "interop.mjs",
+            "--url",
+            server_url,
+            "--api-key",
+            API_KEY,
+            "--json",
+            str(summary_path),
+            "--settle-ms",
+            "2500",
+        ],
         cwd=CLIENT_DIR,
         capture_output=True,
         text=True,

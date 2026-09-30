@@ -16,6 +16,9 @@ Reported:
 
     python -m evaluation.claim_bench.run --set dev
     python -m evaluation.claim_bench.run --set holdout   # once, at the end
+    # CI: fail on a regression below the committed accuracy (exit code 1), without touching evaluation/results/
+    python -m evaluation.claim_bench.run --set holdout --out outputs/claim_bench-holdout.json \
+        --fail-under-verdict 0.978 --fail-under-checks 0.98
 """
 
 from __future__ import annotations
@@ -169,6 +172,12 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument("--set", choices=sorted(SETS), default="dev")
     parser.add_argument("--claims", default=None, help="Claims file (overrides --set).")
     parser.add_argument("--out", default=None, help="Default: evaluation/results/claim_bench-<set>.json")
+    parser.add_argument(
+        "--fail-under-verdict", type=float, default=None, help="Exit 1 when verdict accuracy is below this (CI)."
+    )
+    parser.add_argument(
+        "--fail-under-checks", type=float, default=None, help="Exit 1 when per-check accuracy is below this (CI)."
+    )
     args = parser.parse_args(argv)
     path = Path(args.claims) if args.claims else SETS[args.set]
     rows = load_claims(path)
@@ -205,7 +214,22 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         print(f"{verdict:>20s} " + " ".join(f"{row[other]:12d}" for other in VERDICTS))
     for error in report["errors"]:
         print(f"  {error['id']} {error['expected_verdict']} -> {error['verdict']}  {error['claim']}")
+    failures = regressions(report, verdict_floor=args.fail_under_verdict, check_floor=args.fail_under_checks)
+    for failure in failures:
+        print(f"REGRESSION: {failure}")
+    if failures:
+        raise SystemExit(1)
     return report
+
+
+def regressions(report: dict[str, Any], *, verdict_floor: float | None, check_floor: float | None) -> list[str]:
+    """Accuracy below the given floors (the CI gate for the held-out claims)."""
+    failures = []
+    if verdict_floor is not None and report["verdict_accuracy"] < verdict_floor:
+        failures.append(f"verdict accuracy {report['verdict_accuracy']} < {verdict_floor}")
+    if check_floor is not None and report["check_accuracy"] < check_floor:
+        failures.append(f"check accuracy {report['check_accuracy']} < {check_floor}")
+    return failures
 
 
 if __name__ == "__main__":
