@@ -1085,7 +1085,8 @@ _STATED_AVERAGE_WORDS = re.compile(
     r"\b(?:the\s+)?(?:(?:[a-z]+|＠+)[- ])?(?:industry|sector|peers?)(?:'s)?\s+(?:average|median|mean)\b",
     re.I,
 )
-_AVERAGE_ALONE = re.compile(_AVERAGE_WORD)  # "…6.2倍的平均值": the average word on its own
+# "…6.2倍的平均值": the average word on its own ("均值科技" as a name is not an average)
+_AVERAGE_ALONE = re.compile(r"平均(?:值|水平|估值|数)?|(?<=的)均值|中位数")
 # The number after the phrase: "行业平均11.8倍", "行业均值为1.45倍", "行业平均水平（3倍）", "sector average of 3x".
 _AVERAGE_BEFORE_NUMBER = re.compile(r"\s*(?:的|为|是|约为?|在|of|at|:|：|\(|（)?\s*", re.I)
 # The phrase after the number: "3倍的行业平均水平", "35倍的平均估值" (the sector named before the number).
