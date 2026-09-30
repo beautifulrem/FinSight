@@ -79,6 +79,13 @@ def test_committed_label_csv_matches_meta_and_hides_the_automatic_score():
     assert all(not row[column] for row in rows for column in generate_answers.LABEL_COLUMNS)
     assert all(row["answer"].strip() and row["sources"].strip() for row in rows)
     assert Counter(row["path"] for row in meta) == {"deterministic": 50, "llm_agent": 50}
+    # round-6 review: no replay gaps, no evaluation wording shown to the labeller
+    assert generate_answers.check_rows(meta, rows) == []
+    generation = json.loads(generate_answers.GENERATION_PATH.read_text(encoding="utf-8"))
+    assert generation["tool_calls"]["replay_gaps"] == 0 and "snapshot_misses" not in generation
+    assert generation["llm_fallbacks"] == [] and generation["llm_stop_reason"] is None
+    assert generation["files"]["csv_sha256"] == common.sha256_file(generate_answers.CSV_PATH)
+    assert generation["files"]["meta_sha256"] == common.sha256_file(generate_answers.META_PATH)
 
 
 def test_eval_wording_check_flags_harness_terms_but_not_offline_provenance():

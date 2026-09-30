@@ -1,22 +1,19 @@
 {
  "config": {
-  "commit": "b3eb483",
-  "run_at": "2026-09-30T15:24:19+00:00",
-  "command": "python -m evaluation.human.generate_answers --llm deepseek --max-llm-requests 190",
+  "commit": "83ed11a",
+  "run_at": "2026-09-30T21:57:14+00:00",
+  "command": "python -m evaluation.human.generate_answers --llm deepseek --max-llm-requests 120 --force",
   "seed": 20260930,
   "pool": {
    "test_v3": "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
    "holdout": "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl"
   },
-  "snapshots": {
-   "test_v3": "evaluation/agent_eval/fixtures/snapshot_test_v3.json",
-   "holdout": "evaluation/agent_eval/fixtures/snapshot_holdout_v1.json"
-  },
+  "tools": "offline tools called directly (no replay snapshot, as runner --no-replay)",
   "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
   "eval_today": "2026-04-23",
   "model": "cline-pass/deepseek-v4.1-flash",
-  "max_llm_requests": 190,
-  "wall_seconds": 425.2
+  "max_llm_requests": 120,
+  "wall_seconds": 346.4
  },
  "answers": 100,
  "planned": {
@@ -30,24 +27,27 @@
  "llm_fallbacks": [],
  "llm_stop_reason": null,
  "llm_http": {
-  "requests": 66
+  "requests": 68
  },
- "llm_calls_recorded": 66,
- "snapshot_misses": {
-  "holdout": 0,
-  "test_v3": 0,
-  "test_v3-llm": 32,
-  "holdout-llm": 11
+ "llm_calls_recorded": 68,
+ "tool_calls": {
+  "total": 171,
+  "errors": 14,
+  "errors_by_code": {
+   "unavailable": 8,
+   "not_found": 6
+  },
+  "replay_gaps": 0
  },
+ "eval_wording_check": "passed: no answer or sources cell matches EVAL_LEAK_PATTERNS",
  "auto_task_success": {
   "deterministic": 0.84,
   "llm_agent": 0.9
  },
  "files": {
   "csv": "evaluation/human/labels/answers_to_label.csv",
-  "csv_sha256": "0f7f3f632fe91b33e1e980bea5686451cf503dff961b9be601046b6f843be46f",
+  "csv_sha256": "f314f1a4b5ebbec121b5ab757f0e01789332f259fb3bbbf39bab8109ac10088c",
   "meta": "evaluation/human/labels/answers_meta.jsonl",
-  "meta_sha256": "647da532039c955ca9cd58fd91710b1aec502d34736e5e9833ad32a90b0b1deb"
- },
- "note": "fallback_reason re-derived from the stored route/answer_source/degraded fields with generate_answers.fallback_reason after the run (the first version counted guard clarifications on the LLM path as fallbacks); answers and scores unchanged"
+  "meta_sha256": "232959e0f20ec17f259c387238aa35fc0aea9a3a7a89770070a9a7ad371f0826"
+ }
 }
