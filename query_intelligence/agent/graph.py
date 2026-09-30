@@ -1102,7 +1102,9 @@ class AgentRuntime:
             llm_draft = False
         # Output-side safety on every draft (LLM or template): document-sourced promotion, contact details and
         # trading calls become a neutral note; single-source regulatory claims and disputed figures are attributed.
-        draft, safety_notes = scrub_answer(draft, _store(state), zh=self._zh(state))
+        draft, safety_notes = scrub_answer(
+            draft, _store(state), zh=self._zh(state), corroborate=lambda: self._corroborating_numbers(state)
+        )
         fallback_notes.extend(safety_notes)
         limitations = list(draft.get("limitations") or [])
         if llm_draft:
@@ -1139,6 +1141,29 @@ class AgentRuntime:
             }
             notes = [*notes, "alias_assumption_stated"]
         return {"answer": answer, "compliance_notes": [*fallback_notes, *notes]}
+
+    def _corroborating_numbers(self, state: AgentState) -> list[tuple[float, bool]]:
+        """(round 10, F9) The structured fundamentals of the question's named stocks that the run did not fetch (a news
+        question), for the output layer's corroboration check only: they are not added to the run's evidence."""
+        from .evidence import _collect_numbers
+
+        fetched = {
+            str((item.get("payload") or {}).get("symbol") or "")
+            for item in (state.get("evidence") or {}).values()
+            if isinstance(item, dict) and item.get("produced_by") == "get_fundamentals"
+        }
+        symbols = [
+            str(entity["symbol"])
+            for entity in listed_entities(state.get("nlu") or {})
+            if entity.get("entity_type") == "stock" and str(entity["symbol"]) not in fetched
+        ][:3]
+        values: list[float] = []
+        for symbol in symbols:
+            result = self.registry.run("get_fundamentals", {"target": symbol})
+            for item in result.evidence if result.ok else []:
+                if item.kind == "structured":
+                    _collect_numbers(item.payload, values)
+        return [(value, False) for value in values]
 
     def finalize(self, state: AgentState) -> dict[str, Any]:
         from ..chatbot import DEFAULT_RISK_DISCLAIMER_EN, DEFAULT_RISK_DISCLAIMER_ZH
