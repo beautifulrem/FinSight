@@ -14,13 +14,13 @@
   },
   "repeats": 1,
   "prompts": {
-   "agent_system": "agent_system@v3#e419eb84d58e",
-   "compose_system": "compose_system@v3#b9a704272c6d"
+   "agent_system": "agent_system@v3#53fdebb2c184",
+   "compose_system": "compose_system@v3#df1dd3b28975"
   },
-  "commit": "d78a556",
-  "run_at": "2026-09-30T16:20:21+00:00",
+  "commit": "05a79b5",
+  "run_at": "2026-09-30T23:27:38+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 16.2,
+  "wall_seconds": 9.9,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out outputs/agent_eval/gate-holdout.json"
  },
  "summary": {
@@ -56,9 +56,9 @@
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 57.16,
-  "latency_ms_p95": 904.42,
-  "latency_ms_p99": 1137.24,
+  "latency_ms_p50": 39.49,
+  "latency_ms_p95": 474.01,
+  "latency_ms_p99": 525.32,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -86,59 +86,59 @@
   "clarify": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 731.39
+   "latency_ms_p95": 474.01
   },
   "compare": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 694.02
+   "latency_ms_p95": 525.32
   },
   "compliance": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 131.83
+   "latency_ms_p95": 83.49
   },
   "fact": {
    "tasks": 21,
    "task_success": 1.0,
-   "latency_ms_p95": 1104.33
+   "latency_ms_p95": 397.97
   },
   "macro_link": {
    "tasks": 3,
    "task_success": 0.3333,
-   "latency_ms_p95": 128.14
+   "latency_ms_p95": 178.13
   },
   "missing_data": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 558.54
+   "latency_ms_p95": 448.57
   },
   "multi_turn": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 205.4
+   "latency_ms_p95": 136.79
   },
   "out_of_scope": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 49.58
+   "latency_ms_p95": 30.26
   },
   "why": {
    "tasks": 4,
    "task_success": 0.75,
-   "latency_ms_p95": 101.66
+   "latency_ms_p95": 108.36
   }
  },
  "by_language": {
   "en": {
    "tasks": 15,
    "task_success": 0.8667,
-   "latency_ms_p95": 1137.24
+   "latency_ms_p95": 437.13
   },
   "zh": {
    "tasks": 38,
    "task_success": 0.9737,
-   "latency_ms_p95": 731.39
+   "latency_ms_p95": 474.01
   }
  },
  "failed_checks": {
@@ -247,8 +247,8 @@
  },
  "source": {
   "file": "outputs/agent_eval/gate-holdout.json",
-  "sha256_16": "75fa006f0e3640ce",
-  "bytes": 145321,
-  "slimmed_at": "2026-09-30T16:20:21+00:00"
+  "sha256_16": "c9be6baec05863c3",
+  "bytes": 145607,
+  "slimmed_at": "2026-09-30T23:27:38+00:00"
  }
 }
