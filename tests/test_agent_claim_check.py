@@ -543,9 +543,13 @@ def test_an_industry_average_named_before_a_number_is_its_subject():
 
 
 def test_an_industry_average_after_a_bound_is_the_other_side_of_the_comparison():
-    # "低于行业平均30倍": a bound on the company's own P/E, as before
-    (check,) = _check_all("茅台市盈率低于行业平均30倍").checks
-    assert (check.target, check.comparator, check.status) == ("贵州茅台", "lt", "supported")
+    # Round 9 (E1): "低于行业平均30倍" states the average (30) and a relation with it. Before, the 30 was a bound on
+    # the company's own P/E, so a made-up average passed; now the relation and the stated average are both checked.
+    report = _check_all("茅台市盈率低于行业平均30倍")
+    assert _rows(report) == [("pe_ttm", "lt", "supported"), ("pe_ttm", "eq", "contradicted")]
+    relation, average = report.checks
+    assert (relation.target, relation.reference, relation.reference_value) == ("贵州茅台", "白酒行业平均", 27.3)
+    assert (average.target, average.claimed, average.actual) == ("白酒行业平均", 30.0, 27.3)
 
     # "…，低于行业均值": a relation with the industry snapshot, checked next to the number
     report = _check_all("茅台市盈率24.6倍，低于行业均值")
@@ -608,3 +612,175 @@ def test_clauses_with_nothing_to_check_are_listed(claim, unchecked, checks):
     assert [part.text for part in report.unchecked] == unchecked
     assert len(report.checks) == checks
     assert all(part.reason == "no_claim" for part in report.unchecked)
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Round 9 (after the round-5 review and the exposure of the round-5 held-out slice): stated industry averages (E1),
+# partial coverage (E2), fractions and ratio phrasings, binding to the clause's own company (E9), derived and
+# computed values (E8, ETF daily change), one evidence entry per id (E14).
+# ---------------------------------------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("claim", "rows"),
+    [
+        # the average after the number ("10倍的行业平均水平") and in brackets after the phrase
+        ("茅台PB低于10倍的行业平均水平", [("pb", "lt", "contradicted"), ("pb", "eq", "contradicted")]),
+        ("茅台市净率高于行业平均水平（6.2倍）", [("pb", "gt", "supported"), ("pb", "eq", "supported")]),
+        ("茅台市盈率不到行业均值27.3倍", [("pe_ttm", "lt", "supported"), ("pe_ttm", "eq", "supported")]),
+        # "行业均值的27.3倍" is 27.3 times the average (a multiple), not the average itself
+        ("茅台市盈率不到行业均值的2倍", [("pe_ttm", "lt", "supported")]),
+        # a relation in the clause of the company's own number, and the stated average ("of 40x")
+        (
+            "Moutai's P/E of 24.6x is below the industry average of 40x",
+            [("pe_ttm", "eq", "supported"), ("pe_ttm", "lt", "supported"), ("pe_ttm", "eq", "contradicted")],
+        ),
+    ],
+)
+def test_a_stated_industry_average_is_checked_against_the_snapshot(claim, rows):
+    report = _check_all(claim, zh=not claim.isascii())
+
+    assert _rows(report) == rows
+    assert (
+        report.checks[-1].evidence_id == "industry_白酒" or report.checks[-1].reference_evidence_id == "industry_白酒"
+    )
+
+
+def test_a_relation_after_the_number_of_its_clause_is_checked():
+    # "Wuliangye's P/B of 3.9x is below Moutai's": before round 9 the relation was dropped because its clause states
+    # a number; the number and the relation are now two checks.
+    report = _check_all("五粮液市净率3.9倍低于茅台")
+
+    assert _rows(report) == [("pb", "eq", "supported"), ("pb", "lt", "supported")]
+    assert report.checks[1].reference == "贵州茅台"
+
+
+def test_vocabulary_words_are_not_company_mentions():
+    from query_intelligence.agent.claim_check import _vocabulary_mention
+
+    # "均值" is an alias of 武汉天源 in the alias table: inside "行业均值" it is not a company (E9)
+    assert _vocabulary_mention("茅台PB 8.1倍，高于行业均值4倍", "均值")
+    assert _vocabulary_mention("平安市盈率不到保险业均值11.8倍", "均值")
+    assert not _vocabulary_mention("均值科技市盈率30倍", "均值")
+    assert not _vocabulary_mention("茅台PB 8.1倍", "")
+
+
+def test_a_short_name_in_a_later_clause_binds_to_its_own_company():
+    # E9: "贵州茅台" is written in full once and as "茅台" later; the later number is 茅台's, not 五粮液's
+    report = _check_all("贵州茅台市盈率比五粮液高，茅台市净率8.1倍")
+
+    assert [(check.target, check.metric, check.status) for check in report.checks] == [
+        ("贵州茅台", "pe_ttm", "supported"),
+        ("贵州茅台", "pb", "supported"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("claim", "normalised"),
+    [
+        ("平安市盈率只有白酒行业平均的三分之一左右", "的0.3333倍左右"),
+        ("五粮液营收不到茅台的六成", "的0.6倍"),
+        ("五粮液营收是茅台的两成多", "的0.2倍多"),
+        ("Moutai's revenue is more than double Wuliangye's", "more than 2 times"),
+        ("Moutai grew at a double-digit pace", "double-digit"),  # not a multiple
+        ("三分之一的营收来自海外", "三分之一"),  # a share of its own, not "of another value"
+    ],
+)
+def test_fractions_and_multiples_are_normalised(claim, normalised):
+    assert normalised in normalise(claim)
+
+
+@pytest.mark.parametrize(
+    ("claim", "comparator", "claimed", "status"),
+    [
+        # fake revenue: Moutai 1741.2 亿, Wuliangye 890 亿 (ratio 1.956; the inverse 0.511)
+        ("茅台营收比五粮液的1.5倍还多", "gt", 1.5, "supported"),
+        ("茅台营收比五粮液的两倍还多", "gt", 2.0, "contradicted"),
+        ("茅台营收是五粮液的一倍有余", "gt", 1.0, "supported"),
+        ("五粮液营收不到茅台的六成", "lt", 0.6, "supported"),
+        ("五粮液营收是茅台的51%", "eq", 0.51, "supported"),
+    ],
+)
+def test_ratio_phrasings(claim, comparator, claimed, status):
+    (check,) = _check_all(claim, zh=not claim.isascii()).checks
+
+    assert (check.metric, check.comparator, check.claimed, check.status) == ("revenue", comparator, claimed, status)
+    assert check.ratio is not None and check.reference in {"五粮液", "贵州茅台"}
+
+
+def test_a_multiple_of_the_industry_average():
+    # "市盈率只有行业平均的一半": 24.6 / 27.3 = 0.90, not 0.5
+    (check,) = _check_all("茅台市盈率只有行业平均的一半").checks
+
+    assert (check.comparator, check.claimed, check.status) == ("eq", 0.5, "contradicted")
+    assert check.reference == "白酒行业平均" and check.ratio == pytest.approx(0.9011, abs=1e-3)
+
+
+@pytest.mark.parametrize(
+    ("claim", "coverage", "verdict"),
+    [
+        ("茅台市盈率24.6倍", "full", "supported"),
+        ("茅台市盈率24.6倍，ROE很高", "partial", "supported"),  # E2: the verdict is over checks, coverage says more
+        ("茅台市盈率24.6倍，茅台股息率3%", "partial", "partially_supported"),  # an unverifiable part
+        ("茅台是好公司", "none", "unverifiable"),
+    ],
+)
+def test_coverage_says_whether_every_part_was_checked(claim, coverage, verdict):
+    report = _check_all(claim)
+
+    assert (report.verdict, report.coverage) == (verdict, coverage)
+
+
+def test_evidence_sources_are_listed_once():
+    # E14: a relation with the industry and the industry average share one snapshot
+    report = _check_all("茅台市盈率24.6倍，低于行业均值")
+    ids = [source["evidence_id"] for source in report.evidence_sources]
+
+    assert len(ids) == len(set(ids)) and "industry_白酒" in ids
+
+
+def test_derived_values_carry_their_arithmetic():
+    from query_intelligence.agent.claim_check import _derived
+    from query_intelligence.agent.evidence import AgentEvidence
+
+    fundamentals = AgentEvidence(
+        evidence_id="fundamental_600519.SH",
+        kind="structured",
+        source_type="fundamental_sql",
+        payload={"revenue": 168838000000, "net_profit": 82320000000, "pe_ttm": 24.6},
+    )
+    (item, margin), note = _derived("net_margin", [fundamentals])
+    assert item is fundamentals and margin == pytest.approx(48.7568, abs=1e-3)
+    assert note.startswith("derived: net profit / revenue")
+    assert _derived("peg", [fundamentals]) == (None, "")  # no growth rate: not derivable
+
+    price = AgentEvidence(
+        evidence_id="price_510300.SH",
+        kind="structured",
+        source_type="market_api",
+        as_of="2026-04-22",
+        payload={
+            "close": 4.811,
+            "pct_change_1d": None,
+            "recent_closes": [{"date": "2026-04-21", "close": 4.776}, {"date": "2026-04-22", "close": 4.811}],
+        },
+    )
+    (_item, change), note = _derived("pct_change_1d", [price])
+    assert change == pytest.approx(0.7328, abs=1e-4)
+    assert note.startswith("computed from the last two closes: 4.776 (2026-04-21) → 4.811 (2026-04-22)")
+    stale = price.model_copy(update={"as_of": "2026-04-23"})
+    assert _derived("pct_change_1d", [stale]) == (None, "")  # the closes must end at the quoted day
+
+
+def test_metrics_the_sources_cannot_give_say_why():
+    report = _check_all("茅台市销率10倍，茅台PEG为1.5")
+
+    assert [(check.metric, check.reason) for check in report.checks] == [("ps", "no_data"), ("peg", "no_data")]
+    assert "price-to-sales" in report.checks[0].note and "growth rate" in report.checks[1].note
+
+
+def test_one_macro_series_against_another():
+    report = check_claim("M2增速高于CPI，CPI低于10年期国债收益率", service=StubService(), registry=_macro_registry())
+
+    assert [(c.metric, c.comparator, c.reference_value, c.status) for c in report.checks] == [
+        ("m2_yoy", "gt", 0.8, "supported"),
+        ("cpi_yoy", "lt", 2.31, "supported"),
+    ]

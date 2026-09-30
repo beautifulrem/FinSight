@@ -27,7 +27,8 @@ Each check contains:
 The report also lists `unchecked`: the clauses that name a target or a metric but have no number, move or
 comparison to check ("茅台市盈率24.6倍，ROE很高" → "ROE很高"), each with `text` and `reason: no_claim`. Every
 clause of a claim therefore ends up as a check or as a "未核查 / Not checked" row in the UI; nothing is dropped
-silently. The verdict is computed over `checks` only.
+silently. The verdict is computed over `checks` only; `coverage` (`full` / `partial` / `none`, round 9) says whether
+every part was checked, and the UI heads a supported claim with unchecked parts "Partly checked" (see Round 9).
 
 The overall `verdict` is:
 
@@ -233,8 +234,9 @@ previous number ("茅台和五粮液的市盈率，分别是24.6倍和20.9倍").
 **Industry average as the subject (D3).** An industry average named after the last target and before a number
 ("中国平安市盈率8.7倍，而行业平均11.8倍", "所属行业的平均水平约12倍", "the sector average is 1.45x") makes the number
 the industry's: it is checked against the target's industry snapshot (`target: 保险行业平均` / "insurance industry
-average", `evidence_id: industry_保险`, as-of the snapshot's trade date). After a bound it stays the company's
-bound: "市盈率低于行业平均11.8倍" checks the company's P/E below 11.8. "…，低于行业均值" (no number) is a relation
+average", `evidence_id: industry_保险`, as-of the snapshot's trade date). After a bound it was the company's
+bound until round 9 ("市盈率低于行业平均11.8倍" checked the company's P/E below 11.8); since round 9 it is a relation
+with the industry plus the stated average (see Round 9). "…，低于行业均值" (no number) is a relation
 with the industry snapshot.
 
 **Turnover (D4).** 成交额 / 成交金额 / 成交 (not 成交量 or 成交价) / turnover / traded value is the latest
@@ -249,6 +251,77 @@ turnover without an amount unit is `unit_mismatch`, and a reported 0 (index rows
 **Hearsay prose.** The chat answer to a hearsay question now opens with the verdict and, per check, the claimed
 number next to the data's value ("**核查结论：你听到的说法与数据不符。**“贵州茅台市盈率15倍”不符，数据为 24.6倍，截至
 2025-12-31。"), built from the same report as the card (see Hearsay in the chat).
+
+### Round 9: stated industry averages, partial coverage, fractions and ratios, own-clause binding (after the round-5 review)
+
+These rules answer the round-5 review's E1, E2, E8 (claim side), E9 and E14, and the failure classes of the independent
+round-5 slice (`evaluation/heldout_r5/`), which was run once at `f01097a` (0.821) before any of them. They were written
+with 21 new dev claims (d225-d245, `note: round9`); the round-5 slice is exposed for them, and every later number on it
+is labelled "after exposure".
+
+**A stated industry average is checked (E1).** When the other side of a bound is an industry average *with its number*,
+the claim states two facts: the company is below (above) the industry, and the industry average is that number. Both
+are checked:
+
+| Claim | Checks |
+| --- | --- |
+| 中国平安PB 1.1倍，低于3倍的行业平均水平 | P/B 1.1 (supported); 平安 P/B `lt` 保险 industry 1.45 (supported); 保险 industry average `eq` 3 (contradicted, 1.45) → partially supported |
+| 五粮液PE低于白酒行业35倍的平均估值 | 五粮液 P/E `lt` 白酒 27.3 (supported); 白酒 `eq` 35 (contradicted) |
+| 平安8.7倍的市盈率不到保险业均值11.8倍 | 8.7 (supported); `lt` 11.8 (supported); 保险 `eq` 11.8 (supported) |
+| below the sector average of 3x / under the baijiu industry average of 30x | the same two checks |
+
+The number may stand before the phrase ("3倍的行业平均水平", "35倍的平均估值"), after it ("行业平均11.8倍", "保险业均值11.8倍",
+"sector average of 3x") or in brackets ("行业平均水平（3倍）"). Before round 9 the number was a bound on the company's own
+value ("P/B < 3"), so a made-up average passed. A multiple of the average is still a multiple: "行业均值的2倍" is twice
+the average, and "只有行业平均的一半" is checked as a ratio against the snapshot.
+
+**A relation after the number of its own clause is checked.** "Ping An's P/B of 1.1x is below the insurance-sector
+average" and "五粮液市净率3.9倍低于茅台" are the number and the relation (two checks); before, the relation was dropped
+because its clause stated a number. When a number stands on the compared side ("24.6倍比五粮液的20.9倍高"), the
+clause is still read as its numbers.
+
+**Partial coverage (E2).** The report carries `coverage`:
+
+| `coverage` | When |
+| --- | --- |
+| `full` | every part of the claim was checked and every check decided (supported or contradicted) |
+| `partial` | some part is in `unchecked`, or some check is unverifiable, and at least one check decided |
+| `none` | no check decided |
+
+The `verdict` is unchanged (over checks only), so the benchmarks keep their meaning. The UI and the inline chat verdict
+use `coverage`: a supported verdict with partial coverage is headed **部分核查 / Partly checked** ("已核查的数字与数据源一致，
+但说法中还有部分内容没有核查" / "The numbers that were checked match the data, but parts of the claim were not checked"),
+with its own icon and tone, never "数字相符 · 说法中的数字都与数据源一致". The chat opening says "你听到的说法只核查了一部分：
+已核查的数字与数据相符". `data-verdict` on the badge keeps the server's verdict and `data-headline` holds the headline.
+
+**Fractions, shares and ratio phrasings.** A share *of another value* is a multiple: "的三分之一" → 0.3333, "的三分之二",
+"的六成" / "的四成" → 0.6 / 0.4, "是茅台的64%" → 0.64, "的一半" → 0.5. "比五粮液的1.5倍还多/还高" is `gt` 1.5 and
+"…还少/还低" `lt` (with 比, only when 还/更 is written or the metric is not itself a multiple: "市盈率24.6倍比五粮液的15.2倍高"
+compares two P/Es). "两倍有余", "七倍有余" are `gt` like "三倍多". "more than double / triple Wuliangye's" is `gt` 2 / 3.
+"三分之一的营收来自…" (no "的" before it) is not a multiple.
+
+**Binding to the clause's own company (E9).** The NLU matches some vocabulary words to listed companies through the alias
+table ("均值" is an alias of 武汉天源). An entity whose every mention lies inside an industry or market reference, an average
+word ("平均值", "的均值", "中位数") or a metric word is not a target, so "茅台PB 8.1倍，高于行业均值4倍" checks 白酒's
+industry P/B (6.2), not 武汉天源. A short name written after the full name in another clause ("…中国平安…，平安ROE 15.2%")
+binds to its company (suffixes only, so "中国" is never 中国平安), and the longest names are placed first.
+
+**Derived and unavailable metrics (E8, same vocabulary as the chat).** 净赚, 赚的钱, 一年赚 are net profit. Net margin
+(净利率, 净利润率, 销售净利率) is derived as net profit / revenue when the source reports both (the chat's
+`coverage.METRICS["net_margin"].derivable_from`), with the arithmetic in the note: "茅台净利率接近50%" → 48.76% (supported).
+PEG is derived as P/E / net-profit growth when a growth rate exists; otherwise, like 市销率 (P/S), 最大回撤 (max drawdown)
+and market cap, the check is unverifiable (`no_data`) with a note that says why, not "metric not recognised".
+
+**A fund's computed daily change.** When the source leaves `pct_change_1d` empty (510300 offline) and the last two closes
+end at the quoted day, the change is computed from them and the note says so: "computed from the last two closes: 4.776
+(2026-04-21) → 4.811 (2026-04-22); the source reports no daily change". The chat template states it the same way
+("按前一交易日收盘 4.776 元 计算的当日涨跌幅约 0.73%（数据源未提供涨跌幅）"), with both closes in the sentence so the verifier
+accepts the derived percent.
+
+**More.** One macro series against another ("M2增速高于CPI", "CPI低于10年期国债收益率") compares the latest readings. 高过 /
+大过 / 强过 / 胜过 are relation words; "更活跃" compares turnover; "表现强于/弱于" with no metric compares daily moves.
+English sector names may be hyphenated ("insurance-sector"). `evidence_sources` lists each evidence id once (E14), and
+a sector in an English report reads "baijiu industry".
 
 ### Macro values (C13)
 
@@ -268,7 +341,7 @@ period (`as_of_basis: indicator_date`).
 | --- | --- |
 | `no_target` | no listed company, fund or index is recognised |
 | `no_metric` | the number cannot be tied to a metric |
-| `no_data` | the source has no value for the target and metric (a company outside the offline snapshot, an ETF with no daily change, index P/E, index turnover reported as 0, dividend yield, market cap) |
+| `no_data` | the source has no value for the target and metric (a company outside the offline snapshot, an ETF with no daily change and no two closes ending at its quote date, index P/E, price-to-sales, max drawdown, PEG without a growth rate, index turnover reported as 0, dividend yield, market cap) |
 | `growth_unavailable` | a YoY growth claim, but the fundamentals payload has no YoY field |
 | `unit_mismatch` | the unit does not fit the metric |
 | `no_unit` | an amount with no unit |
@@ -386,11 +459,17 @@ python -m evaluation.claim_bench.run --set holdout
 | dev with the 31 round-5 rows (d174-d204) | `c731dba` | 204 / 214 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 | dev with the 20 round-8 rows (d205-d224; d082 relabelled) | `b04f364` | 224 / 245 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 | held-out, **after exposure** (round 8: h038's class, industry averages, fixed) | `b04f364` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| **independent round-5 slice, first run** | `f01097a` | 56 / 86 | **0.821 [0.71, 0.91]** | **0.814 [0.72, 0.90]** | 0.835 |
+| dev with the 21 round-9 rows (d225-d245; d102 relabelled) | `2be73d6` | 245 / 277 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the round-9 commit | `2be73d6` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-4 slice, after exposure, at the round-9 commit | `2be73d6` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
+| independent round-5 slice, **after exposure** (round 9) | `2be73d6` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
 
 The result files are `evaluation/results/claim_bench-dev-baseline.json`, `claim_bench-dev.json`,
 `claim_bench-holdout.json` (the single first run), `claim_bench-holdout-after-round8.json` (the same file after
-exposure, at the round-8 commit), `claim_bench-heldout_r4-first-run.json` and `claim_bench-heldout_r4-after-exposure.json`.
-Each records the commit, the command and the sha256 of the claims file.
+exposure, at the round-8 commit), `claim_bench-heldout_r4-first-run.json`, `claim_bench-heldout_r4-after-exposure.json`, and for round 9
+`claim_bench-holdout-after-round9.json`, `claim_bench-heldout_r4-after-round9.json`, `claim_bench-heldout_r5-first-run.json`
+and `claim_bench-heldout_r5-after-exposure.json`. Each records the commit, the command and the sha256 of the claims file.
 
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \
@@ -421,6 +500,17 @@ python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves
     a move on the signed change ("跌超1%" as `le` −1, "跌了不到1%" as `range`), this checker on the size of the
     move with a direction (`gt` 1 down, `lt` 1 down), and the slice treats "跌超" as non-strict. The statuses
     agree.
+- **The round-5 slice (a separate author, committed before its run) is exposed too.** Its first run at `f01097a`
+  (0.821 [0.71, 0.91], n = 56) is the honest number for the checker before round 9; the failures were stated
+  industry averages (industry_average 0.727), ratio phrasings ("1.5倍还多", "两倍有余", "六成", "more than double":
+  ratio 0.6), a relation after its clause's number, "更活跃", a number bound to the wrong company ("平安ROE" after
+  "中国平安"; "均值" read as 武汉天源) and the ETF daily change it labels derivable from the closes. Round 9 fixed these
+  classes with new own dev rows, so its 1.000 after exposure shows the classes are covered, not that the checker
+  generalises; a new slice is needed for an honest estimate. Its check accuracy is 0.988 because r5c049 (market cap)
+  gets an unverifiable check the slice does not expect; comparator accuracy 0.929 is six checks whose status agrees but whose comparator does
+  not: "两倍多", "两倍有余", "7倍多" read as `gt` N (the slice writes `range` [N, N+1)), "10倍以上" as `ge` (slice `gt`),
+  "是茅台的三倍" as `eq` (slice `approx`), and "turnover topped CNY 2 billion" as `eq`, a real miss: "topped" is not yet a
+  comparator word (the status is right only because 14.53亿 is not 20亿 either way).
 - **Both sets use the same offline snapshot, companies and author.** The snapshot covers 3 stocks, 3
   ETFs and 1 index. The claims are the project author's paraphrases of common broker and social-media
   phrasings, not a sample of real posts, so accuracy on real traffic will be lower.
@@ -439,7 +529,8 @@ python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves
 - **Dates.** Only explicit month-day dates are compared with the trade date; 昨天 / 今天 are not resolved against
   the snapshot date.
 - **Chinese numerals.** Only simple ones before a unit are handled: 十五倍, 一点一倍, 三成, 百分之三十.
-  Ambiguous forms are not handled: 两成多, 十几倍, 上千亿.
+  Since round 9 shares of another value are multiples: 的三分之一, 的六成, 的64%, 的一半. Ambiguous forms are not
+  handled: 十几倍, 上千亿; "两成多" of a value is `gt` 0.2.
 - **Comparator reading is lexical.** Sarcasm and rhetorical questions are not understood.
 - **Relations.** Two named targets, a target and its industry snapshot, or a target and a named sector with a
   snapshot (白酒, 保险, 券商 offline) are compared; peers, consensus and the market average are not. Sector

@@ -135,6 +135,24 @@ def test_fact_check_prose_names_the_claimed_and_the_actual_number():
     assert fact_check_prose(None) == ""
 
 
+def test_fact_check_prose_never_says_the_claim_matches_when_parts_were_not_checked():
+    # Round 9 (E2): a supported verdict over the checked numbers, with a clause nobody checked
+    from query_intelligence.agent.hearsay import fact_check_prose
+
+    report = fact_check_for(
+        "听说茅台市盈率24.6倍，ROE很高，是真的吗", service=StubService(), registry=build_fake_registry()
+    )
+    assert (report["verdict"], report["coverage"]) == ("supported", "partial")
+    prose = fact_check_prose(report)
+    assert prose.startswith("**核查结论：你听到的说法只核查了一部分：已核查的数字与数据相符。**")
+    assert "未核查" in prose and "与数据相符。**" not in prose.replace("已核查的数字与数据相符", "")
+    english = fact_check_prose(report, zh=False)
+    assert english.startswith("**Fact check: the claim you heard was only partly checked: the checked numbers match")
+
+    full = fact_check_for("听说茅台市盈率24.6倍，是真的吗", service=StubService(), registry=build_fake_registry())
+    assert fact_check_prose(full).startswith("**核查结论：你听到的说法与数据相符。**")
+
+
 def test_fact_check_prose_in_english():
     from query_intelligence.agent.hearsay import fact_check_prose
 

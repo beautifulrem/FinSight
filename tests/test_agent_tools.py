@@ -216,3 +216,14 @@ def test_analyze_sentiment_uses_classical_backend_offline(registry, monkeypatch)
     assert result.data["overall_label"] in {"positive", "neutral", "negative"}
     assert result.evidence[0].evidence_id == "sentiment_600519.SH"
     assert result.evidence[0].payload["document_ids"] == [doc["evidence_id"] for doc in result.data["documents"]]
+
+
+def test_metric_and_sector_entities_have_english_names():
+    """Round 9 (E13): the English Run panel lists NLU entities by `name_en`; metrics and sectors have one too."""
+    from query_intelligence.agent.names import english_name
+
+    assert english_name("市净率") == "P/B"
+    assert english_name("净资产收益率") == "ROE"
+    assert (english_name("白酒") or "").isascii() and english_name("白酒")  # alias table, else INDUSTRY_EN
+    assert english_name("贵州茅台") == "Kweichow Moutai"  # companies still come from the alias table
+    assert english_name("不存在的公司") is None

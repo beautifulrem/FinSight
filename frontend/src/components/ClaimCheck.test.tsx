@@ -132,6 +132,24 @@ describe("ClaimReportCard parts that were not checked", () => {
     expect(unchecked).toHaveTextContent("没有可以比对的数字");
   });
 
+  it("says 'partly checked', not 'the numbers agree', when parts were not checked (round 9, E2)", () => {
+    wrap(<ClaimReportCard report={{ ...RELATION_AND_OPINION, coverage: "partial" }} />);
+    const badge = document.querySelector(".claim-verdict")!;
+    expect(badge).toHaveAttribute("data-verdict", "supported");
+    expect(badge).toHaveAttribute("data-headline", "partly_checked");
+    expect(badge).toHaveTextContent("部分核查");
+    const card = screen.getByRole("article", { name: "核查结果" });
+    expect(card).not.toHaveTextContent("数字相符");
+    expect(card).not.toHaveTextContent("说法中的数字都与数据源一致");
+    expect(card).toHaveTextContent("还有部分内容没有核查");
+  });
+
+  it("keeps 'supported' when every part was checked", () => {
+    wrap(<ClaimReportCard report={{ ...RELATION_AND_OPINION, unchecked: [], coverage: "full" }} />, "en");
+    expect(document.querySelector(".claim-verdict")).toHaveAttribute("data-headline", "supported");
+    expect(screen.getByRole("article", { name: "Result" })).toHaveTextContent("Every number matches the data sources.");
+  });
+
   it("shows not-checked rows in English, and them alone when nothing was checked", () => {
     wrap(<ClaimReportCard report={{ ...RELATION_AND_OPINION, verdict: "unverifiable", checks: [] }} />, "en");
     const card = screen.getByRole("article", { name: "Result" });

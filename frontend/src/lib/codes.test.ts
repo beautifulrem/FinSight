@@ -1,4 +1,4 @@
-import { fallbackReasonText, humanizeCode, isCode, limitationText } from "./codes";
+import { fallbackReasonText, humanizeCode, isCode, limitationText, localizeNames } from "./codes";
 
 describe("humanizeCode", () => {
   it("labels the codes the backend emits in both languages", () => {
@@ -92,5 +92,26 @@ describe("fallbackReasonText", () => {
       "eastmoney.quote 请求失败；eastmoney.quote 熔断中",
     );
     expect(fallbackReasonText("en", "live source returned no data for this record")).toBe("the live source returned no data for it");
+  });
+});
+
+
+describe("localizeNames (round 9, E13)", () => {
+  const names = new Map([
+    ["贵州茅台", "Kweichow Moutai"],
+    ["五粮液", "Wuliangye"],
+  ]);
+
+  it("writes the names a route reason carries in English", () => {
+    const label = humanizeCode("en", "ellipsis:target->五粮液和贵州茅台", "reason");
+    expect(localizeNames("en", label, names)).toBe("Kept the security from the last turn: Wuliangye and Kweichow Moutai");
+    expect(localizeNames("en", "A、B 和 C", new Map([["A", "a"]]))).toBe("a, B and C");
+  });
+
+  it("leaves Chinese and name-free text alone", () => {
+    const label = humanizeCode("zh", "ellipsis:target->五粮液和贵州茅台", "reason");
+    expect(localizeNames("zh", label, names)).toBe(label);
+    expect(localizeNames("en", "Simple single lookup", names)).toBe("Simple single lookup");
+    expect(localizeNames("en", "沿用", undefined)).toBe("沿用");
   });
 });

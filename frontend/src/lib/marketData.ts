@@ -13,7 +13,7 @@ export interface PriceSeries {
 }
 
 export type KpiTone = "up" | "down" | "neutral";
-export type KpiFormat = "price" | "percent" | "percentLevel" | "ratio" | "fraction" | "money" | "number" | "volume";
+export type KpiFormat = "price" | "fundPrice" | "percent" | "percentLevel" | "ratio" | "fraction" | "money" | "number" | "volume";
 
 export interface Kpi {
   key: string;
@@ -95,6 +95,17 @@ function amountFormat(payload: Payload, sourceName?: string): KpiFormat {
   return names.some((name) => /tushare/i.test(String(name ?? ""))) ? "volume" : "money";
 }
 
+// Exchange-traded funds quote in 0.001 CNY (1.021), stocks in 0.01: SSE 5xxxxx and SZSE 15xxxx/16xxxx fund codes.
+const FUND_SYMBOL = /^(?:5\d|1[56])\d{4}(?:\.(?:SH|SZ))?$/i;
+
+/** Fund prices keep three decimals ("1.021", not "1.02"); other prices two (round 9, E13). */
+function priceFormat(payload: Payload): KpiFormat {
+  const type = str(payload.product_type)?.toLowerCase();
+  if (type === "etf" || type === "fund" || type === "lof") return "fundPrice";
+  if (type === "stock" || type === "index") return "price";
+  return FUND_SYMBOL.test(str(payload.symbol ?? payload.ts_code) ?? "") ? "fundPrice" : "price";
+}
+
 function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asOf?: string, sourceName?: string): Kpi[] {
   const subject = subjectOf(payload);
   const base = { evidenceId, subject, asOf };
@@ -107,10 +118,10 @@ function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asO
   switch (sourceType) {
     case "market_api": {
       const change = num(payload.pct_change_1d);
-      add("close", "kpi.close", payload.close ?? payload.latest_close, "price", { tone: tone(change), asOf: isoDate(payload.trade_date ?? payload.as_of) ?? asOf });
+      add("close", "kpi.close", payload.close ?? payload.latest_close, priceFormat(payload), { tone: tone(change), asOf: isoDate(payload.trade_date ?? payload.as_of) ?? asOf });
       add("pct", "kpi.change", change, "percent", { tone: tone(change) });
-      add("high", "kpi.high", payload.high, "price");
-      add("low", "kpi.low", payload.low, "price");
+      add("high", "kpi.high", payload.high, priceFormat(payload));
+      add("low", "kpi.low", payload.low, priceFormat(payload));
       add("amount", "kpi.amount", payload.amount, amountFormat(payload, sourceName));
       break;
     }
@@ -128,8 +139,8 @@ function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asO
       break;
     case "technical_indicators":
     case "indicators":
-      add("ma5", "kpi.ma5", payload.ma5, "price");
-      add("ma20", "kpi.ma20", payload.ma20, "price");
+      add("ma5", "kpi.ma5", payload.ma5, priceFormat(payload));
+      add("ma20", "kpi.ma20", payload.ma20, priceFormat(payload));
       add("rsi", "kpi.rsi", payload.rsi_14, "number");
       add("vol", "kpi.volatility", payload.volatility_20d, "fraction");
       break;
