@@ -52,6 +52,19 @@ GENERIC_ENTITY_SUFFIX_MENTIONS = {
 }
 
 SECTOR_CONTEXT_SUFFIXES = {"板块", "行业", "赛道", "方向", "主题"}
+# Words that place an ambiguous short name in one industry ("平安的保费" is the insurer, "平安的不良率" the bank).
+INDUSTRY_CONTEXT = {
+    "保险": re.compile(
+        r"保险|寿险|财险|产险|保费|险资|承保|偿付|赔付|新业务价值|内含价值|代理人|\binsur(?:ance|er|ers)\b|\bpremiums?\b",
+        re.IGNORECASE,
+    ),
+    "银行": re.compile(
+        r"银行|存款|贷款|揽储|不良|息差|拨备|信贷|放贷|\bbank(?:s|ing)?\b|\blend(?:ing|er)?\b|\bloans?\b|\bdeposits?\b|"
+        r"non-?performing|net interest margin",
+        re.IGNORECASE,
+    ),
+    "证券": re.compile(r"券商|证券|经纪业务|投行|自营|两融|\bbroker(?:age)?\b|\bsecurities firm\b", re.IGNORECASE),
+}
 QUESTION_BOUNDARY_CHARS = set("哪谁怎吗么该能好更不")
 # Colloquial short names ("美的", "宁王", "工行"; see runtime_entity_assets.COLLOQUIAL_ALIASES) are common word
 # fragments ("完美的", "施工行业"): they match only exactly, only as a whole jieba token, and never fuzzily.
@@ -265,6 +278,11 @@ class EntityResolver:
                 key=lambda item: item["confidence"],
             )
         deduped_candidates = list(deduped.values())
+        if len(deduped_candidates) > 1:
+            chosen = self._industry_or_priority_choice(query, mention, deduped_candidates, trace)
+            if chosen is not None:
+                flags.append("entity_ambiguous")
+                return [chosen]
         if len(deduped_candidates) == 1 or self.linker is None:
             if len(deduped_candidates) > 1:
                 flags.append("entity_ambiguous")
@@ -300,6 +318,63 @@ class EntityResolver:
                 "match_type": "linked",
             }
         ]
+
+    def alias_candidates(self, mention: str) -> list[dict[str, str]]:
+        """Entity rows that share the alias ``mention`` ("平安" -> 中国平安, 平安银行), in alias-priority order."""
+        rows = self._alias_rows_by_normalized.get(mention) or self._alias_rows_by_normalized.get(mention.lower()) or []
+        seen: dict[int, tuple[int, dict[str, str]]] = {}
+        for row in rows:
+            entity_id, priority = int(row["entity_id"]), int(row["priority"])
+            entity = self._entity_by_id(entity_id)
+            if entity is not None and (entity_id not in seen or priority < seen[entity_id][0]):
+                seen[entity_id] = (priority, entity)
+        return [entity for _priority, entity in sorted(seen.values(), key=lambda item: item[0])]
+
+    def _industry_or_priority_choice(
+        self, query: str, mention: str, candidates: list[dict], trace: list[str]
+    ) -> dict | None:
+        """One policy for a short name shared by companies of different industries ("平安": 中国平安 / 平安银行).
+
+        1. Industry context: words of exactly one candidate's industry elsewhere in the question decide ("平安的保费"
+           -> 中国平安, "平安的不良率" -> 平安银行). Other names in the question are masked first, so the 银行 of
+           "招商银行" is not context for 平安. Match type ``linked_context``.
+        2. Otherwise the alias row with the better priority in the alias table (平安 -> 中国平安), whatever else the
+           question says ("平安PE比行业低吗" no longer reads 行 as a bank). Match type ``linked_default``, so the agent
+           can resolve it from the conversation or say which company it assumed.
+        Candidates of one industry, or of equal priority without context, are left to the linker.
+        """
+        entities = {candidate["entity_id"]: self._entity_by_id(candidate["entity_id"]) or {} for candidate in candidates}
+        industries = {entity_id: str(row.get("industry_name") or "") for entity_id, row in entities.items()}
+        if len(set(industries.values())) < 2 or not all(industries.values()):
+            return None
+        context = query
+        for group in self._exact_alias_mentions(query):
+            if group["text"] != mention:
+                context = context.replace(group["text"], " ")
+        context = context.replace(mention, " ")
+        cued = [
+            candidate
+            for candidate in candidates
+            if (pattern := INDUSTRY_CONTEXT.get(industries[candidate["entity_id"]])) and pattern.search(context)
+        ]
+        if len(cued) == 1:
+            winner, match_type, reason = cued[0], "linked_context", f"industry:{industries[cued[0]['entity_id']]}"
+        else:
+            rows = self._alias_rows_by_normalized.get(mention) or self._alias_rows_by_normalized.get(mention.lower()) or []
+            priority = {
+                candidate["entity_id"]: min(
+                    (int(row["priority"]) for row in rows if int(row["entity_id"]) == candidate["entity_id"]),
+                    default=99,
+                )
+                for candidate in candidates
+            }
+            best = min(priority.values())
+            top = [candidate for candidate in candidates if priority[candidate["entity_id"]] == best]
+            if len(top) != 1:
+                return None
+            winner, match_type, reason = top[0], "linked_default", f"alias_priority:{best}"
+        trace.append(f"ambiguous_alias:{mention}->{winner['canonical_name']}:{reason}")
+        return {**winner, "mention": mention, "match_type": match_type}
 
     def _exact_alias_mentions(self, query: str) -> list[dict]:
         raw_matches = []

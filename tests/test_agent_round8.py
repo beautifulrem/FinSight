@@ -233,3 +233,53 @@ def test_an_a_share_named_next_to_a_crypto_word_stays_in_scope(agent):
     result = agent.chat("比特币大跌那天贵州茅台收盘多少", session_id="r8-crypto-a-share")
     assert result["route"] != "refuse"
     assert "600519.SH" in _targets(result)
+
+
+# --- D6: one policy for the short name 平安 ------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("query", "symbol", "match_type"),
+    [
+        ("平安的赔付率怎么样", "601318.SH", "linked_context"),  # insurance words
+        ("平安放贷规模有多大", "000001.SZ", "linked_context"),  # bank words
+        ("平安跟行业平均比估值如何", "601318.SH", "linked_default"),  # 行业 is no bank cue
+        ("平安和建设银行哪个市净率低", "601318.SH", "linked_default"),  # 银行 of another name is masked
+        ("平安PB多少", "601318.SH", "linked_default"),
+    ],
+)
+def test_the_short_name_pingan_follows_one_policy(offline_service, query, symbol, match_type):
+    entities = [e for e in offline_service.analyze_query(query)["entities"] if e.get("mention") == "平安"]
+    assert [(e["symbol"], e["match_type"]) for e in entities] == [(symbol, match_type)]
+
+
+def test_an_assumed_reading_is_stated_in_the_answer(agent):
+    result = agent.chat("平安跟行业平均比估值如何", session_id="r8-pingan-default")
+    assert "alias_default:平安->中国平安|平安银行" in result["route_reasons"]
+    assert "alias_assumption_stated" in result["compliance_notes"]
+    assert "本次按中国平安回答" in str(result["answer"])
+    assert "601318.SH" in _targets(result)
+
+
+def test_the_conversation_decides_before_the_default(agent):
+    session = "r8-pingan-session"
+    agent.chat("平安银行最新收盘价多少", session_id=session)
+    result = agent.chat("平安PB多少", session_id=session)
+    assert "session_disambiguation:平安->平安银行" in result["route_reasons"]
+    assert "000001.SZ" in _targets(result)
+    assert "alias_assumption_stated" not in result["compliance_notes"]
+
+
+def test_industry_words_decide_before_the_conversation(agent):
+    session = "r8-pingan-context"
+    agent.chat("中国平安的市净率", session_id=session)
+    result = agent.chat("平安放贷规模有多大", session_id=session)
+    assert "alias_context:平安->平安银行" in result["route_reasons"]
+    assert "000001.SZ" in _entities(result)
+
+
+def test_a_discussed_default_needs_no_note(agent):
+    session = "r8-pingan-discussed"
+    agent.chat("中国平安的市净率", session_id=session)
+    result = agent.chat("平安PB多少", session_id=session)
+    assert not any(reason.startswith("alias_default:") for reason in result["route_reasons"])
+    assert "601318.SH" in _targets(result)
+
