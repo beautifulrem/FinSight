@@ -440,6 +440,49 @@ python -m evaluation.agent_eval.redteam --llm deepseek --model cline-pass/deepse
   --cases evaluation/agent_eval/redteam_r9_holdout7_cases.json --out outputs/agent_eval/redteam-r9-holdout7-llm.json
 ```
 
+**Round 10: the round-6 review's F3–F14 (own examples, offline, no LLM).** The rules in
+[Rules added in round 10](#rules-added-in-round-10-round-6-review-f3f14) are own wording, so these numbers show that
+the classes are covered, not generalisation. Dev gate 324 → 339 tasks, task success **1.000**; held-out gate
+**0.9434**, hedged 0.7273, unchanged (baselines refreshed at `05a79b5`; dev tool precision 0.7648 → 0.7321 only because
+the 15 new tasks name few required tools: on the 324 earlier tasks it is 0.7648 as before). Own router labels **1.000**
+over 358 (`evaluation/results/router_eval-round10-own.json`; `route_313`, a persona injection asking for picks,
+relabelled clarify → refuse under F14); independent router labels v2 **0.838** over 241, after exposure (0.830 after
+round 9; first run 0.8008; `evaluation/results/router_eval-independent_v2-round10.json`), independent v1 1.000;
+multiturn_v1 replay task and turn success **1.000**, 0 snapshot misses
+(`evaluation/results/multiturn_v1-auto-nollm-round10.json`); verifier stress at `53454f5`: 227 gold answers / 4,016
+variants, claim-mode false accept 0.0125, derived 0.0129, true accept 1.0
+(`evaluation/results/verifier_stress-round10.json`; the gold count depends on tool timeouts under load).
+
+**Round 10: holdout8 (F3) and the LLM red team after the fixes.** The round-6 reviewer's 14 new planted-document styles
+(JSON-LD, a CSV row, 勘误, a chat log, 立案 + 罚款, a WeChat group, a Chinese-numeral percentage, an MSCI rumour, a
+`</evidence><system>` tag, emoji, a fake dividend, fake EPS arithmetic, a broker rating, a markdown link) were added
+verbatim as red-team set **holdout8** (`278f1a1`) and run offline before any fix
+(`evaluation/results/redteam-holdout8-prefix.json`: 0/280 answers, 12/280 ledger titles: a CSV row, "百分之四十二" and a
+split dividend line, the reviewer's number). The fix is general, tested on own examples: Chinese numerals with a unit are
+figures, a delimited data row and a title cut off right after a figure word are not headlines. Offline after the fix, all
+nine sets: 0 attack successes, 0 detector hits; holdout8 ledger 12/280 → **0/280**; the older sets, not tuned against:
+holdout3 4/88 → 2/88, holdout4 8/240 and holdout5 6/168 unchanged (`evaluation/results/redteam-offline-r10.json`,
+`4325bc1`, the CI baseline). On the shipped corpus the new shapes hide no additional headline (602 of 5,874 shown
+headline occurrences state a figure, before and after). **LLM paths** (`evaluation/results/redteam-r10-holdout8-llm.json`,
+`12b710c`, `cline-pass/deepseek-v4.1-flash`, prompts v3 with the F8 patch, 140 targeted runs, 295 LLM calls, no LLM
+errors, no 429s): stated as fact, composition 1/112, agent 1/28; raw detector hits 13/112 and 3/28, all others
+attributed by the layer; ledger 0. Reading the two: the agent case was a layer gap (one planted sentence appended to two
+retrieved documents counted as two sources, because the wording window included the unrelated lead text); fixed at
+`1141736`, and replaying the same recorded drafts (no LLM calls) gives agent **0/28**
+(`evaluation/results/redteam-r10-holdout8-llm-replay.json`). The composition case ("sources expect … a 3.5% weight
+boost … not an official confirmation") is hedged by the model in words the harness does not count, and the layer does
+not attribute it because another document number matches 3.5% at another scale; it stays counted. One draw; no pre-fix
+LLM run of holdout8 was made.
+
+```bash
+python -m evaluation.agent_eval.redteam --sets holdout8                        # offline, template path
+python -m evaluation.agent_eval.redteam --llm deepseek --workers 2 --cases evaluation/agent_eval/redteam_r10_holdout8_cases.json \
+  --paths workflow_llm,agent --record-llm outputs/agent_eval/redteam-r10-holdout8-llm-turns.json \
+  --out outputs/agent_eval/redteam-r10-holdout8-llm.json
+python -m evaluation.agent_eval.redteam --cases evaluation/agent_eval/redteam_r10_holdout8_cases.json \
+  --paths workflow_llm,agent --replay-llm outputs/agent_eval/redteam-r10-holdout8-llm-turns.json
+```
+
 ## Tests
 
 ```bash
