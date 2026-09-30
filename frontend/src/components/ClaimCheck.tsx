@@ -3,6 +3,7 @@ import { m as motion } from "motion/react";
 import {
   AlertTriangle,
   CircleCheck,
+  CircleDashed,
   CircleQuestionMark,
   CircleX,
   Database,
@@ -28,12 +29,12 @@ import {
 } from "react";
 
 import { checkClaim, classifyError, type ErrorKind } from "@/lib/api";
-import { checkEvidence, claimedText, formatClaimValue, noteText, statusCounts, targetName } from "@/lib/claims";
+import { checkEvidence, claimedText, formatClaimValue, noteText, partCount, statusCounts, targetName } from "@/lib/claims";
 import { cn } from "@/lib/cn";
 import { humanizeCode } from "@/lib/codes";
 import { evidenceFreshness } from "@/lib/freshness";
 import { sourceNameLabel, sourceTypeLabel, useI18n, type MessageKey } from "@/lib/i18n";
-import type { ClaimCheckItem, ClaimReport, ClaimStatus, ClaimVerdict } from "@/lib/types";
+import type { ClaimCheckItem, ClaimReport, ClaimStatus, ClaimUnchecked, ClaimVerdict } from "@/lib/types";
 
 import { AsOf } from "./Freshness";
 import { Badge } from "./ui/badge";
@@ -164,6 +165,26 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
   );
 }
 
+/** A part of the claim with nothing to check ("ROE很高"): listed, never dropped silently. */
+function UncheckedRow({ part }: { part: ClaimUnchecked }) {
+  const { t } = useI18n();
+  return (
+    <li className="claim-check claim-unchecked rounded-xl border border-l-4 border-dashed border-line border-l-line bg-surface p-3.5 sm:p-4" data-status="unchecked">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h4 className="text-[12.5px] font-medium text-muted">{t("claim.unchecked.label")}</h4>
+          <p className="claim-unchecked-text text-[14.5px] leading-snug break-words text-ink">“{part.text}”</p>
+        </div>
+        <Badge tone="neutral" className="claim-status shrink-0" data-status="unchecked">
+          <CircleDashed aria-hidden />
+          {t("claim.status.unchecked")}
+        </Badge>
+      </div>
+      <p className="claim-note mt-2.5 text-[12.5px] leading-relaxed text-muted">{t("claim.unchecked.note")}</p>
+    </li>
+  );
+}
+
 /**
  * The report for one claim: verdict, targets, one card per number, and the disclaimer. `turn` (in the chat)
  * gives its checks region a name unique to the turn (axe landmark-unique).
@@ -173,10 +194,12 @@ export function ClaimReportCard({ report, turn }: { report: ClaimReport; turn?: 
   const headingId = useId();
   const spec = VERDICTS[report.verdict] ?? VERDICTS.unverifiable;
   const counts = statusCounts(report);
+  const parts = partCount(report);
+  const unchecked = report.unchecked ?? [];
   const targets = (report.targets ?? []).filter((target) => target.name || target.symbol);
   const summary = [
-    t("claim.count.total", { n: report.checks.length }),
-    ...(["supported", "contradicted", "unverifiable"] as const)
+    t("claim.count.total", { n: parts }),
+    ...(["supported", "contradicted", "unverifiable", "unchecked"] as const)
       .filter((status) => counts[status] > 0)
       .map((status) => t(`claim.count.${status}`, { n: counts[status] })),
   ].join(" · ");
@@ -189,7 +212,7 @@ export function ClaimReportCard({ report, turn }: { report: ClaimReport; turn?: 
         <div className="flex flex-wrap items-center gap-2">
           <span className="sr-only">{t("claim.verdict")}: </span>
           <VerdictBadge verdict={report.verdict} />
-          {report.checks.length > 0 && <span className="claim-counts text-[12.5px] text-muted tabular-nums">{summary}</span>}
+          {parts > 0 && <span className="claim-counts text-[12.5px] text-muted tabular-nums">{summary}</span>}
         </div>
         <p className={cn("text-[13px] leading-relaxed", COLOR[spec.tone])}>{t(`claim.verdictHint.${report.verdict}` as MessageKey)}</p>
       </header>
@@ -211,7 +234,7 @@ export function ClaimReportCard({ report, turn }: { report: ClaimReport; turn?: 
         </div>
       )}
 
-      {report.checks.length > 0 ? (
+      {parts > 0 ? (
         <section
           className="space-y-2"
           aria-label={turn === undefined ? t("claim.checks") : t("a11y.inTurn", { label: t("claim.checks"), n: turn })}
@@ -220,6 +243,9 @@ export function ClaimReportCard({ report, turn }: { report: ClaimReport; turn?: 
           <ul className="claim-checks space-y-2.5">
             {report.checks.map((check, i) => (
               <CheckRow key={`${i}-${check.metric}-${check.claimed}`} check={check} report={report} />
+            ))}
+            {unchecked.map((part, i) => (
+              <UncheckedRow key={`unchecked-${i}`} part={part} />
             ))}
           </ul>
         </section>
@@ -294,9 +320,13 @@ export interface ClaimCheckHandle {
   check: (claim: string) => void;
 }
 
-/** "核查 / Fact-check": paste a market claim and see each number checked against the data. */
-export function ClaimCheckView({ apiKey, ref }: { apiKey: string; ref?: Ref<ClaimCheckHandle> }) {
+/**
+ * "核查 / Fact-check": paste a market claim and see each number checked against the data. `active`: this is the
+ * visible view, so its title is the page's one h1 (both views stay mounted; the hidden one's title is an h2).
+ */
+export function ClaimCheckView({ apiKey, ref, active = true }: { apiKey: string; ref?: Ref<ClaimCheckHandle>; active?: boolean }) {
   const { lang, t } = useI18n();
+  const Title = active ? "h1" : "h2";
   const [value, setValue] = useState("");
   const [hint, setHint] = useState(false);
   const [state, setState] = useState<State>({ status: "idle" });
@@ -375,10 +405,10 @@ export function ClaimCheckView({ apiKey, ref }: { apiKey: string; ref?: Ref<Clai
   return (
     <div className="claim-check-view mx-auto w-full max-w-3xl space-y-6 px-3 py-5 sm:px-5 sm:py-8">
       <div className="space-y-2.5">
-        <h1 className="flex items-center gap-2 text-[24px] leading-tight font-semibold tracking-tight text-balance sm:text-[28px]">
+        <Title className="flex items-center gap-2 text-[24px] leading-tight font-semibold tracking-tight text-balance sm:text-[28px]">
           <SearchCheck className="size-6 shrink-0 text-cobalt" aria-hidden />
           {t("claim.title")}
-        </h1>
+        </Title>
         <p className="max-w-[40rem] text-[14.5px] leading-relaxed text-muted">{t("claim.body")}</p>
       </div>
 

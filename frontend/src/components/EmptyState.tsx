@@ -12,12 +12,14 @@ const STAGES: { key: MessageKey; icon: typeof Route }[] = [
 
 const EXAMPLES: MessageKey[] = ["empty.q1", "empty.q2", "empty.q3", "empty.q4"];
 
-export function EmptyState({ onAsk }: { onAsk: (query: string) => void }) {
+/** `active`: the chat is the visible view, so its title is the page's one h1 (the hidden fact-check view's is not). */
+export function EmptyState({ onAsk, active = true }: { onAsk: (query: string) => void; active?: boolean }) {
   const { t } = useI18n();
+  const Title = active ? "h1" : "h2";
   return (
     <section className="empty-state mx-auto flex max-w-2xl flex-col gap-8 px-1 pt-[6vh] pb-6 sm:pt-[9vh]">
       <div className="space-y-3">
-        <h1 className="text-[26px] leading-tight font-semibold tracking-tight text-balance sm:text-[32px]">{t("empty.title")}</h1>
+        <Title className="text-[26px] leading-tight font-semibold tracking-tight text-balance sm:text-[32px]">{t("empty.title")}</Title>
         <p className="max-w-[36rem] text-[15px] leading-relaxed text-muted">{t("empty.body")}</p>
       </div>
 

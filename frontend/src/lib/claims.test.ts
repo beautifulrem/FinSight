@@ -5,6 +5,7 @@ import {
   claimInMessage,
   formatClaimValue,
   noteText,
+  partCount,
   statusCounts,
   targetName,
 } from "./claims";
@@ -60,7 +61,8 @@ describe("claim report helpers", () => {
   });
 
   it("counts statuses and builds an evidence record for freshness", () => {
-    expect(statusCounts(report)).toEqual({ supported: 0, contradicted: 1, unverifiable: 1 });
+    expect(statusCounts(report)).toEqual({ supported: 0, contradicted: 1, unverifiable: 1, unchecked: 0 });
+    expect(partCount({ ...report, unchecked: [{ text: "ROE很高" }] })).toBe(3);
     expect(checkEvidence(report.checks[0]!, report)).toMatchObject({
       evidence_id: "fundamental_600519.SH",
       source_type: "fundamental_sql",

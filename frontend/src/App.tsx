@@ -268,10 +268,13 @@ export default function App() {
                 >
                   <div ref={scroller} onScroll={onScroll} className="scrollbar-thin relative min-h-0 flex-1 overflow-y-auto">
                     <div id="chat-messages" className="mx-auto w-full max-w-3xl space-y-6 px-3 py-5 sm:px-5 sm:py-8" aria-live="polite">
+                      {/* Exactly one h1 on the page: the visible view's title (the hidden view's is an h2). */}
                       {empty ? (
-                        <EmptyState onAsk={ask} />
-                      ) : (
+                        <EmptyState onAsk={ask} active={view === "chat"} />
+                      ) : view === "chat" ? (
                         <h1 className="sr-only">{t("a11y.conversation")}</h1>
+                      ) : (
+                        <h2 className="sr-only">{t("a11y.conversation")}</h2>
                       )}
                       {empty ? null : (
                         items.map((item) =>
@@ -326,7 +329,7 @@ export default function App() {
                   tabIndex={undefined}
                   className="check-main scrollbar-thin min-h-0 flex-1 overflow-y-auto outline-none"
                 >
-                  <ClaimCheckView ref={claimView} apiKey={apiKey} />
+                  <ClaimCheckView ref={claimView} apiKey={apiKey} active={view === "check"} />
                 </Tabs.Content>
               </main>
               <aside

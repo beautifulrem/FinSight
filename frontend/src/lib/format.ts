@@ -85,15 +85,28 @@ export function formatDate(lang: Lang, asOf: string | null | undefined): string 
   }).format(parsed);
 }
 
-// Industry names of the industry snapshots (agent/names.py INDUSTRY_EN).
-const INDUSTRIES_EN: [string, string][] = [
-  ["白酒", "Baijiu"],
-  ["保险", "Insurance"],
-  ["券商", "Brokerage"],
-  ["银行", "Banking"],
-  ["宽基指数", "Broad-based index"],
-  ["成长指数", "Growth index"],
-];
+// Industry names of the industry snapshots: the same table as query_intelligence/agent/names.py INDUSTRY_EN
+// (tests/test_web_ui.py checks they are equal). The server also sends them as `name_en` on agent evidence.
+export const INDUSTRY_EN: Record<string, string> = {
+  白酒: "baijiu (liquor)",
+  保险: "insurance",
+  券商: "brokerage",
+  证券: "securities",
+  银行: "banking",
+  宽基指数: "broad-based index",
+  成长指数: "growth index",
+  新能源: "new energy",
+  医药: "pharmaceuticals",
+  半导体: "semiconductors",
+};
+
+/** An industry's English name, capitalised for a label ("白酒" → "Baijiu (liquor)"); undefined if unknown. */
+export function industryEnglish(name: string): string | undefined {
+  const english = INDUSTRY_EN[name];
+  return english ? english.charAt(0).toUpperCase() + english.slice(1) : undefined;
+}
+
+const INDUSTRIES_EN: [string, string][] = Object.keys(INDUSTRY_EN).map((name) => [name, industryEnglish(name)!]);
 
 // Structured evidence titles come from the tools in English ("贵州茅台 (600519.SH) daily market data");
 // the Chinese UI shows the kind in Chinese. Document titles are left as written.
