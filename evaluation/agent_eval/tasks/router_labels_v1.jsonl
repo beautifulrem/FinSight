@@ -330,3 +330,15 @@
 {"id": "route_329", "query": "沪深300ETF年初至今的涨幅", "expected_route": "workflow", "note": "round8: year to date, one fact or a stated gap (D7)"}
 {"id": "route_330", "query": "证券ETF这段时间表现如何", "expected_route": "workflow", "note": "round8: performance, not a why question (D8)"}
 {"id": "route_331", "query": "证券ETF这几天为什么走弱", "expected_route": "agent", "note": "round8: a why question (D8)"}
+{"id": "route_332", "query": "拿现金流折现模型估一下五粮液每股能值多少钱", "expected_route": "agent", "note": "round9: fair value through a valuation model is a judgment (E6)"}
+{"id": "route_333", "query": "中国平安的估值给到几倍市盈率才算公允", "expected_route": "agent", "note": "round9: the value a valuation should be given is a judgment (E6)"}
+{"id": "route_334", "query": "On a discounted cash flow basis, what would Ping An be worth?", "expected_route": "agent", "note": "round9: fair value through a model (E6, en)"}
+{"id": "route_335", "query": "DCF估值法到底是什么", "expected_route": "workflow", "note": "round9: a question about the model itself is not a fair-value request (E6)"}
+{"id": "route_336", "query": "平安作为一只银行股，市盈率大概多少", "expected_route": "workflow", "note": "round9: bank words pick 平安银行; a lookup (E7)"}
+{"id": "route_337", "query": "索拉纳现货ETF值不值得关注", "expected_route": "refuse", "note": "round9: a crypto fund named by its token is out of coverage (E7)"}
+{"id": "route_338", "query": "Should I put money into a BNB fund?", "expected_route": "refuse", "note": "round9: a crypto fund named by its ticker is out of coverage (E7, en)"}
+{"id": "route_339", "query": "货币ETF的七日年化收益多少", "expected_route": "workflow", "note": "round9: a money-market ETF is not crypto (E7)"}
+{"id": "route_340", "query": "贵州茅台的净利润在营收中占比多大", "expected_route": "workflow", "note": "round9: net margin phrased as a share of revenue; a lookup (E8)"}
+{"id": "route_341", "query": "中国平安眼下的市销率", "expected_route": "workflow", "note": "round9: P/S stated as not computable; a lookup (E8)"}
+{"id": "route_342", "query": "What was Wuliangye's maximum drawdown over the past year?", "expected_route": "workflow", "note": "round9: drawdown stated as not computable (E8, en)"}
+{"id": "route_343", "query": "五粮液和贵州茅台的营业收入差了多少亿", "expected_route": "workflow", "note": "round9: a difference of two cited values; a lookup (E5/E8)"}

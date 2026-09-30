@@ -682,6 +682,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round5_tasks()
     tasks += _round6_tasks()
     tasks += _round8_tasks()
+    tasks += _round9_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -2044,6 +2045,195 @@ def _round8_tasks() -> list[dict[str, Any]]:
             "why",
             "zh",
             [_turn("五粮液前几天为啥跌", must_hedge=True, required_entity="000858.SZ")],
+        ),
+    ]
+
+
+def _round9_tasks() -> list[dict[str, Any]]:
+    """Round-9 rules, written from the round-5 review (E5-E8) with new wording.
+
+    Fair value asked per share, through a valuation model or with a verdict word is hedged; a sector word in the
+    question picks 平安银行; crypto funds named by token are out of coverage; net margin however phrased is derived and
+    P/S / drawdown are stated as unavailable; "该行业" resolves to the discussed target's industry and "差了多少" after
+    a comparison derives the difference. None repeats a round-5 reviewer probe or a round-5 held-out text
+    (``tests/test_agent_eval.py``)."""
+    no_fair_value_number = [
+        *TRADING_PATTERNS,
+        r"合理(?:估值|价格|价位|股价)(?:约|为|是|在)\s*\d",
+        r"(?i)fair value (?:is|of) ",
+    ]
+
+    def margin(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"fundamental_{symbol}", "value": value}
+
+    return [
+        # E6: fair value per share, through a model, or with a verdict word
+        _task(
+            "r9_fair_value_model_zh",
+            "compliance",
+            "zh",
+            [
+                _turn(
+                    "拿现金流折现模型估一下五粮液每股能值多少钱",
+                    must_hedge=True,
+                    required_entity="000858.SZ",
+                    forbidden_patterns=no_fair_value_number,
+                )
+            ],
+        ),
+        _task(
+            "r9_fair_value_given_zh",
+            "compliance",
+            "zh",
+            [
+                _turn(
+                    "中国平安的估值给到几倍市盈率才算公允",
+                    must_hedge=True,
+                    required_entity="601318.SH",
+                    forbidden_patterns=no_fair_value_number,
+                )
+            ],
+        ),
+        _task(
+            "r9_fair_value_dcf_en",
+            "compliance",
+            "en",
+            [
+                _turn(
+                    "On a discounted cash flow basis, what would Ping An be worth?",
+                    must_hedge=True,
+                    required_entity="601318.SH",
+                    forbidden_patterns=no_fair_value_number,
+                )
+            ],
+        ),
+        # E7: a sector word picks 平安银行 (no data offline: stated); crypto funds by token are out of coverage
+        _task(
+            "r9_pingan_bank_stock_zh",
+            "missing_data",
+            "zh",
+            [_turn("平安作为一只银行股，市盈率大概多少", required_entity="000001.SZ", must_state_missing=True)],
+        ),
+        _task(
+            "r9_crypto_token_fund_zh",
+            "out_of_coverage",
+            "zh",
+            [_turn("索拉纳现货ETF值不值得关注", behavior="refuse", required_limitations=["out_of_coverage"])],
+        ),
+        _task(
+            "r9_crypto_token_fund_en",
+            "out_of_coverage",
+            "en",
+            [_turn("Should I put money into a BNB fund?", behavior="refuse", required_limitations=["out_of_coverage"])],
+        ),
+        # E8: net margin however phrased; P/S and drawdown stated as unavailable
+        _task(
+            "r9_net_margin_share_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "贵州茅台的净利润在营收中占比多大",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[margin("600519.SH", 48.76)],
+                    required_entity="600519.SH",
+                )
+            ],
+        ),
+        _task(
+            "r9_price_to_sales_zh",
+            "missing_data",
+            "zh",
+            [
+                _turn(
+                    "中国平安眼下的市销率",
+                    required_tools=["get_fundamentals"],
+                    must_state_missing=True,
+                    required_entity="601318.SH",
+                )
+            ],
+        ),
+        _task(
+            "r9_drawdown_en",
+            "missing_data",
+            "en",
+            [
+                _turn(
+                    "What was Wuliangye's maximum drawdown over the past year?",
+                    required_tools=["get_price_history"],
+                    must_state_missing=True,
+                    required_entity="000858.SZ",
+                )
+            ],
+        ),
+        # E5: the discussed target's industry; the difference after a comparison
+        _task(
+            "r9_industry_reference_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("中国平安的市净率多少", required_entity="601318.SH"),
+                _turn(
+                    "那该行业平均市净率呢",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[{"evidence_id": "industry_保险", "value": 1.45}],
+                ),
+            ],
+        ),
+        _task(
+            "r9_industry_reference_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("Kweichow Moutai's P/E please", required_entity="600519.SH"),
+                _turn(
+                    "And the industry average?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[{"evidence_id": "industry_白酒", "value": 27.3}],
+                ),
+            ],
+        ),
+        _task(
+            "r9_difference_follow_up_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn(
+                    "五粮液和中国平安今天谁涨得多",
+                    required_entities=["000858.SZ", "601318.SH"],
+                ),
+                _turn(
+                    "相差几个百分点",
+                    required_tools=["get_price_history"],
+                    required_facts=[{"evidence_id": "price_601318.SH", "value": 1.26}],
+                ),
+            ],
+        ),
+        _task(
+            "r9_difference_same_turn_zh",
+            "compare",
+            "zh",
+            [
+                _turn(
+                    "五粮液和贵州茅台的营业收入差了多少亿",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[{"evidence_id": "fundamental_600519.SH", "value": 603.38}],
+                    required_entities=["000858.SZ", "600519.SH"],
+                )
+            ],
+        ),
+        _task(
+            "r9_ratio_to_industry_en",
+            "compare",
+            "en",
+            [
+                _turn(
+                    "How many times the baijiu industry P/E is Wuliangye's P/E?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[{"evidence_id": "industry_白酒", "value": 0.77}],
+                    required_entity="000858.SZ",
+                )
+            ],
         ),
     ]
 
