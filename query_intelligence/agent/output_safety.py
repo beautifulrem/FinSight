@@ -54,6 +54,7 @@ from .verifier import (
     _CITATION,
     _CONNECTOR_OPENING,
     _UNIT_SCALES,
+    _chinese_values,
     _cleaned,
     _is_supported,
     metric_claims,
@@ -606,6 +607,13 @@ def unit_figures(text: str, *, with_context: bool = False) -> list[tuple]:
         item: tuple = (value, scales, 0.5 * 10**-decimals)
         if with_context:
             item = (*item, _compact(cleaned[max(0, match.start() - 12) : match.end() + 12]))
+        found.append(item)
+    # (round 10, F3) a figure in Chinese numerals with its unit ("百分之三十五", "三成", "十二亿元", "三十倍") is the
+    # same figure as its Arabic form: a headline or a sentence that spells it out is checked like "35%"
+    for position, value, scales, rounding in _chinese_values(cleaned):
+        item = (value, scales, rounding)
+        if with_context:
+            item = (*item, _compact(cleaned[max(0, position - 12) : position + 16]))
         found.append(item)
     return found
 
