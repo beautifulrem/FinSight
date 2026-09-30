@@ -6,7 +6,7 @@ against the offline snapshot (`data/structured_data.json`: prices as of 2026-04-
 
 | File | Claims | Use |
 | --- | --- | --- |
-| `claims_v1.jsonl` | 224 (180 zh, 44 en) | dev set: the checker was developed against it (rows noted `round4` / `round5` / `round8` were added with later rule rounds) |
+| `claims_v1.jsonl` | 245 (198 zh, 47 en) | dev set: the checker was developed against it (rows noted `round4` / `round5` / `round8` / `round9` were added with later rule rounds) |
 | `claims_v1_holdout.jsonl` | 47 (38 zh, 9 en) | held out: written together with the dev set, before the fixes, and run **once** at the end |
 
 Held-out file sha256 (recorded when it was written, before any checker change):
@@ -56,6 +56,18 @@ subject of a number ("而行业平均…倍", "所属行业的平均水平约…
 ratios with a bound where the verb stands ("不足…的一半", "超过…的三倍", "至少是…的五倍", "more than twice").
 `tests/test_agent_eval.py` checks that none copies or near-copies a claim of `claims_v1_holdout.jsonl` or a text of
 the round-4 held-out slices.
+
+Round-9 rows (`note: round9`, d225-d245) were written after the round-5 review (E1, E2, E8, E9) and after the
+independent round-5 held-out slice (`evaluation/heldout_r5/`) was run once at `f01097a` and its failures read. They are
+new phrasings of those classes: an industry average stated on the other side of a bound ("低于7倍的白酒行业平均水平",
+"under the baijiu industry average of 30x": the relation and the stated average are two checks), a relation after
+the number of its own clause, shares and fractions as multiples ("的三分之二", "的四成", "的九成"), "比…的1.2倍还多",
+"七倍有余", "more than triple", 净赚, a derived net margin, a fund's daily change computed from its last two closes,
+metrics the sources cannot give (市销率), macro series against each other, a short name after the full name, and
+"更活跃" / "表现强于". `tests/test_agent_eval.py` checks that none copies or near-copies a claim of the held-out set,
+the round-4 and round-5 slices or the round-5 reviewer's probes. d102 ("沪深300ETF今天涨了1%") was relabelled in round 9:
+the fund's change is now computed from its closes (+0.73%, within half a unit of "1%"), so it is supported, not
+unverifiable.
 
 Known judgement calls: "五粮液市盈率24.6倍，比茅台低" is two checks since round 8, the 24.6 (bound to 五粮液:
 contradicted) and the relation of the second clause (五粮液 below 茅台: supported), so it is partially supported

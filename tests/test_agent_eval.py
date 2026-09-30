@@ -715,3 +715,60 @@ def test_round8_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_other_
 
     assert len(mine) >= 25 and check_overlap(_round8_tasks()) == []
     assert _overlaps(mine, others) == (0, 0), "round-8 dev tasks or router labels overlap a held-out or reviewer set"
+
+
+# The round-5 reviewer's claim probes (round5.md §4.2 and §7): round-9 claim rows must not copy them either.
+_ROUND5_REVIEW_CLAIMS = [
+    "茅台市盈率不及白酒行业平均水平",
+    "五粮液PB 5.4倍，比白酒行业均值高",
+    "中国平安净利润是五粮液的三倍多",
+    "茅台营收约为五粮液的1.56倍",
+    "五粮液净利润还不到茅台的一半",
+    "茅台昨天小幅下跌，跌幅不足0.2%",
+    "五粮液跌幅超过茅台",
+    "中国平安上涨0.73%，跑赢保险板块",
+    "茅台ROE 33%，五粮液ROE 29.4%，茅台PE却比五粮液低",
+    "沪深300收于4005点，涨幅超过0.4%",
+    "五粮液毛利率超过八成",
+    "Moutai's P/B is roughly 1.5 times Wuliangye's",
+    "中国平安市盈率只有白酒行业平均的三分之一左右",
+    "茅台股价跌了2%，而五粮液涨了1%",
+    "五粮液昨天成交额不到40亿元",
+    "中国平安PB 1.1倍，低于行业平均的1.45倍，ROE达到20%",
+    "茅台一年净赚800多亿",
+    "茅台的PE是五粮液的1.2倍左右",
+    "The CPI rose 0.8% year on year and the 10-year CGB yield is 2.31%",
+    "M2增速8.1%，高于CPI",
+    "五粮液的ROE比茅台高",
+    "茅台净利率接近50%",
+    "中国平安PB 1.1倍，低于3倍的行业平均水平",
+    "中国平安PB低于行业平均水平（3倍）",
+    "五粮液PE低于白酒行业35倍的平均估值",
+    "茅台ROE 33%，中国平安市盈率只有白酒行业平均的三分之一左右，M2增速高于CPI",
+    "茅台PB 8.1倍，高于行业均值4倍",
+]
+
+
+def _heldout_r5_texts() -> list[str]:
+    """Every claim and chat question of the independent round-5 held-out slice (exposed after its first run)."""
+    from evaluation.agent_eval.runner import ROOT
+
+    folder = ROOT / "evaluation" / "heldout_r5"
+    texts = [json.loads(line)["claim"] for line in (folder / "claims_r5_heldout.jsonl").open(encoding="utf-8")]
+    for line in (folder / "chat_r5_heldout.jsonl").open(encoding="utf-8"):
+        texts.extend(turn["query"] for turn in json.loads(line)["turns"])
+    return texts
+
+
+def test_round9_claim_rows_do_not_overlap_the_heldout_sets_or_the_reviewer_probes():
+    """The round-9 claim rows were written after the round-5 review and after the round-5 held-out slice was run and
+    exposed: new phrasings of its failure classes. None may copy or near-copy a claim of the committed held-out set,
+    the round-4 or round-5 slices, or the reviewer's probes (counts only; held-out text is never printed)."""
+    from evaluation.claim_bench.run import SETS, load_claims
+
+    mine = [row["claim"] for row in load_claims(SETS["dev"]) if row.get("note") == "round9"]
+    others = [row["claim"] for row in load_claims(SETS["holdout"])] + _heldout_r4_texts() + _heldout_r5_texts()
+    others += _ROUND5_REVIEW_CLAIMS
+
+    assert len(mine) >= 20
+    assert _overlaps(mine, others) == (0, 0), "round-9 claim rows overlap a held-out set or a reviewer probe"
