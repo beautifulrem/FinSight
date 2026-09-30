@@ -26,7 +26,8 @@ _TECHNICAL_TERMS = re.compile(
 )
 _SENTIMENT_TERMS = re.compile(r"情绪|舆情|利好|利空|消息面|市场怎么看|sentiment|tone", re.IGNORECASE)
 _PRICE_TERMS = re.compile(
-    r"价格|股价|收盘|收在|点位|净值|涨跌|涨|跌|走势|行情|表现|多少钱|\bprice\b|\bclose\b|quote|moved|performance|"
+    r"价格|股价|收盘|收在|点位|净值|涨跌|涨|跌|走势|行情|表现|多少钱|回撤|\bprice\b|\bclose\b|quote|moved|performance|"
+    r"drawdown|"
     r"\brise\b|\bfall\b|\brally\b|\brebound\b|\blos(?:e|t|ing)\b|\bgain(?:ed|s)?\b|percent(?:age)? change|"
     r"% change|daily change|\bchange\b",
     re.IGNORECASE,
@@ -35,6 +36,11 @@ _VALUATION_TERMS = re.compile(
     r"估值|市盈率|市净率|(?<![A-Za-z])(?:P/?E|P/?B)(?![A-Za-z])|ROE|净资产收益率|盈利|业绩|利润|营收|收入|基本面|"
     r"财务|贵不贵|便宜|毛利率|股息率|股息|市值|负债率|负债|杠杆|增速|现金流|净利率|赚钱|赚得|赚了|挣钱|盈利能力|"
     r"(?<![A-Za-z])PEG(?![A-Za-z])|市盈增长比|"
+    # (round 9) a fair value or a valuation verdict is answered with the multiples and the industry, not the price
+    # alone ("按DCF算…每股值多少", "是不是被低估了")
+    r"低估|高估|值多少|值几|公道|公允|内在价值|(?<![A-Za-z])DCF(?![A-Za-z])|现金流折现|市销率|"
+    r"(?<![A-Za-z])P/?S(?![A-Za-z])|price[- ]to[- ]sales|"
+    r"undervalued|overvalued|\bworth\b(?! buying)|intrinsic value|fair value|"
     r"valuation|valued|earnings|profit|revenue|fundamental|price-to-(?:book|earnings)|expensive|cheap|margin|"
     r"dividend|market cap|debt|leverage|cash ?flow|growth rate|\bearns?\b|more profitable",
     re.IGNORECASE,

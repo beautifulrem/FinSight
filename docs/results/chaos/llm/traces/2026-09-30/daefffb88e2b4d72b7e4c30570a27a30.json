@@ -1,0 +1,229 @@
+{
+  "trace_id": "daefffb88e2b4d72b7e4c30570a27a30",
+  "session_id": "chaos-4_recovered-0",
+  "turn_index": 0,
+  "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+  "route": "agent",
+  "route_reasons": [
+    "mode:agent",
+    "multi_entity:2",
+    "question_style:compare",
+    "intent:market_explanation",
+    "lexical:multi_hop_marker"
+  ],
+  "answer_source": "llm_agent",
+  "started_at": 1790787267.13,
+  "duration_ms": 10704.81,
+  "nodes": [
+    {
+      "node": "guard_in",
+      "started_at": 1790787267.13,
+      "duration_ms": 42.46
+    },
+    {
+      "node": "agent_prefetch",
+      "started_at": 1790787267.173,
+      "duration_ms": 988.8
+    },
+    {
+      "node": "agent_llm",
+      "started_at": 1790787268.163,
+      "duration_ms": 5959.33
+    },
+    {
+      "node": "verify",
+      "started_at": 1790787274.123,
+      "duration_ms": 6.95
+    },
+    {
+      "node": "revise",
+      "started_at": 1790787274.131,
+      "duration_ms": 3649.4
+    },
+    {
+      "node": "verify",
+      "started_at": 1790787277.782,
+      "duration_ms": 12.27
+    },
+    {
+      "node": "compliance",
+      "started_at": 1790787277.796,
+      "duration_ms": 34.83
+    },
+    {
+      "node": "finalize",
+      "started_at": 1790787277.832,
+      "duration_ms": 2.81
+    }
+  ],
+  "tools": [
+    {
+      "tool": "get_price_history",
+      "arguments": {
+        "target": "600519.SH",
+        "days": 10
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 1.51,
+      "started_at": 1790787268.121,
+      "attempts": 1,
+      "cached": false,
+      "source": "prefetch",
+      "step": 0
+    },
+    {
+      "tool": "get_fundamentals",
+      "arguments": {
+        "target": "600519.SH"
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 1.32,
+      "started_at": 1790787268.122,
+      "attempts": 1,
+      "cached": false,
+      "source": "prefetch",
+      "step": 0
+    },
+    {
+      "tool": "search_news",
+      "arguments": {
+        "query": "原因 估值",
+        "targets": [
+          "600519.SH"
+        ],
+        "top_k": 5
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 589.96,
+      "started_at": 1790787267.546,
+      "attempts": 1,
+      "cached": false,
+      "source": "prefetch",
+      "step": 0
+    },
+    {
+      "tool": "get_price_history",
+      "arguments": {
+        "target": "000858.SZ",
+        "days": 10
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 1.16,
+      "started_at": 1790787268.136,
+      "attempts": 1,
+      "cached": false,
+      "source": "prefetch",
+      "step": 0
+    },
+    {
+      "tool": "get_fundamentals",
+      "arguments": {
+        "target": "000858.SZ"
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 2.26,
+      "started_at": 1790787268.135,
+      "attempts": 1,
+      "cached": false,
+      "source": "prefetch",
+      "step": 0
+    },
+    {
+      "tool": "search_news",
+      "arguments": {
+        "query": "原因 估值",
+        "targets": [
+          "000858.SZ"
+        ],
+        "top_k": 5
+      },
+      "ok": true,
+      "error": null,
+      "latency_ms": 355.28,
+      "started_at": 1790787267.794,
+      "attempts": 1,
+      "cached": false,
+      "source": "prefetch",
+      "step": 0
+    }
+  ],
+  "llm_calls": [
+    {
+      "node": "agent_llm",
+      "step": 0,
+      "prompt": "agent_system@v3#e419eb84d58e",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "started_at": 1790787268.166,
+      "latency_ms": 5955.75,
+      "prompt_tokens": 8249,
+      "completion_tokens": 1229,
+      "prompt_cache_hit_tokens": 8064,
+      "reasoning_tokens": 370,
+      "reported_cost_usd": 0.000789342,
+      "json_status": "ok",
+      "context_chars": {
+        "system": 2652,
+        "user": 14573,
+        "assistant": 0,
+        "tool": 0,
+        "tool_schemas": 6970
+      },
+      "tool_calls": [],
+      "finish_reason": "stop"
+    },
+    {
+      "node": "revise",
+      "step": null,
+      "prompt": "agent_system@v3#e419eb84d58e",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "started_at": 1790787274.136,
+      "latency_ms": 3644.47,
+      "prompt_tokens": 7107,
+      "completion_tokens": 869,
+      "prompt_cache_hit_tokens": 6016,
+      "reasoning_tokens": 20,
+      "reported_cost_usd": 0.000703098,
+      "json_status": "ok",
+      "context_chars": {
+        "system": 2652,
+        "user": 14924,
+        "assistant": 1525,
+        "tool": 0,
+        "tool_schemas": 0
+      },
+      "tool_calls": [],
+      "finish_reason": "stop",
+      "trigger": [
+        "unsupported_numbers"
+      ]
+    }
+  ],
+  "model": "cline-pass/deepseek-v4.1-flash",
+  "usage": {
+    "prompt_tokens": 15356,
+    "completion_tokens": 2098,
+    "prompt_cache_hit_tokens": 14080,
+    "reasoning_tokens": 390,
+    "reported_cost_usd": 0.00149244,
+    "total_tokens": 17454
+  },
+  "cost": 0.010072,
+  "currency": "CNY",
+  "cost_source": "provider_reported",
+  "verification_passed": true,
+  "unsupported_numbers": [],
+  "invalid_citations": [],
+  "compliance_notes": [
+    "attributed_document_claim"
+  ],
+  "refusal_category": null,
+  "prompt_version": "v3",
+  "degraded": [],
+  "evidence_count": 11,
+  "owner": "anon:e58e6571a7ba"
+}

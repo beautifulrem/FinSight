@@ -17,15 +17,15 @@
    "agent_system": "agent_system@v3#e419eb84d58e",
    "compose_system": "compose_system@v3#b9a704272c6d"
   },
-  "commit": "c4064d1",
-  "run_at": "2026-09-30T08:32:14+00:00",
+  "commit": "d78a556",
+  "run_at": "2026-09-30T16:20:05+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 374.7,
+  "wall_seconds": 175.0,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
-  "tasks": 310,
-  "turns": 384,
+  "tasks": 324,
+  "turns": 401,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -50,15 +50,15 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.7768,
+  "tool_precision": 0.7648,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 230.21,
-  "latency_ms_p95": 2708.81,
-  "latency_ms_p99": 3870.35,
+  "latency_ms_p50": 117.85,
+  "latency_ms_p95": 1183.97,
+  "latency_ms_p99": 2064.75,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -86,79 +86,79 @@
   "clarify": {
    "tasks": 18,
    "task_success": 1.0,
-   "latency_ms_p95": 3099.07
+   "latency_ms_p95": 881.79
   },
   "compare": {
-   "tasks": 28,
+   "tasks": 30,
    "task_success": 1.0,
-   "latency_ms_p95": 3617.12
+   "latency_ms_p95": 1689.59
   },
   "compliance": {
-   "tasks": 23,
+   "tasks": 26,
    "task_success": 1.0,
-   "latency_ms_p95": 1923.27
+   "latency_ms_p95": 906.14
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 1452.78
+   "latency_ms_p95": 2116.7
   },
   "fact": {
-   "tasks": 68,
+   "tasks": 69,
    "task_success": 1.0,
-   "latency_ms_p95": 3252.05
+   "latency_ms_p95": 1071.4
   },
   "injection": {
    "tasks": 2,
    "task_success": 1.0,
-   "latency_ms_p95": 82.82
+   "latency_ms_p95": 61.57
   },
   "macro_link": {
    "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 3060.48
+   "latency_ms_p95": 3078.35
   },
   "missing_data": {
-   "tasks": 40,
+   "tasks": 43,
    "task_success": 1.0,
-   "latency_ms_p95": 1952.67
+   "latency_ms_p95": 1183.97
   },
   "multi_turn": {
-   "tasks": 51,
+   "tasks": 54,
    "task_success": 1.0,
-   "latency_ms_p95": 1957.79
+   "latency_ms_p95": 1009.53
   },
   "out_of_coverage": {
-   "tasks": 7,
+   "tasks": 9,
    "task_success": 1.0,
-   "latency_ms_p95": 2473.87
+   "latency_ms_p95": 1370.25
   },
   "out_of_scope": {
    "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 344.92
+   "latency_ms_p95": 159.68
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 1514.57
+   "latency_ms_p95": 1133.31
   },
   "why": {
    "tasks": 21,
    "task_success": 1.0,
-   "latency_ms_p95": 1920.77
+   "latency_ms_p95": 944.2
   }
  },
  "by_language": {
   "en": {
-   "tasks": 94,
+   "tasks": 99,
    "task_success": 1.0,
-   "latency_ms_p95": 3181.0
+   "latency_ms_p95": 1435.2
   },
   "zh": {
-   "tasks": 216,
+   "tasks": 225,
    "task_success": 1.0,
-   "latency_ms_p95": 2302.05
+   "latency_ms_p95": 1127.83
   }
  },
  "failed_checks": {},
@@ -473,12 +473,26 @@
   "r8_ytd_zh": "1",
   "r8_ytd_en": "1",
   "r8_no_cause_trend_zh": "1",
-  "r8_cause_kept_zh": "1"
+  "r8_cause_kept_zh": "1",
+  "r9_fair_value_model_zh": "1",
+  "r9_fair_value_given_zh": "1",
+  "r9_fair_value_dcf_en": "1",
+  "r9_pingan_bank_stock_zh": "1",
+  "r9_crypto_token_fund_zh": "1",
+  "r9_crypto_token_fund_en": "1",
+  "r9_net_margin_share_zh": "1",
+  "r9_price_to_sales_zh": "1",
+  "r9_drawdown_en": "1",
+  "r9_industry_reference_zh": "1",
+  "r9_industry_reference_en": "1",
+  "r9_difference_follow_up_zh": "1",
+  "r9_difference_same_turn_zh": "1",
+  "r9_ratio_to_industry_en": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "a2acb5644146ebd5",
-  "bytes": 1002000,
-  "slimmed_at": "2026-09-30T08:36:10+00:00"
+  "sha256_16": "14b341c592539248",
+  "bytes": 1047326,
+  "slimmed_at": "2026-09-30T16:20:05+00:00"
  }
 }

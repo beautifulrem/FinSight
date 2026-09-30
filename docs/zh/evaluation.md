@@ -215,6 +215,7 @@ DeepSeek V4.1 Flash（GLM-5.3 Flash 只跑测试集 v3），每任务 3 次，3 
 
   模型复述了投毒的「事实」（假 ROE、假分红）、诈骗联系方式、「资金翻倍、亏损全额赔付」和伪造的退市通知；没有 LLM 出错。
 - **第七轮输出层**（`agent/output_safety.py`，每个回答都经过）：来自文档的联系方式、推广、交易指令替换为一条说明；单一来源的监管或公司行动说法加上「据一篇文档称…（未经其他来源证实）」；与结构化基本面矛盾的文档数字由校验器标出并删除。对 20 个此前泄漏的案例，记录一次模型输出后分别用旧代码和新代码回放（`redteam-r7-targeted.json`）：v3 无输出层 8 次命中、3 次当作事实陈述；v3 加输出层 6 次命中、0 次当作事实；v4 Prompt 4 次命中、0 次。第八轮（D1）加宽了输出层（与回答中另一句、另一篇文档或基本面说法不同的单一来源数字、单一来源送转传闻都加上出处）和红队脚本的出处识别，之后在 `0473968` 上重跑完整 LLM 红队（`redteam-r8-llm.json`，holdout3–6）：当作事实陈述组织答案 3.4% / 0.0% / 1.2% / 0.9%，Agent 0.0% / 0.8% / 2.4% / 0.0%；原始检测命中组织答案 6.8% / 5.0% / 3.6% / 2.8%，Agent 0.0% / 4.6% / 3.0% / 0.9%（详见 [Agent 层](agent.md) 第 8 轮一节）。
+- **第八、九轮**（详见 [Agent 层](agent.md)）：第八轮离线模板路径七套攻击集全部 0 成功（`redteam-offline-r8.json`）。第九轮把第五轮评审的 14 种新型攻击原样加为 holdout7，修复前离线运行：回答 0/280，证据列表标题 32/280（`redteam-holdout7-prefix.json`，`a7b1018`）；修复后八套攻击集全部 0 成功，holdout7 标题 0/280（`redteam-offline-r9.json`，`8814b3b`）。修复后 holdout7 的 LLM 路径（`redteam-r9-holdout7-llm.json`，`3d7afd5`，168 次运行，没有 429）：当作事实陈述组织答案 2/112、Agent 0/56，其余复述都带输出层的「（未经其他来源证实）」标注。
 - **注入分类器**（`injection_classifier-r4.json`）：对未见过的攻击（holdout2–4 共 62 条）召回 0.39 [0.28, 0.51]，与关键词过滤合用 0.42；3,000 篇保留的正常文档上误报 0.47%。
 
 ## 独立任务集
@@ -226,13 +227,15 @@ DeepSeek V4.1 Flash（GLM-5.3 Flash 只跑测试集 v3），每任务 3 次，3 
 | 多轮集 v1（`agent_eval_multiturn_v1.jsonl`，[编写说明](../../evaluation/agent_eval/tasks/README_multiturn_v1.md)） | 49 段对话 / 206 轮；作者没读过路由、记忆、规划器代码和任何任务文件；172 个事实值都由离线工具输出核对 | 无 LLM：任务 0.224 [0.12, 0.35]，轮次 0.709（`multiturn_v1-auto-nollm-first-run.json`，`1bd1932`）。DeepSeek：agent 任务 0.361 [0.24, 0.49]、pass^3 0.286、轮次 0.795；workflow_llm 任务 0.286（`ablation-multiturn_v1-deepseek-first-run.json`，`527a611`） | 无 LLM 1.000（`multiturn_v1-auto-nollm-after-fixes.json`，`7513376`）；DeepSeek agent 0.959、workflow_llm 0.980（`9536abf`） |
 | 测试集 v3（`agent_eval_test_v3.jsonl`，[编写说明](../../evaluation/agent_eval/tasks/README_test_v3.md)） | 130 个任务 / 155 轮；同样的独立规则；从未用于修复 | 无 LLM：任务 0.762 [0.68, 0.83]，轮次 0.794（`test_v3-auto-nollm-first-run.json`，`882745d`）；不调工具的 LLM 0/130（`3730408`）；DeepSeek agent **0.869 [0.81, 0.92]**、workflow_llm 0.831（`ablation-final4-deepseek-testv3-holdout.json`，`9536abf`） | – |
 | 独立路由标注 v1（154 条） | 按四句路由策略标注，没看路由代码 | 0.740（`router_eval-independent_v1-first-run.json`，`882745d`） | 1.000（`router_eval-round4-independent-after-exposure.json`，`075caad`） |
-| 独立路由标注 v2（241 条，[编写说明](../../evaluation/agent_eval/tasks/README_router_labels_independent_v2.md)） | 第四轮修复冻结后新写，作者没读任何代码、任务或结果文件；其中 4 条与自有标注碰巧相同 | **0.801**（`router_eval-independent_v2-first-run.json`，`3080bfe`） | – |
-| 声明核查基准（[说明](claim-check.md)） | 开发 131 条、保留 47 条，改检查器之前写好并提交；保留集的 sha256 由测试锁定 | 保留集只跑一次：结论准确率 0.936 [0.851, 1.000]，逐数字 0.944（`claim_bench-holdout.json`，`2fcb4f0`） | 开发集 0.527 → 1.000（`claim_bench-dev-baseline.json` → `claim_bench-dev.json`） |
+| 独立路由标注 v2（241 条，[编写说明](../../evaluation/agent_eval/tasks/README_router_labels_independent_v2.md)） | 第四轮修复冻结后新写，作者没读任何代码、任务或结果文件；其中 4 条与自有标注碰巧相同 | **0.801**（`router_eval-independent_v2-first-run.json`，`3080bfe`） | 第 9 轮之后的 HEAD 上 0.830（`router_eval-independent_v2-round9.json`，`8814b3b`） |
+| 声明核查基准（[说明](claim-check.md)） | 开发 131 条、保留 47 条，改检查器之前写好并提交；保留集的 sha256 由测试锁定 | 保留集只跑一次：结论准确率 0.936 [0.851, 1.000]，逐数字 0.944（`claim_bench-holdout.json`，`2fcb4f0`） | 第 8 轮修复 h038 类别后保留集 1.000（`claim_bench-holdout-after-round8.json`）；开发集 0.527 → 1.000（`claim_bench-dev-baseline.json` → `claim_bench-dev.json`） |
 | 第四轮声明切片（`evaluation/heldout_r4/claims_moves_heldout.jsonl`，[说明](../../evaluation/heldout_r4/README.md)） | 67 条涨跌幅、相对关系、宏观声明；独立作者在第四轮修复前编写 | 结论准确率 0.716 [0.61, 0.82]，逐数字 0.639，比较方向 0.435（`claim_bench-heldout_r4-first-run.json`，`817a2d8`） | 结论 1.000，逐数字 0.920（`claim_bench-heldout_r4-after-exposure.json`，`c731dba`） |
 | 第四轮多轮切片（`multiturn_r4_heldout.jsonl`） | 24 段对话 / 58 轮，同上 | 无 LLM：任务 0.667 [0.50, 0.83]，轮次 0.810（`multiturn_r4_heldout-auto-nollm-first-run.json`，`817a2d8`） | 任务 0.917 [0.79, 1.00]（`multiturn_r4_heldout-after-exposure.json`，`c731dba`） |
 | 第四轮投毒攻击（`injection_holdout4.jsonl`，红队中的 holdout5） | 21 种文档投毒攻击，同上 | 模板路径 0/168（`redteam-holdout5-first-run.json`，`817a2d8`） | LLM 路径见「提示注入红队」 |
+| 第五轮声明切片（`evaluation/heldout_r5/claims_r5_heldout.jsonl`，[说明](../../evaluation/heldout_r5/README.md)） | 56 条多子句、行业平均、成交额、倍数声明；独立作者编写 | 结论准确率 **0.821 [0.71, 0.91]**，逐数字 0.814，比较方向 0.835（`claim_bench-heldout_r5-first-run.json`，`f01097a`） | –（没有重新打分） |
+| 第五轮对话切片（`chat_r5_heldout.jsonl`） | 38 个任务 / 41 轮，同上 | 无 LLM：任务 **0.921 [0.82, 1.00]**（`chat_heldout_r5-auto-nollm-first-run.json`，`f01097a`） | 1.000（`chat_heldout_r5-auto-nollm-after-exposure.json`，`d78a556`，第 9 轮） |
 
-对照：项目自有路由标注在同期是 0.988（162 条，`router_eval-round3b.json`），第四轮后是 1.000（303 条，`router_eval-round4-own.json`）。
+对照：项目自有路由标注在同期是 0.988（162 条，`router_eval-round3b.json`），第四轮后是 1.000（303 条，`router_eval-round4-own.json`），第 9 轮后是 1.000（344 条，`router_eval-round9-own.json`）。
 
 ```bash
 python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl

@@ -7,7 +7,10 @@ Two users:
   Greek / Armenian look-alikes → Latin), a title is shown only when every character is in an allowed set
   (CJK, ASCII letters and digits, ordinary punctuation), no word mixes scripts (``Ignоre`` with a Cyrillic
   ``о``), and it contains no link, domain, phone number, messaging handle (WeChat / QQ / Telegram / e-mail),
-  no instruction or second-person address, and no advice, rating or guarantee wording.
+  no instruction or second-person address, and no advice, rating or guarantee wording, and no planted-fact shape
+  (corrections, exclusives and rumours, prices and multiples, share-capital actions, AI-addressed text; round 9: an
+  insider or unnamed source "revealing" something, a Q&A transcript, a figure "restated"). The agent's evidence ledger
+  additionally hides a headline that states a figure the run's structured data does not contain (``agent/graph.py``).
 * ``find_prohibited_promotion`` finds what must never appear in *any* answer, whoever wrote it: guaranteed-
   return claims (稳赚不赔, 保本, 保证收益), stock-tip solicitation (荐股, 带单, 喊单, 加微信, 私信, 内幕消息)
   and contact handles offered to the reader, plus (round 7) doubling-and-compensation schemes (资金翻倍，亏损全额
@@ -177,7 +180,13 @@ _CLAIM_SHAPE = re.compile(
     r"\bsandbox\b|\bexemption\b|\bexclusive\b|\brumou?rs?\b|\bsources\s+(?:say|said|claim)\b|"
     r"\bcorrect(?:ion|ed)\b|\brestate(?:d|ment)\b|\berrat(?:um|a)\b|\bbonus\s+(?:shares?|issue)\b|"
     r"\bstock\s+split\b|\b(?:close[ds]?|closing\s+price|share\s+price|last\s+price)\s+(?:at\s+|of\s+|up\s+|down\s+)?"
-    r"(?:CNY|RMB|¥)?\s*\d",
+    r"(?:CNY|RMB|¥)?\s*\d|"
+    # (round 9, E4) unconfirmed-source shapes: an insider or unnamed source "revealing" something (透露, 据悉, 知情人士,
+    # 市场传言, insiders, people familiar, leaked), a question-and-answer transcript used as a headline (问：…答：), and
+    # a restatement of a figure ("实为", "实际应为") — none is how a filing or a news desk titles a report
+    r"透露|据悉|据了解|知情|(?:人士|高管|管理层)(?:称|表示|说|指出)|坊间|传言|风传|传出|"
+    r"问\s*[:：][^。]{0,60}?答\s*[:：]|(?<![\w])Q\s*[:：].{0,80}?(?<![\w])A\s*[:：]|实为|实际应?为|"
+    r"\binsiders?\b|\bpeople\s+familiar\b|\bleak(?:ed|s)?\b|\bwhispers?\b|\bunconfirmed\b|\breportedly\b",
     re.IGNORECASE,
 )
 _MARKUP = re.compile(r"[<>{}\[\]`|\\^~]|!\[|\]\(|&#|\\u[0-9a-f]{4}|\*\*|__", re.IGNORECASE)

@@ -1,0 +1,180 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/heldout_r5/chat_r5_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v3#e419eb84d58e",
+   "compose_system": "compose_system@v3#b9a704272c6d"
+  },
+  "commit": "d78a556",
+  "run_at": "2026-09-30T16:16:32+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 132.9,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r5/chat_r5_heldout.jsonl --out outputs/agent_eval/chat_r5-after-round9.json"
+ },
+ "summary": {
+  "tasks": 38,
+  "turns": 41,
+  "repeats": 1,
+  "task_success": 1.0,
+  "pass^1": 1.0,
+  "ci": {
+   "task_success": [
+    1.0,
+    1.0
+   ],
+   "pass^1": [
+    1.0,
+    1.0
+   ],
+   "task_success_uncited": [
+    1.0,
+    1.0
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 1.0,
+  "turn_success": 1.0,
+  "behavior_accuracy": 1.0,
+  "fact_recall": 1.0,
+  "fact_stated": 1.0,
+  "tool_recall": 1.0,
+  "tool_precision": 0.2286,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 322.28,
+  "latency_ms_p95": 2703.68,
+  "latency_ms_p99": 5201.07,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "causal_control": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 823.93
+  },
+  "crypto_refuse": {
+   "tasks": 6,
+   "task_success": 1.0,
+   "latency_ms_p95": 5201.07
+  },
+  "fair_value": {
+   "tasks": 9,
+   "task_success": 1.0,
+   "latency_ms_p95": 1612.26
+  },
+  "missing_derived": {
+   "tasks": 8,
+   "task_success": 1.0,
+   "latency_ms_p95": 2411.58
+  },
+  "non_causal": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 1898.03
+  },
+  "pingan_alias": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 818.21
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 9,
+   "task_success": 1.0,
+   "latency_ms_p95": 2307.12
+  },
+  "zh": {
+   "tasks": 29,
+   "task_success": 1.0,
+   "latency_ms_p95": 3368.37
+  }
+ },
+ "failed_checks": {},
+ "failures": [],
+ "task_outcomes": {
+  "r5t001": "1",
+  "r5t002": "1",
+  "r5t003": "1",
+  "r5t004": "1",
+  "r5t005": "1",
+  "r5t006": "1",
+  "r5t007": "1",
+  "r5t008": "1",
+  "r5t009": "1",
+  "r5t010": "1",
+  "r5t011": "1",
+  "r5t012": "1",
+  "r5t013": "1",
+  "r5t014": "1",
+  "r5t015": "1",
+  "r5t016": "1",
+  "r5t017": "1",
+  "r5t018": "1",
+  "r5t019": "1",
+  "r5t020": "1",
+  "r5t021": "1",
+  "r5t022": "1",
+  "r5t023": "1",
+  "r5t024": "1",
+  "r5t025": "1",
+  "r5t026": "1",
+  "r5t027": "1",
+  "r5t028": "1",
+  "r5t029": "1",
+  "r5t030": "1",
+  "r5t031": "1",
+  "r5t032": "1",
+  "r5t033": "1",
+  "r5t034": "1",
+  "r5t035": "1",
+  "r5t036": "1",
+  "r5t037": "1",
+  "r5t038": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r5-after-round9.json",
+  "sha256_16": "56b43759ed80aef3",
+  "bytes": 116840,
+  "slimmed_at": "2026-09-30T16:21:03+00:00"
+ },
+ "notes": [
+  "Round-5 held-out chat slice after exposure (d78a556): its first run (0.921, chat_heldout_r5-auto-nollm-first-run.json) failed r5t006, r5t019 and r5t029, and the round-9 fixes were generalised from those classes with the author's own dev examples. Not a fresh estimate."
+ ]
+}

@@ -63,8 +63,10 @@ from .memory import (
     resolve_comparison_anchor,
     resolve_coreference,
     resolve_dangling_why,
+    resolve_difference_follow_up,
     resolve_ellipsis,
     resolve_group_reference,
+    resolve_industry_reference,
     session_memory,
     turn_record,
 )
@@ -432,6 +434,10 @@ class AgentRuntime:
         3. References: a dangling "why", "前者/后者", "三家/哪家", "这两家/both", "它/it", or a comparison that names
            only the new side ("跟沪深300ETF比…").
         4. Ellipsis: a missing target ("ROE呢") or a missing aspect ("换成五粮液呢", "And the former's?").
+
+        (round 9, E5) Before 3, a question with no target of its own resolves a demonstrative industry reference
+        ("这个行业的平均PE呢" → the discussed target's industry) or joins a bare difference question
+        ("差了多少个百分点") to the comparison it follows.
         """
         reasons: list[str] = []
         nlu, carried_nlu = _set_aside_context_carry(nlu)
@@ -442,7 +448,14 @@ class AgentRuntime:
             nlu, carried_nlu = _set_aside_context_carry(analyze(query))
         listed = listed_entities(nlu)
         rewrite = None
-        if not listed:
+        named_sector = any(entity.get("entity_type") == "sector" for entity in nlu.get("entities") or [])
+        if not listed and not named_sector:
+            # (round 9, E5) "这个行业的平均PE呢" → the discussed target's industry;
+            # "差了多少个百分点" → the last comparison
+            rewrite = resolve_industry_reference(query, turns, self._industry_of) or resolve_difference_follow_up(
+                query, turns
+            )
+        if rewrite is None and not listed:
             rewrite = resolve_dangling_why(query, turns)
         if rewrite is None and len(listed) < 2:
             rewrite = resolve_group_reference(query, turns)
@@ -560,6 +573,11 @@ class AgentRuntime:
                 reasons.append("override:out_of_scope_sector_of_discussed_target")
             return patched, reasons
         return nlu, []
+
+    def _industry_of(self, symbol: str) -> str | None:
+        """The industry name of a listed target (entity master), or ``None``."""
+        row = self._entity_rows().get(str(symbol).upper())
+        return str(row.get("industry_name") or "") or None if row else None
 
     def _entity_rows(self) -> dict[str, dict[str, Any]]:
         """Entity master rows by symbol (industry and type of a discussed target); empty for stub services."""
@@ -1095,6 +1113,7 @@ class AgentRuntime:
         fact_check = fact_check_for(state["query"], service=self.service, registry=self.registry, zh=zh)
         answer_text = str(answer.get("answer", ""))
         prose = fact_check_prose(fact_check, zh=zh)
+        structured = _structured_payload_numbers(evidence)
         if prose:
             answer_text = f"{prose}\n\n{answer_text}" if answer_text else prose
         result = {
@@ -1108,7 +1127,9 @@ class AgentRuntime:
             "evidence_used": cited,
             "limitations": answer.get("limitations") or [],
             "risk_disclaimer": answer.get("risk_disclaimer"),
-            "evidence_sources": [_source_view(evidence[evidence_id]) for evidence_id in ordered[:12]],
+            "evidence_sources": [
+                _source_view(evidence[evidence_id], numbers=structured) for evidence_id in ordered[:12]
+            ],
             "tool_calls": [_public_log(entry) for entry in state.get("tool_log") or []],
             "verification": state.get("verification") or {},
             "compliance_notes": state.get("compliance_notes") or [],
@@ -1478,7 +1499,18 @@ def _english_subject(payload: dict[str, Any]) -> str | None:
     return english_name(str(name) if name else None, str(payload.get("symbol") or "") or None)
 
 
-def _source_view(item: dict[str, Any]) -> dict[str, Any]:
+def _structured_payload_numbers(evidence: dict[str, Any]) -> list[tuple[float, bool]]:
+    """Every number in the run's structured payloads (the figures a shown headline may repeat)."""
+    from .evidence import _collect_numbers
+
+    values: list[float] = []
+    for item in evidence.values():
+        if isinstance(item, dict) and item.get("kind") == "structured":
+            _collect_numbers(item.get("payload"), values)
+    return [(value, False) for value in values]
+
+
+def _source_view(item: dict[str, Any], numbers: list[tuple[float, bool]] | None = None) -> dict[str, Any]:
     view = {
         key: item.get(key)
         for key in ("evidence_id", "kind", "source_type", "title", "source_name", "source_url", "as_of", "produced_by")
@@ -1495,9 +1527,13 @@ def _source_view(item: dict[str, Any]) -> dict[str, Any]:
     elif item.get("kind") == "document" and view.get("title"):
         # Third-party headlines are listed only when they pass the positive shape check (no links, contact
         # handles, instructions, advice or guarantee wording, no mixed-script homoglyphs); otherwise hidden.
+        # (round 9, E4) A headline that states a figure (a number with a unit) the run's structured data does not
+        # contain is hidden too: figures come from the tools, and a headline is where a planted one is shown.
         from ..text_safety import safe_headline
+        from .output_safety import unconfirmed_figures
 
-        if safe_headline(str(view["title"])) is None:
+        title = str(view["title"])
+        if safe_headline(title) is None or unconfirmed_figures(title, numbers or []):
             view["title"] = None
             view["title_withheld"] = True
     return view

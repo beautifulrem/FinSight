@@ -284,7 +284,7 @@ behind the host's proxy; without it every live source failed with DNS or connect
 
 | File | Content |
 |---|---|
-| `monitoring/grafana/finsight-dashboard.json` | 30 panels in five rows. **Traffic:** requests/s by route, P50/P95 by route, answer source. **Quality:** verification-failure rate, degradations by flag, tool error rate by tool. **LLM:** cost per hour and per 24 h, calls per model (failover), per-model breaker state timeline, tokens by kind, LLM calls per answered run. **Data sources:** breaker state timeline per source, calls by outcome, the source-call pool. **Answer quality by prompt version, user feedback, audit:** first-draft verification failure rate and repair rate by prompt version, outcome counts (24 h), thumbs-up ratio by prompt version and overall (24 h), feedback per hour by rating, audit events per hour by category, injection-filter redactions per hour by source and outcome, turns answered after an input-guard redaction (24 h), and output-safety edits per hour by kind (round 8: attribution, promotion_or_contact, trading_call, conflicting_figure). |
+| `monitoring/grafana/finsight-dashboard.json` | 25 panels in five rows. **Traffic:** requests/s by route, P50/P95 by route, answer source. **Quality:** verification-failure rate, degradations by flag, tool error rate by tool. **LLM:** cost per hour and per 24 h, calls per model (failover), per-model breaker state timeline, tokens by kind, LLM calls per answered run. **Data sources:** breaker state timeline per source, calls by outcome, the source-call pool. **Answer quality by prompt version, user feedback, audit:** first-draft verification failure rate and repair rate by prompt version, outcome counts (24 h), thumbs-up ratio by prompt version and overall (24 h), feedback per hour by rating, audit events per hour by category, injection-filter redactions per hour by source and outcome, turns answered after an input-guard redaction (24 h), and output-safety edits per hour by kind (round 8: attribution, promotion_or_contact, trading_call, conflicting_figure). |
 | `monitoring/prometheus/alerts.yml` | 13 rules. The first 10: `FinSightDown`, `FinSightWorkflowP95High` (> 8 s for 10 min), `FinSightAgentP95High` (> 60 s), `FinSightVerificationFailureRateHigh` (> 20%), `FinSightToolErrorRateHigh` (> 25% per tool), `FinSightLLMModelCircuitOpen`, `FinSightAllLLMModelsDown`, `FinSightDataSourceCircuitOpen`, `FinSightSourcePoolAbandonedCalls`, `FinSightLLMCostBurnHigh` (> ¥20 per hour). Three more: `FinSightRepairRateHighForPromptVersion` (> 25% repaired for one LLM prompt version, at least 20 answers in 30 min), `FinSightNegativeFeedbackHigh` (> 50% thumbs-down over 6 h with at least 10 ratings), `FinSightInjectionAttemptsSpike` (> 20 injection refusals in 10 min). |
 | `monitoring/prometheus/alerts_test.yml` | promtool unit tests: each of the three new rules fires on synthetic series, and only for the unhealthy prompt version. |
 
@@ -326,8 +326,9 @@ the first draft failed verification, and the `llm.revise` call alone took 74 s.
 `scripts/chaos_drill.py` injects real faults in front of a live server started by the script itself
 (nothing is stubbed inside the process under test) and records latency, traces, `/sources/health` and
 `/metrics` per phase. Results: `docs/results/chaos/llm/chaos-llm.json` and
-`docs/results/chaos/sources/chaos-sources.json` (2026-09-26, merged build, see
-[performance.md](performance.md#test-host-and-builds)).
+`docs/results/chaos/sources/chaos-sources.json`, both rerun on 2026-09-30 at clean commits (`3b03369` and `3d7afd5`,
+`working_tree_clean: true`). They replace the 2026-09-26 runs, whose `commit` fields had been hand-edited (LLM) or
+read `8dc388b-dirty` (sources).
 
 ### LLM: primary model fails, failover to GLM, breaker opens and recovers
 
@@ -341,19 +342,21 @@ source /tmp/llmenv.sh
 python -m scripts.chaos_drill --scenario llm --fallback-model cline-pass/glm-5.3-flash --usd-cny 6.7489
 ```
 
-| Phase (UTC) | Requests | What the gateway saw | `finsight_llm_circuit_state` (DeepSeek / GLM) |
+| Phase (UTC, 2026-09-30) | Requests | What the gateway saw | `finsight_llm_circuit_state` (DeepSeek / GLM) |
 |---|---|---|---|
-| 1 baseline 13:43 | 1 agent answer, 44.2 s, verified | 4 DeepSeek calls, 200 | 0 / 0 |
-| 2 primary failing 13:44–13:48 | 3 agent requests: 80.8 s and 47.5 s (verified, answered by GLM, 3 and 5 calls); the third hit the API's 120 s timeout (504) while a GLM call took 62.8 s | DeepSeek 404 three times (0.25–1.0 s each), then the breaker opened and calls went straight to GLM (13 calls, 200). After each 60 s cool-down one half-open trial reached DeepSeek, got 404 and re-opened the breaker (3 trials) | 2 (open) / 0 |
-| 3 fault healed, cool-down over 13:49 | none | none | 1 (half-open) / 0 |
-| 4 recovered 13:49 | 1 agent answer, 21.0 s, verified | 3 DeepSeek calls, 200: the trial succeeded and closed the breaker | 0 / 0 |
+| 1 baseline 16:49 | 1 agent answer, 13.5 s, verified | 2 DeepSeek calls, 200 | 0 / 0 |
+| 2 primary failing 16:49–16:54 | 3 agent requests, each ended by the run deadline: 90.0 s and 90.0 s (a GLM call timed out, so the deterministic answer was served, verified), 96.8 s (answered by GLM in 5 calls; its draft failed verification and the template answer replaced it) | DeepSeek 404 five times (0.24–0.31 s each: the first failures and the half-open trials after each cool-down), GLM 15 calls, 200, 8.8–48.7 s | 2 (open) / 0 |
+| 3 fault healed, cool-down over 16:54 | none | none | 1 (half-open) / 0 |
+| 4 recovered 16:54 | 1 agent answer, 10.7 s, verified | 2 DeepSeek calls, 200: the trial succeeded and closed the breaker | 0 / 0 |
 
-In the traces (`trace_llm_calls` per request), the LLM spans of phase 2 carry
-`gen_ai.request.model = z-ai/glm-5.3-flash`, and those of phases 1 and 4 `deepseek/deepseek-v4.1-flash`.
-Latency cost of the failover: a failed primary call costs 0.25–1.0 s (404 is not retried), and an open
-breaker costs nothing. The real cost is the fallback model: GLM calls took 2.5–62.8 s against
-2.5–9.0 s for DeepSeek, so answers took 48–81 s instead of 21–44 s, and one request exceeded
-`QI_AGENT_REQUEST_TIMEOUT_S`. Since `d1c007c` every LLM request is bounded by the run deadline (tool loop 90 s, answer-producing calls 20 s more; see [agent.md](agent.md#configuration)), so a slow fallback model now ends in the deterministic answer instead of a 504; the drill has not been rerun with it.
+Every request was HTTP 200; the gateway saw only `cline-pass/deepseek-v4.1-flash` and `cline-pass/glm-5.3-flash` (24
+calls). The server traces (`docs/results/chaos/llm/traces/`) carry the model per LLM span: `z-ai/glm-5.3-flash` in
+phase 2, `deepseek/deepseek-v4.1-flash` in phases 1 and 4 (the names the gateway reports back). The drill's own
+`trace_llm_calls` field is empty since keyless callers may not read traces (C3). Compared with the 2026-09-26 run,
+before the run deadline: then one request hit the API's 120 s timeout (504) and the others took 48–81 s; now a slow
+fallback ends at the deadline (about 90 s) with the verified deterministic answer. The cost of the failover is the
+fallback model's latency (GLM 8.8–48.7 s per call against 3.6–7.2 s for DeepSeek); a failed primary call costs
+0.3 s and an open breaker nothing.
 
 ### Data sources: Sina, Tencent and Eastmoney blocked
 
@@ -366,18 +369,19 @@ host's proxy) but answers `403` for `*.sina.com.cn`, `*.sinajs.cn`, `*.sina.cn`,
 python -m scripts.chaos_drill --scenario sources --source-cooldown 20 --max-stale 90
 ```
 
-| Phase (UTC) | Question | Latency | What was served (from the answer's evidence provenance) |
+| Phase (UTC, 2026-09-30) | Question | Latency | What was served (from the answer's evidence provenance) |
 |---|---|---:|---|
-| 1 live 13:56 | 贵州茅台最新收盘价 | 4.1 s | close 1237.0 from `sina.kline`, `live_fallback` ("因东方财富行情请求失败降级": Eastmoney's quote host was already throttling this IP) |
-| 1b live | 五粮液营收和净利润增长；行业表现 | 2.1 s | fundamentals from `ths.finance` with `cross_check: disagree_resolved` (Sina's YoY contradicted the reported levels); industry 白酒 live from `ths.industry` (2026-09-24) instead of the April snapshot |
-| 2 blocked, within TTL | same price question | 0.13 s | the same close from the 60 s caches, no upstream call |
-| 2 blocked | CPI 最新数据 | 0.18 s | never cached: straight to the offline snapshot, labelled `snapshot`, `stale`, "因实时宏观数据不可用降级" |
-| 3 blocked, after TTL 13:57 | price | 1.5 s | every live candidate failed (Eastmoney, Sina, Tencent, Sina realtime, efinance); served `last_known_good`, "沿用最近一次成功获取的实时数据（获取于13:56:02）" |
-| 4 blocked, after the stale window 13:58 | price | 1.8 s | no price: the shipped snapshot price (2026-04) is too old to stand in for a quote, so the answer states the limitation ("get_price_history 未返回可用数据") instead of a stale number; breakers open for `sina.kline`, `sina.quote`, `tencent.kline`, `efinance` |
-| 5 unblocked, after cool-down 13:59 | price | 1.7 s | `sina.kline` half-open trial succeeded, breaker closed, live again |
+| 1 live 16:25 | 贵州茅台最新收盘价 | 6.1 s | close 1258.62 (2026-09-30) from `sina.kline`, `live_fallback` ("因东方财富行情请求失败降级": Eastmoney's quote host refused this machine through its proxy, and its breaker was already open) |
+| 1b live | 五粮液营收和净利润增长；行业表现 | 5.6 s | fundamentals from `ths.finance` (period 2026-06-30) with `fundamentals_cross_source_disagree_resolved` (Sina's YoY contradicted the reported levels); industry 白酒 live from `ths.industry` (2026-09-30) instead of the April snapshot |
+| 2 blocked, within TTL | same price question | 0.21 s | the same close, no upstream call |
+| 2 blocked | CPI 最新数据 | 0.73 s | never cached: straight to the offline snapshot, labelled `snapshot`, `stale`, "因实时宏观数据不可用降级" |
+| 3 blocked, after TTL 16:26 | price | 1.9 s | every live candidate failed; served `last_known_good`, "沿用最近一次成功获取的实时数据（获取于2026-09-30T16:25:35+00:00）" |
+| 4 blocked, after the stale window 16:28 | price | 1.7 s | no price: the shipped snapshot price (2026-04) is too old to stand in for a quote, so the answer states the limitation ("get_price_history 未返回可用数据") instead of a stale number; breakers open for `sina.kline`, `sina.quote`, `tencent.kline`, `efinance` (and `eastmoney.quote`) |
+| 5 unblocked, after cool-down 16:29 | price | 2.1 s | `sina.kline` half-open trial succeeded, its breaker closed, live again |
 
 Every answer was HTTP 200 and passed verification. The source-call pool never came near saturation
-(`max_busy` 4 of 32, 0 abandoned, 0 rejected), because blocked hosts fail fast with 403. The pool
+(`max_busy` 5 of 32, 0 abandoned, 0 rejected), because blocked hosts fail fast with 403. The 2026-09-26 run showed the
+same sequence (close 1237.0 then; latencies 4.1 / 2.1 / 0.13 / 0.18 / 1.5 / 1.8 / 1.7 s). The pool
 matters for the other failure mode, hosts that hang: `--block-mode hang` makes the proxy hold the
 connection instead (not part of the recorded run); such calls end at `QI_SOURCE_CALL_TIMEOUT_SECONDS` and count as abandoned, which `tests/test_source_reliability.py` covers offline.
 

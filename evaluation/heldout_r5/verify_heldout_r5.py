@@ -1,12 +1,13 @@
 """Re-run FinSight's offline tools and check every fact and label in the round-5 held-out slice.
 
-    cd <local path> && PYTHONPATH=. .venv/bin/python <local path>
+    PYTHONPATH=. python evaluation/heldout_r5/verify_heldout_r5.py      # from the repository root (also in CI)
 
 Checks: (1) every `actual` / `other_actual` in claims equals the tool payload; (2) every check `status` and
 every `expected_verdict` follows from the comparator rules in README.md; (3) every chat `required_facts`
 value is in (or derived from) the cited evidence payload; (4) the task-level `verify` assertions (missing
 symbol, missing field, no YTD / growth data, crypto not in the entity universe); (5) the TRADING
-forbidden patterns are exactly the reference list. Exits non-zero on any failure.
+forbidden patterns are exactly the reference list; (6) the two jsonl files still have the sha256 listed in README.md.
+Exits non-zero on any failure.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = Path("<local path>")
+REPO = HERE.parents[1]  # the repository root (evaluation/heldout_r5/ -> ../..)
 sys.path.insert(0, str(REPO))
 
 from evaluation.agent_eval.runner import build_offline_service  # noqa: E402
@@ -229,8 +230,12 @@ for task in tasks:
 
 print(f"claims: {len(claims)} rows, {n_checks} checks")
 print(f"chat: {len(tasks)} tasks, {n_turns} turns, {n_facts} required facts")
+readme = (HERE / "README.md").read_text(encoding="utf-8")
 for name in ("claims_r5_heldout.jsonl", "chat_r5_heldout.jsonl"):
-    print(name, hashlib.sha256((HERE / name).read_bytes()).hexdigest())
+    digest = hashlib.sha256((HERE / name).read_bytes()).hexdigest()
+    print(name, digest)
+    if f"`{name}`" not in readme or digest not in readme:
+        fail(f"{name}: sha256 {digest} is not the one listed in README.md")
 if failures:
     print(f"FAIL ({len(failures)})")
     for msg in failures:

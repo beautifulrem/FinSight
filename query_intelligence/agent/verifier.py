@@ -90,7 +90,8 @@ _DATE_PATTERNS = (
 _PARAMETER_PATTERNS = (
     re.compile(r"(?:RSI|MA|EMA|SMA|MACD|BOLL)\s*[\(（]?\s*\d+(?:\s*[,，]\s*\d+)*\s*[\)）]?", re.IGNORECASE),
     re.compile(r"(?:近|过去|最近|前|后|未来)\s*\d+\s*(?:个)?(?:交易日|日|天|周|个月|月|年|季度)"),
-    re.compile(r"\d+\s*(?:个)?(?:交易日|日均线|日线|篇|条|家|只|个|项|名|位)"),
+    # a count ("5 个交易日", "3 篇"), not a decimal's tail nor a percentage-point figure ("1.26 个百分点", round 9)
+    re.compile(r"(?<![\d.])\d+\s*(?:个)?(?:交易日|日均线|日线|篇|条|家|只|个(?!\s*百分点)|项|名|位)"),
     re.compile(
         r"\b\d+[- ]?(?:day|days|week|weeks|month|months|year|years|articles?|items?|documents?)\b", re.IGNORECASE
     ),
