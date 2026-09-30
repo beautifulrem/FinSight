@@ -71,6 +71,10 @@ _VERDICT = {
     "partially_supported": ("部分与数据相符", "partly matches the data"),
     "unverifiable": ("无法用现有数据核实", "cannot be verified with the available data"),
 }
+_PARTLY_CHECKED = (
+    "只核查了一部分：已核查的数字与数据相符",
+    "was only partly checked: the checked numbers match the data",
+)
 _STATUS = {
     "supported": ("相符", "matches"),
     "contradicted": ("不符", "does not match"),
@@ -239,6 +243,9 @@ def fact_check_prose(report: dict[str, Any] | None, *, zh: bool = True) -> str:
     if not report or not report.get("checks"):
         return ""
     verdict = _pick(_VERDICT.get(str(report.get("verdict")), _VERDICT["unverifiable"]), zh)
+    if report.get("verdict") == "supported" and report.get("coverage") == "partial":
+        # Never "matches the data" when parts were not checked (round 9, E2).
+        verdict = _pick(_PARTLY_CHECKED, zh)
     checks = list(report["checks"])
     sentences = [_check_sentence(check, zh) for check in checks[:_MAX_SENTENCES]]
     if len(checks) > _MAX_SENTENCES:
