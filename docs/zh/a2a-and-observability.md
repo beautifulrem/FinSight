@@ -331,7 +331,7 @@ python monitoring/screenshot.py --grafana http://127.0.0.1:3300 --jaeger http://
 
 | 文件 | 内容 |
 |---|---|
-| `monitoring/grafana/finsight-dashboard.json` | 30 个面板，分五行：<br>- **流量**：各路由的每秒请求数、各路由的 P50/P95、作答来源；<br>- **质量**：校验失败率、各类降级、各工具错误率；<br>- **LLM**：每小时和 24 小时成本、各模型调用次数（体现容灾）、各模型熔断状态时间线、各类 token、每次作答运行的 LLM 调用数；<br>- **数据源**：各数据源熔断状态时间线、按结果统计的调用、数据源调用池；<br>- **按提示词版本的答案质量、用户反馈、审计**：各版本的初稿校验失败率和修复率、24 小时各结果计数、各版本和整体（24 小时）的点赞率、每小时反馈量、每小时各类审计事件、每小时注入过滤删除（按来源和结果），24 小时内输入防护删除后仍作答的轮数，以及每小时按类别统计的输出安全层改动（第 8 轮：attribution、promotion_or_contact、trading_call、conflicting_figure）。 |
+| `monitoring/grafana/finsight-dashboard.json` | 25 个面板，分五行：<br>- **流量**：各路由的每秒请求数、各路由的 P50/P95、作答来源；<br>- **质量**：校验失败率、各类降级、各工具错误率；<br>- **LLM**：每小时和 24 小时成本、各模型调用次数（体现容灾）、各模型熔断状态时间线、各类 token、每次作答运行的 LLM 调用数；<br>- **数据源**：各数据源熔断状态时间线、按结果统计的调用、数据源调用池；<br>- **按提示词版本的答案质量、用户反馈、审计**：各版本的初稿校验失败率和修复率、24 小时各结果计数、各版本和整体（24 小时）的点赞率、每小时反馈量、每小时各类审计事件、每小时注入过滤删除（按来源和结果），24 小时内输入防护删除后仍作答的轮数，以及每小时按类别统计的输出安全层改动（第 8 轮：attribution、promotion_or_contact、trading_call、conflicting_figure）。 |
 | `monitoring/prometheus/alerts.yml` | 13 条规则。原有 10 条：`FinSightDown`、`FinSightWorkflowP95High`（10 分钟内 > 8 秒）、`FinSightAgentP95High`（> 60 秒）、`FinSightVerificationFailureRateHigh`（> 20%）、`FinSightToolErrorRateHigh`（单个工具 > 25%）、`FinSightLLMModelCircuitOpen`、`FinSightAllLLMModelsDown`、`FinSightDataSourceCircuitOpen`、`FinSightSourcePoolAbandonedCalls`、`FinSightLLMCostBurnHigh`（每小时 > ¥20）。新增 3 条：`FinSightRepairRateHighForPromptVersion`（某个 LLM 提示词版本 30 分钟内至少 20 个答案，修复率 > 25%）、`FinSightNegativeFeedbackHigh`（6 小时内至少 10 个评价，点踩 > 50%）、`FinSightInjectionAttemptsSpike`（10 分钟内注入拒答 > 20 次）。 |
 | `monitoring/prometheus/alerts_test.yml` | promtool 单元测试：三条新规则在合成数据上都会触发，而且只对不健康的那个提示词版本触发。 |
 
@@ -377,7 +377,7 @@ python -m pytest tests/test_monitoring_config.py -q   # 看板结构；用到的
 
 `scripts/chaos_drill.py` 自己启动一个真实服务，在它前面注入真实故障（被测进程内部没有任何替身），并按阶段记录延迟、trace、`/sources/health` 和 `/metrics`。
 
-结果文件：`docs/results/chaos/llm/chaos-llm.json` 和 `docs/results/chaos/sources/chaos-sources.json`（2026-09-26，合并后的镜像，见[性能](performance.md#测试环境与镜像)）。
+结果文件：`docs/results/chaos/llm/chaos-llm.json`（2026-09-26，合并后的镜像，见[性能](performance.md#测试环境与镜像)）和 `docs/results/chaos/sources/chaos-sources.json`（2026-09-30 在干净的 commit `3d7afd5` 上重跑，`working_tree_clean: true`；替换了记录为 `8dc388b-dirty` 的 2026-09-26 那次运行）。
 
 ### LLM：主模型失效，切换到 GLM，熔断打开后恢复
 
@@ -414,18 +414,18 @@ python -m scripts.chaos_drill --scenario llm --fallback-model cline-pass/glm-5.3
 python -m scripts.chaos_drill --scenario sources --source-cooldown 20 --max-stale 90
 ```
 
-| 阶段（UTC） | 问题 | 延迟 | 实际给出的数据（取自答案证据的来源标注） |
+| 阶段（UTC，2026-09-30） | 问题 | 延迟 | 实际给出的数据（取自答案证据的来源标注） |
 |---|---|---:|---|
-| 1 正常 13:56 | 贵州茅台最新收盘价 | 4.1 秒 | 收盘价 1237.0，来自 `sina.kline`，`live_fallback`（「因东方财富行情请求失败降级」：东方财富行情主机当时已在对这个 IP 限流） |
-| 1b 正常 | 五粮液营收和净利润增长；行业表现 | 2.1 秒 | 基本面来自 `ths.finance`，`cross_check: disagree_resolved`（新浪的同比增速与报告的绝对值矛盾）；白酒行业来自实时的 `ths.industry`（2026-09-24），而不是 4 月的快照 |
-| 2 已屏蔽，缓存有效期内 | 同一个价格问题 | 0.13 秒 | 同一个收盘价，来自 60 秒缓存，没有上游调用 |
-| 2 已屏蔽 | CPI 最新数据 | 0.18 秒 | 从未缓存过：直接用离线快照，标注 `snapshot`、`stale`、「因实时宏观数据不可用降级」 |
-| 3 已屏蔽，缓存过期后 13:57 | 价格 | 1.5 秒 | 所有实时候选都失败（东方财富、新浪、腾讯、新浪实时、efinance）；给出 `last_known_good`：「沿用最近一次成功获取的实时数据（获取于13:56:02）」 |
-| 4 已屏蔽，超过可接受的陈旧期 13:58 | 价格 | 1.8 秒 | 没有价格：随仓库提供的快照价（2026-04）太旧，不能冒充行情，所以答案说明了局限（「get_price_history 未返回可用数据」），而不是给出过期数字；`sina.kline`、`sina.quote`、`tencent.kline`、`efinance` 的熔断打开 |
-| 5 解除屏蔽，冷却结束 13:59 | 价格 | 1.7 秒 | `sina.kline` 半开试探成功，熔断关闭，恢复实时 |
+| 1 正常 16:25 | 贵州茅台最新收盘价 | 6.1 秒 | 收盘价 1258.62（2026-09-30），来自 `sina.kline`，`live_fallback`（「因东方财富行情请求失败降级」：东方财富行情主机经由本机代理拒绝连接，其熔断已打开） |
+| 1b 正常 | 五粮液营收和净利润增长；行业表现 | 5.6 秒 | 基本面来自 `ths.finance`（报告期 2026-06-30），带 `fundamentals_cross_source_disagree_resolved`（新浪的同比增速与报告的绝对值矛盾）；白酒行业来自实时的 `ths.industry`（2026-09-30），而不是 4 月的快照 |
+| 2 已屏蔽，缓存有效期内 | 同一个价格问题 | 0.21 秒 | 同一个收盘价，没有上游调用 |
+| 2 已屏蔽 | CPI 最新数据 | 0.73 秒 | 从未缓存过：直接用离线快照，标注 `snapshot`、`stale`、「因实时宏观数据不可用降级」 |
+| 3 已屏蔽，缓存过期后 16:26 | 价格 | 1.9 秒 | 所有实时候选都失败；给出 `last_known_good`：「沿用最近一次成功获取的实时数据（获取于2026-09-30T16:25:35+00:00）」 |
+| 4 已屏蔽，超过可接受的陈旧期 16:28 | 价格 | 1.7 秒 | 没有价格：随仓库提供的快照价（2026-04）太旧，不能冒充行情，所以答案说明了局限（「get_price_history 未返回可用数据」），而不是给出过期数字；`sina.kline`、`sina.quote`、`tencent.kline`、`efinance`（以及 `eastmoney.quote`）的熔断打开 |
+| 5 解除屏蔽，冷却结束 16:29 | 价格 | 2.1 秒 | `sina.kline` 半开试探成功，熔断关闭，恢复实时 |
 
-- **结果**：每个答案都是 HTTP 200，并且通过了校验。
-- **调用池没有接近饱和**（`max_busy` 32 个中的 4 个，0 个被放弃，0 个被拒绝），因为被屏蔽的主机用 403 快速失败。
+- **结果**：每个答案都是 HTTP 200，并且通过了校验。2026-09-26 那次运行的顺序相同（当时收盘价 1237.0；延迟 4.1 / 2.1 / 0.13 / 0.18 / 1.5 / 1.8 / 1.7 秒）。
+- **调用池没有接近饱和**（`max_busy` 32 个中的 5 个，0 个被放弃，0 个被拒绝），因为被屏蔽的主机用 403 快速失败。
 - **调用池针对的是另一种故障：上游挂起不返回**。
   - `--block-mode hang` 让代理扣住连接不回（不在这次记录的运行中）；
   - 这类调用在 `QI_SOURCE_CALL_TIMEOUT_SECONDS` 到时结束，并记为被放弃；

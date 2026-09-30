@@ -1,6 +1,6 @@
 {
-  "trace_id": "b12fc2aa1f1a4e1eaefc822ebfa7a0af",
-  "session_id": "chaos-src-2_blocked_within_ttl-0",
+  "trace_id": "00b38e3fcadb4613828cb3adaf7843fe",
+  "session_id": "chaos-src-5_unblocked_recovered-0",
   "turn_index": 0,
   "query": "贵州茅台最新收盘价是多少？",
   "route": "workflow",
@@ -8,38 +8,38 @@
     "mode:workflow"
   ],
   "answer_source": "template",
-  "started_at": 1790430964.792,
-  "duration_ms": 118.19,
+  "started_at": 1790785747.154,
+  "duration_ms": 2079.21,
   "nodes": [
     {
       "node": "guard_in",
-      "started_at": 1790430964.792,
-      "duration_ms": 105.52
+      "started_at": 1790785747.154,
+      "duration_ms": 199.22
     },
     {
       "node": "execute_plan",
-      "started_at": 1790430964.902,
-      "duration_ms": 0.95
+      "started_at": 1790785747.355,
+      "duration_ms": 1864.57
     },
     {
       "node": "compose",
-      "started_at": 1790430964.904,
-      "duration_ms": 2.46
+      "started_at": 1790785749.221,
+      "duration_ms": 0.46
     },
     {
       "node": "verify",
-      "started_at": 1790430964.908,
-      "duration_ms": 0.85
+      "started_at": 1790785749.222,
+      "duration_ms": 1.4
     },
     {
       "node": "compliance",
-      "started_at": 1790430964.909,
-      "duration_ms": 0.27
+      "started_at": 1790785749.224,
+      "duration_ms": 6.28
     },
     {
       "node": "finalize",
-      "started_at": 1790430964.91,
-      "duration_ms": 0.19
+      "started_at": 1790785749.231,
+      "duration_ms": 2.21
     }
   ],
   "tools": [
@@ -51,10 +51,10 @@
       },
       "ok": true,
       "error": null,
-      "latency_ms": 0.21,
-      "started_at": 1790430964.903,
-      "attempts": 0,
-      "cached": true,
+      "latency_ms": 1859.67,
+      "started_at": 1790785747.357,
+      "attempts": 1,
+      "cached": false,
       "source": "planner",
       "step": 0
     }
@@ -78,7 +78,9 @@
   "compliance_notes": [
     "market_freshness"
   ],
+  "refusal_category": null,
+  "prompt_version": "none",
   "degraded": [],
   "evidence_count": 1,
-  "owner": "local"
+  "owner": "anon:b74c2662637b"
 }

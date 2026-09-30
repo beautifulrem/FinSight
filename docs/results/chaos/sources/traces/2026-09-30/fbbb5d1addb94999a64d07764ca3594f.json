@@ -1,60 +1,58 @@
 {
-  "trace_id": "f7b3c3b244c34d0b8716011ea63685bb",
-  "session_id": "chaos-src-2_blocked_within_ttl-1",
+  "trace_id": "fbbb5d1addb94999a64d07764ca3594f",
+  "session_id": "chaos-src-3_blocked_after_ttl-0",
   "turn_index": 0,
-  "query": "CPI 最新数据是多少？",
+  "query": "贵州茅台最新收盘价是多少？",
   "route": "workflow",
   "route_reasons": [
     "mode:workflow"
   ],
   "answer_source": "template",
-  "started_at": 1790430964.921,
-  "duration_ms": 171.23,
+  "started_at": 1790785610.545,
+  "duration_ms": 1805.63,
   "nodes": [
     {
       "node": "guard_in",
-      "started_at": 1790430964.921,
-      "duration_ms": 159.37
+      "started_at": 1790785610.545,
+      "duration_ms": 347.46
     },
     {
       "node": "execute_plan",
-      "started_at": 1790430965.081,
-      "duration_ms": 3.92
+      "started_at": 1790785610.895,
+      "duration_ms": 1426.93
     },
     {
       "node": "compose",
-      "started_at": 1790430965.086,
-      "duration_ms": 2.18
-    },
-    {
-      "node": "verify",
-      "started_at": 1790430965.089,
+      "started_at": 1790785612.325,
       "duration_ms": 0.81
     },
     {
+      "node": "verify",
+      "started_at": 1790785612.326,
+      "duration_ms": 4.1
+    },
+    {
       "node": "compliance",
-      "started_at": 1790430965.091,
-      "duration_ms": 0.17
+      "started_at": 1790785612.332,
+      "duration_ms": 13.29
     },
     {
       "node": "finalize",
-      "started_at": 1790430965.092,
-      "duration_ms": 0.23
+      "started_at": 1790785612.346,
+      "duration_ms": 4.63
     }
   ],
   "tools": [
     {
-      "tool": "get_macro_indicators",
+      "tool": "get_price_history",
       "arguments": {
-        "topics": [
-          "CPI"
-        ],
-        "query": "CPI 最新数据是多少"
+        "target": "600519.SH",
+        "days": 10
       },
       "ok": true,
       "error": null,
-      "latency_ms": 3.51,
-      "started_at": 1790430965.081,
+      "latency_ms": 1415.23,
+      "started_at": 1790785610.896,
       "attempts": 1,
       "cached": false,
       "source": "planner",
@@ -80,7 +78,9 @@
   "compliance_notes": [
     "market_freshness"
   ],
+  "refusal_category": null,
+  "prompt_version": "none",
   "degraded": [],
   "evidence_count": 1,
-  "owner": "local"
+  "owner": "anon:b74c2662637b"
 }

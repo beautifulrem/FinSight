@@ -17,33 +17,33 @@
  "phases": [
   {
    "phase": "1_live",
-   "at": "2026-09-26T13:56:02+00:00",
+   "at": "2026-09-30T16:25:35+00:00",
    "blocking": false,
    "requests": [
     {
      "query": "贵州茅台最新收盘价是多少？",
      "status": 200,
-     "latency_ms": 4122.6,
+     "latency_ms": 6124.7,
      "route": "workflow",
      "verified": true,
      "degraded": [],
-     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1237（2026-09-24），当日涨跌幅 -1.1381% [price_600519.SH]。",
+     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1258.62 元（2026-09-30），当日涨跌幅 1.8647% [price_600519.SH]。",
      "limitations": [
-      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-24。"
+      "今天（2026-10-01）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-30。"
      ],
      "evidence": [
       {
        "evidence_id": "price_600519.SH",
        "source_type": "market_api",
-       "close": 1237.0,
+       "close": 1258.62,
        "trade_date": null,
        "source": "sina.kline",
        "mode": "live_fallback",
        "freshness": "fresh",
-       "as_of": "2026-09-24",
+       "as_of": "2026-09-30",
        "cache_hit": false,
        "fallback_reason": "eastmoney.quote:error(ProxyError); eastmoney.quote:error(ProxyError)",
-       "note": "数据来自新浪财经行情，截至2026-09-24；因东方财富行情请求失败降级",
+       "note": "数据来自新浪财经行情，截至2026-09-30；因东方财富行情请求失败降级",
        "provider_warnings": null
       }
      ]
@@ -159,11 +159,11 @@
     "webapi.cninfo.com.cn": {
      "forwarded": 1
     },
-    "basic.10jqka.com.cn": {
-     "forwarded": 2
-    },
     "money.finance.sina.com.cn": {
      "forwarded": 1
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 2
     },
     "datacenter-web.eastmoney.com": {
      "forwarded": 1
@@ -172,33 +172,35 @@
   },
   {
    "phase": "1b_live_fundamentals_and_industry",
-   "at": "2026-09-26T13:56:04+00:00",
+   "at": "2026-09-30T16:25:41+00:00",
    "blocking": false,
    "requests": [
     {
      "query": "五粮液最新的营收和净利润增长情况如何？所在行业最近表现怎样？",
      "status": 200,
-     "latency_ms": 2135.5,
+     "latency_ms": 5578.0,
      "route": "workflow",
      "verified": true,
      "degraded": [],
-     "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 69.67（2026-09-24），当日涨跌幅 -0.9525% [price_000858.SZ]。五粮液 基本面（报告期 2026-06-30）：PE(TTM) 20.67，PB 2.28，ROE 7.39%，营业收入 284.17 亿元，净利润 87.53 亿元 [fundamental_000858.SZ]。所属行业 白酒：涨跌幅% -2.69 [industry_白酒]。相关资料：《五粮液000858.SZ)：2026年中报净利润为87.53亿元、同比较去年同期上涨89.30%》（界面新闻，2026-08-29） [",
+     "answer_excerpt": "当前数据源的白酒行业快照没有营业收入、净利润，无法给出行业层面的这一项。根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 70.06 元（2026-09-30），当日涨跌幅 1.8758% [price_000858.SZ]。所属行业 白酒：涨跌幅 2.82% [industry_白酒]。五粮液 基本面（报告期 2026-06-30，2026H1）：PE(TTM) 20.79 倍，PB 2.3 倍，ROE 7.39%，营业收入 284.17 亿元，净利润 87.53 亿元 [fundamental_000858.SZ]。五粮液（报告期 2026-06-30）：增速 89.3%",
      "limitations": [
-      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-24。"
+      "当前数据源的白酒行业快照没有营业收入、净利润，无法给出行业层面的这一项。",
+      "资料标题和原文属于第三方内容，未经核实，回答中不引用；可在证据列表中查看。",
+      "今天（2026-10-01）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-30。"
      ],
      "evidence": [
       {
        "evidence_id": "price_000858.SZ",
        "source_type": "market_api",
-       "close": 69.67,
+       "close": 70.06,
        "trade_date": null,
        "source": "sina.kline",
        "mode": "live_fallback",
        "freshness": "fresh",
-       "as_of": "2026-09-24",
+       "as_of": "2026-09-30",
        "cache_hit": false,
        "fallback_reason": "eastmoney.quote:circuit_open",
-       "note": "数据来自新浪财经行情，截至2026-09-24；因东方财富行情熔断中降级",
+       "note": "数据来自新浪财经行情，截至2026-09-30；因东方财富行情熔断中降级",
        "provider_warnings": null
       },
       {
@@ -220,15 +222,15 @@
       {
        "evidence_id": "industry_白酒",
        "source_type": "industry_sql",
-       "close": 1922.131,
-       "trade_date": "2026-09-24",
+       "close": 1957.999,
+       "trade_date": "2026-09-30",
        "source": "ths.industry",
        "mode": "live",
        "freshness": "fresh",
-       "as_of": "2026-09-24",
+       "as_of": "2026-09-30",
        "cache_hit": false,
        "fallback_reason": null,
-       "note": "数据来自同花顺行业指数，截至2026-09-24",
+       "note": "数据来自同花顺行业指数，截至2026-09-30",
        "provider_warnings": null
       }
      ]
@@ -295,7 +297,7 @@
    "worker_pool": {
     "max_workers": 32,
     "busy": 0,
-    "max_busy": 4,
+    "max_busy": 5,
     "submitted_total": 20,
     "completed_total": 20,
     "timed_out_total": 0,
@@ -362,11 +364,11 @@
     "webapi.cninfo.com.cn": {
      "forwarded": 3
     },
-    "basic.10jqka.com.cn": {
-     "forwarded": 6
-    },
     "money.finance.sina.com.cn": {
      "forwarded": 3
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 6
     },
     "datacenter-web.eastmoney.com": {
      "forwarded": 3
@@ -384,33 +386,33 @@
   },
   {
    "phase": "2_blocked_within_ttl",
-   "at": "2026-09-26T13:56:05+00:00",
+   "at": "2026-09-30T16:25:41+00:00",
    "blocking": true,
    "requests": [
     {
      "query": "贵州茅台最新收盘价是多少？",
      "status": 200,
-     "latency_ms": 126.3,
+     "latency_ms": 210.0,
      "route": "workflow",
      "verified": true,
      "degraded": [],
-     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1237（2026-09-24），当日涨跌幅 -1.1381% [price_600519.SH]。",
+     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1258.62 元（2026-09-30），当日涨跌幅 1.8647% [price_600519.SH]。",
      "limitations": [
-      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-24。"
+      "今天（2026-10-01）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-30。"
      ],
      "evidence": [
       {
        "evidence_id": "price_600519.SH",
        "source_type": "market_api",
-       "close": 1237.0,
+       "close": 1258.62,
        "trade_date": null,
        "source": "sina.kline",
        "mode": "live_fallback",
        "freshness": "fresh",
-       "as_of": "2026-09-24",
+       "as_of": "2026-09-30",
        "cache_hit": false,
        "fallback_reason": "eastmoney.quote:error(ProxyError); eastmoney.quote:error(ProxyError)",
-       "note": "数据来自新浪财经行情，截至2026-09-24；因东方财富行情请求失败降级",
+       "note": "数据来自新浪财经行情，截至2026-09-30；因东方财富行情请求失败降级",
        "provider_warnings": null
       }
      ]
@@ -418,13 +420,13 @@
     {
      "query": "CPI 最新数据是多少？",
      "status": 200,
-     "latency_ms": 181.2,
+     "latency_ms": 729.6,
      "route": "workflow",
      "verified": true,
      "degraded": [],
      "answer_excerpt": "根据本次检索到的证据：CPI_CN 最新值 0.8%（2026-03-31） [macro_CPI_CN]。",
      "limitations": [
-      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情。"
+      "今天（2026-10-01）不是 A 股常规交易日，没有当日涨跌行情。"
      ],
      "evidence": [
       {
@@ -505,7 +507,7 @@
    "worker_pool": {
     "max_workers": 32,
     "busy": 0,
-    "max_busy": 4,
+    "max_busy": 5,
     "submitted_total": 21,
     "completed_total": 21,
     "timed_out_total": 0,
@@ -572,11 +574,11 @@
     "webapi.cninfo.com.cn": {
      "forwarded": 3
     },
-    "basic.10jqka.com.cn": {
-     "forwarded": 6
-    },
     "money.finance.sina.com.cn": {
      "forwarded": 3
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 6
     },
     "datacenter-web.eastmoney.com": {
      "forwarded": 3,
@@ -595,33 +597,33 @@
   },
   {
    "phase": "3_blocked_after_ttl",
-   "at": "2026-09-26T13:57:19+00:00",
+   "at": "2026-09-30T16:26:52+00:00",
    "blocking": true,
    "requests": [
     {
      "query": "贵州茅台最新收盘价是多少？",
      "status": 200,
-     "latency_ms": 1480.3,
+     "latency_ms": 1940.6,
      "route": "workflow",
      "verified": true,
      "degraded": [],
-     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1237（2026-09-24），当日涨跌幅 -1.1381% [price_600519.SH]。",
+     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1258.62 元（2026-09-30），当日涨跌幅 1.8647% [price_600519.SH]。",
      "limitations": [
-      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-24。"
+      "今天（2026-10-01）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-30。"
      ],
      "evidence": [
       {
        "evidence_id": "price_600519.SH",
        "source_type": "market_api",
-       "close": 1237.0,
+       "close": 1258.62,
        "trade_date": null,
        "source": "sina.kline",
        "mode": "last_known_good",
        "freshness": "fresh",
-       "as_of": "2026-09-24",
+       "as_of": "2026-09-30",
        "cache_hit": true,
        "fallback_reason": "live market fetch failed (ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stoc...)",
-       "note": "数据来自新浪财经行情，截至2026-09-24，沿用最近一次成功获取的实时数据（获取于2026-09-26T13:56:02+00:00）；因实时行情获取失败降级",
+       "note": "数据来自新浪财经行情，截至2026-09-30，沿用最近一次成功获取的实时数据（获取于2026-09-30T16:25:35+00:00）；因实时行情获取失败降级",
        "provider_warnings": null
       }
      ]
@@ -675,7 +677,7 @@
      "circuit": "closed",
      "calls": 2,
      "failures": 2,
-     "last_error": "ProxyError: HTTPSConnectionPool(host='web.ifzq.gtimg.cn', port=443): Max retries exceeded with url: /appstock/app/fqkline/get?param=sh600519%2Cday%2C2025-09-..."
+     "last_error": "ProxyError: HTTPSConnectionPool(host='web.ifzq.gtimg.cn', port=443): Max retries exceeded with url: /appstock/app/fqkline/get?param=sh600519%2Cday%2C2025-10-..."
     },
     "ths.finance": {
      "status": "up",
@@ -709,7 +711,7 @@
    "worker_pool": {
     "max_workers": 32,
     "busy": 0,
-    "max_busy": 4,
+    "max_busy": 5,
     "submitted_total": 30,
     "completed_total": 30,
     "timed_out_total": 0,
@@ -784,11 +786,11 @@
     "webapi.cninfo.com.cn": {
      "forwarded": 3
     },
-    "basic.10jqka.com.cn": {
-     "forwarded": 6
-    },
     "money.finance.sina.com.cn": {
      "forwarded": 3
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 6
     },
     "datacenter-web.eastmoney.com": {
      "forwarded": 3,
@@ -813,21 +815,21 @@
   },
   {
    "phase": "4_blocked_after_stale_window",
-   "at": "2026-09-26T13:58:49+00:00",
+   "at": "2026-09-30T16:28:22+00:00",
    "blocking": true,
    "requests": [
     {
      "query": "贵州茅台最新收盘价是多少？",
      "status": 200,
-     "latency_ms": 1809.9,
+     "latency_ms": 1689.9,
      "route": "workflow",
      "verified": true,
      "degraded": [],
-     "answer_excerpt": "本次没有检索到可用于回答该问题的证据。",
+     "answer_excerpt": "本次没有检索到可用于回答该问题的证据。当前数据源中没有贵州茅台（600519.SH）的行情数据。",
      "limitations": [
       "get_price_history 未返回可用数据（upstream_error：TransientToolError: market_provider_fetch_failed:600519.SH:CircuitOpenError:circuit open for efinance; retry in 20s）",
       "get_price_history: upstream_error",
-      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情。"
+      "今天（2026-10-01）不是 A 股常规交易日，没有当日涨跌行情。"
      ],
      "evidence": []
     }
@@ -880,7 +882,7 @@
      "circuit": "open",
      "calls": 3,
      "failures": 3,
-     "last_error": "ProxyError: HTTPSConnectionPool(host='web.ifzq.gtimg.cn', port=443): Max retries exceeded with url: /appstock/app/fqkline/get?param=sh600519%2Cday%2C2025-09-..."
+     "last_error": "ProxyError: HTTPSConnectionPool(host='web.ifzq.gtimg.cn', port=443): Max retries exceeded with url: /appstock/app/fqkline/get?param=sh600519%2Cday%2C2025-10-..."
     },
     "ths.finance": {
      "status": "up",
@@ -914,7 +916,7 @@
    "worker_pool": {
     "max_workers": 32,
     "busy": 0,
-    "max_busy": 4,
+    "max_busy": 5,
     "submitted_total": 35,
     "completed_total": 35,
     "timed_out_total": 0,
@@ -993,11 +995,11 @@
     "webapi.cninfo.com.cn": {
      "forwarded": 3
     },
-    "basic.10jqka.com.cn": {
-     "forwarded": 6
-    },
     "money.finance.sina.com.cn": {
      "forwarded": 3
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 6
     },
     "datacenter-web.eastmoney.com": {
      "forwarded": 3,
@@ -1022,33 +1024,33 @@
   },
   {
    "phase": "5_unblocked_recovered",
-   "at": "2026-09-26T13:59:36+00:00",
+   "at": "2026-09-30T16:29:09+00:00",
    "blocking": false,
    "requests": [
     {
      "query": "贵州茅台最新收盘价是多少？",
      "status": 200,
-     "latency_ms": 1662.0,
+     "latency_ms": 2105.8,
      "route": "workflow",
      "verified": true,
      "degraded": [],
-     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1237（2026-09-24），当日涨跌幅 -1.1381% [price_600519.SH]。",
+     "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1258.62 元（2026-09-30），当日涨跌幅 1.8647% [price_600519.SH]。",
      "limitations": [
-      "今天（2026-09-26）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-24。"
+      "今天（2026-10-01）不是 A 股常规交易日，没有当日涨跌行情，最新可用交易日行情日期为 2026-09-30。"
      ],
      "evidence": [
       {
        "evidence_id": "price_600519.SH",
        "source_type": "market_api",
-       "close": 1237.0,
+       "close": 1258.62,
        "trade_date": null,
        "source": "sina.kline",
        "mode": "live_fallback",
        "freshness": "fresh",
-       "as_of": "2026-09-24",
+       "as_of": "2026-09-30",
        "cache_hit": false,
        "fallback_reason": "eastmoney.quote:circuit_open",
-       "note": "数据来自新浪财经行情，截至2026-09-24；因东方财富行情熔断中降级",
+       "note": "数据来自新浪财经行情，截至2026-09-30；因东方财富行情熔断中降级",
        "provider_warnings": null
       }
      ]
@@ -1102,7 +1104,7 @@
      "circuit": "open",
      "calls": 3,
      "failures": 3,
-     "last_error": "ProxyError: HTTPSConnectionPool(host='web.ifzq.gtimg.cn', port=443): Max retries exceeded with url: /appstock/app/fqkline/get?param=sh600519%2Cday%2C2025-09-..."
+     "last_error": "ProxyError: HTTPSConnectionPool(host='web.ifzq.gtimg.cn', port=443): Max retries exceeded with url: /appstock/app/fqkline/get?param=sh600519%2Cday%2C2025-10-..."
     },
     "ths.finance": {
      "status": "up",
@@ -1136,7 +1138,7 @@
    "worker_pool": {
     "max_workers": 32,
     "busy": 0,
-    "max_busy": 4,
+    "max_busy": 5,
     "submitted_total": 40,
     "completed_total": 40,
     "timed_out_total": 0,
@@ -1215,11 +1217,11 @@
     "webapi.cninfo.com.cn": {
      "forwarded": 4
     },
-    "basic.10jqka.com.cn": {
-     "forwarded": 8
-    },
     "money.finance.sina.com.cn": {
      "forwarded": 4
+    },
+    "basic.10jqka.com.cn": {
+     "forwarded": 8
     },
     "datacenter-web.eastmoney.com": {
      "forwarded": 4,
@@ -1243,10 +1245,9 @@
    }
   }
  ],
- "command": "python -m scripts.chaos_drill --scenario sources --port 8821 --out docs/results/chaos/sources/chaos-sources.json",
- "run_at": "2026-09-26T13:54:58+00:00",
- "duration_s": 278.0,
- "commit": "8dc388b-dirty",
- "commit_recorded_at_run": "",
- "commit_derivation": "The drill recorded an empty commit (git rev-parse failed inside the run). Re-derived from git history on 2026-09-29: the run started at 2026-09-26T13:54:58+00:00 (UTC) in the ops worktree, whose HEAD was 8dc388b (2026-09-26 17:53 +0800); the next commit on that branch, 3b00e8d, was made at 22:27 +0800, after the drill. 8dc388b..3b00e8d changes no file under query_intelligence/, so the server code is exactly 8dc388b. The drill script itself carried the 15-line change that 3b00e8d committed (uncommitted at run time), hence -dirty. The results were committed in baf7fee."
+ "command": "python -m scripts.chaos_drill --scenario sources --source-cooldown 20 --max-stale 90 --out outputs/chaos/sources-r9/chaos-sources.json",
+ "run_at": "2026-09-30T16:23:18+00:00",
+ "duration_s": 351.3,
+ "commit": "3d7afd5",
+ "working_tree_clean": true
 }
