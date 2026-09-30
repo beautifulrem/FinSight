@@ -1168,6 +1168,83 @@ Development set, path `auto`: 24 tasks, 58 turns. Status: development set (used 
 
 * Note: after exposure
 
+### Round-5 held-out chat slice (independent author): first run, then after exposure
+
+38 tasks / 41 turns written before the round-8 fixes were run on it (`evaluation/heldout_r5/README.md`); its claims are in the claim-check table below.
+
+#### `chat_heldout_r5-auto-nollm-first-run.json`
+
+Source `evaluation/results/chat_heldout_r5-auto-nollm-first-run.json`: commit `f01097a`, run 2026-09-30T11:25:46+00:00, no LLM (offline), prompts `agent_system@v3#e419eb84d58e`, `compose_system@v3#b9a704272c6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r5/chat_r5_heldout.jsonl --out outputs/agent_eval/chat_r5-first.json
+```
+
+Development set, path `auto`: 38 tasks, 41 turns. Status: **first run** of the independent round-5 held-out chat slice.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.921 [0.82, 1.00] |
+| pass^k (all k repeats succeed) | 0.921 [0.82, 1.00] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 1.000 |
+| Required facts stated and cited | 0.955 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.955 |
+| Task success without the citation / tool / disclaimer checks | 0.921 [0.82, 1.00] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.229 |
+| Hedged when required (why / judgment / advice) | 0.900 |
+| States missing data when required | 0.889 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 961.1 |
+| Turn success | 0.927 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| causal_control | 1 | 1.00 |
+| crypto_refuse | 6 | 1.00 |
+| fair_value | 9 | 0.89 |
+| missing_derived | 8 | 0.88 |
+| non_causal | 7 | 1.00 |
+| pingan_alias | 7 | 0.86 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r5t006 | 茅台估值应该给到每股多少元比较公道 | hedged |
+| r5t019 | 平安这只银行股的PB是多少 | states_missing, entity |
+| r5t029 | 按2025年报，五粮液净利润占营收的比例是多少 | facts |
+
+* Note: first and only pre-exposure run of the independent round-5 chat slice (38 tasks), mode=auto without an LLM, --no-replay, at f01097a
+
+#### `chat_heldout_r5-auto-nollm-after-exposure.json`
+
+Source `evaluation/results/chat_heldout_r5-auto-nollm-after-exposure.json`: commit `d78a556`, run 2026-09-30T16:16:32+00:00, no LLM (offline), prompts `agent_system@v3#e419eb84d58e`, `compose_system@v3#b9a704272c6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r5/chat_r5_heldout.jsonl --out outputs/agent_eval/chat_r5-after-round9.json
+```
+
+Development set, path `auto`: 38 tasks, 41 turns. Status: **after exposure** (round 9 fixed the classes its first run showed).
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 1.000 [1.00, 1.00] |
+| pass^k (all k repeats succeed) | 1.000 [1.00, 1.00] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 1.000 |
+| Required facts stated and cited | 1.000 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 1.000 |
+| Task success without the citation / tool / disclaimer checks | 1.000 [1.00, 1.00] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.229 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 2703.7 |
+| Turn success | 1.000 |
+
+* Note: Round-5 held-out chat slice after exposure (d78a556): its first run (0.921, chat_heldout_r5-auto-nollm-first-run.json) failed r5t006, r5t019 and r5t029, and the round-9 fixes were generalised from those classes with the author's own dev examples. Not a fresh estimate.
+
 ### The no-tools LLM baseline: strict scoring vs uncited correctness
 
 Under the strict score a task needs every required number stated **and cited with an evidence id**, the required tools and the product's risk-disclaimer field. A model without tools can meet none of these, so its 0.000 is a property of the scoring, not only of the model. The uncited columns score the same answers against the same snapshot values without those requirements. The snapshot is dated 2026-04-22 and the model has no access to it, so uncited correctness measures what the model knew or guessed.
@@ -1195,9 +1272,13 @@ Route accuracy of `mode=auto` (refuse / clarify / workflow / agent) against labe
 | `router_eval-round4-own.json` | `router_labels_v1.jsonl` | author's own labels (tuned against) | `075caad` | 303 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --out evaluation/results/router_eval-round4-own.json` |
 | `router_eval-independent_v1-first-run.json` | `router_labels_independent_v1.jsonl` | **first run** of an independent set | `882745d` | 154 | 0.740 | 0.974 / 0.556 / 0.875 / 0.550 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v1.jsonl --out evaluation/results/router_eval-independent_v1-first-run.json` |
 | `router_eval-round4-independent-after-exposure.json` | `router_labels_independent_v1.jsonl` | **after exposure** (fixes were generalised from its misses) | `075caad` | 154 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v1.jsonl --out evaluation/results/router_eval-round4-independent-after-exposure.json` |
-| `router_eval-independent_v2-first-run.json` | `router_labels_independent_v2.jsonl` | **first and only run** of a fresh independent set | `3080bfe` | 241 | 0.801 | 0.883 / 0.596 / 0.884 / 0.800 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out evaluation/results/router_eval-independent_v2-first-run.json` |
+| `router_eval-independent_v2-first-run.json` | `router_labels_independent_v2.jsonl` | **first run** of a fresh independent set | `3080bfe` | 241 | 0.801 | 0.883 / 0.596 / 0.884 / 0.800 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out evaluation/results/router_eval-independent_v2-first-run.json` |
+| `router_eval-round9-own.json` | `router_labels_v1.jsonl` | author's own labels (tuned against) | `d78a556` | 344 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round9-own.json` |
+| `router_eval-independent_v2-round9.json` | `router_labels_independent_v2.jsonl` | **after exposure** (HEAD after round 9; first run 0.8008) | `8814b3b` | 241 | 0.830 | 0.917 / 0.596 / 0.927 / 0.833 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out outputs/agent_eval/router_eval-independent_v2-round9.json` |
 
 * Note (`router_eval-independent_v2-first-run.json`): first and only run of the independent v2 labels, after the round-4 router changes; 4 of 241 queries coincidentally also appear in the project's own labels (什么是市净率, 今天北京天气怎么样, 招商银行的市盈率是多少, 比亚迪还能涨吗)
+* Note (`router_eval-round9-own.json`): Author's own router labels after round 9 at d78a556: 344 queries (round-9 labels route_332-343 added; route_343 corrected from workflow to agent at 9f12e78, the only miss at 8814b3b).
+* Note (`router_eval-independent_v2-round9.json`): Independent router labels v2 (241) at 8814b3b, after the round-9 fixes. After exposure: its first run (0.8008) was read before rounds 5-8; the round-9 fixes came from the round-5 review, not from this set. Same accuracy as the round-5 reviewer's run at a125300 (0.8299); the router code did not change between 8814b3b and d78a556.
 
 ### Claim-check benchmark
 
@@ -1211,6 +1292,7 @@ Deterministic claim check (`POST /agent/claim-check`, no LLM) against labelled c
 | `claim_bench-holdout-after-round8.json` | holdout | held-out claims **after exposure** (round 8: the review's h038 class, industry averages, was fixed; not a fresh estimate) | `b04f364` | 47 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `a48aa59412a06f81` | `python -m evaluation.claim_bench.run --set holdout --out evaluation/results/claim_bench-holdout-after-round8.json` |
 | `claim_bench-heldout_r4-first-run.json` | None | – | `817a2d8` | 67 | 0.716 [0.61, 0.82] | 0.639 [0.54, 0.73] | 0.435 | `e70b8701d12df19e` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl --out outputs/agent_eval/claim_bench-heldout_r4-first.json` |
 | `claim_bench-heldout_r4-after-exposure.json` | None | – | `c731dba` | 67 | 1.000 [1.00, 1.00] | 0.920 [0.85, 0.97] | 0.522 | `e70b8701d12df19e` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl --out evaluation/results/claim_bench-heldout_r4-after-exposure.json` |
+| `claim_bench-heldout_r5-first-run.json` | None | **first run** of the independent round-5 held-out claims | `f01097a` | 56 | 0.821 [0.71, 0.91] | 0.814 [0.72, 0.90] | 0.835 | `fd58c903acd977c2` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r5/claims_r5_heldout.jsonl --out evaluation/results/claim_bench-heldout_r5-first-run.json` |
 
 ### Latency profile runs (agent path, streamed)
 
@@ -1356,8 +1438,8 @@ v2 − v1: task success -0.031 [-0.113, +0.038], pass^3 +0.038 [-0.075, +0.151],
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `c4064d1` | 310 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
-| gate-holdout | `c4064d1` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
+| gate-dev | `d78a556` | 324 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-holdout | `d78a556` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
 
 ### Fault injection (overall graceful rate 1.00)
 
@@ -1395,6 +1477,27 @@ Repair of the 3333 rejected variants (whole-sentence deletion, template fallback
 | Readable (no dangling clause, stray punctuation, orphan citation) | Containing a fragment | Repaired answer verifies | Untouched sentences kept | Template fallback |
 |---|---|---|---|---|
 | 1.000 | 0.000 | 1.000 | 0.980 | 0.183 |
+
+### Verifier stress test (240 gold answers, 3905 corrupted variants, `verifier_stress-round9.json`)
+
+Command: `python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress.json` at commit `d78a556`. Lower is better; true-accept must stay 1.0.
+
+| | legacy | run | claim | claim_derived |
+|---|---|---|---|---|
+| True-accept (gold answers passing) | 1.000 | 1.000 | 1.000 | 1.000 |
+| False-accept, all corruptions | 0.330 | 0.247 | 0.019 | 0.019 |
+| False-accept, perturb_1pct (949) | 0.287 | 0.033 | 0.033 | 0.033 |
+| False-accept, perturb_20pct (1054) | 0.082 | 0.033 | 0.021 | 0.021 |
+| False-accept, perturb_5pct (1029) | 0.057 | 0.025 | 0.015 | 0.015 |
+| False-accept, swap (873) | 1.000 | 1.000 | 0.006 | 0.009 |
+
+Repair of the 3832 rejected variants (whole-sentence deletion, template fallback when nothing cited survives):
+
+| Readable (no dangling clause, stray punctuation, orphan citation) | Containing a fragment | Repaired answer verifies | Untouched sentences kept | Template fallback |
+|---|---|---|---|---|
+| 1.000 | 0.000 | 1.000 | 0.980 | 0.194 |
+
+* Note: Verifier stress at d78a556 (round 9, incl. the 个百分点 count fix 8c86827): 240 gold answers; the CI baseline remains verifier_stress.json (9f0e46b).
 
 ### Verifier stress test (202 gold answers, 3399 corrupted variants, `verifier_stress-perf-8a85ae5.json`)
 
@@ -1709,6 +1812,8 @@ Paired comparisons (same tasks, a − b):
 | `multiturn_v1-auto-nollm-after-fixes.json` | run | `7513376` | 2026-09-28T11:14:53+00:00 | – | `outputs/agent_eval/multiturn_v1-auto-nollm-after-fixes.json` (f308b7dbb2fea210) |
 | `multiturn_r4_heldout-auto-nollm-first-run.json` | run | `817a2d8` | 2026-09-29T14:31:47+00:00 | – | `outputs/agent_eval/multiturn_r4_heldout-first.json` (0bf3a2e3e0226dc7) |
 | `multiturn_r4_heldout-after-exposure.json` | run | `c731dba` | 2026-09-29T15:29:54+00:00 | – | `outputs/agent_eval/mt4.json` (79c7b514dea5555c) |
+| `chat_heldout_r5-auto-nollm-first-run.json` | run | `f01097a` | 2026-09-30T11:25:46+00:00 | – | `outputs/agent_eval/chat_r5-first.json` (a61a3cb265e86940) |
+| `chat_heldout_r5-auto-nollm-after-exposure.json` | run | `d78a556` | 2026-09-30T16:16:32+00:00 | – | `outputs/agent_eval/chat_r5-after-round9.json` (56b43759ed80aef3) |
 | `router_eval-d78b313.json` | router_eval | `d78b313` | 2026-09-25T22:56:36+00:00 | – | written directly |
 | `router_eval-round2.json` | router_eval | `da3ec8b-dirty` | 2026-09-26T18:52:13+00:00 | – | written directly |
 | `router_eval-round3.json` | router_eval | `d3c1495` | 2026-09-28T07:16:51+00:00 | – | written directly |
@@ -1717,12 +1822,15 @@ Paired comparisons (same tasks, a − b):
 | `router_eval-independent_v1-first-run.json` | router_eval | `882745d` | 2026-09-28T17:07:45+00:00 | – | written directly |
 | `router_eval-round4-independent-after-exposure.json` | router_eval | `075caad` | 2026-09-28T17:50:05+00:00 | – | written directly |
 | `router_eval-independent_v2-first-run.json` | router_eval | `3080bfe` | 2026-09-28T17:55:58+00:00 | – | written directly |
+| `router_eval-round9-own.json` | router_eval | `d78a556` | 2026-09-30T15:54:44+00:00 | – | written directly |
+| `router_eval-independent_v2-round9.json` | router_eval | `8814b3b` | 2026-09-30T15:35:59+00:00 | – | written directly |
 | `claim_bench-dev-baseline.json` | claim_bench | `3da1a48` | 2026-09-28T06:30:24+00:00 | – | written directly |
 | `claim_bench-dev.json` | claim_bench | `b04f364` | 2026-09-30T07:51:46+00:00 | – | written directly |
 | `claim_bench-holdout.json` | claim_bench | `2fcb4f0` | 2026-09-28T07:14:56+00:00 | – | written directly |
 | `claim_bench-holdout-after-round8.json` | claim_bench | `b04f364` | 2026-09-30T07:51:49+00:00 | – | written directly |
 | `claim_bench-heldout_r4-first-run.json` | claim_bench | `817a2d8` | 2026-09-29T14:30:51+00:00 | – | written directly |
 | `claim_bench-heldout_r4-after-exposure.json` | claim_bench | `c731dba` | 2026-09-29T15:29:35+00:00 | – | written directly |
+| `claim_bench-heldout_r5-first-run.json` | claim_bench | `f01097a` | 2026-09-30T11:23:40+00:00 | – | written directly |
 | `perf-baseline-deepseek.json` | ablation | `8e81f48` | 2026-09-28T11:22:44+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-baseline.json` (12a1415984f0c9e3) |
 | `perf-verifierfix-deepseek.json` | ablation | `52e80dc` | 2026-09-28T12:16:08+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-verifierfix.json` (3820381e8007ecca) |
 | `perf-merged-defaults-deepseek.json` | ablation | `aae29fd` | 2026-09-28T14:55:24+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-merged-A.json` (ea673cc9c33df35d) |
@@ -1735,10 +1843,11 @@ Paired comparisons (same tasks, a − b):
 | `ablation-online-deepseek-v4.1-flash.json` | ablation | `c1c3388` | 2026-09-25T09:46:46+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-deepseek-v4.1-flash.json` (ebd1d3322c4c4708) |
 | `ablation-online-v1.json` | ablation | `1beb760` | 2026-09-25T14:12:49+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-v1.json` (fc69345d844bdd6e) |
 | `ablation-online-v2.json` | ablation | `1beb760` | 2026-09-25T13:32:10+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-v2.json` (f5ba8190178dfe74) |
-| `gate-dev.json` | run | `c4064d1` | 2026-09-30T08:32:14+00:00 | – | `outputs/agent_eval/gate-dev.json` (a2acb5644146ebd5) |
-| `gate-holdout.json` | run | `c4064d1` | 2026-09-30T08:33:05+00:00 | – | `outputs/agent_eval/gate-holdout.json` (359f19e316a31256) |
+| `gate-dev.json` | run | `d78a556` | 2026-09-30T16:20:05+00:00 | – | `outputs/agent_eval/gate-dev.json` (14b341c592539248) |
+| `gate-holdout.json` | run | `d78a556` | 2026-09-30T16:20:21+00:00 | – | `outputs/agent_eval/gate-holdout.json` (75fa006f0e3640ce) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `9f0e46b` | 2026-09-28T17:04:55+00:00 | – | `outputs/agent_eval/verifier_stress.json` (94d2b01f3bd98c53) |
+| `verifier_stress-round9.json` | verifier_stress | `d78a556` | 2026-09-30T16:04:15+00:00 | – | `outputs/agent_eval/verifier_stress.json` (a0525baec420dcda) |
 | `verifier_stress-perf-8a85ae5.json` | verifier_stress | `8a85ae5` | 2026-09-28T16:22:43+00:00 | – | `outputs/agent_eval/verifier_stress.json` (bd1a6d143c0b398f) |
 | `redteam-offline-r9.json` | redteam | `8814b3b` | 2026-09-30T15:43:31+00:00 | – | `outputs/agent_eval/redteam-offline-r9.json` (0b590586dfcfdd1e) |
 | `redteam-holdout7-prefix.json` | redteam | `a7b1018` | 2026-09-30T13:03:45+00:00 | – | `outputs/agent_eval/redteam-holdout7-prefix.json` (4a93c4c88556229b) |

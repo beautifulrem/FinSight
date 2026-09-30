@@ -1,0 +1,433 @@
+{
+ "config": {
+  "labels": "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+  "model": null,
+  "commit": "8814b3b",
+  "run_at": "2026-09-30T15:35:59+00:00",
+  "command": "python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out outputs/agent_eval/router_eval-independent_v2-round9.json",
+  "note": "Independent router labels v2 (241) at 8814b3b, after the round-9 fixes. After exposure: its first run (0.8008) was read before rounds 5-8; the round-9 fixes came from the round-5 review, not from this set. Same accuracy as the round-5 reviewer's run at a125300 (0.8299); the router code did not change between 8814b3b and d78a556."
+ },
+ "queries": 241,
+ "accuracy": 0.8299,
+ "per_route": {
+  "refuse": {
+   "support": 60,
+   "precision": 0.7432,
+   "recall": 0.9167
+  },
+  "clarify": {
+   "support": 52,
+   "precision": 0.9394,
+   "recall": 0.5962
+  },
+  "workflow": {
+   "support": 69,
+   "precision": 0.7901,
+   "recall": 0.9275
+  },
+  "agent": {
+   "support": 60,
+   "precision": 0.9434,
+   "recall": 0.8333
+  }
+ },
+ "confusion": {
+  "refuse": {
+   "refuse": 55,
+   "clarify": 0,
+   "workflow": 5,
+   "agent": 0
+  },
+  "clarify": {
+   "refuse": 15,
+   "clarify": 31,
+   "workflow": 3,
+   "agent": 3
+  },
+  "workflow": {
+   "refuse": 4,
+   "clarify": 1,
+   "workflow": 64,
+   "agent": 0
+  },
+  "agent": {
+   "refuse": 0,
+   "clarify": 1,
+   "workflow": 9,
+   "agent": 50
+  }
+ },
+ "errors": [
+  {
+   "id": "rl2_refuse_013",
+   "query": "纳斯达克今天涨了多少",
+   "expected": "refuse",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_refuse_014",
+   "query": "恒生指数现在几点",
+   "expected": "refuse",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_refuse_032",
+   "query": "中国移动H股股息率多少",
+   "expected": "refuse",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_refuse_055",
+   "query": "Help me write a cover letter for an investment banking job",
+   "expected": "refuse",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_refuse_057",
+   "query": "What's the current Fed funds rate?",
+   "expected": "refuse",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_clarify_002",
+   "query": "我该卖吗",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_006",
+   "query": "另一个呢",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_010",
+   "query": "我套牢了怎么办😭",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_016",
+   "query": "这个价位能进吗",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_020",
+   "query": "那只新能源的票最近怎么样了",
+   "expected": "clarify",
+   "predicted": "agent",
+   "reasons": [
+    "lexical:follow_up"
+   ]
+  },
+  {
+   "id": "rl2_clarify_021",
+   "query": "代码是多少来着",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_022",
+   "query": "这个指标高了好还是低了好",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_024",
+   "query": "帮我算一下收益率",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_025",
+   "query": "明天开盘挂多少价格合适",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_026",
+   "query": "有没有稳赚不赔的票",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_027",
+   "query": "第二个呢？",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_028",
+   "query": "同上，再看看另一家",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_037",
+   "query": "Any good funds to put 100k RMB in?",
+   "expected": "clarify",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_clarify_038",
+   "query": "How is the company doing?",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_040",
+   "query": "compare them for me",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_044",
+   "query": "my stock dropped 8% today, what do i do",
+   "expected": "clarify",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_clarify_047",
+   "query": "Is now the time to average down?",
+   "expected": "clarify",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_clarify_048",
+   "query": "Which one has lower fees?",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_049",
+   "query": "Help me analyze my portfolio",
+   "expected": "clarify",
+   "predicted": "agent",
+   "reasons": [
+    "lexical:analysis_request"
+   ]
+  },
+  {
+   "id": "rl2_clarify_050",
+   "query": "What's the ticker again?",
+   "expected": "clarify",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_clarify_051",
+   "query": "那个 fund 的 NAV 多少",
+   "expected": "clarify",
+   "predicted": "agent",
+   "reasons": [
+    "lexical:follow_up"
+   ]
+  },
+  {
+   "id": "rl2_workflow_009",
+   "query": "上证现在几点了",
+   "expected": "workflow",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_workflow_023",
+   "query": "股息率咋算的",
+   "expected": "workflow",
+   "predicted": "clarify",
+   "reasons": [
+    "nlu:missing_entity",
+    "override:out_of_scope_with_finance_anchor"
+   ]
+  },
+  {
+   "id": "rl2_workflow_052",
+   "query": "What's the ChiNext index at?",
+   "expected": "workflow",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_workflow_056",
+   "query": "What is total social financing?",
+   "expected": "workflow",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_workflow_068",
+   "query": "什么是 beta 系数",
+   "expected": "workflow",
+   "predicted": "refuse",
+   "reasons": [
+    "nlu:out_of_scope_query"
+   ]
+  },
+  {
+   "id": "rl2_agent_009",
+   "query": "创业板指最近为啥这么弱",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_agent_018",
+   "query": "宁德时代的护城河在哪",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_agent_028",
+   "query": "上证指数能守住3000点吗",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_agent_039",
+   "query": "Is the A-share market bottoming out?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_agent_043",
+   "query": "Give me a full breakdown of Kweichow Moutai - fundamentals, valuation, risks",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_agent_045",
+   "query": "Is ChiNext a buy after this correction?",
+   "expected": "agent",
+   "predicted": "clarify",
+   "reasons": [
+    "nlu:missing_entity",
+    "override:out_of_scope_with_finance_anchor"
+   ]
+  },
+  {
+   "id": "rl2_agent_049",
+   "query": "Does weak M2 growth signal trouble for stocks?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_agent_052",
+   "query": "Is the Shanghai Composite going to break 3500 this year?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_agent_053",
+   "query": "is it too late to buy into SMIC after the rally",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "id": "rl2_agent_056",
+   "query": "which did better YTD, SSE Composite or Shenzhen Component?",
+   "expected": "agent",
+   "predicted": "workflow",
+   "reasons": [
+    "simple:single_lookup"
+   ]
+  }
+ ]
+}
