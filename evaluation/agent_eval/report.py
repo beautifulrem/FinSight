@@ -188,10 +188,10 @@ FILE_STATUS = {
     "claim_bench-heldout_r5-after-exposure": "independent round-5 claim slice **after exposure** (round 9 fixed its "
     "failure classes; not a fresh estimate)",
     "claim_bench-holdout-after-round10": "held-out claims **after exposure**, re-run at the round-10 commit",
-    "claim_bench-heldout_r4-after-round10": "independent round-4 claim slice **after exposure**, re-run at the round-10 "
-    "commit",
-    "claim_bench-heldout_r5-after-round10": "independent round-5 claim slice **after exposure**, re-run at the round-10 "
-    "commit",
+    "claim_bench-heldout_r4-after-round10": "independent round-4 claim slice **after exposure**, re-run at the "
+    "round-10 commit",
+    "claim_bench-heldout_r5-after-round10": "independent round-5 claim slice **after exposure**, re-run at the "
+    "round-10 commit",
 }
 
 
