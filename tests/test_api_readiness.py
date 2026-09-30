@@ -243,3 +243,72 @@ def test_real_retrieval_pipeline_shape():
         "index_rows": 2,
         "structured_tables": 1,
     }
+
+
+# ---- in-process doubles for the Postgres-only paths (round 10, F13: local coverage without a database) ----
+
+
+class _FakePgPool:
+    """Quacks like psycopg_pool.ConnectionPool: ``connection(timeout=…)`` and ``get_stats()``."""
+
+    def __init__(self) -> None:
+        self.queries: list[str] = []
+
+    def connection(self, timeout: float | None = None):
+        pool = self
+
+        class _Conn:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def execute(self, sql, *args):
+                pool.queries.append(sql)
+                return SimpleNamespace(fetchone=lambda: (1,))
+
+        return _Conn()
+
+    def get_stats(self) -> dict:
+        return {"pool_size": 4, "pool_available": 3}
+
+
+def test_a_postgres_pool_checkpointer_is_probed_with_select_1():
+    pool = _FakePgPool()
+    detail = readiness.probe_checkpointer(SimpleNamespace(conn=pool))
+    assert detail == {
+        "ok": True,
+        "backend": "SimpleNamespace",
+        "persistent": True,
+        "database": "postgres",
+        "pool": {"size": 4, "available": 3},
+    }
+    assert pool.queries == ["SELECT 1"]
+
+
+def test_a_single_connection_checkpointer_is_probed_under_its_lock():
+    executed: list[str] = []
+    conn = SimpleNamespace(execute=lambda sql: executed.append(sql) or SimpleNamespace(fetchone=lambda: (1,)))
+    detail = readiness.probe_checkpointer(SimpleNamespace(conn=conn, lock=threading.Lock()))
+    assert detail == {"ok": True, "backend": "SimpleNamespace", "persistent": True} and executed == ["SELECT 1"]
+    assert readiness.probe_checkpointer(None)["ok"] is False
+
+
+def test_a_postgres_document_retriever_and_an_unknown_one():
+    executed: list[str] = []
+    connection = SimpleNamespace(execute=lambda sql: executed.append(sql) or SimpleNamespace(fetchone=lambda: (1,)))
+    service = SimpleNamespace(
+        retrieval_pipeline=SimpleNamespace(
+            doc_retriever=SimpleNamespace(connection=connection),
+            sql_retriever=SimpleNamespace(structured_data={"a": 1}),
+        )
+    )
+    detail = readiness.check_retrieval_index(service)
+    assert detail["ok"] and detail["database"] == "postgres" and detail["structured_tables"] == 1
+    unknown = SimpleNamespace(retrieval_pipeline=SimpleNamespace(doc_retriever=object(), sql_retriever=None))
+    assert readiness.check_retrieval_index(unknown) == {
+        "ok": False,
+        "backend": "object",
+        "error": "unknown document retriever",
+    }

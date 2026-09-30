@@ -7,8 +7,11 @@
 #   docker build -f docker/Dockerfile -t finsight:$TAG .     # or registry.example.com/finsight:$TAG
 #   (cd deploy/k8s && kustomize edit set image finsight=finsight:$TAG)   # updates newTag below
 #
-# CI builds every push as finsight:${GITHUB_SHA}. The tag below is the commit whose image was last built
-# from a clean tree and smoke-tested (/ready, /agent/chat) locally; see docs/deployment.md.
+# The tag below is set at release time, not on every commit: a commit cannot contain its own hash, so newTag
+# names the last *released* image (built from a clean tree at that commit and smoke-tested: /ready, /agent/chat),
+# which is usually a few commits behind HEAD. Releasing = the three commands above, the smoke test, then one commit
+# "release: finsight:<tag>" that changes only this line. Every push is still built and deployed to a throwaway
+# kind cluster as finsight:${GITHUB_SHA} by CI (jobs docker and k8s-smoke). See docs/deployment.md, "Image tags".
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
