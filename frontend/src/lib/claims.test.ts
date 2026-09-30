@@ -1,4 +1,5 @@
 import {
+  actualText,
   checkEvidence,
   claimHeadline,
   claimedAmount,
@@ -232,3 +233,63 @@ describe("claimHeadline (round 9, E2)", () => {
     expect(claimHeadline({ ...base, verdict: "partially_supported", coverage: "partial" })).toBe("partially_supported");
   });
 });
+
+
+describe("round 10: stated values, differences and bounded approximations", () => {
+  it("writes a stated difference with the other side's value and the actual difference (F2)", () => {
+    const diff = {
+      target: "贵州茅台",
+      metric: "roe",
+      kind: "difference",
+      claimed: 3.6,
+      comparator: "approx",
+      direction: "up",
+      reference: "五粮液",
+      reference_value: 29.4,
+      actual: 33,
+      difference: 3.6,
+      status: "supported",
+      note: "difference 3.6 = 33 - 29.4",
+    } as const;
+    expect(claimedText("zh", zh, diff)).toEqual({
+      text: "差值 ≈ +3.6 个百分点",
+      label: "差值 (五粮液) 约为 +3.6 个百分点",
+      detail: "五粮液 29.4%",
+    });
+    expect(actualText("zh", zh, diff)).toBe("+3.6 个百分点");
+    expect(actualText("en", en, { ...diff, difference: -3.6 })).toBe("−3.6 pt");
+    expect(noteText(zh, diff.note, diff, "zh")).toBe("两者之差为 +3.6 个百分点");
+    // no direction ("相差"): the size, unsigned, and the note says so
+    const spread = { ...diff, direction: null, comparator: "eq" } as const;
+    expect(claimedText("en", en, spread).text).toBe("difference 3.6 pt");
+    expect(noteText(en, spread.note, spread, "en")).toBe(
+      "The difference of the two is +3.6 pt. The claim states no direction; the size of the difference is compared",
+    );
+    // relative: a percentage of the other side's value
+    const relative = { ...diff, metric: "pe_ttm", kind: "relative_difference", claimed: -10, difference: -9.89, direction: "down" } as const;
+    expect(actualText("zh", zh, relative)).toBe("−9.89%");
+    expect(noteText(zh, "", relative, "zh")).toBe("相对差为 −9.89%（以比较对象的数值为基数）");
+  });
+
+  it("marks a value the claim states for the compared side (F1)", () => {
+    const stated = {
+      target: "白酒行业平均",
+      metric: "pe_ttm",
+      kind: "stated_reference",
+      claimed: 30,
+      actual: 27.3,
+      status: "contradicted",
+      note: "",
+    } as const;
+    expect(noteText(zh, stated.note, stated, "zh", "白酒行业平均")).toBe("这是说法为白酒行业平均给出的数值，已与数据源单独核对");
+    expect(claimedText("zh", zh, stated).text).toBe("30 倍");
+  });
+
+  it("writes 多 / 出头 as an interval (F7)", () => {
+    const more = { target: "贵州茅台", metric: "roe", claimed: 30, claimed_high: 35, comparator: "gt", actual: 33, status: "supported" } as const;
+    expect(claimedText("zh", zh, more)).toEqual({ text: "> 30%, < 35%", label: "介于 30% – 35%" });
+    const fall = { ...more, metric: "pct_change_1d", claimed: -1, claimed_high: -2, direction: "down" } as const;
+    expect(claimedText("en", en, fall).text).toBe("Fall > 1%, < 2%");
+  });
+});
+

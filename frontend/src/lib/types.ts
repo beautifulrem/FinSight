@@ -285,6 +285,16 @@ export interface ClaimCheckItem {
   reference_evidence_id?: string | null;
   /** A multiple claim ("市净率是五粮液的1.5倍"): the target's value divided by the reference's; `claimed` is the multiple. */
   ratio?: number | null;
+  /**
+   * A difference claim ("茅台ROE比五粮液高出3.6个百分点"): the target's value minus the reference's (a percentage of
+   * the reference's value for `relative_difference`); `claimed` is the stated difference, signed by its direction.
+   */
+  difference?: number | null;
+  /**
+   * What the check compares (round 10): the target's own value; `stated_reference`, a value the claim states for the
+   * compared side ("比白酒行业平均的30倍低": the average is 30x); a relation; a multiple; a stated difference.
+   */
+  kind?: "value" | "stated_reference" | "relation" | "ratio" | "difference" | "relative_difference";
   actual?: number | null;
   status: ClaimStatus;
   reason?: ClaimReason | null;

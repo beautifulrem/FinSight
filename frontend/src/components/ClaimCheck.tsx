@@ -31,10 +31,10 @@ import {
 
 import { checkClaim, classifyError, type ErrorKind } from "@/lib/api";
 import {
+  actualText,
   checkEvidence,
   claimHeadline,
   claimedText,
-  formatClaimValue,
   noteText,
   partCount,
   statusCounts,
@@ -109,9 +109,10 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
   const evidence = checkEvidence(check, report);
   const info = evidence ? evidenceFreshness(evidence) : null;
   const metric = check.metric ? humanizeCode(lang, check.metric, "metric") : t("claim.unknownMetric");
-  const note = noteText(t, check.note, check);
-  const hasActual = check.actual !== null && check.actual !== undefined;
   const name = targetName(lang, report);
+  const note = noteText(t, check.note, check, lang, check.target ? name(check.target) : "");
+  const actual = actualText(lang, t, check);
+  const hasActual = actual !== null;
   const claimed = claimedText(lang, t, check, report.claim, name);
   const source =
     sourceNameLabel(lang, evidence?.provenance ?? null, evidence?.source_name) ||
@@ -121,11 +122,20 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
       className={cn("claim-check rounded-xl border border-l-4 border-line bg-surface p-3.5 sm:p-4", spec.edge)}
       data-status={check.status}
       data-metric={check.metric ?? ""}
+      data-kind={check.kind ?? "value"}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h4 className="claim-metric text-[14.5px] leading-snug font-semibold text-ink">{metric}</h4>
-          <p className="claim-target-name text-[12.5px] text-muted">{check.target ? name(check.target) : t("claim.unknownTarget")}</p>
+          <p className="claim-target-name text-[12.5px] text-muted">
+            {check.target ? name(check.target) : t("claim.unknownTarget")}
+            {/* "比白酒行业平均的30倍低": the average the claim states is its own row, marked as such (round 10, F1) */}
+            {check.kind === "stated_reference" && (
+              <span className="claim-stated ml-1.5 rounded bg-surface-2 px-1.5 py-px text-[11px] font-medium text-ink/80">
+                {t("claim.stated")}
+              </span>
+            )}
+          </p>
         </div>
         <StatusBadge status={check.status} />
       </div>
@@ -156,7 +166,7 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
         <div className="rounded-lg bg-surface-2/70 px-3 py-2">
           <dt className="text-[11.5px] font-medium text-muted">{t("claim.actual")}</dt>
           <dd className={cn("claim-actual text-[17px] leading-7 font-semibold tabular-nums", hasActual ? spec.actual : "text-muted")}>
-            {hasActual ? formatClaimValue(lang, t, check.metric, check.actual!, "actual") : t("claim.noActual")}
+            {actual ?? t("claim.noActual")}
           </dd>
         </div>
       </dl>

@@ -181,6 +181,84 @@ describe("ClaimReportCard comparators", () => {
   });
 });
 
+describe("ClaimReportCard round 10 (F1, F2)", () => {
+  it("shows a stated industry average as its own marked row next to the comparison", () => {
+    const report: ClaimReport = {
+      ...REPORT,
+      claim: "茅台市盈率24.6倍，比白酒行业平均的30倍低不少",
+      verdict: "partially_supported",
+      coverage: "full",
+      checks: [
+        { ...REPORT.checks[0]!, claimed: 24.6, actual: 24.6, status: "supported", kind: "value" },
+        {
+          ...REPORT.checks[0]!,
+          kind: "relation",
+          claimed: null,
+          comparator: "lt",
+          reference: "白酒行业",
+          reference_value: 27.3,
+          actual: 24.6,
+          status: "supported",
+        },
+        {
+          ...REPORT.checks[0]!,
+          target: "白酒行业平均",
+          kind: "stated_reference",
+          claimed: 30,
+          actual: 27.3,
+          status: "contradicted",
+          evidence_id: "industry_白酒",
+        },
+      ],
+    };
+    wrap(<ClaimReportCard report={report} />);
+    const [, relation, stated] = screen.getAllByRole("listitem") as [HTMLElement, HTMLElement, HTMLElement];
+    expect(relation.querySelector(".claim-claimed")).toHaveTextContent("< 白酒行业");
+    expect(relation.querySelector(".claim-reference")).toHaveTextContent("白酒行业 27.3 倍");
+    expect(stated).toHaveAttribute("data-kind", "stated_reference");
+    expect(stated.querySelector(".claim-stated")).toHaveTextContent("说法给出的数值");
+    expect(stated.querySelector(".claim-target-name")).toHaveTextContent("白酒行业平均");
+    expect(stated.querySelector(".claim-claimed")).toHaveTextContent("30 倍");
+    expect(stated.querySelector(".claim-actual")).toHaveTextContent("27.3 倍");
+    expect(within(stated).getByText("不符")).toBeInTheDocument();
+    // the comparison is never shown as a multiple of the average
+    for (const row of [relation, stated]) expect(row).not.toHaveTextContent("×");
+  });
+
+  it("shows a stated difference against the actual difference, not the other company's value", () => {
+    const report: ClaimReport = {
+      ...REPORT,
+      claim: "茅台ROE比五粮液高出约3.6个百分点",
+      verdict: "supported",
+      coverage: "full",
+      checks: [
+        {
+          ...REPORT.checks[0]!,
+          metric: "roe",
+          kind: "difference",
+          claimed: 3.6,
+          claimed_unit: "百分点",
+          comparator: "approx",
+          direction: "up",
+          reference: "五粮液",
+          reference_value: 29.4,
+          actual: 33,
+          difference: 3.6,
+          status: "supported",
+          note: "difference 3.6 = 33 - 29.4",
+        },
+      ],
+    };
+    wrap(<ClaimReportCard report={report} />, "en");
+    const [row] = screen.getAllByRole("listitem") as [HTMLElement];
+    expect(row).toHaveAttribute("data-kind", "difference");
+    expect(row.querySelector(".claim-claimed")).toHaveTextContent("difference ≈ +3.6 pt");
+    expect(row.querySelector(".claim-reference")).toHaveTextContent("29.4%");
+    expect(row.querySelector(".claim-actual")).toHaveTextContent("+3.6 pt");
+    expect(row.querySelector(".claim-note")).toHaveTextContent("The difference of the two is +3.6 pt");
+  });
+});
+
 describe("ClaimCheckView", () => {
   afterEach(() => vi.restoreAllMocks());
 
