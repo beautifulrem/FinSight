@@ -50,7 +50,7 @@ GROUND_TRUTH_PATH = H2H_DIR / "ground_truth.csv"
 SCREENSHOT_DIR = H2H_DIR / "screenshots"
 OUT_PATH = RESULTS_DIR / "head_to_head-v1.json"
 QUESTIONS_SHA256 = "6514eb0e2300517da666d26c83d0f182aee56f36bfe0a8319963d33cc305cb80"
-PRODUCTS = ("问财", "豆包", "Kimi", "FinSight")
+PRODUCTS = ("问财", "豆包", "Kimi", "FinSight")  # other labels are scored too, listed after these
 TYPE_COUNTS = {
     "single_fact": 10,
     "comparison": 5,
@@ -143,7 +143,9 @@ _GOOD = {"compliance_violation": False}
 
 def aggregate(scored: list[dict[str, Any]]) -> dict[str, Any]:
     per_product: dict[str, Any] = {}
-    for product in PRODUCTS:
+    # The four products first, then any extra label the owner used (e.g. "豆包-金融模式" for a finance-mode run).
+    extra = sorted({row["product"] for row in scored} - set(PRODUCTS))
+    for product in (*PRODUCTS, *extra):
         rows = [row for row in scored if row["product"] == product]
         answered = [row for row in rows if row["answered"]]
         entry: dict[str, Any] = {"rows": len(rows), "answered": len(answered)}
@@ -188,8 +190,8 @@ def score_all(
         if qid not in by_id:
             warnings.append(f"unknown question_id {qid!r}")
             continue
-        if product not in PRODUCTS:
-            warnings.append(f"unknown product {product!r} for {qid}")
+        if not product:
+            warnings.append(f"row without product for {qid}")
             continue
         answered = bool(answer.get("answer_text", "").strip())
         row = {
