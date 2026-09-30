@@ -81,8 +81,9 @@ the number wins. Words right after the number are read too (以上 / 以下 / �
 | `comparator` | Chinese | English | Supported when |
 | --- | --- | --- | --- |
 | `eq` | (none), 只有, 为 | is | within half a unit of the last written digit, or 2% |
-| `approx` | 约, 大约, 接近, 将近, …左右 | about, around, roughly, nearly | within 5% |
-| `gt` | 超过, 高于, 大于, 逾, 突破, 站上, 30多倍 | above, over, more than, exceeds | actual > claimed |
+| `approx` | 约, 大约, 接近, 将近, 近, …左右 | about, around, roughly, nearly | within 5%, or half the step of the last significant digit when wider (round 10: "三成左右" is 25%-35%) |
+| `gt` | 超过, 高于, 大于, 逾, 突破, 站上 | above, over, more than, exceeds | actual > claimed |
+| `gt` with an upper bound | 30多倍, 八百多亿, 一千六百余亿, 七倍有余; …出头 | | round 10: N < actual < N + the step of N's last significant digit (800多亿: 800-900亿); 出头: the lower half of that step (三成出头: 30%-35%) |
 | `ge` | 至少, 不低于, …以上 | at least | actual ≥ claimed |
 | `lt` | 低于, 小于, 不到, 不足, 跌破 | below, under, less than | actual < claimed |
 | `le` | 至多, 不超过, …以下 | at most | actual ≤ claimed |
@@ -272,8 +273,8 @@ are checked:
 
 The number may stand before the phrase ("3倍的行业平均水平", "35倍的平均估值"), after it ("行业平均11.8倍", "保险业均值11.8倍",
 "sector average of 3x") or in brackets ("行业平均水平（3倍）"). Before round 9 the number was a bound on the company's own
-value ("P/B < 3"), so a made-up average passed. A multiple of the average is still a multiple: "行业均值的2倍" is twice
-the average, and "只有行业平均的一半" is checked as a ratio against the snapshot.
+value ("P/B < 3"), so a made-up average passed. "只有行业平均的一半" is checked as a ratio against the snapshot. (Round 9
+also read "行业均值的2倍" after a bound as twice the average; since round 10 that form is the stated average, see below.)
 
 **A relation after the number of its own clause is checked.** "Ping An's P/B of 1.1x is below the insurance-sector
 average" and "五粮液市净率3.9倍低于茅台" are the number and the relation (two checks); before, the relation was dropped
@@ -322,6 +323,75 @@ accepts the derived percent.
 大过 / 强过 / 胜过 are relation words; "更活跃" compares turnover; "表现强于/弱于" with no metric compares daily moves.
 English sector names may be hyphenated ("insurance-sector"). `evidence_sources` lists each evidence id once (E14), and
 a sector in an English report reads "baijiu industry".
+
+### Round 10: stated values of the compared side, stated differences, bounded numerals (after the round-6 review)
+
+These rules answer the round-6 review's F1, F2 and F7 (claim side). They were written with 23 new dev claims (d246-d268,
+`note: round10`), labelled by hand before the checker ran on them.
+
+**Ratio or stated value: the unit of the metric decides (F1).** "茅台市盈率24.6倍，比白酒行业平均的30倍低不少" was read as
+"P/E < 30 × the average" (ratio 0.90, supported), so a made-up average of 30 passed. P/E and P/B are quoted in 倍 and ROE
+or margins in %, so when the number is written in the compared metric's own unit, "X的N倍" / "X的N%" is ambiguous: X's
+value, or N times X's value. The checker reads it as **X's stated value** unless the claim writes an explicit ratio cue:
+
+| Cue | Example | Reading |
+| --- | --- | --- |
+| a ratio verb 是 / 为 / 相当于 / 等于 / 达到 / (只)有 | "市净率是白酒行业均值的1.3倍左右", "市盈率只有茅台的85%" | multiple (8.1 / 6.2 = 1.31) |
+| 还 / 更 after a 比 comparison | "市盈率比五粮液的1.5倍还高" | multiple, `gt` 1.5 |
+| a fraction or share word | "不到白酒行业平均的三分之二", "只有行业平均的一半", "六成" | multiple |
+| English "N times X's" | "1.5 times Wuliangye's" | multiple |
+| none (a bound word or 比 … 低/高) | "比白酒行业平均的30倍低", "低于五粮液的20倍", "ROE高于五粮液的29.4%" | stated value of X |
+
+A stated value is checked on its own (`kind: "stated_reference"`), next to the relation of the two:
+
+| Claim | Checks |
+| --- | --- |
+| 茅台市盈率24.6倍，比白酒行业平均的30倍低不少 | 24.6 (supported); 茅台 P/E `lt` 白酒 27.3 (supported); **白酒行业平均 `eq` 30 (contradicted, 27.3)** → partially supported |
+| 五粮液市盈率比茅台的30倍低 | 五粮液 `lt` 茅台 (supported); 茅台 P/E `eq` 30 (contradicted, 24.6) |
+| 五粮液ROE低于茅台的33% | `lt` (supported); 茅台 ROE `eq` 33 (supported) |
+
+The rule depends only on the words and the metric's unit, never on the data (a reading chosen because it makes the claim
+true would hide errors). A metric not quoted in 倍 ("营收是五粮液的1.5倍", "净利润超过五粮液的三倍") is always a multiple.
+In the fact-check view the stated value is its own row, marked **说法给出的数值 / Stated in the claim**, with the
+average's label ("白酒行业平均") and its own verdict; the comparison row shows "< 白酒行业" with the snapshot value, never
+"30× 白酒行业" (`data-kind` on each row).
+
+**Stated differences (F2).** "茅台ROE比五粮液高出约3.6个百分点" was read as "五粮液's ROE ≈ 3.6" and contradicted a true
+claim. A number after "比X + 高出 / 高 / 多 / 大 / 贵 / 多赚 / 低 / 少 / 小 / 便宜 (了)" or after "(和X)相差 / 差了 / 差距" is
+the **difference** of the two values (`kind: "difference"`, `difference` = target − reference):
+
+| Claim | Check |
+| --- | --- |
+| 茅台ROE比五粮液高出约3.6个百分点 | 33 − 29.4 = +3.6, `approx` 3.6 → supported |
+| 五粮液ROE比茅台低3.6个百分点 | 29.4 − 33 = −3.6, claimed −3.6 → supported |
+| 中国平安ROE比五粮液高出10个百分点 | 15.2 − 29.4 = −14.2: the other way → contradicted |
+| 茅台和中国平安的ROE相差约18个百分点 | no direction: \|33 − 15.2\| = 17.8 → supported |
+| 茅台净利润比五粮液多赚了四百四十多亿 | 823.2亿 − 378亿 = 445.2亿, within 440-450亿 → supported |
+| 中国平安的市净率比五粮液低4.3倍 | P/B is quoted in 倍: 1.1 − 5.4 = −4.3 → supported |
+| 五粮液市盈率比白酒行业平均低了大约两成 | "%" on a metric not quoted in % is relative: (20.9 − 27.3) / 27.3 = −23.4%, about 20% → supported |
+| 茅台营收比五粮液高出一倍多 | "高出N倍" of an amount (N or N+1 times?) → unverifiable (`unit_mismatch`) |
+
+The comparator applies to the size of the difference in the stated direction ("高出不到5个百分点" is 0 < difference < 5);
+"跌幅比茅台大0.36个百分点" is a lower daily change. "%" on a metric quoted in percent (ROE) is read as percentage points.
+The UI shows "差值 ≈ +3.6 个百分点", the other side's value and the actual difference ("实际 +3.6 个百分点"). A later clause
+with no name of its own belongs to the comparison's subject, not to its compared side: in "茅台ROE比五粮液高出约3.6个百分点，
+一年营收一千六百多亿" the revenue is 茅台's (found in the real-Chrome check; before, it bound to 五粮液, the nearest name).
+
+**Numerals with 多 / 余 / 出头 / 左右 (F7).** "一千六百多亿", "八百余亿", "三十多倍" now parse (多 / 余 between the numeral and
+its unit). They are bounded approximations, using the **step** of the number's last significant digit (800 → 100,
+1600 → 100, 三成 = 30% → 10, 24.6 → 0.1):
+
+| Written | Reading |
+| --- | --- |
+| N多 / N余 / N有余 ("八百多亿", "七倍有余", "三成多") | N < actual < N + step (800-900亿, 7-8, 30%-40%) |
+| N出头 ("三成出头", "八百亿出头") | N < actual ≤ N + step / 2 (30%-35%) |
+| 约 / 左右 / 接近 / 近 ("三成左右", "约30倍") | within 5%, or step / 2 when wider (三成左右: 25%-35%) |
+
+The check keeps `comparator: "gt"` with the upper bound in `claimed_high`; the UI shows "> 800 亿, < 900 亿". "近10%"
+right before the number is `approx` again (the look-behind text ended before the digit, so 近 was missed).
+
+Screenshots (real Chrome, offline server, round 10): [stated average and relation](assets/ui/chrome-r10-stated-average-zh.png),
+[stated difference](assets/ui/chrome-r10-difference-zh.png).
 
 ### Macro values (C13)
 
@@ -464,12 +534,20 @@ python -m evaluation.claim_bench.run --set holdout
 | held-out, after exposure, at the round-9 commit | `2be73d6` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 | independent round-4 slice, after exposure, at the round-9 commit | `2be73d6` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
 | independent round-5 slice, **after exposure** (round 9) | `2be73d6` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
+| dev with the 23 round-10 rows (d246-d268) | `f94df6f` | 268 / 307 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the round-10 commit | `f94df6f` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-4 slice, after exposure, at the round-10 commit | `f94df6f` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
+| independent round-5 slice, after exposure, at the round-10 commit | `f94df6f` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
 
 The result files are `evaluation/results/claim_bench-dev-baseline.json`, `claim_bench-dev.json`,
 `claim_bench-holdout.json` (the single first run), `claim_bench-holdout-after-round8.json` (the same file after
 exposure, at the round-8 commit), `claim_bench-heldout_r4-first-run.json`, `claim_bench-heldout_r4-after-exposure.json`, and for round 9
 `claim_bench-holdout-after-round9.json`, `claim_bench-heldout_r4-after-round9.json`, `claim_bench-heldout_r5-first-run.json`
-and `claim_bench-heldout_r5-after-exposure.json`. Each records the commit, the command and the sha256 of the claims file.
+and `claim_bench-heldout_r5-after-exposure.json`, and for round 10 `claim_bench-holdout-after-round10.json`,
+`claim_bench-heldout_r4-after-round10.json` and `claim_bench-heldout_r5-after-round10.json`. Each records the commit, the
+command and the sha256 of the claims file. The round-10 rules changed no status on the held-out set or on either slice:
+none of their claims uses a stated value of the compared side, a stated difference or a bounded 多/出头 numeral that
+round 9 had read differently. A fresh held-out slice is needed to measure the round-10 rules.
 
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \
@@ -528,9 +606,9 @@ python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves
   alone) are plain moves.
 - **Dates.** Only explicit month-day dates are compared with the trade date; 昨天 / 今天 are not resolved against
   the snapshot date.
-- **Chinese numerals.** Only simple ones before a unit are handled: 十五倍, 一点一倍, 三成, 百分之三十.
-  Since round 9 shares of another value are multiples: 的三分之一, 的六成, 的64%, 的一半. Ambiguous forms are not
-  handled: 十几倍, 上千亿; "两成多" of a value is `gt` 0.2.
+- **Chinese numerals.** Only simple ones before a unit are handled: 十五倍, 一点一倍, 三成, 百分之三十, and since round 10
+  with 多 / 余 before the unit (一千六百多亿, 八百余亿). Since round 9 shares of another value are multiples: 的三分之一,
+  的六成, 的64%, 的一半. Ambiguous forms are not handled: 十几倍, 上千亿, 一万二千亿 (万 inside a numeral).
 - **Comparator reading is lexical.** Sarcasm and rhetorical questions are not understood.
 - **Relations.** Two named targets, a target and its industry snapshot, or a target and a named sector with a
   snapshot (白酒, 保险, 券商 offline) are compared; peers, consensus and the market average are not. Sector
@@ -542,5 +620,15 @@ python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves
 - **Periods.** Named periods are checked (年份, 一季度, 上半年, 前三季度, FY, H1). Relative ones (去年,
   上季度) are not resolved, and an amount without a period is unverifiable when the latest report is
   an interim one.
-- **Tolerance.** 2% or the written precision (5% for "about") is a policy choice. "约30倍" against
-  24.6 is contradicted, while "接近9倍" against 8.7 is supported.
+- **Tolerance.** 2% or the written precision (for "about": 5%, or half the step of the last significant digit) is a
+  policy choice. "约30倍" accepts 25-35 since round 10 (24.6 is still contradicted), and "接近9倍" against 8.7 is
+  supported. The step reads trailing zeros as placeholders only for approximations, bounds with 多 / 余 / 出头; a bare
+  "30倍" is exact to half a unit (or 2%). Fractions have no step: "约为三分之一" allows 5% (0.354 against 1/3 is 6% off
+  and contradicted, while "三分之一左右" at 0.319 is supported).
+- **Ratio or stated value.** For a metric quoted in 倍 or % (P/E, P/B, ROE, margins), "X的N倍" / "X的N%" after a bound or
+  比 is X's stated value unless a ratio cue is written (是 / 为 / 相当于 / 只有…的, 比…的N倍还…, a fraction). "市盈率不到五粮液
+  的两倍" is therefore read as "五粮液's P/E is 2x" (contradicted, next to the relation); with a cue ("市盈率只有五粮液的1.2倍")
+  it is a multiple. The rule follows the unit of the metric, not the size of N, so it never depends on the data.
+- **Differences.** "高出N个百分点 / 高出N倍" is a difference only when the unit fits the metric; "%" on a metric quoted in
+  percent (ROE) is read as percentage points, on any other metric as a relative difference. "营收高出两倍" is
+  unverifiable (two or three times?). English differences ("3.6 points higher than") are not read yet.
