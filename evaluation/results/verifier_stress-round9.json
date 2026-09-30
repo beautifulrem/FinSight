@@ -1,0 +1,137 @@
+{
+ "kind": "verifier_stress",
+ "config": {
+  "tasks": "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+  "seed": 7,
+  "perturbations": [
+   0.01,
+   0.05,
+   0.2
+  ],
+  "model": null,
+  "commit": "d78a556",
+  "run_at": "2026-09-30T16:04:15+00:00",
+  "command": "python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress.json"
+ },
+ "gold_answers": 240,
+ "true_accept": {
+  "legacy": 1.0,
+  "run": 1.0,
+  "claim": 1.0,
+  "claim_derived": 1.0
+ },
+ "variants": 3905,
+ "false_accept": {
+  "legacy": 0.3303,
+  "run": 0.2471,
+  "claim": 0.0187,
+  "claim_derived": 0.0195
+ },
+ "by_kind": {
+  "perturb_1pct": {
+   "variants": 949,
+   "false_accept_legacy": 0.2866,
+   "false_accept_run": 0.0327,
+   "false_accept_claim": 0.0327,
+   "false_accept_claim_derived": 0.0327
+  },
+  "perturb_20pct": {
+   "variants": 1054,
+   "false_accept_legacy": 0.0816,
+   "false_accept_run": 0.0332,
+   "false_accept_claim": 0.0209,
+   "false_accept_claim_derived": 0.0209
+  },
+  "perturb_5pct": {
+   "variants": 1029,
+   "false_accept_legacy": 0.0573,
+   "false_accept_run": 0.0253,
+   "false_accept_claim": 0.0146,
+   "false_accept_claim_derived": 0.0146
+  },
+  "swap": {
+   "variants": 873,
+   "false_accept_legacy": 1.0,
+   "false_accept_run": 1.0,
+   "false_accept_claim": 0.0057,
+   "false_accept_claim_derived": 0.0092
+  }
+ },
+ "examples_caught_only_by_claim_binding": [
+  {
+   "task": "fact_price_zh_0_0",
+   "kind": "perturb_1pct",
+   "original": "1409.5",
+   "replacement": "1423.6",
+   "answer": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1423.6 元（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  },
+  {
+   "task": "fact_price_zh_0_2",
+   "kind": "perturb_1pct",
+   "original": "1409.5",
+   "replacement": "1423.6",
+   "answer": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1423.6 元（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  },
+  {
+   "task": "fact_price_zh_2_0",
+   "kind": "perturb_1pct",
+   "original": "53.61",
+   "replacement": "53.07",
+   "answer": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.07 元（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。"
+  },
+  {
+   "task": "fact_price_zh_2_0",
+   "kind": "perturb_1pct",
+   "original": "0.73",
+   "replacement": "0.74",
+   "answer": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.74% [price_601318.SH]。"
+  },
+  {
+   "task": "fact_price_zh_2_1",
+   "kind": "perturb_1pct",
+   "original": "0.73",
+   "replacement": "0.72",
+   "answer": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.72% [price_601318.SH]。"
+  },
+  {
+   "task": "fact_price_zh_2_2",
+   "kind": "perturb_1pct",
+   "original": "53.61",
+   "replacement": "53.07",
+   "answer": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.07 元（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。"
+  },
+  {
+   "task": "fact_price_zh_2_2",
+   "kind": "perturb_1pct",
+   "original": "0.73",
+   "replacement": "0.74",
+   "answer": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.74% [price_601318.SH]。"
+  },
+  {
+   "task": "fact_price_en_2",
+   "kind": "perturb_1pct",
+   "original": "0.73",
+   "replacement": "0.74",
+   "answer": "Based on the evidence retrieved for this question: Ping An Insurance (601318.SH) last available close was CNY 53.61 on 2026-04-22, daily change 0.74% [price_601318.SH]."
+  }
+ ],
+ "repair": {
+  "repaired_answers": 3832,
+  "readable": 1.0,
+  "passes_verification": 1.0,
+  "template_fallback": 0.1944,
+  "with_fragment": 0.0,
+  "retained_sentences": 0.98,
+  "answers_with_issue": {},
+  "unreadable_examples": []
+ },
+ "source": {
+  "file": "outputs/agent_eval/verifier_stress.json",
+  "sha256_16": "a0525baec420dcda",
+  "bytes": 3928,
+  "slimmed_at": "2026-09-30T16:21:05+00:00"
+ },
+ "notes": [
+  "Verifier stress at d78a556 (round 9, incl. the 个百分点 count fix 8c86827): 240 gold answers; the CI baseline remains verifier_stress.json (9f0e46b)."
+ ]
+}
