@@ -84,6 +84,7 @@ export function formatClaimValue(
       return `${trim(value)} ${t("claim.unit.yuan")}`;
     case "revenue":
     case "net_profit":
+    case "amount":
     case "market_cap": {
       const amount = side === "claimed" ? claimedAmount(claim, value, unit) : value;
       // "1,741.2 亿元" / "174.12B CNY"
@@ -235,10 +236,16 @@ export function targetName(lang: Lang, report: ClaimReport): (name: string) => s
   return (name) => names.get(name) ?? name;
 }
 
-export function statusCounts(report: ClaimReport): Record<ClaimStatus, number> {
-  const counts: Record<ClaimStatus, number> = { supported: 0, contradicted: 0, unverifiable: 0 };
+export function statusCounts(report: ClaimReport): Record<ClaimStatus | "unchecked", number> {
+  const counts: Record<ClaimStatus | "unchecked", number> = { supported: 0, contradicted: 0, unverifiable: 0, unchecked: 0 };
   for (const check of report.checks) counts[check.status] = (counts[check.status] ?? 0) + 1;
+  counts.unchecked = report.unchecked?.length ?? 0;
   return counts;
+}
+
+/** Every part of the claim the card lists: one row per check plus one per clause that was not checked. */
+export function partCount(report: ClaimReport): number {
+  return report.checks.length + (report.unchecked?.length ?? 0);
 }
 
 /** An evidence record for a check, so its date shows age and "may be stale" like the evidence ledger. */
