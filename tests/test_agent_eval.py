@@ -822,3 +822,32 @@ def test_round9_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_review
 
     assert len(mine) >= 25 and check_overlap(_round9_tasks()) == []
     assert _overlaps(mine, others) == (0, 0), "round-9 dev tasks or router labels overlap a held-out or reviewer set"
+
+
+# The round-6 reviewer's claim probes (round6.md §4.2 and §8, F1/F2/F7): round-10 claim rows must not copy them.
+_ROUND6_REVIEW_CLAIMS = [
+    "茅台市盈率24.6倍，比白酒行业平均的30倍低不少",
+    "茅台ROE比五粮液高出约3.6个百分点",
+    "茅台一年营收一千六百多亿",
+    "中国平安市盈率约为茅台的三分之一",
+    "茅台的PE比行业平均低了近10%",
+    "比白酒行业平均的30倍低不少",
+    "茅台一年净赚800多亿",
+    "八百多亿",
+    "三成出头",
+    "一千六百余亿",
+]
+
+
+def test_round10_claim_rows_do_not_overlap_the_heldout_sets_or_the_reviewer_probes():
+    """The round-10 claim rows were written from the round-6 review (F1 stated values, F2 differences, F7 numerals
+    with 多/余/出头/左右): none may copy or near-copy a claim of the committed held-out set, the round-4 or round-5
+    slices, or the round-5 and round-6 reviewer probes (counts only; held-out text is never printed)."""
+    from evaluation.claim_bench.run import SETS, load_claims
+
+    mine = [row["claim"] for row in load_claims(SETS["dev"]) if row.get("note") == "round10"]
+    others = [row["claim"] for row in load_claims(SETS["holdout"])] + _heldout_r4_texts() + _heldout_r5_texts()
+    others += _ROUND5_REVIEW_CLAIMS + _ROUND6_REVIEW_CLAIMS
+
+    assert len(mine) >= 20
+    assert _overlaps(mine, others) == (0, 0), "round-10 claim rows overlap a held-out set or a reviewer probe"
