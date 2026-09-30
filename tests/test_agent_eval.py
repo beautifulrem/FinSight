@@ -672,3 +672,16 @@ def test_round6_dev_tasks_do_not_overlap_the_heldout_or_other_sets():
 
     assert len(mine) >= 15 and check_overlap(_round6_tasks()) == []
     assert _overlaps(mine, others) == (0, 0), "round-6 dev tasks overlap a held-out or test set"
+
+
+def test_round8_claim_rows_do_not_overlap_the_heldout_sets():
+    """The round-8 claim rows (D2 relation next to a number, D3 industry averages, D4 turnover and bounded ratios)
+    were written after the round-4 review: none may copy or near-copy a claim of the committed claim held-out set
+    or a text of the round-4 held-out slices (counts only; held-out text is never printed)."""
+    from evaluation.claim_bench.run import SETS, load_claims
+
+    mine = [row["claim"] for row in load_claims(SETS["dev"]) if row.get("note") == "round8"]
+    others = [row["claim"] for row in load_claims(SETS["holdout"])] + _heldout_r4_texts()
+
+    assert len(mine) >= 20
+    assert _overlaps(mine, others) == (0, 0), "round-8 claim rows overlap a held-out set"
