@@ -35,7 +35,7 @@ from pydantic import BaseModel, Field
 
 from .evidence import _NUMBER as _NUMBER_TOKEN
 from .evidence import AgentEvidence
-from .names import english_aliases, english_name
+from .names import INDUSTRY_EN, english_aliases, english_name
 from .tools import ToolRegistry
 from .verifier import _BARE_SCALES, _DATE_PATTERNS, _HYPOTHETICAL, _PARAMETER_PATTERNS, _UNIT_SCALES, EN_MONTH
 
@@ -97,6 +97,13 @@ _METRICS: dict[str, _Metric] = {
         _RATIO,
         fundamental=False,
         directional=True,
+    ),
+    # Turnover of the latest session ("五粮液昨天成交14.5亿元", "turnover of CNY 1.45 bn"): an amount, never a rate.
+    "amount": _Metric(
+        ("amount",),
+        _words(r"成交额|成交金额|成交(?![量价均])|交易额|\bturnover\b|\btrad(?:ed|ing) value\b"),
+        frozenset({_AMOUNT}),
+        fundamental=False,
     ),
     "pe_ttm": _Metric(
         ("pe_ttm", "pe"),
@@ -215,6 +222,7 @@ _MACRO_NAMES = {
 _INDUSTRY_KEYS = {"pe_ttm": ("pe_ttm", "pe"), "pb": ("pb",), "pct_change_1d": ("pct_change", "pct_change_1d")}
 _GROWTH_OF = {"revenue": "revenue_yoy", "net_profit": "netprofit_yoy"}
 _LEVELS = {"revenue", "net_profit", "eps"}  # flows: an interim report holds a year-to-date total
+_DAILY = {"pct_change_1d", "amount"}  # one session's value: "本周" / "近5日" is a multi-day claim
 _GROWTH_WORDS = re.compile(
     r"同比|环比|增速|增幅|增长|下降|下滑|减少|\bYoY\b|year[- ]on[- ]year|\bgrowth\b|\bgrew\b", re.I
 )
@@ -368,8 +376,10 @@ _CLAIM_DATES = (
 )
 # "茅台的市净率是五粮液的1.5倍" / "Moutai's P/B is 1.5 times Wuliangye's": a multiple of another target's value.
 _APPROX_WORDS = r"(?:约|大约|大概|接近|将近|差不多|近|约为|\babout\b|\baround\b|\broughly\b|\bnearly\b|\balmost\b)?"
+# A bound may stand where the verb does: "营收不到五粮液的1.5倍", "超过五粮液的两倍", "至少是五粮液的1.2倍".
+_RATIO_VERB = r"(?:是|为|相当于|达到?|等于|有|不到|不足|不及|低于|小于|少于|超过|超出|高于|大于|多于|至少|至多|最多)"
 _RATIO_BEFORE = re.compile(
-    rf"(?:是|为|相当于|达到?|等于|有)\s*{_APPROX_WORDS}\s*(?P<ref>＠+)\s*(?:的|'s|’s)?\s*{_APPROX_WORDS}\s*$", re.I
+    rf"(?P<verb>{_RATIO_VERB})\s*{_APPROX_WORDS}\s*(?P<ref>＠+)\s*(?:的|'s|’s)?\s*{_APPROX_WORDS}\s*$", re.I
 )
 _RATIO_AFTER = re.compile(  # used with .match(text, pos): anchored at the end of the number
     r"\s*(?:(?:that|those) of\s+|as (?:high|large|big|much) as\s+)?(?:the\s+)?(?P<ref>＠+)", re.I
@@ -470,12 +480,27 @@ class ClaimCheck(BaseModel):
     note: str = ""
 
 
+class UncheckedClause(BaseModel):
+    """A part of the claim that names a target or a metric but has no number, move or comparison to check."""
+
+    text: str = Field(description="The clause as normalised for reading ('十五倍' is written '15倍').")
+    reason: Literal["no_claim"] = "no_claim"
+    note: str = "no number, move or comparison to check in this part of the claim"
+
+
 class ClaimReport(BaseModel):
     claim: str
     verdict: Literal["supported", "contradicted", "partially_supported", "unverifiable"]
     checks: list[ClaimCheck] = Field(default_factory=list)
     targets: list[dict[str, Any]] = Field(default_factory=list)
     evidence_sources: list[dict[str, Any]] = Field(default_factory=list)
+    unchecked: list[UncheckedClause] = Field(
+        default_factory=list,
+        description=(
+            "Clauses that name a target or a metric but were not checked ('ROE很高'); the verdict is over "
+            "`checks` only, and the UI lists these as 'not checked' rows."
+        ),
+    )
     disclaimer: str
 
 
@@ -507,6 +532,7 @@ class _Number:
     ratio: bool = False  # "是五粮液的1.5倍": ``value`` is a multiple of the reference's value
     date: tuple[str | None, int, int] | None = None  # (year, month, day) named for a daily value
     convention: str | None = None  # the threshold behind a qualitative move word ("大跌": at least 3%)
+    industry: bool = False  # "而行业平均11.8倍": the number is the target's industry average, not the target's
 
 
 def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = True) -> ClaimReport:
@@ -541,7 +567,8 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
         match = phrase.search(claim)
         if match and all(target.get("sector") != name for target in targets):
             targets.append({"name": name, "symbol": None, "key": f"sector:{name}", "sector": name, "_mentions": []})
-    numbers = read_numbers(claim, targets, zh=zh)
+    reading = _read(claim, targets, zh=zh)
+    numbers = reading.numbers
     evidence = _fetch([number for number in numbers if not number.reasons], registry)
     checks = [_check(number, evidence, zh=zh) for number in numbers]
     statuses = {check.status for check in checks}
@@ -569,6 +596,7 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
         checks=checks,
         targets=public_targets,
         evidence_sources=[_source(item) for items in evidence.values() for item in items],
+        unchecked=_unchecked(reading),
         disclaimer=disclaimer,
     )
 
@@ -765,6 +793,18 @@ def _scales(unit: str | None, unit_class: str | None) -> tuple[float, ...]:
 def read_numbers(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> list[_Number]:
     """Every claimed number, number-less move and relation ("茅台PE比五粮液高") with metric, target,
     comparator and context flags."""
+    return _read(claim, targets, zh=zh).numbers
+
+
+@dataclass
+class _Reading:
+    numbers: list[_Number]
+    text: str  # normalised, names masked, dates blanked (same length as ``plain``)
+    plain: str  # normalised claim
+    positions: list[tuple[int, dict[str, Any]]]
+
+
+def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Reading:
     plain = normalise(claim)
     norm, positions = _masked(plain, targets)
     text = _blank(norm)
@@ -818,6 +858,16 @@ def read_numbers(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) 
             )
             # "跌超1%" / "fell more than 0.1%": the sign of the move word (a written "-0.18" is already negative).
             _apply_direction(number, stretch[-_DIRECTION_WINDOW:])
+            number.industry = _industry_subject(text, number.start, positions, max(clause_start, previous_end))
+            if number.metric is None:
+                # "茅台和五粮液的市盈率，分别是24.6倍和20.9倍": the metric named earlier in the sentence (after the
+                # previous number), when its clause names none.
+                sentence_start, _sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+                earlier = text[max(sentence_start, previous_end) : clause_start]
+                fitting = [
+                    name for _d, name in _nearest_metrics(earlier, "") if number.unit_class in _METRICS[name].units
+                ]
+                number.metric = fitting[0] if fitting else None
         _context(number, norm, clause_start, clause_end, plain)
         previous_end = number.end
         previous = number if number.metric and not number.ratio else previous
@@ -836,7 +886,42 @@ def read_numbers(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) 
     for number in numbers:
         if number.target is None and not number.reasons:
             number.reasons.append(("no_target", "no listed company, fund or index"))
-    return numbers
+    return _Reading(numbers, text, plain, positions)
+
+
+def _unchecked(reading: _Reading) -> list[UncheckedClause]:
+    """Clauses that name a target or a metric but produced no check ("茅台PE 24.6倍，ROE很高": "ROE很高"), so a
+    report never drops part of a claim silently. A clause that only names what the rest of its sentence checks
+    ("茅台和五粮液的市盈率，分别是24.6倍和20.9倍") is covered by those checks."""
+    text, plain, numbers = reading.text, reading.plain, reading.numbers
+    spans, start = [], 0
+    for match in _CLAUSE_BREAK.finditer(text):
+        spans.append((start, match.start()))
+        start = match.end()
+    spans.append((start, len(text)))
+    found: list[UncheckedClause] = []
+    for clause_start, clause_end in spans:
+        words = plain[clause_start:clause_end].strip()
+        if not words or any(clause_start <= number.start < clause_end for number in numbers):
+            continue
+        named = {target["key"] for position, target in reading.positions if clause_start <= position < clause_end}
+        metrics = {name for _distance, name in _nearest_metrics(text[clause_start:clause_end], "")}
+        metrics |= {name for _distance, name in _nearest_metrics(plain[clause_start:clause_end], "", macro=True)}
+        if not named and not metrics:
+            continue  # "是真的吗", "据说": nothing factual
+        sentence_start, sentence_end = _clause_bounds(text, clause_start, _SENTENCE_BREAK)
+        in_sentence = [number for number in numbers if sentence_start <= number.start < sentence_end]
+        keys = {
+            str(subject.get("key") or subject.get("macro"))
+            for number in in_sentence
+            for subject in (number.target, number.reference)
+            if subject
+        }
+        checked = {number.metric for number in in_sentence}
+        if named <= keys and metrics <= checked:
+            continue
+        found.append(UncheckedClause(text=words))
+    return found
 
 
 def _direction(window: str) -> int | None:
@@ -863,6 +948,29 @@ def _apply_direction(number: _Number, window: str) -> None:
             number.high = -abs(number.high)
 
 
+# "而行业平均11.8倍", "the industry average is 11.8x": the industry average as the subject of a number.
+_INDUSTRY_SUBJECT = re.compile(
+    r"(?:其?所在|所属|同)?(?:行业|板块|同行|同业)(?:的)?(?:平均|均值|中位数|整体)(?:水平)?|"
+    r"\b(?:the\s+)?(?:industry|sector|peer)(?:'s)?\s+(?:average|median|mean)\b",
+    re.I,
+)
+_BOUND_WORDS = tuple(pattern for name, pattern in _COMPARATOR_WORDS if name in {"gt", "ge", "lt", "le"})
+
+
+def _industry_subject(text: str, number_start: int, positions: list[tuple[int, dict[str, Any]]], start: int) -> bool:
+    """ "中国平安市盈率8.7倍，而行业平均11.8倍": an industry average named after the last target (and after the
+    previous number) and before this number is what the number is about. Not when it is the other side of a
+    comparison: "低于行业平均11.8倍" is a bound on the target's own value."""
+    named = [position for position, _target in positions if start <= position < number_start]
+    stretch = text[named[-1] if named else start : number_start]
+    match = _INDUSTRY_SUBJECT.search(stretch)
+    if match is None:
+        return False
+    lead = stretch[: match.start()]
+    compared = _REL_BI.search(lead) or _REL_WORD.search(lead) or re.search(r"\bthan\b", lead, re.I)
+    return not (compared or any(pattern.search(lead) for pattern in _BOUND_WORDS))
+
+
 def _ratio_reference(number: _Number, text: str, positions: list[tuple[int, dict[str, Any]]]) -> bool:
     """ "是五粮液的1.5倍" / "1.5 times Wuliangye's": a multiple of a named target's value. Sets ``ratio`` and
     ``reference`` (the subject is bound in ``_bind_targets``)."""
@@ -876,6 +984,9 @@ def _ratio_reference(number: _Number, text: str, positions: list[tuple[int, dict
             number.ratio = number.relation = True
             number.reference = at[match.start("ref")]
             number.reference_kind = "target"
+            if match is before and match.group("verb") == "有" and re.search(r"没有?\s*$", text[: match.start()]):
+                # "营收没有五粮液的两倍" asserts less than twice, not "any multiple but two"
+                number.comparator, number.negated = "lt", True
             return True
     return False
 
@@ -1039,8 +1150,11 @@ def _context(number: _Number, norm: str, clause_start: int, clause_end: int, pla
     if _FORECAST.search(clause) or _HYPOTHETICAL.search(clause):
         number.reasons.append(("forecast", "a forecast or hypothetical, not a reported fact"))
         return
-    if number.metric == "pct_change_1d" and _MULTI_DAY.search(clause):
-        number.reasons.append(("multi_day", "a multi-day move; only the latest daily change is available"))
+    if number.metric in _DAILY and _MULTI_DAY.search(clause):
+        if number.metric == "pct_change_1d":
+            number.reasons.append(("multi_day", "a multi-day move; only the latest daily change is available"))
+        else:
+            number.reasons.append(("multi_day", "a multi-day turnover; only the latest session's is available"))
         return
     if number.unit_mismatch:
         unit = number.unit or "?"
@@ -1193,7 +1307,11 @@ def _relation_at(
     word: str | None,
 ) -> _Number | None:
     sentence_start, sentence_end = _clause_bounds(text, start, _SENTENCE_BREAK)
-    if any(sentence_start <= position < sentence_end for position in number_starts):
+    clause_start, clause_end = _clause_bounds(text, start)
+    # A clause that states a number is checked on it ("茅台PE 24.6倍比五粮液的20.9倍高"); a relation in a clause
+    # of its own is checked too, even when another clause of the sentence states a number ("茅台的市盈率比五粮液
+    # 高，中国平安市盈率8.7倍" is two checks; "五粮液市盈率24.6倍，比茅台低" checks the 24.6 and the relation).
+    if any(clause_start <= position < clause_end for position in number_starts):
         return None
     reference = _reference_at(text, end, positions)
     if reference is None:
@@ -1205,7 +1323,6 @@ def _relation_at(
     ]
     if not subjects:
         return None
-    clause_start, clause_end = _clause_bounds(text, start)
     # The comparator: the cue word ("高于"), else the adjective after the reference ("比五粮液高").
     negated = False
     if word is None or word == "not_as":
@@ -1365,7 +1482,9 @@ def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[Age
             continue
         wanted_market = wanted_market or not metric.fundamental
         # The industry snapshot comes with the fundamentals.
-        wanted_fundamental = wanted_fundamental or metric.fundamental or number.reference_kind == "industry"
+        wanted_fundamental = (
+            wanted_fundamental or metric.fundamental or number.reference_kind == "industry" or number.industry
+        )
         for subject in (number.target, number.reference):
             if subject and subject.get("key"):
                 subjects.setdefault(subject["key"], subject)
@@ -1423,9 +1542,25 @@ def _value(items: list[AgentEvidence], keys: tuple[str, ...]) -> tuple[AgentEvid
     return None
 
 
+def _industry_average(target: dict[str, Any] | None) -> bool:
+    """The number is about the target's industry average (a sector target is its industry already)."""
+    return bool(target) and not (target or {}).get("sector")
+
+
+def _industry_label(key: str | None, evidence: dict[str, list[AgentEvidence]], *, zh: bool) -> str:
+    """ "保险行业平均" / "insurance industry average", from the target's industry snapshot."""
+    industry = next((item.payload.get("industry_name") for item in evidence.get(f"industry:{key}") or []), None)
+    if zh:
+        return f"{industry}行业平均" if industry else "行业平均"
+    english = INDUSTRY_EN.get(str(industry), str(industry)) if industry else None
+    return f"{english} industry average" if english else "industry average"
+
+
 def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: bool = True) -> ClaimCheck:
+    industry = number.industry and _industry_average(number.target)
+    key = (number.target or {}).get("key")
     base = ClaimCheck(
-        target=number.target["name"] if number.target else None,
+        target=_industry_label(key, evidence, zh=zh) if industry else number.target["name"] if number.target else None,
         metric=number.metric,
         claimed=None if number.relation and not number.ratio else number.value,
         claimed_high=number.high,
@@ -1447,6 +1582,13 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
         if found is None:
             note = f"the macro sources do not provide {metric.macro}"
             return base.model_copy(update={"reason": "no_data", "note": note})
+    elif industry:
+        items = evidence.get(f"industry:{key}") or []
+        keys = _INDUSTRY_KEYS.get(number.metric)
+        found = _value(items, keys) if keys else None
+        if found is None:
+            note = "the industry snapshot has no value for this metric" if items else "no industry snapshot"
+            return base.model_copy(update={"reason": "no_data", "note": note})
     else:
         found = _value(evidence.get(number.target.get("key") or "") or [], _keys(number.target, number.metric))
     if found is None:
@@ -1455,6 +1597,9 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
             return base.model_copy(update={"reason": "growth_unavailable", "note": note})
         return base.model_copy(update={"reason": "no_data", "note": "no data for this metric"})
     item, actual = found
+    if number.metric == "amount" and actual <= 0:
+        # Index rows carry turnover 0 when the source does not report it: no data, not a value to compare.
+        return base.model_copy(update={"reason": "no_data", "note": "the source reports no turnover for this target"})
     as_of, basis = _as_of(item, number.metric)
     base = base.model_copy(
         update={
@@ -1494,14 +1639,7 @@ def _reference_name(number: _Number, evidence: dict[str, list[AgentEvidence]], *
         return name
     if number.reference_kind == "market":
         return "市场平均" if zh else "market average"
-    key = (number.target or {}).get("key")
-    industry = next(
-        (item.payload.get("industry_name") for item in evidence.get(f"industry:{key}") or []),
-        None,
-    )
-    if zh:
-        return f"{industry}行业平均" if industry else "行业平均"
-    return f"{industry} industry average" if industry else "industry average"
+    return _industry_label((number.target or {}).get("key"), evidence, zh=zh)
 
 
 def _check_relation(number: _Number, base: ClaimCheck, evidence: dict[str, list[AgentEvidence]]) -> ClaimCheck:
