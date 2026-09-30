@@ -377,7 +377,7 @@ python -m pytest tests/test_monitoring_config.py -q   # 看板结构；用到的
 
 `scripts/chaos_drill.py` 自己启动一个真实服务，在它前面注入真实故障（被测进程内部没有任何替身），并按阶段记录延迟、trace、`/sources/health` 和 `/metrics`。
 
-结果文件：`docs/results/chaos/llm/chaos-llm.json`（2026-09-26，合并后的镜像，见[性能](performance.md#测试环境与镜像)）和 `docs/results/chaos/sources/chaos-sources.json`（2026-09-30 在干净的 commit `3d7afd5` 上重跑，`working_tree_clean: true`；替换了记录为 `8dc388b-dirty` 的 2026-09-26 那次运行）。
+结果文件：`docs/results/chaos/llm/chaos-llm.json` 和 `docs/results/chaos/sources/chaos-sources.json`，两者都在 2026-09-30 于干净的 commit 上重跑（分别是 `3b03369` 和 `3d7afd5`，`working_tree_clean: true`），替换了 2026-09-26 的两次运行：那两次的 `commit` 字段一个是手工改过的（LLM），一个是 `8dc388b-dirty`（数据源）。
 
 ### LLM：主模型失效，切换到 GLM，熔断打开后恢复
 
@@ -391,18 +391,17 @@ source /tmp/llmenv.sh
 python -m scripts.chaos_drill --scenario llm --fallback-model cline-pass/glm-5.3-flash --usd-cny 6.7489
 ```
 
-| 阶段（UTC） | 请求 | 网关看到的调用 | `finsight_llm_circuit_state`（DeepSeek / GLM） |
+| 阶段（UTC，2026-09-30） | 请求 | 网关看到的调用 | `finsight_llm_circuit_state`（DeepSeek / GLM） |
 |---|---|---|---|
-| 1 基线 13:43 | 1 个 Agent 答案，44.2 秒，校验通过 | 4 次 DeepSeek 调用，200 | 0 / 0 |
-| 2 主模型故障 13:44–13:48 | 3 个 Agent 请求：<br>- 80.8 秒和 47.5 秒，校验通过，由 GLM 作答，分别 3 次和 5 次调用；<br>- 第三个请求撞上接口的 120 秒超时（504），当时一次 GLM 调用用了 62.8 秒 | DeepSeek 连续 3 次 404（每次 0.25–1.0 秒），之后熔断打开，调用直接走 GLM（13 次，200）。每次 60 秒冷却结束，都有一次半开试探打到 DeepSeek，得到 404 后熔断重新打开（共 3 次试探） | 2（打开）/ 0 |
-| 3 故障恢复，冷却结束 13:49 | 无 | 无 | 1（半开）/ 0 |
-| 4 已恢复 13:49 | 1 个 Agent 答案，21.0 秒，校验通过 | 3 次 DeepSeek 调用，200：试探成功，熔断关闭 | 0 / 0 |
+| 1 基线 16:49 | 1 个 Agent 答案，13.5 秒，校验通过 | 2 次 DeepSeek 调用，200 | 0 / 0 |
+| 2 主模型故障 16:49–16:54 | 3 个 Agent 请求，都在运行截止时间结束：<br>- 90.0 秒和 90.0 秒：一次 GLM 调用超时，给出确定性答案，校验通过；<br>- 96.8 秒：由 GLM 作答（5 次调用），草稿没有通过校验，被模板答案替换 | DeepSeek 5 次 404（每次 0.24–0.31 秒：最初的失败以及每次冷却后的半开试探），GLM 15 次调用，200，8.8–48.7 秒 | 2（打开）/ 0 |
+| 3 故障恢复，冷却结束 16:54 | 无 | 无 | 1（半开）/ 0 |
+| 4 已恢复 16:54 | 1 个 Agent 答案，10.7 秒，校验通过 | 2 次 DeepSeek 调用，200：试探成功，熔断关闭 | 0 / 0 |
 
-- **trace 中的证据**：看每个请求的 `trace_llm_calls`，第 2 阶段的 LLM span 带 `gen_ai.request.model = z-ai/glm-5.3-flash`，第 1、4 阶段是 `deepseek/deepseek-v4.1-flash`。
-- **切换本身的延迟代价**：主模型失败一次花 0.25–1.0 秒（404 不重试），熔断打开后没有代价。
-- **真正的代价是备用模型**：GLM 单次调用 2.5–62.8 秒，DeepSeek 是 2.5–9.0 秒，所以答案要 48–81 秒而不是 21–44 秒，有一个请求超过了 `QI_AGENT_REQUEST_TIMEOUT_S`。
-
-这正是 `d1c007c` 加入截止时间约束的原因：每次 LLM 请求都以运行截止时间为上限（工具循环 90 秒，作答再宽限 20 秒，见 [Agent 层](agent.md#配置)），慢速备用模型现在会以确定性答案结束，而不是 504。加入后还没有重跑这次演练。
+- **结果**：每个请求都是 HTTP 200；网关只看到 `cline-pass/deepseek-v4.1-flash` 和 `cline-pass/glm-5.3-flash`（共 24 次调用）。
+- **trace 中的证据**：服务端 trace（`docs/results/chaos/llm/traces/`）按 LLM span 记录模型，第 2 阶段是 `z-ai/glm-5.3-flash`，第 1、4 阶段是 `deepseek/deepseek-v4.1-flash`（网关回报的名称）。演练脚本自己的 `trace_llm_calls` 字段为空，因为没有 key 的调用方不能读取 trace（C3）。
+- **与 2026-09-26（加入运行截止时间之前）那次对比**：当时一个请求撞上接口的 120 秒超时（504），其余要 48–81 秒；现在慢速备用模型在截止时间（约 90 秒）结束，给出通过校验的确定性答案。
+- **切换的代价**是备用模型的延迟（GLM 单次 8.8–48.7 秒，DeepSeek 3.6–7.2 秒）；主模型失败一次 0.3 秒，熔断打开后没有代价。
 
 ### 数据源：屏蔽新浪、腾讯和东方财富
 
