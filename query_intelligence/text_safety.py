@@ -9,8 +9,9 @@ Two users:
   ``о``), and it contains no link, domain, phone number, messaging handle (WeChat / QQ / Telegram / e-mail),
   no instruction or second-person address, and no advice, rating or guarantee wording, and no planted-fact shape
   (corrections, exclusives and rumours, prices and multiples, share-capital actions, AI-addressed text; round 9: an
-  insider or unnamed source "revealing" something, a Q&A transcript, a figure "restated"). The agent's evidence ledger
-  additionally hides a headline that states a figure the run's structured data does not contain (``agent/graph.py``).
+  insider or unnamed source "revealing" something, a Q&A transcript, a figure "restated"; round 10: a delimited data
+  row, a title cut off right after a figure word). The agent's evidence ledger additionally hides a headline that
+  states a figure the run's structured data does not contain, in Arabic or Chinese numerals (``agent/graph.py``).
 * ``find_prohibited_promotion`` finds what must never appear in *any* answer, whoever wrote it: guaranteed-
   return claims (稳赚不赔, 保本, 保证收益), stock-tip solicitation (荐股, 带单, 喊单, 加微信, 私信, 内幕消息)
   and contact handles offered to the reader, plus (round 7) doubling-and-compensation schemes (资金翻倍，亏损全额
@@ -190,6 +191,32 @@ _CLAIM_SHAPE = re.compile(
     re.IGNORECASE,
 )
 _MARKUP = re.compile(r"[<>{}\[\]`|\\^~]|!\[|\]\(|&#|\\u[0-9a-f]{4}|\*\*|__", re.IGNORECASE)
+# (round 10, F3) Two more figure shapes a headline never has. A *data row*: fields joined by delimiters, two or more of
+# them bare numbers ("code,name,price,pe 000858.SZ,五粮液,99.9,8.8"), i.e. a table or an export whose numbers are
+# figures without units; thousands separators and years are not fields. A *cut figure*: the headline ends in a number
+# right after a figure word ("…拟每10股派现金红利3", "营收同比增长12"), the shape of a title cut off mid-figure (the
+# split variant of a planted document), whose value cannot be checked at all.
+_THOUSANDS = re.compile(r"(?<=\d),(?=\d{3}(?!\d))")
+_ROW_DELIMITER = re.compile(r"[,;]")
+_NUMERIC_FIELD = re.compile(r"[-+]?\d+(?:\.\d+)?%?")
+_YEAR_FIELD = re.compile(r"(?:19|20)\d{2}")
+_CUT_FIGURE = re.compile(
+    r"(?:派发?|派息|派现|红利|股息|分红|营收|收入|利润|净利|毛利率?|净利率|市盈率|市净率|(?<![A-Za-z])(?:PE|PB|ROE|EPS)|"
+    r"股价|价格|收于|收报|报|涨幅?|跌幅?|增长|增加|减少|下滑|下降|上升|提升|同比|环比|为|至|达到?|约|超过?|逾|近)"
+    r"\s*[:：]?\s*[-+]?(?!(?:19|20)\d{2}$)\d+(?:\.\d+)?$",
+    re.IGNORECASE,
+)
+
+
+def _data_row(folded: str) -> str | None:
+    for chunk in _THOUSANDS.sub("", folded).split():
+        fields = [field for field in _ROW_DELIMITER.split(chunk) if field]
+        numeric = [f for f in fields if _NUMERIC_FIELD.fullmatch(f) and not _YEAR_FIELD.fullmatch(f)]
+        if len(fields) >= 3 and len(numeric) >= 2:
+            return chunk
+    return None
+
+
 # Allowed characters of a shown headline (folded text): CJK ideographs, ASCII letters/digits/space and
 # ordinary punctuation.
 _HEADLINE_CHARS = re.compile(
@@ -291,6 +318,12 @@ def headline_findings(title: str) -> list[Finding]:
     found += [Finding("imperative", m.group(0)) for m in _IMPERATIVE.finditer(folded)]
     found += [Finding("advice", m.group(0)) for m in _ADVICE.finditer(folded)]
     found += [Finding("claim", m.group(0)) for m in _CLAIM_SHAPE.finditer(folded)]
+    row = _data_row(folded)
+    if row:
+        found.append(Finding("claim", row))
+    cut = _CUT_FIGURE.search(folded)
+    if cut:
+        found.append(Finding("claim", cut.group(0)))
     return found
 
 
