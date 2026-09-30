@@ -24,6 +24,11 @@ Each check contains:
 - `evidence_id`, `source`, `as_of` and `as_of_basis`;
 - `note`.
 
+The report also lists `unchecked`: the clauses that name a target or a metric but have no number, move or
+comparison to check ("茅台市盈率24.6倍，ROE很高" → "ROE很高"), each with `text` and `reason: no_claim`. Every
+clause of a claim therefore ends up as a check or as a "未核查 / Not checked" row in the UI; nothing is dropped
+silently. The verdict is computed over `checks` only.
+
 The overall `verdict` is:
 
 - `supported`: every check is supported;
@@ -149,8 +154,11 @@ A claim that compares two named targets, or a target with its industry, is one c
   change);
 - "高于市场平均": no source has a market average, so the check is unverifiable (`no_reference`).
 
-A sentence that also states a number is checked on its numbers ("五粮液市盈率24.6倍，比茅台低" checks the
-24.6 against 五粮液).
+A relation is checked whenever its own clause states no number, even when another clause of the sentence
+does (round 8, D2): "茅台的市盈率比五粮液高，中国平安市盈率8.7倍" is two checks, and "五粮液市盈率24.6倍，比茅台低"
+checks the 24.6 against 五粮液 (contradicted) and the relation of the second clause (supported), so it is partially
+supported. A relation inside the clause of a number ("茅台市盈率24.6倍比五粮液的20.9倍高") is read as that clause's
+numbers.
 
 ### Round 6: moves, dates, multiples, sectors (after exposure of the round-4 held-out slice)
 
@@ -213,6 +221,35 @@ supported for 五粮液 (−0.53%), so the verdict is `partially_supported`.
 **Forecast words.** Lower-case "may" joins could / might / would ("Moutai may trade at 30 times earnings" is
 a forecast); capitalised "May" is a month.
 
+### Round 8: every clause, industry averages, turnover, bounded ratios (after the round-4 review)
+
+These rules answer the review's D2-D4 and were written with 20 new dev claims (d205-d224, `note: round8`).
+The committed claim held-out set is exposed for them: its h038 is one of these classes.
+
+**Every clause gets a check (D2).** See Relations above; clauses with nothing to check are listed in
+`unchecked`. A number whose clause names no metric takes the metric named earlier in its sentence, after the
+previous number ("茅台和五粮液的市盈率，分别是24.6倍和20.9倍").
+
+**Industry average as the subject (D3).** An industry average named after the last target and before a number
+("中国平安市盈率8.7倍，而行业平均11.8倍", "所属行业的平均水平约12倍", "the sector average is 1.45x") makes the number
+the industry's: it is checked against the target's industry snapshot (`target: 保险行业平均` / "insurance industry
+average", `evidence_id: industry_保险`, as-of the snapshot's trade date). After a bound it stays the company's
+bound: "市盈率低于行业平均11.8倍" checks the company's P/E below 11.8. "…，低于行业均值" (no number) is a relation
+with the industry snapshot.
+
+**Turnover (D4).** 成交额 / 成交金额 / 成交 (not 成交量 or 成交价) / turnover / traded value is the latest
+session's amount (`metric: amount`) from the price evidence, in CNY with the claim's unit (亿, billion):
+"五粮液昨天成交14.5亿元" against 14.53 亿 is supported. A multi-day turnover ("本周累计成交") is `multi_day`, a
+turnover without an amount unit is `unit_mismatch`, and a reported 0 (index rows in the snapshot) is `no_data`.
+
+**Bounded ratios (D4).** A bound may stand where the ratio verb does: "营收不到五粮液的1.5倍" (`lt`),
+"超过…的三倍" (`gt`), "至少是…的五倍" (`ge`), "不足…的一半" (`lt` 0.5), "more than twice …'s" (`gt` 2).
+"没有…的两倍" is `lt` 2.
+
+**Hearsay prose.** The chat answer to a hearsay question now opens with the verdict and, per check, the claimed
+number next to the data's value ("**核查结论：你听到的说法与数据不符。**“贵州茅台市盈率15倍”不符，数据为 24.6倍，截至
+2025-12-31。"), built from the same report as the card (see Hearsay in the chat).
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
@@ -231,13 +268,13 @@ period (`as_of_basis: indicator_date`).
 | --- | --- |
 | `no_target` | no listed company, fund or index is recognised |
 | `no_metric` | the number cannot be tied to a metric |
-| `no_data` | the source has no value for the target and metric (a company outside the offline snapshot, an ETF with no daily change, index P/E, dividend yield, market cap) |
+| `no_data` | the source has no value for the target and metric (a company outside the offline snapshot, an ETF with no daily change, index P/E, index turnover reported as 0, dividend yield, market cap) |
 | `growth_unavailable` | a YoY growth claim, but the fundamentals payload has no YoY field |
 | `unit_mismatch` | the unit does not fit the metric |
 | `no_unit` | an amount with no unit |
 | `forecast` | 预计, 将, 会, 明年, 目标价, will, expected, if, … |
 | `period_mismatch` | the claim names a year or period other than the report's; or an amount with no period is compared with an interim (Q1/H1/Q3, year-to-date) report |
-| `multi_day` | 今年以来, 近一个月, this year, … (only the latest daily change is checked) |
+| `multi_day` | 今年以来, 近一个月, 本周累计成交, this year, … (only the latest daily change and turnover are checked) |
 | `no_reference` | a relation with something no source provides, such as the market average |
 
 ### Growth rates
@@ -277,7 +314,9 @@ true?", is fact-checked inline. `query_intelligence/agent/hearsay.py` extracts t
 - `/agent/chat`, `/agent/resume` and the SSE `answer` event (it is part of the agent result);
 - workflow `/chat` (only when the message is hearsay).
 
-The answer card renders it as a "核查这句说法 / Fact-check of this claim" section, with a button that
+The answer text opens with the verdict and each claimed number next to the actual one (round 8; built by
+`fact_check_prose` from the same report, deterministic), so the prose itself answers "is it true". The answer
+card renders the report as a "核查这句说法 / Fact-check of this claim" section, with a button that
 opens the full fact-check view. While the answer is still running, and on a server without
 `fact_check`, the "核查这句话 / Check this claim" chip under the question does the same by hand. Hearsay
 with no number, move or comparison is not checked. A failed check never breaks the answer: `fact_check`
@@ -287,8 +326,12 @@ is then `null`.
 
 The report's `targets` and the agent's `nlu_summary.entities` carry `name_en`, taken from the alias table
 (`data/synonym_dict.json`: `display_en`, else the longest English alias; see
-`query_intelligence/agent/names.py`). The English UI shows "Kweichow Moutai" and "Wuliangye" on the
-fact-check cards and the KPI tiles; the browser keeps no name table of its own.
+`query_intelligence/agent/names.py`). Structured evidence in agent answers also carries `name_en` (companies
+from the alias table, industries from `INDUSTRY_EN`), and fundamentals payloads carry the company name, so a
+follow-up turn that fetches only fundamentals ("那它们的ROE呢") names its tiles "贵州茅台 · ROE" / "Kweichow
+Moutai · ROE" instead of "600519.SH · ROE" (round 8, D9). Industry tiles in English read "Baijiu (liquor) ·
+Industry P/E". The browser's fallback industry table (`frontend/src/lib/format.ts` `INDUSTRY_EN`) is the same
+table as the backend's; `tests/test_web_ui.py` checks they are equal.
 
 Screenshots (real Chrome, offline server):
 
@@ -341,9 +384,12 @@ python -m evaluation.claim_bench.run --set holdout
 | **independent round-4 slice, first run** | `817a2d8` | 67 / 83 | **0.716 [0.612, 0.821]** | **0.639 [0.541, 0.730]** | 0.435 |
 | independent round-4 slice, **after exposure** | `c731dba` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
 | dev with the 31 round-5 rows (d174-d204) | `c731dba` | 204 / 214 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| dev with the 20 round-8 rows (d205-d224; d082 relabelled) | `b04f364` | 224 / 245 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, **after exposure** (round 8: h038's class, industry averages, fixed) | `b04f364` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 
 The result files are `evaluation/results/claim_bench-dev-baseline.json`, `claim_bench-dev.json`,
-`claim_bench-holdout.json`, `claim_bench-heldout_r4-first-run.json` and `claim_bench-heldout_r4-after-exposure.json`.
+`claim_bench-holdout.json` (the single first run), `claim_bench-holdout-after-round8.json` (the same file after
+exposure, at the round-8 commit), `claim_bench-heldout_r4-first-run.json` and `claim_bench-heldout_r4-after-exposure.json`.
 Each records the commit, the command and the sha256 of the claims file.
 
 ```bash
@@ -361,7 +407,8 @@ python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves
     `d91051c`, so the held-out set is no longer untouched for that fix, and the committed held-out
     result is from before it.
   - h038 "中国平安市盈率8.7倍，而行业平均11.8倍": the industry average is checked against the company's
-    P/E. The checker does not use the industry snapshot.
+    P/E. Since round 8 an industry average is checked against the industry snapshot (fixed after the review
+    named it, so the held-out set is exposed for this class; the committed first-run result is unchanged).
   - h039 "Kweichow Moutai trades at 24.6 times earnings": "times earnings" is not recognised as P/E.
 - **The round-4 slice (written by a separate author) is exposed.** Its first run (0.716) is the honest
   number for the checker as it was. The round-6 rules above were written after reading its 30 errors, with
@@ -396,8 +443,9 @@ python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves
 - **Comparator reading is lexical.** Sarcasm and rhetorical questions are not understood.
 - **Relations.** Two named targets, a target and its industry snapshot, or a target and a named sector with a
   snapshot (白酒, 保险, 券商 offline) are compared; peers, consensus and the market average are not. Sector
-  names in English are recognised for baijiu/liquor, insurance, brokerage/securities and banking only. A relation with a stated number for the industry ("而行业平均11.8倍") is
-  still checked against the company itself.
+  names in English are recognised for baijiu/liquor, insurance, brokerage/securities and banking only. An
+  industry average with a number ("而行业平均11.8倍") is checked against the target's industry snapshot since
+  round 8; peers named without "平均/均值/中位数" ("同行11.8倍") are not.
 - **Macro.** Only the latest reading of each series is available: changes from the previous reading and
   readings for other months are unverifiable.
 - **Periods.** Named periods are checked (年份, 一季度, 上半年, 前三季度, FY, H1). Relative ones (去年,

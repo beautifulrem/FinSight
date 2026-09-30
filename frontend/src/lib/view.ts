@@ -1,6 +1,7 @@
 import type { Turn } from "@/hooks/useChat";
 
-import { hasMarketData, marketDataFromAgent, marketDataFromClassic, type MarketData } from "./marketData";
+import { industryEnglish } from "./format";
+import { hasMarketData, marketDataFromAgent, marketDataFromClassic, nameInTitle, type MarketData } from "./marketData";
 import { finalTrace, liveTrace, serverDurationMs, type TraceNode } from "./trace";
 import type {
   AgentResponse,
@@ -58,9 +59,31 @@ export function englishNames(...lists: (Named[] | null | undefined)[]): Map<stri
   return names;
 }
 
-/** The name to show: the English name in the English UI when the API gave one. */
+/**
+ * Company and industry names of the structured evidence (`name_en` on each source): a follow-up turn
+ * ("那它们的ROE呢") fetches only fundamentals and has no NLU entities of its own.
+ */
+export function evidenceNames(sources: EvidenceSource[] | null | undefined): Named[] {
+  return (sources ?? []).map((source) => {
+    const payload = (source.payload ?? {}) as Record<string, unknown>;
+    const text = (value: unknown) => (typeof value === "string" && value ? value : null);
+    const symbol = text(payload.symbol);
+    return {
+      name:
+        text(payload.name) ??
+        text(payload.canonical_name) ??
+        (symbol ? (nameInTitle(source.title) ?? null) : text(payload.industry_name)),
+      symbol,
+      name_en: source.name_en ?? null,
+    };
+  });
+}
+
+/** The name to show: the English name in the English UI when the API gave one (industries from INDUSTRY_EN). */
 export function displayName(names: Map<string, string> | undefined, lang: string, name: string): string {
-  return lang === "en" ? (names?.get(name) ?? name) : name;
+  if (lang !== "en") return name;
+  const english = names?.get(name) ?? industryEnglish(name) ?? name;
+  return english.charAt(0).toUpperCase() + english.slice(1); // a label: "baijiu (liquor)" → "Baijiu (liquor)"
 }
 
 function normalize(text: string): string {
@@ -143,7 +166,11 @@ export function answerView(turn: Turn): AnswerView | null {
       wallMs,
       firstTokenMs,
       factCheck: response.fact_check ?? null,
-      englishNames: englishNames(response.nlu_summary?.entities, response.fact_check?.targets),
+      englishNames: englishNames(
+        response.nlu_summary?.entities,
+        response.fact_check?.targets,
+        evidenceNames(response.evidence_sources),
+      ),
     };
   }
   if (turn.classic) {

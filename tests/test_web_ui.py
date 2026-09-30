@@ -31,6 +31,16 @@ REPO = Path(__file__).resolve().parents[1]
 AXE_JS = REPO / "frontend" / "node_modules" / "axe-core" / "axe.min.js"
 
 
+def test_frontend_industry_names_are_the_backend_table():
+    """D9: the English tiles name industries with agent/names.py INDUSTRY_EN, not a table of their own."""
+    from query_intelligence.agent.names import INDUSTRY_EN
+
+    source = (REPO / "frontend" / "src" / "lib" / "format.ts").read_text(encoding="utf-8")
+    block = re.search(r"export const INDUSTRY_EN: Record<string, string> = \{(.*?)\};", source, re.S)
+    assert block is not None
+    assert dict(re.findall(r'(\S+?): "([^"]+)"', block.group(1))) == INDUSTRY_EN
+
+
 def test_frontend_build_is_committed():
     # The built app is checked in so Python-only users can run the UI without Node.
     assert (DIST_DIR / "index.html").is_file(), "run `pnpm build` in frontend/"
@@ -1053,6 +1063,9 @@ def _serious_violations(page: Page) -> list[dict]:
 def _assert_accessible(page: Page, state: str) -> None:
     found = _serious_violations(page)
     assert not found, f"{state}:\n" + json.dumps(found, ensure_ascii=False, indent=1)
+    # D10: one page title in every state (the hidden view's title is an h2, the header brand is not a heading)
+    headings = page.evaluate("document.querySelectorAll('h1').length")
+    assert headings == 1, f"{state}: {headings} h1 elements"
 
 
 def _running_in_ci() -> bool:

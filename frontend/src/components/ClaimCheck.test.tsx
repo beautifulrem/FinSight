@@ -62,7 +62,7 @@ describe("ClaimReportCard", () => {
     wrap(<ClaimReportCard report={REPORT} />);
     const card = screen.getByRole("article", { name: "核查结果" });
     expect(within(card).getByText("部分相符")).toBeInTheDocument();
-    expect(card).toHaveTextContent("3 个数字 · 1 个相符 · 1 个不符 · 1 个无法核实");
+    expect(card).toHaveTextContent("共 3 项 · 1 项相符 · 1 项不符 · 1 项无法核实");
 
     const checks = within(card).getAllByRole("listitem");
     expect(checks).toHaveLength(3);
@@ -93,6 +93,51 @@ describe("ClaimReportCard", () => {
     expect(screen.getByText("Unverifiable")).toBeInTheDocument();
     expect(screen.getByText("No checkable numbers found")).toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+});
+
+describe("ClaimReportCard parts that were not checked", () => {
+  const RELATION_AND_OPINION: ClaimReport = {
+    claim: "茅台的市盈率比五粮液高，中国平安市盈率8.7倍，ROE很高",
+    verdict: "supported",
+    checks: [
+      {
+        target: "贵州茅台",
+        metric: "pe_ttm",
+        claimed: null,
+        comparator: "gt",
+        reference: "五粮液",
+        reference_value: 20.9,
+        actual: 24.6,
+        status: "supported",
+      },
+      { target: "中国平安", metric: "pe_ttm", claimed: 8.7, actual: 8.7, status: "supported" },
+    ],
+    unchecked: [{ text: "ROE很高", reason: "no_claim" }],
+    targets: [],
+    disclaimer: "",
+  };
+
+  it("lists every part of the claim: the relation, the number and a not-checked row, and counts all three", () => {
+    wrap(<ClaimReportCard report={RELATION_AND_OPINION} />);
+    const card = screen.getByRole("article", { name: "核查结果" });
+    expect(card).toHaveTextContent("共 3 项 · 2 项相符 · 1 项未核查");
+    const rows = within(card).getAllByRole("listitem");
+    expect(rows).toHaveLength(3);
+    expect(rows[0]!.querySelector(".claim-claimed")).toHaveTextContent("> 五粮液");
+    const unchecked = rows[2]!;
+    expect(unchecked).toHaveAttribute("data-status", "unchecked");
+    expect(unchecked).toHaveTextContent("未核查");
+    expect(unchecked).toHaveTextContent("“ROE很高”");
+    expect(unchecked).toHaveTextContent("没有可以比对的数字");
+  });
+
+  it("shows not-checked rows in English, and them alone when nothing was checked", () => {
+    wrap(<ClaimReportCard report={{ ...RELATION_AND_OPINION, verdict: "unverifiable", checks: [] }} />, "en");
+    const card = screen.getByRole("article", { name: "Result" });
+    expect(card).toHaveTextContent("Parts: 1 · 1 not checked");
+    expect(within(card).getByText("Not checked")).toBeInTheDocument();
+    expect(within(card).queryByText("No checkable numbers found")).not.toBeInTheDocument();
   });
 });
 

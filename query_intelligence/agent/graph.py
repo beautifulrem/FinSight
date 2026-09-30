@@ -40,7 +40,7 @@ from .composer import answer_json_status, compose_template, parse_answer
 from .coverage import coverage_gaps, flow_gaps, out_of_coverage, out_of_coverage_text
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
-from .hearsay import fact_check_for
+from .hearsay import fact_check_for, fact_check_prose
 from .injection import (
     REDACTION_MARKER,
     sanitize_document_text,
@@ -69,7 +69,7 @@ from .memory import (
     turn_record,
 )
 from .memory_summary import update_memory_card
-from .names import english_name
+from .names import INDUSTRY_EN, english_name
 from .output_safety import scrub_answer
 from .planner import Plan, plan_from_nlu
 from .prompts import (
@@ -1024,13 +1024,20 @@ class AgentRuntime:
         usage_model = Usage(**usage) if usage else Usage()
         cost, currency, cost_source = resolve_cost(usage_model, self.pricing)
         nlu = state.get("nlu") or {}
+        # "听说茅台市盈率只有15倍，是真的吗": the claim checked against the data, inline (no LLM); the answer opens
+        # with the claimed number next to the actual one, the card shows the full report.
+        fact_check = fact_check_for(state["query"], service=self.service, registry=self.registry, zh=zh)
+        answer_text = str(answer.get("answer", ""))
+        prose = fact_check_prose(fact_check, zh=zh)
+        if prose:
+            answer_text = f"{prose}\n\n{answer_text}" if answer_text else prose
         result = {
             "run_id": uuid.uuid4().hex,
             "query": state["query"],
             "language": "zh" if zh else "en",
             "route": state.get("route"),
             "route_reasons": state.get("route_reasons") or [],
-            "answer": answer.get("answer", ""),
+            "answer": answer_text,
             "key_points": answer.get("key_points") or [],
             "evidence_used": cited,
             "limitations": answer.get("limitations") or [],
@@ -1075,8 +1082,7 @@ class AgentRuntime:
                 zh=zh,
                 limit=self.config.max_next_questions,
             ),
-            # "听说茅台市盈率只有15倍，是真的吗": the claim checked against the data, inline (no LLM).
-            "fact_check": fact_check_for(state["query"], service=self.service, registry=self.registry, zh=zh),
+            "fact_check": fact_check,
         }
         # The result carries everything the response needs; drop the bulky turn-scoped working state so the
         # checkpoint stays small (it is reset at the start of the next turn anyway).
@@ -1360,6 +1366,14 @@ def _feedback_text(verification: dict[str, Any]) -> str:
     return VerificationReport.model_validate(verification).feedback() if verification else ""
 
 
+def _english_subject(payload: dict[str, Any]) -> str | None:
+    industry = payload.get("industry_name")
+    if industry and not payload.get("symbol"):
+        return INDUSTRY_EN.get(str(industry))
+    name = payload.get("name") or payload.get("canonical_name")
+    return english_name(str(name) if name else None, str(payload.get("symbol") or "") or None)
+
+
 def _source_view(item: dict[str, Any]) -> dict[str, Any]:
     view = {
         key: item.get(key)
@@ -1369,6 +1383,11 @@ def _source_view(item: dict[str, Any]) -> dict[str, Any]:
     # Document payloads are omitted: their text is already summarised by title/source and can be large.
     if item.get("kind") == "structured" and isinstance(item.get("payload"), dict):
         view["payload"] = item["payload"]
+        # The English UI names every tile ("Kweichow Moutai · ROE", "Baijiu (liquor) · Industry P/E") from the
+        # server's tables, on follow-up turns too, where the NLU entities of "那它们的ROE呢" are empty.
+        name_en = _english_subject(item["payload"])
+        if name_en:
+            view["name_en"] = name_en
     elif item.get("kind") == "document" and view.get("title"):
         # Third-party headlines are listed only when they pass the positive shape check (no links, contact
         # handles, instructions, advice or guarantee wording, no mixed-script homoglyphs); otherwise hidden.

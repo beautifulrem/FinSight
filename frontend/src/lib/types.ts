@@ -40,6 +40,8 @@ export interface EvidenceSource {
   payload?: Record<string, unknown> | null;
   /** Some servers may lift provenance to the top level; the UI accepts either place. */
   provenance?: Provenance | null;
+  /** English name of the payload's company or industry (agent/names.py), for the English UI's tiles. */
+  name_en?: string | null;
 }
 
 /** `payload.provenance` on live and snapshot records (query_intelligence/integrations/sources/provenance.py). */
@@ -177,6 +179,8 @@ export interface StructuredItem {
   source_type?: string;
   source_name?: string | null;
   as_of?: string | null;
+  /** Agent evidence titles name the company: "五粮液 (000858.SZ) fundamentals". */
+  title?: string | null;
   payload?: Record<string, unknown> | null;
 }
 
@@ -301,7 +305,16 @@ export interface ClaimReport {
     title?: string | null;
     provenance?: Provenance | null;
   }[];
+  /** Clauses that name a target or metric but had nothing to check ("ROE很高"): shown as "not checked" rows. */
+  unchecked?: ClaimUnchecked[];
   disclaimer: string;
+}
+
+export interface ClaimUnchecked {
+  /** The clause as the checker read it ("十五倍" is written "15倍"). */
+  text: string;
+  reason?: "no_claim";
+  note?: string;
 }
 
 export type FeedbackRating = "up" | "down";
