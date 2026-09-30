@@ -177,3 +177,17 @@ def test_stream_emits_answer_deltas_before_the_final_answer():
     streamed = "".join(data["text"] for name, data in events if name == "answer_delta")
     assert streamed == answer["answer"]
     assert names.index("answer_delta") < names.index("answer")
+
+
+def test_shared_stores_are_closed_by_the_lifespan_handler_not_a_legacy_shutdown_hook():
+    # (round 9, E14) FastAPI's on_shutdown / on_event hooks are deprecated in favour of ``lifespan``
+    stub = LegacyStub()
+    runtime = AgentRuntime(stub, build_fake_registry(), None, today=lambda: date(2026, 9, 24))
+    app = create_app(service=stub, app_config={"deepseek": {"api_key": ""}}, agent_service=AgentService(runtime))
+    assert not app.router.on_shutdown and not app.router.on_startup
+    closed: list[str] = []
+    app.state.trace_store.close = lambda: closed.append("trace_store")
+    with TestClient(app) as client:
+        assert client.get("/health").status_code == 200
+        assert closed == []
+    assert closed == ["trace_store"]
