@@ -75,7 +75,7 @@ minutes later. Both commits are part of the published history of `master`.
 2. An untrusted-data envelope around tool output.
 3. Claim-level number and citation verification.
 4. The deterministic (no-LLM) answer never quotes document titles or text. It cites documents by category, publisher and date. The evidence list hides titles that fail a positive shape check: NFKC and confusable folding; no links, domains, phones or messaging handles; no instructions and no advice or guarantee wording.
-5. A compliance guard removes guaranteed-return claims (稳赚不赔, 保本, 保证收益), stock-tip solicitation (荐股, 带单, 加微信, 私信) and contact details from every answer.
+5. A compliance guard removes guaranteed-return claims (稳赚不赔, 保本, 保证收益, 资金翻倍+亏损赔付), stock-tip solicitation (荐股, 带单, 加微信, 私信), hype (直接拉升, 错过再等) and contact details from every answer. Before it, an output-side layer (`query_intelligence/agent/output_safety.py`) replaces any such sentence that came from a document with a neutral note, attributes single-source regulatory claims and disputed figures ("据一篇文档称…（未经其他来源证实）"), and drops document figures that contradict structured fundamentals.
 6. A lexical filter, plus a small character n-gram classifier on document text.
 
 The classifier catches about 4 in 10 held-out attacks and flags 0.5% of clean documents ([results](evaluation/results/injection_classifier-r4.json)). It does not generalise to attacks that are hype or planted facts rather than instructions. The filters are defense in depth; the structural layers carry the guarantee.
