@@ -81,6 +81,7 @@ from .prompts import (
     revision_message,
 )
 from .router import (
+    _JUDGMENT_MARKERS,
     apply_finance_overrides,
     correct_question_style,
     decide_route,
@@ -306,7 +307,7 @@ class AgentRuntime:
             and not coreference_reason
             and not off_topic
             and not instruction_only
-            and not (outside and not _own_targets(nlu))
+            and not (outside and not _named_targets(nlu))
         )
         if in_session:
             query, nlu, session_reasons, carried_nlu = self._resolve_in_session(query, turns, nlu, analyze)
@@ -376,7 +377,19 @@ class AgentRuntime:
                 decision = decision.model_copy(update={"route": "refuse"})
         # A question that itself names an A-share target is in scope ("苹果概念股里的立讯精密"); an NLU carry-over from
         # earlier turns does not count as naming one.
-        coverage = None if listed_entities({"entities": _own_targets(nlu)}) else outside
+        # A fuzzy match is a guess at a misspelt name, and an advice phrase can be a company alias (值得买); next to a
+        # crypto or foreign asset ("比特币ETF" -> 酒ETF鹏华) neither names an A-share target.
+        coverage = None if listed_entities({"entities": _named_targets(nlu, query)}) else outside
+        if coverage:
+            named = _named_targets(nlu, query)
+            guessed = [
+                entity
+                for entity in nlu.get("entities") or []
+                if entity.get("entity_type") in _OWN_TARGET_TYPES and entity.get("symbol") and entity not in named
+            ]
+            if guessed:
+                nlu = {**nlu, "entities": [entity for entity in nlu.get("entities") or [] if entity not in guessed]}
+                reasons.extend(f"dropped_unnamed_target_out_of_coverage:{e.get('canonical_name')}" for e in guessed)
         if coverage and refusal_category != "prompt_injection":
             # Bitcoin, Apple, the Nasdaq: finance, but outside the data FinSight has. Asking "which stock?" could
             # never succeed, so say what is covered instead.
@@ -1173,6 +1186,22 @@ def _own_targets(nlu: dict[str, Any]) -> list[dict[str, Any]]:
         and (entity.get("symbol") or entity.get("entity_type") not in {"stock", "etf", "fund", "index"})
         and not str(entity.get("match_type") or "").startswith("context_")
     ]
+
+
+def _named_targets(nlu: dict[str, Any], query: str = "") -> list[dict[str, Any]]:
+    """Own targets the question names: not guessed by fuzzy matching, and not an advice phrase that happens to be
+    a company's alias ("以太坊基金值得买吗": 值得买 is a listed company and the question's own judgment words)."""
+    advice = [match.span() for match in _JUDGMENT_MARKERS.finditer(query)]
+    named = []
+    for entity in _own_targets(nlu):
+        if "fuzzy" in str(entity.get("match_type") or ""):
+            continue
+        mention = str(entity.get("mention") or "")
+        at = query.find(mention) if mention else -1
+        if at >= 0 and any(lo <= at and at + len(mention) <= hi for lo, hi in advice):
+            continue
+        named.append(entity)
+    return named
 
 
 def _set_aside_context_carry(nlu: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:

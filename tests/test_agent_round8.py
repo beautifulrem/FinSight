@@ -198,3 +198,38 @@ def test_the_template_adds_the_caveat_only_for_why_style():
     assert "单一原因" not in compose_template(log, zh=True, question_style="fact", query="走势怎么样")["answer"]
     assert "单一原因" in compose_template(log, zh=True, question_style="why", query="为什么跌")["answer"]
 
+
+# --- D6: crypto funds are out of coverage ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "query",
+    ["比特币ETF现在值多少", "我想买点比特币ETF，行吗", "以太坊基金最近收益怎么样", "Should I buy a Bitcoin ETF now?"],
+)
+def test_crypto_funds_are_refused_as_out_of_coverage(agent, query):
+    result = agent.chat(query, session_id=f"r8-crypto-{query}")
+    assert result["route"] == "refuse"
+    assert "coverage:crypto" in result["route_reasons"]
+    assert result["limitations"] == ["out_of_coverage"]
+    assert not result.get("tool_calls")
+    assert not _entities(result)
+
+
+def test_a_crypto_etf_is_not_a_typo_of_an_a_share_etf(offline_service):
+    symbols = {entity.get("symbol") for entity in offline_service.analyze_query("比特币ETF现在值多少")["entities"]}
+    assert "512690.SH" not in symbols
+
+
+def test_a_misspelt_etf_name_still_resolves(offline_service):
+    symbols = {entity.get("symbol") for entity in offline_service.analyze_query("黄今ETF最近表现怎么样")["entities"]}
+    assert "518880.SH" in symbols
+
+
+def test_an_advice_phrase_that_is_a_company_alias_does_not_veto_the_refusal(agent):
+    result = agent.chat("以太坊基金现在值得买吗", session_id="r8-crypto-advice")
+    assert result["route"] == "refuse"
+    assert any(reason.startswith("dropped_unnamed_target_out_of_coverage:") for reason in result["route_reasons"])
+
+
+def test_an_a_share_named_next_to_a_crypto_word_stays_in_scope(agent):
+    result = agent.chat("比特币大跌那天贵州茅台收盘多少", session_id="r8-crypto-a-share")
+    assert result["route"] != "refuse"
+    assert "600519.SH" in _targets(result)
