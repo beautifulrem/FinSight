@@ -507,3 +507,13 @@ def test_repair_drops_the_sentence_with_a_conflicting_fundamental():
     report = verify_answer(draft, store, market_precedence=True)
     repaired, _notes = repair_answer(draft, report, store, zh=True)
     assert "47.7" not in repaired["answer"] and "823.20" in repaired["answer"]
+
+
+def test_a_percentage_point_figure_is_a_claim_and_a_count_is_not():
+    # (round 9) the count pattern ("5 个交易日", "3 篇") used to strip "26 个" out of "1.26 个百分点", so such figures
+    # were never checked
+    from query_intelligence.agent.verifier import claim_numbers
+
+    assert claim_numbers("两者相差 1.26 个百分点") == [1.26]
+    assert claim_numbers("提高了 2 个百分点") == [2.0]
+    assert claim_numbers("最近 5 个交易日共 3 篇新闻") == []
