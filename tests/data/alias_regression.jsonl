@@ -32,3 +32,13 @@
 {"query": "比特币ETF今天涨了没", "expect_symbols": [], "forbid_symbols": ["512690.SH"], "kind": "crypto_not_a_typo"}
 {"query": "以太坊ETF规模多大", "expect_symbols": [], "forbid_symbols": ["512690.SH"], "kind": "crypto_not_a_typo"}
 {"query": "黄今ETF今天收盘多少", "expect_symbols": ["518880.SH"], "forbid_symbols": [], "kind": "typo"}
+{"query": "平安健康医疗的市值多大", "expect_symbols": [], "forbid_symbols": ["601318.SH", "000001.SZ"], "kind": "foreign_listing_lookalike", "level": "agent", "coverage": "foreign_equity"}
+{"query": "药明生物近期走势如何", "expect_symbols": [], "forbid_symbols": ["603259.SH"], "kind": "foreign_listing_lookalike", "level": "agent", "coverage": "foreign_equity"}
+{"query": "京东健康的估值高吗", "expect_symbols": [], "forbid_symbols": ["000725.SZ"], "kind": "foreign_listing_lookalike", "level": "agent", "coverage": "foreign_equity"}
+{"query": "腾讯音乐最新股价", "expect_symbols": [], "forbid_symbols": [], "kind": "foreign_listing", "level": "agent", "coverage": "foreign_equity"}
+{"query": "Is Ping An Healthcare a good buy?", "expect_symbols": [], "forbid_symbols": ["601318.SH"], "kind": "foreign_listing_lookalike", "level": "agent", "coverage": "foreign_equity"}
+{"query": "狗狗币基金今天涨没涨", "expect_symbols": [], "forbid_symbols": ["512690.SH"], "kind": "crypto_token_fund", "level": "agent", "coverage": "crypto"}
+{"query": "有没有ETH现货基金可以买", "expect_symbols": [], "forbid_symbols": [], "kind": "crypto_token_fund", "level": "agent", "coverage": "crypto"}
+{"query": "京东方A的市净率", "expect_symbols": ["000725.SZ"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
+{"query": "药明康德最近涨了吗", "expect_symbols": ["603259.SH"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
+{"query": "中国平安和平安健康哪个估值低", "expect_symbols": ["601318.SH"], "forbid_symbols": [], "kind": "a_share_beside_foreign", "level": "agent"}

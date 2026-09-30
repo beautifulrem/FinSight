@@ -34,14 +34,27 @@ _CRYPTO = re.compile(
     r"\bcrypto(?:currenc(?:y|ies))?\b|\b(?:doge|lite|stable)coins?\b|\bstablecoins?\b|\btokens?\s+(?:etf|fund)s?\b",
     re.IGNORECASE,
 )
+# (round 10, F6) Chinese companies listed only in Hong Kong or the US, by the name users write. Several contain or
+# resemble an A-share name (平安好医生 / 平安健康 ~ 中国平安, 药明生物 ~ 药明康德, 京东健康 ~ 京东方), so the whole name
+# is matched first and the A-share lookalike inside it is not a target (``agent/graph.py`` ``_named_targets``).
+# Dual A+H listings (比亚迪, 药明康德, 中芯国际) are A-shares and are not listed here; media and product words
+# (网易财经, 百度一下, 腾讯新闻) are not companies asked about.
+_HK_US_LISTED = (
+    r"平安好医生|平安健康(?:医疗)?|腾讯音乐|腾讯(?!新闻|财经|网|视频|会议|文档|云)|阿里健康|阿里影业|京东健康|京东物流|"
+    r"京东集团|京东(?!方)|小米(?:集团|公司)|网易(?!财经|新闻|号|云)|百度(?!一下|搜索|指数|百科|地图|贴吧)|拼多多|快手|"
+    r"哔哩哔哩|蔚来(?:汽车)?|理想汽车|小鹏汽车|零跑汽车|携程|贝壳找房|农夫山泉|海底捞|泡泡玛特|蒙牛(?:乳业)?|华润啤酒|"
+    r"药明生物|安踏(?:体育)?|李宁公司|中国飞鹤|百胜中国|名创优品|知乎|微博|爱奇艺|金山软件|联想集团"
+)
 # US / Hong Kong listed names and markets. Concept-sector phrasing ("苹果概念股", "特斯拉产业链") is an
 # A-share theme and stays in scope.
 _FOREIGN_EQUITY = re.compile(
     r"(?:苹果公司|苹果股票|苹果股价|苹果的股[价票]|苹果(?=的?(?:市盈率|市净率|市值|财报|营收|净利润|股价|股票|能买|值得买|会涨|会跌))|"
     r"特斯拉|英伟达|微软|谷歌|亚马逊|脸书|奈飞|伯克希尔|台积电|"
-    r"腾讯控股|阿里巴巴|美团|小米集团|港股|美股|中概股|纳斯达克|道琼斯|标普500|恒生指数|恒指)"
+    r"腾讯控股|阿里巴巴|美团|小米集团|港股|美股|中概股|纳斯达克|道琼斯|标普500|恒生指数|恒指|" + _HK_US_LISTED + r")"
     r"(?!概念|产业链|供应链|链)|"
     r"\b(?:apple|tesla|nvidia|microsoft|google|alphabet|amazon|netflix|berkshire|tencent|alibaba|meituan|tsmc)\b|"
+    r"\b(?:ping an (?:good doctor|healthcare)|tencent music|jd (?:health|logistics)|jd\.com|wuxi biologics|"
+    r"alibaba health|xiaomi|baidu|netease|pinduoduo|pdd holdings|kuaishou|bilibili|nio inc|li auto|xpeng)\b|"
     r"(?<![A-Za-z])(?:AAPL|TSLA|NVDA|MSFT|GOOGL?|AMZN|NFLX|META|BABA)(?![A-Za-z])|"
     r"\b(?:us|u\.s\.|american|hong kong) (?:stocks?|shares|equities|market)\b|\bnasdaq\b|\bs&p 500\b|\bdow jones\b|"
     r"\bhang seng\b|\bnyse\b",
@@ -54,6 +67,12 @@ _A_SHARE_ANCHOR = re.compile(
     r"A股|沪深|上证|深证|创业板|科创板|北交所|\bA-?shares?\b|\bChin(?:a|ese) (?:stocks?|equities|market)\b",
     re.IGNORECASE,
 )
+
+
+def foreign_equity_spans(query: str) -> list[tuple[int, int]]:
+    """Where the question names a US / Hong Kong listed company or market: an A-share name inside such a span
+    ("平安" in 平安好医生) is part of the foreign name, not a target of its own."""
+    return [match.span() for match in _FOREIGN_EQUITY.finditer(query or "")]
 
 
 def out_of_coverage(query: str) -> str | None:
