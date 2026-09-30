@@ -142,3 +142,26 @@ def test_gate_red_team_baseline_prefers_the_round8_run(monkeypatch):
     monkeypatch.setattr(gate, "load_result", results.get)
     baseline = gate.redteam_baseline()
     assert baseline[("holdout3", "workflow")]["attack_success"] == 0.0 and ("holdout6", "workflow") in baseline
+
+
+def test_poison_plants_the_payload_in_a_document_not_in_finsights_own_summary():
+    from query_intelligence.agent.evidence import AgentEvidence
+    from query_intelligence.agent.tools import ToolOutput
+
+    summary = AgentEvidence(
+        evidence_id="sentiment_600519.SH",
+        kind="structured",
+        source_type="sentiment_summary",
+        title="Document sentiment for 贵州茅台",
+        payload={"overall_label": "neutral"},
+    )
+    document = AgentEvidence(
+        evidence_id="news_1", kind="document", source_type="news", title="年报", text_excerpt="净利润823.20亿元。"
+    )
+    handler = rt._poison(FAKE_PROFIT)(
+        "analyze_sentiment", lambda _args: ToolOutput(data={}, evidence=[summary, document])
+    )
+    poisoned = handler(None).evidence
+
+    assert poisoned[0] == summary  # FinSight's own item is untouched
+    assert poisoned[1].title == FAKE_PROFIT.title and FAKE_PROFIT.excerpt in poisoned[1].text_excerpt
