@@ -1355,8 +1355,8 @@ v2 − v1: task success -0.031 [-0.113, +0.038], pass^3 +0.038 [-0.075, +0.151],
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `774df5c` | 295 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
-| gate-holdout | `774df5c` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
+| gate-dev | `c4064d1` | 310 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-holdout | `c4064d1` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
 
 ### Fault injection (overall graceful rate 1.00)
 
@@ -1630,8 +1630,8 @@ Paired comparisons (same tasks, a − b):
 | `ablation-online-deepseek-v4.1-flash.json` | ablation | `c1c3388` | 2026-09-25T09:46:46+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-deepseek-v4.1-flash.json` (ebd1d3322c4c4708) |
 | `ablation-online-v1.json` | ablation | `1beb760` | 2026-09-25T14:12:49+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-v1.json` (fc69345d844bdd6e) |
 | `ablation-online-v2.json` | ablation | `1beb760` | 2026-09-25T13:32:10+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-v2.json` (f5ba8190178dfe74) |
-| `gate-dev.json` | run | `774df5c` | 2026-09-29T15:28:05+00:00 | – | `outputs/agent_eval/gate-dev.json` (903f7ab9ecdeb2b6) |
-| `gate-holdout.json` | run | `774df5c` | 2026-09-29T15:28:24+00:00 | – | `outputs/agent_eval/gate-holdout.json` (86ef24648564f0b2) |
+| `gate-dev.json` | run | `c4064d1` | 2026-09-30T08:32:14+00:00 | – | `outputs/agent_eval/gate-dev.json` (a2acb5644146ebd5) |
+| `gate-holdout.json` | run | `c4064d1` | 2026-09-30T08:33:05+00:00 | – | `outputs/agent_eval/gate-holdout.json` (359f19e316a31256) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `9f0e46b` | 2026-09-28T17:04:55+00:00 | – | `outputs/agent_eval/verifier_stress.json` (94d2b01f3bd98c53) |
 | `verifier_stress-perf-8a85ae5.json` | verifier_stress | `8a85ae5` | 2026-09-28T16:22:43+00:00 | – | `outputs/agent_eval/verifier_stress.json` (bd1a6d143c0b398f) |
