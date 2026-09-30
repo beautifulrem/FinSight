@@ -36,7 +36,7 @@ from langgraph.types import interrupt
 from ..chat.language import detect_user_language, persistent_answer_language, requested_answer_language
 from ..integrations.intraday import asks_about_today
 from .compliance import apply_compliance, language_violation
-from .composer import answer_json_status, compose_template, parse_answer
+from .composer import answer_json_status, compose_template, failure_note, parse_answer
 from .coverage import (
     coverage_gaps,
     flow_gaps,
@@ -1124,7 +1124,7 @@ class AgentRuntime:
             draft,
             query=state["query"],
             nlu_result=state.get("nlu") or {},
-            tool_failures=_failures(state.get("tool_log") or []),
+            tool_failures=_failures(state.get("tool_log") or [], zh=self._zh(state)),
             market_evidence=market,
             today=self.today(),
             language="zh" if self._zh(state) else "en",
@@ -1546,12 +1546,17 @@ def _store(state: AgentState) -> EvidenceStore:
     return store
 
 
-def _failures(tool_log: list[dict[str, Any]]) -> list[str]:
+def _failures(tool_log: list[dict[str, Any]], *, zh: bool | None = None) -> list[str]:
+    """``tool: code`` per failed tool (for the compose prompt); with ``zh`` the reader-facing note instead, the same
+    text the template's limitation uses (round 10, F11), so a failure is listed once."""
     failures = []
     for entry in tool_log:
         if not entry.get("ok"):
             error = entry.get("error") or {}
-            failures.append(f"{entry.get('tool')}: {error.get('code')}")
+            if zh is None:
+                failures.append(f"{entry.get('tool')}: {error.get('code')}")
+            else:
+                failures.append(failure_note(str(entry.get("tool") or ""), error.get("code"), zh=zh))
     return list(dict.fromkeys(failures))
 
 

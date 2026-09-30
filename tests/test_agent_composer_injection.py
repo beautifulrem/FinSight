@@ -101,7 +101,7 @@ def test_template_renders_every_tool_and_collects_evidence():
     assert answer["evidence_used"] == ["price_A", "fundamental_A", "industry_X", "macro_CPI", "news_1", "sentiment_A"]
     assert answer["limitations"] == [
         "资料标题和原文属于第三方内容，未经核实，回答中不引用；可在证据列表中查看。",
-        "compute_indicators 未返回可用数据（unavailable：not enough history）",
+        "技术指标未取到（可用数据不足）",
     ]
 
 

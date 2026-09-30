@@ -131,6 +131,10 @@ def compose_template(
                 sentences = [*sentences, *derived]
                 if margin is not None:
                     margins.append((str(data.get("name") or data.get("symbol") or ""), margin))
+        elif renderer is _documents:
+            # the question's targets decide which knowledge documents are about it (round 10, F11)
+            targets = [*(data.get("targets") or []), *(names or {}).values(), *(names or {}).keys()]
+            sentences = _documents({**data, "targets": targets}, zh)
         else:
             sentences = renderer(data, zh)
         for sentence in sentences:
@@ -267,6 +271,16 @@ _ARITHMETIC_METRICS: tuple[tuple[str, str, str, re.Pattern[str]], ...] = (
         ),
     ),
     ("close", "收盘价", "close", re.compile(r"收盘价?|股价|\bclos(?:e|ing price)\b|\bshare price\b", re.IGNORECASE)),
+    # (round 10, F11) turnover: "哪个成交更活跃", "成交额谁大", "which traded more"
+    (
+        "amount",
+        "成交额",
+        "turnover",
+        re.compile(
+            r"成交额|成交金额|成交(?:更|最|比较)?(?:活跃|大|多|少|旺)|\bturnover\b|\btrading value\b|\btraded more\b",
+            re.IGNORECASE,
+        ),
+    ),
     ("pe", "市盈率", "P/E", re.compile(r"市盈率|(?<![A-Za-z])P/?E(?![A-Za-z])|price[- ]to[- ]earnings", re.IGNORECASE)),
     ("pb", "市净率", "P/B", re.compile(r"市净率|(?<![A-Za-z])P/?B(?![A-Za-z])|price[- ]to[- ]book", re.IGNORECASE)),
     ("roe", "ROE", "ROE", re.compile(r"净资产收益率|(?<![A-Za-z])ROE(?![A-Za-z])|return on equity", re.IGNORECASE)),
@@ -292,8 +306,8 @@ def _arithmetic_operands(tool_log: list[dict[str, Any]], key: str, zh: bool) -> 
         data = entry.get("data") or {}
         eid, symbol = data.get("evidence_id"), str(data.get("symbol") or "")
         value = None
-        if entry.get("tool") == "get_price_history" and key in {"pct_change", "close"}:
-            value = data.get("pct_change_1d" if key == "pct_change" else "close")
+        if entry.get("tool") == "get_price_history" and key in {"pct_change", "close", "amount"}:
+            value = data.get({"pct_change": "pct_change_1d"}.get(key, key))
             if key == "pct_change" and value is None and (computed := _computed_change(data)):
                 # the change the price sentence states as computed from the last two closes: it is compared, but
                 # never restated without its closes (the verifier checks it against them in that sentence)
@@ -303,7 +317,7 @@ def _arithmetic_operands(tool_log: list[dict[str, Any]], key: str, zh: bool) -> 
             revenue, profit = metrics.get("revenue"), metrics.get("net_profit")
             if revenue and profit is not None and float(revenue) >= 1e6:
                 value = round(float(profit) / float(revenue) * 100, 2)
-        elif entry.get("tool") == "get_fundamentals" and key not in {"pct_change", "close"}:
+        elif entry.get("tool") == "get_fundamentals" and key not in {"pct_change", "close", "amount"}:
             metrics = data.get("metrics") or {}
             field = {"pe": ("pe_ttm", "pe")}.get(key, (key,))
             value = next((metrics[name] for name in field if metrics.get(name) is not None), None)
@@ -406,7 +420,7 @@ def _arithmetic(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[st
 
 # (round 10, F10) A comparison: "谁/哪个…更高/低/多/少", "比较/对比/相比", "compare", "which … higher".
 _ASKS_COMPARISON = re.compile(
-    r"(?:谁|哪个|哪一个|哪只|哪家|哪边)[^，。？?,;；]{0,10}?(?:高|低|大|小|多|少|贵|便宜|强|弱)|比较|对比|相比|"
+    r"(?:谁|哪个|哪一个|哪只|哪家|哪边)[^，。？?,;；]{0,10}?(?:高|低|大|小|多|少|贵|便宜|强|弱|活跃)|比较|对比|相比|"
     r"\bcompar(?:e|ed|ing|ison)\b|\bversus\b|\bvs\.?(?=\s)|"
     r"\bwhich\b[^.?!]{0,40}\b(?:higher|lower|bigger|smaller|more|less|cheaper|larger)\b",
     re.IGNORECASE,
@@ -809,6 +823,24 @@ _DOCUMENT_CATEGORY = {
     "faq": ("常见问题解答", "FAQ entry"),
 }
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# (round 10, F11) A corpus label ("fincprg", "fiqa", "fir_bench_reports"): the public dataset a document came from,
+# not a publisher, so it is never written as "X发布的"; and a knowledge document (research note, product document,
+# FAQ) that does not mention any requested target is background from the corpus, not about the question's target.
+_CORPUS_LABEL = re.compile(r"^[a-z][a-z0-9_]*$")
+_KNOWLEDGE_TYPES = {"research_note", "product_doc", "faq"}
+
+
+def _mentions_target(document: dict[str, Any], targets: list[str]) -> bool:
+    text = f"{document.get('title') or ''} {document.get('excerpt') or ''}"
+    for name in targets:
+        name = str(name or "").strip()
+        code = re.search(r"\d{6}", name)
+        tail = name[-2:] if len(name) >= 4 and re.fullmatch(r"[\u4e00-\u9fff]{2}", name[-2:]) else ""
+        if (name and name in text) or (code and code.group(0) in text) or (tail and tail in text):
+            return True
+    return False
+
+
 DOCUMENT_TEXT_LIMITATION_ZH = "资料标题和原文属于第三方内容，未经核实，回答中不引用；可在证据列表中查看。"
 DOCUMENT_TEXT_LIMITATION_EN = (
     "Document titles and text are unverified third-party content and are not quoted in the answer; "
@@ -828,13 +860,21 @@ def _documents(data: dict[str, Any], zh: bool) -> list[str]:
     from ..text_safety import safe_headline
 
     sentences = []
-    for document in (data.get("documents") or [])[:_MAX_DOCS_PER_TOOL]:
+    targets = [str(name) for name in data.get("targets") or [] if name]
+    documents = [
+        document
+        for document in data.get("documents") or []
+        if not (targets and document.get("source_type") in _KNOWLEDGE_TYPES and not _mentions_target(document, targets))
+    ]
+    for document in documents[:_MAX_DOCS_PER_TOOL]:
         eid = document.get("evidence_id")
         if not eid:
             continue
         category_zh, category_en = _DOCUMENT_CATEGORY.get(str(document.get("source_type") or ""), ("资料", "document"))
-        # the publisher name comes from the data provider, but is still shown only when it is inert text
-        source = safe_headline(str(document.get("source_name") or "")[:40]) if document.get("source_name") else None
+        # the publisher name comes from the data provider, but is still shown only when it is inert text and not a
+        # corpus label
+        publisher = str(document.get("source_name") or "")[:40]
+        source = safe_headline(publisher) if publisher and not _CORPUS_LABEL.match(publisher) else None
         when = str(document.get("publish_time") or "")[:10]
         when = when if _DATE.match(when) else ""
         if zh:
@@ -901,12 +941,39 @@ _RENDERERS = {
 }
 
 
+# (round 10, F11) A failed tool is named by the data it would have given and a plain reason, never by its internal
+# name and error code ("get_price_history: not_found"); the graph gives the compliance guard the same note, so the
+# limitation appears once.
+_TOOL_DATA = {
+    "get_price_history": ("行情数据", "market data"),
+    "compute_indicators": ("技术指标", "technical indicators"),
+    "get_fundamentals": ("基本面数据", "fundamentals"),
+    "get_macro_indicators": ("宏观数据", "macro data"),
+    "search_news": ("新闻", "news"),
+    "search_announcements": ("公告", "announcements"),
+    "search_knowledge": ("研究资料", "research documents"),
+    "analyze_sentiment": ("舆情分析", "sentiment analysis"),
+    "resolve_entity": ("标的识别", "the security lookup"),
+    "explain_concept": ("概念解释", "the concept lookup"),
+}
+_FAILURE_REASON = {
+    "not_found": ("当前数据源中没有相关记录", "the configured sources have no record"),
+    "timeout": ("数据源响应超时", "the source timed out"),
+    "unavailable": ("可用数据不足", "there is not enough data"),
+    "upstream_error": ("数据源暂时不可用", "the source is temporarily unavailable"),
+    "invalid_arguments": ("请求参数无效", "the request was invalid"),
+}
+
+
+def failure_note(tool: str, code: str | None, *, zh: bool) -> str:
+    """ "行情数据未取到（当前数据源中没有相关记录）" / "No market data: the configured sources have no record"."""
+    label_zh, label_en = _TOOL_DATA.get(tool, ("数据", "data"))
+    reason_zh, reason_en = _FAILURE_REASON.get(str(code or ""), ("数据源返回错误", "the source returned an error"))
+    return f"{label_zh}未取到（{reason_zh}）" if zh else f"No {label_en}: {reason_en}"
+
+
 def _failure_text(tool: str, error: dict[str, Any], *, zh: bool) -> str:
-    code = error.get("code") or "error"
-    message = str(error.get("message") or "")[:160]
-    return (
-        f"{tool} 未返回可用数据（{code}：{message}）" if zh else f"{tool} returned no usable data ({code}: {message})"
-    )
+    return failure_note(tool, error.get("code"), zh=zh)
 
 
 # Extra metrics that are ratios (stated in percent, like ROE) and amounts (stated in CNY).

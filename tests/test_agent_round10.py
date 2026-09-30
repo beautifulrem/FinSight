@@ -14,10 +14,14 @@ probe; ``tests/test_agent_eval.py`` checks the dev tasks and router labels for t
 * F9: on a news question, a document figure that the named company's structured fundamentals confirm is not marked
   "未经其他来源证实" (the fundamentals are looked up for the check only).
 * F10: a comparison that names a metric says which value is higher.
+* F11: a corpus label is not a publisher and off-target knowledge documents are not listed; a failed tool is one plain
+  limitation; a turnover comparison is stated; every starter chip is answerable offline.
 * F14: an injected message whose remainder asks for a market prediction without a target is refused, not clarified.
 """
 
 from __future__ import annotations
+
+import re
 
 import pytest
 
@@ -382,3 +386,59 @@ def test_the_corroboration_lookup_fetches_the_named_stocks_fundamentals_only(age
     numbers = [value for value, _signed in runtime._corroborating_numbers({"nlu": nlu, "evidence": {}})]
     assert any(abs(value - 1.085e11) < 1e6 for value in numbers)
     assert runtime._corroborating_numbers({"nlu": {"entities": []}, "evidence": {}}) == []
+
+
+# ---- F11: evidence lines, limitations and starter chips ----
+
+
+def test_corpus_labels_are_not_publishers_and_off_target_knowledge_documents_are_not_listed():
+    from query_intelligence.agent.composer import _documents
+
+    data = {
+        "targets": ["五粮液"],
+        "documents": [
+            {"evidence_id": "research_note_1", "source_type": "research_note", "source_name": "fincprg",
+             "title": "白酒行业周报", "excerpt": "五粮液批价企稳"},
+            {"evidence_id": "product_doc_2", "source_type": "product_doc", "source_name": "fiqa",
+             "title": "How index funds work", "excerpt": "An index fund tracks a benchmark."},
+            {"evidence_id": "news_3", "source_type": "news", "source_name": "证券时报",
+             "publish_time": "2026-04-20", "title": "五粮液发布年报", "excerpt": ""},
+        ],
+    }  # fmt: skip
+    lines = _documents(data, zh=True)
+    assert lines == [
+        "相关资料：一篇研究报告 [research_note_1]。",
+        "相关资料：证券时报于2026-04-20发布的一篇新闻 [news_3]。",
+    ]
+    # without targets (a concept question) knowledge documents are all background and all listed
+    assert len(_documents({**data, "targets": []}, zh=True)) == 3
+
+
+def test_a_failed_tool_is_one_plain_limitation(agent):
+    from query_intelligence.agent.composer import failure_note
+
+    assert failure_note("get_price_history", "not_found", zh=True) == "行情数据未取到（当前数据源中没有相关记录）"
+    assert failure_note("get_fundamentals", "timeout", zh=False) == "No fundamentals: the source timed out"
+    result = agent.chat("平安银行最新收盘价多少", session_id="r10-failure-note")
+    limitations = result["limitations"]
+    assert "行情数据未取到（当前数据源中没有相关记录）" in limitations
+    assert not [item for item in limitations if re.fullmatch(r"[a-z_]+: [a-z_]+", item)]
+
+
+def test_a_turnover_comparison_states_which_traded_more(agent):
+    result = agent.chat("沪深300ETF与证券ETF相比，谁的成交更活跃", session_id="r10-turnover")
+    assert "成交额：沪深300ETF 48.52 亿元 高于 证券ETF 4.41 亿元" in result["answer"]
+
+
+def test_every_starter_chip_is_answerable_offline(agent):
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "frontend" / "src" / "lib" / "i18n.ts").read_text(encoding="utf-8")
+    chips = re.findall(r'"empty\.q\d": "([^"]+)"', source)
+    assert len(chips) == 8
+    for index, chip in enumerate(chips):
+        result = agent.chat(chip, session_id=f"r10-chip-{index}")
+        assert result["route"] in {"workflow", "agent"}, (chip, result["route_reasons"])
+        structured = [eid for eid in result.get("evidence_used") or [] if not eid.startswith(("news_", "aknews_"))]
+        answer = result["answer"]
+        assert structured and "没有检索到" not in answer and "No usable evidence" not in answer, chip
