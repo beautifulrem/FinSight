@@ -11,6 +11,8 @@ probe; ``tests/test_agent_eval.py`` checks the dev tasks and router labels for t
   lookalike inside it is not a target (more rows in ``tests/data/alias_regression.jsonl``).
 * F8: prompts v3 and v4 allow a number derived from cited operands written in the same sentence, as the verifier's
   ``allow_derived`` does; the verifier and the template also derive a net-margin gap from the four amounts.
+* F9: on a news question, a document figure that the named company's structured fundamentals confirm is not marked
+  "未经其他来源证实" (the fundamentals are looked up for the check only).
 * F10: a comparison that names a metric says which value is higher.
 * F14: an injected message whose remainder asks for a market prediction without a target is refused, not clarified.
 """
@@ -331,3 +333,52 @@ def test_the_template_states_a_net_margin_gap_not_a_daily_change_gap(agent):
     assert "两者相差 13.92 个百分点" in result["answer"]
     assert "当日涨跌幅" not in result["answer"].split("净利率：")[-1]
     assert result["verification"]["passed"]
+
+
+# ---- F9: a document figure the named company's fundamentals confirm is not attributed ----
+
+
+def _news_only_store():
+    from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
+
+    store = EvidenceStore()
+    store.add(
+        AgentEvidence(
+            evidence_id="news_7",
+            kind="document",
+            source_type="news",
+            title="五粮液发布年报",
+            text_excerpt="五粮液发布2025年年报，营业收入1085亿元，归母净利润378亿元；另据经销商称二季度提价7.5%。",
+        )
+    )
+    return store
+
+
+def test_a_report_figure_confirmed_by_fundamentals_is_not_attributed_on_a_news_question():
+    from query_intelligence.agent.output_safety import scrub_answer
+
+    answer = {"answer": "五粮液2025年营业收入1085亿元，归母净利润378亿元 [news_7]。", "key_points": []}
+    # without the lookup the E3 rule marks the single-document figures
+    marked, notes = scrub_answer(answer, _news_only_store(), zh=True)
+    assert "attributed_document_claim" in notes and "未经其他来源证实" in marked["answer"]
+    calls = []
+
+    def corroborate():
+        calls.append(1)
+        return [(1.085e11, False), (3.78e10, False), (20.9, False)]
+
+    kept, notes = scrub_answer(answer, _news_only_store(), zh=True, corroborate=corroborate)
+    assert kept["answer"] == answer["answer"] and notes == [] and calls == [1]
+    # a figure the fundamentals do not have is still attributed (one lookup per answer, answer and key points)
+    planted = {"answer": "据经销商称，五粮液二季度提价7.5% [news_7]。", "key_points": ["二季度提价7.5%"]}
+    guarded, notes = scrub_answer(planted, _news_only_store(), zh=True, corroborate=corroborate)
+    assert "attributed_document_claim" in notes and calls == [1, 1]
+    assert guarded["key_points"][0].endswith("（未经其他来源证实）")
+
+
+def test_the_corroboration_lookup_fetches_the_named_stocks_fundamentals_only(agent):
+    runtime = agent.runtime
+    nlu = {"entities": [{"symbol": "000858.SZ", "canonical_name": "五粮液", "entity_type": "stock"}]}
+    numbers = [value for value, _signed in runtime._corroborating_numbers({"nlu": nlu, "evidence": {}})]
+    assert any(abs(value - 1.085e11) < 1e6 for value in numbers)
+    assert runtime._corroborating_numbers({"nlu": {"entities": []}, "evidence": {}}) == []

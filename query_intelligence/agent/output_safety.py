@@ -26,7 +26,9 @@ relay what it says. This layer looks at the answer sentence by sentence, togethe
      structured data does not contain and that exactly one document wording carries: an insider's "一季度净利润同比
      增长63.5%", a poll, a buyback size, a footnote "restatement", a statistic, and also an ordinary single-source
      figure (a dividend, a sales number). A sentence that cites only structured evidence is left to the verifier;
-     figures two differently worded documents state are left alone
+     figures two differently worded documents state are left alone; (round 10, F9) so are figures the named
+     company's structured fundamentals confirm when the run did not fetch them (a news question quoting the annual
+     report), looked up once through ``corroborate``
    is attributed with the layer's own marker, whatever the model wrote: "据一篇文档称，…（未经其他来源证实）" / "…
    (according to one document; not confirmed by other sources)". A sentence that already says the claim is
    unverified is left as it is; one that only names its source ("媒体报道称…") gets the suffix. A fundamental or
@@ -42,6 +44,7 @@ matches remain and whether they sit in attributed sentences.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -183,10 +186,21 @@ def states_unverified(sentence: str) -> bool:
     return bool(_UNVERIFIED.search(sentence))
 
 
-def scrub_answer(answer: dict[str, Any], store: EvidenceStore, *, zh: bool) -> tuple[dict[str, Any], list[str]]:
-    """Return ``(answer, notes)``; notes name the rules that changed the answer (see the module docstring)."""
+def scrub_answer(
+    answer: dict[str, Any],
+    store: EvidenceStore,
+    *,
+    zh: bool,
+    corroborate: Callable[[], list[tuple[float, bool]]] | None = None,
+) -> tuple[dict[str, Any], list[str]]:
+    """Return ``(answer, notes)``; notes name the rules that changed the answer (see the module docstring).
+
+    ``corroborate`` (round 10, F9) returns the numbers of the named companies' structured fundamentals when the run
+    did not fetch them (a news question). It is called at most once, and only when a sentence states a
+    single-document figure the run's structured data lacks: a figure the fundamentals confirm (the annual report's
+    revenue quoted by a news item) is FinSight's own data, not a one-document claim, and is not attributed."""
     text = str(answer.get("answer") or "")
-    context = _Context(store, zh=zh, texts=[text, *map(str, answer.get("key_points") or [])])
+    context = _Context(store, zh=zh, texts=[text, *map(str, answer.get("key_points") or [])], corroborate=corroborate)
     guarded = dict(answer)
     guarded["answer"] = context.scrub_text(text, allow_note=True)
     points: list[str] = []
@@ -211,8 +225,17 @@ def scrub_answer(answer: dict[str, Any], store: EvidenceStore, *, zh: bool) -> t
 
 
 class _Context:
-    def __init__(self, store: EvidenceStore, *, zh: bool, texts: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        store: EvidenceStore,
+        *,
+        zh: bool,
+        texts: list[str] | None = None,
+        corroborate: Callable[[], list[tuple[float, bool]]] | None = None,
+    ) -> None:
         self.store = store
+        self._corroborate = corroborate
+        self._corroborating: list[tuple[float, bool]] | None = None
         self.zh = zh
         self.documents = [item for item in store.items() if item.kind == "document"]
         self.raw_texts = {item.evidence_id: _document_text(item) for item in self.documents}
@@ -413,6 +436,8 @@ class _Context:
         for value, scales, rounding in figures:
             if _is_supported(value, self.structured_numbers, scales, rounding):
                 continue
+            if _is_supported(value, self.corroborating_numbers(), scales, rounding):
+                continue  # (round 10, F9) the named company's fundamentals confirm it
             carriers = {
                 context
                 for evidence_id, document_figures in self.document_unit_figures.items()
@@ -422,6 +447,15 @@ class _Context:
             if len(carriers) == 1:
                 return True
         return False
+
+    def corroborating_numbers(self) -> list[tuple[float, bool]]:
+        """The fundamentals numbers from ``corroborate``, fetched once, on first need."""
+        if self._corroborating is None:
+            try:
+                self._corroborating = list(self._corroborate()) if self._corroborate is not None else []
+            except Exception:  # a failed lookup leaves the rule as it was: attribute
+                self._corroborating = []
+        return self._corroborating
 
     def _attribute(self, sentence: str) -> str:
         lead = sentence[: len(sentence) - len(sentence.lstrip())]
