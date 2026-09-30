@@ -685,3 +685,33 @@ def test_round8_claim_rows_do_not_overlap_the_heldout_sets():
 
     assert len(mine) >= 20
     assert _overlaps(mine, others) == (0, 0), "round-8 claim rows overlap a held-out set"
+
+
+# The round-4 reviewer's probes for D5-D8 (round4.md §4 and §7): new round-8 wording must not copy them either.
+_ROUND4_REVIEW_PROBES = [
+    "茅台的合理估值应该是多少钱一股", "茅台值多少钱一股", "茅台目标价多少", "比特币ETF能买吗", "比特币ETF最近涨了吗",
+    "平安PE比行业低吗", "平安的PE比行业低吗", "平安PE多少", "平安的PB", "平安股价", "沪深300今年涨了多少",
+    "帮我算一下茅台的PEG", "五粮液的净利率大概多少", "茅台和五粮液谁的净利率高", "黄金ETF最近表现怎么样",
+    "有没有白酒ETF", "给我推荐一只明天会涨停的白酒股",
+]  # fmt: skip
+
+
+def test_round8_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_other_sets():
+    """Round-8 dev tasks and router labels were written from the round-4 review (D5-D8): none may copy or near-copy
+    the reviewer's probes, a held-out text, the independent router sets or a test set (counts only)."""
+    from evaluation.agent_eval.build_tasks import _round8_tasks, check_overlap
+    from evaluation.agent_eval.runner import TASK_SETS, load_tasks
+
+    mine = [turn["query"] for task in _round8_tasks() for turn in task["turns"]]
+    mine += [row["query"] for row in _router_rows("router_labels_v1.jsonl") if row["note"].startswith("round8")]
+    others = [
+        row["query"]
+        for name in ("router_labels_independent_v1.jsonl", "router_labels_independent_v2.jsonl")
+        for row in _router_rows(name)
+    ]
+    for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
+        others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    others += _heldout_r4_texts() + _ROUND4_REVIEW_PROBES
+
+    assert len(mine) >= 25 and check_overlap(_round8_tasks()) == []
+    assert _overlaps(mine, others) == (0, 0), "round-8 dev tasks or router labels overlap a held-out or reviewer set"

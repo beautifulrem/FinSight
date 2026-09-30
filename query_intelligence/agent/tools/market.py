@@ -98,6 +98,44 @@ class PriceHistoryOutput(BaseModel):
         "(no live source) or intraday_failed.",
     )
     intraday_provenance: SourceProvenance | None = None
+    year_start: DailyClose | None = Field(
+        default=None,
+        description="Close of the first trading day of the latest close's year, when the history also has a close "
+        "from the year before (so that close is known to be the year's first); for year-to-date changes.",
+    )
+
+    @model_serializer(mode="wrap")
+    def _omit_missing_year_start(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        # Payloads without the field stay byte-identical to those recorded before it existed (evaluation snapshots).
+        data = handler(self)
+        if data.get("year_start") is None:
+            data.pop("year_start", None)
+        return data
+
+
+def year_start_close(history: list[dict[str, Any]]) -> DailyClose | None:
+    """The first close of the latest row's year, if ``history`` (any order) reaches into the year before."""
+    dated = sorted(
+        (date, float(row["close"]))
+        for row in history
+        if row.get("close") is not None and (date := _iso_date(row.get("trade_date") or row.get("date")))
+    )
+    if not dated:
+        return None
+    year = dated[-1][0][:4]
+    if not any(date[:4] < year for date, _close in dated):
+        return None
+    date, close = next((date, close) for date, close in dated if date[:4] == year)
+    return DailyClose(date=date, close=close)
+
+
+def _iso_date(value: Any) -> str | None:
+    text = str(value or "").strip()
+    if len(text) >= 10 and text[4] == "-" and text[7] == "-":
+        return text[:10]
+    if len(text) == 8 and text.isdigit():
+        return f"{text[:4]}-{text[4:6]}-{text[6:]}"
+    return None
 
 
 class IndicatorsOutput(BaseModel):
@@ -173,6 +211,7 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
             evidence_id=evidence_id,
             volume_unit=payload.get("volume_unit"),
             provenance=provenance_from(payload),
+            year_start=year_start_close(history),
             **intraday_fields,
         )
         quote = output.intraday
