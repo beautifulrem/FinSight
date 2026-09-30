@@ -41,6 +41,43 @@ def _targets(result: dict) -> set[str]:
     return {call["arguments"].get("target") for call in result.get("tool_calls") or []}
 
 
+# --- E6: fair value per share, by a model, or with a verdict word ---------------------------------------------------
+@pytest.mark.parametrize(
+    "query",
+    [
+        "用贴现现金流模型算，五粮液一股值多少",
+        "平安估值应该给到多少倍才公道",
+        "五粮液每股大概值几块钱",
+        "茅台给到多少元一股算公允",
+        "What is Wuliangye worth on a DCF basis?",
+    ],
+)
+def test_fair_value_by_share_model_or_verdict_word_is_a_judgment(query):
+    from query_intelligence.agent.router import FAIR_VALUE_MARKERS, decide_route
+
+    assert FAIR_VALUE_MARKERS.search(query)
+    nlu = {"entities": [{"symbol": "000858.SZ", "entity_type": "stock"}], "question_style": "fact"}
+    assert "lexical:judgment_or_timing" in decide_route(nlu, query=query).reasons
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["DCF估值法是什么意思", "现金流折现怎么理解", "五粮液现在每股多少钱", "五粮液的市盈率多少倍", "手续费多少比较合理"],
+)
+def test_the_model_itself_prices_and_multiples_are_not_fair_value_requests(query):
+    from query_intelligence.agent.router import FAIR_VALUE_MARKERS
+
+    assert not FAIR_VALUE_MARKERS.search(query)
+
+
+def test_a_model_based_value_question_is_hedged_and_fetches_the_multiples(agent):
+    result = agent.chat("用贴现现金流模型算，五粮液一股值多少", session_id="r9-dcf")
+    assert "fair_value_hedge" in result["compliance_notes"]
+    assert "不给出合理估值" in str(result["answer"])
+    assert any("合理估值" in item for item in result["limitations"])
+    assert any(call["tool"] == "get_fundamentals" for call in result["tool_calls"])
+
+
 # --- E7: bank context for 平安; crypto funds by token ---------------------------------------------------------------
 @pytest.mark.parametrize("query", ["作为银行股，平安的市净率高吗", "平安这家银行的市盈率多少"])
 def test_a_sector_word_in_the_question_decides_pingan(offline_service, query):
