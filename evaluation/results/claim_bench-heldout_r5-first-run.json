@@ -1,0 +1,548 @@
+{
+ "config": {
+  "claims": "evaluation/heldout_r5/claims_r5_heldout.jsonl",
+  "claims_sha256": "fd58c903acd977c2e75c51d70fefd93326594fa929ef9d398a0f0e919585c4d1",
+  "set": null,
+  "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
+  "model": null,
+  "commit": "f01097a",
+  "run_at": "2026-09-30T11:23:40+00:00",
+  "command": "python -m evaluation.claim_bench.run --claims evaluation/heldout_r5/claims_r5_heldout.jsonl --out evaluation/results/claim_bench-heldout_r5-first-run.json"
+ },
+ "claims": 56,
+ "checks": 86,
+ "verdict_accuracy": 0.8214,
+ "verdict_accuracy_ci": [
+  0.7143,
+  0.9107
+ ],
+ "check_accuracy": 0.814,
+ "check_accuracy_ci": [
+  0.7241,
+  0.9012
+ ],
+ "comparator_accuracy": 0.8353,
+ "ci_method": "percentile bootstrap over claims, 2000 resamples, seed 20260926, 95%",
+ "verdict_confusion": {
+  "supported": {
+   "supported": 25,
+   "contradicted": 0,
+   "partially_supported": 3,
+   "unverifiable": 4
+  },
+  "contradicted": {
+   "supported": 0,
+   "contradicted": 8,
+   "partially_supported": 0,
+   "unverifiable": 1
+  },
+  "partially_supported": {
+   "supported": 1,
+   "contradicted": 1,
+   "partially_supported": 9,
+   "unverifiable": 0
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 0,
+   "unverifiable": 4
+  }
+ },
+ "check_status_confusion": {
+  "supported": {
+   "supported": 49,
+   "contradicted": 3,
+   "unverifiable": 5,
+   "missing": 4
+  },
+  "contradicted": {
+   "supported": 0,
+   "contradicted": 18,
+   "unverifiable": 1,
+   "missing": 2
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "unverifiable": 3,
+   "missing": 0
+  },
+  "extra": {
+   "supported": 0,
+   "contradicted": 0,
+   "unverifiable": 1,
+   "missing": 0
+  }
+ },
+ "by_category": {
+  "ambiguous_derived": {
+   "claims": 1,
+   "verdict_accuracy": 0.0
+  },
+  "industry_average": {
+   "claims": 11,
+   "verdict_accuracy": 0.7273
+  },
+  "multi_clause": {
+   "claims": 13,
+   "verdict_accuracy": 0.9231
+  },
+  "plain": {
+   "claims": 11,
+   "verdict_accuracy": 1.0
+  },
+  "ratio": {
+   "claims": 10,
+   "verdict_accuracy": 0.6
+  },
+  "turnover": {
+   "claims": 10,
+   "verdict_accuracy": 0.9
+  }
+ },
+ "by_language": {
+  "en": {
+   "claims": 7,
+   "verdict_accuracy": 0.7143
+  },
+  "zh": {
+   "claims": 49,
+   "verdict_accuracy": 0.8367
+  }
+ },
+ "errors": [
+  {
+   "id": "r5c010",
+   "category": "multi_clause",
+   "claim": "五粮液净利润比中国平安多，茅台PE 24.6倍，平安ROE 15.2%",
+   "expected_verdict": "partially_supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "roe",
+      "comparator": "eq",
+      "status": "supported",
+      "subject": "601318.SH",
+      "claimed": 15.2,
+      "tol": 0.05,
+      "actual": 15.2
+     },
+     "predicted": {
+      "metric": "roe",
+      "comparator": "eq",
+      "status": "contradicted",
+      "claimed": 15.2,
+      "actual": 33.0,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c012",
+   "category": "multi_clause",
+   "claim": "茅台市盈率高过五粮液，五粮液市盈率30倍",
+   "expected_verdict": "partially_supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "gt",
+      "status": "supported",
+      "subject": "600519.SH",
+      "other": "000858.SZ",
+      "actual": 24.6,
+      "other_actual": 20.9
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "contradicted",
+      "claimed": 30.0,
+      "actual": 20.9,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    },
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "contradicted",
+      "subject": "000858.SZ",
+      "claimed": 30,
+      "tol": 0.5,
+      "actual": 20.9
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c016",
+   "category": "industry_average",
+   "claim": "中国平安市净率1.1倍，行业均值则是1.45倍",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pb",
+      "comparator": "eq",
+      "status": "supported",
+      "subject": "industry:保险",
+      "claimed": 1.45,
+      "tol": 0.005,
+      "actual": 1.45
+     },
+     "predicted": {
+      "metric": "pb",
+      "comparator": "eq",
+      "status": "unverifiable",
+      "claimed": 1.45,
+      "actual": null,
+      "note": "no data for this metric"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c019",
+   "category": "industry_average",
+   "claim": "平安8.7倍的市盈率不到保险业均值11.8倍",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "lt",
+      "status": "supported",
+      "subject": "601318.SH",
+      "other": "industry:保险",
+      "actual": 8.7,
+      "other_actual": 11.8
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": "lt",
+      "status": "unverifiable",
+      "claimed": 11.8,
+      "actual": null,
+      "note": "no data for this metric"
+     },
+     "correct": false,
+     "comparator_correct": true
+    },
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "supported",
+      "subject": "industry:保险",
+      "claimed": 11.8,
+      "tol": 0.05,
+      "actual": 11.8
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c030",
+   "category": "turnover",
+   "claim": "证券ETF成交额4.41亿元，比创业板ETF更活跃",
+   "expected_verdict": "partially_supported",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "amount",
+      "comparator": "gt",
+      "status": "contradicted",
+      "subject": "512880.SH",
+      "other": "159915.SZ",
+      "actual": 441000000.0,
+      "other_actual": 1670000000.0
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c032",
+   "category": "ratio",
+   "claim": "茅台营收比五粮液的1.5倍还多",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "revenue",
+      "comparator": "gt",
+      "status": "supported",
+      "subject": "600519.SH",
+      "other": "000858.SZ",
+      "factor": 1.5,
+      "actual": 168838000000,
+      "other_actual": 108500000000
+     },
+     "predicted": {
+      "metric": "revenue",
+      "comparator": "eq",
+      "status": "unverifiable",
+      "claimed": 1.5,
+      "actual": null,
+      "note": "the unit '倍' does not fit revenue"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c034",
+   "category": "ratio",
+   "claim": "茅台一年赚的钱是五粮液的两倍有余",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "net_profit",
+      "comparator": "range",
+      "status": "supported",
+      "subject": "600519.SH",
+      "other": "000858.SZ",
+      "range": [
+       2,
+       3
+      ],
+      "actual": 82320000000,
+      "other_actual": 37800000000
+     },
+     "predicted": {
+      "metric": null,
+      "comparator": "eq",
+      "status": "unverifiable",
+      "claimed": 2.0,
+      "actual": null,
+      "note": "metric not recognised"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c037",
+   "category": "ratio",
+   "claim": "五粮液营收不到茅台的六成",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "revenue",
+      "comparator": "lt",
+      "status": "contradicted",
+      "subject": "000858.SZ",
+      "other": "600519.SH",
+      "factor": 0.6,
+      "actual": 108500000000,
+      "other_actual": 168838000000
+     },
+     "predicted": {
+      "metric": "revenue_yoy",
+      "comparator": "lt",
+      "status": "unverifiable",
+      "claimed": 60.0,
+      "actual": null,
+      "note": "the fundamentals source has no year-on-year growth for this item"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c048",
+   "category": "ambiguous_derived",
+   "claim": "沪深300ETF最近一个交易日上涨0.73%",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "eq",
+      "status": "supported",
+      "subject": "510300.SH",
+      "claimed": 0.73,
+      "tol": 0.005,
+      "actual": 0.7328
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "eq",
+      "status": "unverifiable",
+      "claimed": 0.73,
+      "actual": null,
+      "note": "no data for this metric"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c049",
+   "category": "plain",
+   "claim": "茅台总市值约1.77万亿元",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "贵州茅台",
+     "metric": "market_cap",
+     "claimed": 1.77,
+     "claimed_high": null,
+     "claimed_unit": "万亿",
+     "comparator": "approx",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "ratio": null,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_data",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "as_of_basis": null,
+     "note": "no data for this metric"
+    }
+   ]
+  },
+  {
+   "id": "r5c051",
+   "category": "industry_average",
+   "claim": "Ping An's P/B of 1.1x is below the insurance-sector average.",
+   "expected_verdict": "supported",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pb",
+      "comparator": "lt",
+      "status": "supported",
+      "subject": "601318.SH",
+      "other": "industry:保险",
+      "actual": 1.1,
+      "other_actual": 1.45
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c053",
+   "category": "ratio",
+   "claim": "Moutai's net profit is more than double Wuliangye's.",
+   "expected_verdict": "supported",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "net_profit",
+      "comparator": "gt",
+      "status": "supported",
+      "subject": "600519.SH",
+      "other": "000858.SZ",
+      "factor": 2,
+      "actual": 82320000000,
+      "other_actual": 37800000000
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c056",
+   "category": "industry_average",
+   "claim": "Wuliangye's P/E of 20.9x is well below the baijiu industry average of 27.3x.",
+   "expected_verdict": "supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "lt",
+      "status": "supported",
+      "subject": "000858.SZ",
+      "other": "industry:白酒",
+      "actual": 20.9,
+      "other_actual": 27.3
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": "lt",
+      "status": "contradicted",
+      "claimed": 27.3,
+      "actual": 27.3,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": true
+    },
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "supported",
+      "subject": "industry:白酒",
+      "claimed": 27.3,
+      "tol": 0.05,
+      "actual": 27.3
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  }
+ ]
+}
