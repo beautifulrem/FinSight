@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from ..agent_eval.metrics import score_turn
+from ..agent_eval.metrics import llm_failure_flags, score_turn
 from ..agent_eval.runner import (
     EVAL_TODAY,
     SNAPSHOT_NAME,
@@ -93,6 +93,21 @@ def _http_requests(llm: Any) -> int:
 def _http_429(llm: Any) -> int:
     stats = llm.http_stats() if llm is not None and hasattr(llm, "http_stats") else {}
     return int(stats.get("http_429", 0))
+
+
+def fallback_reason(row: dict[str, Any], stop_reason: str | None) -> str | None:
+    """Why a row planned for the LLM agent path was not answered by the LLM, else ``None``.
+
+    Either the LLM was not used at all (no key, request cap, HTTP 429: ``stop_reason``), or an LLM call failed
+    inside the turn and the graph fell back (``degraded`` LLM-failure flags). Refusals and clarifications
+    answered by the guard before any LLM call are the agent path working as designed, not fallbacks.
+    """
+    if row["planned_path"] == "llm_agent" and row["path"] != "llm_agent":
+        return stop_reason
+    flags = llm_failure_flags(row.get("degraded"))
+    if row["path"] == "llm_agent" and flags:
+        return "LLM call failed in this turn; the graph fell back: " + ", ".join(flag[:80] for flag in flags)
+    return None
 
 
 def meta_row(
@@ -178,28 +193,17 @@ def generate(items: list[dict[str, Any]], *, llm: Any, max_requests: int, progre
         hit_429 = _http_429(llm) > before_429 or any("HTTP 429" in str(flag) for flag in response.get("degraded") or [])
         if use_llm and hit_429:
             stop_reason = "HTTP 429 from the gateway"
-        fallback = None
-        if item["planned_path"] == "llm_agent" and not use_llm:
-            fallback = stop_reason
-        elif (
-            use_llm
-            and response.get("answer_source") not in {"llm_agent", "llm_compose"}
-            and response.get("route") not in {"refuse", "clarify"}
-        ):
-            fallback = "LLM call failed in this turn; the graph fell back: " + ", ".join(
-                str(flag)[:80] for flag in response.get("degraded") or []
-            )
-        rows.append(
-            meta_row(
-                item,
-                response,
-                path="llm_agent" if use_llm else "deterministic",
-                mode=mode,
-                model=model if use_llm else None,
-                fallback_reason=fallback,
-                latency_ms=latency_ms,
-            )
+        row = meta_row(
+            item,
+            response,
+            path="llm_agent" if use_llm else "deterministic",
+            mode=mode,
+            model=model if use_llm else None,
+            fallback_reason=None,
+            latency_ms=latency_ms,
         )
+        row["fallback_reason"] = fallback_reason(row, stop_reason)
+        rows.append(row)
         if progress and (count % 10 == 0 or use_llm):
             progress(f"{count}/{len(ordered)} {item['id']} {mode} requests={_http_requests(llm)} {query[:30]}")
     for agent in agents.values():

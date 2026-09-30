@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import json
 import math
 import random
@@ -32,7 +33,7 @@ def read_csv(path: str | Path) -> list[dict[str, str]]:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         text = raw.decode("gb18030")
-    reader = csv.DictReader(text.splitlines())
+    reader = csv.DictReader(io.StringIO(text, newline=""))
     rows = []
     for row in reader:
         clean = {str(key).strip(): (value or "").strip() for key, value in row.items() if key is not None}
