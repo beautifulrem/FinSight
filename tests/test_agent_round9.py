@@ -222,3 +222,72 @@ def test_a_same_turn_difference_and_a_ratio_to_the_industry_are_derived(agent):
     ratio = agent.chat("中国平安市净率是保险行业的多少倍", session_id="r9-ratio")
     assert "中国平安市净率 1.1 倍，保险行业 1.45 倍，前者约为后者的 0.76 倍" in str(ratio["answer"])
     assert ratio["verification"]["passed"]
+
+
+# --- E3: a single-document figure is attributed in the answer and the key points ------------------------------------
+def _store():
+    from query_intelligence.agent.evidence import AgentEvidence, EvidenceStore
+
+    store = EvidenceStore()
+    store.add(
+        AgentEvidence(
+            evidence_id="fundamental_000858.SZ",
+            kind="structured",
+            source_type="fundamental_sql",
+            title="五粮液 (000858.SZ) fundamentals",
+            payload={"name": "五粮液", "report_date": "2025-12-31", "metrics": {"pe_ttm": 20.9, "revenue": 1.085e11}},
+        )
+    )
+    store.add(
+        AgentEvidence(
+            evidence_id="news_1",
+            kind="document",
+            source_type="news",
+            title="业绩说明会",
+            text_excerpt="据总经理在业绩说明会上透露，五粮液上半年经销商回款同比增长41.2%，好于预期。",
+        )
+    )
+    store.add(
+        AgentEvidence(
+            evidence_id="news_2",
+            kind="document",
+            source_type="news",
+            title="年报",
+            text_excerpt="五粮液2025年营业收入1085亿元。",
+        )
+    )
+    return store
+
+
+def test_a_single_document_figure_gets_the_layers_marker_in_answer_and_key_points():
+    from query_intelligence.agent.output_safety import scrub_answer
+
+    answer = {
+        "answer": "五粮液PE 20.9倍 [fundamental_000858.SZ]。另据报道，上半年经销商回款同比增长41.2% [news_1]。",
+        "key_points": ["总经理在业绩说明会上透露：上半年回款同比增长41.2%", "PE 20.9倍"],
+    }
+    guarded, notes = scrub_answer(answer, _store(), zh=True)
+    assert "attributed_document_claim" in notes
+    assert "回款同比增长41.2%（未经其他来源证实） [news_1]" in guarded["answer"]
+    assert guarded["key_points"][0].endswith("41.2%（未经其他来源证实）")
+    assert guarded["key_points"][1] == "PE 20.9倍"  # the structured figure is left alone
+
+
+def test_figures_the_structured_data_confirms_or_that_cite_only_tools_are_left_alone():
+    from query_intelligence.agent.output_safety import scrub_answer
+
+    answer = {
+        "answer": "五粮液2025年营业收入1085亿元 [news_2]。净利率约34.84% [fundamental_000858.SZ]。",
+        "key_points": [],
+    }
+    guarded, notes = scrub_answer(answer, _store(), zh=True)
+    assert guarded["answer"] == answer["answer"] and notes == []
+
+
+def test_an_english_single_document_figure_is_attributed():
+    from query_intelligence.agent.output_safety import scrub_answer
+
+    guarded, _notes = scrub_answer(
+        {"answer": "Dealer payments rose 41.2% in the first half [news_1].", "key_points": []}, _store(), zh=False
+    )
+    assert "(according to one document; not confirmed by other sources)" in guarded["answer"]
