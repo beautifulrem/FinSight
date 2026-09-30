@@ -458,8 +458,8 @@ def flow_gaps(query: str, tool_log: list[dict[str, Any]] | None = None, *, zh: b
 # A year-to-date move ("今年涨了多少", "年初至今收益", "YTD return", "how has it done this year"), not this year's
 # statements ("今年营收").
 _YEAR_TO_DATE = re.compile(
-    r"今年(?:以来|到现在|至今|迄今)?(?:的|一共|总共|累计|整体)?(?:涨|跌|收益|回报|表现|涨幅|跌幅|走势)|"
-    r"年初(?:至今|到现在|以来)|年内(?:累计)?(?:涨|跌|收益|回报|涨幅|跌幅|表现)|"
+    r"今年(?:以来|到现在|至今|迄今)?(?:的|一共|总共|累计|整体|共){0,3}(?:涨|跌|收益|回报|表现|涨幅|跌幅|走势)|"
+    r"年初(?:至今|到现在|以来)|年内(?:的|累计|共){0,2}(?:涨|跌|收益|回报|涨幅|跌幅|表现)|"
     r"\bYTD\b|\byear[- ]to[- ]date\b|\bso far this year\b|\bsince the (?:start|beginning) of (?:the|this) year\b|"
     r"\bthis year\b.{0,20}\b(?:return|gain|perform|rise|rose|risen|fall|fell|fallen|up|down|change|move)|"
     r"\b(?:return|gain|performance|change|move|up|down|rise|rose|fall|fell)\b.{0,20}\bthis year\b",
