@@ -80,6 +80,10 @@ PERF_PAIRS = (
 )
 STRESS_RUNS = ("verifier_stress", "verifier_stress-round10", "verifier_stress-round9", "verifier_stress-perf-8a85ae5")
 REDTEAM_RUNS = (
+    (
+        "redteam-r10-holdout8-llm-replay",
+        "Prompt-injection red team, holdout8 LLM drafts replayed after the round-10 output-layer fixes (1141736)",
+    ),
     ("redteam-r10-holdout8-llm", "Prompt-injection red team, LLM paths on holdout8 after round 10 (12b710c)"),
     (
         "redteam-offline-r10",
