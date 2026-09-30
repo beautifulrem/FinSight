@@ -107,6 +107,11 @@ class AgentEvidence(BaseModel):
             view["text_excerpt"] = self.text_excerpt
         if self.payload:
             view["payload"] = _compact_payload(self.payload)
+            from .tools.units import units_in_words  # lazy: the tools package imports this module
+
+            units = units_in_words(self.payload)
+            if units:
+                view["units"] = units
         return view
 
 

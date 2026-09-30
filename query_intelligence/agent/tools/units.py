@@ -14,6 +14,9 @@ After normalisation every tool payload states its units explicitly:
   ``x`` for multiples, ``CNY`` for amounts), ratios are in percent, and ``period`` labels the report
   (``FY2024``, ``2025Q3``, ...); the industry snapshot gets ``metric_units`` too.
 
+The LLM also gets the units in words (``units_in_words``): the tool message envelope and the compose
+evidence views carry a ``units`` sentence such as "amount is turnover (成交额) in CNY (yuan); revenue in CNY".
+
 The functions are idempotent (already-normalised payloads are recognised by their unit fields), because
 the evaluation replays recorded outputs through the same registry.
 """
@@ -206,6 +209,60 @@ def normalise_fundamentals(data: dict[str, Any]) -> dict[str, Any]:
         industry_metrics, industry_units, _ = normalise_metrics(dict(industry.get("metrics") or {}))
         out["industry"] = {**industry, "metrics": industry_metrics, "metric_units": industry_units}
     return out
+
+
+_UNIT_WORDS = {
+    "%": "in percent (2.5 means 2.5%)",
+    "x": "a multiple (times, 倍)",
+    "CNY": "in CNY (yuan, not 万 or 亿)",
+    "CNY/share": "in CNY per share",
+}
+
+
+def _metric_units_in_words(units: Any, label: str = "") -> list[str]:
+    if not isinstance(units, dict):
+        return []
+    return [f"{label}{key} {_UNIT_WORDS.get(str(unit), f'in {unit}')}" for key, unit in units.items()]
+
+
+def units_in_words(data: Any) -> str | None:
+    """The units of a normalised price or fundamentals payload as one plain sentence for the LLM, else ``None``.
+
+    The payload fields (``amount_unit``, ``metric_units``, ``units_source``) are terse codes; a model reading
+    ``"units_source": {"amount": "thousand CNY"}`` next to ``"amount": 3793827534`` could take the turnover to
+    be in thousands of CNY and scale it again. The sentence says which unit every value is in *now* and that
+    ``units_source`` only records the provider's unit before conversion.
+    """
+    if not isinstance(data, dict):
+        return None
+    parts: list[str] = []
+    if data.get("amount_unit") == "CNY" or "change_unit" in data or "volume_unit" in data:
+        if any(key in data for key in ("close", "open", "high", "low")):
+            parts.append("close/open/high/low are prices in CNY per share (per unit for funds)")
+        if data.get("amount") is not None:
+            parts.append("amount is turnover (成交额) in CNY (yuan)")
+        if data.get("volume_unit") == "share":
+            parts.append("volume (成交量) in shares")
+        elif data.get("volume_unit") == "unknown":
+            parts.append("volume in an unknown unit (do not convert or compare it)")
+        if data.get("change_unit") == "%":
+            parts.append("pct_change_1d in percent (-0.18 means -0.18%)")
+    parts.extend(_metric_units_in_words(data.get("metric_units")))
+    industry = data.get("industry")
+    if isinstance(industry, dict):
+        name = industry.get("industry_name") or "industry"
+        parts.extend(_metric_units_in_words(industry.get("metric_units"), f"{name} industry "))
+    if not parts:
+        return None
+    sentence = "Units: " + "; ".join(parts) + "."
+    if isinstance(data.get("units_source"), dict):
+        sentence += (
+            " These values are already converted; units_source only records the data provider's original unit "
+            "before conversion (for audit) and must not be applied again."
+        )
+    if data.get("units_inferred"):
+        sentence += f" {', '.join(map(str, data['units_inferred']))} arrived as a fraction and is shown in percent."
+    return sentence
 
 
 def _normalise_evidence_payload(tool: str, evidence_id: str, payload: dict[str, Any]) -> dict[str, Any]:
