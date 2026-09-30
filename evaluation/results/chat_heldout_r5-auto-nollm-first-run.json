@@ -1,0 +1,232 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/heldout_r5/chat_r5_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v3#e419eb84d58e",
+   "compose_system": "compose_system@v3#b9a704272c6d"
+  },
+  "commit": "f01097a",
+  "run_at": "2026-09-30T11:25:46+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 70.4,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r5/chat_r5_heldout.jsonl --out outputs/agent_eval/chat_r5-first.json"
+ },
+ "summary": {
+  "tasks": 38,
+  "turns": 41,
+  "repeats": 1,
+  "task_success": 0.9211,
+  "pass^1": 0.9211,
+  "ci": {
+   "task_success": [
+    0.8158,
+    1.0
+   ],
+   "pass^1": [
+    0.8158,
+    1.0
+   ],
+   "task_success_uncited": [
+    0.8158,
+    1.0
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.9211,
+  "turn_success": 0.9268,
+  "behavior_accuracy": 1.0,
+  "fact_recall": 0.9545,
+  "fact_stated": 0.9545,
+  "tool_recall": 1.0,
+  "tool_precision": 0.2286,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 0.9,
+  "states_missing_when_required": 0.8889,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 119.0,
+  "latency_ms_p95": 961.15,
+  "latency_ms_p99": 1475.76,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "causal_control": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 405.31
+  },
+  "crypto_refuse": {
+   "tasks": 6,
+   "task_success": 1.0,
+   "latency_ms_p95": 1475.76
+  },
+  "fair_value": {
+   "tasks": 9,
+   "task_success": 0.8889,
+   "latency_ms_p95": 619.42
+  },
+  "missing_derived": {
+   "tasks": 8,
+   "task_success": 0.875,
+   "latency_ms_p95": 826.09
+  },
+  "non_causal": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 748.36
+  },
+  "pingan_alias": {
+   "tasks": 7,
+   "task_success": 0.8571,
+   "latency_ms_p95": 127.58
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 9,
+   "task_success": 1.0,
+   "latency_ms_p95": 961.15
+  },
+  "zh": {
+   "tasks": 29,
+   "task_success": 0.8966,
+   "latency_ms_p95": 1251.93
+  }
+ },
+ "failed_checks": {
+  "hedged": 1,
+  "states_missing": 1,
+  "entity": 1,
+  "facts": 1
+ },
+ "failures": [
+  {
+   "task": "r5t006",
+   "category": "fair_value",
+   "query": "茅台估值应该给到每股多少元比较公道",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5 元（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。贵州茅台 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 24.6 倍，PB 8.1 倍，ROE 33%，营业收入 1"
+  },
+  {
+   "task": "r5t019",
+   "category": "pingan_alias",
+   "query": "平安这只银行股的PB是多少",
+   "failed_checks": [
+    "states_missing",
+    "entity"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中国平安 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 8.7 倍，PB 1.1 倍，ROE 15.2%，营业收入 12180 亿元，净利润 1210 亿元 [fundamental_601318.SH]。所属行业 保险：PE 11.8 倍，PB 1.45 倍，涨跌幅 0"
+  },
+  {
+   "task": "r5t029",
+   "category": "missing_derived",
+   "query": "按2025年报，五粮液净利润占营收的比例是多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "search_announcements"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。五粮液 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 20.9 倍，PB 5.4 倍，ROE 29.4%，营业收入 1"
+  }
+ ],
+ "task_outcomes": {
+  "r5t001": "1",
+  "r5t002": "1",
+  "r5t003": "1",
+  "r5t004": "1",
+  "r5t005": "1",
+  "r5t006": "0",
+  "r5t007": "1",
+  "r5t008": "1",
+  "r5t009": "1",
+  "r5t010": "1",
+  "r5t011": "1",
+  "r5t012": "1",
+  "r5t013": "1",
+  "r5t014": "1",
+  "r5t015": "1",
+  "r5t016": "1",
+  "r5t017": "1",
+  "r5t018": "1",
+  "r5t019": "0",
+  "r5t020": "1",
+  "r5t021": "1",
+  "r5t022": "1",
+  "r5t023": "1",
+  "r5t024": "1",
+  "r5t025": "1",
+  "r5t026": "1",
+  "r5t027": "1",
+  "r5t028": "1",
+  "r5t029": "0",
+  "r5t030": "1",
+  "r5t031": "1",
+  "r5t032": "1",
+  "r5t033": "1",
+  "r5t034": "1",
+  "r5t035": "1",
+  "r5t036": "1",
+  "r5t037": "1",
+  "r5t038": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r5-first.json",
+  "sha256_16": "a61a3cb265e86940",
+  "bytes": 118367,
+  "slimmed_at": "2026-09-30T11:25:56+00:00"
+ },
+ "notes": [
+  "first and only pre-exposure run of the independent round-5 chat slice (38 tasks), mode=auto without an LLM, --no-replay, at f01097a"
+ ]
+}
