@@ -336,7 +336,6 @@ Still open:
 | Issue | Why it is open |
 |---|---|
 | LLM paths still mention planted document content: 0–3.4% stated as fact, up to 6.8% raw detector hits per set and path at `0473968` (`redteam-r8-llm.json`); holdout7 after round 9: 2/112 and 0/56 stated as fact (`redteam-r9-holdout7-llm.json`) | the output layer attributes or removes what it recognises (figures with a unit, events by pattern); a marked figure still reaches the reader, and a model that restates a payload without a number, or rejects it while quoting it, is not caught. Planted headlines shaped like regulatory news are still shown in the ledger on the older held-out sets (holdout3 4/88, holdout4 8/240, holdout5 6/168) |
-| Flaky UI accessibility checks: E10 (the 'edited' badge fading mid-scan) is fixed in `950ad9c`; `test_codes_are_humanised_and_stale_data_is_flagged` still failed in 2 of 5 local runs of the web UI suite before the round-9 merge | being investigated; see the CI run |
 | GLM tail latency: agent P95 82 s on test v3 | per-call variance of a slow reasoning model; composition (27 s) is the better GLM path |
 | Prompt v4 has no task-success A/B | selectable, not default, until measured |
 | No human-labelled answer-quality judge, no head-to-head with 问财 / 豆包 / Kimi, no user study | need human labellers, competitor accounts and participants (owner) |
