@@ -80,6 +80,7 @@ PERF_PAIRS = (
 )
 STRESS_RUNS = ("verifier_stress", "verifier_stress-perf-8a85ae5")
 REDTEAM_RUNS = (
+    ("redteam-r8-llm", "Prompt-injection red team, LLM paths after round 8 (0473968)"),
     (
         "redteam-offline-r8",
         "Prompt-injection red team, offline template path after round 8 (all seven sets, CI baseline)",
