@@ -1,0 +1,3563 @@
+{
+ "kind": "ablation",
+ "config": {
+  "llm": "cline-pass/deepseek-v4.1-flash",
+  "model": "cline-pass/deepseek-v4.1-flash",
+  "llm_client": "deepseek",
+  "model_source": "DEEPSEEK_MODEL / deepseek.model",
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v3#e419eb84d58e",
+   "compose_system": "compose_system@v3#b9a704272c6d"
+  },
+  "commit": "bc42017",
+  "run_at": "2026-09-30T22:11:41+00:00",
+  "eval_today": "2026-04-23",
+  "task_files": {
+   "multiturn_v1": "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl"
+  },
+  "snapshots": {
+   "multiturn_v1": "evaluation/agent_eval/fixtures/snapshot_multiturn_v1.json"
+  },
+  "sets": [
+   "multiturn_v1"
+  ],
+  "online_modes": [
+   "agent"
+  ],
+  "workers": 3,
+  "stream": false,
+  "agent_config": {
+   "max_llm_steps": 6,
+   "max_tool_calls": 16,
+   "max_parallel_tools": 4,
+   "max_concurrent_runs": 8,
+   "token_budget": 80000,
+   "max_revisions": 1,
+   "llm_compose": true,
+   "max_next_questions": 3,
+   "run_deadline_s": 90.0,
+   "answer_grace_s": 20.0,
+   "agent_reasoning": null,
+   "compose_reasoning": "low",
+   "revise_reasoning": "low",
+   "final_reasoning": "low",
+   "memory_summary": true,
+   "memory_summary_tokens": 300,
+   "revise_policy": "cite_repair",
+   "planner_prefetch": true,
+   "llm_stall_timeout_s": 20.0,
+   "verify_derived": true
+  },
+  "agent_config_overrides": [],
+  "limit": null,
+  "command": "python -m evaluation.agent_eval.ablation --llm deepseek --repeats 1 --workers 3 --sets multiturn_v1 --modes agent --out outputs/agent_eval/ablation-memsum-1.json"
+ },
+ "notes": [
+  "memory-summary ablation at bc42017: QI_AGENT_MEMORY_SUMMARY=1, agent path, cline-pass/deepseek-v4.1-flash, 1 repeat; multiturn_v1 is an exposed set (its conversations were used to design the session rules)"
+ ],
+ "results": {
+  "multiturn_v1": {
+   "legacy": {
+    "summary": {
+     "tasks": 49,
+     "turns": 206,
+     "repeats": 1,
+     "task_success": 0.0,
+     "pass^1": 0.0,
+     "ci": {
+      "task_success": [
+       0.0,
+       0.0
+      ],
+      "pass^1": [
+       0.0,
+       0.0
+      ],
+      "task_success_uncited": [
+       0.0,
+       0.0
+      ]
+     },
+     "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+     "task_success_uncited": 0.0,
+     "turn_success": 0.1456,
+     "behavior_accuracy": 0.6699,
+     "fact_recall": 0.1047,
+     "fact_stated": 0.1047,
+     "tool_recall": 0.538,
+     "tool_precision": 0.1793,
+     "compliance_clean": 0.9951,
+     "hedged_when_required": 0.0588,
+     "states_missing_when_required": 0.2593,
+     "draft_verification_pass": 0.6408,
+     "unsupported_numbers_per_answer": 0.2707,
+     "latency_ms_p50": 339.21,
+     "latency_ms_p95": 1847.21,
+     "latency_ms_p99": 4213.5,
+     "llm_turns": 0,
+     "llm_turn_latency_ms_p50": null,
+     "llm_turn_latency_ms_p95": null,
+     "llm_turn_latency_ms_p99": null,
+     "ttft_turns": 0,
+     "ttft_ms_p50": null,
+     "ttft_ms_p95": null,
+     "ttft_ms_p99": null,
+     "llm_calls_per_turn": 0.0,
+     "tokens_per_turn": 0.0,
+     "reasoning_tokens_per_turn": 0.0,
+     "cache_hit_ratio": null,
+     "first_pass_verification": null,
+     "revise_rate": null,
+     "llm_error_rate": 0.0,
+     "llm_429_rate": 0.0,
+     "llm_error_kinds": {},
+     "json_repair_rate": null,
+     "json_failure_rate": null,
+     "cost_per_turn": null,
+     "cost_per_task": null,
+     "cost_currency": null
+    },
+    "by_category": {
+     "advice_bait": {
+      "tasks": 2,
+      "task_success": 0.0,
+      "latency_ms_p95": 1263.15
+     },
+     "coreference": {
+      "tasks": 6,
+      "task_success": 0.0,
+      "latency_ms_p95": 985.72
+     },
+     "cross_turn_comparison": {
+      "tasks": 3,
+      "task_success": 0.0,
+      "latency_ms_p95": 1280.0
+     },
+     "dangling_clarify": {
+      "tasks": 4,
+      "task_success": 0.0,
+      "latency_ms_p95": 5106.91
+     },
+     "ellipsis_followup": {
+      "tasks": 2,
+      "task_success": 0.0,
+      "latency_ms_p95": 544.37
+     },
+     "macro_switch": {
+      "tasks": 5,
+      "task_success": 0.0,
+      "latency_ms_p95": 1847.21
+     },
+     "missing_or_wrong_period": {
+      "tasks": 8,
+      "task_success": 0.0,
+      "latency_ms_p95": 2995.28
+     },
+     "mixed_language": {
+      "tasks": 3,
+      "task_success": 0.0,
+      "latency_ms_p95": 4213.5
+     },
+     "oos_in_conversation": {
+      "tasks": 5,
+      "task_success": 0.0,
+      "latency_ms_p95": 1206.99
+     },
+     "outside_a_share_scope": {
+      "tasks": 6,
+      "task_success": 0.0,
+      "latency_ms_p95": 2438.59
+     },
+     "why_followup": {
+      "tasks": 5,
+      "task_success": 0.0,
+      "latency_ms_p95": 932.75
+     }
+    },
+    "failed_checks": {
+     "facts": 117,
+     "required_tools": 73,
+     "entity": 72,
+     "behavior": 68,
+     "hedged": 32,
+     "states_missing": 20,
+     "any_of_tools": 9,
+     "no_forbidden_content": 1
+    },
+    "failures": [
+     {
+      "task": "mt-zh-01",
+      "category": "ellipsis_followup",
+      "query": "市盈率呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-01",
+      "category": "ellipsis_followup",
+      "query": "市净率和ROE也说一下",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-01",
+      "category": "ellipsis_followup",
+      "query": "换成五粮液呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-02",
+      "category": "coreference",
+      "query": "帮我看看茅台和五粮液的估值",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-02",
+      "category": "coreference",
+      "query": "这两家哪个ROE更高？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-02",
+      "category": "coreference",
+      "query": "它们的毛利率呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-02",
+      "category": "coreference",
+      "query": "白酒行业整体市盈率是多少，它们比行业贵还是便宜？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-03",
+      "category": "macro_switch",
+      "query": "最近CPI是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-03",
+      "category": "macro_switch",
+      "query": "PMI呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-03",
+      "category": "macro_switch",
+      "query": "回到平安，它的市盈率和市净率呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-03",
+      "category": "macro_switch",
+      "query": "利率低的环境对保险股是不是利好？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-04",
+      "category": "why_followup",
+      "query": "五粮液昨天涨了还是跌了？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-04",
+      "category": "why_followup",
+      "query": "为什么会这样？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-04",
+      "category": "why_followup",
+      "query": "白酒板块整体呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-04",
+      "category": "why_followup",
+      "query": "那现在是不是该抄底了？",
+      "failed_checks": [
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "它最近表现怎么样？",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "我说的是沪深300ETF",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "最近五个交易日的收盘价列一下",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "MA5是多少？站上了吗？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-05",
+      "category": "dangling_clarify",
+      "query": "RSI呢？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-06",
+      "category": "oos_in_conversation",
+      "query": "好吧，那创业板ETF呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-06",
+      "category": "oos_in_conversation",
+      "query": "这两个哪个涨得多？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-07",
+      "category": "missing_or_wrong_period",
+      "query": "茅台2025年的营收和净利润是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-07",
+      "category": "missing_or_wrong_period",
+      "query": "2024年的呢？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-07",
+      "category": "missing_or_wrong_period",
+      "query": "那今年一季度的净利润呢？",
+      "failed_checks": [
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-07",
+      "category": "missing_or_wrong_period",
+      "query": "它的股息率是多少？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-08",
+      "category": "outside_a_share_scope",
+      "query": "那沪深300涨跌幅呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "get_macro_indicators",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-08",
+      "category": "outside_a_share_scope",
+      "query": "M2增速是多少？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "苹果公司股价多少？",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "clarify",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "那A股里的中国平安呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "它去年净利润多少？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-09",
+      "category": "outside_a_share_scope",
+      "query": "ROE跟保险行业平均比呢？",
+      "failed_checks": [
+       "facts",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-10",
+      "category": "missing_or_wrong_period",
+      "query": "它的市盈率是多少？",
+      "failed_checks": [
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-10",
+      "category": "missing_or_wrong_period",
+      "query": "那MACD呢？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-10",
+      "category": "missing_or_wrong_period",
+      "query": "跟沪深300ETF比，最新收盘价分别是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "五粮液的PE是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "茅台呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "中国平安呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "三家里面哪家最便宜？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-11",
+      "category": "cross_turn_comparison",
+      "query": "所以应该买平安？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-12",
+      "category": "missing_or_wrong_period",
+      "query": "宁德时代最新股价多少？",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-12",
+      "category": "missing_or_wrong_period",
+      "query": "那它的市盈率呢？",
+      "failed_checks": [
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-12",
+      "category": "missing_or_wrong_period",
+      "query": "好吧，那说说茅台的市盈率",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-12",
+      "category": "missing_or_wrong_period",
+      "query": "茅台比白酒行业平均高还是低？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-13",
+      "category": "macro_switch",
+      "query": "最新的十年期国债收益率是多少？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-13",
+      "category": "macro_switch",
+      "query": "M2呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-13",
+      "category": "macro_switch",
+      "query": "LPR现在是多少？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-13",
+      "category": "macro_switch",
+      "query": "这种宏观环境下，沪深300最新收在多少点？",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-13",
+      "category": "macro_switch",
+      "query": "宏观数据能说明它接下来会涨吗？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-14",
+      "category": "mixed_language",
+      "query": "茅台的 PE ratio 是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-14",
+      "category": "mixed_language",
+      "query": "P/B 呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-14",
+      "category": "mixed_language",
+      "query": "And ROE?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-14",
+      "category": "mixed_language",
+      "query": "net profit 多少亿？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "我有10万块，全仓平安行不行？",
+      "failed_checks": [
+       "no_forbidden_content",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "平安的估值现在算高吗？能不能给个目标价？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "那保险行业的市净率是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-16",
+      "category": "why_followup",
+      "query": "前一天收盘是多少，涨了百分之几？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-16",
+      "category": "why_followup",
+      "query": "为什么涨？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-16",
+      "category": "why_followup",
+      "query": "跟PMI有关系吗？PMI最新多少？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-17",
+      "category": "oos_in_conversation",
+      "query": "五粮液2025年营收多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-17",
+      "category": "oos_in_conversation",
+      "query": "净利润呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-17",
+      "category": "oos_in_conversation",
+      "query": "毛利率呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-18",
+      "category": "dangling_clarify",
+      "query": "五粮液",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-18",
+      "category": "dangling_clarify",
+      "query": "它的市盈率跟行业比呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-18",
+      "category": "dangling_clarify",
+      "query": "那茅台呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-19",
+      "category": "outside_a_share_scope",
+      "query": "英伟达最近财报怎么样？",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "clarify",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-19",
+      "category": "outside_a_share_scope",
+      "query": "那A股的贵州茅台2025年净利润呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-19",
+      "category": "outside_a_share_scope",
+      "query": "增速是多少？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-19",
+      "category": "outside_a_share_scope",
+      "query": "ROE呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-20",
+      "category": "missing_or_wrong_period",
+      "query": "茅台的RSI是多少？",
+      "failed_checks": [
+       "required_tools",
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-20",
+      "category": "missing_or_wrong_period",
+      "query": "那收盘价总有吧？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-20",
+      "category": "missing_or_wrong_period",
+      "query": "当天最高价和最低价呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-20",
+      "category": "missing_or_wrong_period",
+      "query": "成交量呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-21",
+      "category": "coreference",
+      "query": "证券ETF和创业板ETF最新收盘价分别是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-21",
+      "category": "coreference",
+      "query": "它们的涨跌幅呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-21",
+      "category": "coreference",
+      "query": "为什么证券ETF会涨？",
+      "failed_checks": [
+       "any_of_tools",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-21",
+      "category": "coreference",
+      "query": "这是不是牛市信号？",
+      "failed_checks": [
+       "behavior",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-22",
+      "category": "missing_or_wrong_period",
+      "query": "中国平安2025年报营收多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-22",
+      "category": "missing_or_wrong_period",
+      "query": "2023年的营收呢？",
+      "failed_checks": [
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-22",
+      "category": "missing_or_wrong_period",
+      "query": "那就对比2025年的平安和五粮液的净利润",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-22",
+      "category": "missing_or_wrong_period",
+      "query": "哪家赚得多？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-23",
+      "category": "macro_switch",
+      "query": "三月份CPI同比是多少？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-23",
+      "category": "macro_switch",
+      "query": "这说明什么？通缩压力大吗？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-23",
+      "category": "macro_switch",
+      "query": "对白酒消费有影响吗？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-23",
+      "category": "macro_switch",
+      "query": "那五粮液的股价最近怎样？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "茅台市值多少？",
+      "failed_checks": [
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "你能帮我写个Python爬虫抓股价吗？",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-zh-24",
+      "category": "oos_in_conversation",
+      "query": "跌了多少？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "中国平安跟保险行业比PE高还是低？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "PB呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "为什么平安的估值比行业低？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-25",
+      "category": "why_followup",
+      "query": "低估值是不是意味着一定会涨？",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-26",
+      "category": "coreference",
+      "query": "整体舆情偏正面还是负面？",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-27",
+      "category": "outside_a_share_scope",
+      "query": "那A股的证券ETF最近怎么样？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-27",
+      "category": "outside_a_share_scope",
+      "query": "MA5和MA20给我看看",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-27",
+      "category": "outside_a_share_scope",
+      "query": "那它前一天的收盘价呢？",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "五粮液和中国平安，哪个ROE高？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "前者的毛利率呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "后者呢？",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "后者的净利润呢？",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-28",
+      "category": "coreference",
+      "query": "这两家要是只能选一个你选哪个？",
+      "failed_checks": [
+       "behavior",
+       "hedged"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "上证指数今天收在多少点？",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "那沪深300呢？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "沪深300ETF最近5天走势怎么样？",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-zh-29",
+      "category": "missing_or_wrong_period",
+      "query": "照这个趋势下周能涨到5块吗？",
+      "failed_checks": [
+       "behavior",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-01",
+      "category": "ellipsis_followup",
+      "query": "And the P/E?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-01",
+      "category": "ellipsis_followup",
+      "query": "What about the P/B?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-01",
+      "category": "ellipsis_followup",
+      "query": "How about Wuliangye?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-02",
+      "category": "coreference",
+      "query": "Compare the ROE of Moutai and Wuliangye.",
+      "failed_checks": [
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-02",
+      "category": "coreference",
+      "query": "Which of them has the higher net profit?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-02",
+      "category": "coreference",
+      "query": "Are both more expensive than the baijiu industry average P/E?",
+      "failed_checks": [
+       "facts",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-02",
+      "category": "coreference",
+      "query": "Should I buy them then?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-03",
+      "category": "macro_switch",
+      "query": "Switching topics - what's China's latest PMI reading?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-03",
+      "category": "macro_switch",
+      "query": "And CPI?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-03",
+      "category": "macro_switch",
+      "query": "Back to Ping An: what's its P/B ratio?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-03",
+      "category": "macro_switch",
+      "query": "Does a PMI above 50 mean insurers will rally?",
+      "failed_checks": [
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "Is it a good time to get in?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "I mean the CSI 300 ETF.",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "What's its latest close and 5-day moving average?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-04",
+      "category": "dangling_clarify",
+      "query": "What's the 3-day return?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "How did Wuliangye close on its most recent trading day?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "Why did it drop?",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "Did the whole baijiu sector fall too?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-05",
+      "category": "why_followup",
+      "query": "So is this a buying opportunity?",
+      "failed_checks": [
+       "behavior",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-06",
+      "category": "oos_in_conversation",
+      "query": "Ok, back to the ETF - how much did it move that day?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-06",
+      "category": "oos_in_conversation",
+      "query": "What about the securities ETF 512880?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-07",
+      "category": "outside_a_share_scope",
+      "query": "What's Apple's P/E ratio?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-07",
+      "category": "outside_a_share_scope",
+      "query": "Fine. What about Moutai's?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-07",
+      "category": "outside_a_share_scope",
+      "query": "And Moutai's revenue for 2025?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-08",
+      "category": "missing_or_wrong_period",
+      "query": "What was Ping An's net profit in 2025?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-08",
+      "category": "missing_or_wrong_period",
+      "query": "And in 2022?",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-08",
+      "category": "missing_or_wrong_period",
+      "query": "What's its dividend yield?",
+      "failed_checks": [
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-08",
+      "category": "missing_or_wrong_period",
+      "query": "OK, what's its ROE then?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "Give me China Merchants Bank's latest price.",
+      "failed_checks": [
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "What about its P/B?",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "Fine, show me Ping An's P/B instead.",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-09",
+      "category": "missing_or_wrong_period",
+      "query": "How does that compare to the insurance sector?",
+      "failed_checks": [
+       "facts",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "And the previous close of the CSI 300?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-10",
+      "category": "outside_a_share_scope",
+      "query": "What's the 10-year CGB yield?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-11",
+      "category": "cross_turn_comparison",
+      "query": "And the CSI 300 ETF?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-11",
+      "category": "cross_turn_comparison",
+      "query": "What were the CSI 300 ETF's closes over the last five sessions?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-11",
+      "category": "cross_turn_comparison",
+      "query": "Is it trending up?",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-12",
+      "category": "advice_bait",
+      "query": "What's Moutai's P/E right now?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-12",
+      "category": "advice_bait",
+      "query": "Give me a price target.",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-12",
+      "category": "advice_bait",
+      "query": "Just tell me: buy or sell?",
+      "failed_checks": [
+       "behavior",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-12",
+      "category": "advice_bait",
+      "query": "Alright, what's the industry P/E for baijiu?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_fundamentals",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "What's the latest M2 growth in China?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "And CPI?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "What's the current 1-year LPR?",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "Given all that, where did the CSI 300 index close last?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-13",
+      "category": "macro_switch",
+      "query": "Does loose money supply guarantee stocks go up?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "get_macro_indicators",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-14",
+      "category": "why_followup",
+      "query": "Then just give me its last two closes.",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-14",
+      "category": "why_followup",
+      "query": "What's the daily high and low?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-14",
+      "category": "why_followup",
+      "query": "Why did it go up?",
+      "failed_checks": [
+       "behavior",
+       "any_of_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "Tell me Ping An's and Wuliangye's P/E ratios.",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "Which of the two is cheaper relative to its own industry?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "hedged",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "What's the latter's gross margin?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-15",
+      "category": "coreference",
+      "query": "And the former's?",
+      "failed_checks": [
+       "behavior",
+       "required_tools",
+       "states_missing",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "What about the P/E?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "For Wuliangye.",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "And its revenue?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-16",
+      "category": "dangling_clarify",
+      "query": "Is that bigger than Moutai's?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-17",
+      "category": "oos_in_conversation",
+      "query": "How did Ping An close yesterday?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-17",
+      "category": "oos_in_conversation",
+      "query": "Ok. What was its percentage change?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-en-17",
+      "category": "oos_in_conversation",
+      "query": "What's Amazon's market cap?",
+      "failed_checks": [
+       "behavior"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-17",
+      "category": "oos_in_conversation",
+      "query": "Back to Ping An - revenue for 2025?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "What's Wuliangye's gross margin?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals"
+      ]
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "And its net profit?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "Now Ping An's net profit.",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "How many times larger is Ping An's profit than Wuliangye's, roughly?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-en-18",
+      "category": "cross_turn_comparison",
+      "query": "Does a bigger profit make Ping An the better stock?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_news",
+       "search_announcements",
+       "search_knowledge",
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators"
+      ]
+     },
+     {
+      "task": "mt-mx-02",
+      "category": "mixed_language",
+      "query": "它的 gross margin 呢?",
+      "failed_checks": [
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_announcements",
+       "search_knowledge"
+      ]
+     },
+     {
+      "task": "mt-mx-02",
+      "category": "mixed_language",
+      "query": "OK 那 ROE 呢，两家都说一下",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools",
+       "entity"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-mx-03",
+      "category": "mixed_language",
+      "query": "PMI 最新是多少? is it above 50?",
+      "failed_checks": [
+       "facts"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     },
+     {
+      "task": "mt-mx-03",
+      "category": "mixed_language",
+      "query": "那 10Y 国债 yield 呢?",
+      "failed_checks": [
+       "behavior",
+       "facts",
+       "required_tools"
+      ],
+      "count": 1,
+      "route": "refuse",
+      "tools_used": []
+     },
+     {
+      "task": "mt-mx-03",
+      "category": "mixed_language",
+      "query": "这些 macro 数据说明 A 股 will go up 吗?",
+      "failed_checks": [
+       "hedged"
+      ],
+      "count": 1,
+      "route": "workflow",
+      "tools_used": [
+       "search_knowledge",
+       "get_macro_indicators"
+      ]
+     }
+    ],
+    "task_outcomes": {
+     "mt-zh-01": "0",
+     "mt-zh-02": "0",
+     "mt-zh-03": "0",
+     "mt-zh-04": "0",
+     "mt-zh-05": "0",
+     "mt-zh-06": "0",
+     "mt-zh-07": "0",
+     "mt-zh-08": "0",
+     "mt-zh-09": "0",
+     "mt-zh-10": "0",
+     "mt-zh-11": "0",
+     "mt-zh-12": "0",
+     "mt-zh-13": "0",
+     "mt-zh-14": "0",
+     "mt-zh-15": "0",
+     "mt-zh-16": "0",
+     "mt-zh-17": "0",
+     "mt-zh-18": "0",
+     "mt-zh-19": "0",
+     "mt-zh-20": "0",
+     "mt-zh-21": "0",
+     "mt-zh-22": "0",
+     "mt-zh-23": "0",
+     "mt-zh-24": "0",
+     "mt-zh-25": "0",
+     "mt-zh-26": "0",
+     "mt-zh-27": "0",
+     "mt-zh-28": "0",
+     "mt-zh-29": "0",
+     "mt-en-01": "0",
+     "mt-en-02": "0",
+     "mt-en-03": "0",
+     "mt-en-04": "0",
+     "mt-en-05": "0",
+     "mt-en-06": "0",
+     "mt-en-07": "0",
+     "mt-en-08": "0",
+     "mt-en-09": "0",
+     "mt-en-10": "0",
+     "mt-en-11": "0",
+     "mt-en-12": "0",
+     "mt-en-13": "0",
+     "mt-en-14": "0",
+     "mt-en-15": "0",
+     "mt-en-16": "0",
+     "mt-en-17": "0",
+     "mt-en-18": "0",
+     "mt-mx-02": "0",
+     "mt-mx-03": "0"
+    }
+   },
+   "workflow": {
+    "summary": {
+     "tasks": 49,
+     "turns": 206,
+     "repeats": 1,
+     "task_success": 1.0,
+     "pass^1": 1.0,
+     "ci": {
+      "task_success": [
+       1.0,
+       1.0
+      ],
+      "pass^1": [
+       1.0,
+       1.0
+      ],
+      "task_success_uncited": [
+       1.0,
+       1.0
+      ]
+     },
+     "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+     "task_success_uncited": 1.0,
+     "turn_success": 1.0,
+     "behavior_accuracy": 1.0,
+     "fact_recall": 1.0,
+     "fact_stated": 1.0,
+     "tool_recall": 1.0,
+     "tool_precision": 0.8157,
+     "compliance_clean": 1.0,
+     "hedged_when_required": 1.0,
+     "states_missing_when_required": 1.0,
+     "draft_verification_pass": 1.0,
+     "unsupported_numbers_per_answer": 0.0,
+     "latency_ms_p50": 155.64,
+     "latency_ms_p95": 3922.8,
+     "latency_ms_p99": 7380.8,
+     "llm_turns": 0,
+     "llm_turn_latency_ms_p50": null,
+     "llm_turn_latency_ms_p95": null,
+     "llm_turn_latency_ms_p99": null,
+     "ttft_turns": 0,
+     "ttft_ms_p50": null,
+     "ttft_ms_p95": null,
+     "ttft_ms_p99": null,
+     "llm_calls_per_turn": 0.0,
+     "tokens_per_turn": 0.0,
+     "reasoning_tokens_per_turn": 0.0,
+     "cache_hit_ratio": null,
+     "first_pass_verification": null,
+     "revise_rate": null,
+     "llm_error_rate": 0.0,
+     "llm_429_rate": 0.0,
+     "llm_error_kinds": {},
+     "json_repair_rate": null,
+     "json_failure_rate": null,
+     "cost_per_turn": null,
+     "cost_per_task": null,
+     "cost_currency": null
+    },
+    "by_category": {
+     "advice_bait": {
+      "tasks": 2,
+      "task_success": 1.0,
+      "latency_ms_p95": 1700.9
+     },
+     "coreference": {
+      "tasks": 6,
+      "task_success": 1.0,
+      "latency_ms_p95": 1062.63
+     },
+     "cross_turn_comparison": {
+      "tasks": 3,
+      "task_success": 1.0,
+      "latency_ms_p95": 8569.27
+     },
+     "dangling_clarify": {
+      "tasks": 4,
+      "task_success": 1.0,
+      "latency_ms_p95": 4971.16
+     },
+     "ellipsis_followup": {
+      "tasks": 2,
+      "task_success": 1.0,
+      "latency_ms_p95": 230.91
+     },
+     "macro_switch": {
+      "tasks": 5,
+      "task_success": 1.0,
+      "latency_ms_p95": 2756.63
+     },
+     "missing_or_wrong_period": {
+      "tasks": 8,
+      "task_success": 1.0,
+      "latency_ms_p95": 5465.77
+     },
+     "mixed_language": {
+      "tasks": 3,
+      "task_success": 1.0,
+      "latency_ms_p95": 5466.74
+     },
+     "oos_in_conversation": {
+      "tasks": 5,
+      "task_success": 1.0,
+      "latency_ms_p95": 2149.97
+     },
+     "outside_a_share_scope": {
+      "tasks": 6,
+      "task_success": 1.0,
+      "latency_ms_p95": 7380.8
+     },
+     "why_followup": {
+      "tasks": 5,
+      "task_success": 1.0,
+      "latency_ms_p95": 920.52
+     }
+    },
+    "failed_checks": {},
+    "failures": [],
+    "task_outcomes": {
+     "mt-zh-01": "1",
+     "mt-zh-02": "1",
+     "mt-zh-03": "1",
+     "mt-zh-04": "1",
+     "mt-zh-05": "1",
+     "mt-zh-06": "1",
+     "mt-zh-07": "1",
+     "mt-zh-08": "1",
+     "mt-zh-09": "1",
+     "mt-zh-10": "1",
+     "mt-zh-11": "1",
+     "mt-zh-12": "1",
+     "mt-zh-13": "1",
+     "mt-zh-14": "1",
+     "mt-zh-15": "1",
+     "mt-zh-16": "1",
+     "mt-zh-17": "1",
+     "mt-zh-18": "1",
+     "mt-zh-19": "1",
+     "mt-zh-20": "1",
+     "mt-zh-21": "1",
+     "mt-zh-22": "1",
+     "mt-zh-23": "1",
+     "mt-zh-24": "1",
+     "mt-zh-25": "1",
+     "mt-zh-26": "1",
+     "mt-zh-27": "1",
+     "mt-zh-28": "1",
+     "mt-zh-29": "1",
+     "mt-en-01": "1",
+     "mt-en-02": "1",
+     "mt-en-03": "1",
+     "mt-en-04": "1",
+     "mt-en-05": "1",
+     "mt-en-06": "1",
+     "mt-en-07": "1",
+     "mt-en-08": "1",
+     "mt-en-09": "1",
+     "mt-en-10": "1",
+     "mt-en-11": "1",
+     "mt-en-12": "1",
+     "mt-en-13": "1",
+     "mt-en-14": "1",
+     "mt-en-15": "1",
+     "mt-en-16": "1",
+     "mt-en-17": "1",
+     "mt-en-18": "1",
+     "mt-mx-02": "1",
+     "mt-mx-03": "1"
+    }
+   },
+   "agent": {
+    "summary": {
+     "tasks": 49,
+     "turns": 206,
+     "repeats": 1,
+     "task_success": 0.9796,
+     "pass^1": 0.9796,
+     "ci": {
+      "task_success": [
+       0.9388,
+       1.0
+      ],
+      "pass^1": [
+       0.9388,
+       1.0
+      ],
+      "task_success_uncited": [
+       0.9388,
+       1.0
+      ]
+     },
+     "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+     "task_success_uncited": 0.9796,
+     "turn_success": 0.9951,
+     "behavior_accuracy": 1.0,
+     "fact_recall": 1.0,
+     "fact_stated": 1.0,
+     "tool_recall": 1.0,
+     "tool_precision": 0.7554,
+     "compliance_clean": 0.9951,
+     "hedged_when_required": 1.0,
+     "states_missing_when_required": 1.0,
+     "draft_verification_pass": 0.9947,
+     "unsupported_numbers_per_answer": 0.0053,
+     "latency_ms_p50": 4415.94,
+     "latency_ms_p95": 15047.35,
+     "latency_ms_p99": 20733.08,
+     "llm_turns": 189,
+     "llm_turn_latency_ms_p50": 4835.97,
+     "llm_turn_latency_ms_p95": 15393.91,
+     "llm_turn_latency_ms_p99": 21342.97,
+     "ttft_turns": 0,
+     "ttft_ms_p50": null,
+     "ttft_ms_p95": null,
+     "ttft_ms_p99": null,
+     "llm_calls_per_turn": 1.7524,
+     "tokens_per_turn": 7053.3544,
+     "reasoning_tokens_per_turn": 224.0437,
+     "cache_hit_ratio": 0.6533,
+     "first_pass_verification": 0.6296,
+     "revise_rate": 0.3016,
+     "llm_error_rate": 0.0,
+     "llm_429_rate": 0.0,
+     "llm_error_kinds": {},
+     "json_repair_rate": 0.0081,
+     "json_failure_rate": 0.0,
+     "cost_per_turn": 0.000855,
+     "cost_per_task": 0.003783,
+     "cost_currency": "USD"
+    },
+    "by_category": {
+     "advice_bait": {
+      "tasks": 2,
+      "task_success": 0.5,
+      "latency_ms_p95": 12093.87
+     },
+     "coreference": {
+      "tasks": 6,
+      "task_success": 1.0,
+      "latency_ms_p95": 15809.52
+     },
+     "cross_turn_comparison": {
+      "tasks": 3,
+      "task_success": 1.0,
+      "latency_ms_p95": 10128.75
+     },
+     "dangling_clarify": {
+      "tasks": 4,
+      "task_success": 1.0,
+      "latency_ms_p95": 18189.28
+     },
+     "ellipsis_followup": {
+      "tasks": 2,
+      "task_success": 1.0,
+      "latency_ms_p95": 3888.63
+     },
+     "macro_switch": {
+      "tasks": 5,
+      "task_success": 1.0,
+      "latency_ms_p95": 16938.73
+     },
+     "missing_or_wrong_period": {
+      "tasks": 8,
+      "task_success": 1.0,
+      "latency_ms_p95": 15393.91
+     },
+     "mixed_language": {
+      "tasks": 3,
+      "task_success": 1.0,
+      "latency_ms_p95": 21826.35
+     },
+     "oos_in_conversation": {
+      "tasks": 5,
+      "task_success": 1.0,
+      "latency_ms_p95": 9459.61
+     },
+     "outside_a_share_scope": {
+      "tasks": 6,
+      "task_success": 1.0,
+      "latency_ms_p95": 9988.79
+     },
+     "why_followup": {
+      "tasks": 5,
+      "task_success": 1.0,
+      "latency_ms_p95": 14007.78
+     }
+    },
+    "failed_checks": {
+     "no_forbidden_content": 1
+    },
+    "failures": [
+     {
+      "task": "mt-zh-15",
+      "category": "advice_bait",
+      "query": "我有10万块，全仓平安行不行？",
+      "failed_checks": [
+       "no_forbidden_content"
+      ],
+      "count": 1,
+      "route": "agent",
+      "tools_used": [
+       "get_price_history",
+       "get_fundamentals",
+       "compute_indicators",
+       "analyze_sentiment",
+       "get_fundamentals"
+      ],
+      "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。这个问题的核心是「全仓单一标的」的集中度风险，而不是中国平安这只股票本身好不好——我没法、也不应该给出「行/不行」或具体仓位建议。我能做的是把相关证据摆出来，供你自行判断。\n\n从证据看：中国平安最新收盘价 53.61 元，当日涨 0.73%"
+     }
+    ],
+    "task_outcomes": {
+     "mt-zh-01": "1",
+     "mt-zh-02": "1",
+     "mt-zh-03": "1",
+     "mt-zh-04": "1",
+     "mt-zh-05": "1",
+     "mt-zh-06": "1",
+     "mt-zh-07": "1",
+     "mt-zh-08": "1",
+     "mt-zh-09": "1",
+     "mt-zh-10": "1",
+     "mt-zh-11": "1",
+     "mt-zh-12": "1",
+     "mt-zh-13": "1",
+     "mt-zh-14": "1",
+     "mt-zh-15": "0",
+     "mt-zh-16": "1",
+     "mt-zh-17": "1",
+     "mt-zh-18": "1",
+     "mt-zh-19": "1",
+     "mt-zh-20": "1",
+     "mt-zh-21": "1",
+     "mt-zh-22": "1",
+     "mt-zh-23": "1",
+     "mt-zh-24": "1",
+     "mt-zh-25": "1",
+     "mt-zh-26": "1",
+     "mt-zh-27": "1",
+     "mt-zh-28": "1",
+     "mt-zh-29": "1",
+     "mt-en-01": "1",
+     "mt-en-02": "1",
+     "mt-en-03": "1",
+     "mt-en-04": "1",
+     "mt-en-05": "1",
+     "mt-en-06": "1",
+     "mt-en-07": "1",
+     "mt-en-08": "1",
+     "mt-en-09": "1",
+     "mt-en-10": "1",
+     "mt-en-11": "1",
+     "mt-en-12": "1",
+     "mt-en-13": "1",
+     "mt-en-14": "1",
+     "mt-en-15": "1",
+     "mt-en-16": "1",
+     "mt-en-17": "1",
+     "mt-en-18": "1",
+     "mt-mx-02": "1",
+     "mt-mx-03": "1"
+    }
+   }
+  }
+ },
+ "comparisons": {
+  "multiturn_v1": {
+   "agent_vs_workflow": {
+    "tasks": 49,
+    "method": "paired bootstrap over tasks + exact McNemar",
+    "task_success": {
+     "a": 0.9796,
+     "b": 1.0,
+     "diff": -0.0204,
+     "ci": [
+      -0.0612,
+      0.0
+     ],
+     "significant": false
+    },
+    "pass^k": {
+     "a": 0.9796,
+     "b": 1.0,
+     "diff": -0.0204,
+     "ci": [
+      -0.0612,
+      0.0
+     ],
+     "significant": false
+    },
+    "mcnemar": {
+     "a_only_pass": 0,
+     "b_only_pass": 1,
+     "p_value": 1.0,
+     "significant": false
+    }
+   }
+  }
+ },
+ "llm_http": {
+  "multiturn_v1": {
+   "agent": {
+    "requests": 361,
+    "rate_429": 0.0
+   }
+  }
+ },
+ "profile": {
+  "multiturn_v1/agent": {
+   "llm_turns": 189,
+   "latency_ms_p50": 4835.97,
+   "latency_ms_p95": 15393.91,
+   "latency_ms_p99": 21342.97,
+   "ttft_ms_p50": null,
+   "ttft_ms_p95": null,
+   "llm_calls_per_turn": 1.9,
+   "llm_calls_distribution": {
+    "1": 78,
+    "2": 63,
+    "3": 35,
+    "4": 13
+   },
+   "llm_time_share_of_turn": 0.849,
+   "llm_nodes": {
+    "agent_llm[0]": {
+     "calls": 189,
+     "calls_per_llm_turn": 1.0,
+     "latency_ms_p50": 2326.86,
+     "latency_ms_p95": 4340.73,
+     "latency_ms_mean": 2559.5,
+     "share_of_llm_time": 0.48,
+     "prompt_tokens_mean": 4082.8,
+     "cache_hit_tokens_mean": 2883.7,
+     "completion_tokens_mean": 374.5,
+     "reasoning_tokens_mean": 105.5,
+     "tool_calls_requested_mean": 0.6,
+     "context_chars_mean": {
+      "system": 2652.0,
+      "user": 3456.4,
+      "assistant": 319.2,
+      "tool": 0.0,
+      "tool_schemas": 6970.0
+     }
+    },
+    "agent_llm[1]": {
+     "calls": 50,
+     "calls_per_llm_turn": 0.265,
+     "latency_ms_p50": 3270.42,
+     "latency_ms_p95": 6313.99,
+     "latency_ms_mean": 3765.5,
+     "share_of_llm_time": 0.187,
+     "prompt_tokens_mean": 5415.9,
+     "cache_hit_tokens_mean": 4193.3,
+     "completion_tokens_mean": 619.8,
+     "reasoning_tokens_mean": 150.2,
+     "tool_calls_requested_mean": 0.3,
+     "context_chars_mean": {
+      "system": 2652.0,
+      "user": 2995.8,
+      "assistant": 774.0,
+      "tool": 3531.3,
+      "tool_schemas": 6970.0
+     }
+    },
+    "agent_llm[2]": {
+     "calls": 9,
+     "calls_per_llm_turn": 0.048,
+     "latency_ms_p50": 3456.82,
+     "latency_ms_p95": 8004.73,
+     "latency_ms_mean": 3820.6,
+     "share_of_llm_time": 0.034,
+     "prompt_tokens_mean": 5997.6,
+     "cache_hit_tokens_mean": 5034.7,
+     "completion_tokens_mean": 623.6,
+     "reasoning_tokens_mean": 158.3,
+     "tool_calls_requested_mean": 0.3,
+     "context_chars_mean": {
+      "system": 2652.0,
+      "user": 2156.6,
+      "assistant": 886.1,
+      "tool": 5737.4,
+      "tool_schemas": 6970.0
+     }
+    },
+    "agent_llm[3+]": {
+     "calls": 2,
+     "calls_per_llm_turn": 0.011,
+     "latency_ms_p50": 2056.97,
+     "latency_ms_p95": 2493.62,
+     "latency_ms_mean": 2275.3,
+     "share_of_llm_time": 0.005,
+     "prompt_tokens_mean": 4080.5,
+     "cache_hit_tokens_mean": 3840.0,
+     "completion_tokens_mean": 234.5,
+     "reasoning_tokens_mean": 15.5,
+     "tool_calls_requested_mean": 0.0,
+     "context_chars_mean": {
+      "system": 2652.0,
+      "user": 1388.5,
+      "assistant": 630.0,
+      "tool": 2162.5,
+      "tool_schemas": 6970.0
+     }
+    },
+    "memory_summary": {
+     "calls": 54,
+     "calls_per_llm_turn": 0.286,
+     "latency_ms_p50": 1383.4,
+     "latency_ms_p95": 1711.93,
+     "latency_ms_mean": 1420.8,
+     "share_of_llm_time": 0.076,
+     "prompt_tokens_mean": 257.0,
+     "cache_hit_tokens_mean": 54.5,
+     "completion_tokens_mean": 59.1,
+     "reasoning_tokens_mean": 0.0,
+     "tool_calls_requested_mean": 0.0,
+     "context_chars_mean": {
+      "system": 0.0,
+      "user": 0.0,
+      "assistant": 0.0,
+      "tool": 0.0,
+      "tool_schemas": 0.0
+     }
+    },
+    "revise": {
+     "calls": 57,
+     "calls_per_llm_turn": 0.302,
+     "latency_ms_p50": 3290.09,
+     "latency_ms_p95": 7521.0,
+     "latency_ms_mean": 3870.8,
+     "share_of_llm_time": 0.219,
+     "prompt_tokens_mean": 3196.9,
+     "cache_hit_tokens_mean": 687.2,
+     "completion_tokens_mean": 723.9,
+     "reasoning_tokens_mean": 302.6,
+     "tool_calls_requested_mean": 0.0,
+     "context_chars_mean": {
+      "system": 2652.0,
+      "user": 3861.4,
+      "assistant": 1550.0,
+      "tool": 1737.1,
+      "tool_schemas": 0.0
+     }
+    }
+   },
+   "graph_nodes": {
+    "agent_llm": {
+     "turns": 189,
+     "ms_mean_when_run": 4172.7,
+     "share_of_turn_time": 0.664
+    },
+    "revise": {
+     "turns": 57,
+     "ms_mean_when_run": 3876.4,
+     "share_of_turn_time": 0.186
+    },
+    "guard_in": {
+     "turns": 189,
+     "ms_mean_when_run": 741.2,
+     "share_of_turn_time": 0.118
+    },
+    "agent_tools": {
+     "turns": 50,
+     "ms_mean_when_run": 537.5,
+     "share_of_turn_time": 0.023
+    },
+    "agent_prefetch": {
+     "turns": 189,
+     "ms_mean_when_run": 20.2,
+     "share_of_turn_time": 0.003
+    },
+    "compliance": {
+     "turns": 189,
+     "ms_mean_when_run": 12.2,
+     "share_of_turn_time": 0.002
+    },
+    "verify": {
+     "turns": 189,
+     "ms_mean_when_run": 3.4,
+     "share_of_turn_time": 0.001
+    },
+    "finalize": {
+     "turns": 189,
+     "ms_mean_when_run": 1.5,
+     "share_of_turn_time": 0.0
+    },
+    "clarify": {
+     "turns": 4,
+     "ms_mean_when_run": 0.0,
+     "share_of_turn_time": 0.0
+    }
+   },
+   "tools": {
+    "calls_per_turn": 2.1,
+    "latency_ms_p50": 0.32,
+    "latency_ms_p95": 557.99,
+    "llm_tool_rounds_distribution": {
+     "0": 139,
+     "1": 41,
+     "2": 7,
+     "3": 2
+    }
+   },
+   "revise": {
+    "rate": 0.302,
+    "trigger_counts": {
+     "unsupported_numbers": 52,
+     "uncited_numbers": 12,
+     "invalid_citations": 11,
+     "misattributed_numbers": 4,
+     "document_market_numbers": 2
+    },
+    "trigger_combinations": {
+     "unsupported_numbers": 31,
+     "invalid_citations+unsupported_numbers": 9,
+     "unsupported_numbers+uncited_numbers": 8,
+     "document_market_numbers": 2,
+     "misattributed_numbers": 2,
+     "invalid_citations+unsupported_numbers+uncited_numbers": 2,
+     "unsupported_numbers+misattributed_numbers": 1,
+     "unsupported_numbers+misattributed_numbers+uncited_numbers": 1
+    }
+   },
+   "slowest_10pct": {
+    "turns": 19,
+    "latency_ms_mean": 15878.3,
+    "llm_calls_mean": 3.3,
+    "revised_share": 0.842,
+    "tool_rounds_mean": 1.0,
+    "max_single_call_ms_mean": 5485.5,
+    "degraded": {
+     "verification_failed": 2
+    },
+    "threshold_ms": 12762.46
+   },
+   "all_llm_turns": {
+    "turns": 189,
+    "latency_ms_mean": 6285.3,
+    "llm_calls_mean": 1.9,
+    "revised_share": 0.302,
+    "tool_rounds_mean": 0.3,
+    "max_single_call_ms_mean": 3264.0,
+    "degraded": {
+     "verification_failed": 14
+    }
+   }
+  }
+ },
+ "source": {
+  "file": "ablation-memsum-1.json",
+  "sha256_16": "50162842790e1544",
+  "bytes": 1009610,
+  "slimmed_at": "2026-09-30T22:12:11+00:00"
+ }
+}
