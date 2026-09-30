@@ -56,3 +56,6 @@ frontend/node_modules/
 frontend/.vite/
 frontend/coverage/
 frontend/*.tsbuildinfo
+
+# Head-to-head screenshots stay local (their sha256 is recorded in the result file)
+evaluation/human/head_to_head/screenshots/

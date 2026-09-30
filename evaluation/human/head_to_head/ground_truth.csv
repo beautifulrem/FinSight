@@ -1,0 +1,13 @@
+﻿question_id,entity,symbol,metric,period,value,unit,source,source_date,filled_by
+S01,贵州茅台,600519.SH,close,T,,,,,
+S02,宁德时代,300750.SZ,close,T,,,,,
+S03,招商银行,600036.SH,pe_ttm,T,,,,,
+S04,中国平安,601318.SH,pb,T,,,,,
+S05,比亚迪,002594.SZ,revenue,2026H1,,,,,
+S06,五粮液,000858.SZ,net_profit,2026H1,,,,,
+S07,长江电力,600900.SH,roe,2025,,,,,
+S08,美的集团,000333.SZ,close,T,,,,,
+S09,中信证券,600030.SH,pe_ttm,T,,,,,
+S10,沪深300,000300.SH,close,T,,,,,
+F01,招商银行,600036.SH,pb,T,,,,,
+F02,比亚迪,002594.SZ,close,T,,,,,
