@@ -67,7 +67,7 @@ Online runs use 3 repeats per task, and costs are as billed by the gateway. Each
 | Multi-turn v1 | 49 conversations / 206 turns | a separate author who did not read the routing code or any task file ([protocol](evaluation/agent_eval/tasks/README_multiturn_v1.md)) | first runs below; fixed afterwards, so after exposure |
 | Test v3 | 130 tasks / 155 turns | a separate author, same rules ([protocol](evaluation/agent_eval/tasks/README_test_v3.md)) | **untouched**: no fix has looked at it; first LLM run at `9536abf` |
 | Round-4 held-out slices | 67 claims, 24 conversations, 21 planted attacks | a separate author, before the round-4 fixes ([protocol](evaluation/heldout_r4/README.md)) | run once at `817a2d8`; claims and multi-turn fixed afterwards, so after exposure |
-| Round-5 held-out slice | 56 claims, 38 chat tasks / 41 turns | a separate author ([protocol](evaluation/heldout_r5/README.md)) | first run at `f01097a`; the chat part fixed in round 9, so after exposure; the claims not re-scored since |
+| Round-5 held-out slice | 56 claims, 38 chat tasks / 41 turns | a separate author ([protocol](evaluation/heldout_r5/README.md)) | first run at `f01097a`; both parts fixed in round 9 and re-scored after it (chat at `d78a556`, claims at `2be73d6`), so after exposure |
 | Router labels, independent v1 / v2 | 154 / 241 queries | separate authors labelling against a written policy ([v2 protocol](evaluation/agent_eval/tasks/README_router_labels_independent_v2.md)) | v1 exposed after its first run; v2 first run 0.801, rerun at HEAD after exposure |
 
 ### Final online run (commit `9536abf`)
