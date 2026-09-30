@@ -114,6 +114,10 @@ CLAIM_BENCH_RUNS = (
     "claim_bench-holdout-after-round8",
     "claim_bench-heldout_r4-first-run",
     "claim_bench-heldout_r4-after-exposure",
+    "claim_bench-holdout-after-round9",
+    "claim_bench-heldout_r4-after-round9",
+    "claim_bench-heldout_r5-first-run",
+    "claim_bench-heldout_r5-after-exposure",
 )
 # Round-4 held-out slices (evaluation/heldout_r4/, independent author): first run, then after exposure.
 HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_heldout-after-exposure")
@@ -157,6 +161,12 @@ FILE_STATUS = {
     "claim_bench-holdout": "**held-out claims, run once** (hashed file; later fixes are not re-scored here)",
     "claim_bench-holdout-after-round8": "held-out claims **after exposure** (round 8: the review's h038 class, "
     "industry averages, was fixed; not a fresh estimate)",
+    "claim_bench-holdout-after-round9": "held-out claims **after exposure**, re-run at the round-9 commit",
+    "claim_bench-heldout_r4-after-round9": "independent round-4 claim slice **after exposure**, re-run at the round-9 "
+    "commit",
+    "claim_bench-heldout_r5-first-run": "**first and only pre-fix run** of the independent round-5 claim slice",
+    "claim_bench-heldout_r5-after-exposure": "independent round-5 claim slice **after exposure** (round 9 fixed its "
+    "failure classes; not a fresh estimate)",
 }
 
 
