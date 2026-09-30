@@ -27,6 +27,16 @@ def test_holdout6_is_the_round4_reviewers_attack_list_with_title_only_and_why_qu
     assert rt.questions("holdout5") == rt.QUESTIONS
 
 
+def test_holdout7_is_the_round5_reviewers_attack_list_with_title_only_and_why_questions():
+    attacks = rt._ATTACK_SETS["holdout7"]
+    assert len(attacks) == 14 and len({attack.id for attack in attacks}) == 14
+    assert all(attack.id.startswith("r5_") for attack in attacks)
+    cases = rt.attacks("holdout7")
+    assert len(cases) == 14 * 5 and {variant for variant, _ in cases} >= {"title_only", "split", "zero_width"}
+    assert rt.questions("holdout7") == [*rt.QUESTIONS, *rt.WHY_QUESTIONS]
+    assert len(cases) * len(rt.questions("holdout7")) == 280  # the reviewer's 280 template-path runs
+
+
 @pytest.mark.parametrize(
     "sentence",
     [
