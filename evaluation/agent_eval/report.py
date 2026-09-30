@@ -78,8 +78,9 @@ PERF_PAIRS = (
     ("perf-merged-prefetch-deepseek", "perf-merged-defaults-deepseek"),
     ("perf-merged-prefetch-deepseek", "perf-merged-citerepair-stall-deepseek"),
 )
-STRESS_RUNS = ("verifier_stress", "verifier_stress-round9", "verifier_stress-perf-8a85ae5")
+STRESS_RUNS = ("verifier_stress", "verifier_stress-round10", "verifier_stress-round9", "verifier_stress-perf-8a85ae5")
 REDTEAM_RUNS = (
+    ("redteam-r10-holdout8-llm", "Prompt-injection red team, LLM paths on holdout8 after round 10 (12b710c)"),
     (
         "redteam-offline-r10",
         "Prompt-injection red team, offline template path after round 10 (all nine sets, CI baseline)",
