@@ -1,4 +1,4 @@
-import { ageInDays, formatCost, formatKpi, formatMs } from "./format";
+import { ageInDays, evidenceTitle, formatCost, formatKpi, formatMs } from "./format";
 
 describe("format helpers", () => {
   it("formats durations", () => {
@@ -39,5 +39,18 @@ describe("evidenceTitle", () => {
     expect(evidenceTitle("zh", "茅台2025年年报发布")).toBe("茅台2025年年报发布");
     const names = new Map([["贵州茅台", "Kweichow Moutai"]]);
     expect(evidenceTitle("en", "贵州茅台 (600519.SH) fundamentals", names)).toBe("Kweichow Moutai (600519.SH) fundamentals");
+  });
+});
+
+describe("evidenceTitle keeps symbols", () => {
+  it("translates the name but not the symbol in an English title", () => {
+    const names = new Map([
+      ["贵州茅台", "Kweichow Moutai"],
+      ["600519.SH", "Kweichow Moutai"],
+    ]);
+    expect(evidenceTitle("en", "贵州茅台 (600519.SH) daily market data", names)).toBe(
+      "Kweichow Moutai (600519.SH) daily market data",
+    );
+    expect(evidenceTitle("en", "白酒 industry snapshot")).toBe("Baijiu (liquor) industry snapshot");
   });
 });
