@@ -13,7 +13,7 @@ import {
   Sparkles,
   Square,
 } from "lucide-react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
 import type { Turn } from "@/hooks/useChat";
 import { useElapsed } from "@/hooks/useElapsed";
@@ -244,34 +244,30 @@ function StreamingAnswer({ draft }: { draft: string }) {
   );
 }
 
+/**
+ * "Edited after verification": the verified answer replaced the streamed draft. The notice stays for the life of the
+ * turn (it is a fact about this answer, not a toast). It used to hide itself after 6 s with an opacity exit, and an
+ * accessibility scan that ran during that 200 ms fade measured the half-transparent text (1.43:1 in dark mode), which
+ * is why tests/test_web_ui.py failed only when the suite was slow enough to reach the 6 s mark (round 9, E10). It
+ * scales in (never fades from transparent), so its colours are final from the first frame.
+ */
 function EditedNotice() {
   const { t } = useI18n();
-  const [visible, setVisible] = useState(true);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setVisible(false), 6000);
-    return () => window.clearTimeout(timer);
-  }, []);
+  const reduceMotion = useReducedMotion();
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.span
-          key="edited"
-          // Scale only: fading the text in from transparent fails colour contrast while it animates.
-          initial={{ scale: 0.96 }}
-          animate={{ scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="inline-flex"
-        >
-          <Tooltip content={t("answer.editedHint")}>
-            <Badge tone="gilt" tabIndex={0} className="answer-edited">
-              <FilePenLine />
-              {t("answer.edited")}
-            </Badge>
-          </Tooltip>
-        </motion.span>
-      )}
-    </AnimatePresence>
+    <motion.span
+      initial={reduceMotion ? false : { scale: 0.96 }}
+      animate={{ scale: 1 }}
+      transition={{ duration: 0.2 }}
+      className="inline-flex"
+    >
+      <Tooltip content={t("answer.editedHint")}>
+        <Badge tone="gilt" tabIndex={0} className="answer-edited">
+          <FilePenLine />
+          {t("answer.edited")}
+        </Badge>
+      </Tooltip>
+    </motion.span>
   );
 }
 

@@ -365,6 +365,17 @@ export function isCode(text: string): boolean {
 }
 
 /** The display label for a code. Unknown codes are prettified rather than shown raw. */
+/**
+ * The English UI shows the security names a code carries ("ellipsis:target->五粮液和贵州茅台") in English, from the
+ * names the server sent for the turn (`nlu_summary.entities[].name_en`); Chinese joiners become "and" / "," (round 9).
+ */
+export function localizeNames(lang: Lang, text: string, names?: ReadonlyMap<string, string>): string {
+  if (lang !== "en" || !names?.size || !/[\u4e00-\u9fff]/.test(text)) return text;
+  let out = text;
+  for (const [zh, en] of [...names].sort((a, b) => b[0].length - a[0].length)) out = out.split(zh).join(en);
+  return out.replace(/\s*和\s*/g, " and ").replace(/\s*、\s*/g, ", ");
+}
+
 export function humanizeCode(lang: Lang, code: string, kind?: CodeKind): string {
   const value = code.trim();
   switch (kind) {

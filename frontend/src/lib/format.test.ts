@@ -16,6 +16,9 @@ describe("format helpers", () => {
     expect(formatKpi("zh", 3_793_827_534, "money")).toBe("37.94 亿");
     expect(formatKpi("zh", 33, "percentLevel")).toBe("33%");
     expect(formatKpi("en", 0.8, "percentLevel")).toBe("0.8%");
+    // fund prices quote in 0.001 CNY (round 9, E13)
+    expect(formatKpi("zh", 1.021, "fundPrice")).toBe("1.021");
+    expect(formatKpi("zh", 1.021, "price")).toBe("1.02");
   });
 
   it("formats cost only when priced", () => {
