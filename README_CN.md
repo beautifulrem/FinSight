@@ -74,7 +74,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 | 多轮集 v1 | 49 段对话 / 206 轮 | 没读过路由代码和任何任务文件的独立作者（[编写说明](evaluation/agent_eval/tasks/README_multiturn_v1.md)） | 首次运行见下；之后做过修复，属于暴露后 |
 | 测试集 v3 | 130 个任务 / 155 轮 | 独立作者，规则同上（[编写说明](evaluation/agent_eval/tasks/README_test_v3.md)） | **未被触碰**：没有任何修复看过它；在 `9536abf` 上首次跑 LLM 路径 |
 | 第四轮保留切片 | 67 条声明、24 段对话、21 种投毒攻击 | 独立作者，在第四轮修复之前编写（[说明](evaluation/heldout_r4/README.md)） | 在 `817a2d8` 上只跑一次；之后修复了声明核查和多轮，属于暴露后 |
-| 第五轮保留切片 | 56 条声明、38 个对话任务 / 41 轮 | 独立作者（[说明](evaluation/heldout_r5/README.md)） | 在 `f01097a` 上首次运行；对话部分在第 9 轮修复，属于暴露后；声明部分之后没有重新打分 |
+| 第五轮保留切片 | 56 条声明、38 个对话任务 / 41 轮 | 独立作者（[说明](evaluation/heldout_r5/README.md)） | 在 `f01097a` 上首次运行；对话和声明两部分都在第 9 轮修复并重新打分（对话 `d78a556`，声明 `2be73d6`），属于暴露后 |
 | 独立路由标注 v1 / v2 | 154 / 241 条 | 独立作者按书面策略标注（[v2 说明](evaluation/agent_eval/tasks/README_router_labels_independent_v2.md)） | v1 首次运行后已暴露；v2 首次运行 0.801，在 HEAD 上重跑属于暴露后 |
 
 ### 最终在线运行（commit `9536abf`）
