@@ -52,5 +52,7 @@ describe("evidenceTitle keeps symbols", () => {
       "Kweichow Moutai (600519.SH) daily market data",
     );
     expect(evidenceTitle("en", "白酒 industry snapshot")).toBe("Baijiu (liquor) industry snapshot");
+    const server = new Map([["白酒", "baijiu (liquor)"]]); // the server's name_en is lower case
+    expect(evidenceTitle("en", "白酒 industry snapshot", server)).toBe("Baijiu (liquor) industry snapshot");
   });
 });

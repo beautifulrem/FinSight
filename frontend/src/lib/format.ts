@@ -134,7 +134,7 @@ export function evidenceTitle(
     // Names only: the map is also keyed by symbol, and "(600519.SH)" must stay a symbol.
     for (const [name, english] of [...(englishNames ?? []), ...INDUSTRIES_EN])
       if (name && !SYMBOL.test(name) && out.includes(name)) out = out.split(name).join(english);
-    return out;
+    return out.charAt(0).toUpperCase() + out.slice(1); // "baijiu (liquor) industry snapshot" starts a label
   }
   for (const [pattern, zh] of TITLE_KINDS) if (pattern.test(title)) return title.replace(pattern, zh);
   return title;
