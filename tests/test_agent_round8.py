@@ -127,3 +127,74 @@ def test_valuation_facts_are_not_fair_value_claims(sentence):
     from query_intelligence.agent.compliance import contains_trading_instruction
 
     assert not contains_trading_instruction(sentence)
+
+
+# --- D8: the "no single cause" caveat only on causal questions ------------------------------------------------------
+@pytest.mark.parametrize(
+    ("query", "causal"),
+    [
+        ("黄金ETF近来表现如何", False),
+        ("有白酒相关的ETF吗", False),
+        ("市场上有哪些黄金ETF", False),
+        ("五粮液这阵子行情咋样", False),
+        ("沪深300ETF最近走势怎么样", False),
+        ("How has the gold ETF performed lately?", False),
+        ("黄金ETF最近为啥涨这么多", True),
+        ("五粮液怎么突然跌了", True),
+        ("茅台下跌是什么原因", True),
+        ("降准对银行股有什么影响", True),
+        ("M2增速回落说明了什么", True),
+        ("Why did Wuliangye drop?", True),
+        ("What drove the rally in baijiu stocks?", True),
+        ("How does a rate cut affect insurers?", True),
+    ],
+)
+def test_causal_questions_are_recognised_lexically(query, causal):
+    from query_intelligence.agent.router import is_causal_question
+
+    assert is_causal_question(query) is causal
+
+
+def test_a_why_style_without_causal_wording_becomes_a_fact_question():
+    from query_intelligence.agent.router import correct_question_style
+
+    nlu = {"question_style": "why", "entities": []}
+    assert correct_question_style(nlu, "市场上有哪些黄金ETF") == (
+        {"question_style": "fact", "entities": []},
+        ["override:why_style_without_causal_cue"],
+    )
+    assert correct_question_style(nlu, "黄金ETF最近为啥涨这么多") == (nlu, [])
+    assert correct_question_style({"question_style": "fact"}, "有哪些ETF")[1] == []
+
+
+@pytest.mark.parametrize("query", ["沪深300ETF最近走势怎么样", "五粮液这阵子行情咋样"])
+def test_a_plain_performance_question_gets_no_causal_caveat(agent, query):
+    result = agent.chat(query, session_id=f"r8-no-cause-{query}")
+    answer = str(result["answer"])
+    assert "override:why_style_without_causal_cue" in result["route_reasons"]
+    assert "单一原因" not in answer and "因果" not in answer
+    assert not any("因果解释" in item for item in result["limitations"])
+    assert result["evidence_used"]
+
+
+def test_a_why_question_keeps_the_caveat(agent):
+    result = agent.chat("五粮液最近为啥跌了", session_id="r8-cause")
+    assert "override:why_style_without_causal_cue" not in result["route_reasons"]
+    assert "不能据此确定" in str(result["answer"])
+
+
+def test_the_template_adds_the_caveat_only_for_why_style():
+    from query_intelligence.agent.composer import compose_template
+
+    log = [
+        {
+            "tool": "get_price_history",
+            "ok": True,
+            "data": {"symbol": "510300.SH", "name": "沪深300ETF", "close": 4.811, "as_of": "2026-04-22",
+                     "evidence_id": "price_510300.SH", "product_type": "etf"},
+            "evidence_ids": ["price_510300.SH"],
+        }
+    ]  # fmt: skip
+    assert "单一原因" not in compose_template(log, zh=True, question_style="fact", query="走势怎么样")["answer"]
+    assert "单一原因" in compose_template(log, zh=True, question_style="why", query="为什么跌")["answer"]
+

@@ -178,6 +178,39 @@ def is_dangling_why(query: str) -> bool:
     return bool(_DANGLING_WHY_ZH.match(text) or _DANGLING_WHY_EN.match(text))
 
 
+# A question about a cause or an effect: "为什么跌", "什么原因", "怎么跌了", "受什么影响", "是什么情况", "why",
+# "what drove", "how come".
+# "表现怎么样" and "有没有白酒ETF" ask for a fact or a list: the style classifier sometimes labels them ``why``,
+# and the answer then carried a "no single cause" caveat nobody asked for.
+_CAUSAL_QUESTION = re.compile(
+    r"为什么|为何|为啥|凭什么|何故|缘何|原因|缘由|归因|导致|引起|造成|驱动|推动|拖累|背后|因为什么|由于什么|"
+    r"怎么(?:会|就|又|还|突然|一下子|这么|那么|回事|了)|咋(?:会|就|又|回事|了|这么|[涨跌])|怎么(?:[涨跌大暴急猛狂]|上涨|下跌)|"
+    r"(?:什么|啥)情况|因素|影响|冲击|意味|预示|传导|关系|关联|利好|利空|"
+    r"(?:说明|反映|代表)(?:了)?(?:什么|啥)|"
+    r"\bwhy\b|\bhow come\b|\breasons?\b|\bcaus(?:e|ed|es|ing)\b|\bdr(?:ove|ives|iving|iven)\b|\bdrivers?\b|"
+    r"\bimpact|\baffect|\beffects?\b|\bmeans? for\b|\bimplications?\b|\bhurt\b|\bbenefit|\bsignal|"
+    r"\bbehind\b|\bexplain (?:the|its|this|that|why)\b|\bwhat happened\b|\bwhat(?:'s| is) going on\b|"
+    r"\bdue to\b|\bblame\b|\bwhat (?:pushed|sent|made|dragged|lifted)\b",
+    re.IGNORECASE,
+)
+
+
+def is_causal_question(query: str) -> bool:
+    """The question asks why something happened (a cause), not what it is."""
+    return bool(_CAUSAL_QUESTION.search(query or ""))
+
+
+def correct_question_style(nlu_result: dict[str, Any], query: str) -> tuple[dict[str, Any], list[str]]:
+    """A ``why`` style without any causal wording in the question is a fact question.
+
+    The "no single cause" caveat, the causal limitation and the news lookup of a why-plan all follow the style, so a
+    misread "黄金ETF最近表现怎么样" would otherwise be answered as a causal question.
+    """
+    if str(nlu_result.get("question_style") or "") != "why" or is_causal_question(query):
+        return nlu_result, []
+    return {**nlu_result, "question_style": "fact"}, ["override:why_style_without_causal_cue"]
+
+
 # Requests for a non-research task. They are refused even when they mention a stock or finance words
 # ("你能帮我写个Python爬虫抓股价吗"): FinSight researches securities, it does not write code, translate, or book
 # travel. Only explicit task phrasings count, so "天气转暖对白酒消费有影响吗" is not a weather request.
