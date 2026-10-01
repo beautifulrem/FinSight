@@ -11,6 +11,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from .coverage import without_holding_value
+
 Route = Literal["refuse", "clarify", "workflow", "agent"]
 Mode = Literal["auto", "workflow", "agent"]
 
@@ -63,7 +65,21 @@ FAIR_VALUE_MARKERS = re.compile(
     r"\bwhat (?:price|valuation) (?:would be|is) (?:fair|reasonable|justified)\b|"
     r"\bfair (?:value|price|valuation)\b|\bintrinsic value\b|\btrue value\b|\breasonable (?:valuation|price)\b|"
     r"\b(?:DCF|discounted cash flow)\b.{0,40}\b(?:worth|value|price)\b|"
-    r"\bwhat(?:'s| is| are)\b.{0,40}\bworth\b(?! buying)|\bhow much is\b.{0,40}\bworth\b|\bworth per share\b",
+    r"\bwhat(?:'s| is| are)\b.{0,40}\bworth\b(?! buying)|\bhow much is\b.{0,40}\bworth\b|\bworth per share\b|"
+    # (round 11, G6) a price implied by a multiple: "按行业平均市盈率给茅台定价，股价应该是多少", "用同行的PB估算，它
+    # 该值多少钱一股", "at the sector P/E what would it trade at", "implied share price". Multiplying a multiple by
+    # earnings gives a number that reads as a target price, so it is hedged like any fair value.
+    r"(?:按|按照|用|以|参照|参考|对标|套用)[^。？?！!]{0,16}?(?:市盈率|市净率|市销率|(?<![A-Za-z])P/?[EBS](?![A-Za-z])|"
+    r"估值倍数|倍数|估值水平|平均估值)[^。？?！!]{0,20}?(?:定价|估价|估值|算|计算|推算|折算|换算|给)"
+    r"[^。？?！!]{0,16}?(?:股价|价格|价位|每股|一股|市值|多少钱|值多少|多少元|应该|应当|该是|会是|能到)|"
+    r"(?:股价|价格|每股)(?:应该|应当|应|该|理应|理论上)(?:是|在|值|为|到)?(?:多少|几)|"
+    r"(?:理论|隐含|对应|合理)(?:的)?(?:股价|价格|每股价格)(?:是|为|在)?(?:多少|几)|"
+    r"\bat (?:the |its )?(?:sector|industry|peer|peers'|sector's|industry's|average|median)\b[^.?!]{0,30}?"
+    r"\b(?:p/?e|p/?b|multiples?|valuations?)\b[^.?!]{0,50}?\b(?:trade|worth|price|be priced|value)\b|"
+    r"\bimplied (?:share |stock )?price\b|"
+    r"\bwhat (?:would|should) [^.?!]{1,40}? (?:trade|be priced) at\b|"
+    r"\b(?:using|applying|on|with|by)\b[^.?!]{0,30}?\b(?:sector|industry|peers?'?|average|median)\b[^.?!]{0,20}?"
+    r"\b(?:p/?e|p/?b|multiples?)\b[^.?!]{0,50}?\b(?:trade|worth|price|be priced)\b",
     re.IGNORECASE,
 )
 # Judgment and timing questions need valuation, fundamentals and news plus hedging: never a single lookup.
@@ -594,7 +610,7 @@ def decide_route(nlu_result: dict[str, Any], *, mode: Mode = "auto", query: str 
         # "Which stock should I buy?", "What's the P/E?". Workflow and agent both need a target.
         if _RECOMMENDATION.search(text):
             return RouteDecision(route="clarify", reasons=["no_target:recommendation"])
-        if _JUDGMENT_MARKERS.search(text):
+        if _JUDGMENT_MARKERS.search(without_holding_value(text)):
             return RouteDecision(route="clarify", reasons=["no_target:advice"])
         if _COMPANY_METRIC.search(text) or _TARGET_VALUE.search(text):
             return RouteDecision(route="clarify", reasons=["metric_without_target"])
@@ -612,7 +628,8 @@ def decide_route(nlu_result: dict[str, Any], *, mode: Mode = "auto", query: str 
     if len(comparison_targets) >= 2:
         reasons.append("comparison_targets")
     multi_hop = bool(_MULTI_HOP_MARKERS.search(text))
-    judgment = bool(_JUDGMENT_MARKERS.search(text))
+    # (round 11, G5) "我有1000股…值多少钱" is the value of a holding at the close, not a judgment
+    judgment = bool(_JUDGMENT_MARKERS.search(without_holding_value(text)))
     forecast = bool(_FORECAST_MARKERS.search(text))
     market_group = names_market_target(text)
     anchored_to_market = bool(listed) or "sector" in entity_types or market_group

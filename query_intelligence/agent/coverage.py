@@ -43,7 +43,20 @@ _HK_US_LISTED = (
     r"平安好医生|平安健康(?:医疗)?|腾讯音乐|腾讯(?!新闻|财经|网|视频|会议|文档|云)|阿里健康|阿里影业|京东健康|京东物流|"
     r"京东集团|京东(?!方)|小米(?:集团|公司)|网易(?!财经|新闻|号|云)|百度(?!一下|搜索|指数|百科|地图|贴吧)|拼多多|快手|"
     r"哔哩哔哩|蔚来(?:汽车)?|理想汽车|小鹏汽车|零跑汽车|携程|贝壳找房|农夫山泉|海底捞|泡泡玛特|蒙牛(?:乳业)?|华润啤酒|"
-    r"药明生物|安踏(?:体育)?|李宁公司|中国飞鹤|百胜中国|名创优品|知乎|微博|爱奇艺|金山软件|联想集团"
+    r"药明生物|安踏(?:体育)?|李宁公司|中国飞鹤|百胜中国|名创优品|知乎|微博|爱奇艺|金山软件|联想集团|"
+    # (round 11, G6) Hong Kong listed subsidiaries and lookalikes of A-share names (比亚迪电子 ~ 比亚迪, 华润置地 ~
+    # 华润微, 中国海外发展 ~ 中国海油) and Hong Kong-only blue chips
+    r"比亚迪电子|吉利汽车|舜宇光学(?:科技)?|华润置地|华润电力|华润啤酒|华润万象生活|中国海外发展|中信股份|"
+    r"石药集团|中国生物制药|碧桂园(?:服务)?|融创中国|长江和记|汇丰控股|友邦保险|香港交易所|港交所|银河娱乐|"
+    r"中国旺旺|康师傅|周大福|申洲国际|恒基地产|新鸿基地产|港铁公司"
+)
+# (round 11, G6) An H share or a Hong Kong ticker: "中国平安H股", "Ping An H shares", "2318.HK", "HK0285". The
+# company may also be listed in Shanghai or Shenzhen, but the question asks for the Hong Kong line, which FinSight
+# has no data for: the A-share target inside the span is a lookalike, never answered with A-share data.
+_H_SHARE = (
+    r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){2,8}?\s*(?:的\s*)?H\s*股|H\s*股(?!东)|港股通|"
+    r"(?<![\w.])\d{4,5}\s*\.\s*HK(?![A-Za-z])|(?<![A-Za-z])HK\s?\d{4,5}(?!\d)|(?<![\w.])\d{4,5}\s+HK(?![A-Za-z])|"
+    r"\b(?:[a-z][\w&.'-]*\s+){1,3}H[- ]?shares?\b|\bH[- ]shares?\b|\bhong kong[- ]listed\b|\bHKEX\b"
 )
 # US / Hong Kong listed names and markets. Concept-sector phrasing ("苹果概念股", "特斯拉产业链") is an
 # A-share theme and stays in scope.
@@ -57,7 +70,9 @@ _FOREIGN_EQUITY = re.compile(
     r"alibaba health|xiaomi|baidu|netease|pinduoduo|pdd holdings|kuaishou|bilibili|nio inc|li auto|xpeng)\b|"
     r"(?<![A-Za-z])(?:AAPL|TSLA|NVDA|MSFT|GOOGL?|AMZN|NFLX|META|BABA)(?![A-Za-z])|"
     r"\b(?:us|u\.s\.|american|hong kong) (?:stocks?|shares|equities|market)\b|\bnasdaq\b|\bs&p 500\b|\bdow jones\b|"
-    r"\bhang seng\b|\bnyse\b",
+    r"\bhang seng\b|\bnyse\b|"
+    r"\b(?:byd electronic|geely(?: auto(?:mobile)?)?|sunny optical|china resources land|china overseas land|"
+    r"citic limited|cspc|sino biopharm|country garden|hsbc|aia group|ck hutchison)\b|" + _H_SHARE,
     re.IGNORECASE,
 )
 
@@ -85,6 +100,11 @@ def out_of_coverage(query: str) -> str | None:
     if _FOREIGN_EQUITY.search(text):
         return "foreign_equity"
     return None
+
+
+def asks_h_share(query: str) -> bool:
+    """Whether the question asks for a Hong Kong (H-share) line or ticker ("中国平安H股", "2318.HK")."""
+    return bool(re.search(_H_SHARE, query or "", re.IGNORECASE))
 
 
 def out_of_coverage_text(category: str, *, zh: bool) -> str:
@@ -218,9 +238,22 @@ METRICS: tuple[Metric, ...] = (
         r"每(?:赚|卖|收|收入|实现)?[^，。？?,.!！]{0,3}?\d+\s*(?:块|元)(?:钱)?(?:的)?(?:营收|收入|销售额)?"
         r"[^，。？?,.!！]{0,10}?(?:净利润|净利|净赚|利润|落袋)|"
         r"net (?:profit )?margin|profit margin|(?:net )?(?:profit|income|earnings) as a (?:share|percentage|"
-        r"proportion|percent) of (?:revenue|sales)",
+        r"proportion|percent) of (?:revenue|sales)|"
+        # (round 11, G5) "净利润是营收的百分之几", "净利润为收入的多少", "what percent of revenue is net profit"
+        r"(?:净利润|净利|净赚|利润)[^，。？?,.!！]{0,4}?(?:是|为|相当于|等于)[^，。？?,.!！]{0,4}?"
+        r"(?:营收|营业收入|收入|销售额)的?[^，。？?,.!！]{0,4}?(?:百分之|几成|多少成|比例|比重|占比|百分比|多少|几)|"
+        r"\bwhat (?:percent(?:age)?|share|fraction) of (?:its |the )?(?:revenue|sales)\b",
         ("net_margin", "netprofit_margin"),
         (("revenue",), ("net_profit",)),
+    ),
+    # (round 11, G5) EPS: stated when a source reports it; otherwise named as missing (no share count to derive it),
+    # and the template adds the value implied by the latest close and the P/E (TTM), labelled as such.
+    _metric(
+        "eps",
+        "每股收益",
+        "EPS",
+        r"每股收益|每股盈利|每股净利润?|(?<![A-Za-z])EPS(?![A-Za-z])|earnings per share",
+        ("eps", "basic_eps", "diluted_eps", "eps_ttm"),
     ),
     # P/S needs the market cap, which no configured source has: stated as not computable, never replaced by P/E.
     _metric(
@@ -259,6 +292,57 @@ METRICS: tuple[Metric, ...] = (
 _METRIC_BY_KEY = {metric.key: metric for metric in METRICS}
 # Labels of extra metrics rendered when present (the template renders PE/PB/ROE/revenue/net profit itself).
 EXTRA_METRIC_FIELDS = {field: metric for metric in METRICS for field in metric.fields}
+
+
+# (round 11, G5) "我有1000股五粮液，按最新收盘价值多少钱", "500 shares of Moutai, what are they worth?": the value of a
+# stated holding at the last close (shares × close), not a fair-value question. "一股/每股值多少" is a fair value, and
+# "10股派…" a dividend per share, so neither is a holding.
+_HOLDING_VALUE_ZH = re.compile(
+    r"(?<![每\d])(?P<n>\d[\d,，]*|[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*|一[十百千万][零〇一二两三四五六七八九十百千万]*)"
+    r"\s*股(?![价票东份息市权本派送转配])[^。？?！!；;]{0,24}?"
+    r"(?:值|市值|价值|总值|总额|合计|一共|总共|算下来|折合)[^。？?！!；;]{0,4}?(?:多少|几)"
+)
+_HOLDING_VALUE_EN = re.compile(
+    r"\b(?P<n>\d[\d,]*)\s+shares?\b[^.?!]{0,60}?\b(?:worth|value|how much)\b|"
+    r"\bhow much (?:are|is|would) (?:my )?(?P<n2>\d[\d,]*)\s+shares?\b",
+    re.IGNORECASE,
+)
+_CN_DIGIT = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+_CN_UNIT = {"十": 10, "百": 100, "千": 1000, "万": 10000}
+
+
+def _cn_integer(text: str) -> int:
+    total, section, digit = 0, 0, 0
+    for char in text:
+        if char in _CN_DIGIT:
+            digit = _CN_DIGIT[char]
+        elif char == "万":
+            total += (section + digit) * 10000
+            section, digit = 0, 0
+        else:
+            section += (digit or 1) * _CN_UNIT[char]
+            digit = 0
+    return total + section + digit
+
+
+def holding_value_request(query: str) -> tuple[int, tuple[int, int]] | None:
+    """``(shares, span)`` when the question asks what a stated number of shares is worth, else ``None``."""
+    text = query or ""
+    match = _HOLDING_VALUE_ZH.search(text) or _HOLDING_VALUE_EN.search(text)
+    if match is None:
+        return None
+    raw = (match.groupdict().get("n") or match.groupdict().get("n2") or "").replace(",", "").replace("，", "")
+    shares = int(raw) if raw.isdigit() else _cn_integer(raw)
+    return (shares, match.span()) if shares > 1 else None
+
+
+def without_holding_value(query: str) -> str:
+    """The question with a holding-value request blanked out, for the fair-value and judgment checks."""
+    found = holding_value_request(query)
+    if found is None:
+        return query
+    start, end = found[1]
+    return f"{query[:start]} {query[end:]}"
 
 
 def requested_metrics(query: str) -> list[Metric]:

@@ -333,3 +333,88 @@ def test_a_declined_llm_gap_gets_the_computed_gap_appended(offline_service):
     assert gap["verification"]["passed"]
     last_request = "\n".join(str(message.get("content")) for message in llm.requests[-1]["messages"])
     assert "comparison_frame" in last_request
+
+
+# ---- G5: derived chat metrics ----
+
+
+@pytest.mark.parametrize(
+    ("query", "shares"),
+    [
+        ("我手里有1500股五粮液，现在市值多少", 1500),
+        ("持有三千股中国平安，合计值多少钱", 3000),
+        ("I own 250 shares of Wuliangye, how much are they worth?", 250),
+        ("五粮液一股值多少钱", None),
+        ("每10股派现多少", None),
+        ("五粮液股价多少", None),
+    ],
+)
+def test_holding_value_requests(query, shares):
+    from query_intelligence.agent.coverage import holding_value_request
+
+    found = holding_value_request(query)
+    assert (found[0] if found else None) == shares
+
+
+def test_a_holding_is_valued_at_the_close_without_a_fair_value_hedge(agent):
+    result = agent.chat("我手里有1500股五粮液，现在市值多少", session_id="r11-holding")
+    assert "1500 股五粮液的市值约为 1500 × 100.64 = 150960 元 [price_000858.SZ]" in result["answer"]
+    assert "不是可成交价格" in result["answer"]
+    assert "fair_value_hedge" not in result["compliance_notes"]
+    assert result["verification"]["passed"]
+    english = agent.chat("I own 250 shares of Wuliangye, how much are they worth?", session_id="r11-holding-en")
+    assert "250 × 100.64 = CNY 25160" in english["answer"]
+
+
+def test_net_profit_as_a_share_of_revenue_is_the_net_margin(agent):
+    result = agent.chat("五粮液净利润为营收的百分之多少", session_id="r11-share")
+    assert "378 亿元 ÷ 1085 亿元 ≈ 34.84%" in result["answer"]
+
+
+def test_eps_is_named_missing_and_the_implied_value_is_labelled(agent):
+    result = agent.chat("中国平安的每股收益是多少", session_id="r11-eps")
+    answer = result["answer"]
+    assert "当前数据源没有中国平安的每股收益数据" in answer
+    assert "53.61 元 ÷ 8.7 ≈ 6.16 元（推算值，不是公司披露的每股收益" in answer
+    assert result["verification"]["passed"]
+
+
+# ---- G6: an implied price is hedged; H shares and Hong Kong lookalikes are out of coverage ----
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "参照保险行业的平均市净率给中国平安估个股价，应该是多少",
+        "用白酒同行的PE算，五粮液每股该值多少钱",
+        "五粮液理论股价是多少",
+        "Using the industry average P/E, what would Moutai trade at?",
+        "What's Wuliangye's implied share price at the sector multiple?",
+    ],
+)
+def test_an_implied_price_from_a_multiple_is_a_fair_value_question(query):
+    from query_intelligence.agent.router import FAIR_VALUE_MARKERS
+
+    assert FAIR_VALUE_MARKERS.search(query)
+
+
+@pytest.mark.parametrize("query", ["五粮液的市盈率是多少", "中国平安的市净率比行业低多少", "What is Moutai's P/E?"])
+def test_plain_multiples_are_not_fair_value_questions(query):
+    from query_intelligence.agent.router import FAIR_VALUE_MARKERS
+
+    assert not FAIR_VALUE_MARKERS.search(query)
+
+
+def test_an_implied_price_is_hedged_without_a_single_price(agent):
+    result = agent.chat("用白酒同行的PE算，五粮液每股该值多少钱", session_id="r11-implied")
+    assert "fair_value_hedge" in result["compliance_notes"]
+    assert "FinSight 不给出合理估值" in result["answer"]
+
+
+def test_an_h_share_question_is_out_of_coverage_and_names_no_a_share_price(agent):
+    result = agent.chat("平安的H股收盘多少", session_id="r11-h-share")
+    assert result["route"] == "refuse" and result["limitations"] == ["out_of_coverage"]
+    assert "53.61" not in result["answer"] and "H 股" in result["answer"]
+    mixed = agent.chat("中国平安和比亚迪电子的市盈率", session_id="r11-mixed")
+    assert "未用名称相近的 A 股代替" in mixed["answer"]
+    assert "002594.SZ" not in {call["arguments"].get("target") for call in mixed["tool_calls"]}

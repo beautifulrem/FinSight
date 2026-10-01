@@ -46,11 +46,14 @@ from .composer import (
     parse_answer,
 )
 from .coverage import (
+    asks_h_share,
     coverage_gaps,
     flow_gaps,
     foreign_equity_spans,
+    holding_value_request,
     out_of_coverage,
     out_of_coverage_text,
+    without_holding_value,
     year_to_date_gaps,
 )
 from .evidence import AgentEvidence, EvidenceStore
@@ -372,6 +375,11 @@ class AgentRuntime:
         nlu, override_reasons = apply_finance_overrides(nlu, query)
         # the user's words and the resolved question: "为什么？" rewritten to "贵州茅台为什么涨" keeps its why style
         nlu, style_reasons = correct_question_style(nlu, f"{state['query']} {query}")
+        if holding_value_request(query) and not asks_prediction(without_holding_value(query)):
+            # (round 11, G5) "我有1000股…值多少钱": arithmetic on the close, whatever the classifier reads as advice
+            flags = [flag for flag in nlu.get("risk_flags") or [] if flag != "investment_advice_like"]
+            nlu = {**nlu, "question_style": "fact", "risk_flags": flags}
+            style_reasons = [*style_reasons, "holding_value"]
         override_reasons = [*dropped_reasons, *override_reasons, *style_reasons]
         decision = decide_route(nlu, mode=mode, query=query)  # type: ignore[arg-type]
         reasons = [*decision.reasons, *override_reasons, *rewrite_reasons]
@@ -673,6 +681,20 @@ class AgentRuntime:
         if category.startswith("out_of_coverage:"):
             text = out_of_coverage_text(category.split(":", 1)[1], zh=zh)
             limitation = "out_of_coverage"
+            lookalikes = [
+                reason.split(":", 1)[1]
+                for reason in state.get("route_reasons") or []
+                if reason.startswith("foreign_listing_lookalike:")
+            ]
+            if lookalikes and asks_h_share(state["query"]):
+                # (round 11, G6) "中国平安H股": the H share is not covered and is never answered with the A-share price
+                names = "、".join(lookalikes) if zh else ", ".join(english_name(name) or name for name in lookalikes)
+                text += (
+                    f"所问的是 H 股（香港上市的股份）；{names}在 A 股上市的股份在覆盖范围内，如需 A 股数据请直接询问。"
+                    if zh
+                    else f" The question asks for the H shares (the Hong Kong line); {names}'s A shares are covered, "
+                    "so ask about the A shares directly if that is what you need."
+                )
         elif injection:
             text = (
                 "我不能按照这类指令改变设定或透露内部配置。如果有金融问题，请直接提问，例如「比亚迪的市盈率是多少？」。"
@@ -1231,6 +1253,7 @@ class AgentRuntime:
             effective_query=state.get("effective_query") or "",
         )
         assumed = _assumption_notes(state.get("route_reasons") or [], zh=self._zh(state))
+        assumed += _foreign_lookalike_notes(state.get("route_reasons") or [], zh=self._zh(state))
         if assumed:
             # "平安" read as 中国平安 by default: say so, and name the other company, instead of answering silently
             separator = "" if self._zh(state) else " "
@@ -1327,6 +1350,8 @@ class AgentRuntime:
                     for entity in nlu.get("entities") or []
                 ],
                 "risk_flags": nlu.get("risk_flags") or [],
+                # (round 11, G11) the metrics the question asks about, in order (the UI leads its tiles with them)
+                "asked_metrics": _asked_metrics(state),
             },
             "spans": state.get("spans") or [],
             "turn_index": len(state.get("turns") or []),
@@ -1456,6 +1481,29 @@ def _assumption_notes(reasons: list[str], *, zh: bool) -> list[str]:
                 f"Say so if you meant {' or '.join(english)}."
             )
     return notes
+
+
+def _asked_metrics(state: AgentState) -> list[str]:
+    """Frame metric keys the question asks about ("roe", "pe", "net_margin", ...): the frame request's first."""
+    from .frame import metric_mentions
+
+    asked = [str((state.get("frame_request") or {}).get("metric") or "")]
+    asked += metric_mentions(state.get("effective_query") or state.get("query") or "")
+    return [key for key in dict.fromkeys(asked) if key]
+
+
+def _foreign_lookalike_notes(reasons: list[str], *, zh: bool) -> list[str]:
+    """(round 11, G6) "中国平安和比亚迪电子哪个PE低": the Hong Kong / US listed name was not answered with its A-share
+    lookalike; say that only the covered part is answered."""
+    if not any(reason.startswith("foreign_listing_lookalike:") for reason in reasons):
+        return []
+    return [
+        "问题中提到的港股或美股上市公司（含 H 股）不在 FinSight 的数据范围内，未用名称相近的 A 股代替；"
+        "以上只回答 A 股部分。"
+        if zh
+        else "The Hong Kong or US listed company in the question (including H shares) is outside FinSight's data and "
+        "was not replaced by a similarly named A-share; only the A-share part is answered."
+    ]
 
 
 def _named_targets(nlu: dict[str, Any], query: str = "") -> list[dict[str, Any]]:

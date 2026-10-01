@@ -42,3 +42,15 @@
 {"query": "京东方A的市净率", "expect_symbols": ["000725.SZ"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
 {"query": "药明康德最近涨了吗", "expect_symbols": ["603259.SH"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
 {"query": "中国平安和平安健康哪个估值低", "expect_symbols": ["601318.SH"], "forbid_symbols": [], "kind": "a_share_beside_foreign", "level": "agent"}
+{"query": "中国平安H股今天收盘多少", "expect_symbols": [], "forbid_symbols": ["601318.SH"], "kind": "h_share_of_a_share_company", "level": "agent", "coverage": "foreign_equity"}
+{"query": "平安的H股估值多少", "expect_symbols": [], "forbid_symbols": ["601318.SH", "000001.SZ"], "kind": "h_share_of_a_share_company", "level": "agent", "coverage": "foreign_equity"}
+{"query": "How are Ping An H-shares doing?", "expect_symbols": [], "forbid_symbols": ["601318.SH"], "kind": "h_share_of_a_share_company", "level": "agent", "coverage": "foreign_equity"}
+{"query": "2318.HK的市盈率多少", "expect_symbols": [], "forbid_symbols": ["601318.SH"], "kind": "hong_kong_ticker", "level": "agent", "coverage": "foreign_equity"}
+{"query": "0285.HK最近走势", "expect_symbols": [], "forbid_symbols": ["002594.SZ"], "kind": "hong_kong_ticker", "level": "agent", "coverage": "foreign_equity"}
+{"query": "比亚迪电子最近涨了吗", "expect_symbols": [], "forbid_symbols": ["002594.SZ"], "kind": "hong_kong_subsidiary_lookalike", "level": "agent", "coverage": "foreign_equity"}
+{"query": "What is BYD Electronic's P/E?", "expect_symbols": [], "forbid_symbols": ["002594.SZ"], "kind": "hong_kong_subsidiary_lookalike", "level": "agent", "coverage": "foreign_equity"}
+{"query": "吉利汽车股价多少", "expect_symbols": [], "forbid_symbols": [], "kind": "foreign_listing", "level": "agent", "coverage": "foreign_equity"}
+{"query": "比亚迪的市盈率是多少", "expect_symbols": ["002594.SZ"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
+{"query": "中国平安A股的市净率", "expect_symbols": ["601318.SH"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
+{"query": "中国平安的股东户数变化", "expect_symbols": ["601318.SH"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
+{"query": "五粮液营收增长和利润率怎么样", "expect_symbols": ["000858.SZ"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}

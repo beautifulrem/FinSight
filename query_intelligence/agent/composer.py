@@ -20,6 +20,7 @@ from .coverage import (
     failed_target_statements,
     flow_gaps,
     foreign_macro_gaps,
+    holding_value_request,
     indicator_gaps,
     industry_gaps,
     macro_gaps,
@@ -153,6 +154,11 @@ def compose_template(
 
     if len(margins) >= 2:
         facts.append(_margin_ranking(margins, zh))
+    if "eps" in {metric.key for metric in wanted}:
+        facts.extend(fact for fact in _implied_eps(tool_log, zh) if fact not in facts)
+    holding = holding_value_request(query) if query else None
+    if holding is not None:
+        facts = [*_holding_value(holding[0], tool_log, zh), *facts]
     frame_gaps: list[str] = []
     if frame_request:
         framed, frame_gaps = frame_sentences(frame_request, tool_log, zh)
@@ -208,6 +214,66 @@ def compose_template(
         "evidence_used": evidence_used,
         "limitations": limitations,
     }
+
+
+def _holding_value(shares: int, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
+    """(round 11, G5) "我有1000股五粮液，值多少钱": shares × the latest close, with the date, both operands in the
+    sentence, and a note that this is a market value at the close, not a tradable price, a valuation or advice."""
+    for entry in tool_log:
+        data = entry.get("data") or {}
+        close, eid = data.get("close"), data.get("evidence_id")
+        if entry.get("tool") != "get_price_history" or not entry.get("ok") or close is None or not eid:
+            continue
+        value = round(shares * float(close), 2)
+        name, as_of = data.get("name") or data.get("symbol"), data.get("as_of")
+        if zh:
+            return [
+                f"按 {as_of} 的收盘价 {_px(close, data, zh)} 计算，{shares} 股{name}的市值约为 {shares} × "
+                f"{_num(close)} = {_num(value)} 元 [{eid}]。",
+                "这是按最近收盘价计算的持仓市值，不是可成交价格，也不是估值判断或投资建议。",
+            ]
+        return [
+            f"At the {as_of} close of {_px(close, data, zh)}, {shares} shares of {name} are worth {shares} × "
+            f"{_num(close)} = CNY {_num(value)} [{eid}].",
+            "This is the market value at the last close, not a tradable price, a valuation or investment advice.",
+        ]
+    return []
+
+
+def _implied_eps(tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
+    """(round 11, G5) EPS when no source reports it: the value implied by the latest close and the P/E (TTM), with
+    both operands and a label saying it is derived, not the company's reported figure."""
+    closes = {
+        str((entry.get("data") or {}).get("symbol")): entry.get("data") or {}
+        for entry in tool_log
+        if entry.get("tool") == "get_price_history" and entry.get("ok")
+    }
+    sentences = []
+    for entry in tool_log:
+        data = entry.get("data") or {}
+        metrics = data.get("metrics") or {}
+        price = closes.get(str(data.get("symbol")))
+        if entry.get("tool") != "get_fundamentals" or not entry.get("ok") or not price or not data.get("evidence_id"):
+            continue
+        if any(metrics.get(field) is not None for field in ("eps", "basic_eps", "diluted_eps", "eps_ttm")):
+            continue
+        pe, close = metrics.get("pe_ttm"), price.get("close")
+        if not pe or float(pe) <= 0 or close is None or not price.get("evidence_id"):
+            continue
+        eps = _num(round(float(close) / float(pe), 2))
+        cites = f"[{price['evidence_id']}][{data['evidence_id']}]"
+        if zh:
+            sentences.append(
+                f"{data.get('name')}按最新收盘价与市盈率(TTM)反推的隐含每股收益约为 {_num(close)} 元 ÷ "
+                f"{_num(pe)} ≈ {eps} 元（推算值，不是公司披露的每股收益；收盘价日期 {price.get('as_of')}） {cites}。"
+            )
+        else:
+            sentences.append(
+                f"{data.get('name')}'s EPS implied by the latest close and the P/E (TTM) is about CNY {_num(close)} / "
+                f"{_num(pe)} ≈ CNY {eps} (a derived figure, not the company's reported EPS; close of "
+                f"{price.get('as_of')}) {cites}."
+            )
+    return sentences
 
 
 def _derived_metrics(data: dict[str, Any], keys: set[str], zh: bool) -> tuple[list[str], float | None]:
