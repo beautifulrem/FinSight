@@ -19,6 +19,8 @@ function collectConsoleErrors(page: Page): string[] {
 async function openFresh(page: Page) {
   // a new browser context has empty storage: Chinese UI, chat view, new session id
   await page.goto("/");
+  // a reload before the first question must not ask the server for a session it never saw (a 404 in the console)
+  await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
 }
 
