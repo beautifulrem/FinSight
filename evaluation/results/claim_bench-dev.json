@@ -1,16 +1,16 @@
 {
  "config": {
   "claims": "evaluation/claim_bench/claims_v1.jsonl",
-  "claims_sha256": "deb0e21e86efec0bb94152b8e35dd561ca52a19b19a89525bfb11f06cb84ad32",
+  "claims_sha256": "2f5ffc037778f92be02db42488fab0ce644c23a2fd423af27fa863dc92e6d636",
   "set": "dev",
   "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
   "model": null,
-  "commit": "f94df6f",
-  "run_at": "2026-09-30T22:24:07+00:00",
+  "commit": "4796e24",
+  "run_at": "2026-10-01T02:04:45+00:00",
   "command": "python -m evaluation.claim_bench.run --set dev --out evaluation/results/claim_bench-dev.json"
  },
- "claims": 268,
- "checks": 307,
+ "claims": 276,
+ "checks": 315,
  "verdict_accuracy": 1.0,
  "verdict_accuracy_ci": [
   1.0,
@@ -25,14 +25,14 @@
  "ci_method": "percentile bootstrap over claims, 2000 resamples, seed 20260926, 95%",
  "verdict_confusion": {
   "supported": {
-   "supported": 148,
+   "supported": 153,
    "contradicted": 0,
    "partially_supported": 0,
    "unverifiable": 0
   },
   "contradicted": {
    "supported": 0,
-   "contradicted": 68,
+   "contradicted": 71,
    "partially_supported": 0,
    "unverifiable": 0
   },
@@ -51,14 +51,14 @@
  },
  "check_status_confusion": {
   "supported": {
-   "supported": 189,
+   "supported": 194,
    "contradicted": 0,
    "unverifiable": 0,
    "missing": 0
   },
   "contradicted": {
    "supported": 0,
-   "contradicted": 85,
+   "contradicted": 88,
    "unverifiable": 0,
    "missing": 0
   },
@@ -77,7 +77,7 @@
  },
  "by_category": {
   "approx": {
-   "claims": 8,
+   "claims": 12,
    "verdict_accuracy": 1.0
   },
   "chinese_numeral": {
@@ -181,7 +181,7 @@
    "verdict_accuracy": 1.0
   },
   "ratio_bound": {
-   "claims": 4,
+   "claims": 8,
    "verdict_accuracy": 1.0
   },
   "relation": {
@@ -235,7 +235,7 @@
    "verdict_accuracy": 1.0
   },
   "zh": {
-   "claims": 221,
+   "claims": 229,
    "verdict_accuracy": 1.0
   }
  },
