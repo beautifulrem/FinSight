@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .coverage import holding_value_request, requested_metrics, requested_price_fields
+from .coverage import holding_value_request, requested_metrics, requested_price_fields, sector_data_question
 from .glossary import lookup_concept
 
 MAX_TARGETS = 3
@@ -98,7 +98,7 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
     query = str(nlu_result.get("normalized_query") or nlu_result.get("raw_query") or "")
     raw_query = str(nlu_result.get("raw_query") or query)
     # "北向资金是啥", "什么是两融": a market concept in the curated glossary is evidence of its own.
-    concept = None if listed else lookup_concept(f"{raw_query} {query}")
+    concept = None if listed or sector_data_question(raw_query, entities) else lookup_concept(f"{raw_query} {query}")
     if concept is not None:
         return Plan(
             calls=[

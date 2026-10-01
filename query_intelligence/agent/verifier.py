@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .coverage import holding_value_request
+from .coverage import holding_lots, holding_value_request
 from .evidence import _NUMBER as _NUMBER_TOKEN
 from .evidence import EvidenceStore, _collect_numbers, extract_numbers
 
@@ -408,7 +408,9 @@ def _bound_units(answer: dict[str, Any]) -> list[tuple[str, str]]:
 
 
 # (round 12, H8) "(24.6 − 20.9) / 20.9 × 100 = 17.7%": the 100 of a percent formula is a constant, not a claim
-_FORMULA_CONSTANT = re.compile(r"(?<=[×*✕])\s*100(?:\.0+)?\s*%?(?![\d.])")
+# (round 13) and the 1 of "close ÷ (1 − 0.18%)" (a previous close implied by a close and its % change)
+_FORMULA_CONSTANT = re.compile(r"(?<=[×*✕])\s*100(?:\.0+)?\s*%?(?![\d.])|(?<=[(（])\s*1\s*(?=[+\-−])")
+_IMPLIED_PREVIOUS = re.compile(r"[÷/]\s*[(（]\s*1\s*[+\-−]")
 # A ratio or a gap stated next to a metric name ("ROE 约为中国平安的 1.93 倍", "P/E is 17.7% above"): the number is
 # derived from the operands, not a reported value of the metric
 _COMPARISON = re.compile(
@@ -447,7 +449,11 @@ def _amount_operands(text: str, numbers: list[tuple[float, bool]]) -> list[float
             continue
         matched = next((scale for scale in scales if _is_supported(value, numbers, (scale,), rounding, sign)), None)
         if matched:
-            found.append(value / matched)
+            # (round 13) the evidence value itself when one matches ("CNY 3.79 bn" → 3793827534), so a total or gap
+            # of two rounded amounts is checked against the exact operands ("combined CNY 5.25 bn", not 5.24)
+            bases = [float(entry if isinstance(entry, int | float) else entry[0]) for entry in numbers]
+            exact = [base for base in bases if _is_supported(value, [base], (matched,), rounding, sign)]
+            found.append(exact[0] if exact else value / matched)
     return found
 
 
@@ -507,6 +513,9 @@ def verify_answer(
     holding = holding_value_request(query)
     if holding is not None and float(holding[0]) not in query_numbers:
         query_numbers.append(float(holding[0]))  # "两千股": a count the claim parser reads only with some units
+    lots = holding_lots(query) if holding is not None else None
+    if lots and float(lots) not in query_numbers:
+        query_numbers.append(float(lots))  # (round 13) "买三手": the 3 of "3 手（300 股）"
     unsupported: list[float] = []
     misattributed: list[float] = []
     document_market: list[float] = []
@@ -585,9 +594,18 @@ def verify_answer(
                 continue
             shares = amounts if _is_percent(scales) else []
             fraction = bool(_DIVISION.search(unit))
+            implied = bool(_IMPLIED_PREVIOUS.search(unit))
             if (
                 operands
-                and _is_derived(value, rounding, [v for v in operands if v != value], shares=shares, fraction=fraction)
+                and _is_derived(
+                    value,
+                    rounding,
+                    [v for v in operands if v != value],
+                    shares=shares,
+                    fraction=fraction,
+                    implied=implied,
+                    rate_shares=amounts,
+                )
             ) or (_is_amount_gap(value, scales, rounding, sentence_amounts)):
                 derived_values.append(value)
                 continue
@@ -921,7 +939,14 @@ def _is_percent(scales: tuple[float, ...]) -> bool:
 
 
 def _is_derived(
-    value: float, rounding: float | None, operands: list[float], *, shares: list[float] = (), fraction: bool = False
+    value: float,
+    rounding: float | None,
+    operands: list[float],
+    *,
+    shares: list[float] = (),
+    fraction: bool = False,
+    implied: bool = False,
+    rate_shares: list[float] = (),
 ) -> bool:
     """``value`` is a - b, a + b, a / b or the percent change (a - b) / b of two stated operands, or, for a value
     written in percent, the share a / b of two stated amounts (a net margin: net profit / revenue, a <= b) or the
@@ -944,7 +969,22 @@ def _is_derived(
                     # ("3.7 ÷ 20.9 ≈ 0.177"): accepting it everywhere raised the stress test's derived
                     # false-accept rate from 0.0121 to 0.0282
                     candidates.append((a - b) / abs(b))
+            if implied and abs(b) < 100:
+                # (round 13) "1409.5 ÷ (1 − 0.1778%) ≈ 1412.01，每股下跌约 2.51 元": the previous close a close and its
+                # daily % change imply, and the change in yuan, only where that formula is written out
+                for rate in (b, -b):
+                    previous = a / (1 + rate / 100)
+                    candidates += [previous, a - previous]
         for candidate in candidates:
+            if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
+                return True
+    # (round 13) a rate minus a share of two stated amounts (a gross margin and a net margin derived from net profit
+    # and revenue: "毛利率 76.1%，净利率 378 亿元 ÷ 1085 亿元 ≈ 34.84%，两者相差 41.26 个百分点")
+    rates = [a for a in operands if a not in rate_shares and abs(a) <= 100]
+    for i, j in [(i, j) for i, a in enumerate(rate_shares) for j, b in enumerate(rate_shares) if i != j and 0 < a <= b]:
+        share = rate_shares[i] / rate_shares[j] * 100
+        for rate in rates:
+            candidate = rate - share
             if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
                 return True
     # (round 10, F8) the gap in percentage points between two such shares of four stated amounts (two net margins:

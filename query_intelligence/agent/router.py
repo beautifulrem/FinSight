@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from .coverage import without_holding_value
+from .coverage import sector_data_question, without_holding_value
 
 Route = Literal["refuse", "clarify", "workflow", "agent"]
 Mode = Literal["auto", "workflow", "agent"]
@@ -636,7 +636,8 @@ def decide_route(nlu_result: dict[str, Any], *, mode: Mode = "auto", query: str 
     # A metric alone ("市净率是多少") names no target: only listed, macro, policy or sector entities count.
     targeted = listed or entity_types_of(entities) & {"macro_indicator", "policy", "sector"}
     dangling = has_dangling_reference(text) or is_dangling_why(text)
-    concept = is_concept_question(text) or bool(glossary_concept(text))
+    # (round 13) "白酒行业今天换手率多少": a sector's own figure, not the concept's definition
+    concept = is_concept_question(text) or (bool(glossary_concept(text)) and not sector_data_question(text, entities))
     # The market, a group of stocks ("银行股", "consumer stocks") or a macro topic written out in words is a target
     # for a judgment or a macro link, although the NLU resolves no entity for it.
     market = names_market_target(text) or has_macro_content(text)
@@ -736,7 +737,7 @@ def decide_route(nlu_result: dict[str, Any], *, mode: Mode = "auto", query: str 
         return RouteDecision(route="agent", reasons=["mode:agent", *reasons], complexity_score=score, features=features)
     route: Route = "agent" if score >= 1 else "workflow"
     if not reasons:
-        term = glossary_concept(text) if not listed else None
+        term = glossary_concept(text) if not listed and not sector_data_question(text, entities) else None
         if term:
             reasons.append(f"concept:glossary:{term}")
         else:
