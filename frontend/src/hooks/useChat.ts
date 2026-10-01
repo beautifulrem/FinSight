@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useReducer, useRef } from "react";
 
 import { ApiError, classicChat, classifyError, resumeClarification, streamAgentChat, type ErrorKind } from "@/lib/api";
+import type { MessageKey } from "@/lib/i18n";
 import type {
   AgentResponse,
   Clarification,
@@ -52,11 +53,18 @@ export interface Turn {
   error?: { kind: ErrorKind; message: string };
 }
 
+/**
+ * A system notice in the conversation ("started a new session"). It keeps the message key, not the text, so it is
+ * rendered in the current language after a zh/en switch (round 12, H14).
+ */
 export interface Notice {
   kind: "notice";
   id: string;
-  text: string;
+  key: MessageKey;
+  vars?: Record<string, string | number>;
 }
+
+export type NoticeMessage = Pick<Notice, "key" | "vars">;
 
 /** Turns restored from `GET /agent/sessions/{id}` after a reload (query and answer text only). */
 export interface HistoryItem {
@@ -322,13 +330,16 @@ export function useChat(options: ChatOptions) {
     dispatch({ type: "stopped", id: run.id });
   }, []);
 
-  const reset = useCallback((text?: string) => {
+  const reset = useCallback((message?: NoticeMessage) => {
     current.current?.abort.abort();
     current.current = null;
-    dispatch({ type: "reset", notice: text ? { kind: "notice", id: nextId("notice"), text } : undefined });
+    dispatch({ type: "reset", notice: message ? { kind: "notice", id: nextId("notice"), ...message } : undefined });
   }, []);
 
-  const notify = useCallback((text: string) => dispatch({ type: "notice", notice: { kind: "notice", id: nextId("notice"), text } }), []);
+  const notify = useCallback(
+    (message: NoticeMessage) => dispatch({ type: "notice", notice: { kind: "notice", id: nextId("notice"), ...message } }),
+    [],
+  );
 
   const setPending = useCallback((clarification: Clarification | null) => dispatch({ type: "pending", clarification }), []);
 
