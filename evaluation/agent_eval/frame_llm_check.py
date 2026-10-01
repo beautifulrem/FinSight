@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,7 +28,14 @@ from query_intelligence.agent.service import AgentService
 from query_intelligence.agent.state import AgentConfig
 from query_intelligence.agent.tools import build_registry_for_service
 
-from .runner import EVAL_TODAY, _command, _git_commit, _make_llm, add_llm_arguments, build_offline_service
+from .runner import (
+    EVAL_TODAY,
+    _git_commit,
+    _make_llm,
+    add_llm_arguments,
+    build_offline_service,
+    command_fields,
+)
 
 # (turns, expected value of the last turn's comparison)
 SESSIONS: list[tuple[list[str], float]] = [
@@ -44,6 +52,30 @@ SESSIONS: list[tuple[list[str], float]] = [
 ]
 
 
+# (round 12) Ten more sessions written for the before/after measurement of the G4 fallback (QI_AGENT_FRAME_FALLBACK
+# off vs on), mostly two turns ("X呢，两者差多少") to fit two runs into the call budget. Every one is recognised by the
+# frame offline (checked with the template path before the online runs); expected values are the frame's results.
+SESSIONS_R12: list[tuple[list[str], float]] = [
+    (["贵州茅台的市净率是多少", "五粮液呢，两者差多少"], 2.7),
+    (["茅台ROE", "平安呢，高多少个百分点"], 17.8),
+    (["五粮液的ROE", "中国平安的呢，两者差几个百分点"], 14.2),
+    (["中国平安营收多少", "茅台呢，前者是后者的几倍"], 7.21),
+    (["中国平安的市盈率", "保险行业平均呢，比行业低百分之几"], 26.27),
+    (["五粮液营业收入", "茅台的呢，前者比后者少多少亿"], 603.38),
+    (["What's Moutai's P/E?", "and Ping An's? how many times bigger is the first?"], 2.83),
+    (["What's Wuliangye's ROE?", "and Ping An's? what's the gap in percentage points?"], 14.2),
+    (["中国平安净利润是多少", "五粮液的呢，相差多少亿"], 832.0),
+    (["中国平安的市盈率", "茅台呢", "后者是前者的几倍"], 2.83),
+]
+SESSION_SETS = {"r11": SESSIONS, "r12": SESSIONS_R12}
+# An answer that gives up on the comparison instead of stating it
+_DECLINE = re.compile(
+    r"无法(?:计算|核实|给出|比较|回答)|不能(?:计算|核实)|没有.{0,12}(?:数据|证据)|缺少|"
+    r"\b(?:cannot|can't|unable to|not available|no data)\b",
+    re.IGNORECASE,
+)
+
+
 def _states(text: str, value: float) -> bool:
     """Whether the answer states the expected value, as written or in 亿/万/bn/mn units (445.2 亿 = 44520000000 元)."""
     from query_intelligence.agent.graph import _states_number
@@ -57,6 +89,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     add_llm_arguments(parser)
     parser.add_argument("--max-calls", type=int, default=60)
     parser.add_argument("--only", default="", help="comma-separated session indices to run (default: all)")
+    parser.add_argument("--sessions", choices=sorted(SESSION_SETS), default="r11", help="session set (default r11)")
     parser.add_argument("--out", default="outputs/agent_eval/frame-llm-check.json")
     args = parser.parse_args(argv)
     llm = _make_llm(args.llm, args.model)
@@ -70,7 +103,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     calls, sessions, stopped = 0, [], None
     try:
         only = {int(item) for item in args.only.split(",") if item.strip()}
-        for index, (turns, expected) in enumerate(SESSIONS):
+        for index, (turns, expected) in enumerate(SESSION_SETS[args.sessions]):
             if only and index not in only:
                 continue
             if calls >= args.max_calls - 4:
@@ -79,7 +112,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             record: dict[str, Any] = {"session": index, "turns": [], "expected": expected}
             for query in turns:
                 started = time.perf_counter()
-                result = agent.chat(query, session_id=f"frame-llm-{index}", mode="agent")
+                result = agent.chat(query, session_id=f"frame-llm-{args.sessions}-{index}", mode="agent")
                 used = int((result.get("llm") or {}).get("calls") or 0)
                 calls += used
                 errors = [item for item in result.get("degraded") or [] if "429" in str(item)]
@@ -107,6 +140,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             record["model_stated_it"] = record["states_expected"] and not appended
             record["fallback_appended"] = appended
             record["refused"] = last["route"] == "refuse"
+            # QI_AGENT_FRAME_FALLBACK=off: the turns where the fallback would have appended the computed result
+            record["fallback_would_append"] = "frame_fallback_off:would_append" in last["degraded"]
+            record["declined"] = not record["states_expected"] and bool(_DECLINE.search(str(last["answer"] or "")))
             sessions.append(record)
             if stopped:
                 break
@@ -119,6 +155,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "model_stated_it": sum(s["model_stated_it"] for s in sessions),
         "fallback_appended": sum(s["fallback_appended"] for s in sessions),
         "refused": sum(s["refused"] for s in sessions),
+        "fallback_would_append": sum(s["fallback_would_append"] for s in sessions),
+        "declined": sum(s["declined"] for s in sessions),
+        "no_number": sum(not s["states_expected"] for s in sessions),
         "gap_turn_verified": sum(bool(s["turns"][-1]["verification_passed"]) for s in sessions),
         "llm_calls": calls,
         "stopped": stopped,
@@ -127,9 +166,11 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "config": {
             "commit": commit,
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "command": _command("evaluation.agent_eval.frame_llm_check", argv),
+            **command_fields("evaluation.agent_eval.frame_llm_check", argv),
             "model": getattr(llm, "model", None),
             "prompts": prompt_refs(),
+            "session_set": args.sessions,
+            "frame_fallback": runtime.config.frame_fallback,
             "tools": "offline runtime assets (no replay snapshot)",
         },
         "summary": summary,

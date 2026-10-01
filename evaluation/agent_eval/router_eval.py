@@ -30,10 +30,10 @@ from .runner import (
     DEFAULT_OUTPUT_DIR,
     EVAL_DIR,
     EVAL_TODAY,
-    _command,
     _display_path,
     _git_commit,
     build_offline_service,
+    command_fields,
 )
 
 ROUTES = ("refuse", "clarify", "workflow", "agent")
@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "model": None,  # routing only, no LLM
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "command": _command("evaluation.agent_eval.router_eval", argv),
+            **command_fields("evaluation.agent_eval.router_eval", argv),
         },
         **evaluate(rows),
     }

@@ -51,6 +51,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import Counter
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -61,10 +62,10 @@ import httpx
 
 try:
     from scripts.load_test import run as load_test_run
-    from scripts.provenance import commit_label, git_state
+    from scripts.provenance import commit_label, env_switches, git_state
 except ModuleNotFoundError:  # run as a file (python scripts/x.py): scripts/ itself is on sys.path
     from load_test import run as load_test_run  # type: ignore[no-redef]
-    from provenance import commit_label, git_state  # type: ignore[no-redef]
+    from provenance import commit_label, env_switches, git_state  # type: ignore[no-redef]
 
 ROOT = Path(__file__).resolve().parents[1]
 INVALID_MODEL = "cline-pass/chaos-invalid-model"
@@ -91,9 +92,12 @@ class LLMFaultProxy:
     latency per request.
     """
 
-    def __init__(self, upstream: str, fail_models: set[str]) -> None:
+    def __init__(self, upstream: str, fail_models: set[str], fault_status: int | None = None) -> None:
         self.upstream = upstream.rstrip("/")
         self.fail_models = fail_models
+        # (round 12) with a fault status the proxy answers it itself while the fault is on (a provider 5xx burst):
+        # nothing reaches the gateway, so the burst costs no quota
+        self.fault_status = fault_status
         self.fault_on = False
         self.log: list[dict[str, Any]] = []
         self._lock = threading.Lock()
@@ -115,6 +119,29 @@ class LLMFaultProxy:
                     body = {}
                 model = str(body.get("model"))
                 faulty = proxy.fault_on and model in proxy.fail_models
+                if faulty and proxy.fault_status:
+                    payload = json.dumps(
+                        {"error": {"message": f"injected HTTP {proxy.fault_status} (chaos drill)", "type": "chaos"}}
+                    ).encode()
+                    with proxy._lock:
+                        proxy.log.append(
+                            {
+                                "t": round(time.time(), 3),
+                                "at": _now(),
+                                "model": model,
+                                "fault_applied": True,
+                                "injected": True,
+                                "status": proxy.fault_status,
+                                "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+                                "error": None,
+                            }
+                        )
+                    self.send_response(proxy.fault_status)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(payload)))
+                    self.end_headers()
+                    self.wfile.write(payload)
+                    return
                 if faulty:
                     body["model"] = INVALID_MODEL
                     raw = json.dumps(body).encode()
@@ -447,6 +474,216 @@ def run_llm(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
     return report
 
 
+# ---- scenario: LLM load with a provider 5xx burst --------------------------------------------------------------
+
+
+_STATE_NAMES = {0.0: "closed", 1.0: "half_open", 2.0: "open"}
+
+
+def _breaker_states(lines: list[str]) -> dict[str, str]:
+    states = {}
+    for line in lines:
+        if line.startswith("finsight_llm_circuit_state{"):
+            model = line.split('model="', 1)[1].split('"', 1)[0]
+            states[model] = _STATE_NAMES.get(float(line.rsplit(" ", 1)[1]), line.rsplit(" ", 1)[1])
+    return states
+
+
+_LLM_FAILURE_MARKERS = ("llm_error", "llm_compose_failed", "llm_revision_failed")
+
+
+def run_llm_load(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
+    """``--load-users`` closed-loop users on the LLM path (``--load-mode``, research questions), optionally with a
+    provider-wide HTTP 5xx burst (``--burst-seconds`` > 0) injected by the LLM proxy ``--burst-start`` seconds into
+    the run, for the primary and the failover model alike. ``/metrics`` is sampled every second for the breaker
+    state of each model; the report has the load summary (latency, user-visible errors, routes, cost), how many
+    answered requests had an LLM failure and fell back to the deterministic answer, the gateway traffic by status
+    (injected, forwarded, 429) and the breaker timeline."""
+    upstream = os.environ.get("DEEPSEEK_BASE_URL")
+    primary = os.environ.get("DEEPSEEK_MODEL")
+    if not (upstream and primary and os.environ.get("DEEPSEEK_API_KEY")):
+        raise SystemExit("llm-load needs DEEPSEEK_BASE_URL, DEEPSEEK_MODEL and DEEPSEEK_API_KEY")
+    models = {primary, *([args.fallback_model] if args.fallback_model else [])}
+    proxy = LLMFaultProxy(upstream, models, fault_status=args.burst_status)
+    proxy.start()
+    env = {
+        **os.environ,
+        "DEEPSEEK_BASE_URL": proxy.url,
+        "QI_LLM_FALLBACK_MODELS": args.fallback_model or "",
+        "QI_AGENT_TRACE_DIR": str(out_dir / "traces"),
+        "NO_PROXY": "127.0.0.1,localhost",
+        "no_proxy": "127.0.0.1,localhost",
+    }
+    if args.usd_cny:
+        env["QI_LLM_USD_CNY"] = str(args.usd_cny)
+    server = Server(args.port, env, out_dir / "server-llm-load.log")
+    prefixes = ("finsight_llm_circuit_state", "finsight_llm_client_calls", "finsight_llm_consecutive_failures")
+    samples: list[dict[str, Any]] = []
+    stop = threading.Event()
+    burst: dict[str, Any] = {"status": args.burst_status if args.burst_seconds else None}
+    try:
+        server.start()
+        started = time.time()
+
+        def sample() -> None:
+            with _client(server.base_url) as client:
+                while not stop.is_set():
+                    with contextlib.suppress(httpx.HTTPError):
+                        lines = _metric_lines(client.get("/metrics").text, prefixes)
+                        samples.append(
+                            {
+                                "t": round(time.time() - started, 1),
+                                "fault_on": proxy.fault_on,
+                                "breaker": _breaker_states(lines),
+                            }
+                        )
+                    stop.wait(1.0)
+
+        def inject() -> None:
+            if stop.wait(args.burst_start):
+                return
+            proxy.fault_on = True
+            burst["started_s"] = round(time.time() - started, 1)
+            stop.wait(args.burst_seconds)
+            proxy.fault_on = False
+            burst["ended_s"] = round(time.time() - started, 1)
+
+        threads = [threading.Thread(target=sample, daemon=True)]
+        if args.burst_seconds:
+            threads.append(threading.Thread(target=inject, daemon=True))
+        for thread in threads:
+            thread.start()
+        result = asyncio.run(
+            load_test_run(
+                server.base_url,
+                args.load_users,
+                args.load_requests,
+                args.load_mode,
+                question_set="research",
+                timeout_s=240.0,
+                usd_cny=args.usd_cny,
+                warmup=False,
+                label=f"chaos llm-load burst={args.burst_seconds}s",
+            )
+        )
+        recovery: dict[str, Any] | None = None
+        if args.burst_seconds and args.recovery_requests:
+            # After the burst the breakers stay open for their cool-down (60 s): wait until no model is open, then
+            # a short load shows the half-open trial calls and the breakers closing again.
+            deadline = time.time() + args.burst_start + args.burst_seconds + 180
+            while time.time() < deadline:
+                current = samples[-1]["breaker"] if samples else {}
+                if burst.get("ended_s") is not None and current and "open" not in current.values():
+                    break
+                time.sleep(1)
+            recovery_started = round(time.time() - started, 1)
+            recovery = asyncio.run(
+                load_test_run(
+                    server.base_url,
+                    args.load_users,
+                    args.recovery_requests,
+                    args.load_mode,
+                    question_set="research",
+                    timeout_s=240.0,
+                    usd_cny=args.usd_cny,
+                    warmup=False,
+                    label="chaos llm-load recovery",
+                )
+            )
+            recovery["started_s"] = recovery_started
+            time.sleep(3)  # one more breaker sample after the last answer
+        stop.set()
+        for thread in threads:
+            thread.join(5)
+        with _client(server.base_url) as client:
+            final_metrics = _metric_lines(client.get("/metrics").text, prefixes)
+    finally:
+        stop.set()
+        server.stop()
+        proxy.stop()
+    gateway = proxy.log
+    for item in [*result["per_request"], *((recovery or {}).get("per_request") or [])]:
+        item["t_start_s"] = round(item.get("started_at_unix", started) - started, 1)
+        item["t_end_s"] = round(item["t_start_s"] + item["latency_ms"] / 1000, 1)
+        item["during_burst"] = bool(
+            burst.get("started_s") is not None
+            and item["t_start_s"] < burst.get("ended_s", float("inf"))
+            and item["t_end_s"] > burst["started_s"]
+        )
+    answered = [item for item in result["per_request"] if item.get("status") == 200]
+    llm_failed = [
+        item
+        for item in answered
+        if any(str(flag).startswith(_LLM_FAILURE_MARKERS) for flag in item.get("degraded") or [])
+    ]
+    transitions: list[dict[str, Any]] = []
+    last: dict[str, str] = {}
+    for entry in samples:
+        for model, state in entry["breaker"].items():
+            if last.get(model) != state:
+                transitions.append({"t": entry["t"], "model": model, "state": state, "fault_on": entry["fault_on"]})
+                last[model] = state
+    return {
+        "scenario": "llm-load",
+        "server_env": env_switches(env),
+        "primary": primary,
+        "fallback": args.fallback_model or None,
+        "load": {"users": args.load_users, "requests_per_user": args.load_requests, "mode": args.load_mode},
+        "burst": {**burst, "configured_start_s": args.burst_start, "configured_seconds": args.burst_seconds},
+        "summary": {
+            "requests": result["requests"],
+            "user_visible_error_rate": result["error_rate"],
+            "statuses": result["statuses"],
+            "latency_ms": result["latency_ms"],
+            "wall_seconds": result["wall_seconds"],
+            "routes": result["routes"],
+            "answer_sources": result["answer_sources"],
+            "verified_rate": result["verified_rate"],
+            "requests_overlapping_burst": sum(1 for item in result["per_request"] if item["during_burst"]),
+            "llm_failure_requests": len(llm_failed),
+            "llm_failure_fell_back_to_template": sum(
+                1 for item in llm_failed if item.get("answer_source") == "template"
+            ),
+            "gateway_requests": len(gateway),
+            "gateway_injected": sum(1 for entry in gateway if entry.get("injected")),
+            "gateway_forwarded": sum(1 for entry in gateway if not entry.get("injected")),
+            "gateway_forwarded_by_status": dict(
+                Counter(str(entry["status"]) for entry in gateway if not entry.get("injected"))
+            ),
+            "gateway_429": sum(1 for entry in gateway if entry.get("status") == 429),
+            "rate_429_of_forwarded": round(
+                sum(1 for entry in gateway if entry.get("status") == 429)
+                / max(1, sum(1 for entry in gateway if not entry.get("injected"))),
+                4,
+            ),
+            "llm_calls_reported": sum(int(item.get("llm_calls") or 0) for item in answered),
+            "cost": result["cost"],
+            "breaker_transitions": transitions,
+        },
+        "load_test": {key: value for key, value in result.items() if key != "per_request"},
+        "per_request": result["per_request"],
+        "recovery": None
+        if recovery is None
+        else {
+            "started_s": recovery["started_s"],
+            "requests": recovery["requests"],
+            "user_visible_error_rate": recovery["error_rate"],
+            "latency_ms": recovery["latency_ms"],
+            "answer_sources": recovery["answer_sources"],
+            "llm_failure_requests": sum(
+                1
+                for item in recovery["per_request"]
+                if any(str(flag).startswith(_LLM_FAILURE_MARKERS) for flag in item.get("degraded") or [])
+            ),
+            "cost": recovery["cost"],
+            "per_request": recovery["per_request"],
+        },
+        "gateway_log": gateway,
+        "breaker_samples": samples,
+        "final_metrics": final_metrics,
+    }
+
+
 def _count_models(log: list[dict[str, Any]]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for call in log:
@@ -686,7 +923,7 @@ def run_sources(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser = argparse.ArgumentParser(description="Chaos drill against a live FinSight server.")
-    parser.add_argument("--scenario", choices=["llm", "sources", "sources-load"], required=True)
+    parser.add_argument("--scenario", choices=["llm", "llm-load", "sources", "sources-load"], required=True)
     parser.add_argument("--port", type=int, default=8821)
     parser.add_argument("--fallback-model", default="cline-pass/glm-5.3-flash")
     parser.add_argument("--llm-cooldown", type=float, default=60.0, help="FallbackLLM cool-down (s).")
@@ -697,6 +934,13 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument("--max-stale", type=float, default=90.0)
     parser.add_argument("--load-users", type=int, default=8, help="sources-load: concurrent users.")
     parser.add_argument("--load-requests", type=int, default=10, help="sources-load: questions per user and phase.")
+    parser.add_argument("--load-mode", choices=["auto", "agent", "workflow"], default="auto", help="llm-load: mode.")
+    parser.add_argument("--burst-start", type=float, default=15.0, help="llm-load: seconds before the 5xx burst.")
+    parser.add_argument("--burst-seconds", type=float, default=0.0, help="llm-load: burst length (0 = no burst).")
+    parser.add_argument("--burst-status", type=int, default=503, help="llm-load: injected HTTP status.")
+    parser.add_argument(
+        "--recovery-requests", type=int, default=1, help="llm-load: requests per user after the breakers' cool-down."
+    )
     parser.add_argument("--out", default="outputs/chaos/chaos.json")
     args = parser.parse_args(argv)
     out = Path(args.out)
@@ -704,7 +948,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     out_dir.mkdir(parents=True, exist_ok=True)
     started = time.time()
     state = git_state(ROOT)  # before the run: a commit made during a long drill is not attributed to it
-    scenarios = {"llm": run_llm, "sources": run_sources, "sources-load": run_sources_load}
+    scenarios = {"llm": run_llm, "llm-load": run_llm_load, "sources": run_sources, "sources-load": run_sources_load}
     report = scenarios[args.scenario](args, out_dir)
     report.update(
         {
@@ -713,6 +957,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "duration_s": round(time.time() - started, 1),
             "commit": commit_label(state),
             "working_tree_clean": state["working_tree_clean"],
+            "env": env_switches(),
             **({"commit_error": state["commit_error"]} if state.get("commit_error") else {}),
         }
     )

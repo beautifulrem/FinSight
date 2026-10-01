@@ -142,6 +142,9 @@ def _detector() -> Any:
         return _lingua_detector
 
 
+_ACRONYM_OR_TICKER = re.compile(r"(?<![A-Za-z])(?:[A-Z]{1,5}(?:/[A-Z]{1,3})?|\d{6}\.[A-Z]{2})(?![A-Za-z])")
+
+
 def language_violation(answer_text: str, query: str, *, language: str | None = None) -> bool:
     """True when the answer is not in the language of the question (e.g. hijacked by a poisoned document).
 
@@ -154,6 +157,13 @@ def language_violation(answer_text: str, query: str, *, language: str | None = N
     if (language or detect_query_language(query)) == "zh":
         return latin >= 40 and cjk < max(2, latin * 0.2)
     if cjk >= max(40, latin):
+        return True
+    # (round 12, H7) a short Chinese answer to an English question ("贵州茅台（600519.SH）的市盈率 PE(TTM) 为 24.6 倍
+    # [fundamental_600519.SH]。" for "And Moutai?") has fewer than 40 Chinese characters; counted without citations,
+    # tickers and acronyms, Chinese still outweighs the Latin text. Chinese names in an English answer do not.
+    body = _ACRONYM_OR_TICKER.sub(" ", re.sub(r"\[[^\]]+\]", " ", text))
+    body_cjk = len(re.findall(r"[一-鿿]", body))
+    if body_cjk >= 8 and body_cjk >= len(re.findall(r"[A-Za-z]", body)):
         return True
     cleaned = re.sub(r"\[[^\]]+\]|[\u4e00-\u9fff]+|[\d.,%()（）:：/-]+", " ", text)
     if len(re.findall(r"[A-Za-z]", cleaned)) < 60:

@@ -60,6 +60,14 @@ MULTITURN = (
     "ablation-multiturn_v1-deepseek-first-run",
     "multiturn_v1-auto-nollm-after-fixes",
 )
+# Round 12: small online checks on the LLM agent path (H7 answer language, H8 derived numbers) and the G4 frame
+# fallback measured off vs on over the same ten new sessions.
+ROUND12_SESSION_CHECKS = (
+    "session-llm-check-h7-r12",
+    "session-llm-check-h8-r12-before",
+    "session-llm-check-h8-r12-after",
+)
+ROUND12_FRAME_CHECKS = ("frame-llm-check-r12-fallback-off", "frame-llm-check-r12-fallback-on")
 PERF_RUNS = (
     "perf-baseline-deepseek",
     "perf-verifierfix-deepseek",
@@ -80,6 +88,7 @@ PERF_PAIRS = (
 )
 STRESS_RUNS = (
     "verifier_stress",
+    "verifier_stress-round12",
     "verifier_stress-round10",
     "verifier_stress-round9",
     "verifier_stress-9f0e46b",
@@ -1567,6 +1576,11 @@ def render_with_sources() -> tuple[str, list[str]]:
     audits = [(name, result) for name, result in audits if result]
     if audits:
         body += output_safety_section(audits)  # type: ignore[arg-type]
+    round12_sessions = [(name, take(name)) for name in ROUND12_SESSION_CHECKS]
+    round12_frames = [(name, take(name)) for name in ROUND12_FRAME_CHECKS]
+    round12 = [(n, r) for n, r in round12_sessions if r], [(n, r) for n, r in round12_frames if r]
+    if round12[0] or round12[1]:
+        body += round12_section(*round12)
     extras = [(name, take(name)) for name in EXTRA_EVIDENCE]
     extras = [(name, result) for name, result in extras if result]
     if extras:
@@ -1582,6 +1596,76 @@ def render_with_sources() -> tuple[str, list[str]]:
     lines += provenance_section(used)
     lines.append(END)
     return "\n".join(lines), used
+
+
+def _behaviour_switches(config: dict[str, Any]) -> str:
+    """The recorded env switches that change agent behaviour (not data sources or trace paths)."""
+    env = config.get("env") or {}
+    return ", ".join(
+        f"`{key}={value}`"
+        for key, value in env.items()
+        if key.startswith(("QI_AGENT_", "QI_PROMPT_", "QI_LLM_")) and key != "QI_AGENT_TRACE_DIR"
+    )
+
+
+def round12_section(sessions: list[tuple[str, dict[str, Any]]], frames: list[tuple[str, dict[str, Any]]]) -> list[str]:
+    """Round 12: H7 / H8 session checks and the G4 frame-fallback before/after (one row per committed file)."""
+    lines = [
+        "### Round 12: answer language, derived numbers and the frame fallback on the LLM agent path",
+        "",
+        "Small online checks with DeepSeek over the offline tools, run sequentially (stop on the first 429). "
+        "Each file records its commit, command, env switches and every turn's answer; the H8 files also keep the "
+        "model's raw drafts, which the offline tests replay (`tests/fixtures/h8_recorded_drafts.json`).",
+        "",
+        "| Result file | Commit | Env switches | Turns | LLM calls | Result |",
+        "|---|---|---|---|---|---|",
+    ]
+    for name, result in sessions:
+        config, summary = result.get("config") or {}, result.get("summary") or {}
+        env = _behaviour_switches(config)
+        if "answer_language_ok" in summary:
+            text = (
+                f"answer in the session's language {summary['answer_language_ok']}/{summary['turns']}; "
+                f"written so by the model {summary['model_wrote_expected_language']}/{summary['turns']}; "
+                f"template fallback on a wrong-language draft {summary['language_fallback']}"
+            )
+        else:
+            derived = result.get("sessions") or []
+            written = sum(len(session.get("derived_in_drafts") or []) for session in derived)
+            kept = sum(len(session.get("derived_stated") or []) for session in derived)
+            revisions = sum(
+                max(0, sum(1 for draft in session["turns"][-1]["drafts"] if not draft.get("tool_calls")) - 1)
+                for session in derived
+            )
+            repaired = sum(
+                "verification_failed:repaired" in (session["turns"][-1].get("degraded") or []) for session in derived
+            )
+            text = (
+                f"derived values the model wrote (ratio 1.93 / 0.52, relative 17.7%): {written}; in the final answer "
+                f"{kept}/{written}; revision calls on the derived turns {revisions}; derived turns repaired by "
+                f"deletion {repaired}/{len(derived)}"
+            )
+        lines.append(
+            f"| `{name}.json` | `{config.get('commit')}` | {env or 'defaults'} | {summary.get('turns')} | "
+            f"{summary.get('llm_calls')} | {text} |"
+        )
+    for name, result in frames:
+        config, summary = result.get("config") or {}, result.get("summary") or {}
+        env = _behaviour_switches(config) or "defaults"
+        n = summary.get("sessions")
+        text = (
+            f"gap turn states the expected value {summary.get('gap_turn_states_expected')}/{n} "
+            f"(model {summary.get('model_stated_it')}, fallback appended {summary.get('fallback_appended')}); "
+            f"no number {summary.get('no_number')}/{n}, declined {summary.get('declined')}/{n}, "
+            f"fallback would have appended {summary.get('fallback_would_append')}; "
+            f"verified {summary.get('gap_turn_verified')}/{n}"
+        )
+        turns = sum(len(session.get("turns") or []) for session in result.get("sessions") or [])
+        lines.append(
+            f"| `{name}.json` | `{config.get('commit')}` | {env} | {turns} | {summary.get('llm_calls')} | {text} |"
+        )
+    lines.append("")
+    return lines
 
 
 def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:

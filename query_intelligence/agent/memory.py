@@ -93,6 +93,9 @@ def turn_record(state: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
         "evidence_used": result.get("evidence_used", []),
         # the answer language a "继续用英文" instruction set for later turns (carried from turn to turn)
         "answer_language": state.get("answer_language") or "",
+        # (round 12, H7) the language this turn was answered in: a follow-up without a language signal ("PE?",
+        # "Moutai?") keeps it
+        "language": state.get("language") or "",
         # (round 11) the comparison frame after this turn: metric, operands in order, values and evidence ids
         "frame": frame,
     }
