@@ -979,6 +979,36 @@ def _price_details(data: dict[str, Any], zh: bool, request: PriceRequest) -> lis
             stated.append(f"{label_zh} {_px(value, data, zh)}" if zh else f"{label_en} {_px(value, data, zh)}")
             continue
         stated.append(f"{label_zh} {_num(value)}{unit}" if zh else f"{label_en} {_num(value)}{unit}")
+    if request.turnover_rate:
+        rate = data.get("turnover_rate")
+        if rate is None:
+            missing.append("换手率（需要流通股本，数据源未提供）" if zh else "the turnover rate (needs the free float)")
+        else:
+            stated.append(f"换手率 {_num(rate)}%" if zh else f"turnover rate {_num(rate)}%")
+    if request.change_amount:
+        if len(closes) >= 2 and closes[-1].get("close") is not None:
+            previous, latest = closes[-2], closes[-1]
+            delta = round(float(latest["close"]) - float(previous["close"]), 3)
+            if zh:
+                move = f"{'上涨' if delta > 0 else '下跌' if delta < 0 else '持平'} {_px(abs(delta), data, zh)}"
+                sentences.append(
+                    f"{name}最新收盘 {_px(latest['close'], data, zh)}（{latest.get('date')}），前一交易日"
+                    f"（{previous.get('date')}）收盘 {_px(previous['close'], data, zh)}，{move} [{eid}]。"
+                )
+            else:
+                move = f"{'up' if delta > 0 else 'down' if delta < 0 else 'unchanged'} {_px(abs(delta), data, zh)}"
+                sentences.append(
+                    f"{name} closed at {_px(latest['close'], data, zh)} on {latest.get('date')} against "
+                    f"{_px(previous['close'], data, zh)} on {previous.get('date')}, {move} [{eid}]."
+                )
+        else:
+            # no previous close in the data (an implied one would be a figure the evidence does not state): the
+            # change in yuan is named missing; the reported daily change in percent stays in the price sentence
+            missing.append(
+                "前一交易日收盘价，因此无法给出涨跌金额（涨跌幅见上）"
+                if zh
+                else "the previous close, so the change in yuan cannot be given (the daily change in percent is above)"
+            )
     if stated:
         sentences.append(
             f"{name}（{as_of}）：{'，'.join(stated)} [{eid}]。"

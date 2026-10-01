@@ -376,7 +376,7 @@ _ASPECT_WORDS_ZH = (
     "净利润", "净利", "毛利润率", "毛利率", "股息率", "每股收益", "总市值", "市值", "资产负债率", "负债率",
     "收盘价", "收盘", "股价", "走势", "最高价", "最高", "最低价", "最低", "开盘价", "开盘", "成交量",
     "成交金额", "成交额", "涨跌幅", "涨跌", "估值", "公告", "新闻", "分红", "业绩", "财报", "舆情", "均线",
-    "波动率",
+    "波动率", "换手率",
 )  # fmt: skip
 _ASPECT = re.compile(
     "|".join(re.escape(word) for word in sorted(_ASPECT_WORDS_ZH, key=len, reverse=True)) + "|"
@@ -385,7 +385,7 @@ _ASPECT = re.compile(
     r"price[- ]to[- ](?:book|earnings)|"
     r"book(?:[- ]value)? multiple|earnings multiple|"
     r"dividend|market cap|valuation|\bprice\b|\bclos(?:e|es|ing price)\b|\bhigh\b|\blow\b|\bvolume\b|"
-    r"percentage change|\breturn\b|\bgrowth\b|volatility|moving average|announcements?|news|trend",
+    r"percentage change|\breturn\b|\bgrowth\b|volatility|moving average|announcements?|news|trend|turnover rate",
     re.IGNORECASE,
 )
 # A follow-up that only changes the period ("2024年的呢", "And in 2022?") keeps the previous question's metric.
@@ -422,6 +422,21 @@ def _last_aspects(turns: list[dict[str, Any]], zh: bool | None = None) -> list[s
         if metric is not None:
             return [metric_label(metric, zh)]
     return []
+
+
+def _only_names(text: str, entity: dict[str, Any]) -> bool:
+    """Whether the follow-up is nothing but the target's name ("Moutai?", "Ping An's?", "茅台？")."""
+    from .names import english_aliases, english_name, load_synonyms
+
+    canonical = str(entity.get("canonical_name") or entity.get("name") or "")
+    names = [entity.get("mention"), canonical, english_name(canonical), *english_aliases(canonical)]
+    names += [alias for alias, name in (load_synonyms().get("alias") or {}).items() if name == canonical]
+    if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical):
+        names.append(canonical[2:])
+    remainder = text.lower()
+    for name in sorted({str(item).lower() for item in names if item}, key=len, reverse=True):
+        remainder = remainder.replace(name, " ")
+    return not re.sub(r"(?:'s|’s|\bthen\b|\bplease\b|[\s?？。.!！,，])", "", remainder)
 
 
 def resolve_ellipsis(
@@ -467,6 +482,9 @@ def resolve_ellipsis(
             rewritten = f"{', '.join(carried)} {rest_en} for {joined}?" if carried else f"{rest_en} for {joined}?"
         reason = f"ellipsis:target->{joined}"
         return rewritten, reason + (f"+aspect->{'+'.join(carried)}" if carried else "")
+    if len(current_targets) == 1 and not marker and not aspects_now and _only_names(text, current_targets[0]):
+        # (round 12, H9) "Wuliangye P/E?" → "Moutai?": a bare name is the same question about another target
+        marker = True
     if len(current_targets) == 1 and marker and not aspects_now:
         aspects = _last_aspects(turns, zh)
         if not aspects:

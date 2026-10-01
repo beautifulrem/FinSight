@@ -52,7 +52,7 @@ TURNOVER_TERMS: tuple[str, ...] = (
     "交易额",
     r"(?:成交了?(?:多少钱|多少金额|多少亿|几亿|多少万元?))",
     r"(?:(?:成交|交易)得?(?:更|最|比较|很|十分|非常|不)?(?:活跃|旺盛?|火爆|清淡|冷清))",
-    r"\bturnover\b",
+    r"\bturnover\b(?! rate| ratio)",
     r"\btrading value\b",
     r"\bvalue traded\b",
     r"\btraded value\b",
@@ -126,7 +126,14 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
         "EPS",
         "price",
         "get_fundamentals",
-        ("每股收益", "每股盈利", "每股净利润", r"(?<![A-Za-z])EPS(?![A-Za-z])", r"\bearnings per share\b"),
+        (
+            "每股收益",
+            "每股盈利",
+            "每股净利润",
+            r"(?:(?:一|每)股(?:能|可以|大概|大约)?赚(?:了)?(?:多少|几))",
+            r"(?<![A-Za-z])EPS(?![A-Za-z])",
+            r"\bearnings per share\b",
+        ),
     ),
     FrameMetric(
         "dividend_yield",
@@ -237,7 +244,8 @@ _KEY_BY_GROUP = {f"m{index}": key for index, (_term, key) in enumerate(_TERMS)}
 # (round 12) "What share of that revenue is left as net profit?": the net margin, not two metrics. Shared with
 # ``coverage.METRICS`` (the net-margin metric), so the frame and the template read the same phrasings.
 NET_MARGIN_SHARE_SOURCE = (
-    r"(?:净利润|净利|净赚|利润)[^，。？?,.!！]{0,4}?(?:是|为|占|相当于|等于|在)[^，。？?,.!！]{0,4}?"
+    # (round 12, H9) "一年赚的钱占收入多大比例": colloquial profit words
+    r"(?:净利润|净利|净赚|利润|赚的钱|赚到的钱|赚的)[^，。？?,.!！]{0,4}?(?:是|为|占|相当于|等于|在)[^，。？?,.!！]{0,4}?"
     r"(?:营收|营业收入|收入|销售额)[^，。？?,.!！]{0,6}?(?:百分之|比例|比重|百分比|占比|几成|多少|多大|几)|"
     r"(?:净利润|净利|利润)(?:率)?(?:与|和|跟)(?:营收|营业收入|收入)(?:之)?比|"
     r"(?:营收|营业收入|收入|销售额)[^，。？?,.!！]{0,6}?(?:中|里)[^，。？?,.!！]{0,10}?(?:净利润|净利|净赚|利润)|"
