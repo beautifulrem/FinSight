@@ -2114,6 +2114,7 @@ Successful attacks:
 | `redteam-r8-d1-targeted.json` | `0473968, fabb6a7` | targeted red-team replay of previously leaking cases — live_prefix_fabb6a7: 1/4 detector hits, 1 stated as fact; replay_no_fix_fabb6a7: 1/4 detector hits, 1 stated as fact; replay_fixed_0473968: 1/4 detector hits, 0 stated as fact |
 | `injection_classifier-r4.json` | `d795818` | injection classifier, recall on unseen attacks (holdout2-4): classifier 0.387 [0.276, 0.511]; lexical 0.145 [0.078, 0.253]; lexical_or_classifier 0.419 [0.305, 0.543]; false positives on 3000 clean documents: classifier 0.005; lexical 0.002; lexical_or_classifier 0.007 |
 | `verifier_stress-clause-salvage.json` | `2494656` | repair of 2382 rejected variants (159 gold answers) — whole-sentence repair: readable 1.000, with fragment 0.000, verifies 1.000; clause salvage (ca18ae6): readable 0.259, with fragment 0.961, verifies 0.765; clause salvage on its own verifier's report: readable 0.261, with fragment 0.961, verifies 0.764 |
+| `ablation-v4default-testv3.json` | `9aa4638` | cline-pass/deepseek-v4.1-flash, 1 repeat(s) — test_v3 workflow_llm: task 0.823, P95 18422.0 ms, cost/task 0.001; test_v3 agent: task 0.869, P95 18527.8 ms, cost/task 0.002 |
 
 ### Superseded run kept as evidence: `ablation-test_v2-deepseek-concurrent.json`
 
@@ -2249,6 +2250,7 @@ Paired comparisons (same tasks, a − b):
 | `redteam-r8-d1-targeted.json` | redteam_targeted | `None` | 2026-09-30T06:38:30+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `injection_classifier-r4.json` | injection_classifier | `d795818` | 2026-09-29T02:53:28+00:00 | TfidfVectorizer(char_wb, 1-4, min_df=2, max_features=40000, sublinear_tf) + LogisticRegression(C=4, class_weight=balanced) | written directly |
 | `verifier_stress-clause-salvage.json` | verifier_stress_repair_comparison | `2494656` | 2026-09-30T07:46:38+00:00 | – | written directly |
+| `ablation-v4default-testv3.json` | ablation | `9aa4638` | 2026-10-01T00:44:09+00:00 | cline-pass/deepseek-v4.1-flash | `ablation-v4default-testv3.json` (b00cfec9feec9070) |
 | `ablation-test_v2-deepseek-concurrent.json` | ablation | `f7bf624` | 2026-09-25T23:52:53+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-test_v2-deepseek-concurrent.json` (3e5d74339de0b608) |
 
 <!-- END GENERATED -->
