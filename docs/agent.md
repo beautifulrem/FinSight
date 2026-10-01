@@ -356,6 +356,18 @@ it stated both ROEs without the gap. The fallback now runs on the final draft (`
 again stated by the model, so the fallback itself is exercised only by the offline test
 (`frame-llm-check-round11-rerun.json`; 58 LLM calls in all, no 429). Ten sessions are a smoke check, not a rate.
 
+Round 12 measured the rule as a before/after: ten new sessions (`frame_llm_check --sessions r12`, mostly "X呢，两者差多少"
+in one follow-up), run with `QI_AGENT_FRAME_FALLBACK=off` and then on, at `e9badd4`. Off: the gap turn stated the
+expected value in 9/10, the miss was the model's "about 2.8 times" for 2.83 (a rounding the check counts as a miss), 0
+declined, the fallback would have appended once (`frame-llm-check-r12-fallback-off.json`, 27 LLM calls). On: 10/10, 8 by
+the model and 2 appended by the fallback, in both cases after the verifier's repair had deleted the model's own gap
+sentence (`frame-llm-check-r12-fallback-on.json`, 30 calls). The decline the rule was written for ("没有五粮液的数据，
+无法核实") did not occur in these 20 runs; what the fallback recovered was repair deletions. In both, the kept text
+states the amounts in 元 (168838000000 元, 37,800,000,000 元); the frame check does not record drafts, so the deleted
+sentence is not on file, but a gap in 亿 of two amounts written in 元 failed the verifier when reproduced offline with
+the first session's numbers, and the verifier now derives it (`cd77f97`, H8). The two runs are separate LLM samples,
+not paired.
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) `stated_holdings` ("我持有招商银行", "I own …", up to 5) and (round 11) `comparison_frame`, the comparison under way (metric, operands in order, the values and evidence ids earlier turns found, and a note that those ids must be fetched again to be cited). It is rule-based and bounded, and it is the default.
