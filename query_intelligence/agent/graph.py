@@ -1593,10 +1593,29 @@ def _assumption_notes(reasons: list[str], *, zh: bool) -> list[str]:
     return notes
 
 
-def _asked_metrics(state: AgentState) -> list[str]:
-    """Frame metric keys the question asks about ("roe", "pe", "net_margin", ...): the frame request's first."""
-    from .frame import metric_mentions
+# (round 13, I15) A question about a future day or period: the tiles show history, never "the metric you asked about".
+# Only the UI marking uses this; routing and the forecast hedge use ``router.asks_price_forecast``.
+_FUTURE_TIME = re.compile(
+    r"明天|明日|后天|下周|下个?星期|下礼拜|下个?月|下季度|明年|下一(?:个)?交易日|未来|将来|"
+    r"\b(?:tomorrow|next\s+(?:week|month|quarter|year|trading\s+day|monday|tuesday|wednesday|thursday|friday)|"
+    r"by\s+(?:monday|tuesday|wednesday|thursday|friday|christmas|year[- ]end|the\s+end\s+of))\b",
+    re.IGNORECASE,
+)
 
+
+def _asked_metrics(state: AgentState) -> list[str]:
+    """Frame metric keys the question asks about ("roe", "pe", "net_margin", ...): the frame request's first.
+
+    (round 13, I15) None for a forecast ("宁德时代下周五收盘会在多少"): the answer gives historical data only, so the UI
+    must not mark the latest close or the last reported figure as the metric the user asked about.
+    """
+    from .frame import metric_mentions
+    from .router import asks_price_forecast
+
+    style = str((state.get("nlu") or {}).get("question_style") or "")
+    queries = [str(state.get("query") or ""), str(state.get("effective_query") or "")]
+    if style == "forecast" or any(asks_price_forecast(text) or _FUTURE_TIME.search(text) for text in queries if text):
+        return []
     asked = [str((state.get("frame_request") or {}).get("metric") or "")]
     asked += metric_mentions(state.get("effective_query") or state.get("query") or "")
     return [key for key in dict.fromkeys(asked) if key]
