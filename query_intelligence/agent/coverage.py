@@ -263,7 +263,10 @@ METRICS: tuple[Metric, ...] = (
         "eps",
         "每股收益",
         "EPS",
-        r"每股收益|每股盈利|每股净利润?|(?<![A-Za-z])EPS(?![A-Za-z])|earnings per share",
+        # (round 12, H9) "一股赚多少钱", "每股能赚几块": colloquial EPS (not "一股值多少钱", a fair value)
+        r"每股收益|每股盈利|每股净利润?|(?<![A-Za-z])EPS(?![A-Za-z])|earnings per share|"
+        r"(?:一|每)股(?:能|可以|大概|大约)?赚(?:了)?(?:多少|几)|"
+        r"\bhow much (?:does|did) (?:it|each share) earn per share\b",
         ("eps", "basic_eps", "diluted_eps", "eps_ttm"),
     ),
     # P/S needs the market cap, which no configured source has: stated as not computable, never replaced by P/E.
@@ -825,6 +828,12 @@ _LOW = re.compile(
     r"\b(?:daily|day'?s|intraday|session|today'?s)\s+lows?\b|\bhighs? and (?:the )?lows?\b|\bhigh/low\b|\blow price\b",
     re.IGNORECASE,
 )
+_TURNOVER_RATE = re.compile(r"换手率|换手(?:了)?(?:多少|几)|\bturnover (?:rate|ratio)\b", re.IGNORECASE)
+_CHANGE_AMOUNT = re.compile(
+    r"(?:涨|跌)了?(?:多少|几)(?:钱|元|块)|(?:涨|跌)(?:了)?(?:几|多少)块钱|\bhow many yuan\b|"
+    r"\b(?:rose|fell|dropped|gained|moved|changed?)\b[^.?!]{0,20}\bin yuan\b",
+    re.IGNORECASE,
+)
 _OPEN = re.compile(r"开盘价?|\bopen(?:ing)?(?: price)?\b(?! interest)", re.IGNORECASE)
 _VOLUME = re.compile(r"成交量|量能|\b(?:trading )?volume\b", re.IGNORECASE)
 _AMOUNT = TURNOVER  # (round 12) the comparison frame's turnover vocabulary ("成交了多少钱", "trading value")
@@ -863,11 +872,23 @@ class PriceRequest:
     moving_averages: tuple[int, ...] = ()
     above_ma: bool = False
     year_to_date: bool = False
+    # (round 12, H9) the stock turnover rate (换手率), answered when the source has it, else named missing; the
+    # change in yuan against the previous close ("今天跌了多少钱")
+    turnover_rate: bool = False
+    change_amount: bool = False
 
     @property
     def needs_quote(self) -> bool:
         return bool(
-            self.closes or self.previous_close or self.high or self.low or self.open or self.volume or self.amount
+            self.closes
+            or self.previous_close
+            or self.high
+            or self.low
+            or self.open
+            or self.volume
+            or self.amount
+            or self.turnover_rate
+            or self.change_amount
         )
 
     @property
@@ -904,6 +925,8 @@ def requested_price_fields(query: str) -> PriceRequest:
         moving_averages=tuple(averages),
         above_ma=above,
         year_to_date=asks_year_to_date(text),
+        turnover_rate=bool(_TURNOVER_RATE.search(text)),
+        change_amount=bool(_CHANGE_AMOUNT.search(text)),
     )
 
 

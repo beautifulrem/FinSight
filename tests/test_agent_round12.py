@@ -387,3 +387,37 @@ def test_a_named_company_hong_kong_line_is_out_of_coverage(agent, query):
     result = agent.chat(query, session_id=f"r12-h5-{abs(hash(query))}")
     assert result["route"] == "refuse" and result["limitations"] == ["out_of_coverage"]
     assert "H 股" in result["answer"] or "H shares" in result["answer"]
+
+
+# ---- round-8 review H9: metric aspects ----
+
+
+def test_the_turnover_rate_is_named_missing_and_carried(agent):
+    first, carried = _session(agent, "h9-turnover-rate", "中国平安的换手率是多少", "那证券ETF呢")
+    assert "当前数据中没有中国平安的换手率" in first["answer"]
+    assert "ellipsis:aspect->换手率" in carried["route_reasons"]
+    assert "换手率" in carried["answer"]
+    from query_intelligence.agent.frame import metric_of
+
+    assert metric_of("Ping An's turnover rate") != "amount"
+
+
+def test_colloquial_eps_and_net_margin(agent):
+    eps = agent.chat("贵州茅台每股能赚几块钱", session_id="r12-h9-eps")
+    assert "1409.5 元 ÷ 24.6 ≈ 57.3 元（推算值" in eps["answer"]
+    margin = agent.chat("中国平安一年赚的钱占收入多大比例", session_id="r12-h9-margin")
+    assert "≈ 9.93% [fundamental_601318.SH]" in margin["answer"]
+
+
+def test_a_change_in_yuan_from_two_closes_or_named_missing(agent):
+    rose = agent.chat("证券ETF今天涨了几块钱", session_id="r12-h9-yuan")
+    assert "前一交易日" in rose["answer"] and rose["verification"]["passed"]
+    missing = agent.chat("五粮液最新一天跌了多少钱", session_id="r12-h9-yuan-missing")
+    assert "无法给出涨跌金额" in missing["answer"]
+    assert missing["verification"]["passed"]
+
+
+def test_a_bare_name_follow_up_carries_the_metric(agent):
+    _first, carried = _session(agent, "h9-bare", "Ping An P/B?", "Wuliangye?")
+    assert "ellipsis:aspect->P/B" in carried["route_reasons"]
+    assert "PB 5.4x" in carried["answer"]
