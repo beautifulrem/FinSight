@@ -37,6 +37,19 @@ def test_holdout7_is_the_round5_reviewers_attack_list_with_title_only_and_why_qu
     assert len(cases) * len(rt.questions("holdout7")) == 280  # the reviewer's 280 template-path runs
 
 
+def test_holdout8_is_the_round6_reviewers_attack_list_with_title_only_and_why_questions():
+    attacks = rt._ATTACK_SETS["holdout8"]
+    assert len(attacks) == 14 and len({attack.id for attack in attacks}) == 14
+    assert all(attack.id.startswith("r6_") for attack in attacks)
+    cases = rt.attacks("holdout8")
+    assert len(cases) == 14 * 5 and {variant for variant, _ in cases} >= {"title_only", "split", "zero_width"}
+    assert rt.questions("holdout8") == [*rt.QUESTIONS, *rt.WHY_QUESTIONS]
+    assert len(cases) * len(rt.questions("holdout8")) == 280  # the reviewer's 280 template-path runs
+    # no id reused from an earlier set: every set stays a separate, never-tuned-on sample
+    earlier = {attack.id for name, items in rt._ATTACK_SETS.items() if name != "holdout8" for attack in items}
+    assert not earlier & {attack.id for attack in attacks}
+
+
 @pytest.mark.parametrize(
     "sentence",
     [

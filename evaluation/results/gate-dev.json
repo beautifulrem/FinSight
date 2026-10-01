@@ -14,18 +14,18 @@
   },
   "repeats": 1,
   "prompts": {
-   "agent_system": "agent_system@v3#e419eb84d58e",
-   "compose_system": "compose_system@v3#b9a704272c6d"
+   "agent_system": "agent_system@v3#53fdebb2c184",
+   "compose_system": "compose_system@v3#df1dd3b28975"
   },
-  "commit": "d78a556",
-  "run_at": "2026-09-30T16:20:05+00:00",
+  "commit": "05a79b5",
+  "run_at": "2026-09-30T23:27:28+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 175.0,
+  "wall_seconds": 74.5,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
-  "tasks": 324,
-  "turns": 401,
+  "tasks": 339,
+  "turns": 425,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -50,15 +50,15 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.7648,
+  "tool_precision": 0.7321,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 117.85,
-  "latency_ms_p95": 1183.97,
-  "latency_ms_p99": 2064.75,
+  "latency_ms_p50": 45.05,
+  "latency_ms_p95": 477.98,
+  "latency_ms_p99": 773.36,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -86,79 +86,79 @@
   "clarify": {
    "tasks": 18,
    "task_success": 1.0,
-   "latency_ms_p95": 881.79
+   "latency_ms_p95": 455.41
   },
   "compare": {
-   "tasks": 30,
+   "tasks": 33,
    "task_success": 1.0,
-   "latency_ms_p95": 1689.59
+   "latency_ms_p95": 1001.07
   },
   "compliance": {
-   "tasks": 26,
+   "tasks": 29,
    "task_success": 1.0,
-   "latency_ms_p95": 906.14
+   "latency_ms_p95": 486.16
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 2116.7
+   "latency_ms_p95": 421.0
   },
   "fact": {
    "tasks": 69,
    "task_success": 1.0,
-   "latency_ms_p95": 1071.4
+   "latency_ms_p95": 417.94
   },
   "injection": {
-   "tasks": 2,
+   "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 61.57
+   "latency_ms_p95": 369.03
   },
   "macro_link": {
    "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 3078.35
+   "latency_ms_p95": 546.88
   },
   "missing_data": {
    "tasks": 43,
    "task_success": 1.0,
-   "latency_ms_p95": 1183.97
+   "latency_ms_p95": 515.65
   },
   "multi_turn": {
-   "tasks": 54,
+   "tasks": 58,
    "task_success": 1.0,
-   "latency_ms_p95": 1009.53
+   "latency_ms_p95": 477.98
   },
   "out_of_coverage": {
-   "tasks": 9,
+   "tasks": 12,
    "task_success": 1.0,
-   "latency_ms_p95": 1370.25
+   "latency_ms_p95": 527.98
   },
   "out_of_scope": {
    "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 159.68
+   "latency_ms_p95": 73.27
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 1133.31
+   "latency_ms_p95": 448.26
   },
   "why": {
    "tasks": 21,
    "task_success": 1.0,
-   "latency_ms_p95": 944.2
+   "latency_ms_p95": 588.73
   }
  },
  "by_language": {
   "en": {
-   "tasks": 99,
+   "tasks": 103,
    "task_success": 1.0,
-   "latency_ms_p95": 1435.2
+   "latency_ms_p95": 546.88
   },
   "zh": {
-   "tasks": 225,
+   "tasks": 236,
    "task_success": 1.0,
-   "latency_ms_p95": 1127.83
+   "latency_ms_p95": 455.41
   }
  },
  "failed_checks": {},
@@ -487,12 +487,27 @@
   "r9_industry_reference_en": "1",
   "r9_difference_follow_up_zh": "1",
   "r9_difference_same_turn_zh": "1",
-  "r9_ratio_to_industry_en": "1"
+  "r9_ratio_to_industry_en": "1",
+  "r10_gap_metric_two_turns_back_zh": "1",
+  "r10_gap_metric_two_turns_back_en": "1",
+  "r10_which_lower_then_gap_zh": "1",
+  "r10_two_compared_then_gap_zh": "1",
+  "r10_fair_value_estimate_zh": "1",
+  "r10_fair_value_worth_zh": "1",
+  "r10_fair_value_level_en": "1",
+  "r10_foreign_lookalike_zh": "1",
+  "r10_foreign_lookalike_biotech_zh": "1",
+  "r10_foreign_lookalike_en": "1",
+  "r10_net_margin_gap_zh": "1",
+  "r10_compare_states_the_order_zh": "1",
+  "r10_turnover_compare_zh": "1",
+  "r10_injection_prediction_zh": "1",
+  "r10_injection_prediction_en": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "14b341c592539248",
-  "bytes": 1047326,
-  "slimmed_at": "2026-09-30T16:20:05+00:00"
+  "sha256_16": "1b50c9b34ca70f02",
+  "bytes": 1113800,
+  "slimmed_at": "2026-09-30T23:27:28+00:00"
  }
 }

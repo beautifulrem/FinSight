@@ -80,6 +80,8 @@ docker build -f docker/Dockerfile -t finsight:$TAG .   # 按需推送到镜像�
 
 单独应用 `finsight.yaml` 时镜像名是不存在的 `finsight:set-by-kustomization`，拉取会明确失败，而不是悄悄跑一个来路不明的构建。CI 把每次推送构建为 `finsight:<github.sha>`。
 
+提交里的 `newTag` 在**发布时**设置，而不是每个 commit 都改（一个 commit 无法包含它自己的哈希）。它指向最近一次发布的镜像：在该 commit 的干净工作区构建并做过冒烟测试（`/ready`、`/agent/chat`），所以通常比 HEAD 落后几个 commit。发布步骤是上面三条命令、冒烟测试（在 kind/k3d 集群上运行 `IMAGE=finsight:$TAG deploy/k8s-smoke/smoke.sh`），再提交一个只改 `newTag` 的 `release: finsight:<tag>`。两次发布之间，CI 仍会把每次推送构建并部署到临时 kind 集群（`docker` 和 `k8s-smoke` 两个 job），`kubernetes` job 检查渲染出的镜像标签是 commit 哈希。
+
 ### 密钥
 
 仓库里不提交任何 Secret（之前的清单带着明文 `change-me` 密码）。三选一：

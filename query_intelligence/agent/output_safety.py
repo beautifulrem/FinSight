@@ -26,7 +26,9 @@ relay what it says. This layer looks at the answer sentence by sentence, togethe
      structured data does not contain and that exactly one document wording carries: an insider's "一季度净利润同比
      增长63.5%", a poll, a buyback size, a footnote "restatement", a statistic, and also an ordinary single-source
      figure (a dividend, a sales number). A sentence that cites only structured evidence is left to the verifier;
-     figures two differently worded documents state are left alone
+     figures two differently worded documents state are left alone; (round 10, F9) so are figures the named
+     company's structured fundamentals confirm when the run did not fetch them (a news question quoting the annual
+     report), looked up once through ``corroborate``
    is attributed with the layer's own marker, whatever the model wrote: "据一篇文档称，…（未经其他来源证实）" / "…
    (according to one document; not confirmed by other sources)". A sentence that already says the claim is
    unverified is left as it is; one that only names its source ("媒体报道称…") gets the suffix. A fundamental or
@@ -42,6 +44,7 @@ matches remain and whether they sit in attributed sentences.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -54,6 +57,7 @@ from .verifier import (
     _CITATION,
     _CONNECTOR_OPENING,
     _UNIT_SCALES,
+    _chinese_values,
     _cleaned,
     _is_supported,
     metric_claims,
@@ -182,10 +186,21 @@ def states_unverified(sentence: str) -> bool:
     return bool(_UNVERIFIED.search(sentence))
 
 
-def scrub_answer(answer: dict[str, Any], store: EvidenceStore, *, zh: bool) -> tuple[dict[str, Any], list[str]]:
-    """Return ``(answer, notes)``; notes name the rules that changed the answer (see the module docstring)."""
+def scrub_answer(
+    answer: dict[str, Any],
+    store: EvidenceStore,
+    *,
+    zh: bool,
+    corroborate: Callable[[], list[tuple[float, bool]]] | None = None,
+) -> tuple[dict[str, Any], list[str]]:
+    """Return ``(answer, notes)``; notes name the rules that changed the answer (see the module docstring).
+
+    ``corroborate`` (round 10, F9) returns the numbers of the named companies' structured fundamentals when the run
+    did not fetch them (a news question). It is called at most once, and only when a sentence states a
+    single-document figure the run's structured data lacks: a figure the fundamentals confirm (the annual report's
+    revenue quoted by a news item) is FinSight's own data, not a one-document claim, and is not attributed."""
     text = str(answer.get("answer") or "")
-    context = _Context(store, zh=zh, texts=[text, *map(str, answer.get("key_points") or [])])
+    context = _Context(store, zh=zh, texts=[text, *map(str, answer.get("key_points") or [])], corroborate=corroborate)
     guarded = dict(answer)
     guarded["answer"] = context.scrub_text(text, allow_note=True)
     points: list[str] = []
@@ -210,8 +225,17 @@ def scrub_answer(answer: dict[str, Any], store: EvidenceStore, *, zh: bool) -> t
 
 
 class _Context:
-    def __init__(self, store: EvidenceStore, *, zh: bool, texts: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        store: EvidenceStore,
+        *,
+        zh: bool,
+        texts: list[str] | None = None,
+        corroborate: Callable[[], list[tuple[float, bool]]] | None = None,
+    ) -> None:
         self.store = store
+        self._corroborate = corroborate
+        self._corroborating: list[tuple[float, bool]] | None = None
         self.zh = zh
         self.documents = [item for item in store.items() if item.kind == "document"]
         self.raw_texts = {item.evidence_id: _document_text(item) for item in self.documents}
@@ -379,19 +403,28 @@ class _Context:
         """The sentence states a regulatory action that at most one document wording supports.
 
         Documents "carry" such a claim when the same pattern matches in them (not negated); several documents with
-        the same wording around it (a copied or syndicated item) count once. An uncited sentence counts only when
-        some document carries a claim, i.e. when it can have come from one."""
+        the same wording (a copied or syndicated item) count once. (round 10) The wording is the sentence that
+        states the claim, not a fixed window around it, so one planted sentence appended to two different
+        documents is one source. An uncited sentence counts only when some document carries a claim, i.e. when it
+        can have come from one."""
         folded = fold(sentence)
         stated = [match for match in _REGULATORY.finditer(folded) if not _negated(folded, match.start())]
         if not stated:
             return False
+        # (round 10) a document about another company is not a second source for this company's event: when the
+        # sentence names a company of the run, only documents that mention it count ("…对贵州茅台立案调查" is not
+        # corroborated by another issuer's announcement that also says 立案)
+        subject = _entity(folded, self.names)
+        aliases = [alias for alias, name in self.names.items() if name == subject] if subject else []
         contexts = set()
         for item in self.documents:
+            if aliases and not any(alias in fold(_document_text(item)) for alias in aliases):
+                continue
             for field in (item.text_excerpt, item.title):
                 document = fold(field or "")
                 match = next((m for m in _REGULATORY.finditer(document) if not _negated(document, m.start())), None)
                 if match is not None:
-                    contexts.add(_compact(document[max(0, match.start() - 12) : match.end() + 12]))
+                    contexts.add(_claim_wording(document, match.start(), match.end()))
                     break
         if not contexts and not cites_document:
             return False
@@ -412,6 +445,8 @@ class _Context:
         for value, scales, rounding in figures:
             if _is_supported(value, self.structured_numbers, scales, rounding):
                 continue
+            if _is_supported(value, self.corroborating_numbers(), scales, rounding):
+                continue  # (round 10, F9) the named company's fundamentals confirm it
             carriers = {
                 context
                 for evidence_id, document_figures in self.document_unit_figures.items()
@@ -421,6 +456,15 @@ class _Context:
             if len(carriers) == 1:
                 return True
         return False
+
+    def corroborating_numbers(self) -> list[tuple[float, bool]]:
+        """The fundamentals numbers from ``corroborate``, fetched once, on first need."""
+        if self._corroborating is None:
+            try:
+                self._corroborating = list(self._corroborate()) if self._corroborate is not None else []
+            except Exception:  # a failed lookup leaves the rule as it was: attribute
+                self._corroborating = []
+        return self._corroborating
 
     def _attribute(self, sentence: str) -> str:
         lead = sentence[: len(sentence) - len(sentence.lstrip())]
@@ -607,6 +651,13 @@ def unit_figures(text: str, *, with_context: bool = False) -> list[tuple]:
         if with_context:
             item = (*item, _compact(cleaned[max(0, match.start() - 12) : match.end() + 12]))
         found.append(item)
+    # (round 10, F3) a figure in Chinese numerals with its unit ("百分之三十五", "三成", "十二亿元", "三十倍") is the
+    # same figure as its Arabic form: a headline or a sentence that spells it out is checked like "35%"
+    for position, value, scales, rounding in _chinese_values(cleaned):
+        item = (value, scales, rounding)
+        if with_context:
+            item = (*item, _compact(cleaned[max(0, position - 12) : position + 16]))
+        found.append(item)
     return found
 
 
@@ -639,6 +690,17 @@ def _sentences(text: str) -> list[str]:
         else:
             merged.append(piece)
     return merged
+
+
+_CLAIM_BOUNDARY = re.compile(r"[。！？!?；;\n]|(?<=[\u4e00-\u9fff%％)）])\s+|\s+(?=[\u4e00-\u9fff])")
+
+
+def _claim_wording(text: str, start: int, end: int) -> str:
+    """The compacted sentence of ``text`` around ``[start, end)`` (at most 40 characters on either side): what a
+    document says, independent of the unrelated text it was appended to."""
+    left = max((m.end() for m in _CLAIM_BOUNDARY.finditer(text, 0, start)), default=0)
+    right = next((m.start() for m in _CLAIM_BOUNDARY.finditer(text, end)), len(text))
+    return _compact(text[max(left, start - 40) : min(right, end + 40)])
 
 
 def _document_text(item: AgentEvidence) -> str:

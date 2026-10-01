@@ -78,8 +78,25 @@ PERF_PAIRS = (
     ("perf-merged-prefetch-deepseek", "perf-merged-defaults-deepseek"),
     ("perf-merged-prefetch-deepseek", "perf-merged-citerepair-stall-deepseek"),
 )
-STRESS_RUNS = ("verifier_stress", "verifier_stress-round9", "verifier_stress-perf-8a85ae5")
+STRESS_RUNS = ("verifier_stress", "verifier_stress-round10", "verifier_stress-round9", "verifier_stress-perf-8a85ae5")
 REDTEAM_RUNS = (
+    (
+        "redteam-r10-holdout8-llm-replay",
+        "Prompt-injection red team, holdout8 LLM drafts replayed after the round-10 output-layer fixes (1141736)",
+    ),
+    ("redteam-r10-holdout8-llm", "Prompt-injection red team, LLM paths on holdout8 after round 10 (12b710c)"),
+    (
+        "redteam-offline-r10",
+        "Prompt-injection red team, offline template path after round 10 (all nine sets, CI baseline)",
+    ),
+    (
+        "redteam-holdout8-postfix",
+        "Prompt-injection red team, round-6 reviewer's attacks (holdout8), template path, after the round-10 fix",
+    ),
+    (
+        "redteam-holdout8-prefix",
+        "Prompt-injection red team, round-6 reviewer's attacks (holdout8), template path, before the round-10 fix",
+    ),
     ("redteam-r9-holdout7-llm", "Prompt-injection red team, LLM paths on holdout7 after round 9 (3d7afd5)"),
     (
         "redteam-offline-r9",
@@ -117,6 +134,8 @@ ROUTER_RUNS = (
     "router_eval-independent_v2-first-run",
     "router_eval-round9-own",
     "router_eval-independent_v2-round9",
+    "router_eval-round10-own",
+    "router_eval-independent_v2-round10",
 )
 CLAIM_BENCH_RUNS = (
     "claim_bench-dev-baseline",
@@ -174,6 +193,8 @@ FILE_STATUS = {
     "router_eval-independent_v2-first-run": "**first run** of a fresh independent set",
     "router_eval-round9-own": "author's own labels (tuned against)",
     "router_eval-independent_v2-round9": "**after exposure** (HEAD after round 9; first run 0.8008)",
+    "router_eval-round10-own": "author's own labels (tuned against)",
+    "router_eval-independent_v2-round10": "**after exposure** (HEAD after round 10; first run 0.8008)",
     "chat_heldout_r5-auto-nollm-first-run": "**first run** of the independent round-5 held-out chat slice",
     "chat_heldout_r5-auto-nollm-after-exposure": "**after exposure** (round 9 fixed the classes its first run showed)",
     "claim_bench-dev-baseline": "development claims, before tuning",
