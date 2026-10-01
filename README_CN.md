@@ -38,7 +38,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 - **按服务标准交付**：
   - 没有 LLM 也能运行；每次 LLM 调用都受运行截止时间约束；
   - DeepSeek Agent 的 P95 为 15–17 秒，首字约 3 秒；
-  - 做过压测和故障演练；k3s 多副本经 Postgres 共享会话、任务和 trace；
+  - 做过压测和故障演练（故障演练屏蔽行情源的同时 8 个用户无 LLM 压测：400 个请求 0 错误，[性能 §1b](docs/zh/performance.md#1b-数据源故障演练下的确定性路径无-llm8-个用户)）；k3s 多副本经 Postgres 共享会话、任务和 trace；
   - 提供 MCP（服务端与客户端）和 A2A；配有 Prometheus/Grafana/Jaeger 监控。
 - **为什么不直接用豆包/问财？** 见 [docs/zh/comparison.md](docs/zh/comparison.md)：它们强在哪里、哪些数据谁都没公开，以及一个设计好但尚未执行的公平对比测试。
 

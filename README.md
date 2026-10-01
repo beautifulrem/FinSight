@@ -31,7 +31,7 @@ FinSight answers questions about Chinese listed companies, funds, indices and ma
 - **Runs like a service.**
   - It works without an LLM, and every LLM call is bounded by the run deadline.
   - The DeepSeek agent's P95 is 15–17 s, and the first answer token arrives after about 3 s.
-  - It has been load- and chaos-tested, and runs on k3s with Postgres-shared sessions, tasks and traces.
+  - It has been load- and chaos-tested (8 users without an LLM while the chaos drill blocks the market sources: 0 errors in 400 requests, [performance.md §1b](docs/performance.md#1b-workflow-path-under-the-source-chaos-drill-no-llm-8-users)), and runs on k3s with Postgres-shared sessions, tasks and traces.
   - It exposes MCP (server and client) and A2A, and ships Prometheus/Grafana/Jaeger monitoring.
 - **Why not just use 豆包 / 问财?** [docs/comparison.md](docs/comparison.md) covers what they do better, what none of them publishes, and a fair head-to-head test (designed, not run).
 
