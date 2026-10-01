@@ -1699,24 +1699,26 @@ Command `python -m evaluation.agent_eval.fault_injection --out outputs/agent_eva
 | llm_hallucination | unsupported removed | 5 | 1.00 | – |
 | endless_tool_calls | step budget stops loop | 5 | 1.00 | – |
 
-### Verifier stress test (202 gold answers, 3399 corrupted variants, `verifier_stress.json`)
+### Verifier stress test (227 gold answers, 4016 corrupted variants, `verifier_stress.json`)
 
-Command: `python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress.json` at commit `9f0e46b`. Lower is better; true-accept must stay 1.0.
+Command: `python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress.json` at commit `25205d4`. Lower is better; true-accept must stay 1.0.
 
 | | legacy | run | claim | claim_derived |
 |---|---|---|---|---|
 | True-accept (gold answers passing) | 1.000 | 1.000 | 1.000 | 1.000 |
-| False-accept, all corruptions | 0.333 | 0.244 | 0.019 | 0.020 |
-| False-accept, perturb_1pct (828) | 0.298 | 0.035 | 0.035 | 0.035 |
-| False-accept, perturb_20pct (920) | 0.079 | 0.027 | 0.020 | 0.020 |
-| False-accept, perturb_5pct (900) | 0.066 | 0.028 | 0.017 | 0.017 |
-| False-accept, swap (751) | 1.000 | 1.000 | 0.005 | 0.009 |
+| False-accept, all corruptions | 0.330 | 0.246 | 0.012 | 0.013 |
+| False-accept, perturb_1pct (971) | 0.268 | 0.017 | 0.017 | 0.017 |
+| False-accept, perturb_20pct (1080) | 0.090 | 0.033 | 0.018 | 0.018 |
+| False-accept, perturb_5pct (1055) | 0.055 | 0.024 | 0.011 | 0.011 |
+| False-accept, swap (910) | 1.000 | 1.000 | 0.000 | 0.007 |
 
-Repair of the 3333 rejected variants (whole-sentence deletion, template fallback when nothing cited survives):
+Repair of the 3969 rejected variants (whole-sentence deletion, template fallback when nothing cited survives):
 
 | Readable (no dangling clause, stray punctuation, orphan citation) | Containing a fragment | Repaired answer verifies | Untouched sentences kept | Template fallback |
 |---|---|---|---|---|
-| 1.000 | 0.000 | 1.000 | 0.980 | 0.183 |
+| 1.000 | 0.000 | 1.000 | 0.976 | 0.178 |
+
+* Note: Round 11 at 25205d4: deterministic gold set (gold_set.sha256 33b055d088e4334d…, a second run at the same commit was identical); 227 gold answers / 4,016 variants; claim false accept 0.0117, derived 0.0132, swap 0.0 / 0.0066; true accept 1.0. Supersedes the 9f0e46b run (now verifier_stress-9f0e46b.json). The 220 / 227 / 240 gold counts of earlier rounds came from different commits, not from load.
 
 ### Verifier stress test (227 gold answers, 4016 corrupted variants, `verifier_stress-round10.json`)
 
@@ -1759,6 +1761,25 @@ Repair of the 3832 rejected variants (whole-sentence deletion, template fallback
 | 1.000 | 0.000 | 1.000 | 0.980 | 0.194 |
 
 * Note: Verifier stress at d78a556 (round 9, incl. the 个百分点 count fix 8c86827): 240 gold answers; the CI baseline remains verifier_stress.json (9f0e46b).
+
+### Verifier stress test (202 gold answers, 3399 corrupted variants, `verifier_stress-9f0e46b.json`)
+
+Command: `python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress.json` at commit `9f0e46b`. Lower is better; true-accept must stay 1.0.
+
+| | legacy | run | claim | claim_derived |
+|---|---|---|---|---|
+| True-accept (gold answers passing) | 1.000 | 1.000 | 1.000 | 1.000 |
+| False-accept, all corruptions | 0.333 | 0.244 | 0.019 | 0.020 |
+| False-accept, perturb_1pct (828) | 0.298 | 0.035 | 0.035 | 0.035 |
+| False-accept, perturb_20pct (920) | 0.079 | 0.027 | 0.020 | 0.020 |
+| False-accept, perturb_5pct (900) | 0.066 | 0.028 | 0.017 | 0.017 |
+| False-accept, swap (751) | 1.000 | 1.000 | 0.005 | 0.009 |
+
+Repair of the 3333 rejected variants (whole-sentence deletion, template fallback when nothing cited survives):
+
+| Readable (no dangling clause, stray punctuation, orphan citation) | Containing a fragment | Repaired answer verifies | Untouched sentences kept | Template fallback |
+|---|---|---|---|---|
+| 1.000 | 0.000 | 1.000 | 0.980 | 0.183 |
 
 ### Verifier stress test (202 gold answers, 3399 corrupted variants, `verifier_stress-perf-8a85ae5.json`)
 
@@ -2233,9 +2254,10 @@ Paired comparisons (same tasks, a − b):
 | `gate-dev.json` | run | `05a79b5` | 2026-09-30T23:27:28+00:00 | – | `outputs/agent_eval/gate-dev.json` (1b50c9b34ca70f02) |
 | `gate-holdout.json` | run | `05a79b5` | 2026-09-30T23:27:38+00:00 | – | `outputs/agent_eval/gate-holdout.json` (c9be6baec05863c3) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
-| `verifier_stress.json` | verifier_stress | `9f0e46b` | 2026-09-28T17:04:55+00:00 | – | `outputs/agent_eval/verifier_stress.json` (94d2b01f3bd98c53) |
+| `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |
 | `verifier_stress-round10.json` | verifier_stress | `53454f5` | 2026-09-30T23:35:04+00:00 | – | `outputs/agent_eval/verifier_stress-round10.json` (7e931de123af2bef) |
 | `verifier_stress-round9.json` | verifier_stress | `d78a556` | 2026-09-30T16:04:15+00:00 | – | `outputs/agent_eval/verifier_stress.json` (a0525baec420dcda) |
+| `verifier_stress-9f0e46b.json` | verifier_stress | `9f0e46b` | 2026-09-28T17:04:55+00:00 | – | `outputs/agent_eval/verifier_stress.json` (94d2b01f3bd98c53) |
 | `verifier_stress-perf-8a85ae5.json` | verifier_stress | `8a85ae5` | 2026-09-28T16:22:43+00:00 | – | `outputs/agent_eval/verifier_stress.json` (bd1a6d143c0b398f) |
 | `redteam-r10-holdout8-llm-replay.json` | redteam | `1141736` | 2026-09-30T23:45:51+00:00 | – | `outputs/agent_eval/redteam-r10-holdout8-llm-replay.json` (3c0ea2a57904c27e) |
 | `redteam-r10-holdout8-llm.json` | redteam | `12b710c` | 2026-09-30T23:32:51+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/redteam-r10-holdout8-llm.json` (33c19d6dce281f50) |

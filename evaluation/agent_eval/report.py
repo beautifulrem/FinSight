@@ -78,7 +78,13 @@ PERF_PAIRS = (
     ("perf-merged-prefetch-deepseek", "perf-merged-defaults-deepseek"),
     ("perf-merged-prefetch-deepseek", "perf-merged-citerepair-stall-deepseek"),
 )
-STRESS_RUNS = ("verifier_stress", "verifier_stress-round10", "verifier_stress-round9", "verifier_stress-perf-8a85ae5")
+STRESS_RUNS = (
+    "verifier_stress",
+    "verifier_stress-round10",
+    "verifier_stress-round9",
+    "verifier_stress-9f0e46b",
+    "verifier_stress-perf-8a85ae5",
+)
 REDTEAM_RUNS = (
     (
         "redteam-r10-holdout8-llm-replay",
