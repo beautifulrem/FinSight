@@ -38,8 +38,8 @@ Verified on 2026-09-25 (colima, arm64): the container becomes healthy, serves th
 
 ## Kubernetes
 
-`deploy/k8s/kustomization.yaml` applies `finsight.yaml` and `networkpolicy.yaml` and pins the image
-tag. `finsight.yaml` contains:
+`deploy/k8s/kustomization.yaml` applies `finsight.yaml` and `networkpolicy.yaml` and sets the image
+tag (a placeholder until deploy time, see [Image tags](#image-tags)). `finsight.yaml` contains:
 
 | Object | Notes |
 |---|---|
@@ -62,6 +62,7 @@ kubectl -n finsight create secret generic finsight-api-keys \
   --from-literal=QI_API_KEYS="$(openssl rand -hex 24)" \
   --from-literal=QI_ANON_COOKIE_SECRET="$(openssl rand -hex 32)"
 kubectl -n finsight create secret generic finsight-llm --from-literal=DEEPSEEK_API_KEY=...   # optional
+(cd deploy/k8s && kustomize edit set image finsight=finsight:$TAG)   # the image you built, see Image tags
 kubectl apply -k deploy/k8s
 kubectl -n finsight rollout status deployment/finsight-api
 ```
@@ -69,25 +70,35 @@ kubectl -n finsight rollout status deployment/finsight-api
 ### Image tags
 
 Images are tagged with the short hash of the commit they were built from (`finsight:<commit>`), never
-`:dev` or `:latest`, so `kubectl get pods -o jsonpath='{..image}'` names the exact source. The tag lives
-in one place, `images[].newTag` in `deploy/k8s/kustomization.yaml`:
+`:dev` or `:latest`, so `kubectl get pods -o jsonpath='{..image}'` names the exact source.
+
+**Policy (round 13).** The committed `images[].newTag` in `deploy/k8s/kustomization.yaml` is the placeholder
+`set-at-deploy`, never a commit hash. A committed hash names an older build as soon as anything else is committed
+(a commit cannot contain its own hash; the round-9 review found `finsight:edcb442`, many commits behind HEAD), so
+the tag is set by whoever builds the image, from the commit being deployed:
 
 ```bash
 TAG=$(git rev-parse --short=7 HEAD)          # from a clean working tree
 docker build -f docker/Dockerfile -t finsight:$TAG .   # push to your registry as needed
-(cd deploy/k8s && kustomize edit set image finsight=finsight:$TAG)
+(cd deploy/k8s && kustomize edit set image finsight=finsight:$TAG)   # in the deploy checkout; do not commit
+kubectl apply -k deploy/k8s
 ```
 
-`finsight.yaml` alone names `finsight:set-by-kustomization`, which does not exist, so applying it without
-kustomize fails visibly instead of running an unknown build. CI builds every push as `finsight:<github.sha>`.
+Without `kustomize`, an overlay does the same (this is what CI does):
 
-The committed `newTag` is set **at release time**, not on every commit (a commit cannot contain its own hash). It
-names the last released image, built from a clean tree at that commit and smoke-tested (`/ready`, `/agent/chat`),
-so it normally trails HEAD by a few commits. A release is the three commands above, the smoke test
-(`IMAGE=finsight:$TAG deploy/k8s-smoke/smoke.sh` on a kind/k3d cluster), and one commit
-`release: finsight:<tag>` that changes only `newTag`. Between releases every push is still built and deployed to
-a throwaway kind cluster by CI (`docker` and `k8s-smoke` jobs), and the `kubernetes` job checks that the rendered
-image is tagged with a commit hash.
+```bash
+mkdir -p deploy/release
+printf 'resources: [../k8s]\nimages: [{name: finsight, newTag: "%s"}]\n' "$TAG" > deploy/release/kustomization.yaml
+kubectl apply -k deploy/release
+```
+
+Applying `deploy/k8s` unchanged names `finsight:set-at-deploy`, which no registry has, so the pods stop at
+`ImagePullBackOff` instead of running an unknown build (`finsight.yaml` alone names `finsight:set-by-kustomization`
+for the same reason). In CI, the `kubernetes` job checks that the committed tag is still the placeholder, renders
+the kustomization through an overlay with `finsight:<commit>` (`${GITHUB_SHA::7}`), validates it with kubeconform
+and checks that the rendered image names that commit; the `docker` and `k8s-smoke` jobs build every push as
+`finsight:<github.sha>` and deploy it to a throwaway kind cluster through `deploy/k8s-smoke`, which sets its own tag
+(`smoke`). `tests/test_deploy_tag_policy.py` checks all three.
 
 ### Secrets
 

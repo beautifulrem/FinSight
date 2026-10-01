@@ -41,7 +41,7 @@ curl http://127.0.0.1:8000/ready                  # 就绪：检查点、模型�
 
 ## Kubernetes
 
-`deploy/k8s/kustomization.yaml` 应用 `finsight.yaml` 和 `networkpolicy.yaml`，并固定镜像标签。`finsight.yaml` 包含：
+`deploy/k8s/kustomization.yaml` 应用 `finsight.yaml` 和 `networkpolicy.yaml`，并设置镜像标签（部署前是占位值，见[镜像标签](#镜像标签)）。`finsight.yaml` 包含：
 
 | 对象 | 说明 |
 |---|---|
@@ -64,23 +64,33 @@ kubectl -n finsight create secret generic finsight-api-keys \
   --from-literal=QI_API_KEYS="$(openssl rand -hex 24)" \
   --from-literal=QI_ANON_COOKIE_SECRET="$(openssl rand -hex 32)"
 kubectl -n finsight create secret generic finsight-llm --from-literal=DEEPSEEK_API_KEY=...   # 可选
+(cd deploy/k8s && kustomize edit set image finsight=finsight:$TAG)   # 你构建的镜像，见镜像标签
 kubectl apply -k deploy/k8s
 kubectl -n finsight rollout status deployment/finsight-api
 ```
 
 ### 镜像标签
 
-镜像用构建时 commit 的短哈希打标签（`finsight:<commit>`），不用 `:dev` 或 `:latest`，这样 `kubectl get pods -o jsonpath='{..image}'` 就能对应到确切的源码。标签只写在一处：`deploy/k8s/kustomization.yaml` 的 `images[].newTag`。
+镜像用构建时 commit 的短哈希打标签（`finsight:<commit>`），不用 `:dev` 或 `:latest`，这样 `kubectl get pods -o jsonpath='{..image}'` 就能对应到确切的源码。
+
+**策略（第 13 轮）。** `deploy/k8s/kustomization.yaml` 里提交的 `images[].newTag` 是占位值 `set-at-deploy`，不是 commit 哈希。提交进去的哈希在下一个 commit 之后就指向旧构建（一个 commit 无法包含它自己的哈希；第 9 轮评审发现它还是 `finsight:edcb442`，落后 HEAD 很多个 commit），所以标签由构建镜像的人在部署时按要部署的 commit 设置：
 
 ```bash
 TAG=$(git rev-parse --short=7 HEAD)          # 在干净的工作区里
 docker build -f docker/Dockerfile -t finsight:$TAG .   # 按需推送到镜像仓库
-(cd deploy/k8s && kustomize edit set image finsight=finsight:$TAG)
+(cd deploy/k8s && kustomize edit set image finsight=finsight:$TAG)   # 在部署用的检出里改，不要提交
+kubectl apply -k deploy/k8s
 ```
 
-单独应用 `finsight.yaml` 时镜像名是不存在的 `finsight:set-by-kustomization`，拉取会明确失败，而不是悄悄跑一个来路不明的构建。CI 把每次推送构建为 `finsight:<github.sha>`。
+没有 `kustomize` 时，用一个 overlay 达到同样效果（CI 就是这样做的）：
 
-提交里的 `newTag` 在**发布时**设置，而不是每个 commit 都改（一个 commit 无法包含它自己的哈希）。它指向最近一次发布的镜像：在该 commit 的干净工作区构建并做过冒烟测试（`/ready`、`/agent/chat`），所以通常比 HEAD 落后几个 commit。发布步骤是上面三条命令、冒烟测试（在 kind/k3d 集群上运行 `IMAGE=finsight:$TAG deploy/k8s-smoke/smoke.sh`），再提交一个只改 `newTag` 的 `release: finsight:<tag>`。两次发布之间，CI 仍会把每次推送构建并部署到临时 kind 集群（`docker` 和 `k8s-smoke` 两个 job），`kubernetes` job 检查渲染出的镜像标签是 commit 哈希。
+```bash
+mkdir -p deploy/release
+printf 'resources: [../k8s]\nimages: [{name: finsight, newTag: "%s"}]\n' "$TAG" > deploy/release/kustomization.yaml
+kubectl apply -k deploy/release
+```
+
+不改就应用 `deploy/k8s`，镜像名是任何仓库都没有的 `finsight:set-at-deploy`，Pod 会停在 `ImagePullBackOff`，而不是悄悄跑一个来路不明的构建（单独应用 `finsight.yaml` 时镜像名是 `finsight:set-by-kustomization`，同理）。CI 里，`kubernetes` job 检查提交的标签仍是占位值，再通过一个 overlay 用 `finsight:<commit>`（`${GITHUB_SHA::7}`）渲染 kustomization、用 kubeconform 校验，并检查渲染出的镜像正是这个 commit；`docker` 和 `k8s-smoke` 两个 job 把每次推送构建为 `finsight:<github.sha>`，经 `deploy/k8s-smoke` 部署到临时 kind 集群，该 overlay 设置自己的标签（`smoke`）。`tests/test_deploy_tag_policy.py` 检查这三点。
 
 ### 密钥
 

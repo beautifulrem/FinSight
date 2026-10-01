@@ -1,17 +1,16 @@
-# kubectl apply -k deploy/k8s
-#
-# Image tagging: images are tagged with the short commit hash they were built from, never a moving tag
-# like :dev or :latest, so a running pod always names its source commit:
+# Image tag policy (round 13, I18): the committed tag is the placeholder "set-at-deploy", never a commit hash.
+# A committed hash goes stale on the next commit (a commit cannot contain its own hash), so the tag is set where
+# the image is built, from the commit being deployed:
 #
 #   TAG=$(git rev-parse --short=7 HEAD)                      # build from a clean working tree
 #   docker build -f docker/Dockerfile -t finsight:$TAG .     # or registry.example.com/finsight:$TAG
-#   (cd deploy/k8s && kustomize edit set image finsight=finsight:$TAG)   # updates newTag below
+#   (cd deploy/k8s && kustomize edit set image finsight=finsight:$TAG)   # in the deploy checkout; do not commit
+#   kubectl apply -k deploy/k8s
 #
-# The tag below is set at release time, not on every commit: a commit cannot contain its own hash, so newTag
-# names the last *released* image (built from a clean tree at that commit and smoke-tested: /ready, /agent/chat),
-# which is usually a few commits behind HEAD. Releasing = the three commands above, the smoke test, then one commit
-# "release: finsight:<tag>" that changes only this line. Every push is still built and deployed to a throwaway
-# kind cluster as finsight:${GITHUB_SHA} by CI (jobs docker and k8s-smoke). See docs/deployment.md, "Image tags".
+# Applying this directory unchanged names finsight:set-at-deploy, which no registry has: the pods fail with
+# ImagePullBackOff instead of running an unknown build. CI renders it with finsight:<commit> (job kubernetes) and
+# deploys every push to a throwaway kind cluster through deploy/k8s-smoke, which sets its own tag (smoke).
+# See docs/deployment.md, "Image tags".
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -19,4 +18,4 @@ resources:
   - networkpolicy.yaml
 images:
   - name: finsight
-    newTag: "edcb442"
+    newTag: set-at-deploy

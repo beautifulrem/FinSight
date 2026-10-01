@@ -270,7 +270,9 @@ Live market, news, announcement and macro providers are on by default. For the s
 Docker, Kubernetes and the monitoring stack are covered in [docs/deployment.md](docs/deployment.md). On Kubernetes, replicas share sessions through Postgres and run on a read-only root filesystem.
 
 ```bash
-docker build -f docker/Dockerfile -t finsight:$(git rev-parse --short=7 HEAD) .   # images are tagged by commit
+TAG=$(git rev-parse --short=7 HEAD)
+docker build -f docker/Dockerfile -t finsight:$TAG .   # images are tagged by commit
+(cd deploy/k8s && kustomize edit set image finsight=finsight:$TAG)   # committed tag is a placeholder (docs/deployment.md#image-tags)
 kubectl apply -k deploy/k8s        # after creating the finsight-db Secret (docs/deployment.md#secrets)
 docker compose -f docker/docker-compose.yml --profile monitoring up -d   # + Prometheus, Grafana, Jaeger
 ```
