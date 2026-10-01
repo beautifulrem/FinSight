@@ -227,6 +227,11 @@ class PriceHistoryOutput(BaseModel):
         description="Close of the first trading day of the latest close's year, when the history also has a close "
         "from the year before (so that close is known to be the year's first); for year-to-date changes.",
     )
+    prior_year_end: DailyClose | None = Field(
+        default=None,
+        description="Last close of the year before the latest close's year (round 13, I11): the base of a "
+        "year-to-date change (年初至今), as quote vendors compute it; present whenever year_start is.",
+    )
     range_52w: PriceRange | None = Field(
         default=None,
         description="Highest and lowest close of the 52 weeks to the latest close; only when the history covers "
@@ -252,7 +257,14 @@ class PriceHistoryOutput(BaseModel):
         # Payloads without these fields stay byte-identical to those recorded before they existed (evaluation
         # snapshots): a history of a few closes has none of them.
         data = handler(self)
-        for key in ("year_start", "range_52w", "max_drawdown_1y", "max_drawdown_ytd", "price_jump_date"):
+        for key in (
+            "year_start",
+            "prior_year_end",
+            "range_52w",
+            "max_drawdown_1y",
+            "max_drawdown_ytd",
+            "price_jump_date",
+        ):
             if data.get(key) is None:
                 data.pop(key, None)
         return data
@@ -271,6 +283,21 @@ def year_start_close(history: list[dict[str, Any]]) -> DailyClose | None:
     if not any(date[:4] < year for date, _close in dated):
         return None
     date, close = next((date, close) for date, close in dated if date[:4] == year)
+    return DailyClose(date=date, close=close)
+
+
+def prior_year_end_close(history: list[dict[str, Any]]) -> DailyClose | None:
+    """(round 13, I11) The last close of the year before the latest row's year: a year-to-date change is measured
+    from it (the 年初至今 basis of quote vendors), not from the year's first close. ``None`` when ``history`` (any
+    order) does not reach into the year before."""
+    dated = _dated_closes(history)
+    if not dated:
+        return None
+    year = dated[-1][0][:4]
+    earlier = [(date, close) for date, close in dated if date[:4] < year]
+    if not earlier:
+        return None
+    date, close = earlier[-1]
     return DailyClose(date=date, close=close)
 
 
@@ -357,6 +384,7 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
             volume_unit=payload.get("volume_unit"),
             provenance=provenance_from(payload),
             year_start=year_start_close(history),
+            prior_year_end=prior_year_end_close(history),
             range_52w=range_52w(history),
             max_drawdown_1y=max_drawdown_1y(history),
             max_drawdown_ytd=max_drawdown_ytd(history),
@@ -470,7 +498,8 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
             description=(
                 "Latest daily quote (close, open/high/low, daily % change, volume) and recent closes for one "
                 "A-share, ETF, fund, or index. Accepts a ticker or a name. When the history is long enough it also "
-                "returns year_start (first close of the year), range_52w (52-week high/low close) and "
+                "returns year_start (first close of the year), prior_year_end (last close of the year before: the "
+                "base of a year-to-date change), range_52w (52-week high/low close) and "
                 "max_drawdown_1y / max_drawdown_ytd (peak, trough, percent); absent fields are not computable."
             ),
             input_model=PriceHistoryInput,
