@@ -417,6 +417,10 @@ _COMPARISON = re.compile(
 )
 
 
+# a division written out between two numbers ("3.7 ÷ 20.9", "15.2/29.4")
+_DIVISION = re.compile(r"\d\s*[÷/]\s*\d")
+
+
 def _formula_free(text: str) -> str:
     return _FORMULA_CONSTANT.sub(" ", text)
 
@@ -579,9 +583,11 @@ def verify_answer(
                     uncited.append(value)
                 continue
             shares = amounts if _is_percent(scales) else []
-            if (operands and _is_derived(value, rounding, [v for v in operands if v != value], shares=shares)) or (
-                _is_amount_gap(value, scales, rounding, sentence_amounts)
-            ):
+            fraction = bool(_DIVISION.search(unit))
+            if (
+                operands
+                and _is_derived(value, rounding, [v for v in operands if v != value], shares=shares, fraction=fraction)
+            ) or (_is_amount_gap(value, scales, rounding, sentence_amounts)):
                 derived_values.append(value)
                 continue
             if unit_ids and _is_supported(value, known, scales, rounding, sign):
@@ -804,6 +810,7 @@ def cite_repair(
                             rounding,
                             [v for v, _sc in operands if v != value],
                             shares=[v for v, sc in operands if _is_amount(sc)] if _is_percent(scales) else [],
+                            fraction=bool(_DIVISION.search(unit)),
                         )
                     ) or _is_amount_gap(value, scales, rounding, amounts):
                         continue  # re-derived by the verifier from the operands, which get their own ids
@@ -912,7 +919,9 @@ def _is_percent(scales: tuple[float, ...]) -> bool:
     return 0.01 in scales and 100.0 in scales
 
 
-def _is_derived(value: float, rounding: float | None, operands: list[float], *, shares: list[float] = ()) -> bool:
+def _is_derived(
+    value: float, rounding: float | None, operands: list[float], *, shares: list[float] = (), fraction: bool = False
+) -> bool:
     """``value`` is a - b, a + b, a / b or the percent change (a - b) / b of two stated operands, or, for a value
     written in percent, the share a / b of two stated amounts (a net margin: net profit / revenue, a <= b) or the
     difference of two such shares of four stated amounts (a net-margin gap, round 10). The share
@@ -928,8 +937,12 @@ def _is_derived(value: float, rounding: float | None, operands: list[float], *, 
         else:
             candidates = [a - b, a + b]
             if b:
-                # (round 12) the relative change also as a fraction ("3.7 ÷ 20.9 ≈ 0.177")
-                candidates += [a / b, (a - b) / abs(b) * 100, (a - b) / abs(b)]
+                candidates += [a / b, (a - b) / abs(b) * 100]
+                if fraction:
+                    # (round 12) the relative change as a fraction, only where the division is written out
+                    # ("3.7 ÷ 20.9 ≈ 0.177"): accepting it everywhere raised the stress test's derived
+                    # false-accept rate from 0.0121 to 0.0282
+                    candidates.append((a - b) / abs(b))
         for candidate in candidates:
             if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
                 return True
