@@ -183,6 +183,7 @@ ROUTER_RUNS = (
     "router_eval-independent_v2-round10",
     "router_eval-round11-own",
     "router_eval-independent_v2-round11",
+    "router_eval-round12-own",
 )
 CLAIM_BENCH_RUNS = (
     "claim_bench-dev-baseline",
@@ -219,9 +220,15 @@ HELDOUT_R6_RUNS = (
     "chat_heldout_r6-auto-nollm-prefix",
     "chat_heldout_r6-auto-nollm-after-fix",
     "chat_heldout_r6-auto-nollm-after-exposure-round11",
+    "chat_heldout_r6-auto-nollm-after-exposure-round12",
 )
 # Round-7 held-out chat slice (evaluation/heldout_r7/, independent author): before and after the round-11 fixes.
-HELDOUT_R7_RUNS = ("chat_heldout_r7-auto-nollm-prefix", "chat_heldout_r7-auto-nollm-after-fix")
+# From round 12 the round-7 slice is after exposure (the engineers read it to fix the classes it still failed).
+HELDOUT_R7_RUNS = (
+    "chat_heldout_r7-auto-nollm-prefix",
+    "chat_heldout_r7-auto-nollm-after-fix",
+    "chat_heldout_r7-auto-nollm-after-exposure-round12",
+)
 # Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
 # (title, a, b, label a, label b, paths compared).
 PAIRED_ABLATIONS = (
@@ -292,6 +299,7 @@ FILE_STATUS = {
     "router_eval-independent_v2-round10": "**after exposure** (HEAD after round 10; first run 0.8008)",
     "router_eval-independent_v2-round11": "**after exposure** (HEAD after round 11; first run 0.8008)",
     "router_eval-round11-own": "author's own labels (tuned against)",
+    "router_eval-round12-own": "author's own labels (tuned against)",
     "chat_heldout_r5-auto-nollm-first-run": "**first run** of the independent round-5 held-out chat slice",
     "chat_heldout_r5-auto-nollm-after-exposure": "**after exposure** (round 9 fixed the classes its first run showed)",
     "claim_bench-dev-baseline": "development claims, before tuning",
@@ -336,6 +344,11 @@ FILE_STATUS = {
     "chat_heldout_r7-auto-nollm-after-fix": "independent round-7 chat slice **after the round-11 fixes**; the "
     "engineers never opened the slice (four round-11 dev turns in three tasks match slice turns verbatim by "
     "coincidence)",
+    "chat_heldout_r6-auto-nollm-after-exposure-round12": "independent round-6 chat slice **after exposure (round "
+    "12)**: the round-12 engineers read its remaining failures, so it is no longer out of sample",
+    "chat_heldout_r7-auto-nollm-after-exposure-round12": "independent round-7 chat slice **after exposure (round "
+    "12)**: the round-12 engineers read the slice and fixed the classes it still failed, so it is no longer out of "
+    "sample",
     "ablation-ab-prompt-v3-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
     "ablation-ab-prompt-v4-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
     "ablation-v4default-testv3": "test v3 after it was used to choose the prompt: a check of the shipped prompt, "

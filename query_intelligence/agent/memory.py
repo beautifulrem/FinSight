@@ -17,7 +17,7 @@ from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
 
-from .frame import latest_frame, memory_view
+from .frame import latest_frame, memory_view, metric_label, metric_of
 from .router import has_macro_content, is_dangling_why
 
 MAX_CONTEXT_TURNS = 3
@@ -81,6 +81,7 @@ def turn_record(state: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
         targets=targets,
         tool_log=state.get("tool_log") or [],
         request=state.get("frame_request") or None,
+        named=effective == query,
     )
     return {
         "query": query,
@@ -378,17 +379,17 @@ _ASPECT_WORDS_ZH = (
     "净利润", "净利", "毛利润率", "毛利率", "股息率", "每股收益", "总市值", "市值", "资产负债率", "负债率",
     "收盘价", "收盘", "股价", "走势", "最高价", "最高", "最低价", "最低", "开盘价", "开盘", "成交量",
     "成交金额", "成交额", "涨跌幅", "涨跌", "估值", "公告", "新闻", "分红", "业绩", "财报", "舆情", "均线",
-    "波动率", "最大回撤", "回撤", "52周",
+    "波动率", "最大回撤", "回撤", "52周", "换手率",
 )  # fmt: skip
 _ASPECT = re.compile(
     "|".join(re.escape(word) for word in sorted(_ASPECT_WORDS_ZH, key=len, reverse=True)) + "|"
     r"(?<![A-Za-z])(?:P/?E|P/?B|ROE|RSI|MACD|MA\d+|EPS)(?![A-Za-z])|"
-    r"revenue|net (?:profit )?margin|net (?:profit|income)|gross margin|returns? on equity|earnings per share|"
+    r"revenue|net[- ](?:profit[- ])?margin|net (?:profit|income)|gross margin|returns? on equity|earnings per share|"
     r"price[- ]to[- ](?:book|earnings)|"
     r"book(?:[- ]value)? multiple|earnings multiple|"
     r"dividend|market cap|valuation|\bprice\b|\bclos(?:e|es|ing price)\b|\bhigh\b|\blow\b|\bvolume\b|"
     r"percentage change|\breturn\b|\bgrowth\b|volatility|moving average|announcements?|news|trend|drawdown|"
-    r"52[- ]week",
+    r"52[- ]week|turnover rate",
     re.IGNORECASE,
 )
 # A follow-up that only changes the period ("2024年的呢", "And in 2022?") keeps the previous question's metric.
@@ -412,12 +413,34 @@ def _last_targets(turns: list[dict[str, Any]], limit: int = 3) -> list[dict[str,
     return []
 
 
-def _last_aspects(turns: list[dict[str, Any]]) -> list[str]:
+def _last_aspects(turns: list[dict[str, Any]], zh: bool | None = None) -> list[str]:
+    """The aspects of the most recent turn that named any. (round 12) For an ellipsis (``zh`` given), a turn that
+    names a frame metric only in words the aspect list does not have ("成交了多少钱", "trading value", "How much did X
+    move today?") carries that metric by its label (成交额 / turnover), so "Y呢" asks the same thing of Y."""
     for turn in reversed(turns[-MAX_CONTEXT_TURNS:]):
-        aspects = list(dict.fromkeys(match.group(0) for match in _ASPECT.finditer(_effective(turn))))
+        text = _effective(turn)
+        aspects = list(dict.fromkeys(match.group(0) for match in _ASPECT.finditer(text)))
         if aspects:
             return aspects[:3]
+        metric = metric_of(text) if zh is not None else None
+        if metric is not None:
+            return [metric_label(metric, zh)]
     return []
+
+
+def _only_names(text: str, entity: dict[str, Any]) -> bool:
+    """Whether the follow-up is nothing but the target's name ("Moutai?", "Ping An's?", "茅台？")."""
+    from .names import english_aliases, english_name, load_synonyms
+
+    canonical = str(entity.get("canonical_name") or entity.get("name") or "")
+    names = [entity.get("mention"), canonical, english_name(canonical), *english_aliases(canonical)]
+    names += [alias for alias, name in (load_synonyms().get("alias") or {}).items() if name == canonical]
+    if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical):
+        names.append(canonical[2:])
+    remainder = text.lower()
+    for name in sorted({str(item).lower() for item in names if item}, key=len, reverse=True):
+        remainder = remainder.replace(name, " ")
+    return not re.sub(r"(?:'s|’s|\bthen\b|\bplease\b|[\s?？。.!！,，])", "", remainder)
 
 
 def resolve_ellipsis(
@@ -450,7 +473,8 @@ def resolve_ellipsis(
         rest_zh = _LEADING_ZH.sub("", text)
         rest_en = _ELLIPSIS_EN.sub("", text).strip(" ,?.!") or text.rstrip("?.! ")
         remainder = re.sub(r"[呢吗？?。.!！,，\s]", "", rest_zh if zh else rest_en)
-        carried = _last_aspects(turns) if not aspects_now and (not remainder or _PERIOD_ONLY.match(remainder)) else []
+        bare = not aspects_now and (not remainder or _PERIOD_ONLY.match(remainder))
+        carried = _last_aspects(turns, zh) if bare else []
         if zh:
             joined = "和".join(names)
             if carried:
@@ -462,14 +486,74 @@ def resolve_ellipsis(
             rewritten = f"{', '.join(carried)} {rest_en} for {joined}?" if carried else f"{rest_en} for {joined}?"
         reason = f"ellipsis:target->{joined}"
         return rewritten, reason + (f"+aspect->{'+'.join(carried)}" if carried else "")
+    if len(current_targets) == 1 and not marker and not aspects_now and _only_names(text, current_targets[0]):
+        # (round 12, H9) "Wuliangye P/E?" → "Moutai?": a bare name is the same question about another target
+        marker = True
     if len(current_targets) == 1 and marker and not aspects_now:
-        aspects = _last_aspects(turns)
+        aspects = _last_aspects(turns, zh)
         if not aspects:
             return None
         name = str(current_targets[0].get("canonical_name") or current_targets[0].get("symbol"))
         rewritten = f"{name}的{'、'.join(aspects)}呢？" if zh else f"What is {name}'s {', '.join(aspects)}?"
         return rewritten, f"ellipsis:aspect->{'+'.join(aspects)}"
     return None
+
+
+_HOLDING_SWITCH = re.compile(r"换成|改成|换作|如果是|要是|假如|若是|\binstead\b|\bif\b", re.IGNORECASE)
+
+
+def resolve_holding_follow_up(
+    query: str, turns: list[dict[str, Any]], current_targets: list[dict[str, Any]]
+) -> tuple[str, str] | None:
+    """(round 12) A holding carried to another target: after "我有200股五粮液，按收盘值多少",
+    "要是换成同样数量的中国平安呢" or "如果是500股茅台呢" (or "What about Ping An?") asks what the same number of
+    shares, or the number the follow-up states, of the new target is worth at the latest close. ``(rewritten, reason)``
+    or ``None``.
+
+    Only a short follow-up with one target, an ellipsis or switch marker and no other metric qualifies; the previous
+    turn must have been a holding-value question."""
+    from .coverage import holding_value_request, in_fund_units, stated_holding_count
+
+    text = strip_filler(query).strip()
+    if not turns or len(current_targets) > 1:
+        return None
+    if not current_targets:
+        # (round 8 review H4) "我手上有1500股，总共值多少" after a question about one target: the holding is of
+        # that target (never refused as out of scope for lack of a name)
+        held_here = holding_value_request(text)
+        targets = _last_targets(turns)
+        if held_here is None or len(targets) != 1:
+            return None
+        name = str(targets[0].get("name") or targets[0].get("symbol"))
+        start, end = held_here[1]
+        span = text[start:end]
+        zh = bool(re.search(r"[一-鿿]", text))
+        rewritten = f"{name}：{text}" if zh else f"{text} ({name})"
+        if zh:
+            match = re.search(r"[股份手]", span)
+            if match:
+                cut = start + match.end()
+                rewritten = f"{text[:cut]}{name}{text[cut:]}"
+        return rewritten, f"holding_follow_up:{held_here[0]}->{name}"
+    if not _is_short(text) or holding_value_request(text):
+        return None
+    previous = _effective(turns[-1])
+    held = holding_value_request(previous)
+    if held is None:
+        return None
+    if not (_ELLIPSIS_ZH.search(text) or _ELLIPSIS_EN.search(text) or _HOLDING_SWITCH.search(text)):
+        return None
+    if metric_of(text) not in (None, "close"):
+        return None  # "那五粮液的市盈率呢": another question about the new target
+    count = stated_holding_count(text) or held[0]
+    funds = in_fund_units(text) or (stated_holding_count(text) is None and in_fund_units(previous))
+    name = str(current_targets[0].get("canonical_name") or current_targets[0].get("symbol"))
+    zh = bool(re.search(r"[一-鿿]", re.sub(re.escape(name), "", text)))
+    if zh:
+        rewritten = f"我持有{count}{'份' if funds else '股'}{name}，按最新收盘价值多少钱"
+    else:
+        rewritten = f"How much are {count} {'units' if funds else 'shares'} of {name} worth at the latest close?"
+    return rewritten, f"holding_follow_up:{count}->{name}"
 
 
 # (round 9, E5) A demonstrative reference to the discussed target's industry: "这个行业的平均PE呢", "该板块整体估值",

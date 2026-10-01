@@ -50,6 +50,23 @@ SESSIONS: list[tuple[list[str], float]] = [
     (["五粮液的净利润", "茅台呢", "后者比前者多多少亿"], 445.2),
     (["What's Ping An's P/E?", "And the insurance industry average?", "What's the discount in percent?"], 26.27),
 ]
+# (round 12) the classes the round-7 slice still failed after round 11, own wording: turnover asked in words then a
+# ratio, a move then "how many points apart", a holding carried to another target, net profit as a share of revenue in
+# English, a gap after two falls.
+SESSIONS_R12_CLASSES: list[tuple[list[str], float]] = [
+    (["中国平安今天成交了多少钱", "五粮液的呢", "前者是后者的几倍"], 4.57),
+    (["How much did Wuliangye move yesterday?", "same for Ping An?", "so how many points apart?"], 1.26),
+    (["我手上有300股中国平安，按最新收盘值多少钱", "要是换成同样数量的五粮液呢"], 30192),
+    (
+        [
+            "What were Wuliangye's revenues last year?",
+            "and the net profit figure?",
+            "How much of that revenue is left as net profit, in percent?",
+        ],
+        34.84,
+    ),
+    (["五粮液今天跌了多少", "贵州茅台呢", "五粮液多跌了几个点"], 0.36),
+]
 
 
 # (round 12) Ten more sessions written for the before/after measurement of the G4 fallback (QI_AGENT_FRAME_FALLBACK
@@ -67,7 +84,13 @@ SESSIONS_R12: list[tuple[list[str], float]] = [
     (["中国平安净利润是多少", "五粮液的呢，相差多少亿"], 832.0),
     (["中国平安的市盈率", "茅台呢", "后者是前者的几倍"], 2.83),
 ]
-SESSION_SETS = {"r11": SESSIONS, "r12": SESSIONS_R12}
+# "round11"/"round12" are the names the r12-frame results were recorded with; "r11"/"r12" those of the G4 runs.
+SESSION_SETS = {
+    "r11": SESSIONS,
+    "round11": SESSIONS,
+    "r12": SESSIONS_R12,
+    "round12": SESSIONS_R12_CLASSES,
+}
 # An answer that gives up on the comparison instead of stating it
 _DECLINE = re.compile(
     r"无法(?:计算|核实|给出|比较|回答)|不能(?:计算|核实)|没有.{0,12}(?:数据|证据)|缺少|"
@@ -172,6 +195,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "session_set": args.sessions,
             "frame_fallback": runtime.config.frame_fallback,
             "tools": "offline runtime assets (no replay snapshot)",
+            "sessions": args.sessions,
         },
         "summary": summary,
         "sessions": sessions,

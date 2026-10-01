@@ -687,6 +687,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round11_tasks()
     tasks += _round12_tasks()
     tasks += _round12_forecast_tasks()
+    tasks += _round12_frame_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -3060,6 +3061,463 @@ def _round12_forecast_tasks() -> list[dict[str, Any]]:
         forecast("r12_price_forecast_year_end_en", "en", "Where will Moutai close by year-end?", mt),
         past("r12_past_close_not_hedged_zh", "zh", "五粮液上个交易日的收盘价是多少", wly),
         past("r12_past_close_not_hedged_en", "en", "What did Ping An close at yesterday?", pa),
+    ]
+
+
+def _round12_frame_tasks() -> list[dict[str, Any]]:
+    """Round-12 rules: the chat classes the round-7 held-out slice still failed after round 11, written in the author's
+    own wording (other pairings and phrasings; the slice is after exposure from round 12 on, and no turn copies or
+    near-copies a slice text, ``tests/test_agent_eval.py``).
+
+    Turnover asked in words ("成交了多少钱", "交易更活跃", "value traded") as a frame metric with a gap or ratio after
+    it; gap wording ("多跌了几个点", "by how many points", "how many points apart"); a factual "which one is higher"
+    without a which-is-better hedge; holding values carried to another target, stated across two English sentences and
+    in fund units; net profit as a share of revenue in English; "net-margin" with a hyphen; a Hong Kong listing
+    described in words (out of coverage)."""
+
+    def fundamental(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"fundamental_{symbol}", "value": value}
+
+    def price(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"price_{symbol}", "value": value}
+
+    mt, wly, pa = "600519.SH", "000858.SZ", "601318.SH"
+    hs300, chinext, broker = "510300.SH", "159915.SZ", "512880.SH"
+    no_judgment_hedge = [*TRADING_PATTERNS, r"(?i)not enough to decide which one is better", r"不足以直接判断哪个更好"]
+    no_fair_value_hedge = [*TRADING_PATTERNS, r"FinSight 不给出合理估值", r"(?i)FinSight does not give a fair value"]
+    return [
+        # turnover asked in words, then a ratio / gap / which-is-more-active
+        _task(
+            "r12_turnover_words_ratio_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("贵州茅台今天一共成交了多少钱", required_facts=[price(mt, 3793827534)]),
+                _turn("中国平安那边的呢", required_entity=pa, required_facts=[price(pa, 6640000000)]),
+                _turn("前一个是后一个的多少倍", required_facts=[price(mt, 0.57), price(pa, 0.57)]),
+            ],
+        ),
+        _task(
+            "r12_turnover_words_gap_en",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "What was the value traded in Wuliangye on the last session?",
+                    required_facts=[price(wly, 1452833705)],
+                ),
+                _turn("and in the securities ETF?", required_entity=broker, required_facts=[price(broker, 441000000)]),
+                _turn("what's the gap between the two, in yuan?", required_facts=[price(wly, 1011833705)]),
+            ],
+        ),
+        _task(
+            "r12_trading_activity_which_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("沪深300ETF的成交额有多大", required_facts=[price(hs300, 4851593064)]),
+                _turn("证券ETF的又是多少呢", required_entity=broker),
+                _turn(
+                    "两个里谁交易得更活跃",
+                    required_facts=[price(hs300, 4851593064), price(broker, 441000000)],
+                ),
+            ],
+        ),
+        _task(
+            "r12_traded_more_by_how_much_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("Ping An's turnover on the latest trading day?", required_facts=[price(pa, 6640000000)]),
+                _turn("and for the ChiNext ETF, same thing?", required_entity=chinext),
+                _turn("which traded more, and by how much?", required_facts=[price(pa, 4970000000)]),
+            ],
+        ),
+        # gap wording
+        _task(
+            "r12_fell_more_points_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("五粮液最新一个交易日跌了多少", required_facts=[price(wly, -0.5337)]),
+                _turn("那贵州茅台当天呢", required_entity=mt, required_facts=[price(mt, -0.1778)]),
+                _turn("五粮液多跌了几个点", required_facts=[price(wly, 0.36)]),
+            ],
+        ),
+        _task(
+            "r12_points_apart_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("How much did Ping An rise yesterday?", required_facts=[price(pa, 0.73)]),
+                _turn("and the securities ETF?", required_entity=broker),
+                _turn("how many points apart are the two?", required_facts=[price(pa, 0.14)]),
+            ],
+        ),
+        _task(
+            "r12_which_and_by_how_many_points_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("Tell me Wuliangye's return on equity", required_entity=wly),
+                _turn("Ping An's, please?", required_entity=pa),
+                _turn(
+                    "Which of the two is higher, and by how many points?",
+                    required_facts=[fundamental(wly, 14.2)],
+                    forbidden_patterns=no_judgment_hedge,
+                ),
+            ],
+        ),
+        _task(
+            "r12_move_then_points_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("How far did the ChiNext ETF move on the last session?", required_facts=[price(chinext, 0.86)]),
+                _turn("same for Ping An?", required_entity=pa),
+                _turn("so the difference, in percentage points?", required_facts=[price(chinext, 0.13)]),
+            ],
+        ),
+        _task(
+            "r12_factual_which_one_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Between Moutai and Wuliangye, which one has the higher P/B?",
+                    required_facts=[fundamental(mt, 8.1), fundamental(wly, 5.4)],
+                    forbidden_patterns=no_judgment_hedge,
+                )
+            ],
+        ),
+        # holding values: carried, recounted, across two English sentences, in fund units
+        _task(
+            "r12_holding_carried_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("我手上有1200股中国平安，按最新收盘值多少钱", required_facts=[price(pa, 64332)]),
+                _turn(
+                    "要是换成同样数量的五粮液呢",
+                    required_entity=wly,
+                    required_facts=[price(wly, 120768)],
+                    forbidden_patterns=no_fair_value_hedge,
+                ),
+            ],
+        ),
+        _task(
+            "r12_holding_same_count_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("持有600股五粮液，按收盘价合计值多少", required_facts=[price(wly, 60384)]),
+                _turn("如果是同样的股数，换成贵州茅台呢", required_entity=mt, required_facts=[price(mt, 845700)]),
+            ],
+        ),
+        _task(
+            "r12_holding_new_count_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("我有100股贵州茅台，按最新收盘价值多少", required_facts=[price(mt, 140950)]),
+                _turn("那换成2000股中国平安呢", required_entity=pa, required_facts=[price(pa, 107220)]),
+            ],
+        ),
+        _task(
+            "r12_holding_two_sentences_en",
+            "derived",
+            "en",
+            [
+                _turn(
+                    "I hold 250 shares of Kweichow Moutai. How much are they worth at the last close?",
+                    required_tools=["get_price_history"],
+                    required_facts=[price(mt, 352375)],
+                    forbidden_patterns=no_fair_value_hedge,
+                )
+            ],
+        ),
+        _task(
+            "r12_holding_carried_en",
+            "multi_turn",
+            "en",
+            [
+                _turn(
+                    "I have 1500 shares of Ping An; what's that worth at the latest close?",
+                    required_facts=[price(pa, 80415)],
+                ),
+                _turn("what about Wuliangye instead?", required_entity=wly, required_facts=[price(wly, 150960)]),
+            ],
+        ),
+        _task(
+            "r12_holding_fund_units_zh",
+            "derived",
+            "zh",
+            [
+                _turn(
+                    "我持有五万份创业板ETF，按最新收盘价值多少",
+                    required_tools=["get_price_history"],
+                    required_facts=[price(chinext, 123250)],
+                    forbidden_patterns=no_fair_value_hedge,
+                )
+            ],
+        ),
+        _task(
+            "r12_holding_fund_units_en",
+            "derived",
+            "en",
+            [
+                _turn(
+                    "I hold 8000 units of the securities ETF. What are they worth at the latest close?",
+                    required_tools=["get_price_history"],
+                    required_facts=[price(broker, 8168)],
+                    forbidden_patterns=no_fair_value_hedge,
+                )
+            ],
+        ),
+        # net profit as a share of revenue; net-margin with a hyphen
+        _task(
+            "r12_net_margin_share_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("What were Ping An's revenues last year?", required_entity=pa),
+                _turn("and the net profit figure?", required_entity=pa),
+                _turn(
+                    "How much of that revenue ends up as net profit, in percent?",
+                    required_facts=[fundamental(pa, 9.93)],
+                ),
+            ],
+        ),
+        _task(
+            "r12_net_margin_share_zh",
+            "derived",
+            "zh",
+            [_turn("五粮液的营收里有百分之多少变成了净利润", required_facts=[fundamental(wly, 34.84)])],
+        ),
+        _task(
+            "r12_net_margin_hyphen_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "What's the net-margin difference between Wuliangye and Moutai?",
+                    required_facts=[fundamental(mt, 48.76), fundamental(wly, 34.84), fundamental(mt, 13.92)],
+                )
+            ],
+        ),
+        # a Hong Kong listing described in words
+        _task(
+            "r12_hk_listing_words_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("中国平安最新收盘价", required_entity=pa),
+                _turn("它在香港上市那部分的股价呢", behavior="refuse", required_limitations=["out_of_coverage"]),
+                _turn("回到A股，它的ROE呢", required_facts=[fundamental(pa, 15.2)]),
+            ],
+        ),
+        _task(
+            "r12_hk_listing_words_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("Ping An's P/B ratio?", required_entity=pa),
+                _turn("what about its Hong Kong listing?", behavior="refuse", required_limitations=["out_of_coverage"]),
+            ],
+        ),
+        # round-8 review H1 / H2 / H11: the comparison parser, one-message comparisons, longer gap questions
+        _task(
+            "r12_h1_more_traded_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("贵州茅台成交额多少", required_facts=[price(mt, 3793827534)]),
+                _turn("那中国平安的成交额呢", required_entity=pa),
+                _turn("后者比前者多成交了多少钱", required_facts=[price(pa, 2846172466)]),
+            ],
+        ),
+        _task(
+            "r12_h1_ratio_of_both_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("五粮液的净资产收益率是几", required_entity=wly),
+                _turn("换成平安看看呢", required_entity=pa),
+                _turn("两者之比大概是多少", required_facts=[fundamental(wly, 1.93)]),
+            ],
+        ),
+        _task(
+            "r12_h1_over_n_times_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("Ping An P/B?", required_entity=pa),
+                _turn("Kweichow Moutai?", required_entity=mt, required_facts=[fundamental(mt, 8.1)]),
+                _turn("Is the latter over 5x the former?", required_facts=[fundamental(mt, 7.36)]),
+            ],
+        ),
+        _task(
+            "r12_h1_times_apart_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("茅台的市盈率", required_entity=mt),
+                _turn("平安呢", required_entity=pa),
+                _turn("市盈率差了多少倍", required_facts=[fundamental(mt, 2.83)]),
+            ],
+        ),
+        _task(
+            "r12_h2_relative_one_message_zh",
+            "comparison",
+            "zh",
+            [_turn("中国平安的ROE比五粮液低百分之多少", required_facts=[fundamental(pa, 48.3)])],
+        ),
+        _task(
+            "r12_h2_percentage_above_en",
+            "comparison",
+            "en",
+            [_turn("By what percentage is Moutai's ROE above Wuliangye's?", required_facts=[fundamental(mt, 12.24)])],
+        ),
+        _task(
+            "r12_h2_lower_by_how_much_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Which of Ping An and Moutai has the lower P/E, and by how much?",
+                    required_facts=[fundamental(mt, 15.9)],
+                    forbidden_patterns=no_judgment_hedge,
+                )
+            ],
+        ),
+        _task(
+            "r12_h2_vs_industry_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "五粮液的市盈率比白酒行业平均低百分之多少",
+                    required_facts=[{"evidence_id": "industry_白酒", "value": 23.44}],
+                )
+            ],
+        ),
+        _task(
+            "r12_h2_two_sectors_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "保险板块和白酒板块的平均市净率差多少",
+                    required_facts=[{"evidence_id": "industry_白酒", "value": 4.75}],
+                )
+            ],
+        ),
+        _task(
+            "r12_h11_metric_switch_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("五粮液的市盈率", required_entity=wly),
+                _turn("茅台那边呢", required_entity=mt),
+                _turn("那ROE呢", required_facts=[fundamental(mt, 33)]),
+                _turn("差几个点", required_facts=[fundamental(mt, 3.6)]),
+            ],
+        ),
+        _task(
+            "r12_h11_longer_question_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("Moutai P/B?", required_entity=mt),
+                _turn("and the baijiu sector?", required_facts=[{"evidence_id": "industry_白酒", "value": 6.2}]),
+                _turn(
+                    "what's the premium in percent? I heard Moutai trades far above its peers",
+                    required_facts=[{"evidence_id": "industry_白酒", "value": 30.65}],
+                ),
+            ],
+        ),
+        # round-8 review H4: holdings with a carried target, lots, fund units, English word orders
+        _task(
+            "r12_h4_carried_target_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("茅台收盘价多少", required_entity=mt),
+                _turn(
+                    "我手上有80股，合计值多少钱",
+                    required_facts=[price(mt, 112760)],
+                    forbidden_patterns=no_fair_value_hedge,
+                ),
+            ],
+        ),
+        _task(
+            "r12_h4_lots_zh",
+            "derived",
+            "zh",
+            [_turn("我有4手五粮液，按收盘价值多少", required_facts=[price(wly, 40256)])],
+        ),
+        _task(
+            "r12_h4_fund_units_market_value_zh",
+            "derived",
+            "zh",
+            [
+                _turn(
+                    "持有两万份证券ETF，市值多少",
+                    required_facts=[price(broker, 20420)],
+                    forbidden_patterns=no_fair_value_hedge,
+                )
+            ],
+        ),
+        _task(
+            "r12_h4_name_before_shares_en",
+            "derived",
+            "en",
+            [
+                _turn(
+                    "I have 150 Ping An shares; what's my position worth at the last close?",
+                    required_facts=[price(pa, 8041.5)],
+                    forbidden_patterns=no_fair_value_hedge,
+                )
+            ],
+        ),
+        # round-8 review H5: a named company's Hong Kong line
+        _task(
+            "r12_h5_named_hk_line_zh",
+            "out_of_coverage",
+            "zh",
+            [_turn("招商银行港股今天的收盘价", behavior="refuse", required_limitations=["out_of_coverage"])],
+        ),
+        _task(
+            "r12_h5_named_hk_price_en",
+            "out_of_coverage",
+            "en",
+            [
+                _turn(
+                    "What's China Merchants Bank's Hong Kong share price?",
+                    behavior="refuse",
+                    required_limitations=["out_of_coverage"],
+                )
+            ],
+        ),
+        # round-8 review H9: metric aspects
+        _task(
+            "r12_h9_turnover_rate_missing_zh",
+            "derived",
+            "zh",
+            [_turn("五粮液的换手率", must_state_missing=True, required_entity=wly)],
+        ),
+        _task(
+            "r12_h9_colloquial_eps_zh",
+            "derived",
+            "zh",
+            [_turn("中国平安每股能赚几块钱", required_facts=[price(pa, 6.16), fundamental(pa, 6.16)])],
+        ),
+        _task(
+            "r12_h9_colloquial_margin_zh",
+            "derived",
+            "zh",
+            [_turn("五粮液一年赚的钱占收入多大比例", required_facts=[fundamental(wly, 34.84)])],
+        ),
     ]
 
 

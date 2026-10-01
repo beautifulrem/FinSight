@@ -21,7 +21,9 @@ from .coverage import (
     failed_target_statements,
     flow_gaps,
     foreign_macro_gaps,
+    holding_lots,
     holding_value_request,
+    in_fund_units,
     indicator_gaps,
     industry_gaps,
     macro_gaps,
@@ -29,8 +31,10 @@ from .coverage import (
     range_52w_gaps,
     requested_metrics,
     requested_price_fields,
+    without_holding_value,
     year_to_date_gaps,
 )
+from .frame import TURNOVER
 from .names import english_display
 
 _MAX_DOCS_PER_TOOL = 3
@@ -107,7 +111,7 @@ def compose_template(
     facts: list[str] = []
     evidence_used: list[str] = []
     limitations: list[str] = []
-    wanted = requested_metrics(query)
+    wanted = requested_metrics(without_holding_value(query) if query else query)
     extra_keys = {field for metric in wanted for field in metric.fields}
     derive = {metric.key for metric in wanted if metric.derivable_from}
     margins: list[tuple[str, float]] = []
@@ -160,7 +164,8 @@ def compose_template(
         facts.extend(fact for fact in _implied_eps(tool_log, zh) if fact not in facts)
     holding = holding_value_request(query) if query else None
     if holding is not None:
-        facts = [*_holding_value(holding[0], tool_log, zh), *facts]
+        holding_facts = _holding_value(holding[0], tool_log, zh, units=in_fund_units(query), lots=holding_lots(query))
+        facts = [*holding_facts, *facts]
     frame_gaps: list[str] = []
     if frame_request:
         framed, frame_gaps = frame_sentences(frame_request, tool_log, zh)
@@ -220,9 +225,13 @@ def compose_template(
     }
 
 
-def _holding_value(shares: int, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
+def _holding_value(
+    shares: int, tool_log: list[dict[str, Any]], zh: bool, *, units: bool = False, lots: int | None = None
+) -> list[str]:
     """(round 11, G5) "我有1000股五粮液，值多少钱": shares × the latest close, with the date, both operands in the
-    sentence, and a note that this is a market value at the close, not a tradable price, a valuation or advice."""
+    sentence, and a note that this is a market value at the close, not a tradable price, a valuation or advice.
+    (round 12) A holding stated in fund units ("两万份沪深300ETF", "4000 units") is written in units, one stated in
+    lots ("3手", 100 shares each) as lots and shares."""
     for entry in tool_log:
         data = entry.get("data") or {}
         close, eid = data.get("close"), data.get("evidence_id")
@@ -230,14 +239,17 @@ def _holding_value(shares: int, tool_log: list[dict[str, Any]], zh: bool) -> lis
             continue
         value = round(shares * float(close), 2)
         name, as_of = data.get("name") or data.get("symbol"), data.get("as_of")
+        unit = "份" if units else "股"
+        held = f"{lots} 手（{shares} 股）" if lots else f"{shares} {unit}"
+        held_en = f"{lots} lots ({shares} shares)" if lots else f"{shares} {'units' if units else 'shares'}"
         if zh:
             return [
-                f"按 {as_of} 的收盘价 {_px(close, data, zh)} 计算，{shares} 股{name}的市值约为 {shares} × "
+                f"按 {as_of} 的收盘价 {_px(close, data, zh)} 计算，{held}{name}的市值约为 {shares} × "
                 f"{_num(close)} = {_num(value)} 元 [{eid}]。",
                 "这是按最近收盘价计算的持仓市值，不是可成交价格，也不是估值判断或投资建议。",
             ]
         return [
-            f"At the {as_of} close of {_px(close, data, zh)}, {shares} shares of {name} are worth {shares} × "
+            f"At the {as_of} close of {_px(close, data, zh)}, {held_en} of {name} are worth {shares} × "
             f"{_num(close)} = CNY {_num(value)} [{eid}].",
             "This is the market value at the last close, not a tradable price, a valuation or investment advice.",
         ]
@@ -338,7 +350,7 @@ _ARITHMETIC_METRICS: tuple[tuple[str, str, str, re.Pattern[str]], ...] = (
         "net_margin",
         "净利率",
         "net margin",
-        re.compile(r"净利率|净利润率|销售净利率|\bnet (?:profit )?margins?\b", re.IGNORECASE),
+        re.compile(r"净利率|净利润率|销售净利率|\bnet[- ](?:profit[- ])?margins?\b", re.IGNORECASE),
     ),
     (
         "pct_change",
@@ -356,10 +368,8 @@ _ARITHMETIC_METRICS: tuple[tuple[str, str, str, re.Pattern[str]], ...] = (
         "amount",
         "成交额",
         "turnover",
-        re.compile(
-            r"成交额|成交金额|成交(?:更|最|比较)?(?:活跃|大|多|少|旺)|\bturnover\b|\btrading value\b|\btraded more\b",
-            re.IGNORECASE,
-        ),
+        # (round 12) the comparison frame's turnover vocabulary ("成交了多少钱", "交易更活跃", "value traded")
+        re.compile(rf"{TURNOVER.pattern}|成交(?:更|最|比较)?(?:大|多|少)", re.IGNORECASE),
     ),
     ("pe", "市盈率", "P/E", re.compile(r"市盈率|(?<![A-Za-z])P/?E(?![A-Za-z])|price[- ]to[- ]earnings", re.IGNORECASE)),
     ("pb", "市净率", "P/B", re.compile(r"市净率|(?<![A-Za-z])P/?B(?![A-Za-z])|price[- ]to[- ]book", re.IGNORECASE)),
@@ -614,6 +624,9 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
     found, missing = [], []
     for operand in request.get("operands") or []:
         hit = operand_value(tool_log, operand, key)
+        if hit is not None and operand.get("kind") == "industry" and not operand.get("industry"):
+            # "比行业低百分之多少" in one message: the industry is named from its snapshot ("保险行业平均")
+            operand = {**operand, "industry": hit[2].get("industry_name")}
         name = operand_name(operand, zh)
         if hit is None:
             missing.append(name)
@@ -674,6 +687,9 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
             else f"{label}: {name_a} {stated(a, data_a)} {relation} {name_b} {stated(b, data_b)} {cites}."
         )
         return [verdict], [] if operation == "which" else [note]
+    if operation == "which" and key == "net_margin":
+        # derived margins are stated with their amounts (the verifier re-derives them), the higher side named
+        return [_margin_gap(found[0], found[1], cites, zh)], []
     if operation == "which":
         if a == b:
             relation = "持平" if zh else "is level with"
@@ -736,10 +752,18 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
     if a == b:
         return [f"{operands}，两者相同 {cites}。" if zh else f"{operands}: they are equal {cites}."], []
     higher = name_a if a > b else name_b
+    side = f"{higher}更高" if zh else f"{higher} is higher"
+    direction = request.get("direction")
+    if direction == "fall" and a < 0 and b < 0:
+        # (round 12) "多跌了多少" after two falls: the side that fell more
+        lower = name_b if a > b else name_a
+        side = f"{lower}跌得更多" if zh else f"{lower} fell more"
+    elif direction == "rise" and a > 0 and b > 0:
+        side = f"{higher}涨得更多" if zh else f"{higher} rose more"
     return [
-        f"{operands}，两者相差 {gap_text}（{higher}更高） {cites}。"
+        f"{operands}，两者相差 {gap_text}（{side}） {cites}。"
         if zh
-        else f"{operands}: a difference of {gap_text} ({higher} is higher) {cites}."
+        else f"{operands}: a difference of {gap_text} ({side}) {cites}."
     ], []
 
 
@@ -1077,6 +1101,36 @@ def _price_details(data: dict[str, Any], zh: bool, request: PriceRequest) -> lis
             stated.append(f"{label_zh} {_px(value, data, zh)}" if zh else f"{label_en} {_px(value, data, zh)}")
             continue
         stated.append(f"{label_zh} {_num(value)}{unit}" if zh else f"{label_en} {_num(value)}{unit}")
+    if request.turnover_rate:
+        rate = data.get("turnover_rate")
+        if rate is None:
+            missing.append("换手率（需要流通股本，数据源未提供）" if zh else "the turnover rate (needs the free float)")
+        else:
+            stated.append(f"换手率 {_num(rate)}%" if zh else f"turnover rate {_num(rate)}%")
+    if request.change_amount:
+        if len(closes) >= 2 and closes[-1].get("close") is not None:
+            previous, latest = closes[-2], closes[-1]
+            delta = round(float(latest["close"]) - float(previous["close"]), 3)
+            if zh:
+                move = f"{'上涨' if delta > 0 else '下跌' if delta < 0 else '持平'} {_px(abs(delta), data, zh)}"
+                sentences.append(
+                    f"{name}最新收盘 {_px(latest['close'], data, zh)}（{latest.get('date')}），前一交易日"
+                    f"（{previous.get('date')}）收盘 {_px(previous['close'], data, zh)}，{move} [{eid}]。"
+                )
+            else:
+                move = f"{'up' if delta > 0 else 'down' if delta < 0 else 'unchanged'} {_px(abs(delta), data, zh)}"
+                sentences.append(
+                    f"{name} closed at {_px(latest['close'], data, zh)} on {latest.get('date')} against "
+                    f"{_px(previous['close'], data, zh)} on {previous.get('date')}, {move} [{eid}]."
+                )
+        else:
+            # no previous close in the data (an implied one would be a figure the evidence does not state): the
+            # change in yuan is named missing; the reported daily change in percent stays in the price sentence
+            missing.append(
+                "前一交易日收盘价，因此无法给出涨跌金额（涨跌幅见上）"
+                if zh
+                else "the previous close, so the change in yuan cannot be given (the daily change in percent is above)"
+            )
     if stated:
         sentences.append(
             f"{name}（{as_of}）：{'，'.join(stated)} [{eid}]。"

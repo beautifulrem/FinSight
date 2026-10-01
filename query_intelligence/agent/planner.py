@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .coverage import holding_value_request, requested_price_fields
+from .coverage import holding_value_request, requested_metrics, requested_price_fields
 from .glossary import lookup_concept
 
 MAX_TARGETS = 3
@@ -146,7 +146,8 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
     sector_member = bool(sectors) or any(entity.get("match_type") == "session_sector_member" for entity in entities)
     # (round 11, G5) a holding's value needs the close; an EPS question gets the close for the implied EPS
     holding = holding_value_request(raw_query) is not None
-    asks_eps = bool(_EPS_TERMS.search(text))
+    # (round 12, H9) the metric lexicon decides: "一股赚多少钱" fetches the fundamentals and the close like 每股收益
+    asks_eps = bool(_EPS_TERMS.search(text)) or any(metric.key == "eps" for metric in requested_metrics(text))
     has_price_cue = bool(_PRICE_TERMS.search(text)) or request.needs_quote or holding or asks_eps
     explicit_valuation_cue = bool(_VALUATION_TERMS.search(text)) or bool(_INDUSTRY_TERMS.search(text)) or asks_eps
     has_valuation_cue = explicit_valuation_cue or (sector_member and bool(listed))

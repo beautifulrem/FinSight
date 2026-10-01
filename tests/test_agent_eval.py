@@ -925,9 +925,10 @@ def test_round10_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_revie
     assert _overlaps(mine, others) == (0, 0), "round-10 dev tasks or router labels overlap a held-out or reviewer set"
 
 
-def _heldout_r6_texts() -> list[str]:
+def _heldout_r6_texts(folder_name: str = "heldout_r6") -> list[str]:
     """Every claim, question and document text of the independent round-6 held-out slice, read programmatically (the
-    slice is the out-of-sample measure of the round-10 fixes: its text is compared, never printed or read by hand)."""
+    slice is the out-of-sample measure of the round-10 fixes: its text is compared, never printed or read by hand).
+    ``folder_name="heldout_r7"`` reads the round-7 slice the same way."""
     from evaluation.agent_eval.runner import ROOT
 
     texts: list[str] = []
@@ -942,7 +943,7 @@ def _heldout_r6_texts() -> list[str]:
         elif isinstance(value, str) and key in {"claim", "query", "text", "title", "body", "question"}:
             texts.append(value)
 
-    folder = ROOT / "evaluation" / "heldout_r6"
+    folder = ROOT / "evaluation" / folder_name
     for path in sorted(folder.glob("*.jsonl")):
         for line in path.open(encoding="utf-8"):
             if line.strip():
@@ -991,6 +992,40 @@ def test_round11_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_revie
     assert len({task["id"] for task in _round11_tasks()}) >= 30 and check_overlap(_round11_tasks()) == []
     assert sum(1 for task in _round11_tasks() if task["category"] == "multi_turn") >= 20
     assert _overlaps(mine, others) == (0, 0), "round-11 dev tasks or router labels overlap a held-out or reviewer set"
+
+
+def test_round12_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_reviewer_sets():
+    """Round-12 dev tasks and router labels were written after the round-7 slice was exposed (the classes it still
+    failed after round 11): none may copy or near-copy a round-7 or round-6 slice text (read programmatically), a
+    round-4/5 held-out text, a reviewer probe quoted in a report, the independent router sets or a test set (counts
+    only)."""
+    from evaluation.agent_eval.build_tasks import (
+        _round12_forecast_tasks,
+        _round12_frame_tasks,
+        _round12_tasks,
+        check_overlap,
+    )
+
+    round12 = _round12_frame_tasks() + _round12_forecast_tasks() + _round12_tasks()
+    from evaluation.agent_eval.runner import TASK_SETS, load_tasks
+
+    mine = [turn["query"] for task in round12 for turn in task["turns"]]
+    mine += [row["query"] for row in _router_rows("router_labels_v1.jsonl") if row["note"].startswith("round12")]
+    others = [
+        row["query"]
+        for name in ("router_labels_independent_v1.jsonl", "router_labels_independent_v2.jsonl")
+        for row in _router_rows(name)
+    ]
+    for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
+        others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    heldout_r7 = _heldout_r6_texts("heldout_r7")
+    others += _heldout_r4_texts() + _heldout_r5_texts() + _heldout_r6_texts() + heldout_r7
+    others += _ROUND4_REVIEW_PROBES + _ROUND5_REVIEW_PROBES + _ROUND6_REVIEW_PROBES + _ROUND7_REVIEW_PROBES
+
+    assert len(heldout_r7) >= 120, "the round-7 slice was not read"
+    assert len({task["id"] for task in _round12_frame_tasks()}) >= 20 and check_overlap(round12) == []
+    assert sum(1 for row in _router_rows("router_labels_v1.jsonl") if row["note"].startswith("round12")) >= 8
+    assert _overlaps(mine, others) == (0, 0), "round-12 dev tasks or router labels overlap a held-out or reviewer set"
 
 
 def test_round10_tasks_against_the_round6_heldout_slice():
