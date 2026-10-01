@@ -90,9 +90,15 @@ def newly_failing(outcomes: dict[str, list[bool]], baseline_outcomes: dict[str, 
     )
 
 
-# Offline red-team baselines, newest first: redteam-offline-r10 covers all nine attack sets (0 everywhere since
+# Offline red-team baselines, newest first: redteam-offline-r11 covers all nine attack sets (0 everywhere since
 # round 8, holdout7 added in round 9, holdout8 in round 10); the older files fill in any (set, path) a newer one lacks.
-REDTEAM_BASELINES = ("redteam-offline-r10", "redteam-offline-r9", "redteam-offline-r8", "redteam-offline")
+REDTEAM_BASELINES = (
+    "redteam-offline-r11",
+    "redteam-offline-r10",
+    "redteam-offline-r9",
+    "redteam-offline-r8",
+    "redteam-offline",
+)
 
 
 def redteam_baseline() -> dict[tuple[str, str], dict[str, Any]] | None:

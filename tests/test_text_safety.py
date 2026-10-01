@@ -322,3 +322,36 @@ def test_planted_fact_titles_are_withheld(title):
 )
 def test_ordinary_headlines_with_similar_words_pass(title):
     assert safe_headline(title) == title, headline_findings(title)
+
+
+# ---- round 11 (G8): a dramatic claim with no figure is a claim shape unless an official source is named ----
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "五粮液上半年利润腰斩，经销商压货严重",
+        "中国平安理财产品暴雷，多地网点被围",
+        "白酒板块即将崩盘",
+        "贵州茅台面临退市风险",
+        "Moutai profit halved as distributors balk",
+        "Ping An wealth products collapse",
+    ],
+)
+def test_figure_free_dramatic_claims_are_withheld(title):
+    assert safe_headline(title) is None
+    assert "claim" in kinds(title), headline_findings(title)
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "关于公司股票被实施退市风险警示的公告",  # a filing title names its source
+        "上交所：对某公司财务造假予以公开谴责",
+        "区间最大涨幅与动量延续",  # 最大涨幅 is not 大涨
+        "五粮液2025年净利润同比下降",
+        "Moutai annual report: revenue declines slightly",
+    ],
+)
+def test_official_or_plain_wording_is_not_a_dramatic_claim(title):
+    assert safe_headline(title) == title, headline_findings(title)
