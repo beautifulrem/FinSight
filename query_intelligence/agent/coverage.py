@@ -971,8 +971,9 @@ _TURNOVER_RATE = re.compile(r"换手率|换手(?:了)?(?:多少|几)|\bturnover 
 
 
 def sector_data_question(text: str, entities: list[dict[str, Any]]) -> bool:
-    """(round 13) A named sector's own figure that a glossary word names ("白酒行业今天换手率多少", "the baijiu
-    sector's turnover rate"): answered from the industry snapshot, not with the concept's definition."""
+    """(round 13) A named sector's own figure that a glossary word names ("白酒行业今天换手率多少"): answered from the
+    industry snapshot, not with the concept's definition. Only for a sector the NLU tags (an English question such as
+    "the baijiu sector's turnover rate" gets no sector entity and still reads as the glossary concept)."""
     sectors = any(entity.get("entity_type") == "sector" for entity in entities or [])
     return (
         sectors
