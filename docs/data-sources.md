@@ -10,6 +10,87 @@ metadata on every returned record.
 All numbers below were measured, not estimated. Upstream behaviour changes (Eastmoney in particular
 throttles bursts from one IP), so rerun the audit before quoting them.
 
+## What is live, what is snapshot, and the fallback order
+
+| Mode | Market data | Fundamentals / valuation | Macro | News / announcements |
+|---|---|---|---|---|
+| Live (`QI_USE_LIVE_*=true`, the default) | live chain (below), 30 latest bars per call | Sina + THS statements (cross-checked), Eastmoney datacenter → Tencent valuation | Eastmoney datacenter (+ ChinaBond for the 10Y yield) | Eastmoney news; cninfo → Eastmoney notices |
+| Offline (`QI_USE_LIVE_*=false`) | shipped snapshot only | shipped snapshot only | shipped snapshot only | local document corpus |
+
+Order in live mode, per record: the live chain for that data kind (first source that returns usable
+rows) → the TTL cache → the last-known-good copy (at most 24 h old) → the shipped snapshot. A snapshot
+*price* stands in for a failed live fetch only while it is fresh (10 days); snapshot fundamentals,
+industry tiles and macro values are served with `mode: snapshot` and a fallback reason. Every record
+says which of these it is in `provenance` (`mode`, `as_of`, `fetched_at`, `fallback_reason`).
+
+The shipped snapshot has two layers (next section): v1 (`data/structured_data.json`, as of
+2026-04-22) and the extension (`data/snapshot/structured_data_ext.json`, as of 2026-09-30). Each
+answer states each target's own date.
+
+## Offline snapshot: v1 and the 2026-09-30 extension
+
+**Coverage before → after (offline mode, extension on).**
+
+| | v1 only | v1 + extension |
+|---|---|---|
+| Instruments with a price | 7 (at most 5 daily closes each) | 22 (the 15 new ones have 301–307 daily closes, 2025-07-01 to 2026-09-30) |
+| Companies with fundamentals | 3 (no market cap, YoY growth or EPS) | 13 (the 10 new ones: FY2025 revenue, net profit, ROE, gross margin, EPS, revenue/profit YoY; P/E TTM, P/B, P/S, total and free-float market cap on 2026-09-30) |
+| Computable offline | latest close, daily change, P/E, P/B, ROE, net margin | plus EPS (reported), market cap, YoY growth, PEG, holding value, YTD change, 52-week high/low, max drawdown (52 weeks and YTD), MA/RSI/MACD for the new names |
+
+The 15 added instruments: 宁德时代 300750.SZ, 比亚迪 002594.SZ, 招商银行 600036.SH, 平安银行 000001.SZ,
+工商银行 601398.SH, 中信证券 600030.SH, 长江电力 600900.SH, 紫金矿业 601899.SH, 美的集团 000333.SZ,
+中芯国际 688981.SH, 黄金ETF 518880.SH, 中证500ETF 510500.SH, 科创50ETF 588000.SH, 上证指数 000001.SH,
+创业板指 399006.SZ. 中芯国际 has 301 closes (trading halts), the others 307.
+
+**Where the numbers come from.** `scripts/build_offline_snapshot.py fetch` (2026-10-01 04:55–04:57 UTC,
+from the maintainer's network, sequential with a 1.5 s pause) calls the same chains as the live
+runtime: daily bars through `AKShareMarketProvider` (Eastmoney failed with a proxy error for every
+stock and ETF, Sina served all 15; the attempts are in the manifest), statements from Sina and THS
+reconciled by the live cross-check (Sina served 9 companies with `agree`, THS served 中芯国际 with
+`disagree_resolved`), and the valuation from the Eastmoney datacenter (`stock_value_em`, 2026-09-30
+row; its close must equal the bar's close or the build fails). The source records it received are
+committed under `data/snapshot/raw/` (window-filtered); `build` turns them into
+`structured_data_ext.json` offline and deterministically, and `manifest.json` records per instrument
+the endpoint, the attempts, the fetch time, the report period and a sha256 of every raw file, of the
+output and of v1.
+
+```bash
+python -m scripts.build_offline_snapshot fetch    # live, ~2 min
+python -m scripts.build_offline_snapshot build    # offline, deterministic
+python -m scripts.build_offline_snapshot verify   # hashes match, rebuild == committed file, no v1 overlap
+```
+
+**Rules.**
+
+- The extension never changes a v1 value: the loader adds a key only when v1 does not have it, and
+  `build` refuses a symbol that v1 already covers. `tests/test_round12_snapshot_ext.py` checks every v1
+  record is identical with the extension on.
+- Statements are the FY2025 annual report for every company (the same period as the v1 fundamentals),
+  so companies compare on one period; P/E, P/B, P/S and the market cap are priced on 2026-09-30, and the
+  answer says so ("PE、PB 按 2026-09-30 收盘计算", "总市值 … 按 2026-09-30 收盘计算").
+- Closes are unadjusted (不复权), like every other price in the project. The 52-week range and the
+  drawdowns are labelled "按未复权收盘价"; a window with a close-to-close jump beyond every A-share
+  daily limit (>21%, e.g. 比亚迪's 2025-07-29 bonus issue, outside the 52-week window) is not computed.
+  Cash dividends and small bonus issues are not adjusted for.
+- Dates: v1 prices are as of 2026-04-22, extension prices as of 2026-09-30. Every price sentence carries
+  its own date, the provenance note names it (数据来自离线快照，截至2026-09-30), and a comparison of
+  price data from different trading days says so ("注意：所比较的行情日期不同（贵州茅台 2026-04-22，宁德时代
+  2026-09-30）…").
+- `QI_OFFLINE_SNAPSHOT_EXT=false` turns the extension off. The extension is not refreshed automatically;
+  rerun `fetch` + `build` to move its date.
+
+**Evaluation stays on v1.** Every task set and held-out slice in the repository was labelled against
+v1, including absence labels (for example "宁德时代 has no offline price" in test v3, the multi-turn set
+and the round-4/5/6 slices). The evaluation harness (`build_offline_service`, the task builders) and
+the test environment therefore pin v1; `QI_EVAL_SNAPSHOT_EXT=1` opts in. The 14 round-12 dev tasks that
+need the extension were recorded into the dev replay fixture with it on, for 9 symbols no earlier dev
+task had recorded, so every earlier task replays exactly what it did before. Run with
+`QI_EVAL_SNAPSHOT_EXT=1`, the verify scripts report 22 failed checks, all premises about v1: absence
+checks for 300750.SZ, 600036.SH, 002594.SZ, 000001.SZ, 000333.SZ and 000001.SH (r4 2, r5 3, multi-turn 5,
+test v3 6), and three claim labels that become checkable (r5 r5c045/r5c055 on 平安银行's P/E and ROE, r6
+r6c19 on 宁德时代's P/E: 6 checks). The round-7 slice passes either way. Pinned to v1 (the default), every
+verify script prints OK.
+
 ## How the audit was run
 
 | Item | Value |
@@ -41,12 +122,51 @@ result each for cninfo and the Eastmoney notice API (the ETF, which has no compa
 | 2026-09-28 09:14 / 17:14 | `6dde495` | 49/64 | 10/10 | the families listed above |
 | 2026-09-28 19:55 / 09-29 03:55 | `4742453` | 49/64 | 10/10 | the same 15 probes |
 | 2026-09-29 02:57 / 10:57 (morning session) | `5d4c192` | 52/67 | 10/10 | the same 15 probes; the 3 new intraday probes (Sina real-time quote dated today, 33–106 ms) all OK |
+| 2026-10-01 06:21–06:26 / 14:21 (National Day holiday), 2 rounds | `c915aef` | 98/134 (49/67 per round) | 10/10 | the same 15 probes per round, plus the 3 intraday probes, which reject the 2026-09-30 quote on a non-trading day by design |
 
 Files: [`audit-20260928-6dde495.json`](results/data_sources/audit-20260928-6dde495.json),
 [`audit-20260928T1955Z-4742453.json`](results/data_sources/audit-20260928T1955Z-4742453.json),
-[`audit-20260929T0257Z-5d4c192.json`](results/data_sources/audit-20260929T0257Z-5d4c192.json). Three runs at
-different times of day (afternoon close, night, during the session) fail the same way, so the Eastmoney
-proxy errors and the Xueqiu token are properties of this network, not of the time of day.
+[`audit-20260929T0257Z-5d4c192.json`](results/data_sources/audit-20260929T0257Z-5d4c192.json),
+[`audit-20261001T0626Z-c915aef.json`](results/data_sources/audit-20261001T0626Z-c915aef.json) (per-source report:
+[`.md`](results/data_sources/audit-20261001T0626Z-c915aef.md)). Four runs at different times of day (afternoon
+close, night, during the session, a holiday afternoon) fail the same way, so the Eastmoney proxy errors and
+the Xueqiu token are properties of this network, not of the time of day.
+
+### Audit at HEAD, 2026-10-01 (per source)
+
+`python -m scripts.audit_data_sources --rounds 2 --pause 1 --out-dir docs/results/data_sources`, from a clean
+checkout of `c915aef`, started 2026-10-01 06:21:45 UTC (14:21 Beijing, a market holiday; the last trading day
+was 2026-09-30), on the maintainer's network with the environment's local HTTP proxy. Calls are sequential with
+a 1 s pause after each; every source was called twice per target. Lags are trading sessions behind
+2026-09-30 for daily bars (SSE calendar from `tool_trade_date_hist_sina`) and calendar days to 2026-10-01
+otherwise. Schema drift compares the columns each provider reads with what the source returned.
+
+| Kind | Source | OK / calls | P50 / P95 ms | Newest as-of (lag) | Note |
+|---|---|---:|---:|---|---|
+| Stock daily | Sina `stock_zh_a_daily` | 6/6 | 326 / 420 | 2026-09-30 (0 sessions) | serves the chain |
+| Stock daily | Tencent fqkline | 6/6 | 85 / 91 | 2026-09-30 (0) | |
+| Stock quote | Sina `hq.sinajs.cn` | 6/6 | 45 / 57 | 2026-09-30 (0) | |
+| Stock daily | Eastmoney `stock_zh_a_hist`, efinance | 0/6, 0/6 | 129 / 213, 485 / 795 | – | `ProxyError` on `push2his` (root cause 1) |
+| Intraday | Sina → Tencent | 0/6 | 101 / 111 | – | quote dated 2026-09-30, "not today": correct on a holiday |
+| ETF daily / NAV | Sina, Tencent, Eastmoney fund NAV | 2/2 each | 191 / 213, 90 / 103, 122 / 177 | 2026-09-30 (0) | Eastmoney `fund_etf_hist_em` 0/2 (root cause 1) |
+| ETF profile | Eastmoney `fund_overview_em` | 2/2 | 226 / 273 | – | Xueqiu 0/2 (`KeyError: 'data'`, login token) |
+| Index daily | Sina, Tencent | 2/2 each | 178 / 234, 97 / 106 | 2026-09-30 (0) | Eastmoney `index_zh_a_hist` 0/2 (root cause 1) |
+| Index valuation | CSIndex | 2/2 | 257 / 270 | 2026-09-30 (1 day) | |
+| Financials | Sina, THS | 6/6 each | 427 / 654, 221 / 483 | 2026-06-30 report | no schema drift |
+| Valuation | Eastmoney datacenter, Tencent quote | 6/6 each | 381 / 612, 52 / 54 | 2026-09-30 (1 day) | |
+| Industry | cninfo profile | 6/6 | 85 / 144 | – | Eastmoney `stock_individual_info_em` 0/6 (root cause 1) |
+| Macro | Eastmoney CPI / PMI / M2 | 2/2 each | 127–170 / 174–351 | 2026-08 / 2026-09 / 2026-08 (30–61 days) | monthly releases |
+| Macro | Eastmoney 10Y, ChinaBond 10Y, LPR | 2/2 each | 268 / 318, 2185 / 2248, 927 / 1096 | 2026-09-30, 2026-09-30, 2026-09-20 | |
+| Macro (legacy, unused) | jin10 CPI / PMI | 2/2 each | 27825 / 28582, 19528 / 32843 | 2025-09-10 / 2025-08-31 (386 / 396 days) | stale feeds; `macro_china_pmi_monthly` gone (0/2) |
+| News | Eastmoney `stock_news_em` | 8/8 | 113 / 153 | 2026-09-30 (≤ 2 days) | |
+| Announcements | cninfo, Eastmoney notices | 6/8 each | 221 / 476, 71 / 100 | 2026-10-01 (600519: 2026-08-15) | empty for the ETF 510300 (no company announcements) |
+| Tushare (market, news) | – | not configured | – | – | `TUSHARE_TOKEN` is not set; never called |
+
+Totals: 36 source rows: 24 all OK, 2 partial (the ETF announcements), 8 down, 2 not configured; no schema drift.
+All 10 runtime chains served: the four market bundles that start at Eastmoney fell back to Sina
+(`live_fallback`, 1.2–2.4 s including fundamentals), the index bundle was live from Sina (0.4 s), macro 2.2 s,
+news and announcements 0.1–0.4 s. A first run at `da30dc5` flagged a false schema drift (601318 中国平安, an
+insurer, has no THS 销售毛利率 column); the check was corrected in `c915aef` and that run was not committed.
 
 **Schedule.** [`.github/workflows/data-source-audit.yml`](../.github/workflows/data-source-audit.yml)
 runs the audit every Monday at 01:30 UTC and on demand (`workflow_dispatch`), writes a summary table to
@@ -377,6 +497,8 @@ running round gets `in_progress`. With live market data off the probe is `skippe
 | `QI_SOURCE_MAX_WORKERS` | `32` | Size of the bounded source-call pool |
 | `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS` | `60` | Minimum time between two active probe rounds |
 | `QI_SOURCE_CROSS_CHECK` | `true` | Fetch Sina and THS fundamentals and reconcile them |
+| `QI_OFFLINE_SNAPSHOT_EXT` | `true` | Merge the snapshot extension (`data/snapshot/structured_data_ext.json`) under v1 |
+| `QI_EVAL_SNAPSHOT_EXT` | unset (off) | Let the evaluation harness see the extension (it is pinned to v1 otherwise) |
 
 ## Tests
 
@@ -397,6 +519,11 @@ running round gets `in_progress`. With live market data off the probe is `skippe
   the rate-limited active probe, the Sina/THS reconciliation on the real 000858 figures (range,
   report period, cumulative vs single quarter, digit-free metadata), the stale-industry refresh and
   labelling, and the Prometheus collector for breaker states and the pool.
+- `tests/test_round12_snapshot_ext.py` (offline) covers the snapshot extension: v1 records unchanged,
+  the merge rule, >= 250 closes and the derived-metric fields, the offline rebuild (`verify`), the v1 pin
+  of the evaluation harness, provenance of an extension record, the 52-week range, the drawdowns (1y,
+  YTD), the ex-rights jump guard, and the answers (drawdown, 52-week range, market cap, EPS, growth,
+  holding value, YTD change, cross-date comparisons).
 - `tests/test_data_sources_live.py` hits real endpoints. It runs only with `QI_LIVE_TESTS=1` (or the
   repository's existing `QI_INTEGRATION_TESTS=1`).
 
@@ -410,8 +537,12 @@ running round gets `in_progress`. With live market data off the probe is `skippe
   than borrowed from another period.
 - Eastmoney quote-host throttling depends on the client IP. On another network the primary may
   succeed; the chain and breaker handle both cases.
-- Tushare was not audited because no `TUSHARE_TOKEN` was available. Its records get generic live
-  provenance.
+- Tushare was not audited because no `TUSHARE_TOKEN` was available (the 2026-10-01 audit lists it as
+  "not configured"). Its records get generic live provenance.
+- The offline snapshot extension is a dated copy (2026-09-30): it is not refreshed automatically, its
+  closes are unadjusted, and the 52-week range and the drawdowns use daily closes, not intraday highs and
+  lows. The live path keeps the latest 30 bars per call, so for a live-served quote the year-to-date change,
+  the 52-week range and the drawdowns are stated as not computable.
 - ETFs have no announcements on either source (0 items for 510300).
 - CSIndex valuation only covers CSI indices. For the SZSE index 399006 创业板指 the request failed in a
   live pipeline run, so `index_valuation` has no values and its provenance note says 未获取到实时数据.
