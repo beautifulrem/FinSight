@@ -138,7 +138,10 @@ def listed_entities(nlu_result: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 _PLURAL_ZH = re.compile(
-    r"这两家公司|这两家|这两只|这两个|两家公司|两只股票|两家|两只|两者|它们|他们俩|二者|俩|这几家|这几只|这些公司|这些"
+    r"这两家公司|这两家|这两只|这两个|两家公司|两只股票|两家|两只|两者|它们|他们俩|二者|俩|这几家|这几只|这些公司|这些|"
+    # (round 10, F4) a bare "两个" that is compared or chosen from ("两个比…", "两个里哪个…", "两个ETF谁…"); not a
+    # count ("两个月", "两个百分点", "第两个")
+    r"(?<![这那第一二三四五六七八九十\d])两个(?:ETF|基金|标的|指数|股票|公司)?(?=\s*(?:比|相比|对比|比较|中|里|之间|哪|谁|都|一起))"
 )
 _PLURAL_EN = re.compile(
     r"\b(?:both of them|both|them|these two|the two|the pair|all of them|those|these|they)\b(?! (?:days?|years?)\b)",
@@ -485,15 +488,35 @@ _DIFFERENCE_FOLLOW_UP = re.compile(
 )
 
 
+# (round 10, F4) "谁更高", "哪个更低一些", "Which one is lower?" right after a comparison: the same comparison, now
+# asking which side is higher (the template states it, see ``composer._comparison_verdict``).
+_COMPARATIVE_FOLLOW_UP = re.compile(
+    r"^(?:那|那么|所以)?(?:两者|两个|二者|它们|他们|两家|两只|这两个?)?(?:中|里|之间|当中)?(?:的)?"
+    r"(?:谁|哪个|哪一个|哪只|哪家|哪边)(?:的)?(?:更|比较|相对)?(?:高|低|大|小|多|少|贵|便宜|强|弱)(?:一些|一点|些)?"
+    r"(?:呢|啊|吗|吧|呀)?[？?。.!！]*$|"
+    r"^(?:and |so )?which (?:one |of the two |of them )?(?:is|was|has) (?:the )?(?:higher|lower|bigger|smaller|"
+    r"cheaper|more expensive|larger)\b[^.?!]{0,20}[?.!]*$",
+    re.IGNORECASE,
+)
+
+
 def is_difference_follow_up(query: str) -> bool:
     return bool(_DIFFERENCE_FOLLOW_UP.search(strip_filler(query).strip()))
 
 
+def is_comparative_follow_up(query: str) -> bool:
+    return bool(_COMPARATIVE_FOLLOW_UP.search(strip_filler(query).strip()))
+
+
 def resolve_difference_follow_up(query: str, turns: list[dict[str, Any]]) -> tuple[str, str] | None:
-    """A bare "差了多少" after a turn that compared two targets (or a target with its industry) joins that turn's
-    question: "茅台和五粮液昨天谁跌得多" + "差了多少个百分点" → "贵州茅台和五粮液昨天谁跌得多，差了多少个百分点"."""
+    """A bare "差了多少" (or "谁更高") after a turn that compared two targets (or a target with its industry) joins that
+    turn's question: "茅台和五粮液昨天谁跌得多" + "差了多少个百分点" → "贵州茅台和五粮液昨天谁跌得多，差了多少个百分点".
+
+    (round 10, F4) When neither that turn nor the follow-up names a metric ("行业平均呢" after "五粮液PE多少"), the
+    metric named last in the session is carried as well, as ``ellipsis:aspect`` does for other follow-ups."""
     text = strip_filler(query).strip()
-    if not turns or not is_difference_follow_up(text):
+    comparative = is_comparative_follow_up(text)
+    if not turns or not (comparative or is_difference_follow_up(text)):
         return None
     for turn in reversed(turns[-MAX_CONTEXT_TURNS:]):
         listed = [entity for entity in turn.get("entities") or [] if entity.get("symbol")]
@@ -503,9 +526,14 @@ def resolve_difference_follow_up(query: str, turns: list[dict[str, Any]]) -> tup
         if len(listed) < 2 and not re.search(r"行业|板块|sector|industry", previous, re.IGNORECASE):
             return None
         zh = bool(re.search(r"[一-鿿]", text))
-        rewritten = f"{previous}，{text}" if zh else f"{previous}? {text}"
+        carried = [] if _ASPECT.search(previous) or _ASPECT.search(text) else _last_aspects(turns)
+        if zh:
+            rewritten = f"{previous}，{'、'.join(carried)}{text}"
+        else:
+            rewritten = f"{previous}? {', '.join(carried)}: {text}" if carried else f"{previous}? {text}"
         names = _join([str(entity.get("name") or entity["symbol"]) for entity in listed], zh)
-        return rewritten, f"difference_follow_up:{names}"
+        reason = f"{'comparison' if comparative else 'difference'}_follow_up:{names}"
+        return rewritten, reason + (f"+aspect->{'+'.join(carried)}" if carried else "")
     return None
 
 

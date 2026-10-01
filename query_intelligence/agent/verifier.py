@@ -786,12 +786,14 @@ def _is_percent(scales: tuple[float, ...]) -> bool:
 
 def _is_derived(value: float, rounding: float | None, operands: list[float], *, shares: list[float] = ()) -> bool:
     """``value`` is a - b, a + b, a / b or the percent change (a - b) / b of two stated operands, or, for a value
-    written in percent, the share a / b of two stated amounts (a net margin: net profit / revenue, a <= b). The share
+    written in percent, the share a / b of two stated amounts (a net margin: net profit / revenue, a <= b) or the
+    difference of two such shares of four stated amounts (a net-margin gap, round 10). The share
     is limited to amounts: allowing a / b * 100 for any pair (multiples, ratios) raised the stress test's derived
     false-accept rate from 0.020 to 0.028."""
     tolerance = 0.5 if rounding is None else rounding
     pairs = [(a, b, False) for i, a in enumerate(operands) for j, b in enumerate(operands) if i != j]
-    pairs += [(a, b, True) for i, a in enumerate(shares) for j, b in enumerate(shares) if i != j and 0 < a <= b]
+    share_pairs = [(i, j) for i, a in enumerate(shares) for j, b in enumerate(shares) if i != j and 0 < a <= b]
+    pairs += [(shares[i], shares[j], True) for i, j in share_pairs]
     for a, b, share in pairs:
         if share:
             candidates = [a / b * 100]
@@ -800,6 +802,15 @@ def _is_derived(value: float, rounding: float | None, operands: list[float], *, 
             if b:
                 candidates += [a / b, (a - b) / abs(b) * 100]
         for candidate in candidates:
+            if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
+                return True
+    # (round 10, F8) the gap in percentage points between two such shares of four stated amounts (two net margins:
+    # "823.2 亿 ÷ 1688.38 亿 ≈ 48.76%，378 亿 ÷ 1085 亿 ≈ 34.84%，相差 13.92 个百分点"), the amounts all disjoint
+    for i, j in share_pairs:
+        for k, m in share_pairs:
+            if len({i, j, k, m}) < 4:
+                continue
+            candidate = (shares[i] / shares[j] - shares[k] / shares[m]) * 100
             if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
                 return True
     return False

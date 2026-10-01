@@ -1,0 +1,137 @@
+{
+ "kind": "verifier_stress",
+ "config": {
+  "tasks": "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+  "seed": 7,
+  "perturbations": [
+   0.01,
+   0.05,
+   0.2
+  ],
+  "model": null,
+  "commit": "53454f5",
+  "run_at": "2026-09-30T23:35:04+00:00",
+  "command": "python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress-round10.json"
+ },
+ "gold_answers": 227,
+ "true_accept": {
+  "legacy": 1.0,
+  "run": 1.0,
+  "claim": 1.0,
+  "claim_derived": 1.0
+ },
+ "variants": 4016,
+ "false_accept": {
+  "legacy": 0.3237,
+  "run": 0.2468,
+  "claim": 0.0125,
+  "claim_derived": 0.0129
+ },
+ "by_kind": {
+  "perturb_1pct": {
+   "variants": 971,
+   "false_accept_legacy": 0.2451,
+   "false_accept_run": 0.0175,
+   "false_accept_claim": 0.0175,
+   "false_accept_claim_derived": 0.0175
+  },
+  "perturb_20pct": {
+   "variants": 1080,
+   "false_accept_legacy": 0.0954,
+   "false_accept_run": 0.037,
+   "false_accept_claim": 0.0176,
+   "false_accept_claim_derived": 0.0176
+  },
+  "perturb_5pct": {
+   "variants": 1055,
+   "false_accept_legacy": 0.0464,
+   "false_accept_run": 0.0227,
+   "false_accept_claim": 0.0114,
+   "false_accept_claim_derived": 0.0114
+  },
+  "swap": {
+   "variants": 910,
+   "false_accept_legacy": 1.0,
+   "false_accept_run": 1.0,
+   "false_accept_claim": 0.0022,
+   "false_accept_claim_derived": 0.0044
+  }
+ },
+ "examples_caught_only_by_claim_binding": [
+  {
+   "task": "fact_price_zh_0_0",
+   "kind": "perturb_1pct",
+   "original": "1409.5",
+   "replacement": "1423.6",
+   "answer": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1423.6 元（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  },
+  {
+   "task": "fact_price_zh_0_2",
+   "kind": "perturb_1pct",
+   "original": "1409.5",
+   "replacement": "1423.6",
+   "answer": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1423.6 元（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  },
+  {
+   "task": "fact_price_zh_2_0",
+   "kind": "perturb_1pct",
+   "original": "53.61",
+   "replacement": "53.07",
+   "answer": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.07 元（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。"
+  },
+  {
+   "task": "fact_price_zh_2_0",
+   "kind": "perturb_1pct",
+   "original": "0.73",
+   "replacement": "0.74",
+   "answer": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.74% [price_601318.SH]。"
+  },
+  {
+   "task": "fact_price_zh_2_1",
+   "kind": "perturb_1pct",
+   "original": "0.73",
+   "replacement": "0.72",
+   "answer": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.72% [price_601318.SH]。"
+  },
+  {
+   "task": "fact_price_zh_2_2",
+   "kind": "perturb_1pct",
+   "original": "53.61",
+   "replacement": "53.07",
+   "answer": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.07 元（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。"
+  },
+  {
+   "task": "fact_price_zh_2_2",
+   "kind": "perturb_1pct",
+   "original": "0.73",
+   "replacement": "0.74",
+   "answer": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.74% [price_601318.SH]。"
+  },
+  {
+   "task": "fact_price_en_2",
+   "kind": "perturb_1pct",
+   "original": "0.73",
+   "replacement": "0.74",
+   "answer": "Based on the evidence retrieved for this question: Ping An Insurance (601318.SH) last available close was CNY 53.61 on 2026-04-22, daily change 0.74% [price_601318.SH]."
+  }
+ ],
+ "repair": {
+  "repaired_answers": 3966,
+  "readable": 1.0,
+  "passes_verification": 1.0,
+  "template_fallback": 0.1793,
+  "with_fragment": 0.0,
+  "retained_sentences": 0.9757,
+  "answers_with_issue": {},
+  "unreadable_examples": []
+ },
+ "source": {
+  "file": "outputs/agent_eval/verifier_stress-round10.json",
+  "sha256_16": "7e931de123af2bef",
+  "bytes": 3937,
+  "slimmed_at": "2026-09-30T23:37:22+00:00"
+ },
+ "notes": [
+  "Verifier stress at 53454f5 after the round-10 verifier change (a net-margin gap derived from four stated amounts): 227 gold answers / 4,016 variants (the gold count depends on tool timeouts under load: 240 at d78a556, 220 in the round-6 review at bc42017); claim false accept 0.0125, derived 0.0129; true accept 1.0."
+ ]
+}

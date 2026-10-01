@@ -53,6 +53,14 @@ FAIR_VALUE_MARKERS = re.compile(
     r"(?:(?<![A-Za-z])DCF(?![A-Za-z])|现金流折现|贴现现金流|折现现金流|绝对估值法?|估值模型)[^。？?！!]{0,12}?"
     r"(?:值(?:多少|几)|价值(?:是|为|在|有)?(?:多少|几)|估(?:一下|算一下|算)[^。？?！!]{0,8}?(?:值|价|多少)|"
     r"股价(?:是|为|在|该|应)|每股|一股|多少钱)|"
+    # (round 10, F5) three more phrasings of the same request, as classes: an estimate asked for with a measure word or
+    # a doubled verb ("估个价", "估一下价值", "估估价", "给…定个价"); what it is "worth" with a qualifier ("到底值多少",
+    # "应该值几个钱", "身价几何"); a price level with a verdict word ("什么价位比较合理", "多少价格算合适")
+    r"估(?:个|一个|一下|一估|估|算一下|算个)(?:[^，。？?,.!！]{0,8}?的)?(?:价值|价|值)|(?:给|替|帮)[^，。？?,.!！]{1,12}?定(?:个|一个)价|"
+    r"(?:到底|究竟|应该|应当|大概|大约|实际|能|该)值(?:多少|几)|(?:身价|估值|价值)几何|"
+    r"(?:什么|多少|哪个|怎样的?)(?:价位|价格|价钱|股价|点位)(?:才|比较|算|是|更)?" + _FAIR_WORDS + r"|"
+    r"\bput a (?:price|value|valuation|number) on\b|\bhow much (?:should|would)\b.{0,40}\b(?:be worth|trade at)\b|"
+    r"\bwhat (?:price|valuation) (?:would be|is) (?:fair|reasonable|justified)\b|"
     r"\bfair (?:value|price|valuation)\b|\bintrinsic value\b|\btrue value\b|\breasonable (?:valuation|price)\b|"
     r"\b(?:DCF|discounted cash flow)\b.{0,40}\b(?:worth|value|price)\b|"
     r"\bwhat(?:'s| is| are)\b.{0,40}\bworth\b(?! buying)|\bhow much is\b.{0,40}\bworth\b|\bworth per share\b",
@@ -89,6 +97,15 @@ _FORECAST_MARKERS = re.compile(
     r"\bnext (?:week|month|quarter|year)\b|\bforecast|\bgoing forward\b|\bin the coming\b",
     re.IGNORECASE,
 )
+_MOVE_WORDS = re.compile(r"涨|跌|反弹|回调|走势|行情|\b(?:rise|fall|rally|drop|surge|jump)\b", re.IGNORECASE)
+
+
+def asks_prediction(query: str) -> bool:
+    """(round 10, F14) The question asks for a market prediction or a pick: a future direction ("明天…会涨停",
+    "下周会反弹吗") or a judgment/timing marker (``_JUDGMENT_MARKERS``)."""
+    return bool((_FORECAST_MARKERS.search(query) and _MOVE_WORDS.search(query)) or _JUDGMENT_MARKERS.search(query))
+
+
 # Requests for an analysis or an opinion of a named target: one lookup cannot answer them ("从估值、业绩和舆情三个方面
 # 分析", "技术面怎么看", "Walk me through…", "main risks for…"). "分析师" (an analyst) is not a request.
 _ANALYSIS_MARKERS = re.compile(

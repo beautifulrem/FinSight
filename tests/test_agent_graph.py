@@ -215,7 +215,9 @@ def test_tool_failures_become_limitations():
 
     assert all(not call["ok"] for call in result["tool_calls"])
     assert result["tool_calls"][0]["attempts"] == 2
-    assert any("get_price_history" in item for item in result["limitations"])
+    # named by the data that is missing, once, not by the tool's name and error code (round 10, F11)
+    assert any(item.startswith("行情数据未取到") for item in result["limitations"])
+    assert not any("get_price_history" in item for item in result["limitations"])
     assert "没有检索到可用于回答该问题的证据" in result["answer"]
 
 
