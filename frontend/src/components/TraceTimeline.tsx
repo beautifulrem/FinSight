@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 
 import { cn } from "@/lib/cn";
 import { formatInt, formatMs } from "@/lib/format";
-import { humanizeCode } from "@/lib/codes";
+import { entityNames, humanizeCode } from "@/lib/codes";
 import { nodeLabel, toolLabel, useI18n } from "@/lib/i18n";
 import { formatArgs, type TraceNode, type TraceTool } from "@/lib/trace";
 import type { AgentResponse } from "@/lib/types";
@@ -124,13 +124,14 @@ function NodeDetails({ node, response, finalVerify }: { node: TraceNode; respons
   const { lang, t } = useI18n();
   if (!response) return null;
   if (node.node === "guard_in" && response.route) {
+    const names = entityNames(response.nlu_summary?.entities);
     return (
       <div className="flex flex-wrap items-center gap-1 text-[12px]">
         <Badge tone="cobalt" data-code={response.route}>
           {t("trace.route")}: {humanizeCode(lang, response.route, "route")}
         </Badge>
         {(response.route_reasons ?? []).map((reason) => (
-          <CodeBadge key={reason} code={reason} kind="reason" className="font-normal" />
+          <CodeBadge key={reason} code={reason} kind="reason" names={names} className="font-normal" />
         ))}
       </div>
     );

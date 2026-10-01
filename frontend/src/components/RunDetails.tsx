@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 
 import type { Turn } from "@/hooks/useChat";
 import { formatCost, formatInt, formatMs } from "@/lib/format";
-import { humanizeCode } from "@/lib/codes";
+import { entityNames, humanizeCode } from "@/lib/codes";
 import { useI18n } from "@/lib/i18n";
 import type { AnswerView } from "@/lib/view";
 
@@ -51,11 +51,7 @@ export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: 
   const failed = tools.filter((call) => !call.ok).length;
   const classic = turn.classic;
   // Chinese name -> English name for the codes that carry names (route reasons such as "ellipsis:target->…").
-  const names = new Map(
-    (agent?.nlu_summary?.entities ?? []).flatMap((entity) =>
-      entity.name && entity.name_en ? [[entity.name, entity.name_en] as [string, string]] : [],
-    ),
-  );
+  const names = entityNames(agent?.nlu_summary?.entities);
   return (
     <dl className="run-details">
       {agent?.trace_id && (
