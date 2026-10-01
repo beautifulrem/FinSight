@@ -386,3 +386,11 @@
 {"id": "route_385", "query": "贵州茅台每股能赚几块钱", "expected_route": "workflow", "note": "round12: colloquial EPS is a lookup (review-8 H9)"}
 {"id": "route_386", "query": "中国平安的换手率是多少", "expected_route": "workflow", "note": "round12: the turnover rate is a lookup, named missing when the source lacks it (review-8 H9)"}
 {"id": "route_387", "query": "我账户里有2000股，合计值多少钱", "expected_route": "clarify", "note": "round12: a holding with no target opening a conversation asks which stock (review-8 H4 negative)"}
+{"id": "route_388", "query": "中国平安的营收超出五粮液多少亿", "expected_route": "agent", "note": "round13: a comparative verb (超出) with a quantity is a difference of two targets (review-8 slice class)"}
+{"id": "route_389", "query": "照这个价买五手需要多少钱", "expected_route": "clarify", "note": "round13: the cost of buying lots opening a conversation names no target; ask which (never out of scope)"}
+{"id": "route_390", "query": "买入两千股中国平安大概得花多少钱", "expected_route": "workflow", "note": "round13: the cost of buying shares at the close is arithmetic on the close"}
+{"id": "route_391", "query": "保险行业的换手率是多少", "expected_route": "workflow", "note": "round13: an industry's turnover rate is a lookup in its snapshot, not the glossary definition"}
+{"id": "route_392", "query": "Take the first and divide it by the second.", "expected_route": "clarify", "note": "round13: an imperative ratio opening a conversation has nothing to divide; ask instead of refusing"}
+{"id": "route_393", "query": "茅台的市净率大概是五粮液的1.5倍吗", "expected_route": "agent", "note": "round13: a ratio question that states the multiple it checks compares two targets"}
+{"id": "route_394", "query": "中国平安和五粮液的净利润加在一起是多少", "expected_route": "agent", "note": "round13: a total of two targets' amounts"}
+{"id": "route_395", "query": "五粮液最新一个交易日每股下跌了多少元", "expected_route": "workflow", "note": "round13: a change in yuan derived from the close and the reported % change is a lookup"}
