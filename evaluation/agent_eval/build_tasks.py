@@ -685,6 +685,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round9_tasks()
     tasks += _round10_tasks()
     tasks += _round11_tasks()
+    tasks += _round12_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -2772,6 +2773,202 @@ def _round11_tasks() -> list[dict[str, Any]]:
             "out_of_coverage",
             "zh",
             [_turn("比亚迪电子今天涨了吗", behavior="refuse", required_limitations=["out_of_coverage"])],
+        ),
+    ]
+
+
+def _round12_tasks() -> list[dict[str, Any]]:
+    """Round-12 tasks, written from the round-7 review's data items with the author's own wording.
+
+    The offline snapshot extension (``data/snapshot/``, as of 2026-09-30) makes the 52-week high/low, the maximum
+    drawdown over the past 52 weeks or this year, the year-to-date change, reported EPS, the market cap, YoY growth
+    and a holding's value computable for names the v1 snapshot lacks. Their tool results are recorded into the dev
+    replay fixture with the extension on (``QI_EVAL_SNAPSHOT_EXT=1 ... --record-missing``); only symbols that no
+    earlier dev task recorded are used, so every earlier task replays exactly what it did before. Two tasks keep
+    v1 targets and must say the window is not covered. Values below come from
+    ``data/snapshot/structured_data_ext.json``."""
+
+    def price(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"price_{symbol}", "value": value}
+
+    def fundamental(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"fundamental_{symbol}", "value": value}
+
+    icbc, cypc, zijin, sse, csi500, star50, gold, smic = (
+        "601398.SH", "600900.SH", "601899.SH", "000001.SH", "510500.SH", "588000.SH", "518880.SH", "688981.SH",
+    )  # fmt: skip
+    return [
+        _task(
+            "r12_drawdown_1y_zh",
+            "derived",
+            "zh",
+            [
+                _turn(
+                    "工商银行这一年来最大的回撤有多少",
+                    required_tools=["get_price_history"],
+                    required_facts=[price(icbc, -16.73), price(icbc, 8.31), price(icbc, 6.92)],
+                )
+            ],
+        ),
+        _task(
+            "r12_drawdown_ytd_zh",
+            "derived",
+            "zh",
+            [
+                _turn(
+                    "长江电力今年以来最大回撤是多少",
+                    required_tools=["get_price_history"],
+                    required_facts=[price(cypc, -7.28), price(cypc, 28.28), price(cypc, 26.22)],
+                )
+            ],
+        ),
+        _task(
+            "r12_drawdown_1y_en",
+            "derived",
+            "en",
+            [
+                _turn(
+                    "Max drawdown of Zijin Mining over the past 12 months?",
+                    required_tools=["get_price_history"],
+                    required_facts=[price(zijin, -42.23), price(zijin, 43.45), price(zijin, 25.1)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r12_range_52w_zh",
+            "derived",
+            "zh",
+            [
+                _turn(
+                    "上证指数近52周收盘的高点和低点",
+                    required_tools=["get_price_history"],
+                    required_facts=[price(sse, 4242.572), price(sse, 3764.155)],
+                )
+            ],
+        ),
+        _task(
+            "r12_range_52w_en",
+            "derived",
+            "en",
+            [
+                _turn(
+                    "52-week high and low of 510500",
+                    required_tools=["get_price_history"],
+                    required_facts=[price(csi500, 9.194), price(csi500, 6.922)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r12_ytd_change_zh",
+            "derived",
+            "zh",
+            [
+                _turn(
+                    "科创50ETF年初到现在涨了多少",
+                    required_tools=["get_price_history"],
+                    required_facts=[price(star50, 1.479), price(star50, 1.616)],
+                )
+            ],
+        ),
+        _task(
+            "r12_reported_eps_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "工商银行每股收益多少钱",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental(icbc, 1.0)],
+                )
+            ],
+        ),
+        _task(
+            "r12_market_cap_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "How large is ICBC's market capitalisation?",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental(icbc, 2951043808696.92)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r12_yoy_growth_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "紫金矿业营收和净利润同比各增长了多少",
+                    required_tools=["get_fundamentals"],
+                    required_facts=[fundamental(zijin, 14.9648), fundamental(zijin, 62.0146)],
+                )
+            ],
+        ),
+        _task(
+            "r12_holding_value_zh",
+            "derived",
+            "zh",
+            [
+                _turn(
+                    "我持有3000股工商银行，按最新收盘价市值多少",
+                    required_tools=["get_price_history"],
+                    required_facts=[price(icbc, 8.28), price(icbc, 24840)],
+                )
+            ],
+        ),
+        _task(
+            "r12_gold_drawdown_ytd_en",
+            "derived",
+            "en",
+            [
+                _turn(
+                    "How far has 518880 fallen from its peak this year, as a max drawdown?",
+                    required_tools=["get_price_history"],
+                    required_facts=[price(gold, -30.52), price(gold, 11.904), price(gold, 8.271)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r12_smic_followups_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("中芯国际最新收盘价多少", required_entity=smic, required_facts=[price(smic, 111.99)]),
+                _turn("那它近一年的最大回撤呢", required_entity=smic, required_facts=[price(smic, -35.27)]),
+                _turn("52周最高收盘又是多少", required_entity=smic, required_facts=[price(smic, 173.0)]),
+            ],
+        ),
+        # v1 targets: the history holds a few closes, so the window is named as not covered
+        _task(
+            "r12_v1_range_missing_zh",
+            "missing_data",
+            "zh",
+            [
+                _turn(
+                    "五粮液最近52周的最低收盘价",
+                    required_tools=["get_price_history"],
+                    must_state_missing=True,
+                )
+            ],
+        ),
+        _task(
+            "r12_v1_drawdown_missing_en",
+            "missing_data",
+            "en",
+            [
+                _turn(
+                    "What was Ping An Insurance's max drawdown this year?",
+                    required_tools=["get_price_history"],
+                    must_state_missing=True,
+                    language="en",
+                )
+            ],
         ),
     ]
 

@@ -273,7 +273,8 @@ def test_the_52_week_range_replaces_the_days_high_and_low(ext_agent):
 
 def test_a_v1_target_still_states_the_52_week_range_as_unavailable(ext_agent):
     result = ext_agent.chat("五粮液52周最低价是多少", session_id="r12-52w-v1")
-    assert any("无法给出52周最高价和最低价" in item for item in result["limitations"])
+    assert any("收盘价不足一年，无法给出近一年的最高价和最低价" in item for item in result["limitations"])
+    assert result["verification"]["passed"]  # the gap sentence carries no untraceable digits
 
 
 def test_market_cap_is_in_yi_yuan_and_dated_by_the_valuation_day(ext_agent):

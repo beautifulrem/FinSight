@@ -171,14 +171,18 @@ METRICS: tuple[Metric, ...] = (
         "revenue_growth",
         "营收增速",
         "revenue growth",
-        r"(?:营收|营业收入|收入)(?:的)?(?:增速|增长率|同比增长|同比|增幅|增长)|revenue growth|sales growth",
+        r"(?:营收|营业收入|收入)(?:的)?(?:增速|增长率|同比增长|同比|增幅|增长)|revenue growth|sales growth|"
+        # (round 12) the first of two coordinated levels: "营收和净利润同比各增长了多少" (zero width after the level,
+        # so the second one, "净利润同比", is still matched by its own metric)
+        r"(?:营收|营业收入|收入)(?=(?:和|与|及|、)(?:净利润|净利|利润)(?:的)?(?:增速|增长率|同比|增幅|增长))",
         ("revenue_yoy", "revenue_growth", "or_yoy", "tr_yoy"),
     ),
     _metric(
         "profit_growth",
         "净利润增速",
         "net profit growth",
-        r"(?:净利润|净利|利润)(?:的)?(?:增速|增长率|同比增长|同比|增幅|增长)|(?:profit|earnings|income) growth",
+        r"(?:净利润|净利|利润)(?:的)?(?:增速|增长率|同比增长|同比|增幅|增长)|(?:profit|earnings|income) growth|"
+        r"(?:净利润|净利|利润)(?=(?:和|与|及|、)(?:营收|营业收入|收入)(?:的)?(?:增速|增长率|同比|增幅|增长))",
         ("netprofit_yoy", "net_profit_yoy", "profit_growth", "dt_netprofit_yoy"),
     ),
     _metric(
@@ -639,7 +643,10 @@ def year_to_date_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -
 
 # (round 9, E8) A maximum drawdown over a period ("近一年最大回撤", "max drawdown this year") needs the whole period's
 # closes; the price tool returns the latest few. Stated as not computable instead of answering with the daily move.
-_DRAWDOWN = re.compile(r"最大回撤|回撤幅度|最大跌幅|\bmax(?:imum)?\.? drawdown\b|\bdrawdown\b", re.IGNORECASE)
+_DRAWDOWN = re.compile(
+    r"最大(?:的)?回撤|回撤(?:幅度|了多少|有多(?:大|少|深))|最大跌幅|\bmax(?:imum)?\.? drawdown\b|\bdrawdown\b",
+    re.IGNORECASE,
+)
 
 
 def asks_drawdown(query: str) -> bool:
@@ -697,7 +704,8 @@ def drawdown_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> li
             continue
         closes = len(data.get("recent_closes") or [])
         held_zh = f"最近 {closes} 个交易日的收盘价" if closes >= 2 else "最新一个交易日的收盘价"
-        held_en = f"the latest {closes} closes" if closes >= 2 else "the latest close"
+        # no digits: a count of closes is not a figure the verifier can trace to the evidence
+        held_en = "a few recent closes" if closes >= 2 else "the latest close"
         sentences.append(
             f"当前数据只有{name}{held_zh}，无法计算所问期间的最大回撤；以下只列出最新行情。"
             if zh
@@ -711,12 +719,12 @@ def _jump_text(name: str, day: str, what_zh: str, what_en: str, *, zh: bool) -> 
     """A window holding a close-to-close jump beyond every daily limit: likely ex-rights (the closes are unadjusted)."""
     if zh:
         return (
-            f"{name}的未复权收盘价在 {day} 有超过 21% 的跳变（可能是送转股除权），无法据此计算{what_zh}；"
+            f"{name}的未复权收盘价在 {day} 有一次超出涨跌幅限制的跳变（可能是送转股除权），无法据此计算{what_zh}；"
             "以下只列出最新行情。"
         )
     return (
-        f"{name}'s unadjusted closes jump by more than 21% on {day} (likely an ex-rights adjustment), so the {what_en} "
-        "cannot be computed from them; only the latest session is listed below."
+        f"{name}'s unadjusted closes jump by more than any daily price limit on {day} (likely an ex-rights "
+        f"adjustment), so the {what_en} cannot be computed from them; only the latest session is listed below."
     )
 
 
@@ -739,10 +747,10 @@ def range_52w_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> l
             )
             continue
         sentences.append(
-            f"当前数据没有{name}覆盖最近52周的收盘价，无法给出52周最高价和最低价；以下只列出最新行情。"
+            f"当前数据中{name}的收盘价不足一年，无法给出近一年的最高价和最低价；以下只列出最新行情。"
             if zh
-            else f"The data does not hold 52 weeks of closes for {name}, so its 52-week high and low cannot be given; "
-            "only the latest session is listed below."
+            else f"The data holds less than a year of closes for {name}, so its high and low over the past year cannot "
+            "be given; only the latest session is listed below."
         )
     return list(dict.fromkeys(sentences))
 
