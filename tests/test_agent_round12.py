@@ -173,3 +173,141 @@ def test_an_ablation_records_its_env_switches(tmp_path, monkeypatch):
     assert config["command"].startswith("python -m evaluation.agent_eval.ablation --sets dev")
     assert "QI_AGENT_FRAME_FALLBACK=off" in config["command_with_env"]
     assert config["command_with_env"].endswith(config["command"])
+
+
+# ---- H8: model-derived numbers are re-derived from their operands, not deleted ----
+#
+# Drafts recorded online with DeepSeek before the fix (tests/fixtures/h8_recorded_drafts.json, written by
+# ``python -m evaluation.agent_eval.session_llm_check --set h8``): the ratio 1.93 / 0.52 of two cited ROEs, a gap
+# 14.2 whose second operand had no citation, and a relative 17.7% derived across a "；".
+
+_DRAFTS_PATH = "tests/fixtures/h8_recorded_drafts.json"
+
+
+def _recorded(session: str, turn: int, call: int = -1) -> dict:
+    import json
+    from pathlib import Path
+
+    data = json.loads((Path(__file__).resolve().parents[1] / _DRAFTS_PATH).read_text(encoding="utf-8"))
+    turns = next(item for item in data["sessions"] if item["id"] == session)["turns"]
+    return json.loads(turns[turn]["llm_calls"][call]["content"])
+
+
+@pytest.fixture(scope="module")
+def fundamentals_store(offline_service):
+    from query_intelligence.agent.evidence import EvidenceStore
+    from query_intelligence.agent.tools.defaults import build_registry_for_service
+
+    registry = build_registry_for_service(offline_service)
+    store = EvidenceStore()
+    for target in ("600519.SH", "000858.SZ", "601318.SH"):
+        for item in registry.run("get_fundamentals", {"target": target}).evidence:
+            store.add(item)
+    return store
+
+
+def test_a_recorded_ratio_of_two_cited_roes_passes_in_derived_mode(fundamentals_store):
+    from query_intelligence.agent.verifier import verify_answer
+
+    # "…二者之比约为 1.93（29.4 ÷ 15.2 ≈ 1.93），即五粮液 ROE 约为中国平安的 1.93 倍；…0.52 倍"
+    draft = {"answer": _recorded("l3-ratio", 2, 0)["answer"]}
+    assert "1.93" in draft["answer"] and "0.52" in draft["answer"]
+    assert not verify_answer(draft, fundamentals_store, allow_derived=False).passed
+    # before the fix the derived mode reported both as ROE figures contradicting the fundamentals
+    # (document_market_numbers [1.93, 0.52]: "ROE 约为中国平安的 1.93 倍" read as an ROE of 1.93)
+    after = verify_answer(draft, fundamentals_store, allow_derived=True)
+    assert after.passed, after
+
+
+def test_a_recorded_gap_with_an_uncited_operand_is_cite_repaired(fundamentals_store):
+    from query_intelligence.agent.verifier import cite_repair, verify_answer
+
+    # "…五粮液比中国平安高 14.2 个百分点（29.4 − 15.2）。" (29.4 uncited there)
+    draft = {"answer": _recorded("l3-ratio", 1, 1)["answer"]}
+    report = verify_answer(draft, fundamentals_store, allow_derived=True)
+    assert not report.passed and 14.2 in report.unsupported_numbers
+    assert cite_repair(draft, report, fundamentals_store, allow_derived=False) is None  # the old behaviour
+    fixed = cite_repair(draft, report, fundamentals_store, allow_derived=True)
+    assert fixed is not None and "高 14.2 个百分点（29.4 − 15.2）[fundamental_000858.SZ]" in fixed["answer"]
+    assert verify_answer(fixed, fundamentals_store, allow_derived=True).passed
+
+
+def test_a_recorded_relative_difference_across_a_semicolon_passes(fundamentals_store):
+    from query_intelligence.agent.verifier import verify_answer
+
+    draft = {"answer": _recorded("l2b-relative", 2, 0)["answer"]}  # "(24.6 − 20.9 = 3.7; 3.7 ÷ 20.9 ≈ 17.7%) [a][b]"
+    assert "17.7%" in draft["answer"]
+    report = verify_answer(draft, fundamentals_store, allow_derived=True)
+    assert report.passed, report
+
+
+def test_an_uncited_percent_formula_gets_its_operands_cited(fundamentals_store):
+    """The round-8 reviewer's L2b shape: one uncited sentence with both operands, the gap, "× 100" and the result."""
+    from query_intelligence.agent.verifier import cite_repair, verify_answer
+
+    draft = {
+        "answer": "Moutai's P/E (TTM) is 24.6x and Wuliangye's is 20.9x, so Moutai's is about 17.7% higher "
+        "((24.6 − 20.9) / 20.9 × 100 = 17.7%)."
+    }
+    report = verify_answer(draft, fundamentals_store, allow_derived=True)
+    assert not report.passed and 17.7 in report.unsupported_numbers and 100.0 not in report.unsupported_numbers
+    fixed = cite_repair(draft, report, fundamentals_store, allow_derived=True)
+    assert fixed is not None
+    assert fixed["answer"].endswith("= 17.7%)[fundamental_600519.SH][fundamental_000858.SZ].")
+    assert verify_answer(fixed, fundamentals_store, allow_derived=True).passed
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        # a gap that the operands do not reproduce (29.4 − 15.2 = 14.2)
+        "五粮液 ROE 29.4%，中国平安 15.2%，五粮液高 12.5 个百分点。",
+        # a ratio that the operands do not reproduce (29.4 ÷ 15.2 = 1.93)
+        "五粮液 ROE 29.4%，中国平安 15.2%，前者约为后者的 2.10 倍。",
+        # a relative difference off by more than rounding (17.7%)
+        "Moutai's P/E is 24.6x and Wuliangye's 20.9x, so Moutai's is 19.4% higher.",
+    ],
+)
+def test_a_derived_number_no_cited_operands_reproduce_is_still_rejected(fundamentals_store, answer):
+    from query_intelligence.agent.verifier import cite_repair, repair_answer, verify_answer
+
+    report = verify_answer({"answer": answer}, fundamentals_store, allow_derived=True)
+    assert not report.passed
+    assert cite_repair({"answer": answer}, report, fundamentals_store, allow_derived=True) is None
+    repaired, _notes = repair_answer({"answer": answer}, report, fundamentals_store, zh="五" in answer)
+    assert answer not in repaired["answer"]
+
+
+def test_a_wrong_roe_next_to_a_comparison_word_is_still_a_metric_conflict(fundamentals_store):
+    from query_intelligence.agent.verifier import verify_answer
+
+    # 14.2 is a gap of the two ROEs, but "ROE 为 14.2%" states it as Ping An's ROE (15.2%) with no second operand
+    answer = "中国平安 ROE 为 14.2%，低于五粮液 [fundamental_601318.SH][fundamental_000858.SZ]。"
+    assert not verify_answer({"answer": answer}, fundamentals_store, allow_derived=True).passed
+
+
+def test_recorded_drafts_keep_their_derived_numbers_end_to_end(offline_service):
+    """The L3 session replayed with its recorded first drafts: the gap turn is cite-repaired (no revision call) and
+    the ratio turn keeps 1.93 and 0.52."""
+    from query_intelligence.agent.llm import final_turn, tool_call_turn
+
+    steps = [
+        final_turn(_recorded("l3-ratio", 0, 0)),
+        tool_call_turn(("get_fundamentals", {"target": "601318.SH"})),
+        final_turn(_recorded("l3-ratio", 1, 1)),
+        final_turn(_recorded("l3-ratio", 2, 0)),
+    ]
+    llm, runtime, service = _llm_service(offline_service, steps)
+    try:
+        answers = [
+            service.chat(query, session_id="r12-h8-l3", mode="agent")
+            for query in ("中国平安ROE多少", "五粮液呢", "二者之比是多少")
+        ]
+    finally:
+        runtime.close()
+    gap, ratio = answers[1], answers[2]
+    assert "14.2 个百分点" in gap["answer"] and gap["verification"]["passed"]
+    assert any(item.startswith("verification_failed:citations_repaired") for item in gap["degraded"])
+    assert "1.93" in ratio["answer"] and "0.52" in ratio["answer"]
+    assert ratio["verification"]["passed"] and not ratio["degraded"]
+    assert len(llm.requests) == 4  # no revision round trip
