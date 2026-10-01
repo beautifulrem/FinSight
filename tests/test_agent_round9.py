@@ -221,7 +221,8 @@ def test_a_same_turn_difference_and_a_ratio_to_the_industry_are_derived(agent):
     assert "两者相差 445.2 亿元（贵州茅台更高）" in str(result["answer"])
     assert result["verification"]["passed"]
     ratio = agent.chat("中国平安市净率是保险行业的多少倍", session_id="r9-ratio")
-    assert "中国平安市净率 1.1 倍，保险行业 1.45 倍，前者约为后者的 0.76 倍" in str(ratio["answer"])
+    # (round 12, H2) computed by the comparison frame, which names the industry average as such
+    assert "中国平安市净率 1.1 倍，保险行业平均 1.45 倍，前者约为后者的 0.76 倍" in str(ratio["answer"])
     assert ratio["verification"]["passed"]
 
 

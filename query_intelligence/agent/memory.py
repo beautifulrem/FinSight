@@ -81,6 +81,7 @@ def turn_record(state: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
         targets=targets,
         tool_log=state.get("tool_log") or [],
         request=state.get("frame_request") or None,
+        named=effective == query,
     )
     return {
         "query": query,

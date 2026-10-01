@@ -259,3 +259,72 @@ def test_a_hong_kong_listing_by_description_is_out_of_coverage(agent):
     assert "1.1 倍" in back["answer"]
     english = _session(agent, "hk-words-en", "What's Ping An's P/E?", "and its shares listed in Hong Kong?")[-1]
     assert english["route"] == "refuse" and "8.7" not in english["answer"]
+
+
+# ---- round-8 review H1 / H2 / H11: the comparison parser, one-message comparisons, longer gap questions ----
+
+
+@pytest.mark.parametrize(
+    ("text", "operation"),
+    [
+        # the review's repros as regression rows
+        ("前者比后者多成交了多少钱", "difference"),
+        ("二者之比是多少", "ratio"),
+        ("By what percentage is Wuliangye's price above Ping An's?", "relative"),
+        ("Is the latter more than 1.2x the former?", "ratio"),
+        ("PB差了多少倍", "ratio"),
+        ("五粮液的PE比茅台低百分之多少", "relative"),
+        ("how big is the discount? Someone told me Ping An trades at a 40% discount to peers", "relative"),
+        # own wording
+        ("后一只比前一只少赚了多少", "difference"),
+        ("两者的比值大概多少", "ratio"),
+        ("What multiple of Ping An's is Moutai's?", "ratio"),
+        # one operand, no anchor: not a comparison
+        ("五粮液市盈率是多少倍", None),
+        ("茅台的ROE是百分之多少", None),
+    ],
+)
+def test_comparison_parser(text, operation):
+    from query_intelligence.agent.frame import frame_operation
+
+    assert frame_operation(text) == operation
+
+
+def test_ratio_direction_follows_the_question():
+    from query_intelligence.agent.frame import resolve_frame_question
+
+    entities = [
+        {"canonical_name": "中国平安", "symbol": "601318.SH", "mention": "中国平安"},
+        {"canonical_name": "贵州茅台", "symbol": "600519.SH", "mention": "贵州茅台"},
+    ]
+    turns = [{"query": "x", "entities": [], "frame": {"metric": "roe", "operands": []}}]
+    *_, request = resolve_frame_question("how many times Ping An's is Moutai's?", turns, entities)
+    assert [item["symbol"] for item in request["operands"]] == ["600519.SH", "601318.SH"]
+    *_, request = resolve_frame_question("茅台的ROE是平安的几倍", [], entities)
+    assert [item["symbol"] for item in request["operands"]] == ["600519.SH", "601318.SH"]
+
+
+def test_one_message_comparisons_use_the_frame_computation(agent):
+    relative = agent.chat("贵州茅台的市净率比五粮液高百分之多少", session_id="r12-h2-relative")
+    assert "frame:relative:pb:贵州茅台|五粮液" in relative["route_reasons"]
+    assert "贵州茅台比五粮液高约 50%（以五粮液为基数）" in relative["answer"]
+    english = agent.chat("Between Ping An and Wuliangye, whose ROE is higher, and by how much?", session_id="r12-h2-en")
+    assert "a difference of 14.2 percentage points (Wuliangye is higher)" in english["answer"]
+    industry = agent.chat("五粮液的市净率比白酒行业平均低百分之多少", session_id="r12-h2-industry")
+    assert "五粮液相对白酒行业平均折价约 12.9%" in industry["answer"]
+    sectors = agent.chat("白酒行业和保险行业的平均市净率差多少", session_id="r12-h2-sectors")
+    assert "白酒行业平均市净率 6.2 倍，保险行业平均 1.45 倍，两者相差 4.75" in sectors["answer"]
+
+
+def test_a_metric_switch_keeps_the_pair_and_a_longer_gap_question_computes(agent):
+    *_, gap = _session(agent, "h11-switch", "中国平安市盈率", "贵州茅台的呢", "那ROE呢", "相差几个点")
+    assert "frame:difference:roe:中国平安|贵州茅台" in gap["route_reasons"]
+    assert "两者相差 17.8 个百分点" in gap["answer"]
+    *_, longer = _session(
+        agent,
+        "h11-long",
+        "Wuliangye's P/E?",
+        "and the baijiu sector average?",
+        "what's the discount in percent? A friend said Wuliangye is far cheaper than its peers, maybe 30%",
+    )
+    assert "about 23.44% below" in longer["answer"]

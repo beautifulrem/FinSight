@@ -277,26 +277,45 @@ def metric_label(key: str, zh: bool) -> str:
 
 # --------------------------------------------------------------------------- questions that read the frame
 
-# "前者是后者的多少倍", "是行业的几倍", "ratio", "how many times": a ratio of the first operand to the second.
-_RATIO = re.compile(
-    r"(?:是|为|相当于|等于)[^，。？?,;；]{1,14}?的?(?:几|多少)倍|几倍于|"
-    r"比值|倍数关系|\bratios?\b|\bhow many times\b|\btimes (?:as (?:high|large|big|much)|bigger|larger|higher|more)\b|"
-    r"\bmultiple of\b",
+# (round 12, H1) The operation of a comparison question is parsed from three kinds of words instead
+# of a list of whole phrases:
+# * a unit word saying what is asked: 倍 / 之比 / ratio / "1.2x" → a ratio; 百分之 / % / 几成 /
+#   percent → a relative difference; 多少 / 几 / points / how much → a difference;
+# * a comparative: 高 / 低 / 贵 / 多跌 / 少涨 / 多成交, higher / above / more;
+# * an anchor relating two operands: A是B的, 比, 差, 相对, 前者 / 后者, 二者 / 两者 / 它们,
+#   the former / the latter, than, them.
+# "差了多少倍" is a ratio; "市盈率是多少倍" (one operand, no anchor) is not a comparison;
+# "ROE是百分之多少" is not a relative difference.
+_RATIO_EXPLICIT = re.compile(
+    r"倍数关系|比值|之比|几倍于|\bratios?\b|\bhow many times\b|"
+    r"\btimes (?:as (?:high|large|big|much)|bigger|larger|higher|more|greater|the)\b|\bmultiple of\b|"
+    r"(?<![\w.])\d+(?:\.\d+)?\s?[x×](?![A-Za-z])",
     re.IGNORECASE,
 )
-# "折价了百分之多少", "高出百分之几", "premium", "how many percent lower": the first operand relative to the second.
-_RELATIVE = re.compile(
-    r"折价|溢价|(?:高|低|贵|便宜|多|少|大|小)(?:了|出)?(?:百分之|几成|多少成|\s*%)|百分之(?:多少|几)|"
-    r"(?:高|低|多|少)(?:了|出)?多少(?:个)?(?:百分比|%)|"
-    r"\bpercent(?:age)? (?:higher|lower|more|less|above|below|premium|discount|bigger|smaller|cheaper)\b|"
-    r"\b(?:premium|discount)\b|\bhow many percent\b|\bin percent(?:age)? terms\b",
+_RATIO_UNIT = re.compile(r"(?:几|多少)倍")
+_ANCHOR = re.compile(
+    r"(?:是|为|相当于|等于)[^，。？?,;；]{1,14}?的|比(?!例|较|重)|差|相对|较之|前者|后者|前一|后一|第一个|第二个|二者|两者|"
+    r"两个|两家|两只|俩|它们|\bthe former\b|\bthe latter\b|\bthan\b|\bthem\b|\bthe two\b|\bboth\b|\bversus\b|\bvs\.?",
+    re.IGNORECASE,
+)
+_RELATIVE_EXPLICIT = re.compile(
+    r"折价|溢价|\b(?:premium|discount)\b|\bhow many percent\b|\bin percent(?:age)?(?: terms)?\b|"
+    r"\bby what (?:percent(?:age)?|share)\b|"
+    r"\bpercent(?:age)? (?:higher|lower|more|less|above|below|premium|discount|bigger|smaller|cheaper)\b",
+    re.IGNORECASE,
+)
+_RELATIVE_UNIT = re.compile(r"百分之(?:多少|几)|(?:多少|几)(?:个)?(?:百分比|%)|几成|多少成|\s%", re.IGNORECASE)
+# a comparative: 高 / 低 / 贵 / 便宜 / 大 / 小, "多" / "少" only before a verb or 了 / 出 (not the 多少 of a question)
+_COMPARATIVE = re.compile(
+    r"高|低|贵|便宜|(?<!多)大|(?<!多|大)小|超出|超过|领先|落后|多(?=[了出跌涨赚亏卖成交])|(?<!多)少(?=[了出跌涨赚亏卖成交])|"
+    r"\b(?:higher|lower|more|less|above|below|bigger|smaller|larger|cheaper|greater)\b",
     re.IGNORECASE,
 )
 # "差几个点", "相差多少", "高了多少", "大多少", "difference", "gap", "how much higher", "by how much".
 _DIFFERENCE = re.compile(
     r"差了?(?:有|是|大概|大约)?(?:多少|几|多大)|相差|差距|差额|差值|差多少|"
     r"(?:高|低|多|少|大|小|贵|便宜)(?:了|出)?(?:有|是|大概|大约)?(?:多少|几)|"
-    # (round 12) "多跌了多少", "少涨了几个点", "多成交了多少": more / less of a verb, by how much
+    # (round 12) "多跌了多少", "少涨了几个点", "多成交了多少钱": more / less of a verb, by how much
     r"(?:多|少)(?:跌|涨|赚|亏|卖|成交|交易)了?(?:有|是|大概|大约)?(?:多少|几)|"
     r"\bdifferences?\b|\bgap\b|\bspread\b|\bdiffer\b|"
     r"\bhow much (?:higher|lower|more|less|bigger|smaller|larger|cheaper)\b|"
@@ -313,8 +332,8 @@ _WHICH = re.compile(
     re.IGNORECASE,
 )
 _ORDINAL = re.compile(
-    r"(?P<first>前者|前一个|前一家|第一个|第一家|\bthe former\b|\bthe first (?:one|company|stock|fund)\b)|"
-    r"(?P<last>后者|后一个|后一家|第二个|第二家|\bthe latter\b|\bthe second (?:one|company|stock|fund)\b)",
+    r"(?P<first>前者|前一个|前一家|前一只|第一个|第一家|\bthe former\b|\bthe first (?:one|company|stock|fund)\b)|"
+    r"(?P<last>后者|后一个|后一家|后一只|第二个|第二家|\bthe latter\b|\bthe second (?:one|company|stock|fund)\b)",
     re.IGNORECASE,
 )
 # Words that make a gap question about something else: advice, forecasts, news.
@@ -323,24 +342,45 @@ _NOT_A_GAP = re.compile(
     r"\bshould i\b|\bbuy\b|\bsell\b|\bforecast\b|\bwhy\b|\bnews\b",
     re.IGNORECASE,
 )
+# (round 12, H11) a question with more than one clause ("how big is the discount? Someone told me …"): the clause
+# that asks the comparison is parsed; the cap applies to that clause, not to the whole message
+_CLAUSE = re.compile(r"[^。！？!?；;]+[。！？!?；;]?")
+MAX_CLAUSE_CHARS = 100
 
 
-def frame_operation(text: str) -> str | None:
-    """``ratio``, ``relative``, ``difference`` or ``which`` for a question that compares two values, else ``None``.
-
-    A net-margin question written as a share ("净利润是营收的百分之几") is one metric, not a comparison."""
-    text = (text or "").strip()
-    if not text or _NOT_A_GAP.search(text) or _NET_MARGIN_SHARE.search(text):
-        return None
-    if _RATIO.search(text):
+def _operation_of(text: str) -> str | None:
+    if _RATIO_EXPLICIT.search(text) or (_RATIO_UNIT.search(text) and _ANCHOR.search(text)):
         return "ratio"
-    if _RELATIVE.search(text):
+    if _RELATIVE_EXPLICIT.search(text) or (
+        _RELATIVE_UNIT.search(text) and (_COMPARATIVE.search(text) or _ANCHOR.search(text))
+    ):
         return "relative"
     if _DIFFERENCE.search(text):
         return "difference"
     if _WHICH.search(text):
         return "which"
     return None
+
+
+def comparison_clause(text: str) -> str | None:
+    """The clause of the question that asks a comparison (the whole question when it has one clause)."""
+    text = (text or "").strip()
+    for clause in (match.group(0).strip() for match in _CLAUSE.finditer(text)):
+        if clause and len(clause) <= MAX_CLAUSE_CHARS and _operation_of(clause):
+            return clause
+    return None
+
+
+def frame_operation(text: str) -> str | None:
+    """``ratio``, ``relative``, ``difference`` or ``which`` for a question that compares two values, else ``None``.
+
+    A net-margin question written as a share ("净利润是营收的百分之几") is one metric, not a comparison; advice,
+    forecast and news questions are not comparisons either."""
+    text = (text or "").strip()
+    if not text or _NOT_A_GAP.search(text) or _NET_MARGIN_SHARE.search(text):
+        return None
+    clause = comparison_clause(text)
+    return _operation_of(clause) if clause else None
 
 
 def is_frame_question(text: str) -> bool:
@@ -416,7 +456,7 @@ def operand_value(tool_log: list[dict[str, Any]], operand: dict[str, Any], key: 
                 continue
             value = (snapshot.get("metrics") or {}).get(key)
             if value is not None and snapshot.get("evidence_id") and key in {"pe", "pb", "pct_change"}:
-                return float(value), snapshot["evidence_id"], {}
+                return float(value), snapshot["evidence_id"], {"industry_name": snapshot.get("industry_name")}
             continue
         if str(data.get("symbol") or "") != str(operand.get("symbol") or ""):
             continue
@@ -435,8 +475,12 @@ def next_frame(
     targets: list[dict[str, Any]],
     tool_log: list[dict[str, Any]],
     request: dict[str, Any] | None = None,
+    named: bool = True,
 ) -> dict[str, Any] | None:
     """The frame after a finished turn (see the module docstring).
+
+    (round 12, H11) ``named`` is False when the turn's targets were carried by a rewrite ("那PB呢"): a metric switch
+    on a pair under comparison keeps the pair ("茅台PE → 五粮液呢 → 那PB呢 → 差多少" compares both PBs).
 
     ``targets`` are the turn's listed targets in order of mention (``{"name", "symbol"}``). Refusals and
     clarifications keep the previous frame; a turn about something that is not a frame metric (a trend, news) with
@@ -459,7 +503,21 @@ def next_frame(
         if metric is None and previous and previous.get("metric") and _short(query) and not _OTHER_ASPECT.search(query):
             # "保险行业平均是多少", "五粮液呢", "and Moutai's?": the same metric for another operand
             metric = str(previous["metric"])
-        if metric and previous and previous.get("metric") == metric:
+        earlier = [dict(item) for item in (previous or {}).get("operands") or []]
+        if (
+            metric
+            and previous
+            and previous.get("metric")
+            and previous.get("metric") != metric
+            and not named
+            and len(earlier) >= 2
+            and {operand_key(item) for item in operands} <= {operand_key(item) for item in earlier}
+        ):
+            operands = [
+                {key: item[key] for key in ("kind", "name", "symbol", "industry", "member") if key in item}
+                for item in earlier
+            ]
+        elif metric and previous and previous.get("metric") == metric:
             merged = {operand_key(item): item for item in previous.get("operands") or []}
             for item in operands:
                 merged.pop(operand_key(item), None)
@@ -487,51 +545,80 @@ def latest_frame(turns: list[dict[str, Any]]) -> dict[str, Any] | None:
     return None
 
 
+def _mention_position(text: str, entity: dict[str, Any], fallback: int) -> int:
+    """Where the question names an entity (its mention, canonical name or English name), for operand order."""
+    from .names import english_aliases, english_name, load_synonyms
+
+    lowered = text.lower()
+    canonical = str(entity.get("canonical_name") or entity.get("name") or "")
+    names = [entity.get("mention"), canonical, english_name(canonical), *english_aliases(canonical)]
+    names += [alias for alias, name in (load_synonyms().get("alias") or {}).items() if name == canonical]
+    if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical):
+        names.append(canonical[2:])  # 贵州茅台 → 茅台, 中国平安 → 平安
+    found = [lowered.find(str(name).lower()) for name in names if name]
+    found = [position for position in found if position >= 0]
+    return min(found) if found else 10_000 + fallback
+
+
+# "how many times Ping An's is Moutai's?": the second operand is the numerator
+_TIMES_INVERTED = re.compile(r"\bhow many times\b(?P<rest>.*)", re.IGNORECASE)
+
+
 def resolve_frame_question(
-    query: str, turns: list[dict[str, Any]], listed: list[dict[str, Any]]
+    query: str,
+    turns: list[dict[str, Any]],
+    listed: list[dict[str, Any]],
+    sectors: list[str] | None = None,
 ) -> tuple[str, str, dict[str, Any]] | None:
     """A gap / ratio / relative / which question read against the session frame: ``(rewritten, reason, request)``.
 
     The metric is the one the question names, else the frame's; the operands are the targets the question names
-    (two or more), else the frame's (one named target joins the frame's other operand). "前者/后者" follow the frame's
-    order. A question naming two targets and a metric is a comparison of its own and is left to the composer.
-    ``None`` when there is no such question or the frame cannot supply a metric and two operands."""
+    (two or more, in the order the question names them), else the frame's (one named target joins the frame's other
+    operand). "前者/后者" follow the frame's order. (round 12, H2) A question naming two targets (or a target and its
+    industry, or two industries) and a metric is computed the same way without any frame ("五粮液的PE比茅台低
+    百分之多少", "Which of Moutai and Wuliangye has the higher P/B, and by how much?", "白酒板块的平均市盈率比保险
+    板块高多少").
+    ``None`` when there is no such question or nothing supplies a metric and two operands."""
     from .memory import _TRIPLE, strip_filler
 
     text = strip_filler(query).strip()
     operation = frame_operation(text)
-    frame = latest_frame(turns)
-    if operation is None or not frame or len(text) > 60:
+    if operation is None:
         return None
-    if _TRIPLE.search(text) and len(frame.get("operands") or []) < 3:
+    clause = comparison_clause(text) or text
+    frame = latest_frame(turns) or {}
+    known = [dict(item) for item in frame.get("operands") or []]
+    if _TRIPLE.search(clause) and len(known) < 3:
         # "这三家谁最高" after two targets: the group reference and its count check ask which third one is meant
         return None
-    named_metric = metric_of(text)
+    named_metric = metric_of(clause)
+    entities = [entity for entity in listed if entity.get("symbol")]
+    ordered = sorted(enumerate(entities), key=lambda item: _mention_position(text, item[1], item[0]))
     named = [
         {"kind": "target", "name": str(e.get("canonical_name") or e.get("symbol")), "symbol": str(e["symbol"])}
-        for e in listed
-        if e.get("symbol")
+        for _index, e in ordered
     ]
-    if len(named) >= 2 and named_metric:
-        return None
-    known = [dict(item) for item in frame.get("operands") or []]
-    if len(named) >= 2:
+    industries = list(dict.fromkeys(sector for sector in sectors or [] if sector))
+    if len(industries) >= 2 and not named:
+        # (round 12, H9) two industry averages: each from its own industry snapshot
+        operands = [{"kind": "industry", "industry": name, "member": name} for name in industries]
+    elif len(named) >= 2:
         operands = named
     elif len(named) == 1:
         others = [item for item in known if operand_key(item) != operand_key(named[0])]
-        if not others:
-            return None
-        operands = (
-            [others[-1], named[0]]
-            if named[0]["symbol"] not in {i.get("symbol") for i in known}
-            else [
-                named[0],
-                others[-1],
-            ]
-        )
+        if others:
+            in_frame = named[0]["symbol"] in {i.get("symbol") for i in known}
+            operands = [named[0], others[-1]] if in_frame else [others[-1], named[0]]
+        else:
+            operands = named  # a target against its industry (below), or nothing to compare
     else:
         operands = known
-    if _INDUSTRY_WORDS.search(text) and len(named) < 2 and not any(i.get("kind") == "industry" for i in operands):
+    if (
+        _INDUSTRY_WORDS.search(clause)
+        and len(named) < 2
+        and len(industries) < 2
+        and not any(i.get("kind") == "industry" for i in operands)
+    ):
         # "比行业便宜百分之几": the latest target against its own industry average
         targets = [item for item in operands if item.get("kind") != "industry"]
         if len(targets) != 1:
@@ -543,17 +630,24 @@ def resolve_frame_question(
     metric = named_metric or frame.get("metric")
     if not metric or len(operands) < 2:
         return None
-    ordinals = [match for match in _ORDINAL.finditer(text)]
+    ordinals = [match for match in _ORDINAL.finditer(clause)]
     zh = bool(re.search(r"[一-鿿]", text))
     first_name, last_name = operand_name(operands[0], zh), operand_name(operands[-1], zh)
     if ordinals and not named:
         first, last = operands[0], operands[-1]
         picked = [first if match.group("first") else last for match in ordinals]
         operands = picked + [item for item in (first, last) if item not in picked]
-    elif _TRIPLE.search(text):
+    elif _TRIPLE.search(clause):
         operands = operands[-3:]
     elif operation != "which" and len(operands) > 2:
         operands = operands[-2:]
+    if operation == "ratio" and len(named) >= 2 and (inverted := _TIMES_INVERTED.search(clause)):
+        # "how many times A is B" asks B / A; "how many times bigger is A than B" asks A / B
+        rest = inverted.group("rest")
+        a, b = (_mention_position(rest, item, 0) for item in ordered_entities(entities, operands))
+        verb = re.search(r"\b(?:is|are|was)\b", rest)
+        if verb and a < verb.start() < b < 10_000:
+            operands = [operands[1], operands[0], *operands[2:]]
     names = [operand_name(item, zh) for item in operands]
     label = metric_label(metric, zh)
     if zh:
@@ -572,11 +666,17 @@ def resolve_frame_question(
         for item in operands
     ]
     request = {"operation": operation, "metric": metric, "operands": clean}
-    if metric == "pct_change" and (direction := _direction(text)):
+    if metric == "pct_change" and (direction := _direction(clause)):
         # (round 12) "多跌了多少" after two falls: the gap names the side that fell more, not the "higher" change
         request["direction"] = direction
     reason = f"frame:{operation}:{metric}:{'|'.join(operand_name(item, True) for item in operands)}"
     return rewritten, reason, request
+
+
+def ordered_entities(entities: list[dict[str, Any]], operands: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The NLU entities of the first two operands, in operand order (for locating them in the question)."""
+    by_symbol = {str(entity.get("symbol")): entity for entity in entities}
+    return [by_symbol.get(str(item.get("symbol")), item) for item in operands[:2]]
 
 
 _FALL_WORDS = re.compile(r"跌|下挫|回落|\b(?:fell|fall|falls|dropped|drop|lost|declined?)\b", re.IGNORECASE)

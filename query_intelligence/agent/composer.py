@@ -579,6 +579,9 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
     found, missing = [], []
     for operand in request.get("operands") or []:
         hit = operand_value(tool_log, operand, key)
+        if hit is not None and operand.get("kind") == "industry" and not operand.get("industry"):
+            # "比行业低百分之多少" in one message: the industry is named from its snapshot ("保险行业平均")
+            operand = {**operand, "industry": hit[2].get("industry_name")}
         name = operand_name(operand, zh)
         if hit is None:
             missing.append(name)

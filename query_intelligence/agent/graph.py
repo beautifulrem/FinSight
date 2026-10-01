@@ -347,6 +347,12 @@ class AgentRuntime:
                 query, turns, nlu, analyze
             )
             rewrite_reasons.extend(session_reasons)
+        elif not turns and not off_topic and not instruction_only and not outside and not injected:
+            # (round 12, H2) "五粮液的PE比茅台低百分之多少" opening a conversation: the same frame computation
+            framed = self._frame_rewrite(query, turns, nlu, analyze)
+            if framed is not None:
+                query, nlu, frame_reasons, _carried, frame_request = framed
+                rewrite_reasons.extend(frame_reasons)
         nlu, dropped_reasons = drop_fuzzy_concepts(nlu, query)
         dropped_reasons = list(dict.fromkeys([*early_dropped, *dropped_reasons]))
         mode = state.get("mode", "auto")
@@ -531,26 +537,10 @@ class AgentRuntime:
             reasons.append(reason)
             nlu, carried_nlu = _set_aside_context_carry(analyze(query))
         listed = listed_entities(nlu)
-        named = [entity for entity in listed if "fuzzy" not in str(entity.get("match_type") or "")]
-        framed = resolve_frame_question(query, turns, named)
+        framed = self._frame_rewrite(query, turns, nlu, analyze)
         if framed is not None:
-            query, reason, request = framed
-            nlu, carried = _set_aside_context_carry(analyze(query))
-            reasons.append(reason)
-            # the frame decides the targets: a listed entity the rewritten wording adds is a misreading ("多多少" read
-            # as 多氟多 by fuzzy matching), not an operand
-            operands = {str(item.get("symbol") or item.get("member")) for item in request.get("operands") or []}
-            stray = [entity for entity in listed_entities(nlu) if str(entity.get("symbol")) not in operands]
-            if stray:
-                nlu = {**nlu, "entities": [entity for entity in nlu.get("entities") or [] if entity not in stray]}
-                reasons.extend(f"frame:dropped_non_operand:{entity.get('canonical_name')}" for entity in stray)
-            if not asks_prediction(query):
-                # a computed comparison, whatever the style classifier reads into the rewritten wording ("advice")
-                flags = [flag for flag in nlu.get("risk_flags") or [] if flag != "investment_advice_like"]
-                if nlu.get("question_style") != "compare" or flags != list(nlu.get("risk_flags") or []):
-                    nlu = {**nlu, "question_style": "compare", "risk_flags": flags}
-                    reasons.append("frame:style_compare")
-            return query, nlu, reasons, (carried_nlu if carried is not None else None), request
+            query, nlu, frame_reasons, carried, request = framed
+            return query, nlu, [*reasons, *frame_reasons], (carried_nlu if carried is not None else None), request
         rewrite = None
         named_sector = any(entity.get("entity_type") == "sector" for entity in nlu.get("entities") or [])
         if not listed and not named_sector:
@@ -581,6 +571,43 @@ class AgentRuntime:
             nlu, carried = _set_aside_context_carry(analyze(query))
             carried_nlu = carried_nlu if carried is not None else None
         return query, nlu, reasons, carried_nlu, {}
+
+    def _frame_rewrite(
+        self,
+        query: str,
+        turns: list[dict[str, Any]],
+        nlu: dict[str, Any],
+        analyze: Callable[[str], dict[str, Any]],
+    ) -> tuple[str, dict[str, Any], list[str], dict[str, Any] | None, dict[str, Any]] | None:
+        """A comparison question read against the session frame, or (round 12, H2) against the operands it names
+        itself: ``(query, nlu, reasons, carried_nlu, frame_request)`` or ``None``."""
+        listed = listed_entities(nlu)
+        named = [entity for entity in listed if "fuzzy" not in str(entity.get("match_type") or "")]
+        sectors = [
+            str(entity.get("canonical_name"))
+            for entity in nlu.get("entities") or []
+            if entity.get("entity_type") == "sector" and entity.get("canonical_name")
+        ]
+        framed = resolve_frame_question(query, turns, named, sectors)
+        if framed is None:
+            return None
+        query, reason, request = framed
+        nlu, carried = _set_aside_context_carry(analyze(query))
+        reasons = [reason]
+        # the frame decides the targets: a listed entity the rewritten wording adds is a misreading ("多多少" read
+        # as 多氟多 by fuzzy matching), not an operand
+        operands = {str(item.get("symbol") or item.get("member")) for item in request.get("operands") or []}
+        stray = [entity for entity in listed_entities(nlu) if str(entity.get("symbol")) not in operands]
+        if stray:
+            nlu = {**nlu, "entities": [entity for entity in nlu.get("entities") or [] if entity not in stray]}
+            reasons.extend(f"frame:dropped_non_operand:{entity.get('canonical_name')}" for entity in stray)
+        if not asks_prediction(query):
+            # a computed comparison, whatever the style classifier reads into the rewritten wording ("advice")
+            flags = [flag for flag in nlu.get("risk_flags") or [] if flag != "investment_advice_like"]
+            if nlu.get("question_style") != "compare" or flags != list(nlu.get("risk_flags") or []):
+                nlu = {**nlu, "question_style": "compare", "risk_flags": flags}
+                reasons.append("frame:style_compare")
+        return query, nlu, reasons, carried, request
 
     def _session_disambiguation(
         self, query: str, turns: list[dict[str, Any]], nlu: dict[str, Any]

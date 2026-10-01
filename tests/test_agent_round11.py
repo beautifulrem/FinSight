@@ -141,9 +141,13 @@ def test_no_frame_question_without_two_operands_and_a_metric():
     assert resolve_frame_question("差了多少", [_frame_turn("roe", _WLY)], []) is None
     assert resolve_frame_question("差了多少", [_frame_turn(None, _WLY, _MT)], []) is None
     assert resolve_frame_question("差了多少", [], []) is None
-    # two named targets and a metric: a comparison of its own (the composer reads it from the question)
+    # two named targets and a metric: since round 12 (H2) computed from the operands the question names, with its own
+    # metric, not the frame's
     named = [{"canonical_name": "五粮液", "symbol": "000858.SZ"}, {"canonical_name": "贵州茅台", "symbol": "600519.SH"}]
-    assert resolve_frame_question("五粮液和茅台的市盈率差多少", [_frame_turn("roe", _WLY, _MT)], named) is None
+    _rewritten, reason, _request = resolve_frame_question(
+        "五粮液和茅台的市盈率差多少", [_frame_turn("roe", _WLY, _MT)], named
+    )
+    assert reason == "frame:difference:pe:五粮液|贵州茅台"
 
 
 def test_the_frame_follows_the_turns():
