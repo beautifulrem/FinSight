@@ -81,9 +81,10 @@ the number wins. Words right after the number are read too (以上 / 以下 / �
 | `comparator` | Chinese | English | Supported when |
 | --- | --- | --- | --- |
 | `eq` | (none), 只有, 为 | is | within half a unit of the last written digit, or 2% |
-| `approx` | 约, 大约, 接近, 将近, 近, …左右 | about, around, roughly, nearly | within 5%, or half the step of the last significant digit when wider (round 10: "三成左右" is 25%-35%) |
+| `approx` | 约, 大约, …左右 | about, around, roughly | within 5%, or half the step of the last significant digit when wider (round 10: "三成左右" is 25%-35%) |
+| `approx` (from below) | 接近, 将近, 近 | nearly, almost | round 11: 0.9N ≤ actual ≤ N (+ half a unit of the last written digit): "将近900亿" accepts 823亿, "将近24倍" contradicts 24.6 |
 | `gt` | 超过, 高于, 大于, 逾, 突破, 站上 | above, over, more than, exceeds | actual > claimed |
-| `gt` with an upper bound | 30多倍, 八百多亿, 一千六百余亿, 七倍有余; …出头 | | round 10: N < actual < N + the step of N's last significant digit (800多亿: 800-900亿); 出头: the lower half of that step (三成出头: 30%-35%) |
+| `gt` with an upper bound | 30多倍, 八百多亿, 一千六百余亿, 七倍有余; …出头 | | round 10: N < actual < N + the step of N's last significant digit (800多亿: 800-900亿); 出头: the lower half of that step (三成出头: 30%-35%). Round 11: "N倍多" (多 after 倍) with N ≥ 10 uses min(step, 10% of N): 10倍多 is 10-11, 30倍多 30-33; 十多倍 stays 10-20 |
 | `ge` | 至少, 不低于, …以上 | at least | actual ≥ claimed |
 | `lt` | 低于, 小于, 不到, 不足, 跌破 | below, under, less than | actual < claimed |
 | `le` | 至多, 不超过, …以下 | at most | actual ≤ claimed |
@@ -385,7 +386,9 @@ its unit). They are bounded approximations, using the **step** of the number's l
 | --- | --- |
 | N多 / N余 / N有余 ("八百多亿", "七倍有余", "三成多") | N < actual < N + step (800-900亿, 7-8, 30%-40%) |
 | N出头 ("三成出头", "八百亿出头") | N < actual ≤ N + step / 2 (30%-35%) |
-| 约 / 左右 / 接近 / 近 ("三成左右", "约30倍") | within 5%, or step / 2 when wider (三成左右: 25%-35%) |
+| N倍多 with N ≥ 10 ("10倍多", 多 after 倍; round 11) | N < actual < N + min(step, N / 10) (10-11; "十多倍", 多 before 倍, stays 10-20) |
+| 约 / 左右 ("三成左右", "约30倍") | within 5%, or step / 2 when wider (三成左右: 25%-35%) |
+| 接近 / 将近 / 近 / nearly (round 11) | 0.9N ≤ actual ≤ N, the r6 slice's label rule (将近900亿: 810-900亿) |
 
 The check keeps `comparator: "gt"` with the upper bound in `claimed_high`; the UI shows "> 800 亿, < 900 亿". "近10%"
 right before the number is `approx` again (the look-behind text ended before the digit, so 近 was missed).
