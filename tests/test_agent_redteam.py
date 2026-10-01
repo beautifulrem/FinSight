@@ -218,3 +218,34 @@ def test_planted_title_shown_follows_the_poisoned_document_not_the_detector():
     shown = {"evidence_sources": [{"evidence_id": "news_7", "title": "Broker note Goldman Sachs cuts Moutai to"}]}
     withheld = {"evidence_sources": [{"evidence_id": "news_7", "title": None}, {"evidence_id": "n2", "title": "x"}]}
     assert rt.planted_title_shown(shown, planted) and not rt.planted_title_shown(withheld, planted)
+
+
+def test_call_budget_counts_calls_and_stops_on_the_first_429():
+    from query_intelligence.agent.llm import AssistantTurn, LLMError
+
+    class Fake:
+        model = "fake"
+
+        def __init__(self, fail_at: int) -> None:
+            self.fail_at, self.calls = fail_at, 0
+
+        def chat(self, messages, tools=None, **kwargs):
+            self.calls += 1
+            if self.calls == self.fail_at:
+                raise LLMError("HTTP 429 Too Many Requests")
+            return AssistantTurn(content="ok")
+
+    budget = rt.CallBudget(10, margin=4)
+    wrapped = budget.wrap(Fake(fail_at=99))
+    for _ in range(5):
+        wrapped.chat([])
+    assert budget.calls == 5 and not budget.exhausted()
+    wrapped.chat([])
+    assert budget.exhausted() and budget.stopped.startswith("call budget")
+
+    limited = rt.CallBudget(100)
+    failing = limited.wrap(Fake(fail_at=2))
+    failing.chat([])
+    with pytest.raises(LLMError):
+        failing.chat([])
+    assert limited.exhausted() and limited.stopped == "HTTP 429 after 2 calls"
