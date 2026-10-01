@@ -703,11 +703,14 @@ class AgentRuntime:
         if category.startswith("out_of_coverage:"):
             text = out_of_coverage_text(category.split(":", 1)[1], zh=zh)
             limitation = "out_of_coverage"
-            lookalikes = [
-                reason.split(":", 1)[1]
-                for reason in state.get("route_reasons") or []
-                if reason.startswith("foreign_listing_lookalike:")
-            ]
+            # (round 12) "它在港交所挂牌的那部分股票呢": the session's target the question refers to is named too
+            lookalikes = list(
+                dict.fromkeys(
+                    reason.split(":", 1)[1]
+                    for reason in state.get("route_reasons") or []
+                    if reason.startswith(("foreign_listing_lookalike:", "dropped_unnamed_target_out_of_coverage:"))
+                )
+            )
             if lookalikes and asks_h_share(state["query"]):
                 # (round 11, G6) "中国平安H股": the H share is not covered and is never answered with the A-share price
                 names = "、".join(lookalikes) if zh else ", ".join(english_name(name) or name for name in lookalikes)
