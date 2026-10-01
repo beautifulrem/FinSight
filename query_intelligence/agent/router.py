@@ -153,15 +153,121 @@ _PRICE_MODAL = re.compile(
 )
 _SENTENCE_SPLIT = re.compile(r"[。？?！!；;\n]")
 
+# (round 13, I2) Threshold forecasts and near-future closes. Before round 13 "五粮液明天能不能站上105元",
+# "宁德时代下周五收盘会在多少" and "Could BYD fall below 80 yuan by Friday?" were answered with the latest close and
+# no hedge: a threshold verb with a price ("站上105元") was not a price level, "收盘会在多少" was not a modal price
+# question, and "by Friday" / "this week" were not future times.
+_ZH_NUMBER = r"(?:\d[\d,]*(?:\.\d+)?|[零〇一二两三四五六七八九十百千万]+)(?![\d,.零〇一二两三四五六七八九十百千万])"
+# a number that is not a price: a multiple, a percentage, an amount or a count ("超过1000亿", "达到20%", "两倍")
+_NOT_PRICE_UNIT = r"(?!\s*(?:倍|%|％|个百分点|成|亿|万|股|手|年|月|日|号|天|周|个交易日|名|家|只|个))"
+_THRESHOLD_ZH = (
+    r"(?:站上|站稳|站回|突破|跌破|守住|守稳|失守|涨到|跌到|涨至|跌至|升到|升至|回到|回升到|冲上|冲到|冲击|涨破|摸到|触及|"
+    r"达到|上破|下破|击穿|收复|回落到|回落至|跌回|涨回|重回|收在|收于|维持在|保持在|超过)"
+)
+# a threshold verb with a price: "站上105元", "跌破1400", "守住3000点", "涨到多少", "突破两千"
+_THRESHOLD_PRICE_ZH = re.compile(
+    _THRESHOLD_ZH + r"(?:了|过)?\s*(?:" + _ZH_NUMBER + _NOT_PRICE_UNIT + r"\s*(?:元|块|点|港元|美元)?|多少|几|哪)"
+)
+# a modal asking whether a threshold will be reached: "能不能站上", "会不会跌破", "能否守住", "有望突破", "可能跌到"
+_THRESHOLD_MODAL_ZH = re.compile(
+    r"(?:能|会|将|要|可能|有望|能否|会否|是否|能不能|会不会|有没有可能|可不可能|可能不可能|有可能|概率)"
+    r"(?:再|重新|继续|成功|顺利|一举|直接|再次|顺势|进一步)?"
+    + _THRESHOLD_ZH
+    + r"(?:了|过)?\s*(?:"
+    + _ZH_NUMBER
+    + _NOT_PRICE_UNIT
+    + r"|多少|几|哪)"
+    r"|"
+    + _THRESHOLD_ZH
+    + r"\s*"
+    + _ZH_NUMBER
+    + _NOT_PRICE_UNIT
+    + r"\s*(?:元|块|点)?[^。？?！!]{0,6}?(?:的)?(?:可能性?|概率|机会|希望)"
+)
+_EN_PRICE_NUMBER = (
+    r"(?:(?:CNY|RMB|HKD|USD|yuan|¥|\$)\s*)?\d[\d,]*(?:\.\d+)?(?![\d,.])"
+    r"(?!\s*(?:%|percent|times|x\b|bn\b|billion|million|mn\b|trillion|shares|lots|days|weeks|months|years))"
+    r"(?:\s*(?:yuan|CNY|RMB|points?|dollars?))?"
+)
+_THRESHOLD_EN = (
+    r"(?:break(?:s|ing)?\s+(?:above|below|through|under|past)|(?:fall|falls|falling|drop|drops|dropping|sink|sinks|"
+    r"slip|slips|dip|dips|slide|slides|go|goes|get|gets|trade|trades|stay|stays|close|closes|end|ends|finish|finishes|"
+    r"hold|holds|settle|settles)\s+(?:back\s+)?(?:below|under|above|over|beneath)|(?:rise|rises|climb|climbs|jump|jumps|"
+    r"rally|rallies|surge|surges|go|goes|get|gets|move|moves|recover|recovers)\s+(?:back\s+)?(?:above|over|past|to|"
+    r"beyond)|hold(?:s|ing)?(?:\s+(?:on\s+to|at|onto))?|reach(?:es)?|hit(?:s)?|top(?:s)?|exceed(?:s)?|clear(?:s)?|"
+    r"retake(?:s)?|reclaim(?:s)?|defend(?:s)?|(?:close|closes|end|ends|finish|finishes|settle|settles)\s+at)"
+)
+_THRESHOLD_PRICE_EN = re.compile(r"\b" + _THRESHOLD_EN + r"\s+(?:the\s+)?" + _EN_PRICE_NUMBER, re.IGNORECASE)
+# a modal + a threshold + a price: "Could BYD fall below 80 yuan", "Will Moutai break above 1,500", "can it hold 3000"
+# ("Can you show me when BYD hit 80" is a request, not a modal)
+_THRESHOLD_MODAL_EN = re.compile(
+    r"\b(?:will|would|could|can|might|may|going\s+to|likely\s+to|chance|odds|probability|expect)\b(?!\s+you\b)"
+    r"[^.?!]{0,50}?\b" + _THRESHOLD_EN + r"\s+(?:the\s+)?(?:" + _EN_PRICE_NUMBER + r")",
+    re.IGNORECASE,
+)
+# near-future times that also name a period still in progress ("本周", "this week"): a future time only with a modal
+# or a threshold; "本周最高价是多少" stays a lookup
+_NEAR_FUTURE = re.compile(
+    r"本周|这周|这个?(?:星期|礼拜)|本月|这个月|月内|周内|本季度?|这个季度|周末前|节前|节后|今晚|尾盘|收盘前|"
+    r"\bthis\s+(?:week|month|quarter|year|friday|monday|tuesday|wednesday|thursday)\b|"
+    r"\b(?:by|before|until|on\s+or\s+before)\s+(?:this\s+|next\s+)?(?:mon|tues|wednes|thurs|fri|satur|sun)day\b|"
+    r"\bby\s+(?:the\s+)?(?:close|end\s+of\s+(?:the\s+)?(?:day|week|month|quarter|year)|week[- ]end|christmas|"
+    r"new\s+year|national\s+day|spring\s+festival)\b",
+    re.IGNORECASE,
+)
+_FUTURE_MODAL = re.compile(
+    r"会|能|将|可能|有望|预计|预期|估计|大概|\b(?:will|would|could|can|might|may|going\s+to|likely|expect(?:ed)?)\b",
+    re.IGNORECASE,
+)
+_NEAR_CLOSE = re.compile(r"收盘价?|收市|\bclos(?:e|ing)\b", re.IGNORECASE)
+# a close asked with a modal, with or without a time: "收盘会在多少", "会收在多少", "收盘能到几", "收盘将是多少"
+_CLOSE_MODAL = re.compile(
+    r"(?:收盘|收市|报收)(?:价)?[^。？?！!，,]{0,4}?(?:会|能|将|可能|大概|预计)(?:是|在|于|到|收在|落在|停在|报)"
+    r"[^。？?！!，,]{0,2}?(?:多少|几|哪|什么(?:位置|价位|水平|点位))|"
+    r"(?:会|能|将|可能)(?:收在|收于|收盘在|收盘于|报收)(?:多少|几|哪)"
+)
+# "your call / your guess / your prediction for the close", "你猜/你估计…收盘/股价"
+_YOUR_CALL = re.compile(
+    r"\byour\s+(?:call|guess|bet|prediction|estimate|forecast|best\s+guess|number|pick)\b|"
+    r"(?:你|您)(?:猜|估计|估算|预计|预测|赌|判断一下|给个)",
+    re.IGNORECASE,
+)
+_PAST_MARKERS = re.compile(
+    r"昨天|昨日|前天|上周|上个?月|去年|前年|上季度|已经|刚才|曾经|有没有(?:站上|突破|跌破)|"
+    r"\b(?:yesterday|last\s+(?:week|month|year|friday|monday|tuesday|wednesday|thursday)|did|was|were|has|had)\b",
+    re.IGNORECASE,
+)
+
+
+def _asks_threshold_or_near_forecast(part: str) -> bool:
+    """(round 13, I2) A threshold forecast ("能不能站上105元", "Could BYD fall below 80 yuan"), a modal close
+    ("收盘会在多少"), a near-future time with a modal and a price level ("本周能涨到多少", "by Friday") or a "your call"
+    request for a price."""
+    if _CLOSE_MODAL.search(part) or _THRESHOLD_MODAL_ZH.search(part) or _THRESHOLD_MODAL_EN.search(part):
+        return True
+    threshold = bool(_THRESHOLD_PRICE_ZH.search(part) or _THRESHOLD_PRICE_EN.search(part))
+    price = threshold or bool(_PRICE_LEVEL.search(part))
+    if _FUTURE_TIME.search(part) and threshold:
+        return True
+    # a close of a period still in progress ("本周的收盘价", "this week's close") has not happened yet
+    near_close = bool(_NEAR_CLOSE.search(part))
+    if _NEAR_FUTURE.search(part) and price and (threshold or near_close or _FUTURE_MODAL.search(part)):
+        return not _PAST_MARKERS.search(part)
+    return bool(_YOUR_CALL.search(part) and price)
+
 
 def asks_price_forecast(query: str) -> bool:
     """(round 12, H3) The question asks for a future price level: a future time expression and a price-level word in
-    the same sentence, a price asked with a future modal, or a price target."""
+    the same sentence, a price asked with a future modal, or a price target. Since round 13 (I2) also a threshold
+    forecast ("能不能站上105元", "跌破1400", "break above 1,500"), a modal close ("收盘会在多少"), a near-future time
+    with a modal ("本周", "by Friday") and "your call" for a price."""
     text = str(query or "")
     if _PRICE_MODAL.search(text):
         return True
     return any(
-        _FUTURE_TIME.search(part) and _PRICE_LEVEL.search(part) for part in _SENTENCE_SPLIT.split(text) if part.strip()
+        (_FUTURE_TIME.search(part) and _PRICE_LEVEL.search(part)) or _asks_threshold_or_near_forecast(part)
+        for part in _SENTENCE_SPLIT.split(text)
+        if part.strip()
     )
 
 

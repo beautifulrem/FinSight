@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from .coverage import holding_value_request, requested_metrics, requested_price_fields
 from .glossary import lookup_concept
+from .router import asks_price_forecast
 
 MAX_TARGETS = 3
 MAX_CALLS = 14
@@ -24,6 +25,7 @@ _TECHNICAL_TERMS = re.compile(
     r"|volatility|moving average|technical",
     re.IGNORECASE,
 )
+_MA_TERMS = re.compile(r"(?<![A-Za-z])MA\s*\d|均线|\d+\s*日线|moving average", re.IGNORECASE)
 _SENTIMENT_TERMS = re.compile(r"情绪|舆情|利好|利空|消息面|市场怎么看|sentiment|tone", re.IGNORECASE)
 _PRICE_TERMS = re.compile(
     r"价格|股价|收盘|收在|点位|净值|涨跌|涨|跌|走势|行情|表现|多少钱|回撤|\bprice\b|\bclose\b|quote|moved|performance|"
@@ -148,10 +150,15 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
     holding = holding_value_request(raw_query) is not None
     # (round 12, H9) the metric lexicon decides: "一股赚多少钱" fetches the fundamentals and the close like 每股收益
     asks_eps = bool(_EPS_TERMS.search(text)) or any(metric.key == "eps" for metric in requested_metrics(text))
-    has_price_cue = bool(_PRICE_TERMS.search(text)) or request.needs_quote or holding or asks_eps
+    # (round 13, I2) a price forecast ("能不能站上105元") is answered with the dated close under the hedge
+    price_forecast = asks_price_forecast(raw_query)
+    has_price_cue = bool(_PRICE_TERMS.search(text)) or request.needs_quote or holding or asks_eps or price_forecast
     explicit_valuation_cue = bool(_VALUATION_TERMS.search(text)) or bool(_INDUSTRY_TERMS.search(text)) or asks_eps
     has_valuation_cue = explicit_valuation_cue or (sector_member and bool(listed))
     wants_technical = bool(_TECHNICAL_TERMS.search(text)) or request.needs_indicators
+    if price_forecast and not _TECHNICAL_TERMS.search(text) and not _MA_TERMS.search(text):
+        # "站上105元" is a price threshold, not "站上MA5"
+        wants_technical = False
     causal = style == "why" or bool(_CAUSAL_TERMS.search(text))
     wants_news_docs = bool(_NEWS_TERMS.search(text)) or causal or news_topic
     wants_announcements = bool(_ANNOUNCEMENT_TERMS.search(text))
