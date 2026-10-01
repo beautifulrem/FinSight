@@ -14,18 +14,18 @@
   },
   "repeats": 1,
   "prompts": {
-   "agent_system": "agent_system@v3#53fdebb2c184",
-   "compose_system": "compose_system@v3#df1dd3b28975"
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "05a79b5",
-  "run_at": "2026-09-30T23:27:28+00:00",
+  "commit": "017e5a3",
+  "run_at": "2026-10-01T03:56:00+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 74.5,
+  "wall_seconds": 186.3,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
-  "tasks": 339,
-  "turns": 425,
+  "tasks": 370,
+  "turns": 498,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -50,15 +50,15 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.7321,
+  "tool_precision": 0.6167,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 45.05,
-  "latency_ms_p95": 477.98,
-  "latency_ms_p99": 773.36,
+  "latency_ms_p50": 114.57,
+  "latency_ms_p95": 1054.19,
+  "latency_ms_p99": 1620.19,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -86,79 +86,84 @@
   "clarify": {
    "tasks": 18,
    "task_success": 1.0,
-   "latency_ms_p95": 455.41
+   "latency_ms_p95": 1457.1
   },
   "compare": {
    "tasks": 33,
    "task_success": 1.0,
-   "latency_ms_p95": 1001.07
+   "latency_ms_p95": 1937.94
   },
   "compliance": {
-   "tasks": 29,
+   "tasks": 31,
    "task_success": 1.0,
-   "latency_ms_p95": 486.16
+   "latency_ms_p95": 984.18
+  },
+  "derived": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 1069.5
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 421.0
+   "latency_ms_p95": 1130.36
   },
   "fact": {
    "tasks": 69,
    "task_success": 1.0,
-   "latency_ms_p95": 417.94
+   "latency_ms_p95": 1054.19
   },
   "injection": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 369.03
+   "latency_ms_p95": 801.15
   },
   "macro_link": {
    "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 546.88
+   "latency_ms_p95": 1213.88
   },
   "missing_data": {
    "tasks": 43,
    "task_success": 1.0,
-   "latency_ms_p95": 515.65
+   "latency_ms_p95": 840.97
   },
   "multi_turn": {
-   "tasks": 58,
+   "tasks": 80,
    "task_success": 1.0,
-   "latency_ms_p95": 477.98
+   "latency_ms_p95": 975.3
   },
   "out_of_coverage": {
-   "tasks": 12,
+   "tasks": 15,
    "task_success": 1.0,
-   "latency_ms_p95": 527.98
+   "latency_ms_p95": 911.93
   },
   "out_of_scope": {
    "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 73.27
+   "latency_ms_p95": 137.57
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 448.26
+   "latency_ms_p95": 1190.42
   },
   "why": {
    "tasks": 21,
    "task_success": 1.0,
-   "latency_ms_p95": 588.73
+   "latency_ms_p95": 1143.31
   }
  },
  "by_language": {
   "en": {
-   "tasks": 103,
+   "tasks": 114,
    "task_success": 1.0,
-   "latency_ms_p95": 546.88
+   "latency_ms_p95": 1223.56
   },
   "zh": {
-   "tasks": 236,
+   "tasks": 256,
    "task_success": 1.0,
-   "latency_ms_p95": 455.41
+   "latency_ms_p95": 992.15
   }
  },
  "failed_checks": {},
@@ -502,12 +507,43 @@
   "r10_compare_states_the_order_zh": "1",
   "r10_turnover_compare_zh": "1",
   "r10_injection_prediction_zh": "1",
-  "r10_injection_prediction_en": "1"
+  "r10_injection_prediction_en": "1",
+  "r11_frame_roe_chain_zh": "1",
+  "r11_frame_roe_chain_en": "1",
+  "r11_frame_pe_ratio_latter_zh": "1",
+  "r11_frame_revenue_ratio_former_en": "1",
+  "r11_frame_sector_discount_zh": "1",
+  "r11_frame_sector_premium_en": "1",
+  "r11_frame_industry_gap_zh": "1",
+  "r11_frame_turnover_gap_zh": "1",
+  "r11_frame_close_gap_first_en": "1",
+  "r11_frame_net_margin_zh": "1",
+  "r11_frame_net_margin_en": "1",
+  "r11_frame_which_lower_pb_zh": "1",
+  "r11_frame_three_ranked_zh": "1",
+  "r11_frame_metric_switch_zh": "1",
+  "r11_frame_one_message_zh": "1",
+  "r11_frame_one_message_en": "1",
+  "r11_frame_pct_change_zh": "1",
+  "r11_frame_latter_multiple_en": "1",
+  "r11_frame_kept_through_refusal_zh": "1",
+  "r11_frame_operand_missing_zh": "1",
+  "r11_frame_no_metric_clarified_zh": "1",
+  "r11_frame_one_operand_clarified_en": "1",
+  "r11_holding_value_zh": "1",
+  "r11_holding_value_en": "1",
+  "r11_net_margin_as_share_zh": "1",
+  "r11_eps_missing_implied_zh": "1",
+  "r11_implied_price_hedged_zh": "1",
+  "r11_implied_price_hedged_en": "1",
+  "r11_h_share_out_of_coverage_zh": "1",
+  "r11_hk_ticker_out_of_coverage_en": "1",
+  "r11_hk_subsidiary_out_of_coverage_zh": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "1b50c9b34ca70f02",
-  "bytes": 1113800,
-  "slimmed_at": "2026-09-30T23:27:28+00:00"
+  "sha256_16": "d3ac3771e69d302a",
+  "bytes": 1311659,
+  "slimmed_at": "2026-10-01T03:56:01+00:00"
  }
 }
