@@ -350,3 +350,15 @@ def test_the_frame_fallback_switch(offline_service, fallback):
     else:
         assert "frame_fallback_off:would_append" in gap["degraded"]
         assert "frame_result_appended" not in gap["degraded"] and "3.6" not in gap["answer"]
+
+
+def test_a_gap_in_yi_of_two_amounts_written_in_yuan_is_derived(fundamentals_store):
+    """Seen in the round-12 G4 run: the model wrote both revenues in 元 and the gap in 亿元; repair deleted it."""
+    from query_intelligence.agent.verifier import verify_answer
+
+    cites = "[fundamental_600519.SH][fundamental_000858.SZ]"
+    right = f"贵州茅台营业收入为 168838000000 元，五粮液为 108500000000 元，两者相差 603.38 亿元 {cites}。"
+    wrong = f"贵州茅台营业收入为 168838000000 元，五粮液为 108500000000 元，两者相差 613.38 亿元 {cites}。"
+    assert verify_answer({"answer": right}, fundamentals_store, allow_derived=True).passed
+    assert not verify_answer({"answer": right}, fundamentals_store, allow_derived=False).passed
+    assert not verify_answer({"answer": wrong}, fundamentals_store, allow_derived=True).passed
