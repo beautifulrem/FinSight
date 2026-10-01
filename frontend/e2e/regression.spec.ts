@@ -101,5 +101,21 @@ test("fact-check with a stated industry average shows the relation and the state
   await expect(stated.locator(".claim-claimed")).toHaveText("30 倍");
   await expect(stated.locator(".claim-actual")).toHaveText("27.3 倍");
 
+  // (round 13) the top bar stays put: only the fact-check panel scrolls, never the page
+  const header = page.locator(".app-header");
+  await page.mouse.move(400, 500);
+  await page.mouse.wheel(0, 4000);
+  await page.keyboard.press("End");
+  const layout = await page.evaluate(() => ({
+    pageOverflow: document.scrollingElement!.scrollHeight - window.innerHeight,
+    pageScroll: window.scrollY,
+    panelScroll: document.querySelector(".check-main")!.scrollTop,
+  }));
+  expect(layout.pageOverflow).toBeLessThanOrEqual(0);
+  expect(layout.pageScroll).toBe(0);
+  expect(layout.panelScroll).toBeGreaterThan(0);
+  expect((await header.boundingBox())?.y).toBe(0);
+  await expect(header).toBeInViewport();
+
   expect(errors).toEqual([]);
 });

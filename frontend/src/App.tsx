@@ -332,12 +332,15 @@ export default function App() {
                     <p className="risk-footer mt-1.5 text-center text-[11.5px] text-faint">{t("disclaimer.footer")}</p>
                   </div>
                 </Tabs.Content>
+                {/* (round 13) `relative`: the report's sr-only labels are absolutely positioned; without a positioned
+                    scroll container they were laid out against the page, made the document taller than the window
+                    and let the whole page (top bar included) scroll on the fact-check view. */}
                 <Tabs.Content
                   value="check"
                   forceMount
                   hidden={view !== "check"}
                   tabIndex={undefined}
-                  className="check-main scrollbar-thin min-h-0 flex-1 overflow-y-auto outline-none"
+                  className="check-main scrollbar-thin relative min-h-0 flex-1 overflow-y-auto outline-none"
                 >
                   <ClaimCheckView ref={claimView} apiKey={apiKey} active={view === "check"} />
                 </Tabs.Content>
