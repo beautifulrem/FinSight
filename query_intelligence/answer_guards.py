@@ -204,8 +204,18 @@ def _is_comparison_judgment_context(nlu_result: dict[str, Any] | None, query: st
     if _nlu_question_style(nlu_result) != "compare":
         return False
     lowered = str(query or "").lower()
-    markers = ("哪个好", "哪只好", "哪个更好", "更适合", "更稳", "better", "which is better", "which one")
-    return any(marker in lowered for marker in markers)
+    markers = ("哪个好", "哪只好", "哪个更好", "更适合", "更稳", "better", "which is better")
+    if any(marker in lowered for marker in markers):
+        return True
+    # (round 12) "which one" asks for a judgment unless it asks which value is higher or lower ("Which one has the
+    # higher ROE?", "Which one is higher and by how many points?"): that is a fact the evidence settles
+    return "which one" in lowered and not _FACTUAL_WHICH.search(lowered)
+
+
+_FACTUAL_WHICH = re.compile(
+    r"\bwhich one\b[^.?!]{0,40}\b(?:higher|lower|bigger|smaller|larger|greater|cheaper|pricier|more expensive|"
+    r"traded more|fell more|rose more)\b"
+)
 
 
 def _is_judgment_context(nlu_result: dict[str, Any] | None, query: str = "") -> bool:

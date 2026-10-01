@@ -15,6 +15,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from .frame import NET_MARGIN_SHARE_SOURCE, TURNOVER
+
 # --------------------------------------------------------------------------- out of coverage
 
 # Crypto assets by name, ticker or shape. (round 9, E7) Tokens are also named by their ticker next to a fund word
@@ -54,9 +56,22 @@ _HK_US_LISTED = (
 # company may also be listed in Shanghai or Shenzhen, but the question asks for the Hong Kong line, which FinSight
 # has no data for: the A-share target inside the span is a lookalike, never answered with A-share data.
 _H_SHARE = (
-    r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){2,8}?\s*(?:的\s*)?H\s*股|H\s*股(?!东)|港股通|"
+    # (round 12, H5) "中芯国际港股": a company name followed by 港股 is its Hong Kong line too
+    r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){2,8}?\s*(?:的\s*)?(?:H\s*股|港股(?!通))|H\s*股(?!东)|港股通|"
     r"(?<![\w.])\d{4,5}\s*\.\s*HK(?![A-Za-z])|(?<![A-Za-z])HK\s?\d{4,5}(?!\d)|(?<![\w.])\d{4,5}\s+HK(?![A-Za-z])|"
-    r"\b(?:[a-z][\w&.'-]*\s+){1,3}H[- ]?shares?\b|\bH[- ]shares?\b|\bhong kong[- ]listed\b|\bHKEX\b"
+    r"\b(?:[a-z][\w&.'-]*\s+){1,3}H[- ]?shares?\b|\bH[- ]shares?\b|\bHKEX\b|"
+    # (round 12, H5) "Ping An's Hong Kong listed shares", "the Hong Kong share price of China Merchants Bank"
+    r"\b(?:[a-z][\w&.'-]*\s+){0,3}?hong kong[- ]listed\b|"
+    r"\b(?:[a-z][\w&.'-]*\s+){0,3}?hong kong (?:share|stock) prices?\b(?: of (?:[a-z][\w&.'-]*\s?){1,4})?|"
+    r"\bhong kong (?:shares?|stock|listing|line|counter) of (?:[a-z][\w&.'-]*\s?){1,4}|"
+    # (round 12) the Hong Kong line described in words: "它在港交所挂牌的那部分股票", "平安在香港上市的股份",
+    # "its shares listed in Hong Kong", "Ping An's Hong Kong listing". As with "…H股", the name before it is part of
+    # the span, so the A-share target it names is a lookalike, not answered with A-share data.
+    r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){0,8}?(?:在|于)?(?:香港|港交所|联交所|香港交易所)"
+    r"(?:上市|挂牌|发行|交易)|"
+    r"\b(?:[a-z][\w&.'-]*\s+){0,3}?(?:hong kong (?:listing|line|counter)|"
+    r"shares? (?:listed|traded|quoted) (?:in|on(?: the)?) hong kong)\b|"
+    r"\b(?:listed|traded|quoted) (?:in|on(?: the)?) hong kong\b"
 )
 # US / Hong Kong listed names and markets. Concept-sector phrasing ("苹果概念股", "特斯拉产业链") is an
 # A-share theme and stays in scope.
@@ -236,17 +251,13 @@ METRICS: tuple[Metric, ...] = (
         "净利率",
         "net margin",
         r"净利率|净利润率|销售净利率|(?<![毛])利润率|"
-        r"(?:净利润|净利|净赚|利润)[^，。？?,.!！]{0,4}?(?:占|在)[^，。？?,.!！]{0,4}?(?:营收|营业收入|收入|销售额)"
-        r"[^，。？?,.!！]{0,6}?(?:比例|比重|百分比|占比|几成|多少|多大)|"
-        r"(?:营收|营业收入|收入|销售额)[^，。？?,.!！]{0,6}?(?:中|里)[^，。？?,.!！]{0,6}?(?:净利润|净利|净赚|利润)|"
         r"每(?:赚|卖|收|收入|实现)?[^，。？?,.!！]{0,3}?\d+\s*(?:块|元)(?:钱)?(?:的)?(?:营收|收入|销售额)?"
         r"[^，。？?,.!！]{0,10}?(?:净利润|净利|净赚|利润|落袋)|"
-        r"net (?:profit )?margin|profit margin|(?:net )?(?:profit|income|earnings) as a (?:share|percentage|"
+        r"net[- ](?:profit[- ])?margin|profit[- ]margin|(?:net )?(?:profit|income|earnings) as a (?:share|percentage|"
         r"proportion|percent) of (?:revenue|sales)|"
-        # (round 11, G5) "净利润是营收的百分之几", "净利润为收入的多少", "what percent of revenue is net profit"
-        r"(?:净利润|净利|净赚|利润)[^，。？?,.!！]{0,4}?(?:是|为|相当于|等于)[^，。？?,.!！]{0,4}?"
-        r"(?:营收|营业收入|收入|销售额)的?[^，。？?,.!！]{0,4}?(?:百分之|几成|多少成|比例|比重|占比|百分比|多少|几)|"
-        r"\bwhat (?:percent(?:age)?|share|fraction) of (?:its |the )?(?:revenue|sales)\b",
+        # (round 11, G5; round 12) "净利润是营收的百分之几", "营收里有多少变成净利润", "What share of that revenue is
+        # left as net profit?": one vocabulary with the comparison frame
+        f"{NET_MARGIN_SHARE_SOURCE}",
         ("net_margin", "netprofit_margin"),
         (("revenue",), ("net_profit",)),
     ),
@@ -256,7 +267,10 @@ METRICS: tuple[Metric, ...] = (
         "eps",
         "每股收益",
         "EPS",
-        r"每股收益|每股盈利|每股净利润?|(?<![A-Za-z])EPS(?![A-Za-z])|earnings per share",
+        # (round 12, H9) "一股赚多少钱", "每股能赚几块": colloquial EPS (not "一股值多少钱", a fair value)
+        r"每股收益|每股盈利|每股净利润?|(?<![A-Za-z])EPS(?![A-Za-z])|earnings per share|"
+        r"(?:一|每)股(?:能|可以|大概|大约)?赚(?:了)?(?:多少|几)|"
+        r"\bhow much (?:does|did) (?:it|each share) earn per share\b",
         ("eps", "basic_eps", "diluted_eps", "eps_ttm"),
     ),
     # P/S needs the market cap, which no configured source has: stated as not computable, never replaced by P/E.
@@ -305,16 +319,33 @@ for _metric_item in METRICS:
 # (round 11, G5) "我有1000股五粮液，按最新收盘价值多少钱", "500 shares of Moutai, what are they worth?": the value of a
 # stated holding at the last close (shares × close), not a fair-value question. "一股/每股值多少" is a fair value, and
 # "10股派…" a dividend per share, so neither is a holding.
+_HOLDING_COUNT_ZH = (
+    r"(?<![每\d])(?P<n>\d[\d,，]*|[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*|"
+    r"一[十百千万][零〇一二两三四五六七八九十百千万]*)"
+    # (round 12) fund units count like shares ("两万份沪深300ETF"); a lot (手) is 100 shares ("3手茅台")
+    r"\s*(?P<unit>股(?![价票东份息市权本派送转配])|份|手(?![续机表头上下工动脚指]))"
+)
 _HOLDING_VALUE_ZH = re.compile(
-    r"(?<![每\d])(?P<n>\d[\d,，]*|[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*|一[十百千万][零〇一二两三四五六七八九十百千万]*)"
-    r"\s*股(?![价票东份息市权本派送转配])[^。？?！!；;]{0,24}?"
+    _HOLDING_COUNT_ZH + r"[^。？?！!；;]{0,24}?"
     r"(?:值|市值|价值|总值|总额|合计|一共|总共|算下来|折合)[^。？?！!；;]{0,4}?(?:多少|几)"
 )
+# (round 12) English word orders: "500 shares of X", "200 Moutai shares", "my 200 Moutai shares", the question in the
+# next sentence, "the worth of 300 shares"; not "3.88 billion shares"
+_EN_COUNT = (
+    r"(?<![\d.,])(?P<{name}>\d[\d,]*)\s+"
+    r"(?:(?!billion|million|thousand|bn|mn)[A-Za-z][\w'.-]*\s+){{0,3}}?(?:shares?|units?)\b"
+)
 _HOLDING_VALUE_EN = re.compile(
-    r"\b(?P<n>\d[\d,]*)\s+shares?\b[^.?!]{0,60}?\b(?:worth|value|how much)\b|"
-    r"\bhow much (?:are|is|would) (?:my )?(?P<n2>\d[\d,]*)\s+shares?\b",
+    _EN_COUNT.format(name="n")
+    + r"[^.?!]{0,60}?\b(?:worth|value|how much)\b|"
+    + _EN_COUNT.format(name="n3")
+    + r"[^.?!]{0,60}\.\s+(?:so\s+|and\s+)?(?:what|how much)\b[^.?!]{0,40}?\b(?:worth|value)\b|"
+    r"\bhow much (?:are|is|would) (?:my )?(?P<n2>\d[\d,]*)\s+(?:shares?|units?)\b|"
+    r"\bworth of (?:my |the |these |those )?(?P<n4>\d[\d,]*)\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?(?:shares?|units?)\b",
     re.IGNORECASE,
 )
+# A fund holding is counted in units (份), a stock holding in shares (股).
+_FUND_UNITS = re.compile(r"\d\s*份|[两二三四五六七八九十百千万]\s*份|\bunits?\b", re.IGNORECASE)
 _CN_DIGIT = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
 _CN_UNIT = {"十": 10, "百": 100, "千": 1000, "万": 10000}
 
@@ -339,9 +370,42 @@ def holding_value_request(query: str) -> tuple[int, tuple[int, int]] | None:
     match = _HOLDING_VALUE_ZH.search(text) or _HOLDING_VALUE_EN.search(text)
     if match is None:
         return None
-    raw = (match.groupdict().get("n") or match.groupdict().get("n2") or "").replace(",", "").replace("，", "")
+    groups = match.groupdict()
+    raw = next((groups[key] for key in ("n", "n2", "n3", "n4") if groups.get(key)), "")
+    raw = raw.replace(",", "").replace("，", "")
     shares = int(raw) if raw.isdigit() else _cn_integer(raw)
+    if groups.get("unit") == "手":
+        shares *= 100  # a board lot is 100 shares
     return (shares, match.span()) if shares > 1 else None
+
+
+def holding_lots(query: str) -> int | None:
+    """The number of lots (手) a holding is stated in ("3手茅台" → 3), else ``None``."""
+    match = _HOLDING_VALUE_ZH.search(query or "")
+    if match is None or match.group("unit") != "手":
+        return None
+    raw = match.group("n").replace(",", "").replace("，", "")
+    return int(raw) if raw.isdigit() else _cn_integer(raw)
+
+
+def in_fund_units(query: str) -> bool:
+    """Whether a holding is stated in fund units ("两万份", "4000 units"), not shares."""
+    return bool(_FUND_UNITS.search(query or ""))
+
+
+_HOLDING_COUNT = re.compile(_HOLDING_COUNT_ZH + "|" + _EN_COUNT.format(name="n2"), re.IGNORECASE)
+
+
+def stated_holding_count(text: str) -> int | None:
+    """A number of shares or units stated without a value question ("同样300股", "如果是500股", "800 shares")."""
+    match = _HOLDING_COUNT.search(text or "")
+    if match is None:
+        return None
+    raw = (match.group("n") or match.group("n2") or "").replace(",", "").replace("，", "")
+    count = int(raw) if raw.isdigit() else _cn_integer(raw)
+    if match.group("unit") == "手":
+        count *= 100
+    return count if count > 1 else None
 
 
 def without_holding_value(query: str) -> str:
@@ -404,7 +468,8 @@ def coverage_gaps(
     """
     names = names or {}
     sentences: list[str] = []
-    wanted = requested_metrics(query)
+    # (round 12, H4) "持有5000份…市值多少" asks for the holding's value, not the company's market cap
+    wanted = requested_metrics(without_holding_value(query))
     if _MACRO_GROWTH.search(query or ""):
         # "M2增速" / "M2 growth": the macro indicator is itself the growth rate, not a company metric.
         wanted = [metric for metric in wanted if metric.key != "growth"]
@@ -852,9 +917,15 @@ _LOW = re.compile(
     r"\b(?:daily|day'?s|intraday|session|today'?s)\s+lows?\b|\bhighs? and (?:the )?lows?\b|\bhigh/low\b|\blow price\b",
     re.IGNORECASE,
 )
+_TURNOVER_RATE = re.compile(r"换手率|换手(?:了)?(?:多少|几)|\bturnover (?:rate|ratio)\b", re.IGNORECASE)
+_CHANGE_AMOUNT = re.compile(
+    r"(?:涨|跌)了?(?:多少|几)(?:钱|元|块)|(?:涨|跌)(?:了)?(?:几|多少)块钱|\bhow many yuan\b|"
+    r"\b(?:rose|fell|dropped|gained|moved|changed?)\b[^.?!]{0,20}\bin yuan\b",
+    re.IGNORECASE,
+)
 _OPEN = re.compile(r"开盘价?|\bopen(?:ing)?(?: price)?\b(?! interest)", re.IGNORECASE)
 _VOLUME = re.compile(r"成交量|量能|\b(?:trading )?volume\b", re.IGNORECASE)
-_AMOUNT = re.compile(r"成交额|成交金额|\bturnover\b|\bvalue traded\b", re.IGNORECASE)
+_AMOUNT = TURNOVER  # (round 12) the comparison frame's turnover vocabulary ("成交了多少钱", "trading value")
 _RETURN_DAYS = re.compile(
     rf"(?:近|过去|最近)?\s*{_COUNT}\s*(?:个)?(?:交易日|日|天)(?:的)?(?:收益率?|回报|涨幅|跌幅|涨跌幅?|表现)|"
     rf"\b{_COUNT}[- ](?:day|session)s?\s+(?:return|change|performance|gain|move)\b",
@@ -892,11 +963,23 @@ class PriceRequest:
     year_to_date: bool = False
     range_52w: bool = False  # 52-week (one-year) high and low close
     drawdown: str = ""  # "1y" or "ytd": the window of a maximum drawdown question
+    # (round 12, H9) the stock turnover rate (换手率), answered when the source has it, else named missing; the
+    # change in yuan against the previous close ("今天跌了多少钱")
+    turnover_rate: bool = False
+    change_amount: bool = False
 
     @property
     def needs_quote(self) -> bool:
         return bool(
-            self.closes or self.previous_close or self.high or self.low or self.open or self.volume or self.amount
+            self.closes
+            or self.previous_close
+            or self.high
+            or self.low
+            or self.open
+            or self.volume
+            or self.amount
+            or self.turnover_rate
+            or self.change_amount
         )
 
     @property
@@ -938,6 +1021,8 @@ def requested_price_fields(query: str) -> PriceRequest:
         year_to_date=asks_year_to_date(text) and not asks_drawdown(text),
         range_52w=yearly,
         drawdown=drawdown_window(text),
+        turnover_rate=bool(_TURNOVER_RATE.search(text)),
+        change_amount=bool(_CHANGE_AMOUNT.search(text)),
     )
 
 

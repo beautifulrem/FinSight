@@ -382,6 +382,66 @@ The round-8 reviewer's new slice (`heldout_r8`) was not opened.
 
 Offline at `e55daf5`: dev 377 tasks = 1.000 (the 7 new tasks included; gate baselines refreshed, `43c193a`), held-out 53 = 0.9434 (unchanged); claim benches at `bd84003`: dev 1.000 over 299 claims / 347 checks, held-out 1.000 (after exposure), round-4 1.000 / 0.920 and round-5 1.000 / 0.988 (unchanged), round-6 slice **after exposure (round 12)** 0.836 → 0.985 verdict and 0.717 → 0.904 checks (`claim_bench-heldout_r6-after-exposure-round12.json`; the engineers had read that slice, so this is not out of sample). Routing is unchanged: own labels 1.000 / 372, independent v1 1.000 / 154, independent v2 0.8423 / 241 (not committed as new results: equal to the round-8 review's numbers). No LLM was called. The round-8 reviewer's slice will measure these rules out of sample.
 
+### Rules added in round 12 (round-7 slice after exposure; round-8 review H1, H2, H4, H5, H9, H11)
+
+Round 12 fixed the classes the independent round-7 slice still failed after round 11 and six bugs of the round-8
+review. From round 12 the round-7 slice is **after exposure**: the engineer read its failing tasks (and the round-8
+review's findings, not its hidden slice `heldout_r8/`) and wrote own examples: 41 dev tasks
+(`build_tasks._round12_frame_tasks`, zh/en), router labels `route_372`–`route_387`, alias rows for H5, unit tests
+(`tests/test_agent_round12_frame.py`, the review's repro strings used only as regression rows) and a UI test
+(`frontend/src/components/GapSession.test.tsx`). `tests/test_agent_eval.py` checks that no dev turn or label copies or
+near-copies a round-4–7 slice text (read programmatically), a reviewer probe, the independent router sets or a test set.
+
+**One vocabulary per metric.** Turnover asked in words ("成交了多少钱", "交易额", "哪个交易更活跃", "trading value",
+"value traded") is one pattern (`frame.TURNOVER`) used by the frame, the price answer's details (`coverage._AMOUNT`),
+the template's comparisons and, through the frame metric label, the ellipsis aspect ("X呢" after "成交了多少钱" asks
+X's 成交额). The same holds for net profit as a share of revenue (`frame.NET_MARGIN_SHARE_SOURCE`, shared with the
+net-margin metric: "What share of that revenue is left as net profit?", "一年赚的钱占收入多大比例", "net-margin" with a
+hyphen), a move on the day ("How much did X move today?") and colloquial EPS ("一股赚多少钱"). "Turnover rate" (换手率)
+is not turnover: it is stated when a source has it, else named missing (it needs the free float).
+
+**A comparison parser (H1).** The operation is no longer a phrase list: a unit word says what is asked (倍 / 之比 /
+ratio / "1.2x" → ratio; 百分之 / % / "in percent" → relative difference; 多少 / 几 / points → difference), a comparative
+(高 / 低 / 多跌 / 少涨 / 多成交 / higher / above) and an anchor relating two operands (A是B的, 比, 差, 相对, 前者 / 后者,
+二者, than, them). "差了多少倍" is a ratio, "二者之比" and "by what percentage … above" compute, and "市盈率是多少倍" or
+"How much did it drop, in percent?" (one operand) stay lookups. Named operands follow the order of the question
+(aliases located: Moutai, 茅台, Ping An), and "how many times A is B" divides B by A. 前者/后者 follow the session
+order also when the turn names the second target itself ("茅台呢，后者是前者的几倍", `47a609b`).
+
+**One-message comparisons (H2), longer questions and metric switches (H11).** A question naming two targets, a
+target and its industry, or two industries with a metric ("贵州茅台的市净率比五粮液高百分之多少", "Which of Moutai and
+Wuliangye has the higher P/B, and by how much?", "白酒板块的平均市盈率比保险板块高多少") goes through the same frame
+computation, also when it opens a conversation. The length cap applies to the clause that asks the comparison, so
+"how big is the discount? Someone told me …" computes. "那PB呢" with the targets carried keeps the pair under
+comparison, so "茅台PE → 五粮液呢 → 那PB呢 → 差多少" gives the P/B gap.
+
+**Holdings (G5 residuals, H4).** A follow-up to a holding-value turn ("要是换成同样数量的中国平安呢", "如果是500股茅台呢",
+"what about Wuliangye instead?") values the same (or the newly stated) count of the new target
+(`memory.resolve_holding_follow_up`, `holding_follow_up:<n>-><name>`); a holding without a name ("我手上有1500股，总共值多少")
+values the discussed target, and opening a conversation it is clarified, never refused. 手 is 100 shares ("3 手（300
+股）"), 份 / units are fund units, English word orders ("I own 500 shares of X. What are they worth?", "200 Moutai
+shares", "the worth of 300 shares") are read, "3.88 billion shares" is not a holding. The verifier reads a carried count
+as user-stated (`graph._check_query`).
+
+**Hong Kong lines (G6 residual, H5).** "那它在香港上市的股票呢", "它在港交所挂牌的那部分", "中芯国际港股", "Ping An's Hong
+Kong listed shares", "the Hong Kong share price of China Merchants Bank": the company (named or referred to) is inside
+the H-share span, so the question is refused as out of coverage with the note that its A shares are covered.
+
+**Smaller rules.** A gap after two falls names the side that fell more ("五粮液跌得更多"); a factual "which one is
+higher" is not hedged as a which-is-better judgment (`answer_guards`); "今天跌了多少钱" gives the change in yuan from the
+last two closes or says the previous close is missing; a follow-up that is only a name ("Moutai?" after "Wuliangye
+P/E?") carries the metric.
+
+| Case | Example (own wording) | Behaviour | Reason code |
+|---|---|---|---|
+| Turnover in words, then a ratio | "沪深300ETF今天成交了多少钱" → "中国平安的呢" → "前者是后者的几倍" | "成交额 48.52 亿元" and "66.4 亿元" stated and cited; "前者约为后者的 0.73 倍 [price_510300.SH][price_601318.SH]" | `ellipsis:aspect->成交额`, `frame:ratio:amount:…` |
+| Gap in points (English) | "How much did Wuliangye move yesterday?" → "same for Ping An?" → "so how many points apart?" | "a difference of 1.26 percentage points" | `frame:difference:pct_change:…` |
+| Holding carried | "我手上有200股五粮液，按最近收盘算值多少" → "要是换成同样数量的中国平安呢" | "200 × 53.61 = 10722 元 [price_601318.SH]", no fair-value hedge | `holding_follow_up:200->中国平安` |
+| One-message relative | "贵州茅台的市净率比五粮液高百分之多少" | "贵州茅台比五粮液高约 50%（以五粮液为基数）" | `frame:relative:pb:…` |
+| H share by description | "中国平安今天收盘多少" → "它在港交所挂牌的那部分股票呢" | out of coverage, no A-share price | `coverage:foreign_equity` |
+
+Results are in [Evaluation](#evaluation) (round 12).
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) `stated_holdings` ("我持有招商银行", "I own …", up to 5) and (round 11) `comparison_frame`, the comparison under way (metric, operands in order, the values and evidence ids earlier turns found, and a note that those ids must be fetched again to be cited). It is rule-based and bounded, and it is the default.
@@ -654,6 +714,33 @@ unchanged (baselines refreshed at `017e5a3`). Own router labels **1.000** over 3
 (`evaluation/results/router_eval-round11-own.json`); multiturn_v1 replay **1.000**, 0 misses
 (`evaluation/results/multiturn_v1-auto-nollm-round11.json`); offline red team template path 0 on all nine sets. Online
 smoke check of the frame on the agent path: [round-11 rules](#rules-added-in-round-11-round-7-review-g1g6-g11).
+
+**Round 12: the round-7 slice's remaining classes and the round-8 review's H1, H2, H4, H5, H9, H11 (own examples,
+offline unless stated).** Rules: [Rules added in round 12](#rules-added-in-round-12-round-7-slice-after-exposure-round-8-review-h1-h2-h4-h5-h9-h11).
+Dev gate 370 → 411 tasks, task success **1.000**, 0 snapshot misses (3 `search_knowledge` calls of the English ellipsis
+rewrites were added with `--record-missing`); held-out gate **0.9434**, unchanged; baselines refreshed with
+`gate --update-baseline` at `7343cc5` (`31ea94b`). Dev tool precision 0.6167 → 0.5239, because the new tasks name few
+required tools (0.6098 on the 370 earlier tasks; precision is not gated). Own router labels **1.000** over 388
+(`router_eval-round12-own.json`); multiturn_v1 replay **1.000**, 0 misses (`multiturn_v1-auto-nollm-round12.json`);
+offline red team 0 attack successes and 0 crashes on all nine sets, and `gate --extras-only` passes. pytest 2,068
+passed, 70 skipped; vitest 124 (3 new three-turn gap sessions). **Slices, after exposure** (round 12 read the
+failures, so these say the classes are covered, not that the rules generalise; the out-of-sample check is the
+round-8 reviewer's hidden slice): round-7 44/53 → **53/53** (`chat_heldout_r7-auto-nollm-after-exposure-round12.json`),
+round-6 35/38 → **38/38** (`chat_heldout_r6-auto-nollm-after-exposure-round12.json`), both at `b685e23`. **Online**
+(agent path, DeepSeek V4.1 Flash via the Cline pass, `frame_llm_check --sessions round12`, 5 own sessions, 22 LLM calls,
+no 429, `frame-llm-check-round12.json` at `d315174`): 4 of 5 last turns stated the expected value, all by the model
+(turnover ratio 4.57, points apart 1.26, carried holding 30192, gap after two falls 0.36). In the fifth the model
+computed the English net margin as a share but the verifier repair removed that sentence (round-8 H8); five sessions
+are a smoke check, not a rate.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r7/chat_r7_heldout.jsonl \
+  --out outputs/agent_eval/chat_r7-r12.json
+python -m evaluation.agent_eval.results outputs/agent_eval/chat_r7-r12.json \
+  --name chat_heldout_r7-auto-nollm-after-exposure-round12 --note "..."
+python -m evaluation.agent_eval.frame_llm_check --llm deepseek --model cline-pass/deepseek-v4.1-flash \
+  --sessions round12 --max-calls 30 --out outputs/agent_eval/frame-llm-check-round12.json
+```
 
 **Round 10: holdout8 (F3) and the LLM red team after the fixes.** The round-6 reviewer's 14 new planted-document styles
 (JSON-LD, a CSV row, 勘误, a chat log, 立案 + 罚款, a WeChat group, a Chinese-numeral percentage, an MSCI rumour, a
