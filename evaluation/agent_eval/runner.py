@@ -75,6 +75,19 @@ def load_tasks(path: str | Path = DEFAULT_TASKS) -> list[dict[str, Any]]:
     return [json.loads(line) for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+def sample_tasks(tasks: list[dict[str, Any]], size: int, seed: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """A documented random subset for quota-limited LLM runs (round 13): ``size`` tasks drawn with
+    ``random.Random(seed).sample`` and kept in file order; the config records the seed and the task ids, so the same
+    subset can be drawn again and compared task by task with full-set runs."""
+    import random
+
+    if size <= 0 or size >= len(tasks):
+        return tasks, {"size": len(tasks), "of": len(tasks), "seed": None, "task_ids": None}
+    chosen = set(random.Random(seed).sample(range(len(tasks)), size))
+    subset = [task for index, task in enumerate(tasks) if index in chosen]
+    return subset, {"size": size, "of": len(tasks), "seed": seed, "task_ids": [task["id"] for task in subset]}
+
+
 def eval_snapshot_ext() -> bool:
     """Whether the evaluation's offline tools see the snapshot extension (``QI_EVAL_SNAPSHOT_EXT``, default off).
 
@@ -496,6 +509,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     )
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--sample", type=int, default=0, help="A random subset of N tasks (seeded, ids recorded).")
+    parser.add_argument("--sample-seed", type=int, default=20261001)
     parser.add_argument("--category", action="append", default=[])
     parser.add_argument("--workers", type=int, default=1, help="Run tasks concurrently (LLM modes).")
     parser.add_argument("--out", default="")
@@ -513,6 +528,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         tasks = [task for task in tasks if task["category"] in set(args.category)]
     if args.limit:
         tasks = tasks[: args.limit]
+    sample = None
+    if args.sample:
+        tasks, sample = sample_tasks(tasks, args.sample, args.sample_seed)
     llm = _make_llm(args.llm, args.model)
     started = time.perf_counter()
 
@@ -558,6 +576,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     }
     if overlap is not None:
         config["slice_overlap"] = overlap
+    if sample is not None:
+        config["sample"] = sample
     report = summarize(records, config=config, repeats=args.repeats)
     out = Path(args.out) if args.out else DEFAULT_OUTPUT_DIR / f"{args.mode}{'-' + args.llm if llm else ''}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
