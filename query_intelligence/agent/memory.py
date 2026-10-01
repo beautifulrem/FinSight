@@ -493,7 +493,27 @@ def resolve_holding_follow_up(
     from .coverage import holding_value_request, in_fund_units, stated_holding_count
 
     text = strip_filler(query).strip()
-    if not turns or len(current_targets) != 1 or not _is_short(text) or holding_value_request(text):
+    if not turns or len(current_targets) > 1:
+        return None
+    if not current_targets:
+        # (round 8 review H4) "我手上有1500股，总共值多少" after a question about one target: the holding is of
+        # that target (never refused as out of scope for lack of a name)
+        held_here = holding_value_request(text)
+        targets = _last_targets(turns)
+        if held_here is None or len(targets) != 1:
+            return None
+        name = str(targets[0].get("name") or targets[0].get("symbol"))
+        start, end = held_here[1]
+        span = text[start:end]
+        zh = bool(re.search(r"[一-鿿]", text))
+        rewritten = f"{name}：{text}" if zh else f"{text} ({name})"
+        if zh:
+            match = re.search(r"[股份手]", span)
+            if match:
+                cut = start + match.end()
+                rewritten = f"{text[:cut]}{name}{text[cut:]}"
+        return rewritten, f"holding_follow_up:{held_here[0]}->{name}"
+    if not _is_short(text) or holding_value_request(text):
         return None
     previous = _effective(turns[-1])
     held = holding_value_request(previous)

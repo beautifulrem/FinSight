@@ -20,6 +20,7 @@ from .coverage import (
     failed_target_statements,
     flow_gaps,
     foreign_macro_gaps,
+    holding_lots,
     holding_value_request,
     in_fund_units,
     indicator_gaps,
@@ -28,6 +29,7 @@ from .coverage import (
     non_stock_fundamental_gaps,
     requested_metrics,
     requested_price_fields,
+    without_holding_value,
     year_to_date_gaps,
 )
 from .frame import TURNOVER
@@ -107,7 +109,7 @@ def compose_template(
     facts: list[str] = []
     evidence_used: list[str] = []
     limitations: list[str] = []
-    wanted = requested_metrics(query)
+    wanted = requested_metrics(without_holding_value(query) if query else query)
     extra_keys = {field for metric in wanted for field in metric.fields}
     derive = {metric.key for metric in wanted if metric.derivable_from}
     margins: list[tuple[str, float]] = []
@@ -160,7 +162,8 @@ def compose_template(
         facts.extend(fact for fact in _implied_eps(tool_log, zh) if fact not in facts)
     holding = holding_value_request(query) if query else None
     if holding is not None:
-        facts = [*_holding_value(holding[0], tool_log, zh, units=in_fund_units(query)), *facts]
+        holding_facts = _holding_value(holding[0], tool_log, zh, units=in_fund_units(query), lots=holding_lots(query))
+        facts = [*holding_facts, *facts]
     frame_gaps: list[str] = []
     if frame_request:
         framed, frame_gaps = frame_sentences(frame_request, tool_log, zh)
@@ -218,10 +221,13 @@ def compose_template(
     }
 
 
-def _holding_value(shares: int, tool_log: list[dict[str, Any]], zh: bool, *, units: bool = False) -> list[str]:
+def _holding_value(
+    shares: int, tool_log: list[dict[str, Any]], zh: bool, *, units: bool = False, lots: int | None = None
+) -> list[str]:
     """(round 11, G5) "我有1000股五粮液，值多少钱": shares × the latest close, with the date, both operands in the
     sentence, and a note that this is a market value at the close, not a tradable price, a valuation or advice.
-    (round 12) A holding stated in fund units ("两万份沪深300ETF", "4000 units") is written in units."""
+    (round 12) A holding stated in fund units ("两万份沪深300ETF", "4000 units") is written in units, one stated in
+    lots ("3手", 100 shares each) as lots and shares."""
     for entry in tool_log:
         data = entry.get("data") or {}
         close, eid = data.get("close"), data.get("evidence_id")
@@ -230,15 +236,16 @@ def _holding_value(shares: int, tool_log: list[dict[str, Any]], zh: bool, *, uni
         value = round(shares * float(close), 2)
         name, as_of = data.get("name") or data.get("symbol"), data.get("as_of")
         unit = "份" if units else "股"
+        held = f"{lots} 手（{shares} 股）" if lots else f"{shares} {unit}"
+        held_en = f"{lots} lots ({shares} shares)" if lots else f"{shares} {'units' if units else 'shares'}"
         if zh:
             return [
-                f"按 {as_of} 的收盘价 {_px(close, data, zh)} 计算，{shares} {unit}{name}的市值约为 {shares} × "
+                f"按 {as_of} 的收盘价 {_px(close, data, zh)} 计算，{held}{name}的市值约为 {shares} × "
                 f"{_num(close)} = {_num(value)} 元 [{eid}]。",
                 "这是按最近收盘价计算的持仓市值，不是可成交价格，也不是估值判断或投资建议。",
             ]
         return [
-            f"At the {as_of} close of {_px(close, data, zh)}, {shares} {'units' if units else 'shares'} of {name} are "
-            f"worth {shares} × "
+            f"At the {as_of} close of {_px(close, data, zh)}, {held_en} of {name} are worth {shares} × "
             f"{_num(close)} = CNY {_num(value)} [{eid}].",
             "This is the market value at the last close, not a tradable price, a valuation or investment advice.",
         ]

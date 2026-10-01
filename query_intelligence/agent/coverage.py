@@ -303,18 +303,29 @@ EXTRA_METRIC_FIELDS = {field: metric for metric in METRICS for field in metric.f
 # (round 11, G5) "我有1000股五粮液，按最新收盘价值多少钱", "500 shares of Moutai, what are they worth?": the value of a
 # stated holding at the last close (shares × close), not a fair-value question. "一股/每股值多少" is a fair value, and
 # "10股派…" a dividend per share, so neither is a holding.
+_HOLDING_COUNT_ZH = (
+    r"(?<![每\d])(?P<n>\d[\d,，]*|[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*|"
+    r"一[十百千万][零〇一二两三四五六七八九十百千万]*)"
+    # (round 12) fund units count like shares ("两万份沪深300ETF"); a lot (手) is 100 shares ("3手茅台")
+    r"\s*(?P<unit>股(?![价票东份息市权本派送转配])|份|手(?![续机表头上下工动脚指]))"
+)
 _HOLDING_VALUE_ZH = re.compile(
-    r"(?<![每\d])(?P<n>\d[\d,，]*|[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*|一[十百千万][零〇一二两三四五六七八九十百千万]*)"
-    # (round 12) fund units count like shares: "两万份沪深300ETF"
-    r"\s*(?:股(?![价票东份息市权本派送转配])|份)[^。？?！!；;]{0,24}?"
+    _HOLDING_COUNT_ZH + r"[^。？?！!；;]{0,24}?"
     r"(?:值|市值|价值|总值|总额|合计|一共|总共|算下来|折合)[^。？?！!；;]{0,4}?(?:多少|几)"
 )
+# (round 12) English word orders: "500 shares of X", "200 Moutai shares", "my 200 Moutai shares", the question in the
+# next sentence, "the worth of 300 shares"; not "3.88 billion shares"
+_EN_COUNT = (
+    r"(?<![\d.,])(?P<{name}>\d[\d,]*)\s+"
+    r"(?:(?!billion|million|thousand|bn|mn)[A-Za-z][\w'.-]*\s+){{0,3}}?(?:shares?|units?)\b"
+)
 _HOLDING_VALUE_EN = re.compile(
-    r"\b(?P<n>\d[\d,]*)\s+(?:shares?|units?)\b[^.?!]{0,60}?\b(?:worth|value|how much)\b|"
-    # (round 12) "I own 500 shares of X. What are they worth at the close?": the question in the next sentence
-    r"\b(?P<n3>\d[\d,]*)\s+(?:shares?|units?)\b[^.?!]{0,60}\.\s+(?:so\s+|and\s+)?(?:what|how much)\b[^.?!]{0,40}?"
-    r"\b(?:worth|value)\b|"
-    r"\bhow much (?:are|is|would) (?:my )?(?P<n2>\d[\d,]*)\s+(?:shares?|units?)\b",
+    _EN_COUNT.format(name="n")
+    + r"[^.?!]{0,60}?\b(?:worth|value|how much)\b|"
+    + _EN_COUNT.format(name="n3")
+    + r"[^.?!]{0,60}\.\s+(?:so\s+|and\s+)?(?:what|how much)\b[^.?!]{0,40}?\b(?:worth|value)\b|"
+    r"\bhow much (?:are|is|would) (?:my )?(?P<n2>\d[\d,]*)\s+(?:shares?|units?)\b|"
+    r"\bworth of (?:my |the |these |those )?(?P<n4>\d[\d,]*)\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?(?:shares?|units?)\b",
     re.IGNORECASE,
 )
 # A fund holding is counted in units (份), a stock holding in shares (股).
@@ -344,9 +355,21 @@ def holding_value_request(query: str) -> tuple[int, tuple[int, int]] | None:
     if match is None:
         return None
     groups = match.groupdict()
-    raw = (groups.get("n") or groups.get("n2") or groups.get("n3") or "").replace(",", "").replace("，", "")
+    raw = next((groups[key] for key in ("n", "n2", "n3", "n4") if groups.get(key)), "")
+    raw = raw.replace(",", "").replace("，", "")
     shares = int(raw) if raw.isdigit() else _cn_integer(raw)
+    if groups.get("unit") == "手":
+        shares *= 100  # a board lot is 100 shares
     return (shares, match.span()) if shares > 1 else None
+
+
+def holding_lots(query: str) -> int | None:
+    """The number of lots (手) a holding is stated in ("3手茅台" → 3), else ``None``."""
+    match = _HOLDING_VALUE_ZH.search(query or "")
+    if match is None or match.group("unit") != "手":
+        return None
+    raw = match.group("n").replace(",", "").replace("，", "")
+    return int(raw) if raw.isdigit() else _cn_integer(raw)
 
 
 def in_fund_units(query: str) -> bool:
@@ -354,11 +377,7 @@ def in_fund_units(query: str) -> bool:
     return bool(_FUND_UNITS.search(query or ""))
 
 
-_HOLDING_COUNT = re.compile(
-    r"(?<![每\d])(?P<n>\d[\d,，]*|[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*)\s*(?:股(?![价票东份息市权本派送转配])|份)|"
-    r"\b(?P<n2>\d[\d,]*)\s+(?:shares?|units?)\b",
-    re.IGNORECASE,
-)
+_HOLDING_COUNT = re.compile(_HOLDING_COUNT_ZH + "|" + _EN_COUNT.format(name="n2"), re.IGNORECASE)
 
 
 def stated_holding_count(text: str) -> int | None:
@@ -368,6 +387,8 @@ def stated_holding_count(text: str) -> int | None:
         return None
     raw = (match.group("n") or match.group("n2") or "").replace(",", "").replace("，", "")
     count = int(raw) if raw.isdigit() else _cn_integer(raw)
+    if match.group("unit") == "手":
+        count *= 100
     return count if count > 1 else None
 
 
@@ -431,7 +452,8 @@ def coverage_gaps(
     """
     names = names or {}
     sentences: list[str] = []
-    wanted = requested_metrics(query)
+    # (round 12, H4) "持有5000份…市值多少" asks for the holding's value, not the company's market cap
+    wanted = requested_metrics(without_holding_value(query))
     if _MACRO_GROWTH.search(query or ""):
         # "M2增速" / "M2 growth": the macro indicator is itself the growth rate, not a company metric.
         wanted = [metric for metric in wanted if metric.key != "growth"]
