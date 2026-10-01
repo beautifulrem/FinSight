@@ -247,6 +247,8 @@ export const ASKED_LABELS: Record<string, string[]> = {
 export function selectKpis(kpis: Kpi[], max: number, asked: string[] = []): Kpi[] {
   // (round 11, G11) the metric the question asked about leads, for every company, and is marked
   const askedLabels = asked.flatMap((key) => ASKED_LABELS[key] ?? []);
+  // the derived net-margin tile is shown only when the question asks for the net margin
+  if (!askedLabels.includes("kpi.netMargin")) kpis = kpis.filter((kpi) => kpi.label !== "kpi.netMargin");
   const askedRank = (kpi: Kpi) => {
     const index = askedLabels.indexOf(kpi.label);
     return index < 0 ? askedLabels.length : index;

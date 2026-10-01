@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -46,11 +45,10 @@ SESSIONS: list[tuple[list[str], float]] = [
 
 
 def _states(text: str, value: float) -> bool:
-    for match in re.finditer(r"-?\d+(?:,\d{3})*(?:\.\d+)?", text or ""):
-        number = abs(float(match.group(0).replace(",", "")))
-        if abs(number - abs(value)) <= max(0.011, abs(value) * 0.005):
-            return True
-    return False
+    """Whether the answer states the expected value, as written or in 亿/万/bn/mn units (445.2 亿 = 44520000000 元)."""
+    from query_intelligence.agent.graph import _states_number
+
+    return _states_number(text, value) or _states_number(text, value * 1e8)
 
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
@@ -58,6 +56,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser = argparse.ArgumentParser(description=__doc__)
     add_llm_arguments(parser)
     parser.add_argument("--max-calls", type=int, default=60)
+    parser.add_argument("--only", default="", help="comma-separated session indices to run (default: all)")
     parser.add_argument("--out", default="outputs/agent_eval/frame-llm-check.json")
     args = parser.parse_args(argv)
     llm = _make_llm(args.llm, args.model)
@@ -70,7 +69,10 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     agent = AgentService(runtime, trace_sinks=[])
     calls, sessions, stopped = 0, [], None
     try:
+        only = {int(item) for item in args.only.split(",") if item.strip()}
         for index, (turns, expected) in enumerate(SESSIONS):
+            if only and index not in only:
+                continue
             if calls >= args.max_calls - 4:
                 stopped = f"call budget ({calls} of {args.max_calls})"
                 break
