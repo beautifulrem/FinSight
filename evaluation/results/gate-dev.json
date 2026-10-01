@@ -17,15 +17,15 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "017e5a3",
-  "run_at": "2026-10-01T03:56:00+00:00",
+  "commit": "d04d57e",
+  "run_at": "2026-10-01T06:30:51+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 186.3,
+  "wall_seconds": 215.5,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
-  "tasks": 370,
-  "turns": 498,
+  "tasks": 384,
+  "turns": 514,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -50,15 +50,15 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.6167,
+  "tool_precision": 0.6204,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 114.57,
-  "latency_ms_p95": 1054.19,
-  "latency_ms_p99": 1620.19,
+  "latency_ms_p50": 115.49,
+  "latency_ms_p95": 1235.2,
+  "latency_ms_p99": 1645.38,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -86,84 +86,84 @@
   "clarify": {
    "tasks": 18,
    "task_success": 1.0,
-   "latency_ms_p95": 1457.1
+   "latency_ms_p95": 951.32
   },
   "compare": {
    "tasks": 33,
    "task_success": 1.0,
-   "latency_ms_p95": 1937.94
+   "latency_ms_p95": 1907.94
   },
   "compliance": {
    "tasks": 31,
    "task_success": 1.0,
-   "latency_ms_p95": 984.18
+   "latency_ms_p95": 1009.06
   },
   "derived": {
-   "tasks": 4,
+   "tasks": 12,
    "task_success": 1.0,
-   "latency_ms_p95": 1069.5
+   "latency_ms_p95": 1599.8
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 1130.36
+   "latency_ms_p95": 1211.09
   },
   "fact": {
-   "tasks": 69,
+   "tasks": 72,
    "task_success": 1.0,
-   "latency_ms_p95": 1054.19
+   "latency_ms_p95": 1284.97
   },
   "injection": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 801.15
+   "latency_ms_p95": 1265.85
   },
   "macro_link": {
    "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 1213.88
+   "latency_ms_p95": 1257.24
   },
   "missing_data": {
-   "tasks": 43,
+   "tasks": 45,
    "task_success": 1.0,
-   "latency_ms_p95": 840.97
+   "latency_ms_p95": 1028.58
   },
   "multi_turn": {
-   "tasks": 80,
+   "tasks": 81,
    "task_success": 1.0,
-   "latency_ms_p95": 975.3
+   "latency_ms_p95": 1122.13
   },
   "out_of_coverage": {
    "tasks": 15,
    "task_success": 1.0,
-   "latency_ms_p95": 911.93
+   "latency_ms_p95": 1144.05
   },
   "out_of_scope": {
    "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 137.57
+   "latency_ms_p95": 157.23
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 1190.42
+   "latency_ms_p95": 953.95
   },
   "why": {
    "tasks": 21,
    "task_success": 1.0,
-   "latency_ms_p95": 1143.31
+   "latency_ms_p95": 1176.84
   }
  },
  "by_language": {
   "en": {
-   "tasks": 114,
+   "tasks": 119,
    "task_success": 1.0,
-   "latency_ms_p95": 1223.56
+   "latency_ms_p95": 1284.97
   },
   "zh": {
-   "tasks": 256,
+   "tasks": 265,
    "task_success": 1.0,
-   "latency_ms_p95": 992.15
+   "latency_ms_p95": 1148.11
   }
  },
  "failed_checks": {},
@@ -538,12 +538,26 @@
   "r11_implied_price_hedged_en": "1",
   "r11_h_share_out_of_coverage_zh": "1",
   "r11_hk_ticker_out_of_coverage_en": "1",
-  "r11_hk_subsidiary_out_of_coverage_zh": "1"
+  "r11_hk_subsidiary_out_of_coverage_zh": "1",
+  "r12_drawdown_1y_zh": "1",
+  "r12_drawdown_ytd_zh": "1",
+  "r12_drawdown_1y_en": "1",
+  "r12_range_52w_zh": "1",
+  "r12_range_52w_en": "1",
+  "r12_ytd_change_zh": "1",
+  "r12_reported_eps_zh": "1",
+  "r12_market_cap_en": "1",
+  "r12_yoy_growth_zh": "1",
+  "r12_holding_value_zh": "1",
+  "r12_gold_drawdown_ytd_en": "1",
+  "r12_smic_followups_zh": "1",
+  "r12_v1_range_missing_zh": "1",
+  "r12_v1_drawdown_missing_en": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "d3ac3771e69d302a",
-  "bytes": 1311659,
-  "slimmed_at": "2026-10-01T03:56:01+00:00"
+  "sha256_16": "716baff3f91c26a3",
+  "bytes": 1357518,
+  "slimmed_at": "2026-10-01T06:30:52+00:00"
  }
 }
