@@ -328,3 +328,43 @@ def test_a_metric_switch_keeps_the_pair_and_a_longer_gap_question_computes(agent
         "what's the discount in percent? A friend said Wuliangye is far cheaper than its peers, maybe 30%",
     )
     assert "about 23.44% below" in longer["answer"]
+
+
+# ---- round-8 review H4: holdings with a carried target, lots, fund units, English word orders ----
+
+
+@pytest.mark.parametrize(
+    ("query", "shares", "lots"),
+    [
+        ("我有3手茅台，现在值多少", 300, 3),  # the review's repro
+        ("I have 200 Moutai shares, what's my position worth at the last close?", 200, None),  # the review's repro
+        ("账户里有12手中国平安，按收盘价合计值多少", 1200, 12),
+        ("what is the worth of my 450 Wuliangye shares at the close?", 450, None),
+        ("手续费一共多少", None, None),
+        ("Wuliangye has 3.88 billion shares outstanding. What is the company worth?", None, None),
+    ],
+)
+def test_holding_word_orders_and_lots(query, shares, lots):
+    from query_intelligence.agent.coverage import holding_lots, holding_value_request
+
+    found = holding_value_request(query)
+    assert (found[0] if found else None) == shares
+    assert holding_lots(query) == lots
+
+
+def test_a_holding_without_a_name_values_the_discussed_target(agent):
+    _first, held, switched = _session(
+        agent, "h4-carried", "中国平安最新收盘价多少", "我账户里有2000股，合计值多少钱", "要是贵州茅台呢，股数一样"
+    )
+    assert held["route"] != "refuse"
+    assert "2000 × 53.61 = 107220 元 [price_601318.SH]" in held["answer"]
+    assert "2000 × 1409.5 = 2819000 元 [price_600519.SH]" in switched["answer"]
+
+
+def test_lots_and_fund_units_are_valued_without_a_market_cap_gap(agent):
+    lots = agent.chat("账户里有12手中国平安，按收盘价合计值多少", session_id="r12-h4-lots")
+    assert "12 手（1200 股）中国平安的市值约为 1200 × 53.61 = 64332 元" in lots["answer"]
+    assert lots["verification"]["passed"]
+    units = agent.chat("持有一万份证券ETF，市值多少", session_id="r12-h4-units")
+    assert "10000 份证券ETF的市值约为 10000 × 1.021 = 10210 元" in units["answer"]
+    assert "总市值" not in units["answer"]
