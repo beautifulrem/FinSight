@@ -231,6 +231,49 @@ python -m scripts.load_test --base-url http://127.0.0.1:8811 --mode agent --ques
 
 每行只有 24 个请求，样本很小：P95 是第二慢的请求，P99 是最慢的。方向与评测一致：每问少一次 LLM 调用，长尾更低（92 s 的卡顿不见了），吞吐高 43%，成本低 11%。**在这批更难的问题上，P95 仍高于 20 s**；4 个用户下 TTFT（7.8 s）也高于 3 并发评测时的 3 s。这些问题比多数评测任务需要更多轮工具调用、更长的答案。被重试救回的网关 429 在客户端看不到；没有请求失败或降级。
 
+### 负载下的模型服务故障：4 个用户，`auto`，30 秒 HTTP 503 突发（第 12 轮）
+
+用 `scripts/chaos_drill.py` 的 `llm-load` 场景跑了两次。场景自己启动一个服务，前面挂 LLM 故障代理；配置为
+`DEEPSEEK_MODEL=cline-pass/deepseek-v4.1-flash`、`QI_LLM_FALLBACK_MODELS=cline-pass/glm-5.3-flash`（这样每个模型的熔断器都在工作）、
+关闭实时数据、`mode=auto`、`research` 问题集、不走流式。第二次运行里，代理在第 15–45 秒对**所有**模型调用直接返回 HTTP 503
+（整个服务商故障：主模型和备用模型一样；请求不会到达网关，所以突发不消耗额度），之后等到没有熔断器处于打开状态，再让每个用户发一个请求。
+`/metrics` 每秒采样一次熔断器状态。两个结果文件都记录了提交（工作区干净）、命令以及客户端和服务端的环境开关。
+测试机同时在跑其他任务：第一次开始时负载均值 17.8，第二次开始时 52.3，所以延迟是上限。
+
+```bash
+source /tmp/llmenv.sh   # DEEPSEEK_* 来自 .env；密钥不打印、不提交
+python -m scripts.chaos_drill --scenario llm-load --port 8847 --load-users 4 --load-requests 3 --load-mode auto \
+    --fallback-model cline-pass/glm-5.3-flash --usd-cny 6.7489 --out outputs/chaos/r12-llm-load/load-4u-auto.json
+python -m scripts.chaos_drill --scenario llm-load --port 8847 --load-users 4 --load-requests 4 --load-mode auto \
+    --fallback-model cline-pass/glm-5.3-flash --usd-cny 6.7489 --burst-start 15 --burst-seconds 30 \
+    --burst-status 503 --recovery-requests 1 --out outputs/chaos/r12-llm-load-burst/load-4u-auto-5xx-burst.json
+```
+
+| 运行（[`results/perf/agent/`](../results/perf/agent/)） | 提交 | 请求数 | HTTP 错误（用户可见） | P50（秒） | P95（秒） | 由 LLM 回答 | LLM 失败 → 模板 | 网关调用（429） | 每千次提问 ¥ |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `r12-load-4u-auto.json` | `fd6b157` | 12 | 0 | 15.3 | 53.8 | 12（6 个 Agent、6 个组织答案） | 0 | 29（0） | 12.14 |
+| `r12-load-4u-auto-5xx-burst.json`，主负载 | `7fbda92` | 16 | 0 | 6.4 | 34.7 | 1（突发之前） | 15 | 转发 1 次 + 注入 503 共 24 次（0） | 0.08 |
+| 同上，恢复阶段（冷却后 4 × 1） | `7fbda92` | 4 | 0 | 21.1 | 42.1 | 4（3 个 Agent、1 个组织答案） | 0 | 11（0） | 12.52 |
+
+基线中每个回答的成本：¥0.0121（$0.0018），2.4 次 LLM 调用，13.2k 输入 token（70% 命中服务商缓存），1.9k 输出 token。
+每次只有 12 个请求，样本很小：P95 就是最慢的那个请求。
+
+**突发运行中的熔断器时间线**（从开始计时的秒数；突发在 15–45 秒）：
+
+| t（秒） | DeepSeek（主） | GLM（备用） | 发生了什么 |
+|---:|---|---|---|
+| 4 | closed | closed | 第一次采样 |
+| 32.4 | **open** | closed | 连续三次调用失败（每次调用尝试 3 次：503，1 秒和 2 秒后重试） |
+| 34.8 | open | **open** | 备用模型也连续失败三次；此后请求直接跳过 LLM（"all LLM clients are unavailable (circuits open)"） |
+| 45 | open | open | 突发结束，服务商恢复，但熔断器在 60 秒冷却期内保持打开 |
+| 94.0 / 97.1 | **half-open** | **half-open** | 冷却结束 |
+| 99.4 | **closed** | half-open | 第一个恢复请求对 DeepSeek 的试探调用成功；没有用到 GLM，所以它保持 half-open，直到被调用 |
+
+用户看到的结果：**没有失败的请求**。主负载 16 个请求中 12 个与突发重叠；它们以及突发结束后、熔断器仍打开时开始的 3 个请求，都由确定性规划器 +
+模板回答（`degraded: llm_error…` / `llm_compose_failed…`，均通过校验）。卡在重试里的请求最长 34.7 秒；两个熔断器都打开之后，模板回答用时
+0.7–6.4 秒，只有 ETF 问题的三个请求用了 19–24 秒而且没有任何 LLM 调用：trace 显示 10–13 秒花在 NLU（`guard_in`），9–11 秒花在规划器的情绪分析和知识检索工具上，
+是高负载机器上的 CPU 计算。熔断器的代价也看得到：服务商恢复后约 50 秒（45 → 94 秒）内回答仍来自模板。恢复阶段的 4 个请求全部由 LLM 回答。
+
 ### 第二个模型：GLM-5.3 flash 抽查（[`perf-glm-holdout-*.json`](../../evaluation/results/)）
 
 held-out，每次运行 1 次重复，3 并发，流式。由于 GLM 的延迟在不同运行之间漂移，原路径和默认配置按“关、开、开、关”的顺序运行（`8a85ae5`）：
