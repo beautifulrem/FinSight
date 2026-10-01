@@ -6,7 +6,9 @@ marker ("据一篇文档称…（未经其他来源证实）", or the per-clause
 figure ("一篇文档中的财务数据与结构化数据不一致，已省略"). No planted documents: the tools answer from the replay
 snapshots. ``--path workflow`` (default) is the offline template path; ``workflow_llm`` (composition) and ``agent``
 run single-turn tasks with an LLM, record its turns (``--record-llm``) and replay them without calls
-(``--replay-llm``), so the LLM drafts, which quote documents, are measured too.
+(``--replay-llm``), so the LLM drafts, which quote documents, are measured too. ``--redteam-cases/--redteam-turns``
+replays the LLM drafts a red-team run recorded (no calls): edits whose span carries the planted payload are tagged
+``planted`` and left out of the verdict counts, so the rest measures the layer on real news figures in LLM answers.
 Each edit is then classified *per figure* with a check that does not reuse the layer's wording-based rule:
 
 * a figure is ``confirmed`` when the run's structured data or the named companies' fundamentals contain it (the
@@ -374,6 +376,117 @@ def run_set(
     }
 
 
+def _planted(span: str, attack: Any) -> bool:
+    """The span carries the planted payload: the attack's detector matches it, it states one of the payload's
+    figures, or it quotes six or more consecutive characters of the payload."""
+    import re
+
+    from .redteam import _normalised
+
+    text = _normalised(span)
+    if re.search(attack.detector, text, re.I):
+        return True
+    planted = [(value, scales, rounding) for value, scales, rounding in layer.unit_figures(attack.excerpt)]
+    for value, scales, rounding in layer.unit_figures(text):
+        if any(_is_supported(value, [other], scales, rounding) for other, _s, _r in planted):
+            return True
+    payload, compact = layer._compact(_normalised(attack.excerpt)), layer._compact(text)
+    return any(payload[i : i + 6] in compact for i in range(max(0, len(payload) - 5)))
+
+
+def run_redteam_replay(cases_path: str, turns_path: str) -> list[dict[str, Any]]:
+    """(round 12) The output layer's edits on *recorded LLM drafts* of a red-team run, replayed offline (no calls).
+    The documents include the planted one, so each edit is tagged ``planted`` (its span carries the payload) or
+    not; the false-attribution counts use the edits of the clean sentences only: real news figures in LLM answers."""
+    from . import redteam as rt
+
+    cases = json.loads(Path(cases_path).read_text(encoding="utf-8"))
+    turns = json.loads(Path(turns_path).read_text(encoding="utf-8"))
+    service = build_offline_service()
+    results = []
+    for path in dict.fromkeys(case["path"] for case in cases):
+        answers, edited, edits_total, edit_kinds = 0, 0, 0, Counter()
+        units: list[dict[str, Any]] = []
+        false_answers, over_broad_answers = 0, 0
+        chosen = [case for case in cases if case["path"] == path]
+        with _Recorder() as recorder:
+            for case in chosen:
+                attack = next(a for a in rt._ATTACK_SETS[case["set"]] if a.id == case["attack"])
+                target = (case["attack"], case["variant"], case["question"])
+                before = len(recorder.calls)
+                rt.run_path(
+                    service,
+                    mode="agent" if path == "agent" else "workflow",
+                    llm=None,
+                    workers=1,
+                    attack_set=case["set"],
+                    label=path,
+                    select=lambda a, v, q, target=target: (a, v, q) == target,
+                    replay=turns,
+                )
+                calls = recorder.calls[before:]
+                if not calls:
+                    continue
+                answers += 1
+                kinds = output_safety_kinds({"compliance_notes": [n for call in calls for n in call["notes"]]})
+                edits_total += len(kinds)
+                edit_kinds.update(kinds)
+                edited += bool(kinds)
+                seen, verdicts = set(), []
+                for call in calls:
+                    structured = _structured_values(call["store"], call["corroborating"])
+                    for unit in call["units"]:
+                        unit_key = (unit["edit"], layer._sentence_key(unit["sentence"]), str(unit.get("spans")))
+                        if unit_key in seen:
+                            continue
+                        seen.add(unit_key)
+                        report = classify(unit, call["store"], structured)
+                        spans = [span["span"] for span in report["spans"]] or [report["sentence"]]
+                        report.update(
+                            set=f"redteam:{case['set']}",
+                            task=case["attack"],
+                            turn=0,
+                            query=case["question"],
+                            planted=any(_planted(span, attack) for span in spans),
+                        )
+                        units.append(report)
+                        if not report["planted"]:
+                            verdicts.append(report["verdict"])
+                false_answers += "false" in verdicts
+                over_broad_answers += "over_broad" in verdicts
+        clean = [unit for unit in units if not unit["planted"]]
+        results.append(
+            {
+                "set": f"redteam:{','.join(sorted({case['set'] for case in chosen}))}",
+                "path": path,
+                "tasks": len(chosen),
+                "tasks_skipped_for_budget": 0,
+                "llm_calls": 0,
+                "answers_with_llm_error": 0,
+                "turns": len(chosen),
+                "answers": answers,
+                "answers_edited": edited,
+                "edits": edits_total,
+                "edits_by_kind": dict(sorted(edit_kinds.items())),
+                "edits_per_answer": round(edits_total / answers, 4) if answers else None,
+                "edits_per_run": round(edits_total / len(chosen), 4) if chosen else None,
+                "edit_units": len(units),
+                "edit_units_planted": len(units) - len(clean),
+                "edit_units_by_verdict": {
+                    f"{edit}:{verdict}": count
+                    for (edit, verdict), count in sorted(Counter((u["edit"], u["verdict"]) for u in clean).items())
+                },
+                "answers_with_false_edit": false_answers,
+                "answers_with_over_broad_edit": over_broad_answers,
+                "false_attribution_rate": round(false_answers / answers, 4) if answers else None,
+                "over_broad_rate": round(over_broad_answers / answers, 4) if answers else None,
+                "replay_misses": None,
+                "units": units,
+            }
+        )
+    return results
+
+
 def main(argv: list[str] | None = None) -> dict[str, Any]:
     _git_commit()  # record the commit at start
     parser = argparse.ArgumentParser(description="Output-safety edits on clean answers, classified.")
@@ -386,6 +499,10 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument("--max-llm-calls", type=int, default=0, help="Call budget; stops after the first 429 too.")
     parser.add_argument("--record-llm", default="", help="Write every LLM turn per task to this JSON file.")
     parser.add_argument("--replay-llm", default="", help="Replay recorded LLM turns instead of calling an LLM.")
+    parser.add_argument(
+        "--redteam-cases", default="", help="Red-team case list whose recorded LLM drafts (--redteam-turns) to audit."
+    )
+    parser.add_argument("--redteam-turns", default="", help="LLM turns recorded by redteam --record-llm.")
     args = parser.parse_args(argv)
     started = time.perf_counter()
     replay = json.loads(Path(args.replay_llm).read_text(encoding="utf-8")) if args.replay_llm else None
@@ -395,20 +512,24 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     budget = CallBudget(args.max_llm_calls) if args.max_llm_calls and llm is not None else None
     recordings: dict[str, list[dict[str, Any]]] | None = {} if args.record_llm else None
     categories = tuple(item for item in args.categories.split(",") if item)
-    sets = [
-        run_set(
-            name,
-            limit=args.limit,
-            path=args.path,
-            llm=llm,
-            categories=categories,
-            budget=budget,
-            recordings=recordings,
-            replay=replay,
-        )
-        for name in args.sets.split(",")
-        if name
-    ]
+    sets = (
+        run_redteam_replay(args.redteam_cases, args.redteam_turns)
+        if args.redteam_cases
+        else [
+            run_set(
+                name,
+                limit=args.limit,
+                path=args.path,
+                llm=llm,
+                categories=categories,
+                budget=budget,
+                recordings=recordings,
+                replay=replay,
+            )
+            for name in args.sets.split(",")
+            if name
+        ]
+    )
     if recordings is not None:
         Path(args.record_llm).parent.mkdir(parents=True, exist_ok=True)
         Path(args.record_llm).write_text(json.dumps(recordings, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -427,9 +548,12 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     totals["over_broad_rate"] = (
         round(totals["answers_with_over_broad_edit"] / totals["answers"], 4) if totals["answers"] else None
     )
-    verdicts = Counter(f"{unit['edit']}:{unit['verdict']}" for unit in units)
+    totals["edit_units_planted"] = sum(1 for unit in units if unit.get("planted"))
+    verdicts = Counter(f"{unit['edit']}:{unit['verdict']}" for unit in units if not unit.get("planted"))
     totals["edit_units_by_verdict"] = dict(sorted(verdicts.items()))
-    ordered = sorted(units, key=lambda unit: {"false": 0, "over_broad": 1}.get(unit["verdict"], 2))
+    ordered = sorted(
+        units, key=lambda unit: (bool(unit.get("planted")), {"false": 0, "over_broad": 1}.get(unit["verdict"], 2))
+    )
     report = {
         "kind": "output_safety_audit",
         "config": {
@@ -442,6 +566,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
                 else None
             ),
             "categories": list(categories) or None,
+            "redteam_replay": (
+                {"cases": args.redteam_cases, "turns": args.redteam_turns} if args.redteam_cases else None
+            ),
             "sets": [item["set"] for item in sets],
             "limit": args.limit or None,
             "prompts": prompt_refs(),
@@ -455,6 +582,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
                 "edits_per_answer": "output-safety edit kinds per answer (finsight_output_safety_edits_total / runs)",
                 "false_attribution_rate": "answers with at least one false edit / answers",
                 "verdicts": "see the module docstring of evaluation/agent_eval/output_safety_audit.py",
+                "planted": "red-team replays only: the edit's span carries the planted payload; verdict counts and "
+                "false/over-broad answers use the other (clean) edits",
             },
         },
         "totals": totals,
