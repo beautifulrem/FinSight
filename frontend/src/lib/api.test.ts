@@ -1,4 +1,4 @@
-import { sendFeedback } from "./api";
+import { fetchSession, sendFeedback } from "./api";
 
 const body = { trace_id: "t1", session_id: "s1", rating: "up" as const, comment: null };
 
@@ -30,5 +30,26 @@ describe("sendFeedback", () => {
     vi.restoreAllMocks();
     mockFetch(500, { detail: "boom" });
     await expect(sendFeedback(body, {})).rejects.toThrow("boom");
+  });
+});
+
+describe("fetchSession", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("reads a session's turns", async () => {
+    mockFetch(200, { session_id: "s1", turns: [{ query: "q" }], pending_clarification: null });
+    await expect(fetchSession("s1", {})).resolves.toMatchObject({ turns: [{ query: "q" }] });
+  });
+
+  it("treats a 404 (no turns yet, or not this caller's) as an empty session, not an error", async () => {
+    mockFetch(404, { detail: "session not found" });
+    await expect(fetchSession("fresh", {})).resolves.toEqual({
+      session_id: "fresh",
+      turns: [],
+      pending_clarification: null,
+    });
+    vi.restoreAllMocks();
+    mockFetch(500, { detail: "boom" });
+    await expect(fetchSession("s1", {})).rejects.toThrow("boom");
   });
 });
