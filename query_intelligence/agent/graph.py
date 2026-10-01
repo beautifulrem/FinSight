@@ -87,6 +87,7 @@ from .memory import (
     resolve_difference_follow_up,
     resolve_ellipsis,
     resolve_group_reference,
+    resolve_holding_follow_up,
     resolve_industry_reference,
     session_memory,
     turn_record,
@@ -572,7 +573,8 @@ class AgentRuntime:
             nlu, carried = _set_aside_context_carry(analyze(query))
             carried_nlu = carried_nlu if carried is not None else None
             listed = listed_entities(nlu)
-        ellipsis = resolve_ellipsis(query, turns, listed)
+        # (round 12) "要是换成同样数量的中国平安呢" after a holding-value turn values the same holding of the new target
+        ellipsis = resolve_holding_follow_up(query, turns, listed) or resolve_ellipsis(query, turns, listed)
         if ellipsis is not None:
             query, reason = ellipsis
             reasons.append(reason)
@@ -1052,7 +1054,7 @@ class AgentRuntime:
 
             text = english_display(text)
         store = _store({**state, "evidence": {**(state.get("evidence") or {}), **update.get("evidence", {})}})
-        if not verify_answer({"answer": text}, store, query=state["query"], allow_derived=True).passed:
+        if not verify_answer({"answer": text}, store, query=_check_query(state), allow_derived=True).passed:
             return draft, update
         joined = f"{answer}{'' if zh else ' '}{text}".strip() if answer else text
         cited = [*draft.get("evidence_used", []), *re.findall(r"\[([^\[\]]+)\]", text)]
@@ -1142,16 +1144,16 @@ class AgentRuntime:
         report = verify_answer(
             draft,
             store,
-            query=state["query"],
+            query=_check_query(state),
             market_precedence=llm_draft,
             require_citations=True,
             allow_derived=derived,
         )
         if not report.passed and llm_draft and self.config.revise_policy == "cite_repair":
-            fixed = cite_repair(draft, report, store, query=state["query"], market_precedence=True)
+            fixed = cite_repair(draft, report, store, query=_check_query(state), market_precedence=True)
             if fixed is not None:
                 fixed_report = verify_answer(
-                    fixed, store, query=state["query"], market_precedence=True, allow_derived=derived
+                    fixed, store, query=_check_query(state), market_precedence=True, allow_derived=derived
                 )
                 if fixed_report.passed:
                     # Only citations changed: skip the LLM revision round trip.
@@ -1184,7 +1186,7 @@ class AgentRuntime:
                     frame_request=state.get("frame_request") or None,
                 )
                 if verify_answer(
-                    template, store, query=state["query"], market_precedence=False, allow_derived=True
+                    template, store, query=_check_query(state), market_precedence=False, allow_derived=True
                 ).passed:
                     fallback = template
             repaired, notes = repair_answer(draft, report, store, zh=self._zh(state), fallback=fallback)
@@ -1721,6 +1723,19 @@ def _evidence_update(results: list[ToolResult]) -> tuple[dict[str, dict[str, Any
                     flagged_any = flagged_any or flagged
             update[item.evidence_id] = dumped
     return update, flagged_any
+
+
+def _check_query(state: AgentState) -> str:
+    """The user's words the verifier reads stated numbers from. (round 12) A holding carried from an earlier turn
+    ("要是换成同样数量的中国平安呢" after "我手上有200股五粮液…") adds the carried count, which the user stated
+    there."""
+    query = str(state["query"])
+    effective = str(state.get("effective_query") or query)
+    held = holding_value_request(effective)
+    if held is None or holding_value_request(query) is not None:
+        return query
+    start, end = held[1]
+    return f"{query} {effective[start:end]}"
 
 
 def _store(state: AgentState) -> EvidenceStore:
