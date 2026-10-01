@@ -1364,7 +1364,7 @@ Failures (development set; first 25):
 
 #### `chat_heldout_r6-auto-nollm-after-exposure-round11.json`
 
-Source `evaluation/results/chat_heldout_r6-auto-nollm-after-exposure-round11.json`: commit `960432d-dirty`, run 2026-10-01T04:28:13+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+Source `evaluation/results/chat_heldout_r6-auto-nollm-after-exposure-round11.json`: commit `40e8685`, run 2026-10-01T05:43:51+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
 
 ```bash
 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r6/chat_r6_heldout.jsonl --out outputs/agent_eval/chat_r6-r11.json
@@ -1385,7 +1385,7 @@ Development set, path `auto`: 38 tasks, 61 turns. Status: independent round-6 ch
 | Hedged when required (why / judgment / advice) | 1.000 |
 | States missing data when required | – |
 | No trading instructions | 1.000 |
-| Latency P95 (ms) | 571.8 |
+| Latency P95 (ms) | 1892.6 |
 | Turn success | 0.951 |
 
 | Category | Tasks | Task success |
@@ -1407,11 +1407,11 @@ Failures (development set; first 25):
 | r6t07 | 两个比哪个交易更活跃 | facts |
 | r6t26 | What's the net-margin gap between Moutai and Ping An? | facts |
 
-* Note: independent round-6 chat slice after exposure (round 11): the round-11 engineers could read it; run at 960432d, no LLM, --no-replay
+* Note: independent round-6 chat slice after exposure (round 11): the round-11 engineers could read it; rerun from a clean tree at 40e8685, no LLM, --no-replay
 
 ### Round-7 held-out chat slice (independent author): before and after the round-11 fixes
 
-53 tasks / 129 turns written from the round-7 review's bug classes (`evaluation/heldout_r7/README.md`); run once before the round-11 fixes and once after them. The engineers never opened the slice. Three round-11 dev turns match slice turns verbatim by coincidence (tasks `r7h_gap_zh_11` and `r7h_gap_en_04`); without those two tasks the slice goes 13/51 → 43/51.
+53 tasks / 129 turns written from the round-7 review's bug classes (`evaluation/heldout_r7/README.md`); run once before the round-11 fixes and once after them. The engineers never opened the slice. Four round-11 dev turns match slice turns verbatim by coincidence (four turns in tasks `r7h_gap_zh_11`, `r7h_gap_en_04` and `r7h_gap_en_07`; found by the round-8 review); without those three tasks the slice goes 13/50 → 43/50.
 
 #### `chat_heldout_r7-auto-nollm-prefix.json`
 
@@ -1488,7 +1488,7 @@ Source `evaluation/results/chat_heldout_r7-auto-nollm-after-fix.json`: commit `9
 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r7/chat_r7_heldout.jsonl --out outputs/agent_eval/chat_r7-after.json
 ```
 
-Development set, path `auto`: 53 tasks, 129 turns. Status: independent round-7 chat slice **after the round-11 fixes**; the engineers never opened the slice (three round-11 dev turns match slice turns verbatim by coincidence).
+Development set, path `auto`: 53 tasks, 129 turns. Status: independent round-7 chat slice **after the round-11 fixes**; the engineers never opened the slice (four round-11 dev turns in three tasks match slice turns verbatim by coincidence).
 
 | Metric | Value |
 |---|---|
@@ -1529,6 +1529,7 @@ Failures (development set; first 25):
 | r7h_hk_zh_02 | 那它在香港上市的股票呢 | behavior, limitations |
 
 * Note: independent round-7 chat slice run once after the round-11 fixes (960432d), no LLM, --no-replay; the engineers never opened the slice. Three round-11 dev turns match slice turns verbatim by coincidence (二者相差几个百分点; Ping An's ROE?; And Wuliangye?) in tasks r7h_gap_zh_11 and r7h_gap_en_04; without those two tasks 43/51 = 0.843 (pre-fix 13/51).
+* Note: correction (round-8 review): the overlap is four turns in three tasks (also 'And Ping An's?' in r7h_gap_en_07); without r7h_gap_zh_11, r7h_gap_en_04 and r7h_gap_en_07 the slice goes 13/50 -> 43/50
 
 ### The no-tools LLM baseline: strict scoring vs uncited correctness
 
@@ -1563,6 +1564,7 @@ Route accuracy of `mode=auto` (refuse / clarify / workflow / agent) against labe
 | `router_eval-round10-own.json` | `router_labels_v1.jsonl` | author's own labels (tuned against) | `05f418a` | 358 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round10-own.json` |
 | `router_eval-independent_v2-round10.json` | `router_labels_independent_v2.jsonl` | **after exposure** (HEAD after round 10; first run 0.8008) | `05f418a` | 241 | 0.838 | 0.950 / 0.596 / 0.927 / 0.833 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out outputs/agent_eval/router_eval-independent_v2-round10.json` |
 | `router_eval-round11-own.json` | `router_labels_v1.jsonl` | author's own labels (tuned against) | `b7af797` | 372 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round11-own.json` |
+| `router_eval-independent_v2-round11.json` | `router_labels_independent_v2.jsonl` | **after exposure** (HEAD after round 11; first run 0.8008) | `40e8685-dirty` | 241 | 0.842 | 0.967 / 0.596 / 0.927 / 0.833 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out outputs/agent_eval/router_eval-independent_v2-round11.json` |
 
 * Note (`router_eval-independent_v2-first-run.json`): first and only run of the independent v2 labels, after the round-4 router changes; 4 of 241 queries coincidentally also appear in the project's own labels (什么是市净率, 今天北京天气怎么样, 招商银行的市盈率是多少, 比亚迪还能涨吗)
 * Note (`router_eval-round9-own.json`): Author's own router labels after round 9 at d78a556: 344 queries (round-9 labels route_332-343 added; route_343 corrected from workflow to agent at 9f12e78, the only miss at 8814b3b).
@@ -1570,6 +1572,7 @@ Route accuracy of `mode=auto` (refuse / clarify / workflow / agent) against labe
 * Note (`router_eval-round10-own.json`): Author's own router labels after round 10 at 05f418a: 358 queries (round-10 labels route_344-357 added for F5, F6, F8, F10/F11, F14 with negatives; route_313 relabelled clarify -> refuse under F14). 1.000.
 * Note (`router_eval-independent_v2-round10.json`): Independent v2 labels rerun at 05f418a after the round-10 fixes (after exposure: v2 was exposed after its first run 0.8008 at 3080bfe; round 10 did not read or tune on it). 0.8299 (8814b3b) -> 0.8382: rl2_refuse_013 and rl2_refuse_014 now right, no new errors.
 * Note (`router_eval-round11-own.json`): Author's own router labels after round 11 at b7af797: 372 queries (round-11 labels route_358-371 added for G1, G5 and G6 with negatives). 1.000.
+* Note (`router_eval-independent_v2-round11.json`): Independent v2 labels rerun at 40e8685 (clean tree) after the round-11 fixes (after exposure: v2 was exposed after its first run 0.8008 at 3080bfe)
 
 ### Claim-check benchmark
 
@@ -2392,7 +2395,7 @@ Paired comparisons (same tasks, a − b):
 | `chat_heldout_r5-auto-nollm-after-exposure.json` | run | `d78a556` | 2026-09-30T16:16:32+00:00 | – | `outputs/agent_eval/chat_r5-after-round9.json` (56b43759ed80aef3) |
 | `chat_heldout_r6-auto-nollm-prefix.json` | run | `05c4d7b` | 2026-09-30T21:57:23+00:00 | – | `outputs/agent_eval/chat_r6-prefix.json` (9ba6d76d2bbcb05f) |
 | `chat_heldout_r6-auto-nollm-after-fix.json` | run | `68279eb` | 2026-10-01T00:10:20+00:00 | – | `outputs/agent_eval/chat_r6-after.json` (360cf3b255d5d03f) |
-| `chat_heldout_r6-auto-nollm-after-exposure-round11.json` | run | `960432d-dirty` | 2026-10-01T04:28:13+00:00 | – | `outputs/agent_eval/chat_r6-r11.json` (994d4dfa8f3d2b36) |
+| `chat_heldout_r6-auto-nollm-after-exposure-round11.json` | run | `40e8685` | 2026-10-01T05:43:51+00:00 | – | `outputs/agent_eval/chat_r6-r11.json` (6f45ac95aedc12cd) |
 | `chat_heldout_r7-auto-nollm-prefix.json` | run | `12a28eb` | 2026-10-01T01:57:23+00:00 | – | `outputs/agent_eval/chat_r7-prefix.json` (a64180bc384b24e3) |
 | `chat_heldout_r7-auto-nollm-after-fix.json` | run | `960432d` | 2026-10-01T04:25:31+00:00 | – | `outputs/agent_eval/chat_r7-after.json` (ac21b24575846567) |
 | `router_eval-d78b313.json` | router_eval | `d78b313` | 2026-09-25T22:56:36+00:00 | – | written directly |
@@ -2408,6 +2411,7 @@ Paired comparisons (same tasks, a − b):
 | `router_eval-round10-own.json` | router_eval | `05f418a` | 2026-09-30T23:08:10+00:00 | – | written directly |
 | `router_eval-independent_v2-round10.json` | router_eval | `05f418a` | 2026-09-30T23:10:25+00:00 | – | written directly |
 | `router_eval-round11-own.json` | router_eval | `b7af797` | 2026-10-01T04:02:23+00:00 | – | written directly |
+| `router_eval-independent_v2-round11.json` | router_eval | `40e8685-dirty` | 2026-10-01T05:44:18+00:00 | – | written directly |
 | `claim_bench-dev-baseline.json` | claim_bench | `3da1a48` | 2026-09-28T06:30:24+00:00 | – | written directly |
 | `claim_bench-dev.json` | claim_bench | `4796e24` | 2026-10-01T02:04:45+00:00 | – | written directly |
 | `claim_bench-holdout.json` | claim_bench | `2fcb4f0` | 2026-09-28T07:14:56+00:00 | – | written directly |

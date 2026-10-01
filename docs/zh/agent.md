@@ -559,5 +559,5 @@ python -m pytest -q tests/test_web_ui.py      # 通过 Playwright 驱动无头 C
   「平安」规则只用了简短的保险和银行用语表；没有这些用语、会话中也没有标的时，按中国平安回答并注明，而不是先澄清。年初至今涨跌幅需要数据源的
   历史数据覆盖到上一年，离线快照永远达不到；PEG 需要数据源给出净利润增速，只有实时数据源有。
 - **追问补全基于规则**：覆盖代词、复数、序数和群组指代、短的省略问法、单独的「为什么」追问，以及带金融线索词的短追问；更长的转述（「回到刚才那只股票…」）和有歧义的指代会触发澄清而不是猜测。线索词表和离题任务词表是手写的：不含这些词的离题任务仍会被回答，不含线索词的无标的追问仍按原来的方式澄清或拒答。
-- **路由基于经典 NLU 之上的词汇规则**：第 4 轮的标记类别（判断、预测、分析、关系、市场标的、改变系统的指令）比作者自己的说法覆盖更广，但不属于任何类别的问题仍会进 workflow；新写的独立路由标注 v2 首次运行 0.801，第 10 轮之后 0.838（暴露后；`router_eval-independent_v2-first-run.json`、`router_eval-independent_v2-round10.json`）；v1 在修复其错误之前为 0.740。
+- **路由基于经典 NLU 之上的词汇规则**：第 4 轮的标记类别（判断、预测、分析、关系、市场标的、改变系统的指令）比作者自己的说法覆盖更广，但不属于任何类别的问题仍会进 workflow；新写的独立路由标注 v2 首次运行 0.801，第 10 轮之后 0.838、第 11 轮之后 0.842（暴露后；`router_eval-independent_v2-round11.json`；`router_eval-independent_v2-first-run.json`、`router_eval-independent_v2-round10.json`）；v1 在修复其错误之前为 0.740。
 - **英文别名覆盖有限**：包括第二轮加入的主要 A 股英文名，第 3b 轮加入的「CSI 300 index」「10-year CGB yield」「baijiu」「insurers」（`data/synonym_dict.json` 和别名表），以及 `data/runtime/alias_table.csv` 中已有的条目。以「Did the whole baijiu sector fall too?」开场的对话现在按查数路由（行业算作市场标的），但 NLU 在识别出行业之前就拒识了它，规划器拿不到行业实体；在讨论白酒股的对话中则会用行业快照回答。

@@ -373,6 +373,7 @@
   "slimmed_at": "2026-10-01T04:26:50+00:00"
  },
  "notes": [
-  "independent round-7 chat slice run once after the round-11 fixes (960432d), no LLM, --no-replay; the engineers never opened the slice. Three round-11 dev turns match slice turns verbatim by coincidence (二者相差几个百分点; Ping An's ROE?; And Wuliangye?) in tasks r7h_gap_zh_11 and r7h_gap_en_04; without those two tasks 43/51 = 0.843 (pre-fix 13/51)."
+  "independent round-7 chat slice run once after the round-11 fixes (960432d), no LLM, --no-replay; the engineers never opened the slice. Three round-11 dev turns match slice turns verbatim by coincidence (二者相差几个百分点; Ping An's ROE?; And Wuliangye?) in tasks r7h_gap_zh_11 and r7h_gap_en_04; without those two tasks 43/51 = 0.843 (pre-fix 13/51).",
+  "correction (round-8 review): the overlap is four turns in three tasks (also 'And Ping An's?' in r7h_gap_en_07); without r7h_gap_zh_11, r7h_gap_en_04 and r7h_gap_en_07 the slice goes 13/50 -> 43/50"
  ]
 }

@@ -147,6 +147,7 @@ ROUTER_RUNS = (
     "router_eval-round10-own",
     "router_eval-independent_v2-round10",
     "router_eval-round11-own",
+    "router_eval-independent_v2-round11",
 )
 CLAIM_BENCH_RUNS = (
     "claim_bench-dev-baseline",
@@ -250,6 +251,7 @@ FILE_STATUS = {
     "router_eval-independent_v2-round9": "**after exposure** (HEAD after round 9; first run 0.8008)",
     "router_eval-round10-own": "author's own labels (tuned against)",
     "router_eval-independent_v2-round10": "**after exposure** (HEAD after round 10; first run 0.8008)",
+    "router_eval-independent_v2-round11": "**after exposure** (HEAD after round 11; first run 0.8008)",
     "router_eval-round11-own": "author's own labels (tuned against)",
     "chat_heldout_r5-auto-nollm-first-run": "**first run** of the independent round-5 held-out chat slice",
     "chat_heldout_r5-auto-nollm-after-exposure": "**after exposure** (round 9 fixed the classes its first run showed)",
@@ -286,7 +288,7 @@ FILE_STATUS = {
     "11)**: the round-11 engineers could read the slice, so it is no longer out of sample",
     "chat_heldout_r7-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-7 chat slice",
     "chat_heldout_r7-auto-nollm-after-fix": "independent round-7 chat slice **after the round-11 fixes**; the "
-    "engineers never opened the slice (three round-11 dev turns match slice turns verbatim by coincidence)",
+    "engineers never opened the slice (four round-11 dev turns in three tasks match slice turns verbatim by coincidence)",
     "ablation-ab-prompt-v3-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
     "ablation-ab-prompt-v4-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
     "ablation-v4default-testv3": "test v3 after it was used to choose the prompt: a check of the shipped prompt, "
@@ -1427,9 +1429,10 @@ def render_with_sources() -> tuple[str, list[str]]:
             "### Round-7 held-out chat slice (independent author): before and after the round-11 fixes",
             "",
             "53 tasks / 129 turns written from the round-7 review's bug classes (`evaluation/heldout_r7/README.md`); "
-            "run once before the round-11 fixes and once after them. The engineers never opened the slice. Three "
-            "round-11 dev turns match slice turns verbatim by coincidence (tasks `r7h_gap_zh_11` and "
-            "`r7h_gap_en_04`); without those two tasks the slice goes 13/51 → 43/51.",
+            "run once before the round-11 fixes and once after them. The engineers never opened the slice. Four "
+            "round-11 dev turns match slice turns verbatim by coincidence (four turns in tasks `r7h_gap_zh_11`, "
+            "`r7h_gap_en_04` and `r7h_gap_en_07`; found by the round-8 review); without those three tasks the slice "
+            "goes 13/50 → 43/50.",
             "",
         ]
         for name, result in heldout_r7:
