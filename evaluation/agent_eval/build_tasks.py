@@ -3038,6 +3038,199 @@ def _round12_tasks() -> list[dict[str, Any]]:
                 _turn("what about its Hong Kong listing?", behavior="refuse", required_limitations=["out_of_coverage"]),
             ],
         ),
+        # round-8 review H1 / H2 / H11: the comparison parser, one-message comparisons, longer gap questions
+        _task(
+            "r12_h1_more_traded_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("贵州茅台成交额多少", required_facts=[price(mt, 3793827534)]),
+                _turn("那中国平安的成交额呢", required_entity=pa),
+                _turn("后者比前者多成交了多少钱", required_facts=[price(pa, 2846172466)]),
+            ],
+        ),
+        _task(
+            "r12_h1_ratio_of_both_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("五粮液的净资产收益率是几", required_entity=wly),
+                _turn("换成平安看看呢", required_entity=pa),
+                _turn("两者之比大概是多少", required_facts=[fundamental(wly, 1.93)]),
+            ],
+        ),
+        _task(
+            "r12_h1_over_n_times_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("Ping An P/B?", required_entity=pa),
+                _turn("Kweichow Moutai?", required_entity=mt, required_facts=[fundamental(mt, 8.1)]),
+                _turn("Is the latter over 5x the former?", required_facts=[fundamental(mt, 7.36)]),
+            ],
+        ),
+        _task(
+            "r12_h1_times_apart_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("茅台的市盈率", required_entity=mt),
+                _turn("平安呢", required_entity=pa),
+                _turn("市盈率差了多少倍", required_facts=[fundamental(mt, 2.83)]),
+            ],
+        ),
+        _task(
+            "r12_h2_relative_one_message_zh",
+            "comparison",
+            "zh",
+            [_turn("中国平安的ROE比五粮液低百分之多少", required_facts=[fundamental(pa, 48.3)])],
+        ),
+        _task(
+            "r12_h2_percentage_above_en",
+            "comparison",
+            "en",
+            [_turn("By what percentage is Moutai's ROE above Wuliangye's?", required_facts=[fundamental(mt, 12.24)])],
+        ),
+        _task(
+            "r12_h2_lower_by_how_much_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Which of Ping An and Moutai has the lower P/E, and by how much?",
+                    required_facts=[fundamental(mt, 15.9)],
+                    forbidden_patterns=no_judgment_hedge,
+                )
+            ],
+        ),
+        _task(
+            "r12_h2_vs_industry_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "五粮液的市盈率比白酒行业平均低百分之多少",
+                    required_facts=[{"evidence_id": "industry_白酒", "value": 23.44}],
+                )
+            ],
+        ),
+        _task(
+            "r12_h2_two_sectors_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "保险板块和白酒板块的平均市净率差多少",
+                    required_facts=[{"evidence_id": "industry_白酒", "value": 4.75}],
+                )
+            ],
+        ),
+        _task(
+            "r12_h11_metric_switch_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("五粮液的市盈率", required_entity=wly),
+                _turn("茅台那边呢", required_entity=mt),
+                _turn("那ROE呢", required_facts=[fundamental(mt, 33)]),
+                _turn("差几个点", required_facts=[fundamental(mt, 3.6)]),
+            ],
+        ),
+        _task(
+            "r12_h11_longer_question_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("Moutai P/B?", required_entity=mt),
+                _turn("and the baijiu sector?", required_facts=[{"evidence_id": "industry_白酒", "value": 6.2}]),
+                _turn(
+                    "what's the premium in percent? I heard Moutai trades far above its peers",
+                    required_facts=[{"evidence_id": "industry_白酒", "value": 30.65}],
+                ),
+            ],
+        ),
+        # round-8 review H4: holdings with a carried target, lots, fund units, English word orders
+        _task(
+            "r12_h4_carried_target_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("茅台收盘价多少", required_entity=mt),
+                _turn(
+                    "我手上有80股，合计值多少钱",
+                    required_facts=[price(mt, 112760)],
+                    forbidden_patterns=no_fair_value_hedge,
+                ),
+            ],
+        ),
+        _task(
+            "r12_h4_lots_zh",
+            "derived",
+            "zh",
+            [_turn("我有4手五粮液，按收盘价值多少", required_facts=[price(wly, 40256)])],
+        ),
+        _task(
+            "r12_h4_fund_units_market_value_zh",
+            "derived",
+            "zh",
+            [
+                _turn(
+                    "持有两万份证券ETF，市值多少",
+                    required_facts=[price(broker, 20420)],
+                    forbidden_patterns=no_fair_value_hedge,
+                )
+            ],
+        ),
+        _task(
+            "r12_h4_name_before_shares_en",
+            "derived",
+            "en",
+            [
+                _turn(
+                    "I have 150 Ping An shares; what's my position worth at the last close?",
+                    required_facts=[price(pa, 8041.5)],
+                    forbidden_patterns=no_fair_value_hedge,
+                )
+            ],
+        ),
+        # round-8 review H5: a named company's Hong Kong line
+        _task(
+            "r12_h5_named_hk_line_zh",
+            "out_of_coverage",
+            "zh",
+            [_turn("招商银行港股今天的收盘价", behavior="refuse", required_limitations=["out_of_coverage"])],
+        ),
+        _task(
+            "r12_h5_named_hk_price_en",
+            "out_of_coverage",
+            "en",
+            [
+                _turn(
+                    "What's China Merchants Bank's Hong Kong share price?",
+                    behavior="refuse",
+                    required_limitations=["out_of_coverage"],
+                )
+            ],
+        ),
+        # round-8 review H9: metric aspects
+        _task(
+            "r12_h9_turnover_rate_missing_zh",
+            "derived",
+            "zh",
+            [_turn("五粮液的换手率", must_state_missing=True, required_entity=wly)],
+        ),
+        _task(
+            "r12_h9_colloquial_eps_zh",
+            "derived",
+            "zh",
+            [_turn("中国平安每股能赚几块钱", required_facts=[price(pa, 6.16), fundamental(pa, 6.16)])],
+        ),
+        _task(
+            "r12_h9_colloquial_margin_zh",
+            "derived",
+            "zh",
+            [_turn("五粮液一年赚的钱占收入多大比例", required_facts=[fundamental(wly, 34.84)])],
+        ),
     ]
 
 
