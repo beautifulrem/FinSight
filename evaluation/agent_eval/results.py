@@ -227,6 +227,9 @@ def slim_faults(report: dict[str, Any]) -> dict[str, Any]:
 
 
 def slim(report: dict[str, Any]) -> dict[str, Any]:
+    if report.get("kind") == "output_safety_audit":
+        # the counts, per-set tables and samples; the per-edit list stays in outputs/
+        return {key: value for key, value in report.items() if key != "units"}
     if "results" in report and "config" in report:
         return slim_ablation(report)
     if "paths" in report:
