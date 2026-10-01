@@ -485,9 +485,12 @@ def resolve_frame_question(
     if _INDUSTRY_WORDS.search(text) and len(named) < 2 and not any(i.get("kind") == "industry" for i in operands):
         # "比行业便宜百分之几": the latest target against its own industry average
         targets = [item for item in operands if item.get("kind") != "industry"]
-        if targets:
-            member = targets[-1]
-            operands = [member, {"kind": "industry", "member": member.get("symbol")}]
+        if len(targets) != 1:
+            # "Which of the two is cheaper relative to its own industry?": each target against its own industry is
+            # not one comparison of two operands; the comparison path answers it
+            return None
+        member = targets[0]
+        operands = [member, {"kind": "industry", "member": member.get("symbol")}]
     metric = named_metric or frame.get("metric")
     if not metric or len(operands) < 2:
         return None

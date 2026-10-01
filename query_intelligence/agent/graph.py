@@ -125,6 +125,8 @@ if TYPE_CHECKING:
     from ..service import QueryIntelligenceService
 
 _MARKET_SOURCE_TYPES = {"market_api"}
+# Tools a comparison-frame question keeps from the planner (the operands' data; no documents or sentiment).
+_FRAME_PLAN_TOOLS = {"get_price_history", "get_fundamentals", "compute_indicators"}
 # A comparison with a sector or the market is not a comparison with an earlier target.
 _MARKET_SCOPE = re.compile(
     r"行业|板块|同行|同业|大盘|市场|\bsector\b|\bindustry\b|\bpeers?\b|\bmarket\b", re.IGNORECASE
@@ -796,11 +798,16 @@ class AgentRuntime:
     def _plan(self, state: AgentState) -> Plan:
         """The deterministic plan; a 今天/今日/today price question asks for the intraday quote when live data is on."""
         plan = plan_from_nlu(state.get("nlu") or {})
-        for tool, arguments in frame_calls(state.get("frame_request") or {}):
-            # (round 11) every operand of a frame question is fetched, whatever the rewritten question's NLU found
-            target = arguments["target"]
-            if not any(call.tool == tool and call.arguments.get("target") == target for call in plan.calls):
-                plan.calls.append(PlannedCall(tool=tool, arguments=arguments, reason="comparison frame operand"))
+        framed = frame_calls(state.get("frame_request") or {})
+        if framed:
+            # (round 11) a frame question fetches every operand, whatever the rewritten wording's NLU found, and no
+            # documents: a knowledge search for "…ETF的涨跌幅，哪个涨得多" answers nothing the comparison asks
+            calls = [call for call in plan.calls if call.tool in _FRAME_PLAN_TOOLS]
+            for tool, arguments in framed:
+                target = arguments["target"]
+                if not any(call.tool == tool and call.arguments.get("target") == target for call in calls):
+                    calls.append(PlannedCall(tool=tool, arguments=arguments, reason="comparison frame operand"))
+            plan = plan.model_copy(update={"calls": calls})
         query = f"{state.get('query') or ''} {state.get('effective_query') or ''}"
         if self.intraday_quotes and asks_about_today(query):
             for call in plan.calls:
