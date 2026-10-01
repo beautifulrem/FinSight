@@ -30,7 +30,9 @@ relay what it says. This layer looks at the answer sentence by sentence, togethe
      company's structured fundamentals confirm when the run did not fetch them (a news question quoting the annual
      report), looked up once through ``corroborate``
    is attributed with the layer's own marker, whatever the model wrote: "据一篇文档称，…（未经其他来源证实）" / "…
-   (according to one document; not confirmed by other sources)". A sentence that already says the claim is
+   (according to one document; not confirmed by other sources)". (round 11, G7) When only some clauses of a sentence
+   state single-document figures and its other figures are confirmed ("营业收入1688.38亿元，同比下降1.21%" with the
+   revenue in the fundamentals), the marker "（据一篇文档，未经其他来源证实）" follows each such clause instead. A sentence that already says the claim is
    unverified is left as it is; one that only names its source ("媒体报道称…") gets the suffix. A fundamental or
    amount that contradicts the run's structured data for the same metric (and period and company, where stated) is
    dropped with a note (the verifier flags the same conflict on LLM drafts, so this is the net for template answers
@@ -74,6 +76,9 @@ NOTE_CONFLICT_EN = "A document stated a financial figure that contradicts the fu
 ATTRIBUTION_PREFIX_ZH = "据一篇文档称，"
 ATTRIBUTION_SUFFIX_ZH = "（未经其他来源证实）"
 ATTRIBUTION_SUFFIX_EN = " (according to one document; not confirmed by other sources)"
+# (round 11, G7) the marker after one clause of a sentence whose other figures are confirmed
+ATTRIBUTION_CLAUSE_ZH = "（据一篇文档，未经其他来源证实）"
+ATTRIBUTION_CLAUSE_EN = " (according to one document; not confirmed by other sources)"
 LIMITATION_DISAGREE_ZH = "不同文档对同一财务指标给出的数值不一致，相关数值仅作为文档说法列出。"
 LIMITATION_DISAGREE_EN = "Documents disagree on the same financial metric; those figures are reported only as claims."
 
@@ -334,9 +339,15 @@ class _Context:
                 attribute = True
         if not attribute and (document_only or not cited):
             attribute = self._uncorroborated_regulatory_claim(sentence, cites_document=document_only)
-        if not attribute and (doc_ids or not cited):
+        if not attribute and (doc_ids or not cited) and not states_unverified(sentence):
             # a sentence citing only structured evidence states FinSight's own figures (the verifier checks them)
-            attribute = self._single_document_figure(sentence)
+            flagged, figure_clauses = self._single_document_clauses(sentence)
+            if flagged and len(flagged) < figure_clauses:
+                # (round 11, G7) other figures of the sentence are confirmed: mark the clauses, not the sentence
+                self.notes.add("attributed_document_claim")
+                return "rewrite", self._attribute_clauses(sentence, flagged)
+            # no clause flagged on its own (a figure split across clauses): the sentence-level rule still applies
+            attribute = bool(flagged) or self._single_document_figure(sentence)
         if attribute and not states_unverified(sentence):
             self.notes.add("attributed_document_claim")
             return "rewrite", self._attribute(sentence)
@@ -429,6 +440,39 @@ class _Context:
         if not contexts and not cites_document:
             return False
         return len(contexts) < 2
+
+    def _single_document_clauses(self, sentence: str) -> tuple[list[tuple[int, int]], int]:
+        """(round 11, G7) The clauses of ``sentence`` that state a single-document figure (``_single_document_figure``),
+        as spans, and the number of clauses that state any figure. "营业收入1688.38亿元，同比下降1.21%" with the revenue
+        in the fundamentals and the YoY in one news item flags the second clause only, so the marker sits on the
+        YoY and not on the corroborated revenue."""
+        flagged: list[tuple[int, int]] = []
+        figure_clauses = 0
+        for start, end in _clause_spans(sentence):
+            clause = sentence[start:end]
+            if not unit_figures(clause):
+                continue
+            figure_clauses += 1
+            if self._single_document_figure(clause):
+                flagged.append((start, end))
+        return flagged, figure_clauses
+
+    def _attribute_clauses(self, sentence: str, spans: list[tuple[int, int]]) -> str:
+        """The layer's marker right after each flagged clause (before the sentence's citations and terminator)."""
+        tail = _SENTENCE_TAIL.search(sentence)
+        body_end = tail.start() if tail else len(sentence)
+        marker = ATTRIBUTION_CLAUSE_ZH if self.zh else ATTRIBUTION_CLAUSE_EN
+        out, cursor = [], 0
+        for start, end in spans:
+            end = min(end, body_end)
+            while end > start and sentence[end - 1] in " \t":
+                end -= 1
+            if states_unverified(sentence[start:end]):
+                continue
+            out.append(sentence[cursor:end] + marker)
+            cursor = end
+        out.append(sentence[cursor:])
+        return "".join(out)
 
     def _single_document_figure(self, sentence: str) -> bool:
         """(round 9, E3) The sentence states a figure (a number with a unit: percent, 亿/万/元, 倍, 点, bn, yuan …)
@@ -675,6 +719,19 @@ def structured_numbers(store: EvidenceStore) -> list[tuple[float, bool]]:
         if item.kind == "structured":
             _collect_numbers(item.payload, values)
     return [(value, False) for value in values]
+
+
+# (round 11, G7) clause breaks inside a sentence; an ASCII comma between digits ("1,688.38") is a thousands separator
+_CLAUSE_BREAK = re.compile(r"[，；;]|,(?!\d{3})")
+
+
+def _clause_spans(sentence: str) -> list[tuple[int, int]]:
+    spans, start = [], 0
+    for match in _CLAUSE_BREAK.finditer(sentence):
+        spans.append((start, match.start()))
+        start = match.end()
+    spans.append((start, len(sentence)))
+    return spans
 
 
 def _sentence_key(sentence: str) -> str:
