@@ -347,11 +347,17 @@ def compose_user_message(
     return json.dumps(payload, ensure_ascii=False, default=str, sort_keys=True)
 
 
-def prefetch_message(entries: list[dict[str, Any]]) -> str:
+# (round 12, H7) the last thing the model reads before answering an English question; tool results and the resolved
+# question are mostly Chinese, and DeepSeek answered "And Moutai?" in Chinese with the language stated only up front
+ENGLISH_REMINDER = "Reminder: write the final answer, key points and limitations in English."
+
+
+def prefetch_message(entries: list[dict[str, Any]], *, language: str = "zh") -> str:
     """Tool results fetched by the deterministic planner before the first LLM call (``planner_prefetch``).
 
     Sent as a user message after the question, so the cached prefix (system prompt, tools, history) is
     unchanged. Each ``content`` is already wrapped as untrusted tool output by ``tool_message_content``.
+    For an English question the message ends with ``ENGLISH_REMINDER``.
     """
     blocks = []
     for entry in entries:
@@ -362,7 +368,9 @@ def prefetch_message(entries: list[dict[str, Any]]) -> str:
     return (
         "These tool calls were already made for this question (same evidence ids and rules as tool results you "
         "request yourself; do not repeat them). If they cover the question, answer now without tool calls; "
-        "otherwise call only the tools for what is still missing.\n" + "\n".join(blocks)
+        "otherwise call only the tools for what is still missing.\n"
+        + "\n".join(blocks)
+        + ("" if language == "zh" else "\n" + ENGLISH_REMINDER)
     )
 
 
