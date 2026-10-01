@@ -34,7 +34,12 @@ from typing import TYPE_CHECKING, Any
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-from ..chat.language import detect_user_language, persistent_answer_language, requested_answer_language
+from ..chat.language import (
+    detect_user_language,
+    persistent_answer_language,
+    requested_answer_language,
+    session_answer_language,
+)
 from ..integrations.intraday import asks_about_today
 from .compliance import apply_compliance, language_violation
 from .composer import (
@@ -301,7 +306,15 @@ class AgentRuntime:
             query = re.sub(r"\s+", " ", cleaned.replace(REDACTION_MARKER, " ")).strip(" ,，.。:：") or query
         # Answers and refusals use the language of the user's own words, not of injected markup or an encoded blob.
         own_words = query if injected and query.strip() else state["query"]
-        natural_language = language = detect_user_language(own_words)
+        natural_language = detect_user_language(own_words)
+        # (round 12, H7) a follow-up with no language signal of its own ("PE?", "Moutai?") keeps the language the
+        # conversation's last turn was answered in
+        previous_turn = turns[-1] if turns else {}
+        previous_language = str(
+            previous_turn.get("language")
+            or (detect_user_language(str(previous_turn.get("query") or "")) if previous_turn.get("query") else "")
+        )
+        language = session_answer_language(own_words, previous_language or None)
         # "继续用英文" / "keep answering in English" holds for later turns until another such instruction; a one-off
         # "请用英文回答：…" or a question's own language applies to its turn only.
         persisted = str((turns[-1] if turns else {}).get("answer_language") or "")
@@ -930,6 +943,7 @@ class AgentRuntime:
                         state.get("nlu") or {},
                         language="zh" if zh else "en",
                         memory=memory,
+                        user_words=state["query"],
                     ),
                 },
             ]

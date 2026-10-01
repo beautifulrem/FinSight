@@ -128,6 +128,30 @@ def detect_user_language(text: str) -> str:
     return detect_query_language(stripped)
 
 
+_LATIN_WORD = re.compile(r"[A-Za-z]+(?:['’][A-Za-z]+)?")
+
+
+def has_language_signal(text: str) -> bool:
+    """False for a message that does not show which language the user writes in: no Chinese characters and at
+    most one Latin word besides acronyms and tickers ("PE?", "600519.SH", "Moutai?", "why?"). (round 12, H7) Such
+    a short follow-up keeps the conversation's answer language; "And Moutai?" (two words) is English and "茅台呢"
+    Chinese, whatever the session."""
+    stripped = text or ""
+    for pattern in _NON_LANGUAGE:
+        stripped = pattern.sub(" ", stripped)
+    if re.search(r"[一-鿿]", stripped) or requested_answer_language(stripped):
+        return True
+    return len(_LATIN_WORD.findall(_ACRONYM.sub(" ", stripped))) > 1
+
+
+def session_answer_language(text: str, previous: str | None) -> str:
+    """The answer language of a turn: the language of the user's own words, or ``previous`` (the language of the
+    conversation's last turn, ``"zh"``/``"en"``) when the message carries no language signal."""
+    if previous in {"zh", "en"} and not has_language_signal(text):
+        return previous
+    return detect_user_language(text)
+
+
 def _target_language_name(language: str) -> str:
     return "Chinese" if language == "zh" else "English"
 
