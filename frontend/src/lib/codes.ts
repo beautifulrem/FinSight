@@ -152,6 +152,45 @@ const EXACT: Record<string, Text> = {
     zh: "含金融关键词，改判为金融问题",
     en: "Finance keyword: treated as a finance question",
   },
+  // Router and graph route reasons (round 12, H14): every exact code `guard_in` can emit has a label.
+  request_without_object: { zh: "只有请求，没有说明对象", en: "A request without an object" },
+  "no_target:recommendation": { zh: "要求推荐，但没有指明范围", en: "Asked for picks without naming a target" },
+  "no_target:advice": { zh: "判断或择时问题，但没有指明证券", en: "Judgment or timing question without a security" },
+  "lexical:forecast": { zh: "含预测用语", en: "Forecast wording" },
+  "lexical:analysis_request": { zh: "请求分析", en: "Asks for an analysis" },
+  "concept:definition": { zh: "概念或公式问题", en: "Concept or formula question" },
+  "override:why_style_without_causal_cue": {
+    zh: "没有因果用语，按事实查询处理",
+    en: "No causal wording: treated as a fact lookup",
+  },
+  "override:out_of_scope_sector_of_discussed_target": {
+    zh: "问的是正在讨论的标的所属行业，按金融问题处理",
+    en: "Sector of the security under discussion: treated as a finance question",
+  },
+  session_memory_over_nlu_context_carry: { zh: "按会话记忆确定标的", en: "Target taken from the session's memory" },
+  holding_value: { zh: "计算持仓市值", en: "Holding value calculation" },
+  system_change_request: { zh: "要求更改系统设定（已拒绝）", en: "Asked to change the system setup (refused)" },
+  ellipsis_without_antecedent: {
+    zh: "省略式提问，但没有上文可以补全",
+    en: "Shortened question with no earlier turn to complete it",
+  },
+  difference_without_comparison: {
+    zh: "问差多少，但没有可比较的对象或指标",
+    en: "Asked for a gap with no comparison to compute it from",
+  },
+  group_reference_incomplete: {
+    zh: "指代的对象比上文讨论的多，需要澄清",
+    en: "Referred to more targets than were discussed; asked to clarify",
+  },
+  "input_guard:prediction_without_target": {
+    zh: "移除注入指令后，只剩没有标的的预测请求",
+    en: "Without the injected text, only a prediction request with no target was left",
+  },
+  "model_policy:composition_for_slow_model": {
+    zh: "慢速推理模型：改用固定流程，由 LLM 撰写回答",
+    en: "Slow reasoning model: used the workflow with an LLM-written answer",
+  },
+  "frame:style_compare": { zh: "按对比计算处理", en: "Treated as a computed comparison" },
   // Degraded
   "verification_failed:repaired": { zh: "核验未通过，已自动修复回答", en: "Verification failed; answer repaired" },
   "no_llm_configured:agent_route_downgraded_to_workflow": {
@@ -226,6 +265,14 @@ const aspects = (value: string, separator: string) => value.split("+").filter(Bo
  * text (a security name, the carried-over question, the pronoun that was resolved).
  */
 const REWRITES: [RegExp, (m: RegExpExecArray) => Text][] = [
+  [
+    // "2024年的呢" after "茅台的营收": the target and the aspect both come from the last turn (memory.py)
+    /^ellipsis:target->(.+?)\+aspect->(.+)$/,
+    (m) => ({
+      zh: `沿用上一轮的标的 ${m[1]} 和问题：${aspects(m[2]!, "、")}`,
+      en: `Kept the security (${m[1]}) and the question (${aspects(m[2]!, ", ")}) from the last turn`,
+    }),
+  ],
   [/^ellipsis:target->(.+)$/, (m) => ({ zh: `沿用上一轮的标的 ${m[1]}`, en: `Kept the security from the last turn: ${m[1]}` })],
   [
     /^ellipsis:aspect->(.+)$/,
@@ -241,6 +288,200 @@ const REWRITES: [RegExp, (m: RegExpExecArray) => Text][] = [
     (m) => ({ zh: `忽略了模糊匹配到的概念“${m[1]}”`, en: `Ignored the loosely matched concept “${m[1]}”` }),
   ],
 ];
+
+/** Joins names: "A、B" in Chinese, "A and B" / "A, B and C" in English. */
+function joinNames(lang: Lang, items: string[]): string {
+  if (lang === "zh") return items.join("、");
+  if (items.length <= 2) return items.join(" and ");
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+/** A frame operand: a security name, "保险行业平均" (an industry average) or "所属行业平均" (its own industry's). */
+function operandName(lang: Lang, operand: string): string {
+  if (lang === "zh") return operand;
+  if (operand === "所属行业平均") return "its industry average";
+  const industry = /^(.+)行业平均$/.exec(operand);
+  return industry ? `${industry[1]} industry average` : operand;
+}
+
+/** The comparison frame's metric keys (agent/frame.py `FRAME_METRICS`), short enough for a chip. */
+const FRAME_METRICS: Record<string, Text> = {
+  net_margin: { zh: "净利率", en: "net margin" },
+  gross_margin: { zh: "毛利率", en: "gross margin" },
+  roe: { zh: "ROE", en: "ROE" },
+  pe: { zh: "市盈率", en: "P/E" },
+  pb: { zh: "市净率", en: "P/B" },
+  eps: { zh: "每股收益", en: "EPS" },
+  dividend_yield: { zh: "股息率", en: "dividend yield" },
+  market_cap: { zh: "总市值", en: "market cap" },
+  revenue: { zh: "营业收入", en: "revenue" },
+  net_profit: { zh: "净利润", en: "net profit" },
+  pct_change: { zh: "涨跌幅", en: "price change" },
+  amount: { zh: "成交额", en: "turnover" },
+  volume: { zh: "成交量", en: "volume" },
+  close: { zh: "收盘价", en: "close" },
+};
+
+function frameMetric(lang: Lang, key: string): string {
+  return FRAME_METRICS[key]?.[lang] ?? METRICS[key]?.[lang] ?? prettify(key);
+}
+
+/** `frame:{operation}:{metric}:{A|B…}` (agent/frame.py `resolve_frame_question`): the computed comparison. */
+function frameLabel(lang: Lang, operation: string, metric: string, operands: string): string | null {
+  const names = operands.split("|").filter(Boolean).map((name) => operandName(lang, name));
+  const what = frameMetric(lang, metric);
+  const [a = "", b = ""] = names;
+  switch (operation) {
+    case "difference":
+      return lang === "zh" ? `计算${what}差值：${a} 对比 ${b}` : `Computed the ${what} gap: ${a} vs ${b}`;
+    case "ratio":
+      return lang === "zh" ? `计算${what}比值：${a} ÷ ${b}` : `Computed the ${what} ratio: ${a} ÷ ${b}`;
+    case "relative":
+      return lang === "zh" ? `计算${what}相对差：${a} 相对 ${b}` : `Computed the relative ${what} gap: ${a} vs ${b}`;
+    case "which":
+      return lang === "zh"
+        ? `比较${what}高低：${joinNames(lang, names)}`
+        : `Compared which ${what} is higher: ${joinNames(lang, names)}`;
+    default:
+      return null;
+  }
+}
+
+const OFF_TOPIC: Record<string, Text> = {
+  coding: { zh: "编程", en: "coding" },
+  translation: { zh: "翻译", en: "translation" },
+  travel: { zh: "旅行", en: "travel" },
+  weather: { zh: "天气", en: "weather" },
+  writing: { zh: "写作", en: "writing" },
+  entertainment: { zh: "娱乐", en: "entertainment" },
+};
+
+const LANGUAGES: Record<string, Text> = { zh: { zh: "中文", en: "Chinese" }, en: { zh: "英文", en: "English" } };
+
+/** Session references and frame / alias reasons (agent/memory.py, agent/graph.py, agent/router.py). */
+const SESSION: [RegExp, (m: RegExpExecArray, lang: Lang) => string][] = [
+  [
+    /^frame:dropped_non_operand:(.+)$/,
+    (m, lang) => (lang === "zh" ? `忽略了不在比较对象中的 ${m[1]}` : `Dropped ${m[1]}: not one of the compared targets`),
+  ],
+  [
+    /^frame:([a-z_]+):([a-z_0-9]+):(.+)$/,
+    (m, lang) => frameLabel(lang, m[1]!, m[2]!, m[3]!) ?? formatUnknown(lang, m.input),
+  ],
+  [
+    /^group_reference_count_mismatch:(.+?)->(.+)$/,
+    (m, lang) =>
+      lang === "zh" ? `“${m[1]}”指三个对象，但上文只讨论了 ${m[2]}` : `“${m[1]}” means three, but only ${m[2]} were discussed`,
+  ],
+  [
+    /^group_reference:which->(.+)$/,
+    (m, lang) => (lang === "zh" ? `“哪家”指上文的 ${m[1]}` : `“Which” refers to ${m[1]} from earlier turns`),
+  ],
+  [/^group_reference:(.+?)->(.+)$/, (m, lang) => (lang === "zh" ? `将“${m[1]}”理解为 ${m[2]}` : `Read “${m[1]}” as ${m[2]}`)],
+  [
+    /^industry_reference:(.+?)->(.+)$/,
+    (m, lang) => (lang === "zh" ? `将“${m[1]}”理解为${m[2]}行业` : `Read “${m[1]}” as the ${m[2]} industry`),
+  ],
+  [
+    /^(difference|comparison)_follow_up:(.+?)(?:\+aspect->(.+))?$/,
+    (m, lang) => {
+      const gap = m[1] === "difference";
+      const aspect = m[3] ? aspects(m[3], lang === "zh" ? "、" : ", ") : "";
+      if (lang === "zh") return `${gap ? "接上一轮的比较计算差值" : "接上一轮的比较"}：${m[2]}${aspect ? `（${aspect}）` : ""}`;
+      return `${gap ? "Gap follow-up on" : "Follow-up on"} the last comparison: ${m[2]}${aspect ? ` (${aspect})` : ""}`;
+    },
+  ],
+  [
+    /^comparison_anchor:\+(.+)$/,
+    (m, lang) => (lang === "zh" ? `比较时加入上文的 ${m[1]}` : `Added ${m[1]} from earlier turns to the comparison`),
+  ],
+  [
+    /^session_inherit:target->(.+)$/,
+    (m, lang) => (lang === "zh" ? `沿用会话中的标的 ${m[1]}` : `Kept the conversation's security: ${m[1]}`),
+  ],
+  [
+    /^session_inherit:macro->(.+)$/,
+    (m, lang) => (lang === "zh" ? `沿用会话中的宏观主题 ${m[1]}` : `Kept the conversation's macro topic: ${m[1]}`),
+  ],
+  [
+    /^session_disambiguation:(.+?)->(.+)$/,
+    (m, lang) =>
+      lang === "zh" ? `按正在讨论的标的，将“${m[1]}”理解为 ${m[2]}` : `Read “${m[1]}” as ${m[2]}, the security under discussion`,
+  ],
+  [
+    /^session_language:(zh|en)$/,
+    (m, lang) =>
+      lang === "zh" ? `沿用会话指定的回答语言：${LANGUAGES[m[1]!]!.zh}` : `Kept the session's answer language: ${LANGUAGES[m[1]!]!.en}`,
+  ],
+  [
+    /^alias_context:(.+?)->(.+)$/,
+    (m, lang) => (lang === "zh" ? `按问题中的行业用语，将“${m[1]}”理解为 ${m[2]}` : `Read “${m[1]}” as ${m[2]} from the industry wording`),
+  ],
+  [
+    /^alias_default:(.+?)->([^|]+)(?:\|(.+))?$/,
+    (m, lang) => {
+      const others = (m[3] ?? "").split("/").filter(Boolean);
+      if (lang === "zh") return `“${m[1]}”默认理解为 ${m[2]}${others.length ? `（也可能指 ${others.join("、")}）` : ""}`;
+      return `Read “${m[1]}” as ${m[2]} by default${others.length ? ` (could also be ${joinNames(lang, others)})` : ""}`;
+    },
+  ],
+  [
+    /^sector_member:(.+?)->(.+)$/,
+    (m, lang) => (lang === "zh" ? `${m[1]}行业的问题，保留正在讨论的 ${m[2]}` : `Sector question (${m[1]}): kept ${m[2]} in scope`),
+  ],
+  [
+    /^off_topic_request:(.+)$/,
+    (m, lang) => {
+      const kind = OFF_TOPIC[m[1]!]?.[lang] ?? prettify(m[1]!).toLowerCase();
+      return lang === "zh" ? `不是投研问题（${kind}），已拒答` : `Not a research question (${kind}); refused`;
+    },
+  ],
+  [/^concept:glossary:(.+)$/, (m, lang) => (lang === "zh" ? `术语解释：${m[1]}` : `Glossary term: ${m[1]}`)],
+  [
+    /^override:out_of_scope_glossary_concept:(.+)$/,
+    (m, lang) => (lang === "zh" ? `金融术语“${m[1]}”，按金融问题处理` : `Finance term “${m[1]}”: treated as a finance question`),
+  ],
+  [/^dropped_generic_noun:(.+)$/, (m, lang) => (lang === "zh" ? `忽略了泛称“${m[1]}”` : `Ignored the generic word “${m[1]}”`)],
+  [
+    /^dropped_advice_phrase:(.+)$/,
+    (m, lang) => (lang === "zh" ? `“${m[1]}”是建议用语，不是公司名` : `“${m[1]}” is advice wording, not a company name`),
+  ],
+  [
+    /^dropped_unnamed_target_out_of_coverage:(.+)$/,
+    (m, lang) =>
+      lang === "zh"
+        ? `忽略了猜测的标的 ${m[1]}（问题涉及覆盖范围外的资产）`
+        : `Dropped the guessed target ${m[1]} (the question is about an asset outside coverage)`,
+  ],
+  [
+    /^foreign_listing_lookalike:(.+)$/,
+    (m, lang) =>
+      lang === "zh" ? `“${m[1]}”只出现在港股或美股公司名中，已忽略` : `${m[1]} only appeared inside a Hong Kong or US company name; ignored`,
+  ],
+];
+
+/**
+ * Last resort for a code the UI has no label for yet: readable, never the raw code. "frame:new_op:roe:A|B" →
+ * "Frame: new op · roe · A、B"; "x:a->b" → "X: a → b".
+ */
+export function formatUnknown(lang: Lang, code: string): string {
+  const list = lang === "zh" ? "、" : ", ";
+  const parts = code
+    .split(":")
+    .map((part) =>
+      part
+        .replace(/->/g, " → ")
+        .replace(/\|/g, list)
+        .replace(/_+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .filter(Boolean);
+  if (!parts.length) return code;
+  const [head, ...rest] = parts;
+  const title = head![0]!.toUpperCase() + head!.slice(1);
+  return rest.length ? `${title}: ${rest.join(" · ")}` : title;
+}
 
 const RULES: Rule[] = [
   {
@@ -364,7 +605,6 @@ export function isCode(text: string): boolean {
   return /^[a-z][a-z0-9.]*(?:_[a-z0-9.]+)+$/.test(value);
 }
 
-/** The display label for a code. Unknown codes are prettified rather than shown raw. */
 /**
  * The English UI shows the security names a code carries ("ellipsis:target->五粮液和贵州茅台") in English, from the
  * names the server sent for the turn (`nlu_summary.entities[].name_en`); Chinese joiners become "and" / "," (round 9).
@@ -376,6 +616,14 @@ export function localizeNames(lang: Lang, text: string, names?: ReadonlyMap<stri
   return out.replace(/\s*和\s*/g, " and ").replace(/\s*、\s*/g, ", ");
 }
 
+/** Chinese name -> English name from a turn's entities (`nlu_summary.entities`), for `localizeNames`. */
+export function entityNames(
+  entities: readonly { name?: string | null; name_en?: string | null }[] | null | undefined,
+): Map<string, string> {
+  return new Map((entities ?? []).flatMap((entity) => (entity.name && entity.name_en ? [[entity.name, entity.name_en] as [string, string]] : [])));
+}
+
+/** The display label for a code. Unknown codes are formatted readably rather than shown raw. */
 export function humanizeCode(lang: Lang, code: string, kind?: CodeKind): string {
   const value = code.trim();
   switch (kind) {
@@ -398,11 +646,15 @@ export function humanizeCode(lang: Lang, code: string, kind?: CodeKind): string 
   }
   const exact = EXACT[value];
   if (exact) return exact[lang];
+  for (const [pattern, label] of SESSION) {
+    const match = pattern.exec(value);
+    if (match) return label(match, lang);
+  }
   for (const rule of RULES) {
     const match = rule.test.exec(value);
     if (match) return rule.label(match, lang);
   }
-  return prettify(value);
+  return value.includes(":") ? formatUnknown(lang, value) : prettify(value);
 }
 
 /** Limitations mix prose and codes: humanise only the codes. */
