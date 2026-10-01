@@ -140,12 +140,15 @@ async def user(
     questions: list[str],
     results: list[dict],
     stream: bool = False,
+    run_id: str = "",
 ) -> None:
     for step in range(requests):
         query = questions[(index + step) % len(questions)]
         started = time.perf_counter()
         record: dict = {"user": index, "step": step, "query": query}
-        payload = {"query": query, "mode": mode, "session_id": f"load{index}x{step}"}
+        # A fresh session per question, unique per run: a later run (a new client, so a new anonymous identity)
+        # reusing an id would hit another caller's session and get a 404.
+        payload = {"query": query, "mode": mode, "session_id": f"load{run_id}{index}x{step}"}
         try:
             if stream:
                 status, body, ttft_ms = await _streamed(client, payload, started)
@@ -264,8 +267,9 @@ async def run(
             if response.status_code == 200:
                 warmup_record.update(_llm_fields(response.json()))
         started = time.perf_counter()
+        run_id = f"{os.getpid():x}{time.time_ns() % 16**8:08x}-"
         await asyncio.gather(
-            *(user(client, index, requests, mode, questions, results, stream) for index in range(users))
+            *(user(client, index, requests, mode, questions, results, stream, run_id) for index in range(users))
         )
         wall = time.perf_counter() - started
     latencies = [item["latency_ms"] for item in results if item["ok"]]
