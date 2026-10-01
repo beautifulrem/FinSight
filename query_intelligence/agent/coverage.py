@@ -56,9 +56,14 @@ _HK_US_LISTED = (
 # company may also be listed in Shanghai or Shenzhen, but the question asks for the Hong Kong line, which FinSight
 # has no data for: the A-share target inside the span is a lookalike, never answered with A-share data.
 _H_SHARE = (
-    r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){2,8}?\s*(?:的\s*)?H\s*股|H\s*股(?!东)|港股通|"
+    # (round 12, H5) "中芯国际港股": a company name followed by 港股 is its Hong Kong line too
+    r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){2,8}?\s*(?:的\s*)?(?:H\s*股|港股(?!通))|H\s*股(?!东)|港股通|"
     r"(?<![\w.])\d{4,5}\s*\.\s*HK(?![A-Za-z])|(?<![A-Za-z])HK\s?\d{4,5}(?!\d)|(?<![\w.])\d{4,5}\s+HK(?![A-Za-z])|"
-    r"\b(?:[a-z][\w&.'-]*\s+){1,3}H[- ]?shares?\b|\bH[- ]shares?\b|\bhong kong[- ]listed\b|\bHKEX\b|"
+    r"\b(?:[a-z][\w&.'-]*\s+){1,3}H[- ]?shares?\b|\bH[- ]shares?\b|\bHKEX\b|"
+    # (round 12, H5) "Ping An's Hong Kong listed shares", "the Hong Kong share price of China Merchants Bank"
+    r"\b(?:[a-z][\w&.'-]*\s+){0,3}?hong kong[- ]listed\b|"
+    r"\b(?:[a-z][\w&.'-]*\s+){0,3}?hong kong (?:share|stock) prices?\b(?: of (?:[a-z][\w&.'-]*\s?){1,4})?|"
+    r"\bhong kong (?:shares?|stock|listing|line|counter) of (?:[a-z][\w&.'-]*\s?){1,4}|"
     # (round 12) the Hong Kong line described in words: "它在港交所挂牌的那部分股票", "平安在香港上市的股份",
     # "its shares listed in Hong Kong", "Ping An's Hong Kong listing". As with "…H股", the name before it is part of
     # the span, so the A-share target it names is a lookalike, not answered with A-share data.

@@ -368,3 +368,22 @@ def test_lots_and_fund_units_are_valued_without_a_market_cap_gap(agent):
     units = agent.chat("持有一万份证券ETF，市值多少", session_id="r12-h4-units")
     assert "10000 份证券ETF的市值约为 10000 × 1.021 = 10210 元" in units["answer"]
     assert "总市值" not in units["answer"]
+
+
+# ---- round-8 review H5: a named A-share company with 港股 / Hong Kong listed / Hong Kong share price ----
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "中芯国际港股今天涨了吗",  # the review's repro
+        "Ping An's Hong Kong listed shares, what's the price?",  # the review's repro
+        "What's the Hong Kong share price of China Merchants Bank?",  # the review's repro
+        "比亚迪港股的市盈率",
+        "What's the Hong Kong share price of BYD?",
+    ],
+)
+def test_a_named_company_hong_kong_line_is_out_of_coverage(agent, query):
+    result = agent.chat(query, session_id=f"r12-h5-{abs(hash(query))}")
+    assert result["route"] == "refuse" and result["limitations"] == ["out_of_coverage"]
+    assert "H 股" in result["answer"] or "H shares" in result["answer"]
