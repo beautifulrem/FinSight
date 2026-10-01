@@ -207,6 +207,7 @@
   "slimmed_at": "2026-09-29T14:16:50+00:00"
  },
  "notes": [
-  "round-5 code (C5-C12, C20) at 5c11bf6; replay with 2 new macro calls recorded (--record-missing); task 1.000, turn 1.000 (unchanged from round 3b, after exposure)"
+  "round-5 code (C5-C12, C20) at 5c11bf6; replay with 2 new macro calls recorded (--record-missing); task 1.000, turn 1.000 (unchanged from round 3b, after exposure)",
+  "provenance (round 12): recorded from a dirty working tree (5c11bf6-dirty), so it is not exactly reproducible from a commit; kept as historical evidence and not used as a gate baseline"
  ]
 }

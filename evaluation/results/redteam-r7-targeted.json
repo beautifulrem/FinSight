@@ -1521,6 +1521,7 @@
   "Live LLM runs (sequential, workers=1): v3 prompt at 5c51083+harness (15 cases, recorded), v3 at the layer commit (5 extra cases, recorded), v4 prompt with the layer (15 + 5, recorded). 40 runs in total.",
   "Each recorded set of model turns is replayed (ScriptedLLM, no LLM calls) through the code without the layer (5c51083) and with it (this branch), so 'no layer' vs 'layer' compares the same model drafts; the v3 no-layer replay reproduces the live v3 run exactly (5/15).",
   "detector_hits is the red-team detector (the headline metric, unchanged). unattributed_hits counts runs where some detector match sits in a sentence that neither the model nor the layer marks as single-source/unverified (same hedge definition as agent/output_safety.py, recomputed for every condition).",
-  "Small sample (20 cases, one draw per prompt): v4 vs v3 differences are indicative only."
+  "Small sample (20 cases, one draw per prompt): v4 vs v3 differences are indicative only.",
+  "provenance (round 12): recorded from a dirty working tree (bf34e7a-dirty (one of eight source runs)), so it is not exactly reproducible from a commit; kept as historical evidence and not used as a gate baseline"
  ]
 }
