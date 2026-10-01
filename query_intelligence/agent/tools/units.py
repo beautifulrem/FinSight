@@ -62,7 +62,20 @@ PERCENT_METRICS = frozenset(
     }
 )
 MULTIPLE_METRICS = frozenset({"pe", "pe_ttm", "pb", "ps", "ps_ttm", "pcf"})
-CNY_METRICS = frozenset({"revenue", "net_profit", "profit_dedt", "total_assets", "total_equity", "amount"})
+CNY_METRICS = frozenset(
+    {
+        "revenue",
+        "net_profit",
+        "profit_dedt",
+        "total_assets",
+        "total_equity",
+        "amount",
+        "total_mv",
+        "circ_mv",
+        "market_cap",
+        "total_market_cap",
+    }
+)
 PER_SHARE_METRICS = frozenset({"eps", "bps", "dividend_per_share"})
 # A level ratio (ROE, margins) from a source of unknown convention with 0 < |value| <= 1 is taken to be a
 # fraction (0.33 -> 33%). Live sources all serve percent, so this only applies to seeds and hand-entered

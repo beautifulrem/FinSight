@@ -104,18 +104,35 @@ def build_provenance(
 
 
 def snapshot_provenance(
-    *, kind: str, as_of: Any, reason: str, source_name: str | None = None, today: date | None = None
+    *,
+    kind: str,
+    as_of: Any,
+    reason: str,
+    source_name: str | None = None,
+    today: date | None = None,
+    snapshot: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Provenance for a record served from the shipped offline snapshot (``data/structured_data.json``)."""
+    """Provenance for a record served from the shipped offline snapshot.
+
+    ``snapshot`` is the ``_snapshot`` metadata of a record from the snapshot extension
+    (``data/snapshot/structured_data_ext.json``): its file, version, upstream endpoint and fetch time.
+    """
+    meta = snapshot or {}
     record = build_provenance(
         source="offline_snapshot",
         kind=kind,
         as_of=as_of,
         mode=SNAPSHOT,
-        endpoint="data/structured_data.json",
+        endpoint=str(meta.get("file") or "data/structured_data.json"),
         fallback_reason=reason,
         today=today,
     )
+    if meta.get("fetched_at"):
+        record["fetched_at"] = str(meta["fetched_at"])
+    if meta.get("version"):
+        record["snapshot_version"] = str(meta["version"])
+    if meta.get("endpoint"):
+        record["original_endpoint"] = str(meta["endpoint"])
     if source_name:
         record["original_source"] = str(source_name)
     record["source_label"] = "离线快照"

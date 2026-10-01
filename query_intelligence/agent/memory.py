@@ -375,7 +375,7 @@ _ASPECT_WORDS_ZH = (
     "净利润", "净利", "毛利润率", "毛利率", "股息率", "每股收益", "总市值", "市值", "资产负债率", "负债率",
     "收盘价", "收盘", "股价", "走势", "最高价", "最高", "最低价", "最低", "开盘价", "开盘", "成交量",
     "成交金额", "成交额", "涨跌幅", "涨跌", "估值", "公告", "新闻", "分红", "业绩", "财报", "舆情", "均线",
-    "波动率",
+    "波动率", "最大回撤", "回撤", "52周",
 )  # fmt: skip
 _ASPECT = re.compile(
     "|".join(re.escape(word) for word in sorted(_ASPECT_WORDS_ZH, key=len, reverse=True)) + "|"
@@ -384,7 +384,8 @@ _ASPECT = re.compile(
     r"price[- ]to[- ](?:book|earnings)|"
     r"book(?:[- ]value)? multiple|earnings multiple|"
     r"dividend|market cap|valuation|\bprice\b|\bclos(?:e|es|ing price)\b|\bhigh\b|\blow\b|\bvolume\b|"
-    r"percentage change|\breturn\b|\bgrowth\b|volatility|moving average|announcements?|news|trend",
+    r"percentage change|\breturn\b|\bgrowth\b|volatility|moving average|announcements?|news|trend|drawdown|"
+    r"52[- ]week",
     re.IGNORECASE,
 )
 # A follow-up that only changes the period ("2024年的呢", "And in 2022?") keeps the previous question's metric.
