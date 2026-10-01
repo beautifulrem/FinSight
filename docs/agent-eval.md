@@ -1362,6 +1362,174 @@ Failures (development set; first 25):
 
 * Note: independent round-6 chat slice after the round-10 fixes at 68279eb, no LLM, --no-replay; the engineers who made the fixes never saw this slice, so this is an out-of-sample measure of the fixes (pre-fix: 0.579)
 
+#### `chat_heldout_r6-auto-nollm-after-exposure-round11.json`
+
+Source `evaluation/results/chat_heldout_r6-auto-nollm-after-exposure-round11.json`: commit `960432d-dirty`, run 2026-10-01T04:28:13+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r6/chat_r6_heldout.jsonl --out outputs/agent_eval/chat_r6-r11.json
+```
+
+Development set, path `auto`: 38 tasks, 61 turns. Status: independent round-6 chat slice **after exposure (round 11)**: the round-11 engineers could read the slice, so it is no longer out of sample.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.921 [0.82, 1.00] |
+| pass^k (all k repeats succeed) | 0.921 [0.82, 1.00] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 1.000 |
+| Required facts stated and cited | 0.893 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.893 |
+| Task success without the citation / tool / disclaimer checks | 0.921 [0.82, 1.00] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.435 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | – |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 571.8 |
+| Turn success | 0.951 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| comparison_winner | 4 | 1.00 |
+| derived_metric | 6 | 0.83 |
+| difference_followup | 8 | 0.75 |
+| fair_value | 7 | 1.00 |
+| news_control | 2 | 1.00 |
+| news_corroborated | 3 | 1.00 |
+| out_of_coverage | 7 | 1.00 |
+| two_target_compare | 1 | 1.00 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r6t05 | 多跌了多少 | facts |
+| r6t07 | 两个比哪个交易更活跃 | facts |
+| r6t26 | What's the net-margin gap between Moutai and Ping An? | facts |
+
+* Note: independent round-6 chat slice after exposure (round 11): the round-11 engineers could read it; run at 960432d, no LLM, --no-replay
+
+### Round-7 held-out chat slice (independent author): before and after the round-11 fixes
+
+53 tasks / 129 turns written from the round-7 review's bug classes (`evaluation/heldout_r7/README.md`); run once before the round-11 fixes and once after them. The engineers never opened the slice. Three round-11 dev turns match slice turns verbatim by coincidence (tasks `r7h_gap_zh_11` and `r7h_gap_en_04`); without those two tasks the slice goes 13/51 → 43/51.
+
+#### `chat_heldout_r7-auto-nollm-prefix.json`
+
+Source `evaluation/results/chat_heldout_r7-auto-nollm-prefix.json`: commit `12a28eb`, run 2026-10-01T01:57:23+00:00, no LLM (offline), prompts `agent_system@v4#9034aeb5ea8e`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r7/chat_r7_heldout.jsonl --out outputs/agent_eval/chat_r7-prefix.json
+```
+
+Development set, path `auto`: 53 tasks, 129 turns. Status: **first and only pre-fix run** of the independent round-7 chat slice.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.264 [0.15, 0.38] |
+| pass^k (all k repeats succeed) | 0.264 [0.15, 0.38] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.868 |
+| Required facts stated and cited | 0.705 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.705 |
+| Task success without the citation / tool / disclaimer checks | 0.264 [0.15, 0.38] |
+| Tool recall (required tools used) | 0.987 |
+| Tool precision (calls that were relevant) | 0.659 |
+| Hedged when required (why / judgment / advice) | 0.333 |
+| States missing data when required | 0.250 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 913.3 |
+| Turn success | 0.643 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 5 | 1.00 |
+| derived_metric | 11 | 0.09 |
+| fair_value_implied | 6 | 0.33 |
+| gap_followup | 23 | 0.17 |
+| hk_out_of_coverage | 8 | 0.25 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r7h_gap_zh_01 | 两家差几个百分点？ | facts |
+| r7h_gap_zh_02 | 相差多少 | behavior, facts, disclaimer, language, entities |
+| r7h_gap_zh_03 | 前者比后者高多少？ | behavior, facts, entities |
+| r7h_gap_zh_04 | 换成五粮液呢 | facts, required_tools |
+| r7h_gap_zh_05 | 差了多少亿 | behavior, facts, disclaimer, language, entities |
+| r7h_gap_zh_06 | 后者是前者的几倍？ | behavior, facts, entities |
+| r7h_gap_zh_07 | 前者大概是后者的多少倍 | behavior, facts, entities |
+| r7h_gap_zh_09 | 证券ETF今天成交了多少钱 | facts, behavior, entities |
+| r7h_gap_zh_10 | 两只价格相差多少元 | facts |
+| r7h_gap_zh_13 | 两者差多少 | facts |
+| r7h_gap_zh_14 | 相差多少亿 | behavior, facts, disclaimer, language, entities |
+| r7h_gap_en_01 | Which is higher, and by how much? | facts, entities |
+| r7h_gap_en_02 | How many times larger is the first one? | behavior, facts, entities |
+| r7h_gap_en_03 | What's the ratio between the two? | facts |
+| r7h_gap_en_04 | Which one is higher and by how many points? | facts, entities |
+| r7h_gap_en_05 | What's the gap in percentage points? | behavior, facts, disclaimer, language, entities |
+| r7h_gap_en_06 | so what's the difference in points? | behavior, facts, disclaimer, language, entities |
+| r7h_gap_en_07 | What was Wuliangye's trading value today? | facts, entities |
+| r7h_gap_en_09 | what's the difference in billions of yuan? | behavior, facts, disclaimer, language, entities |
+| r7h_derived_zh_01 | 那每股收益是多少 | states_missing |
+| r7h_derived_zh_02 | 那它的EPS大概多少 | states_missing |
+| r7h_derived_en_01 | What are its earnings per share? | states_missing |
+| r7h_derived_zh_03 | 我有300股茅台，按最新收盘值多少钱 | facts |
+| r7h_derived_zh_04 | 手里有2000股五粮液，按最近收盘价算市值多少 | facts |
+| r7h_derived_en_02 | I own 500 shares of Ping An. What are they worth at the latest close? | facts |
+| … | 14 more in the result file | |
+
+* Note: independent round-7 chat slice run once on the pre-fix code (12a28eb = 20e57a0 + slice files), no LLM, --no-replay; the round-11 engineers have not seen this slice
+
+#### `chat_heldout_r7-auto-nollm-after-fix.json`
+
+Source `evaluation/results/chat_heldout_r7-auto-nollm-after-fix.json`: commit `960432d`, run 2026-10-01T04:25:31+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r7/chat_r7_heldout.jsonl --out outputs/agent_eval/chat_r7-after.json
+```
+
+Development set, path `auto`: 53 tasks, 129 turns. Status: independent round-7 chat slice **after the round-11 fixes**; the engineers never opened the slice (three round-11 dev turns match slice turns verbatim by coincidence).
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.830 [0.74, 0.92] |
+| pass^k (all k repeats succeed) | 0.830 [0.74, 0.92] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.977 |
+| Required facts stated and cited | 0.902 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.902 |
+| Task success without the citation / tool / disclaimer checks | 0.830 [0.74, 0.92] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.640 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 785.9 |
+| Turn success | 0.907 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 5 | 1.00 |
+| derived_metric | 11 | 0.64 |
+| fair_value_implied | 6 | 1.00 |
+| gap_followup | 23 | 0.83 |
+| hk_out_of_coverage | 8 | 0.88 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r7h_gap_zh_09 | 证券ETF今天成交了多少钱 | facts, behavior, disclaimer, language, entities |
+| r7h_gap_en_04 | Which one is higher and by how many points? | facts |
+| r7h_gap_en_06 | so what's the difference in points? | behavior, facts, disclaimer, language, entities |
+| r7h_gap_en_07 | What was Wuliangye's trading value today? | facts |
+| r7h_derived_zh_03 | 要是同样300股换成五粮液呢 | facts |
+| r7h_derived_en_02 | I own 500 shares of Ping An. What are they worth at the latest close? | facts |
+| r7h_derived_zh_05 | 我持有两万份沪深300ETF，按最新收盘价值多少钱 | facts |
+| r7h_derived_en_03 | What percent of that revenue ends up as net profit? | facts |
+| r7h_hk_zh_02 | 那它在香港上市的股票呢 | behavior, limitations |
+
+* Note: independent round-7 chat slice run once after the round-11 fixes (960432d), no LLM, --no-replay; the engineers never opened the slice. Three round-11 dev turns match slice turns verbatim by coincidence (二者相差几个百分点; Ping An's ROE?; And Wuliangye?) in tasks r7h_gap_zh_11 and r7h_gap_en_04; without those two tasks 43/51 = 0.843 (pre-fix 13/51).
+
 ### The no-tools LLM baseline: strict scoring vs uncited correctness
 
 Under the strict score a task needs every required number stated **and cited with an evidence id**, the required tools and the product's risk-disclaimer field. A model without tools can meet none of these, so its 0.000 is a property of the scoring, not only of the model. The uncited columns score the same answers against the same snapshot values without those requirements. The snapshot is dated 2026-04-22 and the model has no access to it, so uncited correctness measures what the model knew or guessed.
@@ -2224,6 +2392,9 @@ Paired comparisons (same tasks, a − b):
 | `chat_heldout_r5-auto-nollm-after-exposure.json` | run | `d78a556` | 2026-09-30T16:16:32+00:00 | – | `outputs/agent_eval/chat_r5-after-round9.json` (56b43759ed80aef3) |
 | `chat_heldout_r6-auto-nollm-prefix.json` | run | `05c4d7b` | 2026-09-30T21:57:23+00:00 | – | `outputs/agent_eval/chat_r6-prefix.json` (9ba6d76d2bbcb05f) |
 | `chat_heldout_r6-auto-nollm-after-fix.json` | run | `68279eb` | 2026-10-01T00:10:20+00:00 | – | `outputs/agent_eval/chat_r6-after.json` (360cf3b255d5d03f) |
+| `chat_heldout_r6-auto-nollm-after-exposure-round11.json` | run | `960432d-dirty` | 2026-10-01T04:28:13+00:00 | – | `outputs/agent_eval/chat_r6-r11.json` (994d4dfa8f3d2b36) |
+| `chat_heldout_r7-auto-nollm-prefix.json` | run | `12a28eb` | 2026-10-01T01:57:23+00:00 | – | `outputs/agent_eval/chat_r7-prefix.json` (a64180bc384b24e3) |
+| `chat_heldout_r7-auto-nollm-after-fix.json` | run | `960432d` | 2026-10-01T04:25:31+00:00 | – | `outputs/agent_eval/chat_r7-after.json` (ac21b24575846567) |
 | `router_eval-d78b313.json` | router_eval | `d78b313` | 2026-09-25T22:56:36+00:00 | – | written directly |
 | `router_eval-round2.json` | router_eval | `da3ec8b-dirty` | 2026-09-26T18:52:13+00:00 | – | written directly |
 | `router_eval-round3.json` | router_eval | `d3c1495` | 2026-09-28T07:16:51+00:00 | – | written directly |
