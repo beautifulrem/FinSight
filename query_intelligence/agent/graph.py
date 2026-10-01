@@ -890,10 +890,8 @@ class AgentRuntime:
                 )
             except LLMError as exc:
                 return self._template_update(state, degraded=f"llm_compose_failed:{exc}")
-            draft, framed = self._frame_fallback(state, parse_answer(turn.content))
             return {
-                **framed,
-                "draft": draft,
+                "draft": parse_answer(turn.content),
                 "draft_source": "llm_compose",
                 "messages": [*messages, turn.as_message()],
                 "llm_calls": state.get("llm_calls", 0) + 1,
@@ -1014,17 +1012,16 @@ class AgentRuntime:
         if turn.tool_calls and not stop_reason:
             update["next"] = "agent_tools"
             return update
-        draft, framed = self._frame_fallback(state, parse_answer(turn.content))
-        if framed.get("degraded"):
-            update["degraded"] = [*update.get("degraded", []), *framed.pop("degraded")]
-        update.update({**framed, "next": "verify", "draft": draft, "draft_source": "llm_agent"})
+        update.update({"next": "verify", "draft": parse_answer(turn.content), "draft_source": "llm_agent"})
         return update
 
     def _frame_fallback(self, state: AgentState, draft: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         """(round 11, G4) A frame question (a gap, ratio or which-is-higher follow-up) whose LLM draft does not state
         the result, typically because the model declined ("没有五粮液的数据，无法核实"): the computed comparison is
-        appended, with both operands and their evidence ids. An operand this turn did not fetch is fetched first (the
-        planner prefetch usually has it already). Returns ``(draft, state update)``."""
+        appended, with both operands and their evidence ids. It runs on the final draft (after verification, a revision
+        or a repair, which may have dropped the model's own sentence), and the appended sentence must pass the verifier
+        on its own. An operand this turn did not fetch is fetched first (the planner prefetch usually has it already).
+        Returns ``(draft, state update)``."""
         request = state.get("frame_request") or {}
         if not request:
             return draft, {}
@@ -1054,6 +1051,9 @@ class AgentRuntime:
             from .names import english_display
 
             text = english_display(text)
+        store = _store({**state, "evidence": {**(state.get("evidence") or {}), **update.get("evidence", {})}})
+        if not verify_answer({"answer": text}, store, query=state["query"], allow_derived=True).passed:
+            return draft, update
         joined = f"{answer}{'' if zh else ' '}{text}".strip() if answer else text
         cited = [*draft.get("evidence_used", []), *re.findall(r"\[([^\[\]]+)\]", text)]
         update["degraded"] = ["frame_result_appended"]
@@ -1240,6 +1240,16 @@ class AgentRuntime:
         draft = dict(state.get("draft") or {})
         fallback_notes: list[str] = []
         llm_draft = state.get("draft_source") in {"llm_agent", "llm_compose"}
+        framed: dict[str, Any] = {}
+        if llm_draft:
+            # (round 11, G4) a frame question whose final LLM draft does not state the computed result gets it
+            draft, framed = self._frame_fallback(state, draft)
+            if framed.get("evidence"):
+                state = {  # type: ignore[assignment]
+                    **state,
+                    "evidence": {**(state.get("evidence") or {}), **framed["evidence"]},
+                    "tool_log": [*(state.get("tool_log") or []), *framed["tool_log"]],
+                }
         if llm_draft and language_violation(
             str(draft.get("answer") or ""), state["query"], language="zh" if self._zh(state) else "en"
         ):
@@ -1288,7 +1298,7 @@ class AgentRuntime:
                 "limitations": [*(answer.get("limitations") or []), *assumed],
             }
             notes = [*notes, "alias_assumption_stated"]
-        return {"answer": answer, "compliance_notes": [*fallback_notes, *notes]}
+        return {**framed, "answer": answer, "compliance_notes": [*fallback_notes, *notes]}
 
     def _corroborating_numbers(self, state: AgentState) -> list[tuple[float, bool]]:
         """(round 10, F9) The structured fundamentals of the question's named stocks that the run did not fetch (a news

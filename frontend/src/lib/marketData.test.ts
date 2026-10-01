@@ -207,5 +207,6 @@ describe("selectKpis (C18: compare answers)", () => {
 
     expect(selectKpis(kpis, 8, ["net_margin"])[0]).toMatchObject({ label: "kpi.netMargin", value: 34.84, featured: true });
     expect(selectKpis(kpis, 8)[0]?.label).toBe("kpi.pe");
+    expect(selectKpis(kpis, 8).some((kpi) => kpi.label === "kpi.netMargin")).toBe(false);
   });
 });
