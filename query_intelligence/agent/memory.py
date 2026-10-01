@@ -512,9 +512,39 @@ def resolve_holding_follow_up(
 
     Only a short follow-up with one target, an ellipsis or switch marker and no other metric qualifies; the previous
     turn must have been a holding-value question."""
-    from .coverage import holding_value_request, in_fund_units, stated_holding_count
+    from .coverage import (
+        bind_positions,
+        holding_positions,
+        holding_value_request,
+        in_fund_units,
+        name_forms,
+        stated_holding_count,
+    )
 
     text = strip_filler(query).strip()
+    positions = holding_positions(text)
+    if turns and positions:
+        # (round 13, review-9 I5) "我还有5手，再加上800股五粮液，总共值多少" after a 中国平安 turn: a bare count is
+        # the discussed target's; its name is written after the count so every position is fetched and valued
+        discussed = [t for t in _last_targets(turns, limit=1) if t.get("symbol")]
+        named = {str(t.get("symbol")) for t in current_targets}
+        if len(discussed) == 1 and str(discussed[0]["symbol"]) not in named:
+            name = str(discussed[0].get("name") or discussed[0].get("symbol"))
+            candidates = {
+                str(t.get("symbol")): name_forms(str(t.get("canonical_name") or ""), str(t.get("mention") or ""))
+                for t in current_targets
+            }
+            bare = [p for p, key in zip(positions, bind_positions(text, positions, candidates), strict=True) if not key]
+            if len(bare) == 1:
+                cut = bare[0]["end"]
+                if re.search(r"[一-鿿]", text):
+                    inserted = name
+                else:
+                    from .names import english_name
+
+                    inserted = f" of {english_name(name) or name}"
+                return f"{text[:cut]}{inserted}{text[cut:]}", f"holding_follow_up:{bare[0]['shares']}->{name}"
+        return None
     if not turns or len(current_targets) > 1:
         return None
     if not current_targets:
