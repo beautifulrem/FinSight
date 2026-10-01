@@ -50,3 +50,37 @@ tests:
             exp_annotations:
               summary: "More than half of the last 6 h of user ratings are thumbs-down"
               description: "Run scripts/feedback_to_tasks.py on the feedback log to turn the flagged traces into evaluation tasks."
+
+  # Output-safety edits per answer (round 12): 0.8 per answer fires; 0.2 per answer (the second test) does not.
+  - interval: 1m
+    input_series:
+      - series: 'finsight_agent_runs_total{route="workflow",answer_source="template"}'
+        values: '0+1x150'
+      - series: 'finsight_agent_runs_total{route="refuse",answer_source="refusal"}'
+        values: '0+5x150'
+      - series: 'finsight_output_safety_edits_total{kind="attribution"}'
+        values: '0+0.6x150'
+      - series: 'finsight_output_safety_edits_total{kind="promotion_or_contact"}'
+        values: '0+0.2x150'
+    alert_rule_test:
+      - eval_time: 40m  # pending: 20 answers in the hour since 20m, not yet 30 minutes above 0.5
+        alertname: FinSightOutputSafetyEditRateHigh
+        exp_alerts: []
+      - eval_time: 120m
+        alertname: FinSightOutputSafetyEditRateHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: "Output-safety layer edits 0.80 times per answer"
+              description: "Look at the trace compliance notes (attributed_document_claim, omitted_*) of recent runs: a poisoned source, or a layer change that marks figures the fundamentals confirm."
+
+  - interval: 1m
+    input_series:
+      - series: 'finsight_agent_runs_total{route="agent",answer_source="llm_agent"}'
+        values: '0+1x150'
+      - series: 'finsight_output_safety_edits_total{kind="attribution"}'
+        values: '0+0.2x150'
+    alert_rule_test:
+      - eval_time: 150m
+        alertname: FinSightOutputSafetyEditRateHigh
+        exp_alerts: []

@@ -30,7 +30,7 @@ def _panels() -> list[dict]:
 def test_dashboard_structure():
     dashboard = json.loads(DASHBOARD.read_text(encoding="utf-8"))
     panels = dashboard["panels"]
-    assert dashboard["uid"] == "finsight-ops" and len(panels) == 30
+    assert dashboard["uid"] == "finsight-ops" and len(panels) == 31
     assert len({panel["id"] for panel in panels}) == len(panels)
 
     cells: dict[tuple[int, int], int] = {}
@@ -123,3 +123,26 @@ def test_output_safety_panel_counts_edits_by_kind():
     for kind in ("attribution", "promotion_or_contact", "conflicting_figure", "trading_call"):
         assert f'finsight_output_safety_edits_total{{kind="{kind}"}} 1.0' in exported, kind
     assert exported.count("finsight_output_safety_edits_total{") == 4
+
+
+def test_output_safety_edits_per_answer_panel_sits_next_to_the_by_kind_panel_and_matches_the_alert():
+    import yaml
+
+    titles = {panel["title"]: panel for panel in _panels()}
+    per_answer = titles["Output-safety edits per answer"]
+    by_kind = titles["Output-safety edits per hour by kind"]
+    assert per_answer["gridPos"]["y"] == by_kind["gridPos"]["y"]
+    assert by_kind["gridPos"]["x"] + by_kind["gridPos"]["w"] == per_answer["gridPos"]["x"]
+    total, kinds = (target["expr"] for target in per_answer["targets"])
+    runs = 'finsight_agent_runs_total{route=~"agent|workflow"}'
+    assert "finsight_output_safety_edits_total" in total and runs in total
+    assert "sum by (kind)" in kinds and runs in kinds
+    rules = {
+        rule["alert"]: rule
+        for group in yaml.safe_load(ALERTS.read_text(encoding="utf-8"))["groups"]
+        for rule in group["rules"]
+    }
+    alert = rules["FinSightOutputSafetyEditRateHigh"]["expr"]
+    assert "finsight_output_safety_edits_total" in alert and runs in alert and "> 0.5" in alert
+    steps = per_answer["fieldConfig"]["defaults"]["thresholds"]["steps"]
+    assert steps[-1]["value"] == 0.5  # the panel's line is the alert threshold

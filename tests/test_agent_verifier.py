@@ -517,3 +517,14 @@ def test_a_percentage_point_figure_is_a_claim_and_a_count_is_not():
     assert claim_numbers("两者相差 1.26 个百分点") == [1.26]
     assert claim_numbers("提高了 2 个百分点") == [2.0]
     assert claim_numbers("最近 5 个交易日共 3 篇新闻") == []
+
+
+def test_a_numbered_list_marker_split_off_on_its_own_is_not_a_claim():
+    # (round 12) cite_repair splits "2. 2025年度…" into "2." and the rest; the marker got a citation appended
+    # ("2[news_5]. 2025年度…") because "2" counted as an uncited number
+    from query_intelligence.agent.verifier import claim_values
+
+    assert claim_values("2.") == [] and claim_values("\n\n3、") == []
+    assert claim_values("2. 2025年度分红预案") == []
+    assert [value for value, *_ in claim_values("市盈率为2.5倍")] == [2.5]
+    assert [value for value, *_ in claim_values("涨幅2.")] == [2.0]  # not at a line start: a number

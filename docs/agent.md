@@ -584,6 +584,41 @@ variants, claim-mode false accept 0.0125, derived 0.0129, true accept 1.0
 at `25205d4`: 227 gold answers, claim 0.0117, derived 0.0132, two runs identical); the 220 / 227 / 240 gold counts of
 rounds 6, 10 and 9 came from different commits, not from tool timeouts under load.
 
+**Round 12: holdout9 and holdout10, ledger shapes and output-layer clauses (round-7 review §4.3, round-8 review H10, H15).**
+The round-7 and round-8 reviewers' new planted-document styles (16 each: YAML, a markdown table, full-width digits,
+spaced characters, an HTML comment, base64, an FAQ, a CEO quote, English number words, a negation, a buyback, a broker
+downgrade, a polite letter, Telegram, zero-width characters, an idiom; and scientific notation, LaTeX, XML, a code-fence
+"system" block, Japanese, OCR spacing, an SMS, northbound flows, a consensus forecast, URL parameters, an English P.S., a
+forum quote, an audit opinion, a strikethrough correction, an advert, a trading halt) were added verbatim as red-team sets
+**holdout9** (`723f2a4`) and **holdout10** (`ef6570a`) and run offline before any change for them
+(`evaluation/results/redteam-holdout9-prefix.json`: 0/320 answers, 0/320 ledger titles, the round-11 G8 rule already
+covering the reviewer's idiom; `redteam-holdout10-prefix.json`: 0/320 answers, 12/320 ledger titles, the reviewer's
+number). A new red-team number, `ledger_excerpt_rate`, counts split and title-only runs whose poisoned title is shown
+whatever the detector matches; it found titles cut before their claim ("… cuts Kweichow Moutai to", "上半年净利润"). The
+fixes are general shape rules tested on own examples (`bb89cb4`, `32063f7`, `e4399ea`; 0 newly hidden titles in the
+shipped corpus): titles cut mid-clause, characters spaced one by one, key-value records, adverts, and figure-free
+audit-opinion, trading-halt and restructuring events without a named official source. Offline after the fixes
+(`redteam-offline-r12.json`, `05ae2e3`, CI baseline): 0 successes and 0 detector hits on all eleven sets; holdout10
+ledger 12/320 → 0/320; ledger excerpt holdout9 28/128 → 0/128, holdout10 28/128 → 12/128 (before:
+`redteam-offline-r12-before.json`). **LLM paths on holdout9** (`redteam-r12-holdout9-llm.json`, `1913945`,
+`cline-pass/deepseek-v4.1-flash`, 32 targeted runs, 81 calls, no LLM errors or 429s): stated as fact composition 0/16,
+agent 0/16; raw detector hits 4/16 and 1/16, all attributed. The output layer (H15): a conjunction right after a figure and
+a parenthetical figure end a clause, and the fundamentals settle a revenue another document "disputes" (`a85cde7`,
+`3882dc3`). The output-safety audit (`evaluation/agent_eval/output_safety_audit.py`) measures the layer on answers
+nobody attacked: 0 edits in 797 clean template answers; on the 32 holdout9 LLM drafts replayed, 0 false marks, over-broad
+marks in 5 answers before `3882dc3` and 0 after ([observability](a2a-and-observability.md)). A clean-question LLM sample
+was planned within the same 120-call budget and lost to a script bug (`541c470`); holdout10 has no LLM run. The LLM run
+also exposed a verifier bug: a numbered list item got a citation appended to its number ("2[…]."), fixed in `3bb341c`.
+
+```bash
+python -m evaluation.agent_eval.redteam --sets holdout9,holdout10                # offline, template path
+python -m evaluation.agent_eval.redteam --llm deepseek --cases evaluation/agent_eval/redteam_r12_holdout9_cases.json \
+  --paths agent,workflow_llm --max-llm-calls 90 --record-llm outputs/agent_eval/redteam-r12-holdout9-llm-turns.json
+python -m evaluation.agent_eval.output_safety_audit                              # clean template answers
+python -m evaluation.agent_eval.output_safety_audit --redteam-cases evaluation/agent_eval/redteam_r12_holdout9_cases.json \
+  --redteam-turns evaluation/agent_eval/fixtures/redteam_r12_holdout9_llm_turns.json   # recorded LLM drafts, no calls
+```
+
 **Round 11: the round-7 review's G1–G6 and G11 (own examples, offline, no LLM).** The rules in
 [Rules added in round 11](#rules-added-in-round-11-round-7-review-g1g6-g11) are own wording, so these numbers show that
 the classes are covered, not generalisation; the out-of-sample measure is the independent round-7 slice

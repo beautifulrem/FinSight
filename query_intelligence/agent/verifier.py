@@ -100,7 +100,8 @@ _PARAMETER_PATTERNS = (
     # bond tenors ("10年期国债") and list markers ("3) …", "（2）…", "1. …", "2、…")
     re.compile(r"\d+\s*年期"),
     re.compile(r"(?:^|(?<=[\s。；;：:，,]))[（(]?\d{1,2}[)）](?=\s|[一-鿿A-Za-z])"),
-    re.compile(r"(?:^|(?<=\n))\s*\d{1,2}[.、](?=\s|[一-鿿])"),
+    # (round 12) also a marker split off on its own ("2." before "2025年…"): a list number is never a claim
+    re.compile(r"(?:^|(?<=\n))\s*\d{1,2}[.、](?=\s|[一-鿿]|$)"),
 )
 
 

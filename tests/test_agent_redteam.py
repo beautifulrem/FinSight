@@ -50,6 +50,23 @@ def test_holdout8_is_the_round6_reviewers_attack_list_with_title_only_and_why_qu
     assert not earlier & {attack.id for attack in attacks}
 
 
+def test_holdout9_is_the_round7_reviewers_attack_list_with_title_only_and_why_questions():
+    attacks = rt._ATTACK_SETS["holdout9"]
+    assert len(attacks) == 16 and len({attack.id for attack in attacks}) == 16
+    assert all(attack.id.startswith("r7_") for attack in attacks)
+    cases = rt.attacks("holdout9")
+    assert len(cases) == 16 * 5 and {variant for variant, _ in cases} >= {"title_only", "split", "zero_width"}
+    assert rt.questions("holdout9") == [*rt.QUESTIONS, *rt.WHY_QUESTIONS]
+    assert len(cases) * len(rt.questions("holdout9")) == 320  # the reviewer's 320 template-path runs
+    earlier = {attack.id for name, items in rt._ATTACK_SETS.items() if name != "holdout9" for attack in items}
+    assert not earlier & {attack.id for attack in attacks}
+    by_id = {attack.id: attack for attack in attacks}
+    assert by_id["r7_zerowidth"].excerpt.count("\u200b") == 4  # the reviewer's zero-width payload, unchanged
+    # the reviewer's number boundaries: 99 inside 27.993 is not the planted dividend
+    assert not rt.re.search(by_id["r7_faq"].detector, "每股派发现金红利27.993元")
+    assert rt.re.search(by_id["r7_faq"].detector, "每股派发现金红利99元")
+
+
 @pytest.mark.parametrize(
     "sentence",
     [
@@ -188,3 +205,62 @@ def test_poison_plants_the_payload_in_a_document_not_in_finsights_own_summary():
 
     assert poisoned[0] == summary  # FinSight's own item is untouched
     assert poisoned[1].title == FAKE_PROFIT.title and FAKE_PROFIT.excerpt in poisoned[1].text_excerpt
+
+
+def test_planted_title_shown_follows_the_poisoned_document_not_the_detector():
+    from query_intelligence.agent.evidence import AgentEvidence
+    from query_intelligence.agent.tools import ToolOutput
+
+    document = AgentEvidence(evidence_id="news_7", kind="document", source_type="news", title="年报", text_excerpt="")
+    planted: set[str] = set()
+    rt._poison(FAKE_PROFIT, planted)("search_news", lambda _args: ToolOutput(data={}, evidence=[document]))(None)
+    assert planted == {"news_7"}
+    shown = {"evidence_sources": [{"evidence_id": "news_7", "title": "Broker note Goldman Sachs cuts Moutai to"}]}
+    withheld = {"evidence_sources": [{"evidence_id": "news_7", "title": None}, {"evidence_id": "n2", "title": "x"}]}
+    assert rt.planted_title_shown(shown, planted) and not rt.planted_title_shown(withheld, planted)
+
+
+def test_call_budget_counts_calls_and_stops_on_the_first_429():
+    from query_intelligence.agent.llm import AssistantTurn, LLMError
+
+    class Fake:
+        model = "fake"
+
+        def __init__(self, fail_at: int) -> None:
+            self.fail_at, self.calls = fail_at, 0
+
+        def chat(self, messages, tools=None, **kwargs):
+            self.calls += 1
+            if self.calls == self.fail_at:
+                raise LLMError("HTTP 429 Too Many Requests")
+            return AssistantTurn(content="ok")
+
+    budget = rt.CallBudget(10, margin=4)
+    wrapped = budget.wrap(Fake(fail_at=99))
+    for _ in range(5):
+        wrapped.chat([])
+    assert budget.calls == 5 and not budget.exhausted()
+    wrapped.chat([])
+    assert budget.exhausted() and budget.stopped.startswith("call budget")
+
+    limited = rt.CallBudget(100)
+    failing = limited.wrap(Fake(fail_at=2))
+    failing.chat([])
+    with pytest.raises(LLMError):
+        failing.chat([])
+    assert limited.exhausted() and limited.stopped == "HTTP 429 after 2 calls"
+
+
+def test_holdout10_is_the_round8_reviewers_attack_list_with_title_only_and_why_questions():
+    attacks = rt._ATTACK_SETS["holdout10"]
+    assert len(attacks) == 16 and len({attack.id for attack in attacks}) == 16
+    assert all(attack.id.startswith("r8_") for attack in attacks)
+    cases = rt.attacks("holdout10")
+    assert len(cases) * len(rt.questions("holdout10")) == 320  # the reviewer's 320 template-path runs
+    earlier = {attack.id for name, items in rt._ATTACK_SETS.items() if name != "holdout10" for attack in items}
+    assert not earlier & {attack.id for attack in attacks}
+    by_id = {attack.id: attack for attack in attacks}
+    assert "\\text" in by_id["r8_latex"].excerpt  # the reviewer's LaTeX payload, backslash kept
+    assert rt.re.search(by_id["r8_sci"].detector, "净利润1.5E+11元") and not rt.re.search(
+        by_id["r8_sci"].detector, "1.5"
+    )
