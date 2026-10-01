@@ -308,6 +308,32 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 
 离线结果：dev 370 个任务 = 1.000，multiturn_v1 49 个任务 = 1.000，快照均无缺失调用（dev 快照未改动：框架问题不需要新的工具调用）；自有路由标注 1.000 / 372（`router_eval-round11-own.json`）。在线（Agent 路径，经 Cline pass 调用 DeepSeek V4.1 Flash，10 个自写框架会话，`python -m evaluation.agent_eval.frame_llm_check`）：在 `5080728` 上，10 个差值轮次中有 7 个给出了预期数值，全部由模型自己算出，没有拒答（`frame-llm-check-round11.json`）。3 个失败里，有 2 个模型其实算出了倍数/相对差异，但兜底已经执行之后，校验器的修复删掉了那一句；另 1 个只写了两个 ROE，没写差值。兜底现改为在最终草稿上执行（`b8ce579`）；这 3 个会话重跑 3/3，仍由模型自己算出，因此兜底本身只由离线测试覆盖（`frame-llm-check-round11-rerun.json`；共 58 次 LLM 调用，无 429）。10 个会话只是冒烟检查，不是比率。
 
+### 第 12 轮新增的规则（第 7 轮留出集暴露之后；第 8 轮评审 H1、H2、H4、H5、H9、H11）
+
+第 12 轮修复第 7 轮独立留出集在第 11 轮之后仍失败的类别，以及第 8 轮评审的六个问题。从第 12 轮起第 7 轮留出集属于**暴露之后**：工程师读了它的失败任务（以及第 8 轮评审的结论，但没有打开其隐藏切片 `heldout_r8/`），用自写的例子：41 个 dev 任务（`build_tasks._round12_tasks`，中英文）、路由标注 `route_372`–`route_387`、H5 的别名回归行、单元测试（`tests/test_agent_round12.py`，评审的复现语句只作为回归行）和一个界面测试（`frontend/src/components/GapSession.test.tsx`）。`tests/test_agent_eval.py` 检查没有任何 dev 轮次或标注复制或近似复制第 4–7 轮切片文本（程序读取）、评审探针、独立路由集或测试集。
+
+**每个指标一套词表。** 用文字问的成交额（「成交了多少钱」「交易额」「哪个交易更活跃」「trading value」「value traded」）是同一个模式（`frame.TURNOVER`），框架、行情回答的明细（`coverage._AMOUNT`）、模板的比较句都用它，省略追问也通过框架指标名沿用（「成交了多少钱」之后的「X呢」问的是 X 的成交额）。净利润占营收的比例同理（`frame.NET_MARGIN_SHARE_SOURCE`，与净利率指标共用：「What share of that revenue is left as net profit?」「一年赚的钱占收入多大比例」、带连字符的「net-margin」），当日变动（「How much did X move today?」）和口语的每股收益（「一股赚多少钱」）也是。换手率不是成交额：数据源有就给出，否则说明缺失（需要流通股本）。
+
+**比较解析（H1）。** 运算不再靠短语列表：单位词说明问什么（倍 / 之比 / ratio / 「1.2x」→ 倍数；百分之 / % / in percent → 相对差异；多少 / 几 / points → 差值），比较词（高 / 低 / 多跌 / 少涨 / 多成交 / higher / above），以及连接两个操作数的锚（A是B的、比、差、相对、前者 / 后者、二者、than、them）。「差了多少倍」是倍数，「二者之比」「by what percentage … above」都会计算，「市盈率是多少倍」或「How much did it drop, in percent?」（只有一个操作数）仍是查询。点名的操作数按问题中的顺序（能识别 Moutai、茅台、Ping An 等别名），「how many times A is B」算的是 B ÷ A。本轮自己点名第二个标的时（「茅台呢，后者是前者的几倍」），前者/后者仍按会话中出现的顺序（`47a609b`）。
+
+**单句比较（H2）、更长的问题和换指标（H11）。** 一句话里点名两个标的、一个标的和它的行业、或两个行业再加一个指标（「贵州茅台的市净率比五粮液高百分之多少」「Which of Moutai and Wuliangye has the higher P/B, and by how much?」「白酒板块的平均市盈率比保险板块高多少」）走同一套框架计算，开场就问也一样。长度上限只作用于提出比较的那个分句，所以「how big is the discount? Someone told me …」也会计算。标的被沿用的「那PB呢」保留正在比较的这一对，「茅台PE → 五粮液呢 → 那PB呢 → 差多少」给出市净率差。
+
+**持仓市值（G5 遗留、H4）。** 持仓市值那一轮之后的追问（「要是换成同样数量的中国平安呢」「如果是500股茅台呢」「what about Wuliangye instead?」）按相同（或新说的）股数计算新标的（`memory.resolve_holding_follow_up`，`holding_follow_up:<n>-><name>`）；没有说名称的持仓（「我手上有1500股，总共值多少」）按正在讨论的标的计算，开场就这样问会反问是哪只，绝不拒答。1 手 = 100 股（「3 手（300 股）」），份 / units 是基金份额，英文语序（「I own 500 shares of X. What are they worth?」「200 Moutai shares」「the worth of 300 shares」）都能识别，「3.88 billion shares」不是持仓。校验器把沿用的股数视为用户给出的数字（`graph._check_query`）。
+
+**港股（G6 遗留、H5）。** 「那它在香港上市的股票呢」「它在港交所挂牌的那部分」「中芯国际港股」「Ping An's Hong Kong listed shares」「the Hong Kong share price of China Merchants Bank」：公司（点名的或指代的）在 H 股片段之内，作为超出覆盖范围拒答，并说明它的 A 股在覆盖范围内。
+
+**较小的规则。** 两个都下跌时的差值写明谁跌得更多（「五粮液跌得更多」）；事实性的「which one is higher」不再按「哪个更好」的判断加限定（`answer_guards`）；「今天跌了多少钱」用最近两个收盘价给出涨跌金额，或说明缺少前一交易日收盘价；只有名称的追问（「Wuliangye P/E?」之后的「Moutai?」）沿用指标。
+
+| 情形 | 例子（自写） | 行为 | 原因码 |
+|---|---|---|---|
+| 用文字问成交额，再问倍数 | 「沪深300ETF今天成交了多少钱」→「中国平安的呢」→「前者是后者的几倍」 | 写出并引用「成交额 48.52 亿元」和「66.4 亿元」；「前者约为后者的 0.73 倍 [price_510300.SH][price_601318.SH]」 | `ellipsis:aspect->成交额`，`frame:ratio:amount:…` |
+| 英文问差几个点 | 「How much did Wuliangye move yesterday?」→「same for Ping An?」→「so how many points apart?」 | 「a difference of 1.26 percentage points」 | `frame:difference:pct_change:…` |
+| 持仓沿用到另一只股票 | 「我手上有200股五粮液，按最近收盘算值多少」→「要是换成同样数量的中国平安呢」 | 「200 × 53.61 = 10722 元 [price_601318.SH]」，不加合理估值限定 | `holding_follow_up:200->中国平安` |
+| 单句相对差异 | 「贵州茅台的市净率比五粮液高百分之多少」 | 「贵州茅台比五粮液高约 50%（以五粮液为基数）」 | `frame:relative:pb:…` |
+| 用描述问 H 股 | 「中国平安今天收盘多少」→「它在港交所挂牌的那部分股票呢」 | 超出覆盖范围，不给 A 股价格 | `coverage:foreign_equity` |
+
+结果见[评测](#评测)（第 12 轮）。
+
 ### 会话记忆卡片
 
 `session_memory(turns, query)` 生成一张抽取式的小卡片，以「Session memory (from earlier turns)」的形式放进 Agent 的用户消息。卡片包含：
@@ -510,6 +536,8 @@ python -m evaluation.agent_eval.redteam --llm deepseek --model cline-pass/deepse
 ```
 
 **第 10 轮：第 6 轮评审的 F3–F14（自写例子，离线，无 LLM）。** [第 10 轮新增的规则](#第-10-轮新增的规则第-6-轮评审f3f14)都是自写措辞，所以这些数字只说明这些类别已被覆盖，不能证明泛化。dev 门禁 324 → 339 个任务，任务成功率 **1.000**；保留集门禁 **0.9434**，对冲率 0.7273，不变（基线在 `05a79b5` 刷新；dev 的工具精度 0.7648 → 0.7321，只是因为 15 个新任务列出的必需工具很少：原有 324 个任务上仍是 0.7648）。自有路由标注 358 条 **1.000**（`evaluation/results/router_eval-round10-own.json`；`route_313`，一个要求荐股的角色注入，按 F14 由 clarify 改标为 refuse）；独立路由标注 v2 241 条 **0.838**，属于曝光之后（第 9 轮后 0.830，首次运行 0.8008；`evaluation/results/router_eval-independent_v2-round10.json`），独立 v1 为 1.000；multiturn_v1 回放任务与轮次成功率 **1.000**，快照缺失 0（`evaluation/results/multiturn_v1-auto-nollm-round10.json`）；`53454f5` 上的校验器压力测试：227 个标准答案 / 4,016 个变体，claim 模式误接受率 0.0125，推算模式 0.0129，正确接受率 1.0（`evaluation/results/verifier_stress-round10.json`）。第 11 轮固定了标准答案集合（`evaluation/results/verifier_stress.json`，`25205d4`：227 个标准答案，claim 0.0117，推算 0.0132，两次运行完全相同）；第 6、10、9 轮的 220 / 227 / 240 个标准答案来自不同提交，不是负载下的工具超时。
+
+**第 12 轮：第 7 轮留出集剩余的类别和第 8 轮评审的 H1、H2、H4、H5、H9、H11（自写例子，除注明外均为离线）。** 规则见[第 12 轮新增的规则](#第-12-轮新增的规则第-7-轮留出集暴露之后第-8-轮评审-h1h2h4h5h9h11)。dev 门禁 370 → 411 个任务，任务成功率 **1.000**，快照缺失 0（英文省略改写产生的 3 个 `search_knowledge` 调用用 `--record-missing` 补录）；保留集门禁 **0.9434**，不变；基线用 `gate --update-baseline` 在 `7343cc5` 刷新（`31ea94b`）。dev 工具精确率 0.6167 → 0.5239，原因是新任务很少写明必需工具（原有 370 个任务上为 0.6098；精确率不在门禁内）。自有路由标注 388 条 **1.000**（`router_eval-round12-own.json`）；multiturn_v1 回放 **1.000**，缺失 0（`multiturn_v1-auto-nollm-round12.json`）；离线红队九个集合攻击成功 0、崩溃 0，`gate --extras-only` 通过。pytest 2,067 通过、70 跳过；vitest 124 个（新增 3 个三轮差值会话）。**切片，暴露之后**（第 12 轮读过失败任务，因此只说明类别已覆盖，不说明规则能泛化；样本外检验是第 8 轮评审的隐藏切片）：第 7 轮 44/53 → **53/53**（`chat_heldout_r7-auto-nollm-after-exposure-round12.json`），第 6 轮 35/38 → **38/38**（`chat_heldout_r6-auto-nollm-after-exposure-round12.json`），均在 `b685e23`。**在线**（Agent 路径，经 Cline pass 调用 DeepSeek V4.1 Flash，`frame_llm_check --sessions round12`，5 个自写会话，22 次 LLM 调用，无 429，`frame-llm-check-round12.json`，`d315174`）：5 个最后一轮中 4 个给出了预期数值，全部由模型自己算出（成交额倍数 4.57、相差 1.26 个点、沿用持仓 30192、两者都跌时的差 0.36）。第五个会话里模型算出了英文问法的净利润占比，但校验器修复删掉了这句（第 8 轮 H8）；5 个会话只是冒烟检查，不是比率。
 
 **第 11 轮：第 7 轮评审的 G1–G6 和 G11（自写例子，离线，无 LLM）。** [第 11 轮新增的规则](#第-11-轮新增的规则第-7-轮评审g1g6g11)都是自写措辞，所以这些数字只说明这些类别已被覆盖，不能证明泛化；样本外的衡量是独立的第 7 轮留出集（`evaluation/heldout_r7/`，由他人编写，第 11 轮的工程师没有读过）。dev 门禁 339 → 370 个任务，任务成功率 **1.000**，快照缺失 0（框架问题不需要新的工具调用）；保留集门禁 **0.9434**，不变（基线在 `017e5a3` 刷新）。自有路由标注 372 条 **1.000**（`evaluation/results/router_eval-round11-own.json`）；multiturn_v1 回放 **1.000**，缺失 0（`evaluation/results/multiturn_v1-auto-nollm-round11.json`）；离线红队模板路径在全部九个集合上均为 0。Agent 路径上的框架在线冒烟检查见[第 11 轮规则](#第-11-轮新增的规则第-7-轮评审g1g6g11)。
 
