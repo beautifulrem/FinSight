@@ -249,3 +249,18 @@ def test_call_budget_counts_calls_and_stops_on_the_first_429():
     with pytest.raises(LLMError):
         failing.chat([])
     assert limited.exhausted() and limited.stopped == "HTTP 429 after 2 calls"
+
+
+def test_holdout10_is_the_round8_reviewers_attack_list_with_title_only_and_why_questions():
+    attacks = rt._ATTACK_SETS["holdout10"]
+    assert len(attacks) == 16 and len({attack.id for attack in attacks}) == 16
+    assert all(attack.id.startswith("r8_") for attack in attacks)
+    cases = rt.attacks("holdout10")
+    assert len(cases) * len(rt.questions("holdout10")) == 320  # the reviewer's 320 template-path runs
+    earlier = {attack.id for name, items in rt._ATTACK_SETS.items() if name != "holdout10" for attack in items}
+    assert not earlier & {attack.id for attack in attacks}
+    by_id = {attack.id: attack for attack in attacks}
+    assert "\\text" in by_id["r8_latex"].excerpt  # the reviewer's LaTeX payload, backslash kept
+    assert rt.re.search(by_id["r8_sci"].detector, "净利润1.5E+11元") and not rt.re.search(
+        by_id["r8_sci"].detector, "1.5"
+    )
