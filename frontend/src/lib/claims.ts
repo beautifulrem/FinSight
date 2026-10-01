@@ -139,13 +139,41 @@ export function formatDifference(
   return `${sign}${formatClaimValue(lang, t, check.metric, size, side, claim, check.claimed_unit)}`;
 }
 
-/** The actual side of a check: the target's value, or for a difference the actual difference of the two. */
+const known = <T,>(value: T | null | undefined): value is T => value !== null && value !== undefined;
+
+/** A multiple of another target ("市净率是五粮液的1.5倍"): `claimed` is the multiple, `ratio` the actual one. */
+const isMultiple = (check: ClaimCheckItem) => !isDifference(check) && Boolean(check.reference) && known(check.claimed);
+
+/**
+ * The actual side of a check: the target's value; for a difference the actual difference of the two; for a multiple
+ * the actual ratio (round 12: compared like for like with the claimed multiple).
+ */
 export function actualText(lang: Lang, t: Translate, check: ClaimCheckItem): string | null {
-  if (isDifference(check) && check.difference !== null && check.difference !== undefined) {
-    return formatDifference(lang, t, check, check.difference, "actual", "", check.direction !== null && check.direction !== undefined);
+  if (isDifference(check) && known(check.difference)) {
+    return formatDifference(lang, t, check, check.difference, "actual", "", known(check.direction));
   }
-  if (check.actual === null || check.actual === undefined) return null;
+  if (isMultiple(check) && known(check.ratio)) return `${trim(check.ratio)}×`;
+  if (!known(check.actual)) return null;
   return formatClaimValue(lang, t, check.metric, check.actual, "actual");
+}
+
+/**
+ * The data behind the actual side of a relational check (round 12, H14): the other side's value for a relation
+ * ("五粮液 20.9 倍"), both values for a multiple or a difference ("贵州茅台 33% · 五粮液 29.4%"). These are values
+ * from the sources, so they sit under "actual", never under "claimed".
+ */
+export function actualDetail(
+  lang: Lang,
+  t: Translate,
+  check: ClaimCheckItem,
+  name: (value: string) => string = (value) => value,
+): string | undefined {
+  if (!check.reference || !known(check.reference_value)) return undefined;
+  const value = (number: number) => formatClaimValue(lang, t, check.metric, number, "actual");
+  const other = `${name(check.reference)} ${value(check.reference_value)}`;
+  const relation = !isDifference(check) && !known(check.claimed);
+  if (relation || !check.target || !known(check.actual)) return other;
+  return `${name(check.target)} ${value(check.actual)} · ${other}`;
 }
 
 const SYMBOLS: Record<ClaimComparator, string> = { eq: "", ne: "≠", gt: ">", ge: "≥", lt: "<", le: "≤", approx: "≈", range: "" };
@@ -155,7 +183,9 @@ const BOUNDS = new Set<ClaimComparator>(["gt", "ge", "lt", "le", "range"]);
 /**
  * The claimed side of a check with its comparator: "> 30%", "≠ 15 倍", "≈ 25 倍", "20 – 30 倍", "< 0%".
  * A bound on a move is about its size in the stated direction: "跌超1%" is "跌幅 > 1%" ("Fall > 1%"), not
- * "> -1%". A relation ("茅台PE比五粮液高") is "> 五粮液", with the other side's value in `detail`.
+ * "> -1%". A relation reads subject, relation, object (round 12, H14): "茅台PE比五粮液高" is "贵州茅台 > 五粮液",
+ * "a multiple" is "贵州茅台 ≈ 1.5× 五粮液", and a difference names its two sides in `detail` ("贵州茅台 − 五粮液").
+ * The other side's value is data, shown under the actual side (`actualDetail`).
  * `label` is the same in words for screen readers ("高于 30%", "跌幅高于 1%").
  */
 export function claimedText(
@@ -168,6 +198,7 @@ export function claimedText(
   const value = (number: number) => formatClaimValue(lang, t, check.metric, number, "claimed", claim, check.claimed_unit);
   const comparator = check.comparator ?? "eq";
   const symbol = SYMBOLS[comparator] || "=";
+  const subject = check.target ? name(check.target) : t("claim.unknownTarget");
   if (isDifference(check) && check.claimed !== null && check.claimed !== undefined) {
     // "茅台ROE比五粮液高出约3.6个百分点": "差值 ≈ +3.6 个百分点", the other side's value and the actual difference below
     const reference = check.reference ? name(check.reference) : t("claim.unknownTarget");
@@ -176,43 +207,28 @@ export function claimedText(
     const bounded = check.claimed_high !== null && check.claimed_high !== undefined && comparator === "gt";
     const words = bounded ? `${diff(check.claimed)} – ${diff(check.claimed_high!)}` : diff(check.claimed);
     const stated = bounded || !SYMBOLS[comparator] ? words : `${SYMBOLS[comparator]} ${words}`;
-    const parts = [
-      check.reference_value !== null && check.reference_value !== undefined
-        ? `${reference} ${formatClaimValue(lang, t, check.metric, check.reference_value, "actual")}`
-        : reference,
-    ];
     const word = t(bounded ? "claim.cmp.range" : (`claim.cmp.${comparator}` as MessageKey));
     return {
       text: `${t("claim.difference")} ${stated}`,
-      label: `${t("claim.difference")} (${reference}) ${word} ${words}`,
-      detail: parts.join(" · "),
+      label: `${t("claim.difference")} (${subject} − ${reference}) ${word} ${words}`,
+      detail: `${subject} − ${reference}`,
     };
   }
   if (check.reference && check.claimed !== null && check.claimed !== undefined) {
-    // "市净率是五粮液的1.5倍": the claimed multiple of the other side, with the other side's value and the ratio
+    // "市净率是五粮液的1.5倍": "贵州茅台 ≈ 1.5× 五粮液"; the actual ratio and both values are on the actual side
     const reference = name(check.reference);
     const multiple = `${trim(check.claimed)}×`;
-    const parts = [
-      check.reference_value !== null && check.reference_value !== undefined
-        ? `${reference} ${formatClaimValue(lang, t, check.metric, check.reference_value, "actual")}`
-        : null,
-      check.ratio !== null && check.ratio !== undefined ? `${t("claim.ratio")} ${trim(check.ratio)}×` : null,
-    ].filter(Boolean);
     const word = t(`claim.cmp.${comparator}` as MessageKey);
     return {
-      text: `${SYMBOLS[comparator] || "="} ${multiple} ${reference}`,
-      label: `${word} ${multiple} ${reference}`,
-      detail: parts.length ? parts.join(" · ") : undefined,
+      text: `${subject} ${SYMBOLS[comparator] || "="} ${multiple} ${reference}`,
+      label: `${subject} ${word} ${multiple} ${reference}`,
     };
   }
   if (check.claimed === null || check.claimed === undefined) {
+    // "茅台PE比五粮液高": "贵州茅台 > 五粮液" (subject, relation, object), never a bare "> 五粮液" under the subject
     const reference = check.reference ? name(check.reference) : t("claim.unknownTarget");
-    const detail =
-      check.reference_value !== null && check.reference_value !== undefined
-        ? `${reference} ${formatClaimValue(lang, t, check.metric, check.reference_value, "actual")}`
-        : undefined;
     const word = t(`claim.cmp.${comparator}` as MessageKey);
-    return { text: `${symbol} ${reference}`, label: `${word} ${reference}`, detail };
+    return { text: `${subject} ${symbol} ${reference}`, label: `${subject} ${word} ${reference}` };
   }
   if (check.direction && BOUNDS.has(comparator)) {
     const move = t(`claim.move.${check.direction}` as MessageKey);

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 
 import type { Turn } from "@/hooks/useChat";
+import { I18nContext, makeTranslate } from "@/lib/i18n";
 import { answerView } from "@/lib/view";
 
 import { RunDetails } from "./RunDetails";
@@ -53,6 +54,50 @@ describe("RunDetails route reasons", () => {
     for (const code of ["ellipsis:", "coreference:", "->", "dropped_fuzzy_concept", "input_guard"]) {
       expect(details).not.toHaveTextContent(code);
     }
+  });
+});
+
+describe("RunDetails frame reasons (round 12, H14)", () => {
+  const frame = ["frame:difference:roe:五粮液|贵州茅台", "frame:style_compare", "model_policy:composition_for_slow_model"];
+
+  function withEntities(): Turn {
+    const item = turn(frame);
+    return {
+      ...item,
+      agent: {
+        ...item.agent!,
+        nlu_summary: {
+          entities: [
+            { name: "五粮液", name_en: "Wuliangye", symbol: "000858.SZ" },
+            { name: "贵州茅台", name_en: "Kweichow Moutai", symbol: "600519.SH" },
+          ],
+        },
+      },
+    };
+  }
+
+  it.each([
+    ["zh", ["计算ROE差值：五粮液 对比 贵州茅台", "按对比计算处理", "慢速推理模型：改用固定流程，由 LLM 撰写回答"]],
+    [
+      "en",
+      [
+        "Computed the ROE gap: Wuliangye vs Kweichow Moutai",
+        "Treated as a computed comparison",
+        "Slow reasoning model: used the workflow with an LLM-written answer",
+      ],
+    ],
+  ] as const)("shows the computed comparison in %s, never the raw chip", (lang, labels) => {
+    const item = withEntities();
+    render(
+      <I18nContext.Provider value={{ lang, t: makeTranslate(lang) }}>
+        <TooltipProvider>
+          <RunDetails view={answerView(item)!} turn={item} sessionId="s1" />
+        </TooltipProvider>
+      </I18nContext.Provider>,
+    );
+    for (const label of labels) expect(screen.getByText(label)).toBeInTheDocument();
+    const details = document.querySelector(".run-details")!;
+    for (const raw of ["Frame difference", "frame:", "|", "model_policy"]) expect(details).not.toHaveTextContent(raw);
   });
 });
 

@@ -1,4 +1,4 @@
-import { fallbackReasonText, humanizeCode, isCode, limitationText, localizeNames } from "./codes";
+import { fallbackReasonText, formatUnknown, humanizeCode, isCode, limitationText, localizeNames } from "./codes";
 
 describe("humanizeCode", () => {
   it("labels the codes the backend emits in both languages", () => {
@@ -113,5 +113,134 @@ describe("localizeNames (round 9, E13)", () => {
     expect(localizeNames("zh", label, names)).toBe(label);
     expect(localizeNames("en", "Simple single lookup", names)).toBe("Simple single lookup");
     expect(localizeNames("en", "沿用", undefined)).toBe("沿用");
+  });
+});
+
+describe("route reasons (round 12, H14)", () => {
+  // Every reason format agent/graph.py `guard_in` can emit (router.py, memory.py, frame.py, graph.py).
+  const REASONS = [
+    "nlu:out_of_scope_query",
+    "nlu:missing_entity",
+    "nlu:clarification_required",
+    "dangling_reference",
+    "request_without_object",
+    "metric_without_target",
+    "ellipsis_without_antecedent",
+    "no_target:recommendation",
+    "no_target:advice",
+    "mode:workflow",
+    "mode:agent",
+    "multi_entity:2",
+    "comparison_targets",
+    "question_style:why",
+    "question_style:compare",
+    "question_style:forecast",
+    "intent:macro_policy_impact",
+    "intent:market_explanation",
+    "intent:peer_compare",
+    "multi_intent:3",
+    "cross_domain:macro_to_market",
+    "lexical:multi_hop_marker",
+    "lexical:judgment_or_timing",
+    "lexical:forecast",
+    "lexical:analysis_request",
+    "lexical:why",
+    "lexical:follow_up",
+    "concept:glossary:北向资金",
+    "concept:definition",
+    "simple:single_lookup",
+    "override:out_of_scope_with_macro_anchor",
+    "override:out_of_scope_glossary_concept:换手率",
+    "override:out_of_scope_with_finance_anchor",
+    "override:out_of_scope_dangling_reference",
+    "override:why_style_without_causal_cue",
+    "dropped_fuzzy_concept:有色金属",
+    "dropped_generic_noun:指数",
+    "dropped_advice_phrase:值得买",
+    "foreign_listing_lookalike:中国平安",
+    "session_memory_over_nlu_context_carry",
+    "sector_member:白酒->贵州茅台",
+    "override:out_of_scope_sector_of_discussed_target",
+    "holding_value",
+    "off_topic_request:coding",
+    "system_change_request",
+    "difference_without_comparison",
+    "group_reference_incomplete",
+    "input_guard:instruction_like_text_removed",
+    "input_guard:prediction_without_target",
+    "dropped_unnamed_target_out_of_coverage:比特币ETF",
+    "coverage:crypto",
+    "coverage:foreign_equity",
+    "alias_context:平安->平安银行",
+    "alias_default:平安->中国平安|平安银行",
+    "session_language:en",
+    "model_policy:composition_for_slow_model",
+    "session_disambiguation:平安->中国平安",
+    "frame:dropped_non_operand:多氟多",
+    "frame:style_compare",
+    "frame:difference:roe:五粮液|贵州茅台",
+    "frame:ratio:pb:中国平安|保险行业平均",
+    "frame:relative:pe:中国平安|所属行业平均",
+    "frame:which:net_margin:五粮液|贵州茅台|泸州老窖",
+    "clarified:贵州茅台",
+    "group_reference:前者->五粮液",
+    "group_reference:这三家->五粮液和贵州茅台和泸州老窖",
+    "group_reference_count_mismatch:三家->五粮液和贵州茅台",
+    "group_reference:which->五粮液和贵州茅台",
+    "coreference:这两家->宁德时代和比亚迪",
+    "coreference:its->BYD",
+    "coreference:它->贵州茅台",
+    "ellipsis:target->贵州茅台",
+    "ellipsis:target->贵州茅台+aspect->营业收入",
+    "ellipsis:aspect->市盈率+走势",
+    "industry_reference:这个行业->白酒",
+    "difference_follow_up:五粮液和贵州茅台",
+    "difference_follow_up:五粮液和贵州茅台+aspect->ROE",
+    "comparison_follow_up:五粮液和贵州茅台+aspect->市盈率",
+    "comparison_anchor:+贵州茅台",
+    "session_inherit:target->贵州茅台",
+    "session_inherit:macro->CPI、PPI",
+    "dangling_why:target->五粮液",
+  ];
+  const RAW = /->|\||_|^[a-z]+:/;
+
+  it.each(["zh", "en"] as const)("gives every reason a readable %s label", (lang) => {
+    for (const reason of REASONS) {
+      const label = humanizeCode(lang, reason, "reason");
+      expect(label, reason).not.toMatch(RAW);
+      // a zh label is written in Chinese (the formatted fallback for unknown codes is English words)
+      if (lang === "zh") expect(label, reason).toMatch(/[\u4e00-\u9fff]/);
+      // an en label has Chinese only where the code carries a name or the user's words ("Read “它” as …")
+      else if (!/[\u4e00-\u9fff]/.test(reason)) expect(label, reason).not.toMatch(/[\u4e00-\u9fff]/);
+    }
+  });
+
+  it("reads a frame reason as the computed comparison, with the operands in order", () => {
+    const names = new Map([
+      ["贵州茅台", "Kweichow Moutai"],
+      ["五粮液", "Wuliangye"],
+    ]);
+    expect(humanizeCode("zh", "frame:difference:roe:五粮液|贵州茅台")).toBe("计算ROE差值：五粮液 对比 贵州茅台");
+    expect(localizeNames("en", humanizeCode("en", "frame:difference:roe:五粮液|贵州茅台"), names)).toBe(
+      "Computed the ROE gap: Wuliangye vs Kweichow Moutai",
+    );
+    expect(humanizeCode("en", "frame:ratio:pb:中国平安|保险行业平均")).toBe("Computed the P/B ratio: 中国平安 ÷ 保险 industry average");
+    expect(humanizeCode("zh", "frame:which:net_margin:A|B|C")).toBe("比较净利率高低：A、B、C");
+    expect(humanizeCode("en", "frame:which:net_margin:A|B|C")).toBe("Compared which net margin is higher: A, B and C");
+  });
+
+  it("labels the policy, language and alias reasons", () => {
+    expect(humanizeCode("zh", "model_policy:composition_for_slow_model")).toBe("慢速推理模型：改用固定流程，由 LLM 撰写回答");
+    expect(humanizeCode("en", "session_language:en")).toBe("Kept the session's answer language: English");
+    expect(humanizeCode("zh", "alias_default:平安->中国平安|平安银行")).toBe("“平安”默认理解为 中国平安（也可能指 平安银行）");
+    expect(humanizeCode("en", "ellipsis:target->贵州茅台+aspect->营收+PE")).toBe(
+      "Kept the security (贵州茅台) and the question (营收, PE) from the last turn",
+    );
+  });
+
+  it("formats an unknown reason readably instead of showing the raw code", () => {
+    expect(humanizeCode("en", "frame:brand_new:roe:A|B")).toBe("Frame: brand new · roe · A, B");
+    expect(humanizeCode("zh", "new_policy:x->y")).toBe("New policy: x → y");
+    expect(formatUnknown("zh", "a_b:c|d")).toBe("A b: c、d");
   });
 });

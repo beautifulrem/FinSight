@@ -117,6 +117,10 @@ class BodyLimitMiddleware:
     ``Content-Length`` can be absent (``Transfer-Encoding: chunked``) or wrong, so the body is read here,
     counting bytes as they arrive, and the request is answered with 413 as soon as the cap is passed,
     without reading the rest. Accepted bodies (at most ``max_bytes``) are replayed to the application.
+
+    Starlette's own ``RequestBodyLimitMiddleware`` is lazy (it raises when the endpoint reads the body); behind the
+    ``BaseHTTPMiddleware`` security layer that surfaced as 400 / a JSON-RPC 200 instead of 413, so this one stays
+    (docs/deployment.md, "Request body limit").
     """
 
     def __init__(self, app: Callable[..., Awaitable[None]], max_bytes: int) -> None:

@@ -31,6 +31,7 @@ import {
 
 import { checkClaim, classifyError, type ErrorKind } from "@/lib/api";
 import {
+  actualDetail,
   actualText,
   checkEvidence,
   claimHeadline,
@@ -114,6 +115,7 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
   const actual = actualText(lang, t, check);
   const hasActual = actual !== null;
   const claimed = claimedText(lang, t, check, report.claim, name);
+  const actualData = actualDetail(lang, t, check, name);
   const source =
     sourceNameLabel(lang, evidence?.provenance ?? null, evidence?.source_name) ||
     (evidence ? sourceTypeLabel(lang, evidence.source_type) : null);
@@ -161,13 +163,14 @@ function CheckRow({ check, report }: { check: ClaimCheckItem; report: ClaimRepor
               </>
             )}
           </dd>
-          {claimed.detail && <dd className="claim-reference text-[12px] text-muted tabular-nums">{claimed.detail}</dd>}
+          {claimed.detail && <dd className="claim-sides text-[12px] text-muted">{claimed.detail}</dd>}
         </div>
         <div className="rounded-lg bg-surface-2/70 px-3 py-2">
           <dt className="text-[11.5px] font-medium text-muted">{t("claim.actual")}</dt>
           <dd className={cn("claim-actual text-[17px] leading-7 font-semibold tabular-nums", hasActual ? spec.actual : "text-muted")}>
             {actual ?? t("claim.noActual")}
           </dd>
+          {actualData && <dd className="claim-reference text-[12px] text-muted tabular-nums">{actualData}</dd>}
         </div>
       </dl>
 
@@ -378,12 +381,14 @@ export function ClaimCheckView({ apiKey, ref, active = true }: { apiKey: string;
     element.scrollIntoView?.({ behavior: reduce ? "auto" : "smooth", block: "start" });
   }, [state]);
 
+  // Grow with the text. Not while the view is hidden (it mounts hidden when the page opens on the chat): a hidden
+  // textarea measures 0 and would stay 0 px tall, unclickable, after switching to this view (round 12).
   useLayoutEffect(() => {
     const element = textarea.current;
-    if (!element) return;
+    if (!element || !active) return;
     element.style.height = "auto";
     element.style.height = `${Math.min(element.scrollHeight, 200)}px`;
-  }, [value]);
+  }, [value, active]);
 
   const run = async (claim: string) => {
     controller.current?.abort();

@@ -154,6 +154,23 @@ jobs:
           check 'query_intelligence/agent/*' 88
           check 'query_intelligence/api/*' 90
           check 'query_intelligence/answer_guards.py' 81
+      # (round 12) Real Chrome (preinstalled on the runner) against the offline server that
+      # frontend/playwright.config.ts starts on port 8905: a three-turn zh gap session with its two citations,
+      # and a fact-check with a stated industry average. It drives the committed build, which the frontend job
+      # checks against the source. About 2 minutes, most of it the server loading its models.
+      - name: Browser regression tests (Playwright)
+        working-directory: frontend
+        env:
+          FINSIGHT_PYTHON: python
+        run: pnpm run e2e
+      - uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
 
   agent-eval-gate:
     runs-on: ubuntu-24.04
