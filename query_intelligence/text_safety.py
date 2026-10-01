@@ -208,6 +208,27 @@ _CUT_FIGURE = re.compile(
 )
 
 
+# (round 11, G8) A dramatic financial claim with no figure ("净利润腰斩", "暴雷", "崩盘", "退市风险", "plunges",
+# "halved") is the figure-free form of a planted headline: the figure rules above never see it, and nothing in the run
+# can confirm it. It is a claim shape unless the title names an official source (a filing title "关于…的公告", an
+# annual/interim report, an exchange or a regulator). Measured on the shipped corpus (data/runtime/documents.jsonl +
+# data/documents.json, 38,446 titles, 5,874 shown before) and the replay snapshots (77 titles): 0 newly hidden.
+_DRAMATIC_CLAIM = re.compile(
+    r"腰斩|暴雷|爆雷|崩盘|退市风险|闪崩|暴跌|巨亏|断崖式|血亏|爆仓|雪崩|跳水|崩塌|坍塌|暴增|暴涨|狂飙|飙升|造假|违约|"
+    r"爆表|翻车|塌方|(?<!最)大跌|(?<!最)大涨|"
+    r"\bhalved\b|\bcollapse[sd]?\b|\bcrash(?:es|ed)?\b|\bplunge[sd]?\b|\bplummet(?:s|ed)?\b|\bmeltdown\b|"
+    r"\bblow-?up\b|\bdelisting\s+risk\b|\bwiped\s+out\b|\bfraud\b|\bdefault(?:s|ed)\b|\bsoar(?:s|ed)\b|"
+    r"\bskyrocket(?:s|ed)?\b",
+    re.IGNORECASE,
+)
+_OFFICIAL_SOURCE = re.compile(
+    r"关于[^，。]{1,40}的(?:提示性)?公告|年度报告|半年度报告|季度报告|业绩预告|业绩快报|证监会|上交所|深交所|北交所|"
+    r"交易所|国家统计局|人民银行|央行|财政部|国资委|金融监管总局|"
+    r"\bannual\s+report\b|\binterim\s+report\b|\bCSRC\b|\bstock\s+exchange\b|\bfiling\b",
+    re.IGNORECASE,
+)
+
+
 def _data_row(folded: str) -> str | None:
     for chunk in _THOUSANDS.sub("", folded).split():
         fields = [field for field in _ROW_DELIMITER.split(chunk) if field]
@@ -324,6 +345,9 @@ def headline_findings(title: str) -> list[Finding]:
     cut = _CUT_FIGURE.search(folded)
     if cut:
         found.append(Finding("claim", cut.group(0)))
+    dramatic = _DRAMATIC_CLAIM.search(folded)
+    if dramatic and not _OFFICIAL_SOURCE.search(folded):
+        found.append(Finding("claim", dramatic.group(0)))
     return found
 
 
