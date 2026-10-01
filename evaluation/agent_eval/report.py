@@ -1546,10 +1546,20 @@ def round12_section(sessions: list[tuple[str, dict[str, Any]]], frames: list[tup
                 f"template fallback on a wrong-language draft {summary['language_fallback']}"
             )
         else:
+            derived = result.get("sessions") or []
+            written = sum(len(session.get("derived_in_drafts") or []) for session in derived)
+            kept = sum(len(session.get("derived_stated") or []) for session in derived)
+            revisions = sum(
+                max(0, sum(1 for draft in session["turns"][-1]["drafts"] if not draft.get("tool_calls")) - 1)
+                for session in derived
+            )
+            repaired = sum(
+                "verification_failed:repaired" in (session["turns"][-1].get("degraded") or []) for session in derived
+            )
             text = (
-                f"sessions whose model drafts derived the number {summary.get('derived_in_model_drafts')}/"
-                f"{summary.get('sessions')}; final answer still states it "
-                f"{summary.get('derived_kept_in_answer')}/{summary.get('sessions')}"
+                f"derived values the model wrote (ratio 1.93 / 0.52, relative 17.7%): {written}; in the final answer "
+                f"{kept}/{written}; revision calls on the derived turns {revisions}; derived turns repaired by "
+                f"deletion {repaired}/{len(derived)}"
             )
         lines.append(
             f"| `{name}.json` | `{config.get('commit')}` | {env or 'defaults'} | {summary.get('turns')} | "

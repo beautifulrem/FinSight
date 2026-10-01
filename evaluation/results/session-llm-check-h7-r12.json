@@ -1,0 +1,523 @@
+{
+ "config": {
+  "commit": "fa515d3",
+  "run_at": "2026-10-01T06:00:52+00:00",
+  "command": "python -m evaluation.agent_eval.session_llm_check --llm deepseek --set h7 --max-calls 20 --out outputs/agent_eval/session-llm-check-h7.json",
+  "env": {
+   "DEEPSEEK_MODEL": "cline-pass/deepseek-v4.1-flash",
+   "QI_AGENT_TRACE_DIR": "off",
+   "QI_USE_LIVE_ANNOUNCEMENT": "0",
+   "QI_USE_LIVE_MACRO": "0",
+   "QI_USE_LIVE_MARKET": "0",
+   "QI_USE_LIVE_NEWS": "0"
+  },
+  "command_with_env": "DEEPSEEK_MODEL=cline-pass/deepseek-v4.1-flash QI_AGENT_TRACE_DIR=off QI_USE_LIVE_ANNOUNCEMENT=0 QI_USE_LIVE_MACRO=0 QI_USE_LIVE_MARKET=0 QI_USE_LIVE_NEWS=0 python -m evaluation.agent_eval.session_llm_check --llm deepseek --set h7 --max-calls 20 --out outputs/agent_eval/session-llm-check-h7.json",
+  "model": "cline-pass/deepseek-v4.1-flash",
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "tools": "offline runtime assets (no replay snapshot)"
+ },
+ "summary": {
+  "sessions": 5,
+  "turns": 10,
+  "llm_calls": 14,
+  "stopped": null,
+  "answer_language_ok": 10,
+  "language_fallback": 0,
+  "model_wrote_expected_language": 10
+ },
+ "sessions": [
+  {
+   "id": "en-and-moutai",
+   "turns": [
+    {
+     "query": "Wuliangye's P/E ratio?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 3.89,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_000858.SZ",
+       "industry_白酒"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 18,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "Wuliangye (000858.SZ) has a P/E (TTM) of 20.9x, based on FY2025 fundamentals (report date 2025-12-31) [fundamental_000858.SZ]. Its P/B is 5.4x, ROE 29.4% and gross margin 76.1% [fundamental_000858.SZ]. For context, the baijiu (白酒) industry snapshot shows an industry P/E of 27.3x and P/B of 6.2x as of 2026-04-21 [industry_白酒], i.e. Wuliangye's P/E is 6.4x lower than the industry figure (27.3 minus 20.9) [fundamental_000858.SZ][industry_白酒].",
+     "limitations": [
+      "Data is from an offline snapshot (not real-time): company fundamentals as of FY2025 (2025-12-31) and industry data as of 2026-04-21, so the P/E may be outdated [fundamental_000858.SZ][industry_白酒]",
+      "The two figures are as of different dates (2025-12-31 vs 2026-04-21), so the P/E comparison with the industry is approximate"
+     ],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"Wuliangye (000858.SZ) has a P/E (TTM) of 20.9x, based on FY2025 fundamentals (report date 2025-12-31) [fundamental_000858.SZ]. Its P/B is 5.4x, ROE 29.4% and gross margin 76.1% [fundamental_000858.SZ]. For context, the baijiu (白酒) industry snapshot shows an industry P/E of 27.3x and P/B of 6.2x as of 2026-04-21 [industry_白酒], i.e. Wuliangye's P/E is 6.4x lower than the industry figure (27.3 minus 20.9) [fundamental_000858.SZ][industry_白酒].\", \"key_points\": [\"Wuliangye P/E (TTM): 20.9x [fundamental_000858.SZ]\", \"P/B: 5.4x, ROE: 29.4%, gross margin: 76.1% [fundamental_000858.SZ]\", \"Baijiu industry P/E: 27.3x, P/B: 6.2x as of 2026-04-21 [industry_白酒]\", \"Wuliangye P/E is 6.4x below the industry average (27.3 − 20.9) [fundamental_000858.SZ][industry_白酒]\"], \"evidence_used\": [\"fundamental_000858.SZ\", \"industry_白酒\"], \"limitations\": [\"Data is from an offline snapshot (not real-time): company fundamentals as of FY2025 (2025-12-31) and industry data as of 2026-04-21, so the P/E may be outdated [fundamental_000858.SZ][industry_白酒]\", \"The two figures are as of different dates (2025-12-31 vs 2026-04-21), so the P/E comparison with the industry is approximate\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ],
+     "expected_language": "en",
+     "answer_language": "en",
+     "language_ok": true,
+     "language_fallback": false,
+     "model_wrote_expected_language": true
+    },
+    {
+     "query": "And Moutai?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent",
+      "ellipsis:aspect->P/E"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 3,
+     "latency_s": 13.56,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_600519.SH",
+       "fundamental_000858.SZ"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 21,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "Kweichow Moutai (贵州茅台, 600519.SH) has a P/E (TTM) of 24.6x, based on FY2025 fundamentals (report date 2025-12-31) [fundamental_600519.SH]. Its P/B is 8.1x, ROE 33.0%, revenue CNY 168.838bn and net profit CNY 82.32bn for FY2025 [fundamental_600519.SH]. On the same FY2025 basis, Wuliangye (000858.SZ) has a P/E of 20.9x [fundamental_000858.SZ], so Moutai's P/E is 3.7x higher (24.6 minus 20.9) [fundamental_600519.SH][fundamental_000858.SZ]. Moutai's P/B of 8.1x is also above Wuliangye's 5.4x [fundamental_600519.SH][fundamental_000858.SZ].",
+     "limitations": [
+      "Fundamental data are from an offline snapshot as of 2025-12-31; live market data was disabled, so figures may be stale [fundamental_600519.SH][fundamental_000858.SZ]",
+      "P/E and P/B are point-in-time multiples that move with price; the values shown are tied to the FY2025 snapshot date"
+     ],
+     "drafts": [
+      {
+       "content": null,
+       "tool_calls": [
+        {
+         "name": "get_fundamentals",
+         "arguments": "{\"target\": \"000858.SZ\"}"
+        }
+       ],
+       "finish_reason": "tool_calls"
+      },
+      {
+       "content": "{\"answer\": \"Kweichow Moutai (贵州茅台, 600519.SH) has a P/E (TTM) of 24.6x, based on FY2025 fundamentals (report date 2025-12-31) [fundamental_600519.SH]. Its P/B is 8.1x, ROE 33.0%, revenue CNY 168.838bn and net profit CNY 82.32bn for FY2025 [fundamental_600519.SH]. On the same FY2025 basis, Wuliangye's P/E is 20.9x [fundamental_000858.SZ], so Moutai's P/E is 3.7x higher (24.6 minus 20.9) [fundamental_600519.SH][fundamental_000858.SZ]. Both sit below the baijiu industry P/E of 27.3x as of 2026-04-21 [industry_白酒]: Moutai 2.7x lower (27.3 minus 24.6) [fundamental_600519.SH][industry_白酒] and Wuliangye 6.4x lower (27.3 minus 20.9) [fundamental_000858.SZ][industry_白酒].\", \"key_points\": [\"Moutai P/E (TTM) 24.6x vs Wuliangye 20.9x — Moutai trades at a 3.7x higher multiple [fundamental_600519.SH][fundamental_000858.SZ]\", \"Moutai P/B 8.1x vs Wuliangye 5.4x [fundamental_600519.SH][fundamental_000858.SZ]\", \"Both are below the baijiu industry P/E of 27.3x and P/B of 6.2x as of 2026-04-21 [industry_白酒]\", \"Moutai FY2025: ROE 33.0%, revenue CNY 168.838bn, net profit CNY 82.32bn; Wuliangye: ROE 29.4%, gross margin 76.1% [fundamental_600519.SH][fundamental_000858.SZ]\"], \"evidence_used\": [\"fundamental_600519.SH\", \"fundamental_000858.SZ\", \"industry_白酒\"], \"limitations\": [\"Fundamental data are from an offline snapshot as of 2025-12-31 and the industry snapshot as of 2026-04-21; live market data was disabled, so figures may be stale [fundamental_600519.SH][industry_白酒]\", \"P/E and P/B are point-in-time valuation multiples that move with price; the FY2025 fundamental ratios and the 2026-04-21 industry snapshot are not measured on the same date\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      },
+      {
+       "content": "{\"answer\": \"Kweichow Moutai (贵州茅台, 600519.SH) has a P/E (TTM) of 24.6x, based on FY2025 fundamentals (report date 2025-12-31) [fundamental_600519.SH]. Its P/B is 8.1x, ROE 33.0%, revenue CNY 168.838bn and net profit CNY 82.32bn for FY2025 [fundamental_600519.SH]. On the same FY2025 basis, Wuliangye (000858.SZ) has a P/E of 20.9x [fundamental_000858.SZ], so Moutai's P/E is 3.7x higher (24.6 minus 20.9) [fundamental_600519.SH][fundamental_000858.SZ]. Moutai's P/B of 8.1x is also above Wuliangye's 5.4x [fundamental_600519.SH][fundamental_000858.SZ].\", \"key_points\": [\"Moutai P/E (TTM) 24.6x vs Wuliangye 20.9x — Moutai's multiple is 3.7x higher [fundamental_600519.SH][fundamental_000858.SZ]\", \"Moutai P/B 8.1x vs Wuliangye 5.4x [fundamental_600519.SH][fundamental_000858.SZ]\", \"Moutai FY2025: ROE 33.0%, revenue CNY 168.838bn, net profit CNY 82.32bn [fundamental_600519.SH]\", \"Wuliangye FY2025: ROE 29.4%, gross margin 76.1% [fundamental_000858.SZ]\"], \"evidence_used\": [\"fundamental_600519.SH\", \"fundamental_000858.SZ\"], \"limitations\": [\"Fundamental data are from an offline snapshot as of 2025-12-31; live market data was disabled, so figures may be stale [fundamental_600519.SH][fundamental_000858.SZ]\", \"P/E and P/B are point-in-time multiples that move with price; the values shown are tied to the FY2025 snapshot date\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ],
+     "expected_language": "en",
+     "answer_language": "en",
+     "language_ok": true,
+     "language_fallback": false,
+     "model_wrote_expected_language": true
+    }
+   ]
+  },
+  {
+   "id": "en-one-word",
+   "turns": [
+    {
+     "query": "What's Ping An's ROE?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.86,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_601318.SH",
+       "industry_保险"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 8,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "Ping An (中国平安, 601318.SH) reported an ROE of 15.2% for FY2025 (period ending 2025-12-31) [fundamental_601318.SH].",
+     "limitations": [
+      "Data is from an offline snapshot with FY2025 as the latest reported period; the underlying figures are flagged as stale and may not reflect more recent disclosures.",
+      "No interim (e.g. 2026 Q1) ROE was available in the retrieved evidence."
+     ],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"Ping An (中国平安, 601318.SH) reported an ROE of 15.2% for FY2025 (period ending 2025-12-31) [fundamental_601318.SH].\", \"key_points\": [\"ROE 15.2%, period FY2025 (report date 2025-12-31) [fundamental_601318.SH]\", \"For context, net profit was CNY 121 billion and revenue CNY 1,218 billion for the same period [fundamental_601318.SH]\", \"Valuation metrics: PE(TTM) 8.7x, PB 1.1x [fundamental_601318.SH]\", \"Its insurance industry traded at PE 11.8x and PB 1.45x as of 2026-04-22 [industry_保险]\"], \"evidence_used\": [\"fundamental_601318.SH\", \"industry_保险\"], \"limitations\": [\"Data is from an offline snapshot with FY2025 as the latest reported period; the underlying figures are flagged as stale and may not reflect more recent disclosures.\", \"No interim (e.g. 2026 Q1) ROE was available in the retrieved evidence.\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ],
+     "expected_language": "en",
+     "answer_language": "en",
+     "language_ok": true,
+     "language_fallback": false,
+     "model_wrote_expected_language": true
+    },
+    {
+     "query": "Moutai?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 3,
+     "latency_s": 10.3,
+     "verification": {
+      "passed": false,
+      "cited_ids": [],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 0,
+      "missing_citations": true
+     },
+     "degraded": [
+      "verification_failed:repaired",
+      "verification_failed:template_fallback"
+     ],
+     "compliance_notes": [],
+     "answer": "Based on the evidence retrieved for this question: Kweichow Moutai (600519.SH) last available close was CNY 1409.5 on 2026-04-22, daily change -0.1778% [price_600519.SH]. Kweichow Moutai fundamentals (period 2025-12-31, FY2025): PE(TTM) 24.6x, PB 8.1x, ROE 33%, revenue CNY 168.84 bn, net profit CNY 82.32 bn [fundamental_600519.SH]. Industry baijiu (liquor): PE 27.3x, PB 6.2x, change -1.05% [industry_白酒].",
+     "limitations": [
+      "The model's answer stated figures the evidence does not support; replaced with the evidence summary."
+     ],
+     "drafts": [
+      {
+       "content": null,
+       "tool_calls": [
+        {
+         "name": "get_fundamentals",
+         "arguments": "{\"target\": \"600519.SH\"}"
+        }
+       ],
+       "finish_reason": "tool_calls"
+      },
+      {
+       "content": "{\"answer\": \"Kweichow Moutai (贵州茅台, 600519.SH) reported an ROE of 33% for FY2025 (period ending 2025-12-31) [fundamental_600519.SH]. Compared with the earlier figure for Ping An (中国平安, 601318.SH) of 15.2%, Moutai's ROE is 17.8 percentage points higher (33 − 15.2) [fundamental_600519.SH]. Its latest close was 1409.5 CNY on 2026-04-22 [price_600519.SH].\", \"key_points\": [\"Moutai FY2025 ROE: 33% [fundamental_600519.SH]\", \"Ping An FY2025 ROE was 15.2% (earlier turn); Moutai is 17.8 percentage points higher, computed as 33 − 15.2 [fundamental_600519.SH]\", \"Moutai PE(TTM) 24.6, PB 8.1; revenue 168.838bn CNY, net profit 82.32bn CNY [fundamental_600519.SH]\", \"Baijiu (白酒) industry snapshot: PE 27.3, PB 6.2 [industry_白酒]\", \"Moutai last close 1409.5 CNY on 2026-04-22, −0.18% for the day [price_600519.SH]\"], \"evidence_used\": [\"fundamental_600519.SH\", \"industry_白酒\", \"price_600519.SH\"], \"limitations\": [\"Both ROE figures come from the FY2025 reporting period (2025-12-31); the source is an offline snapshot marked stale, so values may be outdated [fundamental_600519.SH]\", \"Ping An's ROE of 15.2% comes from an earlier turn and its evidence id cannot be re-cited here; it was not re-fetched this turn\", \"Valuation and price data are from a stale offline snapshot (market data as of 2026-04-22), not real-time quotes [price_600519.SH]\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      },
+      {
+       "content": "                                          ",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ],
+     "expected_language": "en",
+     "answer_language": "en",
+     "language_ok": true,
+     "language_fallback": false,
+     "model_wrote_expected_language": true
+    }
+   ]
+  },
+  {
+   "id": "en-close",
+   "turns": [
+    {
+     "query": "Moutai's latest close?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.62,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "price_600519.SH"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 9,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [
+      "market_freshness"
+     ],
+     "answer": "Moutai (贵州茅台, 600519.SH) last closed at 1409.5 CNY on 2026-04-22, down 0.18% on the day (open 1415.0, high 1419.0, low 1404.98) [price_600519.SH].",
+     "limitations": [
+      "Only one recent close was returned, so no multi-day trend is available.",
+      "The quote is a stale offline snapshot (as of 2026-04-22), not a real-time price.",
+      "The latest available market date is 2026-04-22, not today's (2026-04-23) real-time quote."
+     ],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"Moutai (贵州茅台, 600519.SH) last closed at 1409.5 CNY on 2026-04-22, down 0.18% on the day (open 1415.0, high 1419.0, low 1404.98) [price_600519.SH].\", \"key_points\": [\"Close: 1409.5 CNY; daily change: -0.1778% (2026-04-22) [price_600519.SH]\", \"Turnover: 3,793,827,534 CNY; volume: 2,691,593 shares [price_600519.SH]\", \"Data comes from an offline snapshot as of 2026-04-22; live market data was disabled [price_600519.SH]\"], \"evidence_used\": [\"price_600519.SH\"], \"limitations\": [\"Only one recent close was returned, so no multi-day trend is available.\", \"The quote is a stale offline snapshot (as of 2026-04-22), not a real-time price.\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ],
+     "expected_language": "en",
+     "answer_language": "en",
+     "language_ok": true,
+     "language_fallback": false,
+     "model_wrote_expected_language": true
+    },
+    {
+     "query": "And Wuliangye?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent",
+      "ellipsis:aspect->close"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.86,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "price_000858.SZ"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 9,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "五粮液 (Wuliangye, 000858.SZ) last closed at 100.64 CNY on 2026-04-22, down 0.53% on the day (open 101.0, high 101.08, low 100.46) [price_000858.SZ].",
+     "limitations": [
+      "Only one recent close (2026-04-22) was returned, so no multi-day trend is available [price_000858.SZ]",
+      "Data is from an offline snapshot, not real-time, and may be outdated [price_000858.SZ]"
+     ],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"五粮液 (Wuliangye, 000858.SZ) last closed at 100.64 CNY on 2026-04-22, down 0.53% on the day (open 101.0, high 101.08, low 100.46) [price_000858.SZ].\", \"key_points\": [\"Latest close 100.64 CNY on 2026-04-22, pct_change_1d -0.5337% [price_000858.SZ]\", \"Turnover 1,452,833,705 CNY; volume 14,438,261 shares [price_000858.SZ]\", \"Quote comes from an offline snapshot (stale, not live) as of 2026-04-22 [price_000858.SZ]\"], \"evidence_used\": [\"price_000858.SZ\"], \"limitations\": [\"Only one recent close (2026-04-22) was returned, so no multi-day trend is available [price_000858.SZ]\", \"Data is from an offline snapshot, not real-time, and may be outdated [price_000858.SZ]\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ],
+     "expected_language": "en",
+     "answer_language": "en",
+     "language_ok": true,
+     "language_fallback": false,
+     "model_wrote_expected_language": true
+    }
+   ]
+  },
+  {
+   "id": "en-acronym",
+   "turns": [
+    {
+     "query": "What is Wuliangye's revenue?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.98,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_000858.SZ",
+       "industry_白酒"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 20,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "Wuliangye (五粮液, 000858.SZ) reported revenue of CNY 108.5 billion (108,500,000,000 yuan) for FY2025, the period ending 2025-12-31 [fundamental_000858.SZ]. In the same reporting period its net profit was CNY 37.8 billion (37,800,000,000 yuan), giving a net margin of about 34.8% (37.8bn ÷ 108.5bn) [fundamental_000858.SZ].",
+     "limitations": [
+      "The fundamentals come from an offline snapshot (as of 2025-12-31) flagged as stale and not live; figures may be outdated.",
+      "No segment- or quarter-level revenue breakdown was retrieved; the figure is the full-period FY2025 total.",
+      "No recent news or announcements were checked, so any guidance or restatement of revenue is not reflected here."
+     ],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"Wuliangye (五粮液, 000858.SZ) reported revenue of CNY 108.5 billion (108,500,000,000 yuan) for FY2025, the period ending 2025-12-31 [fundamental_000858.SZ]. In the same reporting period its net profit was CNY 37.8 billion (37,800,000,000 yuan), giving a net margin of about 34.8% (37.8bn ÷ 108.5bn) [fundamental_000858.SZ].\", \"key_points\": [\"Revenue: CNY 108.5 billion, FY2025 [fundamental_000858.SZ]\", \"Net profit: CNY 37.8 billion, implying a net margin of roughly 34.8% (net profit 37.8bn ÷ revenue 108.5bn) [fundamental_000858.SZ]\", \"Gross margin 76.1% and ROE 29.4% for FY2025 [fundamental_000858.SZ]\", \"Valuation (snapshot as of 2025-12-31): PE(TTM) 20.9x, PB 5.4x [fundamental_000858.SZ]\", \"White liquor (白酒) industry snapshot as of 2026-04-21: PE 27.3x, PB 6.2x, daily change -1.05%, turnover 0.84% [industry_白酒]\"], \"evidence_used\": [\"fundamental_000858.SZ\", \"industry_白酒\"], \"limitations\": [\"The fundamentals come from an offline snapshot (as of 2025-12-31) flagged as stale and not live; figures may be outdated.\", \"No segment- or quarter-level revenue breakdown was retrieved; the figure is the full-period FY2025 total.\", \"No recent news or announcements were checked, so any guidance or restatement of revenue is not reflected here.\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ],
+     "expected_language": "en",
+     "answer_language": "en",
+     "language_ok": true,
+     "language_fallback": false,
+     "model_wrote_expected_language": true
+    },
+    {
+     "query": "PB?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent",
+      "ellipsis:target->五粮液"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.77,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_000858.SZ",
+       "industry_白酒"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 6,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "Wuliangye (五粮液, 000858.SZ) has a PB of 5.4 times, based on its FY2025 fundamentals (period ending 2025-12-31) [fundamental_000858.SZ]. For context, its PE(TTM) is 20.9 times on the same basis [fundamental_000858.SZ]. The 白酒 (baijiu) industry snapshot shows an industry PB of 6.2 times as of 2026-04-21 [industry_白酒].",
+     "limitations": [
+      "Both figures come from an offline snapshot (fundamentals as of 2025-12-31; industry snapshot as of 2026-04-21) with live market data disabled, so the values may be stale and are not real-time.",
+      "No recent announcements or news were retrieved for this question."
+     ],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"Wuliangye (五粮液, 000858.SZ) has a PB of 5.4 times, based on its FY2025 fundamentals (period ending 2025-12-31) [fundamental_000858.SZ]. For context, its PE(TTM) is 20.9 times on the same basis [fundamental_000858.SZ]. The 白酒 (baijiu) industry snapshot shows an industry PB of 6.2 times as of 2026-04-21 [industry_白酒].\", \"key_points\": [\"Wuliangye PB: 5.4x [fundamental_000858.SZ]\", \"Wuliangye PE(TTM): 20.9x [fundamental_000858.SZ]\", \"Baijiu industry PB: 6.2x (as of 2026-04-21) [industry_白酒]\"], \"evidence_used\": [\"fundamental_000858.SZ\", \"industry_白酒\"], \"limitations\": [\"Both figures come from an offline snapshot (fundamentals as of 2025-12-31; industry snapshot as of 2026-04-21) with live market data disabled, so the values may be stale and are not real-time.\", \"No recent announcements or news were retrieved for this question.\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ],
+     "expected_language": "en",
+     "answer_language": "en",
+     "language_ok": true,
+     "language_fallback": false,
+     "model_wrote_expected_language": true
+    }
+   ]
+  },
+  {
+   "id": "zh-acronym",
+   "turns": [
+    {
+     "query": "五粮液的ROE是多少",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.57,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_000858.SZ",
+       "industry_白酒"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 9,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "五粮液（000858.SZ）最新报告的净资产收益率（ROE）为 29.4%（报告期 FY2025，截至 2025-12-31）[fundamental_000858.SZ]。",
+     "limitations": [
+      "数据来自离线快照，报告期截至 2025-12-31、行业数据截至 2026-04-21，均注明为非实时（stale），可能已过时",
+      "未检索到更新的业绩公告或新闻"
+     ],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"五粮液（000858.SZ）最新报告的净资产收益率（ROE）为 29.4%（报告期 FY2025，截至 2025-12-31）[fundamental_000858.SZ]。\", \"key_points\": [\"ROE 29.4%，同期毛利率 76.1%，PE(TTM) 20.9 倍，PB 5.4 倍，营收 1085 亿元、净利润 378 亿元 [fundamental_000858.SZ]\", \"所属白酒行业快照（2026-04-21）PE 27.3 倍、PB 6.2 倍 [industry_白酒]\"], \"evidence_used\": [\"fundamental_000858.SZ\", \"industry_白酒\"], \"limitations\": [\"数据来自离线快照，报告期截至 2025-12-31、行业数据截至 2026-04-21，均注明为非实时（stale），可能已过时\", \"未检索到更新的业绩公告或新闻\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ],
+     "expected_language": "zh",
+     "answer_language": "zh",
+     "language_ok": true,
+     "language_fallback": false,
+     "model_wrote_expected_language": true
+    },
+    {
+     "query": "PE?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent",
+      "ellipsis:target->五粮液",
+      "session_language:zh"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.45,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_000858.SZ",
+       "industry_白酒"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 8,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "五粮液（000858.SZ）市盈率 PE(TTM) 为 20.9 倍，市净率 PB 为 5.4 倍（报告期 FY2025，截至 2025-12-31）[fundamental_000858.SZ]。同期所属白酒行业整体 PE 为 27.3 倍、PB 为 6.2 倍（截至 2026-04-21）[industry_白酒]，即个股估值低于行业平均。",
+     "limitations": [
+      "数据来自离线快照，基本面截至 2025-12-31、行业数据截至 2026-04-21，非实时，可能已过时"
+     ],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"五粮液（000858.SZ）市盈率 PE(TTM) 为 20.9 倍，市净率 PB 为 5.4 倍（报告期 FY2025，截至 2025-12-31）[fundamental_000858.SZ]。同期所属白酒行业整体 PE 为 27.3 倍、PB 为 6.2 倍（截至 2026-04-21）[industry_白酒]，即个股估值低于行业平均。\", \"key_points\": [\"五粮液 PE(TTM) 20.9 倍 [fundamental_000858.SZ]\", \"五粮液 PB 5.4 倍 [fundamental_000858.SZ]\", \"白酒行业 PE 27.3 倍、PB 6.2 倍（2026-04-21）[industry_白酒]\"], \"evidence_used\": [\"fundamental_000858.SZ\", \"industry_白酒\"], \"limitations\": [\"数据来自离线快照，基本面截至 2025-12-31、行业数据截至 2026-04-21，非实时，可能已过时\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ],
+     "expected_language": "zh",
+     "answer_language": "zh",
+     "language_ok": true,
+     "language_fallback": false,
+     "model_wrote_expected_language": true
+    }
+   ]
+  }
+ ]
+}

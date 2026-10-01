@@ -1,0 +1,326 @@
+{
+ "config": {
+  "commit": "4c45dac",
+  "run_at": "2026-10-01T07:01:55+00:00",
+  "command": "python -m evaluation.agent_eval.session_llm_check --llm deepseek --set h8 --max-calls 16 --out outputs/agent_eval/session-llm-check-h8-final.json",
+  "env": {
+   "DEEPSEEK_MODEL": "cline-pass/deepseek-v4.1-flash",
+   "QI_AGENT_TRACE_DIR": "off",
+   "QI_USE_LIVE_ANNOUNCEMENT": "0",
+   "QI_USE_LIVE_MACRO": "0",
+   "QI_USE_LIVE_MARKET": "0",
+   "QI_USE_LIVE_NEWS": "0"
+  },
+  "command_with_env": "DEEPSEEK_MODEL=cline-pass/deepseek-v4.1-flash QI_AGENT_TRACE_DIR=off QI_USE_LIVE_ANNOUNCEMENT=0 QI_USE_LIVE_MACRO=0 QI_USE_LIVE_MARKET=0 QI_USE_LIVE_NEWS=0 python -m evaluation.agent_eval.session_llm_check --llm deepseek --set h8 --max-calls 16 --out outputs/agent_eval/session-llm-check-h8-final.json",
+  "model": "cline-pass/deepseek-v4.1-flash",
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "tools": "offline runtime assets (no replay snapshot)"
+ },
+ "summary": {
+  "sessions": 2,
+  "turns": 6,
+  "llm_calls": 9,
+  "stopped": null,
+  "derived_in_model_drafts": 2,
+  "derived_kept_in_answer": 2
+ },
+ "sessions": [
+  {
+   "id": "l3-ratio",
+   "turns": [
+    {
+     "query": "中国平安ROE多少",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 4.44,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_601318.SH",
+       "industry_保险"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 15,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "中国平安（601318.SH）最新报告期（FY2025，报告期 2025-12-31）的净资产收益率（ROE）为 15.2% [fundamental_601318.SH]。同期公司实现营业收入 12180 亿元、净利润 1210 亿元，PE(TTM) 8.7 倍、PB 1.1 倍 [fundamental_601318.SH]。其所属保险行业最新快照（2026-04-22）PE 11.8 倍、PB 1.45 倍、当日涨跌 0.68% [industry_保险]。",
+     "limitations": [
+      "数据来自离线快照：财务数据截至 2025-12-31、行业数据截至 2026-04-22，非实时，可能已过时",
+      "未检索公告或新闻，无法判断 ROE 变动原因"
+     ],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"中国平安（601318.SH）最新报告期（FY2025，报告期 2025-12-31）的净资产收益率（ROE）为 15.2% [fundamental_601318.SH]。同期公司实现营业收入 12180 亿元、净利润 1210 亿元，PE(TTM) 8.7 倍、PB 1.1 倍 [fundamental_601318.SH]。其所属保险行业最新快照（2026-04-22）PE 11.8 倍、PB 1.45 倍、当日涨跌 0.68% [industry_保险]。\", \"key_points\": [\"中国平安 FY2025 ROE 为 15.2% [fundamental_601318.SH]\", \"FY2025 营收 12180 亿元、净利润 1210 亿元 [fundamental_601318.SH]\", \"PE(TTM) 8.7 倍、PB 1.1 倍 [fundamental_601318.SH]\", \"保险行业 PE 11.8 倍、PB 1.45 倍（2026-04-22）[industry_保险]\"], \"evidence_used\": [\"fundamental_601318.SH\", \"industry_保险\"], \"limitations\": [\"数据来自离线快照：财务数据截至 2025-12-31、行业数据截至 2026-04-22，非实时，可能已过时\", \"未检索公告或新闻，无法判断 ROE 变动原因\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ]
+    },
+    {
+     "query": "五粮液呢",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent",
+      "ellipsis:aspect->ROE"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 8.21,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_000858.SZ",
+       "fundamental_601318.SH",
+       "industry_白酒"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 17,
+      "missing_citations": false
+     },
+     "degraded": [
+      "verification_failed:citations_repaired:unsupported_numbers+misattributed_numbers"
+     ],
+     "compliance_notes": [],
+     "answer": "五粮液（000858.SZ）最新报告期（FY2025，报告期 2025-12-31）的净资产收益率（ROE）为 29.4% [fundamental_000858.SZ]。同期中国平安 ROE 为 15.2% [fundamental_601318.SH]，五粮液高 14.2 个百分点（29.4% − 15.2%）[fundamental_000858.SZ]。",
+     "limitations": [
+      "数据来自离线快照，报告期为 2025-12-31，非实时（行业快照截至 2026-04-21）",
+      "两家公司分属白酒与保险行业，ROE 受行业杠杆与资本结构差异影响，直接横向比较需谨慎"
+     ],
+     "drafts": [
+      {
+       "content": null,
+       "tool_calls": [
+        {
+         "name": "get_fundamentals",
+         "arguments": "{\"target\": \"601318.SH\"}"
+        }
+       ],
+       "finish_reason": "tool_calls"
+      },
+      {
+       "content": "{\"answer\": \"五粮液（000858.SZ）最新报告期（FY2025，报告期 2025-12-31）的净资产收益率（ROE）为 29.4% [fundamental_000858.SZ]。同期中国平安 ROE 为 15.2% [fundamental_601318.SH]，五粮液高 14.2 个百分点（29.4% − 15.2%）。\", \"key_points\": [\"五粮液 FY2025：营业收入 1085 亿元，净利润 378 亿元，毛利率 76.1%，ROE 29.4% [fundamental_000858.SZ]\", \"五粮液 PE(TTM) 20.9 倍、PB 5.4 倍 [fundamental_000858.SZ]\", \"中国平安 FY2025 ROE 15.2%，PE(TTM) 8.7 倍、PB 1.1 倍 [fundamental_601318.SH]\", \"白酒行业快照（2026-04-21）：PE 27.3 倍、PB 6.2 倍、当日涨跌 -1.05% [industry_白酒]\"], \"evidence_used\": [\"fundamental_000858.SZ\", \"fundamental_601318.SH\", \"industry_白酒\"], \"limitations\": [\"数据来自离线快照，报告期为 2025-12-31，非实时（行业快照截至 2026-04-21）\", \"两家公司分属白酒与保险行业，ROE 受行业杠杆与资本结构差异影响，直接横向比较需谨慎\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ]
+    },
+    {
+     "query": "二者之比是多少",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent",
+      "multi_entity:2",
+      "comparison_targets",
+      "question_style:compare",
+      "coreference:二者->中国平安和五粮液"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 5.2,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_000858.SZ",
+       "fundamental_601318.SH",
+       "industry_保险",
+       "industry_白酒"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 16,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "按前面比较的口径（ROE），五粮液最新报告期 ROE 29.4% [fundamental_000858.SZ]，中国平安 ROE 15.2% [fundamental_601318.SH]。二者之比：五粮液 ÷ 中国平安 = 29.4% ÷ 15.2% ≈ 1.93 倍；反过来中国平安 ÷ 五粮液 = 15.2% ÷ 29.4% ≈ 0.52 倍 [fundamental_000858.SZ][fundamental_601318.SH]。",
+     "limitations": [
+      "比值按上一轮 ROE 口径计算，未指定其他指标；若您想比较的是股价、PE 或 PB 之比，请说明",
+      "数据来自离线快照（截至 2026-04-22 / 2025-12-31 报告期），非实时，可能已过时"
+     ],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"按前面比较的口径（ROE），五粮液最新报告期 ROE 29.4% [fundamental_000858.SZ]，中国平安 ROE 15.2% [fundamental_601318.SH]。二者之比：五粮液 ÷ 中国平安 = 29.4% ÷ 15.2% ≈ 1.93 倍；反过来中国平安 ÷ 五粮液 = 15.2% ÷ 29.4% ≈ 0.52 倍 [fundamental_000858.SZ][fundamental_601318.SH]。\", \"key_points\": [\"五粮液 ROE 29.4%，中国平安 ROE 15.2% [fundamental_000858.SZ][fundamental_601318.SH]\", \"按比较顺序（中国平安→五粮液）计算，五粮液 ROE 约为中国平安的 1.93 倍（29.4% ÷ 15.2%）[fundamental_000858.SZ][fundamental_601318.SH]\", \"若反向比较，中国平安 ROE 约为五粮液的 0.52 倍（15.2% ÷ 29.4%）[fundamental_000858.SZ][fundamental_601318.SH]\", \"二者分属不同行业（保险/白酒），ROE 口径与杠杆结构差异较大，比值仅供参考 [industry_保险][industry_白酒]\"], \"evidence_used\": [\"fundamental_000858.SZ\", \"fundamental_601318.SH\", \"industry_保险\", \"industry_白酒\"], \"limitations\": [\"比值按上一轮 ROE 口径计算，未指定其他指标；若您想比较的是股价、PE 或 PB 之比，请说明\", \"数据来自离线快照（截至 2026-04-22 / 2025-12-31 报告期），非实时，可能已过时\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ]
+    }
+   ],
+   "derived_expected": [
+    0.52,
+    1.93
+   ],
+   "derived_stated": [
+    0.52,
+    1.93
+   ],
+   "derived_in_drafts": [
+    0.52,
+    1.93
+   ]
+  },
+  {
+   "id": "l2b-relative",
+   "turns": [
+    {
+     "query": "Wuliangye's P/E ratio?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.7,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_000858.SZ",
+       "industry_白酒"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 8,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "Wuliangye (000858.SZ, 五粮液) has a P/E (TTM) of 20.9x, based on FY2025 reported figures as of 2025-12-31 [fundamental_000858.SZ]. Its P/B is 5.4x [fundamental_000858.SZ].",
+     "limitations": [],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"Wuliangye (000858.SZ, 五粮液) has a P/E (TTM) of 20.9x, based on FY2025 reported figures as of 2025-12-31 [fundamental_000858.SZ]. Its P/B is 5.4x [fundamental_000858.SZ].\", \"key_points\": [\"P/E (TTM): 20.9x [fundamental_000858.SZ]\", \"P/B: 5.4x; ROE: 29.4%; gross margin: 76.1% (FY2025) [fundamental_000858.SZ]\", \"The 白酒 (baijiu) industry snapshot shows an average P/E of 27.3x and P/B of 6.2x as of 2026-04-21, so Wuliangye's P/E sits below the industry average [industry_白酒][fundamental_000858.SZ]\"], \"evidence_used\": [\"fundamental_000858.SZ\", \"industry_白酒\"], \"limitations\": [\"Data come from an offline snapshot, not live market data: the company fundamentals are as of 2025-12-31 and the industry snapshot as of 2026-04-21, so both may be out of date [fundamental_000858.SZ][industry_白酒]\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ]
+    },
+    {
+     "query": "And Moutai?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent",
+      "ellipsis:aspect->P/E"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 3,
+     "latency_s": 12.17,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_600519.SH",
+       "fundamental_000858.SZ",
+       "industry_白酒"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 11,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "贵州茅台 (600519.SH, Kweichow Moutai) has a P/E (TTM) of 24.6x, based on FY2025 reported figures as of 2025-12-31 [fundamental_600519.SH]. By comparison, 五粮液 (Wuliangye, 000858.SZ) has a P/E (TTM) of 20.9x for FY2025 [fundamental_000858.SZ], so Moutai's multiple is the higher of the two.",
+     "limitations": [
+      "Fundamentals come from an offline snapshot as of 2025-12-31 and the industry snapshot as of 2026-04-21; live market data was disabled, so figures may be stale.",
+      "P/E is a TTM multiple that moves with price; the figures reflect the snapshot dates only."
+     ],
+     "drafts": [
+      {
+       "content": null,
+       "tool_calls": [
+        {
+         "name": "get_fundamentals",
+         "arguments": "{\"target\": \"000858.SZ\"}"
+        }
+       ],
+       "finish_reason": "tool_calls"
+      },
+      {
+       "content": "{\"answer\": \"贵州茅台 (600519.SH, Kweichow Moutai) has a P/E (TTM) of 24.6x, based on FY2025 reported figures as of 2025-12-31 [fundamental_600519.SH]. That is 3.7 points higher than 五粮液's (Wuliangye) 20.9x [fundamental_600519.SH][fundamental_000858.SZ].\", \"key_points\": [\"Moutai P/E (TTM) 24.6x vs Wuliangye 20.9x — Moutai trades at the higher multiple [fundamental_600519.SH][fundamental_000858.SZ]\", \"Moutai P/B 8.1x vs Wuliangye 5.4x [fundamental_600519.SH][fundamental_000858.SZ]\", \"Moutai ROE 33.0% vs Wuliangye 29.4% [fundamental_600519.SH][fundamental_000858.SZ]\", \"White-liquor (白酒) industry snapshot: PE 27.3x, PB 6.2x, daily change -1.05% (2026-04-21) [industry_白酒]\"], \"evidence_used\": [\"fundamental_600519.SH\", \"fundamental_000858.SZ\", \"industry_白酒\"], \"limitations\": [\"Fundamentals are from an offline snapshot as of 2025-12-31 and the industry snapshot as of 2026-04-21; live market data was disabled, so figures may be stale.\", \"P/E values are TTM multiples that move with price; the stated figures reflect the snapshot date only.\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      },
+      {
+       "content": "{\"answer\": \"贵州茅台 (600519.SH, Kweichow Moutai) has a P/E (TTM) of 24.6x, based on FY2025 reported figures as of 2025-12-31 [fundamental_600519.SH]. By comparison, 五粮液 (Wuliangye, 000858.SZ) has a P/E (TTM) of 20.9x for FY2025 [fundamental_000858.SZ], so Moutai's multiple is the higher of the two.\", \"key_points\": [\"Moutai P/E (TTM) 24.6x [fundamental_600519.SH] vs Wuliangye P/E (TTM) 20.9x [fundamental_000858.SZ]\", \"Moutai P/B 8.1x [fundamental_600519.SH] vs Wuliangye P/B 5.4x [fundamental_000858.SZ]\", \"Moutai ROE 33.0% [fundamental_600519.SH] vs Wuliangye ROE 29.4% [fundamental_000858.SZ]\", \"White-liquor (白酒) industry snapshot: PE 27.3x, PB 6.2x, daily change -1.05% as of 2026-04-21 [industry_白酒]\"], \"evidence_used\": [\"fundamental_600519.SH\", \"fundamental_000858.SZ\", \"industry_白酒\"], \"limitations\": [\"Fundamentals come from an offline snapshot as of 2025-12-31 and the industry snapshot as of 2026-04-21; live market data was disabled, so figures may be stale.\", \"P/E is a TTM multiple that moves with price; the figures reflect the snapshot dates only.\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ]
+    },
+    {
+     "query": "By what percentage is Moutai's above Wuliangye's?",
+     "route": "agent",
+     "route_reasons": [
+      "mode:agent",
+      "multi_entity:2"
+     ],
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 3.79,
+     "verification": {
+      "passed": true,
+      "cited_ids": [
+       "fundamental_600519.SH",
+       "fundamental_000858.SZ"
+      ],
+      "invalid_citations": [],
+      "unsupported_numbers": [],
+      "misattributed_numbers": [],
+      "document_market_numbers": [],
+      "uncited_numbers": [],
+      "checked_numbers": 19,
+      "missing_citations": false
+     },
+     "degraded": [],
+     "compliance_notes": [],
+     "answer": "Moutai's P/E (TTM) of 24.6x is about 17.7% above Wuliangye's 20.9x: the gap is 24.6 − 20.9 = 3.7, and 3.7 ÷ 20.9 ≈ 17.7% [fundamental_600519.SH][fundamental_000858.SZ]. Both figures are FY2025 reported valuations as of 2025-12-31.",
+     "limitations": [
+      "Both valuations come from an offline snapshot as of 2025-12-31 and may be stale; live market data was disabled [fundamental_600519.SH][fundamental_000858.SZ]",
+      "P/E comparisons reflect different earnings, growth and quality profiles and are not on their own a valuation judgement"
+     ],
+     "drafts": [
+      {
+       "content": "{\"answer\": \"Moutai's P/E (TTM) of 24.6x is about 17.7% above Wuliangye's 20.9x: the gap is 24.6 − 20.9 = 3.7, and 3.7 ÷ 20.9 ≈ 17.7% [fundamental_600519.SH][fundamental_000858.SZ]. Both figures are FY2025 reported valuations as of 2025-12-31.\", \"key_points\": [\"Moutai (600519.SH) P/E (TTM): 24.6x [fundamental_600519.SH]\", \"Wuliangye (000858.SZ) P/E (TTM): 20.9x [fundamental_000858.SZ]\", \"Absolute gap: 24.6 − 20.9 = 3.7x, or roughly 17.7% relative premium (3.7 ÷ 20.9) [fundamental_600519.SH][fundamental_000858.SZ]\", \"Moutai's P/B is 8.1x versus Wuliangye's 5.4x [fundamental_600519.SH][fundamental_000858.SZ]\"], \"evidence_used\": [\"fundamental_600519.SH\", \"fundamental_000858.SZ\"], \"limitations\": [\"Both valuations come from an offline snapshot as of 2025-12-31 and may be stale; live market data was disabled [fundamental_600519.SH][fundamental_000858.SZ]\", \"P/E comparisons reflect different earnings, growth and quality profiles and are not on their own a valuation judgement\"]}",
+       "tool_calls": [],
+       "finish_reason": "stop"
+      }
+     ]
+    }
+   ],
+   "derived_expected": [
+    17.7
+   ],
+   "derived_stated": [
+    17.7
+   ],
+   "derived_in_drafts": [
+    17.7
+   ]
+  }
+ ]
+}
