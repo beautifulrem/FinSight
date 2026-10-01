@@ -17,15 +17,15 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "017e5a3",
-  "run_at": "2026-10-01T03:56:00+00:00",
+  "commit": "7343cc5",
+  "run_at": "2026-10-01T07:56:17+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 186.3,
+  "wall_seconds": 254.6,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
-  "tasks": 370,
-  "turns": 498,
+  "tasks": 411,
+  "turns": 578,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -50,15 +50,15 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.6167,
+  "tool_precision": 0.5239,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 114.57,
-  "latency_ms_p95": 1054.19,
-  "latency_ms_p99": 1620.19,
+  "latency_ms_p50": 147.77,
+  "latency_ms_p95": 1205.82,
+  "latency_ms_p99": 2802.8,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -86,84 +86,89 @@
   "clarify": {
    "tasks": 18,
    "task_success": 1.0,
-   "latency_ms_p95": 1457.1
+   "latency_ms_p95": 915.3
   },
   "compare": {
    "tasks": 33,
    "task_success": 1.0,
-   "latency_ms_p95": 1937.94
+   "latency_ms_p95": 2161.6
+  },
+  "comparison": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 414.58
   },
   "compliance": {
    "tasks": 31,
    "task_success": 1.0,
-   "latency_ms_p95": 984.18
+   "latency_ms_p95": 1092.12
   },
   "derived": {
-   "tasks": 4,
+   "tasks": 14,
    "task_success": 1.0,
-   "latency_ms_p95": 1069.5
+   "latency_ms_p95": 1680.18
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 1130.36
+   "latency_ms_p95": 996.33
   },
   "fact": {
    "tasks": 69,
    "task_success": 1.0,
-   "latency_ms_p95": 1054.19
+   "latency_ms_p95": 1185.83
   },
   "injection": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 801.15
+   "latency_ms_p95": 1069.18
   },
   "macro_link": {
    "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 1213.88
+   "latency_ms_p95": 1123.78
   },
   "missing_data": {
    "tasks": 43,
    "task_success": 1.0,
-   "latency_ms_p95": 840.97
+   "latency_ms_p95": 1015.89
   },
   "multi_turn": {
-   "tasks": 80,
+   "tasks": 102,
    "task_success": 1.0,
-   "latency_ms_p95": 975.3
+   "latency_ms_p95": 1213.66
   },
   "out_of_coverage": {
-   "tasks": 15,
+   "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 911.93
+   "latency_ms_p95": 1152.3
   },
   "out_of_scope": {
    "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 137.57
+   "latency_ms_p95": 201.06
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 1190.42
+   "latency_ms_p95": 945.67
   },
   "why": {
    "tasks": 21,
    "task_success": 1.0,
-   "latency_ms_p95": 1143.31
+   "latency_ms_p95": 1283.42
   }
  },
  "by_language": {
   "en": {
-   "tasks": 114,
+   "tasks": 132,
    "task_success": 1.0,
-   "latency_ms_p95": 1223.56
+   "latency_ms_p95": 1327.23
   },
   "zh": {
-   "tasks": 256,
+   "tasks": 279,
    "task_success": 1.0,
-   "latency_ms_p95": 992.15
+   "latency_ms_p95": 1181.47
   }
  },
  "failed_checks": {},
@@ -538,12 +543,53 @@
   "r11_implied_price_hedged_en": "1",
   "r11_h_share_out_of_coverage_zh": "1",
   "r11_hk_ticker_out_of_coverage_en": "1",
-  "r11_hk_subsidiary_out_of_coverage_zh": "1"
+  "r11_hk_subsidiary_out_of_coverage_zh": "1",
+  "r12_turnover_words_ratio_zh": "1",
+  "r12_turnover_words_gap_en": "1",
+  "r12_trading_activity_which_zh": "1",
+  "r12_traded_more_by_how_much_en": "1",
+  "r12_fell_more_points_zh": "1",
+  "r12_points_apart_en": "1",
+  "r12_which_and_by_how_many_points_en": "1",
+  "r12_move_then_points_en": "1",
+  "r12_factual_which_one_en": "1",
+  "r12_holding_carried_zh": "1",
+  "r12_holding_same_count_zh": "1",
+  "r12_holding_new_count_zh": "1",
+  "r12_holding_two_sentences_en": "1",
+  "r12_holding_carried_en": "1",
+  "r12_holding_fund_units_zh": "1",
+  "r12_holding_fund_units_en": "1",
+  "r12_net_margin_share_en": "1",
+  "r12_net_margin_share_zh": "1",
+  "r12_net_margin_hyphen_en": "1",
+  "r12_hk_listing_words_zh": "1",
+  "r12_hk_listing_words_en": "1",
+  "r12_h1_more_traded_zh": "1",
+  "r12_h1_ratio_of_both_zh": "1",
+  "r12_h1_over_n_times_en": "1",
+  "r12_h1_times_apart_zh": "1",
+  "r12_h2_relative_one_message_zh": "1",
+  "r12_h2_percentage_above_en": "1",
+  "r12_h2_lower_by_how_much_en": "1",
+  "r12_h2_vs_industry_zh": "1",
+  "r12_h2_two_sectors_zh": "1",
+  "r12_h11_metric_switch_zh": "1",
+  "r12_h11_longer_question_en": "1",
+  "r12_h4_carried_target_zh": "1",
+  "r12_h4_lots_zh": "1",
+  "r12_h4_fund_units_market_value_zh": "1",
+  "r12_h4_name_before_shares_en": "1",
+  "r12_h5_named_hk_line_zh": "1",
+  "r12_h5_named_hk_price_en": "1",
+  "r12_h9_turnover_rate_missing_zh": "1",
+  "r12_h9_colloquial_eps_zh": "1",
+  "r12_h9_colloquial_margin_zh": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "d3ac3771e69d302a",
-  "bytes": 1311659,
-  "slimmed_at": "2026-10-01T03:56:01+00:00"
+  "sha256_16": "bbe708c1b3319afa",
+  "bytes": 1534952,
+  "slimmed_at": "2026-10-01T07:56:17+00:00"
  }
 }
