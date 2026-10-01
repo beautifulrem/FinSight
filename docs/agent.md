@@ -386,7 +386,9 @@ Offline at `e55daf5`: dev 377 tasks = 1.000 (the 7 new tasks included; gate base
 
 Round 12 fixed the classes the independent round-7 slice still failed after round 11 and six bugs of the round-8
 review. From round 12 the round-7 slice is **after exposure**: the engineer read its failing tasks (and the round-8
-review's findings, not its hidden slice `heldout_r8/`) and wrote own examples: 41 dev tasks
+review's findings, not its hidden slice `heldout_r8/`; three slice turns nevertheless coincide with wording in these
+tests and dev tasks, written from the round-7 classes before the slice existed, see
+[the slice's provenance note](../evaluation/heldout_r8/README.md#provenance-of-the-after-fix-run-round-13-check)) and wrote own examples: 41 dev tasks
 (`build_tasks._round12_frame_tasks`, zh/en), router labels `route_372`–`route_387`, alias rows for H5, unit tests
 (`tests/test_agent_round12_frame.py`, the review's repro strings used only as regression rows) and a UI test
 (`frontend/src/components/GapSession.test.tsx`). `tests/test_agent_eval.py` checks that no dev turn or label copies or
@@ -721,9 +723,10 @@ Dev gate 370 → 411 tasks, task success **1.000**, 0 snapshot misses (3 `search
 rewrites were added with `--record-missing`); held-out gate **0.9434**, unchanged; baselines refreshed with
 `gate --update-baseline` at `7343cc5` (`31ea94b`). Dev tool precision 0.6167 → 0.5239, because the new tasks name few
 required tools (0.6098 on the 370 earlier tasks; precision is not gated). Own router labels **1.000** over 388
-(`router_eval-round12-own.json`); multiturn_v1 replay **1.000**, 0 misses (`multiturn_v1-auto-nollm-round12.json`);
+(`router_eval-round12-own.json`, recorded from a dirty tree; the clean rerun at `d42b181` is the same,
+`router_eval-round13-own.json`); multiturn_v1 replay **1.000**, 0 misses (`multiturn_v1-auto-nollm-round12.json`);
 offline red team 0 attack successes and 0 crashes on all nine sets, and `gate --extras-only` passes. pytest 2,068
-passed, 70 skipped; vitest 124 (3 new three-turn gap sessions). **Slices, after exposure** (round 12 read the
+passed, 70 skipped on the round-12 branch before the merge (CI on the merged `cbcf3b2`: 2,282 passed, 65 skipped); vitest 124 (3 new three-turn gap sessions). **Slices, after exposure** (round 12 read the
 failures, so these say the classes are covered, not that the rules generalise; the out-of-sample check is the
 round-8 reviewer's hidden slice): round-7 44/53 → **53/53** (`chat_heldout_r7-auto-nollm-after-exposure-round12.json`),
 round-6 35/38 → **38/38** (`chat_heldout_r6-auto-nollm-after-exposure-round12.json`), both at `b685e23`. **Online**
