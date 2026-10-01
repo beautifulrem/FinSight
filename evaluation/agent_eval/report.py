@@ -288,7 +288,8 @@ FILE_STATUS = {
     "11)**: the round-11 engineers could read the slice, so it is no longer out of sample",
     "chat_heldout_r7-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-7 chat slice",
     "chat_heldout_r7-auto-nollm-after-fix": "independent round-7 chat slice **after the round-11 fixes**; the "
-    "engineers never opened the slice (four round-11 dev turns in three tasks match slice turns verbatim by coincidence)",
+    "engineers never opened the slice (four round-11 dev turns in three tasks match slice turns verbatim by "
+    "coincidence)",
     "ablation-ab-prompt-v3-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
     "ablation-ab-prompt-v4-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
     "ablation-v4default-testv3": "test v3 after it was used to choose the prompt: a check of the shipped prompt, "
