@@ -195,6 +195,7 @@ EXTRA_EVIDENCE = (
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
     "verifier_stress-clause-salvage",
+    "ablation-v4default-testv3",
 )
 
 SET_TITLES = {
@@ -254,6 +255,8 @@ FILE_STATUS = {
     "engineers never saw the slice, so this is still out of sample",
     "ablation-ab-prompt-v3-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
     "ablation-ab-prompt-v4-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
+    "ablation-v4default-testv3": "test v3 after it was used to choose the prompt: a check of the shipped prompt, "
+    "not a fresh estimate",
     "ablation-memsum-0-multiturn_v1": "**after exposure** (multiturn_v1 shaped the session rules)",
     "ablation-memsum-1-multiturn_v1": "**after exposure** (multiturn_v1 shaped the session rules)",
     "ablation-glm-effort-default-holdout": "held-out (validation set)",
@@ -1502,6 +1505,18 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
                 f"repair of {(result.get('whole_sentence_repair') or {}).get('repaired_answers')} rejected variants "
                 f"({result.get('gold_answers')} gold answers) — " + "; ".join(parts)
             )
+        elif result.get("kind") == "ablation":
+            parts = []
+            for set_name, modes in (result.get("results") or {}).items():
+                for mode, data in modes.items():
+                    if mode not in {"workflow_llm", "agent"}:
+                        continue
+                    run = data.get("summary") or {}
+                    parts.append(
+                        f"{set_name} {mode}: task {_fmt(run.get('task_success'))}, "
+                        f"P95 {_fmt(run.get('latency_ms_p95'))} ms, cost/task {_fmt(run.get('cost_per_task'))}"
+                    )
+            summary = f"{config.get('model') or 'LLM'}, {config.get('repeats', 1)} repeat(s) — " + "; ".join(parts)
         else:
             summary = ", ".join(sorted(result))[:160]
         commit = config.get("commit") or ", ".join(
