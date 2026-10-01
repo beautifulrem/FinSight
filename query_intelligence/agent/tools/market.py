@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from itertools import pairwise
 from typing import Any
 
 from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, model_serializer
@@ -61,6 +62,129 @@ class IntradayQuote(BaseModel):
     source: str | None = None
 
 
+class PriceRange(BaseModel):
+    """Highest and lowest daily close inside a window (closing prices, not intraday highs and lows)."""
+
+    window: str = Field(description="'52w': the 52 weeks to the latest close.")
+    start_date: str = Field(description="First close inside the window.")
+    end_date: str = Field(description="Latest close (the window's end).")
+    high: float
+    high_date: str
+    low: float
+    low_date: str
+    closes: int = Field(description="Daily closes inside the window.")
+
+
+class Drawdown(BaseModel):
+    """Largest peak-to-trough fall of the daily close inside a window, in percent of the peak (negative or 0)."""
+
+    window: str = Field(description="'1y' (52 weeks to the latest close) or 'ytd' (from the year's first close).")
+    start_date: str
+    end_date: str
+    max_drawdown_pct: float = Field(description="(trough / peak - 1) x 100, two decimals; 0 when the close never fell.")
+    peak: float
+    peak_date: str
+    trough: float
+    trough_date: str
+    closes: int
+
+
+# 52 weeks: a window (end - 364 days, end]; the history must reach back to the window's start to cover it.
+WINDOW_52W_DAYS = 364
+# Closes are unadjusted (不复权). A close-to-close move beyond every A-share daily limit except the BSE's 30% is taken
+# as an ex-rights jump (a bonus or conversion issue such as 10送12): a window containing one gets no high/low or
+# drawdown, because the jump is not a market move. Smaller adjustments (cash dividends, 10送1) are not detected.
+JUMP_LIMIT = 0.21
+
+
+def jump_date(closes: list[tuple[str, float]]) -> str | None:
+    """Date of the latest close more than ``JUMP_LIMIT`` away from the previous one, or ``None``."""
+    found = None
+    for (_day, previous), (day, close) in pairwise(closes):
+        if previous > 0 and abs(close / previous - 1) > JUMP_LIMIT:
+            found = day
+    return found
+
+
+def _dated_closes(history: list[dict[str, Any]]) -> list[tuple[str, float]]:
+    """``(ISO date, close)`` pairs, oldest first, from a history in any order."""
+    return sorted(
+        (date, float(row["close"]))
+        for row in history
+        if row.get("close") is not None and (date := _iso_date(row.get("trade_date") or row.get("date")))
+    )
+
+
+def _window_52w(dated: list[tuple[str, float]]) -> list[tuple[str, float]] | None:
+    """The closes of the 52 weeks to the latest close, or ``None`` when the history does not cover the window."""
+    from datetime import date as _date
+    from datetime import timedelta
+
+    if len(dated) < 2:
+        return None
+    start = (_date.fromisoformat(dated[-1][0]) - timedelta(days=WINDOW_52W_DAYS)).isoformat()
+    if dated[0][0] > start:
+        return None
+    window = [(day, close) for day, close in dated if day > start]
+    return None if jump_date(window) else window
+
+
+def range_52w(history: list[dict[str, Any]]) -> PriceRange | None:
+    window = _window_52w(_dated_closes(history))
+    if not window:
+        return None
+    high = max(window, key=lambda item: item[1])  # earliest date on ties (the list is oldest first)
+    low = min(window, key=lambda item: item[1])
+    return PriceRange(
+        window="52w",
+        start_date=window[0][0],
+        end_date=window[-1][0],
+        high=high[1],
+        high_date=high[0],
+        low=low[1],
+        low_date=low[0],
+        closes=len(window),
+    )
+
+
+def max_drawdown(closes: list[tuple[str, float]], window: str) -> Drawdown | None:
+    """Largest fall from a running peak to a later close, over ``closes`` (oldest first)."""
+    if len(closes) < 2 or closes[0][1] <= 0:
+        return None
+    peak = best_peak = best_trough = closes[0]
+    worst = 0.0
+    for day, close in closes:
+        if close > peak[1]:
+            peak = (day, close)
+        fall = close / peak[1] - 1
+        if fall < worst:
+            worst, best_peak, best_trough = fall, peak, (day, close)
+    return Drawdown(
+        window=window,
+        start_date=closes[0][0],
+        end_date=closes[-1][0],
+        max_drawdown_pct=round(worst * 100, 2),
+        peak=best_peak[1],
+        peak_date=best_peak[0],
+        trough=best_trough[1],
+        trough_date=best_trough[0],
+        closes=len(closes),
+    )
+
+
+def max_drawdown_1y(history: list[dict[str, Any]]) -> Drawdown | None:
+    window = _window_52w(_dated_closes(history))
+    return max_drawdown(window, "1y") if window else None
+
+
+def max_drawdown_ytd(history: list[dict[str, Any]]) -> Drawdown | None:
+    start = year_start_close(history)
+    if start is None or start.date is None:
+        return None
+    window = [(day, close) for day, close in _dated_closes(history) if day >= start.date]
+    return None if jump_date(window) else max_drawdown(window, "ytd")
+
+
 class PriceHistoryOutput(BaseModel):
     symbol: str
     name: str
@@ -103,13 +227,34 @@ class PriceHistoryOutput(BaseModel):
         description="Close of the first trading day of the latest close's year, when the history also has a close "
         "from the year before (so that close is known to be the year's first); for year-to-date changes.",
     )
+    range_52w: PriceRange | None = Field(
+        default=None,
+        description="Highest and lowest close of the 52 weeks to the latest close; only when the history covers "
+        "the whole window.",
+    )
+    max_drawdown_1y: Drawdown | None = Field(
+        default=None,
+        description="Largest peak-to-trough fall of the close over the 52 weeks to the latest close (percent, "
+        "negative); only when the history covers the whole window.",
+    )
+    max_drawdown_ytd: Drawdown | None = Field(
+        default=None,
+        description="Largest peak-to-trough fall of the close from the year's first close (year_start) to the latest.",
+    )
+    price_jump_date: str | None = Field(
+        default=None,
+        description="Latest close more than 21% away from the previous one in the (unadjusted) history: a likely "
+        "ex-rights jump; a 52-week range or drawdown whose window contains it is not computed.",
+    )
 
     @model_serializer(mode="wrap")
     def _omit_missing_year_start(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        # Payloads without the field stay byte-identical to those recorded before it existed (evaluation snapshots).
+        # Payloads without these fields stay byte-identical to those recorded before they existed (evaluation
+        # snapshots): a history of a few closes has none of them.
         data = handler(self)
-        if data.get("year_start") is None:
-            data.pop("year_start", None)
+        for key in ("year_start", "range_52w", "max_drawdown_1y", "max_drawdown_ytd", "price_jump_date"):
+            if data.get(key) is None:
+                data.pop(key, None)
         return data
 
 
@@ -212,6 +357,10 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
             volume_unit=payload.get("volume_unit"),
             provenance=provenance_from(payload),
             year_start=year_start_close(history),
+            range_52w=range_52w(history),
+            max_drawdown_1y=max_drawdown_1y(history),
+            max_drawdown_ytd=max_drawdown_ytd(history),
+            price_jump_date=jump_date(_dated_closes(history)),
             **intraday_fields,
         )
         quote = output.intraday
@@ -320,7 +469,9 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
             name="get_price_history",
             description=(
                 "Latest daily quote (close, open/high/low, daily % change, volume) and recent closes for one "
-                "A-share, ETF, fund, or index. Accepts a ticker or a name."
+                "A-share, ETF, fund, or index. Accepts a ticker or a name. When the history is long enough it also "
+                "returns year_start (first close of the year), range_52w (52-week high/low close) and "
+                "max_drawdown_1y / max_drawdown_ytd (peak, trough, percent); absent fields are not computable."
             ),
             input_model=PriceHistoryInput,
             handler=price_history,

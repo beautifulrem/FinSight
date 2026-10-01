@@ -2231,7 +2231,10 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
 _COVERAGE_METRICS = {metric.key: metric for metric in COVERAGE_METRICS}
 _UNAVAILABLE = {
     "ps": "the sources carry no price-to-sales ratio, and it cannot be computed without the market cap",
-    "max_drawdown": "a maximum drawdown needs the full price history of the period; only the latest closes are served",
+    # (round 12) the chat states 52-week and year-to-date drawdowns when the history covers them; a claim's window is
+    # ambiguous ("近期", "这波"), so claims about drawdowns are still not compared
+    "max_drawdown": "maximum drawdown claims are not checked: a drawdown depends on its window, which a claim rarely "
+    "states; the chat answer gives the 52-week and year-to-date drawdowns when the price history covers them",
     "market_cap": "the sources carry no market cap for this target",
     "peg": _COVERAGE_METRICS["peg"].needs_en,
 }

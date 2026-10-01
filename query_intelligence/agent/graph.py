@@ -53,6 +53,7 @@ from .coverage import (
     holding_value_request,
     out_of_coverage,
     out_of_coverage_text,
+    range_52w_gaps,
     without_holding_value,
     year_to_date_gaps,
 )
@@ -1270,6 +1271,7 @@ class AgentRuntime:
             limitations.extend(coverage_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
             limitations.extend(flow_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
             limitations.extend(year_to_date_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
+            limitations.extend(range_52w_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
         limitations.extend(state.get("verification_notes") or [])
         draft["limitations"] = list(dict.fromkeys(limitations))
         market = [
