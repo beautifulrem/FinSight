@@ -125,3 +125,17 @@ groups:
         annotations:
           summary: "{{ $value }} prompt-injection refusals in 10 minutes"
           description: "Group the audit log (outputs/audit/audit.jsonl) by principal and query_hash to see whether one caller is probing the guard."
+      # Round 12. Thresholds from evaluation/agent_eval/output_safety_audit.py: 0 edits in 797 clean template answers;
+      # 0.41 edits per answer on 32 LLM news answers built from poisoned documents. More than 0.5 for 30 minutes is
+      # more than the attacked runs: planted content reaching the answer stage, or a layer regression marking real
+      # figures (the dashboard panel "Output-safety edits per answer" splits it by kind).
+      - alert: FinSightOutputSafetyEditRateHigh
+        expr: |
+          sum(increase(finsight_output_safety_edits_total[1h]))
+            / clamp_min(sum(increase(finsight_agent_runs_total{route=~"agent|workflow"}[1h])), 1) > 0.5
+          and sum(increase(finsight_agent_runs_total{route=~"agent|workflow"}[1h])) >= 20
+        for: 30m
+        labels: {severity: warning}
+        annotations:
+          summary: "Output-safety layer edits {{ $value | printf \"%.2f\" }} times per answer"
+          description: "Look at the trace compliance notes (attributed_document_claim, omitted_*) of recent runs: a poisoned source, or a layer change that marks figures the fundamentals confirm."
