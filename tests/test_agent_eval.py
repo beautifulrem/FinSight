@@ -889,3 +889,82 @@ def test_round10_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_revie
 
     assert len(mine) >= 30 and check_overlap(_round10_tasks()) == []
     assert _overlaps(mine, others) == (0, 0), "round-10 dev tasks or router labels overlap a held-out or reviewer set"
+
+
+def _heldout_r6_texts() -> list[str]:
+    """Every claim, question and document text of the independent round-6 held-out slice, read programmatically (the
+    slice is the out-of-sample measure of the round-10 fixes: its text is compared, never printed or read by hand)."""
+    from evaluation.agent_eval.runner import ROOT
+
+    texts: list[str] = []
+
+    def collect(value: object, key: str = "") -> None:
+        if isinstance(value, dict):
+            for name, item in value.items():
+                collect(item, str(name))
+        elif isinstance(value, list):
+            for item in value:
+                collect(item, key)
+        elif isinstance(value, str) and key in {"claim", "query", "text", "title", "body", "question"}:
+            texts.append(value)
+
+    folder = ROOT / "evaluation" / "heldout_r6"
+    for path in sorted(folder.glob("*.jsonl")):
+        for line in path.open(encoding="utf-8"):
+            if line.strip():
+                collect(json.loads(line))
+    return texts
+
+
+# The round-7 reviewer's probes as quoted in the review report (finsight-review/round7.md §2, §4 and §8; the probe
+# scripts were not read): round-11 wording must not copy them.
+_ROUND7_REVIEW_PROBES = [
+    "五粮液的ROE多少", "茅台呢", "两者差几个点", "中国平安市盈率多少", "保险行业平均是多少", "那折价了百分之多少",
+    "茅台的营收", "五粮液的呢", "前者是后者的多少倍", "证券ETF成交额多少", "创业板ETF呢", "哪个更大，大多少",
+    "What's Ping An's PE?", "and Moutai's?", "what's the ratio between them?", "茅台的净利率是多少", "五粮液呢",
+    "差距多大", "茅台呢，两者差几个点", "茅台和五粮液的ROE谁更高，差几个百分点？净利率呢？", "净利润加起来",
+    "毛利率比净利率高多少个点", "ROE是茅台的几成", "白酒行业的市盈率比保险行业高多少",
+    "按白酒行业平均市盈率给茅台定价，股价应该是多少", "中国平安H股的股价是多少", "中国平安H股的股价",
+    "比亚迪电子的市盈率", "五粮液每股收益大约多少", "我有1000股五粮液，按最新收盘价值多少钱", "茅苔的收盘价",
+    "茅台的净利润是营收的百分之几", "茅台和五粮液的ROE谁更高，差几个点", "茅台最近为什么跌了？",
+    "茅台市盈率24.6倍，比白酒行业平均的30倍低不少", "茅台ROE比五粮液高出约3.6个百分点",
+    "中国平安的营收大约是五粮液的10倍多", "茅台净利润将近900亿", "贵州茅台上半年净利润腰斩，渠道库存高企",
+    "Ping An H shares", "2318.HK", "0285.HK", "平安好医生", "平安健康", "腾讯控股", "阿里巴巴港股",
+]  # fmt: skip
+
+
+def test_round11_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_reviewer_sets():
+    """Round-11 dev tasks and router labels were written from the round-7 review (G1-G6): none may copy or near-copy
+    a reviewer probe quoted in the report, a round-4/5/6 held-out text (round 6 read programmatically), the independent
+    router sets or a test set (counts only)."""
+    from evaluation.agent_eval.build_tasks import _round11_tasks, check_overlap
+    from evaluation.agent_eval.runner import TASK_SETS, load_tasks
+
+    mine = [turn["query"] for task in _round11_tasks() for turn in task["turns"]]
+    mine += [row["query"] for row in _router_rows("router_labels_v1.jsonl") if row["note"].startswith("round11")]
+    others = [
+        row["query"]
+        for name in ("router_labels_independent_v1.jsonl", "router_labels_independent_v2.jsonl")
+        for row in _router_rows(name)
+    ]
+    for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
+        others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    heldout_r6 = _heldout_r6_texts()
+    others += _heldout_r4_texts() + _heldout_r5_texts() + heldout_r6
+    others += _ROUND4_REVIEW_PROBES + _ROUND5_REVIEW_PROBES + _ROUND6_REVIEW_PROBES + _ROUND7_REVIEW_PROBES
+
+    assert len(heldout_r6) >= 60, "the round-6 slice was not read"
+    assert len({task["id"] for task in _round11_tasks()}) >= 30 and check_overlap(_round11_tasks()) == []
+    assert sum(1 for task in _round11_tasks() if task["category"] == "multi_turn") >= 20
+    assert _overlaps(mine, others) == (0, 0), "round-11 dev tasks or router labels overlap a held-out or reviewer set"
+
+
+def test_round10_tasks_against_the_round6_heldout_slice():
+    """The round-10 tasks and the round-6 slice were written independently (the fix branches never contained the
+    slice). Checked programmatically, one round-10 question (a fair-value estimate, "帮我给中国平安估个价")
+    coincides with a slice question word for word; it is the only overlap, pinned here so a new one is noticed."""
+    from evaluation.agent_eval.build_tasks import _round10_tasks
+
+    mine = [turn["query"] for task in _round10_tasks() for turn in task["turns"]]
+    assert _overlaps(mine, _heldout_r6_texts()) == (1, 1)
+    assert _overlaps(["帮我给中国平安估个价"], _heldout_r6_texts()) == (1, 1)
