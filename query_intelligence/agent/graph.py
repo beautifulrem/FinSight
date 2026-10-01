@@ -37,7 +37,14 @@ from langgraph.types import interrupt
 from ..chat.language import detect_user_language, persistent_answer_language, requested_answer_language
 from ..integrations.intraday import asks_about_today
 from .compliance import apply_compliance, language_violation
-from .composer import answer_json_status, compose_template, failure_note, parse_answer
+from .composer import (
+    answer_json_status,
+    compose_template,
+    failure_note,
+    frame_result,
+    frame_sentences,
+    parse_answer,
+)
 from .coverage import (
     coverage_gaps,
     flow_gaps,
@@ -48,6 +55,7 @@ from .coverage import (
 )
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
+from .frame import frame_calls, is_frame_question, resolve_frame_question
 from .hearsay import fact_check_for, fact_check_prose
 from .injection import (
     REDACTION_MARKER,
@@ -83,7 +91,7 @@ from .memory import (
 from .memory_summary import update_memory_card
 from .names import INDUSTRY_EN, english_name
 from .output_safety import scrub_answer
-from .planner import Plan, plan_from_nlu
+from .planner import Plan, PlannedCall, plan_from_nlu
 from .prompts import (
     agent_user_message,
     compose_user_message,
@@ -239,6 +247,7 @@ class AgentRuntime:
             "clarification_reply": "",
             "clarification_base": "",
             "effective_query": "",
+            "frame_request": {},
             "language": "",
             "refusal_category": "",
             "prefetched": [],
@@ -319,6 +328,7 @@ class AgentRuntime:
             str(nlu.get("normalized_query") or query), _mentions(nlu)
         )
         carried_nlu = None
+        frame_request: dict[str, Any] = {}
         in_session = (
             bool(turns)
             and not coreference_reason
@@ -327,7 +337,9 @@ class AgentRuntime:
             and not (outside and not _named_targets(nlu))
         )
         if in_session:
-            query, nlu, session_reasons, carried_nlu = self._resolve_in_session(query, turns, nlu, analyze)
+            query, nlu, session_reasons, carried_nlu, frame_request = self._resolve_in_session(
+                query, turns, nlu, analyze
+            )
             rewrite_reasons.extend(session_reasons)
         nlu, dropped_reasons = drop_fuzzy_concepts(nlu, query)
         dropped_reasons = list(dict.fromkeys([*early_dropped, *dropped_reasons]))
@@ -403,7 +415,11 @@ class AgentRuntime:
             and not off_topic
             and not instruction_only
             and not outside
-            and (is_difference_follow_up(state["query"]) or is_comparative_follow_up(state["query"]))
+            and (
+                is_difference_follow_up(state["query"])
+                or is_comparative_follow_up(state["query"])
+                or is_frame_question(state["query"])
+            )
         ):
             # (round 10, F4) "差多少" / "谁更高" in a conversation is never off-topic: when no earlier comparison
             # resolves it, ask which two targets and which metric are meant
@@ -437,6 +453,7 @@ class AgentRuntime:
             "route": decision.route,
             "route_reasons": reasons,
             "effective_query": query,
+            "frame_request": frame_request if decision.route in ("workflow", "agent") else {},
             "language": language,
             "answer_language": answer_language,
             "refusal_category": refusal_category,
@@ -465,8 +482,8 @@ class AgentRuntime:
         turns: list[dict[str, Any]],
         nlu: dict[str, Any],
         analyze: Callable[[str], dict[str, Any]],
-    ) -> tuple[str, dict[str, Any], list[str], dict[str, Any] | None]:
-        """Resolve a follow-up against the session: ``(query, nlu, reasons, carried_nlu)``.
+    ) -> tuple[str, dict[str, Any], list[str], dict[str, Any] | None, dict[str, Any]]:
+        """Resolve a follow-up against the session: ``(query, nlu, reasons, carried_nlu, frame_request)``.
 
         1. The NLU's own dialog-context carry-over (an entity it copied from an earlier question, match type
            ``context_*``) is set aside: session memory knows the order of turns and plural/ordinal references. It is
@@ -479,6 +496,10 @@ class AgentRuntime:
         (round 9, E5) Before 3, a question with no target of its own resolves a demonstrative industry reference
         ("这个行业的平均PE呢" → the discussed target's industry) or joins a bare difference question
         ("差了多少个百分点") to the comparison it follows.
+
+        (round 11, G1-G3) First of all, a gap, ratio, relative or which-is-higher question is read against the
+        session's comparison frame (``frame.resolve_frame_question``): the frame supplies the metric and both operands
+        in order, and the returned ``frame_request`` makes the planner fetch them and the composer compute the result.
         """
         reasons: list[str] = []
         nlu, carried_nlu = _set_aside_context_carry(nlu)
@@ -488,6 +509,19 @@ class AgentRuntime:
             reasons.append(reason)
             nlu, carried_nlu = _set_aside_context_carry(analyze(query))
         listed = listed_entities(nlu)
+        named = [entity for entity in listed if "fuzzy" not in str(entity.get("match_type") or "")]
+        framed = resolve_frame_question(query, turns, named)
+        if framed is not None:
+            query, reason, request = framed
+            nlu, carried = _set_aside_context_carry(analyze(query))
+            reasons.append(reason)
+            if not asks_prediction(query):
+                # a computed comparison, whatever the style classifier reads into the rewritten wording ("advice")
+                flags = [flag for flag in nlu.get("risk_flags") or [] if flag != "investment_advice_like"]
+                if nlu.get("question_style") != "compare" or flags != list(nlu.get("risk_flags") or []):
+                    nlu = {**nlu, "question_style": "compare", "risk_flags": flags}
+                    reasons.append("frame:style_compare")
+            return query, nlu, reasons, (carried_nlu if carried is not None else None), request
         rewrite = None
         named_sector = any(entity.get("entity_type") == "sector" for entity in nlu.get("entities") or [])
         if not listed and not named_sector:
@@ -516,7 +550,7 @@ class AgentRuntime:
             reasons.append(reason)
             nlu, carried = _set_aside_context_carry(analyze(query))
             carried_nlu = carried_nlu if carried is not None else None
-        return query, nlu, reasons, carried_nlu
+        return query, nlu, reasons, carried_nlu, {}
 
     def _session_disambiguation(
         self, query: str, turns: list[dict[str, Any]], nlu: dict[str, Any]
@@ -722,6 +756,11 @@ class AgentRuntime:
     def _plan(self, state: AgentState) -> Plan:
         """The deterministic plan; a 今天/今日/today price question asks for the intraday quote when live data is on."""
         plan = plan_from_nlu(state.get("nlu") or {})
+        for tool, arguments in frame_calls(state.get("frame_request") or {}):
+            # (round 11) every operand of a frame question is fetched, whatever the rewritten question's NLU found
+            target = arguments["target"]
+            if not any(call.tool == tool and call.arguments.get("target") == target for call in plan.calls):
+                plan.calls.append(PlannedCall(tool=tool, arguments=arguments, reason="comparison frame operand"))
         query = f"{state.get('query') or ''} {state.get('effective_query') or ''}"
         if self.intraday_quotes and asks_about_today(query):
             for call in plan.calls:
@@ -804,8 +843,10 @@ class AgentRuntime:
                 )
             except LLMError as exc:
                 return self._template_update(state, degraded=f"llm_compose_failed:{exc}")
+            draft, framed = self._frame_fallback(state, parse_answer(turn.content))
             return {
-                "draft": parse_answer(turn.content),
+                **framed,
+                "draft": draft,
                 "draft_source": "llm_compose",
                 "messages": [*messages, turn.as_message()],
                 "llm_calls": state.get("llm_calls", 0) + 1,
@@ -926,8 +967,50 @@ class AgentRuntime:
         if turn.tool_calls and not stop_reason:
             update["next"] = "agent_tools"
             return update
-        update.update({"next": "verify", "draft": parse_answer(turn.content), "draft_source": "llm_agent"})
+        draft, framed = self._frame_fallback(state, parse_answer(turn.content))
+        if framed.get("degraded"):
+            update["degraded"] = [*update.get("degraded", []), *framed.pop("degraded")]
+        update.update({**framed, "next": "verify", "draft": draft, "draft_source": "llm_agent"})
         return update
+
+    def _frame_fallback(self, state: AgentState, draft: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        """(round 11, G4) A frame question (a gap, ratio or which-is-higher follow-up) whose LLM draft does not state
+        the result, typically because the model declined ("没有五粮液的数据，无法核实"): the computed comparison is
+        appended, with both operands and their evidence ids. An operand this turn did not fetch is fetched first (the
+        planner prefetch usually has it already). Returns ``(draft, state update)``."""
+        request = state.get("frame_request") or {}
+        if not request:
+            return draft, {}
+        tool_log = list(state.get("tool_log") or [])
+        update: dict[str, Any] = {}
+        fetched = {(entry["tool"], _key(entry.get("arguments"))) for entry in tool_log if entry.get("ok")}
+        missing = [(tool, args) for tool, args in frame_calls(request) if (tool, _key(args)) not in fetched]
+        if missing:
+            results = self._run_tools(missing)
+            step = state.get("llm_steps", 0)
+            log = [_log_entry(r, source="frame", reason="comparison frame operand", step=step) for r in results]
+            evidence, _flagged = _evidence_update(results)
+            tool_log += log
+            update.update({"tool_log": log, "evidence": evidence})
+        zh = self._zh(state)
+        sentences, _gaps = frame_sentences(request, tool_log, zh)
+        if not sentences:
+            return draft, update
+        answer = str(draft.get("answer") or "")
+        result = frame_result(request, tool_log)
+        if result is not None and _states_number(answer, result):
+            return draft, update
+        if result is None and all(cited in answer for cited in re.findall(r"\[([^\[\]]+)\]", sentences[0])):
+            return draft, update  # a which-is-higher answer that already cites both operands
+        text = sentences[0]
+        if not zh:
+            from .names import english_display
+
+            text = english_display(text)
+        joined = f"{answer}{'' if zh else ' '}{text}".strip() if answer else text
+        cited = [*draft.get("evidence_used", []), *re.findall(r"\[([^\[\]]+)\]", text)]
+        update["degraded"] = ["frame_result_appended"]
+        return {**draft, "answer": joined, "evidence_used": list(dict.fromkeys(cited))}, update
 
     def _memory_summary(self, state: AgentState, zh: bool) -> dict[str, Any]:
         """Fold turns older than the verbatim history window into the LLM memory card (when enabled).
@@ -1047,7 +1130,12 @@ class AgentRuntime:
                 # If nothing verifiable survives the repair, answer with the deterministic template instead
                 # of a stub; it restates the same tool results and must pass the template checks itself.
                 style = str((state.get("nlu") or {}).get("question_style") or "")
-                template = compose_template(state.get("tool_log") or [], zh=self._zh(state), question_style=style)
+                template = compose_template(
+                    state.get("tool_log") or [],
+                    zh=self._zh(state),
+                    question_style=style,
+                    frame_request=state.get("frame_request") or None,
+                )
                 if verify_answer(
                     template, store, query=state["query"], market_precedence=False, allow_derived=True
                 ).passed:
@@ -1285,6 +1373,7 @@ class AgentRuntime:
                 query=state.get("effective_query") or state["query"],
                 names=names,
                 types=types,
+                frame_request=state.get("frame_request") or None,
             ),
             "draft_source": "template",
         }
@@ -1586,6 +1675,17 @@ def _memory_fields(memory_update: dict[str, Any], usage: dict[str, Any]) -> dict
 def _add_usage(current: dict[str, Any] | None, extra: Usage) -> dict[str, Any]:
     total = Usage(**(current or {})) + extra
     return total.model_dump()
+
+
+def _states_number(text: str, value: float) -> bool:
+    """Whether ``text`` states ``value`` (as written, or in 万/亿/mn/bn units), within rounding."""
+    for match in re.finditer(r"-?\d+(?:,\d{3})*(?:\.\d+)?", text or ""):
+        number = float(match.group(0).replace(",", ""))
+        for scale in (1.0, 1e4, 1e6, 1e8, 1e9):
+            candidate = abs(number * scale)
+            if abs(candidate - abs(value)) <= max(0.011 * scale, abs(value) * 0.005):
+                return True
+    return False
 
 
 def _total_tokens(usage: dict[str, Any]) -> int:

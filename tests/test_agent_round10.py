@@ -145,7 +145,8 @@ def test_a_bare_two_is_a_plural_reference_only_when_compared(query, plural):
 
 def test_a_gap_two_turns_after_the_metric_keeps_the_metric(agent):
     *_, gap = _session(agent, "metric-carry", "五粮液市盈率是多少", "那行业平均呢", "高了多少")
-    assert any(reason.startswith("difference_follow_up:五粮液+aspect->市盈率") for reason in gap["route_reasons"])
+    # (round 11) resolved by the session's comparison frame (metric 市盈率, operands 五粮液 and its industry average)
+    assert "frame:difference:pe:五粮液|白酒行业平均" in gap["route_reasons"]
     assert "两者相差 6.4" in gap["answer"]
 
 
@@ -156,7 +157,7 @@ def test_an_english_gap_two_turns_after_the_metric_keeps_the_metric(agent):
 
 def test_which_is_lower_then_by_how_much_after_a_two_target_turn(agent):
     _first, which, gap = _session(agent, "which-lower", "中国平安和五粮液的市净率各是多少", "谁更低呢", "低了多少")
-    assert any(reason.startswith("comparison_follow_up:") for reason in which["route_reasons"])
+    assert any(reason.startswith(("comparison_follow_up:", "frame:which:")) for reason in which["route_reasons"])
     assert "市净率：中国平安 1.1 倍 低于 五粮液 5.4 倍" in which["answer"]
     assert "两者相差 4.3" in gap["answer"]
 
@@ -167,7 +168,7 @@ def test_two_compared_after_two_single_target_turns_keeps_both_and_a_gap_is_neve
     assert {"510300.SH", "512880.SH"} <= {call["arguments"].get("target") for call in both["tool_calls"]}
     assert "高于 证券ETF 0.59%" in both["answer"]
     assert gap["route"] != "refuse"
-    assert any(reason.startswith("difference_follow_up:") for reason in gap["route_reasons"])
+    assert any(reason.startswith(("difference_follow_up:", "frame:difference:")) for reason in gap["route_reasons"])
 
 
 @pytest.mark.parametrize("follow_up", ["那差了多少呢", "相差几个点", "谁更高呢"])
