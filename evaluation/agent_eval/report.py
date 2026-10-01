@@ -229,6 +229,8 @@ HELDOUT_R7_RUNS = (
     "chat_heldout_r7-auto-nollm-after-fix",
     "chat_heldout_r7-auto-nollm-after-exposure-round12",
 )
+# Round-8 held-out slice (evaluation/heldout_r8/, written by the round-8 reviewer): before and after the round-12 fixes.
+HELDOUT_R8_RUNS = ("chat_heldout_r8-auto-nollm-prefix", "chat_heldout_r8-auto-nollm-after-fix")
 # Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
 # (title, a, b, label a, label b, paths compared).
 PAIRED_ABLATIONS = (
@@ -259,6 +261,8 @@ PAIRED_ABLATIONS = (
 )
 # Other committed evidence the READMEs cite, summarised as one row each.
 EXTRA_EVIDENCE = (
+    "claims_heldout_r8-prefix",
+    "claims_heldout_r8-after-fix",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -341,6 +345,11 @@ FILE_STATUS = {
     "chat_heldout_r6-auto-nollm-after-exposure-round11": "independent round-6 chat slice **after exposure (round "
     "11)**: the round-11 engineers could read the slice, so it is no longer out of sample",
     "chat_heldout_r7-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-7 chat slice",
+    "chat_heldout_r8-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-8 chat slice",
+    "chat_heldout_r8-auto-nollm-after-fix": "independent round-8 chat slice **after the round-12 fixes**; the "
+    "engineers never opened the slice, so this is out of sample",
+    "claims_heldout_r8-prefix": "**first and only pre-fix run** of the independent round-8 claim slice",
+    "claims_heldout_r8-after-fix": "independent round-8 claim slice **after the round-12 fixes** (out of sample)",
     "chat_heldout_r7-auto-nollm-after-fix": "independent round-7 chat slice **after the round-11 fixes**; the "
     "engineers never opened the slice (four round-11 dev turns in three tasks match slice turns verbatim by "
     "coincidence)",
@@ -1547,6 +1556,21 @@ def render_with_sources() -> tuple[str, list[str]]:
         ]
         for name, result in heldout_r7:
             body += [f"#### `{name}.json`", "", *run_section(result, name, full=True)]
+    heldout_r8 = [(name, take(name)) for name in HELDOUT_R8_RUNS]
+    heldout_r8 = [(name, result) for name, result in heldout_r8 if result]
+    if heldout_r8:
+        body += [
+            "### Round-8 held-out chat slice (independent author): before and after the round-12 fixes",
+            "",
+            "51 conversations / 95 turns written by the round-8 reviewer from their bug classes before any "
+            "round-12 fix (`evaluation/heldout_r8/README.md`), run once before the fixes (by the reviewer) and once "
+            "after them. The "
+            "round-12 engineers never opened the slice. Its 25 claims are in the evidence table below "
+            "(`claims_heldout_r8-*.json`).",
+            "",
+        ]
+        for name, result in heldout_r8:
+            body += [f"#### `{name}.json`", "", *run_section(result, name, full=True)]
     pure = [
         (name, result)
         for name in (PRIMARY, TEST_V2, *TEST_V3)
@@ -1744,6 +1768,14 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
             summary = (
                 f"repair of {(result.get('whole_sentence_repair') or {}).get('repaired_answers')} rejected variants "
                 f"({result.get('gold_answers')} gold answers) — " + "; ".join(parts)
+            )
+        elif result.get("kind") == "claim_slice":
+            run = result.get("summary") or {}
+            low, high = run.get("ci95") or (None, None)
+            parts = [f"{key} {_fmt(value)}" for key, value in (run.get("by_category") or {}).items()]
+            summary = (
+                f"claim slice, verdict accuracy {_fmt(run.get('verdict_accuracy'))} [{_fmt(low)}, {_fmt(high)}] over "
+                f"{run.get('claims')} claims — " + "; ".join(parts)
             )
         elif result.get("kind") == "ablation":
             parts = []

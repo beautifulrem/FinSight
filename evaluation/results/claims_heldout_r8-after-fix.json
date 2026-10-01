@@ -1,0 +1,63 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "6e14016",
+  "run_at": "2026-10-01T08:59:23+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r8/score_claims_r8.py <out.json>",
+  "note": "independent round-8 claim slice after the round-12 fixes, run once at 6e14016 (clean tree); the engineers never opened the slice"
+ },
+ "summary": {
+  "claims": 25,
+  "verdict_accuracy": 0.8,
+  "ci95": [
+   0.64,
+   0.96
+  ],
+  "by_category": {
+   "english_relation": 0.5,
+   "industry_relation": 0.0,
+   "loose_numeral": 0.9,
+   "move_relation": 1.0,
+   "stated_average_order": 1.0,
+   "sum": 1.0,
+   "two_company_difference": 0.5
+  }
+ },
+ "errors": [
+  {
+   "id": "r8c09",
+   "category": "loose_numeral",
+   "claim": "茅台ROE是平安的两倍多一点",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r8c10",
+   "category": "two_company_difference",
+   "claim": "茅台与五粮液ROE相差三个多百分点",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r8c15",
+   "category": "english_relation",
+   "claim": "Ping An's P/E of 8.7x sits roughly 26% below the insurance average",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r8c17",
+   "category": "english_relation",
+   "claim": "Wuliangye earns less than half of Moutai's net profit",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r8c22",
+   "category": "industry_relation",
+   "claim": "白酒行业平均PB 6.2倍，是保险行业的四倍多",
+   "expected": "supported",
+   "got": "partially_supported"
+  }
+ ]
+}

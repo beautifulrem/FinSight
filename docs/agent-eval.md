@@ -1606,6 +1606,138 @@ Development set, path `auto`: 53 tasks, 129 turns. Status: independent round-7 c
 
 * Note: AFTER EXPOSURE: independent round-7 chat slice rerun after the round-12 fixes (code at d315174, run at b685e23), no LLM, --no-replay. From round 12 the engineers read this slice (the 9 tasks still failing after round 11 were the round-12 targets) and wrote their own dev examples, so this is not an out-of-sample measure. 53/53 = 1.000 (after round 11: 44/53 = 0.830).
 
+### Round-8 held-out chat slice (independent author): before and after the round-12 fixes
+
+51 conversations / 95 turns written by the round-8 reviewer from their bug classes before any round-12 fix (`evaluation/heldout_r8/README.md`), run once before the fixes (by the reviewer) and once after them. The round-12 engineers never opened the slice. Its 25 claims are in the evidence table below (`claims_heldout_r8-*.json`).
+
+#### `chat_heldout_r8-auto-nollm-prefix.json`
+
+Source `evaluation/results/chat_heldout_r8-auto-nollm-prefix.json`: commit `40e8685`, run 2026-10-01T05:30:27+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r8/chat_r8_heldout.jsonl --out /Volumes/Remi/finsight-review/heldout_r8/first_run/chat_r8-auto-40e8685.json
+```
+
+Development set, path `auto`: 51 tasks, 95 turns. Status: **first and only pre-fix run** of the independent round-8 chat slice.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.275 [0.16, 0.39] |
+| pass^k (all k repeats succeed) | 0.275 [0.16, 0.39] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.916 |
+| Required facts stated and cited | 0.621 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.621 |
+| Task success without the citation / tool / disclaimer checks | 0.275 [0.16, 0.39] |
+| Tool recall (required tools used) | 0.950 |
+| Tool precision (calls that were relevant) | 0.655 |
+| Hedged when required (why / judgment / advice) | 0.333 |
+| States missing data when required | 0.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 1291.1 |
+| Turn success | 0.579 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 5 | 1.00 |
+| gap_lexicon | 14 | 0.07 |
+| hk_lookalike | 5 | 0.40 |
+| holding_value | 7 | 0.43 |
+| injection_prediction | 3 | 0.33 |
+| metric_aspect | 9 | 0.00 |
+| single_turn_compare | 8 | 0.25 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r8h_gap_zh_01 | 茅台多成交了多少钱 | facts, entities |
+| r8h_gap_zh_02 | 后者领先前者几个百分点 | behavior, facts, entities |
+| r8h_gap_zh_03 | 证券ETF跑赢五粮液几个百分点 | facts |
+| r8h_gap_zh_04 | 按净利润算，平安相当于几个茅台 | facts |
+| r8h_gap_zh_05 | 后者成交额抵得上几个前者 | facts, entities |
+| r8h_gap_zh_06 | PB差了多少倍 | facts |
+| r8h_gap_zh_07 | 五粮液的股价大约是平安的两倍吗 | facts |
+| r8h_gap_zh_09 | 两个率相差多少个点 | behavior, facts, disclaimer, language, entity |
+| r8h_gap_en_01 | Ping An out-earns Wuliangye by what multiple? | facts |
+| r8h_gap_en_02 | By how many points did Ping An outperform Moutai? | facts |
+| r8h_gap_en_03 | Wuliangye's? | facts, required_tools, behavior, entities |
+| r8h_gap_en_04 | Trading value for Ping An today? | facts |
+| r8h_gap_en_05 | How far below the sector is it, percentage-wise? | facts |
+| r8h_cmp_zh_01 | 平安的市净率比五粮液便宜百分之几 | facts |
+| r8h_cmp_zh_02 | 五粮液ROE落后茅台多少个百分点 | facts |
+| r8h_cmp_zh_04 | 白酒和保险两个行业的平均市净率差多少 | facts |
+| r8h_cmp_en_01 | How much lower is Wuliangye's P/E than Moutai's, in percent? | facts |
+| r8h_cmp_en_02 | Which of Ping An and Wuliangye closed higher, and by how many yuan? | facts |
+| r8h_hold_zh_02 | 我持有2手中国平安，按最新收盘价市值多少 | facts |
+| r8h_hold_zh_03 | 账户里有三万份证券ETF，按收盘价算值多少 | facts |
+| r8h_hold_zh_04 | 按这个价格，买三手要多少钱 | behavior, facts, entity |
+| r8h_hold_zh_05 | 我有1200股，值多少 | behavior, facts, entity |
+| r8h_metric_en_01 | Wuliangye? | facts, required_tools |
+| r8h_metric_en_02 | Moutai? | facts, required_tools |
+| r8h_metric_zh_01 | 中国平安的换手率是多少 | states_missing |
+| … | 12 more in the result file | |
+
+* Note: independent round-8 chat slice (written by the round-8 reviewer before any round-12 fix), first and only pre-fix run at 40e8685, recorded by the reviewer, no LLM, --no-replay
+
+#### `chat_heldout_r8-auto-nollm-after-fix.json`
+
+Source `evaluation/results/chat_heldout_r8-auto-nollm-after-fix.json`: commit `6e14016`, run 2026-10-01T08:58:22+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r8/chat_r8_heldout.jsonl --out outputs/agent_eval/chat_r8-after.json
+```
+
+Development set, path `auto`: 51 tasks, 95 turns. Status: independent round-8 chat slice **after the round-12 fixes**; the engineers never opened the slice, so this is out of sample.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.686 [0.55, 0.80] |
+| pass^k (all k repeats succeed) | 0.686 [0.55, 0.80] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.958 |
+| Required facts stated and cited | 0.816 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.816 |
+| Task success without the citation / tool / disclaimer checks | 0.686 [0.55, 0.80] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.684 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 2875.0 |
+| Turn success | 0.832 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 5 | 1.00 |
+| gap_lexicon | 14 | 0.36 |
+| hk_lookalike | 5 | 1.00 |
+| holding_value | 7 | 0.86 |
+| injection_prediction | 3 | 1.00 |
+| metric_aspect | 9 | 0.67 |
+| single_turn_compare | 8 | 0.62 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r8h_gap_zh_02 | 后者领先前者几个百分点 | behavior, facts, entities |
+| r8h_gap_zh_03 | 证券ETF跑赢五粮液几个百分点 | facts |
+| r8h_gap_zh_04 | 按净利润算，平安相当于几个茅台 | facts |
+| r8h_gap_zh_05 | 后者成交额抵得上几个前者 | facts, entities |
+| r8h_gap_zh_07 | 五粮液的股价大约是平安的两倍吗 | facts |
+| r8h_gap_zh_09 | 两个率相差多少个点 | behavior, facts, disclaimer, language, entity |
+| r8h_gap_en_01 | Ping An out-earns Wuliangye by what multiple? | facts |
+| r8h_gap_en_03 | Divide the second by the first. | behavior, facts, entities |
+| r8h_gap_en_05 | How far below the sector is it, percentage-wise? | facts |
+| r8h_cmp_zh_02 | 五粮液ROE落后茅台多少个百分点 | facts |
+| r8h_cmp_zh_04 | 白酒和保险两个行业的平均市净率差多少 | facts |
+| r8h_cmp_en_02 | Which of Ping An and Wuliangye closed higher, and by how many yuan? | facts |
+| r8h_hold_zh_04 | 按这个价格，买三手要多少钱 | behavior, facts, entity |
+| r8h_metric_zh_02 | 白酒行业今天换手率多少 | facts, any_of_tools |
+| r8h_metric_zh_05 | 茅台今天每股跌了多少元 | facts |
+| r8h_metric_en_03 | What's the combined trading value of Moutai and Wuliangye? | facts |
+
+* Note: independent round-8 chat slice after the round-12 fixes, run once at 6e14016 (clean tree), no LLM, --no-replay; the round-12 engineers never opened the slice
+
 ### The no-tools LLM baseline: strict scoring vs uncited correctness
 
 Under the strict score a task needs every required number stated **and cited with an evidence id**, the required tools and the product's risk-disclaimer field. A model without tools can meet none of these, so its 0.000 is a property of the scoring, not only of the model. The uncited columns score the same answers against the same snapshot values without those requirements. The snapshot is dated 2026-04-22 and the model has no access to it, so uncited correctness measures what the model knew or guessed.
@@ -2533,6 +2665,8 @@ Small online checks with DeepSeek over the offline tools, run sequentially (stop
 
 | Result file | Commit | Summary |
 |---|---|---|
+| `claims_heldout_r8-prefix.json` | `40e8685` | claim slice, verdict accuracy 0.600 [0.400, 0.800] over 25 claims — english_relation 0.250; industry_relation 0.000; loose_numeral 0.800; move_relation 1.000; stated_average_order 0.667; sum 0.000; two_company_difference 0.500 |
+| `claims_heldout_r8-after-fix.json` | `6e14016` | claim slice, verdict accuracy 0.800 [0.640, 0.960] over 25 claims — english_relation 0.500; industry_relation 0.000; loose_numeral 0.900; move_relation 1.000; stated_average_order 1.000; sum 1.000; two_company_difference 0.500 |
 | `redteam-r7-targeted.json` | `8a5e95a, bf34e7a, bf34e7a-dirty` | targeted red-team replay of previously leaking cases — v3_no_layer: 8/20 detector hits, 3 stated as fact; v3_layer: 6/20 detector hits, 0 stated as fact; v4_no_layer: 4/20 detector hits, 0 stated as fact; v4_layer: 4/20 detector hits, 0 stated as fact |
 | `redteam-r8-d1-targeted.json` | `0473968, fabb6a7` | targeted red-team replay of previously leaking cases — live_prefix_fabb6a7: 1/4 detector hits, 1 stated as fact; replay_no_fix_fabb6a7: 1/4 detector hits, 1 stated as fact; replay_fixed_0473968: 1/4 detector hits, 0 stated as fact |
 | `injection_classifier-r4.json` | `d795818` | injection classifier, recall on unseen attacks (holdout2-4): classifier 0.387 [0.276, 0.511]; lexical 0.145 [0.078, 0.253]; lexical_or_classifier 0.419 [0.305, 0.543]; false positives on 3000 clean documents: classifier 0.005; lexical 0.002; lexical_or_classifier 0.007 |
@@ -2605,6 +2739,8 @@ Paired comparisons (same tasks, a − b):
 | `chat_heldout_r7-auto-nollm-prefix.json` | run | `12a28eb` | 2026-10-01T01:57:23+00:00 | – | `outputs/agent_eval/chat_r7-prefix.json` (a64180bc384b24e3) |
 | `chat_heldout_r7-auto-nollm-after-fix.json` | run | `960432d` | 2026-10-01T04:25:31+00:00 | – | `outputs/agent_eval/chat_r7-after.json` (ac21b24575846567) |
 | `chat_heldout_r7-auto-nollm-after-exposure-round12.json` | run | `b685e23` | 2026-10-01T07:21:43+00:00 | – | `outputs/agent_eval/chat_r7-r12.json` (088883e7d7b0f6be) |
+| `chat_heldout_r8-auto-nollm-prefix.json` | run | `40e8685` | 2026-10-01T05:30:27+00:00 | – | `chat_r8-auto-40e8685.json` (020ff227f47462a3) |
+| `chat_heldout_r8-auto-nollm-after-fix.json` | run | `6e14016` | 2026-10-01T08:58:22+00:00 | – | `outputs/agent_eval/chat_r8-after.json` (794f1e43cb7ae7a7) |
 | `router_eval-d78b313.json` | router_eval | `d78b313` | 2026-09-25T22:56:36+00:00 | – | written directly |
 | `router_eval-round2.json` | router_eval | `da3ec8b-dirty` | 2026-09-26T18:52:13+00:00 | – | written directly |
 | `router_eval-round3.json` | router_eval | `d3c1495` | 2026-09-28T07:16:51+00:00 | – | written directly |
@@ -2701,6 +2837,8 @@ Paired comparisons (same tasks, a − b):
 | `session-llm-check-h8-r12-after.json` | session | `4c45dac` | 2026-10-01T07:01:55+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `frame-llm-check-r12-fallback-off.json` | frame | `e9badd4` | 2026-10-01T06:26:06+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `frame-llm-check-r12-fallback-on.json` | frame | `e9badd4` | 2026-10-01T06:28:45+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
+| `claims_heldout_r8-prefix.json` | claim_slice | `40e8685` | 2026-10-01T05:20:35+00:00 | – | written directly |
+| `claims_heldout_r8-after-fix.json` | claim_slice | `6e14016` | 2026-10-01T08:59:23+00:00 | – | written directly |
 | `redteam-r7-targeted.json` | redteam_targeted | `None` | 2026-09-30T00:04:39+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `redteam-r8-d1-targeted.json` | redteam_targeted | `None` | 2026-09-30T06:38:30+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `injection_classifier-r4.json` | injection_classifier | `d795818` | 2026-09-29T02:53:28+00:00 | TfidfVectorizer(char_wb, 1-4, min_df=2, max_features=40000, sublinear_tf) + LogisticRegression(C=4, class_weight=balanced) | written directly |
