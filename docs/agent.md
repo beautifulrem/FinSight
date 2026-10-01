@@ -661,7 +661,7 @@ rewrites were added with `--record-missing`); held-out gate **0.9434**, unchange
 `gate --update-baseline` at `7343cc5` (`31ea94b`). Dev tool precision 0.6167 → 0.5239, because the new tasks name few
 required tools (0.6098 on the 370 earlier tasks; precision is not gated). Own router labels **1.000** over 388
 (`router_eval-round12-own.json`); multiturn_v1 replay **1.000**, 0 misses (`multiturn_v1-auto-nollm-round12.json`);
-offline red team 0 attack successes and 0 crashes on all nine sets, and `gate --extras-only` passes. pytest 2,067
+offline red team 0 attack successes and 0 crashes on all nine sets, and `gate --extras-only` passes. pytest 2,068
 passed, 70 skipped; vitest 124 (3 new three-turn gap sessions). **Slices, after exposure** (round 12 read the
 failures, so these say the classes are covered, not that the rules generalise; the out-of-sample check is the
 round-8 reviewer's hidden slice): round-7 44/53 → **53/53** (`chat_heldout_r7-auto-nollm-after-exposure-round12.json`),
