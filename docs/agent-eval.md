@@ -1409,6 +1409,45 @@ Failures (development set; first 25):
 
 * Note: independent round-6 chat slice after exposure (round 11): the round-11 engineers could read it; run at 960432d, no LLM, --no-replay
 
+#### `chat_heldout_r6-auto-nollm-after-exposure-round12.json`
+
+Source `evaluation/results/chat_heldout_r6-auto-nollm-after-exposure-round12.json`: commit `b685e23`, run 2026-10-01T07:27:06+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r6/chat_r6_heldout.jsonl --out outputs/agent_eval/chat_r6-r12.json
+```
+
+Development set, path `auto`: 38 tasks, 61 turns. Status: independent round-6 chat slice **after exposure (round 12)**: the round-12 engineers read its remaining failures, so it is no longer out of sample.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 1.000 [1.00, 1.00] |
+| pass^k (all k repeats succeed) | 1.000 [1.00, 1.00] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 1.000 |
+| Required facts stated and cited | 1.000 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 1.000 |
+| Task success without the citation / tool / disclaimer checks | 1.000 [1.00, 1.00] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.389 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | – |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 6933.6 |
+| Turn success | 1.000 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| comparison_winner | 4 | 1.00 |
+| derived_metric | 6 | 1.00 |
+| difference_followup | 8 | 1.00 |
+| fair_value | 7 | 1.00 |
+| news_control | 2 | 1.00 |
+| news_corroborated | 3 | 1.00 |
+| out_of_coverage | 7 | 1.00 |
+| two_target_compare | 1 | 1.00 |
+
+* Note: AFTER EXPOSURE: independent round-6 chat slice rerun after the round-12 fixes (code at d315174, run at b685e23), no LLM, --no-replay. The round-12 engineers read its remaining failures (多跌了多少, 两个比哪个交易更活跃, an English net-margin gap) and wrote their own dev examples, so this is not an out-of-sample measure. 38/38 = 1.000 (after round 11: 35/38 = 0.921).
+
 ### Round-7 held-out chat slice (independent author): before and after the round-11 fixes
 
 53 tasks / 129 turns written from the round-7 review's bug classes (`evaluation/heldout_r7/README.md`); run once before the round-11 fixes and once after them. The engineers never opened the slice. Three round-11 dev turns match slice turns verbatim by coincidence (tasks `r7h_gap_zh_11` and `r7h_gap_en_04`); without those two tasks the slice goes 13/51 → 43/51.
@@ -1530,6 +1569,42 @@ Failures (development set; first 25):
 
 * Note: independent round-7 chat slice run once after the round-11 fixes (960432d), no LLM, --no-replay; the engineers never opened the slice. Three round-11 dev turns match slice turns verbatim by coincidence (二者相差几个百分点; Ping An's ROE?; And Wuliangye?) in tasks r7h_gap_zh_11 and r7h_gap_en_04; without those two tasks 43/51 = 0.843 (pre-fix 13/51).
 
+#### `chat_heldout_r7-auto-nollm-after-exposure-round12.json`
+
+Source `evaluation/results/chat_heldout_r7-auto-nollm-after-exposure-round12.json`: commit `b685e23`, run 2026-10-01T07:21:43+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r7/chat_r7_heldout.jsonl --out outputs/agent_eval/chat_r7-r12.json
+```
+
+Development set, path `auto`: 53 tasks, 129 turns. Status: independent round-7 chat slice **after exposure (round 12)**: the round-12 engineers read the slice and fixed the classes it still failed, so it is no longer out of sample.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 1.000 [1.00, 1.00] |
+| pass^k (all k repeats succeed) | 1.000 [1.00, 1.00] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 1.000 |
+| Required facts stated and cited | 1.000 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 1.000 |
+| Task success without the citation / tool / disclaimer checks | 1.000 [1.00, 1.00] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.632 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 4002.7 |
+| Turn success | 1.000 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 5 | 1.00 |
+| derived_metric | 11 | 1.00 |
+| fair_value_implied | 6 | 1.00 |
+| gap_followup | 23 | 1.00 |
+| hk_out_of_coverage | 8 | 1.00 |
+
+* Note: AFTER EXPOSURE: independent round-7 chat slice rerun after the round-12 fixes (code at d315174, run at b685e23), no LLM, --no-replay. From round 12 the engineers read this slice (the 9 tasks still failing after round 11 were the round-12 targets) and wrote their own dev examples, so this is not an out-of-sample measure. 53/53 = 1.000 (after round 11: 44/53 = 0.830).
+
 ### The no-tools LLM baseline: strict scoring vs uncited correctness
 
 Under the strict score a task needs every required number stated **and cited with an evidence id**, the required tools and the product's risk-disclaimer field. A model without tools can meet none of these, so its 0.000 is a property of the scoring, not only of the model. The uncited columns score the same answers against the same snapshot values without those requirements. The snapshot is dated 2026-04-22 and the model has no access to it, so uncited correctness measures what the model knew or guessed.
@@ -1563,6 +1638,7 @@ Route accuracy of `mode=auto` (refuse / clarify / workflow / agent) against labe
 | `router_eval-round10-own.json` | `router_labels_v1.jsonl` | author's own labels (tuned against) | `05f418a` | 358 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round10-own.json` |
 | `router_eval-independent_v2-round10.json` | `router_labels_independent_v2.jsonl` | **after exposure** (HEAD after round 10; first run 0.8008) | `05f418a` | 241 | 0.838 | 0.950 / 0.596 / 0.927 / 0.833 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out outputs/agent_eval/router_eval-independent_v2-round10.json` |
 | `router_eval-round11-own.json` | `router_labels_v1.jsonl` | author's own labels (tuned against) | `b7af797` | 372 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round11-own.json` |
+| `router_eval-round12-own.json` | `router_labels_v1.jsonl` | author's own labels (tuned against) | `b685e23-dirty` | 388 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round12-own.json` |
 
 * Note (`router_eval-independent_v2-first-run.json`): first and only run of the independent v2 labels, after the round-4 router changes; 4 of 241 queries coincidentally also appear in the project's own labels (什么是市净率, 今天北京天气怎么样, 招商银行的市盈率是多少, 比亚迪还能涨吗)
 * Note (`router_eval-round9-own.json`): Author's own router labels after round 9 at d78a556: 344 queries (round-9 labels route_332-343 added; route_343 corrected from workflow to agent at 9f12e78, the only miss at 8814b3b).
@@ -1570,6 +1646,7 @@ Route accuracy of `mode=auto` (refuse / clarify / workflow / agent) against labe
 * Note (`router_eval-round10-own.json`): Author's own router labels after round 10 at 05f418a: 358 queries (round-10 labels route_344-357 added for F5, F6, F8, F10/F11, F14 with negatives; route_313 relabelled clarify -> refuse under F14). 1.000.
 * Note (`router_eval-independent_v2-round10.json`): Independent v2 labels rerun at 05f418a after the round-10 fixes (after exposure: v2 was exposed after its first run 0.8008 at 3080bfe; round 10 did not read or tune on it). 0.8299 (8814b3b) -> 0.8382: rl2_refuse_013 and rl2_refuse_014 now right, no new errors.
 * Note (`router_eval-round11-own.json`): Author's own router labels after round 11 at b7af797: 372 queries (round-11 labels route_358-371 added for G1, G5 and G6 with negatives). 1.000.
+* Note (`router_eval-round12-own.json`): Author's own router labels after round 12 at b685e23 (working tree had only docs and report.py edits): 388 queries (round-12 labels route_372-387 added for holdings, turnover, Hong Kong lines, one-message comparisons, colloquial EPS and the turnover rate, with negatives). 1.000.
 
 ### Claim-check benchmark
 
@@ -1848,8 +1925,8 @@ low − default: task success -0.038 [-0.094, +0.000], pass^k -0.038 [-0.094, +0
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `017e5a3` | 370 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
-| gate-holdout | `017e5a3` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
+| gate-dev | `7343cc5` | 411 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-holdout | `7343cc5` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
 
 ### Fault injection (overall graceful rate 1.00)
 
@@ -2393,8 +2470,10 @@ Paired comparisons (same tasks, a − b):
 | `chat_heldout_r6-auto-nollm-prefix.json` | run | `05c4d7b` | 2026-09-30T21:57:23+00:00 | – | `outputs/agent_eval/chat_r6-prefix.json` (9ba6d76d2bbcb05f) |
 | `chat_heldout_r6-auto-nollm-after-fix.json` | run | `68279eb` | 2026-10-01T00:10:20+00:00 | – | `outputs/agent_eval/chat_r6-after.json` (360cf3b255d5d03f) |
 | `chat_heldout_r6-auto-nollm-after-exposure-round11.json` | run | `960432d-dirty` | 2026-10-01T04:28:13+00:00 | – | `outputs/agent_eval/chat_r6-r11.json` (994d4dfa8f3d2b36) |
+| `chat_heldout_r6-auto-nollm-after-exposure-round12.json` | run | `b685e23` | 2026-10-01T07:27:06+00:00 | – | `outputs/agent_eval/chat_r6-r12.json` (8190ce14244065f6) |
 | `chat_heldout_r7-auto-nollm-prefix.json` | run | `12a28eb` | 2026-10-01T01:57:23+00:00 | – | `outputs/agent_eval/chat_r7-prefix.json` (a64180bc384b24e3) |
 | `chat_heldout_r7-auto-nollm-after-fix.json` | run | `960432d` | 2026-10-01T04:25:31+00:00 | – | `outputs/agent_eval/chat_r7-after.json` (ac21b24575846567) |
+| `chat_heldout_r7-auto-nollm-after-exposure-round12.json` | run | `b685e23` | 2026-10-01T07:21:43+00:00 | – | `outputs/agent_eval/chat_r7-r12.json` (088883e7d7b0f6be) |
 | `router_eval-d78b313.json` | router_eval | `d78b313` | 2026-09-25T22:56:36+00:00 | – | written directly |
 | `router_eval-round2.json` | router_eval | `da3ec8b-dirty` | 2026-09-26T18:52:13+00:00 | – | written directly |
 | `router_eval-round3.json` | router_eval | `d3c1495` | 2026-09-28T07:16:51+00:00 | – | written directly |
@@ -2408,6 +2487,7 @@ Paired comparisons (same tasks, a − b):
 | `router_eval-round10-own.json` | router_eval | `05f418a` | 2026-09-30T23:08:10+00:00 | – | written directly |
 | `router_eval-independent_v2-round10.json` | router_eval | `05f418a` | 2026-09-30T23:10:25+00:00 | – | written directly |
 | `router_eval-round11-own.json` | router_eval | `b7af797` | 2026-10-01T04:02:23+00:00 | – | written directly |
+| `router_eval-round12-own.json` | router_eval | `b685e23-dirty` | 2026-10-01T07:42:14+00:00 | – | written directly |
 | `claim_bench-dev-baseline.json` | claim_bench | `3da1a48` | 2026-09-28T06:30:24+00:00 | – | written directly |
 | `claim_bench-dev.json` | claim_bench | `4796e24` | 2026-10-01T02:04:45+00:00 | – | written directly |
 | `claim_bench-holdout.json` | claim_bench | `2fcb4f0` | 2026-09-28T07:14:56+00:00 | – | written directly |
@@ -2445,8 +2525,8 @@ Paired comparisons (same tasks, a − b):
 | `ablation-memsum-1-multiturn_v1.json` | ablation | `bc42017` | 2026-09-30T22:11:41+00:00 | cline-pass/deepseek-v4.1-flash | `ablation-memsum-1.json` (50162842790e1544) |
 | `ablation-glm-effort-default-holdout.json` | ablation | `bc42017` | 2026-09-30T22:18:04+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-default.json` (0443e4fcfda24919) |
 | `ablation-glm-effort-low-holdout.json` | ablation | `bc42017` | 2026-09-30T22:20:53+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-low.json` (24329b3dee31a93e) |
-| `gate-dev.json` | run | `017e5a3` | 2026-10-01T03:56:00+00:00 | – | `outputs/agent_eval/gate-dev.json` (d3ac3771e69d302a) |
-| `gate-holdout.json` | run | `017e5a3` | 2026-10-01T03:56:20+00:00 | – | `outputs/agent_eval/gate-holdout.json` (21c58973e307104f) |
+| `gate-dev.json` | run | `7343cc5` | 2026-10-01T07:56:17+00:00 | – | `outputs/agent_eval/gate-dev.json` (bbe708c1b3319afa) |
+| `gate-holdout.json` | run | `7343cc5` | 2026-10-01T07:56:51+00:00 | – | `outputs/agent_eval/gate-holdout.json` (c1f9e03920f8b294) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |
 | `verifier_stress-round10.json` | verifier_stress | `53454f5` | 2026-09-30T23:35:04+00:00 | – | `outputs/agent_eval/verifier_stress-round10.json` (7e931de123af2bef) |
