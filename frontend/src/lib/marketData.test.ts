@@ -178,4 +178,34 @@ describe("selectKpis (C18: compare answers)", () => {
     expect(selectKpis(kpis, 8)).toEqual(kpis.slice(0, 8));
     expect(kpis.every((kpi) => kpi.subject === "贵州茅台")).toBe(true);
   });
+
+  it("leads with the metric the question asked about, for every company (round 11, G11)", () => {
+    const response = {
+      status: "ok",
+      session_id: "s",
+      evidence_sources: [...company("600519.SH", "贵州茅台", 24.6)!, ...company("000858.SZ", "五粮液", 20.9)!],
+    } as AgentResponse;
+    const tiles = selectKpis(marketDataFromAgent(response).kpis, 8, ["roe"]);
+
+    expect(tiles.filter((kpi) => kpi.featured).map((kpi) => `${kpi.subject}:${kpi.label}`)).toEqual([
+      "贵州茅台:kpi.roe",
+      "五粮液:kpi.roe",
+    ]);
+    expect(tiles[0]?.label).toBe("kpi.roe");
+    expect(tiles[4]?.label).toBe("kpi.roe");
+  });
+
+  it("derives a net-margin tile only to show it when asked", () => {
+    const response = {
+      status: "ok",
+      session_id: "s",
+      evidence_sources: [
+        { evidence_id: "fundamental_000858.SZ", source_type: "fundamental_sql", payload: { symbol: "000858.SZ", name: "五粮液", pe_ttm: 20.9, revenue: 108.5e9, net_profit: 37.8e9 } },
+      ],
+    } as AgentResponse;
+    const kpis = marketDataFromAgent(response).kpis;
+
+    expect(selectKpis(kpis, 8, ["net_margin"])[0]).toMatchObject({ label: "kpi.netMargin", value: 34.84, featured: true });
+    expect(selectKpis(kpis, 8)[0]?.label).toBe("kpi.pe");
+  });
 });

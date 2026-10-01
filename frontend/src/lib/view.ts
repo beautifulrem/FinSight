@@ -41,6 +41,8 @@ export interface AnswerView {
   factCheck?: ClaimReport | null;
   /** English names by Chinese name and by symbol, from the API's `name_en` (the alias table). */
   englishNames?: Map<string, string>;
+  /** Metric keys the question asks about (`nlu_summary.asked_metrics`): the KPI tiles lead with them. */
+  askedMetrics?: string[];
 }
 
 type Named = { name?: string | null; canonical_name?: string | null; symbol?: string | null; name_en?: string | null };
@@ -166,6 +168,7 @@ export function answerView(turn: Turn): AnswerView | null {
       wallMs,
       firstTokenMs,
       factCheck: response.fact_check ?? null,
+      askedMetrics: response.nlu_summary?.asked_metrics ?? [],
       englishNames: englishNames(
         response.nlu_summary?.entities,
         response.fact_check?.targets,

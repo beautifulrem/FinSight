@@ -26,6 +26,8 @@ export interface Kpi {
   evidenceId?: string;
   subject?: string;
   asOf?: string;
+  /** The metric the question asked about (round 11): shown first and marked. */
+  featured?: boolean;
 }
 
 export interface MarketData {
@@ -132,10 +134,19 @@ function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asO
       add("roe", "kpi.roe", metrics.roe, unitOf(payload, "roe") === "%" ? "percentLevel" : "fraction");
       add("revenue", "kpi.revenue", metrics.revenue, "money");
       add("net_profit", "kpi.netProfit", metrics.net_profit, "money");
+      {
+        // net margin = net profit / revenue, the figure the answer derives; shown only when asked (lowest rank)
+        const revenue = num(metrics.revenue);
+        const profit = num(metrics.net_profit);
+        if (revenue && profit !== undefined && revenue > 0) {
+          add("net_margin", "kpi.netMargin", Math.round((profit / revenue) * 10000) / 100, "percentLevel");
+        }
+      }
       break;
     case "industry_sql":
       add("pe", "kpi.industryPe", payload.pe, "ratio", { asOf: isoDate(payload.trade_date) ?? asOf });
       add("pct", "kpi.industryChange", payload.pct_change, "percent", { tone: tone(num(payload.pct_change)) });
+      add("pb", "kpi.industryPb", payload.pb, "ratio");
       break;
     case "technical_indicators":
     case "indicators":
@@ -215,12 +226,37 @@ const rank = (kpi: Kpi) => {
   return index < 0 ? PRIORITY.length : index;
 };
 
+/** Tile labels for the metric keys the server lists in `nlu_summary.asked_metrics` (agent/frame.py keys). */
+export const ASKED_LABELS: Record<string, string[]> = {
+  roe: ["kpi.roe"],
+  pe: ["kpi.pe", "kpi.industryPe"],
+  pb: ["kpi.pb", "kpi.industryPb"],
+  revenue: ["kpi.revenue"],
+  net_profit: ["kpi.netProfit"],
+  net_margin: ["kpi.netMargin"],
+  close: ["kpi.close"],
+  pct_change: ["kpi.change", "kpi.industryChange"],
+  amount: ["kpi.amount"],
+};
+
 /**
  * At most `max` tiles. One subject: the first `max`. Several (a comparison, "茅台和五粮液对比"): an equal
  * share per subject, the metrics they have in common first and in the same order, grouped by subject, so
  * each company gets a row of comparable tiles instead of the first company taking every slot.
  */
-export function selectKpis(kpis: Kpi[], max: number): Kpi[] {
+export function selectKpis(kpis: Kpi[], max: number, asked: string[] = []): Kpi[] {
+  // (round 11, G11) the metric the question asked about leads, for every company, and is marked
+  const askedLabels = asked.flatMap((key) => ASKED_LABELS[key] ?? []);
+  const askedRank = (kpi: Kpi) => {
+    const index = askedLabels.indexOf(kpi.label);
+    return index < 0 ? askedLabels.length : index;
+  };
+  if (askedLabels.length) {
+    kpis = kpis
+      .map((kpi, index) => ({ kpi: askedLabels.includes(kpi.label) ? { ...kpi, featured: true } : kpi, index }))
+      .sort((a, b) => askedRank(a.kpi) - askedRank(b.kpi) || a.index - b.index)
+      .map(({ kpi }) => kpi);
+  }
   const groups = new Map<string, Kpi[]>();
   for (const kpi of kpis) {
     const key = kpi.subject ?? "";
@@ -239,7 +275,10 @@ export function selectKpis(kpis: Kpi[], max: number): Kpi[] {
   for (const tiles of companies) {
     const ordered = tiles
       .map((kpi, index) => ({ kpi, index }))
-      .sort((a, b) => shared(a.kpi) - shared(b.kpi) || rank(a.kpi) - rank(b.kpi) || a.index - b.index)
+      .sort(
+        (a, b) =>
+          askedRank(a.kpi) - askedRank(b.kpi) || shared(a.kpi) - shared(b.kpi) || rank(a.kpi) - rank(b.kpi) || a.index - b.index,
+      )
       .map(({ kpi }) => kpi);
     picked.push(...ordered.slice(0, share));
   }
