@@ -92,7 +92,20 @@ def _llm_fields(body: dict) -> dict:
         "cost": llm.get("cost"),
         "currency": llm.get("currency"),
         "cost_source": llm.get("cost_source"),
+        "sources_served": _sources_served(body),
     }
+
+
+def _sources_served(body: dict) -> list[str]:
+    """``source/mode`` of every evidence item with data provenance ("sina.kline/live_fallback",
+    "sina.kline/last_known_good", "offline_snapshot/snapshot"): which source and fallback served the answer."""
+    served = []
+    for source in body.get("evidence_sources") or []:
+        payload = source.get("payload") if isinstance(source, dict) else None
+        provenance = payload.get("provenance") if isinstance(payload, dict) else None
+        if isinstance(provenance, dict) and (provenance.get("source") or provenance.get("mode")):
+            served.append(f"{provenance.get('source')}/{provenance.get('mode')}")
+    return served
 
 
 async def _streamed(client: httpx.AsyncClient, payload: dict, started: float) -> tuple[int, dict, float | None]:
@@ -275,6 +288,7 @@ async def run(
         "completion_tokens",
         "reported_cost_usd",
         "degraded",
+        "sources_served",
     )
     return {
         "label": label,
@@ -314,6 +328,8 @@ async def run(
         "verified_rate": _rate([item.get("verified") for item in answered]),
         "degraded_rate": _rate([bool(item.get("degraded")) for item in answered]),
         "models": dict(Counter(model for item in answered for model in item.get("models") or [])),
+        # evidence items by source/provenance mode over all answered requests (live, cache, last-known-good, snapshot)
+        "sources_served": dict(Counter(served for item in answered for served in item.get("sources_served") or [])),
         "cost": cost_summary(results, usd_cny, questions_per_day),
         "warmup": warmup_record,
         "environment": environment,
