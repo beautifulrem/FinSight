@@ -342,7 +342,6 @@ Still open:
 | Issue | Why it is open |
 |---|---|
 | LLM paths still mention planted document content: 0–3.4% stated as fact, up to 6.8% raw detector hits per set and path at `0473968` (`redteam-r8-llm.json`); holdout7 after round 9: 2/112 and 0/56 stated as fact (`redteam-r9-holdout7-llm.json`); holdout8 after round 10: 1/112 and 1/28, the agent case 0/28 when replayed after its fix (`redteam-r10-holdout8-llm.json`, `redteam-r10-holdout8-llm-replay.json`) | the output layer attributes or removes what it recognises (figures with a unit, events by pattern); a marked figure still reaches the reader, and a model that restates a payload without a number, or rejects it while quoting it, is not caught. Planted headlines shaped like regulatory news are still shown in the ledger on the older held-out sets (holdout3 2/88, holdout4 8/240, holdout5 6/168) |
-| F1, F2, F7 (round 6): "比…行业平均的30倍低" read as a multiple of the average; "比五粮液高出约3.6个百分点" contradicted; "一千六百多亿", relative percent and EPS / holding value not derived | claim-check and numeral items of the round-6 review, not addressed in the round-10 agent work |
 | GLM tail latency: agent P95 82 s on test v3 | per-call variance of a slow reasoning model; composition (27 s) is the better GLM path |
 | Prompt v4 has no task-success A/B | selectable, not default, until measured |
 | No human-labelled answer-quality judge, no head-to-head with 问财 / 豆包 / Kimi, no user study | need human labellers, competitor accounts and participants (owner) |

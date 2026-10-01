@@ -1,0 +1,315 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/heldout_r6/chat_r6_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v3#53fdebb2c184",
+   "compose_system": "compose_system@v3#df1dd3b28975"
+  },
+  "commit": "68279eb",
+  "run_at": "2026-10-01T00:10:20+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 44.1,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r6/chat_r6_heldout.jsonl --out outputs/agent_eval/chat_r6-after.json"
+ },
+ "summary": {
+  "tasks": 38,
+  "turns": 61,
+  "repeats": 1,
+  "task_success": 0.8158,
+  "pass^1": 0.8158,
+  "ci": {
+   "task_success": [
+    0.6842,
+    0.9211
+   ],
+   "pass^1": [
+    0.6842,
+    0.9211
+   ],
+   "task_success_uncited": [
+    0.6842,
+    0.9211
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.8158,
+  "turn_success": 0.8689,
+  "behavior_accuracy": 0.9836,
+  "fact_recall": 0.8036,
+  "fact_stated": 0.8036,
+  "tool_recall": 1.0,
+  "tool_precision": 0.4434,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": null,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 92.92,
+  "latency_ms_p95": 1036.59,
+  "latency_ms_p99": 1439.4,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "comparison_winner": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 86.93
+  },
+  "derived_metric": {
+   "tasks": 6,
+   "task_success": 0.8333,
+   "latency_ms_p95": 516.68
+  },
+  "difference_followup": {
+   "tasks": 8,
+   "task_success": 0.25,
+   "latency_ms_p95": 1370.83
+  },
+  "fair_value": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 346.7
+  },
+  "news_control": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 310.04
+  },
+  "news_corroborated": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 798.61
+  },
+  "out_of_coverage": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 708.37
+  },
+  "two_target_compare": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 782.26
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 6,
+   "task_success": 0.6667,
+   "latency_ms_p95": 708.37
+  },
+  "zh": {
+   "tasks": 32,
+   "task_success": 0.8438,
+   "latency_ms_p95": 1226.52
+  }
+ },
+ "failed_checks": {
+  "facts": 8,
+  "behavior": 1,
+  "entities": 1
+ },
+ "failures": [
+  {
+   "task": "r6t01",
+   "category": "difference_followup",
+   "query": "它比行业低了多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。所属行业 白酒：PE 27.3 倍，PB 6.2 倍，涨跌幅 -1.05% [industry_白酒]。五粮液 基本面（报告期 2025-12-"
+  },
+  {
+   "task": "r6t02",
+   "category": "difference_followup",
+   "query": "两家相差几个百分点",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ"
+  },
+  {
+   "task": "r6t03",
+   "category": "difference_followup",
+   "query": "By how much does it exceed that?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Industry baijiu (liquor): PE 27.3x, PB 6.2x, change -1.05% [industry_白酒]. Kweichow Moutai fundamentals (perio"
+  },
+  {
+   "task": "r6t05",
+   "category": "difference_followup",
+   "query": "多跌了多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5 元（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.5337% [price_00085"
+  },
+  {
+   "task": "r6t07",
+   "category": "difference_followup",
+   "query": "两个比哪个交易更活跃",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history",
+    "search_knowledge"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：创业板ETF（159915.SZ）最新可用收盘价为 2.465 元（2026-04-22），当日涨跌幅 0.86% [price_159915.SZ]。沪深300ETF（510300.SH）最新可用收盘价为 4.811 元（2026-04-22），按前一交易日收盘 4.776 元 计算的当日涨跌幅"
+  },
+  {
+   "task": "r6t07",
+   "category": "difference_followup",
+   "query": "差了多少钱",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "r6t08",
+   "category": "difference_followup",
+   "query": "这俩谁赚得多，多多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 20.9 倍，PB 5.4 倍，ROE 29.4%，营业收入 1085 亿元，净利润 378 亿元 [fundamental_000858.SZ]。所属行业 白酒：PE 27.3 倍，PB 6.2 倍，涨跌幅 -1.0"
+  },
+  {
+   "task": "r6t26",
+   "category": "derived_metric",
+   "query": "What's the net-margin gap between Moutai and Ping An?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Kweichow Moutai fundamentals (period 2025-12-31, FY2025): PE(TTM) 24.6x, PB 8.1x, ROE 33%, revenue CNY 168.84"
+  }
+ ],
+ "task_outcomes": {
+  "r6t01": "0",
+  "r6t02": "0",
+  "r6t03": "0",
+  "r6t04": "1",
+  "r6t05": "0",
+  "r6t06": "1",
+  "r6t07": "0",
+  "r6t08": "0",
+  "r6t09": "1",
+  "r6t10": "1",
+  "r6t11": "1",
+  "r6t12": "1",
+  "r6t13": "1",
+  "r6t14": "1",
+  "r6t15": "1",
+  "r6t16": "1",
+  "r6t17": "1",
+  "r6t18": "1",
+  "r6t19": "1",
+  "r6t20": "1",
+  "r6t21": "1",
+  "r6t22": "1",
+  "r6t23": "1",
+  "r6t24": "1",
+  "r6t25": "1",
+  "r6t26": "0",
+  "r6t27": "1",
+  "r6t28": "1",
+  "r6t29": "1",
+  "r6t30": "1",
+  "r6t31": "1",
+  "r6t32": "1",
+  "r6t33": "1",
+  "r6t34": "1",
+  "r6t35": "1",
+  "r6t36": "1",
+  "r6t37": "1",
+  "r6t38": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r6-after.json",
+  "sha256_16": "360cf3b255d5d03f",
+  "bytes": 178703,
+  "slimmed_at": "2026-10-01T00:10:31+00:00"
+ },
+ "notes": [
+  "independent round-6 chat slice after the round-10 fixes at 68279eb, no LLM, --no-replay; the engineers who made the fixes never saw this slice, so this is an out-of-sample measure of the fixes (pre-fix: 0.579)"
+ ]
+}
