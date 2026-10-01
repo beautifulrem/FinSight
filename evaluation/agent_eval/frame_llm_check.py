@@ -27,7 +27,14 @@ from query_intelligence.agent.service import AgentService
 from query_intelligence.agent.state import AgentConfig
 from query_intelligence.agent.tools import build_registry_for_service
 
-from .runner import EVAL_TODAY, _command, _git_commit, _make_llm, add_llm_arguments, build_offline_service
+from .runner import (
+    EVAL_TODAY,
+    _git_commit,
+    _make_llm,
+    add_llm_arguments,
+    build_offline_service,
+    command_fields,
+)
 
 # (turns, expected value of the last turn's comparison)
 SESSIONS: list[tuple[list[str], float]] = [
@@ -127,7 +134,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "config": {
             "commit": commit,
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "command": _command("evaluation.agent_eval.frame_llm_check", argv),
+            **command_fields("evaluation.agent_eval.frame_llm_check", argv),
             "model": getattr(llm, "model", None),
             "prompts": prompt_refs(),
             "tools": "offline runtime assets (no replay snapshot)",
