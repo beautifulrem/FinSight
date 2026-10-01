@@ -1115,6 +1115,40 @@ class RecordingLLM:
         return turn
 
 
+class CallBudget:
+    """(round 12) A cap on live LLM calls across a whole red-team run, and a stop after the first HTTP 429: once
+    either is reached no further case starts (cases already running finish). ``wrap`` counts every call."""
+
+    def __init__(self, max_calls: int, *, margin: int = 4) -> None:
+        self.max_calls = max_calls
+        self.margin = margin  # a case may make several calls: stop when fewer than this remain
+        self.calls = 0
+        self.stopped: str | None = None
+        self.skipped = 0
+
+    def exhausted(self) -> bool:
+        if self.stopped is None and self.calls >= self.max_calls - self.margin:
+            self.stopped = f"call budget ({self.calls} of {self.max_calls})"
+        return self.stopped is not None
+
+    def wrap(self, inner: Any) -> Any:
+        budget = self
+
+        class _Counted:
+            model = getattr(inner, "model", "")
+
+            def chat(self, messages: Any, tools: Any = None, **kwargs: Any) -> AssistantTurn:
+                budget.calls += 1
+                try:
+                    return inner.chat(messages, tools, **kwargs)
+                except Exception as exc:
+                    if "429" in str(exc) and budget.stopped is None:
+                        budget.stopped = f"HTTP 429 after {budget.calls} calls"
+                    raise
+
+        return _Counted()
+
+
 def case_key(path: str, attack_set: str, attack_id: str, variant: str, question: str) -> str:
     return f"{path}|{attack_set}|{attack_id}|{variant}|{question}"
 
@@ -1131,6 +1165,7 @@ def run_path(
     select: Callable[[str, str, str], bool] | None = None,
     recordings: dict[str, list[dict[str, Any]]] | None = None,
     replay: dict[str, list[dict[str, Any]]] | None = None,
+    budget: CallBudget | None = None,
 ) -> dict[str, Any]:
     """``select(attack_id, variant, question)`` keeps a subset of the cases. With ``recordings`` every LLM turn
     of a case is stored under ``case_key``; with ``replay`` the stored turns are played back instead of calling
@@ -1153,14 +1188,17 @@ def run_path(
     def run_case(case: dict[str, Any]) -> list[dict[str, Any]]:
         attack: Attack = case["attack"]
         key = case_key(label, attack_set, attack.id, case["variant"], case["question"])
+        if budget is not None and llm is not None and replay is None and budget.exhausted():
+            budget.skipped += 1
+            return []
         planted: set[str] = set()
         registry = wrap_registry(base, _poison(attack, planted))
-        case_llm = llm
+        case_llm = budget.wrap(llm) if budget is not None and llm is not None and replay is None else llm
         if replay is not None:
             steps = [AssistantTurn.model_validate(turn) for turn in replay.get(key, [])]
             case_llm = ScriptedLLM(steps=list(steps), model=getattr(llm, "model", "replay") or "replay")
         elif recordings is not None and llm is not None:
-            case_llm = RecordingLLM(llm)
+            case_llm = RecordingLLM(case_llm)
         runtime = AgentRuntime(
             service, registry, case_llm, config=AgentConfig(max_llm_steps=4), today=lambda: EVAL_TODAY
         )
@@ -1288,9 +1326,16 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument(
         "--replay-llm", default="", help="Replay the LLM turns recorded with --record-llm instead of calling an LLM."
     )
+    parser.add_argument(
+        "--max-llm-calls",
+        type=int,
+        default=0,
+        help="Cap on live LLM calls for the whole run; no case starts once it is near, or after the first HTTP 429.",
+    )
     args = parser.parse_args(argv)
     replay = json.loads(Path(args.replay_llm).read_text(encoding="utf-8")) if args.replay_llm else None
     llm = None if replay is not None else _make_llm(args.llm, args.model)
+    budget = CallBudget(args.max_llm_calls) if args.max_llm_calls and llm is not None else None
     recordings: dict[str, list[dict[str, Any]]] | None = {} if args.record_llm else None
     service = build_offline_service()
     wanted_paths = [item for item in args.paths.split(",") if item]
@@ -1331,6 +1376,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
                 select=selector(attack_set, path),
                 recordings=recordings,
                 replay=replay if path != "workflow" else None,
+                budget=budget,
             )
             paths.append(result)
     if recordings is not None:
@@ -1341,6 +1387,16 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "config": {
             **llm_config(args.llm, args.model, llm),
             "llm_replay": args.replay_llm or None,
+            "llm_call_budget": (
+                {
+                    "max_calls": budget.max_calls,
+                    "calls": budget.calls,
+                    "stopped": budget.stopped,
+                    "cases_skipped": budget.skipped,
+                }
+                if budget is not None
+                else None
+            ),
             "targeted_cases": args.cases or None,
             "attacks": {name: len(items) for name, items in _ATTACK_SETS.items()},
             "success_definition": "detector match outside an attributed sentence (round 8)",
