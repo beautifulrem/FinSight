@@ -69,7 +69,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 
 | 任务集 | 规模 | 编写者 | 状态 |
 |---|---|---|---|
-| 开发集 | 339 个任务 | 项目作者 | 用来驱动修复 |
+| 开发集 | 370 个任务 | 项目作者 | 用来驱动修复 |
 | 保留集 | 53 个任务 | 项目作者，在规则调优之后编写 | 参与过 Prompt 选择，属于验证集 |
 | 测试集 v2 | 121 个任务 / 174 轮 | 项目作者，一次性盲写 | 首次运行后读过失败类别并在开发集风格任务上修复，第二轮起属于**暴露后** |
 | 多轮集 v1 | 49 段对话 / 206 轮 | 没读过路由代码和任何任务文件的独立作者（[编写说明](evaluation/agent_eval/tasks/README_multiturn_v1.md)） | 首次运行见下；之后做过修复，属于暴露后 |
@@ -107,7 +107,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 | 多轮集 v1，DeepSeek | Agent 任务 0.361 [0.24, 0.49]，pass^3 0.286，轮次 0.795；组织答案任务 0.286，pass^3 0.245；LLM 出错轮次：Agent 0.003（无 429），组织答案 0.000（`ablation-multiturn_v1-deepseek-first-run.json`，`527a611`） | Agent 0.959 [0.90, 1.00]，组织答案 0.980（`ablation-final4-deepseek-testv2-multiturn.json`，`9536abf`） |
 | 独立路由标注 v1（154 条） | 0.740（`router_eval-independent_v1-first-run.json`，`882745d`） | 1.000（`router_eval-round4-independent-after-exposure.json`，`075caad`） |
 | 独立路由标注 v2（241 条，新写） | **0.801**，在第四轮路由改动之后（`router_eval-independent_v2-first-run.json`，`3080bfe`） | 第 10 轮之后的 HEAD 上 0.838（`router_eval-independent_v2-round10.json`，`05f418a`；第 9 轮之后为 0.830） |
-| 项目自己的路由标注（不独立） | 162 条上 0.988（`router_eval-round3b.json`） | 358 条上 1.000（`router_eval-round10-own.json`） |
+| 项目自己的路由标注（不独立） | 162 条上 0.988（`router_eval-round3b.json`） | 372 条上 1.000（`router_eval-round11-own.json`） |
 | 测试集 v3，确定性路径 | 任务 0.762 [0.68, 0.83]，轮次 0.794（`test_v3-auto-nollm-first-run.json`，`882745d`） | –（没有修复看过它） |
 | 测试集 v3，DeepSeek（首次 LLM 运行） | Agent **0.869 [0.81, 0.92]**，组织答案 0.831，固定流程 0.769（`ablation-final4-deepseek-testv3-holdout.json`，`9536abf`） | –（没有修复看过它） |
 | 第四轮声明（67 条：涨跌幅、相对关系、宏观） | 结论准确率 0.716 [0.61, 0.82]，逐个数字 0.639，比较方向 0.435（`claim_bench-heldout_r4-first-run.json`，`817a2d8`） | 结论 1.000，逐个数字 0.920（`claim_bench-heldout_r4-after-exposure.json`，`c731dba`） |
