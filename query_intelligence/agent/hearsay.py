@@ -15,24 +15,58 @@ from .claim_check import check_claim
 
 logger = logging.getLogger(__name__)
 
+# Round 12 (H12): the cues are classes, not a phrase list: a source that "says" (网上/群里/博主/朋友…说, "someone
+# told me", "I read / saw / heard"), a report word (据报道, 网传, apparently, reportedly), a request to check (核实,
+# 查证, "fact-check", "can you verify"), or a confirmation question at the end (对吧, 是这样吗, 真的假的, "True?",
+# ", right?").
+_SOURCE_ZH = (
+    r"(?:网上|群里|微博|雪球|论坛|股吧|朋友圈|新闻|报道|媒体|博主|大V|网友|朋友|同事|别人|有人|人家|大家|分析师|"
+    r"文章|帖子)"
+)
+_CONFIRM_ZH = (
+    r"是真的吗|真的吗|是真的么|对吗|对不对|是不是真的|属实|靠谱吗|靠谱不|是这样吗|是吗|对吧|没错吧|没错吗|准确吗|"
+    r"可信吗|真的假的|有这回事吗|有没有这回事|可靠吗|是事实吗"
+)
+_CONFIRM_EN = (
+    r"is (?:that|this|it) (?:true|right|correct|accurate|so)|(?:true|right|correct|accurate)|true or false|"
+    r"can you (?:verify|check|confirm)(?: (?:that|this|it))?|is that so"
+)
 _CUE = re.compile(
-    r"听说|据说|传言|传闻|有人说|网上说|听人说|据传|号称|是真的吗|真的吗|是真的么|对吗|对不对|是不是真的|属实|靠谱吗|"
-    r"\bis it true\b|\bi heard\b|\bsomeone said\b|\brumou?r\b|\bis (?:that|this) (?:true|right)\b",
+    r"听说|据说|传言|传闻|听人说|据传|号称|网传|据报道|有消息(?:说|称)|告诉我|"
+    rf"{_SOURCE_ZH}(?:都在|都|也)?(?:说|讲|称|传|提到|写)|(?:看到|听到|读到|刷到)[^，,。？?！!]{{0,12}}?(?:说|称|写)|"
+    rf"核实|核查|查证|验证一下|帮我(?:验证|确认|查查?)|{_CONFIRM_ZH}|"
+    r"\bis it true\b|\bi (?:read|saw|heard|was told)\b|\bi(?:'ve| have) (?:read|seen|heard)\b|"
+    r"\b(?:someone|somebody|a friend|my friend|a colleague|people|they|an analyst|a blogger|a post|an article|"
+    r"the news|a report|reports)\s+(?:said|says|say|told me|claimed|claims|are saying|is saying|wrote|reported)\b|"
+    r"\bapparently\b|\breportedly\b|\brumou?r(?:s|ed)?\b|\bword is\b|\bfact[- ]?check\b|\bverify\b|\bconfirm\b|"
+    rf"\btrue or false\b|\bis (?:that|this|it) (?:true|right|correct|accurate)\b|[,.]?\s*\b(?:{_CONFIRM_EN})\s*\?\s*$",
     re.I,
 )
 _CONTENT = re.compile(
-    r"\d|[一二两三四五六七八九十]+(?:点[〇零一二三四五六七八九]+)?(?:倍|成|%|元|亿)|涨了|跌了|大涨|大跌|涨停|跌停|"
+    r"\d|[一二两三四五六七八九十百千万]+(?:点[〇零一二三四五六七八九]+)?(?:倍|成|%|元|亿)|涨了|跌了|大涨|大跌|涨停|跌停|"
     r"比.{1,12}(?:高|低|贵|便宜|多|少)|高于|低于|\b(?:rose|fell|higher than|lower than)\b",
     re.I,
 )
 _LEADING = re.compile(
-    r"^\s*(?:我)?(?:听说|据说|传言|传闻|有人说|网上说|听人说|据传|I heard(?: that)?|someone said(?: that)?|"
-    r"is it true(?: that)?)[，,：:\s]*",
+    r"^\s*(?:"
+    r"(?:我)?(?:在)?(?:听说|据说|传言|传闻|听人说|据传|网传|据报道|有消息(?:说|称))|"
+    r"(?:帮我|请)?(?:核实|核查|查证|验证|确认|查查?)(?:一下)?|"
+    r"(?:我)?(?:在)?(?:网上|群里|微博上?|雪球上?|论坛上?|股吧里?|朋友圈里?|新闻里?|报道里?|研报里?|帖子里?)?"
+    r"(?:看到|听到|读到|刷到)?(?:有|一个|一篇|一条|个)?"
+    rf"(?:{_SOURCE_ZH}|人)?(?:都在|都|也)?(?:说|讲|称|传|提到|告诉我|写)(?:的|了|道)?|"
+    r"(?:so\s+)?i(?:'ve| have)?\s+(?:read|seen|saw|heard|was told)(?:\s+(?:on|in)\s+[^,.]{1,30}?)?"
+    r"(?:\s+(?:that|a post|an article|a report|somewhere|online|people|someone)(?:\s+(?:saying|say|says))?)*"
+    r"(?:\s+that)?|"
+    r"(?:someone|somebody|a friend|my friend|a colleague|people|they|an analyst|a blogger)\s+"
+    r"(?:said|says|say|told me|claimed|claims|are saying|is saying)(?:\s+that)?|"
+    r"apparently|reportedly|rumou?r has it(?:\s+that)?|word is(?:\s+that)?|fact[- ]?check(?:\s+this)?|true or false|"
+    r"(?:can you\s+)?(?:verify|check|confirm)(?:\s+(?:that|whether|if))?|is it true(?:\s+that)?"
+    r")[，,：:\s-]*",
     re.I,
 )
 _TRAILING = re.compile(
-    r"[，,。\s]*(?:这|这个|这话|这是)?(?:是真的吗|真的吗|是真的么|对吗|对不对|是不是真的|属实吗?|靠谱吗|"
-    r",?\s*is (?:that|this|it) (?:true|right))?\s*[？?！!。.]*\s*$",
+    rf"[，,。.\s]*(?:这|这个|这话|这是)?(?:(?:{_CONFIRM_ZH})吗?)?"
+    rf"(?:[,.]?\s*(?:{_CONFIRM_EN}))?\s*[？?！!。.]*\s*$",
     re.I,
 )
 
@@ -180,6 +214,8 @@ def _name(value: Any, zh: bool) -> str:
     from .names import english_display, english_name
 
     text = str(value or "")
+    if not zh and "+" in text:  # a sum's operands ("贵州茅台+五粮液", round 12)
+        return " + ".join(_name(part, zh) for part in text.split("+") if part)
     return text if zh else (english_name(text) or english_display(text))
 
 
