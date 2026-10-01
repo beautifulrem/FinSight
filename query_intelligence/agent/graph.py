@@ -58,7 +58,7 @@ from .coverage import (
 )
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
-from .frame import frame_calls, is_frame_question, resolve_frame_question
+from .frame import frame_calls, frame_operation, is_frame_question, metric_of, resolve_frame_question
 from .hearsay import fact_check_for, fact_check_prose
 from .injection import (
     REDACTION_MARKER,
@@ -401,6 +401,17 @@ class AgentRuntime:
             # "五粮液呢？" opening a conversation: a target, but no aspect and no earlier turn to take one from.
             decision = decision.model_copy(update={"route": "clarify"})
             reasons.append("ellipsis_without_antecedent")
+        if (
+            turns
+            and decision.route in ("workflow", "agent")
+            and not frame_request
+            and frame_operation(state["query"]) in {"difference", "ratio", "relative"}
+            and not metric_of(query)
+        ):
+            # (round 11, G1) "两只差多少" with no metric in the question or the session's frame: computing a gap of
+            # whatever the plan happens to fetch (prices) would answer a question nobody asked; ask which metric
+            decision = decision.model_copy(update={"route": "clarify"})
+            reasons.append("difference_without_comparison")
         if decision.route in ("workflow", "agent") and any(
             reason.startswith(f"{GROUP_COUNT_MISMATCH}:") for reason in reasons
         ):
@@ -523,6 +534,13 @@ class AgentRuntime:
             query, reason, request = framed
             nlu, carried = _set_aside_context_carry(analyze(query))
             reasons.append(reason)
+            # the frame decides the targets: a listed entity the rewritten wording adds is a misreading ("多多少" read
+            # as 多氟多 by fuzzy matching), not an operand
+            operands = {str(item.get("symbol") or item.get("member")) for item in request.get("operands") or []}
+            stray = [entity for entity in listed_entities(nlu) if str(entity.get("symbol")) not in operands]
+            if stray:
+                nlu = {**nlu, "entities": [entity for entity in nlu.get("entities") or [] if entity not in stray]}
+                reasons.extend(f"frame:dropped_non_operand:{entity.get('canonical_name')}" for entity in stray)
             if not asks_prediction(query):
                 # a computed comparison, whatever the style classifier reads into the rewritten wording ("advice")
                 flags = [flag for flag in nlu.get("risk_flags") or [] if flag != "investment_advice_like"]
