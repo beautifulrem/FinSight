@@ -347,6 +347,28 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 
 结果见[评测](#评测)（第 12 轮）。
 
+### 第 13 轮新增的规则（第 8 轮留出集暴露之后）
+
+第 13 轮修复第 8 轮独立留出集（`evaluation/heldout_r8/`）在第 12 轮之后仍失败的类别。从第 13 轮起该留出集属于**暴露之后**：工程师读了它的失败任务，用自写的例子：22 个 dev 任务（`build_tasks._round13_tasks`，中英文）、路由标注 `route_388`–`route_395`、12 条声明基准行（`d300`–`d311`）和单元测试（`tests/test_agent_round13.py`）。`tests/test_agent_eval.py` 检查它们都没有复制或近似复制第 4–8 轮切片文本（程序读取）、评审探针、独立路由集或测试集。
+
+**比较动词作为一类。** 领先 / 落后 / 跑赢 / 跑输 / 超出 / 胜过 / 输给 / 高出 / 多出，以及 outperform、trail、lead、lag、beat、exceed、out-earn、out-sell，与「比」「高」一样是锚：后面带数量或单位词（「几个百分点」「多少亿」「by how many points」）问差值，带「几倍」或「by what multiple」问倍数。口语里用一个数去数另一个（「相当于几个」「抵得上几个」「顶得上几个」「能抵几个」）和祈使句（「divide the second by the first」「后者除以前者」）是倍数，「subtract」「减去」「相减」是差值。分句末尾或在 by / from / and 之前的单独「the first / the second」是序数。「earns」指净利润，「out-sells」指营收，「closed higher / lower」指收盘价，「percentage-wise」问相对差异，「under」是比较词。开场就问、会话里没有可指的对象时（「Take the first and divide it by the second.」），按序数或指标的比较会反问，而不是拒答（`frame.opening_comparison`）。
+
+**给定倍数、两个指标、两个行业、合计。** 带着要核对的倍数问比值（「茅台的市净率大概是五粮液的1.5倍吗」「Is Ping An's revenue roughly 10 times Wuliangye's?」）时，先写出比值，再说这个倍数是否成立（「大约 / about」容差 5%，否则 2%；不成立时说「不到 / 超过」「less / more than」），倍数沿用用户原来的写法（`frame.claimed_multiple`、`composer._claimed_multiple_verdict`）。最近两轮问的是同一标的、同类单位的两个不同指标（「五粮液的毛利率」→「那净利率呢」）时，「两个率相差多少个点」比较这两个指标（`frame._metric_pair`，原因码 `frame:difference:<m1>-<m2>:<标的>`）；推算的净利率连同净利润和营收一起写出，校验器接受「比率减去这样推算的占比」。问题里写了两个行业名和行业词（「白酒和保险两个行业的平均市净率」）而 NLU 只标出一个时，第二个行业从实体主表中读出。两个操作数的「加起来 / 合计 / 一共 / combined / in total」是合计（`operation: "sum"`），只对金额和数量（市盈率加总没有意义）。
+
+**持仓、指标侧面。** 按最近收盘价买入若干股或若干手的金额（「按这个价格，买三手要多少钱」「How much would it cost to buy 400 Ping An shares?」）就是持仓算术（股数 × 收盘价），措辞为未含佣金和印花税的买入金额（`coverage.holding_purchase`）；有沿用标的时绝不按超出范围拒答。行业换手率（「白酒行业今天换手率多少」）由行业快照的 `turnover`（`tools/units.py` 声明为百分比）给出，而不是词汇表的定义（`coverage.sector_data_question`）。没有前一交易日收盘价时，涨跌金额由收盘价和报告的涨跌幅推算：「1409.5 ÷ (1 − 0.1778%) ≈ 1412.01 元，每股下跌约 2.51 元（推算值）」，校验器只接受写出公式的这种推算。两个四舍五入金额的合计按证据中的精确值核对（「CNY 3.79 bn + 1.45 bn: combined CNY 5.25 bn」）。
+
+**声明核查。** 「N倍多一点」「多一些」是比 N 多一点：至多一个步长的 0.3（两倍多一点 = 2–2.3 倍）；「N个多百分点」是 N 到 N+1 个百分点；「是保险行业的N倍多」是另一个行业平均的倍数；「the insurance average」（行业名后接 average）是该行业平均；英文「less than half / a third / a quarter of X's」是 X 的倍数。
+
+| 情形 | 例子（自写） | 行为 | 原因码 |
+|---|---|---|---|
+| 比较动词 | 「贵州茅台的净资产收益率」→「换五粮液看看」→「后一只落后前一只几个百分点」 | 「两者相差 3.6 个百分点（贵州茅台更高）」 | `frame:difference:roe:五粮液\|贵州茅台` |
+| 祈使句倍数 | 「Moutai's price-to-book?」→「Ping An?」→「Take the first and divide it by the second.」 | 「the former is about 7.36 times the latter」 | `frame:ratio:pb:…` |
+| 给定倍数 | 「茅台的市净率大概是五粮液的1.5倍吗」 | 「前者约为后者的 1.5 倍 … 所以大约是1.5倍。」 | `frame:ratio:pb:…` |
+| 两个指标 | 「五粮液净资产收益率是多少」→「它毛利率是多少」→「这两项差了几个百分点」 | 「两者相差 46.7 个百分点（毛利率更高）」 | `frame:difference:roe-gross_margin:五粮液` |
+| 买入金额 | 「五粮液最近收在多少」→「照这个价买五手需要多少钱」 | 「买入 5 手（500 股）五粮液约需 500 × 100.64 = 50320 元」 | `holding_follow_up:500->五粮液` |
+
+结果见[评测](#评测)（第 13 轮）。
+
 ### 会话记忆卡片
 
 `session_memory(turns, query)` 生成一张抽取式的小卡片，以「Session memory (from earlier turns)」的形式放进 Agent 的用户消息。卡片包含：
