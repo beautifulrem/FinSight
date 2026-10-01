@@ -1,4 +1,5 @@
 import {
+  actualDetail,
   actualText,
   checkEvidence,
   claimHeadline,
@@ -146,7 +147,7 @@ describe("moves, relations and macro claims (round 4)", () => {
     expect(claimedText("zh", zh, { ...fall, comparator: "eq", claimed: -0.53 }).text).toBe("-0.53%");
   });
 
-  it("writes a relation as the other side, with its value", () => {
+  it("writes a relation as subject, relation and object, with the other side's value on the actual side", () => {
     const relation = {
       target: "贵州茅台",
       metric: "pe_ttm",
@@ -157,13 +158,15 @@ describe("moves, relations and macro claims (round 4)", () => {
       actual: 24.6,
       status: "supported",
     } as const;
-    expect(claimedText("zh", zh, relation)).toEqual({ text: "> 五粮液", label: "高于 五粮液", detail: "五粮液 20.9 倍" });
-    const names = (name: string) => (name === "五粮液" ? "Wuliangye" : name);
+    expect(claimedText("zh", zh, relation)).toEqual({ text: "贵州茅台 > 五粮液", label: "贵州茅台 高于 五粮液" });
+    expect(actualText("zh", zh, relation)).toBe("24.6 倍");
+    expect(actualDetail("zh", zh, relation)).toBe("五粮液 20.9 倍");
+    const names = (name: string) => ({ 五粮液: "Wuliangye", 贵州茅台: "Kweichow Moutai" })[name] ?? name;
     expect(claimedText("en", en, relation, "", names)).toEqual({
-      text: "> Wuliangye",
-      label: "more than Wuliangye",
-      detail: "Wuliangye 20.9×",
+      text: "Kweichow Moutai > Wuliangye",
+      label: "Kweichow Moutai more than Wuliangye",
     });
+    expect(actualDetail("en", en, relation, names)).toBe("Wuliangye 20.9×");
   });
 
   it("writes a multiple of another target with both values and the ratio (round 6)", () => {
@@ -179,11 +182,10 @@ describe("moves, relations and macro claims (round 4)", () => {
       status: "supported",
       note: "ratio 1.50 = 8.1 / 5.4",
     } as const;
-    expect(claimedText("zh", zh, multiple)).toEqual({
-      text: "≈ 1.5× 五粮液",
-      label: "约为 1.5× 五粮液",
-      detail: "五粮液 5.4 倍 · 比值 1.5×",
-    });
+    expect(claimedText("zh", zh, multiple)).toEqual({ text: "贵州茅台 ≈ 1.5× 五粮液", label: "贵州茅台 约为 1.5× 五粮液" });
+    // the actual multiple against the claimed one, with both values from the sources
+    expect(actualText("zh", zh, multiple)).toBe("1.5×");
+    expect(actualDetail("zh", zh, multiple)).toBe("贵州茅台 8.1 倍 · 五粮液 5.4 倍");
     expect(noteText(zh, multiple.note, multiple)).toBe("两者之比为 1.50 倍");
     expect(noteText(en, "convention: '大跌' means a move of at least 3% in that direction")).toBe(
       "By convention, \u201c大跌\u201d means a move of at least 3% in that direction",
@@ -257,9 +259,10 @@ describe("round 10: stated values, differences and bounded approximations", () =
     } as const;
     expect(claimedText("zh", zh, diff)).toEqual({
       text: "差值 ≈ +3.6 个百分点",
-      label: "差值 (五粮液) 约为 +3.6 个百分点",
-      detail: "五粮液 29.4%",
+      label: "差值 (贵州茅台 − 五粮液) 约为 +3.6 个百分点",
+      detail: "贵州茅台 − 五粮液",
     });
+    expect(actualDetail("zh", zh, diff)).toBe("贵州茅台 33% · 五粮液 29.4%");
     expect(actualText("zh", zh, diff)).toBe("+3.6 个百分点");
     expect(actualText("en", en, { ...diff, difference: -3.6 })).toBe("−3.6 pt");
     expect(noteText(zh, diff.note, diff, "zh")).toBe("两者之差为 +3.6 个百分点");
