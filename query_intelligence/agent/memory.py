@@ -17,7 +17,7 @@ from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
 
-from .frame import latest_frame, memory_view
+from .frame import latest_frame, memory_view, metric_label, metric_of
 from .router import has_macro_content, is_dangling_why
 
 MAX_CONTEXT_TURNS = 3
@@ -380,7 +380,7 @@ _ASPECT_WORDS_ZH = (
 _ASPECT = re.compile(
     "|".join(re.escape(word) for word in sorted(_ASPECT_WORDS_ZH, key=len, reverse=True)) + "|"
     r"(?<![A-Za-z])(?:P/?E|P/?B|ROE|RSI|MACD|MA\d+|EPS)(?![A-Za-z])|"
-    r"revenue|net (?:profit )?margin|net (?:profit|income)|gross margin|returns? on equity|earnings per share|"
+    r"revenue|net[- ](?:profit[- ])?margin|net (?:profit|income)|gross margin|returns? on equity|earnings per share|"
     r"price[- ]to[- ](?:book|earnings)|"
     r"book(?:[- ]value)? multiple|earnings multiple|"
     r"dividend|market cap|valuation|\bprice\b|\bclos(?:e|es|ing price)\b|\bhigh\b|\blow\b|\bvolume\b|"
@@ -408,11 +408,18 @@ def _last_targets(turns: list[dict[str, Any]], limit: int = 3) -> list[dict[str,
     return []
 
 
-def _last_aspects(turns: list[dict[str, Any]]) -> list[str]:
+def _last_aspects(turns: list[dict[str, Any]], zh: bool | None = None) -> list[str]:
+    """The aspects of the most recent turn that named any. (round 12) For an ellipsis (``zh`` given), a turn that
+    names a frame metric only in words the aspect list does not have ("成交了多少钱", "trading value", "How much did X
+    move today?") carries that metric by its label (成交额 / turnover), so "Y呢" asks the same thing of Y."""
     for turn in reversed(turns[-MAX_CONTEXT_TURNS:]):
-        aspects = list(dict.fromkeys(match.group(0) for match in _ASPECT.finditer(_effective(turn))))
+        text = _effective(turn)
+        aspects = list(dict.fromkeys(match.group(0) for match in _ASPECT.finditer(text)))
         if aspects:
             return aspects[:3]
+        metric = metric_of(text) if zh is not None else None
+        if metric is not None:
+            return [metric_label(metric, zh)]
     return []
 
 
@@ -446,7 +453,8 @@ def resolve_ellipsis(
         rest_zh = _LEADING_ZH.sub("", text)
         rest_en = _ELLIPSIS_EN.sub("", text).strip(" ,?.!") or text.rstrip("?.! ")
         remainder = re.sub(r"[呢吗？?。.!！,，\s]", "", rest_zh if zh else rest_en)
-        carried = _last_aspects(turns) if not aspects_now and (not remainder or _PERIOD_ONLY.match(remainder)) else []
+        bare = not aspects_now and (not remainder or _PERIOD_ONLY.match(remainder))
+        carried = _last_aspects(turns, zh) if bare else []
         if zh:
             joined = "和".join(names)
             if carried:
@@ -459,7 +467,7 @@ def resolve_ellipsis(
         reason = f"ellipsis:target->{joined}"
         return rewritten, reason + (f"+aspect->{'+'.join(carried)}" if carried else "")
     if len(current_targets) == 1 and marker and not aspects_now:
-        aspects = _last_aspects(turns)
+        aspects = _last_aspects(turns, zh)
         if not aspects:
             return None
         name = str(current_targets[0].get("canonical_name") or current_targets[0].get("symbol"))

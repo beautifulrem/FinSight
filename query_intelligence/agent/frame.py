@@ -41,6 +41,32 @@ class FrameMetric:
     terms: tuple[str, ...]  # literal Chinese words and English regex fragments
 
 
+# (round 12) Turnover however it is asked: "成交额", "成交了多少钱", "交易额", "哪个交易更活跃", "trading value", "value
+# traded", "which traded more". One vocabulary for the frame, the price answer's details (``coverage._AMOUNT``), the
+# template's comparisons (``composer._ARITHMETIC_METRICS``) and the ellipsis aspect, so a turnover question is answered
+# with the turnover and a later gap or ratio has a metric. Regex terms start with "(" or "\\" (see ``_alternative``).
+TURNOVER_TERMS: tuple[str, ...] = (
+    "成交金额",
+    "成交额",
+    "交易金额",
+    "交易额",
+    r"(?:成交了?(?:多少钱|多少金额|多少亿|几亿|多少万元?))",
+    r"(?:(?:成交|交易)得?(?:更|最|比较|很|十分|非常|不)?(?:活跃|旺盛?|火爆|清淡|冷清))",
+    r"\bturnover\b",
+    r"\btrading value\b",
+    r"\bvalue traded\b",
+    r"\btraded value\b",
+    r"\b(?:more|most|less|least) (?:actively )?traded\b",
+    r"\btraded (?:more|less)\b",
+)
+TURNOVER = re.compile(
+    "|".join(term if term.startswith(("(", "\\")) else re.escape(term) for term in TURNOVER_TERMS), re.IGNORECASE
+)
+_DAY_MOVE = (
+    r"(?:\b(?:move[sd]?|r[io]se|fell|fall|gain(?:ed)?|drop(?:ped)?|climb(?:ed)?|slip(?:ped)?|lost)\b"
+    r"(?=[^.?!]{0,20}\b(?:today|yesterday|on the day|in the last session|on the last session)\b|\s*[?,]))"
+)
+
 FRAME_METRICS: tuple[FrameMetric, ...] = (
     FrameMetric(
         "net_margin",
@@ -48,7 +74,14 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
         "net margin",
         "points",
         "get_fundamentals",
-        ("净利润率", "销售净利率", "净利率", "利润率", r"\bnet (?:profit )?margins?\b", r"\bprofit margins?\b"),
+        (
+            "净利润率",
+            "销售净利率",
+            "净利率",
+            "利润率",
+            r"\bnet[- ](?:profit[- ])?margins?\b",
+            r"\bprofit[- ]margins?\b",
+        ),
     ),
     FrameMetric(
         "gross_margin",
@@ -133,7 +166,15 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
         "daily change",
         "points",
         "get_price_history",
-        ("涨跌幅", "涨幅", "跌幅", r"(?:涨|跌)(?:得|了)", r"\b(?:daily|percent(?:age)?|price) change\b"),
+        (
+            "涨跌幅",
+            "涨幅",
+            "跌幅",
+            r"(?:涨|跌)(?:得|了)",
+            r"\b(?:daily|percent(?:age)?|price) change\b",
+            # (round 12) "How much did X move today?", "X fell yesterday, by how much?": a move on the day
+            _DAY_MOVE,
+        ),
     ),
     FrameMetric(
         "amount",
@@ -141,7 +182,7 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
         "turnover",
         "money",
         "get_price_history",
-        ("成交金额", "成交额", r"\bturnover\b", r"\btrading value\b"),
+        TURNOVER_TERMS,
     ),
     FrameMetric(
         "volume",
@@ -149,7 +190,7 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
         "volume",
         "count",
         "get_price_history",
-        ("成交量", r"\btrading volume\b", r"\bvolume\b"),
+        ("成交量", r"(?:成交了?(?:多少|几[十百千万亿]*)(?:手|股))", r"\btrading volume\b", r"\bvolume\b"),
     ),
     FrameMetric(
         "close",
@@ -192,16 +233,21 @@ def _alternative(index: int, term: str) -> str:
 
 _METRIC_PATTERN = re.compile("|".join(_alternative(i, term) for i, (term, _key) in enumerate(_TERMS)), re.IGNORECASE)
 _KEY_BY_GROUP = {f"m{index}": key for index, (_term, key) in enumerate(_TERMS)}
-# "净利润是营收的百分之几", "净利润占营收多少", "net profit as a percentage of revenue": the net margin, not two
-# metrics.
-_NET_MARGIN_SHARE = re.compile(
+# "净利润是营收的百分之几", "净利润占营收多少", "营收里有多少变成净利润", "net profit as a percentage of revenue",
+# (round 12) "What share of that revenue is left as net profit?": the net margin, not two metrics. Shared with
+# ``coverage.METRICS`` (the net-margin metric), so the frame and the template read the same phrasings.
+NET_MARGIN_SHARE_SOURCE = (
     r"(?:净利润|净利|净赚|利润)[^，。？?,.!！]{0,4}?(?:是|为|占|相当于|等于|在)[^，。？?,.!！]{0,4}?"
     r"(?:营收|营业收入|收入|销售额)[^，。？?,.!！]{0,6}?(?:百分之|比例|比重|百分比|占比|几成|多少|多大|几)|"
     r"(?:净利润|净利|利润)(?:率)?(?:与|和|跟)(?:营收|营业收入|收入)(?:之)?比|"
+    r"(?:营收|营业收入|收入|销售额)[^，。？?,.!！]{0,6}?(?:中|里)[^，。？?,.!！]{0,6}?(?:净利润|净利|净赚|利润)|"
     r"\b(?:net )?(?:profit|income|earnings) (?:is |as )?(?:a |what )?(?:share|percent(?:age)?|proportion|fraction) "
-    r"of (?:the )?(?:revenue|sales)\b|\bwhat (?:percent(?:age)?|share|fraction) of (?:its |the )?(?:revenue|sales)\b",
-    re.IGNORECASE,
+    r"of (?:the )?(?:revenue|sales)\b|"
+    r"\b(?:percent(?:age)?|share|fraction|proportion|portion|part|how much) of (?:its |the |that |this |their |each |"
+    r"every )?(?:revenue|sales|top line)\b[^.?!]{0,30}?\b(?:net )?(?:profit|income|earnings)\b|"
+    r"\bwhat (?:percent(?:age)?|share|fraction) of (?:its |the |that |this |their )?(?:revenue|sales)\b"
 )
+_NET_MARGIN_SHARE = re.compile(NET_MARGIN_SHARE_SOURCE, re.IGNORECASE)
 
 
 def metric_mentions(text: str) -> list[str]:
@@ -250,15 +296,18 @@ _RELATIVE = re.compile(
 _DIFFERENCE = re.compile(
     r"差了?(?:有|是|大概|大约)?(?:多少|几|多大)|相差|差距|差额|差值|差多少|"
     r"(?:高|低|多|少|大|小|贵|便宜)(?:了|出)?(?:有|是|大概|大约)?(?:多少|几)|"
+    # (round 12) "多跌了多少", "少涨了几个点", "多成交了多少": more / less of a verb, by how much
+    r"(?:多|少)(?:跌|涨|赚|亏|卖|成交|交易)了?(?:有|是|大概|大约)?(?:多少|几)|"
     r"\bdifferences?\b|\bgap\b|\bspread\b|\bdiffer\b|"
     r"\bhow much (?:higher|lower|more|less|bigger|smaller|larger|cheaper)\b|"
-    r"\bby how much\b|\bhow far (?:apart|above|below)\b",
+    r"\bby how (?:much|many)\b|\bhow far (?:apart|above|below)\b|"
+    r"\bhow many (?:more |fewer )?(?:percentage |basis )?points\b|\b(?:points?|percent) apart\b",
     re.IGNORECASE,
 )
 # "谁更高", "哪个更大", "which one is lower": which side is higher (the answer states both values).
 _WHICH = re.compile(
     r"(?:谁|哪个|哪一个|哪只|哪家|哪边|哪一家|哪一只)[^，。？?,;；]{0,6}?(?:更|比较|相对)?"
-    r"(?:高|低|大|小|多|少|贵|便宜|强|弱)(?!档|端|效|级|点位)|"
+    r"(?:高|低|大|小|多|少|贵|便宜|强|弱|活跃)(?!档|端|效|级|点位)|"
     r"\bwhich\b[^.?!]{0,30}\b(?:higher|lower|bigger|smaller|larger|more|less|cheaper|greater)\b|"
     r"\b(?:higher|lower|bigger|larger) of the two\b",
     re.IGNORECASE,
@@ -523,8 +572,20 @@ def resolve_frame_question(
         for item in operands
     ]
     request = {"operation": operation, "metric": metric, "operands": clean}
+    if metric == "pct_change" and (direction := _direction(text)):
+        # (round 12) "多跌了多少" after two falls: the gap names the side that fell more, not the "higher" change
+        request["direction"] = direction
     reason = f"frame:{operation}:{metric}:{'|'.join(operand_name(item, True) for item in operands)}"
     return rewritten, reason, request
+
+
+_FALL_WORDS = re.compile(r"跌|下挫|回落|\b(?:fell|fall|falls|dropped|drop|lost|declined?)\b", re.IGNORECASE)
+_RISE_WORDS = re.compile(r"涨|上扬|\b(?:rose|rise|rises|gained|gain|climbed?)\b", re.IGNORECASE)
+
+
+def _direction(text: str) -> str | None:
+    fall, rise = bool(_FALL_WORDS.search(text)), bool(_RISE_WORDS.search(text))
+    return "fall" if fall and not rise else "rise" if rise and not fall else None
 
 
 def frame_calls(request: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:

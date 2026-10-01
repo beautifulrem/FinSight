@@ -29,6 +29,7 @@ from .coverage import (
     requested_price_fields,
     year_to_date_gaps,
 )
+from .frame import TURNOVER
 from .names import english_display
 
 _MAX_DOCS_PER_TOOL = 3
@@ -334,7 +335,7 @@ _ARITHMETIC_METRICS: tuple[tuple[str, str, str, re.Pattern[str]], ...] = (
         "net_margin",
         "净利率",
         "net margin",
-        re.compile(r"净利率|净利润率|销售净利率|\bnet (?:profit )?margins?\b", re.IGNORECASE),
+        re.compile(r"净利率|净利润率|销售净利率|\bnet[- ](?:profit[- ])?margins?\b", re.IGNORECASE),
     ),
     (
         "pct_change",
@@ -352,10 +353,8 @@ _ARITHMETIC_METRICS: tuple[tuple[str, str, str, re.Pattern[str]], ...] = (
         "amount",
         "成交额",
         "turnover",
-        re.compile(
-            r"成交额|成交金额|成交(?:更|最|比较)?(?:活跃|大|多|少|旺)|\bturnover\b|\btrading value\b|\btraded more\b",
-            re.IGNORECASE,
-        ),
+        # (round 12) the comparison frame's turnover vocabulary ("成交了多少钱", "交易更活跃", "value traded")
+        re.compile(rf"{TURNOVER.pattern}|成交(?:更|最|比较)?(?:大|多|少)", re.IGNORECASE),
     ),
     ("pe", "市盈率", "P/E", re.compile(r"市盈率|(?<![A-Za-z])P/?E(?![A-Za-z])|price[- ]to[- ]earnings", re.IGNORECASE)),
     ("pb", "市净率", "P/B", re.compile(r"市净率|(?<![A-Za-z])P/?B(?![A-Za-z])|price[- ]to[- ]book", re.IGNORECASE)),
@@ -698,10 +697,18 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
     if a == b:
         return [f"{operands}，两者相同 {cites}。" if zh else f"{operands}: they are equal {cites}."], []
     higher = name_a if a > b else name_b
+    side = f"{higher}更高" if zh else f"{higher} is higher"
+    direction = request.get("direction")
+    if direction == "fall" and a < 0 and b < 0:
+        # (round 12) "多跌了多少" after two falls: the side that fell more
+        lower = name_b if a > b else name_a
+        side = f"{lower}跌得更多" if zh else f"{lower} fell more"
+    elif direction == "rise" and a > 0 and b > 0:
+        side = f"{higher}涨得更多" if zh else f"{higher} rose more"
     return [
-        f"{operands}，两者相差 {gap_text}（{higher}更高） {cites}。"
+        f"{operands}，两者相差 {gap_text}（{side}） {cites}。"
         if zh
-        else f"{operands}: a difference of {gap_text} ({higher} is higher) {cites}."
+        else f"{operands}: a difference of {gap_text} ({side}) {cites}."
     ], []
 
 
