@@ -1,0 +1,234 @@
+{
+ "config": {
+  "commit": "d315174",
+  "run_at": "2026-10-01T07:04:55+00:00",
+  "command": "python -m evaluation.agent_eval.frame_llm_check --llm deepseek --model cline-pass/deepseek-v4.1-flash --sessions round12 --max-calls 30 --out outputs/agent_eval/frame-llm-check-round12.json",
+  "model": "cline-pass/deepseek-v4.1-flash",
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "tools": "offline runtime assets (no replay snapshot)",
+  "sessions": "round12"
+ },
+ "summary": {
+  "sessions": 5,
+  "gap_turn_states_expected": 4,
+  "model_stated_it": 4,
+  "fallback_appended": 0,
+  "refused": 0,
+  "gap_turn_verified": 4,
+  "llm_calls": 22,
+  "stopped": null
+ },
+ "sessions": [
+  {
+   "session": 0,
+   "turns": [
+    {
+     "query": "中国平安今天成交了多少钱",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 7.49,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "中国平安（601318.SH）最近一个交易日（2026-04-22）的成交额为 66.4 亿元（amount 6640000000 元）[price_601318.SH]。需要说明的是，当前返回的是离线快照数据（截至 2026-04-22），并非实时行情，因此这不是严格意义上的“今日”成交额，实时成交数据暂不可得 [price_601318.SH]。"
+    },
+    {
+     "query": "五粮液的呢",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 4.58,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "五粮液（000858.SZ）最近一个交易日（2026-04-22）的成交额为 14.53 亿元（amount 1452833705 元）[price_000858.SZ]。同日收盘价 100.64 元，日内涨跌 -0.53% [price_000858.SZ]。同样地，这来自离线快照数据（截至 2026-04-22），并非实时成交数据，实时成交额暂不可得 [price_000858.SZ]。"
+    },
+    {
+     "query": "前者是后者的几倍",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 7.97,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": "frame:ratio:amount:中国平安|五粮液",
+     "answer": "按最近一个交易日（2026-04-22）的成交额计算，中国平安成交额 6640000000 元，五粮液成交额 1452833705 元，6640000000 ÷ 1452833705 ≈ 4.57，即中国平安成交额约为五粮液的 4.57 倍 [price_601318.SH][price_000858.SZ]。"
+    }
+   ],
+   "expected": 4.57,
+   "states_expected": true,
+   "model_stated_it": true,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 1,
+   "turns": [
+    {
+     "query": "How much did Wuliangye move yesterday?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 3.69,
+     "verification_passed": true,
+     "degraded": [
+      "verification_failed:citations_repaired:uncited_numbers"
+     ],
+     "frame_reason": null,
+     "answer": "Wuliangye (000858.SZ) closed at CNY 100.64, down 0.5337% on the latest available session (2026-04-22), i.e[price_000858.SZ]. a decline of about 0.53% [price_000858.SZ]. The quote gives only that single session's daily change, so it is the most recent daily move available rather than a specifically \"yesterday\" figure [price_000858.SZ]."
+    },
+    {
+     "query": "same for Ping An?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 4.03,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "中国平安 (601318.SH) 日涨跌幅为 +0.73%，报收 53.61 元（截至 2026-04-22 的最近交易时段）[price_601318.SH]。"
+    },
+    {
+     "query": "so how many points apart?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 7.26,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": "frame:difference:pct_change:五粮液|中国平安",
+     "answer": "Based on the evidence retrieved for this question: Wuliangye daily change -0.5337%, Ping An Insurance 0.73%: a difference of 1.26 percentage points (Ping An Insurance is higher) [price_000858.SZ][price_601318.SH]. Wuliangye (000858.SZ) last available close was CNY 100.64 on 2026-04-22, daily change -0.5337% [price_000858.SZ]. Wuliangye fundamentals (period 2025-12-31, FY2025): PE(TTM) 20.9x, PB 5.4x, ROE 29.4%, revenue CNY 108.5 bn, net profit CNY 37.8 bn [fundamental_000858.SZ]. Industry baijiu (liquor): PE 27.3x, PB 6.2x, change -1.05% [industry_白酒]. Ping An Insurance (601318.SH) last available close was CNY 53.61 on 2026-04-22, daily change 0.73% [price_601318.SH]. Ping An Insurance fundamentals (period 2025-12-31, FY2025): PE(TTM) 8.7x, PB 1.1x, ROE 15.2%, revenue CNY 1218 bn, net profit CNY 121 bn [fundamental_601318.SH]. Industry insurance: PE 11.8x, PB 1.45x, change 0.68% [industry_保险]."
+    }
+   ],
+   "expected": 1.26,
+   "states_expected": true,
+   "model_stated_it": true,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 2,
+   "turns": [
+    {
+     "query": "我手上有300股中国平安，按最新收盘值多少钱",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 9.89,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "中国平安（601318.SH）最新收盘价为 53.61 元/股（2026-04-22）；按此计算，300 股市值约为 53.61 元 × 300 = 16083 元 [price_601318.SH]。"
+    },
+    {
+     "query": "要是换成同样数量的五粮液呢",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 6.5,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "五粮液（000858.SZ）最新收盘价为 100.64 元/股（2026-04-22）[price_000858.SZ]。按此计算，300 股市值约为 100.64 元 × 300 = 30192 元 [price_000858.SZ]。"
+    }
+   ],
+   "expected": 30192,
+   "states_expected": true,
+   "model_stated_it": true,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 3,
+   "turns": [
+    {
+     "query": "What were Wuliangye's revenues last year?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 3.46,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "Wuliangye (五粮液, 000858.SZ) reported revenue of CNY 108.5 billion (108,500,000,000 yuan, about 1085亿元) for FY2025, the latest full-year period in the data (period: FY2025, report date 2025-12-31) [fundamental_000858.SZ]."
+    },
+    {
+     "query": "and the net profit figure?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 3.12,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "五粮液 (000858.SZ) reported net profit of CNY 37.8 billion (37,800,000,000 yuan, about 378亿元) for FY2025 (report date 2025-12-31), on revenue of CNY 108.5 billion [fundamental_000858.SZ]. That implies a net margin of roughly 34.8% (net profit 378亿 ÷ revenue 1085亿) [fundamental_000858.SZ]."
+    },
+    {
+     "query": "How much of that revenue is left as net profit, in percent?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 6.11,
+     "verification_passed": false,
+     "degraded": [
+      "verification_failed:repaired"
+     ],
+     "frame_reason": null,
+     "answer": "This ratio is computed from net profit of CNY 37,800,000,000 and revenue of CNY 108,500,000,000 for FY2025 (report date 2025-12-31) [fundamental_000858.SZ]."
+    }
+   ],
+   "expected": 34.84,
+   "states_expected": false,
+   "model_stated_it": false,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 4,
+   "turns": [
+    {
+     "query": "五粮液今天跌了多少",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 5.89,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "五粮液（000858.SZ）最新可得的收盘价为 100.64 元，当日涨跌幅为 -0.5337%，即下跌约 0.53% [price_000858.SZ]。需要说明的是，该数据来自离线快照（截至 2026-04-22），并非实时行情，当前时点被标记为非交易时段/非交易日，因此这并非严格意义上的“今天”实时涨跌，数据可能已过时 [price_000858.SZ]。"
+    },
+    {
+     "query": "贵州茅台呢",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 3,
+     "latency_s": 9.54,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "贵州茅台（600519.SH）当日涨跌幅为 -0.1778%，即下跌约 0.18%，最新收盘价 1409.5 元（2026-04-22）[price_600519.SH]。作为对比，同一交易日五粮液（000858.SZ）涨跌幅为 -0.5337%，收盘 100.64 元 [price_000858.SZ]；两者的跌幅之差为 -0.5337% − (-0.1778%) = -0.3559 个百分点，即五粮液跌幅比贵州茅台多 0.3559 个百分点 [price_600519.SH][price_000858.SZ]。需要说明的是，以上数据均来自离线快照（截至 2026-04-22），并非实时行情，数据可能已过时 [price_600519.SH][price_000858.SZ]。"
+    },
+    {
+     "query": "五粮液多跌了几个点",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 6.15,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": "frame:difference:pct_change:五粮液|贵州茅台",
+     "answer": "同一交易日（2026-04-22 收盘）五粮液涨跌幅为 -0.5337%（收盘 100.64 元）[price_000858.SZ]，贵州茅台涨跌幅为 -0.1778%（收盘 1409.5 元）[price_600519.SH]。五粮液跌幅减去贵州茅台跌幅：-0.5337% - (-0.1778%) = 0.3559 个百分点，即五粮液比贵州茅台多跌 0.3559 个百分点 [price_000858.SZ][price_600519.SH]。"
+    }
+   ],
+   "expected": 0.36,
+   "states_expected": true,
+   "model_stated_it": true,
+   "fallback_appended": false,
+   "refused": false
+  }
+ ]
+}
