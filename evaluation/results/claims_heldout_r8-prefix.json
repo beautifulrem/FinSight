@@ -1,0 +1,98 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "40e8685",
+  "run_at": "2026-10-01T05:20:35+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r8/score_claims_r8.py <out.json>",
+  "note": "independent round-8 claim slice, first and only pre-fix run at 40e8685, recorded by the reviewer"
+ },
+ "summary": {
+  "claims": 25,
+  "verdict_accuracy": 0.6,
+  "ci95": [
+   0.4,
+   0.8
+  ],
+  "by_category": {
+   "english_relation": 0.25,
+   "industry_relation": 0.0,
+   "loose_numeral": 0.8,
+   "move_relation": 1.0,
+   "stated_average_order": 0.667,
+   "sum": 0.0,
+   "two_company_difference": 0.5
+  }
+ },
+ "errors": [
+  {
+   "id": "r8c02",
+   "category": "stated_average_order",
+   "claim": "对照保险业1.45倍的平均市净率，平安1.1倍处在折价区间",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r8c07",
+   "category": "loose_numeral",
+   "claim": "五粮液的市净率连茅台的七成都不到",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r8c09",
+   "category": "loose_numeral",
+   "claim": "茅台ROE是平安的两倍多一点",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r8c10",
+   "category": "two_company_difference",
+   "claim": "茅台与五粮液ROE相差三个多百分点",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r8c13",
+   "category": "sum",
+   "claim": "茅台、五粮液两家合计净利润超过1200亿",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r8c14",
+   "category": "sum",
+   "claim": "茅台和五粮液成交额加起来不到50亿",
+   "expected": "contradicted",
+   "got": "supported"
+  },
+  {
+   "id": "r8c15",
+   "category": "english_relation",
+   "claim": "Ping An's P/E of 8.7x sits roughly 26% below the insurance average",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r8c16",
+   "category": "english_relation",
+   "claim": "Moutai's ROE beats Wuliangye's by about 3.6 percentage points",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r8c17",
+   "category": "english_relation",
+   "claim": "Wuliangye earns less than half of Moutai's net profit",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r8c22",
+   "category": "industry_relation",
+   "claim": "白酒行业平均PB 6.2倍，是保险行业的四倍多",
+   "expected": "supported",
+   "got": "partially_supported"
+  }
+ ]
+}
