@@ -9,7 +9,7 @@ earlier review or slice (the review publishes the bug classes and its own probe 
 - Repo and commit the facts were taken from: `beautifulrem/FinSight` at `40e8685` (clean worktree)
 - Data: the offline runtime snapshot (`build_offline_service()`: market as of 2026-04-22, fundamentals FY2025,
   industry snapshot 2026-04-21/22)
-- Nothing was committed to the repo by the author. The folder was copied into the repository unchanged (same hashes) after the round-12 fixes had been measured on it at `6e14016` (`evaluation/results/chat_heldout_r8-auto-nollm-after-fix.json`, `claims_heldout_r8-after-fix.json`); the first-run files are summarised as `chat_heldout_r8-auto-nollm-prefix.json` and `claims_heldout_r8-prefix.json`.
+- Nothing was committed to the repo by the author. The folder was copied into the repository unchanged (same hashes) after the round-12 fixes had been measured on it at `6e14016` (`evaluation/results/chat_heldout_r8-auto-nollm-after-fix.json`, `claims_heldout_r8-after-fix.json`); the first-run files are summarised as `chat_heldout_r8-auto-nollm-prefix.json` and `claims_heldout_r8-prefix.json`. The round-12 engineers did not open the folder, but three slice turns coincide with round-12 test/dev wording; see [Provenance of the after-fix run](#provenance-of-the-after-fix-run-round-13-check) (without those three tasks: 13/48 → 32/48 = 0.667).
 
 ## Files
 
@@ -128,3 +128,45 @@ fixes; report both, per category, and label any run after the engineers have rea
 10. **Claims.** `near()` uses 5% relative for 约/左右 and 0.5% for exact figures; "两倍多一点" = [2, 2.5); "近两成" =
     [18%, 20%]; "三个多百分点" = [3, 4); "六百多亿" = [600, 700). r8c14 ("加起来不到50亿", 52.47亿) is false;
     `unverifiable` is acceptable for the two sum claims, `supported` is not.
+
+## Provenance of the after-fix run (round-13 check)
+
+*Added by the project in round 13 (round-9 review I12); the rest of this file is the reviewer's.*
+
+The round-9 review found three unpublished slice turns with exact or near copies in round-12 tests and dev tasks
+written before the after-fix run:
+
+| slice turn | round-12 text | kind |
+|---|---|---|
+| `r8h_hk_zh_03`, turn 3 | `tests/test_agent_round12_frame.py:255` (`2353778`), the same 中国平安 → its HK line → back to the A share shape | exact |
+| `r8h_gap_en_04`, turn 3 | dev task `r12_traded_more_by_how_much_en`, turn 3 (`955b1b0`), Ping An turnover → an ETF → this | exact up to case |
+| `r8h_hold_zh_03` | `tests/test_agent_round12_frame.py:205` (`2353778`), 三万份证券ETF valued at the close | near (difflib 0.86) |
+
+**How they got there (coincidence, not exposure).** From the local agent session logs (not in the repository), all
+on 2026-10-01, +0800: the round-12 engineer wrote the two test strings at 12:47 and the dev task at 13:08, working
+from the round-7 slice classes it had been given (中国平安 then "那它在香港上市的股票呢", 证券ETF turnover, ETF holdings
+in 份, English "trading value"); this folder was created at 13:12 and the reviewer wrote all three phrasings in one
+file write at 13:15. The reviewer made no tool call in the engineer's worktree, and the engineer's strings were
+uncommitted until 13:23 and 13:26 (`2353778`, `955b1b0`), so neither side could read the other's text; no round-12
+engineer session made a tool call on this folder before the after-fix run at 16:54. Both sides worked from the same
+round-7 class descriptions, which is how the same wording came out twice. The engineers were told not to open the
+folder at 13:41, after the three strings existed.
+
+**Effect on the number.** From the committed `task_outcomes` (`chat_heldout_r8-auto-nollm-prefix.json`,
+`chat_heldout_r8-auto-nollm-after-fix.json`):
+
+| tasks scored | first run (`40e8685`) | after the round-12 fixes (`6e14016`) |
+|---|---|---|
+| all 51 | 14/51 = 0.275 | 35/51 = 0.686 |
+| without the three above | 13/48 = 0.271 | **32/48 = 0.667** |
+| also without `r8h_hk_en_01` (a repro published in the round-8 review, used as a regression row) | 13/47 = 0.277 | 31/47 = 0.660 |
+| without the six tasks the round-9 review listed | 13/45 = 0.289 | 30/45 = 0.667 |
+
+**The check from now on.** `python -m evaluation.agent_eval.slice_overlap <slice>` reports exact and near copies of
+a slice's texts among the dev task turns, router labels, dev claims and every string literal in `tests/*.py` (slice
+task ids and own locations only, so it can run on a slice nobody may open), and the runner stores it in
+`config.slice_overlap` of every run whose task file lives in a `heldout*` folder. For this slice against the tree at
+`6e14016`: 19 exact and 14 near hits over 27 tasks, most of them short generic turns (证券ETF呢, Wuliangye's P/E?) or the
+review's published repros; against `40e8685` (before round 12): 11 exact, 10 near, 18 tasks. The nine tasks that
+gained an overlap in round 12 include the three above
+(`evaluation/results/slice_overlap-heldout_r8-at-6e14016.json`).
