@@ -56,7 +56,7 @@ export function Header({
 }: Props) {
   const { lang, t } = useI18n();
   return (
-    <header className="app-header flex min-h-14 shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-line bg-surface/80 px-3 backdrop-blur-md max-sm:py-2 sm:h-14 sm:flex-nowrap sm:px-4">
+    <header className="app-header sticky top-0 z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-line bg-surface/80 px-3 backdrop-blur-md max-sm:py-2 sm:h-14 sm:flex-nowrap sm:px-4">
       <div className="flex min-w-0 items-center gap-2.5">
         <Logo className="size-7 shrink-0" />
         <div className="min-w-0 leading-tight">
