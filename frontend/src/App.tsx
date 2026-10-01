@@ -101,7 +101,12 @@ export default function App() {
   useEffect(() => writeStorage(STORAGE_KEYS.theme, themePref === "system" ? "" : themePref), [themePref]);
   useEffect(() => writeStorage(STORAGE_KEYS.mode, mode), [mode]);
   useEffect(() => writeStorage(STORAGE_KEYS.view, view === "check" ? view : ""), [view]);
-  useEffect(() => writeStorage(STORAGE_KEYS.session, sessionId), [sessionId]);
+  // Remember the session id only once it has turns: an id with none has nothing to restore after a reload, and asking
+  // the server would only produce a 404 that Chrome logs as a console error (round 12).
+  const hasTurns = items.some((item) => item.kind === "turn" || item.kind === "history");
+  useEffect(() => {
+    if (hasTurns) writeStorage(STORAGE_KEYS.session, sessionId);
+  }, [sessionId, hasTurns]);
 
   // Server health and session restore ---------------------------------------------------------
   useEffect(() => {
@@ -206,6 +211,7 @@ export default function App() {
   const newSession = () => {
     const id = newSessionId();
     setSessionId(id);
+    writeStorage(STORAGE_KEYS.session, "");
     reset({ key: "answer.newSession" });
     setInspect({ turnId: null, tab: "evidence", highlight: null, nonce: 0 });
     composer.current?.focus();

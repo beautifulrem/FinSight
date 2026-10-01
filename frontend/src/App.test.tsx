@@ -73,6 +73,32 @@ describe("restored session (round 12, H14)", () => {
   });
 });
 
+describe("session id persistence (round 12)", () => {
+  it("keeps no session id for a page with no turns, so a reload does not ask the server for it (404)", async () => {
+    const fetchMock = serve(null);
+    const user = userEvent.setup();
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(window.localStorage.getItem(STORAGE_KEYS.session)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "新会话" }));
+    expect(window.localStorage.getItem(STORAGE_KEYS.session)).toBeNull();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).startsWith("/agent/sessions/"))).toBe(false);
+  });
+
+  it("keeps the id of a restored session and forgets it on New session", async () => {
+    window.localStorage.setItem(STORAGE_KEYS.session, "s1");
+    serve({ turns: TURNS });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText("已恢复本会话的 5 轮历史");
+    expect(window.localStorage.getItem(STORAGE_KEYS.session)).toBe("s1");
+    await user.click(screen.getByRole("button", { name: "新会话" }));
+    expect(window.localStorage.getItem(STORAGE_KEYS.session)).toBeNull();
+  });
+});
+
 describe("system notices follow the language (round 12, H14)", () => {
   it("re-renders the new-session notice after switching zh -> en -> zh", async () => {
     serve(null);
