@@ -1313,7 +1313,7 @@
       "gridPos": {
         "x": 0,
         "y": 70,
-        "w": 24,
+        "w": 12,
         "h": 8
       },
       "targets": [
@@ -1344,6 +1344,80 @@
         }
       },
       "description": "finsight_output_safety_edits_total: answers the output-side safety layer (agent/output_safety.py) changed, once per run and kind. attribution = a single-source regulatory / corporate-action claim or a disputed document figure got the layer's own marker (据一篇文档称…（未经其他来源证实）); promotion_or_contact / trading_call = a document-sourced sentence replaced by a neutral note; conflicting_figure = a document figure contradicting the fundamentals data was dropped. A rise without a matching rise in injection-filter redactions means planted content is reaching the answer stage."
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Output-safety edits per answer",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 70,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(increase(finsight_output_safety_edits_total[1h])) / sum(increase(finsight_agent_runs_total{route=~\"agent|workflow\"}[1h])) and on() sum(increase(finsight_agent_runs_total{route=~\"agent|workflow\"}[1h])) >= 1",
+          "legendFormat": "all kinds (1h)"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "B",
+          "expr": "sum by (kind) (increase(finsight_output_safety_edits_total[1h])) / on() group_left() sum(increase(finsight_agent_runs_total{route=~\"agent|workflow\"}[1h])) and on() sum(increase(finsight_agent_runs_total{route=~\"agent|workflow\"}[1h])) >= 1",
+          "legendFormat": "{{kind}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "unit": "percentunit",
+          "decimals": 1,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Output-safety edits per answered run (route agent or workflow) over the last hour: sum(increase(finsight_output_safety_edits_total[1h])) / sum(increase(finsight_agent_runs_total{route=~\"agent|workflow\"}[1h])), in total and by kind (attribution, promotion_or_contact, trading_call, conflicting_figure). An answer counts each kind once. Measured offline (round 12, evaluation/agent_eval/output_safety_audit.py): 0 edits in 797 clean template answers (output_safety_audit-template-r12.json); 0.41 per answer on 32 LLM news answers built from poisoned documents, 0 false and 0 over-broad marks on their real news figures after 3882dc3 (output_safety_audit-llm-replay-r12.json). The orange line (0.5) is the FinSightOutputSafetyEditRateHigh alert threshold: more edits per answer than the attacked LLM runs."
     }
   ]
 }
