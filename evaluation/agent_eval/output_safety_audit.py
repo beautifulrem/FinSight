@@ -332,10 +332,10 @@ def run_set(
                 for call in calls:
                     structured = _structured_values(call["store"], call["corroborating"])
                     for unit in call["units"]:
-                        key = (unit["edit"], layer._sentence_key(unit["sentence"]), str(unit.get("spans")))
-                        if key in seen:
+                        unit_key = (unit["edit"], layer._sentence_key(unit["sentence"]), str(unit.get("spans")))
+                        if unit_key in seen:
                             continue  # the same sentence in the answer and a key point is one edit
-                        seen.add(key)
+                        seen.add(unit_key)
                         report = classify(unit, call["store"], structured)
                         report.update(set=name, task=task["id"], turn=index, query=turn["query"])
                         units.append(report)
