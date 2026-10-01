@@ -229,8 +229,9 @@ Sessions are LangGraph checkpoints (memory, SQLite or Postgres). This lets a cla
   - A fact-check view for pasted claims shows each number's comparator, claimed vs actual value, source and date. A chat message like "听说…是真的吗" offers to open it.
   - Citation chips link to an evidence ledger that shows freshness.
   - Price charts, run cost and latency.
+  - The Trace and Run tabs show every route reason in words ("Computed the ROE gap: Wuliangye vs Kweichow Moutai"), and a reload shows the restored turns under their banner.
   - Feedback buttons and Markdown export.
-  - zh/en, dark mode, mobile.
+  - zh/en (system notices switch too), dark mode, mobile. Playwright tests in Chrome cover a three-turn gap session and a fact-check against the offline server (`cd frontend && pnpm run e2e`).
 - **Security**
   - Optional API keys, with sessions and traces scoped to the key (a hash, never the key itself).
   - Rate limiting, CORS and body limits.

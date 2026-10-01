@@ -213,8 +213,8 @@ describe("ClaimReportCard round 10 (F1, F2)", () => {
     };
     wrap(<ClaimReportCard report={report} />);
     const [, relation, stated] = screen.getAllByRole("listitem") as [HTMLElement, HTMLElement, HTMLElement];
-    expect(relation.querySelector(".claim-claimed")).toHaveTextContent("< 白酒行业");
-    expect(relation.querySelector(".claim-reference")).toHaveTextContent("白酒行业 27.3 倍");
+    expect(relation.querySelector(".claim-claimed")).toHaveTextContent(/^贵州茅台 < 白酒行业/);
+    expect(relation.querySelector(".claim-actual + .claim-reference")).toHaveTextContent("白酒行业 27.3 倍");
     expect(stated).toHaveAttribute("data-kind", "stated_reference");
     expect(stated.querySelector(".claim-stated")).toHaveTextContent("说法给出的数值");
     expect(stated.querySelector(".claim-target-name")).toHaveTextContent("白酒行业平均");
@@ -256,6 +256,86 @@ describe("ClaimReportCard round 10 (F1, F2)", () => {
     expect(row.querySelector(".claim-reference")).toHaveTextContent("29.4%");
     expect(row.querySelector(".claim-actual")).toHaveTextContent("+3.6 pt");
     expect(row.querySelector(".claim-note")).toHaveTextContent("The difference of the two is +3.6 pt");
+  });
+});
+
+describe("ClaimReportCard relation rows (round 12, H14)", () => {
+  // "白酒行业平均市盈率约20倍，低于茅台": the second part is a relation whose subject is the industry
+  const report: ClaimReport = {
+    claim: "白酒行业平均市盈率约20倍，低于茅台",
+    verdict: "contradicted",
+    coverage: "full",
+    checks: [
+      {
+        target: "白酒",
+        metric: "pe_ttm",
+        claimed: 20,
+        claimed_unit: "倍",
+        comparator: "approx",
+        kind: "value",
+        actual: 27.3,
+        status: "contradicted",
+        evidence_id: "industry_白酒",
+        as_of: "2026-04-21",
+      },
+      {
+        target: "白酒",
+        metric: "pe_ttm",
+        claimed: null,
+        comparator: "lt",
+        reference: "贵州茅台",
+        reference_value: 24.6,
+        reference_evidence_id: "fundamental_600519.SH",
+        kind: "relation",
+        actual: 27.3,
+        status: "contradicted",
+        evidence_id: "industry_白酒",
+        as_of: "2026-04-21",
+      },
+    ],
+    targets: [{ name: "贵州茅台", symbol: "600519.SH", name_en: "Kweichow Moutai" }],
+    labels_en: { 白酒: "baijiu (liquor)", 贵州茅台: "Kweichow Moutai" },
+    disclaimer: "",
+  };
+
+  it.each([
+    ["zh", "白酒 < 贵州茅台", "白酒 低于 贵州茅台", "27.3 倍", "贵州茅台 24.6 倍"],
+    ["en", "baijiu (liquor) < Kweichow Moutai", "baijiu (liquor) less than Kweichow Moutai", "27.3×", "Kweichow Moutai 24.6×"],
+  ] as const)("reads subject, relation and object in %s, with the object's value on the actual side", (lang, text, label, actual, other) => {
+    wrap(<ClaimReportCard report={report} />, lang);
+    const [, relation] = screen.getAllByRole("listitem") as [HTMLElement, HTMLElement];
+    expect(relation).toHaveAttribute("data-kind", "relation");
+    const claimed = relation.querySelector(".claim-claimed")!;
+    expect(claimed.querySelector("[aria-hidden]")).toHaveTextContent(new RegExp(`^${text.replace(/[()]/g, "\\$&")}$`));
+    expect(claimed.querySelector(".sr-only")).toHaveTextContent(label);
+    expect(relation.querySelector(".claim-actual")).toHaveTextContent(actual);
+    // the other side's value is data from the sources: shown under "actual", not under "claimed"
+    expect(relation.querySelector(".claim-actual + .claim-reference")).toHaveTextContent(other);
+    expect(claimed.parentElement).not.toHaveTextContent("24.6");
+  });
+});
+
+describe("ClaimCheckView input height (round 12)", () => {
+  it("sizes the claim box when the view is shown, not while it is hidden", () => {
+    // jsdom has no layout: a hidden element measures 0, a shown one 48 px
+    const scrollHeight = vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.closest("[hidden]") ? 0 : 48;
+    });
+    const view = (active: boolean) => (
+      <div hidden={!active}>
+        <ClaimCheckView apiKey="" active={active} />
+      </div>
+    );
+    const { rerender } = wrap(view(false));
+    const input = document.getElementById("claim-input")!;
+    expect(input.style.height).not.toBe("0px");
+    rerender(
+      <I18nContext.Provider value={{ lang: "zh", t: makeTranslate("zh") }}>
+        <TooltipProvider>{view(true)}</TooltipProvider>
+      </I18nContext.Provider>,
+    );
+    expect(input.style.height).toBe("48px");
+    scrollHeight.mockRestore();
   });
 });
 

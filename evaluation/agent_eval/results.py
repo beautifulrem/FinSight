@@ -13,6 +13,9 @@ success exactly.
 
     python -m evaluation.agent_eval.results outputs/agent_eval/ablation-final.json   # -> evaluation/results/
     python -m evaluation.agent_eval.results outputs/agent_eval/gate-dev.json outputs/agent_eval/redteam.json
+
+A run whose recorded commit is ``…-dirty`` (uncommitted changes when it started) is refused unless ``--allow-dirty``
+is given, and then its notes say so.
 """
 
 from __future__ import annotations
@@ -275,6 +278,37 @@ def invalid_runs(report: dict[str, Any]) -> list[str]:
     return invalid
 
 
+_COMMIT_KEYS = frozenset({"commit", "_commit"})
+
+
+def dirty_provenance(report: Any) -> list[str]:
+    """Commits the run recorded from a working tree with uncommitted changes (round 12, H13).
+
+    Writers record ``commit: "960432d-dirty"`` (``runner._git_commit``) or ``working_tree_clean: false`` next to the
+    commit (``scripts/provenance.git_state``); merged files carry one per source. Such a result cannot be reproduced
+    from any commit, so ``main`` refuses to slim it unless ``--allow-dirty`` is given.
+    """
+    found: list[str] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            commit = next((node[key] for key in _COMMIT_KEYS if isinstance(node.get(key), str)), None)
+            if commit and commit.endswith("-dirty"):
+                found.append(commit)
+            elif node.get("working_tree_clean") is False:
+                found.append(f"{commit or 'unknown'}-dirty")
+            for value in node.values():
+                if isinstance(value, dict | list):
+                    walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                if isinstance(value, dict | list):
+                    walk(value)
+
+    walk(report)
+    return list(dict.fromkeys(found))
+
+
 def load_result(name: str) -> dict[str, Any] | None:
     path = RESULTS_DIR / f"{name}.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
@@ -288,15 +322,33 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--allow-invalid", action="store_true", help="Commit a run that ablation marked invalid (e.g. mostly 429s)."
     )
+    parser.add_argument(
+        "--allow-dirty",
+        action="store_true",
+        help="Commit a run recorded from a working tree with uncommitted changes (labelled in its notes).",
+    )
     args = parser.parse_args(argv)
     if args.name and len(args.sources) > 1:
         raise SystemExit("--name needs exactly one source")
     for source in args.sources:
         path = Path(source)
-        invalid = invalid_runs(json.loads(path.read_text(encoding="utf-8")))
+        report = json.loads(path.read_text(encoding="utf-8"))
+        invalid = invalid_runs(report)
         if invalid and not args.allow_invalid:
             raise SystemExit(f"{source} has invalid runs {invalid}; rerun, or pass --allow-invalid with a --note")
-        out = write_slim(path, args.name or path.stem, extra_notes=args.note)
+        notes = list(args.note)
+        dirty = dirty_provenance(report)
+        if dirty:
+            if not args.allow_dirty:
+                raise SystemExit(
+                    f"{source} was recorded from a dirty working tree ({', '.join(dirty)}): commit the changes and "
+                    "rerun from a clean tree, or pass --allow-dirty with a --note saying what was uncommitted"
+                )
+            notes.append(
+                f"Recorded from a dirty working tree ({', '.join(dirty)}): not reproducible from a commit; "
+                "slimmed with --allow-dirty."
+            )
+        out = write_slim(path, args.name or path.stem, extra_notes=notes)
         print(f"{source} -> {out.relative_to(ROOT)} ({out.stat().st_size // 1024} KB)")
 
 
