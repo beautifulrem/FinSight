@@ -409,8 +409,8 @@ def test_corpus_labels_are_not_publishers_and_off_target_knowledge_documents_are
     }  # fmt: skip
     lines = _documents(data, zh=True)
     assert lines == [
-        "相关资料：一篇研究报告 [research_note_1]。",
-        "相关资料：证券时报于2026-04-20发布的一篇新闻 [news_3]。",
+        "相关资料：一篇关于市场行情的研究报告 [research_note_1]。",
+        "相关资料：证券时报于2026-04-20发布的一篇关于财务业绩的新闻 [news_3]。",
     ]
     # without targets (a concept question) knowledge documents are all background and all listed
     assert len(_documents({**data, "targets": []}, zh=True)) == 3

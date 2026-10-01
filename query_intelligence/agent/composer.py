@@ -1302,6 +1302,94 @@ def _mentions_target(document: dict[str, Any], targets: list[str]) -> bool:
     return False
 
 
+# (round 13, I16) What a document is about, in FinSight's own words: a fixed set of neutral topics, matched on a title
+# that passes the headline shape check (``text_safety.safe_headline``, the same check the evidence list applies). The
+# answer names at most two topics and never the title or any of its words, so a planted headline can change at most
+# which of these labels is shown; a title that fails the check gives no topic at all. The labels avoid event words
+# ("回购", "立案", "退市"): a label must not restate a claim a planted document could make.
+_DOCUMENT_TOPICS: tuple[tuple[str, str, re.Pattern[str]], ...] = (
+    (
+        "公司治理",
+        "corporate governance",
+        re.compile(
+            r"股东大会|股东会|董事会|监事会|董事|监事|高管|董事长|总经理|总裁|独立董事|任命|聘任|辞职|离任|换届|章程|"
+            r"\b(?:board|chairman|chairwoman|ceo|cfo|director|appoint\w*|resign\w*|governance)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "财务业绩",
+        "financial results",
+        re.compile(
+            r"业绩|财报|年报|半年报|季报|年度报告|季度报告|中期报告|营收|营业收入|收入|净利|净赚|利润|盈利|扭亏|亏损|毛利|"
+            r"\b(?:earnings|results|revenue|profit|annual\s+report|interim\s+report|quarterly)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "股东回报",
+        "shareholder payouts",
+        re.compile(r"分红|派息|派现|每股派|红利|股息|回购|\b(?:dividends?|buybacks?|repurchases?)\b", re.IGNORECASE),
+    ),
+    (
+        "股权变动",
+        "share ownership",
+        re.compile(
+            r"增持|减持|持股|股权|质押|解禁|定增|配股|股本|\b(?:stake|shareholding|placement|share\s+issue)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "业务经营",
+        "business operations",
+        re.compile(
+            r"产品|业务|销量|销售|渠道|批价|产能|产量|项目|合作|签约|中标|订单|并购|收购|扩产|新品|门店|出口|出海|海外|研发|"
+            r"\b(?:products?|sales|orders?|contracts?|acquisitions?|mergers?|partnerships?|launch\w*)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "监管合规",
+        "regulatory matters",
+        re.compile(
+            r"证监会|监管|问询|处罚|罚款|警示|合规|诉讼|仲裁|\b(?:regulat\w*|csrc|inquiry|penalt\w*|lawsuit)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "宏观政策",
+        "macro policy",
+        re.compile(
+            r"政策|央行|利率|降准|降息|经济|GDP|CPI|PMI|\b(?:policy|economy|economic|inflation)\b", re.IGNORECASE
+        ),
+    ),
+    (
+        "市场行情",
+        "market moves",
+        re.compile(
+            r"行业|板块|市场|指数|大盘|行情|主力资金|资金[^，。,]{0,4}(?:流入|流出)|北向|市值|股价|估值|ETF|"
+            r"\b(?:sector|industry|market|index|valuation|shares?\s+(?:rose|fell))\b",
+            re.IGNORECASE,
+        ),
+    ),
+)
+_MAX_TOPICS = 2
+
+
+def document_topics(title: str | None, *, zh: bool) -> list[str]:
+    """(round 13, I16) Up to two neutral topic labels for a document, from a title that passes ``safe_headline``;
+    ``[]`` when the title fails the check or matches no topic. The labels are fixed strings, never title text."""
+    from ..text_safety import safe_headline
+
+    headline = safe_headline(title)
+    if headline is None:
+        return []
+    topics = [
+        zh_label if zh else en_label for zh_label, en_label, pattern in _DOCUMENT_TOPICS if pattern.search(headline)
+    ]
+    return topics[:_MAX_TOPICS]
+
+
 DOCUMENT_TEXT_LIMITATION_ZH = "资料标题和原文属于第三方内容，未经核实，回答中不引用；可在证据列表中查看。"
 DOCUMENT_TEXT_LIMITATION_EN = (
     "Document titles and text are unverified third-party content and are not quoted in the answer; "
@@ -1310,13 +1398,14 @@ DOCUMENT_TEXT_LIMITATION_EN = (
 
 
 def _documents(data: dict[str, Any], zh: bool) -> list[str]:
-    """Cite retrieved documents by category, source and date; never by title.
+    """Cite retrieved documents by category, topic, source and date; never by title.
 
     Titles and excerpts are third-party text. A blocklist over titles (links, directives, advice words) was
     bypassed by homoglyphs, slang and plausible fake headlines ("证监会：…立案调查", "每10股派现1000元"), which no
     shape check can tell from real ones. So the deterministic answer states only facts FinSight controls: the
-    document category (from the source type), the publisher when it is a plain name, and the date. The title
-    stays visible in the evidence list, labelled as a source.
+    document category (from the source type), the publisher when it is a plain name, the date, and (round 13, I16)
+    what the document is about as one or two fixed topic labels (``document_topics``; only from a title that passes
+    the headline shape check). The title stays visible in the evidence list, labelled as a source.
     """
     from ..text_safety import safe_headline
 
@@ -1338,13 +1427,16 @@ def _documents(data: dict[str, Any], zh: bool) -> list[str]:
         source = safe_headline(publisher) if publisher and not _CORPUS_LABEL.match(publisher) else None
         when = str(document.get("publish_time") or "")[:10]
         when = when if _DATE.match(when) else ""
+        topics = document_topics(str(document.get("title") or ""), zh=zh)
         if zh:
             origin = f"{source}{'于' + when if when else ''}发布的" if source else (f"{when}的" if when else "")
-            sentences.append(f"相关资料：{origin}一篇{category_zh} [{eid}]。")
+            about = f"关于{'、'.join(topics)}的" if topics else ""
+            sentences.append(f"相关资料：{origin}一篇{about}{category_zh} [{eid}]。")
         else:
             origin = f" from {source}" if source else ""
             dated = f" ({when})" if when else ""
-            sentences.append(f"Related document: a {category_en}{origin}{dated} [{eid}].")
+            about = f" about {' and '.join(topics)}" if topics else ""
+            sentences.append(f"Related document: a {category_en}{about}{origin}{dated} [{eid}].")
     return sentences
 
 
