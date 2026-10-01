@@ -1276,9 +1276,10 @@ def output_safety_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
     ]
     for name, result in runs:
         config, totals = result.get("config") or {}, result.get("totals") or {}
-        path = config.get("path") or "workflow"
+        paths = [str(item.get("path")) for item in result.get("by_set") or [] if item.get("path")]
+        path = ", ".join(dict.fromkeys(paths)) or config.get("path") or "workflow"
         if config.get("redteam_replay"):
-            path += " (red-team LLM drafts, replayed)"
+            path += " (red-team LLM drafts, replayed, no calls)"
         verdicts = ", ".join(f"{key} {value}" for key, value in (totals.get("edit_units_by_verdict") or {}).items())
         lines.append(
             f"| `{name}.json` | `{config.get('commit')}` | {path} | {totals.get('answers')} | "
