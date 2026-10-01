@@ -175,7 +175,13 @@ HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_he
 HELDOUT_R5_RUNS = ("chat_heldout_r5-auto-nollm-first-run", "chat_heldout_r5-auto-nollm-after-exposure")
 # Round-6 held-out slice (evaluation/heldout_r6/, independent author): run once before the round-10 fixes, then
 # once after them; the engineers who made the fixes never saw it, so the second run is still out of sample.
-HELDOUT_R6_RUNS = ("chat_heldout_r6-auto-nollm-prefix", "chat_heldout_r6-auto-nollm-after-fix")
+HELDOUT_R6_RUNS = (
+    "chat_heldout_r6-auto-nollm-prefix",
+    "chat_heldout_r6-auto-nollm-after-fix",
+    "chat_heldout_r6-auto-nollm-after-exposure-round11",
+)
+# Round-7 held-out chat slice (evaluation/heldout_r7/, independent author): before and after the round-11 fixes.
+HELDOUT_R7_RUNS = ("chat_heldout_r7-auto-nollm-prefix", "chat_heldout_r7-auto-nollm-after-fix")
 # Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
 # (title, a, b, label a, label b, paths compared).
 PAIRED_ABLATIONS = (
@@ -276,6 +282,11 @@ FILE_STATUS = {
     "chat_heldout_r6-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-6 chat slice",
     "chat_heldout_r6-auto-nollm-after-fix": "independent round-6 chat slice **after the round-10 fixes**; the "
     "engineers never saw the slice, so this is still out of sample",
+    "chat_heldout_r6-auto-nollm-after-exposure-round11": "independent round-6 chat slice **after exposure (round "
+    "11)**: the round-11 engineers could read the slice, so it is no longer out of sample",
+    "chat_heldout_r7-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-7 chat slice",
+    "chat_heldout_r7-auto-nollm-after-fix": "independent round-7 chat slice **after the round-11 fixes**; the "
+    "engineers never opened the slice (three round-11 dev turns match slice turns verbatim by coincidence)",
     "ablation-ab-prompt-v3-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
     "ablation-ab-prompt-v4-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
     "ablation-v4default-testv3": "test v3 after it was used to choose the prompt: a check of the shipped prompt, "
@@ -1408,6 +1419,20 @@ def render_with_sources() -> tuple[str, list[str]]:
             "",
         ]
         for name, result in heldout_r6:
+            body += [f"#### `{name}.json`", "", *run_section(result, name, full=True)]
+    heldout_r7 = [(name, take(name)) for name in HELDOUT_R7_RUNS]
+    heldout_r7 = [(name, result) for name, result in heldout_r7 if result]
+    if heldout_r7:
+        body += [
+            "### Round-7 held-out chat slice (independent author): before and after the round-11 fixes",
+            "",
+            "53 tasks / 129 turns written from the round-7 review's bug classes (`evaluation/heldout_r7/README.md`); "
+            "run once before the round-11 fixes and once after them. The engineers never opened the slice. Three "
+            "round-11 dev turns match slice turns verbatim by coincidence (tasks `r7h_gap_zh_11` and "
+            "`r7h_gap_en_04`); without those two tasks the slice goes 13/51 → 43/51.",
+            "",
+        ]
+        for name, result in heldout_r7:
             body += [f"#### `{name}.json`", "", *run_section(result, name, full=True)]
     pure = [
         (name, result)
