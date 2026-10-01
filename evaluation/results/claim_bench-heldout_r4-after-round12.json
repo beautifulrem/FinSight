@@ -1,0 +1,394 @@
+{
+ "config": {
+  "claims": "evaluation/heldout_r4/claims_moves_heldout.jsonl",
+  "claims_sha256": "e70b8701d12df19eba67bd326b602003bb9a12a7c6e6339141ae134acf3055ad",
+  "set": null,
+  "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
+  "model": null,
+  "commit": "bd84003",
+  "run_at": "2026-10-01T06:50:39+00:00",
+  "command": "python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl --out evaluation/results/claim_bench-heldout_r4-after-round12.json"
+ },
+ "claims": 67,
+ "checks": 75,
+ "verdict_accuracy": 1.0,
+ "verdict_accuracy_ci": [
+  1.0,
+  1.0
+ ],
+ "check_accuracy": 0.92,
+ "check_accuracy_ci": [
+  0.8493,
+  0.974
+ ],
+ "comparator_accuracy": 0.5217,
+ "ci_method": "percentile bootstrap over claims, 2000 resamples, seed 20260926, 95%",
+ "verdict_confusion": {
+  "supported": {
+   "supported": 31,
+   "contradicted": 0,
+   "partially_supported": 0,
+   "unverifiable": 0
+  },
+  "contradicted": {
+   "supported": 0,
+   "contradicted": 26,
+   "partially_supported": 0,
+   "unverifiable": 0
+  },
+  "partially_supported": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 3,
+   "unverifiable": 0
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 0,
+   "unverifiable": 7
+  }
+ },
+ "check_status_confusion": {
+  "supported": {
+   "supported": 37,
+   "contradicted": 0,
+   "unverifiable": 0,
+   "missing": 0
+  },
+  "contradicted": {
+   "supported": 0,
+   "contradicted": 28,
+   "unverifiable": 0,
+   "missing": 0
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "unverifiable": 4,
+   "missing": 0
+  },
+  "extra": {
+   "supported": 2,
+   "contradicted": 1,
+   "unverifiable": 3,
+   "missing": 0
+  }
+ },
+ "by_category": {
+  "level": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "macro": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "move_close_dir": {
+   "claims": 4,
+   "verdict_accuracy": 1.0
+  },
+  "move_direction": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "move_down_approx": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "move_down_gt": {
+   "claims": 9,
+   "verdict_accuracy": 1.0
+  },
+  "move_down_lt": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "move_industry": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "move_multi": {
+   "claims": 6,
+   "verdict_accuracy": 1.0
+  },
+  "move_multi_target": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "move_range": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "move_up_gt": {
+   "claims": 5,
+   "verdict_accuracy": 1.0
+  },
+  "move_up_lt": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "move_vague": {
+   "claims": 4,
+   "verdict_accuracy": 1.0
+  },
+  "move_widen": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "no_data": {
+   "claims": 6,
+   "verdict_accuracy": 1.0
+  },
+  "relational": {
+   "claims": 5,
+   "verdict_accuracy": 1.0
+  },
+  "relational_industry": {
+   "claims": 2,
+   "verdict_accuracy": 1.0
+  },
+  "relational_move": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  },
+  "x_earnings": {
+   "claims": 3,
+   "verdict_accuracy": 1.0
+  }
+ },
+ "by_language": {
+  "en": {
+   "claims": 17,
+   "verdict_accuracy": 1.0
+  },
+  "zh": {
+   "claims": 50,
+   "verdict_accuracy": 1.0
+  }
+ },
+ "errors": [
+  {
+   "id": "r4c059",
+   "category": "macro",
+   "claim": "最新CPI同比上涨0.8%",
+   "expected_verdict": "supported",
+   "verdict": "supported",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "CPI 同比",
+     "metric": "cpi_yoy",
+     "claimed": 0.8,
+     "claimed_high": null,
+     "claimed_unit": "%",
+     "comparator": "eq",
+     "negated": false,
+     "direction": "up",
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "ratio": null,
+     "difference": null,
+     "kind": "value",
+     "operands": [],
+     "operand_values": [],
+     "operand_evidence_ids": [],
+     "actual": 0.8,
+     "status": "supported",
+     "reason": null,
+     "evidence_id": "macro_CPI_CN",
+     "source": "离线快照",
+     "as_of": "2026-03-31",
+     "as_of_basis": "indicator_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c060",
+   "category": "macro",
+   "claim": "3月制造业PMI跌破荣枯线",
+   "expected_verdict": "contradicted",
+   "verdict": "contradicted",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "制造业 PMI",
+     "metric": "pmi",
+     "claimed": 50.0,
+     "claimed_high": null,
+     "claimed_unit": null,
+     "comparator": "lt",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "ratio": null,
+     "difference": null,
+     "kind": "value",
+     "operands": [],
+     "operand_values": [],
+     "operand_evidence_ids": [],
+     "actual": 50.6,
+     "status": "contradicted",
+     "reason": null,
+     "evidence_id": "macro_PMI_CN",
+     "source": "离线快照",
+     "as_of": "2026-03-31",
+     "as_of_basis": "indicator_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c061",
+   "category": "macro",
+   "claim": "China's 10-year government bond yield is around 2.3%",
+   "expected_verdict": "supported",
+   "verdict": "supported",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "China 10Y government bond yield",
+     "metric": "cn10y",
+     "claimed": 2.3,
+     "claimed_high": null,
+     "claimed_unit": "%",
+     "comparator": "approx",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "ratio": null,
+     "difference": null,
+     "kind": "value",
+     "operands": [],
+     "operand_values": [],
+     "operand_evidence_ids": [],
+     "actual": 2.31,
+     "status": "supported",
+     "reason": null,
+     "evidence_id": "macro_CN10Y",
+     "source": "离线快照",
+     "as_of": "2026-03-31",
+     "as_of_basis": "indicator_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r4c062",
+   "category": "no_data",
+   "claim": "北向资金4月22日净流入超过100亿元",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": null,
+     "metric": null,
+     "claimed": 100.0,
+     "claimed_high": null,
+     "claimed_unit": "亿元",
+     "comparator": "gt",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "ratio": null,
+     "difference": null,
+     "kind": "value",
+     "operands": [],
+     "operand_values": [],
+     "operand_evidence_ids": [],
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "as_of_basis": null,
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "r4c063",
+   "category": "no_data",
+   "claim": "美联储降息后，A股第二天普遍涨超2%",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": null,
+     "metric": "pct_change_1d",
+     "claimed": 2.0,
+     "claimed_high": null,
+     "claimed_unit": "%",
+     "comparator": "gt",
+     "negated": false,
+     "direction": "up",
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "ratio": null,
+     "difference": null,
+     "kind": "value",
+     "operands": [],
+     "operand_values": [],
+     "operand_evidence_ids": [],
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_target",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "as_of_basis": null,
+     "note": "no listed company, fund or index"
+    }
+   ]
+  },
+  {
+   "id": "r4c066",
+   "category": "no_data",
+   "claim": "两融余额已经突破2万亿元",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": null,
+     "metric": null,
+     "claimed": 2.0,
+     "claimed_high": null,
+     "claimed_unit": "万亿",
+     "comparator": "gt",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "ratio": null,
+     "difference": null,
+     "kind": "value",
+     "operands": [],
+     "operand_values": [],
+     "operand_evidence_ids": [],
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "as_of_basis": null,
+     "note": "metric not recognised"
+    }
+   ]
+  }
+ ]
+}
