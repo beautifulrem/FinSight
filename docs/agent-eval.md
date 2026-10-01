@@ -1394,12 +1394,14 @@ Route accuracy of `mode=auto` (refuse / clarify / workflow / agent) against labe
 | `router_eval-independent_v2-round9.json` | `router_labels_independent_v2.jsonl` | **after exposure** (HEAD after round 9; first run 0.8008) | `8814b3b` | 241 | 0.830 | 0.917 / 0.596 / 0.927 / 0.833 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out outputs/agent_eval/router_eval-independent_v2-round9.json` |
 | `router_eval-round10-own.json` | `router_labels_v1.jsonl` | author's own labels (tuned against) | `05f418a` | 358 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round10-own.json` |
 | `router_eval-independent_v2-round10.json` | `router_labels_independent_v2.jsonl` | **after exposure** (HEAD after round 10; first run 0.8008) | `05f418a` | 241 | 0.838 | 0.950 / 0.596 / 0.927 / 0.833 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out outputs/agent_eval/router_eval-independent_v2-round10.json` |
+| `router_eval-round11-own.json` | `router_labels_v1.jsonl` | author's own labels (tuned against) | `b7af797` | 372 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round11-own.json` |
 
 * Note (`router_eval-independent_v2-first-run.json`): first and only run of the independent v2 labels, after the round-4 router changes; 4 of 241 queries coincidentally also appear in the project's own labels (什么是市净率, 今天北京天气怎么样, 招商银行的市盈率是多少, 比亚迪还能涨吗)
 * Note (`router_eval-round9-own.json`): Author's own router labels after round 9 at d78a556: 344 queries (round-9 labels route_332-343 added; route_343 corrected from workflow to agent at 9f12e78, the only miss at 8814b3b).
 * Note (`router_eval-independent_v2-round9.json`): Independent router labels v2 (241) at 8814b3b, after the round-9 fixes. After exposure: its first run (0.8008) was read before rounds 5-8; the round-9 fixes came from the round-5 review, not from this set. Same accuracy as the round-5 reviewer's run at a125300 (0.8299); the router code did not change between 8814b3b and d78a556.
 * Note (`router_eval-round10-own.json`): Author's own router labels after round 10 at 05f418a: 358 queries (round-10 labels route_344-357 added for F5, F6, F8, F10/F11, F14 with negatives; route_313 relabelled clarify -> refuse under F14). 1.000.
 * Note (`router_eval-independent_v2-round10.json`): Independent v2 labels rerun at 05f418a after the round-10 fixes (after exposure: v2 was exposed after its first run 0.8008 at 3080bfe; round 10 did not read or tune on it). 0.8299 (8814b3b) -> 0.8382: rl2_refuse_013 and rl2_refuse_014 now right, no new errors.
+* Note (`router_eval-round11-own.json`): Author's own router labels after round 11 at b7af797: 372 queries (round-11 labels route_358-371 added for G1, G5 and G6 with negatives). 1.000.
 
 ### Claim-check benchmark
 
@@ -1678,8 +1680,8 @@ low − default: task success -0.038 [-0.094, +0.000], pass^k -0.038 [-0.094, +0
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `05a79b5` | 339 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
-| gate-holdout | `05a79b5` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
+| gate-dev | `017e5a3` | 370 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-holdout | `017e5a3` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
 
 ### Fault injection (overall graceful rate 1.00)
 
@@ -2234,6 +2236,7 @@ Paired comparisons (same tasks, a − b):
 | `router_eval-independent_v2-round9.json` | router_eval | `8814b3b` | 2026-09-30T15:35:59+00:00 | – | written directly |
 | `router_eval-round10-own.json` | router_eval | `05f418a` | 2026-09-30T23:08:10+00:00 | – | written directly |
 | `router_eval-independent_v2-round10.json` | router_eval | `05f418a` | 2026-09-30T23:10:25+00:00 | – | written directly |
+| `router_eval-round11-own.json` | router_eval | `b7af797` | 2026-10-01T04:02:23+00:00 | – | written directly |
 | `claim_bench-dev-baseline.json` | claim_bench | `3da1a48` | 2026-09-28T06:30:24+00:00 | – | written directly |
 | `claim_bench-dev.json` | claim_bench | `4796e24` | 2026-10-01T02:04:45+00:00 | – | written directly |
 | `claim_bench-holdout.json` | claim_bench | `2fcb4f0` | 2026-09-28T07:14:56+00:00 | – | written directly |
@@ -2271,8 +2274,8 @@ Paired comparisons (same tasks, a − b):
 | `ablation-memsum-1-multiturn_v1.json` | ablation | `bc42017` | 2026-09-30T22:11:41+00:00 | cline-pass/deepseek-v4.1-flash | `ablation-memsum-1.json` (50162842790e1544) |
 | `ablation-glm-effort-default-holdout.json` | ablation | `bc42017` | 2026-09-30T22:18:04+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-default.json` (0443e4fcfda24919) |
 | `ablation-glm-effort-low-holdout.json` | ablation | `bc42017` | 2026-09-30T22:20:53+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-low.json` (24329b3dee31a93e) |
-| `gate-dev.json` | run | `05a79b5` | 2026-09-30T23:27:28+00:00 | – | `outputs/agent_eval/gate-dev.json` (1b50c9b34ca70f02) |
-| `gate-holdout.json` | run | `05a79b5` | 2026-09-30T23:27:38+00:00 | – | `outputs/agent_eval/gate-holdout.json` (c9be6baec05863c3) |
+| `gate-dev.json` | run | `017e5a3` | 2026-10-01T03:56:00+00:00 | – | `outputs/agent_eval/gate-dev.json` (d3ac3771e69d302a) |
+| `gate-holdout.json` | run | `017e5a3` | 2026-10-01T03:56:20+00:00 | – | `outputs/agent_eval/gate-holdout.json` (21c58973e307104f) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |
 | `verifier_stress-round10.json` | verifier_stress | `53454f5` | 2026-09-30T23:35:04+00:00 | – | `outputs/agent_eval/verifier_stress-round10.json` (7e931de123af2bef) |

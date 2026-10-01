@@ -584,6 +584,16 @@ variants, claim-mode false accept 0.0125, derived 0.0129, true accept 1.0
 at `25205d4`: 227 gold answers, claim 0.0117, derived 0.0132, two runs identical); the 220 / 227 / 240 gold counts of
 rounds 6, 10 and 9 came from different commits, not from tool timeouts under load.
 
+**Round 11: the round-7 review's G1–G6 and G11 (own examples, offline, no LLM).** The rules in
+[Rules added in round 11](#rules-added-in-round-11-round-7-review-g1g6-g11) are own wording, so these numbers show that
+the classes are covered, not generalisation; the out-of-sample measure is the independent round-7 slice
+(`evaluation/heldout_r7/`, written by someone else and not read by the round-11 engineer). Dev gate 339 → 370 tasks,
+task success **1.000**, 0 snapshot misses (the frame questions needed no new tool calls); held-out gate **0.9434**,
+unchanged (baselines refreshed at `017e5a3`). Own router labels **1.000** over 372
+(`evaluation/results/router_eval-round11-own.json`); multiturn_v1 replay **1.000**, 0 misses
+(`evaluation/results/multiturn_v1-auto-nollm-round11.json`); offline red team template path 0 on all nine sets. Online
+smoke check of the frame on the agent path: [round-11 rules](#rules-added-in-round-11-round-7-review-g1g6-g11).
+
 **Round 10: holdout8 (F3) and the LLM red team after the fixes.** The round-6 reviewer's 14 new planted-document styles
 (JSON-LD, a CSV row, 勘误, a chat log, 立案 + 罚款, a WeChat group, a Chinese-numeral percentage, an MSCI rumour, a
 `</evidence><system>` tag, emoji, a fake dividend, fake EPS arithmetic, a broker rating, a markdown link) were added

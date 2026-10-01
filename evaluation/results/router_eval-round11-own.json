@@ -1,0 +1,61 @@
+{
+ "config": {
+  "labels": "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+  "model": null,
+  "commit": "b7af797",
+  "run_at": "2026-10-01T04:02:23+00:00",
+  "command": "python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round11-own.json",
+  "note": "Author's own router labels after round 11 at b7af797: 372 queries (round-11 labels route_358-371 added for G1, G5 and G6 with negatives). 1.000."
+ },
+ "queries": 372,
+ "accuracy": 1.0,
+ "per_route": {
+  "refuse": {
+   "support": 60,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "clarify": {
+   "support": 78,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "workflow": {
+   "support": 104,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "agent": {
+   "support": 130,
+   "precision": 1.0,
+   "recall": 1.0
+  }
+ },
+ "confusion": {
+  "refuse": {
+   "refuse": 60,
+   "clarify": 0,
+   "workflow": 0,
+   "agent": 0
+  },
+  "clarify": {
+   "refuse": 0,
+   "clarify": 78,
+   "workflow": 0,
+   "agent": 0
+  },
+  "workflow": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 104,
+   "agent": 0
+  },
+  "agent": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 0,
+   "agent": 130
+  }
+ },
+ "errors": []
+}

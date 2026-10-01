@@ -62,7 +62,7 @@ Online runs use 3 repeats per task, and costs are as billed by the gateway. Each
 
 | Set | Size | Written by | Status |
 |---|---|---|---|
-| Development | 339 tasks | project author | used to drive fixes |
+| Development | 370 tasks | project author | used to drive fixes |
 | Held-out | 53 tasks | project author, after the rules were tuned | also used to choose prompts, so a validation set |
 | Test v2 | 121 tasks / 174 turns | project author, blind, in one pass | failure classes read after its first runs and fixed on dev-style tasks, so **after exposure** since round 2 |
 | Multi-turn v1 | 49 conversations / 206 turns | a separate author who did not read the routing code or any task file ([protocol](evaluation/agent_eval/tasks/README_multiturn_v1.md)) | first runs below; fixed afterwards, so after exposure |
@@ -100,7 +100,7 @@ Task success with 95% CIs, 3 repeats per task, DeepSeek V4.1 Flash unless stated
 | Multi-turn v1, DeepSeek | agent task 0.361 [0.24, 0.49], pass^3 0.286, turn 0.795. Composition task 0.286, pass^3 0.245. LLM-error turns: agent 0.003 (no 429), composition 0.000 (`ablation-multiturn_v1-deepseek-first-run.json`, `527a611`) | agent 0.959 [0.90, 1.00], composition 0.980 (`ablation-final4-deepseek-testv2-multiturn.json`, `9536abf`) |
 | Router labels, independent v1 (154) | 0.740 (`router_eval-independent_v1-first-run.json`, `882745d`) | 1.000 (`router_eval-round4-independent-after-exposure.json`, `075caad`) |
 | Router labels, independent v2 (241, fresh) | **0.801** after the round-4 router changes (`router_eval-independent_v2-first-run.json`, `3080bfe`) | 0.838 at HEAD after round 10 (`router_eval-independent_v2-round10.json`, `05f418a`; 0.830 after round 9) |
-| Router labels, own (not independent) | 0.988 on 162 (`router_eval-round3b.json`) | 1.000 on 358 (`router_eval-round10-own.json`) |
+| Router labels, own (not independent) | 0.988 on 162 (`router_eval-round3b.json`) | 1.000 on 372 (`router_eval-round11-own.json`) |
 | Test v3, deterministic path | task 0.762 [0.68, 0.83], turn 0.794 (`test_v3-auto-nollm-first-run.json`, `882745d`) | – (no fix has looked at it) |
 | Test v3, DeepSeek (first LLM run) | agent **0.869 [0.81, 0.92]**, composition 0.831, workflow 0.769 (`ablation-final4-deepseek-testv3-holdout.json`, `9536abf`) | – (no fix has looked at it) |
 | Round-4 claims (67 move / relational / macro) | verdict accuracy 0.716 [0.61, 0.82], per-number 0.639, comparator 0.435 (`claim_bench-heldout_r4-first-run.json`, `817a2d8`) | verdict 1.000, per-number 0.920 (`claim_bench-heldout_r4-after-exposure.json`, `c731dba`) |

@@ -146,6 +146,7 @@ ROUTER_RUNS = (
     "router_eval-independent_v2-round9",
     "router_eval-round10-own",
     "router_eval-independent_v2-round10",
+    "router_eval-round11-own",
 )
 CLAIM_BENCH_RUNS = (
     "claim_bench-dev-baseline",
@@ -243,6 +244,7 @@ FILE_STATUS = {
     "router_eval-independent_v2-round9": "**after exposure** (HEAD after round 9; first run 0.8008)",
     "router_eval-round10-own": "author's own labels (tuned against)",
     "router_eval-independent_v2-round10": "**after exposure** (HEAD after round 10; first run 0.8008)",
+    "router_eval-round11-own": "author's own labels (tuned against)",
     "chat_heldout_r5-auto-nollm-first-run": "**first run** of the independent round-5 held-out chat slice",
     "chat_heldout_r5-auto-nollm-after-exposure": "**after exposure** (round 9 fixed the classes its first run showed)",
     "claim_bench-dev-baseline": "development claims, before tuning",
