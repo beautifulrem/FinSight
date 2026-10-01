@@ -387,6 +387,11 @@ def test_cut_spaced_and_key_value_titles_are_withheld(title):
         "1Q24业绩符合预期，启动历史首次中期分红",
         "稳健央企高分红标的",
         "合作机会仍在",
+        "五粮液2023,2024年报对比",  # a word ending in 比 / 对 / 与 / 及 / 称 is not a dangling connective
+        "白酒企业如何应对",
+        "经销商全员参与",
+        "公司证券简称",
+        "环保要求全面普及",
         "Moutai growth to slow, analysts say",
         "Class A shares of Ping An rise",
         "贵州茅台 2025年年报",  # one space between words is not spacing out characters
@@ -394,4 +399,37 @@ def test_cut_spaced_and_key_value_titles_are_withheld(title):
     ],
 )
 def test_complete_titles_with_similar_endings_pass(title):
+    assert safe_headline(title) == title, headline_findings(title)
+
+
+# ---- round 12 (H10): audit opinions, trading halts and restructurings without an official source; adverts ----
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "会计师对五粮液年报出具否定意见的审计报告",
+        "某审计机构对中国平安年报出具无法表示意见",
+        "五粮液午间公告：下周一起停牌，筹划资产重组",
+        "Ping An shares face trading halt",
+        "【推广】五粮液尊享理财计划",
+        "Sponsored: Ping An premium wealth plan",
+        "中国平安北向资金持股比例",  # a holding ratio with no value: cut before its figure
+        "（广告）年化收益12",  # a return cut before its unit
+    ],
+)
+def test_event_and_advert_titles_without_an_official_source_are_withheld(title):
+    assert safe_headline(title) is None, title
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "关于公司股票停牌的公告",  # a filing title names its source
+        "年审机构出具标准无保留意见",  # the clean opinion
+        "银行理财年化收益率跌破3%",  # market news about yields, not an advert
+        "五粮液2025年年度报告",
+    ],
+)
+def test_official_or_market_news_titles_with_those_words_pass(title):
     assert safe_headline(title) == title, headline_findings(title)

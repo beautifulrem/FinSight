@@ -11,8 +11,9 @@ Two users:
   (corrections, exclusives and rumours, prices and multiples, share-capital actions, AI-addressed text; round 9: an
   insider or unnamed source "revealing" something, a Q&A transcript, a figure "restated"; round 10: a delimited data
   row, a title cut off right after a figure word; round 12: a title cut mid-clause, characters spaced out one by one,
-  a key-value record). The agent's evidence ledger additionally hides a headline that
-  states a figure the run's structured data does not contain, in Arabic or Chinese numerals (``agent/graph.py``).
+  a key-value record, an advertisement, figure-free audit-opinion, trading-halt and restructuring events). The
+  agent's evidence ledger additionally hides a headline that states a figure the run's structured data does not
+  contain, in Arabic or Chinese numerals (``agent/graph.py``).
 * ``find_prohibited_promotion`` finds what must never appear in *any* answer, whoever wrote it: guaranteed-
   return claims (稳赚不赔, 保本, 保证收益), stock-tip solicitation (荐股, 带单, 喊单, 加微信, 私信, 内幕消息)
   and contact handles offered to the reader, plus (round 7) doubling-and-compensation schemes (资金翻倍，亏损全额
@@ -203,7 +204,8 @@ _NUMERIC_FIELD = re.compile(r"[-+]?\d+(?:\.\d+)?%?")
 _YEAR_FIELD = re.compile(r"(?:19|20)\d{2}")
 _CUT_FIGURE = re.compile(
     r"(?:派发?|派息|派现|红利|股息|分红|营收|收入|利润|净利|毛利率?|净利率|市盈率|市净率|(?<![A-Za-z])(?:PE|PB|ROE|EPS)|"
-    r"股价|价格|收于|收报|报|涨幅?|跌幅?|增长|增加|减少|下滑|下降|上升|提升|同比|环比|为|至|达到?|约|超过?|逾|近)"
+    r"股价|价格|收于|收报|报|涨幅?|跌幅?|增长|增加|减少|下滑|下降|上升|提升|同比|环比|为|至|达到?|约|超过?|逾|近|"
+    r"收益率?|回报率?|年化)"
     r"\s*[:：]?\s*[-+]?(?!(?:19|20)\d{2}$)\d+(?:\.\d+)?$",
     re.IGNORECASE,
 )
@@ -219,7 +221,20 @@ _DRAMATIC_CLAIM = re.compile(
     r"爆表|翻车|塌方|(?<!最)大跌|(?<!最)大涨|"
     r"\bhalved\b|\bcollapse[sd]?\b|\bcrash(?:es|ed)?\b|\bplunge[sd]?\b|\bplummet(?:s|ed)?\b|\bmeltdown\b|"
     r"\bblow-?up\b|\bdelisting\s+risk\b|\bwiped\s+out\b|\bfraud\b|\bdefault(?:s|ed)\b|\bsoar(?:s|ed)\b|"
-    r"\bskyrocket(?:s|ed)?\b",
+    r"\bskyrocket(?:s|ed)?\b|"
+    # (round 12, H10) figure-free company events a regulator or the company itself would announce: a modified audit
+    # opinion ("无法表示意见", "否定意见"; "标准无保留意见" is the clean opinion), a trading halt or a restructuring.
+    # Shown only when the title names an official source, like the rest of this list.
+    r"无法表示意见|否定意见|(?<!无)保留意见|非标准?(?:审计)?意见|停牌|(?:重大)?资产重组|筹划重组|借壳|"
+    r"\b(?:disclaimer\s+of\s+opinion|adverse\s+opinion|qualified\s+opinion|trading\s+halt(?:ed)?|restructuring)\b",
+    re.IGNORECASE,
+)
+# (round 12, H10) An advertisement is not a headline: an ad label ("（广告）", "【推广】", "Sponsored") or a
+# wealth-product pitch ("专属VIP理财"); a market headline about yields ("银行理财年化收益率跌破3%") is not an ad.
+_ADVERTISEMENT = re.compile(
+    r"[（(【\[]\s*(?:广告|推广|赞助|软文)\s*[）)】\]]|^\s*(?:广告|推广|赞助)\s*[:：]|"
+    r"(?:VIP|专属|尊享|高端)\s*理财|理财\s*(?:VIP|专属)|"
+    r"\b(?:advertisement|sponsored(?:\s+content)?|paid\s+promotion)\b",
     re.IGNORECASE,
 )
 # (round 12) Three more shapes a headline never has, each the visible part of a planted title the figure rules miss:
@@ -235,10 +250,11 @@ _DRAMATIC_CLAIM = re.compile(
 # before) and the replay snapshots: 0 newly hidden.
 _CUT_PHRASE = re.compile(
     r"(?:[“‘「『（(《\[【:：,，、]|(?<![\w-])-{1,2})\s*$|"
-    r"(?:为|至|达|表示|称|将|对|把|被|比|与|和|及|或|从|由)\s*$|"
+    r"(?:升|降|跌|涨|增|减|回落|提高|降低|下滑|上升|增长|下调|上调|调整)至\s*$|"
+    r"(?:调整|变更|更正|更名|确定|下调|上调|认定)为\s*$|(?:表示|指出|声称|回应称|透露)\s*$|"
     r"(?:[一二三四]季度|上半年|下半年|前三季度|全年|年度|今年|去年)(?:归母|扣非)?"
     r"(?:净利润|净利|营业收入|营收|市盈率|市净率|股价|收盘价|每股收益)\s*$|"
-    r"(?:市盈率|市净率|收盘价|每股收益|股息率)\s*$|"
+    r"(?:市盈率|市净率|收盘价|每股收益|股息率|持股比例|持仓比例)\s*$|"
     r"(?<![A-Za-z])(?:ROE|EPS|P/?E|P/?B)\s*$|"
     r"\b(?:to|at|of|by|from|with|and|or|the|than|into)\s*$",
     re.IGNORECASE,
@@ -372,6 +388,9 @@ def headline_findings(title: str) -> list[Finding]:
     dramatic = _DRAMATIC_CLAIM.search(folded)
     if dramatic and not _OFFICIAL_SOURCE.search(folded):
         found.append(Finding("claim", dramatic.group(0)))
+    advert = _ADVERTISEMENT.search(folded)
+    if advert:
+        found.append(Finding("promotion", advert.group(0)))
     # (round 12) a title cut mid-clause, characters spaced out one by one, or a key-value record
     for pattern in (_CUT_PHRASE, _SPACED_CJK, _KEY_VALUE):
         match = pattern.search(folded)
