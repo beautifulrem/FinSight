@@ -889,3 +889,18 @@ def test_round10_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_revie
 
     assert len(mine) >= 30 and check_overlap(_round10_tasks()) == []
     assert _overlaps(mine, others) == (0, 0), "round-10 dev tasks or router labels overlap a held-out or reviewer set"
+
+
+def test_verifier_stress_gold_set_is_pinned_and_rejects_load_dependent_failures():
+    from evaluation.agent_eval import verifier_stress as vs
+
+    timed_out = {"tool_log": [{"tool": "search_news", "error": {"code": "timeout"}}, {"tool": "x", "error": None}]}
+    recorded = {"tool_log": [{"tool": "get_fundamentals", "error": {"code": "no_data"}}]}  # replayed: same every run
+    assert vs._load_dependent_failures(timed_out) == ["search_news: timeout"]
+    assert vs._load_dependent_failures(recorded) == []
+
+    golds = [{"task": "t1", "draft": {"answer": "A"}}, {"task": "t2", "draft": {"answer": "B"}}]
+    digest = vs.gold_set_digest(golds)
+    assert digest["count"] == 2 and digest["tasks"] == ["t1", "t2"]
+    assert digest == vs.gold_set_digest([dict(gold) for gold in golds])
+    assert digest["sha256"] != vs.gold_set_digest([golds[0], {"task": "t2", "draft": {"answer": "C"}}])["sha256"]
