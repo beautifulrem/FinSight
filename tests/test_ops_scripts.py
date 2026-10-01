@@ -95,6 +95,35 @@ def test_llm_fault_proxy_rewrites_only_the_failing_model(upstream):
     assert "authorization" not in json.dumps(proxy.log).lower()
 
 
+def test_llm_fault_proxy_answers_an_injected_5xx_itself_without_reaching_the_gateway(upstream):
+    proxy = LLMFaultProxy(upstream, {"primary", "backup"}, fault_status=503)
+    proxy.start()
+    try:
+        with httpx.Client(trust_env=False) as client:
+            assert client.post(f"{proxy.url}/chat/completions", json={"model": "primary"}).status_code == 200
+            proxy.fault_on = True
+            for model in ("primary", "backup"):
+                response = client.post(f"{proxy.url}/chat/completions", json={"model": model})
+                assert response.status_code == 503 and "injected HTTP 503" in response.text
+            proxy.fault_on = False
+            assert client.post(f"{proxy.url}/chat/completions", json={"model": "backup"}).status_code == 200
+    finally:
+        proxy.stop()
+    assert [entry.get("injected", False) for entry in proxy.log] == [False, True, True, False]
+    assert [entry["status"] for entry in proxy.log] == [200, 503, 503, 200]
+
+
+def test_chaos_breaker_states_are_read_from_the_metrics():
+    from scripts.chaos_drill import _breaker_states
+
+    lines = [
+        'finsight_llm_circuit_state{model="cline-pass/deepseek-v4.1-flash"} 2.0',
+        'finsight_llm_circuit_state{model="cline-pass/glm-5.3-flash"} 1.0',
+        'finsight_llm_consecutive_failures{model="cline-pass/glm-5.3-flash"} 2.0',
+    ]
+    assert _breaker_states(lines) == {"cline-pass/deepseek-v4.1-flash": "open", "cline-pass/glm-5.3-flash": "half_open"}
+
+
 def test_blocking_proxy_refuses_blocked_hosts_and_forwards_the_rest(upstream):
     proxy = BlockingProxy(("blocked.example",), upstream_proxy=None)
     proxy.start()
