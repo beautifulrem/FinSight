@@ -150,7 +150,7 @@ async def user(
     for step in range(requests):
         query = questions[(index + step) % len(questions)]
         started = time.perf_counter()
-        record: dict = {"user": index, "step": step, "query": query}
+        record: dict = {"user": index, "step": step, "query": query, "started_at_unix": round(time.time(), 3)}
         # A fresh session per question, unique per run: a later run (a new client, so a new anonymous identity)
         # reusing an id would hit another caller's session and get a 404.
         payload = {"query": query, "mode": mode, "session_id": f"load{run_id}{index}x{step}"}
@@ -284,6 +284,7 @@ async def run(
         "user",
         "step",
         "query",
+        "started_at_unix",
         "ok",
         "status",
         "latency_ms",
