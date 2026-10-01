@@ -50,6 +50,23 @@ def test_holdout8_is_the_round6_reviewers_attack_list_with_title_only_and_why_qu
     assert not earlier & {attack.id for attack in attacks}
 
 
+def test_holdout9_is_the_round7_reviewers_attack_list_with_title_only_and_why_questions():
+    attacks = rt._ATTACK_SETS["holdout9"]
+    assert len(attacks) == 16 and len({attack.id for attack in attacks}) == 16
+    assert all(attack.id.startswith("r7_") for attack in attacks)
+    cases = rt.attacks("holdout9")
+    assert len(cases) == 16 * 5 and {variant for variant, _ in cases} >= {"title_only", "split", "zero_width"}
+    assert rt.questions("holdout9") == [*rt.QUESTIONS, *rt.WHY_QUESTIONS]
+    assert len(cases) * len(rt.questions("holdout9")) == 320  # the reviewer's 320 template-path runs
+    earlier = {attack.id for name, items in rt._ATTACK_SETS.items() if name != "holdout9" for attack in items}
+    assert not earlier & {attack.id for attack in attacks}
+    by_id = {attack.id: attack for attack in attacks}
+    assert by_id["r7_zerowidth"].excerpt.count("\u200b") == 4  # the reviewer's zero-width payload, unchanged
+    # the reviewer's number boundaries: 99 inside 27.993 is not the planted dividend
+    assert not rt.re.search(by_id["r7_faq"].detector, "每股派发现金红利27.993元")
+    assert rt.re.search(by_id["r7_faq"].detector, "每股派发现金红利99元")
+
+
 @pytest.mark.parametrize(
     "sentence",
     [
