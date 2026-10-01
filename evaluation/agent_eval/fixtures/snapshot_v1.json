@@ -934,6 +934,264 @@
    ],
    "error": null
   },
+  "get_fundamentals:{\"target\": \"601398.SH\"}": {
+   "ok": true,
+   "data": {
+    "symbol": "601398.SH",
+    "name": "工商银行",
+    "report_date": "2025-12-31",
+    "metrics": {
+     "circ_mv": 2232389119822.92,
+     "eps": 1.0,
+     "net_profit": 368562000000.0,
+     "netprofit_yoy": 1.041,
+     "pb": 0.74,
+     "pe_ttm": 7.89,
+     "profit_dedt": 368126000000.0,
+     "ps_ttm": 3.36,
+     "revenue": 838270000000.0,
+     "revenue_yoy": 2.0,
+     "roe": 8.68,
+     "total_mv": 2951043808696.92
+    },
+    "source": "akshare",
+    "evidence_id": "fundamental_601398.SH",
+    "industry": null,
+    "provenance": {
+     "source": "offline_snapshot",
+     "source_label": "离线快照",
+     "endpoint": "data/snapshot/structured_data_ext.json",
+     "is_live": false,
+     "mode": "snapshot",
+     "fetched_at": "2026-10-01T04:56:12+00:00",
+     "as_of": "2025-12-31",
+     "freshness": "stale",
+     "fallback_reason": "live market data disabled",
+     "attempts": [],
+     "cache_hit": false,
+     "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
+     "snapshot_version": "ext-2026-09-30",
+     "original_endpoint": "akshare.stock_financial_analysis_indicator",
+     "original_source": "akshare"
+    },
+    "valuation_provenance": null,
+    "valuation_date": "2026-09-30",
+    "metric_units": {
+     "circ_mv": "CNY",
+     "eps": "CNY/share",
+     "net_profit": "CNY",
+     "netprofit_yoy": "%",
+     "pb": "x",
+     "pe_ttm": "x",
+     "profit_dedt": "CNY",
+     "ps_ttm": "x",
+     "revenue": "CNY",
+     "revenue_yoy": "%",
+     "roe": "%",
+     "total_mv": "CNY"
+    },
+    "period": "FY2025"
+   },
+   "evidence": [
+    {
+     "evidence_id": "fundamental_601398.SH",
+     "kind": "structured",
+     "source_type": "fundamental_sql",
+     "title": "工商银行 (601398.SH) fundamentals",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2025-12-31",
+     "text_excerpt": null,
+     "payload": {
+      "canonical_name": "工商银行",
+      "circ_mv": 2232389119822.92,
+      "eps": 1.0,
+      "grossprofit_margin": null,
+      "net_profit": 368562000000.0,
+      "netprofit_yoy": 1.041,
+      "pb": 0.74,
+      "pe_ttm": 7.89,
+      "profit_dedt": 368126000000.0,
+      "ps_ttm": 3.36,
+      "report_date": "2025-12-31",
+      "revenue": 838270000000.0,
+      "revenue_yoy": 2.0,
+      "roe": 8.68,
+      "source_name": "akshare",
+      "symbol": "601398.SH",
+      "total_mv": 2951043808696.92,
+      "valuation_date": "2026-09-30",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/snapshot/structured_data_ext.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": "2026-10-01T04:56:12+00:00",
+       "as_of": "2025-12-31",
+       "freshness": "stale",
+       "fallback_reason": "live market data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
+       "snapshot_version": "ext-2026-09-30",
+       "original_endpoint": "akshare.stock_financial_analysis_indicator",
+       "original_source": "akshare"
+      },
+      "name": "工商银行",
+      "metric_units": {
+       "circ_mv": "CNY",
+       "eps": "CNY/share",
+       "grossprofit_margin": "%",
+       "net_profit": "CNY",
+       "netprofit_yoy": "%",
+       "pb": "x",
+       "pe_ttm": "x",
+       "profit_dedt": "CNY",
+       "ps_ttm": "x",
+       "revenue": "CNY",
+       "revenue_yoy": "%",
+       "roe": "%",
+       "total_mv": "CNY"
+      },
+      "period": "FY2025"
+     },
+     "produced_by": "get_fundamentals"
+    }
+   ],
+   "error": null
+  },
+  "get_fundamentals:{\"target\": \"601899.SH\"}": {
+   "ok": true,
+   "data": {
+    "symbol": "601899.SH",
+    "name": "紫金矿业",
+    "report_date": "2025-12-31",
+    "metrics": {
+     "circ_mv": 613727417640.6,
+     "eps": 1.91,
+     "grossprofit_margin": 27.73,
+     "net_profit": 51777000000.0,
+     "netprofit_yoy": 62.0146,
+     "pb": 3.92,
+     "pe_ttm": 11.71,
+     "profit_dedt": 50723514740.0,
+     "ps_ttm": 2.11,
+     "revenue": 349079000000.0,
+     "revenue_yoy": 14.9648,
+     "roe": 27.91,
+     "total_mv": 792139879599.39
+    },
+    "source": "akshare",
+    "evidence_id": "fundamental_601899.SH",
+    "industry": null,
+    "provenance": {
+     "source": "offline_snapshot",
+     "source_label": "离线快照",
+     "endpoint": "data/snapshot/structured_data_ext.json",
+     "is_live": false,
+     "mode": "snapshot",
+     "fetched_at": "2026-10-01T04:56:38+00:00",
+     "as_of": "2025-12-31",
+     "freshness": "stale",
+     "fallback_reason": "live market data disabled",
+     "attempts": [],
+     "cache_hit": false,
+     "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
+     "snapshot_version": "ext-2026-09-30",
+     "original_endpoint": "akshare.stock_financial_analysis_indicator",
+     "original_source": "akshare"
+    },
+    "valuation_provenance": null,
+    "valuation_date": "2026-09-30",
+    "metric_units": {
+     "circ_mv": "CNY",
+     "eps": "CNY/share",
+     "grossprofit_margin": "%",
+     "net_profit": "CNY",
+     "netprofit_yoy": "%",
+     "pb": "x",
+     "pe_ttm": "x",
+     "profit_dedt": "CNY",
+     "ps_ttm": "x",
+     "revenue": "CNY",
+     "revenue_yoy": "%",
+     "roe": "%",
+     "total_mv": "CNY"
+    },
+    "period": "FY2025"
+   },
+   "evidence": [
+    {
+     "evidence_id": "fundamental_601899.SH",
+     "kind": "structured",
+     "source_type": "fundamental_sql",
+     "title": "紫金矿业 (601899.SH) fundamentals",
+     "source_name": null,
+     "source_url": null,
+     "provider": null,
+     "as_of": "2025-12-31",
+     "text_excerpt": null,
+     "payload": {
+      "canonical_name": "紫金矿业",
+      "circ_mv": 613727417640.6,
+      "eps": 1.91,
+      "grossprofit_margin": 27.73,
+      "net_profit": 51777000000.0,
+      "netprofit_yoy": 62.0146,
+      "pb": 3.92,
+      "pe_ttm": 11.71,
+      "profit_dedt": 50723514740.0,
+      "ps_ttm": 2.11,
+      "report_date": "2025-12-31",
+      "revenue": 349079000000.0,
+      "revenue_yoy": 14.9648,
+      "roe": 27.91,
+      "source_name": "akshare",
+      "symbol": "601899.SH",
+      "total_mv": 792139879599.39,
+      "valuation_date": "2026-09-30",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/snapshot/structured_data_ext.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": "2026-10-01T04:56:38+00:00",
+       "as_of": "2025-12-31",
+       "freshness": "stale",
+       "fallback_reason": "live market data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2025-12-31，非实时（离线快照），数据可能已过时；因未开启实时行情降级",
+       "snapshot_version": "ext-2026-09-30",
+       "original_endpoint": "akshare.stock_financial_analysis_indicator",
+       "original_source": "akshare"
+      },
+      "name": "紫金矿业",
+      "metric_units": {
+       "circ_mv": "CNY",
+       "eps": "CNY/share",
+       "grossprofit_margin": "%",
+       "net_profit": "CNY",
+       "netprofit_yoy": "%",
+       "pb": "x",
+       "pe_ttm": "x",
+       "profit_dedt": "CNY",
+       "ps_ttm": "x",
+       "revenue": "CNY",
+       "revenue_yoy": "%",
+       "roe": "%",
+       "total_mv": "CNY"
+      },
+      "period": "FY2025"
+     },
+     "produced_by": "get_fundamentals"
+    }
+   ],
+   "error": null
+  },
   "get_fundamentals:{\"target\": \"603288.SH\"}": {
    "ok": false,
    "data": null,
@@ -3377,6 +3635,267 @@
    ],
    "error": null
   },
+  "get_price_history:{\"days\": 10, \"target\": \"000001.SH\"}": {
+   "ok": true,
+   "data": {
+    "symbol": "000001.SH",
+    "name": "上证指数",
+    "product_type": "index",
+    "as_of": "2026-09-30",
+    "close": 3842.195,
+    "open": 3839.253,
+    "high": 3851.217,
+    "low": 3833.086,
+    "pct_change_1d": 0.3066,
+    "volume": 41456024700.0,
+    "amount": null,
+    "recent_closes": [
+     {
+      "date": "2026-09-16",
+      "close": 3891.601
+     },
+     {
+      "date": "2026-09-17",
+      "close": 3875.604
+     },
+     {
+      "date": "2026-09-18",
+      "close": 3911.871
+     },
+     {
+      "date": "2026-09-21",
+      "close": 3949.907
+     },
+     {
+      "date": "2026-09-22",
+      "close": 3952.128
+     },
+     {
+      "date": "2026-09-23",
+      "close": 3936.52
+     },
+     {
+      "date": "2026-09-24",
+      "close": 3888.374
+     },
+     {
+      "date": "2026-09-28",
+      "close": 3823.621
+     },
+     {
+      "date": "2026-09-29",
+      "close": 3830.451
+     },
+     {
+      "date": "2026-09-30",
+      "close": 3842.195
+     }
+    ],
+    "source": "akshare",
+    "evidence_id": "price_000001.SH",
+    "volume_unit": "share",
+    "provenance": {
+     "source": "offline_snapshot",
+     "source_label": "离线快照",
+     "endpoint": "data/snapshot/structured_data_ext.json",
+     "is_live": false,
+     "mode": "snapshot",
+     "fetched_at": "2026-10-01T04:57:05+00:00",
+     "as_of": "2026-09-30",
+     "freshness": "fresh",
+     "fallback_reason": "live market data disabled",
+     "attempts": [],
+     "cache_hit": false,
+     "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+     "snapshot_version": "ext-2026-09-30",
+     "original_endpoint": "akshare.stock_zh_index_daily",
+     "original_source": "akshare"
+    },
+    "price_basis": "daily_close",
+    "intraday": null,
+    "market_session": null,
+    "basis_reason": null,
+    "intraday_provenance": null,
+    "year_start": {
+     "date": "2026-01-05",
+     "close": 4023.417
+    },
+    "range_52w": {
+     "window": "52w",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "high": 4242.572,
+     "high_date": "2026-05-13",
+     "low": 3764.155,
+     "low_date": "2026-07-17",
+     "closes": 241
+    },
+    "max_drawdown_1y": {
+     "window": "1y",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -11.28,
+     "peak": 4242.572,
+     "peak_date": "2026-05-13",
+     "trough": 3764.155,
+     "trough_date": "2026-07-17",
+     "closes": 241
+    },
+    "max_drawdown_ytd": {
+     "window": "ytd",
+     "start_date": "2026-01-05",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -11.28,
+     "peak": 4242.572,
+     "peak_date": "2026-05-13",
+     "trough": 3764.155,
+     "trough_date": "2026-07-17",
+     "closes": 181
+    },
+    "change_unit": "%",
+    "amount_unit": "CNY",
+    "units_source": {
+     "provider": "akshare",
+     "volume": "share"
+    }
+   },
+   "evidence": [
+    {
+     "evidence_id": "price_000001.SH",
+     "kind": "structured",
+     "source_type": "market_api",
+     "title": "上证指数 (000001.SH) daily market data",
+     "source_name": "akshare",
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-09-30",
+     "text_excerpt": null,
+     "payload": {
+      "symbol": "000001.SH",
+      "name": "上证指数",
+      "product_type": "index",
+      "as_of": "2026-09-30",
+      "close": 3842.195,
+      "open": 3839.253,
+      "high": 3851.217,
+      "low": 3833.086,
+      "pct_change_1d": 0.3066,
+      "volume": 41456024700.0,
+      "amount": null,
+      "recent_closes": [
+       {
+        "date": "2026-09-16",
+        "close": 3891.601
+       },
+       {
+        "date": "2026-09-17",
+        "close": 3875.604
+       },
+       {
+        "date": "2026-09-18",
+        "close": 3911.871
+       },
+       {
+        "date": "2026-09-21",
+        "close": 3949.907
+       },
+       {
+        "date": "2026-09-22",
+        "close": 3952.128
+       },
+       {
+        "date": "2026-09-23",
+        "close": 3936.52
+       },
+       {
+        "date": "2026-09-24",
+        "close": 3888.374
+       },
+       {
+        "date": "2026-09-28",
+        "close": 3823.621
+       },
+       {
+        "date": "2026-09-29",
+        "close": 3830.451
+       },
+       {
+        "date": "2026-09-30",
+        "close": 3842.195
+       }
+      ],
+      "source": "akshare",
+      "volume_unit": "share",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/snapshot/structured_data_ext.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": "2026-10-01T04:57:05+00:00",
+       "as_of": "2026-09-30",
+       "freshness": "fresh",
+       "fallback_reason": "live market data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+       "snapshot_version": "ext-2026-09-30",
+       "original_endpoint": "akshare.stock_zh_index_daily",
+       "original_source": "akshare"
+      },
+      "price_basis": "daily_close",
+      "intraday": null,
+      "market_session": null,
+      "basis_reason": null,
+      "intraday_provenance": null,
+      "year_start": {
+       "date": "2026-01-05",
+       "close": 4023.417
+      },
+      "range_52w": {
+       "window": "52w",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "high": 4242.572,
+       "high_date": "2026-05-13",
+       "low": 3764.155,
+       "low_date": "2026-07-17",
+       "closes": 241
+      },
+      "max_drawdown_1y": {
+       "window": "1y",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -11.28,
+       "peak": 4242.572,
+       "peak_date": "2026-05-13",
+       "trough": 3764.155,
+       "trough_date": "2026-07-17",
+       "closes": 241
+      },
+      "max_drawdown_ytd": {
+       "window": "ytd",
+       "start_date": "2026-01-05",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -11.28,
+       "peak": 4242.572,
+       "peak_date": "2026-05-13",
+       "trough": 3764.155,
+       "trough_date": "2026-07-17",
+       "closes": 181
+      },
+      "change_unit": "%",
+      "amount_unit": "CNY",
+      "units_source": {
+       "provider": "akshare",
+       "volume": "share"
+      }
+     },
+     "produced_by": "get_price_history"
+    }
+   ],
+   "error": null
+  },
   "get_price_history:{\"days\": 10, \"target\": \"000001.SZ\"}": {
    "ok": false,
    "data": null,
@@ -3702,6 +4221,269 @@
    ],
    "error": null
   },
+  "get_price_history:{\"days\": 10, \"target\": \"510500.SH\"}": {
+   "ok": true,
+   "data": {
+    "symbol": "510500.SH",
+    "name": "中证500ETF南方",
+    "product_type": "etf",
+    "as_of": "2026-09-30",
+    "close": 7.472,
+    "open": 7.498,
+    "high": 7.513,
+    "low": 7.45,
+    "pct_change_1d": -0.0535,
+    "volume": 223223310.0,
+    "amount": 1669869400.0,
+    "recent_closes": [
+     {
+      "date": "2026-09-16",
+      "close": 7.71
+     },
+     {
+      "date": "2026-09-17",
+      "close": 7.681
+     },
+     {
+      "date": "2026-09-18",
+      "close": 7.83
+     },
+     {
+      "date": "2026-09-21",
+      "close": 7.872
+     },
+     {
+      "date": "2026-09-22",
+      "close": 7.85
+     },
+     {
+      "date": "2026-09-23",
+      "close": 7.818
+     },
+     {
+      "date": "2026-09-24",
+      "close": 7.65
+     },
+     {
+      "date": "2026-09-28",
+      "close": 7.44
+     },
+     {
+      "date": "2026-09-29",
+      "close": 7.476
+     },
+     {
+      "date": "2026-09-30",
+      "close": 7.472
+     }
+    ],
+    "source": "akshare",
+    "evidence_id": "price_510500.SH",
+    "volume_unit": "share",
+    "provenance": {
+     "source": "offline_snapshot",
+     "source_label": "离线快照",
+     "endpoint": "data/snapshot/structured_data_ext.json",
+     "is_live": false,
+     "mode": "snapshot",
+     "fetched_at": "2026-10-01T04:57:01+00:00",
+     "as_of": "2026-09-30",
+     "freshness": "fresh",
+     "fallback_reason": "live market data disabled",
+     "attempts": [],
+     "cache_hit": false,
+     "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+     "snapshot_version": "ext-2026-09-30",
+     "original_endpoint": "akshare.fund_etf_hist_sina",
+     "original_source": "akshare"
+    },
+    "price_basis": "daily_close",
+    "intraday": null,
+    "market_session": null,
+    "basis_reason": null,
+    "intraday_provenance": null,
+    "year_start": {
+     "date": "2026-01-05",
+     "close": 7.792
+    },
+    "range_52w": {
+     "window": "52w",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "high": 9.194,
+     "high_date": "2026-06-30",
+     "low": 6.922,
+     "low_date": "2025-11-21",
+     "closes": 241
+    },
+    "max_drawdown_1y": {
+     "window": "1y",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -20.21,
+     "peak": 9.194,
+     "peak_date": "2026-06-30",
+     "trough": 7.336,
+     "trough_date": "2026-07-30",
+     "closes": 241
+    },
+    "max_drawdown_ytd": {
+     "window": "ytd",
+     "start_date": "2026-01-05",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -20.21,
+     "peak": 9.194,
+     "peak_date": "2026-06-30",
+     "trough": 7.336,
+     "trough_date": "2026-07-30",
+     "closes": 181
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "akshare",
+     "amount": "CNY",
+     "volume": "share (from turnover / close)"
+    }
+   },
+   "evidence": [
+    {
+     "evidence_id": "price_510500.SH",
+     "kind": "structured",
+     "source_type": "market_api",
+     "title": "中证500ETF南方 (510500.SH) daily market data",
+     "source_name": "akshare",
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-09-30",
+     "text_excerpt": null,
+     "payload": {
+      "symbol": "510500.SH",
+      "name": "中证500ETF南方",
+      "product_type": "etf",
+      "as_of": "2026-09-30",
+      "close": 7.472,
+      "open": 7.498,
+      "high": 7.513,
+      "low": 7.45,
+      "pct_change_1d": -0.0535,
+      "volume": 223223310.0,
+      "amount": 1669869400.0,
+      "recent_closes": [
+       {
+        "date": "2026-09-16",
+        "close": 7.71
+       },
+       {
+        "date": "2026-09-17",
+        "close": 7.681
+       },
+       {
+        "date": "2026-09-18",
+        "close": 7.83
+       },
+       {
+        "date": "2026-09-21",
+        "close": 7.872
+       },
+       {
+        "date": "2026-09-22",
+        "close": 7.85
+       },
+       {
+        "date": "2026-09-23",
+        "close": 7.818
+       },
+       {
+        "date": "2026-09-24",
+        "close": 7.65
+       },
+       {
+        "date": "2026-09-28",
+        "close": 7.44
+       },
+       {
+        "date": "2026-09-29",
+        "close": 7.476
+       },
+       {
+        "date": "2026-09-30",
+        "close": 7.472
+       }
+      ],
+      "source": "akshare",
+      "volume_unit": "share",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/snapshot/structured_data_ext.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": "2026-10-01T04:57:01+00:00",
+       "as_of": "2026-09-30",
+       "freshness": "fresh",
+       "fallback_reason": "live market data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+       "snapshot_version": "ext-2026-09-30",
+       "original_endpoint": "akshare.fund_etf_hist_sina",
+       "original_source": "akshare"
+      },
+      "price_basis": "daily_close",
+      "intraday": null,
+      "market_session": null,
+      "basis_reason": null,
+      "intraday_provenance": null,
+      "year_start": {
+       "date": "2026-01-05",
+       "close": 7.792
+      },
+      "range_52w": {
+       "window": "52w",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "high": 9.194,
+       "high_date": "2026-06-30",
+       "low": 6.922,
+       "low_date": "2025-11-21",
+       "closes": 241
+      },
+      "max_drawdown_1y": {
+       "window": "1y",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -20.21,
+       "peak": 9.194,
+       "peak_date": "2026-06-30",
+       "trough": 7.336,
+       "trough_date": "2026-07-30",
+       "closes": 241
+      },
+      "max_drawdown_ytd": {
+       "window": "ytd",
+       "start_date": "2026-01-05",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -20.21,
+       "peak": 9.194,
+       "peak_date": "2026-06-30",
+       "trough": 7.336,
+       "trough_date": "2026-07-30",
+       "closes": 181
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "akshare",
+       "amount": "CNY",
+       "volume": "share (from turnover / close)"
+      }
+     },
+     "produced_by": "get_price_history"
+    }
+   ],
+   "error": null
+  },
   "get_price_history:{\"days\": 10, \"target\": \"512880.SH\"}": {
    "ok": true,
    "data": {
@@ -3763,6 +4545,532 @@
        }
       ],
       "source": "seed"
+     },
+     "produced_by": "get_price_history"
+    }
+   ],
+   "error": null
+  },
+  "get_price_history:{\"days\": 10, \"target\": \"518880.SH\"}": {
+   "ok": true,
+   "data": {
+    "symbol": "518880.SH",
+    "name": "黄金ETF华安",
+    "product_type": "etf",
+    "as_of": "2026-09-30",
+    "close": 8.633,
+    "open": 8.567,
+    "high": 8.633,
+    "low": 8.562,
+    "pct_change_1d": 1.3382,
+    "volume": 313781398.0,
+    "amount": 2695333557.0,
+    "recent_closes": [
+     {
+      "date": "2026-09-16",
+      "close": 8.905
+     },
+     {
+      "date": "2026-09-17",
+      "close": 8.856
+     },
+     {
+      "date": "2026-09-18",
+      "close": 9.009
+     },
+     {
+      "date": "2026-09-21",
+      "close": 8.93
+     },
+     {
+      "date": "2026-09-22",
+      "close": 8.859
+     },
+     {
+      "date": "2026-09-23",
+      "close": 8.897
+     },
+     {
+      "date": "2026-09-24",
+      "close": 8.788
+     },
+     {
+      "date": "2026-09-28",
+      "close": 8.568
+     },
+     {
+      "date": "2026-09-29",
+      "close": 8.519
+     },
+     {
+      "date": "2026-09-30",
+      "close": 8.633
+     }
+    ],
+    "source": "akshare",
+    "evidence_id": "price_518880.SH",
+    "volume_unit": "share",
+    "provenance": {
+     "source": "offline_snapshot",
+     "source_label": "离线快照",
+     "endpoint": "data/snapshot/structured_data_ext.json",
+     "is_live": false,
+     "mode": "snapshot",
+     "fetched_at": "2026-10-01T04:56:59+00:00",
+     "as_of": "2026-09-30",
+     "freshness": "fresh",
+     "fallback_reason": "live market data disabled",
+     "attempts": [],
+     "cache_hit": false,
+     "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+     "snapshot_version": "ext-2026-09-30",
+     "original_endpoint": "akshare.fund_etf_hist_sina",
+     "original_source": "akshare"
+    },
+    "price_basis": "daily_close",
+    "intraday": null,
+    "market_session": null,
+    "basis_reason": null,
+    "intraday_provenance": null,
+    "year_start": {
+     "date": "2026-01-05",
+     "close": 9.495
+    },
+    "range_52w": {
+     "window": "52w",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "high": 11.904,
+     "high_date": "2026-01-29",
+     "low": 8.271,
+     "low_date": "2026-07-01",
+     "closes": 241
+    },
+    "max_drawdown_1y": {
+     "window": "1y",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -30.52,
+     "peak": 11.904,
+     "peak_date": "2026-01-29",
+     "trough": 8.271,
+     "trough_date": "2026-07-01",
+     "closes": 241
+    },
+    "max_drawdown_ytd": {
+     "window": "ytd",
+     "start_date": "2026-01-05",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -30.52,
+     "peak": 11.904,
+     "peak_date": "2026-01-29",
+     "trough": 8.271,
+     "trough_date": "2026-07-01",
+     "closes": 181
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "akshare",
+     "amount": "CNY",
+     "volume": "share (from turnover / close)"
+    }
+   },
+   "evidence": [
+    {
+     "evidence_id": "price_518880.SH",
+     "kind": "structured",
+     "source_type": "market_api",
+     "title": "黄金ETF华安 (518880.SH) daily market data",
+     "source_name": "akshare",
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-09-30",
+     "text_excerpt": null,
+     "payload": {
+      "symbol": "518880.SH",
+      "name": "黄金ETF华安",
+      "product_type": "etf",
+      "as_of": "2026-09-30",
+      "close": 8.633,
+      "open": 8.567,
+      "high": 8.633,
+      "low": 8.562,
+      "pct_change_1d": 1.3382,
+      "volume": 313781398.0,
+      "amount": 2695333557.0,
+      "recent_closes": [
+       {
+        "date": "2026-09-16",
+        "close": 8.905
+       },
+       {
+        "date": "2026-09-17",
+        "close": 8.856
+       },
+       {
+        "date": "2026-09-18",
+        "close": 9.009
+       },
+       {
+        "date": "2026-09-21",
+        "close": 8.93
+       },
+       {
+        "date": "2026-09-22",
+        "close": 8.859
+       },
+       {
+        "date": "2026-09-23",
+        "close": 8.897
+       },
+       {
+        "date": "2026-09-24",
+        "close": 8.788
+       },
+       {
+        "date": "2026-09-28",
+        "close": 8.568
+       },
+       {
+        "date": "2026-09-29",
+        "close": 8.519
+       },
+       {
+        "date": "2026-09-30",
+        "close": 8.633
+       }
+      ],
+      "source": "akshare",
+      "volume_unit": "share",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/snapshot/structured_data_ext.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": "2026-10-01T04:56:59+00:00",
+       "as_of": "2026-09-30",
+       "freshness": "fresh",
+       "fallback_reason": "live market data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+       "snapshot_version": "ext-2026-09-30",
+       "original_endpoint": "akshare.fund_etf_hist_sina",
+       "original_source": "akshare"
+      },
+      "price_basis": "daily_close",
+      "intraday": null,
+      "market_session": null,
+      "basis_reason": null,
+      "intraday_provenance": null,
+      "year_start": {
+       "date": "2026-01-05",
+       "close": 9.495
+      },
+      "range_52w": {
+       "window": "52w",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "high": 11.904,
+       "high_date": "2026-01-29",
+       "low": 8.271,
+       "low_date": "2026-07-01",
+       "closes": 241
+      },
+      "max_drawdown_1y": {
+       "window": "1y",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -30.52,
+       "peak": 11.904,
+       "peak_date": "2026-01-29",
+       "trough": 8.271,
+       "trough_date": "2026-07-01",
+       "closes": 241
+      },
+      "max_drawdown_ytd": {
+       "window": "ytd",
+       "start_date": "2026-01-05",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -30.52,
+       "peak": 11.904,
+       "peak_date": "2026-01-29",
+       "trough": 8.271,
+       "trough_date": "2026-07-01",
+       "closes": 181
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "akshare",
+       "amount": "CNY",
+       "volume": "share (from turnover / close)"
+      }
+     },
+     "produced_by": "get_price_history"
+    }
+   ],
+   "error": null
+  },
+  "get_price_history:{\"days\": 10, \"target\": \"588000.SH\"}": {
+   "ok": true,
+   "data": {
+    "symbol": "588000.SH",
+    "name": "科创50ETF华夏",
+    "product_type": "etf",
+    "as_of": "2026-09-30",
+    "close": 1.616,
+    "open": 1.662,
+    "high": 1.668,
+    "low": 1.613,
+    "pct_change_1d": -2.4744,
+    "volume": 4202444632.0,
+    "amount": 6849531379.0,
+    "recent_closes": [
+     {
+      "date": "2026-09-16",
+      "close": 1.708
+     },
+     {
+      "date": "2026-09-17",
+      "close": 1.696
+     },
+     {
+      "date": "2026-09-18",
+      "close": 1.744
+     },
+     {
+      "date": "2026-09-21",
+      "close": 1.749
+     },
+     {
+      "date": "2026-09-22",
+      "close": 1.758
+     },
+     {
+      "date": "2026-09-23",
+      "close": 1.755
+     },
+     {
+      "date": "2026-09-24",
+      "close": 1.713
+     },
+     {
+      "date": "2026-09-28",
+      "close": 1.643
+     },
+     {
+      "date": "2026-09-29",
+      "close": 1.657
+     },
+     {
+      "date": "2026-09-30",
+      "close": 1.616
+     }
+    ],
+    "source": "akshare",
+    "evidence_id": "price_588000.SH",
+    "volume_unit": "share",
+    "provenance": {
+     "source": "offline_snapshot",
+     "source_label": "离线快照",
+     "endpoint": "data/snapshot/structured_data_ext.json",
+     "is_live": false,
+     "mode": "snapshot",
+     "fetched_at": "2026-10-01T04:57:03+00:00",
+     "as_of": "2026-09-30",
+     "freshness": "fresh",
+     "fallback_reason": "live market data disabled",
+     "attempts": [],
+     "cache_hit": false,
+     "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+     "snapshot_version": "ext-2026-09-30",
+     "original_endpoint": "akshare.fund_etf_hist_sina",
+     "original_source": "akshare"
+    },
+    "price_basis": "daily_close",
+    "intraday": null,
+    "market_session": null,
+    "basis_reason": null,
+    "intraday_provenance": null,
+    "year_start": {
+     "date": "2026-01-05",
+     "close": 1.479
+    },
+    "range_52w": {
+     "window": "52w",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "high": 2.344,
+     "high_date": "2026-06-30",
+     "low": 1.324,
+     "low_date": "2026-03-31",
+     "closes": 241
+    },
+    "max_drawdown_1y": {
+     "window": "1y",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -31.19,
+     "peak": 2.344,
+     "peak_date": "2026-06-30",
+     "trough": 1.613,
+     "trough_date": "2026-09-14",
+     "closes": 241
+    },
+    "max_drawdown_ytd": {
+     "window": "ytd",
+     "start_date": "2026-01-05",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -31.19,
+     "peak": 2.344,
+     "peak_date": "2026-06-30",
+     "trough": 1.613,
+     "trough_date": "2026-09-14",
+     "closes": 181
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "akshare",
+     "amount": "CNY",
+     "volume": "share (from turnover / close)"
+    }
+   },
+   "evidence": [
+    {
+     "evidence_id": "price_588000.SH",
+     "kind": "structured",
+     "source_type": "market_api",
+     "title": "科创50ETF华夏 (588000.SH) daily market data",
+     "source_name": "akshare",
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-09-30",
+     "text_excerpt": null,
+     "payload": {
+      "symbol": "588000.SH",
+      "name": "科创50ETF华夏",
+      "product_type": "etf",
+      "as_of": "2026-09-30",
+      "close": 1.616,
+      "open": 1.662,
+      "high": 1.668,
+      "low": 1.613,
+      "pct_change_1d": -2.4744,
+      "volume": 4202444632.0,
+      "amount": 6849531379.0,
+      "recent_closes": [
+       {
+        "date": "2026-09-16",
+        "close": 1.708
+       },
+       {
+        "date": "2026-09-17",
+        "close": 1.696
+       },
+       {
+        "date": "2026-09-18",
+        "close": 1.744
+       },
+       {
+        "date": "2026-09-21",
+        "close": 1.749
+       },
+       {
+        "date": "2026-09-22",
+        "close": 1.758
+       },
+       {
+        "date": "2026-09-23",
+        "close": 1.755
+       },
+       {
+        "date": "2026-09-24",
+        "close": 1.713
+       },
+       {
+        "date": "2026-09-28",
+        "close": 1.643
+       },
+       {
+        "date": "2026-09-29",
+        "close": 1.657
+       },
+       {
+        "date": "2026-09-30",
+        "close": 1.616
+       }
+      ],
+      "source": "akshare",
+      "volume_unit": "share",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/snapshot/structured_data_ext.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": "2026-10-01T04:57:03+00:00",
+       "as_of": "2026-09-30",
+       "freshness": "fresh",
+       "fallback_reason": "live market data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+       "snapshot_version": "ext-2026-09-30",
+       "original_endpoint": "akshare.fund_etf_hist_sina",
+       "original_source": "akshare"
+      },
+      "price_basis": "daily_close",
+      "intraday": null,
+      "market_session": null,
+      "basis_reason": null,
+      "intraday_provenance": null,
+      "year_start": {
+       "date": "2026-01-05",
+       "close": 1.479
+      },
+      "range_52w": {
+       "window": "52w",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "high": 2.344,
+       "high_date": "2026-06-30",
+       "low": 1.324,
+       "low_date": "2026-03-31",
+       "closes": 241
+      },
+      "max_drawdown_1y": {
+       "window": "1y",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -31.19,
+       "peak": 2.344,
+       "peak_date": "2026-06-30",
+       "trough": 1.613,
+       "trough_date": "2026-09-14",
+       "closes": 241
+      },
+      "max_drawdown_ytd": {
+       "window": "ytd",
+       "start_date": "2026-01-05",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -31.19,
+       "peak": 2.344,
+       "peak_date": "2026-06-30",
+       "trough": 1.613,
+       "trough_date": "2026-09-14",
+       "closes": 181
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "akshare",
+       "amount": "CNY",
+       "volume": "share (from turnover / close)"
+      }
      },
      "produced_by": "get_price_history"
     }
@@ -3858,6 +5166,269 @@
    ],
    "error": null
   },
+  "get_price_history:{\"days\": 10, \"target\": \"600900.SH\"}": {
+   "ok": true,
+   "data": {
+    "symbol": "600900.SH",
+    "name": "长江电力",
+    "product_type": "stock",
+    "as_of": "2026-09-30",
+    "close": 28.54,
+    "open": 28.39,
+    "high": 28.68,
+    "low": 28.33,
+    "pct_change_1d": 0.5638,
+    "volume": 67933564.0,
+    "amount": 1939187737.0,
+    "recent_closes": [
+     {
+      "date": "2026-09-16",
+      "close": 28.46
+     },
+     {
+      "date": "2026-09-17",
+      "close": 28.46
+     },
+     {
+      "date": "2026-09-18",
+      "close": 28.27
+     },
+     {
+      "date": "2026-09-21",
+      "close": 28.1
+     },
+     {
+      "date": "2026-09-22",
+      "close": 28.02
+     },
+     {
+      "date": "2026-09-23",
+      "close": 28.08
+     },
+     {
+      "date": "2026-09-24",
+      "close": 28.36
+     },
+     {
+      "date": "2026-09-28",
+      "close": 28.55
+     },
+     {
+      "date": "2026-09-29",
+      "close": 28.38
+     },
+     {
+      "date": "2026-09-30",
+      "close": 28.54
+     }
+    ],
+    "source": "akshare_sina",
+    "evidence_id": "price_600900.SH",
+    "volume_unit": "share",
+    "provenance": {
+     "source": "offline_snapshot",
+     "source_label": "离线快照",
+     "endpoint": "data/snapshot/structured_data_ext.json",
+     "is_live": false,
+     "mode": "snapshot",
+     "fetched_at": "2026-10-01T04:56:28+00:00",
+     "as_of": "2026-09-30",
+     "freshness": "fresh",
+     "fallback_reason": "live market data disabled",
+     "attempts": [],
+     "cache_hit": false,
+     "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+     "snapshot_version": "ext-2026-09-30",
+     "original_endpoint": "akshare.stock_zh_a_daily",
+     "original_source": "akshare_sina"
+    },
+    "price_basis": "daily_close",
+    "intraday": null,
+    "market_session": null,
+    "basis_reason": null,
+    "intraday_provenance": null,
+    "year_start": {
+     "date": "2026-01-05",
+     "close": 27.28
+    },
+    "range_52w": {
+     "window": "52w",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "high": 29.49,
+     "high_date": "2026-07-30",
+     "low": 25.65,
+     "low_date": "2026-01-28",
+     "closes": 241
+    },
+    "max_drawdown_1y": {
+     "window": "1y",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -10.38,
+     "peak": 28.62,
+     "peak_date": "2025-11-11",
+     "trough": 25.65,
+     "trough_date": "2026-01-28",
+     "closes": 241
+    },
+    "max_drawdown_ytd": {
+     "window": "ytd",
+     "start_date": "2026-01-05",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -7.28,
+     "peak": 28.28,
+     "peak_date": "2026-06-12",
+     "trough": 26.22,
+     "trough_date": "2026-06-25",
+     "closes": 181
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "akshare",
+     "amount": "CNY",
+     "volume": "share (from turnover / close)"
+    }
+   },
+   "evidence": [
+    {
+     "evidence_id": "price_600900.SH",
+     "kind": "structured",
+     "source_type": "market_api",
+     "title": "长江电力 (600900.SH) daily market data",
+     "source_name": "akshare_sina",
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-09-30",
+     "text_excerpt": null,
+     "payload": {
+      "symbol": "600900.SH",
+      "name": "长江电力",
+      "product_type": "stock",
+      "as_of": "2026-09-30",
+      "close": 28.54,
+      "open": 28.39,
+      "high": 28.68,
+      "low": 28.33,
+      "pct_change_1d": 0.5638,
+      "volume": 67933564.0,
+      "amount": 1939187737.0,
+      "recent_closes": [
+       {
+        "date": "2026-09-16",
+        "close": 28.46
+       },
+       {
+        "date": "2026-09-17",
+        "close": 28.46
+       },
+       {
+        "date": "2026-09-18",
+        "close": 28.27
+       },
+       {
+        "date": "2026-09-21",
+        "close": 28.1
+       },
+       {
+        "date": "2026-09-22",
+        "close": 28.02
+       },
+       {
+        "date": "2026-09-23",
+        "close": 28.08
+       },
+       {
+        "date": "2026-09-24",
+        "close": 28.36
+       },
+       {
+        "date": "2026-09-28",
+        "close": 28.55
+       },
+       {
+        "date": "2026-09-29",
+        "close": 28.38
+       },
+       {
+        "date": "2026-09-30",
+        "close": 28.54
+       }
+      ],
+      "source": "akshare_sina",
+      "volume_unit": "share",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/snapshot/structured_data_ext.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": "2026-10-01T04:56:28+00:00",
+       "as_of": "2026-09-30",
+       "freshness": "fresh",
+       "fallback_reason": "live market data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+       "snapshot_version": "ext-2026-09-30",
+       "original_endpoint": "akshare.stock_zh_a_daily",
+       "original_source": "akshare_sina"
+      },
+      "price_basis": "daily_close",
+      "intraday": null,
+      "market_session": null,
+      "basis_reason": null,
+      "intraday_provenance": null,
+      "year_start": {
+       "date": "2026-01-05",
+       "close": 27.28
+      },
+      "range_52w": {
+       "window": "52w",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "high": 29.49,
+       "high_date": "2026-07-30",
+       "low": 25.65,
+       "low_date": "2026-01-28",
+       "closes": 241
+      },
+      "max_drawdown_1y": {
+       "window": "1y",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -10.38,
+       "peak": 28.62,
+       "peak_date": "2025-11-11",
+       "trough": 25.65,
+       "trough_date": "2026-01-28",
+       "closes": 241
+      },
+      "max_drawdown_ytd": {
+       "window": "ytd",
+       "start_date": "2026-01-05",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -7.28,
+       "peak": 28.28,
+       "peak_date": "2026-06-12",
+       "trough": 26.22,
+       "trough_date": "2026-06-25",
+       "closes": 181
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "akshare",
+       "amount": "CNY",
+       "volume": "share (from turnover / close)"
+      }
+     },
+     "produced_by": "get_price_history"
+    }
+   ],
+   "error": null
+  },
   "get_price_history:{\"days\": 10, \"target\": \"601012.SH\"}": {
    "ok": false,
    "data": null,
@@ -3935,6 +5506,532 @@
    ],
    "error": null
   },
+  "get_price_history:{\"days\": 10, \"target\": \"601398.SH\"}": {
+   "ok": true,
+   "data": {
+    "symbol": "601398.SH",
+    "name": "工商银行",
+    "product_type": "stock",
+    "as_of": "2026-09-30",
+    "close": 8.28,
+    "open": 8.17,
+    "high": 8.3,
+    "low": 8.15,
+    "pct_change_1d": 1.4706,
+    "volume": 293171125.0,
+    "amount": 2417869721.0,
+    "recent_closes": [
+     {
+      "date": "2026-09-16",
+      "close": 8.11
+     },
+     {
+      "date": "2026-09-17",
+      "close": 8.14
+     },
+     {
+      "date": "2026-09-18",
+      "close": 8.07
+     },
+     {
+      "date": "2026-09-21",
+      "close": 8.11
+     },
+     {
+      "date": "2026-09-22",
+      "close": 8.12
+     },
+     {
+      "date": "2026-09-23",
+      "close": 8.09
+     },
+     {
+      "date": "2026-09-24",
+      "close": 8.13
+     },
+     {
+      "date": "2026-09-28",
+      "close": 8.15
+     },
+     {
+      "date": "2026-09-29",
+      "close": 8.16
+     },
+     {
+      "date": "2026-09-30",
+      "close": 8.28
+     }
+    ],
+    "source": "akshare_sina",
+    "evidence_id": "price_601398.SH",
+    "volume_unit": "share",
+    "provenance": {
+     "source": "offline_snapshot",
+     "source_label": "离线快照",
+     "endpoint": "data/snapshot/structured_data_ext.json",
+     "is_live": false,
+     "mode": "snapshot",
+     "fetched_at": "2026-10-01T04:56:10+00:00",
+     "as_of": "2026-09-30",
+     "freshness": "fresh",
+     "fallback_reason": "live market data disabled",
+     "attempts": [],
+     "cache_hit": false,
+     "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+     "snapshot_version": "ext-2026-09-30",
+     "original_endpoint": "akshare.stock_zh_a_daily",
+     "original_source": "akshare_sina"
+    },
+    "price_basis": "daily_close",
+    "intraday": null,
+    "market_session": null,
+    "basis_reason": null,
+    "intraday_provenance": null,
+    "year_start": {
+     "date": "2026-01-05",
+     "close": 7.82
+    },
+    "range_52w": {
+     "window": "52w",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "high": 8.31,
+     "high_date": "2025-11-25",
+     "low": 6.92,
+     "low_date": "2026-02-27",
+     "closes": 241
+    },
+    "max_drawdown_1y": {
+     "window": "1y",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -16.73,
+     "peak": 8.31,
+     "peak_date": "2025-11-25",
+     "trough": 6.92,
+     "trough_date": "2026-02-27",
+     "closes": 241
+    },
+    "max_drawdown_ytd": {
+     "window": "ytd",
+     "start_date": "2026-01-05",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -11.51,
+     "peak": 7.82,
+     "peak_date": "2026-01-05",
+     "trough": 6.92,
+     "trough_date": "2026-02-27",
+     "closes": 181
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "akshare",
+     "amount": "CNY",
+     "volume": "share (from turnover / close)"
+    }
+   },
+   "evidence": [
+    {
+     "evidence_id": "price_601398.SH",
+     "kind": "structured",
+     "source_type": "market_api",
+     "title": "工商银行 (601398.SH) daily market data",
+     "source_name": "akshare_sina",
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-09-30",
+     "text_excerpt": null,
+     "payload": {
+      "symbol": "601398.SH",
+      "name": "工商银行",
+      "product_type": "stock",
+      "as_of": "2026-09-30",
+      "close": 8.28,
+      "open": 8.17,
+      "high": 8.3,
+      "low": 8.15,
+      "pct_change_1d": 1.4706,
+      "volume": 293171125.0,
+      "amount": 2417869721.0,
+      "recent_closes": [
+       {
+        "date": "2026-09-16",
+        "close": 8.11
+       },
+       {
+        "date": "2026-09-17",
+        "close": 8.14
+       },
+       {
+        "date": "2026-09-18",
+        "close": 8.07
+       },
+       {
+        "date": "2026-09-21",
+        "close": 8.11
+       },
+       {
+        "date": "2026-09-22",
+        "close": 8.12
+       },
+       {
+        "date": "2026-09-23",
+        "close": 8.09
+       },
+       {
+        "date": "2026-09-24",
+        "close": 8.13
+       },
+       {
+        "date": "2026-09-28",
+        "close": 8.15
+       },
+       {
+        "date": "2026-09-29",
+        "close": 8.16
+       },
+       {
+        "date": "2026-09-30",
+        "close": 8.28
+       }
+      ],
+      "source": "akshare_sina",
+      "volume_unit": "share",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/snapshot/structured_data_ext.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": "2026-10-01T04:56:10+00:00",
+       "as_of": "2026-09-30",
+       "freshness": "fresh",
+       "fallback_reason": "live market data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+       "snapshot_version": "ext-2026-09-30",
+       "original_endpoint": "akshare.stock_zh_a_daily",
+       "original_source": "akshare_sina"
+      },
+      "price_basis": "daily_close",
+      "intraday": null,
+      "market_session": null,
+      "basis_reason": null,
+      "intraday_provenance": null,
+      "year_start": {
+       "date": "2026-01-05",
+       "close": 7.82
+      },
+      "range_52w": {
+       "window": "52w",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "high": 8.31,
+       "high_date": "2025-11-25",
+       "low": 6.92,
+       "low_date": "2026-02-27",
+       "closes": 241
+      },
+      "max_drawdown_1y": {
+       "window": "1y",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -16.73,
+       "peak": 8.31,
+       "peak_date": "2025-11-25",
+       "trough": 6.92,
+       "trough_date": "2026-02-27",
+       "closes": 241
+      },
+      "max_drawdown_ytd": {
+       "window": "ytd",
+       "start_date": "2026-01-05",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -11.51,
+       "peak": 7.82,
+       "peak_date": "2026-01-05",
+       "trough": 6.92,
+       "trough_date": "2026-02-27",
+       "closes": 181
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "akshare",
+       "amount": "CNY",
+       "volume": "share (from turnover / close)"
+      }
+     },
+     "produced_by": "get_price_history"
+    }
+   ],
+   "error": null
+  },
+  "get_price_history:{\"days\": 10, \"target\": \"601899.SH\"}": {
+   "ok": true,
+   "data": {
+    "symbol": "601899.SH",
+    "name": "紫金矿业",
+    "product_type": "stock",
+    "as_of": "2026-09-30",
+    "close": 29.79,
+    "open": 29.5,
+    "high": 29.94,
+    "low": 29.46,
+    "pct_change_1d": 1.1202,
+    "volume": 98219784.0,
+    "amount": 2921744405.0,
+    "recent_closes": [
+     {
+      "date": "2026-09-16",
+      "close": 32.17
+     },
+     {
+      "date": "2026-09-17",
+      "close": 30.9
+     },
+     {
+      "date": "2026-09-18",
+      "close": 31.41
+     },
+     {
+      "date": "2026-09-21",
+      "close": 31.3
+     },
+     {
+      "date": "2026-09-22",
+      "close": 31.41
+     },
+     {
+      "date": "2026-09-23",
+      "close": 31.41
+     },
+     {
+      "date": "2026-09-24",
+      "close": 30.01
+     },
+     {
+      "date": "2026-09-28",
+      "close": 29.42
+     },
+     {
+      "date": "2026-09-29",
+      "close": 29.46
+     },
+     {
+      "date": "2026-09-30",
+      "close": 29.79
+     }
+    ],
+    "source": "akshare_sina",
+    "evidence_id": "price_601899.SH",
+    "volume_unit": "share",
+    "provenance": {
+     "source": "offline_snapshot",
+     "source_label": "离线快照",
+     "endpoint": "data/snapshot/structured_data_ext.json",
+     "is_live": false,
+     "mode": "snapshot",
+     "fetched_at": "2026-10-01T04:56:36+00:00",
+     "as_of": "2026-09-30",
+     "freshness": "fresh",
+     "fallback_reason": "live market data disabled",
+     "attempts": [],
+     "cache_hit": false,
+     "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+     "snapshot_version": "ext-2026-09-30",
+     "original_endpoint": "akshare.stock_zh_a_daily",
+     "original_source": "akshare_sina"
+    },
+    "price_basis": "daily_close",
+    "intraday": null,
+    "market_session": null,
+    "basis_reason": null,
+    "intraday_provenance": null,
+    "year_start": {
+     "date": "2026-01-05",
+     "close": 35.4
+    },
+    "range_52w": {
+     "window": "52w",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "high": 43.45,
+     "high_date": "2026-01-29",
+     "low": 25.1,
+     "low_date": "2026-06-26",
+     "closes": 241
+    },
+    "max_drawdown_1y": {
+     "window": "1y",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -42.23,
+     "peak": 43.45,
+     "peak_date": "2026-01-29",
+     "trough": 25.1,
+     "trough_date": "2026-06-26",
+     "closes": 241
+    },
+    "max_drawdown_ytd": {
+     "window": "ytd",
+     "start_date": "2026-01-05",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -42.23,
+     "peak": 43.45,
+     "peak_date": "2026-01-29",
+     "trough": 25.1,
+     "trough_date": "2026-06-26",
+     "closes": 181
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "akshare",
+     "amount": "CNY",
+     "volume": "share (from turnover / close)"
+    }
+   },
+   "evidence": [
+    {
+     "evidence_id": "price_601899.SH",
+     "kind": "structured",
+     "source_type": "market_api",
+     "title": "紫金矿业 (601899.SH) daily market data",
+     "source_name": "akshare_sina",
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-09-30",
+     "text_excerpt": null,
+     "payload": {
+      "symbol": "601899.SH",
+      "name": "紫金矿业",
+      "product_type": "stock",
+      "as_of": "2026-09-30",
+      "close": 29.79,
+      "open": 29.5,
+      "high": 29.94,
+      "low": 29.46,
+      "pct_change_1d": 1.1202,
+      "volume": 98219784.0,
+      "amount": 2921744405.0,
+      "recent_closes": [
+       {
+        "date": "2026-09-16",
+        "close": 32.17
+       },
+       {
+        "date": "2026-09-17",
+        "close": 30.9
+       },
+       {
+        "date": "2026-09-18",
+        "close": 31.41
+       },
+       {
+        "date": "2026-09-21",
+        "close": 31.3
+       },
+       {
+        "date": "2026-09-22",
+        "close": 31.41
+       },
+       {
+        "date": "2026-09-23",
+        "close": 31.41
+       },
+       {
+        "date": "2026-09-24",
+        "close": 30.01
+       },
+       {
+        "date": "2026-09-28",
+        "close": 29.42
+       },
+       {
+        "date": "2026-09-29",
+        "close": 29.46
+       },
+       {
+        "date": "2026-09-30",
+        "close": 29.79
+       }
+      ],
+      "source": "akshare_sina",
+      "volume_unit": "share",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/snapshot/structured_data_ext.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": "2026-10-01T04:56:36+00:00",
+       "as_of": "2026-09-30",
+       "freshness": "fresh",
+       "fallback_reason": "live market data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+       "snapshot_version": "ext-2026-09-30",
+       "original_endpoint": "akshare.stock_zh_a_daily",
+       "original_source": "akshare_sina"
+      },
+      "price_basis": "daily_close",
+      "intraday": null,
+      "market_session": null,
+      "basis_reason": null,
+      "intraday_provenance": null,
+      "year_start": {
+       "date": "2026-01-05",
+       "close": 35.4
+      },
+      "range_52w": {
+       "window": "52w",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "high": 43.45,
+       "high_date": "2026-01-29",
+       "low": 25.1,
+       "low_date": "2026-06-26",
+       "closes": 241
+      },
+      "max_drawdown_1y": {
+       "window": "1y",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -42.23,
+       "peak": 43.45,
+       "peak_date": "2026-01-29",
+       "trough": 25.1,
+       "trough_date": "2026-06-26",
+       "closes": 241
+      },
+      "max_drawdown_ytd": {
+       "window": "ytd",
+       "start_date": "2026-01-05",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -42.23,
+       "peak": 43.45,
+       "peak_date": "2026-01-29",
+       "trough": 25.1,
+       "trough_date": "2026-06-26",
+       "closes": 181
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "akshare",
+       "amount": "CNY",
+       "volume": "share (from turnover / close)"
+      }
+     },
+     "produced_by": "get_price_history"
+    }
+   ],
+   "error": null
+  },
   "get_price_history:{\"days\": 10, \"target\": \"603288.SH\"}": {
    "ok": false,
    "data": null,
@@ -3944,6 +6041,269 @@
     "message": "no market data for 海天味业 (603288.SH) in the configured sources",
     "retryable": false
    }
+  },
+  "get_price_history:{\"days\": 10, \"target\": \"688981.SH\"}": {
+   "ok": true,
+   "data": {
+    "symbol": "688981.SH",
+    "name": "中芯国际",
+    "product_type": "stock",
+    "as_of": "2026-09-30",
+    "close": 111.99,
+    "open": 117.77,
+    "high": 118.18,
+    "low": 111.29,
+    "pct_change_1d": -4.6975,
+    "volume": 42874573.0,
+    "amount": 4856437593.0,
+    "recent_closes": [
+     {
+      "date": "2026-09-16",
+      "close": 120.9
+     },
+     {
+      "date": "2026-09-17",
+      "close": 118.62
+     },
+     {
+      "date": "2026-09-18",
+      "close": 122.0
+     },
+     {
+      "date": "2026-09-21",
+      "close": 122.01
+     },
+     {
+      "date": "2026-09-22",
+      "close": 122.41
+     },
+     {
+      "date": "2026-09-23",
+      "close": 121.39
+     },
+     {
+      "date": "2026-09-24",
+      "close": 119.98
+     },
+     {
+      "date": "2026-09-28",
+      "close": 116.56
+     },
+     {
+      "date": "2026-09-29",
+      "close": 117.51
+     },
+     {
+      "date": "2026-09-30",
+      "close": 111.99
+     }
+    ],
+    "source": "akshare_sina",
+    "evidence_id": "price_688981.SH",
+    "volume_unit": "share",
+    "provenance": {
+     "source": "offline_snapshot",
+     "source_label": "离线快照",
+     "endpoint": "data/snapshot/structured_data_ext.json",
+     "is_live": false,
+     "mode": "snapshot",
+     "fetched_at": "2026-10-01T04:56:52+00:00",
+     "as_of": "2026-09-30",
+     "freshness": "fresh",
+     "fallback_reason": "live market data disabled",
+     "attempts": [],
+     "cache_hit": false,
+     "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+     "snapshot_version": "ext-2026-09-30",
+     "original_endpoint": "akshare.stock_zh_a_daily",
+     "original_source": "akshare_sina"
+    },
+    "price_basis": "daily_close",
+    "intraday": null,
+    "market_session": null,
+    "basis_reason": null,
+    "intraday_provenance": null,
+    "year_start": {
+     "date": "2026-01-05",
+     "close": 129.95
+    },
+    "range_52w": {
+     "window": "52w",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "high": 173.0,
+     "high_date": "2026-07-09",
+     "low": 91.78,
+     "low_date": "2026-04-03",
+     "closes": 241
+    },
+    "max_drawdown_1y": {
+     "window": "1y",
+     "start_date": "2025-10-09",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -35.27,
+     "peak": 173.0,
+     "peak_date": "2026-07-09",
+     "trough": 111.99,
+     "trough_date": "2026-09-30",
+     "closes": 241
+    },
+    "max_drawdown_ytd": {
+     "window": "ytd",
+     "start_date": "2026-01-05",
+     "end_date": "2026-09-30",
+     "max_drawdown_pct": -35.27,
+     "peak": 173.0,
+     "peak_date": "2026-07-09",
+     "trough": 111.99,
+     "trough_date": "2026-09-30",
+     "closes": 181
+    },
+    "amount_unit": "CNY",
+    "change_unit": "%",
+    "units_source": {
+     "provider": "akshare",
+     "amount": "CNY",
+     "volume": "share (from turnover / close)"
+    }
+   },
+   "evidence": [
+    {
+     "evidence_id": "price_688981.SH",
+     "kind": "structured",
+     "source_type": "market_api",
+     "title": "中芯国际 (688981.SH) daily market data",
+     "source_name": "akshare_sina",
+     "source_url": null,
+     "provider": null,
+     "as_of": "2026-09-30",
+     "text_excerpt": null,
+     "payload": {
+      "symbol": "688981.SH",
+      "name": "中芯国际",
+      "product_type": "stock",
+      "as_of": "2026-09-30",
+      "close": 111.99,
+      "open": 117.77,
+      "high": 118.18,
+      "low": 111.29,
+      "pct_change_1d": -4.6975,
+      "volume": 42874573.0,
+      "amount": 4856437593.0,
+      "recent_closes": [
+       {
+        "date": "2026-09-16",
+        "close": 120.9
+       },
+       {
+        "date": "2026-09-17",
+        "close": 118.62
+       },
+       {
+        "date": "2026-09-18",
+        "close": 122.0
+       },
+       {
+        "date": "2026-09-21",
+        "close": 122.01
+       },
+       {
+        "date": "2026-09-22",
+        "close": 122.41
+       },
+       {
+        "date": "2026-09-23",
+        "close": 121.39
+       },
+       {
+        "date": "2026-09-24",
+        "close": 119.98
+       },
+       {
+        "date": "2026-09-28",
+        "close": 116.56
+       },
+       {
+        "date": "2026-09-29",
+        "close": 117.51
+       },
+       {
+        "date": "2026-09-30",
+        "close": 111.99
+       }
+      ],
+      "source": "akshare_sina",
+      "volume_unit": "share",
+      "provenance": {
+       "source": "offline_snapshot",
+       "source_label": "离线快照",
+       "endpoint": "data/snapshot/structured_data_ext.json",
+       "is_live": false,
+       "mode": "snapshot",
+       "fetched_at": "2026-10-01T04:56:52+00:00",
+       "as_of": "2026-09-30",
+       "freshness": "fresh",
+       "fallback_reason": "live market data disabled",
+       "attempts": [],
+       "cache_hit": false,
+       "note": "数据来自离线快照，截至2026-09-30，非实时（离线快照）；因未开启实时行情降级",
+       "snapshot_version": "ext-2026-09-30",
+       "original_endpoint": "akshare.stock_zh_a_daily",
+       "original_source": "akshare_sina"
+      },
+      "price_basis": "daily_close",
+      "intraday": null,
+      "market_session": null,
+      "basis_reason": null,
+      "intraday_provenance": null,
+      "year_start": {
+       "date": "2026-01-05",
+       "close": 129.95
+      },
+      "range_52w": {
+       "window": "52w",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "high": 173.0,
+       "high_date": "2026-07-09",
+       "low": 91.78,
+       "low_date": "2026-04-03",
+       "closes": 241
+      },
+      "max_drawdown_1y": {
+       "window": "1y",
+       "start_date": "2025-10-09",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -35.27,
+       "peak": 173.0,
+       "peak_date": "2026-07-09",
+       "trough": 111.99,
+       "trough_date": "2026-09-30",
+       "closes": 241
+      },
+      "max_drawdown_ytd": {
+       "window": "ytd",
+       "start_date": "2026-01-05",
+       "end_date": "2026-09-30",
+       "max_drawdown_pct": -35.27,
+       "peak": 173.0,
+       "peak_date": "2026-07-09",
+       "trough": 111.99,
+       "trough_date": "2026-09-30",
+       "closes": 181
+      },
+      "amount_unit": "CNY",
+      "change_unit": "%",
+      "units_source": {
+       "provider": "akshare",
+       "amount": "CNY",
+       "volume": "share (from turnover / close)"
+      }
+     },
+     "produced_by": "get_price_history"
+    }
+   ],
+   "error": null
   },
   "search_announcements:{\"query\": \"\", \"targets\": [\"000858.SZ\"], \"top_k\": 5}": {
    "ok": true,
@@ -6470,6 +8830,7 @@
   "2026-09-28T06:54:20+00:00",
   "2026-09-28T11:08:51+00:00",
   "2026-09-29T14:04:00+00:00",
-  "2026-09-30T08:22:01+00:00"
+  "2026-09-30T08:22:01+00:00",
+  "2026-10-01T05:37:33+00:00"
  ]
 }
