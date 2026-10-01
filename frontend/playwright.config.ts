@@ -7,9 +7,17 @@ import { defineConfig } from "@playwright/test";
  *   FINSIGHT_PYTHON=../.venv/bin/python pnpm run e2e
  *
  * The server is started here with every live source off and traces off, so answers come from the offline snapshot
- * and are the same on every machine. `FINSIGHT_E2E_PORT` moves it off 8905.
+ * and are the same on every machine. `FINSIGHT_E2E_PORT` moves it off 8905. `FINSIGHT_E2E_START_TIMEOUT_MS` sets how
+ * long to wait for it to come up (default 10 min locally, 4 min in CI).
  */
 const port = Number(process.env.FINSIGHT_E2E_PORT ?? 8905);
+// (round 13, I18) Start-up is the NLU model load: about a minute on an idle laptop and 55 s in CI, but more than the
+// old 4 min on a loaded host (round-9 review, load ~35), where the run failed before any test started. CI keeps 4 min
+// so a server that really hangs fails fast; locally the default is 10 min, and the variable overrides both.
+const startTimeout = Number(process.env.FINSIGHT_E2E_START_TIMEOUT_MS || (process.env.CI ? 240_000 : 600_000));
+if (!Number.isFinite(startTimeout) || startTimeout <= 0) {
+  throw new Error(`FINSIGHT_E2E_START_TIMEOUT_MS must be a positive number of milliseconds, got ${process.env.FINSIGHT_E2E_START_TIMEOUT_MS}`);
+}
 const python = process.env.FINSIGHT_PYTHON ?? "python";
 
 export default defineConfig({
@@ -33,8 +41,7 @@ export default defineConfig({
     command: `${python} -m uvicorn query_intelligence.api.app:create_app --factory --host 127.0.0.1 --port ${port}`,
     cwd: "..",
     url: `http://127.0.0.1:${port}/health`,
-    // loading the NLU models takes about a minute on a laptop
-    timeout: 240_000,
+    timeout: startTimeout,
     reuseExistingServer: !process.env.CI,
     gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     stdout: "ignore",

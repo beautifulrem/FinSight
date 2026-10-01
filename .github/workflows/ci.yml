@@ -308,14 +308,24 @@ jobs:
             "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
           echo "${KUBECONFORM_SHA256}  kubeconform.tar.gz" | sha256sum --check
           tar -xzf kubeconform.tar.gz kubeconform && rm kubeconform.tar.gz
-      - name: Validate the rendered kustomization and the secret template
+      - name: The committed image tag is the deploy-time placeholder (docs/deployment.md, "Image tags")
         run: |
-          kubectl kustomize deploy/k8s > rendered.yaml
+          committed=$(kubectl kustomize deploy/k8s | grep -E '^\s+image: finsight')
+          echo "$committed"
+          echo "$committed" | grep -Eq 'image: finsight:set-at-deploy$' \
+            || { echo "::error::deploy/k8s must keep newTag: set-at-deploy; the tag is set at deploy time"; exit 1; }
+      - name: Render deploy/k8s as a deploy would (tag = this commit) and validate it with the secret template
+        run: |
+          # an overlay outside the committed tree, the same mechanism as deploy/k8s-smoke
+          mkdir -p deploy/.ci-release
+          printf '%s\n' 'apiVersion: kustomize.config.k8s.io/v1beta1' 'kind: Kustomization' 'resources:' '  - ../k8s' \
+            'images:' '  - name: finsight' "    newTag: \"${GITHUB_SHA::7}\"" > deploy/.ci-release/kustomization.yaml
+          kubectl kustomize deploy/.ci-release > rendered.yaml
           ./kubeconform -strict -summary rendered.yaml deploy/k8s/secret.template.yaml
       - name: No committed Secret, and a commit-tagged image
         run: |
           if grep -q '^kind: Secret' rendered.yaml; then echo "::error::deploy/k8s must not render a Secret"; exit 1; fi
           image=$(grep -E '^\s+image: finsight' rendered.yaml)
           echo "$image"
-          echo "$image" | grep -Eq 'finsight:[0-9a-f]{7,40}$' \
-            || { echo "::error::the finsight image must be tagged with a commit hash"; exit 1; }
+          echo "$image" | grep -Eq "finsight:${GITHUB_SHA::7}$" \
+            || { echo "::error::the rendered finsight image must be tagged with this commit"; exit 1; }
