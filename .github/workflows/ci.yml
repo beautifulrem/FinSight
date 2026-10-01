@@ -190,6 +190,7 @@ jobs:
           python evaluation/agent_eval/independent/verify_test_v3.py
           python evaluation/heldout_r4/verify_heldout_r4.py
           python evaluation/heldout_r5/verify_heldout_r5.py
+          python evaluation/heldout_r6/verify_heldout_r6.py
       - name: docs/agent-eval.md matches the committed results
         run: python -m evaluation.agent_eval.report --check
       - uses: actions/upload-artifact@v6
