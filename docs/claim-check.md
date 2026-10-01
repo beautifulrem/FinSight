@@ -163,6 +163,14 @@ checks the 24.6 against 五粮液 (contradicted) and the relation of the second 
 supported. A relation inside the clause of a number ("茅台市盈率24.6倍比五粮液的20.9倍高") is read as that clause's
 numbers.
 
+In the UI (round 12, H14) a relation row reads subject, relation, object under "claimed" ("白酒 < 贵州茅台",
+"Kweichow Moutai > Wuliangye"), and the other side's value from the sources sits under "actual" ("贵州茅台 24.6 倍").
+A multiple reads "贵州茅台 ≈ 1.5× 五粮液" against the actual ratio, with both values under it; a stated difference names
+its two sides ("贵州茅台 − 五粮液"). Known gap, in the checker rather than the UI: when the number belongs to the
+reference ("The baijiu industry's average P/E is roughly 20x, below Moutai's 24.6x", "…，低于茅台的24.6倍"), the
+checker binds the comparator to the reference's own value (Moutai "< 24.6", contradicted) instead of making it a
+relation of the average with Moutai's stated value; the UI shows what the checker decided.
+
 ### Round 6: moves, dates, multiples, sectors (after exposure of the round-4 held-out slice)
 
 These rules were written after the independent round-4 claim slice (`evaluation/heldout_r4/`) was run
