@@ -59,10 +59,14 @@ _H_SHARE = (
     r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){2,8}?\s*(?:的\s*)?H\s*股|H\s*股(?!东)|港股通|"
     r"(?<![\w.])\d{4,5}\s*\.\s*HK(?![A-Za-z])|(?<![A-Za-z])HK\s?\d{4,5}(?!\d)|(?<![\w.])\d{4,5}\s+HK(?![A-Za-z])|"
     r"\b(?:[a-z][\w&.'-]*\s+){1,3}H[- ]?shares?\b|\bH[- ]shares?\b|\bhong kong[- ]listed\b|\bHKEX\b|"
-    # (round 12) the Hong Kong line described in words: "它在港交所挂牌的那部分股票", "在香港上市的股份",
-    # "its shares listed in Hong Kong", "the Hong Kong listing"
-    r"(?:香港|港交所|联交所|香港交易所)(?:上市|挂牌|发行|交易)|"
-    r"\b(?:listed|traded|quoted) (?:in|on(?: the)?) hong kong\b|\bhong kong (?:listing|line|counter)\b"
+    # (round 12) the Hong Kong line described in words: "它在港交所挂牌的那部分股票", "平安在香港上市的股份",
+    # "its shares listed in Hong Kong", "Ping An's Hong Kong listing". As with "…H股", the name before it is part of
+    # the span, so the A-share target it names is a lookalike, not answered with A-share data.
+    r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){0,8}?(?:在|于)?(?:香港|港交所|联交所|香港交易所)"
+    r"(?:上市|挂牌|发行|交易)|"
+    r"\b(?:[a-z][\w&.'-]*\s+){0,3}?(?:hong kong (?:listing|line|counter)|"
+    r"shares? (?:listed|traded|quoted) (?:in|on(?: the)?) hong kong)\b|"
+    r"\b(?:listed|traded|quoted) (?:in|on(?: the)?) hong kong\b"
 )
 # US / Hong Kong listed names and markets. Concept-sector phrasing ("苹果概念股", "特斯拉产业链") is an
 # A-share theme and stays in scope.
