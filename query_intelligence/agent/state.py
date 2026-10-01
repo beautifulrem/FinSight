@@ -118,6 +118,10 @@ class AgentConfig:
     # Accept derived numbers (difference / sum / ratio / percent change of two supported numbers stated in the
     # same cited sentence) in LLM drafts instead of sending them back for revision (see verify_answer).
     verify_derived: bool = field(default_factory=lambda: _env("QI_AGENT_VERIFY_DERIVED", "1") in {"1", "true", "on"})
+    # (round 11, G4) Append the frame's computed comparison to a final LLM draft that does not state it. Off only to
+    # measure the rule (round 12: frame-llm-check-r12-fallback-{off,on}.json); when off, a turn where it would have
+    # appended the result is marked ``frame_fallback_off:would_append``.
+    frame_fallback: bool = field(default_factory=lambda: _env("QI_AGENT_FRAME_FALLBACK", "on") in {"1", "true", "on"})
 
 
 def _env(name: str, default: str) -> str:
