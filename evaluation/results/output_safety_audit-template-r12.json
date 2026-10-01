@@ -9,6 +9,7 @@
   "llm_replay": null,
   "llm_call_budget": null,
   "categories": null,
+  "redteam_replay": null,
   "sets": [
    "dev",
    "holdout",
@@ -20,16 +21,17 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "1980efe",
-  "run_at": "2026-10-01T05:19:23+00:00",
+  "commit": "207f16f",
+  "run_at": "2026-10-01T06:28:18+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 481.1,
+  "wall_seconds": 459.6,
   "command": "python -m evaluation.agent_eval.output_safety_audit --out outputs/agent_eval/output_safety_audit.json",
   "definitions": {
    "answers": "turns that reached the output layer (refusals and clarifications excluded)",
    "edits_per_answer": "output-safety edit kinds per answer (finsight_output_safety_edits_total / runs)",
    "false_attribution_rate": "answers with at least one false edit / answers",
-   "verdicts": "see the module docstring of evaluation/agent_eval/output_safety_audit.py"
+   "verdicts": "see the module docstring of evaluation/agent_eval/output_safety_audit.py",
+   "planted": "red-team replays only: the edit's span carries the planted payload; verdict counts and false/over-broad answers use the other (clean) edits"
   }
  },
  "totals": {
@@ -46,6 +48,7 @@
   "edits_per_answer": 0.0,
   "false_attribution_rate": 0.0,
   "over_broad_rate": 0.0,
+  "edit_units_planted": 0,
   "edit_units_by_verdict": {}
  },
  "by_set": [
@@ -141,11 +144,11 @@
  "samples": [],
  "source": {
   "file": "outputs/agent_eval/output_safety_audit.json",
-  "sha256_16": "d8ecc068cb9050f3",
-  "bytes": 3518,
-  "slimmed_at": "2026-10-01T05:27:09+00:00"
+  "sha256_16": "9e14691d03b88aa3",
+  "bytes": 3728,
+  "slimmed_at": "2026-10-01T06:33:15+00:00"
  },
  "notes": [
-  "Template path (no LLM) over dev, holdout, multiturn_v1 and test_v3 replay snapshots: the template composer never quotes document text, so the output layer edits nothing on clean template answers; the LLM paths are measured in output_safety_audit-llm-r12."
+  "Template path (no LLM) over the dev, holdout, multiturn_v1 and test v3 replay snapshots, rerun after the round-12 output-layer changes (a85cde7, 3882dc3); the first run at 1980efe gave the same 0 edits in 797 answers. The template composer never quotes document text, so the layer has nothing to mark; the LLM drafts are measured in output_safety_audit-llm-replay-r12."
  ]
 }
