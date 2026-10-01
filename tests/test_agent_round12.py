@@ -362,3 +362,23 @@ def test_a_gap_in_yi_of_two_amounts_written_in_yuan_is_derived(fundamentals_stor
     assert verify_answer({"answer": right}, fundamentals_store, allow_derived=True).passed
     assert not verify_answer({"answer": right}, fundamentals_store, allow_derived=False).passed
     assert not verify_answer({"answer": wrong}, fundamentals_store, allow_derived=True).passed
+
+
+def test_an_abbreviation_does_not_cut_a_recorded_derivation_from_its_citation(fundamentals_store):
+    """Recorded after the first H8 commits: "…the gap is 3.7 points (24.6 − 20.9) on a base of 20.9, i.e. 3.7 ÷ 20.9 ≈
+    0.177 [a][b]." was split at "i.e." into an uncited sentence, and the answer fell back to the template."""
+    import json
+    from pathlib import Path
+
+    from query_intelligence.agent.verifier import verify_answer, whole_sentences
+
+    data = json.loads((Path(__file__).resolve().parents[1] / _DRAFTS_PATH).read_text(encoding="utf-8"))
+    session = next(item for item in data["after_first_fix"]["sessions"] if item["id"] == "l2b-relative")
+    for call in session["turns"][2]["llm_calls"]:
+        draft = json.loads(call["content"])
+        draft = {"answer": draft["answer"], "key_points": [p for p in draft["key_points"] if "industry" not in p]}
+        assert verify_answer(draft, fundamentals_store, allow_derived=True).passed, draft
+    assert whole_sentences("A rose 1.2% [a], i.e. 3.7 ÷ 20.9 ≈ 0.177 [a]. Next.") == [
+        "A rose 1.2% [a], i.e. 3.7 ÷ 20.9 ≈ 0.177 [a]. ",
+        "Next.",
+    ]

@@ -928,7 +928,8 @@ def _is_derived(value: float, rounding: float | None, operands: list[float], *, 
         else:
             candidates = [a - b, a + b]
             if b:
-                candidates += [a / b, (a - b) / abs(b) * 100]
+                # (round 12) the relative change also as a fraction ("3.7 ÷ 20.9 ≈ 0.177")
+                candidates += [a / b, (a - b) / abs(b) * 100, (a - b) / abs(b)]
         for candidate in candidates:
             if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
                 return True
@@ -955,9 +956,24 @@ def _is_product(value: float, rounding: float | None, factors: list[float], oper
     return False
 
 
+# (round 12, H8) "i.e. 3.7 ÷ 20.9 ≈ 17.7%": a full stop of an abbreviation does not end a sentence, so the
+# derivation after it keeps the citation and the operands of the sentence it belongs to
+_ABBREVIATION_END = re.compile(
+    r"(?:^|(?<=[\s(（]))(?:i\.e|e\.g|vs|approx|cf|incl|(?-i:No|Co|Ltd|Inc|Corp))\.$", re.IGNORECASE
+)
+
+
 def _split_sentences(text: str) -> list[str]:
     parts = re.split(r"(?<=[。！？!?；;])|(?<=\.)\s+", text)
-    return [part for part in parts if part]
+    merged: list[str] = []
+    for part in parts:
+        if not part:
+            continue
+        if merged and _ABBREVIATION_END.search(merged[-1]):
+            merged[-1] = f"{merged[-1]} {part}"
+        else:
+            merged.append(part)
+    return merged
 
 
 _OPENERS = "(（《“「【"
@@ -989,7 +1005,9 @@ def whole_sentences(text: str) -> list[str]:
             if char in "。！？!?":
                 boundary = True
             elif char == "." and (index + 1 == len(text) or text[index + 1].isspace()):
-                boundary = not re.fullmatch(r"\s*\d{1,2}\.", text[start : index + 1])
+                boundary = not re.fullmatch(r"\s*\d{1,2}\.", text[start : index + 1]) and not (
+                    index + 1 < len(text) and _ABBREVIATION_END.search(text[start : index + 1])
+                )
         if boundary:
             end = index + 1
             citations = _CITATION_RUN.match(text, end)
