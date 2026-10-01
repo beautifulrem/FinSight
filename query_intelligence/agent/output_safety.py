@@ -32,7 +32,8 @@ relay what it says. This layer looks at the answer sentence by sentence, togethe
    is attributed with the layer's own marker, whatever the model wrote: "据一篇文档称，…（未经其他来源证实）" / "…
    (according to one document; not confirmed by other sources)". (round 11, G7) When only some clauses of a sentence
    state single-document figures and its other figures are confirmed ("营业收入1688.38亿元，同比下降1.21%" with the
-   revenue in the fundamentals), the marker "（据一篇文档，未经其他来源证实）" follows each such clause instead.
+   revenue in the fundamentals), the marker "（据一篇文档，未经其他来源证实）" follows each such clause instead;
+   (round 12, H15) a conjunction right after a figure (及/以及/并/同时/而, while/whereas/and) also ends a clause.
    A sentence that already says the claim is unverified is left as it is; one that only names its source
    ("媒体报道称…") gets the suffix. A fundamental or amount that contradicts the run's structured data for the same
    metric (and period and company, where stated) is dropped with a note (the verifier flags the same conflict on LLM
@@ -721,8 +722,23 @@ def structured_numbers(store: EvidenceStore) -> list[tuple[float, bool]]:
     return [(value, False) for value in values]
 
 
-# (round 11, G7) clause breaks inside a sentence; an ASCII comma between digits ("1,688.38") is a thousands separator
-_CLAUSE_BREAK = re.compile(r"[，；;]|,(?!\d{3})")
+# (round 11, G7) clause breaks inside a sentence; an ASCII comma between digits ("1,688.38") is a thousands separator.
+# (round 12, H15) a conjunction right after a figure also joins two clauses ("营业收入1085亿元及二季度提价7.5%",
+# "净利润增长5%而营收下降3%", "rose 7.5% while revenue reached 108.5 billion", "… 5% and margins …"); only after a
+# figure, so "合并" or "revenue and net profit" are not split.
+_AFTER_FIGURE = (
+    r"(?:(?<=\d)|(?<=[%％元倍点股])|(?<=yuan)|(?<=billion)|(?<=million)|(?<=times)|(?<=percent)|(?<=point)"
+    r"|(?<=points))"
+)
+_CLAUSE_BREAK = re.compile(
+    r"[，；;]|,(?!\d{3})|"
+    + _AFTER_FIGURE
+    + r"\s*(?:以及|及|并且|并|同时|而且|而)(?=\s*\S)|"
+    + r"\s+(?:while|whereas)\s+|"
+    + _AFTER_FIGURE
+    + r"\s+and\s+",
+    re.IGNORECASE,
+)
 
 
 def _clause_spans(sentence: str) -> list[tuple[int, int]]:
