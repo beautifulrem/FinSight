@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SerializerFunctionWrapHandler, model_serializer
 
 from ...query_terms import INDUSTRY_TERMS
 from ..evidence import AgentEvidence
@@ -56,6 +56,19 @@ class FundamentalsOutput(BaseModel):
     valuation_provenance: SourceProvenance | None = Field(
         default=None, description="Source of pe_ttm/pb when fetched separately from the statements."
     )
+    valuation_date: str | None = Field(
+        default=None,
+        description="Trading day of pe_ttm, pb, ps_ttm and the market cap (total_mv) when the source states it; "
+        "they are priced on that day, not at report_date.",
+    )
+
+    @model_serializer(mode="wrap")
+    def _omit_missing_valuation_date(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        # Payloads without the field stay byte-identical to those recorded before it existed (evaluation snapshots).
+        data = handler(self)
+        if data.get("valuation_date") is None:
+            data.pop("valuation_date", None)
+        return data
 
 
 def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
@@ -186,6 +199,7 @@ def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
             industry=industry_snapshot,
             provenance=provenance_from(payload),
             valuation_provenance=provenance_from(payload, "valuation_provenance"),
+            valuation_date=_as_str(payload.get("valuation_date")),
         )
         return ToolOutput(data=output, evidence=evidence)
 

@@ -12,6 +12,7 @@ from typing import Any
 
 from .coverage import (
     EXTRA_METRIC_FIELDS,
+    METRICS,
     PROFIT_GROWTH_FIELDS,
     PriceRequest,
     asks_about_industry,
@@ -25,6 +26,7 @@ from .coverage import (
     industry_gaps,
     macro_gaps,
     non_stock_fundamental_gaps,
+    range_52w_gaps,
     requested_metrics,
     requested_price_fields,
     year_to_date_gaps,
@@ -169,6 +171,7 @@ def compose_template(
                 facts.append(sentence)
     gaps: list[str] = list(frame_gaps)
     if query:
+        gaps += _price_date_note(query, tool_log, zh, frame_request)
         gaps += [
             *coverage_gaps(query, tool_log, zh=zh, names=names),
             *industry_gaps(query, tool_log, zh=zh),
@@ -178,6 +181,7 @@ def compose_template(
             *flow_gaps(query, tool_log, zh=zh),
             *year_to_date_gaps(query, tool_log, zh=zh),
             *drawdown_gaps(query, tool_log, zh=zh),
+            *range_52w_gaps(query, tool_log, zh=zh),
             # a failed indicator tool is already named by failed_target_statements when nothing else was found
             *(indicator_gaps(query, tool_log, zh=zh, names=names) if facts else []),
         ]
@@ -527,6 +531,40 @@ def _arithmetic(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[st
     ]
 
 
+def _price_date_note(
+    query: str, tool_log: list[dict[str, Any]], zh: bool, frame_request: dict[str, Any] | None
+) -> list[str]:
+    """(round 12) A comparison of daily price data (change, close, turnover) whose targets are dated on different
+    trading days (the v1 snapshot is as of 2026-04-22, the extension as of 2026-09-30, a live quote today): each
+    target's date is named, so a reader does not take two different sessions for the same one."""
+    if frame_request:
+        key = str(frame_request.get("metric") or "")
+    else:
+        asked = _ASKS_COMPARISON.search(query) or _ASKS_DIFFERENCE.search(query) or _ASKS_RATIO.search(query)
+        named = [
+            (match.start(), metric_key)
+            for metric_key, _zh, _en, pattern in _ARITHMETIC_METRICS
+            if (match := pattern.search(query))
+        ]
+        if not asked or not named:
+            return []
+        key = min(named)[1]
+    if key not in _PRICE_KEYS:
+        return []
+    companies, _industry = _arithmetic_operands(tool_log, key, zh)
+    dated = [(name, str(data.get("as_of") or "")[:10]) for name, _value, _eid, data in companies]
+    if len({day for _name, day in dated if day}) < 2:
+        return []
+    if zh:
+        listing = "，".join(f"{name} {day}" for name, day in dated if day)
+        return [f"注意：所比较的行情日期不同（{listing}），各为该标的最新可用交易日，不是同一交易日的数据。"]
+    listing = ", ".join(f"{name} {day}" for name, day in dated if day)
+    return [
+        f"Note: the compared market data are from different trading days ({listing}); each is that target's latest "
+        "available session, not the same day."
+    ]
+
+
 # (round 10, F10) A comparison: "谁/哪个…更高/低/多/少", "比较/对比/相比", "compare", "which … higher".
 _ASKS_COMPARISON = re.compile(
     r"(?:谁|哪个|哪一个|哪只|哪家|哪边)[^，。？?,;；]{0,10}?(?:高|低|大|小|多|少|贵|便宜|强|弱|活跃)|比较|对比|相比|"
@@ -793,22 +831,50 @@ def _margin_ranking(margins: list[tuple[str, float]], zh: bool) -> str:
     return f"On this basis, net margin from highest to lowest: {', '.join(names)}."
 
 
+# Metrics priced on a trading day (market cap, P/S, dividend yield): dated by the valuation date, not the report period.
+_VALUATION_DATED = {"total_mv", "market_cap", "circ_mv", "total_market_cap", "ps_ttm", "ps"}
+# Fields whose label differs from their metric's ("流通市值" is not the total market cap).
+_FIELD_LABELS = {"circ_mv": ("流通市值", "free-float market cap")}
+
+
 def _extra_metrics(data: dict[str, Any], keys: set[str], zh: bool) -> list[str]:
-    """Requested metrics beyond the standard snapshot (e.g. a live source's dividend yield), when present."""
+    """Requested metrics beyond the standard snapshot (e.g. a live source's dividend yield), when present.
+
+    One value per metric (its first reported field: ``total_mv`` before ``circ_mv``), labelled by the most specific
+    metric (``revenue_yoy`` is the revenue growth, not a bare "growth"); market cap and P/S are dated by the
+    valuation date when the data has one, statement metrics by the report period."""
     metrics = data.get("metrics") or {}
     eid, name, period = data.get("evidence_id"), data.get("name"), data.get("report_date")
-    parts = []
-    for key in sorted(keys):
-        value = metrics.get(key)
-        if value is None or not eid:
-            continue
-        metric = EXTRA_METRIC_FIELDS[key]
-        parts.append(f"{metric.zh if zh else metric.en} {_metric_value(key, value, data, zh)}")
-    if not parts:
+    if not eid:
         return []
-    if zh:
-        return [f"{name}（报告期 {period}）：{'，'.join(parts)} [{eid}]。"]
-    return [f"{name} (period {period}): {', '.join(parts)} [{eid}]."]
+    chosen: dict[str, str] = {}
+    for key in sorted(keys):
+        metric = EXTRA_METRIC_FIELDS[key]
+        present = [field for field in metric.fields if field in keys and metrics.get(field) is not None]
+        if present and metric.key not in chosen:
+            chosen[metric.key] = present[0]
+    valuation_date = data.get("valuation_date")
+    dated: list[str] = []
+    periodic: list[str] = []
+    for metric in (item for item in METRICS if item.key in chosen):
+        key = chosen[metric.key]
+        label_zh, label_en = _FIELD_LABELS.get(key, (metric.zh, metric.en))
+        part = f"{label_zh if zh else label_en} {_metric_value(key, metrics[key], data, zh)}"
+        (dated if valuation_date and key in _VALUATION_DATED else periodic).append(part)
+    sentences = []
+    if periodic:
+        sentences.append(
+            f"{name}（报告期 {period}）：{'，'.join(periodic)} [{eid}]。"
+            if zh
+            else f"{name} (period {period}): {', '.join(periodic)} [{eid}]."
+        )
+    if dated:
+        sentences.append(
+            f"{name}（按 {valuation_date} 收盘计算）：{'，'.join(dated)} [{eid}]。"
+            if zh
+            else f"{name} (at the {valuation_date} close): {', '.join(dated)} [{eid}]."
+        )
+    return sentences
 
 
 def _price(data: dict[str, Any], zh: bool, request: PriceRequest | None = None) -> list[str]:
@@ -842,7 +908,60 @@ def _price(data: dict[str, Any], zh: bool, request: PriceRequest | None = None) 
         sentences.extend(_price_details(data, zh, request))
     if request is not None and request.year_to_date:
         sentences.extend(_year_to_date(data, zh))
+    if request is not None and request.range_52w:
+        sentences.extend(_range_52w(data, zh))
+    if request is not None and request.drawdown:
+        sentences.extend(_drawdown(data, request.drawdown, zh))
     return sentences
+
+
+def _range_52w(data: dict[str, Any], zh: bool) -> list[str]:
+    """(round 12) The 52-week high and low close with their dates and the window; without ``range_52w`` (history
+    shorter than 52 weeks) the gap is stated by coverage."""
+    found = data.get("range_52w") or {}
+    if found.get("high") is None or found.get("low") is None:
+        return []
+    name, eid = data.get("name"), data.get("evidence_id")
+    start, end, count = found.get("start_date"), found.get("end_date"), found.get("closes")
+    if zh:
+        return [
+            f"{name}近52周（{start} 至 {end}，{count} 个交易日，按未复权收盘价）：最高收盘 "
+            f"{_px(found['high'], data, zh)}（{found.get('high_date')}），最低收盘 {_px(found['low'], data, zh)}"
+            f"（{found.get('low_date')}） [{eid}]。"
+        ]
+    return [
+        f"{name} over the 52 weeks from {start} to {end} ({count} sessions, unadjusted closes): highest close "
+        f"{_px(found['high'], data, zh)} on {found.get('high_date')}, lowest close {_px(found['low'], data, zh)} on "
+        f"{found.get('low_date')} [{eid}]."
+    ]
+
+
+def _drawdown(data: dict[str, Any], window: str, zh: bool) -> list[str]:
+    """(round 12) The maximum drawdown of the close over the asked window, with the peak and the trough (date and
+    close) in the sentence so the reader and the verifier can recompute it; a missing window is stated by coverage."""
+    found = data.get(f"max_drawdown_{window}") or {}
+    if found.get("max_drawdown_pct") is None:
+        return []
+    name, eid = data.get("name"), data.get("evidence_id")
+    start, end, pct = found.get("start_date"), found.get("end_date"), _num(found["max_drawdown_pct"])
+    if zh:
+        span = "今年以来" if window == "ytd" else "近52周"
+        if not found["max_drawdown_pct"]:
+            return [f"{name}{span}（{start} 至 {end}，按未复权收盘价）收盘价没有低于此前高点，最大回撤为 0% [{eid}]。"]
+        return [
+            f"{name}{span}（{start} 至 {end}，按未复权收盘价）最大回撤 {pct}%：从 {found.get('peak_date')} 收盘 "
+            f"{_px(found['peak'], data, zh)} 回落至 {found.get('trough_date')} 收盘 {_px(found['trough'], data, zh)} "
+            f"[{eid}]。"
+        ]
+    span = "year to date" if window == "ytd" else "over the past 52 weeks"
+    if not found["max_drawdown_pct"]:
+        return [f"{name} {span} ({start} to {end}, unadjusted closes) never closed below an earlier high: a maximum "
+                f"drawdown of 0% [{eid}]."]  # fmt: skip
+    return [
+        f"{name} {span} ({start} to {end}, unadjusted closes): maximum drawdown {pct}%, from a close of "
+        f"{_px(found['peak'], data, zh)} on {found.get('peak_date')} to {_px(found['trough'], data, zh)} on "
+        f"{found.get('trough_date')} [{eid}]."
+    ]
 
 
 def _computed_change(data: dict[str, Any]) -> tuple[float, float] | None:
@@ -1049,12 +1168,17 @@ def _fundamentals(data: dict[str, Any], zh: bool, *, industry_first: bool = Fals
             parts.append(f"{label_zh if zh else label_en} {_money(value, zh)}")
     if parts and eid:
         label = data.get("period")
+        # (round 12) P/E and P/B are priced on the valuation date, not at the report period: say which day
+        valued = data.get("valuation_date")
+        priced = valued and valued != period and (metrics.get("pe_ttm") is not None or metrics.get("pb") is not None)
         if zh:
             report = f"{label[2:]}年年报" if label and label.startswith("FY") else label
             suffix = f"，{report}" if report else ""
+            suffix += f"；PE、PB 按 {valued} 收盘计算" if priced else ""
             sentences.append(f"{name} 基本面（报告期 {period}{suffix}）：{'，'.join(parts)} [{eid}]。")
         else:
             suffix = f", {label}" if label else ""
+            suffix += f"; P/E and P/B at the {valued} close" if priced else ""
             sentences.append(f"{name} fundamentals (period {period}{suffix}): {', '.join(parts)} [{eid}].")
     industry = data.get("industry") or {}
     industry_metrics = industry.get("metrics") or {}
@@ -1272,7 +1396,16 @@ _PERCENT_FIELDS = {
     "net_margin",
     "netprofit_margin",
 }
-_MONEY_FIELDS = {"operating_cash_flow", "n_cashflow_act", "free_cash_flow"}
+_MONEY_FIELDS = {
+    "operating_cash_flow",
+    "n_cashflow_act",
+    "free_cash_flow",
+    "total_mv",
+    "circ_mv",
+    "market_cap",
+    "total_market_cap",
+}
+_PER_SHARE_FIELDS = {"eps", "basic_eps", "diluted_eps", "eps_ttm", "bps"}
 
 
 def _metric_value(key: str, value: Any, data: dict[str, Any], zh: bool) -> str:
@@ -1283,6 +1416,8 @@ def _metric_value(key: str, value: Any, data: dict[str, Any], zh: bool) -> str:
         return f"{_num(number if unit == '%' or abs(number) > 1 else number * 100)}%"
     if key in _MONEY_FIELDS:
         return _money(value, zh)
+    if key in _PER_SHARE_FIELDS or unit == "CNY/share":
+        return f"{_num(value)} 元" if zh else f"CNY {_num(value)}"
     if key == "debt_to_equity":
         return _times(value, zh)
     return _num(value)

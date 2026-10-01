@@ -291,7 +291,11 @@ METRICS: tuple[Metric, ...] = (
 )
 _METRIC_BY_KEY = {metric.key: metric for metric in METRICS}
 # Labels of extra metrics rendered when present (the template renders PE/PB/ROE/revenue/net profit itself).
-EXTRA_METRIC_FIELDS = {field: metric for metric in METRICS for field in metric.fields}
+# A field shared by several metrics takes the first (most specific) one: revenue_yoy is "营收增速", not "增速".
+EXTRA_METRIC_FIELDS: dict[str, Metric] = {}
+for _metric_item in METRICS:
+    for _field in _metric_item.fields:
+        EXTRA_METRIC_FIELDS.setdefault(_field, _metric_item)
 
 
 # (round 11, G5) "我有1000股五粮液，按最新收盘价值多少钱", "500 shares of Moutai, what are they worth?": the value of a
@@ -642,18 +646,55 @@ def asks_drawdown(query: str) -> bool:
     return bool(_DRAWDOWN.search(query or ""))
 
 
-def drawdown_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> list[str]:
-    """A drawdown question: the price data holds only the latest closes, so the drawdown is stated as unavailable."""
+# (round 12) The window of a drawdown question: this year ("今年以来最大回撤", "YTD drawdown") or, by default, the
+# 52 weeks to the latest close ("近一年", "过去12个月", or no period at all; the answer names the window it used).
+_YTD_WINDOW = re.compile(
+    r"今年|年初|年内|本年|\bYTD\b|\byear[- ]to[- ]date\b|\bthis year\b|"
+    r"\bsince the (?:start|beginning) of (?:the|this) year\b",
+    re.IGNORECASE,
+)
+
+
+def drawdown_window(query: str) -> str:
     if not asks_drawdown(query):
+        return ""
+    return "ytd" if _YTD_WINDOW.search(query or "") else "1y"
+
+
+# (round 12) The 52-week high and low ("52周最高价", "一年内最高和最低收盘价", "52-week range", "12-month low").
+_RANGE_52W = re.compile(
+    r"52\s*周|五十二周|(?:近|过去|最近)?(?:一|1)\s*年(?:内|来|以来|里)?(?:的)?(?:最高|最低|高点|低点|新高|新低|区间|价格区间)|"
+    r"(?:近|过去|最近)\s*12\s*个?月(?:内|来|以来|里)?(?:的)?(?:最高|最低|高点|低点|区间)|"
+    r"\b52[- ]?(?:week|wk)s?\b|\b(?:one|1|12)[- ](?:year|month) (?:high|low|range)s?\b|"
+    r"\b(?:high|low)s? (?:of|over|in) the (?:past|last) (?:year|12 months|52 weeks)\b",
+    re.IGNORECASE,
+)
+# The session named next to a 52-week question ("今天最高多少，52周最高多少"): then the day's high/low is wanted too.
+_SESSION_WORDS = re.compile(r"今天|今日|当天|当日|日内|\btoday\b|\bintraday\b|\bsession\b", re.IGNORECASE)
+
+
+def asks_range_52w(query: str) -> bool:
+    return bool(_RANGE_52W.search(query or ""))
+
+
+def drawdown_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> list[str]:
+    """A drawdown question whose price data does not cover the window (the v1 snapshot and the live path keep only
+    the latest closes): the drawdown is stated as unavailable. With the window covered (``max_drawdown_1y`` /
+    ``max_drawdown_ytd`` in the price data) the template states it instead."""
+    window = drawdown_window(query)
+    if not window:
         return []
     sentences = []
     for entry in tool_log:
         if entry.get("tool") != "get_price_history" or not entry.get("ok"):
             continue
         data = entry.get("data") or {}
-        if data.get("close") is None:
+        if data.get("close") is None or data.get(f"max_drawdown_{window}"):
             continue
         name = str(data.get("name") or data.get("symbol") or "")
+        if data.get("price_jump_date"):
+            sentences.append(_jump_text(name, str(data["price_jump_date"]), "最大回撤", "maximum drawdown", zh=zh))
+            continue
         closes = len(data.get("recent_closes") or [])
         held_zh = f"最近 {closes} 个交易日的收盘价" if closes >= 2 else "最新一个交易日的收盘价"
         held_en = f"the latest {closes} closes" if closes >= 2 else "the latest close"
@@ -662,6 +703,46 @@ def drawdown_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> li
             if zh
             else f"The data holds only {held_en} for {name}, so the maximum drawdown over the requested period "
             "cannot be computed; only the latest session is listed below."
+        )
+    return list(dict.fromkeys(sentences))
+
+
+def _jump_text(name: str, day: str, what_zh: str, what_en: str, *, zh: bool) -> str:
+    """A window holding a close-to-close jump beyond every daily limit: likely ex-rights (the closes are unadjusted)."""
+    if zh:
+        return (
+            f"{name}的未复权收盘价在 {day} 有超过 21% 的跳变（可能是送转股除权），无法据此计算{what_zh}；"
+            "以下只列出最新行情。"
+        )
+    return (
+        f"{name}'s unadjusted closes jump by more than 21% on {day} (likely an ex-rights adjustment), so the {what_en} "
+        "cannot be computed from them; only the latest session is listed below."
+    )
+
+
+def range_52w_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> list[str]:
+    """A 52-week high/low question whose price data does not reach back 52 weeks: stated as unavailable, instead
+    of answering with the day's high and low."""
+    if not asks_range_52w(query):
+        return []
+    sentences = []
+    for entry in tool_log:
+        if entry.get("tool") != "get_price_history" or not entry.get("ok"):
+            continue
+        data = entry.get("data") or {}
+        if data.get("close") is None or data.get("range_52w"):
+            continue
+        name = str(data.get("name") or data.get("symbol") or "")
+        if data.get("price_jump_date"):
+            sentences.append(
+                _jump_text(name, str(data["price_jump_date"]), "52周最高价和最低价", "52-week high and low", zh=zh)
+            )
+            continue
+        sentences.append(
+            f"当前数据没有{name}覆盖最近52周的收盘价，无法给出52周最高价和最低价；以下只列出最新行情。"
+            if zh
+            else f"The data does not hold 52 weeks of closes for {name}, so its 52-week high and low cannot be given; "
+            "only the latest session is listed below."
         )
     return list(dict.fromkeys(sentences))
 
@@ -801,6 +882,8 @@ class PriceRequest:
     moving_averages: tuple[int, ...] = ()
     above_ma: bool = False
     year_to_date: bool = False
+    range_52w: bool = False  # 52-week (one-year) high and low close
+    drawdown: str = ""  # "1y" or "ytd": the window of a maximum drawdown question
 
     @property
     def needs_quote(self) -> bool:
@@ -830,18 +913,23 @@ def requested_price_fields(query: str) -> PriceRequest:
     above = bool(_ABOVE_MA.search(text))
     if above and not averages:
         averages = [5]
+    # "52周最高和最低" asks for the 52-week range, not the day's high and low (unless the day is named too)
+    yearly = asks_range_52w(text)
+    session = not yearly or bool(_SESSION_WORDS.search(text))
     return PriceRequest(
         closes=closes if _CLOSES_WORD.search(text) or match else 0,
         previous_close=bool(_PREVIOUS_CLOSE.search(text)),
-        high=bool(_HIGH.search(text)),
-        low=bool(_LOW.search(text)),
+        high=bool(_HIGH.search(text)) and session,
+        low=bool(_LOW.search(text)) and session,
         open=bool(_OPEN.search(text)),
         volume=bool(_VOLUME.search(text)),
         amount=bool(_AMOUNT.search(text)),
         return_days=tuple(returns),
         moving_averages=tuple(averages),
         above_ma=above,
-        year_to_date=asks_year_to_date(text),
+        year_to_date=asks_year_to_date(text) and not asks_drawdown(text),
+        range_52w=yearly,
+        drawdown=drawdown_window(text),
     )
 
 
