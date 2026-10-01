@@ -566,6 +566,32 @@ def run_llm_load(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
                 label=f"chaos llm-load burst={args.burst_seconds}s",
             )
         )
+        recovery: dict[str, Any] | None = None
+        if args.burst_seconds and args.recovery_requests:
+            # After the burst the breakers stay open for their cool-down (60 s): wait until no model is open, then
+            # a short load shows the half-open trial calls and the breakers closing again.
+            deadline = time.time() + args.burst_start + args.burst_seconds + 180
+            while time.time() < deadline:
+                current = samples[-1]["breaker"] if samples else {}
+                if burst.get("ended_s") is not None and current and "open" not in current.values():
+                    break
+                time.sleep(1)
+            recovery_started = round(time.time() - started, 1)
+            recovery = asyncio.run(
+                load_test_run(
+                    server.base_url,
+                    args.load_users,
+                    args.recovery_requests,
+                    args.load_mode,
+                    question_set="research",
+                    timeout_s=240.0,
+                    usd_cny=args.usd_cny,
+                    warmup=False,
+                    label="chaos llm-load recovery",
+                )
+            )
+            recovery["started_s"] = recovery_started
+            time.sleep(3)  # one more breaker sample after the last answer
         stop.set()
         for thread in threads:
             thread.join(5)
@@ -576,7 +602,7 @@ def run_llm_load(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
         server.stop()
         proxy.stop()
     gateway = proxy.log
-    for item in result["per_request"]:
+    for item in [*result["per_request"], *((recovery or {}).get("per_request") or [])]:
         item["t_start_s"] = round(item.get("started_at_unix", started) - started, 1)
         item["t_end_s"] = round(item["t_start_s"] + item["latency_ms"] / 1000, 1)
         item["during_burst"] = bool(
@@ -636,6 +662,22 @@ def run_llm_load(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
         },
         "load_test": {key: value for key, value in result.items() if key != "per_request"},
         "per_request": result["per_request"],
+        "recovery": None
+        if recovery is None
+        else {
+            "started_s": recovery["started_s"],
+            "requests": recovery["requests"],
+            "user_visible_error_rate": recovery["error_rate"],
+            "latency_ms": recovery["latency_ms"],
+            "answer_sources": recovery["answer_sources"],
+            "llm_failure_requests": sum(
+                1
+                for item in recovery["per_request"]
+                if any(str(flag).startswith(_LLM_FAILURE_MARKERS) for flag in item.get("degraded") or [])
+            ),
+            "cost": recovery["cost"],
+            "per_request": recovery["per_request"],
+        },
         "gateway_log": gateway,
         "breaker_samples": samples,
         "final_metrics": final_metrics,
@@ -896,6 +938,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument("--burst-start", type=float, default=15.0, help="llm-load: seconds before the 5xx burst.")
     parser.add_argument("--burst-seconds", type=float, default=0.0, help="llm-load: burst length (0 = no burst).")
     parser.add_argument("--burst-status", type=int, default=503, help="llm-load: injected HTTP status.")
+    parser.add_argument(
+        "--recovery-requests", type=int, default=1, help="llm-load: requests per user after the breakers' cool-down."
+    )
     parser.add_argument("--out", default="outputs/chaos/chaos.json")
     args = parser.parse_args(argv)
     out = Path(args.out)
