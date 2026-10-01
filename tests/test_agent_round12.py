@@ -424,3 +424,16 @@ def test_a_bare_name_follow_up_carries_the_metric(agent):
     _first, carried = _session(agent, "h9-bare", "Ping An P/B?", "Wuliangye?")
     assert "ellipsis:aspect->P/B" in carried["route_reasons"]
     assert "PB 5.4x" in carried["answer"]
+
+
+# ---- 前者/后者 when the second target and the ratio are in the same message ----
+
+
+def test_former_and_latter_follow_the_session_order_in_a_one_message_follow_up(agent):
+    _first, ratio = _session(agent, "order-one-message", "中国平安市盈率多少", "茅台呢，后者是前者的几倍")
+    assert "frame:ratio:pe:贵州茅台|中国平安" in ratio["route_reasons"]
+    assert "前者约为后者的 2.83 倍" in ratio["answer"]
+    _first, english = _session(
+        agent, "order-one-message-en", "Ping An's P/E?", "and Moutai's? how many times the former is the latter?"
+    )
+    assert "2.83" in english["answer"]
