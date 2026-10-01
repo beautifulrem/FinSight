@@ -86,11 +86,17 @@ export function resumeClarification(sessionId: string, reply: string, options: A
   return postJson<AgentResponse>("/agent/resume", { session_id: sessionId, reply }, options);
 }
 
+/**
+ * `GET /agent/sessions/{id}`. The server answers 404 both for a session that has no turns yet and for another
+ * caller's session (one body, so the response does not reveal which ids exist): for this browser's own id that
+ * means "nothing remembered yet", so it is an empty session, not an error.
+ */
 export async function fetchSession(sessionId: string, options: ApiOptions): Promise<SessionInfo> {
   const response = await fetch(`/agent/sessions/${encodeURIComponent(sessionId)}`, {
     headers: headers(options.apiKey),
     signal: options.signal,
   });
+  if (response.status === 404) return { session_id: sessionId, turns: [], pending_clarification: null };
   if (!response.ok) throw await errorFrom(response);
   return (await response.json()) as SessionInfo;
 }
