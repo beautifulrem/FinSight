@@ -645,7 +645,7 @@ def resolve_frame_question(
     ordinals = [match for match in _ORDINAL.finditer(clause)]
     zh = bool(re.search(r"[一-鿿]", text))
     first_name, last_name = operand_name(operands[0], zh), operand_name(operands[-1], zh)
-    if ordinals and not named:
+    if ordinals and len(named) < 2:
         first, last = operands[0], operands[-1]
         picked = [first if match.group("first") else last for match in ordinals]
         operands = picked + [item for item in (first, last) if item not in picked]
@@ -653,18 +653,23 @@ def resolve_frame_question(
         operands = operands[-3:]
     elif operation != "which" and len(operands) > 2:
         operands = operands[-2:]
-    if operation == "ratio" and len(named) >= 2 and (inverted := _TIMES_INVERTED.search(clause)):
-        # "how many times A is B" asks B / A; "how many times bigger is A than B" asks A / B
+    if operation == "ratio" and (inverted := _TIMES_INVERTED.search(clause)):
+        # "how many times A is B" asks B / A; "how many times bigger is A than B" asks A / B (A and B named, or
+        # the former / the latter)
         rest = inverted.group("rest")
-        a, b = (_mention_position(rest, item, 0) for item in ordered_entities(entities, operands))
         verb = re.search(r"\b(?:is|are|was)\b", rest)
+        if len(named) >= 2:
+            a, b = (_mention_position(rest, item, 0) for item in ordered_entities(entities, operands))
+        else:
+            spots = [match.start() for match in _ORDINAL.finditer(rest)]
+            a, b = (spots[0], spots[1]) if len(spots) >= 2 else (10_000, 10_000)
         if verb and a < verb.start() < b < 10_000:
             operands = [operands[1], operands[0], *operands[2:]]
     names = [operand_name(item, zh) for item in operands]
     label = metric_label(metric, zh)
     if zh:
         joined = "和".join(names)
-        if ordinals and not named:
+        if ordinals and len(named) < 2:
             # keep the user's words but say who 前者/后者 are
             named_text = _ORDINAL.sub(lambda m: first_name if m.group("first") else last_name, text)
             rewritten = f"{joined}的{label}，{named_text}"
