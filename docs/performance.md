@@ -70,7 +70,7 @@ and runs a closed-loop `scripts/load_test.py` (workflow mode, 8 users x 10 quest
 phase: live, then Sina / Tencent / Eastmoney blocked (within the 60 s market TTL, after it, after the 90 s stale
 window), then unblocked after the breaker cool-down. Run 2026-10-01 02:51–02:57 UTC at `3641361` (clean tree), result
 [`results/perf/sources-load/chaos-sources-load-8users.json`](results/perf/sources-load/chaos-sources-load-8users.json)
-with the server log next to it.
+(the server log stays local: `*.log` is not committed).
 
 | Phase | Requests | Throughput (req/s) | P50 (ms) | P95 (ms) | P99 (ms) | Errors | What served the evidence (items) |
 |---|---:|---:|---:|---:|---:|---:|---|
