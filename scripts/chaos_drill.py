@@ -16,8 +16,8 @@ of its dependencies (nothing is stubbed inside the process under test):
 ``sources-load`` – the ``sources`` setup under load (no LLM).
     Same blocking proxy and server, but each phase is a closed-loop load test (``scripts/load_test.py``,
     workflow mode, ``--load-users`` users x ``--load-requests`` questions of its default rotation): live ->
-    blocked (the market-bundle TTL and the stale window run out during the phase: cache, last-known-good) ->
-    blocked after the stale window (snapshot policy) -> unblocked after the breaker cool-down. Every phase
+    blocked within the 60 s TTL (cache) -> blocked after the TTL (last-known-good) -> blocked after the stale
+    window (snapshot policy) -> unblocked after the breaker cool-down. Every phase
     records P50/P95/P99, the error and degraded rates, which ``source/mode`` served each evidence item, and
     ``/sources/health`` plus the breaker metrics at its end.
 
@@ -585,11 +585,14 @@ def run_sources_load(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
                 return entry
 
             phase("1_live", warmup=True)
+            # The last live fetches happened during phase 1: the 60 s TTL and the stale window count from here.
+            fetched = time.monotonic()
             proxy.blocking = True
-            blocked_at = time.monotonic()
-            phase("2_blocked")  # the 60 s TTL and part of the stale window run out during this phase
-            time.sleep(max(0.0, blocked_at + 60 + args.max_stale + 15 - time.monotonic()))
-            phase("3_blocked_after_stale_window")
+            phase("2a_blocked_within_ttl")  # cache hits
+            time.sleep(max(0.0, fetched + 75 - time.monotonic()))
+            phase("2b_blocked_after_ttl")  # last-known-good inside the stale window
+            time.sleep(max(0.0, fetched + 60 + args.max_stale + 15 - time.monotonic()))
+            phase("3_blocked_after_stale_window")  # snapshot policy
             proxy.blocking = False
             time.sleep(args.source_cooldown * 2 + 5)  # a failed half-open trial doubles the cool-down
             phase("4_unblocked_recovered")

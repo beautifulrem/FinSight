@@ -97,14 +97,19 @@ def _llm_fields(body: dict) -> dict:
 
 
 def _sources_served(body: dict) -> list[str]:
-    """``source/mode`` of every evidence item with data provenance ("sina.kline/live_fallback",
-    "sina.kline/last_known_good", "offline_snapshot/snapshot"): which source and fallback served the answer."""
+    """``source/mode`` of every structured evidence item ("sina.kline/live_fallback", "sina.kline/last_known_good",
+    "offline_snapshot/snapshot"): which source and fallback served the answer. An item without a provenance block is
+    ``<source_name or tool>/unlabelled`` (the offline seed data carries none)."""
     served = []
     for source in body.get("evidence_sources") or []:
-        payload = source.get("payload") if isinstance(source, dict) else None
+        if not isinstance(source, dict):
+            continue
+        payload = source.get("payload")
         provenance = payload.get("provenance") if isinstance(payload, dict) else None
         if isinstance(provenance, dict) and (provenance.get("source") or provenance.get("mode")):
             served.append(f"{provenance.get('source')}/{provenance.get('mode')}")
+        elif source.get("kind") == "structured" or isinstance(payload, dict):
+            served.append(f"{source.get('source_name') or source.get('produced_by') or 'unknown'}/unlabelled")
     return served
 
 

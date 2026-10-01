@@ -147,9 +147,9 @@ def test_load_test_records_which_source_and_fallback_served_the_evidence():
         "evidence_sources": [
             {"payload": {"provenance": {"source": "sina.kline", "mode": "last_known_good"}}},
             {"payload": {"provenance": {"source": "offline_snapshot", "mode": "snapshot"}}},
-            {"payload": {"close": 1}},
-            {"payload": None},
+            {"kind": "structured", "source_name": "seed", "payload": {"close": 1}},
+            {"kind": "document", "payload": None},
         ]
     }
-    assert _sources_served(body) == ["sina.kline/last_known_good", "offline_snapshot/snapshot"]
+    assert _sources_served(body) == ["sina.kline/last_known_good", "offline_snapshot/snapshot", "seed/unlabelled"]
     assert _sources_served({}) == []
