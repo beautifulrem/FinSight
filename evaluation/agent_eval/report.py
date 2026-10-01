@@ -78,8 +78,18 @@ PERF_PAIRS = (
     ("perf-merged-prefetch-deepseek", "perf-merged-defaults-deepseek"),
     ("perf-merged-prefetch-deepseek", "perf-merged-citerepair-stall-deepseek"),
 )
-STRESS_RUNS = ("verifier_stress", "verifier_stress-round10", "verifier_stress-round9", "verifier_stress-perf-8a85ae5")
+STRESS_RUNS = (
+    "verifier_stress",
+    "verifier_stress-round10",
+    "verifier_stress-round9",
+    "verifier_stress-9f0e46b",
+    "verifier_stress-perf-8a85ae5",
+)
 REDTEAM_RUNS = (
+    (
+        "redteam-offline-r11",
+        "Prompt-injection red team, offline template path after round 11 (all nine sets, CI baseline)",
+    ),
     (
         "redteam-r10-holdout8-llm-replay",
         "Prompt-injection red team, holdout8 LLM drafts replayed after the round-10 output-layer fixes (1141736)",
@@ -153,6 +163,10 @@ CLAIM_BENCH_RUNS = (
     "claim_bench-heldout_r5-after-round10",
     "claim_bench-heldout_r6-prefix",
     "claim_bench-heldout_r6-after-fix",
+    "claim_bench-holdout-after-round11",
+    "claim_bench-heldout_r4-after-round11",
+    "claim_bench-heldout_r5-after-round11",
+    "claim_bench-heldout_r6-after-exposure-round11",
 )
 # Round-4 held-out slices (evaluation/heldout_r4/, independent author): first run, then after exposure.
 HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_heldout-after-exposure")
@@ -250,6 +264,13 @@ FILE_STATUS = {
     "claim_bench-heldout_r6-prefix": "**first and only pre-fix run** of the independent round-6 claim slice",
     "claim_bench-heldout_r6-after-fix": "independent round-6 claim slice **after the round-10 fixes**; the engineers "
     "never saw the slice, so this is still out of sample",
+    "claim_bench-holdout-after-round11": "held-out claims **after exposure**, re-run at the round-11 commit (G12)",
+    "claim_bench-heldout_r4-after-round11": "independent round-4 claim slice **after exposure**, re-run at the "
+    "round-11 commit (G12)",
+    "claim_bench-heldout_r5-after-round11": "independent round-5 claim slice **after exposure**, re-run at the "
+    "round-11 commit (G12)",
+    "claim_bench-heldout_r6-after-exposure-round11": "independent round-6 claim slice **after exposure (round 11)**: "
+    "the round-11 engineers had read the slice and the review's per-claim findings, so it is no longer out of sample",
     "chat_heldout_r6-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-6 chat slice",
     "chat_heldout_r6-auto-nollm-after-fix": "independent round-6 chat slice **after the round-10 fixes**; the "
     "engineers never saw the slice, so this is still out of sample",

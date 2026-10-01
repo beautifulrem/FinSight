@@ -13,6 +13,14 @@ of its dependencies (nothing is stubbed inside the process under test):
     succeeds, and the breaker closes). Requires the gateway credentials in the environment
     (``source /tmp/llmenv.sh``) and ``--fallback-model``.
 
+``sources-load`` – the ``sources`` setup under load (no LLM).
+    Same blocking proxy and server, but each phase is a closed-loop load test (``scripts/load_test.py``,
+    workflow mode, ``--load-users`` users x ``--load-requests`` questions of its default rotation): live ->
+    blocked within the 60 s TTL (cache) -> blocked after the TTL (last-known-good) -> blocked after the stale
+    window (snapshot policy) -> unblocked after the breaker cool-down. Every phase
+    records P50/P95/P99, the error and degraded rates, which ``source/mode`` served each evidence item, and
+    ``/sources/health`` plus the breaker metrics at its end.
+
 ``sources`` – live data fallback chain.
     A blocking HTTP(S) proxy is set as ``HTTPS_PROXY``/``HTTP_PROXY`` for the server. It forwards
     traffic (to the machine's own upstream proxy if one is configured) but refuses Sina, Tencent and
@@ -25,6 +33,7 @@ of its dependencies (nothing is stubbed inside the process under test):
     source /tmp/llmenv.sh
     python -m scripts.chaos_drill --scenario llm --fallback-model cline-pass/glm-5.3-flash
     python -m scripts.chaos_drill --scenario sources
+    python -m scripts.chaos_drill --scenario sources-load --load-users 8 --load-requests 10
 
 Results go to ``--out`` (JSON), with the server log and the traces next to it.
 """
@@ -51,8 +60,10 @@ from urllib.parse import urlsplit
 import httpx
 
 try:
+    from scripts.load_test import run as load_test_run
     from scripts.provenance import commit_label, git_state
 except ModuleNotFoundError:  # run as a file (python scripts/x.py): scripts/ itself is on sys.path
+    from load_test import run as load_test_run  # type: ignore[no-redef]
     from provenance import commit_label, git_state  # type: ignore[no-redef]
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -470,11 +481,8 @@ def _evidence_provenance(body: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
-def run_sources(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
-    upstream_proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
-    proxy = BlockingProxy(tuple(args.block), upstream_proxy, mode=args.block_mode)
-    proxy.start()
-    env = {
+def _sources_env(proxy: BlockingProxy, args: argparse.Namespace, out_dir: Path) -> dict[str, str]:
+    return {
         **os.environ,
         "HTTPS_PROXY": proxy.url,
         "HTTP_PROXY": proxy.url,
@@ -493,7 +501,112 @@ def run_sources(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
         "QI_AGENT_TRACE_DIR": str(out_dir / "traces"),
         "DEEPSEEK_API_KEY": "",
     }
-    server = Server(args.port, env, out_dir / "server-sources.log")
+
+
+def run_sources_load(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
+    """The ``sources`` drill with a closed-loop load test (no LLM) in every phase instead of single questions."""
+    upstream_proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    proxy = BlockingProxy(tuple(args.block), upstream_proxy, mode=args.block_mode)
+    proxy.start()
+    server = Server(args.port, _sources_env(proxy, args, out_dir), out_dir / "server-sources-load.log")
+    prefixes = ("finsight_source_circuit_state", "finsight_source_pool_", "finsight_source_calls_total")
+    report: dict[str, Any] = {
+        "scenario": "sources-load",
+        "blocked_hosts": list(args.block),
+        "block_mode": args.block_mode,
+        "upstream_proxy_used": bool(upstream_proxy),
+        "load": {"users": args.load_users, "requests_per_user": args.load_requests, "mode": "workflow", "llm": None},
+        "settings": {
+            "market_bundle_ttl_s": 60,
+            "max_stale_s": args.max_stale,
+            "source_cooldown_s": args.source_cooldown,
+        },
+        "phases": [],
+    }
+    summary_keys = (
+        "requests",
+        "wall_seconds",
+        "throughput_rps",
+        "error_rate",
+        "latency_ms",
+        "statuses",
+        "routes",
+        "answer_sources",
+        "verified_rate",
+        "degraded_rate",
+        "sources_served",
+        "environment",
+        "per_request",
+    )
+    try:
+        server.start()
+        with _client(server.base_url) as client:
+
+            def phase(name: str, *, warmup: bool = False) -> dict[str, Any]:
+                started = time.monotonic()
+                result = asyncio.run(
+                    load_test_run(
+                        server.base_url,
+                        args.load_users,
+                        args.load_requests,
+                        "workflow",
+                        warmup=warmup,
+                        label=f"chaos sources-load {name}",
+                    )
+                )
+                health = client.get("/sources/health").json()
+                entry = {
+                    "phase": name,
+                    "at": _now(),
+                    "blocking": proxy.blocking,
+                    "seconds": round(time.monotonic() - started, 1),
+                    **{key: result.get(key) for key in summary_keys},
+                    "sources": {
+                        row["source"]: {k: row.get(k) for k in ("status", "circuit", "calls", "failures")}
+                        for row in health["sources"]
+                        if row.get("calls")
+                    },
+                    "worker_pool": health.get("worker_pool"),
+                    "metrics": _metric_lines(client.get("/metrics").text, prefixes),
+                    "proxy_counts": json.loads(json.dumps(proxy.counts)),
+                }
+                report["phases"].append(entry)
+                print(
+                    json.dumps(
+                        {
+                            "phase": name,
+                            "latency_ms": result.get("latency_ms"),
+                            "error_rate": result.get("error_rate"),
+                            "sources_served": result.get("sources_served"),
+                        },
+                        ensure_ascii=False,
+                    )
+                )
+                return entry
+
+            phase("1_live", warmup=True)
+            # The last live fetches happened during phase 1: the 60 s TTL and the stale window count from here.
+            fetched = time.monotonic()
+            proxy.blocking = True
+            phase("2a_blocked_within_ttl")  # cache hits
+            time.sleep(max(0.0, fetched + 75 - time.monotonic()))
+            phase("2b_blocked_after_ttl")  # last-known-good inside the stale window
+            time.sleep(max(0.0, fetched + 60 + args.max_stale + 15 - time.monotonic()))
+            phase("3_blocked_after_stale_window")  # snapshot policy
+            proxy.blocking = False
+            time.sleep(args.source_cooldown * 2 + 5)  # a failed half-open trial doubles the cool-down
+            phase("4_unblocked_recovered")
+    finally:
+        server.stop()
+        proxy.stop()
+    return report
+
+
+def run_sources(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
+    upstream_proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    proxy = BlockingProxy(tuple(args.block), upstream_proxy, mode=args.block_mode)
+    proxy.start()
+    server = Server(args.port, _sources_env(proxy, args, out_dir), out_dir / "server-sources.log")
     price_q = "贵州茅台最新收盘价是多少？"
     macro_q = "CPI 最新数据是多少？"
     fund_q = "五粮液最新的营收和净利润增长情况如何？所在行业最近表现怎样？"
@@ -573,7 +686,7 @@ def run_sources(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser = argparse.ArgumentParser(description="Chaos drill against a live FinSight server.")
-    parser.add_argument("--scenario", choices=["llm", "sources"], required=True)
+    parser.add_argument("--scenario", choices=["llm", "sources", "sources-load"], required=True)
     parser.add_argument("--port", type=int, default=8821)
     parser.add_argument("--fallback-model", default="cline-pass/glm-5.3-flash")
     parser.add_argument("--llm-cooldown", type=float, default=60.0, help="FallbackLLM cool-down (s).")
@@ -582,6 +695,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument("--block-mode", choices=["reject", "hang"], default="reject")
     parser.add_argument("--source-cooldown", type=float, default=20.0)
     parser.add_argument("--max-stale", type=float, default=90.0)
+    parser.add_argument("--load-users", type=int, default=8, help="sources-load: concurrent users.")
+    parser.add_argument("--load-requests", type=int, default=10, help="sources-load: questions per user and phase.")
     parser.add_argument("--out", default="outputs/chaos/chaos.json")
     args = parser.parse_args(argv)
     out = Path(args.out)
@@ -589,7 +704,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     out_dir.mkdir(parents=True, exist_ok=True)
     started = time.time()
     state = git_state(ROOT)  # before the run: a commit made during a long drill is not attributed to it
-    report = run_llm(args, out_dir) if args.scenario == "llm" else run_sources(args, out_dir)
+    scenarios = {"llm": run_llm, "sources": run_sources, "sources-load": run_sources_load}
+    report = scenarios[args.scenario](args, out_dir)
     report.update(
         {
             "command": "python -m scripts.chaos_drill " + " ".join(sys.argv[1:] if argv is None else argv),
