@@ -17,10 +17,10 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "f429ede",
-  "run_at": "2026-10-01T12:45:22+00:00",
+  "commit": "ad9afe6",
+  "run_at": "2026-10-01T13:10:43+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 485.6,
+  "wall_seconds": 298.2,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json",
   "env": {},
   "command_with_env": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
@@ -58,9 +58,9 @@
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 191.48,
-  "latency_ms_p95": 2019.13,
-  "latency_ms_p99": 3069.7,
+  "latency_ms_p50": 159.28,
+  "latency_ms_p95": 1403.59,
+  "latency_ms_p99": 2205.84,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -88,89 +88,89 @@
   "clarify": {
    "tasks": 18,
    "task_success": 1.0,
-   "latency_ms_p95": 1338.65
+   "latency_ms_p95": 1108.62
   },
   "compare": {
    "tasks": 33,
    "task_success": 1.0,
-   "latency_ms_p95": 3686.15
+   "latency_ms_p95": 2450.75
   },
   "comparison": {
    "tasks": 15,
    "task_success": 1.0,
-   "latency_ms_p95": 11267.24
+   "latency_ms_p95": 10092.51
   },
   "compliance": {
    "tasks": 36,
    "task_success": 1.0,
-   "latency_ms_p95": 1108.55
+   "latency_ms_p95": 1148.32
   },
   "derived": {
    "tasks": 25,
    "task_success": 1.0,
-   "latency_ms_p95": 1497.26
+   "latency_ms_p95": 1769.39
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 1931.77
+   "latency_ms_p95": 1073.89
   },
   "fact": {
    "tasks": 74,
    "task_success": 1.0,
-   "latency_ms_p95": 2592.29
+   "latency_ms_p95": 1834.15
   },
   "injection": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 1285.0
+   "latency_ms_p95": 1543.71
   },
   "macro_link": {
    "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 2148.91
+   "latency_ms_p95": 1137.55
   },
   "missing_data": {
    "tasks": 45,
    "task_success": 1.0,
-   "latency_ms_p95": 1140.53
+   "latency_ms_p95": 1051.94
   },
   "multi_turn": {
    "tasks": 114,
    "task_success": 1.0,
-   "latency_ms_p95": 1485.64
+   "latency_ms_p95": 1224.76
   },
   "out_of_coverage": {
    "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 1452.94
+   "latency_ms_p95": 1632.61
   },
   "out_of_scope": {
    "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 209.62
+   "latency_ms_p95": 201.26
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 1585.97
+   "latency_ms_p95": 998.32
   },
   "why": {
    "tasks": 21,
    "task_success": 1.0,
-   "latency_ms_p95": 2593.69
+   "latency_ms_p95": 1462.17
   }
  },
  "by_language": {
   "en": {
    "tasks": 149,
    "task_success": 1.0,
-   "latency_ms_p95": 2428.59
+   "latency_ms_p95": 1621.1
   },
   "zh": {
    "tasks": 305,
    "task_success": 1.0,
-   "latency_ms_p95": 1836.0
+   "latency_ms_p95": 1308.45
   }
  },
  "failed_checks": {},
@@ -633,8 +633,8 @@
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "39efac53a1fbee62",
-  "bytes": 1720604,
-  "slimmed_at": "2026-10-01T12:45:22+00:00"
+  "sha256_16": "3f5cf21700d866fa",
+  "bytes": 1720377,
+  "slimmed_at": "2026-10-01T13:10:43+00:00"
  }
 }

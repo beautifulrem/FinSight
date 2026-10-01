@@ -1,0 +1,63 @@
+{
+ "config": {
+  "labels": "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+  "model": null,
+  "commit": "6a069d8",
+  "run_at": "2026-10-01T12:51:21+00:00",
+  "command": "python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round13-own.json",
+  "env": {},
+  "command_with_env": "python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round13-own.json",
+  "note": "Author's own router labels after round 13 at 6a069d8 (code at f429ede, clean tree): 396 queries (round-13 labels route_388-395 added for comparative verbs, a stated multiple, a total of two amounts, purchase cost with and without a target, an industry turnover rate, a yuan change from the % change and an opening imperative ratio). 1.000."
+ },
+ "queries": 396,
+ "accuracy": 1.0,
+ "per_route": {
+  "refuse": {
+   "support": 64,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "clarify": {
+   "support": 81,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "workflow": {
+   "support": 115,
+   "precision": 1.0,
+   "recall": 1.0
+  },
+  "agent": {
+   "support": 136,
+   "precision": 1.0,
+   "recall": 1.0
+  }
+ },
+ "confusion": {
+  "refuse": {
+   "refuse": 64,
+   "clarify": 0,
+   "workflow": 0,
+   "agent": 0
+  },
+  "clarify": {
+   "refuse": 0,
+   "clarify": 81,
+   "workflow": 0,
+   "agent": 0
+  },
+  "workflow": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 115,
+   "agent": 0
+  },
+  "agent": {
+   "refuse": 0,
+   "clarify": 0,
+   "workflow": 0,
+   "agent": 136
+  }
+ },
+ "errors": []
+}
