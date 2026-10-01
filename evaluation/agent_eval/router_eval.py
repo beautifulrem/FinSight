@@ -11,6 +11,10 @@ The router runs on the real offline NLU (``guard_in``), with an LLM configured s
 are not downgraded to the workflow.
 
     python -m evaluation.agent_eval.router_eval
+    python -m evaluation.agent_eval.router_eval --out evaluation/results/router_eval-<name>.json   # clean tree only
+
+Writing into ``evaluation/results/`` from a dirty working tree is refused unless ``--allow-dirty --note`` is given
+(round-9 review I13); the file is then labelled in ``notes``.
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ from query_intelligence.agent.graph import AgentRuntime
 from query_intelligence.agent.llm import ScriptedLLM
 from query_intelligence.agent.tools import build_registry_for_service
 
+from .dirty_guard import add_dirty_arguments, check_dirty_write
 from .runner import (
     DEFAULT_OUTPUT_DIR,
     EVAL_DIR,
@@ -88,7 +93,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser = argparse.ArgumentParser(description="Route accuracy on a labelled query set.")
     parser.add_argument("--labels", default=str(DEFAULT_LABELS))
     parser.add_argument("--out", default=str(DEFAULT_OUTPUT_DIR / "router_eval.json"))
+    add_dirty_arguments(parser)
     args = parser.parse_args(argv)
+    dirty_note = check_dirty_write(args.out, _git_commit(), allow_dirty=args.allow_dirty, notes=args.note)
     rows = [json.loads(line) for line in Path(args.labels).read_text(encoding="utf-8").splitlines() if line.strip()]
     report = {
         "config": {
@@ -100,6 +107,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         },
         **evaluate(rows),
     }
+    notes = [note for note in args.note if note] + ([dirty_note] if dirty_note else [])
+    if notes:
+        report["notes"] = notes
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")

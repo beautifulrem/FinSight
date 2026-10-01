@@ -5,7 +5,7 @@
   "commit": "40e8685-dirty",
   "run_at": "2026-10-01T05:44:18+00:00",
   "command": "python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out outputs/agent_eval/router_eval-independent_v2-round11.json",
-  "note": "Independent v2 labels rerun at 40e8685 (clean tree) after the round-11 fixes (after exposure: v2 was exposed after its first run 0.8008 at 3080bfe)"
+  "note": "provenance (round 13, round-9 review I13): recorded from a dirty working tree (40e8685-dirty), so it is not exactly reproducible from a commit; the clean rerun router_eval-independent_v2-round13.json gives the same accuracy"
  },
  "queries": 241,
  "accuracy": 0.8423,

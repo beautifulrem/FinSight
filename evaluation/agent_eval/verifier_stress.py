@@ -61,6 +61,7 @@ from query_intelligence.agent.verifier import (
 )
 from query_intelligence.chatbot import detect_query_language
 
+from .dirty_guard import add_dirty_arguments, check_dirty_write
 from .runner import (
     DEFAULT_OUTPUT_DIR,
     DEFAULT_SNAPSHOT,
@@ -329,7 +330,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser = argparse.ArgumentParser(description="Verifier false-accept stress test.")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--out", default=str(DEFAULT_OUTPUT_DIR / "verifier_stress.json"))
+    add_dirty_arguments(parser)
     args = parser.parse_args(argv)
+    dirty_note = check_dirty_write(args.out, _git_commit(), allow_dirty=args.allow_dirty, notes=args.note)
     results = run(load_tasks(DEFAULT_TASKS), seed=args.seed)
     report = {
         "config": {
@@ -343,6 +346,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         },
         **results,
     }
+    notes = [note for note in args.note if note] + ([dirty_note] if dirty_note else [])
+    if notes:
+        report["notes"] = notes
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
