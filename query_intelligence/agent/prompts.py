@@ -22,7 +22,7 @@ from typing import Any
 
 from .injection import UNTRUSTED_NOTICE
 
-DEFAULT_PROMPT_VERSION = "v3"
+DEFAULT_PROMPT_VERSION = "v4"
 
 ANSWER_CONTRACT = (
     'Return only a JSON object: {"answer": string, "key_points": [string], '

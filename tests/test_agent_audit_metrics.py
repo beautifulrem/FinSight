@@ -96,7 +96,7 @@ def test_compliance_edits_are_audited_per_rule(monkeypatch, tmp_path):
     events = _audit_lines(tmp_path)
     assert {event["category"] for event in events} == set(answer["compliance_notes"])
     assert all(event["event"] == "compliance_edit" and event["trace_id"] == answer["trace_id"] for event in events)
-    assert all(event["prompt_version"] == "v3" and event["answer_source"] == "llm_agent" for event in events)
+    assert all(event["prompt_version"] == "v4" and event["answer_source"] == "llm_agent" for event in events)
     assert "逢低买入" not in (tmp_path / "audit" / "audit.jsonl").read_text(encoding="utf-8")
     metrics = client.get("/metrics").text
     assert 'finsight_audit_events_total{category="removed_trading_instruction",event="compliance_edit"} 1.0' in metrics
