@@ -148,10 +148,10 @@ def test_a_colloquial_count_of_one_operand_in_the_other_is_a_ratio(agent):
 def test_a_stated_multiple_is_checked(agent):
     checked = agent.chat("茅台的市净率大概是五粮液的1.5倍吗", session_id="r13-claimed")
     assert "前者约为后者的 1.5 倍" in checked["answer"]
-    assert "所以大约是1.5倍。" in checked["answer"]
+    assert "是的，大约是1.5倍。" in checked["answer"]
     assert checked["verification"]["passed"]
     english = agent.chat("Is Ping An's revenue roughly 10 times Wuliangye's?", session_id="r13-claimed-en")
-    assert "11.23 times" in english["answer"] and "So no, it is more than 10 times." in english["answer"]
+    assert "11.23 times" in english["answer"] and "So no: it is more than 10 times." in english["answer"]
 
 
 def test_two_metrics_of_one_target_are_compared(agent):

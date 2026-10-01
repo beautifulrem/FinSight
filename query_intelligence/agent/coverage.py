@@ -64,6 +64,8 @@ _H_SHARE = (
     r"\b(?:[a-z][\w&.'-]*\s+){0,3}?hong kong[- ]listed\b|"
     r"\b(?:[a-z][\w&.'-]*\s+){0,3}?hong kong (?:share|stock) prices?\b(?: of (?:[a-z][\w&.'-]*\s?){1,4})?|"
     r"\bhong kong (?:shares?|stock|listing|line|counter) of (?:[a-z][\w&.'-]*\s?){1,4}|"
+    # (round 13, review-9 I9) "CATL's Hong Kong shares", "Ping An’s Hong Kong stock": a possessive before it
+    r"\b[\w&.-]+(?:'s|’s|s')\s+(?:[a-z][\w-]*\s+){0,2}?hong kong (?:shares?|stocks?|line|counter|quote)\b|"
     # (round 12) the Hong Kong line described in words: "它在港交所挂牌的那部分股票", "平安在香港上市的股份",
     # "its shares listed in Hong Kong", "Ping An's Hong Kong listing". As with "…H股", the name before it is part of
     # the span, so the A-share target it names is a lookalike, not answered with A-share data.
@@ -456,6 +458,103 @@ def stated_holding_count(text: str) -> int | None:
     if match.group("unit") == "手":
         count *= 100
     return count if count > 1 else None
+
+
+_EN_POSITION = re.compile(
+    r"(?<![\d.,])(?P<n>\d[\d,]*)\s+(?:(?!billion|million|thousand|bn|mn)[A-Za-z][\w'.-]*\s+){0,3}?"
+    r"(?P<unit>shares?|units?|lots?)\b",
+    re.IGNORECASE,
+)
+
+
+def holding_positions(query: str) -> list[dict[str, Any]]:
+    """(round 13, review-9 I5) Every count in a holding-value question that states two or more positions ("我有200股
+    茅台和3手五粮液，一共值多少", "300 Moutai shares and 2 lots of Ping An"): ``{shares, lots, units, start, end}`` in
+    order; empty for a single position (``holding_value_request`` covers it)."""
+    text = query or ""
+    if holding_value_request(text) is None:
+        return []
+    found: list[dict[str, Any]] = []
+    for match in re.finditer(_HOLDING_COUNT_ZH, text):
+        raw = match.group("n").replace(",", "").replace("，", "")
+        count = int(raw) if raw.isdigit() else _cn_integer(raw)
+        lots = count if match.group("unit") == "手" else 0
+        found.append(
+            {
+                "shares": count * 100 if lots else count,
+                "lots": lots,
+                "units": match.group("unit") == "份",
+                "start": match.start(),
+                "end": match.end(),
+            }
+        )
+    if not found:
+        for match in _EN_POSITION.finditer(text):
+            count = int(match.group("n").replace(",", ""))
+            unit = match.group("unit").lower()
+            lots = count if unit.startswith("lot") else 0
+            found.append(
+                {
+                    "shares": count * 100 if lots else count,
+                    "lots": lots,
+                    "units": unit.startswith("unit"),
+                    "start": match.start(),
+                    "end": match.end(),
+                }
+            )
+    found = [item for item in found if item["shares"] > 1]
+    return found if len(found) >= 2 else []
+
+
+def name_forms(name: str, *extra: str) -> list[str]:
+    """How a target may be written: its name, the last part of a long Chinese name (贵州茅台 → 茅台), English
+    names and aliases; longest first."""
+    from .names import english_aliases, english_name
+
+    forms = {str(item) for item in (name, *extra) if item}
+    if len(name) >= 4 and re.fullmatch(r"[一-鿿]+", name):
+        forms.add(name[2:])
+    forms.update(alias for alias in (english_name(name), *english_aliases(name)) if alias)
+    return sorted(forms, key=len, reverse=True)
+
+
+def bind_positions(text: str, positions: list[dict[str, Any]], candidates: dict[str, list[str]]) -> list[str | None]:
+    """The candidate key each holding position names: the name right after its unit ("200股茅台", "2 lots of Ping
+    An") or inside it ("300 Moutai shares"), else right before it ("茅台200股"), else the first name before the next
+    position; ``None`` for a bare count ("我还有5手")."""
+    lowered = text.lower()
+
+    def starts(segment: str) -> str | None:
+        for key, forms in candidates.items():
+            if any(segment.startswith(form.lower()) for form in forms):
+                return key
+        return None
+
+    def ends(segment: str) -> str | None:
+        for key, forms in candidates.items():
+            if any(segment.endswith(form.lower()) for form in forms):
+                return key
+        return None
+
+    bound: list[str | None] = []
+    for index, position in enumerate(positions):
+        stop = positions[index + 1]["start"] if index + 1 < len(positions) else len(text)
+        begin = positions[index - 1]["end"] if index else 0
+        inside = lowered[position["start"] : position["end"]]
+        after = re.sub(r"^(?:\s|的|of\s)+", "", lowered[position["end"] : stop])
+        before = re.sub(r"(?:\s|有|持有|买了|还有|，|,)+$", "", lowered[begin : position["start"]])
+        key = next((k for k, forms in candidates.items() if any(form.lower() in inside for form in forms)), None)
+        key = key or starts(after) or ends(before)
+        if key is None:
+            hits = [
+                (after.find(form.lower()), k)
+                for k, forms in candidates.items()
+                for form in forms
+                if form.lower() in re.split(r"[，,。；;]", after)[0]
+            ]
+            key = min(hits)[1] if hits else None
+        bound.append(key)
+    return bound
 
 
 def without_holding_value(query: str) -> str:

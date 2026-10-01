@@ -327,9 +327,20 @@ _VERB_COMPARATIVE_EN = (
 )
 # "是平安的两倍吗", "是不是三倍左右", "Is it about twice Ping An's?": a ratio checked against a stated multiple
 _CLAIMED_MULTIPLE_ZH = re.compile(
-    r"(?:是|为|有|相当于|等于|是不是|有没有)[^，。？?,;；]{1,14}?的\s*(?P<approx>大约|大概|约|将近|接近|差不多)?\s*"
-    r"(?P<k>\d+(?:\.\d+)?|[一两二三四五六七八九十]|半)\s*倍(?:左右|上下)?\s*(?:吗|么|嘛|吧|没有|不|呢)\s*[？?]?\s*$"
+    r"(?:是|为|有|相当于|等于|是不是|有没有|是否|超过|不到|达到)[^，。？?,;；]{1,14}?的\s*"
+    r"(?P<approx>大约|大概|约|将近|接近|差不多)?\s*(?P<k>\d+(?:\.\d+)?|[一两二三四五六七八九十]|半)\s*倍"
+    r"(?P<post>还要多|还多|以上|有余|多|左右|上下|不到)?\s*(?:吗|么|嘛|吧|没有|不|呢)?\s*[？?]?\s*$"
 )
+_CLAIMED_HALF_ZH = re.compile(
+    r"(?:是|为|有|相当于|等于|是不是|有没有|是否|超过|不到|达到)[^，。？?,;；]{1,14}?的\s*(?:大约|大概|约|将近|接近)?\s*一半"
+    r"(?:还要多|还多|以上|多|左右|不到)?\s*(?:吗|么|嘛|吧|没有|不|呢)?\s*[？?]?\s*$"
+)
+# (round 13, review-9 I7) the bound a yes/no multiple question asks about: "两倍还多 / 以上 / more than double" (above),
+# "不到两倍 / less than twice" (below), else "about"
+_ABOVE_WORDS = re.compile(
+    r"超过|多于|高于|至少|还要多|还多|以上|有余|有没有|达到|够不够|\bmore than\b|\bover\b|\bat least\b|\babove\b", re.I
+)
+_BELOW_WORDS = re.compile(r"不到|不足|少于|低于|\bless than\b|\bunder\b|\bbelow\b|\bnot even\b", re.I)
 # the multiple stands before the other operand: "twice Ping An's", "three times as high as the latter", "double that"
 _CLAIMED_MULTIPLE_EN = re.compile(
     r"^(?:is|are|was|were|does|do|did|has)\b[^.?!]{0,60}?\b"
@@ -398,6 +409,8 @@ _WHICH = re.compile(
     r"\b(?:higher|lower|bigger|larger) of the two\b",
     re.IGNORECASE,
 )
+# (round 13) a question about two of several operands ("两者", "the two", "前者/后者")
+_TWO = re.compile(r"两者|二者|两个|两家|两只|俩|\bthe two\b|\bboth\b|\bthe pair\b", re.IGNORECASE)
 # (round 13) "Divide the second by the first": a bare "the first / the second" before by / from / and / an end
 _BARE_ORDINAL_END = r"(?=\s+(?:by|from|and|to|over|minus|plus|divided|times|one)\b|\s*['’]s\b|\s*[.?!,;]|\s*$)"
 _ORDINAL = re.compile(
@@ -419,11 +432,26 @@ _CLAUSE = re.compile(r"[^。！？!?；;]+[。！？!?；;]?")
 MAX_CLAUSE_CHARS = 100
 
 
+def _bound(text: str) -> str:
+    return "gt" if _ABOVE_WORDS.search(text) else "lt" if _BELOW_WORDS.search(text) else "eq"
+
+
+def claimed_check(text: str) -> dict[str, Any] | None:
+    """The stated multiple with the bound the question asks about: ``{multiple, written, approx, bound}``."""
+    found = claimed_multiple(text)
+    if found is None:
+        return None
+    return {"multiple": found[0], "written": found[1], "approx": found[2], "bound": _bound(text)}
+
+
 def claimed_multiple(text: str) -> tuple[float, str, bool] | None:
     """(round 13) ``(multiple, as written, approximate)`` when a ratio question states the multiple it checks ("五粮液
     的股价大约是平安的两倍吗" → (2.0, "两", True); "Is Moutai's P/B roughly twice Ping An's?" → (2.0, "twice", True)),
     else ``None``. The answer computes the ratio and says whether the stated multiple holds."""
     text = (text or "").strip()
+    half = _CLAIMED_HALF_ZH.search(text)
+    if half is not None:
+        return 0.5, "一半", bool(re.search(r"大约|大概|约|将近|接近|差不多|左右", text))
     found = _CLAIMED_MULTIPLE_ZH.search(text)
     if found is not None:
         raw = found.group("k")
@@ -446,16 +474,47 @@ def claimed_multiple(text: str) -> tuple[float, str, bool] | None:
 _CN_SMALL = {"一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
 # (round 13) a total of two operands: "加起来", "合计", "一共", "combined", "in total", "the sum of"
 _SUM = re.compile(
-    r"加起来|加在一起|合起来|合计|一共|总共|总和|之和|相加|\bcombined\b|\bin total\b|\btogether\b|\bsum of\b|"
-    r"\badd(?:ed)? up\b|\btotal (?:of|for)\b|\bin aggregate\b",
+    r"加起来|加(?:在|到)?一(?:块|起)|合(?:在)?一起|合起来|合计|一共|总共|总和|之和|相加|再加上|"
+    r"\bcombined\b|\bin total\b|\btogether\b|\bsum of\b|\badd(?:ed|s)? up\b|\bput together\b|"
+    r"\btotal (?:of|for)\b|\bin aggregate\b",
     re.IGNORECASE,
+)
+# (round 13, review-9 I1) a share of another value: "A相当于B的百分之多少", "A是B的几成", "A占B的百分之几",
+# "what percent of B is A", "A is what percentage of B", "as a percentage of B": A ÷ B × 100, not the relative
+# difference (A − B) ÷ B
+_SHARE = re.compile(
+    r"(?:相当于|是|占|为|等于|只有|才)[^，。？?,;；]{1,14}?的\s*(?:大约|大概|约)?\s*"
+    r"(?:百分之(?:多少|几)|(?:几|多少)成|(?:多少|几)(?:个)?(?:百分比|%)|多大比例|多少比例|几分之几)|"
+    r"\bwhat (?:percent(?:age)?|share|fraction|proportion|portion) of\b|"
+    r"\b(?:is|are|was|were)\s+what\s+(?:percent(?:age)?|share|fraction|proportion)\s+of\b|"
+    r"\bas an? (?:percent(?:age)?|share|fraction|proportion) of\b|\bhow many percent of\b",
+    re.IGNORECASE,
+)
+# (round 13, review-9 I4) the spread of several operands: "最高的比最低的高多少", "highest minus lowest", "the spread
+# between the highest and the lowest", "最大和最小差多少"
+_SPREAD = re.compile(
+    r"最(?:高|大|多|贵)[^，。？?,;；]{0,10}?(?:比|和|与|跟|减|减去|-|−)[^，。？?,;；]{0,6}?最(?:低|小|少|便宜)|"
+    r"最(?:低|小|少|便宜)[^，。？?,;；]{0,10}?(?:比|和|与|跟)[^，。？?,;；]{0,6}?最(?:高|大|多|贵)|极差|"
+    r"\b(?:highest|largest|biggest|top)\b[^.?!]{0,30}?\b(?:minus|and|less|over|vs\.?|versus|to)\b[^.?!]{0,12}?"
+    r"\b(?:lowest|smallest|bottom)\b|\b(?:lowest|smallest)\b[^.?!]{0,30}?\b(?:and|to|vs\.?)\b[^.?!]{0,12}?"
+    r"\b(?:highest|largest|biggest)\b|\brange (?:between|from)\b",
+    re.IGNORECASE,
+)
+# (round 13, review-9 I6) how many shares of B one share of A buys: "一股茅台能换几股五粮液" (a ratio of the closes)
+_SWAP_SHARES = re.compile(
+    r"(?:能|可以)?换(?:成)?(?:几|多少)(?:股|份|手)|\bhow many (?:shares|units) of\b[^.?!]{0,40}\bone\b", re.I
 )
 SUM_KINDS = frozenset({"money", "count"})  # a total of P/Es, prices or rates is not a value
 
 
 def _operation_of(text: str) -> str | None:
+    if _SPREAD.search(text):
+        return "spread"
+    if _SHARE.search(text):
+        return "share"
     if (
         _RATIO_EXPLICIT.search(text)
+        or _SWAP_SHARES.search(text)
         or (_RATIO_UNIT.search(text) and _ANCHOR.search(text))
         or claimed_multiple(text) is not None
     ):
@@ -464,7 +523,8 @@ def _operation_of(text: str) -> str | None:
         _RELATIVE_UNIT.search(text) and (_COMPARATIVE.search(text) or _ANCHOR.search(text))
     ):
         return "relative"
-    if _SUM.search(text) and (_ANCHOR.search(text) or re.search(r"和|与|跟|及|\band\b|\bof\b", text, re.I)):
+    joined = r"和|与|跟|及|加|\band\b|\bof\b|\bboth\b|\btheir\b|\bthese\b|\bthose\b"
+    if _SUM.search(text) and (_ANCHOR.search(text) or re.search(joined, text, re.I)):
         return "sum"
     if _DIFFERENCE.search(text):
         return "difference"
@@ -506,8 +566,8 @@ def opening_comparison(text: str) -> bool:
     """(round 13) A gap, ratio, relative or total question that refers to its operands by order ("the second", "前者")
     or names the metric compared: a finance comparison even when nothing in the session supplies the operands."""
     operation = frame_operation(text)
-    return operation in {"difference", "ratio", "relative", "sum"} and bool(
-        _ORDINAL.search(text or "") or metric_of(text or "")
+    return operation in {"difference", "ratio", "relative", "sum", "share", "spread"} and bool(
+        _ORDINAL.search(text or "") or metric_of(text or "") or _TWO.search(text or "")
     )
 
 
@@ -714,7 +774,7 @@ def resolve_frame_question(
     clause = comparison_clause(text) or text
     frame = latest_frame(turns) or {}
     known = [dict(item) for item in frame.get("operands") or []]
-    if _TRIPLE.search(clause) and len(known) < 3:
+    if _TRIPLE.search(clause) and len(known) < 3 and len([e for e in listed if e.get("symbol")]) < 3:
         # "这三家谁最高" after two targets: the group reference and its count check ask which third one is meant
         return None
     named_metric = metric_of(clause)
@@ -759,11 +819,14 @@ def resolve_frame_question(
         pair = _metric_pair(turns)
         if pair is not None:
             return _metric_pair_question(text, operation, pair, zh)
-    metric = named_metric or frame.get("metric")
+    swap = operation == "ratio" and _SWAP_SHARES.search(clause) is not None
+    metric = named_metric or ("close" if swap else frame.get("metric"))  # "一股茅台能换几股五粮液": closes
     if not metric or len(operands) < 2:
         return None
     if operation == "sum" and METRIC_BY_KEY[metric].kind not in SUM_KINDS:
         return None  # "两只的市盈率加起来": a total of multiples is not a value
+    if len({operand_key(item) for item in operands}) < 2:
+        return None
     ordinals = [match for match in _ORDINAL.finditer(clause)]
     first_name, last_name = operand_name(operands[0], zh), operand_name(operands[-1], zh)
     if ordinals and len(named) < 2:
@@ -772,8 +835,18 @@ def resolve_frame_question(
         operands = picked + [item for item in (first, last) if item not in picked]
     elif _TRIPLE.search(clause):
         operands = operands[-3:]
-    elif operation != "which" and len(operands) > 2:
-        operands = operands[-2:]
+    elif operation in {"which", "spread", "sum"} or len(named) >= 3:
+        pass  # (round 13, review-9 I3/I4) every operand: a total, a spread or a comparison of all the named targets
+    elif len(operands) > 2 and _TWO.search(clause):
+        operands = operands[-2:]  # "两者差多少" after three targets: the last two discussed
+    if operation == "share" and len(named) >= 2 and (base := _SHARE.search(clause)) is not None:
+        # (round 13, review-9 I1) the base of a share is the operand written after 相当于 / "of": "五粮液相当于茅台的
+        # 百分之多少" is 五粮液 ÷ 茅台, "What fraction of A's does B earn?" is B ÷ A
+        after = [
+            item for item in ordered_entities(entities, operands) if _mention_position(text, item, 0) >= base.start()
+        ]
+        if after and str(after[0].get("symbol")) == str(operands[0].get("symbol")) and len(operands) == 2:
+            operands = [operands[1], operands[0]]
     if operation == "ratio" and (inverted := _TIMES_INVERTED.search(clause)):
         # "how many times A is B" asks B / A; "how many times bigger is A than B" asks A / B (A and B named, or
         # the former / the latter)
@@ -807,9 +880,12 @@ def resolve_frame_question(
     if metric == "pct_change" and (direction := _direction(clause)):
         # (round 12) "多跌了多少" after two falls: the gap names the side that fell more, not the "higher" change
         request["direction"] = direction
-    if operation == "ratio" and (claimed := claimed_multiple(clause)) is not None:
-        # (round 13) "大约是平安的两倍吗": the ratio, and whether the stated multiple holds
-        request["claimed"] = {"multiple": claimed[0], "written": claimed[1], "approx": claimed[2]}
+    if operation in {"difference", "ratio", "relative", "share"} and len(operands) > 2:
+        # (round 13, review-9 I4) a two-operand comparison of three or more targets: every pair, said as such
+        request["pairwise"] = True
+    if operation == "ratio" and (claimed := claimed_check(clause)) is not None:
+        # (round 13) "大约是平安的两倍吗", "more than double …?": the ratio, and whether the stated multiple holds
+        request["claimed"] = claimed
     reason = f"frame:{operation}:{metric}:{'|'.join(operand_name(item, True) for item in operands)}"
     return rewritten, reason, request
 
@@ -844,7 +920,10 @@ def _metric_pair_question(
 ) -> tuple[str, str, dict[str, Any]] | None:
     operand, first, second = pair
     if operation in {"sum", "which"} and METRIC_BY_KEY[first].kind == "points":
-        return None  # a total of two rates means nothing; "which is higher" of two rates is stated by the gap
+        return None
+    operation = (
+        "difference" if operation == "spread" else operation
+    )  # a total of two rates means nothing; "which is higher" of two rates is stated by the gap
     name = operand_name(operand, zh)
     labels = [metric_label(first, zh), metric_label(second, zh)]
     rewritten = f"{name}的{labels[0]}和{labels[1]}，{text}" if zh else f"{name}'s {labels[0]} and {labels[1]}: {text}"
