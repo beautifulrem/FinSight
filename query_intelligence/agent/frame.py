@@ -338,7 +338,9 @@ _CLAIMED_HALF_ZH = re.compile(
 # (round 13, review-9 I7) the bound a yes/no multiple question asks about: "两倍还多 / 以上 / more than double" (above),
 # "不到两倍 / less than twice" (below), else "about"
 _ABOVE_WORDS = re.compile(
-    r"超过|多于|高于|至少|还要多|还多|以上|有余|有没有|达到|够不够|\bmore than\b|\bover\b|\bat least\b|\babove\b", re.I
+    r"超过|多于|高于|至少|还要多|还多|以上|有余|有没有|达到|够不够|"
+    r"\bexceeds?\b|\bmore than\b|\bover\b|\bat least\b|\babove\b",
+    re.I,
 )
 _BELOW_WORDS = re.compile(r"不到|不足|少于|低于|\bless than\b|\bunder\b|\bbelow\b|\bnot even\b", re.I)
 # the multiple stands before the other operand: "twice Ping An's", "three times as high as the latter", "double that"
@@ -507,7 +509,16 @@ _SWAP_SHARES = re.compile(
 SUM_KINDS = frozenset({"money", "count"})  # a total of P/Es, prices or rates is not a value
 
 
+# (round 13) "the P/E ratios of A and B": a metric's name, not a question for their ratio
+_METRIC_RATIO_NAME = re.compile(
+    r"(?:(?<![A-Za-z])P/?[EB]|\bprice[- ]to[- ](?:earnings|book)|\bpayout|\bdebt(?:[- ]to[- ]equity)?|\bsharpe)"
+    r"\s+ratios?\b",
+    re.IGNORECASE,
+)
+
+
 def _operation_of(text: str) -> str | None:
+    text = _METRIC_RATIO_NAME.sub("metric", text)
     if _SPREAD.search(text):
         return "spread"
     if _SHARE.search(text):

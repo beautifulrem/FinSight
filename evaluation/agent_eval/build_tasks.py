@@ -3746,6 +3746,113 @@ def _round13_tasks() -> list[dict[str, Any]]:
             "derived",
             "zh",
             [_turn("五粮液最新一个交易日每股下跌了多少元", required_facts=[price(wly, 0.54)])],
+        ),  # round-9 review I1 / I3 / I4 / I5 / I6 / I7 / I9 (own wording)
+        _task(
+            "r13_r9_share_session_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("中国平安的营业收入", required_entity=pa),
+                _turn("五粮液的又是多少", required_entity=wly),
+                _turn("后者只有前者的几成", required_facts=[fundamental(wly, 8.91)]),
+            ],
+        ),
+        _task(
+            "r13_r9_share_en",
+            "comparison",
+            "en",
+            [_turn("Wuliangye's ROE as a percentage of Moutai's?", required_facts=[fundamental(wly, 89.09)])],
+        ),
+        _task(
+            "r13_r9_sum_session_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("五粮液成交额", required_facts=[price(wly, 1452833705)]),
+                _turn("中国平安的成交额呢", required_entity=pa),
+                _turn("两只加一块是多少", required_facts=[price(wly, 8092833705)]),
+            ],
+        ),
+        _task(
+            "r13_r9_sum_three_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Combined net profit of Moutai, Wuliangye and Ping An?",
+                    required_facts=[fundamental(mt, 241120000000)],
+                )
+            ],
+        ),
+        _task(
+            "r13_r9_spread_zh",
+            "comparison",
+            "zh",
+            [_turn("茅台、五粮液、中国平安的市净率，最高和最低差多少", required_facts=[fundamental(mt, 7)])],
+        ),
+        _task(
+            "r13_r9_pairs_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "How do the P/E ratios of Moutai, Wuliangye and Ping An differ?",
+                    required_facts=[fundamental(mt, 3.7), fundamental(mt, 15.9), fundamental(wly, 12.2)],
+                )
+            ],
+        ),
+        _task(
+            "r13_r9_holdings_zh",
+            "derived",
+            "zh",
+            [_turn("我手上有一千股中国平安，另外还有4手茅台，按收盘一共多少钱", required_facts=[price(pa, 617410)])],
+        ),
+        _task(
+            "r13_r9_holdings_en",
+            "derived",
+            "en",
+            [
+                _turn(
+                    "I have 250 Wuliangye shares and 1 lot of Ping An; how much is that in total?",
+                    required_facts=[price(wly, 30521)],
+                )
+            ],
+        ),
+        _task(
+            "r13_r9_swap_zh",
+            "comparison",
+            "zh",
+            [_turn("五粮液一股能换多少股中国平安", required_facts=[price(wly, 1.88)])],
+        ),
+        _task(
+            "r13_r9_at_least_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Is Ping An's revenue at least 7 times Moutai's?",
+                    required_facts=[fundamental(pa, 7.21)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"(?i)conditional assessment"],
+                )
+            ],
+        ),
+        _task(
+            "r13_r9_half_zh",
+            "comparison",
+            "zh",
+            [_turn("五粮液的成交额有没有茅台的一半", required_facts=[price(wly, 0.38)])],
+        ),
+        _task(
+            "r13_r9_hk_possessive_en",
+            "out_of_coverage",
+            "en",
+            [
+                _turn(
+                    "How are Ping An's Hong Kong shares priced today?",
+                    behavior="refuse",
+                    required_limitations=["out_of_coverage"],
+                )
+            ],
         ),
     ]
 
