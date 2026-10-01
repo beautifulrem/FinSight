@@ -359,7 +359,15 @@ function frameLabel(lang: Lang, operation: string, metric: string, operands: str
         ? `比较${what}高低：${joinNames(lang, names)}`
         : `Compared which ${what} is higher: ${joinNames(lang, names)}`;
     case "sum":
-      return lang === "zh" ? `计算${what}合计：${a} + ${b}` : `Computed the combined ${what}: ${a} + ${b}`;
+      return lang === "zh"
+        ? `计算${what}合计：${names.join(" + ")}`
+        : `Computed the combined ${what}: ${names.join(" + ")}`;
+    case "share":
+      return lang === "zh" ? `计算${what}占比：${a} ÷ ${b}` : `Computed ${a}'s ${what} as a share of ${b}'s`;
+    case "spread":
+      return lang === "zh"
+        ? `计算${what}最高与最低之差：${joinNames(lang, names)}`
+        : `Computed the ${what} spread (highest minus lowest): ${joinNames(lang, names)}`;
     default:
       return null;
   }
