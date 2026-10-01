@@ -1,5 +1,6 @@
 # Build context for docker/Dockerfile. The image copies only requirements.txt, query_intelligence/,
-# sentiment/, scripts/, training/, evaluation/, config/, schemas/, models/ and data/{runtime,*.json,*.csv};
+# sentiment/, scripts/, training/, evaluation/, config/, schemas/, models/, data/{runtime,*.json,*.csv} and
+# data/snapshot/{structured_data_ext,manifest}.json;
 # everything else stays out of the context so builds are fast and nothing local (keys, virtualenvs,
 # outputs, node_modules) can end up in a layer.
 

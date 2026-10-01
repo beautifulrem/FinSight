@@ -75,11 +75,28 @@ def load_tasks(path: str | Path = DEFAULT_TASKS) -> list[dict[str, Any]]:
     return [json.loads(line) for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def build_offline_service():
+def eval_snapshot_ext() -> bool:
+    """Whether the evaluation's offline tools see the snapshot extension (``QI_EVAL_SNAPSHOT_EXT``, default off).
+
+    Every task set and held-out slice was labelled against the v1 snapshot (``data/structured_data.json``),
+    including absence labels such as "宁德时代 has no offline price"; the extension (data/snapshot/) adds those
+    names, so evaluation stays pinned to v1 unless this is set. Tasks that need the extension are recorded into
+    their replay fixture with it on (docs/data-sources.md, "Offline snapshot").
+    """
+    import os
+
+    return os.getenv("QI_EVAL_SNAPSHOT_EXT", "").strip().lower() in {"1", "true", "yes"}
+
+
+def build_offline_service(*, snapshot_ext: bool | None = None):
     from query_intelligence.service import build_default_service
 
     return build_default_service(
-        use_live_market=False, use_live_macro=False, use_live_news=False, use_live_announcement=False
+        use_live_market=False,
+        use_live_macro=False,
+        use_live_news=False,
+        use_live_announcement=False,
+        offline_snapshot_ext=eval_snapshot_ext() if snapshot_ext is None else snapshot_ext,
     )
 
 

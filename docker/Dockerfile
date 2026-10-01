@@ -47,6 +47,8 @@ COPY schemas ./schemas
 COPY models ./models
 COPY data/runtime ./data/runtime
 COPY data/*.json data/*.csv ./data/
+# Offline snapshot extension (merged under data/structured_data.json; the raw source records stay out).
+COPY data/snapshot/structured_data_ext.json data/snapshot/manifest.json ./data/snapshot/
 
 # efinance writes <package>/data on import; point it at /tmp so the image also runs with a read-only
 # root filesystem (the Kubernetes manifest mounts an emptyDir there).

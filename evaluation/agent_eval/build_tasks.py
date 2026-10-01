@@ -992,7 +992,7 @@ def _round3b_tasks() -> list[dict[str, Any]]:
     from query_intelligence.data_loader import load_structured_data
 
     # revenue and net profit straight from the offline snapshot, so a corrected figure updates the facts
-    statements = load_structured_data()["fundamental_sql"]
+    statements = load_structured_data(extended=False)["fundamental_sql"]
     net_profit = {symbol: statements[symbol]["net_profit"] for symbol in FUNDAMENTALS}
     revenue = {symbol: statements[symbol]["revenue"] for symbol in FUNDAMENTALS}
 
@@ -1500,7 +1500,7 @@ def _round5_tasks() -> list[dict[str, Any]]:
     and near duplicates without printing them)."""
     from query_intelligence.data_loader import load_structured_data
 
-    statements = load_structured_data()["fundamental_sql"]
+    statements = load_structured_data(extended=False)["fundamental_sql"]
     revenue = {symbol: statements[symbol]["revenue"] for symbol in FUNDAMENTALS}
 
     def fundamental(symbol: str, key: str) -> dict[str, Any]:
@@ -2781,7 +2781,7 @@ def _offline_ma5() -> dict[str, float]:
     from query_intelligence.retrieval.market_analyzer import MarketAnalyzer
 
     values: dict[str, float] = {}
-    for symbol, payload in load_structured_data()["market_api"].items():
+    for symbol, payload in load_structured_data(extended=False)["market_api"].items():
         analysis = MarketAnalyzer().enrich_payload(dict(payload)).get("_market_analysis") or {}
         if analysis.get("ma5") is not None:
             values[symbol] = round(float(analysis["ma5"]), 4)
