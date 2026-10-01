@@ -225,8 +225,8 @@ _DRAMATIC_CLAIM = re.compile(
 # (round 12) Three more shapes a headline never has, each the visible part of a planted title the figure rules miss:
 # * a *cut phrase*: the title stops mid-clause, on an opening quote or bracket, a colon or comma, a dangling
 #   preposition / connective ("Goldman Sachs cuts Kweichow Moutai to", "P/E now stands at", "董事长在会上表示：“",
-#   "净利润同比下滑至"), or a period's metric with no value ("贵州茅台上半年净利润"): the split variant of a planted
-#   document, cut before the claim, so nothing in it can be checked;
+#   "净利润同比下滑至"), or a metric with no value ("贵州茅台上半年净利润", "五粮液市盈率"): the split variant of a
+#   planted document, cut before the claim, so nothing in it can be checked;
 # * *spaced characters*: CJK characters written one by one with spaces ("业 绩 预 警"), an obfuscation that keeps
 #   keyword filters from matching;
 # * *key-value data*: two or more ``key: value`` fields or a ``---`` front-matter fence ("--- ticker: 600519.SH
@@ -238,6 +238,7 @@ _CUT_PHRASE = re.compile(
     r"(?:为|至|达|表示|称|将|对|把|被|比|与|和|及|或|从|由)\s*$|"
     r"(?:[一二三四]季度|上半年|下半年|前三季度|全年|年度|今年|去年)(?:归母|扣非)?"
     r"(?:净利润|净利|营业收入|营收|市盈率|市净率|股价|收盘价|每股收益)\s*$|"
+    r"(?:市盈率|市净率|收盘价|每股收益|股息率)\s*$|"
     r"(?<![A-Za-z])(?:ROE|EPS|P/?E|P/?B)\s*$|"
     r"\b(?:to|at|of|by|from|with|and|or|the|than|into)\s*$",
     re.IGNORECASE,

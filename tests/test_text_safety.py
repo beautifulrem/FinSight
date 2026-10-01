@@ -366,6 +366,7 @@ def test_official_or_plain_wording_is_not_a_dramatic_claim(title):
         "快讯 五粮液一季度销量回落至",  # cut on a dangling 至
         "纪要 五粮液总经理在业绩会上表示：“",  # cut on an opening quote
         "快评 中国平安前三季度归母净利润",  # a period's metric with no value
+        "速览 五粮液最新市净率",  # a valuation metric with no value
         "Analyst note Morgan Stanley lifts Ping An to",  # dangling preposition
         "Daily wrap Wuliangye's forward P/E now trades at",
         "五 粮 液 业 绩 暴 增",  # characters spaced out one by one
