@@ -182,3 +182,10 @@ def test_load_test_records_which_source_and_fallback_served_the_evidence():
     }
     assert _sources_served(body) == ["sina.kline/last_known_good", "offline_snapshot/snapshot", "seed/unlabelled"]
     assert _sources_served({}) == []
+
+
+def test_perf_results_record_env_switches_without_secrets():
+    from scripts.provenance import env_switches
+
+    env = {"QI_AGENT_PREFETCH": "1", "QI_API_KEYS": "k", "DEEPSEEK_API_KEY": "s", "DEEPSEEK_MODEL": "m", "PATH": "/x"}
+    assert env_switches(env) == {"DEEPSEEK_MODEL": "m", "QI_AGENT_PREFETCH": "1"}

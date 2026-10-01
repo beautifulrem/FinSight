@@ -62,10 +62,10 @@ import httpx
 
 try:
     from scripts.load_test import run as load_test_run
-    from scripts.provenance import commit_label, git_state
+    from scripts.provenance import commit_label, env_switches, git_state
 except ModuleNotFoundError:  # run as a file (python scripts/x.py): scripts/ itself is on sys.path
     from load_test import run as load_test_run  # type: ignore[no-redef]
-    from provenance import commit_label, git_state  # type: ignore[no-redef]
+    from provenance import commit_label, env_switches, git_state  # type: ignore[no-redef]
 
 ROOT = Path(__file__).resolve().parents[1]
 INVALID_MODEL = "cline-pass/chaos-invalid-model"
@@ -599,6 +599,7 @@ def run_llm_load(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
                 last[model] = state
     return {
         "scenario": "llm-load",
+        "server_env": env_switches(env),
         "primary": primary,
         "fallback": args.fallback_model or None,
         "load": {"users": args.load_users, "requests_per_user": args.load_requests, "mode": args.load_mode},
@@ -911,6 +912,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "duration_s": round(time.time() - started, 1),
             "commit": commit_label(state),
             "working_tree_clean": state["working_tree_clean"],
+            "env": env_switches(),
             **({"commit_error": state["commit_error"]} if state.get("commit_error") else {}),
         }
     )
