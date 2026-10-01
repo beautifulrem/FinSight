@@ -44,7 +44,6 @@ from .runner import (
     DEFAULT_OUTPUT_DIR,
     EVAL_TODAY,
     TASK_SETS,
-    _command,
     _display_path,
     _git_commit,
     _make_llm,
@@ -54,6 +53,7 @@ from .runner import (
     agent_config_from_overrides,
     build_offline_service,
     build_registry,
+    command_fields,
     llm_config,
     load_tasks,
     map_tasks,
@@ -281,7 +281,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "agent_config": asdict(agent_config),
             "agent_config_overrides": args.agent_config,
             "limit": args.limit or None,
-            "command": _command("evaluation.agent_eval.ablation", argv),
+            **command_fields("evaluation.agent_eval.ablation", argv),
         },
         "results": {
             set_name: {

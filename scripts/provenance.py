@@ -48,3 +48,20 @@ def commit_label(state: dict[str, Any] | None = None) -> str:
     state = state or git_state()
     suffix = "-dirty" if state.get("working_tree_clean") is False else ""
     return f"{state['commit']}{suffix}"
+
+
+# Names that can hold a credential or a connection string are never recorded.
+_SECRET_MARKERS = ("KEY", "SECRET", "TOKEN", "PASSWORD", "PASSWD", "DSN", "URL", "URI", "AUTH", "COOKIE")
+
+
+def env_switches(environ: dict[str, str] | None = None) -> dict[str, str]:
+    """(round 12) The ``QI_*`` switches and ``DEEPSEEK_MODEL`` in ``environ`` (default: this process), sorted, without
+    anything secret-shaped; the same rule as ``evaluation.agent_eval.runner.env_toggles``."""
+    import os
+
+    source = os.environ if environ is None else environ
+    return {
+        name: value
+        for name, value in sorted(source.items())
+        if (name.startswith("QI_") or name == "DEEPSEEK_MODEL") and not any(m in name.upper() for m in _SECRET_MARKERS)
+    }

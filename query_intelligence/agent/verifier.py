@@ -407,6 +407,66 @@ def _bound_units(answer: dict[str, Any]) -> list[tuple[str, str]]:
     return pairs
 
 
+# (round 12, H8) "(24.6 − 20.9) / 20.9 × 100 = 17.7%": the 100 of a percent formula is a constant, not a claim
+_FORMULA_CONSTANT = re.compile(r"(?<=[×*✕])\s*100(?:\.0+)?\s*%?(?![\d.])")
+# A ratio or a gap stated next to a metric name ("ROE 约为中国平安的 1.93 倍", "P/E is 17.7% above"): the number is
+# derived from the operands, not a reported value of the metric
+_COMPARISON = re.compile(
+    r"之比|比值|倍|相差|差距|差值|高出|低出|高于|低于|多出|少于|溢价|折价|÷|"
+    r"\b(?:ratio|times|above|below|higher|lower|gap|difference|premium|discount|more than|less than)\b",
+    re.IGNORECASE,
+)
+
+
+# a division written out between two numbers ("3.7 ÷ 20.9", "15.2/29.4")
+_DIVISION = re.compile(r"\d\s*[÷/]\s*\d")
+
+
+def _formula_free(text: str) -> str:
+    return _FORMULA_CONSTANT.sub(" ", text)
+
+
+def _sentence_operands(
+    sentence: str, store: EvidenceStore, unit_ids: list[str]
+) -> list[tuple[float, tuple[float, ...]]]:
+    """(round 12, H8) Supported numbers anywhere in the whole sentence, checked against the evidence the sentence
+    cites: a derivation split by "；" ("24.6 − 20.9 = 3.7; 3.7 ÷ 20.9 ≈ 17.7% [a][b]") keeps its operands."""
+    ids = [match.group(1) for match in _CITATION.finditer(sentence) if match.group(1) in store] or unit_ids
+    scope = _evidence_numbers(store, ids)
+    claims = claim_values(_formula_free(sentence))
+    return [(v, sc) for v, sc, r, sg in claims if v and _is_supported(v, scope, sc, r, sg)]
+
+
+def _amount_operands(text: str, numbers: list[tuple[float, bool]]) -> list[float]:
+    """(round 12, H8) The amounts stated in ``text`` (with a magnitude unit, or bare and at least 10,000) that
+    ``numbers`` supports, converted to the evidence's own unit: "168838000000 元" and "1688.38 亿元" both become the
+    evidence value 168838000000."""
+    found = []
+    for value, scales, rounding, sign in claim_values(_formula_free(text)):
+        if not value or not (_is_amount(scales) or (scales == _BARE_SCALES and abs(value) >= 1e4)):
+            continue
+        matched = next((scale for scale in scales if _is_supported(value, numbers, (scale,), rounding, sign)), None)
+        if matched:
+            found.append(value / matched)
+    return found
+
+
+def _is_amount_gap(value: float, scales: tuple[float, ...], rounding: float | None, amounts: list[float]) -> bool:
+    """(round 12, H8) ``value``, written with a magnitude unit, is the difference or sum of two stated amounts in
+    another unit ("营业收入 168838000000 元 … 108500000000 元，相差 603.38 亿元")."""
+    if not _is_amount(scales) or len(amounts) < 2:
+        return False
+    tolerance = 0.5 if rounding is None else rounding
+    for i, first in enumerate(amounts):
+        for second in amounts[i + 1 :]:
+            for candidate in (first - second, first + second):
+                for scale in scales:
+                    target = candidate * scale
+                    if target and abs(abs(value) - abs(target)) <= tolerance + abs(target) * 0.0005 + 1e-9:
+                        return True
+    return False
+
+
 def verify_answer(
     answer: dict[str, Any],
     store: EvidenceStore,
@@ -465,13 +525,29 @@ def verify_answer(
             if binding == "claim" and market_precedence and _MARKET_METRIC.search(unit)
             else None
         )
-        claims = claim_values(unit)
+        derived_mode = allow_derived and binding == "claim"
+        claims = claim_values(_formula_free(unit) if derived_mode else unit)
         supported_claims = (
             [(v, sc) for v, sc, r, sg in claims if v and _is_supported(v, scope, sc, r, sg)]
-            if allow_derived and unit_ids and binding == "claim"
+            if derived_mode and unit_ids
             else []
         )
+        if derived_mode and unit_ids:
+            supported_claims += [
+                claim for claim in _sentence_operands(sentence, store, unit_ids) if claim not in supported_claims
+            ]
         operands = [v for v, _sc in supported_claims]
+        derived_values: list[float] = []
+        sentence_amounts = (
+            _amount_operands(
+                sentence,
+                _evidence_numbers(
+                    store, [m.group(1) for m in _CITATION.finditer(sentence) if m.group(1) in store] or unit_ids
+                ),
+            )
+            if derived_mode and unit_ids
+            else []
+        )
         # amounts written with a magnitude unit (亿元, CNY bn): their share in percent is a derived figure too
         amounts = [v for v, sc in supported_claims if _is_amount(sc)]
         for value, scales, rounding, sign in claims:
@@ -508,7 +584,12 @@ def verify_answer(
                     uncited.append(value)
                 continue
             shares = amounts if _is_percent(scales) else []
-            if operands and _is_derived(value, rounding, [v for v in operands if v != value], shares=shares):
+            fraction = bool(_DIVISION.search(unit))
+            if (
+                operands
+                and _is_derived(value, rounding, [v for v in operands if v != value], shares=shares, fraction=fraction)
+            ) or (_is_amount_gap(value, scales, rounding, sentence_amounts)):
+                derived_values.append(value)
                 continue
             if unit_ids and _is_supported(value, known, scales, rounding, sign):
                 if value not in misattributed:
@@ -521,6 +602,9 @@ def verify_answer(
             for claim in metric_claims(unit):
                 reference = structured_metric_values(store, claim.metric)
                 if not reference or claim.stated in unsupported or claim.stated in document_market:
+                    continue
+                if claim.stated in derived_values and _COMPARISON.search(unit):
+                    # (round 12, H8) "五粮液 ROE 约为中国平安的 1.93 倍": a ratio of the two cited ROEs, not an ROE
                     continue
                 if not _is_supported(claim.value, reference, claim.scales, claim.rounding):
                     document_market.append(claim.stated)
@@ -650,6 +734,7 @@ def cite_repair(
     *,
     query: str = "",
     market_precedence: bool = True,
+    allow_derived: bool = False,
 ) -> dict[str, Any] | None:
     """Fix a draft whose only problems are citations, without an LLM call; ``None`` when that is not possible.
 
@@ -659,8 +744,15 @@ def cite_repair(
     that contains it (structured evidence preferred over document text) appended to its sentence. A number
     found in two or more items is ambiguous and is not guessed. The text is otherwise unchanged; the caller
     re-verifies the result and only uses it when it passes.
+
+    (round 12, H8) With ``allow_derived`` a number no single evidence item contains is left alone when it is the
+    difference, sum, ratio, percent change or share of two other numbers of its sentence that the evidence supports
+    ("Moutai 24.6x, Wuliangye 20.9x, (24.6 − 20.9) / 20.9 × 100 = 17.7%"): their owners' ids are appended instead
+    of deleting the sentence, and the verifier's derived-number rule then checks the arithmetic. A number that
+    neither an evidence item nor the sentence's operands reproduce still makes the repair fail.
     """
-    if report.passed or not set(failure_kinds(report)) <= CITATION_REPAIRABLE:
+    allowed = CITATION_REPAIRABLE | ({"unsupported_numbers"} if allow_derived else set())
+    if report.passed or not set(failure_kinds(report)) <= allowed:
         return None
     invalid = set(report.invalid_citations)
     query_numbers = claim_numbers(query)
@@ -677,6 +769,19 @@ def cite_repair(
                 return None  # ambiguous: several items state this value
         return None
 
+    def _repair_operands(sentence: str, sentence_ids: list[str]) -> list[tuple[float, tuple[float, ...]]]:
+        """Numbers of the sentence the cited evidence supports or exactly one evidence item contains."""
+        scope = _evidence_numbers(store, sentence_ids) if sentence_ids else []
+        found = []
+        for value, scales, rounding, sign in claim_values(_formula_free(sentence)):
+            if not value:
+                continue
+            if (sentence_ids and _is_supported(value, scope, scales, rounding, sign)) or owner(
+                value, scales, rounding, sign, market_precedence and bool(_MARKET_METRIC.search(sentence))
+            ):
+                found.append((value, scales))
+        return found
+
     def fix(text: str) -> str | None:
         if invalid:
             text = _CITATION.sub(lambda match: "" if match.group(1) in invalid else match.group(0), text)
@@ -684,6 +789,8 @@ def cite_repair(
         out = []
         for sentence in whole_sentences(text):
             sentence_ids = [m.group(1) for m in _CITATION.finditer(sentence) if m.group(1) in store]
+            operands = _repair_operands(sentence, sentence_ids) if allow_derived else []
+            amounts = _amount_operands(sentence, _evidence_numbers(store)) if allow_derived else []
             for unit in _split_sentences(sentence):
                 if not unit.strip():
                     continue
@@ -692,11 +799,22 @@ def cite_repair(
                 market = market_precedence and bool(_MARKET_METRIC.search(unit))
                 echo_allowed = not unit_ids or bool(_HYPOTHETICAL.search(unit))
                 added: list[str] = []
-                for value, scales, rounding, sign in claim_values(unit):
+                for value, scales, rounding, sign in claim_values(_formula_free(unit) if allow_derived else unit):
                     if value == 0 or (echo_allowed and _is_supported(value, query_numbers, _BARE_SCALES)):
                         continue
                     if unit_ids and _is_supported(value, scope, scales, rounding, sign):
                         continue
+                    if (
+                        operands
+                        and _is_derived(
+                            value,
+                            rounding,
+                            [v for v, _sc in operands if v != value],
+                            shares=[v for v, sc in operands if _is_amount(sc)] if _is_percent(scales) else [],
+                            fraction=bool(_DIVISION.search(unit)),
+                        )
+                    ) or _is_amount_gap(value, scales, rounding, amounts):
+                        continue  # re-derived by the verifier from the operands, which get their own ids
                     evidence_id = owner(value, scales, rounding, sign, market)
                     if evidence_id is None:
                         return None
@@ -802,7 +920,9 @@ def _is_percent(scales: tuple[float, ...]) -> bool:
     return 0.01 in scales and 100.0 in scales
 
 
-def _is_derived(value: float, rounding: float | None, operands: list[float], *, shares: list[float] = ()) -> bool:
+def _is_derived(
+    value: float, rounding: float | None, operands: list[float], *, shares: list[float] = (), fraction: bool = False
+) -> bool:
     """``value`` is a - b, a + b, a / b or the percent change (a - b) / b of two stated operands, or, for a value
     written in percent, the share a / b of two stated amounts (a net margin: net profit / revenue, a <= b) or the
     difference of two such shares of four stated amounts (a net-margin gap, round 10). The share
@@ -819,6 +939,11 @@ def _is_derived(value: float, rounding: float | None, operands: list[float], *, 
             candidates = [a - b, a + b]
             if b:
                 candidates += [a / b, (a - b) / abs(b) * 100]
+                if fraction:
+                    # (round 12) the relative change as a fraction, only where the division is written out
+                    # ("3.7 ÷ 20.9 ≈ 0.177"): accepting it everywhere raised the stress test's derived
+                    # false-accept rate from 0.0121 to 0.0282
+                    candidates.append((a - b) / abs(b))
         for candidate in candidates:
             if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
                 return True
@@ -845,9 +970,24 @@ def _is_product(value: float, rounding: float | None, factors: list[float], oper
     return False
 
 
+# (round 12, H8) "i.e. 3.7 ÷ 20.9 ≈ 17.7%": a full stop of an abbreviation does not end a sentence, so the
+# derivation after it keeps the citation and the operands of the sentence it belongs to
+_ABBREVIATION_END = re.compile(
+    r"(?:^|(?<=[\s(（]))(?:i\.e|e\.g|vs|approx|cf|incl|(?-i:No|Co|Ltd|Inc|Corp))\.$", re.IGNORECASE
+)
+
+
 def _split_sentences(text: str) -> list[str]:
     parts = re.split(r"(?<=[。！？!?；;])|(?<=\.)\s+", text)
-    return [part for part in parts if part]
+    merged: list[str] = []
+    for part in parts:
+        if not part:
+            continue
+        if merged and _ABBREVIATION_END.search(merged[-1]):
+            merged[-1] = f"{merged[-1]} {part}"
+        else:
+            merged.append(part)
+    return merged
 
 
 _OPENERS = "(（《“「【"
@@ -879,7 +1019,9 @@ def whole_sentences(text: str) -> list[str]:
             if char in "。！？!?":
                 boundary = True
             elif char == "." and (index + 1 == len(text) or text[index + 1].isspace()):
-                boundary = not re.fullmatch(r"\s*\d{1,2}\.", text[start : index + 1])
+                boundary = not re.fullmatch(r"\s*\d{1,2}\.", text[start : index + 1]) and not (
+                    index + 1 < len(text) and _ABBREVIATION_END.search(text[start : index + 1])
+                )
         if boundary:
             end = index + 1
             citations = _CITATION_RUN.match(text, end)

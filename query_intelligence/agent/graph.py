@@ -34,7 +34,12 @@ from typing import TYPE_CHECKING, Any
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-from ..chat.language import detect_user_language, persistent_answer_language, requested_answer_language
+from ..chat.language import (
+    detect_user_language,
+    persistent_answer_language,
+    requested_answer_language,
+    session_answer_language,
+)
 from ..integrations.intraday import asks_about_today
 from .compliance import apply_compliance, language_violation
 from .composer import (
@@ -97,6 +102,7 @@ from .names import INDUSTRY_EN, english_name
 from .output_safety import scrub_answer
 from .planner import Plan, PlannedCall, plan_from_nlu
 from .prompts import (
+    ENGLISH_REMINDER,
     agent_user_message,
     compose_user_message,
     force_final_message,
@@ -302,7 +308,15 @@ class AgentRuntime:
             query = re.sub(r"\s+", " ", cleaned.replace(REDACTION_MARKER, " ")).strip(" ,，.。:：") or query
         # Answers and refusals use the language of the user's own words, not of injected markup or an encoded blob.
         own_words = query if injected and query.strip() else state["query"]
-        natural_language = language = detect_user_language(own_words)
+        natural_language = detect_user_language(own_words)
+        # (round 12, H7) a follow-up with no language signal of its own ("PE?", "Moutai?") keeps the language the
+        # conversation's last turn was answered in
+        previous_turn = turns[-1] if turns else {}
+        previous_language = str(
+            previous_turn.get("language")
+            or (detect_user_language(str(previous_turn.get("query") or "")) if previous_turn.get("query") else "")
+        )
+        language = session_answer_language(own_words, previous_language or None)
         # "继续用英文" / "keep answering in English" holds for later turns until another such instruction; a one-off
         # "请用英文回答：…" or a question's own language applies to its turn only.
         persisted = str((turns[-1] if turns else {}).get("answer_language") or "")
@@ -931,11 +945,14 @@ class AgentRuntime:
                         state.get("nlu") or {},
                         language="zh" if zh else "en",
                         memory=memory,
+                        user_words=state["query"],
                     ),
                 },
             ]
             if state.get("prefetched"):
-                messages.append({"role": "user", "content": prefetch_message(state["prefetched"])})
+                messages.append(
+                    {"role": "user", "content": prefetch_message(state["prefetched"], language="zh" if zh else "en")}
+                )
         usage = (
             _add_usage(state.get("usage"), Usage(**memory_update["usage_delta"]))
             if memory_update.get("usage_delta")
@@ -1118,6 +1135,9 @@ class AgentRuntime:
             tool_messages.append({"role": "tool", "tool_call_id": call["id"], "content": _DUPLICATE_CALL})
         evidence_update, evidence_flagged = _evidence_update(results)
         flagged_any = flagged_any or evidence_flagged
+        if not self._zh(state):
+            # (round 12, H7) tool results are mostly Chinese: restate the answer language after them
+            tool_messages.append({"role": "user", "content": ENGLISH_REMINDER})
         update: dict[str, Any] = {
             "messages": [*messages, *tool_messages],
             "llm_steps": step,
@@ -1149,7 +1169,9 @@ class AgentRuntime:
             allow_derived=derived,
         )
         if not report.passed and llm_draft and self.config.revise_policy == "cite_repair":
-            fixed = cite_repair(draft, report, store, query=state["query"], market_precedence=True)
+            fixed = cite_repair(
+                draft, report, store, query=state["query"], market_precedence=True, allow_derived=derived
+            )
             if fixed is not None:
                 fixed_report = verify_answer(
                     fixed, store, query=state["query"], market_precedence=True, allow_derived=derived
@@ -1242,7 +1264,13 @@ class AgentRuntime:
         fallback_notes: list[str] = []
         llm_draft = state.get("draft_source") in {"llm_agent", "llm_compose"}
         framed: dict[str, Any] = {}
-        if llm_draft:
+        if llm_draft and not self.config.frame_fallback:
+            # measurement switch (QI_AGENT_FRAME_FALLBACK=off): the draft is kept as written; record whether the
+            # fallback would have appended the computed result
+            _shadow, would = self._frame_fallback(state, draft)
+            if "frame_result_appended" in (would.get("degraded") or []):
+                framed = {"degraded": ["frame_fallback_off:would_append"]}
+        elif llm_draft:
             # (round 11, G4) a frame question whose final LLM draft does not state the computed result gets it
             draft, framed = self._frame_fallback(state, draft)
             if framed.get("evidence"):

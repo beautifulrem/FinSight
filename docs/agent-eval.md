@@ -1894,6 +1894,27 @@ Repair of the 3969 rejected variants (whole-sentence deletion, template fallback
 
 * Note: Round 11 at 25205d4: deterministic gold set (gold_set.sha256 33b055d088e4334d…, a second run at the same commit was identical); 227 gold answers / 4,016 variants; claim false accept 0.0117, derived 0.0132, swap 0.0 / 0.0066; true accept 1.0. Supersedes the 9f0e46b run (now verifier_stress-9f0e46b.json). The 220 / 227 / 240 gold counts of earlier rounds came from different commits, not from load.
 
+### Verifier stress test (248 gold answers, 4468 corrupted variants, `verifier_stress-round12.json`)
+
+Command: `python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress.json` at commit `8cc09bc`. Lower is better; true-accept must stay 1.0.
+
+| | legacy | run | claim | claim_derived |
+|---|---|---|---|---|
+| True-accept (gold answers passing) | 1.000 | 1.000 | 1.000 | 1.000 |
+| False-accept, all corruptions | 0.327 | 0.246 | 0.011 | 0.012 |
+| False-accept, perturb_1pct (1079) | 0.257 | 0.016 | 0.016 | 0.016 |
+| False-accept, perturb_20pct (1196) | 0.085 | 0.030 | 0.016 | 0.016 |
+| False-accept, perturb_5pct (1171) | 0.050 | 0.021 | 0.010 | 0.010 |
+| False-accept, swap (1022) | 1.000 | 1.000 | 0.000 | 0.006 |
+
+Repair of the 4420 rejected variants (whole-sentence deletion, template fallback when nothing cited survives):
+
+| Readable (no dangling clause, stray punctuation, orphan citation) | Containing a fragment | Repaired answer verifies | Untouched sentences kept | Template fallback |
+|---|---|---|---|---|
+| 1.000 | 0.000 | 1.000 | 0.976 | 0.180 |
+
+* Note: Round 12 at 8cc09bc after the H8 verifier changes (sentence-level operands, formula constant, derived ratio next to a metric name, mixed-unit amount gaps, abbreviations, written-out fraction): same gold set as before them (sha256 055839a3…, 248 gold answers / 4,468 variants; fa515d3 gave the identical claim 0.0107 / derived 0.0121). The derived rate was 0.0282 at 855a3ca, where a relative change as a fraction was accepted everywhere; 8cc09bc restricts it to written-out divisions.
+
 ### Verifier stress test (227 gold answers, 4016 corrupted variants, `verifier_stress-round10.json`)
 
 Command: `python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress-round10.json` at commit `53454f5`. Lower is better; true-accept must stay 1.0.
@@ -2415,6 +2436,18 @@ Successful attacks:
 
 * `output_safety_audit-llm-replay-r12`: The 32 holdout9 LLM drafts (DeepSeek V4.1 Flash, redteam-r12-holdout9-llm.json) replayed through the output layer at 29ec048 (after 3882dc3), no LLM calls. Edits whose span carries the planted payload (3) are excluded from the verdict counts. The drafts come from attacked runs: they are real LLM answers quoting real news figures, not a clean-question sample.
 
+### Round 12: answer language, derived numbers and the frame fallback on the LLM agent path
+
+Small online checks with DeepSeek over the offline tools, run sequentially (stop on the first 429). Each file records its commit, command, env switches and every turn's answer; the H8 files also keep the model's raw drafts, which the offline tests replay (`tests/fixtures/h8_recorded_drafts.json`).
+
+| Result file | Commit | Env switches | Turns | LLM calls | Result |
+|---|---|---|---|---|---|
+| `session-llm-check-h7-r12.json` | `fa515d3` | defaults | 10 | 14 | answer in the session's language 10/10; written so by the model 10/10; template fallback on a wrong-language draft 0 |
+| `session-llm-check-h8-r12-before.json` | `1f023a1` | defaults | 6 | 11 | derived values the model wrote (ratio 1.93 / 0.52, relative 17.7%): 3; in the final answer 2/3; revision calls on the derived turns 2; derived turns repaired by deletion 1/2 |
+| `session-llm-check-h8-r12-after.json` | `4c45dac` | defaults | 6 | 9 | derived values the model wrote (ratio 1.93 / 0.52, relative 17.7%): 3; in the final answer 3/3; revision calls on the derived turns 0; derived turns repaired by deletion 0/2 |
+| `frame-llm-check-r12-fallback-off.json` | `e9badd4` | `QI_AGENT_FRAME_FALLBACK=off` | 21 | 27 | gap turn states the expected value 9/10 (model 9, fallback appended 0); no number 1/10, declined 0/10, fallback would have appended 1; verified 10/10 |
+| `frame-llm-check-r12-fallback-on.json` | `e9badd4` | `QI_AGENT_FRAME_FALLBACK=on` | 21 | 30 | gap turn states the expected value 10/10 (model 8, fallback appended 2); no number 0/10, declined 0/10, fallback would have appended 0; verified 8/10 |
+
 ### Other committed evidence
 
 | Result file | Commit | Summary |
@@ -2544,6 +2577,7 @@ Paired comparisons (same tasks, a − b):
 | `gate-holdout.json` | run | `d04d57e` | 2026-10-01T06:31:21+00:00 | – | `outputs/agent_eval/gate-holdout.json` (3edbdc1b3634edad) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |
+| `verifier_stress-round12.json` | verifier_stress | `8cc09bc` | 2026-10-01T07:13:26+00:00 | – | `outputs/agent_eval/verifier_stress.json` (a0827fec0478998b) |
 | `verifier_stress-round10.json` | verifier_stress | `53454f5` | 2026-09-30T23:35:04+00:00 | – | `outputs/agent_eval/verifier_stress-round10.json` (7e931de123af2bef) |
 | `verifier_stress-round9.json` | verifier_stress | `d78a556` | 2026-09-30T16:04:15+00:00 | – | `outputs/agent_eval/verifier_stress.json` (a0525baec420dcda) |
 | `verifier_stress-9f0e46b.json` | verifier_stress | `9f0e46b` | 2026-09-28T17:04:55+00:00 | – | `outputs/agent_eval/verifier_stress.json` (94d2b01f3bd98c53) |
@@ -2574,6 +2608,11 @@ Paired comparisons (same tasks, a − b):
 | `output_safety_audit-template-r12.json` | output_safety_audit | `207f16f` | 2026-10-01T06:28:18+00:00 | – | `outputs/agent_eval/output_safety_audit.json` (9e14691d03b88aa3) |
 | `output_safety_audit-llm-replay-r12-before.json` | output_safety_audit | `de2d09f-dirty` | 2026-10-01T06:03:26+00:00 | – | `outputs/agent_eval/output_safety_audit-llm-replay-before.json` (d02fda96a11d69da) |
 | `output_safety_audit-llm-replay-r12.json` | output_safety_audit | `29ec048` | 2026-10-01T06:18:53+00:00 | – | `outputs/agent_eval/output_safety_audit-llm-replay.json` (8bdbfa263a2b4d16) |
+| `session-llm-check-h7-r12.json` | session | `fa515d3` | 2026-10-01T06:00:52+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
+| `session-llm-check-h8-r12-before.json` | session | `1f023a1` | 2026-10-01T05:57:52+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
+| `session-llm-check-h8-r12-after.json` | session | `4c45dac` | 2026-10-01T07:01:55+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
+| `frame-llm-check-r12-fallback-off.json` | frame | `e9badd4` | 2026-10-01T06:26:06+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
+| `frame-llm-check-r12-fallback-on.json` | frame | `e9badd4` | 2026-10-01T06:28:45+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `redteam-r7-targeted.json` | redteam_targeted | `None` | 2026-09-30T00:04:39+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `redteam-r8-d1-targeted.json` | redteam_targeted | `None` | 2026-09-30T06:38:30+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `injection_classifier-r4.json` | injection_classifier | `d795818` | 2026-09-29T02:53:28+00:00 | TfidfVectorizer(char_wb, 1-4, min_df=2, max_features=40000, sublinear_tf) + LogisticRegression(C=4, class_weight=balanced) | written directly |

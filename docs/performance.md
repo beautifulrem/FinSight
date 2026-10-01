@@ -315,6 +315,55 @@ stall is gone), 43% more throughput and 11% lower cost. **On these harder questi
 rounds and longer answers than most evaluation tasks. The client cannot see gateway 429s that a
 retry recovered; no request failed or fell back.
 
+### Under load with a provider fault: 4 users, `auto`, 30 s HTTP 503 burst (round 12)
+
+Two runs of the `llm-load` chaos scenario (`scripts/chaos_drill.py`), which starts its own server behind the
+LLM fault proxy, with `DEEPSEEK_MODEL=cline-pass/deepseek-v4.1-flash`, `QI_LLM_FALLBACK_MODELS=cline-pass/glm-5.3-flash`
+(so the per-model breakers are active), live data off, `mode=auto` and the `research` questions, not streamed.
+In the second run the proxy answers **every** model call itself with HTTP 503 from 15 s to 45 s (a provider-wide
+outage: primary and failover model alike; nothing reaches the gateway, so the burst costs no quota), then waits
+until no breaker is open and sends one more request per user. `/metrics` is sampled every second for the breaker
+state. Both result files record the commit (clean tree), the command and the client and server env switches.
+The host was shared with other jobs: load average 17.8 at the start of the first run and 52.3 at the start of the
+second, so latencies are upper bounds.
+
+```bash
+source /tmp/llmenv.sh   # DEEPSEEK_* from .env; the key is never printed or committed
+python -m scripts.chaos_drill --scenario llm-load --port 8847 --load-users 4 --load-requests 3 --load-mode auto \
+    --fallback-model cline-pass/glm-5.3-flash --usd-cny 6.7489 --out outputs/chaos/r12-llm-load/load-4u-auto.json
+python -m scripts.chaos_drill --scenario llm-load --port 8847 --load-users 4 --load-requests 4 --load-mode auto \
+    --fallback-model cline-pass/glm-5.3-flash --usd-cny 6.7489 --burst-start 15 --burst-seconds 30 \
+    --burst-status 503 --recovery-requests 1 --out outputs/chaos/r12-llm-load-burst/load-4u-auto-5xx-burst.json
+```
+
+| Run ([`results/perf/agent/`](results/perf/agent/)) | Commit | Req | HTTP errors (user-visible) | P50 (s) | P95 (s) | Answered by the LLM | LLM failure → template | Gateway calls (429) | ¥ per 1k questions |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `r12-load-4u-auto.json` | `fd6b157` | 12 | 0 | 15.3 | 53.8 | 12 (6 agent, 6 composition) | 0 | 29 (0) | 12.14 |
+| `r12-load-4u-auto-5xx-burst.json`, main load | `7fbda92` | 16 | 0 | 6.4 | 34.7 | 1 (before the burst) | 15 | 1 forwarded + 24 injected 503 (0) | 0.08 |
+| same, recovery (4 × 1 after the cool-down) | `7fbda92` | 4 | 0 | 21.1 | 42.1 | 4 (3 agent, 1 composition) | 0 | 11 (0) | 12.52 |
+
+Cost per answered turn in the baseline: ¥0.0121 ($0.0018), 2.4 LLM calls, 13.2k prompt tokens (70% from the
+provider cache) and 1.9k completion tokens. 12 requests per run is a small sample: P95 is the slowest request.
+
+**Breaker timeline of the burst run** (seconds from the start; the burst is 15–45 s):
+
+| t (s) | DeepSeek (primary) | GLM (failover) | What happened |
+|---:|---|---|---|
+| 4 | closed | closed | first sample |
+| 32.4 | **open** | closed | three consecutive failed calls (each call is 3 attempts: 503, retry after 1 s and 2 s) |
+| 34.8 | open | **open** | the failover model failed three times too; from here requests skip the LLM at once ("all LLM clients are unavailable (circuits open)") |
+| 45 | open | open | burst over, the provider answers again, but the breakers stay open for their 60 s cool-down |
+| 94.0 / 97.1 | **half-open** | **half-open** | cool-down over |
+| 99.4 | **closed** | half-open | the first recovery request's trial call to DeepSeek succeeded; GLM was not needed, so it stays half-open until it is called |
+
+What the user saw: **no failed request**. 12 of the 16 main-phase requests overlapped the burst; all of them, and the 3
+that started after it ended but while the breakers were still open, were answered by the deterministic planner +
+template (`degraded: llm_error…` / `llm_compose_failed…`, verified). Requests caught in the retries took up to 34.7 s;
+once both breakers were open a template answer took 0.7–6.4 s, except three for the ETF question at 19–24 s with no
+LLM call at all: their traces put 10–13 s in the NLU (`guard_in`) and 9–11 s in the planner's sentiment and
+knowledge-search tools, CPU work on the loaded host. The cost of the breaker is visible too: for about 50 s after the provider recovered (45 → 94 s)
+answers still came from the template. All four recovery requests were LLM answers.
+
 ### Second model: GLM-5.3 flash spot check ([`perf-glm-holdout-*.json`](../evaluation/results/))
 
 Held-out, one repeat per run, 3 workers, streamed. The previous path and the defaults were run in the

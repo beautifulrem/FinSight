@@ -353,6 +353,42 @@ def _command(module: str, argv: list[str] | None) -> str:
     return f"python -m {module} " + " ".join(shown)
 
 
+# (round 12) Environment variables that change what a run measures: every QI_* switch (QI_AGENT_PREFETCH,
+# QI_PROMPT_VERSION, QI_AGENT_FRAME_FALLBACK, …) and the model / failover ids. Names that can hold a credential or a
+# connection string are never recorded.
+_ENV_PREFIXES = ("QI_",)
+_ENV_NAMES = ("DEEPSEEK_MODEL",)
+_ENV_SECRET = ("KEY", "SECRET", "TOKEN", "PASSWORD", "PASSWD", "DSN", "URL", "URI", "AUTH", "COOKIE")
+
+
+def env_toggles(environ: dict[str, str] | None = None) -> dict[str, str]:
+    """The run's environment switches (``QI_*``, ``DEEPSEEK_MODEL``), sorted, without anything secret-shaped."""
+    import os
+
+    source = os.environ if environ is None else environ
+    return {
+        name: value
+        for name, value in sorted(source.items())
+        if (name.startswith(_ENV_PREFIXES) or name in _ENV_NAMES)
+        and not any(marker in name.upper() for marker in _ENV_SECRET)
+    }
+
+
+def command_with_env(command: str, env: dict[str, str]) -> str:
+    """``QI_X=1 QI_Y=off python -m …``: the command as it has to be typed to repeat the run."""
+    import shlex
+
+    prefix = " ".join(f"{name}={shlex.quote(value)}" for name, value in env.items())
+    return f"{prefix} {command}".strip()
+
+
+def command_fields(module: str, argv: list[str] | None) -> dict[str, Any]:
+    """``command`` (as before), ``env`` (the switches in effect) and ``command_with_env`` for a result's config."""
+    command = _command(module, argv)
+    env = env_toggles()
+    return {"command": command, "env": env, "command_with_env": command_with_env(command, env)}
+
+
 @functools.cache
 def _git_commit() -> str | None:
     """Commit the evaluation code ran from, suffixed ``-dirty`` when the working tree had changes.
@@ -511,7 +547,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "eval_today": EVAL_TODAY.isoformat(),
         "wall_seconds": round(time.perf_counter() - started, 1),
-        "command": _command("evaluation.agent_eval.runner", argv),
+        **command_fields("evaluation.agent_eval.runner", argv),
     }
     report = summarize(records, config=config, repeats=args.repeats)
     out = Path(args.out) if args.out else DEFAULT_OUTPUT_DIR / f"{args.mode}{'-' + args.llm if llm else ''}.json"
