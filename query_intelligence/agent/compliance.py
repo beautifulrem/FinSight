@@ -27,7 +27,7 @@ from ..text_safety import fold
 from .coverage import without_holding_value
 from .evidence import AgentEvidence
 from .router import _JUDGMENT_MARKERS as _ROUTER_JUDGMENT
-from .router import FAIR_VALUE_MARKERS
+from .router import FAIR_VALUE_MARKERS, asks_price_forecast
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -103,6 +103,31 @@ _FAIR_VALUE_EN = (
 )
 _FAIR_VALUE_LIMITATION_ZH = "证据中没有可据以确定合理估值的估值模型或一致预期，不能给出合理价格"
 _FAIR_VALUE_LIMITATION_EN = "The evidence has no valuation model or consensus estimate from which a fair value follows"
+
+# (round 12, H3) A point forecast of a price ("明天的收盘价是多少", "What will X close at next Friday?"): FinSight
+# states the dated historical data it has and says that it does not predict prices; a forecast the model wrote is
+# removed.
+_PRICE_FORECAST_ZH = (
+    "FinSight 不预测未来价格：下文只列出已发生的历史行情（最新可用收盘价及其日期），不代表未来任何一天的价格。"
+)
+_PRICE_FORECAST_EN = (
+    "FinSight does not predict future prices: below is historical market data only (the latest available close and "
+    "its date), not the price on any future day."
+)
+_PRICE_FORECAST_LIMITATION_ZH = "问题要求预测未来价格，FinSight 只提供历史数据"
+_PRICE_FORECAST_LIMITATION_EN = "The question asks for a future price; FinSight provides historical data only"
+# A sentence of the draft that itself states a future price: a price forecast plus a number and a forecasting word.
+_FORECAST_VERB = re.compile(
+    r"预计|预测|预期|有望|估计|大概率|可能|将会?|会(?!计|议)|看到|上看|下看|\b(?:expected|expect|likely|will|could|"
+    r"should|may|might|forecast|predict(?:ed)?|projected?)\b",
+    re.IGNORECASE,
+)
+# a price written as one: "1420元", "3500点", "CNY 1,420", "close near 1420"
+_PRICE_NUMBER = re.compile(
+    r"\d[\d,]*(?:\.\d+)?\s*(?:元|块|点(?![零〇一二三四五六七八九\d])|yuan\b|CNY\b|RMB\b|points?\b)|"
+    r"(?:CNY|RMB|¥|\$)\s*\d|\b(?:at|to|near|around|above|below|about)\s+\d",
+    re.IGNORECASE,
+)
 
 _NEUTRAL_ZH = "是否交易取决于个人风险承受能力、投资期限和持仓情况，以上仅为证据梳理，不构成买卖建议。"
 _NEUTRAL_EN = (
@@ -212,6 +237,13 @@ def apply_compliance(
     if removed_answer or removed_points:
         notes.append("removed_trading_instruction")
 
+    # (round 12, H3) the model's own forecast of a price ("预计明天收盘价在1420元左右") is removed, whoever asked
+    softened, removed_forecast = _strip_price_forecasts(softened, zh=zh)
+    forecast_points = [point for point in cleaned_points if _states_price_forecast(point)]
+    cleaned_points = [point for point in cleaned_points if point not in forecast_points]
+    if removed_forecast or forecast_points:
+        notes.append("removed_price_forecast")
+
     # Guaranteed returns, stock-tip solicitation and private contact details: removed whoever wrote them.
     softened, removed_promotion = guards.strip_prohibited_promotion(softened, zh=zh)
     promotion_points = [point for point in cleaned_points if guards.contains_prohibited_promotion(point)]
@@ -227,7 +259,9 @@ def apply_compliance(
 
     # (round 11, G5) the value of a stated holding ("我有1000股…值多少钱") is arithmetic on the close, not a fair value
     asked = f"{without_holding_value(query)} {without_holding_value(effective_query or '')}"
-    if (_JUDGMENT_TRIGGER.search(asked) or _ROUTER_JUDGMENT.search(asked)) and "conditional_prefix" not in notes:
+    price_forecast = asks_price_forecast(query) or asks_price_forecast(effective_query or "")
+    judgment = _JUDGMENT_TRIGGER.search(asked) or _ROUTER_JUDGMENT.search(asked) or price_forecast
+    if judgment and "conditional_prefix" not in notes:
         prefix = _JUDGMENT_PREFIX_ZH if zh else _JUDGMENT_PREFIX_EN
         if not any(marker in softened for marker in ("条件性判断", "conditional assessment", "证据不足以直接判断")):
             softened = f"{prefix}{'' if zh else ' '}{softened}".strip()
@@ -236,6 +270,11 @@ def apply_compliance(
         caveat = _CAUSAL_CAVEAT_ZH if zh else _CAUSAL_CAVEAT_EN
         softened = f"{softened}{'' if zh else ' '}{caveat}".strip()
         notes.append("causal_caveat")
+
+    if price_forecast:
+        # after the conditional prefix, before the evidence: the dated close that follows is history, not the answer
+        softened = _after_prefix(softened, _PRICE_FORECAST_ZH if zh else _PRICE_FORECAST_EN, nlu_result, zh, query)
+        notes.append("price_forecast_hedge")
 
     fair_value = bool(FAIR_VALUE_MARKERS.search(asked))
     if fair_value:
@@ -252,6 +291,10 @@ def apply_compliance(
         notes.append("fair_value_hedge")
 
     limitations = [str(item) for item in guarded.get("limitations") or [] if str(item).strip()]
+    if price_forecast:
+        limitations = guards._append_unique(
+            limitations, [_PRICE_FORECAST_LIMITATION_ZH if zh else _PRICE_FORECAST_LIMITATION_EN]
+        )
     if fair_value:
         limitations = guards._append_unique(
             limitations, [_FAIR_VALUE_LIMITATION_ZH if zh else _FAIR_VALUE_LIMITATION_EN]
@@ -295,6 +338,34 @@ def _strip_trading_sentences(text: str, *, zh: bool) -> tuple[str, int]:
         neutral = _NEUTRAL_ZH if zh else _NEUTRAL_EN
         kept.append(neutral if zh else f" {neutral}")
     return "".join(kept).strip(), removed
+
+
+def _after_prefix(text: str, note: str, nlu_result: dict[str, Any], zh: bool, query: str) -> str:
+    """``note`` placed after a leading hedge prefix (if any) and before the rest of the answer, once."""
+    if note in text:
+        return text
+    guards = _guards()
+    prefixes = (
+        _JUDGMENT_PREFIX_ZH if zh else _JUDGMENT_PREFIX_EN,
+        guards._conditional_answer_prefix(nlu_result, zh=zh, query=query).strip(),
+    )
+    lead = next((prefix for prefix in prefixes if prefix and text.startswith(prefix)), "")
+    rest = text[len(lead) :].lstrip()
+    return ("" if zh else " ").join(part for part in (lead, note, rest) if part)
+
+
+def _states_price_forecast(sentence: str) -> bool:
+    """A sentence that states a future price itself: a price forecast with a number and a forecasting word
+    ("预计明天收盘价在1420元左右", "Moutai will likely close near 1,420 next week")."""
+    return bool(
+        _PRICE_NUMBER.search(sentence) and _FORECAST_VERB.search(sentence) and asks_price_forecast(sentence)
+    ) and not any(marker in sentence for marker in ("不预测", "does not predict", "不能据此", "cannot"))
+
+
+def _strip_price_forecasts(text: str, *, zh: bool) -> tuple[str, int]:
+    sentences = [part for part in re.split(r"(?<=[。！？!?；;])|(?<=\.)(?=\s)", text) if part]
+    kept = [sentence for sentence in sentences if not _states_price_forecast(sentence)]
+    return "".join(kept).strip(), len(sentences) - len(kept)
 
 
 def _price_basis_note(market_evidence: list[AgentEvidence], *, zh: bool, latest: str | None) -> str | None:
