@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
 
 from agent_fakes import StubService, build_fake_registry
@@ -1026,6 +1027,58 @@ def test_round12_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_revie
     assert len({task["id"] for task in _round12_frame_tasks()}) >= 20 and check_overlap(round12) == []
     assert sum(1 for row in _router_rows("router_labels_v1.jsonl") if row["note"].startswith("round12")) >= 8
     assert _overlaps(mine, others) == (0, 0), "round-12 dev tasks or router labels overlap a held-out or reviewer set"
+
+
+def test_round13_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_reviewer_sets():
+    """Round-13 dev tasks and router labels were written after the independent round-8 slice was exposed (the classes
+    it still failed after round 12): none may copy or near-copy a round-8, round-7 or round-6 slice text (read
+    programmatically), a round-4/5 held-out text, a reviewer probe quoted in a report, the independent router sets or a
+    test set (counts only)."""
+    from evaluation.agent_eval.build_tasks import _round13_tasks, check_overlap
+    from evaluation.agent_eval.runner import TASK_SETS, load_tasks
+
+    mine = [turn["query"] for task in _round13_tasks() for turn in task["turns"]]
+    mine += [row["query"] for row in _router_rows("router_labels_v1.jsonl") if row["note"].startswith("round13")]
+    others = [
+        row["query"]
+        for name in ("router_labels_independent_v1.jsonl", "router_labels_independent_v2.jsonl")
+        for row in _router_rows(name)
+    ]
+    for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
+        others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    heldout_r8 = _heldout_r6_texts("heldout_r8")
+    others += _heldout_r4_texts() + _heldout_r5_texts() + _heldout_r6_texts() + _heldout_r6_texts("heldout_r7")
+    others += heldout_r8
+    others += _ROUND4_REVIEW_PROBES + _ROUND5_REVIEW_PROBES + _ROUND6_REVIEW_PROBES + _ROUND7_REVIEW_PROBES
+
+    assert len(heldout_r8) >= 110, "the round-8 slice was not read"
+    assert len({task["id"] for task in _round13_tasks()}) >= 20 and check_overlap(_round13_tasks()) == []
+    assert sum(1 for row in _router_rows("router_labels_v1.jsonl") if row["note"].startswith("round13")) >= 8
+    assert _overlaps(mine, others) == (0, 0), "round-13 dev tasks or router labels overlap a held-out or reviewer set"
+
+
+def test_round13_tests_and_claim_rows_do_not_copy_the_round8_slice():
+    """The round-13 unit tests (tests/test_agent_round13.py) and claim-bench rows were written in the author's own
+    wording: none copies or near-copies a round-8 slice text (counts only)."""
+    import ast
+    from pathlib import Path
+
+    from evaluation.claim_bench.run import SETS, load_claims
+
+    source = (Path(__file__).parent / "test_agent_round13.py").read_text(encoding="utf-8")
+    strings = [
+        node.value
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and len(node.value) >= 6
+    ]
+    # the questions and claims (text with a space or Chinese characters), not identifiers or the docstring
+    mine = [
+        text
+        for text in strings
+        if re.search(r"[\s一-鿿]", text) and not text.startswith(("Round-13", "frame:")) and len(text) < 200
+    ]
+    mine += [row["claim"] for row in load_claims(SETS["dev"]) if row.get("note") == "round13"]
+    assert _overlaps(mine, _heldout_r6_texts("heldout_r8")) == (0, 0), "round-13 wording overlaps the round-8 slice"
 
 
 def test_round10_tasks_against_the_round6_heldout_slice():
