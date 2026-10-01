@@ -649,6 +649,9 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
             else f"{label}: {name_a} {stated(a, data_a)} {relation} {name_b} {stated(b, data_b)} {cites}."
         )
         return [verdict], [] if operation == "which" else [note]
+    if operation == "which" and key == "net_margin":
+        # derived margins are stated with their amounts (the verifier re-derives them), the higher side named
+        return [_margin_gap(found[0], found[1], cites, zh)], []
     if operation == "which":
         if a == b:
             relation = "持平" if zh else "is level with"

@@ -279,6 +279,8 @@ def test_a_hong_kong_listing_by_description_is_out_of_coverage(agent):
         ("后一只比前一只少赚了多少", "difference"),
         ("两者的比值大概多少", "ratio"),
         ("What multiple of Ping An's is Moutai's?", "ratio"),
+        ("and the gap, in percentage points?", "difference"),
+        ("in percentage terms, how much cheaper is it?", "relative"),
         # one operand, no anchor: not a comparison
         ("五粮液市盈率是多少倍", None),
         ("茅台的ROE是百分之多少", None),
