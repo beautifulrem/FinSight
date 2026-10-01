@@ -9,7 +9,7 @@
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
   "tools": "offline runtime assets (no replay snapshot)",
-  "note": "Rerun of sessions 1, 2 and 6 at b8ce579 after the fallback fix: 3/3 state the expected value, all stated by the model itself (the fallback was not needed this time, so this run does not exercise it online; the offline test test_a_declined_llm_gap_gets_the_computed_gap_appended does). The commit is recorded as b8ce579-dirty because docs/agent.md and docs/zh/agent.md had uncommitted edits; no code differed from b8ce579."
+  "note": "Rerun of sessions 1, 2 and 6 at b8ce579 after the fallback fix: 3/3 state the expected value, all stated by the model itself (the fallback was not needed this time, so this run does not exercise it online; the offline test test_a_declined_llm_gap_gets_the_computed_gap_appended does). The commit is recorded as b8ce579-dirty because docs/agent.md and docs/zh/agent.md had uncommitted edits; no code differed from b8ce579. provenance (round 12): recorded from a dirty working tree (b8ce579-dirty), so it is not exactly reproducible from a commit; kept as historical evidence and not used as a gate baseline"
  },
  "summary": {
   "sessions": 3,

@@ -3,7 +3,8 @@
   "labels": "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
   "commit": "da3ec8b-dirty",
   "run_at": "2026-09-26T18:52:13+00:00",
-  "command": "python -m evaluation.agent_eval.router_eval --out evaluation/results/router_eval-round2.json"
+  "command": "python -m evaluation.agent_eval.router_eval --out evaluation/results/router_eval-round2.json",
+  "note": "provenance (round 12): recorded from a dirty working tree (da3ec8b-dirty), so it is not exactly reproducible from a commit; kept as historical evidence and not used as a gate baseline"
  },
  "queries": 162,
  "accuracy": 0.9753,
