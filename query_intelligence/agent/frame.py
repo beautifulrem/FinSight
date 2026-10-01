@@ -307,7 +307,7 @@ _ANCHOR = re.compile(
     re.IGNORECASE,
 )
 _RELATIVE_EXPLICIT = re.compile(
-    r"折价|溢价|\b(?:premium|discount)\b|\bhow many percent\b|\bin percent(?:age)?(?: terms)?\b|"
+    r"折价|溢价|\b(?:premium|discount)\b|\bhow many percent\b|\bin percent(?:age)?(?! points?)(?: terms)?\b|"
     r"\bby what (?:percent(?:age)?|share)\b|"
     r"\bpercent(?:age)? (?:higher|lower|more|less|above|below|premium|discount|bigger|smaller|cheaper)\b",
     re.IGNORECASE,

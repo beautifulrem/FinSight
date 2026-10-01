@@ -421,6 +421,19 @@ class AgentRuntime:
             # whatever the plan happens to fetch (prices) would answer a question nobody asked; ask which metric
             decision = decision.model_copy(update={"route": "clarify"})
             reasons.append("difference_without_comparison")
+        if (
+            decision.route == "refuse"
+            and not off_topic
+            and not instruction_only
+            and not injected
+            and not outside
+            and holding_value_request(query)
+            and not listed_entities(nlu)
+        ):
+            # (round 12, H4) "我账户里有2000股，合计值多少钱" with no target anywhere: a finance question that needs a
+            # target, so ask which one instead of refusing it as out of scope
+            decision = decision.model_copy(update={"route": "clarify"})
+            reasons.append("holding_without_target")
         if decision.route in ("workflow", "agent") and any(
             reason.startswith(f"{GROUP_COUNT_MISMATCH}:") for reason in reasons
         ):
