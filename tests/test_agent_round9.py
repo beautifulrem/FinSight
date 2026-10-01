@@ -210,7 +210,8 @@ def test_a_difference_follow_up_derives_the_gap_from_the_previous_comparison(age
     agent.chat("中国平安和五粮液今天哪个涨得多", session_id=session)
     result = agent.chat("相差多少", session_id=session)
     answer = str(result["answer"])
-    assert any(reason.startswith("difference_follow_up:") for reason in result["route_reasons"])
+    # (round 11) the session's comparison frame resolves it (metric 涨跌幅, operands in the order named)
+    assert any(reason.startswith(("difference_follow_up:", "frame:difference:")) for reason in result["route_reasons"])
     assert "两者相差 1.26 个百分点（中国平安更高） [price_601318.SH][price_000858.SZ]" in answer
     assert result["verification"]["passed"]
 

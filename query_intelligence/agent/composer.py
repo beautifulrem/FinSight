@@ -87,6 +87,7 @@ def compose_template(
     query: str = "",
     names: dict[str, str] | None = None,
     types: dict[str, str] | None = None,
+    frame_request: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Restate tool results with citations.
 
@@ -95,6 +96,10 @@ def compose_template(
     "2019年营收" or a dividend yield is never answered silently with other numbers. Requested price details
     (recent closes, high/low, volume, N-day return, price vs. MA) are stated when the evidence has them and
     named as unavailable when it does not; a sector question leads with the industry snapshot.
+
+    (round 11) With a ``frame_request`` (a gap, ratio or which-is-higher question read against the session's
+    comparison frame, ``frame.py``) the computed comparison leads the answer, and an operand without data is named
+    instead of computing anything from other figures.
     """
     facts: list[str] = []
     evidence_used: list[str] = []
@@ -148,12 +153,17 @@ def compose_template(
 
     if len(margins) >= 2:
         facts.append(_margin_ranking(margins, zh))
-    for sentence in _arithmetic(query, tool_log, zh):
-        if sentence not in facts:
-            facts.append(sentence)
-    gaps: list[str] = []
+    frame_gaps: list[str] = []
+    if frame_request:
+        framed, frame_gaps = frame_sentences(frame_request, tool_log, zh)
+        facts = [*framed, *(fact for fact in facts if fact not in framed)]
+    else:
+        for sentence in _arithmetic(query, tool_log, zh):
+            if sentence not in facts:
+                facts.append(sentence)
+    gaps: list[str] = list(frame_gaps)
     if query:
-        gaps = [
+        gaps += [
             *coverage_gaps(query, tool_log, zh=zh, names=names),
             *industry_gaps(query, tool_log, zh=zh),
             *non_stock_fundamental_gaps(query, tool_log, zh=zh, names=names, types=types),
@@ -306,26 +316,9 @@ def _arithmetic_operands(tool_log: list[dict[str, Any]], key: str, zh: bool) -> 
         data = entry.get("data") or {}
         eid, symbol = data.get("evidence_id"), str(data.get("symbol") or "")
         value = None
-        if entry.get("tool") == "get_price_history" and key in {"pct_change", "close", "amount"}:
-            value = data.get({"pct_change": "pct_change_1d"}.get(key, key))
-            if key == "pct_change" and value is None and (computed := _computed_change(data)):
-                # the change the price sentence states as computed from the last two closes: it is compared, but
-                # never restated without its closes (the verifier checks it against them in that sentence)
-                value, data = computed[1], {**data, "_computed_change": True}
-        elif entry.get("tool") == "get_fundamentals" and key == "net_margin":
-            metrics = data.get("metrics") or {}
-            revenue, profit = metrics.get("revenue"), metrics.get("net_profit")
-            if revenue and profit is not None and float(revenue) >= 1e6:
-                value = round(float(profit) / float(revenue) * 100, 2)
-        elif entry.get("tool") == "get_fundamentals" and key not in {"pct_change", "close", "amount"}:
-            metrics = data.get("metrics") or {}
-            field = {"pe": ("pe_ttm", "pe")}.get(key, (key,))
-            value = next((metrics[name] for name in field if metrics.get(name) is not None), None)
-            if key == "roe" and value is not None:
-                in_percent = (data.get("metric_units") or {}).get("roe") == "%"
-                value = value if in_percent or abs(float(value)) > 1 else value * 100
-            if key in {"revenue", "net_profit"} and value is not None and abs(float(value)) < 1e6:
-                value = None  # an amount the template does not state (see _fundamentals)
+        found = metric_value(entry, key)
+        if found is not None:
+            value, data = found
         if key in {"pe", "pb", "pct_change"} and industry is None and entry.get("tool") == "get_fundamentals":
             snapshot = data.get("industry") or {}
             industry_value = (snapshot.get("metrics") or {}).get(key)
@@ -338,6 +331,56 @@ def _arithmetic_operands(tool_log: list[dict[str, Any]], key: str, zh: bool) -> 
         seen.add(symbol)
         companies.append((str(data.get("name") or symbol), float(value), eid, data))
     return companies, industry
+
+
+_PRICE_KEYS = {"pct_change", "close", "amount", "volume"}
+_FUNDAMENTAL_FIELDS = {
+    "pe": ("pe_ttm", "pe"),
+    "pb": ("pb",),
+    "roe": ("roe",),
+    "revenue": ("revenue",),
+    "net_profit": ("net_profit",),
+    "gross_margin": ("gross_margin", "grossprofit_margin"),
+    "dividend_yield": ("dividend_yield", "dv_ratio", "dv_ttm"),
+    "eps": ("eps", "basic_eps", "diluted_eps", "eps_ttm"),
+    "market_cap": ("total_mv", "market_cap", "total_market_cap"),
+}
+_RATIO_FIELDS = {"roe", "gross_margin", "dividend_yield"}
+
+
+def metric_value(entry: dict[str, Any], key: str) -> tuple[float, dict[str, Any]] | None:
+    """``(value, data)`` of one metric in one tool result, in the unit the template states it (ratios in percent,
+    amounts in CNY), or ``None``. A daily change computed from the last two closes is marked ``_computed_change``."""
+    data = entry.get("data") or {}
+    tool = entry.get("tool")
+    if tool == "get_price_history" and key in _PRICE_KEYS:
+        value = data.get({"pct_change": "pct_change_1d"}.get(key, key))
+        if key == "pct_change" and value is None and (computed := _computed_change(data)):
+            # the change the price sentence states as computed from the last two closes: it is compared, but
+            # never restated without its closes (the verifier checks it against them in that sentence)
+            return computed[1], {**data, "_computed_change": True}
+        if key == "volume" and value is not None and not float(value):
+            value = None
+        return (float(value), data) if value is not None else None
+    if tool != "get_fundamentals" or key in _PRICE_KEYS:
+        return None
+    metrics = data.get("metrics") or {}
+    if key == "net_margin":
+        revenue, profit = metrics.get("revenue"), metrics.get("net_profit")
+        if revenue and profit is not None and float(revenue) >= 1e6:
+            return round(float(profit) / float(revenue) * 100, 2), data
+        return None
+    fields = _FUNDAMENTAL_FIELDS.get(key, (key,))
+    field = next((name for name in fields if metrics.get(name) is not None), None)
+    if field is None:
+        return None
+    value = float(metrics[field])
+    if key in _RATIO_FIELDS:
+        in_percent = (data.get("metric_units") or {}).get(field) == "%"
+        value = value if in_percent or abs(value) > 1 else value * 100
+    if key in {"revenue", "net_profit"} and abs(value) < 1e6:
+        return None  # an amount the template does not state (see _fundamentals)
+    return value, data
 
 
 def _arithmetic(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
@@ -441,6 +484,180 @@ def _margin_gap(first: tuple, second: tuple, cites: str, zh: bool) -> str:
     if zh:
         return f"净利率：{'，'.join(parts)}，两者相差 {gap} 个百分点（{higher}更高） {cites}。"
     return f"Net margin: {', '.join(parts)}, a gap of {gap} percentage points ({higher} is higher) {cites}."
+
+
+_OPERATION_WORDS = {
+    "difference": ("差值", "the difference"),
+    "ratio": ("倍数", "the ratio"),
+    "relative": ("相对差异", "the relative difference"),
+    "which": ("高低", "which is higher"),
+}
+
+
+def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh: bool) -> tuple[list[str], list[str]]:
+    """(round 11) The comparison a frame request asks for, from this run's tool results: ``(sentences, gaps)``.
+
+    Each sentence writes both operands with their evidence ids next to the result (difference in the metric's unit or
+    in percentage points, ratio to two decimals, relative difference in percent of the second operand, or which is
+    higher), so the verifier re-derives it. An operand without data is named in ``gaps`` and nothing is computed from
+    other figures."""
+    from .frame import METRIC_BY_KEY, metric_label, operand_name, operand_value
+
+    key = str(request.get("metric") or "")
+    operation = str(request.get("operation") or "difference")
+    metric = METRIC_BY_KEY.get(key)
+    label = metric_label(key, zh)
+    found, missing = [], []
+    for operand in request.get("operands") or []:
+        hit = operand_value(tool_log, operand, key)
+        name = operand_name(operand, zh)
+        if hit is None:
+            missing.append(name)
+        else:
+            found.append((name, hit[0], hit[1], hit[2]))
+    word_zh, word_en = _OPERATION_WORDS.get(operation, _OPERATION_WORDS["difference"])
+    if missing or len(found) < 2 or metric is None:
+        names = missing or [operand_name(item, zh) for item in request.get("operands") or []]
+        gap = (
+            f"当前数据中没有{'、'.join(names)}的{label}，因此无法计算两者的{word_zh}。"
+            if zh
+            else f"The data has no {label} for {' or '.join(names)}, so {word_en} cannot be computed."
+        )
+        return [], [gap]
+    kind = metric.kind
+
+    def shown(value: float, data: dict[str, Any]) -> str:
+        if kind == "points":
+            return f"{_num(value)}%"
+        if kind == "multiple":
+            return _times(value, zh)
+        if kind == "money":
+            return _money(value, zh)
+        if kind == "price":
+            return _px(value, data, zh)
+        return _num(value)
+
+    cites = "".join(dict.fromkeys(f"[{eid}]" for _name, _value, eid, _data in found))
+    if len(found) > 2:
+        ordered = sorted(found, key=lambda item: item[1], reverse=True)
+        parts = [f"{name} {shown(value, data)}" for name, value, _eid, data in ordered]
+        text = f"{label}由高到低：{'、'.join(parts)}" if zh else f"{label} from highest to lowest: {', '.join(parts)}"
+        return [f"{text} {cites}。" if zh else f"{text} {cites}."], []
+    (name_a, a, _ea, data_a), (name_b, b, _eb, data_b) = found[0], found[1]
+    if data_a.get("_computed_change") or data_b.get("_computed_change"):
+        # a change computed from two closes is compared (which side is higher) but not restated without its closes,
+        # and no gap or ratio is derived from it
+        computed = name_a if data_a.get("_computed_change") else name_b
+        note = (
+            f"{computed}的涨跌幅由最近两个收盘价推算（数据源未提供），因此不另行计算两者的{word_zh}。"
+            if zh
+            else f"{computed}'s change is computed from its last two closes (the source has none), so {word_en} is "
+            "not stated."
+        )
+
+        def stated(value: float, data: dict[str, Any]) -> str:
+            if data.get("_computed_change"):
+                return "（按收盘价推算，见上文）" if zh else "(computed from closes, see above)"
+            return f" {shown(value, data)}" if zh else f"({shown(value, data)})"
+
+        if a == b:
+            relation = "持平" if zh else "is level with"
+        else:
+            relation = ("高于" if a > b else "低于") if zh else ("is higher than" if a > b else "is lower than")
+        verdict = (
+            f"{label}：{name_a}{stated(a, data_a)} {relation} {name_b}{stated(b, data_b)} {cites}。"
+            if zh
+            else f"{label}: {name_a} {stated(a, data_a)} {relation} {name_b} {stated(b, data_b)} {cites}."
+        )
+        return [verdict], [] if operation == "which" else [note]
+    if operation == "which":
+        if a == b:
+            relation = "持平" if zh else "is level with"
+        else:
+            relation = ("高于" if a > b else "低于") if zh else ("is higher than" if a > b else "is lower than")
+        if zh:
+            return [f"{label}：{name_a} {shown(a, data_a)} {relation} {name_b} {shown(b, data_b)} {cites}。"], []
+        return [f"{label}: {name_a} ({shown(a, data_a)}) {relation} {name_b} ({shown(b, data_b)}) {cites}."], []
+    if key == "net_margin":
+        sentence = _margin_gap(found[0], found[1], cites, zh)
+        if operation == "difference":
+            return [sentence], []
+        note = (
+            "净利率本身是推算值，这里给出两者相差的百分点，不再计算其比值。"
+            if zh
+            else "Net margins are derived figures, so the gap in percentage points is given instead of a ratio."
+        )
+        return [sentence], [note]
+    operands = (
+        f"{name_a}{label} {shown(a, data_a)}，{name_b} {shown(b, data_b)}"
+        if zh
+        else f"{name_a} {label} {shown(a, data_a)}, {name_b} {shown(b, data_b)}"
+    )
+    if operation == "ratio":
+        if not b:
+            return [], ["后者为零，无法计算倍数。" if zh else "The second value is zero, so no ratio can be computed."]
+        times = _num(round(a / b, 2))
+        return [
+            f"{operands}，前者约为后者的 {times} 倍 {cites}。"
+            if zh
+            else f"{operands}: the former is about {times} times the latter {cites}."
+        ], []
+    if operation == "relative":
+        if not b:
+            note = "基数为零，无法计算相对差异。" if zh else "The base value is zero, so no percentage can be computed."
+            return [], [note]
+        pct = _num(round(abs(a - b) / abs(b) * 100, 2))
+        if a == b:
+            return [f"{operands}，两者相同 {cites}。" if zh else f"{operands}: they are equal {cites}."], []
+        lower = a < b
+        industry_base = any(item.get("kind") == "industry" for item in (request.get("operands") or [])[1:2])
+        if zh:
+            if kind == "multiple" and industry_base:
+                relation = f"{name_a}相对{name_b}{'折价' if lower else '溢价'}约 {pct}%"
+            else:
+                relation = f"{name_a}比{name_b}{'低' if lower else '高'}约 {pct}%（以{name_b}为基数）"
+            return [f"{operands}，{relation} {cites}。"], []
+        side = "below" if lower else "above"
+        extra = f" (a {'discount' if lower else 'premium'})" if kind == "multiple" and industry_base else ""
+        return [f"{operands}: {name_a} is about {pct}% {side} {name_b}{extra} {cites}."], []
+    gap = abs(a - b)
+    if kind == "points":
+        gap_text = f"{_num(round(gap, 2))} 个百分点" if zh else f"{_num(round(gap, 2))} percentage points"
+    elif kind == "money":
+        gap_text = _money(gap, zh)
+    elif kind == "price":
+        gap_text = _px(round(gap, 3), data_a, zh)
+    else:
+        gap_text = _num(round(gap, 2))
+    if a == b:
+        return [f"{operands}，两者相同 {cites}。" if zh else f"{operands}: they are equal {cites}."], []
+    higher = name_a if a > b else name_b
+    return [
+        f"{operands}，两者相差 {gap_text}（{higher}更高） {cites}。"
+        if zh
+        else f"{operands}: a difference of {gap_text} ({higher} is higher) {cites}."
+    ], []
+
+
+def frame_result(request: dict[str, Any], tool_log: list[dict[str, Any]]) -> float | None:
+    """The number a frame request computes (gap, ratio or percent), for checking whether an LLM draft states it."""
+    from .frame import operand_value
+
+    key, operation = str(request.get("metric") or ""), str(request.get("operation") or "difference")
+    values = []
+    for operand in (request.get("operands") or [])[:2]:
+        hit = operand_value(tool_log, operand, key)
+        if hit is None or hit[2].get("_computed_change"):
+            return None
+        values.append(hit[0])
+    if len(values) < 2 or operation == "which":
+        return None
+    a, b = values
+    if operation == "ratio" and key != "net_margin":
+        return round(a / b, 2) if b else None
+    if operation == "relative" and key != "net_margin":
+        return round(abs(a - b) / abs(b) * 100, 2) if b else None
+    return round(abs(a - b), 2)
 
 
 def _comparison_verdict(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:

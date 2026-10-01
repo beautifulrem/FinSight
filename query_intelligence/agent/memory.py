@@ -17,6 +17,7 @@ from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
 
+from .frame import latest_frame, memory_view
 from .router import has_macro_content, is_dangling_why
 
 MAX_CONTEXT_TURNS = 3
@@ -62,9 +63,25 @@ def turn_record(state: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
     """One finished turn. ``entities`` are those of the *effective* question (after coreference/ellipsis
     rewrites), so a target introduced by "换成比亚迪呢" or carried by "ROE呢" counts as discussed.
     ``macro_topics`` are the macro indicators the turn was about (so "这说明什么？" after a CPI question stays on
-    CPI); ``named`` marks turns whose targets the user typed (not carried by a rewrite), for "前者/后者"."""
+    CPI); ``named`` marks turns whose targets the user typed (not carried by a rewrite), for "前者/后者"; ``frame`` is
+    the session's comparison frame after the turn (``frame.py``)."""
+    from .frame import next_frame
+
     query = state.get("query", "")
     effective = state.get("effective_query") or query
+    targets = [
+        {"name": entity.get("name") or entity.get("symbol"), "symbol": entity.get("symbol")}
+        for entity in result.get("nlu_summary", {}).get("entities", [])
+        if entity.get("symbol")
+    ]
+    frame = next_frame(
+        latest_frame(state.get("turns") or []),
+        query=effective,
+        route=str(result.get("route") or ""),
+        targets=targets,
+        tool_log=state.get("tool_log") or [],
+        request=state.get("frame_request") or None,
+    )
     return {
         "query": query,
         "effective_query": effective,
@@ -76,6 +93,8 @@ def turn_record(state: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
         "evidence_used": result.get("evidence_used", []),
         # the answer language a "继续用英文" instruction set for later turns (carried from turn to turn)
         "answer_language": state.get("answer_language") or "",
+        # (round 11) the comparison frame after this turn: metric, operands in order, values and evidence ids
+        "frame": frame,
     }
 
 
@@ -348,11 +367,21 @@ _LEADING_ZH = re.compile(r"^(?:那么|那就|那|再看看|再看|还有|看看)
 _MARKET_WIDE = re.compile(
     r"大盘|市场|A股|沪指|深指|创业板|行业|板块|宏观|\bmarket\b|\bsector\b|\bindex\b", re.IGNORECASE
 )
+# (round 11, G3) Chinese aspect words are tried longest first: in a regex alternation the first alternative
+# that matches wins, so "净利" listed before "净利率" turned "茅台的净利率" into an aspect "净利" (and "五粮液呢"
+# into a price question). Sorting by length keeps 净利率 / 净利润率 / 净利润 / 净利, 市净率 / 市盈率 and 毛利率 apart.
+_ASPECT_WORDS_ZH = (
+    "市盈率", "市净率", "市销率", "净资产收益率", "营业收入", "营收", "净利润率", "销售净利率", "净利率",
+    "净利润", "净利", "毛利润率", "毛利率", "股息率", "每股收益", "总市值", "市值", "资产负债率", "负债率",
+    "收盘价", "收盘", "股价", "走势", "最高价", "最高", "最低价", "最低", "开盘价", "开盘", "成交量",
+    "成交金额", "成交额", "涨跌幅", "涨跌", "估值", "公告", "新闻", "分红", "业绩", "财报", "舆情", "均线",
+    "波动率",
+)  # fmt: skip
 _ASPECT = re.compile(
-    r"市盈率|市净率|净资产收益率|营收|营业收入|净利润|净利|毛利率|股息率|市值|负债率|收盘价?|股价|走势|最高价?|最低价?|"
-    r"开盘价?|成交量|成交额|涨跌幅?|估值|公告|新闻|分红|业绩|财报|舆情|均线|波动率|"
-    r"(?<![A-Za-z])(?:P/?E|P/?B|ROE|RSI|MACD|MA\d+)(?![A-Za-z])|"
-    r"revenue|net (?:profit|income)|gross margin|net margin|returns? on equity|price[- ]to[- ](?:book|earnings)|"
+    "|".join(re.escape(word) for word in sorted(_ASPECT_WORDS_ZH, key=len, reverse=True)) + "|"
+    r"(?<![A-Za-z])(?:P/?E|P/?B|ROE|RSI|MACD|MA\d+|EPS)(?![A-Za-z])|"
+    r"revenue|net (?:profit )?margin|net (?:profit|income)|gross margin|returns? on equity|earnings per share|"
+    r"price[- ]to[- ](?:book|earnings)|"
     r"book(?:[- ]value)? multiple|earnings multiple|"
     r"dividend|market cap|valuation|\bprice\b|\bclos(?:e|es|ing price)\b|\bhigh\b|\blow\b|\bvolume\b|"
     r"percentage change|\breturn\b|\bgrowth\b|volatility|moving average|announcements?|news|trend",
@@ -661,7 +690,8 @@ _HOLDING = re.compile(
 
 
 def session_memory(turns: list[dict[str, Any]], current_query: str = "") -> dict[str, Any]:
-    """Compact memory of the session for the LLM: recent targets and constraints the user stated.
+    """Compact memory of the session for the LLM: recent targets, constraints the user stated and the comparison
+    frame (metric, operands, earlier values).
 
     Extractive and rule-based (no LLM), bounded in size; constraints are carried forward from any earlier
     question so "我是保守型投资者" still applies five turns later.
@@ -677,12 +707,18 @@ def session_memory(turns: list[dict[str, Any]], current_query: str = "") -> dict
             what = (match.group("what") or match.group("en") or "").strip()
             if what and what not in holdings:
                 holdings.append(what)
-    return {
+    memory = {
         "turns_so_far": len(turns),
         "recent_targets": recent_entities(turns),
         "user_constraints": constraints,
         "stated_holdings": holdings[:5],
     }
+    # (round 11, G4) the comparison under way: the metric and the values earlier turns found, so a gap question
+    # fetches the operand this turn lacks instead of declining
+    frame = memory_view(latest_frame(turns))
+    if frame:
+        memory["comparison_frame"] = frame
+    return memory
 
 
 _REPLY_FILLER = re.compile(

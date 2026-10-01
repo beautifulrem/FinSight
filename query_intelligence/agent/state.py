@@ -68,6 +68,9 @@ class AgentState(TypedDict, total=False):
     clarification_base: str  # the rewritten question a clarification reply is folded into ("三家" -> two names)
     answer_language: str  # "zh"/"en" persisted by "继续用英文" / "keep answering in English" ("" = none)
     effective_query: str
+    # (round 11) a gap / ratio / which question read against the session's comparison frame (frame.py): operation,
+    # metric and operands for the planner and the composer; {} otherwise
+    frame_request: dict[str, Any]
     language: str  # "zh"/"en": the language of the user's own words (markup and encoded blobs ignored)
     refusal_category: str
     owner: str
