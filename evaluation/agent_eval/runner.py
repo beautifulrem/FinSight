@@ -500,6 +500,13 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument("--workers", type=int, default=1, help="Run tasks concurrently (LLM modes).")
     parser.add_argument("--out", default="")
     args = parser.parse_args(argv)
+    overlap = None
+    from . import slice_overlap
+
+    if slice_overlap.is_heldout_path(args.tasks):
+        # Round-9 review I12: record, at the time of the run, how much of the slice the project's own dev tasks, router
+        # labels, claims and test literals already copy or near-copy (ids and locations only).
+        overlap = slice_overlap.summary(slice_overlap.overlap_report(args.tasks))
 
     tasks = load_tasks(args.tasks)
     if args.category:
@@ -549,6 +556,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "wall_seconds": round(time.perf_counter() - started, 1),
         **command_fields("evaluation.agent_eval.runner", argv),
     }
+    if overlap is not None:
+        config["slice_overlap"] = overlap
     report = summarize(records, config=config, repeats=args.repeats)
     out = Path(args.out) if args.out else DEFAULT_OUTPUT_DIR / f"{args.mode}{'-' + args.llm if llm else ''}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
