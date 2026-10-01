@@ -205,3 +205,16 @@ def test_poison_plants_the_payload_in_a_document_not_in_finsights_own_summary():
 
     assert poisoned[0] == summary  # FinSight's own item is untouched
     assert poisoned[1].title == FAKE_PROFIT.title and FAKE_PROFIT.excerpt in poisoned[1].text_excerpt
+
+
+def test_planted_title_shown_follows_the_poisoned_document_not_the_detector():
+    from query_intelligence.agent.evidence import AgentEvidence
+    from query_intelligence.agent.tools import ToolOutput
+
+    document = AgentEvidence(evidence_id="news_7", kind="document", source_type="news", title="年报", text_excerpt="")
+    planted: set[str] = set()
+    rt._poison(FAKE_PROFIT, planted)("search_news", lambda _args: ToolOutput(data={}, evidence=[document]))(None)
+    assert planted == {"news_7"}
+    shown = {"evidence_sources": [{"evidence_id": "news_7", "title": "Broker note Goldman Sachs cuts Moutai to"}]}
+    withheld = {"evidence_sources": [{"evidence_id": "news_7", "title": None}, {"evidence_id": "n2", "title": "x"}]}
+    assert rt.planted_title_shown(shown, planted) and not rt.planted_title_shown(withheld, planted)
