@@ -57,8 +57,7 @@
 `scripts/load_test.py`（固定流程模式，8 个用户 × 默认轮换的 10 个问题）：实时，然后拦截新浪 / 腾讯 / 东方财富
 （60 秒行情 TTL 之内、之后、90 秒过期窗口之后），再在熔断冷却后解除拦截。运行于 2026-10-01 02:51–02:57 UTC，
 提交 `3641361`（工作区干净），结果见
-[`results/perf/sources-load/chaos-sources-load-8users.json`](../results/perf/sources-load/chaos-sources-load-8users.json)，
-服务日志在同一目录。
+[`results/perf/sources-load/chaos-sources-load-8users.json`](../results/perf/sources-load/chaos-sources-load-8users.json)（服务日志留在本地，`*.log` 不提交）。
 
 | 阶段 | 请求数 | 吞吐（req/s） | P50（ms） | P95（ms） | P99（ms） | 错误 | 证据由谁提供（条数） |
 |---|---:|---:|---:|---:|---:|---:|---|
