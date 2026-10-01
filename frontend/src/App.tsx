@@ -206,7 +206,7 @@ export default function App() {
   const newSession = () => {
     const id = newSessionId();
     setSessionId(id);
-    reset(t("answer.newSession"));
+    reset({ key: "answer.newSession" });
     setInspect({ turnId: null, tab: "evidence", highlight: null, nonce: 0 });
     composer.current?.focus();
   };
@@ -284,7 +284,7 @@ export default function App() {
                         items.map((item) =>
                           item.kind === "notice" ? (
                             <p key={item.id} className="notice text-center text-[12.5px] text-faint">
-                              {item.text}
+                              {t(item.key, item.vars)}
                             </p>
                           ) : item.kind === "history" ? (
                             <HistoryView key={item.id} turns={item.turns} />
