@@ -5,19 +5,31 @@ entities, recording success, latency, row count, the newest as-of date, and the 
 chains used at runtime are then exercised end to end so the served source and provenance are visible.
 
     python -m scripts.audit_data_sources --json outputs/data_source_audit.json
+    python -m scripts.audit_data_sources --rounds 2 --pause 1 --out-dir docs/results/data_sources   # dated audit
 
 Requires network access; results depend on the time of day and on upstream throttling. The report records
 the commit and whether the working tree was clean; committed audits live in
 ``docs/results/data_sources/`` (run from a clean checkout), and ``.github/workflows/data-source-audit.yml``
 runs the audit weekly and uploads the JSON as an artifact.
+
+Calls are sequential with ``--pause`` seconds after each (upstream rate limits). ``--rounds`` repeats the probe
+set so every source has several samples; the per-source summary gives the success rate, latency P50/P95
+(nearest rank), the freshness lag of the newest row (trading sessions behind the last trading day for daily
+market data, calendar days for the rest), a schema-drift check against the columns the providers read, and
+the failure reasons. A source that needs a key which is not configured (Tushare without ``TUSHARE_TOKEN``) is
+listed as ``not configured`` and never called.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
+import os
+import statistics
 import sys
 import time
+from collections import Counter
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -43,6 +55,54 @@ STOCKS = [("600519", "贵州茅台"), ("300750", "宁德时代"), ("601318", "�
 ETF = ("510300", "沪深300ETF")
 INDEX = ("000300", "沪深300")
 DATE_KEYS = ("日期", "date", "trade_date", "净值日期", "数据日期", "月份", "TRADE_DATE", "报告期", "发布时间")
+# Seconds to wait after every live call (set by --pause): sequential, gentle on upstream rate limits.
+PAUSE = {"seconds": 1.0}
+# Columns (or keys) each source must return because a provider reads them (schema-drift check). Sources whose
+# result is a provider-built summary (dicts from our own code) are not listed.
+SCHEMA: dict[str, set[str]] = {
+    "eastmoney.quote (stock_zh_a_hist)": {"日期", "开盘", "收盘", "最高", "最低", "成交量", "成交额", "涨跌幅"},
+    "sina.kline (stock_zh_a_daily)": {"date", "open", "high", "low", "close", "volume", "amount"},
+    "tencent.kline (fqkline)": {"date", "open", "close", "high", "low", "volume"},
+    "sina.quote (hq.sinajs.cn)": {"trade_date", "open", "high", "low", "close", "volume", "amount"},
+    "efinance (get_quote_history)": {"日期", "开盘", "收盘", "最高", "最低", "成交量", "成交额"},
+    "eastmoney.quote (fund_etf_hist_em)": {"日期", "开盘", "收盘", "最高", "最低", "成交量", "成交额"},
+    "sina.kline (fund_etf_hist_sina)": {"date", "open", "high", "low", "close", "volume"},
+    "eastmoney.fund (fund_open_fund_info_em NAV)": {"净值日期", "单位净值", "日增长率"},
+    "sina.kline (stock_zh_index_daily)": {"date", "open", "high", "low", "close", "volume"},
+    "eastmoney.quote (index_zh_a_hist)": {"日期", "开盘", "收盘", "最高", "最低"},
+    "sina.finance (stock_financial_analysis_indicator)": {
+        "日期",
+        "净资产收益率(%)",
+        "加权每股收益(元)",
+        "主营业务收入增长率(%)",
+        "净利润增长率(%)",
+    },
+    "ths.finance (stock_financial_abstract_ths)": {
+        "报告期",
+        "营业总收入",
+        "净利润",
+        "营业总收入同比增长率",
+        "净利润同比增长率",
+        "基本每股收益",
+        "销售毛利率",
+    },
+    "eastmoney.datacenter (stock_value_em)": {"数据日期", "PE(TTM)", "市净率", "总市值"},
+    "eastmoney.quote (stock_individual_info_em)": {"item", "value"},
+    "eastmoney.datacenter (macro_china_cpi)": {"月份", "全国-同比增长"},
+    "eastmoney.datacenter (macro_china_pmi)": {"月份", "制造业-指数"},
+    "eastmoney.datacenter (macro_china_money_supply)": {"月份", "货币和准货币(M2)-同比增长"},
+    "eastmoney.datacenter (bond_zh_us_rate)": {"日期", "中国国债收益率10年"},
+    "chinabond (bond_china_yield)": {"日期", "曲线名称", "10年"},
+    "eastmoney.datacenter (macro_china_lpr)": {"TRADE_DATE", "LPR1Y", "LPR5Y"},
+    "eastmoney.news (stock_news_em)": {"新闻标题", "新闻内容", "发布时间", "文章来源", "新闻链接"},
+}
+# Groups whose newest row should be the last trading day (lag counted in trading sessions).
+SESSION_GROUPS = {"market", "etf", "index", "intraday"}
+# Sources that need a key: (source label, group, environment variable).
+KEYED_SOURCES = [
+    ("tushare.pro (daily, fina_indicator)", "market", "TUSHARE_TOKEN"),
+    ("tushare.pro (news)", "news", "TUSHARE_TOKEN"),
+]
 
 
 def _latest(rows: Any) -> str | None:
@@ -68,6 +128,15 @@ def _count(rows: Any) -> int:
     return 1
 
 
+def _columns(value: Any) -> set[str] | None:
+    """Column names of a DataFrame, or the keys of the first record of a list of dicts."""
+    if hasattr(value, "columns"):
+        return {str(column) for column in value.columns}
+    if isinstance(value, list) and value and isinstance(value[0], dict):
+        return {str(key) for key in value[0]}
+    return None
+
+
 def probe(results: list[dict], group: str, source: str, target: str, fn: Callable[[], Any], timeout: float) -> None:
     runtime = SourceRuntime(
         health=SourceHealthRegistry(failure_threshold=10_000), cache=SourceCache(), call_timeout_s=timeout
@@ -82,6 +151,9 @@ def probe(results: list[dict], group: str, source: str, target: str, fn: Callabl
             record["ok"] = bool(value.get("ok", True))
         else:
             record.update(ok=True, rows=_count(value), as_of=_latest(value))
+            expected, columns = SCHEMA.get(source), _columns(value)
+            if expected is not None and columns is not None:
+                record["schema_missing"] = sorted(expected - columns)
         if not record.get("rows"):
             record.update(ok=False, error=record.get("error") or "empty result")
     except Exception as exc:
@@ -91,6 +163,7 @@ def probe(results: list[dict], group: str, source: str, target: str, fn: Callabl
     results.append(record)
     status = "ok" if record["ok"] else f"FAIL {record.get('error')}"
     print(f"[{group}] {source} {target}: {status} {record['latency_ms']} ms as_of={record.get('as_of')}", flush=True)
+    time.sleep(PAUSE["seconds"])
 
 
 def _intraday_summary(quote: dict[str, Any]) -> dict[str, Any]:
@@ -102,12 +175,168 @@ def _intraday_summary(quote: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def run_audit(timeout: float, include_legacy: bool) -> dict[str, Any]:
+def run_audit(timeout: float, include_legacy: bool, rounds: int = 1) -> dict[str, Any]:
+    state = _git_state()  # at the start: later edits to the checkout are not attributed to this audit
+    started_at = datetime.now(UTC).isoformat(timespec="seconds")
+    calendar = trading_calendar(timeout)
+    results: list[dict] = []
+    for round_index in range(1, max(1, rounds) + 1):
+        print(f"--- round {round_index}/{rounds}", flush=True)
+        for row in run_probes(timeout, include_legacy):
+            results.append({**row, "round": round_index})
+    chains = run_chains(timeout)
+    today = date.today()
+    last_session = last_trading_day(calendar["days"], today)
+    for row in results:
+        row.update(freshness_lag(row, today, last_session, calendar["days"]))
+    sources = summarize(results)
+    return {
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "started_at": started_at,
+        "command": "python -m scripts.audit_data_sources",
+        **state,
+        "versions": _versions(),
+        "network": network_note(),
+        "settings": {"rounds": rounds, "pause_s": PAUSE["seconds"], "timeout_s": timeout},
+        "reference": {
+            "today": today.isoformat(),
+            "last_trading_day": last_session.isoformat() if last_session else None,
+            "calendar_source": calendar["source"],
+        },
+        "summary": {
+            "probes": len(results),
+            "probes_ok": sum(1 for row in results if row["ok"]),
+            "sources": len(sources),
+            "sources_all_ok": sum(1 for row in sources if row.get("status") == "ok"),
+            "sources_partial": sum(1 for row in sources if row.get("status") == "partial"),
+            "sources_down": sum(1 for row in sources if row.get("status") == "down"),
+            "sources_not_configured": sum(1 for row in sources if row.get("status") == "not_configured"),
+            "schema_drift": sorted({row["source"] for row in sources if row.get("schema_missing")}),
+            "chains": len(chains),
+            "chains_ok": sum(1 for row in chains if row.get("ok")),
+        },
+        "sources": sources,
+        "probes": results,
+        "chains": chains,
+    }
+
+
+def trading_calendar(timeout: float) -> dict[str, Any]:
+    """SSE trading days (Sina calendar via AKShare); weekdays as a fallback, recorded as such."""
+    import akshare as ak
+
+    try:
+        frame = ak.tool_trade_date_hist_sina()
+        days = sorted({str(to_iso_date(value))[:10] for value in frame["trade_date"]})
+        time.sleep(PAUSE["seconds"])
+        return {"days": days, "source": "akshare.tool_trade_date_hist_sina"}
+    except Exception as exc:  # the audit still runs; lags are then counted on weekdays
+        return {"days": [], "source": f"weekdays (calendar unavailable: {type(exc).__name__})"}
+
+
+def last_trading_day(days: list[str], today: date) -> date | None:
+    if days:
+        past = [day for day in days if day <= today.isoformat()]
+        return date.fromisoformat(past[-1]) if past else None
+    day = today
+    while day.weekday() >= 5:
+        day -= timedelta(days=1)
+    return day
+
+
+def freshness_lag(row: dict[str, Any], today: date, last_session: date | None, days: list[str]) -> dict[str, Any]:
+    """Calendar days from the newest row to today, and for daily market data the trading sessions behind."""
+    as_of = str(row.get("as_of") or "")[:10]
+    try:
+        newest = date.fromisoformat(as_of)
+    except ValueError:
+        return {}
+    lag: dict[str, Any] = {"lag_days": (today - newest).days}
+    if row.get("group") in SESSION_GROUPS and last_session is not None:
+        if days:
+            lag["lag_sessions"] = sum(1 for day in days if as_of < day <= last_session.isoformat())
+        else:
+            lag["lag_sessions"] = sum(
+                1
+                for offset in range(1, (last_session - newest).days + 1)
+                if (newest + timedelta(days=offset)).weekday() < 5
+            )
+    return lag
+
+
+def _percentile(values: list[float], share: float) -> float | None:
+    """Nearest-rank percentile (P50 is the median of an odd sample, the lower middle value of an even one)."""
+    if not values:
+        return None
+    ordered = sorted(values)
+    return ordered[max(0, math.ceil(share * len(ordered)) - 1)]
+
+
+def summarize(results: list[dict]) -> list[dict]:
+    """One row per source: success rate, latency P50/P95, freshness lag, schema drift, failure reasons."""
+    grouped: dict[tuple[str, str], list[dict]] = {}
+    for row in results:
+        grouped.setdefault((row["group"], row["source"]), []).append(row)
+    summary = []
+    for (group, source), rows in grouped.items():
+        ok = [row for row in rows if row["ok"]]
+        latencies = [float(row["latency_ms"]) for row in rows]
+        lags = [row["lag_days"] for row in ok if row.get("lag_days") is not None]
+        sessions = [row["lag_sessions"] for row in ok if row.get("lag_sessions") is not None]
+        missing = sorted({column for row in rows for column in row.get("schema_missing") or []})
+        failures = Counter(str(row.get("error") or "unknown")[:120] for row in rows if not row["ok"])
+        status = "ok" if len(ok) == len(rows) else ("down" if not ok else "partial")
+        summary.append(
+            {
+                "group": group,
+                "source": source,
+                "status": status,
+                "calls": len(rows),
+                "ok": len(ok),
+                "success_rate": round(len(ok) / len(rows), 3),
+                "latency_p50_ms": _percentile(latencies, 0.5),
+                "latency_p95_ms": _percentile(latencies, 0.95),
+                "newest_as_of": max((str(row.get("as_of"))[:10] for row in ok if row.get("as_of")), default=None),
+                "lag_days_max": max(lags) if lags else None,
+                "lag_days_median": statistics.median(lags) if lags else None,
+                "lag_sessions_max": max(sessions) if sessions else None,
+                "schema_checked": any("schema_missing" in row for row in rows),
+                "schema_missing": missing,
+                "failures": [{"reason": reason, "count": count} for reason, count in failures.most_common()],
+            }
+        )
+    for source, group, variable in KEYED_SOURCES:
+        if not os.getenv(variable):
+            summary.append(
+                {
+                    "group": group,
+                    "source": source,
+                    "status": "not_configured",
+                    "calls": 0,
+                    "ok": 0,
+                    "success_rate": None,
+                    "note": f"{variable} is not set; the source was not called",
+                }
+            )
+    return summary
+
+
+def network_note() -> dict[str, Any]:
+    """Whether HTTP(S) proxies are configured (no addresses are recorded) and where the audit ran from."""
+    proxied = any(os.getenv(name) for name in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY"))
+    return {
+        "proxy_env_set": proxied,
+        "note": "run from the maintainer's machine; requests follow the environment's proxy settings"
+        if proxied
+        else "run from the maintainer's machine without a configured proxy",
+    }
+
+
+def run_probes(timeout: float, include_legacy: bool) -> list[dict]:
     import akshare as ak
     import efinance as ef
     import requests
 
-    state = _git_state()  # at the start: later edits to the checkout are not attributed to this audit
     results: list[dict] = []
     today = date.today()
     start = (today - timedelta(days=60)).strftime("%Y%m%d")
@@ -357,21 +586,7 @@ def run_audit(timeout: float, include_legacy: bool) -> dict[str, Any]:
             timeout,
         )
 
-    chains = run_chains(timeout)
-    return {
-        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "command": "python -m scripts.audit_data_sources",
-        **state,
-        "versions": _versions(),
-        "summary": {
-            "probes": len(results),
-            "probes_ok": sum(1 for row in results if row["ok"]),
-            "chains": len(chains),
-            "chains_ok": sum(1 for row in chains if row.get("ok")),
-        },
-        "probes": results,
-        "chains": chains,
-    }
+    return results
 
 
 def _git_state() -> dict[str, Any]:
@@ -483,6 +698,10 @@ def _versions() -> dict[str, str]:
     return versions
 
 
+def _cell(value: Any) -> str:
+    return "" if value is None else str(value).replace("|", "/")
+
+
 def to_markdown(report: dict[str, Any]) -> str:
     lines = [
         "| Group | Source (function) | Target | OK | Latency ms | Rows | Newest as-of | Error |",
@@ -491,9 +710,67 @@ def to_markdown(report: dict[str, Any]) -> str:
     for row in report["probes"]:
         lines.append(
             f"| {row['group']} | {row['source']} | {row['target']} | {'yes' if row['ok'] else 'no'} | "
-            f"{row['latency_ms']} | {row.get('rows', '')} | {row.get('as_of') or ''} | {row.get('error', '')} |"
+            f"{row['latency_ms']} | {row.get('rows', '')} | {row.get('as_of') or ''} | {_cell(row.get('error'))} |"
         )
     return "\n".join(lines)
+
+
+def sources_markdown(report: dict[str, Any]) -> str:
+    """The dated per-source report committed under docs/results/data_sources/."""
+    summary, reference = report["summary"], report.get("reference") or {}
+    lines = [
+        f"# Live data-source audit, {report['generated_at']} (commit `{report['commit']}`)",
+        "",
+        f"* Command: `{report['command']} --rounds {report['settings']['rounds']} --pause "
+        f"{report['settings']['pause_s']}` (timeout {report['settings']['timeout_s']} s per call), started "
+        f"{report.get('started_at')}, working tree clean: {report.get('working_tree_clean')}.",
+        f"* Network: {report['network']['note']}.",
+        f"* Reference dates: today {reference.get('today')}, last trading day {reference.get('last_trading_day')} "
+        f"(calendar: {reference.get('calendar_source')}).",
+        f"* Versions: {', '.join(f'{key} {value}' for key, value in report['versions'].items())}.",
+        f"* Probes: {summary['probes_ok']}/{summary['probes']} ok; sources: {summary['sources_all_ok']} all ok, "
+        f"{summary['sources_partial']} partial, {summary['sources_down']} down, "
+        f"{summary['sources_not_configured']} not configured; schema drift: "
+        f"{', '.join(summary['schema_drift']) or 'none'}; runtime fallback chains: "
+        f"{summary['chains_ok']}/{summary['chains']} served.",
+        "",
+        "## Per source",
+        "",
+        "Latency is per call (P50/P95 nearest rank over all calls of the source). Lag: calendar days from the newest "
+        "row to today; sessions: trading days the newest daily bar is behind the last trading day.",
+        "",
+        "| Group | Source | Status | OK / calls | P50 ms | P95 ms | Newest as-of | Lag days (max) | Lag sessions "
+        "(max) | Schema | Failure reasons |",
+        "|---|---|---|---:|---:|---:|---|---:|---:|---|---|",
+    ]
+    for row in report["sources"]:
+        if row["status"] == "not_configured":
+            lines.append(
+                f"| {row['group']} | {row['source']} | not configured | 0 / 0 | | | | | | | {row.get('note')} |"
+            )
+            continue
+        schema = "not checked" if not row.get("schema_checked") else ("ok" if not row["schema_missing"] else
+                 "missing " + ", ".join(row["schema_missing"]))  # fmt: skip
+        reasons = "; ".join(f"{item['reason']} (x{item['count']})" for item in row["failures"])
+        lines.append(
+            f"| {row['group']} | {row['source']} | {row['status']} | {row['ok']} / {row['calls']} | "
+            f"{_cell(row['latency_p50_ms'])} | {_cell(row['latency_p95_ms'])} | {_cell(row['newest_as_of'])} | "
+            f"{_cell(row['lag_days_max'])} | {_cell(row['lag_sessions_max'])} | {schema} | {_cell(reasons)} |"
+        )
+    lines += [
+        "",
+        "## Runtime fallback chains (what the app would serve)",
+        "",
+        "| Kind | Target | OK | Served by | Mode | As-of | Latency ms | Fallback reason / error |",
+        "|---|---|---|---|---|---|---:|---|",
+    ]
+    for row in report["chains"]:
+        lines.append(
+            f"| {row.get('kind')} | {row.get('target')} | {'yes' if row.get('ok') else 'no'} | "
+            f"{_cell(row.get('served_by'))} | {_cell(row.get('mode'))} | {_cell(row.get('as_of'))} | "
+            f"{row.get('latency_ms')} | {_cell(row.get('fallback_reason') or row.get('error'))} |"
+        )
+    return "\n".join(lines) + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -501,16 +778,30 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", help="Write the full report to this JSON file.")
     parser.add_argument("--timeout", type=float, default=15.0, help="Per-call hard timeout in seconds.")
     parser.add_argument("--no-legacy", action="store_true", help="Skip the slow legacy jin10 macro probes.")
+    parser.add_argument("--rounds", type=int, default=1, help="Repeat the probe set this many times (samples).")
+    parser.add_argument("--pause", type=float, default=1.0, help="Seconds to wait after every live call.")
+    parser.add_argument(
+        "--out-dir", help="Write audit-<UTC timestamp>-<commit>.json and .md (the per-source report) here."
+    )
     args = parser.parse_args(argv)
-    report = run_audit(args.timeout, include_legacy=not args.no_legacy)
+    PAUSE["seconds"] = max(0.0, args.pause)
+    report = run_audit(args.timeout, include_legacy=not args.no_legacy, rounds=args.rounds)
     print(to_markdown(report))
     summary = report["summary"]
     print(f"\n{summary['probes_ok']}/{summary['probes']} probes ok", end=", ")
     print(f"{summary['chains_ok']}/{summary['chains']} chains ok")
-    if args.json:
-        path = Path(args.json)
+    paths = [Path(args.json)] if args.json else []
+    if args.out_dir:
+        stamp = report["generated_at"][:16].replace("-", "").replace(":", "") + "Z"
+        base = Path(args.out_dir) / f"audit-{stamp}-{report['commit']}"
+        paths.append(base.with_suffix(".json"))
+        base.with_suffix(".md").parent.mkdir(parents=True, exist_ok=True)
+        base.with_suffix(".md").write_text(sources_markdown(report), encoding="utf-8")
+        print(f"wrote {base.with_suffix('.md')}")
+    for path in paths:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(report, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
+        print(f"wrote {path}")
     return 0
 
 
