@@ -604,7 +604,10 @@ def verify_answer(
                     shares=shares,
                     fraction=fraction,
                     implied=implied,
-                    rate_shares=amounts,
+                    # (round 13) a rate minus a share of two amounts: only a gap in percent, next to a written-out
+                    # division, from rates stated in percent (a P/E of 8.7 minus a 9.93% margin is not a gap)
+                    rate_shares=amounts if _is_percent(scales) and "÷" in unit else [],
+                    rates=[v for v, sc in supported_claims if _is_percent(sc) and not _is_amount(sc)],
                 )
             ) or (_is_amount_gap(value, scales, rounding, sentence_amounts)):
                 derived_values.append(value)
@@ -947,6 +950,7 @@ def _is_derived(
     fraction: bool = False,
     implied: bool = False,
     rate_shares: list[float] = (),
+    rates: list[float] = (),
 ) -> bool:
     """``value`` is a - b, a + b, a / b or the percent change (a - b) / b of two stated operands, or, for a value
     written in percent, the share a / b of two stated amounts (a net margin: net profit / revenue, a <= b) or the
@@ -980,7 +984,7 @@ def _is_derived(
                 return True
     # (round 13) a rate minus a share of two stated amounts (a gross margin and a net margin derived from net profit
     # and revenue: "毛利率 76.1%，净利率 378 亿元 ÷ 1085 亿元 ≈ 34.84%，两者相差 41.26 个百分点")
-    rates = [a for a in operands if a not in rate_shares and abs(a) <= 100]
+    rates = [a for a in rates if a not in rate_shares and abs(a) <= 100]
     for i, j in [(i, j) for i, a in enumerate(rate_shares) for j, b in enumerate(rate_shares) if i != j and 0 < a <= b]:
         share = rate_shares[i] / rate_shares[j] * 100
         for rate in rates:
