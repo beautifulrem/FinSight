@@ -1248,8 +1248,8 @@ def _missing_industry_snapshot(query: str, tool_log: list[dict[str, Any]], zh: b
         else:
             what = ", ".join(en for _zh, en in asked) or "valuation multiples"
             sentences.append(
-                f"The current data has no industry average {what} for {name}'s industry, so no comparison with "
-                "the industry average can be made."
+                f"The industry average {what} of {name}'s industry is not available in the current data, so no "
+                "comparison with the industry average can be made."
             )
     return list(dict.fromkeys(sentences))
 
