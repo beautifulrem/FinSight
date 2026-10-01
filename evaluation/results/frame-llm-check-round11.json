@@ -1,0 +1,452 @@
+{
+ "config": {
+  "commit": "5080728",
+  "run_at": "2026-10-01T03:16:48+00:00",
+  "command": "python -m evaluation.agent_eval.frame_llm_check --llm deepseek --max-calls 60 --out outputs/agent_eval/frame-llm-check.json",
+  "model": "cline-pass/deepseek-v4.1-flash",
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "tools": "offline runtime assets (no replay snapshot)",
+  "note": "First run at 5080728 (before b8ce579). summary_rescored counts a value written in yuan (445.2 亿 = 44520000000 元), which the first scorer missed (sessions 4 and 8). The 3 failures: sessions 1 and 2 computed the ratio / relative difference, but the verifier's repair removed the sentence after the fallback had already run; session 6 stated both ROEs without the gap. b8ce579 moves the fallback to the final draft; the rerun of 1, 2, 6 is frame-llm-check-round11-rerun.json. LLM calls: 45 here + 13 in the rerun = 58 (budget 60), no 429."
+ },
+ "summary": {
+  "sessions": 10,
+  "gap_turn_states_expected": 5,
+  "model_stated_it": 5,
+  "fallback_appended": 0,
+  "refused": 0,
+  "gap_turn_verified": 7,
+  "llm_calls": 45,
+  "stopped": null
+ },
+ "sessions": [
+  {
+   "session": 0,
+   "turns": [
+    {
+     "query": "中国平安的净资产收益率",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.94,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "中国平安（601318.SH）最近报告期（FY2025，报告日期 2025-12-31）的净资产收益率（ROE）为 15.2% [fundamental_601318.SH]。同期公司实现营业收入 12,180 亿元、净利润 1,210 亿元 [fundamental_601318.SH]。"
+    },
+    {
+     "query": "五粮液那边呢",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 5.32,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "五粮液（000858.SZ）最近报告期（FY2025，报告日期 2025-12-31）的净资产收益率（ROE）为 29.4% [fundamental_000858.SZ]。与前面提到的中国平安相比，中国平安同期 ROE 为 15.2%，五粮液高 14.2 个百分点（29.4% − 15.2%）[fundamental_000858.SZ][fundamental_601318.SH]。"
+    },
+    {
+     "query": "两家差了几个百分点",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 5.79,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": "frame:difference:roe:中国平安|五粮液",
+     "answer": "两家公司最近报告期（FY2025，报告日期 2025-12-31）的 ROE 分别为：五粮液 29.4% [fundamental_000858.SZ]，中国平安 15.2% [fundamental_601318.SH]。两者相差 29.4% − 15.2% = 14.2 个百分点，五粮液更高 [fundamental_000858.SZ][fundamental_601318.SH]。"
+    }
+   ],
+   "expected": 14.2,
+   "states_expected": true,
+   "model_stated_it": true,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 1,
+   "turns": [
+    {
+     "query": "茅台的营业收入多少",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.36,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "贵州茅台（600519.SH）最新报告期（FY2025，报告日 2025-12-31）的营业收入为 1688.38 亿元（168,838,000,000 元）[fundamental_600519.SH]。同期归母净利润 823.2 亿元 [fundamental_600519.SH]。"
+    },
+    {
+     "query": "再看五粮液的",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 3.38,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "五粮液（000858.SZ）最新报告期（FY2025，报告日 2025-12-31）的营业收入为 1085 亿元（108,500,000,000 元）[fundamental_000858.SZ]。同期归母净利润 378 亿元 [fundamental_000858.SZ]。"
+    },
+    {
+     "query": "前一个是后一个的几倍",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 6.57,
+     "verification_passed": false,
+     "degraded": [
+      "verification_failed:repaired"
+     ],
+     "frame_reason": "frame:ratio:revenue:贵州茅台|五粮液",
+     "answer": "贵州茅台 FY2025 营业收入为 168,838,000,000 元 [fundamental_600519.SH]，五粮液 FY2025 营业收入为 108,500,000,000 元 [fundamental_000858.SZ]。"
+    }
+   ],
+   "expected": 1.56,
+   "states_expected": false,
+   "model_stated_it": false,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 2,
+   "turns": [
+    {
+     "query": "五粮液的市盈率",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.81,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "五粮液（000858.SZ）的市盈率 PE(TTM) 为 20.9 倍 [fundamental_000858.SZ]；同期所属白酒行业的市盈率为 27.3 倍，五粮液低于行业约 6.4 倍（27.3 − 20.9）[industry_白酒][fundamental_000858.SZ]。"
+    },
+    {
+     "query": "白酒行业平均市盈率呢",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 8.25,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "白酒行业市盈率为 27.3 倍（行业快照，截至 2026-04-21）[industry_白酒]。作为对比，五粮液 PE(TTM) 为 20.9 倍 [fundamental_000858.SZ]；两者相差 6.4（27.3 − 20.9）[industry_白酒][fundamental_000858.SZ]。"
+    },
+    {
+     "query": "折价百分之多少",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 6.76,
+     "verification_passed": false,
+     "degraded": [
+      "verification_failed:repaired"
+     ],
+     "frame_reason": "frame:relative:pe:五粮液|白酒行业平均",
+     "answer": "五粮液 PE(TTM) 为 20.9 倍 [fundamental_000858.SZ]，白酒行业平均市盈率为 27.3 倍 [industry_白酒]。"
+    }
+   ],
+   "expected": 23.44,
+   "states_expected": false,
+   "model_stated_it": false,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 3,
+   "turns": [
+    {
+     "query": "What is Wuliangye's P/B?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.68,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "Wuliangye's (五粮液, 000858.SZ) P/B is 5.4x, per its FY2025 fundamentals (report date 2025-12-31) [fundamental_000858.SZ]."
+    },
+    {
+     "query": "and Ping An's?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 3.34,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "中国平安 (601318.SH) 的 P/B 为 1.1x，依据其 FY2025 基本面数据（报告日期 2025-12-31）[fundamental_601318.SH]。作为参照，保险行业当日的行业快照 P/B 为 1.45x [industry_保险]。"
+    },
+    {
+     "query": "how many times bigger is the first?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 6.06,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": "frame:ratio:pb:五粮液|中国平安",
+     "answer": "Wuliangye (五粮液, 000858.SZ) P/B is 5.4x [fundamental_000858.SZ]. Ping An (中国平安, 601318.SH) P/B is 1.1x [fundamental_601318.SH]. So the first is about 4.9 times the second, computed as 5.4 ÷ 1.1 ≈ 4.9 [fundamental_000858.SZ][fundamental_601318.SH]."
+    }
+   ],
+   "expected": 4.91,
+   "states_expected": true,
+   "model_stated_it": true,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 4,
+   "turns": [
+    {
+     "query": "证券ETF今天成交额",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 4.54,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "证券ETF（512880.SH）最新可得数据（2026-04-22 收盘）的成交额为 4.41 亿元（441,000,000 元），当日收盘价 1.021 元、涨跌幅 0.59% [price_512880.SH]。需要说明的是，该数据来自离线快照，非实时行情，因此它反映的是 2026-04-22 这一交易日的成交额，而非问题中“今天”的实时成交额。"
+    },
+    {
+     "query": "那沪深300ETF呢",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 3,
+     "latency_s": 11.75,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "沪深300ETF（510300.SH）最新可得数据（2026-04-22 收盘）的成交额为 4,851,593,064 元（约 48.52 亿元），当日收盘价 4.811 元、最高 4.813 元、最低 4.756 元 [price_510300.SH]。作为参照，前一轮问到的证券ETF（512880.SH）同日成交额为 441,000,000 元（约 4.41 亿元），收盘价 1.021 元 [price_512880.SH]。两者同日相比，沪深300ETF 的成交额显著高于证券ETF。需要说明的是，两只数据均来自离线快照，反映的是 2026-04-22 这一交易日的成交额，并非提问时刻的实时成交额。"
+    },
+    {
+     "query": "哪个大，大多少",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 8.45,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": "frame:difference:amount:证券ETF|沪深300ETF",
+     "answer": "沪深300ETF（510300.SH）2026-04-22 的成交额为 4,851,593,064 元，大于证券ETF（512880.SH）同日的 441,000,000 元 [price_510300.SH][price_512880.SH]。两者相差 4,851,593,064 元 − 441,000,000 元 = 4,410,593,064 元，即沪深300ETF 的成交额是证券ETF 的 4,851,593,064 ÷ 441,000,000 ≈ 11 倍 [price_510300.SH][price_512880.SH]。"
+    }
+   ],
+   "expected": 44.11,
+   "states_expected": false,
+   "model_stated_it": false,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 5,
+   "turns": [
+    {
+     "query": "贵州茅台净利率多少",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 3.74,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "贵州茅台（600519.SH）最新报告期（FY2025）净利率约 48.8%，由净利润 823.2 亿元 ÷ 营业收入 1688.38 亿元计算得出 [fundamental_600519.SH]。"
+    },
+    {
+     "query": "中国平安呢",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 6.9,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "中国平安（601318.SH）最新报告期（FY2025）净利率约 9.9%，由净利润 1210 亿元 ÷ 营业收入 12180 亿元计算得出 [fundamental_601318.SH]。同期 ROE 为 15.2%，PE(TTM) 8.7 倍，PB 1.1 倍 [fundamental_601318.SH]。保险行业快照（2026-04-22）显示行业 PE 11.8 倍、PB 1.45 倍，当日涨跌幅 0.68%、换手率 0.43% [industry_保险]。需注意保险公司营业收入中包含大量保费及投资相关收入，与白酒等制造业企业的收入确认口径差异较大，净利率横向比较时需谨慎 [fundamental_601318.SH][industry_保险]。"
+    },
+    {
+     "query": "差多少个点",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 10.32,
+     "verification_passed": false,
+     "degraded": [
+      "verification_failed:repaired",
+      "verification_failed:template_fallback"
+     ],
+     "frame_reason": "frame:difference:net_margin:贵州茅台|中国平安",
+     "answer": "根据本次检索到的证据：净利率：贵州茅台 823.2 亿元 ÷ 1688.38 亿元 ≈ 48.76%，中国平安 1210 亿元 ÷ 12180 亿元 ≈ 9.93%，两者相差 38.83 个百分点（贵州茅台更高） [fundamental_600519.SH][fundamental_601318.SH]。贵州茅台（600519.SH）最新可用收盘价为 1409.5 元（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。贵州茅台 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 24.6 倍，PB 8.1 倍，ROE 33%，营业收入 1688.38 亿元，净利润 823.2 亿元 [fundamental_600519.SH]。所属行业 白酒：PE 27.3 倍，PB 6.2 倍，涨跌幅 -1.05% [industry_白酒]。中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。中国平安 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 8.7 倍，PB 1.1 倍，ROE 15.2%，营业收入 12180 亿元，净利润 1210 亿元 [fundamental_601318.SH]。所属行业 保险：PE 11.8 倍，PB 1.45 倍，涨跌幅 0.68% [industry_保险]。"
+    }
+   ],
+   "expected": 38.83,
+   "states_expected": true,
+   "model_stated_it": true,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 6,
+   "turns": [
+    {
+     "query": "Moutai ROE?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.53,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "Moutai (贵州茅台, 600519.SH) reported an ROE of 33.0% for FY2025 [fundamental_600519.SH]."
+    },
+    {
+     "query": "and Ping An's, and what's the gap?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 7.06,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": "frame:difference:roe:贵州茅台|中国平安",
+     "answer": "贵州茅台 (600519.SH) FY2025 ROE 为 33.0% [fundamental_600519.SH]，中国平安 (601318.SH) FY2025 ROE 为 15.2% [fundamental_601318.SH]，茅台的 ROE 明显高于平安。"
+    }
+   ],
+   "expected": 17.8,
+   "states_expected": false,
+   "model_stated_it": false,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 7,
+   "turns": [
+    {
+     "query": "中国平安市净率多少",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.69,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "中国平安（601318.SH）市净率（PB）为 1.1 倍（报告期 FY2025，截至 2025-12-31）[fundamental_601318.SH]。作为对比，其所属保险行业最新 PB 为 1.45 倍（2026-04-22）[industry_保险]。"
+    },
+    {
+     "query": "茅台呢？两者相差多少",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 3.75,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": "frame:difference:pb:中国平安|贵州茅台",
+     "answer": "中国平安的市净率（PB）为 1.1 倍（报告期 FY2025）[fundamental_601318.SH]，贵州茅台为 8.1 倍（报告期 FY2025）[fundamental_600519.SH]，两者相差 7.0 倍（8.1 − 1.1）[fundamental_601318.SH][fundamental_600519.SH]，即茅台明显更高。作为参考，保险行业最新 PB 为 1.45 倍、白酒行业为 6.2 倍 [industry_保险][industry_白酒]。"
+    }
+   ],
+   "expected": 7.0,
+   "states_expected": true,
+   "model_stated_it": true,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 8,
+   "turns": [
+    {
+     "query": "五粮液的净利润",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.89,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "五粮液（000858.SZ）最新披露的净利润为 378 亿元（报告期 FY2025，报告日 2025-12-31）[fundamental_000858.SZ]。同期营业收入 1085 亿元，对应净利率约 34.8%（378 亿 ÷ 1085 亿）[fundamental_000858.SZ]。"
+    },
+    {
+     "query": "茅台呢",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 3,
+     "latency_s": 17.24,
+     "verification_passed": false,
+     "degraded": [
+      "verification_failed:repaired"
+     ],
+     "frame_reason": null,
+     "answer": "贵州茅台最新披露的净利润为 823.2 亿元（报告期 FY2025，报告日 2025-12-31）[fundamental_600519.SH]。同期贵州茅台营业收入 1688.38 亿元、净利率约 48.8%（823.2 亿元 ÷ 1688.38 亿元），五粮液营业收入 1085 亿元、净利率约 34.8%（378 亿元 ÷ 1085 亿元）[fundamental_600519.SH][fundamental_000858.SZ]。"
+    },
+    {
+     "query": "后者比前者多多少亿",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 6.44,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": "frame:difference:net_profit:贵州茅台|五粮液",
+     "answer": "贵州茅台最新披露的净利润为 82320000000 元，五粮液为 37800000000 元（均为 FY2025，报告日 2025-12-31）[fundamental_600519.SH][fundamental_000858.SZ]。两者相减，贵州茅台比五粮液多 44520000000 元（82320000000 元 − 37800000000 元）[fundamental_600519.SH][fundamental_000858.SZ]。"
+    }
+   ],
+   "expected": 445.2,
+   "states_expected": false,
+   "model_stated_it": false,
+   "fallback_appended": false,
+   "refused": false
+  },
+  {
+   "session": 9,
+   "turns": [
+    {
+     "query": "What's Ping An's P/E?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 1,
+     "latency_s": 2.63,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "Ping An's (中国平安, 601318.SH) P/E (TTM) is 8.7x, based on FY2025 reported fundamentals [fundamental_601318.SH]. For context, the insurance industry P/E stood at 11.8x as of 2026-04-22 [industry_保险]."
+    },
+    {
+     "query": "And the insurance industry average?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 6.22,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": null,
+     "answer": "The insurance industry average P/E is 11.8x as of 2026-04-22 [industry_保险], while 中国平安 (601318.SH) shows a P/E (TTM) of 8.7x [fundamental_601318.SH]. The industry snapshot also gives an average P/B of 1.45x [industry_保险], compared with 1.1x for 中国平安 [fundamental_601318.SH]."
+    },
+    {
+     "query": "What's the discount in percent?",
+     "route": "agent",
+     "answer_source": "llm_agent",
+     "llm_calls": 2,
+     "latency_s": 6.9,
+     "verification_passed": true,
+     "degraded": [],
+     "frame_reason": "frame:relative:pe:中国平安|保险行业平均",
+     "answer": "中国平安 (601318.SH) 的 P/E（TTM）为 8.7 倍 [fundamental_601318.SH]，而保险行业平均 P/E 为 11.8 倍 [industry_保险]；折扣计算为 (11.8 − 8.7) ÷ 11.8 = 26.3% [fundamental_601318.SH][industry_保险]。"
+    }
+   ],
+   "expected": 26.27,
+   "states_expected": true,
+   "model_stated_it": true,
+   "fallback_appended": false,
+   "refused": false
+  }
+ ],
+ "summary_rescored": {
+  "gap_turn_states_expected": 7,
+  "model_stated_it": 7,
+  "failed_sessions": [
+   1,
+   2,
+   6
+  ]
+ }
+}
