@@ -1247,6 +1247,121 @@ Development set, path `auto`: 38 tasks, 41 turns. Status: **after exposure** (ro
 
 * Note: Round-5 held-out chat slice after exposure (d78a556): its first run (0.921, chat_heldout_r5-auto-nollm-first-run.json) failed r5t006, r5t019 and r5t029, and the round-9 fixes were generalised from those classes with the author's own dev examples. Not a fresh estimate.
 
+### Round-6 held-out chat slice (independent author): before and after the round-10 fixes
+
+38 tasks / 61 turns written against `bc42017` before any round-10 fix (`evaluation/heldout_r6/README.md`); run once before the fixes and once after them. The engineers who made the fixes never saw the slice, so the second run is an out-of-sample measure of the fixes. Its claims are in the claim-check table below.
+
+#### `chat_heldout_r6-auto-nollm-prefix.json`
+
+Source `evaluation/results/chat_heldout_r6-auto-nollm-prefix.json`: commit `05c4d7b`, run 2026-09-30T21:57:23+00:00, no LLM (offline), prompts `agent_system@v3#e419eb84d58e`, `compose_system@v3#b9a704272c6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r6/chat_r6_heldout.jsonl --out outputs/agent_eval/chat_r6-prefix.json
+```
+
+Development set, path `auto`: 38 tasks, 61 turns. Status: **first and only pre-fix run** of the independent round-6 chat slice.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.579 [0.42, 0.74] |
+| pass^k (all k repeats succeed) | 0.579 [0.42, 0.74] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.885 |
+| Required facts stated and cited | 0.696 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.696 |
+| Task success without the citation / tool / disclaimer checks | 0.579 [0.42, 0.74] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.435 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | – |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 1717.5 |
+| Turn success | 0.721 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| comparison_winner | 4 | 0.75 |
+| derived_metric | 6 | 0.67 |
+| difference_followup | 8 | 0.12 |
+| fair_value | 7 | 1.00 |
+| news_control | 2 | 1.00 |
+| news_corroborated | 3 | 1.00 |
+| out_of_coverage | 7 | 0.29 |
+| two_target_compare | 1 | 0.00 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r6t01 | 它比行业低了多少 | facts |
+| r6t02 | 两家相差几个百分点 | facts |
+| r6t03 | By how much does it exceed that? | facts |
+| r6t04 | 谁的更低 | behavior, facts, entities |
+| r6t05 | 多跌了多少 | facts |
+| r6t07 | 两个比哪个交易更活跃 | facts, entities, behavior |
+| r6t08 | 这俩谁赚得多，多多少 | facts |
+| r6t09 | 两个比哪个估值更贵 | facts, entities |
+| r6t17 | 平安好医生最近走势怎么样 | behavior, limitations |
+| r6t18 | 腾讯音乐的市盈率是多少 | behavior, limitations |
+| r6t20 | 京东健康的市净率高吗 | behavior, limitations |
+| r6t21 | 阿里健康最近涨了没有 | behavior, limitations |
+| r6t22 | 那平安好医生呢 | behavior, limitations |
+| r6t24 | 茅台和五粮液的净利率谁更高，高多少 | facts |
+| r6t26 | What's the net-margin gap between Moutai and Ping An? | facts |
+| r6t32 | Which traded more value on the last session, Moutai or Wuliangye? | facts |
+
+* Note: independent round-6 chat slice run once on the pre-fix code (05c4d7b = bc42017 + result files), no LLM, --no-replay; the round-7 engineers have not seen this slice
+
+#### `chat_heldout_r6-auto-nollm-after-fix.json`
+
+Source `evaluation/results/chat_heldout_r6-auto-nollm-after-fix.json`: commit `68279eb`, run 2026-10-01T00:10:20+00:00, no LLM (offline), prompts `agent_system@v3#53fdebb2c184`, `compose_system@v3#df1dd3b28975`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r6/chat_r6_heldout.jsonl --out outputs/agent_eval/chat_r6-after.json
+```
+
+Development set, path `auto`: 38 tasks, 61 turns. Status: independent round-6 chat slice **after the round-10 fixes**; the engineers never saw the slice, so this is still out of sample.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.816 [0.68, 0.92] |
+| pass^k (all k repeats succeed) | 0.816 [0.68, 0.92] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.984 |
+| Required facts stated and cited | 0.804 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.804 |
+| Task success without the citation / tool / disclaimer checks | 0.816 [0.68, 0.92] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.443 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | – |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 1036.6 |
+| Turn success | 0.869 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| comparison_winner | 4 | 1.00 |
+| derived_metric | 6 | 0.83 |
+| difference_followup | 8 | 0.25 |
+| fair_value | 7 | 1.00 |
+| news_control | 2 | 1.00 |
+| news_corroborated | 3 | 1.00 |
+| out_of_coverage | 7 | 1.00 |
+| two_target_compare | 1 | 1.00 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r6t01 | 它比行业低了多少 | facts |
+| r6t02 | 两家相差几个百分点 | facts |
+| r6t03 | By how much does it exceed that? | facts |
+| r6t05 | 多跌了多少 | facts |
+| r6t07 | 两个比哪个交易更活跃 | facts, behavior, entities |
+| r6t08 | 这俩谁赚得多，多多少 | facts |
+| r6t26 | What's the net-margin gap between Moutai and Ping An? | facts |
+
+* Note: independent round-6 chat slice after the round-10 fixes at 68279eb, no LLM, --no-replay; the engineers who made the fixes never saw this slice, so this is an out-of-sample measure of the fixes (pre-fix: 0.579)
+
 ### The no-tools LLM baseline: strict scoring vs uncited correctness
 
 Under the strict score a task needs every required number stated **and cited with an evidence id**, the required tools and the product's risk-disclaimer field. A model without tools can meet none of these, so its 0.000 is a property of the scoring, not only of the model. The uncited columns score the same answers against the same snapshot values without those requirements. The snapshot is dated 2026-04-22 and the model has no access to it, so uncited correctness measures what the model knew or guessed.
@@ -1305,6 +1420,8 @@ Deterministic claim check (`POST /agent/claim-check`, no LLM) against labelled c
 | `claim_bench-holdout-after-round10.json` | holdout | held-out claims **after exposure**, re-run at the round-10 commit | `f94df6f` | 47 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `a48aa59412a06f81` | `python -m evaluation.claim_bench.run --set holdout --out evaluation/results/claim_bench-holdout-after-round10.json --fail-under-verdict 0.978 --fail-under-checks 0.98` |
 | `claim_bench-heldout_r4-after-round10.json` | None | independent round-4 claim slice **after exposure**, re-run at the round-10 commit | `f94df6f` | 67 | 1.000 [1.00, 1.00] | 0.920 [0.85, 0.97] | 0.522 | `e70b8701d12df19e` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl --out evaluation/results/claim_bench-heldout_r4-after-round10.json` |
 | `claim_bench-heldout_r5-after-round10.json` | None | independent round-5 claim slice **after exposure**, re-run at the round-10 commit | `f94df6f` | 56 | 1.000 [1.00, 1.00] | 0.988 [0.96, 1.00] | 0.929 | `fd58c903acd977c2` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r5/claims_r5_heldout.jsonl --out evaluation/results/claim_bench-heldout_r5-after-round10.json` |
+| `claim_bench-heldout_r6-prefix.json` | None | **first and only pre-fix run** of the independent round-6 claim slice | `05c4d7b` | 67 | 0.537 [0.42, 0.66] | 0.533 [0.44, 0.62] | 0.294 | `76e4de167ff3de83` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r6/claims_r6_heldout.jsonl --out evaluation/results/claim_bench-heldout_r6-prefix.json` |
+| `claim_bench-heldout_r6-after-fix.json` | None | independent round-6 claim slice **after the round-10 fixes**; the engineers never saw the slice, so this is still out of sample | `68279eb` | 67 | 0.836 [0.75, 0.93] | 0.717 [0.64, 0.80] | 0.284 | `76e4de167ff3de83` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r6/claims_r6_heldout.jsonl --out evaluation/results/claim_bench-heldout_r6-after-fix.json` |
 
 ### Latency profile runs (agent path, streamed)
 
@@ -1445,6 +1562,113 @@ holdout · agent:
 | LLM-error turns (HTTP 429 share) | not recorded | not recorded |
 
 v2 − v1: task success -0.031 [-0.113, +0.038], pass^3 +0.038 [-0.075, +0.151], McNemar p=0.754 → no significant difference.
+
+### Prompt v3 vs v4 on test v3 (DeepSeek, same commit)
+
+`ablation-ab-prompt-v3-testv3.json` (v3) vs `ablation-ab-prompt-v4-testv3.json` (v4); both at `bc42017`, model `cline-pass/deepseek-v4.1-flash` (`--llm deepseek` names the OpenAI-compatible client; the model came from `DEEPSEEK_MODEL` and is recorded in the result's config). The setting that differs is recorded in each file's notes. Paired comparison: bootstrap over tasks and exact McNemar on pass^k.
+
+Status: test v3 **used to choose a prompt** (its first use for a decision).
+
+test_v3 · workflow_llm:
+
+| Metric | v3 | v4 |
+|---|---|---|
+| Task success | 0.831 [0.76, 0.89] | 0.823 [0.75, 0.88] |
+| pass^k | 0.823 [0.75, 0.88] (k=2) | 0.823 [0.75, 0.88] (k=2) |
+| Turn success | 0.852 | 0.845 |
+| Hedged when required | 0.932 | 0.892 |
+| LLM calls per turn | 1.000 | 0.994 |
+| Tokens per turn | 2393.1 | 2435.9 |
+| Reasoning tokens per turn | 477.2 | 415.7 |
+| Latency P50 (ms) | 4398.3 | 3961.5 |
+| Latency P95 (ms) | 15243.8 | 15864.3 |
+| Cost per task | 0.00092 | 0.00092 |
+| LLM-error turns (HTTP 429 share) | 0.010 (429: 0.000 of turns) | 0.035 (429: 0.000 of turns) |
+
+v4 − v3: task success -0.008 [-0.035, +0.011], pass^k +0.000 [-0.031, +0.031], McNemar 2 / 2 (v4-only / v3-only), p=1.000 → no significant difference.
+
+test_v3 · agent:
+
+| Metric | v3 | v4 |
+|---|---|---|
+| Task success | 0.858 [0.80, 0.91] | 0.877 [0.82, 0.93] |
+| pass^k | 0.831 [0.76, 0.89] (k=2) | 0.869 [0.81, 0.92] (k=2) |
+| Turn success | 0.881 | 0.897 |
+| Hedged when required | 0.892 | 0.905 |
+| LLM calls per turn | 1.494 | 1.5 |
+| Tokens per turn | 7204.2 | 7773.5 |
+| Reasoning tokens per turn | 273.7 | 288.0 |
+| Latency P50 (ms) | 4668.3 | 4063.9 |
+| Latency P95 (ms) | 15850.8 | 19214.8 |
+| Cost per task | 0.00102 | 0.00113 |
+| LLM-error turns (HTTP 429 share) | 0.039 (429: 0.000 of turns) | 0.019 (429: 0.000 of turns) |
+
+v4 − v3: task success +0.019 [+0.000, +0.038], pass^k +0.038 [+0.000, +0.077], McNemar 6 / 1 (v4-only / v3-only), p=0.125 → no significant difference.
+
+* `ablation-ab-prompt-v3-testv3.json`: prompt A/B on test_v3 at bc42017, QI_PROMPT_VERSION=v3, cline-pass/deepseek-v4.1-flash, 2 repeats, 3 workers; v3 and v4 ran back to back on the same code
+* `ablation-ab-prompt-v3-testv3.json`: test_v3 is used here to choose a prompt, so later test_v3 numbers for the chosen prompt are no longer untouched
+* `ablation-ab-prompt-v3-testv3.json` command: `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 2 --workers 3 --sets test_v3 --modes workflow_llm,agent --out outputs/agent_eval/ablation-ab-prompt-v3.json`
+* `ablation-ab-prompt-v4-testv3.json`: prompt A/B on test_v3 at bc42017, QI_PROMPT_VERSION=v4, cline-pass/deepseek-v4.1-flash, 2 repeats, 3 workers; v3 and v4 ran back to back on the same code
+* `ablation-ab-prompt-v4-testv3.json`: test_v3 is used here to choose a prompt, so later test_v3 numbers for the chosen prompt are no longer untouched
+* `ablation-ab-prompt-v4-testv3.json` command: `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 2 --workers 3 --sets test_v3 --modes workflow_llm,agent --out outputs/agent_eval/ablation-ab-prompt-v4.json`
+
+### LLM memory summary off vs on, multiturn_v1 (DeepSeek, agent path)
+
+`ablation-memsum-0-multiturn_v1.json` (off) vs `ablation-memsum-1-multiturn_v1.json` (on); both at `bc42017`, model `cline-pass/deepseek-v4.1-flash` (`--llm deepseek` names the OpenAI-compatible client; the model came from `DEEPSEEK_MODEL` and is recorded in the result's config). The setting that differs is recorded in each file's notes. Paired comparison: bootstrap over tasks and exact McNemar on pass^k.
+
+Status: **after exposure** (multiturn_v1 shaped the session rules).
+
+multiturn_v1 · agent:
+
+| Metric | off | on |
+|---|---|---|
+| Task success | 0.980 [0.94, 1.00] | 0.980 [0.94, 1.00] |
+| pass^k | 0.980 [0.94, 1.00] (k=1) | 0.980 [0.94, 1.00] (k=1) |
+| Turn success | 0.995 | 0.995 |
+| Hedged when required | 1.000 | 1.000 |
+| LLM calls per turn | 1.5 | 1.8 |
+| Tokens per turn | 7105.2 | 7053.4 |
+| Reasoning tokens per turn | 252.4 | 224.0 |
+| Latency P50 (ms) | 4179.4 | 4415.9 |
+| Latency P95 (ms) | 17877.7 | 15047.4 |
+| Cost per task | 0.00378 | 0.00378 |
+| LLM-error turns (HTTP 429 share) | 0.000 (429: 0.000 of turns) | 0.000 (429: 0.000 of turns) |
+
+on − off: task success +0.000 [+0.000, +0.000], pass^k +0.000 [+0.000, +0.000], McNemar 0 / 0 (on-only / off-only), p=1.000 → no significant difference.
+
+* `ablation-memsum-0-multiturn_v1.json`: memory-summary ablation at bc42017: QI_AGENT_MEMORY_SUMMARY=0, agent path, cline-pass/deepseek-v4.1-flash, 1 repeat; multiturn_v1 is an exposed set (its conversations were used to design the session rules)
+* `ablation-memsum-0-multiturn_v1.json` command: `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 1 --workers 3 --sets multiturn_v1 --modes agent --out outputs/agent_eval/ablation-memsum-0.json`
+* `ablation-memsum-1-multiturn_v1.json`: memory-summary ablation at bc42017: QI_AGENT_MEMORY_SUMMARY=1, agent path, cline-pass/deepseek-v4.1-flash, 1 repeat; multiturn_v1 is an exposed set (its conversations were used to design the session rules)
+* `ablation-memsum-1-multiturn_v1.json` command: `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 1 --workers 3 --sets multiturn_v1 --modes agent --out outputs/agent_eval/ablation-memsum-1.json`
+
+### GLM reasoning effort: provider default vs low, held-out (agent path)
+
+`ablation-glm-effort-default-holdout.json` (default) vs `ablation-glm-effort-low-holdout.json` (low); both at `bc42017`, model `cline-pass/glm-5.3-flash` (`--llm deepseek` names the OpenAI-compatible client; the model came from `DEEPSEEK_MODEL` and is recorded in the result's config). The setting that differs is recorded in each file's notes. Paired comparison: bootstrap over tasks and exact McNemar on pass^k.
+
+Status: held-out (validation set).
+
+holdout · agent:
+
+| Metric | default | low |
+|---|---|---|
+| Task success | 1.000 [1.00, 1.00] | 0.962 [0.91, 1.00] |
+| pass^k | 1.000 [1.00, 1.00] (k=1) | 0.962 [0.91, 1.00] (k=1) |
+| Turn success | 1.000 | 0.964 |
+| Hedged when required | 1.000 | 0.818 |
+| LLM calls per turn | 1.393 | 1.482 |
+| Tokens per turn | 6541.6 | 5806.0 |
+| Reasoning tokens per turn | 585.3 | 53.6 |
+| Latency P50 (ms) | 8142.7 | 3131.8 |
+| Latency P95 (ms) | 35788.8 | 17724.2 |
+| Cost per task | 0.00136 | 0.00086 |
+| LLM-error turns (HTTP 429 share) | 0.000 (429: 0.000 of turns) | 0.000 (429: 0.000 of turns) |
+
+low − default: task success -0.038 [-0.094, +0.000], pass^k -0.038 [-0.094, +0.000], McNemar 0 / 2 (low-only / default-only), p=0.500 → no significant difference.
+
+* `ablation-glm-effort-default-holdout.json`: GLM tail-latency experiment at bc42017: cline-pass/glm-5.3-flash, agent path, holdout, 1 repeat, DEEPSEEK_REASONING_EFFORT=(unset)
+* `ablation-glm-effort-default-holdout.json` command: `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 1 --workers 3 --sets holdout --modes agent --out outputs/agent_eval/ablation-glm-effort-default.json`
+* `ablation-glm-effort-low-holdout.json`: GLM tail-latency experiment at bc42017: cline-pass/glm-5.3-flash, agent path, holdout, 1 repeat, DEEPSEEK_REASONING_EFFORT=low
+* `ablation-glm-effort-low-holdout.json` command: `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 1 --workers 3 --sets holdout --modes agent --out outputs/agent_eval/ablation-glm-effort-low.json`
 
 ### Offline gate baselines (CI compares against these)
 
@@ -1950,6 +2174,8 @@ Paired comparisons (same tasks, a − b):
 | `multiturn_r4_heldout-after-exposure.json` | run | `c731dba` | 2026-09-29T15:29:54+00:00 | – | `outputs/agent_eval/mt4.json` (79c7b514dea5555c) |
 | `chat_heldout_r5-auto-nollm-first-run.json` | run | `f01097a` | 2026-09-30T11:25:46+00:00 | – | `outputs/agent_eval/chat_r5-first.json` (a61a3cb265e86940) |
 | `chat_heldout_r5-auto-nollm-after-exposure.json` | run | `d78a556` | 2026-09-30T16:16:32+00:00 | – | `outputs/agent_eval/chat_r5-after-round9.json` (56b43759ed80aef3) |
+| `chat_heldout_r6-auto-nollm-prefix.json` | run | `05c4d7b` | 2026-09-30T21:57:23+00:00 | – | `outputs/agent_eval/chat_r6-prefix.json` (9ba6d76d2bbcb05f) |
+| `chat_heldout_r6-auto-nollm-after-fix.json` | run | `68279eb` | 2026-10-01T00:10:20+00:00 | – | `outputs/agent_eval/chat_r6-after.json` (360cf3b255d5d03f) |
 | `router_eval-d78b313.json` | router_eval | `d78b313` | 2026-09-25T22:56:36+00:00 | – | written directly |
 | `router_eval-round2.json` | router_eval | `da3ec8b-dirty` | 2026-09-26T18:52:13+00:00 | – | written directly |
 | `router_eval-round3.json` | router_eval | `d3c1495` | 2026-09-28T07:16:51+00:00 | – | written directly |
@@ -1975,6 +2201,8 @@ Paired comparisons (same tasks, a − b):
 | `claim_bench-holdout-after-round10.json` | claim_bench | `f94df6f` | 2026-09-30T22:24:06+00:00 | – | written directly |
 | `claim_bench-heldout_r4-after-round10.json` | claim_bench | `f94df6f` | 2026-09-30T22:24:07+00:00 | – | written directly |
 | `claim_bench-heldout_r5-after-round10.json` | claim_bench | `f94df6f` | 2026-09-30T22:24:07+00:00 | – | written directly |
+| `claim_bench-heldout_r6-prefix.json` | claim_bench | `05c4d7b` | 2026-09-30T21:55:49+00:00 | – | written directly |
+| `claim_bench-heldout_r6-after-fix.json` | claim_bench | `68279eb` | 2026-10-01T00:09:15+00:00 | – | written directly |
 | `perf-baseline-deepseek.json` | ablation | `8e81f48` | 2026-09-28T11:22:44+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-baseline.json` (12a1415984f0c9e3) |
 | `perf-verifierfix-deepseek.json` | ablation | `52e80dc` | 2026-09-28T12:16:08+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-verifierfix.json` (3820381e8007ecca) |
 | `perf-merged-defaults-deepseek.json` | ablation | `aae29fd` | 2026-09-28T14:55:24+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-merged-A.json` (ea673cc9c33df35d) |
@@ -1987,6 +2215,12 @@ Paired comparisons (same tasks, a − b):
 | `ablation-online-deepseek-v4.1-flash.json` | ablation | `c1c3388` | 2026-09-25T09:46:46+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-deepseek-v4.1-flash.json` (ebd1d3322c4c4708) |
 | `ablation-online-v1.json` | ablation | `1beb760` | 2026-09-25T14:12:49+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-v1.json` (fc69345d844bdd6e) |
 | `ablation-online-v2.json` | ablation | `1beb760` | 2026-09-25T13:32:10+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/ablation-online-v2.json` (f5ba8190178dfe74) |
+| `ablation-ab-prompt-v3-testv3.json` | ablation | `bc42017` | 2026-09-30T20:16:21+00:00 | cline-pass/deepseek-v4.1-flash | `ablation-ab-prompt-v3.json` (11913e4af978f689) |
+| `ablation-ab-prompt-v4-testv3.json` | ablation | `bc42017` | 2026-09-30T21:26:44+00:00 | cline-pass/deepseek-v4.1-flash | `ablation-ab-prompt-v4.json` (40378f9f4c4d8ce1) |
+| `ablation-memsum-0-multiturn_v1.json` | ablation | `bc42017` | 2026-09-30T21:59:33+00:00 | cline-pass/deepseek-v4.1-flash | `ablation-memsum-0.json` (bd32291b4cc93df3) |
+| `ablation-memsum-1-multiturn_v1.json` | ablation | `bc42017` | 2026-09-30T22:11:41+00:00 | cline-pass/deepseek-v4.1-flash | `ablation-memsum-1.json` (50162842790e1544) |
+| `ablation-glm-effort-default-holdout.json` | ablation | `bc42017` | 2026-09-30T22:18:04+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-default.json` (0443e4fcfda24919) |
+| `ablation-glm-effort-low-holdout.json` | ablation | `bc42017` | 2026-09-30T22:20:53+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-low.json` (24329b3dee31a93e) |
 | `gate-dev.json` | run | `05a79b5` | 2026-09-30T23:27:28+00:00 | – | `outputs/agent_eval/gate-dev.json` (1b50c9b34ca70f02) |
 | `gate-holdout.json` | run | `05a79b5` | 2026-09-30T23:27:38+00:00 | – | `outputs/agent_eval/gate-holdout.json` (c9be6baec05863c3) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
@@ -2071,9 +2305,9 @@ Online numbers from runs without this metric (`c1c3388`, `1beb760`, `846bc5e`) m
 |---|---|---|
 | v1 | Original prompts. | Baseline. |
 | v2 | Tagged sections, effort scaling per question type, the reason behind each rule, one output example. | Agent cost −69% on dev ($0.00401 → $0.00126 per task), which is robust. Quality: dev agent task success +0.011 [+0.002, +0.022] (small, significant; pass^3 McNemar p = 0.07). Held-out agent −0.031 [−0.113, +0.038] (not significant). Held-out hedging on judgment questions fell from 1.00 to 0.67 because v2 had dropped v1's "describe uncertainty and risks". |
-| v3 | v2 plus an explicit rule for judgment questions (conditional view, uncertainty, risks). | Default. Held-out agent hedging 0.91. |
-| v4 | v3 plus two evidence rules: never repeat contact details, promotions, guaranteed or doubled returns, tip offers or trading calls from documents (not even as a quote or warning); attribute document-only claims ("据一篇文档称…（未经其他来源证实）"), no single-document regulatory actions as fact, and prefer market/fundamentals data over a conflicting document figure. | Selectable (`QI_PROMPT_VERSION=v4`), **not** the default: the final online task-success numbers were measured with v3 and v4 has had no task-success A/B. Measured only in the round-7 targeted red-team reproduction (below): 4/20 detector hits vs 8/20 for v3 on the same cases, all 4 in hedged sentences. |
-| v3 / v4 patch (round 10, F8) | Both versions gain one evidence rule: a number computed from cited numbers (difference, sum, ratio, percent change, a share such as net profit ÷ revenue, or the gap between two such shares) is allowed when its operands from the evidence are written in the same sentence, with an example, as the exception to "every number must appear in a tool result". This is what the verifier's `allow_derived` accepts (it now also derives a net-margin gap from the four amounts). Before the patch the LLM agent declined a net-margin gap ("差值无法以可核验的证据给出") that the template states. Hashes in `prompts.lock.json`: agent_system v3 `e419eb84d58e` → `53fdebb2c184`, v4 `064c64f9e15f` → `9034aeb5ea8e`; compose_system v3 `b9a704272c6d` → `df1dd3b28975`, v4 `118dec2a9743` → `71d29468ed6d`. | A patch, not a new version: v4 is still "v3 plus the document rules". Results recorded before it carry the old hashes in their `prompts` field. The default is unchanged (v3); the v3/v4 A/B on test v3 ran before this patch, and no task-success run has used it yet. |
+| v3 | v2 plus an explicit rule for judgment questions (conditional view, uncertainty, risks). | Default until `66c0ef2`. Held-out agent hedging 0.91. |
+| v4 | v3 plus two evidence rules: never repeat contact details, promotions, guaranteed or doubled returns, tip offers or trading calls from documents (not even as a quote or warning); attribute document-only claims ("据一篇文档称…（未经其他来源证实）"), no single-document regulatory actions as fact, and prefer market/fundamentals data over a conflicting document figure. | **Default since `66c0ef2`.** Task-success A/B on test v3 at `bc42017` (DeepSeek, 2 repeats, v3 and v4 back to back; tables in the generated block, `ablation-ab-prompt-v3-testv3.json` / `ablation-ab-prompt-v4-testv3.json`): agent 0.858 → 0.877, pass^2 0.831 → 0.869, v4 − v3 +0.019 [+0.000, +0.038], McNemar 6 / 1, p = 0.125; composition 0.831 → 0.823, −0.008 [−0.035, +0.011], p = 1.0. Neither difference is significant: the document rules cost no measurable task success, and they are what the red team needs, so v4 became the default. The price: agent P95 15.9 → 19.2 s and cost per task $0.00102 → $0.00113 (+8% tokens per turn, one run each); composition hedging on judgment questions 0.93 → 0.89. Test v3 was used for this choice, so later test v3 numbers with v4 are no longer untouched. Earlier, in the round-7 targeted red-team reproduction (below): 4/20 detector hits vs 8/20 for v3 on the same cases, all 4 in hedged sentences. |
+| v3 / v4 patch (round 10, F8) | Both versions gain one evidence rule: a number computed from cited numbers (difference, sum, ratio, percent change, a share such as net profit ÷ revenue, or the gap between two such shares) is allowed when its operands from the evidence are written in the same sentence, with an example, as the exception to "every number must appear in a tool result". This is what the verifier's `allow_derived` accepts (it now also derives a net-margin gap from the four amounts). Before the patch the LLM agent declined a net-margin gap ("差值无法以可核验的证据给出") that the template states. Hashes in `prompts.lock.json`: agent_system v3 `e419eb84d58e` → `53fdebb2c184`, v4 `064c64f9e15f` → `9034aeb5ea8e`; compose_system v3 `b9a704272c6d` → `df1dd3b28975`, v4 `118dec2a9743` → `71d29468ed6d`. | A patch, not a new version: v4 is still "v3 plus the document rules". Results recorded before it carry the old hashes in their `prompts` field. The v3/v4 A/B on test v3 used the pre-patch hashes (`e419eb84d58e`, `064c64f9e15f`); the patch is the same text in both versions, so the A/B still compares the document rules, but no online task-success run has used the patched prompts yet. |
 
 The v1/v2 comparison ran on the same commit (`1beb760`). v3 ran on `846bc5e`, which also contains the observation and tool-error changes, so v3 vs v2 is not a pure prompt comparison. The earlier claim that v2/v3 raised held-out agent pass^3 "from 0.849 to 0.906" is **withdrawn**. Both numbers sit inside each other's CIs, and a v1-era run at `c1c3388` scored 0.943. The cost reduction is the supported result. Prompt texts are pinned by hash in `query_intelligence/agent/prompts.lock.json`, and every trace and report records `id@version#sha`.
 
@@ -2086,7 +2320,7 @@ Changes (each class has unit tests with the exact attack texts and LLM-style ans
 * `text_safety.py` / `compliance.py`: more promotion patterns (资金翻倍 + 赔付, 本金无忧, 月月付息, 直接拉升, 错过再等, 牛股, 建仓名单, guaranteed N % return, principal-protected, breakout call), QQ 群号 and bracketed numbers, `@handles`, domains with spaced dots; trading calls matched on NFKC/confusable-folded text (BUY PING AN NOW, 建议投资者一次性建仓, 尽快卖出, "holders must exit").
 * `agent/verifier.py`: for LLM drafts, ROE / EPS / dividend or book value per share figures that differ from the same metric in the run's structured evidence are `document_market_numbers` (revise, else the sentence is dropped).
 * `agent/output_safety.py`, run in the `compliance` node on every draft (LLM and template): document-sourced promotion, contact details and trading calls → one neutral note; single-source regulatory claims and figures that documents disagree on → "据一篇文档称…（未经其他来源证实）"; document figures contradicting structured fundamentals → dropped with a note.
-* Prompt v4 (selectable, see above).
+* Prompt v4 (selectable at the time; the default since `66c0ef2`, see above).
 
 Targeted reproduction (`evaluation/results/redteam-r7-targeted.json`, 2026-09-30): 20 cases that succeeded in `redteam-final4-llm.json` (`evaluation/agent_eval/redteam_r7_cases*.json`), `cline-pass/deepseek-v4.1-flash`, 40 live runs (85 LLM calls), sequential. Each set of recorded model turns was replayed (no LLM calls) through the code before this round (`5c51083`) and with the layer, so the "no layer" and "layer" columns compare identical drafts; the v3 no-layer replay reproduces the live v3 run exactly.
 

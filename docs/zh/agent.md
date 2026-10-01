@@ -117,7 +117,7 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 1. **查数、定义和守卫结果用先规划后执行**（`workflow`）。单一事实题三条路径都是 1.000，循环只是多一步由 LLM 选工具，平均每回合多 5.3k tokens。不用 LLM 时，规划路径的 P95 是 1.4 秒，离线、可复现，所以 `mode=auto` 把这类问题交给 workflow。澄清一行在所有路径上都是 0.000，原因与这项比较无关：守卫在取证据之前就会追问，8 道题全部只挂在评分的 `language` 检查上。
 2. **比较、为什么、宏观传导和多轮问题用工具循环**（`agent`）。在独立的 test v3 上总体 +3.8 个百分点；配对 bootstrap 下显著、McNemar 下不显著，所以幅度不大。收益来自上表这几类：为什么 0.917 → 1.000，比较 0.875 → 1.000，宏观 0.857 → 0.952，多轮 0.500 → 0.667。代价是每回合多 0.55 次 LLM 调用、tokens 为 3.1 倍、每题成本 +14%、P95 多 1.6 秒。
 3. **循环从规划开始。** 纯循环在成功率相同的情况下，要多 0.7–0.8 次 LLM 调用，P50 多约 3 秒。
-4. **循环的优势取决于模型。** 换成 GLM-5.3 flash，循环没有收益：总体 −0.003；pass^3 是 0.731 对 0.800，McNemar 支持先规划后执行（p = 0.049）。它的 P95 是 82 秒对 27 秒，为什么类只有 0.708。用这类模型时，`mode=workflow`（先规划后执行 + LLM 组织答案）更合适。`mode=auto` 目前还不会按模型切换。在已暴露的 multiturn_v1 上，循环也低 0.020。
+4. **循环的优势取决于模型。** 换成 GLM-5.3 flash，循环没有收益：总体 −0.003；pass^3 是 0.731 对 0.800，McNemar 支持先规划后执行（p = 0.049）。它的 P95 是 82 秒对 27 秒，为什么类只有 0.708。用这类模型时，先规划后执行 + LLM 组织答案更合适；自 `66c0ef2` 起 `mode=auto` 就这样做：模型能力表中设置了 `prefer_composition` 的模型（GLM），原本走 Agent 路由的问题改走 workflow + LLM 组织答案，路由原因记为 `model_policy:composition_for_slow_model`。`mode=agent` 仍然运行循环，`QI_AGENT_SLOW_MODEL_POLICY=off` 可让 `auto` 恢复循环。这一策略的依据是上面已提交的结果，之后没有再用 GLM 跑过 `auto`。另一种做法是降低 GLM 的推理强度，测量后没有采用：留出集上（Agent，1 次重复）P95 从 35.8 秒降到 17.7 秒，P50 从 8.1 秒降到 3.1 秒，成本 −37%，但任务成功率 1.000 → 0.962（不显著），判断类问题的对冲率 1.00 → 0.82（`ablation-glm-effort-default-holdout.json`、`ablation-glm-effort-low-holdout.json`，`bc42017`）。在已暴露的 multiturn_v1 上，循环也低 0.020。
 
 ## 工具
 
@@ -291,7 +291,7 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 
 卡片完全基于规则、大小有界，是默认方案。
 
-**可选：用 LLM 摘要较早的轮次**（`QI_AGENT_MEMORY_SUMMARY=1`，默认关闭；`agent/memory_summary.py`）。Agent 原样看到最近两轮；打开开关后，移出这个窗口的轮次由 LLM（提示词 `memory_summary@v1`，关闭推理）压缩成纯文本摘要，并截断到 `QI_AGENT_MEMORY_SUMMARY_TOKENS`（默认 300；按每个汉字 1 token、其他字符每 4 个 1 token 估算），以 `conversation_summary` 加进卡片。摘要是增量的：卡片（会话状态中的 `memory_card`）记录已覆盖的轮数，只有新移出窗口的轮次才会并入，这些轮多一次 LLM 调用，其余轮不调用；该调用在 `llm.log` 中记为 `memory_summary`，计入用量和成本。摘要失败时保留旧卡片，在 `degraded` 中记 `memory_summary_failed:…`，本轮照常执行。**尚未做消融**：在多轮评测集上比较开/关的任务成功率和提示 token 之前，它保持关闭（已计划，第三轮未做）。
+**可选：用 LLM 摘要较早的轮次**（`QI_AGENT_MEMORY_SUMMARY=1`，默认关闭；`agent/memory_summary.py`）。Agent 原样看到最近两轮；打开开关后，移出这个窗口的轮次由 LLM（提示词 `memory_summary@v1`，关闭推理）压缩成纯文本摘要，并截断到 `QI_AGENT_MEMORY_SUMMARY_TOKENS`（默认 300；按每个汉字 1 token、其他字符每 4 个 1 token 估算），以 `conversation_summary` 加进卡片。摘要是增量的：卡片（会话状态中的 `memory_card`）记录已覆盖的轮数，只有新移出窗口的轮次才会并入，这些轮多一次 LLM 调用，其余轮不调用；该调用在 `llm.log` 中记为 `memory_summary`，计入用量和成本。摘要失败时保留旧卡片，在 `degraded` 中记 `memory_summary_failed:…`，本轮照常执行。**已做消融，没有收益**：在 multiturn_v1 上（Agent 路径，DeepSeek，1 次重复，`bc42017`）开和关的任务成功率都是 0.980，轮次成功率都是 0.995，每轮 token 7,105（关）对 7,053（开），每轮 LLM 调用 1.51 对 1.75，每个任务的成本相同（`ablation-memsum-0-multiturn_v1.json`、`ablation-memsum-1-multiturn_v1.json`）。这些对话最多五轮，原文窗口加规则卡片已经足够，所以摘要保持关闭。multiturn_v1 是已暴露的集合，这只说明摘要在这些对话上没有帮助，不说明在更长的对话上也没有。
 
 ## API
 
@@ -351,7 +351,8 @@ curl -s localhost:8000/agent/resume -H 'Content-Type: application/json' \
 | `DEEPSEEK_MODEL`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_THINKING_TYPE`、`DEEPSEEK_REASONING_EFFORT`、`DEEPSEEK_MAX_TOKENS`、`DEEPSEEK_TIMEOUT_SECONDS` | 见 `config/app_config.json` | 与 `/chat` 共用的 LLM 设置。 |
 | `DEEPSEEK_REASONING_STYLE` | `auto` | 按节点设置推理强度时的参数写法：`deepseek`（`thinking` + `reasoning_effort`）、`openrouter`（`reasoning` 对象，例如 Cline 网关）或 `none`；`auto` 按接口地址判断。 |
 | `QI_LLM_FALLBACK_MODELS` | 未设置 | 同一接口上的备用模型（逗号分隔）。每个模型一个熔断器：连续失败 3 次打开，60 秒后放一次试探调用（半开），成功即关闭；`FallbackLLM.stats()` 报告 `closed` / `open` / `half_open`，并由 `/metrics` 导出（[详情](a2a-and-observability.md#llm-网关容灾与成本)）。 |
-| `QI_PROMPT_VERSION` | `v3` | 使用 `agent/prompts.py` 注册表中的哪个 Prompt 版本（`v1`、`v2`、`v3`、`v4`）。`v4` 增加文档内容规则（不转述联系方式、推广和单一文档的监管说法；只有文档来源的说法要注明出处），可选，不是默认版本。 |
+| `QI_PROMPT_VERSION` | `v4` | 使用 `agent/prompts.py` 注册表中的哪个 Prompt 版本（`v1`、`v2`、`v3`、`v4`）。`v4` 增加文档内容规则（不转述联系方式、推广和单一文档的监管说法；只有文档来源的说法要注明出处）。在 test v3 上做了 v3/v4 A/B（DeepSeek，2 次重复，`bc42017`）之后，`66c0ef2` 把它设为默认：Agent 0.858 → 0.877，pass^2 0.831 → 0.869，组织答案路径 0.831 → 0.823，差异都不显著（配对 bootstrap；Agent 的 McNemar p = 0.125），即安全规则没有可测的任务成功率代价（`ablation-ab-prompt-v3-testv3.json`、`ablation-ab-prompt-v4-testv3.json`）。这次选择用掉了 test v3。 |
+| `QI_AGENT_SLOW_MODEL_POLICY` | `on` | `mode=auto` 时，若模型能力表设置了 `prefer_composition`（GLM），原本走 Agent 路由的问题改走 workflow + LLM 组织答案，路由原因 `model_policy:composition_for_slow_model`；`off` 保留工具循环。见[先规划后执行 vs 工具循环](#先规划后执行-vs-工具循环路由背后的数字)。 |
 | `QI_LLM_PRICE_INPUT_MISS`、`QI_LLM_PRICE_INPUT_HIT`、`QI_LLM_PRICE_OUTPUT`、`QI_LLM_PRICE_CURRENCY` | 未设置 | 每百万 token 价格；未设置时若网关返回 `usage.cost`（美元）则使用它。 |
 | `QI_LLM_USD_CNY` | 未设置 | 把网关成本换算为人民币的汇率。 |
 | `QI_AGENT_CHECKPOINT_DB` | 未设置（内存） | 会话持久化：SQLite 文件路径，或多个进程/副本共享的 `postgresql://` 连接串。 |
@@ -494,6 +495,15 @@ python -m evaluation.agent_eval.redteam --cases evaluation/agent_eval/redteam_r1
   --paths workflow_llm,agent --replay-llm outputs/agent_eval/redteam-r10-holdout8-llm-turns.json
 ```
 
+**第六轮切片：第 10 轮的修复能不能泛化？** 独立作者基于 `bc42017`、只按第六轮评审的缺陷类别编写了 `evaluation/heldout_r6/`（67 条声明，38 个对话任务 / 61 轮），没有读代码。它在任何第 10 轮修复之前跑过一次（`05c4d7b`），修复之后又跑一次（`68279eb`）；编写第 10 轮规则的工程师从未打开过它，所以第二次仍是样本外测量。声明：结论准确率 0.537 [0.42, 0.66] → **0.836 [0.75, 0.93]**（`claim_bench-heldout_r6-prefix.json` → `claim_bench-heldout_r6-after-fix.json`）；按类别：给出的行业平均 0.737 → 0.842，两家公司之差 0.40 → 0.80，中文约数 0.30 → 0.80，对照组 1.0。对话（确定性路径）：任务 0.579 [0.42, 0.74] → **0.816 [0.68, 0.92]**，轮次 0.721 → 0.869（`chat_heldout_r6-auto-nollm-prefix.json` → `chat_heldout_r6-auto-nollm-after-fix.json`）；覆盖范围外 0.29 → 1.0，比较谁更高 0.75 → 1.0，差值追问 0.125 → 0.25。仍然错的：11 条声明结论（括号或英文写的行业平均，英文的两家公司之差，将近一半、一成半、一千四百出头、一万二千多亿、近四成）和 7 个对话任务（6 个差值追问，确定性答案给出两个操作数但没给差值，其中一个被当作无关问题拒答；一个英文净利率差）。比较方向准确率 0.29 → 0.28 没有变：切片把比较标成「关系检查 + 所述数值检查」，核查器输出的检查结构不同（所述数值记为 `eq` 而不是 `approx`），很多结论正确的预期检查配不上。
+
+```bash
+python -m evaluation.claim_bench.run --claims evaluation/heldout_r6/claims_r6_heldout.jsonl \
+  --out evaluation/results/claim_bench-heldout_r6-after-fix.json
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r6/chat_r6_heldout.jsonl \
+  --out outputs/agent_eval/chat_r6-after.json
+```
+
 ## 测试
 
 ```bash
@@ -510,7 +520,7 @@ python -m pytest -q tests/test_web_ui.py      # 通过 Playwright 驱动无头 C
 - **覆盖范围和缺口检测基于词表**：加密资产、最大的一批美股/港股公司和海外市场，以及（第 10 轮）约 40 家只在香港或美国上市的中国公司，不是所有海外代码；不在词表里、名称又包含 A 股简称的港股仍会被当作那只 A 股；期间识别写成年份的（「2019年」「in 2023」「FY2023」）以及季度、半年（「一季度」「Q3」「上半年」），不识别「去年」。
 - **行业问题**：对话中讨论过该行业的成员时保留该成员；没有成员时只返回行业快照（市盈率、市净率、当日涨跌幅），且只覆盖离线数据中有的行业（白酒、保险、券商、宽基指数、成长指数）；其他行业会说明没有快照。
 - **术语表和口语简称有限**：术语表是人工编写的 16 个概念（不含数值），表外的概念仍会被拒答或要求澄清，且没有任何概念的数据序列；口语简称覆盖 29 家公司（`COLLOQUIAL_ALIASES`），其他公司只能通过正式名称、别名或其错别字识别。
-- **可选的 LLM 记忆摘要尚未消融**；规则卡片是经过测量的默认方案。
+- **可选的 LLM 记忆摘要在 multiturn_v1 上没有收益**（任务成功率开/关都是 0.980，`bc42017`），所以保持关闭；更长的对话上没有测过。
 - **输出层的数字比对（第 8 轮）靠名称识别指标**：只认净利润和营收（以及 ROE、EPS、每股分红、每股净资产），报告期取句子前面的年份或季度词，公司取本次结构化证据里的名称；换了说法的指标（「利润总额」「营业利润」）、读不出的报告期、或者本次涉及多家公司而数字没有点名公司时都不比对。没有基本面可以裁决时，分歧双方都会加标记，所以投毒数字旁边的真实数字也会带上标记。看起来像普通监管新闻的投毒标题（「证监会：…立案调查」）仍会显示在证据列表里，回答中会注明出处。
 - **英文拼写纠错**只覆盖上市证券的英文别名，且别名中至少有一个 6 个字母以上的词；「BYD」「Gree」「CATL」的拼写错误不纠正。
   保持的回答语言存在会话的轮次记录里，会话结束即失效。
@@ -519,5 +529,5 @@ python -m pytest -q tests/test_web_ui.py      # 通过 Playwright 驱动无头 C
   「平安」规则只用了简短的保险和银行用语表；没有这些用语、会话中也没有标的时，按中国平安回答并注明，而不是先澄清。年初至今涨跌幅需要数据源的
   历史数据覆盖到上一年，离线快照永远达不到；PEG 需要数据源给出净利润增速，只有实时数据源有。
 - **追问补全基于规则**：覆盖代词、复数、序数和群组指代、短的省略问法、单独的「为什么」追问，以及带金融线索词的短追问；更长的转述（「回到刚才那只股票…」）和有歧义的指代会触发澄清而不是猜测。线索词表和离题任务词表是手写的：不含这些词的离题任务仍会被回答，不含线索词的无标的追问仍按原来的方式澄清或拒答。
-- **路由基于经典 NLU 之上的词汇规则**：第 4 轮的标记类别（判断、预测、分析、关系、市场标的、改变系统的指令）比作者自己的说法覆盖更广，但不属于任何类别的问题仍会进 workflow；由他人编写的集合只测过一个，而且是在修复它的错误之前测的（0.740）。
+- **路由基于经典 NLU 之上的词汇规则**：第 4 轮的标记类别（判断、预测、分析、关系、市场标的、改变系统的指令）比作者自己的说法覆盖更广，但不属于任何类别的问题仍会进 workflow；新写的独立路由标注 v2 首次运行 0.801，第 10 轮之后 0.838（暴露后；`router_eval-independent_v2-first-run.json`、`router_eval-independent_v2-round10.json`）；v1 在修复其错误之前为 0.740。
 - **英文别名覆盖有限**：包括第二轮加入的主要 A 股英文名，第 3b 轮加入的「CSI 300 index」「10-year CGB yield」「baijiu」「insurers」（`data/synonym_dict.json` 和别名表），以及 `data/runtime/alias_table.csv` 中已有的条目。以「Did the whole baijiu sector fall too?」开场的对话现在按查数路由（行业算作市场标的），但 NLU 在识别出行业之前就拒识了它，规划器拿不到行业实体；在讨论白酒股的对话中则会用行业快照回答。

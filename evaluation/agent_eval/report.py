@@ -151,11 +151,44 @@ CLAIM_BENCH_RUNS = (
     "claim_bench-holdout-after-round10",
     "claim_bench-heldout_r4-after-round10",
     "claim_bench-heldout_r5-after-round10",
+    "claim_bench-heldout_r6-prefix",
+    "claim_bench-heldout_r6-after-fix",
 )
 # Round-4 held-out slices (evaluation/heldout_r4/, independent author): first run, then after exposure.
 HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_heldout-after-exposure")
 # Round-5 held-out chat slice (evaluation/heldout_r5/, independent author): first run, then after exposure (round 9).
 HELDOUT_R5_RUNS = ("chat_heldout_r5-auto-nollm-first-run", "chat_heldout_r5-auto-nollm-after-exposure")
+# Round-6 held-out slice (evaluation/heldout_r6/, independent author): run once before the round-10 fixes, then
+# once after them; the engineers who made the fixes never saw it, so the second run is still out of sample.
+HELDOUT_R6_RUNS = ("chat_heldout_r6-auto-nollm-prefix", "chat_heldout_r6-auto-nollm-after-fix")
+# Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
+# (title, a, b, label a, label b, paths compared).
+PAIRED_ABLATIONS = (
+    (
+        "Prompt v3 vs v4 on test v3 (DeepSeek, same commit)",
+        "ablation-ab-prompt-v3-testv3",
+        "ablation-ab-prompt-v4-testv3",
+        "v3",
+        "v4",
+        ("workflow_llm", "agent"),
+    ),
+    (
+        "LLM memory summary off vs on, multiturn_v1 (DeepSeek, agent path)",
+        "ablation-memsum-0-multiturn_v1",
+        "ablation-memsum-1-multiturn_v1",
+        "off",
+        "on",
+        ("agent",),
+    ),
+    (
+        "GLM reasoning effort: provider default vs low, held-out (agent path)",
+        "ablation-glm-effort-default-holdout",
+        "ablation-glm-effort-low-holdout",
+        "default",
+        "low",
+        ("agent",),
+    ),
+)
 # Other committed evidence the READMEs cite, summarised as one row each.
 EXTRA_EVIDENCE = (
     "redteam-r7-targeted",
@@ -213,6 +246,18 @@ FILE_STATUS = {
     "round-10 commit",
     "claim_bench-heldout_r5-after-round10": "independent round-5 claim slice **after exposure**, re-run at the "
     "round-10 commit",
+    "claim_bench-heldout_r6-prefix": "**first and only pre-fix run** of the independent round-6 claim slice",
+    "claim_bench-heldout_r6-after-fix": "independent round-6 claim slice **after the round-10 fixes**; the engineers "
+    "never saw the slice, so this is still out of sample",
+    "chat_heldout_r6-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-6 chat slice",
+    "chat_heldout_r6-auto-nollm-after-fix": "independent round-6 chat slice **after the round-10 fixes**; the "
+    "engineers never saw the slice, so this is still out of sample",
+    "ablation-ab-prompt-v3-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
+    "ablation-ab-prompt-v4-testv3": "test v3 **used to choose a prompt** (its first use for a decision)",
+    "ablation-memsum-0-multiturn_v1": "**after exposure** (multiturn_v1 shaped the session rules)",
+    "ablation-memsum-1-multiturn_v1": "**after exposure** (multiturn_v1 shaped the session rules)",
+    "ablation-glm-effort-default-holdout": "held-out (validation set)",
+    "ablation-glm-effort-low-holdout": "held-out (validation set)",
 }
 
 
@@ -650,6 +695,71 @@ _AB_KEYS = [
     ("cost_per_task", "Cost per task"),
     ("llm_error_rate", "LLM-error turns (HTTP 429 share)"),
 ]
+
+
+_PAIRED_KEYS = [
+    ("task_success", "Task success"),
+    ("pass^k", "pass^k"),
+    ("turn_success", "Turn success"),
+    ("hedged_when_required", "Hedged when required"),
+    ("llm_calls_per_turn", "LLM calls per turn"),
+    ("tokens_per_turn", "Tokens per turn"),
+    ("reasoning_tokens_per_turn", "Reasoning tokens per turn"),
+    ("latency_ms_p50", "Latency P50 (ms)"),
+    ("latency_ms_p95", "Latency P95 (ms)"),
+    ("cost_per_task", "Cost per task"),
+    ("llm_error_rate", "LLM-error turns (HTTP 429 share)"),
+]
+
+
+def paired_ablation_section(
+    title: str,
+    a_name: str,
+    a: dict[str, Any],
+    b_name: str,
+    b: dict[str, Any],
+    labels: tuple[str, str],
+    modes: tuple[str, ...],
+) -> list[str]:
+    """Two runs of the same code and set that differ in one setting, side by side, with a paired comparison."""
+    a_label, b_label = labels
+    lines = [
+        f"### {title}",
+        "",
+        f"`{a_name}.json` ({a_label}) vs `{b_name}.json` ({b_label}); both at `{a['config'].get('commit')}`, "
+        f"{model_text(a['config'])}. The setting that differs is recorded in each file's notes. Paired comparison: "
+        "bootstrap over tasks and exact McNemar on pass^k.",
+        "",
+    ]
+    from .metrics import paired_comparison
+
+    for set_name, a_modes in a["results"].items():
+        b_modes = b["results"].get(set_name) or {}
+        lines += [f"Status: {status_label(b_name, set_name, b['config'].get('commit'))}.", ""]
+        for mode in modes:
+            a_data, b_data = a_modes.get(mode), b_modes.get(mode)
+            if not a_data or not b_data:
+                continue
+            lines += [f"{set_name} · {mode}:", "", f"| Metric | {a_label} | {b_label} |", "|---|---|---|"]
+            for key, label in _PAIRED_KEYS:
+                lines.append(f"| {label} | {cell(a_data['summary'], key)} | {cell(b_data['summary'], key)} |")
+            comparison = paired_comparison(
+                decode_outcomes(b_data["task_outcomes"]), decode_outcomes(a_data["task_outcomes"])
+            )
+            ts, mc = comparison["task_success"], comparison["mcnemar"]
+            lines += [
+                "",
+                f"{b_label} − {a_label}: task success {diff_ci(ts)}, pass^k {diff_ci(comparison['pass^k'])}, "
+                f"McNemar {mc['a_only_pass']} / {mc['b_only_pass']} ({b_label}-only / {a_label}-only), "
+                f"p={mc['p_value']:.3f} → {verdict(comparison, b_label, a_label)}.",
+                "",
+            ]
+    for name, result in ((a_name, a), (b_name, b)):
+        for note in result.get("notes") or []:
+            lines.append(f"* `{name}.json`: {note}")
+        lines.append(f"* `{name}.json` command: `{result['config'].get('command')}`")
+    lines.append("")
+    return lines
 
 
 def prompt_ab_section(baseline: dict[str, Any], variant: dict[str, Any]) -> list[str]:
@@ -1259,6 +1369,20 @@ def render_with_sources() -> tuple[str, list[str]]:
         ]
         for name, result in heldout_r5:
             body += [f"#### `{name}.json`", "", *run_section(result, name, full=name.endswith("first-run"))]
+    heldout_r6 = [(name, take(name)) for name in HELDOUT_R6_RUNS]
+    heldout_r6 = [(name, result) for name, result in heldout_r6 if result]
+    if heldout_r6:
+        body += [
+            "### Round-6 held-out chat slice (independent author): before and after the round-10 fixes",
+            "",
+            "38 tasks / 61 turns written against `bc42017` before any round-10 fix "
+            "(`evaluation/heldout_r6/README.md`); run once before the fixes and once after them. The engineers who "
+            "made the fixes never saw the slice, so the second run is an out-of-sample measure of the fixes. Its "
+            "claims are in the claim-check table below.",
+            "",
+        ]
+        for name, result in heldout_r6:
+            body += [f"#### `{name}.json`", "", *run_section(result, name, full=True)]
     pure = [
         (name, result)
         for name in (PRIMARY, TEST_V2, *TEST_V3)
@@ -1290,6 +1414,10 @@ def render_with_sources() -> tuple[str, list[str]]:
     if baseline and variant:
         note_status(PROMPT_AB[1], variant)
         body += prompt_ab_section(baseline, variant)
+    for title, a_name, b_name, a_label, b_label, modes in PAIRED_ABLATIONS:
+        first, second = take(a_name), take(b_name)
+        if first and second:
+            body += paired_ablation_section(title, a_name, first, b_name, second, (a_label, b_label), modes)
     gates = [(name, take(name)) for name in GATE_RUNS]
     if all(result for _name, result in gates):
         body += gate_section(gates)  # type: ignore[arg-type]
