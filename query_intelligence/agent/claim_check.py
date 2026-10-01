@@ -876,7 +876,7 @@ _EN_SHARE_WORDS = {"half": 2, "halves": 2, "third": 3, "thirds": 3, "quarter": 4
 _EN_SHARE = re.compile(
     r"(?<!first )(?<!second )(?<!third )(?<!fourth )(?<!last )(?<!this )(?<!next )(?<!the )"
     r"\b(?:(a|one|two|three|four)[\s-]+)?(half|halves|thirds?|quarters?|fifths?|tenths?)\s+(?:of\s+)?"
-    r"(?=(?:the\s+)?[A-Z]|that of\b|those of\b)",
+    r"(?=(?:the\s+)?(?-i:[A-Z])|that of\b|those of\b)",
     re.I,
 )
 
@@ -895,8 +895,8 @@ def normalise(claim: str) -> str:
     text = _RANGE_UP.sub(lambda m: f"{m.group(1) or ''}高了", text)
     text = _A_LITTLE.sub("", text)
     text = _TIMES_AND_HALF.sub(lambda m: f"{_trim(float(_cn_number(m.group(1))) + 0.5)}倍", text)
-    text = _EN_SHARE.sub(_english_share, text)
     text = _EN_FRACTION.sub(lambda m: f"{0.5 if m.group(1) else 0.25} {m.group(3)}", text)
+    text = _EN_SHARE.sub(_english_share, text)  # "less than a third of CATL's" (round 13, I8)
     text = _EN_WORD_NUMBER.sub(
         lambda m: _trim(_EN_NUMBER_WORDS[m.group(1).lower()] + (0.5 if m.group(2) else 0.0)), text
     )
@@ -2401,9 +2401,9 @@ def _evaluative_relations(
     return found
 
 
-# (round 13, I8) A superlative among the named targets: "在招行、工行和平安银行中，平安银行的ROE最低", "市净率最高的是招商
-# 银行", "Of CMB, ICBC and Ping An Bank, ICBC has the highest ROE". 最高价 / 最低收盘 / 最大回撤 are metrics, not
-# superlatives.
+# (round 13, I8) A superlative among the named targets: "在招行、工行和平安银行中，平安银行的ROE最低",
+# "市净率最高的是招商银行", "Of CMB, ICBC and Ping An Bank, ICBC has the highest ROE". 最高价 / 最低收盘 / 最大回撤 are
+# metrics, not superlatives.
 _SUPERLATIVE_ZH = re.compile(
     r"(?P<neg>不是|并非|并不是|并不)?\s*最(?P<adj>高|低|大|小|贵|便宜)(?![价点位收盘]|回撤|跌幅|涨幅|值|化|\s*\d)"
 )

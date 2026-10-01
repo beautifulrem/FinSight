@@ -98,7 +98,10 @@ def test_a_year_to_date_question_on_an_extension_name_is_measured_from_the_prior
     [
         ("美的集团的市净率和所在行业平均比怎么样", "当前数据没有美的集团所属行业的平均市净率"),
         ("工商银行ROE跟行业平均相比高还是低", "当前数据没有工商银行所属行业的平均ROE"),
-        ("Is Zijin Mining's P/E above its industry average?", "no industry average P/E for Zijin Mining's industry"),
+        (
+            "Is Zijin Mining's P/E above its industry average?",
+            "The industry average P/E of Zijin Mining's industry is not available",
+        ),
     ],
 )
 def test_a_missing_industry_snapshot_is_stated(ext_agent, query, expected):
