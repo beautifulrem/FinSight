@@ -877,10 +877,13 @@ def test_a_percentage_difference_of_a_multiple_is_relative():
 
 
 def test_an_ambiguous_multiple_difference_is_unverifiable():
-    # "高出一倍" of revenue: one or two times more? A multiple states it ("是…的两倍").
-    (check,) = _check_all("茅台营收比五粮液高出一倍").checks
+    # "高出两倍" of revenue: two or three times as much? A multiple states it ("是…的三倍"). Since round 12 (H6)
+    # one fold is decided: "高出一倍" is a relative difference of 100% (twice as much).
+    (check,) = _check_all("茅台营收比五粮液高出两倍").checks
 
     assert (check.kind, check.status, check.reason) == ("difference", "unverifiable", "unit_mismatch")
+    (one_fold,) = _check_all("茅台营收比五粮液高出一倍").checks
+    assert one_fold.kind == "relative_difference" and one_fold.claimed == 100.0 and one_fold.reason is None
 
 
 @pytest.mark.parametrize(
