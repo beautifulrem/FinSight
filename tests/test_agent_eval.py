@@ -428,6 +428,40 @@ def test_runs_with_mostly_rejected_llm_calls_are_invalid(tmp_path):
         results_main([str(source)])
 
 
+def test_results_refuse_runs_from_a_dirty_tree_unless_allowed(tmp_path, monkeypatch):
+    """Round 12 (H13): a committed result from ``960432d-dirty`` cannot be reproduced from any commit."""
+    import pytest
+
+    from evaluation.agent_eval import results
+
+    assert results.dirty_provenance({"config": {"commit": "960432d"}}) == []
+    assert results.dirty_provenance({"config": {"commit": "960432d-dirty"}}) == ["960432d-dirty"]
+    # scripts/provenance.git_state form, and a merged file with one commit per source
+    assert results.dirty_provenance({"commit": "4742453", "working_tree_clean": False}) == ["4742453-dirty"]
+    assert results.dirty_provenance({"commit": "4742453", "working_tree_clean": True}) == []
+    merged = {"config": {"sources": {"a": {"commit": "aaaaaaa"}, "b": {"commit": "bbbbbbb-dirty"}}}}
+    assert results.dirty_provenance(merged) == ["bbbbbbb-dirty"]
+
+    run = {"config": {"commit": "960432d-dirty", "model": None}, "summary": {"task_success": 1.0}, "failures": []}
+    source = tmp_path / "run.json"
+    source.write_text(json.dumps(run), encoding="utf-8")
+    monkeypatch.setattr(results, "ROOT", tmp_path)
+    monkeypatch.setattr(results, "RESULTS_DIR", tmp_path / "results")
+    with pytest.raises(SystemExit, match="dirty working tree"):
+        results.main([str(source)])
+    assert not (tmp_path / "results").exists()
+
+    results.main([str(source), "--allow-dirty", "--note", "prompt edit not yet committed"])
+    written = json.loads((tmp_path / "results" / "run.json").read_text(encoding="utf-8"))
+    assert written["notes"][0] == "prompt edit not yet committed"
+    assert "960432d-dirty" in written["notes"][1] and "--allow-dirty" in written["notes"][1]
+
+    clean = tmp_path / "clean.json"
+    clean.write_text(json.dumps({**run, "config": {"commit": "960432d", "model": None}}), encoding="utf-8")
+    results.main([str(clean)])
+    assert "notes" not in json.loads((tmp_path / "results" / "clean.json").read_text(encoding="utf-8"))
+
+
 def test_uncited_correctness_scores_right_numbers_without_citations_or_tools():
     # A no-tools answer: the right number, no evidence id, no tool call, no disclaimer field.
     no_tools = _response(
