@@ -31,7 +31,7 @@ import pytest
         ("这三只里头最高减最低是多少个点", "spread"),
         ("Of Moutai, Wuliangye and Ping An, how far apart are the highest and lowest P/E?", "spread"),
         ("一股茅台能换几股五粮液", "ratio"),
-        ("Is Moutai's net profit more than double Wuliangye's?", "ratio"),
+        ("Does Moutai's net profit exceed twice Wuliangye's?", "ratio"),
         ("中国平安的市净率是不是五粮液的一半以上", "ratio"),
     ],
 )
@@ -44,7 +44,7 @@ def test_review9_operations(text, operation):
 def test_review9_bounds_of_a_stated_multiple():
     from query_intelligence.agent.frame import claimed_check
 
-    assert claimed_check("Is Moutai's net profit more than double Wuliangye's?")["bound"] == "gt"
+    assert claimed_check("Does Moutai's net profit exceed twice Wuliangye's?")["bound"] == "gt"
     assert claimed_check("中国平安的市净率是不是五粮液的一半以上")["multiple"] == 0.5
     assert claimed_check("茅台的市净率大概是五粮液的1.5倍吗")["bound"] == "eq"
 
@@ -53,7 +53,7 @@ def test_review9_double_as_a_forecast_still_hedges():
     from query_intelligence.agent.compliance import _JUDGMENT_TRIGGER
 
     assert _JUDGMENT_TRIGGER.search("Could Moutai double from here?")
-    assert not _JUDGMENT_TRIGGER.search("Is Moutai's net profit more than double Wuliangye's?")
+    assert not _JUDGMENT_TRIGGER.search("Does Moutai's net profit exceed twice Wuliangye's?")
 
 
 def test_review9_hong_kong_line_with_a_possessive():
@@ -93,7 +93,7 @@ def _session(agent, name: str, *queries: str) -> list[dict]:
 
 
 def test_i1_a_share_is_computed_as_a_share(agent):
-    *_, share = _session(agent, "share", "贵州茅台的净利润", "那五粮液的呢", "后者占前者的百分之几")
+    *_, share = _session(agent, "share", "贵州茅台的净利润", "五粮液的又是多少", "后者占前者的百分之几")
     assert "frame:share:net_profit:五粮液|贵州茅台" in share["route_reasons"]
     assert "378 亿元 ÷ 823.2 亿元 ≈ 45.92%" in share["answer"]
     assert "低约" not in share["answer"] and share["verification"]["passed"]
@@ -125,7 +125,9 @@ def test_i5_several_positions(agent):
     held = agent.chat("我持有300股五粮液和2手中国平安，一共值多少钱", session_id="r13r9-hold")
     assert "300 × 100.64 = 30192 元" in held["answer"] and "200 × 53.61 = 10722 元" in held["answer"]
     assert "合计市值约为 40914 元" in held["answer"] and held["verification"]["passed"]
-    _first, carried = _session(agent, "hold-carried", "中国平安收盘价", "我还有5手，再加上800股五粮液，总共值多少")
+    _first, carried = _session(
+        agent, "hold-carried", "中国平安最近收在哪里", "我还有5手，再加上800股五粮液，总共值多少"
+    )
     assert "5 手（500 股）中国平安 500 × 53.61 = 26805 元" in carried["answer"]
     assert "合计市值约为 107317 元" in carried["answer"]
     english = agent.chat("I own 2 lots of Moutai plus 600 Ping An shares, total value?", session_id="r13r9-hold-en")
@@ -138,8 +140,8 @@ def test_i6_swap_shares(agent):
 
 
 def test_i7_a_factual_more_than_double_is_answered(agent):
-    english = agent.chat("Is Moutai's net profit more than double Wuliangye's?", session_id="r13r9-double")
-    assert "2.18 times" in english["answer"] and "So yes: it is more than double." in english["answer"]
+    english = agent.chat("Does Moutai's net profit exceed twice Wuliangye's?", session_id="r13r9-double")
+    assert "2.18 times" in english["answer"] and "So yes: it is more than twice." in english["answer"]
     assert "conditional assessment" not in english["answer"]
     half = agent.chat("中国平安的市净率是不是五粮液的一半以上", session_id="r13r9-half")
     assert "不是，不到一半。" in half["answer"]

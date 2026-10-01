@@ -394,3 +394,10 @@
 {"id": "route_393", "query": "茅台的市净率大概是五粮液的1.5倍吗", "expected_route": "agent", "note": "round13: a ratio question that states the multiple it checks compares two targets"}
 {"id": "route_394", "query": "中国平安和五粮液的净利润加在一起是多少", "expected_route": "agent", "note": "round13: a total of two targets' amounts"}
 {"id": "route_395", "query": "五粮液最新一个交易日每股下跌了多少元", "expected_route": "workflow", "note": "round13: a change in yuan derived from the close and the reported % change is a lookup"}
+{"id": "route_396", "query": "两只加一起是多少", "expected_route": "clarify", "note": "round13: a total opening a conversation has nothing to add up; ask (review-9 I3 negative)"}
+{"id": "route_397", "query": "Combined net profit of Moutai, Wuliangye and Ping An?", "expected_route": "agent", "note": "round13: a total of three targets' amounts (review-9 I3)"}
+{"id": "route_398", "query": "How are Ping An's Hong Kong shares priced today?", "expected_route": "refuse", "note": "round13: a possessive before 'Hong Kong shares' is the H-share line, out of coverage (review-9 I9)"}
+{"id": "route_399", "query": "I have 250 Wuliangye shares and 1 lot of Ping An; how much is that in total?", "expected_route": "agent", "note": "round13: two positions in one holding question, two targets (review-9 I5)"}
+{"id": "route_400", "query": "五粮液的营收占茅台的百分之几", "expected_route": "agent", "note": "round13: a share of another target's value (review-9 I1)"}
+{"id": "route_401", "query": "Is Ping An's revenue at least 7 times Moutai's?", "expected_route": "agent", "note": "round13: a factual bound on a multiple of two targets, answered yes or no (review-9 I7)"}
+{"id": "route_402", "query": "茅台、五粮液、中国平安的市净率，最高和最低差多少", "expected_route": "agent", "note": "round13: the spread of three targets (review-9 I4)"}

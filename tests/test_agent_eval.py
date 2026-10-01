@@ -1029,6 +1029,60 @@ def test_round12_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_revie
     assert _overlaps(mine, others) == (0, 0), "round-12 dev tasks or router labels overlap a held-out or reviewer set"
 
 
+def _all_slice_texts() -> list[str]:
+    """(round 13) Every committed independent slice (``evaluation/heldout_r*/``, found by glob, so a new slice is
+    checked as soon as it is committed), read programmatically like ``_heldout_r6_texts``."""
+    from evaluation.agent_eval.runner import ROOT
+
+    folders = sorted(path.name for path in (ROOT / "evaluation").glob("heldout_r*") if path.is_dir())
+    texts: list[str] = []
+    for name in folders:
+        texts += _heldout_r6_texts(name)
+    return texts
+
+
+# The round-9 reviewer's probes as quoted in the review report (finsight-review/round9.md §4.1 and §9, I1-I9; the probe
+# scripts and the hidden heldout_r9 slice were not read): round-13 wording must not copy them.
+_ROUND9_REVIEW_PROBES = [
+    "五粮液净利润",
+    "五粮液相当于茅台的百分之多少",
+    "招行的净利润相当于工行的几成",
+    "BYD's net profit is what percent of CATL's?",
+    "茅台和五粮液成交额加一块多少",
+    "宁德时代市值多少",
+    "比亚迪呢",
+    "两家加起来多少",
+    "宁德时代和比亚迪市值加起来多少",
+    "ICBC's net profit?",
+    "and CMB's?",
+    "What do the two add up to?",
+    "美的集团的毛利率",
+    "宁德时代呢",
+    "三家里最高的比最低的高几个点",
+    "Of Zijin Mining, Midea and BYD, what's the spread between the highest and lowest ROE?",
+    "平安银行收盘价",
+    "我有12手，加上之前的3000股招行，一共值多少",
+    "我有500股招行和3手工行，总共值多少",
+    "招商银行ROE多少",
+    "工商银行的呢",
+    "招行领先工行几个百分点",
+    "招商银行的净利润",
+    "平安银行呢",
+    "前者抵得上几个后者",
+    "Is CMB's ROE more than double ICBC's?",
+    "宁德时代的净利润是不是比亚迪的两倍还多",
+    "What did CATL's Hong Kong shares close at?",
+    "What fraction of CMB's does Ping An Bank earn?",
+    "宁德时代下周五收盘会在多少",
+    "五粮液明天能不能站上105元",
+    "Could BYD fall below 80 yuan by Friday?",
+]
+_REVIEW_PROBES = [
+    *_ROUND4_REVIEW_PROBES, *_ROUND5_REVIEW_PROBES, *_ROUND6_REVIEW_PROBES, *_ROUND7_REVIEW_PROBES,
+    *_ROUND9_REVIEW_PROBES,
+]  # fmt: skip
+
+
 def test_round13_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_reviewer_sets():
     """Round-13 dev tasks and router labels were written after the independent round-8 slice was exposed (the classes
     it still failed after round 12): none may copy or near-copy a round-8, round-7 or round-6 slice text (read
@@ -1047,9 +1101,7 @@ def test_round13_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_revie
     for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
         others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
     heldout_r8 = _heldout_r6_texts("heldout_r8")
-    others += _heldout_r4_texts() + _heldout_r5_texts() + _heldout_r6_texts() + _heldout_r6_texts("heldout_r7")
-    others += heldout_r8
-    others += _ROUND4_REVIEW_PROBES + _ROUND5_REVIEW_PROBES + _ROUND6_REVIEW_PROBES + _ROUND7_REVIEW_PROBES
+    others += _heldout_r4_texts() + _heldout_r5_texts() + _all_slice_texts() + _REVIEW_PROBES
 
     assert len(heldout_r8) >= 110, "the round-8 slice was not read"
     assert len({task["id"] for task in _round13_tasks()}) >= 20 and check_overlap(_round13_tasks()) == []
@@ -1057,18 +1109,18 @@ def test_round13_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_revie
     assert _overlaps(mine, others) == (0, 0), "round-13 dev tasks or router labels overlap a held-out or reviewer set"
 
 
-def test_round13_tests_and_claim_rows_do_not_copy_the_round8_slice():
-    """The round-13 unit tests (tests/test_agent_round13.py) and claim-bench rows were written in the author's own
-    wording: none copies or near-copies a round-8 slice text (counts only)."""
+def test_round13_tests_and_claim_rows_do_not_copy_a_slice_or_a_review_probe():
+    """The round-13 unit tests (tests/test_agent_round13*.py) and claim-bench rows were written in the author's own
+    wording: none copies or near-copies a text of any committed slice or a quoted reviewer probe (counts only)."""
     import ast
     from pathlib import Path
 
     from evaluation.claim_bench.run import SETS, load_claims
 
-    source = (Path(__file__).parent / "test_agent_round13.py").read_text(encoding="utf-8")
     strings = [
         node.value
-        for node in ast.walk(ast.parse(source))
+        for path in sorted(Path(__file__).parent.glob("test_agent_round13*.py"))
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
         if isinstance(node, ast.Constant) and isinstance(node.value, str) and len(node.value) >= 6
     ]
     # the questions and claims (text with a space or Chinese characters), not identifiers or the docstring
@@ -1078,7 +1130,8 @@ def test_round13_tests_and_claim_rows_do_not_copy_the_round8_slice():
         if re.search(r"[\s一-鿿]", text) and not text.startswith(("Round-13", "frame:")) and len(text) < 200
     ]
     mine += [row["claim"] for row in load_claims(SETS["dev"]) if row.get("note") == "round13"]
-    assert _overlaps(mine, _heldout_r6_texts("heldout_r8")) == (0, 0), "round-13 wording overlaps the round-8 slice"
+    others = _all_slice_texts() + _REVIEW_PROBES
+    assert _overlaps(mine, others) == (0, 0), "round-13 wording overlaps a slice or a reviewer probe"
 
 
 def test_round10_tasks_against_the_round6_heldout_slice():
