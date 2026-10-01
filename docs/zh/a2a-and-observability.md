@@ -272,7 +272,7 @@ trace 也可以导出到任何 OTLP 后端（Jaeger、Tempo、Langfuse）：设�
 | `finsight_answer_verification_total` | `prompt_version`、`outcome` | 按提示词版本统计的校验结果。版本取自本次运行第一次 LLM 调用的 `agent_system@vN#sha`（`v1`…`v3`）；模板答案记为 `none`。`outcome`：`passed`（初稿通过）、`revised`（经 LLM 修改后通过）、`repaired`（仍未通过，做了确定性修复）。拒答和澄清不计入。 |
 | `finsight_audit_events_total` | `event`、`category` | 输入防护的拒答（`event="refusal"`，类别 `prompt_injection` / `out_of_scope`）、合规改写（`event="compliance_edit"`，类别为规则名），以及注入过滤的删除（`input_guard_redaction` / `user_message`，`document_redaction` / `evidence` 或 `tool_output`）。见[审计日志](#审计日志)。 |
 | `finsight_injection_redactions_total` | `source`、`outcome` | 注入过滤删除了文本的运行，按来源（`user_message`、`evidence`、`tool_output`）和结果（`answered`、`refused`）统计。`source="user_message", outcome="answered"` 表示输入防护删掉了指令式文本、但仍回答了剩下的问题（C14）。 |
-| `finsight_output_safety_edits_total` | `kind` | 输出安全层（`agent/output_safety.py`）改动过的回答，按类别统计，每次运行每类计一次：`attribution`（单一来源的监管/股本事项或有争议的数字加上「据一篇文档称…（未经其他来源证实）」）、`promotion_or_contact`、`trading_call`（来自文档的句子换成中性说明）、`conflicting_figure`（与基本面矛盾的文档数字被删除）。第 8 轮新增。 |
+| `finsight_output_safety_edits_total` | `kind` | 输出安全层（`agent/output_safety.py`）改动过的回答，按类别统计，每次运行每类计一次：`attribution`（单一来源的监管/股本事项或有争议的数字加上「据一篇文档称…（未经其他来源证实）」）、`promotion_or_contact`、`trading_call`（来自文档的句子换成中性说明）、`conflicting_figure`（与基本面矛盾的文档数字被删除）。第 8 轮新增。第 12 轮：除以 `finsight_agent_runs_total{route=~"agent|workflow"}` 即为「每个回答的改动数」面板和告警；误标率由 `evaluation/agent_eval/output_safety_audit.py` 离线测量（见下文）。 |
 | `finsight_degradations_total` | `flag` | 各类降级，例如 `llm_error` 或工具故障。 |
 
 trace 驱动的指标只能看到已完成的运行。当前状态由 `OpsMetricsCollector`（`query_intelligence/integrations/ops_metrics.py`）在抓取时读取，它和上面的指标注册在同一个 registry 上：
@@ -331,18 +331,28 @@ python monitoring/screenshot.py --grafana http://127.0.0.1:3300 --jaeger http://
 
 | 文件 | 内容 |
 |---|---|
-| `monitoring/grafana/finsight-dashboard.json` | 25 个面板，分五行：<br>- **流量**：各路由的每秒请求数、各路由的 P50/P95、作答来源；<br>- **质量**：校验失败率、各类降级、各工具错误率；<br>- **LLM**：每小时和 24 小时成本、各模型调用次数（体现容灾）、各模型熔断状态时间线、各类 token、每次作答运行的 LLM 调用数；<br>- **数据源**：各数据源熔断状态时间线、按结果统计的调用、数据源调用池；<br>- **按提示词版本的答案质量、用户反馈、审计**：各版本的初稿校验失败率和修复率、24 小时各结果计数、各版本和整体（24 小时）的点赞率、每小时反馈量、每小时各类审计事件、每小时注入过滤删除（按来源和结果），24 小时内输入防护删除后仍作答的轮数，以及每小时按类别统计的输出安全层改动（第 8 轮：attribution、promotion_or_contact、trading_call、conflicting_figure）。 |
-| `monitoring/prometheus/alerts.yml` | 13 条规则。原有 10 条：`FinSightDown`、`FinSightWorkflowP95High`（10 分钟内 > 8 秒）、`FinSightAgentP95High`（> 60 秒）、`FinSightVerificationFailureRateHigh`（> 20%）、`FinSightToolErrorRateHigh`（单个工具 > 25%）、`FinSightLLMModelCircuitOpen`、`FinSightAllLLMModelsDown`、`FinSightDataSourceCircuitOpen`、`FinSightSourcePoolAbandonedCalls`、`FinSightLLMCostBurnHigh`（每小时 > ¥20）。新增 3 条：`FinSightRepairRateHighForPromptVersion`（某个 LLM 提示词版本 30 分钟内至少 20 个答案，修复率 > 25%）、`FinSightNegativeFeedbackHigh`（6 小时内至少 10 个评价，点踩 > 50%）、`FinSightInjectionAttemptsSpike`（10 分钟内注入拒答 > 20 次）。 |
-| `monitoring/prometheus/alerts_test.yml` | promtool 单元测试：三条新规则在合成数据上都会触发，而且只对不健康的那个提示词版本触发。 |
+| `monitoring/grafana/finsight-dashboard.json` | 26 个面板，分五行：<br>- **流量**：各路由的每秒请求数、各路由的 P50/P95、作答来源；<br>- **质量**：校验失败率、各类降级、各工具错误率；<br>- **LLM**：每小时和 24 小时成本、各模型调用次数（体现容灾）、各模型熔断状态时间线、各类 token、每次作答运行的 LLM 调用数；<br>- **数据源**：各数据源熔断状态时间线、按结果统计的调用、数据源调用池；<br>- **按提示词版本的答案质量、用户反馈、审计**：各版本的初稿校验失败率和修复率、24 小时各结果计数、各版本和整体（24 小时）的点赞率、每小时反馈量、每小时各类审计事件、每小时注入过滤删除（按来源和结果），24 小时内输入防护删除后仍作答的轮数，每小时按类别统计的输出安全层改动（第 8 轮：attribution、promotion_or_contact、trading_call、conflicting_figure），以及旁边的每个回答的输出安全层改动数（第 12 轮）：每小时 `finsight_output_safety_edits_total` 除以作答运行数（路由 agent 或 workflow），给出总数和按类别的值，并画出告警阈值 0.5 的线。 |
+| `monitoring/prometheus/alerts.yml` | 14 条规则。原有 10 条：`FinSightDown`、`FinSightWorkflowP95High`（10 分钟内 > 8 秒）、`FinSightAgentP95High`（> 60 秒）、`FinSightVerificationFailureRateHigh`（> 20%）、`FinSightToolErrorRateHigh`（单个工具 > 25%）、`FinSightLLMModelCircuitOpen`、`FinSightAllLLMModelsDown`、`FinSightDataSourceCircuitOpen`、`FinSightSourcePoolAbandonedCalls`、`FinSightLLMCostBurnHigh`（每小时 > ¥20）。新增 3 条：`FinSightRepairRateHighForPromptVersion`（某个 LLM 提示词版本 30 分钟内至少 20 个答案，修复率 > 25%）、`FinSightNegativeFeedbackHigh`（6 小时内至少 10 个评价，点踩 > 50%）、`FinSightInjectionAttemptsSpike`（10 分钟内注入拒答 > 20 次）。第 12 轮：`FinSightOutputSafetyEditRateHigh`（1 小时内每个作答运行的输出安全层改动数 > 0.5 并持续 30 分钟，且该小时至少 20 个回答）。 |
+| `monitoring/prometheus/alerts_test.yml` | promtool 单元测试：三条新规则在合成数据上都会触发，而且只对不健康的那个提示词版本触发；（第 12 轮）输出安全层规则在每个回答 0.8 次改动时触发，第 40 分钟仍处于 pending，0.2 次时不触发（拒答不计入回答数）。 |
 
 检查命令（Docker 虚拟机看不到代码目录，所以把文件用管道送进 `prom/prometheus` 镜像）：
 
 ```bash
 tar -C monitoring/prometheus -cf - alerts.yml alerts_test.yml | docker run --rm -i --entrypoint /bin/sh prom/prometheus:v3.15.0 \
   -c 'mkdir -p /tmp/r && tar -C /tmp/r -xf - && cd /tmp/r && promtool check rules alerts.yml && promtool test rules alerts_test.yml'
-# Checking alerts.yml  SUCCESS: 13 rules found     （之后单元测试：SUCCESS）
+# Checking alerts.yml  SUCCESS: 14 rules found     （之后单元测试：SUCCESS）
 python -m pytest tests/test_monitoring_config.py -q   # 看板结构；用到的每个 finsight_* 指标都确实被导出
 ```
+
+**每个回答的输出安全层改动数与误标（第 12 轮）。** `python -m evaluation.agent_eval.output_safety_audit` 在输出安全层上加探针跑任务集，对每一处标注或删除逐个数字分类（结构化数据或点名公司的基本面能证实 / 两家媒体各自措辞都说了 / 只有一家 / 没有文档出处）：正确、过宽（被标的片段里还有已证实的数字）或错误。结果：
+
+| 样本 | 回答 | 被改动 | 每个回答的改动数 | 错误 | 过宽 | 文件 |
+|---|---|---|---|---|---|---|
+| 干净的模板回答：dev + holdout + multiturn_v1 + test v3（无 LLM） | 797 | 0 | 0.000 | 0 | 0 | `output_safety_audit-template-r12.json` |
+| 32 个 holdout9 的 LLM 草稿（DeepSeek V4.1 Flash）回放，`3882dc3` 之前 | 32 | 13 | 0.406 | 0 | 5 个回答（7 处） | `output_safety_audit-llm-replay-r12-before.json` |
+| 同样的草稿，`3882dc3` 之后 | 32 | 13 | 0.406 | 0 | 0 | `output_safety_audit-llm-replay-r12.json` |
+
+模板回答从不引用文档原文，所以输出层没有可标的内容；LLM 草稿会引用真实新闻里的数字（营收、净利润及其同比、分红）。这些草稿来自红队运行，所以带投毒内容的改动（修复后 3 处）不计入判定；原计划的干净问题 LLM 样本因脚本缺陷丢失（`541c470`），调用预算已用完。过宽的标注来自：括号里的单一来源同比和已证实的金额在同一子句里被一起标注，以及已证实的营收被投毒的预测「争议」；已在 `3882dc3` 修复（带数字的括号单独算一个子句；基本面可以裁定有争议的金额；金额不跨 和/及/、 读取）。告警阈值 0.5 略高于这些受攻击 LLM 运行的 0.41。
 
 新增的一行于 2026-09-28 验证：
 - 环境：Grafana 13.2.2（看板已预置，27 个面板）；Prometheus 3.15 抓取两个共享 Postgres 的离线副本。
