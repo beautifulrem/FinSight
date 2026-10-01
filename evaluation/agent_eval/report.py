@@ -168,6 +168,10 @@ CLAIM_BENCH_RUNS = (
     "claim_bench-heldout_r4-after-round11",
     "claim_bench-heldout_r5-after-round11",
     "claim_bench-heldout_r6-after-exposure-round11",
+    "claim_bench-holdout-after-round12",
+    "claim_bench-heldout_r4-after-round12",
+    "claim_bench-heldout_r5-after-round12",
+    "claim_bench-heldout_r6-after-exposure-round12",
 )
 # Round-4 held-out slices (evaluation/heldout_r4/, independent author): first run, then after exposure.
 HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_heldout-after-exposure")
@@ -279,6 +283,13 @@ FILE_STATUS = {
     "round-11 commit (G12)",
     "claim_bench-heldout_r6-after-exposure-round11": "independent round-6 claim slice **after exposure (round 11)**: "
     "the round-11 engineers had read the slice and the review's per-claim findings, so it is no longer out of sample",
+    "claim_bench-holdout-after-round12": "held-out claims **after exposure**, re-run at the round-12 commit (H6)",
+    "claim_bench-heldout_r4-after-round12": "independent round-4 claim slice **after exposure**, re-run at the "
+    "round-12 commit (H6)",
+    "claim_bench-heldout_r5-after-round12": "independent round-5 claim slice **after exposure**, re-run at the "
+    "round-12 commit (H6)",
+    "claim_bench-heldout_r6-after-exposure-round12": "independent round-6 claim slice **after exposure (round 12)**: "
+    "the engineers had read the slice and the reviews' per-claim findings; not an out-of-sample estimate",
     "chat_heldout_r6-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-6 chat slice",
     "chat_heldout_r6-auto-nollm-after-fix": "independent round-6 chat slice **after the round-10 fixes**; the "
     "engineers never saw the slice, so this is still out of sample",
