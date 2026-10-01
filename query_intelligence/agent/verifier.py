@@ -432,6 +432,36 @@ def _sentence_operands(
     return [(v, sc) for v, sc, r, sg in claims if v and _is_supported(v, scope, sc, r, sg)]
 
 
+def _amount_operands(text: str, numbers: list[tuple[float, bool]]) -> list[float]:
+    """(round 12, H8) The amounts stated in ``text`` (with a magnitude unit, or bare and at least 10,000) that
+    ``numbers`` supports, converted to the evidence's own unit: "168838000000 元" and "1688.38 亿元" both become the
+    evidence value 168838000000."""
+    found = []
+    for value, scales, rounding, sign in claim_values(_formula_free(text)):
+        if not value or not (_is_amount(scales) or (scales == _BARE_SCALES and abs(value) >= 1e4)):
+            continue
+        matched = next((scale for scale in scales if _is_supported(value, numbers, (scale,), rounding, sign)), None)
+        if matched:
+            found.append(value / matched)
+    return found
+
+
+def _is_amount_gap(value: float, scales: tuple[float, ...], rounding: float | None, amounts: list[float]) -> bool:
+    """(round 12, H8) ``value``, written with a magnitude unit, is the difference or sum of two stated amounts in
+    another unit ("营业收入 168838000000 元 … 108500000000 元，相差 603.38 亿元")."""
+    if not _is_amount(scales) or len(amounts) < 2:
+        return False
+    tolerance = 0.5 if rounding is None else rounding
+    for i, first in enumerate(amounts):
+        for second in amounts[i + 1 :]:
+            for candidate in (first - second, first + second):
+                for scale in scales:
+                    target = candidate * scale
+                    if target and abs(abs(value) - abs(target)) <= tolerance + abs(target) * 0.0005 + 1e-9:
+                        return True
+    return False
+
+
 def verify_answer(
     answer: dict[str, Any],
     store: EvidenceStore,
@@ -503,6 +533,16 @@ def verify_answer(
             ]
         operands = [v for v, _sc in supported_claims]
         derived_values: list[float] = []
+        sentence_amounts = (
+            _amount_operands(
+                sentence,
+                _evidence_numbers(
+                    store, [m.group(1) for m in _CITATION.finditer(sentence) if m.group(1) in store] or unit_ids
+                ),
+            )
+            if derived_mode and unit_ids
+            else []
+        )
         # amounts written with a magnitude unit (亿元, CNY bn): their share in percent is a derived figure too
         amounts = [v for v, sc in supported_claims if _is_amount(sc)]
         for value, scales, rounding, sign in claims:
@@ -539,7 +579,9 @@ def verify_answer(
                     uncited.append(value)
                 continue
             shares = amounts if _is_percent(scales) else []
-            if operands and _is_derived(value, rounding, [v for v in operands if v != value], shares=shares):
+            if (operands and _is_derived(value, rounding, [v for v in operands if v != value], shares=shares)) or (
+                _is_amount_gap(value, scales, rounding, sentence_amounts)
+            ):
                 derived_values.append(value)
                 continue
             if unit_ids and _is_supported(value, known, scales, rounding, sign):
@@ -741,6 +783,7 @@ def cite_repair(
         for sentence in whole_sentences(text):
             sentence_ids = [m.group(1) for m in _CITATION.finditer(sentence) if m.group(1) in store]
             operands = _repair_operands(sentence, sentence_ids) if allow_derived else []
+            amounts = _amount_operands(sentence, _evidence_numbers(store)) if allow_derived else []
             for unit in _split_sentences(sentence):
                 if not unit.strip():
                     continue
@@ -754,12 +797,15 @@ def cite_repair(
                         continue
                     if unit_ids and _is_supported(value, scope, scales, rounding, sign):
                         continue
-                    if operands and _is_derived(
-                        value,
-                        rounding,
-                        [v for v, _sc in operands if v != value],
-                        shares=[v for v, sc in operands if _is_amount(sc)] if _is_percent(scales) else [],
-                    ):
+                    if (
+                        operands
+                        and _is_derived(
+                            value,
+                            rounding,
+                            [v for v, _sc in operands if v != value],
+                            shares=[v for v, sc in operands if _is_amount(sc)] if _is_percent(scales) else [],
+                        )
+                    ) or _is_amount_gap(value, scales, rounding, amounts):
                         continue  # re-derived by the verifier from the operands, which get their own ids
                     evidence_id = owner(value, scales, rounding, sign, market)
                     if evidence_id is None:
