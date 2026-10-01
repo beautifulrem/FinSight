@@ -396,6 +396,25 @@ right before the number is `approx` again (the look-behind text ended before the
 Screenshots (real Chrome, offline server, round 10): [stated average and relation](assets/ui/chrome-r10-stated-average-zh.png),
 [stated difference](assets/ui/chrome-r10-difference-zh.png).
 
+### Round 12: sums, 破 / 不到 bounds, framed and anaphoric averages, English and one-fold differences (after the round-8 review)
+
+These rules answer the round-8 review's H6. They were written with 23 new own-wording dev claims (d277-d299,
+`note: round12`), labelled by hand from the snapshot before the checker ran on them; tests in
+`tests/test_agent_round12_claims.py`. The round-8 slice (`heldout_r8`) was not opened.
+
+| Form | Example (own wording) | Reading |
+| --- | --- | --- |
+| Sum of companies | "茅台和五粮液成交额加起来不到50亿", "净利润合计约1200亿", "together / combined" | a sum word (合计, 加起来, 加在一起, 总共, 之和, combined, together, in total) in the number's part of the sentence and two or more companies before it: `kind: "sum"`, `operands`, `operand_values`, `operand_evidence_ids`; the total is compared (52.47亿, contradicted). Before round 12 the number was bound to the last company (14.53亿 < 50, **supported**). A sum of P/E or rates is unverifiable |
+| 破 | "五粮液营收破千亿", "股价破两千元" | `ge` (跌破 stays a fall below, 突破 stays `gt`) |
+| Bound after the number | "只有五粮液的一半不到", "连五粮液的三成都不到" | `lt` on the multiple (0.416 < 0.5) |
+| Stated average in a comparison frame | "比起保险业11.8倍的平均市盈率，平安的8.7倍明显偏低", "对照…", "和…相比", "相较于…", "where the average multiple is about 27x" | a P/E or P/B next to an average word with no company in its clause is the industry's (or named sector's) average, checked as `stated_reference`; an evaluation word in the sentence (偏低, 更低, 偏高, 便宜, cheaper) adds the company-vs-industry relation |
+| Anaphora | "保险行业平均市盈率11.8倍，中国平安低于这一水平", "茅台的PB比它高", "Ping An trades below that" | the compared side is the latest stated value that is not the subject's own (the k17 case, previously `unchecked`) |
+| Sector average vs a stated company value | "The baijiu industry's average P/E is roughly 20x, below Moutai's 24.6x" | three checks: the average (20 vs 27.3, contradicted), the relation average < Moutai (27.3 vs 24.6, contradicted) and Moutai's stated 24.6 (supported) |
+| Bracketed average after a bound | "中国平安的市盈率低于保险行业均值（约20倍）" | relation (supported) + stated average (contradicted) |
+| English differences | "Moutai's ROE beats Wuliangye's by about 3.6 points", "trails … by roughly 14 percentage points", "exceeded … by roughly 44.5 billion yuan", "is roughly 60 billion yuan below Moutai's" | stated difference; "points" of a percent metric are percentage points |
+| One fold | "高出一倍多", "多了将近一倍", "低了将近一半" | relative difference: 一倍 = 100% (一倍多 (100%, 200%), 将近一倍 [90%, 100%]); 一半 after 比 = 50%. 两倍 and more stay unverifiable (two or three times?), so dev row d261 ("茅台营收比五粮液高出一倍多") was relabelled unverifiable → contradicted (+55.6%) |
+| Numerals | "一成半", "一千四百出头", "一万二千多亿", 较 / 相较于 as 比 | 15%, (1400, 1450], (12000, 13000)亿 |
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
@@ -467,6 +486,13 @@ opens the full fact-check view. While the answer is still running, and on a serv
 `fact_check`, the "核查这句话 / Check this claim" chip under the question does the same by hand. Hearsay
 with no number, move or comparison is not checked. A failed check never breaks the answer: `fact_check`
 is then `null`.
+
+Round 12 (H12): the cues are classes rather than a phrase list: a source that says something (网上 / 群里 / 博主 /
+朋友…说, 告诉我, "someone told me", "I read / saw / heard"), a report word (据报道, 网传, apparently, reportedly), a request
+to check (核实, 查证, "fact-check", "can you verify") or a confirmation question at the end (对吧, 是这样吗, 真的假的,
+"True?", ", right?"). "I read that Ping An's P/E is 15x and Moutai's ROE is 33%. True?" now opens with "the claim you
+heard partly matches the data" (15x does not match 8.7x; 33% matches). The web UI's `claimInMessage` hint still uses
+the older list; the server's inline check does not depend on it.
 
 ### English names
 
@@ -546,6 +572,11 @@ python -m evaluation.claim_bench.run --set holdout
 | independent round-4 slice, after exposure, at the round-11 commit | `4796e24` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
 | independent round-5 slice, after exposure, at the round-11 commit | `4796e24` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
 | independent round-6 slice, **after exposure (round 11)** | `4796e24` | 67 / 106 | 0.836 [0.746, 0.925] | 0.717 [0.636, 0.802] | 0.284 |
+| dev with the 23 round-12 rows (d277-d299; d261 relabelled) | `bd84003` | 299 / 347 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the round-12 commit | `bd84003` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-4 slice, after exposure, at the round-12 commit | `bd84003` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
+| independent round-5 slice, after exposure, at the round-12 commit | `bd84003` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
+| independent round-6 slice, **after exposure (round 12)** | `bd84003` | 67 / 104 | 0.985 [0.955, 1.000] | 0.904 [0.835, 0.969] | 0.382 |
 
 The result files are `evaluation/results/claim_bench-dev-baseline.json`, `claim_bench-dev.json`,
 `claim_bench-holdout.json` (the single first run), `claim_bench-holdout-after-round8.json` (the same file after
@@ -563,6 +594,14 @@ Round 11 (G12) re-ran every claim set at `4796e24`: `claim_bench-holdout-after-r
 the round-10 engineers never saw that slice, but the round-11 engineers could read it, so only the round-10 run
 (`claim_bench-heldout_r6-after-fix.json`, 0.836) is out of sample. The new N倍多 / 将近N rules changed no status on any of
 these sets (every number above equals its round-10 value); their effect shows on the 8 dev rows d269-d276.
+
+Round 12 (H6) re-ran every claim set at `bd84003`: `claim_bench-holdout-after-round12.json`,
+`claim_bench-heldout_r4-after-round12.json`, `claim_bench-heldout_r5-after-round12.json` and
+`claim_bench-heldout_r6-after-exposure-round12.json`. The held-out, round-4 and round-5 numbers are unchanged. The
+round-6 slice moved 0.836 → 0.985 (66 of 67; r6c10, a stated average read as a multiple, is still wrong) and its
+check accuracy 0.717 → 0.904. It is **after exposure**: the slice and the reviews' per-claim findings were readable,
+and several round-12 forms (English differences, 一成半, 一千四百出头, 一万二千多亿, the bracketed average) are its
+classes. The round-8 reviewer's claim slice (`heldout_r8`, not opened) is the out-of-sample measure of these rules.
 
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \
@@ -623,7 +662,8 @@ python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves
   the snapshot date.
 - **Chinese numerals.** Only simple ones before a unit are handled: 十五倍, 一点一倍, 三成, 百分之三十, and since round 10
   with 多 / 余 before the unit (一千六百多亿, 八百余亿). Since round 9 shares of another value are multiples: 的三分之一,
-  的六成, 的64%, 的一半. Ambiguous forms are not handled: 十几倍, 上千亿, 一万二千亿 (万 inside a numeral).
+  的六成, 的64%, 的一半. Since round 12 also 一成半, 万 inside a numeral (一万二千多亿) and a numeral before 出头 with no
+  unit (一千四百出头). Ambiguous forms are not handled: 十几倍, 上千亿.
 - **Comparator reading is lexical.** Sarcasm and rhetorical questions are not understood.
 - **Relations.** Two named targets, a target and its industry snapshot, or a target and a named sector with a
   snapshot (白酒, 保险, 券商 offline) are compared; peers, consensus and the market average are not. Sector
@@ -646,4 +686,9 @@ python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves
   it is a multiple. The rule follows the unit of the metric, not the size of N, so it never depends on the data.
 - **Differences.** "高出N个百分点 / 高出N倍" is a difference only when the unit fits the metric; "%" on a metric quoted in
   percent (ROE) is read as percentage points, on any other metric as a relative difference. "营收高出两倍" is
-  unverifiable (two or three times?). English differences ("3.6 points higher than") are not read yet.
+  unverifiable (two or three times?); since round 12 "高出一倍(多)" is a relative difference of 100% (and more), and
+  English "beats / trails / exceeded X's by N" and "N billion yuan below X's" are read. "比保险行业平均的12倍还高" is
+  read as a multiple (还 after 比 is a ratio cue); the round-6 slice labels it as a stated average (r6c10, still
+  counted wrong).
+- **Sums and evaluations are lexical (round 12).** A sum needs a sum word and both companies named; the evaluation word
+  that turns a stated average into a relation is a short list (偏低 / 偏高 / 更低 / 便宜 / cheaper / at a discount …).

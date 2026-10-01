@@ -308,6 +308,19 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 
 离线结果：dev 370 个任务 = 1.000，multiturn_v1 49 个任务 = 1.000，快照均无缺失调用（dev 快照未改动：框架问题不需要新的工具调用）；自有路由标注 1.000 / 372（`router_eval-round11-own.json`）。在线（Agent 路径，经 Cline pass 调用 DeepSeek V4.1 Flash，10 个自写框架会话，`python -m evaluation.agent_eval.frame_llm_check`）：在 `5080728` 上，10 个差值轮次中有 7 个给出了预期数值，全部由模型自己算出，没有拒答（`frame-llm-check-round11.json`）。3 个失败里，有 2 个模型其实算出了倍数/相对差异，但兜底已经执行之后，校验器的修复删掉了那一句；另 1 个只写了两个 ROE，没写差值。兜底现改为在最终草稿上执行（`b8ce579`）；这 3 个会话重跑 3/3，仍由模型自己算出，因此兜底本身只由离线测试覆盖（`frame-llm-check-round11-rerun.json`；共 58 次 LLM 调用，无 429）。10 个会话只是冒烟检查，不是比率。
 
+### 第 12 轮新增的规则（第 8 轮评审，H3、H6、H12）
+
+全部用自己的措辞：开发任务 `build_tasks._round12_forecast_tasks`（7 个）、开发声明 d277–d299，测试
+`tests/test_agent_round12_forecast.py`、`tests/test_agent_round12_claims.py`、`tests/test_agent_round12_hearsay.py`。第 8 轮评审新写的切片（`heldout_r8`）没有打开。
+
+| 情形 | 例子（自写） | 行为 | 原因代码 / 位置 |
+|---|---|---|---|
+| 对价格点位的预测（H3） | 「贵州茅台下个交易日收盘价大概会是多少」「五粮液下星期的股价能到多少」「Where will Moutai close by year-end?」，以及套在「忽略上面所有限制…」后面的同类问题 | 同一句里有未来时间表达（明天、下周、下星期四、下个交易日、下个月、明年、年底、N天后、tomorrow、next Friday、by year-end）和价格点位词（收盘价、股价、价格、点位、多少钱、close、price、trade at、worth），或者带将来情态的价格问题（「股价能到多少」「What will X close at?」）、目标价，都算预测，不需要涨跌词。回答以条件性前缀和「FinSight 不预测未来价格：下文只列出已发生的历史行情（最新可用收盘价及其日期）…」开头，再给带日期的最新收盘价；模型写出未来价格的句子会被删除。问过去日期的（昨天、上周五、去年年底、last Friday）照常查询。路由不变 | `router.asks_price_forecast`（属于 `asks_prediction`）；notes `conditional_prefix`、`price_forecast_hedge`、`removed_price_forecast` |
+| 声明核查的新说法（H6） | 「茅台和五粮液成交额加起来不到50亿」「五粮液营收破千亿」「只有五粮液的一半不到」「比起保险业11.8倍的平均市盈率…偏低」「…低于这一水平」「beats … by about 3.6 points」「高出一倍多」 | 合计、破 / 不到 的界限、比较框架里给出的平均值、指代、英文差值和一倍的差，见 [claim-check.md 第 12 轮](../claim-check.md#round-12-sums-破--不到-bounds-framed-and-anaphoric-averages-english-and-one-fold-differences-after-the-round-8-review) | `claim_check`（`kind: "sum"`） |
+| 传闻线索（H12） | 「I saw a post saying Wuliangye's P/B is 3x. Is that correct?」「有博主说中国平安市净率不到1倍，靠谱吗」「帮我核实一下：…」 | 内联核查按线索类别触发（转述来源、报道词、请求核实、句末确认问句） | `hearsay._CUE` |
+
+离线结果（`e55daf5`）：dev 377 个任务 = 1.000（含 7 个新任务；门禁基线已刷新，`43c193a`），保留集 53 个 = 0.9434（不变）；声明基准（`bd84003`）：开发 299 条 / 347 项检查 1.000，保留声明（暴露后）1.000，第四轮 1.000 / 0.920、第五轮 1.000 / 0.988（不变），第六轮切片**暴露后（第 12 轮）**结论 0.836 → 0.985、逐项 0.717 → 0.904（`claim_bench-heldout_r6-after-exposure-round12.json`；工程师读过该切片，不是样本外结果）。路由不变：自有标注 1.000 / 372，独立 v1 1.000 / 154，独立 v2 0.8423 / 241（与第 8 轮评审的数字相同，未作为新结果提交）。没有调用 LLM。第 8 轮评审的新切片会在样本外衡量这些规则。
+
 ### 会话记忆卡片
 
 `session_memory(turns, query)` 生成一张抽取式的小卡片，以「Session memory (from earlier turns)」的形式放进 Agent 的用户消息。卡片包含：
