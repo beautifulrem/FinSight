@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .coverage import requested_price_fields
+from .coverage import holding_value_request, requested_price_fields
 from .glossary import lookup_concept
 
 MAX_TARGETS = 3
@@ -46,6 +46,7 @@ _VALUATION_TERMS = re.compile(
     re.IGNORECASE,
 )
 _INDUSTRY_TERMS = re.compile(r"行业|板块|sector|industry", re.IGNORECASE)
+_EPS_TERMS = re.compile(r"每股收益|每股盈利|(?<![A-Za-z])EPS(?![A-Za-z])|earnings per share", re.IGNORECASE)
 _NEWS_TERMS = re.compile(r"新闻|消息|资讯|报道|\bnews\b", re.IGNORECASE)
 _ANNOUNCEMENT_TERMS = re.compile(r"公告|披露|年报|季报|半年报|filing|announcement|disclosure", re.IGNORECASE)
 _CAUSAL_TERMS = re.compile(r"为什么|原因|因素|影响|导致|驱动|\bwhy\b|\bimpact|\baffect|\bcause|\bdriver", re.IGNORECASE)
@@ -143,8 +144,11 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
     # A named sector next to a stock ("insurers" with Ping An in scope) asks for the industry snapshot, which
     # comes with the stock's fundamentals.
     sector_member = bool(sectors) or any(entity.get("match_type") == "session_sector_member" for entity in entities)
-    has_price_cue = bool(_PRICE_TERMS.search(text)) or request.needs_quote
-    explicit_valuation_cue = bool(_VALUATION_TERMS.search(text)) or bool(_INDUSTRY_TERMS.search(text))
+    # (round 11, G5) a holding's value needs the close; an EPS question gets the close for the implied EPS
+    holding = holding_value_request(raw_query) is not None
+    asks_eps = bool(_EPS_TERMS.search(text))
+    has_price_cue = bool(_PRICE_TERMS.search(text)) or request.needs_quote or holding or asks_eps
+    explicit_valuation_cue = bool(_VALUATION_TERMS.search(text)) or bool(_INDUSTRY_TERMS.search(text)) or asks_eps
     has_valuation_cue = explicit_valuation_cue or (sector_member and bool(listed))
     wants_technical = bool(_TECHNICAL_TERMS.search(text)) or request.needs_indicators
     causal = style == "why" or bool(_CAUSAL_TERMS.search(text))

@@ -24,6 +24,7 @@ from ..chatbot import (
     detect_query_language,
 )
 from ..text_safety import fold
+from .coverage import without_holding_value
 from .evidence import AgentEvidence
 from .router import _JUDGMENT_MARKERS as _ROUTER_JUDGMENT
 from .router import FAIR_VALUE_MARKERS
@@ -224,7 +225,8 @@ def apply_compliance(
             softened = f"{prefix}{'' if zh else ' '}{softened}".strip()
             notes.append("conditional_prefix")
 
-    asked = f"{query} {effective_query or ''}"
+    # (round 11, G5) the value of a stated holding ("我有1000股…值多少钱") is arithmetic on the close, not a fair value
+    asked = f"{without_holding_value(query)} {without_holding_value(effective_query or '')}"
     if (_JUDGMENT_TRIGGER.search(asked) or _ROUTER_JUDGMENT.search(asked)) and "conditional_prefix" not in notes:
         prefix = _JUDGMENT_PREFIX_ZH if zh else _JUDGMENT_PREFIX_EN
         if not any(marker in softened for marker in ("条件性判断", "conditional assessment", "证据不足以直接判断")):

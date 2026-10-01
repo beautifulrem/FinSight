@@ -17,6 +17,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from .coverage import holding_value_request
 from .evidence import _NUMBER as _NUMBER_TOKEN
 from .evidence import EvidenceStore, _collect_numbers, extract_numbers
 
@@ -442,6 +443,9 @@ def verify_answer(
     invalid = [evidence_id for evidence_id in ids if evidence_id not in store]
     known = _evidence_numbers(store)
     query_numbers = claim_numbers(query)
+    holding = holding_value_request(query)
+    if holding is not None and float(holding[0]) not in query_numbers:
+        query_numbers.append(float(holding[0]))  # "两千股": a count the claim parser reads only with some units
     unsupported: list[float] = []
     misattributed: list[float] = []
     document_market: list[float] = []
@@ -479,6 +483,19 @@ def verify_answer(
             # asserted as facts next to a citation ("市盈率为 99 倍 [price_…]").
             echo_allowed = not unit_ids or bool(_HYPOTHETICAL.search(unit))
             if echo_allowed and _is_supported(value, query_numbers, _BARE_SCALES):
+                continue
+            # (round 11, G5) a product with a number the user stated ("1000 × 100.64 = 100640 元" for "我有1000股"): the
+            # user's count is an operand, and its product with a supported operand of the sentence is derived
+            if (
+                allow_derived
+                and unit_ids
+                and "×" in unit
+                and query_numbers
+                and (
+                    _is_supported(value, query_numbers, _BARE_SCALES)
+                    or _is_product(value, rounding, query_numbers, operands)
+                )
+            ):
                 continue
             if _is_supported(value, scope, scales, rounding, sign):
                 document_only = market_scope is not None and not _is_supported(
@@ -811,6 +828,17 @@ def _is_derived(value: float, rounding: float | None, operands: list[float], *, 
             if len({i, j, k, m}) < 4:
                 continue
             candidate = (shares[i] / shares[j] - shares[k] / shares[m]) * 100
+            if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
+                return True
+    return False
+
+
+def _is_product(value: float, rounding: float | None, factors: list[float], operands: list[float]) -> bool:
+    """``value`` is a stated number from the question times a supported operand of the same sentence."""
+    tolerance = 0.5 if rounding is None else rounding
+    for factor in factors:
+        for operand in operands:
+            candidate = factor * operand
             if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
                 return True
     return False
