@@ -307,12 +307,16 @@ _ANCHOR = re.compile(
     re.IGNORECASE,
 )
 _RELATIVE_EXPLICIT = re.compile(
-    r"折价|溢价|\b(?:premium|discount)\b|\bhow many percent\b|\bin percent(?:age)?(?! points?)(?: terms)?\b|"
+    r"折价|溢价|\b(?:premium|discount)\b|"
     r"\bby what (?:percent(?:age)?|share)\b|"
     r"\bpercent(?:age)? (?:higher|lower|more|less|above|below|premium|discount|bigger|smaller|cheaper)\b",
     re.IGNORECASE,
 )
-_RELATIVE_UNIT = re.compile(r"百分之(?:多少|几)|(?:多少|几)(?:个)?(?:百分比|%)|几成|多少成|\s%", re.IGNORECASE)
+_RELATIVE_UNIT = re.compile(
+    r"百分之(?:多少|几)|(?:多少|几)(?:个)?(?:百分比|%)|几成|多少成|\s%|\bhow many percent\b|"
+    r"\bin percent(?:age)?(?! points?)(?: terms)?\b",
+    re.IGNORECASE,
+)
 # a comparative: 高 / 低 / 贵 / 便宜 / 大 / 小, "多" / "少" only before a verb or 了 / 出 (not the 多少 of a question)
 _COMPARATIVE = re.compile(
     r"高|低|贵|便宜|(?<!多)大|(?<!多|大)小|超出|超过|领先|落后|多(?=[了出跌涨赚亏卖成交])|(?<!多)少(?=[了出跌涨赚亏卖成交])|"
