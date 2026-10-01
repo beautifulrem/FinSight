@@ -294,12 +294,31 @@ def nlu_context(nlu_result: dict[str, Any]) -> dict[str, Any]:
 
 
 def agent_user_message(
-    query: str, nlu_result: dict[str, Any], *, language: str, memory: dict[str, Any] | None = None
+    query: str,
+    nlu_result: dict[str, Any],
+    *,
+    language: str,
+    memory: dict[str, Any] | None = None,
+    user_words: str | None = None,
 ) -> str:
     context = json.dumps(nlu_context(nlu_result), ensure_ascii=False, sort_keys=True)
+    # (round 12, H7) "And Moutai?" resolved to "What is 贵州茅台's P/E?" was answered in Chinese: the model followed
+    # the Chinese name in the resolved question and in the evidence. The user's own words are shown next to the
+    # resolved question, and an English answer is required in so many words.
+    asked = (
+        f"User's message: {user_words}\nQuestion (resolved from the conversation): {query}\n"
+        if user_words and user_words.strip() and user_words.strip() != query.strip()
+        else f"Question: {query}\n"
+    )
+    answer_language = (
+        "Chinese"
+        if language == "zh"
+        else "English (write the answer, key points and limitations in English even though names, earlier turns "
+        "or evidence are in Chinese)"
+    )
     message = (
-        f"Question: {query}\n"
-        f"Answer language: {'Chinese' if language == 'zh' else 'English'}\n"
+        f"{asked}"
+        f"Answer language: {answer_language}\n"
         f"Classical NLU analysis of the question (use it to choose tools; it may be imperfect):\n{context}"
     )
     if memory and (
