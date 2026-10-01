@@ -11,7 +11,6 @@ from typing import Any
 
 import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import linear_kernel
 
 MIN_RETRIEVAL_SCORE = {
     "news": 0.02,
@@ -28,6 +27,11 @@ _INDEX_VERSION = "char_wb-2-4-v1"
 _INDEX_MEMO: OrderedDict[str, tuple[Any, Any]] = OrderedDict()
 _INDEX_MEMO_SIZE = 2
 _INDEX_LOCK = threading.Lock()
+# Transposed document matrices (CSR), one per fitted index, keyed by the matrix object's id. ``linear_kernel(q, M)``
+# computes ``q @ M.T`` and scipy converts ``M.T`` (CSC) back to CSR on every call: on the offline corpus that
+# conversion was ~87% of each search (~120 ms of ~270 ms, and seconds under a 4-user load). Doing it once per index
+# gives the same products in the same order, so the scores are bit-identical (round 13, P95 driver of the LLM load).
+_TRANSPOSED: dict[int, tuple[Any, Any]] = {}
 
 
 def _fit_index(corpus: list[str]) -> tuple[Any, Any]:
@@ -71,6 +75,19 @@ def _fit_index(corpus: list[str]) -> tuple[Any, Any]:
         return index
 
 
+def _transposed(matrix: Any) -> Any:
+    """``matrix.T`` as CSR, computed once per fitted matrix (kept alive with it, at most ``_INDEX_MEMO_SIZE + 2``)."""
+    with _INDEX_LOCK:
+        entry = _TRANSPOSED.get(id(matrix))
+        if entry is not None and entry[0] is matrix:
+            return entry[1]
+        transposed = matrix.T.tocsr()
+        _TRANSPOSED[id(matrix)] = (matrix, transposed)
+        while len(_TRANSPOSED) > _INDEX_MEMO_SIZE + 2:
+            _TRANSPOSED.pop(next(iter(_TRANSPOSED)))
+        return transposed
+
+
 @dataclass
 class DocumentRetriever:
     documents: list[dict]
@@ -79,16 +96,21 @@ class DocumentRetriever:
         corpus = [f"{doc['title']} {doc['summary']} {doc['body']}" for doc in self.documents]
         # The fitted objects are shared (read-only) between retrievers built from the same corpus.
         self.vectorizer, self.doc_matrix = _fit_index(corpus)
+        self._doc_matrix_t = _transposed(self.doc_matrix)
 
     def search(self, query_bundle: dict, top_k: int = 20) -> list[dict]:
         query_text = " ".join(
-            [query_bundle["normalized_query"], *query_bundle["entity_names"], *query_bundle["keywords"], *query_bundle["symbols"]]
+            [
+                query_bundle["normalized_query"],
+                *query_bundle["entity_names"],
+                *query_bundle["keywords"],
+                *query_bundle["symbols"],
+            ]
         ).strip()
         if not query_text:
             return []
 
-        query_vector = self.vectorizer.transform([query_text])
-        scores = linear_kernel(query_vector, self.doc_matrix).flatten()
+        scores = self._scores(self.vectorizer.transform([query_text]))
 
         hits = []
         allowed_sources = self._allowed_sources(query_bundle)
@@ -98,7 +120,11 @@ class DocumentRetriever:
             if doc["source_type"] not in allowed_sources:
                 continue
             requires_entity_hit = doc["source_type"] in {"news", "announcement", "research_note"}
-            if requires_entity_hit and query_bundle["symbols"] and not any(symbol in doc.get("entity_symbols", []) for symbol in query_bundle["symbols"]):
+            if (
+                requires_entity_hit
+                and query_bundle["symbols"]
+                and not any(symbol in doc.get("entity_symbols", []) for symbol in query_bundle["symbols"])
+            ):
                 continue
             if self._should_skip_entity_bound_doc(query_bundle, doc):
                 continue
@@ -109,6 +135,11 @@ class DocumentRetriever:
 
         hits.sort(key=lambda item: item["retrieval_score"], reverse=True)
         return self._diversify_hits(hits, query_bundle.get("source_plan", []), top_k)
+
+    def _scores(self, query_vector: Any) -> Any:
+        """Cosine scores of the query against every document: ``linear_kernel(query_vector, self.doc_matrix)``
+        without re-transposing the corpus matrix on every call (bit-identical; see ``_TRANSPOSED``)."""
+        return (query_vector @ self._doc_matrix_t).toarray().ravel()
 
     def _allowed_sources(self, query_bundle: dict) -> set[str]:
         source_plan = query_bundle.get("source_plan")
@@ -127,7 +158,10 @@ class DocumentRetriever:
         industry_query = bool(query_bundle.get("industry_terms")) or "industry" in topic_labels
         if product_type in {"stock", "index", "generic_market"}:
             return not industry_query
-        generic_product_query = bool(intent_labels.intersection({"product_info", "trading_rule_fee"})) or "product_mechanism" in topic_labels
+        generic_product_query = (
+            bool(intent_labels.intersection({"product_info", "trading_rule_fee"}))
+            or "product_mechanism" in topic_labels
+        )
         if product_type in {"fund", "etf"}:
             return generic_product_query
         return False
@@ -141,19 +175,22 @@ class DocumentRetriever:
         terms = [term for term in terms if len(str(term).strip()) >= 2]
         if not terms:
             return 0.0
-        text = " ".join(
-            str(doc.get(field) or "")
-            for field in ("title", "summary", "body")
-        )
+        text = " ".join(str(doc.get(field) or "") for field in ("title", "summary", "body"))
         matches = sum(1 for term in terms if str(term) in text)
         return min(0.06 * matches, 0.18)
 
     def _diversify_hits(self, hits: list[dict], source_plan: list[str], top_k: int) -> list[dict]:
         selected: list[dict] = []
         seen_ids: set[str] = set()
-        preferred_sources = [source for source in source_plan if source in {"news", "announcement", "faq", "product_doc", "research_note"}]
+        preferred_sources = [
+            source
+            for source in source_plan
+            if source in {"news", "announcement", "faq", "product_doc", "research_note"}
+        ]
         for source in preferred_sources:
-            source_hit = next((hit for hit in hits if hit["source_type"] == source and hit["evidence_id"] not in seen_ids), None)
+            source_hit = next(
+                (hit for hit in hits if hit["source_type"] == source and hit["evidence_id"] not in seen_ids), None
+            )
             if source_hit is None:
                 continue
             selected.append(source_hit)
