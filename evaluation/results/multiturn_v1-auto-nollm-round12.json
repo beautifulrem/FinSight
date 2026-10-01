@@ -216,6 +216,7 @@
   "slimmed_at": "2026-10-01T07:51:42+00:00"
  },
  "notes": [
-  "Round 12 (round-7 slice classes; round-8 review H1/H2/H4/H5/H9/H11) at b685e23 (working tree had only docs and report.py edits): replay of the independent multiturn_v1 set, 49 tasks = 1.000, turn 1.000, 0 snapshot misses (after exposure: multiturn_v1 shaped earlier session rules)."
+  "Round 12 (round-7 slice classes; round-8 review H1/H2/H4/H5/H9/H11) at b685e23 (working tree had only docs and report.py edits): replay of the independent multiturn_v1 set, 49 tasks = 1.000, turn 1.000, 0 snapshot misses (after exposure: multiturn_v1 shaped earlier session rules).",
+  "provenance (round 13, round-9 review I13): recorded from a dirty working tree (b685e23-dirty; per the note above only docs and report.py were uncommitted), so it is not exactly reproducible from a commit"
  ]
 }

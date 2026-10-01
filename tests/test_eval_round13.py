@@ -106,6 +106,23 @@ def test_results_slimmer_needs_a_note_with_allow_dirty(tmp_path, monkeypatch):
         results.main([str(source), "--allow-dirty"])
 
 
+def test_committed_results_carry_no_unlabelled_dirty_commit():
+    """Round-9 review I13: no committed result may name a ``-dirty`` commit without a notes label saying so."""
+    from evaluation.agent_eval.results import dirty_provenance
+
+    unlabelled = []
+    for path in sorted(RESULTS_DIR.glob("*.json")):
+        report = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(report, dict) or not dirty_provenance(report):
+            continue
+        config = report.get("config") if isinstance(report.get("config"), dict) else {}
+        labels = [*(report.get("notes") or []), config.get("note") or "", *(config.get("notes") or [])]
+        notes = " ".join(str(note) for note in labels)
+        if "dirty" not in notes.lower():
+            unlabelled.append(path.name)
+    assert unlabelled == []
+
+
 # ---- I12: slice overlap ----
 
 
@@ -153,3 +170,17 @@ def test_slice_overlap_finds_the_three_round8_turns_the_review_named():
     assert ("r8h_hk_zh_03", "tests/test_agent_round12_frame.py:255") in own
     assert ("r8h_gap_en_04", "dev:r12_traded_more_by_how_much_en") in own
     assert ("r8h_hold_zh_03", "tests/test_agent_round12_frame.py:205") in own
+
+
+def test_sample_tasks_is_seeded_ordered_and_recorded():
+    from evaluation.agent_eval.runner import sample_tasks
+
+    tasks = [{"id": f"t{index}"} for index in range(20)]
+    subset, info = sample_tasks(tasks, 5, 7)
+    again, _ = sample_tasks(tasks, 5, 7)
+    assert subset == again and len(subset) == 5
+    assert [task["id"] for task in subset] == info["task_ids"]
+    assert info["task_ids"] == sorted(info["task_ids"], key=lambda name: int(name[1:]))  # file order kept
+    assert info["seed"] == 7 and info["of"] == 20
+    full, info_full = sample_tasks(tasks, 0, 7)
+    assert full == tasks and info_full["task_ids"] is None
