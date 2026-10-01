@@ -541,6 +541,11 @@ python -m evaluation.claim_bench.run --set holdout
 | held-out, after exposure, at the round-10 commit | `f94df6f` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 | independent round-4 slice, after exposure, at the round-10 commit | `f94df6f` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
 | independent round-5 slice, after exposure, at the round-10 commit | `f94df6f` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
+| dev with the 8 round-11 rows (d269-d276: 10倍多, 将近N) | `4796e24` | 276 / 315 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the round-11 commit | `4796e24` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-4 slice, after exposure, at the round-11 commit | `4796e24` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
+| independent round-5 slice, after exposure, at the round-11 commit | `4796e24` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
+| independent round-6 slice, **after exposure (round 11)** | `4796e24` | 67 / 106 | 0.836 [0.746, 0.925] | 0.717 [0.636, 0.802] | 0.284 |
 
 The result files are `evaluation/results/claim_bench-dev-baseline.json`, `claim_bench-dev.json`,
 `claim_bench-holdout.json` (the single first run), `claim_bench-holdout-after-round8.json` (the same file after
@@ -551,6 +556,13 @@ and `claim_bench-heldout_r5-after-exposure.json`, and for round 10 `claim_bench-
 command and the sha256 of the claims file. The round-10 rules changed no status on the held-out set or on either slice:
 none of their claims uses a stated value of the compared side, a stated difference or a bounded 多/出头 numeral that
 round 9 had read differently. A fresh held-out slice is needed to measure the round-10 rules.
+
+Round 11 (G12) re-ran every claim set at `4796e24`: `claim_bench-holdout-after-round11.json`,
+`claim_bench-heldout_r4-after-round11.json`, `claim_bench-heldout_r5-after-round11.json` and
+`claim_bench-heldout_r6-after-exposure-round11.json`. The round-6 slice run is labelled **after exposure (round 11)**:
+the round-10 engineers never saw that slice, but the round-11 engineers could read it, so only the round-10 run
+(`claim_bench-heldout_r6-after-fix.json`, 0.836) is out of sample. The new N倍多 / 将近N rules changed no status on any of
+these sets (every number above equals its round-10 value); their effect shows on the 8 dev rows d269-d276.
 
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \

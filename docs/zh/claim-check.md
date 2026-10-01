@@ -519,6 +519,11 @@ python -m evaluation.claim_bench.run --set holdout
 | held-out，暴露之后，第 10 轮提交 | `f94df6f` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 | 第 4 轮独立留出集，暴露之后，第 10 轮提交 | `f94df6f` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
 | 第 5 轮独立留出集，暴露之后，第 10 轮提交 | `f94df6f` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
+| dev，加入第 11 轮 8 条（d269-d276：10倍多、将近N） | `4796e24` | 276 / 315 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out，暴露之后，第 11 轮提交 | `4796e24` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| 第 4 轮独立留出集，暴露之后，第 11 轮提交 | `4796e24` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
+| 第 5 轮独立留出集，暴露之后，第 11 轮提交 | `4796e24` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
+| 第 6 轮独立留出集，**暴露之后（第 11 轮）** | `4796e24` | 67 / 106 | 0.836 [0.746, 0.925] | 0.717 [0.636, 0.802] | 0.284 |
 
 结果文件为 `evaluation/results/claim_bench-dev-baseline.json`、`claim_bench-dev.json`、`claim_bench-holdout.json`
 （唯一一次首次运行）、`claim_bench-holdout-after-round8.json`（同一文件在第 8 轮提交上的暴露后结果）、
@@ -528,6 +533,12 @@ python -m evaluation.claim_bench.run --set holdout
 `claim_bench-heldout_r4-after-round10.json` 和 `claim_bench-heldout_r5-after-round10.json`，每个文件都记录了提交、命令和说法
 文件的 sha256。第 10 轮规则没有改变 held-out 集和两个独立留出集上的任何状态：它们都没有用到比较对象的所写数值、所写差值或
 第 9 轮读法不同的“多/出头”数字。要衡量第 10 轮规则，需要新的留出集。
+
+第 11 轮（G12）在 `4796e24` 上重跑了所有说法集：`claim_bench-holdout-after-round11.json`、
+`claim_bench-heldout_r4-after-round11.json`、`claim_bench-heldout_r5-after-round11.json` 和
+`claim_bench-heldout_r6-after-exposure-round11.json`。第 6 轮切片这次标为**暴露之后（第 11 轮）**：第 10 轮的工程师没有见过它，
+但第 11 轮的工程师可以读到它，所以只有第 10 轮那次（`claim_bench-heldout_r6-after-fix.json`，0.836）仍是样本外结果。
+新的 N倍多 / 将近N 规则没有改变这些集合上的任何状态（上表数字与第 10 轮相同），其效果体现在 8 条 dev 说法 d269-d276 上。
 
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \
