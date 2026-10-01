@@ -51,6 +51,23 @@ function wrap(ui: React.ReactNode, lang: Lang = "zh") {
   );
 }
 
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason: unknown) => void;
+}
+
+/** A promise the test settles itself, so a request finishes exactly when the test says (round 13, I17). */
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
+  return { promise, resolve, reject };
+}
+
 function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
@@ -372,28 +389,47 @@ describe("ClaimCheckView", () => {
     expect(JSON.parse(String(spy.mock.calls[0]![1]?.body)).claim).toBe("茅台市盈率只有15倍，股价昨天跌了5%");
   });
 
+  // (round 13, I17) This test failed under load (5 s timeout, 2 of 4 runs at load ~35). Its timing dependency: 17
+  // keystrokes typed with user-event's default real-timer delay, then three requests answered whenever the mocks
+  // happened to settle, each awaited with the default 1 s window, all inside one 5 s budget. Now the text is pasted
+  // (one change event, no timers between keys), every request is a deferred the test settles itself after asserting
+  // the loading state, and each step waits for the state it causes.
   it("shows loading, then server and network errors with a working retry", async () => {
-    const user = userEvent.setup();
-    let resolve: (response: Response) => void = () => undefined;
-    const spy = vi
-      .spyOn(globalThis, "fetch")
-      .mockImplementationOnce(() => new Promise<Response>((done) => (resolve = done)))
-      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockResolvedValueOnce(jsonResponse(200, REPORT));
+    const user = userEvent.setup({ delay: null });
+    const requests: Deferred<Response>[] = [];
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      const request = deferred<Response>();
+      requests.push(request);
+      return request.promise;
+    });
     wrap(<ClaimCheckView apiKey="" />, "en");
-    await user.type(screen.getByLabelText("Claim to check"), "Moutai P/E is 15{Enter}");
+    await user.click(screen.getByLabelText("Claim to check"));
+    await user.paste("Moutai P/E is 15");
+    await user.keyboard("{Enter}");
+
+    // 1: loading, then a server error
     expect(screen.getByRole("button", { name: "Checking" })).toBeDisabled();
     expect(document.querySelector(".claim-loading")).toHaveAttribute("aria-busy", "true");
-
-    resolve(jsonResponse(500, { detail: "boom" }));
+    expect(requests).toHaveLength(1);
+    requests[0]!.resolve(jsonResponse(500, { detail: "boom" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Request failed: boom");
 
+    // 2: retry, loading again, then a network error
     await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("button", { name: "Checking" })).toBeDisabled();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(requests).toHaveLength(2);
+    requests[1]!.reject(new TypeError("Failed to fetch"));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Cannot reach the local server"));
 
+    // 3: retry, then the report
     await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(requests).toHaveLength(3);
+    requests[2]!.resolve(jsonResponse(200, REPORT));
     expect(await screen.findByText("Partly supported")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(spy).toHaveBeenCalledTimes(3);
+    expect(JSON.parse(String(spy.mock.calls[2]![1]?.body)).claim).toBe("Moutai P/E is 15");
   });
 
   it("explains auth and validation errors", async () => {

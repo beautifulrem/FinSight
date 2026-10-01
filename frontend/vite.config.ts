@@ -45,6 +45,9 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
+    // (round 13, I17) Wall-clock budgets, not performance checks: on a loaded host (load 35-80, several suites at
+    // once) every jsdom test runs 5-25x slower and the first user-event test of a file passed 5 s. A hang still fails.
+    testTimeout: 30_000,
     css: false,
     include: ["src/**/*.test.{ts,tsx}"],
   },
