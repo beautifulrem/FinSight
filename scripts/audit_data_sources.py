@@ -77,6 +77,7 @@ SCHEMA: dict[str, set[str]] = {
         "主营业务收入增长率(%)",
         "净利润增长率(%)",
     },
+    # 销售毛利率 is read too, but insurers and banks (601318) have no such column: it is optional, not drift
     "ths.finance (stock_financial_abstract_ths)": {
         "报告期",
         "营业总收入",
@@ -84,7 +85,6 @@ SCHEMA: dict[str, set[str]] = {
         "营业总收入同比增长率",
         "净利润同比增长率",
         "基本每股收益",
-        "销售毛利率",
     },
     "eastmoney.datacenter (stock_value_em)": {"数据日期", "PE(TTM)", "市净率", "总市值"},
     "eastmoney.quote (stock_individual_info_em)": {"item", "value"},
