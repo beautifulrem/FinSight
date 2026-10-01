@@ -101,6 +101,7 @@ from .names import INDUSTRY_EN, english_name
 from .output_safety import scrub_answer
 from .planner import Plan, PlannedCall, plan_from_nlu
 from .prompts import (
+    ENGLISH_REMINDER,
     agent_user_message,
     compose_user_message,
     force_final_message,
@@ -948,7 +949,9 @@ class AgentRuntime:
                 },
             ]
             if state.get("prefetched"):
-                messages.append({"role": "user", "content": prefetch_message(state["prefetched"])})
+                messages.append(
+                    {"role": "user", "content": prefetch_message(state["prefetched"], language="zh" if zh else "en")}
+                )
         usage = (
             _add_usage(state.get("usage"), Usage(**memory_update["usage_delta"]))
             if memory_update.get("usage_delta")
@@ -1131,6 +1134,9 @@ class AgentRuntime:
             tool_messages.append({"role": "tool", "tool_call_id": call["id"], "content": _DUPLICATE_CALL})
         evidence_update, evidence_flagged = _evidence_update(results)
         flagged_any = flagged_any or evidence_flagged
+        if not self._zh(state):
+            # (round 12, H7) tool results are mostly Chinese: restate the answer language after them
+            tool_messages.append({"role": "user", "content": ENGLISH_REMINDER})
         update: dict[str, Any] = {
             "messages": [*messages, *tool_messages],
             "llm_steps": step,

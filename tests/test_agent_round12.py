@@ -102,6 +102,8 @@ def test_an_english_one_word_follow_up_is_answered_in_english(offline_service):
     prompt = _user_messages(llm.requests[-1])
     assert "User's message: And Moutai?" in prompt
     assert "Answer language: English (write the answer" in prompt
+    # restated after the (mostly Chinese) tool results, the last thing the model reads
+    assert prompt.rstrip().endswith("Reminder: write the final answer, key points and limitations in English.")
     # the Chinese draft is caught and replaced by the English evidence summary
     assert "language_mismatch_fallback_to_template" in second["compliance_notes"]
     assert "Kweichow Moutai" in second["answer"] and "市盈率" not in second["answer"]
@@ -125,6 +127,7 @@ def test_an_acronym_only_follow_up_keeps_the_chinese_session_language(offline_se
         runtime.close()
     assert "session_language:zh" in second["route_reasons"]
     assert "Answer language: Chinese" in _user_messages(llm.requests[-1])
+    assert "Reminder: write the final answer" not in _user_messages(llm.requests[-1])
     assert "language_mismatch_fallback_to_template" not in second["compliance_notes"]
     assert second["answer"].startswith("五粮液市盈率")
 
