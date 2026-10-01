@@ -182,6 +182,8 @@ describe("route reasons (round 12, H14)", () => {
     "frame:ratio:pb:中国平安|保险行业平均",
     "frame:relative:pe:中国平安|所属行业平均",
     "frame:which:net_margin:五粮液|贵州茅台|泸州老窖",
+    "frame:sum:amount:贵州茅台|五粮液",
+    "frame:difference:roe-gross_margin:五粮液",
     "clarified:贵州茅台",
     "group_reference:前者->五粮液",
     "group_reference:这三家->五粮液和贵州茅台和泸州老窖",
@@ -227,6 +229,13 @@ describe("route reasons (round 12, H14)", () => {
     expect(humanizeCode("en", "frame:ratio:pb:中国平安|保险行业平均")).toBe("Computed the P/B ratio: 中国平安 ÷ 保险 industry average");
     expect(humanizeCode("zh", "frame:which:net_margin:A|B|C")).toBe("比较净利率高低：A、B、C");
     expect(humanizeCode("en", "frame:which:net_margin:A|B|C")).toBe("Compared which net margin is higher: A, B and C");
+    // (round 13) a total of two amounts, and two metrics of one target
+    expect(humanizeCode("zh", "frame:sum:amount:A|B")).toBe("计算成交额合计：A + B");
+    expect(humanizeCode("en", "frame:sum:net_profit:A|B")).toBe("Computed the combined net profit: A + B");
+    expect(humanizeCode("zh", "frame:difference:roe-gross_margin:五粮液")).toBe("计算五粮液的ROE与毛利率差值");
+    expect(humanizeCode("en", "frame:difference:gross_margin-net_margin:A")).toBe(
+      "Computed the gap between A's gross margin and net margin",
+    );
   });
 
   it("labels the policy, language and alias reasons", () => {
