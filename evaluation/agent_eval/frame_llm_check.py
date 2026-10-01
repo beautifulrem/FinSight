@@ -42,6 +42,24 @@ SESSIONS: list[tuple[list[str], float]] = [
     (["五粮液的净利润", "茅台呢", "后者比前者多多少亿"], 445.2),
     (["What's Ping An's P/E?", "And the insurance industry average?", "What's the discount in percent?"], 26.27),
 ]
+# (round 12) the classes the round-7 slice still failed after round 11, own wording: turnover asked in words then a
+# ratio, a move then "how many points apart", a holding carried to another target, net profit as a share of revenue in
+# English, a gap after two falls.
+SESSIONS_R12: list[tuple[list[str], float]] = [
+    (["中国平安今天成交了多少钱", "五粮液的呢", "前者是后者的几倍"], 4.57),
+    (["How much did Wuliangye move yesterday?", "same for Ping An?", "so how many points apart?"], 1.26),
+    (["我手上有300股中国平安，按最新收盘值多少钱", "要是换成同样数量的五粮液呢"], 30192),
+    (
+        [
+            "What were Wuliangye's revenues last year?",
+            "and the net profit figure?",
+            "How much of that revenue is left as net profit, in percent?",
+        ],
+        34.84,
+    ),
+    (["五粮液今天跌了多少", "贵州茅台呢", "五粮液多跌了几个点"], 0.36),
+]
+SESSION_SETS = {"round11": SESSIONS, "round12": SESSIONS_R12}
 
 
 def _states(text: str, value: float) -> bool:
@@ -57,6 +75,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     add_llm_arguments(parser)
     parser.add_argument("--max-calls", type=int, default=60)
     parser.add_argument("--only", default="", help="comma-separated session indices to run (default: all)")
+    parser.add_argument("--sessions", choices=sorted(SESSION_SETS), default="round11", help="which session set")
     parser.add_argument("--out", default="outputs/agent_eval/frame-llm-check.json")
     args = parser.parse_args(argv)
     llm = _make_llm(args.llm, args.model)
@@ -70,7 +89,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     calls, sessions, stopped = 0, [], None
     try:
         only = {int(item) for item in args.only.split(",") if item.strip()}
-        for index, (turns, expected) in enumerate(SESSIONS):
+        for index, (turns, expected) in enumerate(SESSION_SETS[args.sessions]):
             if only and index not in only:
                 continue
             if calls >= args.max_calls - 4:
@@ -79,7 +98,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             record: dict[str, Any] = {"session": index, "turns": [], "expected": expected}
             for query in turns:
                 started = time.perf_counter()
-                result = agent.chat(query, session_id=f"frame-llm-{index}", mode="agent")
+                result = agent.chat(query, session_id=f"frame-llm-{args.sessions}-{index}", mode="agent")
                 used = int((result.get("llm") or {}).get("calls") or 0)
                 calls += used
                 errors = [item for item in result.get("degraded") or [] if "429" in str(item)]
@@ -131,6 +150,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "model": getattr(llm, "model", None),
             "prompts": prompt_refs(),
             "tools": "offline runtime assets (no replay snapshot)",
+            "sessions": args.sessions,
         },
         "summary": summary,
         "sessions": sessions,
