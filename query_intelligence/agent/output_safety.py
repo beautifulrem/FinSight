@@ -33,7 +33,9 @@ relay what it says. This layer looks at the answer sentence by sentence, togethe
    (according to one document; not confirmed by other sources)". (round 11, G7) When only some clauses of a sentence
    state single-document figures and its other figures are confirmed ("营业收入1688.38亿元，同比下降1.21%" with the
    revenue in the fundamentals), the marker "（据一篇文档，未经其他来源证实）" follows each such clause instead;
-   (round 12, H15) a conjunction right after a figure (及/以及/并/同时/而, while/whereas/and) also ends a clause.
+   (round 12, H15) a conjunction right after a figure (及/以及/并/同时/而, while/whereas/and) also ends a clause, and
+   a parenthetical that states a figure ("（同比-1.21%）") is a clause of its own; an amount the named company's
+   fundamentals confirm is not "disputed" by another document's figure (a forecast, a planted number).
    A sentence that already says the claim is unverified is left as it is; one that only names its source
    ("媒体报道称…") gets the suffix. A fundamental or amount that contradicts the run's structured data for the same
    metric (and period and company, where stated) is dropped with a note (the verifier flags the same conflict on LLM
@@ -151,6 +153,8 @@ _CHANGE_OR_PRIOR = re.compile(
     r"a\s+year\s+(?:earlier|ago)|from)\b",
     re.IGNORECASE,
 )
+# (round 12) a list join between the metric and the number: the number belongs to the next item
+_LIST_JOIN = re.compile(r"和|与|及|、|\band\b|\bas\s+well\s+as\b", re.IGNORECASE)
 _YEAR = re.compile(r"(?:FY\s*)?((?:19|20)\d{2})(?!\s*月|\d)(?:\s*(?:年度?|财年|fiscal|full[- ]year|annual))?", re.I)
 _SUB_PERIOD = re.compile(
     r"(?P<q>一季度|第一季度|Q1|二季度|第二季度|Q2|三季度|第三季度|Q3|四季度|第四季度|Q4|上半年|半年度|中期|H1|前三季度|"
@@ -408,6 +412,10 @@ class _Context:
         others = [other for key, other in self.answer_figures if key != own]
         others += [other for _evidence_id, other in self.document_figures]
         if any(figure.comparable(other) and not figure.agrees(other) for other in others):
+            # (round 12) the named company's fundamentals confirm it (a news question quoting the annual report next
+            # to a document's forecast or a planted figure): FinSight's own data settles the dispute, no marker
+            if _is_supported(figure.value, self.corroborating_numbers(), (1.0,), figure.tolerance):
+                return None
             return "disputed"
         return None
 
@@ -616,6 +624,8 @@ def amount_figures(text: str, names: dict[str, str] | None = None) -> list[Figur
             before = cleaned[max(0, match.start() - 6) : match.start()]
             if _CHANGE_OR_PRIOR.search(window[: number.start()]) or _CHANGE_OR_PRIOR.search(before):
                 continue
+            if _LIST_JOIN.search(window[: number.start()]):
+                continue  # (round 12) "净利润和约350.33亿元派现": the number after a 和/及/、 is another item's
             if window[number.end() :].lstrip().startswith(("%", "％")):
                 continue
             unit = number.group("unit").lower().rstrip("元") or "元"
@@ -741,13 +751,29 @@ _CLAUSE_BREAK = re.compile(
 )
 
 
+# (round 12) a parenthetical that states a figure ("营业收入1688.38亿元（同比-1.21%）") is a clause of its own
+_FIGURE_PARENTHETICAL = re.compile(r"[（(][^（）()\[\]]{1,40}[）)]")
+
+
 def _clause_spans(sentence: str) -> list[tuple[int, int]]:
     spans, start = [], 0
     for match in _CLAUSE_BREAK.finditer(sentence):
         spans.append((start, match.start()))
         start = match.end()
     spans.append((start, len(sentence)))
-    return spans
+    out: list[tuple[int, int]] = []
+    for begin, end in spans:
+        cursor = begin
+        for group in _FIGURE_PARENTHETICAL.finditer(sentence, begin, end):
+            if not unit_figures(group.group(0)):
+                continue
+            if group.start() > cursor:
+                out.append((cursor, group.start()))
+            out.append((group.start(), group.end()))
+            cursor = group.end()
+        if cursor < end or cursor == begin:
+            out.append((cursor, end))
+    return out
 
 
 def _sentence_key(sentence: str) -> str:
