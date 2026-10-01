@@ -476,6 +476,43 @@ def resolve_ellipsis(
     return None
 
 
+_HOLDING_SWITCH = re.compile(r"换成|改成|换作|如果是|要是|假如|若是|\binstead\b|\bif\b", re.IGNORECASE)
+
+
+def resolve_holding_follow_up(
+    query: str, turns: list[dict[str, Any]], current_targets: list[dict[str, Any]]
+) -> tuple[str, str] | None:
+    """(round 12) A holding carried to another target: after "我有200股五粮液，按收盘值多少",
+    "要是换成同样数量的中国平安呢" or "如果是500股茅台呢" (or "What about Ping An?") asks what the same number of
+    shares, or the number the follow-up states, of the new target is worth at the latest close. ``(rewritten, reason)``
+    or ``None``.
+
+    Only a short follow-up with one target, an ellipsis or switch marker and no other metric qualifies; the previous
+    turn must have been a holding-value question."""
+    from .coverage import holding_value_request, in_fund_units, stated_holding_count
+
+    text = strip_filler(query).strip()
+    if not turns or len(current_targets) != 1 or not _is_short(text) or holding_value_request(text):
+        return None
+    previous = _effective(turns[-1])
+    held = holding_value_request(previous)
+    if held is None:
+        return None
+    if not (_ELLIPSIS_ZH.search(text) or _ELLIPSIS_EN.search(text) or _HOLDING_SWITCH.search(text)):
+        return None
+    if metric_of(text) not in (None, "close"):
+        return None  # "那五粮液的市盈率呢": another question about the new target
+    count = stated_holding_count(text) or held[0]
+    funds = in_fund_units(text) or (stated_holding_count(text) is None and in_fund_units(previous))
+    name = str(current_targets[0].get("canonical_name") or current_targets[0].get("symbol"))
+    zh = bool(re.search(r"[一-鿿]", re.sub(re.escape(name), "", text)))
+    if zh:
+        rewritten = f"我持有{count}{'份' if funds else '股'}{name}，按最新收盘价值多少钱"
+    else:
+        rewritten = f"How much are {count} {'units' if funds else 'shares'} of {name} worth at the latest close?"
+    return rewritten, f"holding_follow_up:{count}->{name}"
+
+
 # (round 9, E5) A demonstrative reference to the discussed target's industry: "这个行业的平均PE呢", "该板块整体估值",
 # "它所在的行业", "the sector's average P/B", "What about the industry?". Not "它属于哪个行业" (asks for the industry).
 _INDUSTRY_REFERENCE = re.compile(

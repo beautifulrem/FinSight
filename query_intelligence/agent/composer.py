@@ -21,6 +21,7 @@ from .coverage import (
     flow_gaps,
     foreign_macro_gaps,
     holding_value_request,
+    in_fund_units,
     indicator_gaps,
     industry_gaps,
     macro_gaps,
@@ -159,7 +160,7 @@ def compose_template(
         facts.extend(fact for fact in _implied_eps(tool_log, zh) if fact not in facts)
     holding = holding_value_request(query) if query else None
     if holding is not None:
-        facts = [*_holding_value(holding[0], tool_log, zh), *facts]
+        facts = [*_holding_value(holding[0], tool_log, zh, units=in_fund_units(query)), *facts]
     frame_gaps: list[str] = []
     if frame_request:
         framed, frame_gaps = frame_sentences(frame_request, tool_log, zh)
@@ -217,9 +218,10 @@ def compose_template(
     }
 
 
-def _holding_value(shares: int, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
+def _holding_value(shares: int, tool_log: list[dict[str, Any]], zh: bool, *, units: bool = False) -> list[str]:
     """(round 11, G5) "我有1000股五粮液，值多少钱": shares × the latest close, with the date, both operands in the
-    sentence, and a note that this is a market value at the close, not a tradable price, a valuation or advice."""
+    sentence, and a note that this is a market value at the close, not a tradable price, a valuation or advice.
+    (round 12) A holding stated in fund units ("两万份沪深300ETF", "4000 units") is written in units."""
     for entry in tool_log:
         data = entry.get("data") or {}
         close, eid = data.get("close"), data.get("evidence_id")
@@ -227,14 +229,16 @@ def _holding_value(shares: int, tool_log: list[dict[str, Any]], zh: bool) -> lis
             continue
         value = round(shares * float(close), 2)
         name, as_of = data.get("name") or data.get("symbol"), data.get("as_of")
+        unit = "份" if units else "股"
         if zh:
             return [
-                f"按 {as_of} 的收盘价 {_px(close, data, zh)} 计算，{shares} 股{name}的市值约为 {shares} × "
+                f"按 {as_of} 的收盘价 {_px(close, data, zh)} 计算，{shares} {unit}{name}的市值约为 {shares} × "
                 f"{_num(close)} = {_num(value)} 元 [{eid}]。",
                 "这是按最近收盘价计算的持仓市值，不是可成交价格，也不是估值判断或投资建议。",
             ]
         return [
-            f"At the {as_of} close of {_px(close, data, zh)}, {shares} shares of {name} are worth {shares} × "
+            f"At the {as_of} close of {_px(close, data, zh)}, {shares} {'units' if units else 'shares'} of {name} are "
+            f"worth {shares} × "
             f"{_num(close)} = CNY {_num(value)} [{eid}].",
             "This is the market value at the last close, not a tradable price, a valuation or investment advice.",
         ]

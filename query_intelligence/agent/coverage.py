@@ -297,14 +297,20 @@ EXTRA_METRIC_FIELDS = {field: metric for metric in METRICS for field in metric.f
 # "10股派…" a dividend per share, so neither is a holding.
 _HOLDING_VALUE_ZH = re.compile(
     r"(?<![每\d])(?P<n>\d[\d,，]*|[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*|一[十百千万][零〇一二两三四五六七八九十百千万]*)"
-    r"\s*股(?![价票东份息市权本派送转配])[^。？?！!；;]{0,24}?"
+    # (round 12) fund units count like shares: "两万份沪深300ETF"
+    r"\s*(?:股(?![价票东份息市权本派送转配])|份)[^。？?！!；;]{0,24}?"
     r"(?:值|市值|价值|总值|总额|合计|一共|总共|算下来|折合)[^。？?！!；;]{0,4}?(?:多少|几)"
 )
 _HOLDING_VALUE_EN = re.compile(
-    r"\b(?P<n>\d[\d,]*)\s+shares?\b[^.?!]{0,60}?\b(?:worth|value|how much)\b|"
-    r"\bhow much (?:are|is|would) (?:my )?(?P<n2>\d[\d,]*)\s+shares?\b",
+    r"\b(?P<n>\d[\d,]*)\s+(?:shares?|units?)\b[^.?!]{0,60}?\b(?:worth|value|how much)\b|"
+    # (round 12) "I own 500 shares of X. What are they worth at the close?": the question in the next sentence
+    r"\b(?P<n3>\d[\d,]*)\s+(?:shares?|units?)\b[^.?!]{0,60}\.\s+(?:so\s+|and\s+)?(?:what|how much)\b[^.?!]{0,40}?"
+    r"\b(?:worth|value)\b|"
+    r"\bhow much (?:are|is|would) (?:my )?(?P<n2>\d[\d,]*)\s+(?:shares?|units?)\b",
     re.IGNORECASE,
 )
+# A fund holding is counted in units (份), a stock holding in shares (股).
+_FUND_UNITS = re.compile(r"\d\s*份|[两二三四五六七八九十百千万]\s*份|\bunits?\b", re.IGNORECASE)
 _CN_DIGIT = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
 _CN_UNIT = {"十": 10, "百": 100, "千": 1000, "万": 10000}
 
@@ -329,9 +335,32 @@ def holding_value_request(query: str) -> tuple[int, tuple[int, int]] | None:
     match = _HOLDING_VALUE_ZH.search(text) or _HOLDING_VALUE_EN.search(text)
     if match is None:
         return None
-    raw = (match.groupdict().get("n") or match.groupdict().get("n2") or "").replace(",", "").replace("，", "")
+    groups = match.groupdict()
+    raw = (groups.get("n") or groups.get("n2") or groups.get("n3") or "").replace(",", "").replace("，", "")
     shares = int(raw) if raw.isdigit() else _cn_integer(raw)
     return (shares, match.span()) if shares > 1 else None
+
+
+def in_fund_units(query: str) -> bool:
+    """Whether a holding is stated in fund units ("两万份", "4000 units"), not shares."""
+    return bool(_FUND_UNITS.search(query or ""))
+
+
+_HOLDING_COUNT = re.compile(
+    r"(?<![每\d])(?P<n>\d[\d,，]*|[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*)\s*(?:股(?![价票东份息市权本派送转配])|份)|"
+    r"\b(?P<n2>\d[\d,]*)\s+(?:shares?|units?)\b",
+    re.IGNORECASE,
+)
+
+
+def stated_holding_count(text: str) -> int | None:
+    """A number of shares or units stated without a value question ("同样300股", "如果是500股", "800 shares")."""
+    match = _HOLDING_COUNT.search(text or "")
+    if match is None:
+        return None
+    raw = (match.group("n") or match.group("n2") or "").replace(",", "").replace("，", "")
+    count = int(raw) if raw.isdigit() else _cn_integer(raw)
+    return count if count > 1 else None
 
 
 def without_holding_value(query: str) -> str:
