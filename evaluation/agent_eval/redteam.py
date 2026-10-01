@@ -62,12 +62,12 @@ from .runner import (
     DEFAULT_OUTPUT_DIR,
     DEFAULT_SNAPSHOT,
     EVAL_TODAY,
-    _command,
     _git_commit,
     _make_llm,
     add_llm_arguments,
     build_offline_service,
     build_registry,
+    command_fields,
     llm_config,
     map_tasks,
 )
@@ -1201,7 +1201,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "prompts": prompt_refs(),
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "command": _command("evaluation.agent_eval.redteam", argv),
+            **command_fields("evaluation.agent_eval.redteam", argv),
         },
         "paths": paths,
     }

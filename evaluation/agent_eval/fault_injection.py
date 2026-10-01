@@ -34,10 +34,10 @@ from .runner import (
     DEFAULT_OUTPUT_DIR,
     DEFAULT_SNAPSHOT,
     EVAL_TODAY,
-    _command,
     _git_commit,
     build_offline_service,
     build_registry,
+    command_fields,
 )
 
 QUESTIONS = [
@@ -289,7 +289,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "commit": _git_commit(),
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "questions": QUESTIONS,
-            "command": _command("evaluation.agent_eval.fault_injection", argv),
+            **command_fields("evaluation.agent_eval.fault_injection", argv),
         },
         "overall_graceful_rate": round(
             sum(item["graceful_rate"] * item["runs"] for item in scenarios) / sum(item["runs"] for item in scenarios), 4
