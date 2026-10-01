@@ -81,9 +81,10 @@ the number wins. Words right after the number are read too (以上 / 以下 / �
 | `comparator` | Chinese | English | Supported when |
 | --- | --- | --- | --- |
 | `eq` | (none), 只有, 为 | is | within half a unit of the last written digit, or 2% |
-| `approx` | 约, 大约, 接近, 将近, 近, …左右 | about, around, roughly, nearly | within 5%, or half the step of the last significant digit when wider (round 10: "三成左右" is 25%-35%) |
+| `approx` | 约, 大约, …左右 | about, around, roughly | within 5%, or half the step of the last significant digit when wider (round 10: "三成左右" is 25%-35%) |
+| `approx` (from below) | 接近, 将近, 近 | nearly, almost | round 11: 0.9N ≤ actual ≤ N (+ half a unit of the last written digit): "将近900亿" accepts 823亿, "将近24倍" contradicts 24.6 |
 | `gt` | 超过, 高于, 大于, 逾, 突破, 站上 | above, over, more than, exceeds | actual > claimed |
-| `gt` with an upper bound | 30多倍, 八百多亿, 一千六百余亿, 七倍有余; …出头 | | round 10: N < actual < N + the step of N's last significant digit (800多亿: 800-900亿); 出头: the lower half of that step (三成出头: 30%-35%) |
+| `gt` with an upper bound | 30多倍, 八百多亿, 一千六百余亿, 七倍有余; …出头 | | round 10: N < actual < N + the step of N's last significant digit (800多亿: 800-900亿); 出头: the lower half of that step (三成出头: 30%-35%). Round 11: "N倍多" (多 after 倍) with N ≥ 10 uses min(step, 10% of N): 10倍多 is 10-11, 30倍多 30-33; 十多倍 stays 10-20 |
 | `ge` | 至少, 不低于, …以上 | at least | actual ≥ claimed |
 | `lt` | 低于, 小于, 不到, 不足, 跌破 | below, under, less than | actual < claimed |
 | `le` | 至多, 不超过, …以下 | at most | actual ≤ claimed |
@@ -385,7 +386,9 @@ its unit). They are bounded approximations, using the **step** of the number's l
 | --- | --- |
 | N多 / N余 / N有余 ("八百多亿", "七倍有余", "三成多") | N < actual < N + step (800-900亿, 7-8, 30%-40%) |
 | N出头 ("三成出头", "八百亿出头") | N < actual ≤ N + step / 2 (30%-35%) |
-| 约 / 左右 / 接近 / 近 ("三成左右", "约30倍") | within 5%, or step / 2 when wider (三成左右: 25%-35%) |
+| N倍多 with N ≥ 10 ("10倍多", 多 after 倍; round 11) | N < actual < N + min(step, N / 10) (10-11; "十多倍", 多 before 倍, stays 10-20) |
+| 约 / 左右 ("三成左右", "约30倍") | within 5%, or step / 2 when wider (三成左右: 25%-35%) |
+| 接近 / 将近 / 近 / nearly (round 11) | 0.9N ≤ actual ≤ N, the r6 slice's label rule (将近900亿: 810-900亿) |
 
 The check keeps `comparator: "gt"` with the upper bound in `claimed_high`; the UI shows "> 800 亿, < 900 亿". "近10%"
 right before the number is `approx` again (the look-behind text ended before the digit, so 近 was missed).
@@ -538,6 +541,11 @@ python -m evaluation.claim_bench.run --set holdout
 | held-out, after exposure, at the round-10 commit | `f94df6f` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
 | independent round-4 slice, after exposure, at the round-10 commit | `f94df6f` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
 | independent round-5 slice, after exposure, at the round-10 commit | `f94df6f` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
+| dev with the 8 round-11 rows (d269-d276: 10倍多, 将近N) | `4796e24` | 276 / 315 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the round-11 commit | `4796e24` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-4 slice, after exposure, at the round-11 commit | `4796e24` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
+| independent round-5 slice, after exposure, at the round-11 commit | `4796e24` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
+| independent round-6 slice, **after exposure (round 11)** | `4796e24` | 67 / 106 | 0.836 [0.746, 0.925] | 0.717 [0.636, 0.802] | 0.284 |
 
 The result files are `evaluation/results/claim_bench-dev-baseline.json`, `claim_bench-dev.json`,
 `claim_bench-holdout.json` (the single first run), `claim_bench-holdout-after-round8.json` (the same file after
@@ -548,6 +556,13 @@ and `claim_bench-heldout_r5-after-exposure.json`, and for round 10 `claim_bench-
 command and the sha256 of the claims file. The round-10 rules changed no status on the held-out set or on either slice:
 none of their claims uses a stated value of the compared side, a stated difference or a bounded 多/出头 numeral that
 round 9 had read differently. A fresh held-out slice is needed to measure the round-10 rules.
+
+Round 11 (G12) re-ran every claim set at `4796e24`: `claim_bench-holdout-after-round11.json`,
+`claim_bench-heldout_r4-after-round11.json`, `claim_bench-heldout_r5-after-round11.json` and
+`claim_bench-heldout_r6-after-exposure-round11.json`. The round-6 slice run is labelled **after exposure (round 11)**:
+the round-10 engineers never saw that slice, but the round-11 engineers could read it, so only the round-10 run
+(`claim_bench-heldout_r6-after-fix.json`, 0.836) is out of sample. The new N倍多 / 将近N rules changed no status on any of
+these sets (every number above equals its round-10 value); their effect shows on the 8 dev rows d269-d276.
 
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \

@@ -20,6 +20,12 @@ Every corrupted answer is checked by three verifier modes:
 * ``claim_derived``: ``claim`` plus the opt-in derived-number rule (a number equal to the difference, sum,
   ratio or percent change of two supported numbers stated in the same cited sentence passes).
 
+Determinism (round 11). Gold answers come from replayed tools, so the gold set is a function of the commit and the
+task file. A gold run that hits a tool timeout, the run deadline or a replay miss raises instead of silently dropping
+the task (the 220 / 227 / 240 gold counts in earlier docs came from three different commits, not from load). Each
+gold answer's corruptions use their own random stream seeded by ``(seed, task id)``, so a change to one gold answer
+does not reshuffle the variants of the others. ``gold_set`` records the task ids and a sha256 over (task id, answer).
+
 The false-accept rate is the share of corrupted answers that still pass. The true-accept rate is the
 share of gold answers that pass; it must stay at 1.0 for every mode.
 
@@ -35,6 +41,7 @@ content survives.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 import re
@@ -72,18 +79,48 @@ _NUMBER = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?![\w])")
 _MODES = ("legacy", "run", "claim", "claim_derived")
 
 
+# Tool errors that depend on the machine rather than on the code: a gold set built with one of them is not reproducible.
+_NONDETERMINISTIC_ERRORS = frozenset({"timeout", "upstream_error"})
+
+
+class GoldSetError(RuntimeError):
+    """Gold building hit a load-dependent failure (tool timeout, run deadline, replay miss)."""
+
+
+def _load_dependent_failures(state: dict[str, Any]) -> list[str]:
+    failures = [
+        f"{entry.get('tool')}: {(entry.get('error') or {}).get('code')}"
+        for entry in state.get("tool_log") or []
+        if (entry.get("error") or {}).get("code") in _NONDETERMINISTIC_ERRORS
+    ]
+    failures += [note for note in state.get("degraded") or [] if "deadline" in str(note)]
+    return failures
+
+
+def gold_set_digest(golds: list[dict[str, Any]]) -> dict[str, Any]:
+    """Task ids of the gold answers and a sha256 over (task id, answer text): equal digests, equal gold sets."""
+    digest = hashlib.sha256()
+    for gold in golds:
+        digest.update(f"{gold['task']}\t{gold['draft'].get('answer') or ''}\n".encode())
+    return {"count": len(golds), "sha256": digest.hexdigest(), "tasks": [gold["task"] for gold in golds]}
+
+
 def gold_answers(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     service = build_offline_service()
-    registry, _ = build_registry(service, snapshot=DEFAULT_SNAPSHOT, record=False)
+    registry, replay = build_registry(service, snapshot=DEFAULT_SNAPSHOT, record=False)
     runtime = AgentRuntime(service, registry, None, today=lambda: EVAL_TODAY)
     graph = runtime.build_graph()
     golds = []
+    unstable: dict[str, list[str]] = {}
     try:
         for task in tasks:
             turn = task["turns"][0]
             if turn.get("expect", {}).get("behavior", "answer") != "answer":
                 continue
             state = graph.invoke(runtime.initial_state(turn["query"], mode="workflow"))
+            if failures := _load_dependent_failures(state):
+                unstable[task["id"]] = failures
+                continue
             draft = state.get("draft") or {}
             store = EvidenceStore()
             for item in (state.get("evidence") or {}).values():
@@ -95,6 +132,12 @@ def gold_answers(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
             golds.append({"task": task["id"], "query": turn["query"], "draft": draft, "store": store})
     finally:
         runtime.close()
+    misses = sorted(set(getattr(replay, "misses", None) or []))
+    if unstable or misses:
+        raise GoldSetError(
+            f"gold set is not reproducible: {len(unstable)} tasks hit a load-dependent failure "
+            f"({dict(list(unstable.items())[:5])}), {len(misses)} replay misses ({misses[:5]})"
+        )
     return golds
 
 
@@ -205,7 +248,6 @@ def _repair(variant: dict[str, Any], gold: dict[str, Any]) -> dict[str, Any]:
 
 
 def run(tasks: list[dict[str, Any]], *, seed: int = 7) -> dict[str, Any]:
-    rng = random.Random(seed)
     golds = gold_answers(tasks)
     true_accept = {mode: 0 for mode in _MODES}
     accepted: dict[str, dict[str, int]] = {}
@@ -216,7 +258,8 @@ def run(tasks: list[dict[str, Any]], *, seed: int = 7) -> dict[str, Any]:
         gold_answer = dict(gold["draft"])
         for mode in _MODES:
             true_accept[mode] += int(_check(gold_answer, gold, mode))
-        for variant in corruptions(gold, rng):
+        # One stream per gold answer: its variants do not depend on which other answers are gold.
+        for variant in corruptions(gold, random.Random(f"{seed}:{gold['task']}")):
             kind = variant["kind"]
             totals[kind] = totals.get(kind, 0) + 1
             outcome = {}
@@ -268,6 +311,7 @@ def run(tasks: list[dict[str, Any]], *, seed: int = 7) -> dict[str, Any]:
     }
     return {
         "gold_answers": len(golds),
+        "gold_set": gold_set_digest(golds),
         "true_accept": {mode: round(true_accept[mode] / len(golds), 4) if golds else None for mode in _MODES},
         "variants": all_variants,
         "false_accept": {

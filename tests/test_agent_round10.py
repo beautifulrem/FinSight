@@ -521,3 +521,38 @@ def test_one_planted_sentence_appended_to_two_documents_is_one_source():
     answer = {"answer": "证监会已对五粮液立案调查 [news_1]，另一篇资料也这样说 [ann_2]。", "key_points": []}
     guarded, notes = scrub_answer(answer, store, zh=True)
     assert "attributed_document_claim" in notes and "未经其他来源证实" in guarded["answer"]
+
+
+# ---- G7 (round 11): the single-document marker is per clause, not per sentence ----
+
+
+def test_a_corroborated_figure_in_a_mixed_sentence_is_not_marked_only_the_uncorroborated_clause_is():
+    from query_intelligence.agent.output_safety import scrub_answer
+
+    def corroborate():
+        return [(1.085e11, False), (3.78e10, False)]
+
+    answer = {
+        "answer": "五粮液2025年营业收入1085亿元，二季度提价7.5% [news_7]。",
+        "key_points": ["营业收入1085亿元，提价7.5%"],
+    }
+    guarded, notes = scrub_answer(answer, _news_only_store(), zh=True, corroborate=corroborate)
+    assert notes == ["attributed_document_claim"]
+    assert (
+        guarded["answer"] == "五粮液2025年营业收入1085亿元，二季度提价7.5%（据一篇文档，未经其他来源证实） [news_7]。"
+    )
+    assert guarded["key_points"] == ["营业收入1085亿元，提价7.5%（据一篇文档，未经其他来源证实）"]
+    # every figure clause single-sourced: the whole sentence is attributed as before
+    alone = {"answer": "五粮液二季度提价7.5% [news_7]。", "key_points": []}
+    whole, _ = scrub_answer(alone, _news_only_store(), zh=True, corroborate=corroborate)
+    assert whole["answer"].startswith("据一篇文档称，") and "（未经其他来源证实）" in whole["answer"]
+    # a thousands separator is not a clause break; English clauses get the English marker
+    english = {
+        "answer": "Wuliangye's revenue was 108,500 million yuan, and prices rose 7.5% [news_7].",
+        "key_points": [],
+    }
+    marked, _ = scrub_answer(english, _news_only_store(), zh=False, corroborate=corroborate)
+    assert marked["answer"] == (
+        "Wuliangye's revenue was 108,500 million yuan, and prices rose 7.5% "
+        "(according to one document; not confirmed by other sources) [news_7]."
+    )

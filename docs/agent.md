@@ -512,7 +512,9 @@ round 9; first run 0.8008; `evaluation/results/router_eval-independent_v2-round1
 multiturn_v1 replay task and turn success **1.000**, 0 snapshot misses
 (`evaluation/results/multiturn_v1-auto-nollm-round10.json`); verifier stress at `53454f5`: 227 gold answers / 4,016
 variants, claim-mode false accept 0.0125, derived 0.0129, true accept 1.0
-(`evaluation/results/verifier_stress-round10.json`; the gold count depends on tool timeouts under load).
+(`evaluation/results/verifier_stress-round10.json`). Round 11 pinned the gold set (`evaluation/results/verifier_stress.json`
+at `25205d4`: 227 gold answers, claim 0.0117, derived 0.0132, two runs identical); the 220 / 227 / 240 gold counts of
+rounds 6, 10 and 9 came from different commits, not from tool timeouts under load.
 
 **Round 10: holdout8 (F3) and the LLM red team after the fixes.** The round-6 reviewer's 14 new planted-document styles
 (JSON-LD, a CSV row, 勘误, a chat log, 立案 + 罚款, a WeChat group, a Chinese-numeral percentage, an MSCI rumour, a
@@ -578,7 +580,7 @@ All agent tests run offline: `ScriptedLLM` replays fixed assistant turns and `te
 ## Limits
 
 - The agent path is only as good as the LLM behind it. Offline evaluation measures the deterministic path and the graph's safety checks; the online evaluation in [agent-eval.md](agent-eval.md) measures two flash-class models (DeepSeek V4.1 Flash, GLM-5.3 Flash) through one gateway, and the agent loop's advantage over LLM composition is small with DeepSeek and absent with GLM ([plan-then-execute vs tool loop](#plan-then-execute-vs-tool-loop-the-numbers-behind-the-routing)).
-- Numeric verification is claim-level (1.94% false-accept rate on 3,399 corrupted gold answers at `9f0e46b`, `evaluation/results/verifier_stress.json`), but it does not check that a number is used for the right period or metric when the cited evidence holds several, and a number planted in a document passes because it is in the evidence.
+- Numeric verification is claim-level (1.17% false-accept rate on 4,016 corrupted gold answers at `25205d4`, `evaluation/results/verifier_stress.json`), but it does not check that a number is used for the right period or metric when the cited evidence holds several, and a number planted in a document passes because it is in the evidence.
 - Follow-up resolution is rule-based: it covers pronouns, plurals, ordinal and group references, short elliptical questions, bare "why" follow-ups and short entity-less follow-ups with a finance cue; longer paraphrases ("回到刚才那只股票…") and ambiguous references lead to a clarification rather than a guess. The cue and off-topic lexicons are hand-written: an off-topic task phrased without their words is still answered, and an entity-less follow-up without a cue word is clarified or refused as before.
 - Routing is lexical on top of the classical NLU. The round-4 marker classes (judgment, forecast, analysis, relation, market targets, system-change instructions) are wider than the author's own phrasing, but a question outside every class goes to the workflow, and on the fresh independent label set v2 routing scored 0.801 on its first run and 0.838 after round 10, after exposure (`router_eval-independent_v2-first-run.json`, `router_eval-independent_v2-round10.json`); v1 scored 0.740 before its errors were fixed.
 - Coverage and gap detection are lexical: the out-of-coverage list names crypto terms, the largest US / Hong Kong companies and markets and (round 10) about 40 Chinese companies listed only in Hong Kong or the US, not every foreign ticker; a Hong Kong name outside that list that contains an A-share name is still read as the A-share; a requested period is detected when written as a year ("2019年", "in 2023", "FY2023"), a quarter or a half-year ("一季度", "Q3", "上半年"), not as "去年".

@@ -1,0 +1,886 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/heldout_r7/chat_r7_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#9034aeb5ea8e",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "12a28eb",
+  "run_at": "2026-10-01T01:57:23+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 66.2,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r7/chat_r7_heldout.jsonl --out outputs/agent_eval/chat_r7-prefix.json"
+ },
+ "summary": {
+  "tasks": 53,
+  "turns": 129,
+  "repeats": 1,
+  "task_success": 0.2642,
+  "pass^1": 0.2642,
+  "ci": {
+   "task_success": [
+    0.1509,
+    0.3774
+   ],
+   "pass^1": [
+    0.1509,
+    0.3774
+   ],
+   "task_success_uncited": [
+    0.1509,
+    0.3774
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.2642,
+  "turn_success": 0.6434,
+  "behavior_accuracy": 0.8682,
+  "fact_recall": 0.7054,
+  "fact_stated": 0.7054,
+  "tool_recall": 0.9872,
+  "tool_precision": 0.6594,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 0.3333,
+  "states_missing_when_required": 0.25,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 60.99,
+  "latency_ms_p95": 913.29,
+  "latency_ms_p99": 1865.0,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "control": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 742.17
+  },
+  "derived_metric": {
+   "tasks": 11,
+   "task_success": 0.0909,
+   "latency_ms_p95": 1120.71
+  },
+  "fair_value_implied": {
+   "tasks": 6,
+   "task_success": 0.3333,
+   "latency_ms_p95": 141.02
+  },
+  "gap_followup": {
+   "tasks": 23,
+   "task_success": 0.1739,
+   "latency_ms_p95": 579.51
+  },
+  "hk_out_of_coverage": {
+   "tasks": 8,
+   "task_success": 0.25,
+   "latency_ms_p95": 1865.0
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 20,
+   "task_success": 0.2,
+   "latency_ms_p95": 1039.84
+  },
+  "zh": {
+   "tasks": 33,
+   "task_success": 0.303,
+   "latency_ms_p95": 824.89
+  }
+ },
+ "failed_checks": {
+  "facts": 33,
+  "behavior": 17,
+  "entities": 15,
+  "language": 7,
+  "disclaimer": 6,
+  "limitations": 6,
+  "hedged": 4,
+  "states_missing": 3,
+  "required_tools": 1
+ },
+ "failures": [
+  {
+   "task": "r7h_gap_zh_01",
+   "category": "gap_followup",
+   "query": "两家差几个百分点？",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5 元（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.5337% [price_00085"
+  },
+  {
+   "task": "r7h_gap_zh_02",
+   "category": "gap_followup",
+   "query": "相差多少",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "disclaimer",
+    "language",
+    "entities"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想比较哪两个标的的哪项指标？例如「贵州茅台和五粮液的市盈率差多少？」。"
+  },
+  {
+   "task": "r7h_gap_zh_03",
+   "category": "gap_followup",
+   "query": "前者比后者高多少？",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "r7h_gap_zh_04",
+   "category": "gap_followup",
+   "query": "换成五粮液呢",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。"
+  },
+  {
+   "task": "r7h_gap_zh_04",
+   "category": "gap_followup",
+   "query": "两者差了几个点？",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5 元（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.5337% [price_00085"
+  },
+  {
+   "task": "r7h_gap_zh_05",
+   "category": "gap_followup",
+   "query": "差了多少亿",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "disclaimer",
+    "language",
+    "entities"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想比较哪两个标的的哪项指标？例如「贵州茅台和五粮液的市盈率差多少？」。"
+  },
+  {
+   "task": "r7h_gap_zh_06",
+   "category": "gap_followup",
+   "query": "后者是前者的几倍？",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "r7h_gap_zh_07",
+   "category": "gap_followup",
+   "query": "前者大概是后者的多少倍",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "r7h_gap_zh_09",
+   "category": "gap_followup",
+   "query": "证券ETF今天成交了多少钱",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：证券ETF（512880.SH）最新可用收盘价为 1.021 元（2026-04-22），当日涨跌幅 0.59% [price_512880.SH]。"
+  },
+  {
+   "task": "r7h_gap_zh_09",
+   "category": "gap_followup",
+   "query": "创业板ETF的呢",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：创业板ETF（159915.SZ）最新可用收盘价为 2.465 元（2026-04-22），当日涨跌幅 0.86% [price_159915.SZ]。"
+  },
+  {
+   "task": "r7h_gap_zh_09",
+   "category": "gap_followup",
+   "query": "后者是前者的几倍",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "r7h_gap_zh_10",
+   "category": "gap_followup",
+   "query": "两只价格相差多少元",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：沪深300ETF（510300.SH）最新可用收盘价为 4.811 元（2026-04-22），按前一交易日收盘 4.776 元 计算的当日涨跌幅约 0.73%（数据源未提供涨跌幅） [price_510300.SH]。创业板ETF（159915.SZ）最新可用收盘价为 2.465 元（2026-"
+  },
+  {
+   "task": "r7h_gap_zh_13",
+   "category": "gap_followup",
+   "query": "两者差多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ"
+  },
+  {
+   "task": "r7h_gap_zh_14",
+   "category": "gap_followup",
+   "query": "相差多少亿",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "disclaimer",
+    "language",
+    "entities"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想比较哪两个标的的哪项指标？例如「贵州茅台和五粮液的市盈率差多少？」。"
+  },
+  {
+   "task": "r7h_gap_en_01",
+   "category": "gap_followup",
+   "query": "Which is higher, and by how much?",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Kweichow Moutai (600519.SH) last available close was CNY 1409.5 on 2026-04-22, daily change -0.1778% [price_6"
+  },
+  {
+   "task": "r7h_gap_en_02",
+   "category": "gap_followup",
+   "query": "How many times larger is the first one?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "r7h_gap_en_03",
+   "category": "gap_followup",
+   "query": "What's the ratio between the two?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Kweichow Moutai (600519.SH) last available close was CNY 1409.5 on 2026-04-22, daily change -0.1778% [price_6"
+  },
+  {
+   "task": "r7h_gap_en_04",
+   "category": "gap_followup",
+   "query": "Which one is higher and by how many points?",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Wuliangye (000858.SZ) last available close was CNY 100.64 on 2026-04-22, daily change -0.5337% [price_000858."
+  },
+  {
+   "task": "r7h_gap_en_04",
+   "category": "gap_followup",
+   "query": "And how far apart are their P/E ratios?",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Wuliangye fundamentals (period 2025-12-31, FY2025): PE(TTM) 20.9x, PB 5.4x, ROE 29.4%, revenue CNY 108.5 bn, "
+  },
+  {
+   "task": "r7h_gap_en_05",
+   "category": "gap_followup",
+   "query": "What's the gap in percentage points?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "disclaimer",
+    "language",
+    "entities"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "Which two targets and which metric do you want compared? For example, \"How much higher is Kweichow Moutai's P/E than Wuliangye's?\""
+  },
+  {
+   "task": "r7h_gap_en_06",
+   "category": "gap_followup",
+   "query": "so what's the difference in points?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "disclaimer",
+    "language",
+    "entities"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "Which two targets and which metric do you want compared? For example, \"How much higher is Kweichow Moutai's P/E than Wuliangye's?\""
+  },
+  {
+   "task": "r7h_gap_en_07",
+   "category": "gap_followup",
+   "query": "What was Wuliangye's trading value today?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Wuliangye (000858.SZ) last available close was CNY 100.64 on 2026-04-22, daily change -0.5337% [price_000858."
+  },
+  {
+   "task": "r7h_gap_en_07",
+   "category": "gap_followup",
+   "query": "And Ping An's?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Ping An Insurance (601318.SH) last available close was CNY 53.61 on 2026-04-22, daily change 0.73% [price_601"
+  },
+  {
+   "task": "r7h_gap_en_07",
+   "category": "gap_followup",
+   "query": "How much more did Ping An trade?",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Ping An Insurance (601318.SH) last available close was CNY 53.61 on 2026-04-22, daily change 0.73% [price_601"
+  },
+  {
+   "task": "r7h_gap_en_09",
+   "category": "gap_followup",
+   "query": "what's the difference in billions of yuan?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "disclaimer",
+    "language",
+    "entities"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "Which two targets and which metric do you want compared? For example, \"How much higher is Kweichow Moutai's P/E than Wuliangye's?\""
+  },
+  {
+   "task": "r7h_derived_zh_01",
+   "category": "derived_metric",
+   "query": "那每股收益是多少",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5 元（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。"
+  },
+  {
+   "task": "r7h_derived_zh_02",
+   "category": "derived_metric",
+   "query": "那它的EPS大概多少",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 20.9 倍，PB 5.4 倍，ROE 29.4%，营业收入 1085 亿元，净利润 378 亿元 [fundamental_000858.SZ]。所属行业 白酒：PE 27.3 倍，PB 6.2 倍，涨跌幅 -1.0"
+  },
+  {
+   "task": "r7h_derived_en_01",
+   "category": "derived_metric",
+   "query": "What are its earnings per share?",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Ping An Insurance fundamentals (period 2025-12-31, FY2025): PE(TTM) 8.7x, PB 1.1x, ROE 15.2%, revenue CNY 121"
+  },
+  {
+   "task": "r7h_derived_zh_03",
+   "category": "derived_metric",
+   "query": "我有300股茅台，按最新收盘值多少钱",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。FinSight 不给出合理估值：下文的价格、PE、PB 和行业对比是市场数据和估值参考，不是对合理价值的判断。根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5 元（2026-04-22），当日涨跌幅 -0"
+  },
+  {
+   "task": "r7h_derived_zh_03",
+   "category": "derived_metric",
+   "query": "要是同样300股换成五粮液呢",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。"
+  },
+  {
+   "task": "r7h_derived_zh_04",
+   "category": "derived_metric",
+   "query": "手里有2000股五粮液，按最近收盘价算市值多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "当前数据源没有五粮液的总市值数据，无法回答这一项；以下只列出可得的指标。根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。五粮液 基本面（报告期 2025-12-31，2025年年报）：PE(T"
+  },
+  {
+   "task": "r7h_derived_en_02",
+   "category": "derived_metric",
+   "query": "I own 500 shares of Ping An. What are they worth at the latest close?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "analyze_sentiment"
+   ],
+   "answer_excerpt": "Based on the current evidence, this can only be a conditional assessment, not a definitive buy, sell, or hold recommendation. FinSight does not give a fair valu"
+  },
+  {
+   "task": "r7h_derived_zh_05",
+   "category": "derived_metric",
+   "query": "我持有两万份沪深300ETF，按最新收盘价值多少钱",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "analyze_sentiment"
+   ],
+   "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出或持有建议。FinSight 不给出合理估值：下文的价格、PE、PB 和行业对比是市场数据和估值参考，不是对合理价值的判断。根据本次检索到的证据：沪深300ETF（510300.SH）最新可用收盘价为 4.811 元（2026-04-22），按前一交易日收盘 4"
+  },
+  {
+   "task": "r7h_derived_zh_06",
+   "category": "derived_metric",
+   "query": "净利润是营收的百分之几",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中国平安 基本面（报告期 2025-12-31，2025年年报）：PE(TTM) 8.7 倍，PB 1.1 倍，ROE 15.2%，营业收入 12180 亿元，净利润 1210 亿元 [fundamental_601318.SH]。所属行业 保险：PE 11.8 倍，PB 1.45 倍，涨跌幅 0"
+  },
+  {
+   "task": "r7h_derived_en_03",
+   "category": "derived_metric",
+   "query": "What percent of that revenue ends up as net profit?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Kweichow Moutai (600519.SH) last available close was CNY 1409.5 on 2026-04-22, daily change -0.1778% [price_6"
+  },
+  {
+   "task": "r7h_derived_en_04",
+   "category": "derived_metric",
+   "query": "If I hold 800 shares, what's my position worth?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "analyze_sentiment"
+   ],
+   "answer_excerpt": "Based on the current evidence, this can only be a conditional assessment, not a definitive buy, sell, or hold recommendation. FinSight does not give a fair valu"
+  },
+  {
+   "task": "r7h_fair_zh_01",
+   "category": "fair_value_implied",
+   "query": "如果按白酒行业平均市盈率给五粮液估值，股价该是多少",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.5337% [price_000858.SZ]。所属行业 白酒：PE 27.3 倍，PB 6.2 倍，涨跌幅 -1.05% [industry_白酒]。五粮液 基本面（报告期 2025-12-"
+  },
+  {
+   "task": "r7h_fair_zh_03",
+   "category": "fair_value_implied",
+   "query": "那要是按行业平均来算，茅台股价应该是多少",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5 元（2026-04-22），当日涨跌幅 -0.1778% [price_600519.SH]。所属行业 白酒：PE 27.3 倍，PB 6.2 倍，涨跌幅 -1.05% [industry_白酒]。贵州茅台 基本面（报告期 2025-1"
+  },
+  {
+   "task": "r7h_fair_en_01",
+   "category": "fair_value_implied",
+   "query": "If Moutai traded at the sector P/E, what would its share price be?",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Kweichow Moutai (600519.SH) last available close was CNY 1409.5 on 2026-04-22, daily change -0.1778% [price_6"
+  },
+  {
+   "task": "r7h_fair_en_02",
+   "category": "fair_value_implied",
+   "query": "Re-rate Ping An to the insurance industry's average P/B: what's the implied share price?",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Ping An Insurance (601318.SH) last available close was CNY 53.61 on 2026-04-22, daily change 0.73% [price_601"
+  },
+  {
+   "task": "r7h_hk_zh_01",
+   "category": "hk_out_of_coverage",
+   "query": "中国平安H股现在多少钱",
+   "failed_checks": [
+    "behavior",
+    "limitations"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。"
+  },
+  {
+   "task": "r7h_hk_zh_02",
+   "category": "hk_out_of_coverage",
+   "query": "那它在香港上市的股票呢",
+   "failed_checks": [
+    "behavior",
+    "limitations"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 53.61 元（2026-04-22），当日涨跌幅 0.73% [price_601318.SH]。"
+  },
+  {
+   "task": "r7h_hk_zh_03",
+   "category": "hk_out_of_coverage",
+   "query": "比亚迪电子的市盈率是多少",
+   "failed_checks": [
+    "behavior",
+    "limitations"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "本次没有检索到可用于回答该问题的证据。当前数据源中没有比亚迪（002594.SZ）的行情、基本面数据。"
+  },
+  {
+   "task": "r7h_hk_zh_05",
+   "category": "hk_out_of_coverage",
+   "query": "02318.HK最新收盘价",
+   "failed_checks": [
+    "behavior",
+    "limitations",
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "r7h_hk_en_01",
+   "category": "hk_out_of_coverage",
+   "query": "What about its H shares in Hong Kong?",
+   "failed_checks": [
+    "behavior",
+    "limitations"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Ping An Insurance fundamentals (period 2025-12-31, FY2025): PE(TTM) 8.7x, PB 1.1x, ROE 15.2%, revenue CNY 121"
+  },
+  {
+   "task": "r7h_hk_en_03",
+   "category": "hk_out_of_coverage",
+   "query": "BYD Electronic's P/E ratio?",
+   "failed_checks": [
+    "behavior",
+    "limitations"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "No usable evidence was retrieved for this question. The current data sources have no market data, fundamentals for BYD (002594.SZ)."
+  }
+ ],
+ "task_outcomes": {
+  "r7h_gap_zh_01": "0",
+  "r7h_gap_zh_02": "0",
+  "r7h_gap_zh_03": "0",
+  "r7h_gap_zh_04": "0",
+  "r7h_gap_zh_05": "0",
+  "r7h_gap_zh_06": "0",
+  "r7h_gap_zh_07": "0",
+  "r7h_gap_zh_08": "1",
+  "r7h_gap_zh_09": "0",
+  "r7h_gap_zh_10": "0",
+  "r7h_gap_zh_11": "1",
+  "r7h_gap_zh_12": "1",
+  "r7h_gap_zh_13": "0",
+  "r7h_gap_zh_14": "0",
+  "r7h_gap_en_01": "0",
+  "r7h_gap_en_02": "0",
+  "r7h_gap_en_03": "0",
+  "r7h_gap_en_04": "0",
+  "r7h_gap_en_05": "0",
+  "r7h_gap_en_06": "0",
+  "r7h_gap_en_07": "0",
+  "r7h_gap_en_08": "1",
+  "r7h_gap_en_09": "0",
+  "r7h_derived_zh_01": "0",
+  "r7h_derived_zh_02": "0",
+  "r7h_derived_en_01": "0",
+  "r7h_derived_zh_03": "0",
+  "r7h_derived_zh_04": "0",
+  "r7h_derived_en_02": "0",
+  "r7h_derived_zh_05": "0",
+  "r7h_derived_zh_06": "0",
+  "r7h_derived_zh_07": "1",
+  "r7h_derived_en_03": "0",
+  "r7h_derived_en_04": "0",
+  "r7h_fair_zh_01": "0",
+  "r7h_fair_zh_02": "1",
+  "r7h_fair_zh_03": "0",
+  "r7h_fair_zh_04": "1",
+  "r7h_fair_en_01": "0",
+  "r7h_fair_en_02": "0",
+  "r7h_hk_zh_01": "0",
+  "r7h_hk_zh_02": "0",
+  "r7h_hk_zh_03": "0",
+  "r7h_hk_zh_04": "1",
+  "r7h_hk_zh_05": "0",
+  "r7h_hk_en_01": "0",
+  "r7h_hk_en_02": "1",
+  "r7h_hk_en_03": "0",
+  "r7h_ctrl_zh_01": "1",
+  "r7h_ctrl_zh_02": "1",
+  "r7h_ctrl_zh_03": "1",
+  "r7h_ctrl_en_01": "1",
+  "r7h_ctrl_en_02": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r7-prefix.json",
+  "sha256_16": "a64180bc384b24e3",
+  "bytes": 364133,
+  "slimmed_at": "2026-10-01T01:57:27+00:00"
+ },
+ "notes": [
+  "independent round-7 chat slice run once on the pre-fix code (12a28eb = 20e57a0 + slice files), no LLM, --no-replay; the round-11 engineers have not seen this slice"
+ ]
+}

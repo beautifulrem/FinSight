@@ -138,3 +138,18 @@ def test_load_test_stream_records_time_to_first_answer_token():
     status, body, ttft_ms = asyncio.run(go())
     assert status == 200 and body["route"] == "agent"
     assert ttft_ms is not None and ttft_ms >= 0
+
+
+def test_load_test_records_which_source_and_fallback_served_the_evidence():
+    from scripts.load_test import _sources_served
+
+    body = {
+        "evidence_sources": [
+            {"payload": {"provenance": {"source": "sina.kline", "mode": "last_known_good"}}},
+            {"payload": {"provenance": {"source": "offline_snapshot", "mode": "snapshot"}}},
+            {"kind": "structured", "source_name": "seed", "payload": {"close": 1}},
+            {"kind": "document", "payload": None},
+        ]
+    }
+    assert _sources_served(body) == ["sina.kline/last_known_good", "offline_snapshot/snapshot", "seed/unlabelled"]
+    assert _sources_served({}) == []

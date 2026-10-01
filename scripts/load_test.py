@@ -92,7 +92,25 @@ def _llm_fields(body: dict) -> dict:
         "cost": llm.get("cost"),
         "currency": llm.get("currency"),
         "cost_source": llm.get("cost_source"),
+        "sources_served": _sources_served(body),
     }
+
+
+def _sources_served(body: dict) -> list[str]:
+    """``source/mode`` of every structured evidence item ("sina.kline/live_fallback", "sina.kline/last_known_good",
+    "offline_snapshot/snapshot"): which source and fallback served the answer. An item without a provenance block is
+    ``<source_name or tool>/unlabelled`` (the offline seed data carries none)."""
+    served = []
+    for source in body.get("evidence_sources") or []:
+        if not isinstance(source, dict):
+            continue
+        payload = source.get("payload")
+        provenance = payload.get("provenance") if isinstance(payload, dict) else None
+        if isinstance(provenance, dict) and (provenance.get("source") or provenance.get("mode")):
+            served.append(f"{provenance.get('source')}/{provenance.get('mode')}")
+        elif source.get("kind") == "structured" or isinstance(payload, dict):
+            served.append(f"{source.get('source_name') or source.get('produced_by') or 'unknown'}/unlabelled")
+    return served
 
 
 async def _streamed(client: httpx.AsyncClient, payload: dict, started: float) -> tuple[int, dict, float | None]:
@@ -127,12 +145,15 @@ async def user(
     questions: list[str],
     results: list[dict],
     stream: bool = False,
+    run_id: str = "",
 ) -> None:
     for step in range(requests):
         query = questions[(index + step) % len(questions)]
         started = time.perf_counter()
         record: dict = {"user": index, "step": step, "query": query}
-        payload = {"query": query, "mode": mode, "session_id": f"load{index}x{step}"}
+        # A fresh session per question, unique per run: a later run (a new client, so a new anonymous identity)
+        # reusing an id would hit another caller's session and get a 404.
+        payload = {"query": query, "mode": mode, "session_id": f"load{run_id}{index}x{step}"}
         try:
             if stream:
                 status, body, ttft_ms = await _streamed(client, payload, started)
@@ -251,8 +272,9 @@ async def run(
             if response.status_code == 200:
                 warmup_record.update(_llm_fields(response.json()))
         started = time.perf_counter()
+        run_id = f"{os.getpid():x}{time.time_ns() % 16**8:08x}-"
         await asyncio.gather(
-            *(user(client, index, requests, mode, questions, results, stream) for index in range(users))
+            *(user(client, index, requests, mode, questions, results, stream, run_id) for index in range(users))
         )
         wall = time.perf_counter() - started
     latencies = [item["latency_ms"] for item in results if item["ok"]]
@@ -275,6 +297,7 @@ async def run(
         "completion_tokens",
         "reported_cost_usd",
         "degraded",
+        "sources_served",
     )
     return {
         "label": label,
@@ -314,6 +337,8 @@ async def run(
         "verified_rate": _rate([item.get("verified") for item in answered]),
         "degraded_rate": _rate([bool(item.get("degraded")) for item in answered]),
         "models": dict(Counter(model for item in answered for model in item.get("models") or [])),
+        # evidence items by source/provenance mode over all answered requests (live, cache, last-known-good, snapshot)
+        "sources_served": dict(Counter(served for item in answered for served in item.get("sources_served") or [])),
         "cost": cost_summary(results, usd_cny, questions_per_day),
         "warmup": warmup_record,
         "environment": environment,

@@ -6,7 +6,7 @@ against the offline snapshot (`data/structured_data.json`: prices as of 2026-04-
 
 | File | Claims | Use |
 | --- | --- | --- |
-| `claims_v1.jsonl` | 268 (221 zh, 47 en) | dev set: the checker was developed against it (rows noted `round4` / `round5` / `round8` / `round9` / `round10` were added with later rule rounds) |
+| `claims_v1.jsonl` | 276 (229 zh, 47 en) | dev set: the checker was developed against it (rows noted `round4` / `round5` / `round8` / `round9` / `round10` / `round11` were added with later rule rounds) |
 | `claims_v1_holdout.jsonl` | 47 (38 zh, 9 en) | held out: written together with the dev set, before the fixes, and run **once** at the end |
 
 Held-out file sha256 (recorded when it was written, before any checker change):
@@ -93,3 +93,8 @@ such a number to the target's industry snapshot since round 8.
 python -m evaluation.claim_bench.run --set dev       # -> evaluation/results/claim_bench-dev.json
 python -m evaluation.claim_bench.run --set holdout   # once, at the end
 ```
+
+Round-11 rows (`note: round11`, d269-d276) cover the round-7 review's G12: "N倍多" with N ≥ 10 (多 after 倍: 10倍多 is
+10-11, so 11.23 contradicts it; 十多倍 stays 10-20; 11倍多; 1倍多 below 10) and 将近 / 接近 N read as [0.9N, N] (将近900亿
+against 823.2亿 supported, 接近800亿 contradicted, 将近24倍 against 24.6 contradicted, 接近25倍 supported). d269 and d273 are
+the review's own repro claims; every label follows the written rule and the offline values in its `basis` field.
