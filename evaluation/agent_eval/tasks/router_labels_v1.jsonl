@@ -379,3 +379,10 @@
 {"id": "route_378", "query": "What's Ping An's Hong Kong listing trading at?", "expected_route": "refuse", "note": "round12: a Hong Kong listing in English is out of coverage"}
 {"id": "route_379", "query": "香港的加息对A股券商板块有什么影响", "expected_route": "agent", "note": "round12: Hong Kong as a macro factor for A-shares stays in scope (H-share negative)"}
 {"id": "route_380", "query": "五粮液今天一共成交了多少手", "expected_route": "workflow", "note": "round12: volume asked in words is a lookup (turnover negative)"}
+{"id": "route_381", "query": "比亚迪港股的市盈率", "expected_route": "refuse", "note": "round12: a named A-share company followed by 港股 is its Hong Kong line, out of coverage (review-8 H5)"}
+{"id": "route_382", "query": "What's the Hong Kong share price of BYD?", "expected_route": "refuse", "note": "round12: the Hong Kong share price of a dual-listed company is out of coverage (review-8 H5)"}
+{"id": "route_383", "query": "贵州茅台的市净率比五粮液高百分之多少", "expected_route": "agent", "note": "round12: a one-message relative comparison of two targets (review-8 H2)"}
+{"id": "route_384", "query": "我有5手五粮液，按最新收盘值多少", "expected_route": "workflow", "note": "round12: a holding in lots is arithmetic on the close (review-8 H4)"}
+{"id": "route_385", "query": "贵州茅台每股能赚几块钱", "expected_route": "workflow", "note": "round12: colloquial EPS is a lookup (review-8 H9)"}
+{"id": "route_386", "query": "中国平安的换手率是多少", "expected_route": "workflow", "note": "round12: the turnover rate is a lookup, named missing when the source lacks it (review-8 H9)"}
+{"id": "route_387", "query": "我账户里有2000股，合计值多少钱", "expected_route": "clarify", "note": "round12: a holding with no target opening a conversation asks which stock (review-8 H4 negative)"}
