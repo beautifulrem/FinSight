@@ -116,11 +116,64 @@ _FORECAST_MARKERS = re.compile(
 )
 _MOVE_WORDS = re.compile(r"涨|跌|反弹|回调|走势|行情|\b(?:rise|fall|rally|drop|surge|jump)\b", re.IGNORECASE)
 
+# (round 12, H3) A point forecast of a price level: a future time expression and a price-level word in one sentence
+# ("明天的收盘价是多少", "下周收盘价会是多少", "What will X close at next Friday?"), a price asked with a future modal
+# ("股价能到多少", "What will the CSI 300 close at?") or a price target. No move word is needed: before round 12
+# "明天的收盘价" was answered with the latest close and no hedge. Past dates ("昨天", "上周五", "去年年底",
+# "last Friday") are not future expressions, so a dated question about the past is answered as a lookup.
+_FUTURE_TIME = re.compile(
+    r"明天|明日|明早|后天|下(?:个|一个?)?(?:周|星期|礼拜)[一二三四五六日天末]?|下(?:一|个)?(?:交易日|开盘)|"
+    r"下个?月|下(?:个)?季度|下半年|明年|后年|(?<!去年)(?<!前年)(?<!上年)(?<![去前上\d])年(?:底|末|内)|"
+    r"(?<!上)(?<!上个)月底|未来|将来|今后|接下来|"
+    r"(?:\d+|[一二两三四五六七八九十几]+)\s*(?:个)?(?:交易日|天|周|星期|个?月|年)(?:以?后|之后)|"
+    r"\btomorrow\b|\bnext\s+(?:mon|tues|wednes|thurs|fri|satur|sun)day\b|"
+    r"\bnext\s+(?:week|month|quarter|year|session|trading\s+(?:day|session)|few\s+(?:days|weeks|months))\b|"
+    r"\b(?:by|at|before|around)\s+(?:the\s+)?(?:end\s+of\s+(?:the\s+|this\s+|next\s+)?(?:year|month|quarter|week)|"
+    r"year[- ]end|month[- ]end)\b|\bin\s+(?:a|one|two|three|four|five|six|\d+)\s+(?:days?|weeks?|months?|years?)\b|"
+    r"\b(?:a|one|two|three|\d+)\s+(?:days?|weeks?|months?|years?)\s+from\s+now\b|\bthis\s+time\s+next\b|"
+    r"\bgoing forward\b|\bin the coming\b",
+    re.IGNORECASE,
+)
+_PRICE_LEVEL = re.compile(
+    r"收盘价|开盘价|最高价|最低价|股价|价格|价位|点位|报价|净值|多少钱|多少元|多少块|几块钱|多少点|"
+    r"收(?:在|于|到)?(?:多少|几)|(?:涨|跌|升|降|回|冲|站|收)(?:到|至|上|回|在|于)(?:多少|几|哪)|"
+    r"\bclos(?:e|es|ing)\b|\bopen(?:s|ing)?\s+(?:at|price)\b|\bprices?\b|\bpriced\b|"
+    r"\btrade\s+(?:at|around|above|below)\b|\btrading\s+at\b|\bworth\b|\blevel\b|\bfinish\s+at\b|"
+    r"\bend\s+(?:the\s+\w+\s+)?at\b|\bquote\b",
+    re.IGNORECASE,
+)
+# A price asked with a future modal and no time expression: "股价能到多少", "收盘价会是多少", "What will X close at?"
+_PRICE_MODAL = re.compile(
+    r"(?:收盘价|开盘价|股价|价格|点位)[^。？?！!，,]{0,6}?(?:会是|会在|会到|能到|将是|将会|能达到|会达到|能涨到|会涨到|"
+    r"会跌到)|(?:能|会|将|可能)(?:涨|跌|升|回|冲)(?:到|至)(?:多少|几)|目标价|目标位|"
+    r"\b(?:what|where|how\s+high|how\s+low|how\s+much)\b[^.?!]{0,40}?\bwill\b[^.?!]{0,40}?"
+    r"\b(?:close|closing|open|trade|end|finish|be\s+priced|be\s+worth|be\s+at|price|reach|hit)\b|"
+    r"\bprice\s+target\b|\btarget\s+price\b",
+    re.IGNORECASE,
+)
+_SENTENCE_SPLIT = re.compile(r"[。？?！!；;\n]")
+
+
+def asks_price_forecast(query: str) -> bool:
+    """(round 12, H3) The question asks for a future price level: a future time expression and a price-level word in
+    the same sentence, a price asked with a future modal, or a price target."""
+    text = str(query or "")
+    if _PRICE_MODAL.search(text):
+        return True
+    return any(
+        _FUTURE_TIME.search(part) and _PRICE_LEVEL.search(part) for part in _SENTENCE_SPLIT.split(text) if part.strip()
+    )
+
 
 def asks_prediction(query: str) -> bool:
     """(round 10, F14) The question asks for a market prediction or a pick: a future direction ("明天…会涨停",
-    "下周会反弹吗") or a judgment/timing marker (``_JUDGMENT_MARKERS``)."""
-    return bool((_FORECAST_MARKERS.search(query) and _MOVE_WORDS.search(query)) or _JUDGMENT_MARKERS.search(query))
+    "下周会反弹吗") or a judgment/timing marker (``_JUDGMENT_MARKERS``); since round 12 (H3) also a point forecast of
+    a price level ("明天的收盘价是多少", ``asks_price_forecast``)."""
+    return bool(
+        (_FORECAST_MARKERS.search(query) and _MOVE_WORDS.search(query))
+        or _JUDGMENT_MARKERS.search(query)
+        or asks_price_forecast(query)
+    )
 
 
 # Requests for an analysis or an opinion of a named target: one lookup cannot answer them ("从估值、业绩和舆情三个方面

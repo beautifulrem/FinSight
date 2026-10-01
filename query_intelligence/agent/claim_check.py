@@ -276,7 +276,8 @@ _UNIT_CLASS: tuple[tuple[re.Pattern[str], str], ...] = (
 # ---------------------------------------------------------------------------------------------------------
 _COMPARATOR_WORDS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("le", _words(r"至多|最多|以内|\bat most\b|\bup to\b")),
-    ("ge", _words(r"至少|起码|最少|\bat least\b")),
+    # "营收破千亿" (round 12, H6): 破 alone reaches the number; 跌破 is a fall below it, 突破 stays "above"
+    ("ge", _words(r"至少|起码|最少|(?<![跌突击打])破(?![产净发位获案解坏除])|\bat least\b")),
     (
         "lt",
         _words(r"低于|小于|少于|不到|不足|不及|跌破|\bbelow\b|\bunder\b|\bless than\b|\blower than\b|\bfewer than\b"),
@@ -303,6 +304,8 @@ _POST_COMPARATOR: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("approx", _words(r"^\s*(?:左右|上下)")),
     ("gt", _words(r"^\s*(?:多(?!少)|有余|出头|之?上方|之上)")),  # "三倍多", "两倍有余", "三成出头", "PMI在50上方"
     ("lt", _words(r"^\s*(?:之?下方|之下)")),
+    # "只有五粮液的一半不到", "连茅台的七成都不到" (round 12, H6): the bound after the number
+    ("lt", _words(r"^\s*(?:都|也|还)?\s*(?:不到|不足|不及)")),
 )
 # "八百多亿", "一千六百余亿", "三倍多", "七倍有余": more than the number but less than the next step of its last
 # significant digit (800多 is 800-900, 三倍多 is 3-4). "三成出头", "八百亿出头": in the lower half of that step
@@ -411,7 +414,9 @@ _CLAIM_DATES = (
 # "茅台的市净率是五粮液的1.5倍" / "Moutai's P/B is 1.5 times Wuliangye's": a multiple of another target's value.
 _APPROX_WORDS = r"(?:约|大约|大概|接近|将近|差不多|近|约为|\babout\b|\baround\b|\broughly\b|\bnearly\b|\balmost\b)?"
 # A bound may stand where the verb does: "营收不到五粮液的1.5倍", "超过五粮液的两倍", "至少是五粮液的1.2倍".
-_RATIO_VERB = r"(?:是|为|相当于|达到?|等于|有|不到|不足|不及|低于|小于|少于|超过|超出|高于|大于|多于|至少|至多|最多|比)"
+_RATIO_VERB = (
+    r"(?:是|为|相当于|达到?|等于|有|不到|不足|不及|低于|小于|少于|超过|超出|高于|大于|多于|至少|至多|最多|比|连)"
+)
 _RATIO_BEFORE = re.compile(
     rf"(?P<verb>{_RATIO_VERB})\s*{_APPROX_WORDS}\s*(?P<ref>＠+)\s*(?P<of>的|'s|’s)?\s*{_APPROX_WORDS}\s*$", re.I
 )
@@ -466,10 +471,23 @@ _FULLWIDTH = str.maketrans("０１２３４５６７８９．％＋－", "012345
 
 _CN_DIGITS = dict(zip("零〇一二两三四五六七八九", (0, 0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9), strict=True))
 _CN_UNITS = {"十": 10, "百": 100, "千": 1000}
-_CN_NUMERAL = r"[零〇一二两三四五六七八九十百千]+(?:点[零〇一二三四五六七八九]+)?"
+# "一万二千多亿" (round 12): 万 inside a numeral, followed by more digits, multiplies what comes before it
+_CN_NUMERAL = (
+    r"[零〇一二两三四五六七八九十百千]+(?:万(?=[零〇一二两三四五六七八九十百千])[零〇一二两三四五六七八九十百千]+)?"
+    r"(?:点[零〇一二三四五六七八九]+)?"
+)
 # "一千六百多亿", "八百余亿", "三十多倍": 多 / 余 may stand between the numeral and its unit (round 10, F7).
+# "股价一千四百出头", "一千四百多。" (round 12): a numeral with a place word and no unit, before 出头 or a final 多.
 _CN_BEFORE_UNIT = re.compile(
-    rf"({_CN_NUMERAL})(?=(?:多|余)?(?:倍|%|元|块|亿|万|个百分点|成|点(?![零〇一二三四五六七八九])))"
+    rf"({_CN_NUMERAL})(?=(?:多|余)?(?:倍|%|元|块|亿|万|个百分点|成|点(?![零〇一二三四五六七八九])))|"
+    rf"((?=[零〇一二两三四五六七八九十百千万]*[十百千万])[零〇一二两三四五六七八九十百千万]{{2,}})"
+    r"(?=出头|多(?:[，,。；;！!？?\s]|$))"
+)
+# "一成半" (round 12): 15%
+_TENTHS_AND_HALF = re.compile(r"(\d+)成半")
+# "比茅台低了将近一半" (round 12): a half after a comparison adjective is half of the compared value (50%)
+_HALF_AFTER_COMPARISON = re.compile(
+    r"(?<=[高低多少大小贵])(了|出)?\s*((?:将近|接近|近|约|大约|大概|超过|不到|足足)?)\s*一半(?!以上|以下)"
 )
 _CN_PERCENT = re.compile(rf"百分之\s*({_CN_NUMERAL}|\d+(?:\.\d+)?)")
 _TENTHS = re.compile(r"(\d+(?:\.\d+)?)成(?![交本功为])")
@@ -522,14 +540,21 @@ class ClaimCheck(BaseModel):
             "then the stated difference, signed by the stated direction (高出 +, 低 -)."
         ),
     )
-    kind: Literal["value", "stated_reference", "relation", "ratio", "difference", "relative_difference"] = Field(
+    kind: Literal["value", "stated_reference", "relation", "ratio", "difference", "relative_difference", "sum"] = Field(
         default="value",
         description=(
             "What the check compares: a target's own value; 'stated_reference', the value the claim states for the "
             "compared side ('比白酒行业平均的30倍低': the average is 30x, round 10); a relation of two values; a "
-            "multiple of the other side; or a stated (absolute or relative) difference of the two."
+            "multiple of the other side; a stated (absolute or relative) difference of the two; or 'sum', the total "
+            "of several targets ('茅台和五粮液成交额加起来不到50亿', round 12)."
         ),
     )
+    operands: list[str] = Field(
+        default_factory=list,
+        description="For a sum: the targets added up, in the claim's order; `actual` is their total.",
+    )
+    operand_values: list[float] = Field(default_factory=list, description="For a sum: each target's value.")
+    operand_evidence_ids: list[str] = Field(default_factory=list, description="For a sum: each value's evidence id.")
     actual: float | None = None
     status: Status
     reason: Reason | None = Field(default=None, description="Why a check is unverifiable (machine-readable).")
@@ -588,7 +613,12 @@ _INDUSTRY_LABEL = re.compile(r"^(?P<industry>[一-鿿]+?)(?:行业|板块)(?P<av
 
 def english_label(label: str) -> str | None:
     """The English for a check's target or reference label: a company ("贵州茅台" -> "Kweichow Moutai"), an industry
-    or its average ("白酒行业平均" -> "baijiu (liquor) industry average"); ``None`` when there is none."""
+    or its average ("白酒行业平均" -> "baijiu (liquor) industry average"), a sum's operands ("贵州茅台+五粮液" ->
+    "Kweichow Moutai + Wuliangye"); ``None`` when there is none."""
+    if "+" in (label or ""):
+        parts = [part for part in label.split("+") if part]
+        english = [english_label(part) for part in parts]
+        return " + ".join(name or part for name, part in zip(english, parts, strict=True)) if any(english) else None
     match = _INDUSTRY_LABEL.match(label or "")
     if match:
         industry = match.group("industry")
@@ -640,6 +670,10 @@ class _Number:
     # "relative" when it is a percentage of the reference's value ("比行业平均低了近10%").
     difference: Literal["absolute", "relative"] | None = None
     difference_unsigned: bool = False  # "两者相差3.6个百分点": no direction stated
+    # "茅台和五粮液成交额加起来不到50亿" (round 12, H6): the number is the total of these targets
+    sum_of: list[dict[str, Any]] = field(default_factory=list)
+    bound: bool = False  # the target was decided where the number was read; ``_bind_targets`` keeps it
+    cue: tuple[int, int] | None = None  # a difference's comparison word ("above" in "40 billion yuan above …")
 
 
 def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = True) -> ClaimReport:
@@ -827,13 +861,15 @@ def normalise(claim: str) -> str:
     text = _EN_MULTIPLE.sub(lambda m: f"{_EN_MULTIPLES[m.group(1).lower()]} times", text)  # "more than double"
     text = _PMI_LINE.sub("50", text)
     text = re.sub(r"的一半", "的0.5倍", text)
+    text = _HALF_AFTER_COMPARISON.sub(_half_of_comparison, text)
     # A share of another value is a multiple (round 9): "的三分之一" → "的0.3333倍", "的六成" → "的0.6倍".
     text = _CN_FRACTION.sub(
         lambda m: f"的{_trim(round(float(_cn_number(m.group(2))) / float(_cn_number(m.group(1))), 4))}倍", text
     )
     text = _OF_TENTHS.sub(lambda m: f"的{_trim(float(_cn_number(m.group(1))) / 10)}倍", text)
     text = _CN_PERCENT.sub(lambda m: f"{_cn_number(m.group(1))}%", text)
-    text = _CN_BEFORE_UNIT.sub(lambda m: _cn_number(m.group(1)), text)
+    text = _CN_BEFORE_UNIT.sub(lambda m: _cn_number(m.group(1) or m.group(2)), text)
+    text = _TENTHS_AND_HALF.sub(lambda m: f"{_trim(float(m.group(1)) * 10 + 5)}%", text)
     text = _TENTHS.sub(lambda m: f"{_trim(float(m.group(1)) * 10)}%", text)
     text = _TIMES_EARNINGS.sub(r"\1x P/E", text)  # "trades at 8.7 times earnings" is a P/E
     text = _METRIC_DIGITS.sub(r"\1 ", text)
@@ -844,19 +880,31 @@ def _trim(value: float) -> str:
     return f"{value:.6f}".rstrip("0").rstrip(".")
 
 
+def _half_of_comparison(match: re.Match[str]) -> str:
+    """ "比茅台低了将近一半" → "比茅台低了将近50%" when the clause compares with 比 / 较; otherwise unchanged."""
+    head = match.string[: match.start()]
+    clause = re.split(r"[，,。；;！!？?\n]", head)[-1]
+    if not re.search(r"比|较", clause):
+        return match.group(0)
+    return f"{match.group(1) or ''}{match.group(2) or ''}50%"
+
+
 def _cn_number(text: str) -> str:
-    """ "二十四点六" → "24.6"; Arabic input is returned as is."""
+    """ "二十四点六" → "24.6", "一万二千" → "12000"; Arabic input is returned as is."""
     if re.fullmatch(r"\d+(?:\.\d+)?", text):
         return text
     integer, _, decimals = text.partition("点")
-    total, digit = 0, 0
+    total, section, digit = 0, 0, 0
     for char in integer:
         if char in _CN_DIGITS:
             digit = _CN_DIGITS[char]
+        elif char == "万":
+            total += ((section + digit) or 1) * 10000
+            section = digit = 0
         else:
-            total += (digit or 1) * _CN_UNITS[char]
+            section += (digit or 1) * _CN_UNITS[char]
             digit = 0
-    total += digit
+    total += section + digit
     tail = "".join(str(_CN_DIGITS[char]) for char in decimals)
     return f"{total}.{tail}" if tail else str(total)
 
@@ -1014,7 +1062,28 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
         before = text[max(clause_start, number.start - _LOOK_BEHIND) : number.start]
         after = text[number.end : min(clause_end, number.end + _LOOK_AHEAD)]
         _read_comparator(number, stretch, after)
-        if _difference(number, text, positions):
+        number.sum_of = _sum_operands(number, text, positions)
+        if number.sum_of:
+            # "茅台和五粮液成交额加起来不到50亿": the total of the targets, never one of them (round 12, H6)
+            _metric_for(number, before, after, norm[clause_start:clause_end], previous)
+            if number.metric is None:  # "The combined net profit of Moutai and Wuliangye is …": earlier in the sentence
+                sentence_start, _sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+                fitting = [
+                    name
+                    for _d, name in _nearest_metrics(text[sentence_start : number.start], "")
+                    if number.unit_class in _METRICS[name].units
+                ]
+                number.metric = fitting[0] if fitting else None
+            if number.metric is None:
+                number.sum_of = []
+            else:
+                number.target, number.bound = number.sum_of[0], True
+                if number.metric not in _ADDITIVE:
+                    # "茅台和五粮液的市盈率加起来约45倍": a total of multiples or rates means nothing
+                    number.reasons.append(("no_data", f"a total of {number.metric} across companies is not a value"))
+        if number.sum_of:
+            pass
+        elif _difference(number, text, positions):
             pass  # "茅台ROE比五粮液高出约3.6个百分点": the difference of the two, checked in ``_check_difference``
         elif _ratio_reference(number, text, positions, shares):
             # "茅台的市净率大约是五粮液的1.5倍": the metric is the one compared, the 倍 is the multiple.
@@ -1049,18 +1118,29 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
                 ]
                 number.metric = fitting[0] if fitting else None
         _context(number, norm, clause_start, clause_end, plain)
-        if not number.ratio:
+        if not number.ratio and not number.sum_of:
             averaged = _stated_reference(number, text, max(clause_start, previous_end), positions, shares)
             if averaged is not None:
                 averaged.reasons = list(number.reasons)
                 averages.append(averaged)
+            else:
+                # "比起保险业11.8倍的平均市盈率，平安的8.7倍明显偏低" (round 12, H6): an average stated in a
+                # comparison frame is the industry's, not the company's
+                _framed_average(number, text, positions, clause_start, clause_end)
         previous_end = number.end
         previous = number if number.metric and not (number.ratio or number.difference) else previous
-    relations = _relations(text, plain, positions, [number.start for number in numbers]) + averages
+    relations = _relations(text, plain, positions, [number.start for number in numbers])
+    # "40 billion yuan above Wuliangye's": the comparison word belongs to the stated difference (round 12)
+    cues = [number.cue for number in numbers if number.cue]
+    relations = [item for item in relations if not any(start <= item.start < end for start, end in cues)] + averages
     relations += _macro_relations(text, plain, [number.start for number in numbers], zh=zh)
     taken = [(number.start, number.end) for number in [*numbers, *relations]]
     numbers.extend(_moves(text, norm, taken, plain))
     numbers[:] = _bind_targets(numbers, positions, targets, text)
+    # (round 12, H6) "中国平安低于这一水平": the relation's compared side is the value stated before it; a stated
+    # average with an evaluation word ("明显偏低", "估值更低") is a relation of the company with the industry
+    relations = _resolve_anaphora(relations, numbers, text)
+    relations += _evaluative_relations(numbers, relations, text, plain, positions)
     _assign_dates([*numbers, *relations], plain)
     for number in numbers:
         metric = _METRICS[number.metric] if number.metric else None
@@ -1099,7 +1179,7 @@ def _unchecked(reading: _Reading) -> list[UncheckedClause]:
         keys = {
             str(subject.get("key") or subject.get("macro"))
             for number in in_sentence
-            for subject in (number.target, number.reference)
+            for subject in (number.target, number.reference, *number.sum_of)
             if subject
         }
         checked = {number.metric for number in in_sentence}
@@ -1139,7 +1219,8 @@ _INDUSTRY_SUBJECT = re.compile(
     r"\b(?:the\s+)?(?:industry|sector|peer)(?:'s)?\s+(?:average|median|mean)\b",
     re.I,
 )
-_BOUND_WORDS = tuple(pattern for name, pattern in _COMPARATOR_WORDS if name in {"gt", "ge", "lt", "le"})
+_BOUND_NAMED = tuple((name, pattern) for name, pattern in _COMPARATOR_WORDS if name in {"gt", "ge", "lt", "le"})
+_BOUND_WORDS = tuple(pattern for _name, pattern in _BOUND_NAMED)
 
 
 def _industry_subject(text: str, number_start: int, positions: list[tuple[int, dict[str, Any]]], start: int) -> bool:
@@ -1167,7 +1248,9 @@ _STATED_AVERAGE_WORDS = re.compile(
 # "…6.2倍的平均值": the average word on its own ("均值科技" as a name is not an average)
 _AVERAGE_ALONE = re.compile(r"平均(?:值|水平|估值|数)?|(?<=的)均值|中位数")
 # The number after the phrase: "行业平均11.8倍", "行业均值为1.45倍", "行业平均水平（3倍）", "sector average of 3x".
-_AVERAGE_BEFORE_NUMBER = re.compile(r"\s*(?:的|为|是|约为?|在|of|at|:|：|\(|（)?\s*", re.I)
+_AVERAGE_BEFORE_NUMBER = re.compile(
+    r"\s*(?:的|为|是|约为?|在|of|at|:|：|\(|（)?\s*(?:约为?|大约|大概|about|around|roughly|approximately)?\s*", re.I
+)
 # The phrase after the number: "3倍的行业平均水平", "35倍的平均估值" (the sector named before the number).
 _AVERAGE_AFTER_NUMBER = re.compile(
     rf"\s*(?:的)?\s*(?:＠+\s*)?(?:(?:行业|板块)(?:的)?)?{_AVERAGE_WORD}|\s*(?:(?:industry|sector)\s+)?average\b", re.I
@@ -1218,6 +1301,15 @@ def _stated_reference(
         cue = None if than is None else next(reversed(list(_REL_BI.finditer(stretch))), None)
         if cue is not None and than is not None:
             comparator = "gt" if than.group(1) in {"多", "高", "大", "贵"} else "lt"
+        if cue is None:
+            # (round 12) "低于保险行业均值（约20倍）": the approximation word is nearest the number, the bound before it
+            # is the relation's ("约" for the stated average, "低于" for the company against it)
+            for name, pattern in _BOUND_NAMED:
+                for match in pattern.finditer(stretch):
+                    if cue is None or match.start() > cue.start():
+                        cue, comparator = match, name
+            if cue is not None and not re.search(r"[（(]\s*\S{0,4}$", stretch[cue.end() :]):
+                cue = None  # only the bracketed form: "below the sector average at about 8.7x" is the company's
     if cue is None:
         return None
     between = stretch[cue.end() :]
@@ -1250,6 +1342,10 @@ def _stated_reference(
         for position, target in positions
         if position < cue_at and not target.get("sector") and target.get("key") != ref_key
     ]
+    if not companies and reference is not None and not reference.get("sector"):
+        # (round 12) "The baijiu industry's average P/E is roughly 20x, below Moutai's 24.6x": the subject is the
+        # sector (its snapshot), the compared side the company whose value the claim states
+        companies = [target for position, target in positions if position < cue_at and target.get("key") != ref_key]
     if not companies:
         return None
     relation = _Number(
@@ -1277,6 +1373,111 @@ def _stated_reference(
     return relation
 
 
+# Round 12 (H6): a total of several targets. "茅台和五粮液成交额加起来不到50亿", "净利润合计约1200亿", "combined",
+# "together": before round 12 the number was bound to the last company named, so a false total could pass as true.
+_ADDITIVE = {"revenue", "net_profit", "amount", "market_cap"}  # levels whose sum means something
+_SUM_CUE = re.compile(
+    r"合计|加起来|加在一起|加一起|加一块|加总|总共|一共|共计|总计|之和|总和|合起来|"
+    r"\bcombined\b|\btogether\b|\bin total\b|\ba total of\b|\btotal(?:l?ed|l?ing)\b|\bsum of\b|\bjointly\b|"
+    r"\bbetween them\b",
+    re.I,
+)
+_COMMA_BREAK = re.compile(r"[，,。；;！!？?\n]")
+
+
+def _sum_operands(number: _Number, text: str, positions: list[tuple[int, dict[str, Any]]]) -> list[dict[str, Any]]:
+    """The targets a number is the total of: two or more companies named earlier in its sentence and a sum word
+    ("合计", "加起来", "combined") in the number's part of the sentence (up to the previous comma). Not a comparison
+    ("比", "than") and not "分别 / respectively"."""
+    sentence_start, _sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+    window_start, _window_end = _clause_bounds(text, number.start, _COMMA_BREAK)
+    cue = _SUM_CUE.search(text, window_start, number.start)
+    if cue is None:
+        return []
+    if _RESPECTIVELY.search(text, sentence_start, number.start):
+        return []
+    companies: list[dict[str, Any]] = []
+    first = -1
+    for position, target in positions:
+        if not sentence_start <= position < number.start or target.get("sector"):
+            continue
+        if all(other["key"] != target["key"] for other in companies):
+            companies.append(target)
+            first = position if first < 0 else first
+    if len(companies) < 2:
+        return []
+    between = text[first : cue.start()]  # "茅台比五粮液…合计": a comparison, not a total ("合计超过50亿" is a bound)
+    if _REL_BI.search(between) or _REL_WORD.search(between) or re.search(r"\bthan\b", between, re.I):
+        return []
+    return companies
+
+
+# Round 12 (H6): an industry average stated inside a comparison frame, "比起保险业11.8倍的平均市盈率，平安的8.7倍明显
+# 偏低", "对照白酒业6.2倍的平均市净率", "和保险业1.45倍的平均市净率相比", "与白酒行业27.3倍的平均水平相比略低": the
+# number is followed (or preceded) by an average word and no company is named in its clause before it, so it is the
+# industry's
+# value, not the company's. Before round 12 it was read as the company's own P/E (a false contradiction).
+_AVERAGE_PHRASE_BEFORE = re.compile(
+    rf"(?:行业|板块|同行|同业|(?<=[^\x00-\x7f])业)(?:的)?{_AVERAGE_WORD}\s*(?:的)?\s*"
+    r"(?:市盈率|市净率|(?<![A-Za-z])P/?E(?:\s*\(?TTM\)?)?|(?<![A-Za-z])P/?B|估值)?\s*"
+    rf"(?:的|为|是|在|of|at|:|：|\(|（)?\s*{_APPROX_WORDS}\s*(?:为|是|在)?\s*$",
+    re.I,
+)
+_AVERAGE_PHRASE_BEFORE_EN = re.compile(
+    r"\b(?:average|mean|median)\s+(?:multiple|p/?e|p/?b|valuation|price[- ]to[- ](?:earnings|book)(?:\s+ratio)?)?\s*"
+    r"(?:is|was|of|at|stands at|sits at|comes in at)?\s*(?:about|around|roughly|approximately|nearly|some)?\s*$",
+    re.I,
+)
+_INDUSTRY_CONTEXT_EN = re.compile(r"\b(?:sector|industry|peers?)\b", re.I)
+
+
+def _framed_average(
+    number: _Number,
+    text: str,
+    positions: list[tuple[int, dict[str, Any]]],
+    clause_start: int,
+    clause_end: int,
+) -> bool:
+    """Mark ``number`` as a stated industry average when its own wording says so (see above): the industry of the
+    company the sentence is about (``industry``), or a named sector's average. The relation with the company comes
+    from the sentence's evaluation word (``_evaluative_relations``) or an anaphora (``_resolve_anaphora``)."""
+    if number.metric not in _STATED_AVERAGE_METRICS or number.comparator not in {"eq", "approx"}:
+        return False
+    if number.ratio or number.difference or number.relation or number.industry or number.stated_reference:
+        return False
+    post = re.match(r"\s*(?:左右|上下|附近)?", text[number.end :])
+    after = _AVERAGE_AFTER_NUMBER.match(text, number.end + (post.end() if post else 0))
+    before = _AVERAGE_PHRASE_BEFORE.search(text, clause_start, number.start)
+    sentence_start, sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+    if after is None and before is None:
+        # "Moutai is cheaper than its sector, where the average multiple is about 27x": "average" in a sentence
+        # about the sector
+        english = _AVERAGE_PHRASE_BEFORE_EN.search(text, clause_start, number.start)
+        if english is None or not _INDUSTRY_CONTEXT_EN.search(text, sentence_start, sentence_end):
+            return False
+    named = [(position, target) for position, target in positions if clause_start <= position < number.start]
+    if any(not target.get("sector") for _position, target in named):
+        return False  # "茅台24.6倍的…": a company's own value
+    companies_before = [
+        target
+        for position, target in positions
+        if sentence_start <= position < clause_start and not target.get("sector")
+    ]
+    companies_after = [
+        target for position, target in positions if clause_end <= position < sentence_end and not target.get("sector")
+    ]
+    sectors = [target for _position, target in named if target.get("sector")]
+    if sectors:
+        number.target, number.industry = sectors[-1], False
+    else:
+        company = companies_before[-1] if companies_before else (companies_after[0] if companies_after else None)
+        if company is None:
+            return False
+        number.target, number.industry = company, True
+    number.stated_reference = number.bound = True
+    return True
+
+
 # Round 10 (F2): a stated difference of two values. "茅台ROE比五粮液高出约3.6个百分点", "茅台比五粮液多赚四百多亿",
 # "五粮液的PE比茅台低3.7倍左右" (P/E is quoted in 倍), "茅台的PE比行业平均低了近10%" (a percentage of a metric not
 # quoted in percent is relative), and without a direction "茅台和五粮液的ROE差了3.6个百分点", "…相差约3.6个百分点".
@@ -1287,6 +1488,65 @@ _DIFF_AFTER_REFERENCE = re.compile(
 )
 _DIFF_SPREAD = re.compile(r"(?:相差|差距(?:为|是|有|达到?)?|差了|差)(?!不多)\s*" + _DIFF_LEAD + r"$")
 _DIFF_UP = {"高出", "多出", "多赚", "高", "多", "大", "贵"}
+_DIFF_BI = re.compile(r"比|较之?|相较于?")
+# English differences (round 12, H6): "Moutai's ROE beats Wuliangye's by about 3.6 points", "Ping An's ROE trails
+# Wuliangye's by roughly 14 percentage points", "exceeded Wuliangye's by roughly 44.5 billion yuan"; and with the
+# number first, "Wuliangye's revenue is roughly 60 billion yuan below Moutai's".
+_EN_DIFF_UP_WORDS = re.compile(
+    r"beat|top|exceed|outpac|lead|led|higher|greater|bigger|larger|more|above|over|ahead", re.I
+)
+_EN_DIFF_BY = re.compile(
+    r"\b(?P<verb>beats?|beat|tops?|topped|exceed(?:s|ed)?|outpac(?:es|ed)|leads|led|trails?|trailed|lags?|lagged|"
+    r"(?:higher|lower|greater|smaller|bigger|larger|more|less)\s+than|above|below|ahead of|behind)\s+"
+    r"(?P<rest>[^,.;!?\d]{0,60}?)\bby\s+(?:(?:about|around|roughly|approximately|nearly|almost|some|just|over|"
+    r"more than|less than|under|at least|at most|close to|a little over|a little under)\s+)*$",
+    re.I,
+)
+_EN_DIFF_AFTER = re.compile(
+    r"\s*(?:(?:yuan|CNY|RMB)\s+)?(?P<verb>(?:higher|lower|greater|smaller|bigger|larger|more|less)\s+than|above|below|"
+    r"ahead of|behind|short of|under|over)\s+",
+    re.I,
+)
+
+
+def _english_difference(
+    number: _Number, text: str, positions: list[tuple[int, dict[str, Any]]], clause_start: int
+) -> tuple[tuple[str, dict[str, Any] | None, int], int, int, int] | None:
+    """``(reference, direction, cue_start, cue_end)`` of an English stated difference, or None."""
+    head = text[clause_start : number.start]
+    by = _EN_DIFF_BY.search(head)
+    if by is not None:
+        cue_start, cue_end = clause_start + by.start("verb"), clause_start + by.end("verb")
+        found = _reference_at(text, cue_end, positions)
+        if found is None or found[0] == "anaphora":
+            return None
+        tail = head[by.end("rest") :]  # "by about ": the comparator of the difference is read here only
+        if number.comparator in {"gt", "ge", "lt", "le"} and not any(pattern.search(tail) for pattern in _BOUND_WORDS):
+            approx = re.search(r"\b(?:about|around|roughly|approximately|nearly|almost|some|close to)\b", tail, re.I)
+            number.comparator = "approx" if approx else "eq"
+            number.near = bool(approx) and _NEAR_WORD.search(approx.group(0)) is not None
+        return found, 1 if _EN_DIFF_UP_WORDS.match(by.group("verb")) else -1, cue_start, cue_end
+    # the number first: only for amounts, prices and percentage points ("3.7x lower than" stays ambiguous)
+    if number.unit_class not in {_AMOUNT, _PRICE, _PERCENT, _POINTS}:
+        return None
+    after = _EN_DIFF_AFTER.match(text, number.end)
+    if after is None:
+        return None
+    found = _reference_at(text, after.end(), positions)
+    if found is None or found[0] == "anaphora":
+        return None
+    direction = 1 if _EN_DIFF_UP_WORDS.match(after.group("verb")) else -1
+    return found, direction, after.start("verb"), after.end("verb")
+
+
+def _as_percent_of_reference(number: _Number) -> None:
+    """ "一倍" → 100% (of the compared value), "0.3倍" → 30%: the number becomes a relative difference in percent.
+    "将近一倍" keeps no rounding slack ([90%, 100%]); "一倍左右" keeps half its last digit (50%-150%)."""
+    number.value *= 100
+    number.high = None if number.high is None else number.high * 100
+    number.step *= 100
+    number.rounding = 0.0 if number.near else number.rounding * 100
+    number.unit, number.unit_class, number.scales = "%", _PERCENT, (1.0,)
 
 
 def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str, Any]]]) -> bool:
@@ -1300,12 +1560,13 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
     sentence_start, sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
     head = text[clause_start : number.start]
     direction: int | None = None
-    reference: tuple[Literal["target", "industry", "market"], dict[str, Any] | None, int] | None = None
+    reference: tuple[str, dict[str, Any] | None, int] | None = None
     cue_start = cue_end = -1
     adjective = ""
-    for bi in reversed(list(_REL_BI.finditer(head))):
+    # "比" and, since round 12, "较 / 较之 / 相较于" ("PB较保险行业均值低了近四成")
+    for bi in reversed(list(_DIFF_BI.finditer(head))):
         found = _reference_at(text, clause_start + bi.end(), positions)
-        if found is None:
+        if found is None or found[0] == "anaphora":
             continue
         gap = _DIFF_AFTER_REFERENCE.fullmatch(text, found[2], number.start)
         if gap is None or "＠" in gap.group("mid"):
@@ -1314,6 +1575,12 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
         direction = 1 if adjective in _DIFF_UP else -1
         cue_start, cue_end = clause_start + bi.start(), clause_start + bi.end()
         break
+    if reference is None:
+        # (round 12, H6) English: "beats / trails / exceeded Wuliangye's by about 3.6 points", "is 60 billion yuan
+        # below Moutai's"
+        english = _english_difference(number, text, positions, clause_start)
+        if english is not None:
+            reference, direction, cue_start, cue_end = english
     if reference is None:
         spread = _DIFF_SPREAD.search(head)
         if spread is None:
@@ -1348,9 +1615,19 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
         metric = "net_profit"  # "多赚四百多亿": the year's net profit
     if metric is None or _METRICS[metric].macro:
         return False
-    number.metric, number.relation, number.reference, number.reference_kind = metric, True, ref_target, kind
-    if number.unit_class in _METRICS[metric].units:
+    number.metric, number.relation, number.reference, number.reference_kind = metric, True, ref_target, kind  # type: ignore[assignment]
+    units = _METRICS[metric].units
+    if number.unit == "倍" and (
+        math.isclose(abs(number.value), 1.0) or (abs(number.value) < 1 and _MULTIPLE not in units)
+    ):
+        # (round 12, H6) "高出一倍多", "多了将近一倍", "低了0.3倍": one fold (or less) of the compared value is a
+        # relative difference (一倍 = 100%). Two folds and more stay ambiguous ("高出两倍": 2 or 3 times).
+        _as_percent_of_reference(number)
+        number.difference = "relative"
+    elif number.unit_class in units:
         number.difference = "absolute"  # "高出3.6个百分点" of ROE, "低3.7倍" of P/E, "多赚400亿"
+    elif number.unit_class == _POINTS and _PERCENT in units:
+        number.difference = "absolute"  # "beats … by 3.6 points": percentage points of ROE (round 12)
     elif number.unit_class == _PERCENT and number.unit == "%":
         number.difference = "relative"  # "PE比行业平均低了近10%": a percentage of the reference's value
     else:
@@ -1360,6 +1637,7 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
         direction = -direction  # "跌幅比五粮液大0.3个百分点": it fell more, a lower change
     number.difference_unsigned = direction is None
     number.direction = direction
+    number.cue = (cue_start, cue_end)
     if direction is not None:
         number.value = direction * abs(number.value)
         number.high = None if number.high is None else direction * abs(number.high)
@@ -1787,6 +2065,12 @@ _MARKET_REFERENCE = re.compile(
     r"(?:大盘|全市场|市场|A股|沪深两市)(?:的)?(?:平均|均值|整体)?(?:水平)?|(?:the\s+)?(?:broader\s+)?market(?:\s+average)?",
     re.I,
 )
+# (round 12, H6) "低于这一水平", "比它低", "below that", "lower than it": the value stated earlier in the claim
+_ANAPHORA = re.compile(
+    r"\s*(?:了|过)?\s*(?:(?:这|那|该|此|上述|前述)(?:一|个)?\s*(?:水平|均值|平均(?:值|水平|数)?|数值|数字|数|值|位置|标准|估值)|"
+    r"它(?![的们])|(?:that|it|this)\b(?!\s+of\b|\s*['’]s\b)(?:\s+(?:level|average|figure|mark|number|multiple))?)",
+    re.I,
+)
 
 
 def _relations(
@@ -1795,7 +2079,7 @@ def _relations(
     """Relational claims between two named targets, or a target and its industry: one check each. A sentence
     that states a number is checked on its numbers ("五粮液市盈率24.6倍，比茅台低" checks the 24.6)."""
     cues: list[tuple[int, int, str | None]] = []  # (start, end, comparator word or None: read the adjective)
-    cues.extend((match.start(), match.end(), None) for match in _REL_BI.finditer(text))
+    cues.extend((match.start(), match.end(), None) for match in _DIFF_BI.finditer(text))
     cues.extend((match.start(), match.end(), match.group(0)) for match in _REL_WORD.finditer(text))
     cues.extend((match.start(), match.end(), "not_as") for match in _REL_NOT_AS.finditer(text))
     relations: list[_Number] = []
@@ -1900,6 +2184,143 @@ def _relation_at(
     return number
 
 
+def _about_subject(number: _Number, subject: dict[str, Any] | None) -> bool:
+    """The number is the subject's own value (not its industry's, not a stated reference, not a sum)."""
+    return bool(
+        subject
+        and number.target
+        and number.target.get("key") == subject.get("key")
+        and not (number.industry or number.stated_reference or number.sum_of)
+    )
+
+
+def _resolve_anaphora(relations: list[_Number], numbers: list[_Number], text: str) -> list[_Number]:
+    """ "保险行业平均市盈率11.8倍，中国平安低于这一水平" (the k17 anaphora of the reviews), "白酒板块平均市净率6.2倍，
+    茅台的PB比它高", "the sector averages 1.45x, and Ping An sits below that" (round 12, H6): the compared side of an
+    anaphora is
+    the latest value stated before it that is not the subject's own; the relation takes that value's metric. An
+    anaphora with nothing to refer to is dropped (its clause is listed as unchecked)."""
+    resolved: list[_Number] = []
+    for relation in relations:
+        if relation.reference_kind != "anaphora":
+            resolved.append(relation)
+            continue
+        earlier = sorted(
+            (
+                number
+                for number in numbers
+                if number.end <= relation.start
+                and number.metric
+                and not (number.relation or number.ratio or number.difference)
+            ),
+            key=lambda number: number.start,
+        )
+        antecedent = next((number for number in reversed(earlier) if not _about_subject(number, relation.target)), None)
+        if antecedent is None or antecedent.target is None or antecedent.metric is None:
+            continue
+        if antecedent.industry and not antecedent.target.get("sector"):
+            relation.reference, relation.reference_kind = None, "industry"
+            if antecedent.target.get("key") != (relation.target or {}).get("key"):
+                continue  # another company's industry: not this relation's compared side
+        else:
+            relation.reference, relation.reference_kind = antecedent.target, "target"
+            if antecedent.target.get("key") == (relation.target or {}).get("key"):
+                continue
+        relation.metric = antecedent.metric
+        relation.reasons = [reason for reason in relation.reasons if reason[0] != "no_metric"]
+        if antecedent.reasons and antecedent.reasons[0][0] == "forecast":
+            relation.reasons.append(antecedent.reasons[0])
+        resolved.append(relation)
+    return resolved
+
+
+# An evaluation of a company against a stated average, with no comparison word of its own ("平安的8.7倍明显偏低",
+# "估值更低", "PB算是偏高", "is cheaper", "trades at a discount"): round 12, H6.
+_EVALUATION = re.compile(
+    r"(?P<neg>不|并不|并非|没有|没)?\s*(?:算是?|显得|明显|显著|稍微?|略微?|有所|要|还|相对|仍然?|依然|都)?\s*"
+    r"(?:(?:偏|较|更|略|稍)(?:为)?(?P<adj1>低|高|便宜|贵)|(?P<adj2>低|高)(?:一些|一点|不少|得多|很多|一截)|"
+    r"(?P<adj3>便宜|贵(?!州))|(?P<adj4>折价|溢价))|"
+    r"\b(?P<neg_en>not\s+)?(?P<adj_en>cheaper|lower|pricier|higher|more expensive|at a discount|at a premium)\b"
+    r"(?!\s+(?:than|to)\b)",
+    re.I,
+)
+_EVALUATION_LOW = {"低", "便宜", "折价", "cheaper", "lower", "at a discount"}
+
+
+def _evaluative_relations(
+    numbers: list[_Number],
+    relations: list[_Number],
+    text: str,
+    plain: str,
+    positions: list[tuple[int, dict[str, Any]]],
+) -> list[_Number]:
+    """A relation of the company with the stated industry (or sector) average of its sentence, read from an
+    evaluation word, when the sentence has no relation for it yet."""
+    found: list[_Number] = []
+    spans = [(number.start, number.end) for number in numbers]
+    for average in numbers:
+        if average.metric not in _STATED_AVERAGE_METRICS or average.relation or average.reasons:
+            continue
+        target = average.target or {}
+        sector = bool(target.get("sector"))
+        if not (average.industry or (average.stated_reference and sector)):
+            continue
+        sentence_start, sentence_end = _clause_bounds(text, average.start, _SENTENCE_BREAK)
+        if sector:
+            companies = [
+                other
+                for position, other in positions
+                if sentence_start <= position < sentence_end and not other.get("sector")
+            ]
+            subject = companies[-1] if companies else None
+            reference, kind = target, "target"
+        else:
+            subject, reference, kind = target, None, "industry"
+        if not subject or not subject.get("key"):
+            continue
+        if any(
+            sentence_start <= relation.start < sentence_end
+            and relation.metric == average.metric
+            and (relation.target or {}).get("key") == subject.get("key")
+            for relation in [*relations, *found]
+        ):
+            continue
+        evaluations = [
+            match
+            for match in _EVALUATION.finditer(text, sentence_start, sentence_end)
+            if not any(start <= match.start() < end for start, end in spans)
+        ]
+        evaluation = next((match for match in evaluations if match.start() >= average.end), None) or next(
+            iter(evaluations), None
+        )
+        if evaluation is None:
+            continue
+        word = next(group for group in ("adj1", "adj2", "adj3", "adj4", "adj_en") if evaluation.group(group))
+        comparator: Comparator = "lt" if evaluation.group(word).lower() in _EVALUATION_LOW else "gt"
+        negated = bool(evaluation.group("neg") or evaluation.group("neg_en"))
+        relation = _Number(
+            start=evaluation.start(),
+            end=evaluation.end(),
+            value=0.0,
+            rounding=0.0,
+            scales=_BARE_SCALES,
+            unit=None,
+            unit_class=None,
+            comparator=_FLIP[comparator] if negated else comparator,
+            negated=negated,
+            metric=average.metric,
+            target=subject,
+            relation=True,
+            reference=reference,
+            reference_kind=kind,  # type: ignore[arg-type]
+        )
+        clause_start, clause_end = _clause_bounds(text, evaluation.start())
+        if _FORECAST.search(plain[clause_start:clause_end]) or _HYPOTHETICAL.search(plain[clause_start:clause_end]):
+            relation.reasons.append(("forecast", "a forecast or hypothetical, not a reported fact"))
+        found.append(relation)
+    return found
+
+
 def _macro_relations(text: str, plain: str, number_starts: list[int], *, zh: bool) -> list[_Number]:
     """ "M2增速高于CPI": one macro series against another in a clause with no number (round 9). Both values come from
     ``get_macro_indicators``; the comparison is of their latest readings."""
@@ -1949,7 +2370,11 @@ def _macro_target(family: str, *, zh: bool) -> dict[str, Any]:
 def _reference_at(
     text: str, index: int, positions: list[tuple[int, dict[str, Any]]]
 ) -> tuple[Literal["target", "industry", "market"], dict[str, Any] | None, int] | None:
-    """What a comparison cue points at: a named target, the industry, or the market."""
+    """What a comparison cue points at: a named target, the industry, or the market; since round 12 also an anaphora
+    ("低于这一水平", "比它低", "below that"), resolved to the value stated before it by ``_resolve_anaphora``."""
+    anaphora = _ANAPHORA.match(text, index)
+    if anaphora is not None:
+        return "anaphora", None, anaphora.end()  # type: ignore[return-value]
     start = _REFERENCE_FILLER.match(text, index).end()  # type: ignore[union-attr]
     for position, target in positions:
         if position == start:
@@ -1994,6 +2419,8 @@ def _bind_targets(
         position for position, _target in positions if _COMPARED_SIDE.search(text, max(0, position - 8), position)
     }
     for number in numbers:
+        if number.bound:
+            continue  # a sum's first operand, a framed average's company (round 12)
         before = [target for position, target in positions if position < number.start]
         if (number.ratio or number.difference) and number.reference is not None:
             # "五粮液的跌幅大约是茅台的三倍": the subject is named before the reference
@@ -2013,7 +2440,11 @@ def _bind_targets(
     # "茅台和五粮液PE分别为24.6倍和20.9倍": the k-th number goes to the k-th target named.
     for match in _RESPECTIVELY.finditer(text):
         start, end = _clause_bounds(text, match.start(), _SENTENCE_BREAK)
-        in_clause = [number for number in numbers if start <= number.start < end and number.start > match.start()]
+        in_clause = [
+            number
+            for number in numbers
+            if start <= number.start < end and number.start > match.start() and not number.bound
+        ]
         named = list(dict.fromkeys(id(target) for position, target in positions if start <= position < match.start()))
         ordered = [next(target for _p, target in positions if id(target) == key) for key in named]
         if len(ordered) > 1 and len(ordered) == len(in_clause):
@@ -2021,7 +2452,7 @@ def _bind_targets(
                 number.target = target
     expanded: list[_Number] = []
     for number in numbers:
-        shared = [] if number.relation else _shared_targets(number, numbers, positions, text)
+        shared = [] if number.relation or number.bound else _shared_targets(number, numbers, positions, text)
         if len(shared) < 2:
             expanded.append(number)
             continue
@@ -2072,7 +2503,7 @@ def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[Age
         wanted_fundamental = (
             wanted_fundamental or metric.fundamental or number.reference_kind == "industry" or number.industry
         )
-        for subject in (number.target, number.reference):
+        for subject in (number.target, number.reference, *number.sum_of):
             if subject and subject.get("key"):
                 subjects.setdefault(subject["key"], subject)
     for key, subject in list(subjects.items())[:4]:
@@ -2166,10 +2597,15 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
         status="unverifiable",
         note=number.convention or "",
     )
+    if number.sum_of:
+        names = [str(_target_name(operand, zh=zh)) for operand in number.sum_of]
+        base = base.model_copy(update={"target": "+".join(names), "operands": names})
     if number.reasons:
         reason, note = number.reasons[0]
         return base.model_copy(update={"reason": reason, "note": note})
     assert number.metric is not None and number.target is not None
+    if number.sum_of:
+        return _check_sum(number, base, evidence)
     metric = _METRICS[number.metric]
     if metric.macro:
         found = _value(evidence.get(f"macro:{metric.macro}") or [], metric.keys)
@@ -2293,7 +2729,47 @@ def _derived(metric: str | None, items: list[AgentEvidence]) -> tuple[tuple[Agen
     return None, ""
 
 
+def _check_sum(number: _Number, base: ClaimCheck, evidence: dict[str, list[AgentEvidence]]) -> ClaimCheck:
+    """ "茅台和五粮液成交额加起来不到50亿" (round 12, H6): the total of the operands' values against the claimed
+    number, with every operand's value and evidence id; a missing or mismatched operand makes it unverifiable."""
+    metric = number.metric or ""
+    values: list[float] = []
+    ids: list[str] = []
+    first: AgentEvidence | None = None
+    for operand, name in zip(number.sum_of, base.operands, strict=True):
+        found = _value(evidence.get(operand.get("key") or "") or [], _keys(operand, metric))
+        if found is None or (metric == "amount" and found[1] <= 0):
+            return base.model_copy(update={"reason": "no_data", "note": f"no data for {name}"})
+        item, value = found
+        as_of, basis = _as_of(item, metric)
+        mismatch = _date_mismatch(number, as_of) if basis == "trade_date" else _period_mismatch(number, item)
+        if mismatch:
+            return base.model_copy(update={"reason": "period_mismatch", "note": f"{mismatch} ({name})"})
+        values.append(value)
+        ids.append(item.evidence_id)
+        first = first or item
+    assert first is not None
+    total = sum(values)
+    as_of, basis = _as_of(first, metric)
+    note = f"sum {' + '.join(_trim(value) for value in values)} = {_trim(total)}"
+    return base.model_copy(
+        update={
+            "actual": total,
+            "evidence_id": ids[0],
+            "source": _source(first)["source_name"],
+            "as_of": as_of,
+            "as_of_basis": basis,
+            "operand_values": values,
+            "operand_evidence_ids": ids,
+            "status": _compare(number, total),
+            "note": note,
+        }
+    )
+
+
 def _kind(number: _Number) -> str:
+    if number.sum_of:
+        return "sum"
     if number.difference:
         return "difference" if number.difference == "absolute" else "relative_difference"
     if number.ratio:

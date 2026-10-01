@@ -1,0 +1,348 @@
+{
+ "config": {
+  "claims": "evaluation/heldout_r6/claims_r6_heldout.jsonl",
+  "claims_sha256": "76e4de167ff3de83f7bc74b7329d39e17eec68326bddae0b1670321241a858de",
+  "set": null,
+  "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
+  "model": null,
+  "commit": "bd84003",
+  "run_at": "2026-10-01T06:59:22+00:00",
+  "command": "python -m evaluation.claim_bench.run --claims evaluation/heldout_r6/claims_r6_heldout.jsonl --out evaluation/results/claim_bench-heldout_r6-after-exposure-round12.json"
+ },
+ "claims": 67,
+ "checks": 104,
+ "verdict_accuracy": 0.9851,
+ "verdict_accuracy_ci": [
+  0.9552,
+  1.0
+ ],
+ "check_accuracy": 0.9038,
+ "check_accuracy_ci": [
+  0.8349,
+  0.9694
+ ],
+ "comparator_accuracy": 0.3824,
+ "ci_method": "percentile bootstrap over claims, 2000 resamples, seed 20260926, 95%",
+ "verdict_confusion": {
+  "supported": {
+   "supported": 47,
+   "contradicted": 0,
+   "partially_supported": 0,
+   "unverifiable": 0
+  },
+  "contradicted": {
+   "supported": 0,
+   "contradicted": 9,
+   "partially_supported": 0,
+   "unverifiable": 0
+  },
+  "partially_supported": {
+   "supported": 0,
+   "contradicted": 1,
+   "partially_supported": 8,
+   "unverifiable": 0
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 0,
+   "unverifiable": 2
+  }
+ },
+ "check_status_confusion": {
+  "supported": {
+   "supported": 74,
+   "contradicted": 2,
+   "unverifiable": 0,
+   "missing": 1
+  },
+  "contradicted": {
+   "supported": 2,
+   "contradicted": 19,
+   "unverifiable": 0,
+   "missing": 2
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "unverifiable": 2,
+   "missing": 0
+  },
+  "extra": {
+   "supported": 0,
+   "contradicted": 1,
+   "unverifiable": 1,
+   "missing": 0
+  }
+ },
+ "by_category": {
+  "approx_numeral": {
+   "claims": 20,
+   "verdict_accuracy": 1.0
+  },
+  "company_difference": {
+   "claims": 20,
+   "verdict_accuracy": 1.0
+  },
+  "control": {
+   "claims": 8,
+   "verdict_accuracy": 1.0
+  },
+  "stated_industry_average": {
+   "claims": 19,
+   "verdict_accuracy": 0.9474
+  }
+ },
+ "by_language": {
+  "en": {
+   "claims": 9,
+   "verdict_accuracy": 1.0
+  },
+  "zh": {
+   "claims": 58,
+   "verdict_accuracy": 0.9828
+  }
+ },
+ "errors": [
+  {
+   "id": "r6c01",
+   "category": "stated_industry_average",
+   "claim": "五粮液的市盈率只有20.9倍，白酒板块平均在27倍上下，估值更低",
+   "expected_verdict": "supported",
+   "verdict": "supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "lt",
+      "status": "supported"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r6c08",
+   "category": "stated_industry_average",
+   "claim": "茅台市盈率24.6倍，低于白酒行业平均的35倍",
+   "expected_verdict": "partially_supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "approx",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": "lt",
+      "status": "supported",
+      "claimed": null,
+      "actual": 24.6,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    },
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "lt",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": "eq",
+      "status": "contradicted",
+      "claimed": 35.0,
+      "actual": 27.3,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r6c10",
+   "category": "stated_industry_average",
+   "claim": "中国平安PE比保险行业平均的12倍还高",
+   "expected_verdict": "partially_supported",
+   "verdict": "contradicted",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "approx",
+      "status": "supported"
+     },
+     "predicted": {
+      "metric": "pe_ttm",
+      "comparator": "gt",
+      "status": "contradicted",
+      "claimed": 12.0,
+      "actual": 8.7,
+      "note": "ratio 0.74 = 8.7 / 11.8"
+     },
+     "correct": false,
+     "comparator_correct": false
+    },
+    {
+     "expected": {
+      "metric": "pe_ttm",
+      "comparator": "gt",
+      "status": "contradicted"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r6c14",
+   "category": "stated_industry_average",
+   "claim": "中国平安PB约1.1倍，还不到保险行业平均（2.5倍）的一半",
+   "expected_verdict": "partially_supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pb",
+      "comparator": "approx",
+      "status": "contradicted"
+     },
+     "predicted": {
+      "metric": "pb",
+      "comparator": "lt",
+      "status": "supported",
+      "claimed": null,
+      "actual": 1.1,
+      "note": ""
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": [
+    {
+     "target": "保险",
+     "metric": "pb",
+     "claimed": 0.5,
+     "claimed_high": null,
+     "claimed_unit": "倍",
+     "comparator": "eq",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "ratio": null,
+     "difference": null,
+     "kind": "value",
+     "operands": [],
+     "operand_values": [],
+     "operand_evidence_ids": [],
+     "actual": 1.45,
+     "status": "contradicted",
+     "reason": null,
+     "evidence_id": "industry_保险",
+     "source": "离线快照",
+     "as_of": "2026-04-22",
+     "as_of_basis": "trade_date",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "r6c16",
+   "category": "stated_industry_average",
+   "claim": "Moutai's price-to-book of 8.1x is below the liquor industry average of roughly 9x.",
+   "expected_verdict": "partially_supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pb",
+      "comparator": "approx",
+      "status": "contradicted"
+     },
+     "predicted": null,
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r6c19",
+   "category": "stated_industry_average",
+   "claim": "宁德时代市盈率低于电池行业平均的30倍",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "行业平均",
+     "metric": "pe_ttm",
+     "claimed": 30.0,
+     "claimed_high": null,
+     "claimed_unit": "倍",
+     "comparator": "eq",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "ratio": null,
+     "difference": null,
+     "kind": "stated_reference",
+     "operands": [],
+     "operand_values": [],
+     "operand_evidence_ids": [],
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_data",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "as_of_basis": null,
+     "note": "no industry snapshot"
+    }
+   ]
+  },
+  {
+   "id": "r6c65",
+   "category": "control",
+   "claim": "中国平安明年净利润将增长20%",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "net_profit",
+      "comparator": "approx",
+      "status": "unverifiable"
+     },
+     "predicted": {
+      "metric": "netprofit_yoy",
+      "comparator": "eq",
+      "status": "unverifiable",
+      "claimed": 20.0,
+      "actual": null,
+      "note": "a forecast or hypothetical, not a reported fact"
+     },
+     "correct": false,
+     "comparator_correct": false
+    }
+   ],
+   "extra_checks": []
+  }
+ ]
+}
