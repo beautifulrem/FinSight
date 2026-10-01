@@ -15,6 +15,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from .frame import NET_MARGIN_SHARE_SOURCE, TURNOVER
+
 # --------------------------------------------------------------------------- out of coverage
 
 # Crypto assets by name, ticker or shape. (round 9, E7) Tokens are also named by their ticker next to a fund word
@@ -232,17 +234,13 @@ METRICS: tuple[Metric, ...] = (
         "净利率",
         "net margin",
         r"净利率|净利润率|销售净利率|(?<![毛])利润率|"
-        r"(?:净利润|净利|净赚|利润)[^，。？?,.!！]{0,4}?(?:占|在)[^，。？?,.!！]{0,4}?(?:营收|营业收入|收入|销售额)"
-        r"[^，。？?,.!！]{0,6}?(?:比例|比重|百分比|占比|几成|多少|多大)|"
-        r"(?:营收|营业收入|收入|销售额)[^，。？?,.!！]{0,6}?(?:中|里)[^，。？?,.!！]{0,6}?(?:净利润|净利|净赚|利润)|"
         r"每(?:赚|卖|收|收入|实现)?[^，。？?,.!！]{0,3}?\d+\s*(?:块|元)(?:钱)?(?:的)?(?:营收|收入|销售额)?"
         r"[^，。？?,.!！]{0,10}?(?:净利润|净利|净赚|利润|落袋)|"
-        r"net (?:profit )?margin|profit margin|(?:net )?(?:profit|income|earnings) as a (?:share|percentage|"
+        r"net[- ](?:profit[- ])?margin|profit[- ]margin|(?:net )?(?:profit|income|earnings) as a (?:share|percentage|"
         r"proportion|percent) of (?:revenue|sales)|"
-        # (round 11, G5) "净利润是营收的百分之几", "净利润为收入的多少", "what percent of revenue is net profit"
-        r"(?:净利润|净利|净赚|利润)[^，。？?,.!！]{0,4}?(?:是|为|相当于|等于)[^，。？?,.!！]{0,4}?"
-        r"(?:营收|营业收入|收入|销售额)的?[^，。？?,.!！]{0,4}?(?:百分之|几成|多少成|比例|比重|占比|百分比|多少|几)|"
-        r"\bwhat (?:percent(?:age)?|share|fraction) of (?:its |the )?(?:revenue|sales)\b",
+        # (round 11, G5; round 12) "净利润是营收的百分之几", "营收里有多少变成净利润", "What share of that revenue is
+        # left as net profit?": one vocabulary with the comparison frame
+        f"{NET_MARGIN_SHARE_SOURCE}",
         ("net_margin", "netprofit_margin"),
         (("revenue",), ("net_profit",)),
     ),
@@ -765,7 +763,7 @@ _LOW = re.compile(
 )
 _OPEN = re.compile(r"开盘价?|\bopen(?:ing)?(?: price)?\b(?! interest)", re.IGNORECASE)
 _VOLUME = re.compile(r"成交量|量能|\b(?:trading )?volume\b", re.IGNORECASE)
-_AMOUNT = re.compile(r"成交额|成交金额|\bturnover\b|\bvalue traded\b", re.IGNORECASE)
+_AMOUNT = TURNOVER  # (round 12) the comparison frame's turnover vocabulary ("成交了多少钱", "trading value")
 _RETURN_DAYS = re.compile(
     rf"(?:近|过去|最近)?\s*{_COUNT}\s*(?:个)?(?:交易日|日|天)(?:的)?(?:收益率?|回报|涨幅|跌幅|涨跌幅?|表现)|"
     rf"\b{_COUNT}[- ](?:day|session)s?\s+(?:return|change|performance|gain|move)\b",
