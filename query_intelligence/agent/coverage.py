@@ -344,6 +344,50 @@ _HOLDING_VALUE_EN = re.compile(
     r"\bworth of (?:my |the |these |those )?(?P<n4>\d[\d,]*)\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?(?:shares?|units?)\b",
     re.IGNORECASE,
 )
+# (round 13) The cost of buying a stated number of shares or lots at the last close: "按这个价格，买三手要多少钱",
+# "买入500股五粮液大概得花多少钱", "How much would it cost to buy 300 shares at that close?". The same arithmetic as a
+# holding's value (count × close), stated as an amount before trading costs; never advice.
+_PURCHASE_ZH = re.compile(
+    r"(?:买|买入|购买|入手|建仓)\s*" + _HOLDING_COUNT_ZH + r"[^。？?！!；;]{0,12}?"
+    r"(?:要|需要|得|需|须|大概|大约|一共|总共|共)*\s*(?:花|用|投入|准备)?\s*(?:多少钱|多少元|多少资金|几万|几千|多少)"
+)
+_PURCHASE_EN = re.compile(
+    r"\bhow much\b[^.?!]{0,40}?\b(?:buy|purchase)\s+(?P<n>\d[\d,]*)\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?"
+    r"(?P<unit>shares?|units?|lots?)\b|"
+    r"\b(?:buy(?:ing)?|purchas(?:e|ing))\s+(?P<n2>\d[\d,]*)\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?(?P<unit2>shares?|units?|lots?)\b"
+    r"[^.?!]{0,40}?\b(?:cost|how much|need)\b|"
+    r"\b(?:cost|take|need)\b[^.?!]{0,20}?\b(?:buy|purchase)\s+(?P<n3>\d[\d,]*)\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?"
+    r"(?P<unit3>shares?|units?|lots?)\b",
+    re.IGNORECASE,
+)
+
+
+def _purchase_match(text: str) -> tuple[int, int, str, tuple[int, int]] | None:
+    """``(count in shares, lots or 0, unit word, span)`` of a purchase-cost question, else ``None``."""
+    match = _PURCHASE_ZH.search(text)
+    if match is not None:
+        raw = match.group("n").replace(",", "").replace("，", "")
+        count = int(raw) if raw.isdigit() else _cn_integer(raw)
+        lots = count if match.group("unit") == "手" else 0
+        return (count * 100 if lots else count), lots, match.group("unit"), match.span()
+    match = _PURCHASE_EN.search(text)
+    if match is not None:
+        raw = (match.group("n") or match.group("n2") or match.group("n3") or "").replace(",", "")
+        unit = (match.group("unit") or match.group("unit2") or match.group("unit3") or "").lower()
+        count = int(raw)
+        lots = count if unit.startswith("lot") else 0
+        return (count * 100 if lots else count), lots, unit, match.span()
+    return None
+
+
+def holding_purchase(query: str) -> bool:
+    """Whether a holding-value question asks the cost of buying the shares ("买三手要多少钱") rather than the value of
+    shares already held."""
+    return _purchase_match(query or "") is not None and not (
+        _HOLDING_VALUE_ZH.search(query or "") or _HOLDING_VALUE_EN.search(query or "")
+    )
+
+
 # A fund holding is counted in units (份), a stock holding in shares (股).
 _FUND_UNITS = re.compile(r"\d\s*份|[两二三四五六七八九十百千万]\s*份|\bunits?\b", re.IGNORECASE)
 _CN_DIGIT = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
@@ -369,7 +413,10 @@ def holding_value_request(query: str) -> tuple[int, tuple[int, int]] | None:
     text = query or ""
     match = _HOLDING_VALUE_ZH.search(text) or _HOLDING_VALUE_EN.search(text)
     if match is None:
-        return None
+        purchase = _purchase_match(text)
+        if purchase is None:
+            return None
+        return (purchase[0], purchase[3]) if purchase[0] > 1 else None
     groups = match.groupdict()
     raw = next((groups[key] for key in ("n", "n2", "n3", "n4") if groups.get(key)), "")
     raw = raw.replace(",", "").replace("，", "")
@@ -382,7 +429,10 @@ def holding_value_request(query: str) -> tuple[int, tuple[int, int]] | None:
 def holding_lots(query: str) -> int | None:
     """The number of lots (手) a holding is stated in ("3手茅台" → 3), else ``None``."""
     match = _HOLDING_VALUE_ZH.search(query or "")
-    if match is None or match.group("unit") != "手":
+    if match is None:
+        purchase = _purchase_match(query or "")
+        return purchase[1] if purchase and purchase[1] else None
+    if match.group("unit") != "手":
         return None
     raw = match.group("n").replace(",", "").replace("，", "")
     return int(raw) if raw.isdigit() else _cn_integer(raw)
@@ -918,6 +968,23 @@ _LOW = re.compile(
     re.IGNORECASE,
 )
 _TURNOVER_RATE = re.compile(r"换手率|换手(?:了)?(?:多少|几)|\bturnover (?:rate|ratio)\b", re.IGNORECASE)
+
+
+def sector_data_question(text: str, entities: list[dict[str, Any]]) -> bool:
+    """(round 13) A named sector's own figure that a glossary word names ("白酒行业今天换手率多少", "the baijiu
+    sector's turnover rate"): answered from the industry snapshot, not with the concept's definition."""
+    sectors = any(entity.get("entity_type") == "sector" for entity in entities or [])
+    return (
+        sectors
+        and bool(_TURNOVER_RATE.search(text or ""))
+        and not re.search(
+            r"是什么|什么是|什么意思|含义|定义|怎么算|如何计算|\bwhat is (?:a |the )?turnover rate\b|\bdefin",
+            text or "",
+            re.I,
+        )
+    )
+
+
 _CHANGE_AMOUNT = re.compile(
     r"(?:涨|跌)了?(?:多少|几)(?:钱|元|块)|(?:涨|跌)(?:了)?(?:几|多少)块钱|\bhow many yuan\b|"
     r"\b(?:rose|fell|dropped|gained|moved|changed?)\b[^.?!]{0,20}\bin yuan\b",

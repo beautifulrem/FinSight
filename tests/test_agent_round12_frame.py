@@ -415,9 +415,17 @@ def test_colloquial_eps_and_net_margin(agent):
 def test_a_change_in_yuan_from_two_closes_or_named_missing(agent):
     rose = agent.chat("证券ETF今天涨了几块钱", session_id="r12-h9-yuan")
     assert "前一交易日" in rose["answer"] and rose["verification"]["passed"]
-    missing = agent.chat("五粮液最新一天跌了多少钱", session_id="r12-h9-yuan-missing")
-    assert "无法给出涨跌金额" in missing["answer"]
-    assert missing["verification"]["passed"]
+    # (round 13) without a previous close the change in yuan is derived from the close and the reported % change
+    # (tests/test_agent_round13.py); it is named missing only when the % change is missing too
+    derived = agent.chat("五粮液最新一天跌了多少钱", session_id="r12-h9-yuan-missing")
+    assert "100.64 ÷ (1 − 0.5337%) ≈ 101.18 元" in derived["answer"]
+    assert derived["verification"]["passed"]
+    from query_intelligence.agent.composer import _price_details
+    from query_intelligence.agent.coverage import requested_price_fields
+
+    bare = {"name": "某基金", "evidence_id": "price_x", "as_of": "2026-04-22", "close": 1.2, "recent_closes": []}
+    missing = _price_details(bare, True, requested_price_fields("今天跌了多少钱"))
+    assert any("无法给出涨跌金额" in sentence for sentence in missing)
 
 
 def test_a_bare_name_follow_up_carries_the_metric(agent):

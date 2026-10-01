@@ -22,6 +22,7 @@ from .coverage import (
     flow_gaps,
     foreign_macro_gaps,
     holding_lots,
+    holding_purchase,
     holding_value_request,
     in_fund_units,
     indicator_gaps,
@@ -135,7 +136,7 @@ def compose_template(
         elif tool == "compute_indicators":
             sentences = _indicators(data, zh, request)
         elif tool == "get_fundamentals":
-            sentences = _fundamentals(data, zh, industry_first=industry_first)
+            sentences = _fundamentals(data, zh, industry_first=industry_first, turnover_rate=request.turnover_rate)
             if extra_keys:
                 sentences = [*sentences, *_extra_metrics(data, extra_keys, zh)]
             if derive:
@@ -164,7 +165,14 @@ def compose_template(
         facts.extend(fact for fact in _implied_eps(tool_log, zh) if fact not in facts)
     holding = holding_value_request(query) if query else None
     if holding is not None:
-        holding_facts = _holding_value(holding[0], tool_log, zh, units=in_fund_units(query), lots=holding_lots(query))
+        holding_facts = _holding_value(
+            holding[0],
+            tool_log,
+            zh,
+            units=in_fund_units(query),
+            lots=holding_lots(query),
+            purchase=holding_purchase(query),
+        )
         facts = [*holding_facts, *facts]
     frame_gaps: list[str] = []
     if frame_request:
@@ -226,7 +234,13 @@ def compose_template(
 
 
 def _holding_value(
-    shares: int, tool_log: list[dict[str, Any]], zh: bool, *, units: bool = False, lots: int | None = None
+    shares: int,
+    tool_log: list[dict[str, Any]],
+    zh: bool,
+    *,
+    units: bool = False,
+    lots: int | None = None,
+    purchase: bool = False,
 ) -> list[str]:
     """(round 11, G5) "我有1000股五粮液，值多少钱": shares × the latest close, with the date, both operands in the
     sentence, and a note that this is a market value at the close, not a tradable price, a valuation or advice.
@@ -242,6 +256,20 @@ def _holding_value(
         unit = "份" if units else "股"
         held = f"{lots} 手（{shares} 股）" if lots else f"{shares} {unit}"
         held_en = f"{lots} lots ({shares} shares)" if lots else f"{shares} {'units' if units else 'shares'}"
+        if purchase:
+            # (round 13) "买三手要多少钱": the same count × close, as the amount needed before trading costs
+            if zh:
+                return [
+                    f"按 {as_of} 的收盘价 {_px(close, data, zh)} 计算，买入 {held}{name}约需 {shares} × "
+                    f"{_num(close)} = {_num(value)} 元 [{eid}]。",
+                    "这是按最近收盘价估算的买入金额，未含佣金、印花税等交易费用；实际成交价会不同，这也不是投资建议。",
+                ]
+            return [
+                f"At the {as_of} close of {_px(close, data, zh)}, buying {held_en} of {name} takes about {shares} × "
+                f"{_num(close)} = CNY {_num(value)} [{eid}].",
+                "This is an estimate at the last close before commissions and stamp duty; the actual fill price will "
+                "differ, and this is not investment advice.",
+            ]
         if zh:
             return [
                 f"按 {as_of} 的收盘价 {_px(close, data, zh)} 计算，{held}{name}的市值约为 {shares} × "
@@ -621,6 +649,8 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
     operation = str(request.get("operation") or "difference")
     metric = METRIC_BY_KEY.get(key)
     label = metric_label(key, zh)
+    if any(operand.get("metric") for operand in request.get("operands") or []):
+        return _metric_pair_sentences(request, tool_log, zh)
     found, missing = [], []
     for operand in request.get("operands") or []:
         hit = operand_value(tool_log, operand, key)
@@ -713,15 +743,24 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
         if zh
         else f"{name_a} {label} {shown(a, data_a)}, {name_b} {shown(b, data_b)}"
     )
+    if operation == "sum":
+        # (round 13) "茅台和五粮液的成交额加起来多少": the total, with both operands in the sentence
+        total = a + b
+        total_text = _money(total, zh) if kind == "money" else _num(round(total, 2))
+        return [f"{operands}，合计 {total_text} {cites}。" if zh else f"{operands}: combined {total_text} {cites}."], []
     if operation == "ratio":
         if not b:
             return [], ["后者为零，无法计算倍数。" if zh else "The second value is zero, so no ratio can be computed."]
         times = _num(round(a / b, 2))
-        return [
+        sentences = [
             f"{operands}，前者约为后者的 {times} 倍 {cites}。"
             if zh
             else f"{operands}: the former is about {times} times the latter {cites}."
-        ], []
+        ]
+        claimed = request.get("claimed") or {}
+        if claimed.get("multiple"):
+            sentences.append(_claimed_multiple_verdict(a / b, claimed, zh))
+        return sentences, []
     if operation == "relative":
         if not b:
             note = "基数为零，无法计算相对差异。" if zh else "The base value is zero, so no percentage can be computed."
@@ -767,6 +806,114 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
     ], []
 
 
+def _claimed_multiple_verdict(ratio: float, claimed: dict[str, Any], zh: bool) -> str:
+    """(round 13) Whether the multiple a question states holds ("大约是平安的两倍吗"): within 5% for an approximate
+    multiple (约, about), 2% otherwise; else less or more than it. The multiple is written as the user wrote it."""
+    multiple, written = float(claimed["multiple"]), str(claimed.get("written") or "")
+    tolerance = 0.05 if claimed.get("approx") else 0.02
+    close = abs(ratio - multiple) <= multiple * tolerance
+    if zh:
+        times = f"{written}倍" if not written.endswith("倍") else written
+        if close:
+            return f"所以大约是{times}。"
+        return f"所以不到{times}。" if ratio < multiple else f"所以超过{times}。"
+    times = written if re.search(r"[A-Za-z]$", written) and written.lower() not in {"x"} else f"{written} times"
+    if re.fullmatch(r"\d+(?:\.\d+)?\s?x", written, re.IGNORECASE):
+        times = written
+    if close:
+        return f"So yes, it is about {times}."
+    return f"So no, it is less than {times}." if ratio < multiple else f"So no, it is more than {times}."
+
+
+def _metric_pair_sentences(
+    request: dict[str, Any], tool_log: list[dict[str, Any]], zh: bool
+) -> tuple[list[str], list[str]]:
+    """(round 13) Two metrics of one target ("两个率相差多少个点" after its gross and net margins): both values in one
+    sentence (a derived net margin with its net profit and revenue) and their gap, ratio or relative difference."""
+    from .frame import METRIC_BY_KEY, metric_label, operand_name, operand_value
+
+    operands = list(request.get("operands") or [])[:2]
+    operation = str(request.get("operation") or "difference")
+    name = operand_name(operands[0], zh) if operands else ""
+    found, missing = [], []
+    for operand in operands:
+        key = str(operand.get("metric") or request.get("metric") or "")
+        hit = operand_value(tool_log, operand, key)
+        if hit is None:
+            missing.append(metric_label(key, zh))
+        else:
+            found.append((key, hit[0], hit[1], hit[2]))
+    if missing or len(found) < 2:
+        return [], [
+            f"当前数据中没有{name}的{'、'.join(missing)}，因此无法计算两者的差值。"
+            if zh
+            else f"The data has no {' or '.join(missing)} for {name}, so the two cannot be compared."
+        ]
+    kind = METRIC_BY_KEY[found[0][0]].kind
+
+    def shown(key: str, value: float, data: dict[str, Any]) -> str:
+        if key == "net_margin":
+            metrics = data.get("metrics") or {}
+            division = "÷" if zh else "/"
+            amounts = f"{_money(metrics.get('net_profit'), zh)} {division} {_money(metrics.get('revenue'), zh)}"
+            return f"{amounts} ≈ {_num(value)}%"
+        if kind == "points":
+            return f"{_num(value)}%"
+        if kind == "multiple":
+            return _times(value, zh)
+        if kind == "money":
+            return _money(value, zh)
+        return _px(value, data, zh) if kind == "price" else _num(value)
+
+    labels = [metric_label(key, zh) for key, *_rest in found]
+    (key_a, a, eid_a, data_a), (key_b, b, eid_b, data_b) = found
+    cites = "".join(dict.fromkeys(f"[{eid}]" for eid in (eid_a, eid_b)))
+    parts = (
+        f"{name}{labels[0]} {shown(key_a, a, data_a)}，{labels[1]} {shown(key_b, b, data_b)}"
+        if zh
+        else f"{name} {labels[0]} {shown(key_a, a, data_a)}, {labels[1]} {shown(key_b, b, data_b)}"
+    )
+    derived = "net_margin" in {key_a, key_b}
+    if operation in {"ratio", "relative"} and not derived and b:
+        if operation == "ratio":
+            times = _num(round(a / b, 2))
+            return [
+                f"{parts}，前者约为后者的 {times} 倍 {cites}。"
+                if zh
+                else f"{parts}: the former is about {times} times the latter {cites}."
+            ], []
+        pct = _num(round(abs(a - b) / abs(b) * 100, 2))
+        side = ("低" if a < b else "高") if zh else ("below" if a < b else "above")
+        return [
+            f"{parts}，前者比后者{side}约 {pct}% {cites}。"
+            if zh
+            else f"{parts}: the former is about {pct}% {side} the latter {cites}."
+        ], []
+    gap = round(abs(a - b), 2)
+    if kind == "points":
+        gap_text = f"{_num(gap)} 个百分点" if zh else f"{_num(gap)} percentage points"
+    elif kind == "money":
+        gap_text = _money(abs(a - b), zh)
+    else:
+        gap_text = _num(gap)
+    higher = labels[0] if a > b else labels[1]
+    if a == b:
+        return [f"{parts}，两者相同 {cites}。" if zh else f"{parts}: they are equal {cites}."], []
+    sentence = (
+        f"{parts}，两者相差 {gap_text}（{higher}更高） {cites}。"
+        if zh
+        else f"{parts}: a difference of {gap_text} ({higher} is higher) {cites}."
+    )
+    notes = []
+    if operation in {"ratio", "relative"}:
+        notes.append(
+            "净利率本身是推算值，这里给出两者相差的百分点，不再计算其比值。"
+            if zh
+            else "The net margin is a derived figure, so the gap in percentage points is given instead of a ratio."
+        )
+    return [sentence], notes
+
+
 def frame_result(request: dict[str, Any], tool_log: list[dict[str, Any]]) -> float | None:
     """The number a frame request computes (gap, ratio or percent), for checking whether an LLM draft states it."""
     from .frame import operand_value
@@ -774,13 +921,17 @@ def frame_result(request: dict[str, Any], tool_log: list[dict[str, Any]]) -> flo
     key, operation = str(request.get("metric") or ""), str(request.get("operation") or "difference")
     values = []
     for operand in (request.get("operands") or [])[:2]:
-        hit = operand_value(tool_log, operand, key)
+        hit = operand_value(tool_log, operand, str(operand.get("metric") or key))
         if hit is None or hit[2].get("_computed_change"):
             return None
         values.append(hit[0])
     if len(values) < 2 or operation == "which":
         return None
     a, b = values
+    if operation == "sum":
+        return round(a + b, 2)
+    if any(operand.get("metric") for operand in request.get("operands") or []):
+        key = "net_margin" if "net_margin" in {o.get("metric") for o in request["operands"]} else key
     if operation == "ratio" and key != "net_margin":
         return round(a / b, 2) if b else None
     if operation == "relative" and key != "net_margin":
@@ -988,6 +1139,17 @@ def _drawdown(data: dict[str, Any], window: str, zh: bool) -> list[str]:
     ]
 
 
+def _implied_change(data: dict[str, Any]) -> tuple[float, float, float] | None:
+    """``(implied previous close, change in yuan, reported change in %)`` from the latest close and the reported daily
+    change (round 13), rounded to the price's precision; ``None`` without both."""
+    close, pct = data.get("close"), data.get("pct_change_1d")
+    if close is None or pct is None or float(pct) <= -100 or not data.get("evidence_id"):
+        return None
+    previous = float(close) / (1 + float(pct) / 100)
+    digits = 3 if abs(float(close)) < 10 else 2
+    return round(previous, digits), round(float(close) - previous, digits), float(pct)
+
+
 def _computed_change(data: dict[str, Any]) -> tuple[float, float] | None:
     """``(previous close, change in %)`` from the last two closes, for a fund or index whose source leaves the daily
     change empty (510300 offline). Only when the latest close is the quoted one; labelled "computed" by the caller."""
@@ -1123,9 +1285,34 @@ def _price_details(data: dict[str, Any], zh: bool, request: PriceRequest) -> lis
                     f"{name} closed at {_px(latest['close'], data, zh)} on {latest.get('date')} against "
                     f"{_px(previous['close'], data, zh)} on {previous.get('date')}, {move} [{eid}]."
                 )
+        elif (implied := _implied_change(data)) is not None:
+            # (round 13) "茅台今天每股跌了多少元" with the close and the reported % change but no previous close: the
+            # previous close implied by them (close ÷ (1 + change)) and the change in yuan, with both operands and the
+            # formula in the sentence and labelled as derived
+            previous_close, delta, pct = implied
+            sign = "−" if pct < 0 else "+"
+            close = data.get("close")
+            if zh:
+                move = f"{'上涨' if delta > 0 else '下跌' if delta < 0 else '持平'}约 {_px(abs(delta), data, zh)}"
+                sentences.append(
+                    f"{name}最新收盘 {_px(close, data, zh)}（{as_of}），当日涨跌幅 {_num(pct)}%，"
+                    f"据此推算前一交易日收盘约 {_num(close)} ÷ (1 {sign} {_num(abs(pct))}%) ≈ "
+                    f"{_px(previous_close, data, zh)}，每股{move}"
+                    f"（推算值，数据源未直接提供涨跌金额） [{eid}]。"
+                )
+            else:
+                move = (
+                    f"{'up' if delta > 0 else 'down' if delta < 0 else 'unchanged'} about {_px(abs(delta), data, zh)}"
+                )
+                sentences.append(
+                    f"{name} closed at {_px(close, data, zh)} on {as_of} with a daily change of {_num(pct)}%, which "
+                    f"implies a previous close of about {_num(close)} / (1 {sign} {_num(abs(pct))}%) ≈ "
+                    f"{_px(previous_close, data, zh)}, so it was {move} per share (derived; the source states no "
+                    f"change in yuan) [{eid}]."
+                )
         else:
-            # no previous close in the data (an implied one would be a figure the evidence does not state): the
-            # change in yuan is named missing; the reported daily change in percent stays in the price sentence
+            # no previous close and no % change in the data: the change in yuan is named missing; the reported
+            # daily change in percent stays in the price sentence
             missing.append(
                 "前一交易日收盘价，因此无法给出涨跌金额（涨跌幅见上）"
                 if zh
@@ -1201,7 +1388,9 @@ def _price_vs_ma(data: dict[str, Any], zh: bool, request: PriceRequest) -> list[
     return sentences
 
 
-def _fundamentals(data: dict[str, Any], zh: bool, *, industry_first: bool = False) -> list[str]:
+def _fundamentals(
+    data: dict[str, Any], zh: bool, *, industry_first: bool = False, turnover_rate: bool = False
+) -> list[str]:
     sentences = []
     metrics = data.get("metrics") or {}
     name, eid, period = data.get("name"), data.get("evidence_id"), data.get("report_date")
@@ -1236,9 +1425,14 @@ def _fundamentals(data: dict[str, Any], zh: bool, *, industry_first: bool = Fals
             sentences.append(f"{name} fundamentals (period {period}{suffix}): {', '.join(parts)} [{eid}].")
     industry = data.get("industry") or {}
     industry_metrics = industry.get("metrics") or {}
+    industry_fields = [("pe", "PE"), ("pb", "PB"), ("pct_change", "涨跌幅" if zh else "change")]
+    if turnover_rate and industry_metrics.get("turnover"):
+        # (round 13) "白酒行业今天换手率多少": the industry snapshot's turnover is a rate in percent (tools/units.py
+        # declares it "%"); 0 is a row whose source reports none
+        industry_fields.append(("turnover", "换手率" if zh else "turnover rate"))
     industry_parts = [
         f"{label} {_times(industry_metrics[key], zh) if key in {'pe', 'pb'} else _num(industry_metrics[key]) + '%'}"
-        for key, label in (("pe", "PE"), ("pb", "PB"), ("pct_change", "涨跌幅" if zh else "change"))
+        for key, label in industry_fields
         if industry_metrics.get(key) is not None
     ]
     if industry_parts and industry.get("evidence_id"):
