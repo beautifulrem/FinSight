@@ -257,7 +257,7 @@ _GROWTH_WORDS = re.compile(
 )
 
 _UNIT = re.compile(
-    r"\s*(万亿|亿元|亿|千万|百万|万元|万|元|块|倍|%|个百分点|百分点|个?基点|点|x(?![A-Za-z])|times\b|"
+    r"\s*(万亿|亿元|亿|千万|百万|万元|万|元|块|倍|%|个百分点|百分点|个?基点|点|x(?![A-Za-z])|times\b|turns?\b|"
     r"trillion|billion|million|bn\b|mn\b|tn\b|yuan\b|RMB\b|CNY\b|percentage points?\b|per ?cent\b|pct\b|"
     r"basis points?\b|bps?\b|points?\b|pts\b)",
     re.I,
@@ -265,7 +265,8 @@ _UNIT = re.compile(
 _UNIT_CLASS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"^(?:个?基点|basis points?|bps?)$", re.I), _BASIS),  # a change in a rate: never a level
     (re.compile(r"^(?:%|个百分点|百分点|percentage points?|per ?cent|pct)$", re.I), _PERCENT),
-    (re.compile(r"^(?:倍|x|times)$", re.I), _MULTIPLE),
+    # "10 turns above": a difference of multiples (round 13, I8)
+    (re.compile(r"^(?:倍|x|times|turns?)$", re.I), _MULTIPLE),
     (re.compile(r"^(?:元|块|yuan|RMB|CNY)$", re.I), _PRICE),
     (re.compile(r"^(?:点|points?|pts)$", re.I), _POINTS),
     (re.compile(r"^(?:万亿|亿元|亿|千万|百万|万元|万|trillion|billion|million|bn|mn|tn)$", re.I), _AMOUNT),
@@ -654,7 +655,7 @@ class _Number:
     direction: int | None = None  # -1/+1 from a move word, for directional metrics
     relation: bool = False  # "茅台PE比五粮液高": compared with ``reference``, not with a number
     reference: dict[str, Any] | None = None
-    reference_kind: Literal["target", "industry", "market", "macro"] | None = None
+    reference_kind: Literal["target", "industry", "market", "macro", "high_52w", "low_52w"] | None = None
     ratio: bool = False  # "是五粮液的1.5倍": ``value`` is a multiple of the reference's value
     date: tuple[str | None, int, int] | None = None  # (year, month, day) named for a daily value
     convention: str | None = None  # the threshold behind a qualitative move word ("大跌": at least 3%)
@@ -664,6 +665,8 @@ class _Number:
     over: Literal["more", "just_over"] | None = None  # "八百多亿" / "三成出头" (see _OVER_WORD)
     over_after_unit: bool = False  # "10倍多" (多 after the unit), not "十多倍" (多 before it); see _over_step
     near: bool = False  # "将近900亿", "接近9倍", "nearly 30": approached from below, [0.9N, N] (see _near_holds)
+    near_low: float = 0.9  # the lower end of 近N as a share of N; "将近一倍" (one fold) is (80%, 100%] (round 13)
+    superlative: list[dict[str, Any]] = field(default_factory=list)  # "最低" among these other named targets
     # "比白酒行业平均的30倍低", "低于五粮液的20倍": the number is the value the claim states for the compared side
     stated_reference: bool = False
     # "茅台ROE比五粮液高出3.6个百分点": the number is the difference target - reference (round 10, F2);
@@ -846,6 +849,36 @@ _CN_FRACTION = re.compile(
     r"的\s*([一二两三四五六七八九十]+|[1-9]\d?)\s*分之\s*([一二两三四五六七八九十]+|[1-9]\d?)(?!\s*[倍%])"
 )
 _OF_TENTHS = re.compile(r"的\s*([一二两三四五六七八九]|[1-9](?:\.\d)?)\s*成(?![交本功为])")
+# (round 13, I8) "三倍半" is 3.5 times (before round 13 the 半 was dropped and a true 3.52 was contradicted)
+_TIMES_AND_HALF = re.compile(rf"({_CN_NUMERAL}|\d+)\s*倍半")
+# "多一点", "高一点", "低一点点", "多一些": "a little", never the number 1 (before round 13 "七成多一点" added a check
+# "eq 1.0"); "一点五" (1.5) is a number
+_A_LITTLE = re.compile(
+    r"(?<=[多高低大小少贵宜涨跌升降强弱好差快慢了])\s*(?:一点点|一点儿|一点|一些|些许|点儿)(?![零〇一二三四五六七八九\d])"
+)
+# "52周最高价", "52周高点", "近52周新高", "52-week high": the 52 is a window, never a value; the high (low) is the
+# target's own 52-week closing high (low), a reference for a relative difference ("比52周高点低了三成多")
+_RANGE_52W_ZH = re.compile(
+    r"(?:近|过去|最近)?\s*(?:52|五十二)\s*(?:个)?(?:周|星期)(?:以来|内)?(?:的)?\s*"
+    r"(?:(?P<high>最高(?:收盘)?价?|高点|最高点|新高|高位)|(?P<low>最低(?:收盘)?价?|低点|最低点|新低|低位))"
+)
+_RANGE_52W_EN = re.compile(r"\b52[- ]week\s+(?:closing\s+)?(high|low)s?\b", re.I)
+_RANGE_TOKEN = {"high": "五十二周高点", "low": "五十二周低点"}
+# "距52周高点跌去三成" / "较52周低点反弹了一成": a move from the reference is a difference with it
+_FROM_RANGE = re.compile(r"(?:距离?|离)(?=五十二周[高低]点)")
+_RANGE_DOWN = re.compile(r"(?<=五十二周[高低]点)(已经|已|目前|如今|现在)?(?:跌去|跌了|下跌了?|回撤了?|回落了?|下滑了?)")
+_RANGE_UP = re.compile(r"(?<=五十二周[高低]点)(已经|已|目前|如今|现在)?(?:涨去|涨了|上涨了?|反弹了?|回升了?)")
+# "较52周高点已经腰斩": half of the reference lost
+_HALVED = re.compile(r"(?<=五十二周高点)(已经|已|几乎|基本)?(?:被)?腰斩")
+# (round 13, I8) "less than a third of CATL's", "about a quarter of ICBC's", "two-fifths of": a multiple
+_EN_SHARE_WORDS = {"half": 2, "halves": 2, "third": 3, "thirds": 3, "quarter": 4, "quarters": 4, "fifth": 5,
+                   "fifths": 5, "tenth": 10, "tenths": 10}  # fmt: skip
+_EN_SHARE = re.compile(
+    r"(?<!first )(?<!second )(?<!third )(?<!fourth )(?<!last )(?<!this )(?<!next )(?<!the )"
+    r"\b(?:(a|one|two|three|four)[\s-]+)?(half|halves|thirds?|quarters?|fifths?|tenths?)\s+(?:of\s+)?"
+    r"(?=(?:the\s+)?[A-Z]|that of\b|those of\b)",
+    re.I,
+)
 
 
 def normalise(claim: str) -> str:
@@ -853,6 +886,16 @@ def normalise(claim: str) -> str:
     percent" → "0.5 percent", "three times" → "3 times", "double" → "2 times"), shares of another value ("的三分之一"
     → "的0.3333倍", "的六成" → "的0.6倍"), "荣枯线" → "50", "15x" → "15 x"."""
     text = claim.translate(_FULLWIDTH).replace("个百分点", "百分点")  # "42个" would read as a count
+    # (round 13, I8) the 52-week high / low as a reference, "a little" and "X倍半", before the numerals are read
+    text = _RANGE_52W_ZH.sub(lambda m: _RANGE_TOKEN["high" if m.group("high") else "low"], text)
+    text = _RANGE_52W_EN.sub(lambda m: f"fifty-two-week {m.group(1).lower()}", text)
+    text = _FROM_RANGE.sub("比", text)
+    text = _HALVED.sub(lambda m: f"{m.group(1) or ''}低了约50%", text)
+    text = _RANGE_DOWN.sub(lambda m: f"{m.group(1) or ''}低了", text)
+    text = _RANGE_UP.sub(lambda m: f"{m.group(1) or ''}高了", text)
+    text = _A_LITTLE.sub("", text)
+    text = _TIMES_AND_HALF.sub(lambda m: f"{_trim(float(_cn_number(m.group(1))) + 0.5)}倍", text)
+    text = _EN_SHARE.sub(_english_share, text)
     text = _EN_FRACTION.sub(lambda m: f"{0.5 if m.group(1) else 0.25} {m.group(3)}", text)
     text = _EN_WORD_NUMBER.sub(
         lambda m: _trim(_EN_NUMBER_WORDS[m.group(1).lower()] + (0.5 if m.group(2) else 0.0)), text
@@ -874,6 +917,13 @@ def normalise(claim: str) -> str:
     text = _TIMES_EARNINGS.sub(r"\1x P/E", text)  # "trades at 8.7 times earnings" is a P/E
     text = _METRIC_DIGITS.sub(r"\1 ", text)
     return _LETTER_UNITS.sub(r"\1 ", text)
+
+
+def _english_share(match: re.Match[str]) -> str:
+    """ "a third of" → "0.3333 times ", "two-fifths of" → "0.4 times " (round 13, I8)."""
+    numerator = {"a": 1, "one": 1, "two": 2, "three": 3, "four": 4}[(match.group(1) or "a").lower()]
+    value = numerator / _EN_SHARE_WORDS[match.group(2).lower()]
+    return f"{_trim(round(value, 4))} times "
 
 
 def _trim(value: float) -> str:
@@ -1134,6 +1184,11 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
     cues = [number.cue for number in numbers if number.cue]
     relations = [item for item in relations if not any(start <= item.start < end for start, end in cues)] + averages
     relations += _macro_relations(text, plain, [number.start for number in numbers], zh=zh)
+    relations += [
+        item
+        for item in _superlatives(text, plain, positions)
+        if not any(other.start <= item.start < other.end for other in [*numbers, *relations])
+    ]
     taken = [(number.start, number.end) for number in [*numbers, *relations]]
     numbers.extend(_moves(text, norm, taken, plain))
     numbers[:] = _bind_targets(numbers, positions, targets, text)
@@ -1526,8 +1581,10 @@ def _english_difference(
             number.comparator = "approx" if approx else "eq"
             number.near = bool(approx) and _NEAR_WORD.search(approx.group(0)) is not None
         return found, 1 if _EN_DIFF_UP_WORDS.match(by.group("verb")) else -1, cue_start, cue_end
-    # the number first: only for amounts, prices and percentage points ("3.7x lower than" stays ambiguous)
-    if number.unit_class not in {_AMOUNT, _PRICE, _PERCENT, _POINTS}:
+    # the number first: only for amounts, prices, percentage points and (round 13) "turns" of a multiple ("10
+    # turns above CATL"); "3.7x lower than" stays ambiguous
+    turns = (number.unit or "").lower() in {"turn", "turns"}
+    if number.unit_class not in {_AMOUNT, _PRICE, _PERCENT, _POINTS} and not turns:
         return None
     after = _EN_DIFF_AFTER.match(text, number.end)
     if after is None:
@@ -1547,6 +1604,10 @@ def _as_percent_of_reference(number: _Number) -> None:
     number.step *= 100
     number.rounding = 0.0 if number.near else number.rounding * 100
     number.unit, number.unit_class, number.scales = "%", _PERCENT, (1.0,)
+    if number.near and math.isclose(abs(number.value), 100.0):
+        # (round 13, I8) "高出接近一倍" is more than 80% and at most 100% (a true +89.58% was contradicted under
+        # the [90%, 100%] rule of 近N)
+        number.near_low = _NEAR_ONE_FOLD_LOW
 
 
 def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str, Any]]]) -> bool:
@@ -1613,6 +1674,8 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
     )
     if metric is None and adjective in {"多赚", "少赚"}:
         metric = "net_profit"  # "多赚四百多亿": the year's net profit
+    if kind in {"high_52w", "low_52w"}:
+        metric = "close"  # (round 13, I8) the latest close against the 52-week closing high / low
     if metric is None or _METRICS[metric].macro:
         return False
     number.metric, number.relation, number.reference, number.reference_kind = metric, True, ref_target, kind  # type: ignore[assignment]
@@ -1628,6 +1691,8 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
         number.difference = "absolute"  # "高出3.6个百分点" of ROE, "低3.7倍" of P/E, "多赚400亿"
     elif number.unit_class == _POINTS and _PERCENT in units:
         number.difference = "absolute"  # "beats … by 3.6 points": percentage points of ROE (round 12)
+    elif number.unit_class == _POINTS and _MULTIPLE in units:
+        number.difference = "absolute"  # "a P/E 10 points above CATL's": points of a multiple (round 13)
     elif number.unit_class == _PERCENT and number.unit == "%":
         number.difference = "relative"  # "PE比行业平均低了近10%": a percentage of the reference's value
     else:
@@ -1798,7 +1863,8 @@ def _step(token: str) -> float:
 
 # "将近900亿", "接近9倍", "近四成", "nearly 30": the value is approached from below (round 11, G12).
 _NEAR_WORD = re.compile(r"将近|接近|近|nearly|almost", re.IGNORECASE)
-_NEAR_LOW = 0.9  # 近N covers [0.9N, N], the r6 slice's label rule (evaluation/heldout_r6/README.md)
+# 近N covers [0.9N, N] (``_Number.near_low``), the r6 slice's label rule (evaluation/heldout_r6/README.md)
+_NEAR_ONE_FOLD_LOW = 0.8  # 将近一倍 / 接近一倍: (80%, 100%] more than the compared value (round 13, I8)
 
 
 def _over_step(number: _Number) -> float:
@@ -1816,9 +1882,10 @@ def _over_step(number: _Number) -> float:
 
 def _near_holds(number: _Number, claimed: float, value: float) -> bool:
     """ "将近N" holds for a value in [0.9N, N] (plus half a unit of the last written digit at the top), on the size
-    for a negative N. "将近900亿" accepts 823 (>= 810) and contradicts 905; "约900亿" stays symmetric."""
+    for a negative N. "将近900亿" accepts 823 (>= 810) and contradicts 905; "约900亿" stays symmetric. "将近一倍"
+    (one fold of the compared value) is wider since round 13: (80%, 100%] (``near_low``)."""
     size, bound = (value, claimed) if claimed >= 0 else (-value, -claimed)
-    return bound * _NEAR_LOW - number.rounding - 1e-9 <= size <= bound + number.rounding + 1e-9
+    return bound * number.near_low - number.rounding - 1e-9 <= size <= bound + number.rounding + 1e-9
 
 
 def _read_comparator(number: _Number, stretch: str, after: str) -> None:
@@ -2066,6 +2133,11 @@ _MARKET_REFERENCE = re.compile(
     re.I,
 )
 # (round 12, H6) "低于这一水平", "比它低", "below that", "lower than it": the value stated earlier in the claim
+_RANGE_REFERENCE = re.compile(r"五十二周(高|低)点|fifty-two-week (?:closing )?(high|low)", re.I)
+_RANGE_LABEL = {
+    "high_52w": ("52周最高收盘价", "52-week closing high"),
+    "low_52w": ("52周最低收盘价", "52-week closing low"),
+}
 _ANAPHORA = re.compile(
     r"\s*(?:了|过)?\s*(?:(?:这|那|该|此|上述|前述)(?:一|个)?\s*(?:水平|均值|平均(?:值|水平|数)?|数值|数字|数|值|位置|标准|估值)|"
     r"它(?![的们])|(?:that|it|this)\b(?!\s+of\b|\s*['’]s\b)(?:\s+(?:level|average|figure|mark|number|multiple))?)",
@@ -2122,8 +2194,14 @@ def _relation_at(
         return None
     kind, ref_target, ref_end = reference
     ref_key = ref_target["key"] if ref_target else None
+    # (round 13, I8) a target named as the compared side of an earlier clause ("低于白酒行业平均，但市净率高于行业
+    # 平均") is not the subject of a later one: the subject carries over the contrast
     subjects = [
-        target for position, target in positions if sentence_start <= position < start and target["key"] != ref_key
+        target
+        for position, target in positions
+        if sentence_start <= position < start
+        and target["key"] != ref_key
+        and not (position < clause_start and _COMPARED_SIDE.search(text, max(0, position - 8), position))
     ]
     if not subjects:
         return None
@@ -2153,6 +2231,8 @@ def _relation_at(
         metric = "pct_change_1d"
     if word in {None, "not_as"} and adjective is not None and adjective.group(1) == "活跃":
         metric = "amount"  # "比创业板ETF更活跃": more actively traded, i.e. a higher turnover (round 9)
+    if kind in _RANGE_LABEL:
+        metric = "close"  # (round 13, I8) "股价低于52周高点": the latest close against the 52-week high
     fell = re.search(r"跌|\b(?:fell|fall|dropped|declined|lost)\b", text[clause_start:clause_end], re.I)
     if metric == "pct_change_1d" and fell:
         comparator = "lt" if comparator == "gt" else "gt"  # "跌幅比五粮液大": it fell more, a lower change
@@ -2321,6 +2401,81 @@ def _evaluative_relations(
     return found
 
 
+# (round 13, I8) A superlative among the named targets: "在招行、工行和平安银行中，平安银行的ROE最低", "市净率最高的是招商
+# 银行", "Of CMB, ICBC and Ping An Bank, ICBC has the highest ROE". 最高价 / 最低收盘 / 最大回撤 are metrics, not
+# superlatives.
+_SUPERLATIVE_ZH = re.compile(
+    r"(?P<neg>不是|并非|并不是|并不)?\s*最(?P<adj>高|低|大|小|贵|便宜)(?![价点位收盘]|回撤|跌幅|涨幅|值|化|\s*\d)"
+)
+_SUPERLATIVE_EN = re.compile(
+    r"\b(?P<neg>not\s+)?(?:the\s+)?(?P<adj>highest|lowest|largest|smallest|biggest|cheapest|priciest|"
+    r"most\s+expensive|least\s+expensive)\b(?!\s+(?:close|closing|price|level|point)s?\b)",
+    re.I,
+)
+_SUPERLATIVE_HIGH = {"高", "大", "贵", "highest", "largest", "biggest", "priciest", "most expensive"}
+_SUBJECT_AFTER = re.compile(r"\s*(?:的)?\s*(?:是|为|属|当属|要数|就是)\s*|\s+(?:is|was|belongs to)\s+", re.I)
+
+
+def _superlatives(text: str, plain: str, positions: list[tuple[int, dict[str, Any]]]) -> list[_Number]:
+    """One relation per superlative: the subject against the most extreme of the other companies the sentence names
+    (``superlative``); the check picks that one from the data. A superlative with no other named company is left
+    unchecked (its clause is listed)."""
+    found: list[_Number] = []
+    for match in [*_SUPERLATIVE_ZH.finditer(text), *_SUPERLATIVE_EN.finditer(text)]:
+        sentence_start, sentence_end = _clause_bounds(text, match.start(), _SENTENCE_BREAK)
+        clause_start, clause_end = _clause_bounds(text, match.start())
+        companies = [
+            (position, target)
+            for position, target in positions
+            if sentence_start <= position < sentence_end and not target.get("sector") and target.get("key")
+        ]
+        before = [target for position, target in companies if clause_start <= position < match.start()]
+        subject = before[-1] if before else None
+        if subject is None:
+            after = _SUBJECT_AFTER.match(text, match.end())
+            index = after.end() if after else -1
+            subject = next((target for position, target in companies if position == index), None)
+        if subject is None:
+            continue
+        others: list[dict[str, Any]] = []
+        for _position, target in companies:
+            if target["key"] != subject["key"] and all(target["key"] != other["key"] for other in others):
+                others.append(target)
+        if not others:
+            continue
+        adjective = re.sub(r"\s+", " ", match.group("adj").lower())
+        comparator: Comparator = "gt" if adjective in _SUPERLATIVE_HIGH else "lt"
+        negated = bool(match.group("neg"))
+        metric = _relation_metric(text, match.start(), match.end(), clause_start, clause_end) or _relation_metric(
+            text, match.start(), match.end(), sentence_start, sentence_end
+        )
+        number = _Number(
+            start=match.start(),
+            end=match.end(),
+            value=0.0,
+            rounding=0.0,
+            scales=_BARE_SCALES,
+            unit=None,
+            unit_class=None,
+            comparator=_FLIP[comparator] if negated else comparator,
+            negated=negated,
+            metric=metric,
+            target=subject,
+            relation=True,
+            reference_kind="target",
+            superlative=others,
+        )
+        clause = plain[clause_start:clause_end]
+        if metric is None:
+            number.reasons.append(("no_metric", "the compared metric is not named"))
+        elif _FORECAST.search(clause) or _HYPOTHETICAL.search(clause):
+            number.reasons.append(("forecast", "a forecast or hypothetical, not a reported fact"))
+        elif metric == "pct_change_1d" and _MULTI_DAY.search(clause):
+            number.reasons.append(("multi_day", "a multi-day move; only the latest daily change is available"))
+        found.append(number)
+    return found
+
+
 def _macro_relations(text: str, plain: str, number_starts: list[int], *, zh: bool) -> list[_Number]:
     """ "M2增速高于CPI": one macro series against another in a clause with no number (round 9). Both values come from
     ``get_macro_indicators``; the comparison is of their latest readings."""
@@ -2388,6 +2543,11 @@ def _reference_at(
         match = pattern.match(text, start)
         if match and match.end() > start:
             return kind, None, match.end()  # type: ignore[return-value]
+    # (round 13, I8) the subject's own 52-week closing high / low ("比52周高点低了三成多", "below its 52-week high")
+    match = _RANGE_REFERENCE.match(text, start)
+    if match:
+        side = (match.group(1) or match.group(2) or "").lower()
+        return ("high_52w" if side in {"高", "high"} else "low_52w"), None, match.end()  # type: ignore[return-value]
     return None
 
 
@@ -2503,7 +2663,7 @@ def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[Age
         wanted_fundamental = (
             wanted_fundamental or metric.fundamental or number.reference_kind == "industry" or number.industry
         )
-        for subject in (number.target, number.reference, *number.sum_of):
+        for subject in (number.target, number.reference, *number.sum_of, *number.superlative):
             if subject and subject.get("key"):
                 subjects.setdefault(subject["key"], subject)
     for key, subject in list(subjects.items())[:4]:
@@ -2799,6 +2959,9 @@ def _target_name(target: dict[str, Any] | None, *, zh: bool) -> str | None:
 def _reference_name(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: bool) -> str | None:
     if not number.relation:
         return None
+    if number.superlative:
+        names = [str(_target_name(target, zh=zh)) for target in number.superlative]
+        return ("、".join(names) if zh else ", ".join(names)) + ("中的最值" if zh else " (the extreme of these)")
     if number.reference_kind == "target" and number.reference:
         name = str(number.reference.get("name") or number.reference.get("symbol"))
         if number.reference.get("sector"):
@@ -2809,6 +2972,8 @@ def _reference_name(number: _Number, evidence: dict[str, list[AgentEvidence]], *
         return "市场平均" if zh else "market average"
     if number.reference_kind == "macro":
         return str((number.reference or {}).get("name"))
+    if number.reference_kind in _RANGE_LABEL:
+        return _RANGE_LABEL[number.reference_kind][0 if zh else 1]
     return _industry_label((number.target or {}).get("key"), evidence, zh=zh)
 
 
@@ -2831,7 +2996,24 @@ def _check_relation(
             number.comparator, math.isclose(actual, value, rel_tol=_REL_TOLERANCE)
         )
         return base.model_copy(update={"status": "supported" if holds else "contradicted"})
-    if number.reference_kind == "industry":
+    if number.superlative:
+        return _check_superlative(number, base, evidence)
+    if number.reference_kind in _RANGE_LABEL:
+        # (round 13, I8) the subject's own 52-week closing high / low, from its price history
+        items = evidence.get((number.target or {}).get("key") or "") or []
+        side = "high" if number.reference_kind == "high_52w" else "low"
+        reference = next(
+            (
+                (item, float(item.payload["range_52w"][side]))
+                for item in items
+                if isinstance(item.payload, dict) and isinstance(item.payload.get("range_52w"), dict)
+            ),
+            None,
+        )
+        if reference is None:
+            note = "the price history does not cover 52 weeks, so the 52-week high and low are not known"
+            return base.model_copy(update={"reason": "no_data", "note": note})
+    elif number.reference_kind == "industry":
         keys = _INDUSTRY_KEYS.get(metric)
         items = evidence.get(f"industry:{(number.target or {}).get('key')}") or []
         reference = _value(items, keys) if keys else None
@@ -2866,6 +3048,44 @@ def _check_relation(
         "le": actual <= value,
     }.get(number.comparator, math.isclose(actual, value, rel_tol=_REL_TOLERANCE))
     return base.model_copy(update={"status": "supported" if holds else "contradicted"})
+
+
+def _check_superlative(number: _Number, base: ClaimCheck, evidence: dict[str, list[AgentEvidence]]) -> ClaimCheck:
+    """ "平安银行的ROE最低" among the named companies (round 13, I8): the subject against the most extreme of the others
+    (the lowest for 最低), which is the compared side shown in the check."""
+    metric = number.metric or ""
+    values: list[tuple[str, float, AgentEvidence]] = []
+    for other in number.superlative:
+        found = _value(evidence.get(other.get("key") or "") or [], _keys(other, metric))
+        name = str(other.get("name") or other.get("key"))
+        if found is None:
+            return base.model_copy(update={"reason": "no_data", "note": f"no data for {name}"})
+        item, value = found
+        as_of, basis = _as_of(item, metric)
+        mismatch = (
+            _date_mismatch(number, as_of) if basis == "trade_date" else _period_mismatch(number, item)
+            if _METRICS[metric].fundamental else None
+        )  # fmt: skip
+        if mismatch:
+            return base.model_copy(update={"reason": "period_mismatch", "note": f"{mismatch} ({name})"})
+        values.append((name, value, item))
+    high = number.comparator in {"gt", "ge"}
+    name, value, item = (max if high else min)(values, key=lambda row: row[1])
+    actual = float(base.actual or 0.0)
+    holds = {"gt": actual > value, "ge": actual >= value, "lt": actual < value, "le": actual <= value}[
+        number.comparator
+    ]
+    listed = ", ".join(f"{other} {_trim(round(other_value, 4))}" for other, other_value, _item in values)
+    note = f"{'highest' if high else 'lowest'} of the named targets ({base.target} {_trim(round(actual, 4))}, {listed})"
+    return base.model_copy(
+        update={
+            "reference": name,
+            "reference_value": value,
+            "reference_evidence_id": item.evidence_id,
+            "status": "supported" if holds else "contradicted",
+            "note": note,
+        }
+    )
 
 
 def _check_ratio(number: _Number, base: ClaimCheck, actual: float, value: float) -> ClaimCheck:
