@@ -336,7 +336,8 @@ def test_a_net_margin_gap_with_its_four_amounts_verifies():
 def test_the_template_states_a_net_margin_gap_not_a_daily_change_gap(agent):
     result = agent.chat("贵州茅台跟五粮液净利润率谁高，高几个百分点", session_id="r10-margin-gap")
     assert "两者相差 13.92 个百分点" in result["answer"]
-    assert "当日涨跌幅" not in result["answer"].split("净利率：")[-1]
+    # the gap sentence is a net-margin gap, not a daily-change gap (round 12: the computed comparison leads the answer)
+    assert "当日涨跌幅" not in result["answer"].split("净利率：")[-1].split("。")[0]
     assert result["verification"]["passed"]
 
 
