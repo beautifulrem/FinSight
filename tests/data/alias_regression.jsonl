@@ -54,3 +54,9 @@
 {"query": "中国平安A股的市净率", "expect_symbols": ["601318.SH"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
 {"query": "中国平安的股东户数变化", "expect_symbols": ["601318.SH"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
 {"query": "五粮液营收增长和利润率怎么样", "expect_symbols": ["000858.SZ"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
+{"query": "比亚迪港股的市盈率", "expect_symbols": [], "forbid_symbols": ["002594.SZ"], "kind": "h_share_by_description", "level": "agent", "coverage": "foreign_equity"}
+{"query": "What's the Hong Kong share price of BYD?", "expect_symbols": [], "forbid_symbols": ["002594.SZ"], "kind": "h_share_by_description", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中国平安在香港上市的股票收盘多少", "expect_symbols": [], "forbid_symbols": ["601318.SH"], "kind": "h_share_by_description", "level": "agent", "coverage": "foreign_equity"}
+{"query": "Ping An's Hong Kong-listed shares today", "expect_symbols": [], "forbid_symbols": ["601318.SH"], "kind": "h_share_by_description", "level": "agent", "coverage": "foreign_equity"}
+{"query": "招商银行港股今天涨了吗", "expect_symbols": [], "forbid_symbols": ["600036.SH"], "kind": "h_share_by_description", "level": "agent", "coverage": "foreign_equity"}
+{"query": "港股通南向资金对茅台的持股", "expect_symbols": ["600519.SH"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
