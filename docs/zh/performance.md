@@ -142,7 +142,7 @@ python -m evaluation.agent_eval.profile --table evaluation/results/perf-merged-d
 
 | 改动 | 开关（默认） | 作用 |
 |---|---|---|
-| 修复数字切分 | 始终生效（属于 bug 修复） | 数字 token 在 `x`/`bn`/`mn`/`m`/`k`/`pp`/`pct` 前结束，不再回退成更短的数字；不带年份的日期、债券期限和列表编号不算数值断言。在当前开发集上跑校验器压力测试（[`verifier_stress-perf-8a85ae5.json`](../../evaluation/results/verifier_stress-perf-8a85ae5.json)，202 个正确答案、3,399 个篡改变体）：正确答案全部通过，误放率 1.94%。已提交的 `verifier_stress.json` 在 `9f0e46b` 重跑，结果相同（202 个正确答案，1.94%）；更早的 2.1%（`2494656`，159 个正确答案）已被取代。 |
+| 修复数字切分 | 始终生效（属于 bug 修复） | 数字 token 在 `x`/`bn`/`mn`/`m`/`k`/`pp`/`pct` 前结束，不再回退成更短的数字；不带年份的日期、债券期限和列表编号不算数值断言。在当前开发集上跑校验器压力测试（[`verifier_stress-perf-8a85ae5.json`](../../evaluation/results/verifier_stress-perf-8a85ae5.json)，202 个正确答案、3,399 个篡改变体）：正确答案全部通过，误放率 1.94%。在 `9f0e46b` 重跑结果相同（202 个正确答案，1.94%；现为 `verifier_stress-9f0e46b.json`，当前的 `verifier_stress.json` 是第 11 轮的运行：227 个正确答案，1.17%）；更早的 2.1%（`2494656`，159 个正确答案）已被取代。 |
 | LLM 连接复用 | `QI_LLM_KEEPALIVE=1` | 每个模型共用一个带连接池的 `httpx.Client`，不再每次请求新建 TLS 连接。探针（[`keepalive-probe.json`](../results/perf/agent/keepalive-probe.json)，25 组交替的极小请求）：单次调用 P50 1.69 s → 1.32 s。 |
 | 修订前先修引用 | `QI_AGENT_REVISE_POLICY=cite_repair` | 草稿只在引用上出错时（数字无引用或引错、id 不存在或缺失），为每个数字补上**唯一**含有该值的证据 id，重新校验；通过就跳过 LLM 修订。多个证据都含该值时不猜测。 |
 | 派生数字 | `QI_AGENT_VERIFY_DERIVED=1` | 若一个数等于同一句所引证据支持的两个数之差、和、比或变化百分比，则予以接受。同一压力测试的误放率 1.94% → 2.03%（跨公司互换的数字 0.53% → 0.93%）。 |
