@@ -50,7 +50,7 @@ FORBIDDEN = [
 
 @cache
 def _data() -> dict[str, Any]:
-    return load_structured_data()
+    return load_structured_data(extended=False)
 
 
 @cache

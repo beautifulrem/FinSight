@@ -16,6 +16,11 @@ if os.getenv("QI_TEST_LIVE") != "1":
     for _name in ("QI_USE_LIVE_MARKET", "QI_USE_LIVE_MACRO", "QI_USE_LIVE_NEWS", "QI_USE_LIVE_ANNOUNCEMENT"):
         os.environ.setdefault(_name, "false")
 
+# The offline snapshot extension (data/snapshot/) adds names that earlier tests use as "no offline data" examples
+# (平安银行, 宁德时代): tests built from the environment see the v1 snapshot they were written against, like the
+# evaluation harness; tests/test_round12_snapshot_ext.py turns the extension on explicitly.
+os.environ.setdefault("QI_OFFLINE_SNAPSHOT_EXT", "false")
+
 # Graph tests script the classic tool loop turn by turn (tool call, then answer, then revision). Pin the
 # classic path; tests/test_agent_perf.py covers the latency switches and their defaults explicitly.
 for _name, _value in (

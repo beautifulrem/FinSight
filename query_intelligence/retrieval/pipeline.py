@@ -115,23 +115,23 @@ class RetrievalPipeline:
             text_retriever = PostgresDocumentRepository(connection)
             sql_retriever = PostgresStructuredRepository(connection)
         else:
-            structured = load_structured_data()
+            structured = load_structured_data(settings.offline_snapshot_ext)
             text_retriever = DocumentRetriever(load_documents())
             sql_retriever = SQLRetriever(structured)
 
         runtime = get_default_runtime()
         if settings.use_live_market and settings.tushare_token:
             market_provider = TushareMarketProvider.from_token(settings.tushare_token)
-            api_retriever = APIRetriever(load_structured_data())
+            api_retriever = APIRetriever(load_structured_data(settings.offline_snapshot_ext))
         elif settings.use_live_market:
             market_provider = AKShareMarketProvider.from_import(
                 timeout=settings.request_timeout_seconds,
                 runtime=runtime,
                 cross_check_fundamentals=settings.source_cross_check_fundamentals,
             )
-            api_retriever = APIRetriever(load_structured_data())
+            api_retriever = APIRetriever(load_structured_data(settings.offline_snapshot_ext))
         else:
-            structured = load_structured_data()
+            structured = load_structured_data(settings.offline_snapshot_ext)
             market_provider = None
             api_retriever = APIRetriever(structured)
 
@@ -506,6 +506,7 @@ class RetrievalPipeline:
                 )
             else:
                 provenance = self._snapshot_provenance(item, kind, as_of, live_failure_reasons, macro_failures)
+            payload = {key: value for key, value in payload.items() if key != "_snapshot"}
             annotated.append({**item, "payload": {**payload, "provenance": provenance}})
         return annotated
 
@@ -543,7 +544,10 @@ class RetrievalPipeline:
                 endpoint=type(self.sql_retriever).__name__,
                 fallback_reason=reason,
             )
-        return snapshot_provenance(kind=kind, as_of=as_of, reason=reason, source_name=payload.get("source_name"))
+        meta = payload.get("_snapshot") if isinstance(payload.get("_snapshot"), dict) else None
+        return snapshot_provenance(
+            kind=kind, as_of=as_of, reason=reason, source_name=payload.get("source_name"), snapshot=meta
+        )
 
     def _payload_as_of(self, payload: dict):
         for key in ("trade_date", "report_date", "metric_date", "nav_date", "valuation_date", "publish_date", "as_of"):

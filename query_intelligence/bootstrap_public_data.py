@@ -43,7 +43,7 @@ class PublicDataBootstrapper:
         self.existing_documents = existing_documents if existing_documents is not None else load_documents()
         self.existing_entities = existing_entities if existing_entities is not None else load_entities()
         self.existing_aliases = existing_aliases if existing_aliases is not None else load_aliases()
-        self.existing_structured_data = existing_structured_data if existing_structured_data is not None else load_structured_data()
+        self.existing_structured_data = existing_structured_data if existing_structured_data is not None else load_structured_data(extended=False)
         self.warnings: list[str] = []
 
     def run(self, watchlist: list[dict] | None = None) -> None:

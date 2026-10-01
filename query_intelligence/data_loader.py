@@ -99,9 +99,42 @@ def load_documents() -> list[dict]:
     return merged
 
 
-@lru_cache(maxsize=1)
-def load_structured_data() -> dict:
-    return _read_json(DATA_DIR / "structured_data.json")
+SNAPSHOT_EXT_PATH = DATA_DIR / "snapshot" / "structured_data_ext.json"
+# Sections of the extension merged under the v1 snapshot.
+_SNAPSHOT_EXT_SECTIONS = ("market_api", "fundamental_sql", "industry_sql", "macro_sql", "entity_to_industry")
+
+
+def snapshot_ext_enabled() -> bool:
+    """``QI_OFFLINE_SNAPSHOT_EXT`` (default on): merge ``data/snapshot/structured_data_ext.json`` under v1."""
+    return os.getenv("QI_OFFLINE_SNAPSHOT_EXT", "true").strip().lower() in {"1", "true", "yes"}
+
+
+def load_structured_data(extended: bool | None = None) -> dict:
+    """The offline structured snapshot: v1 (``data/structured_data.json``), plus the extension when ``extended``.
+
+    ``extended=None`` follows ``QI_OFFLINE_SNAPSHOT_EXT``. The evaluation harness pins ``extended=False``: its
+    labels were written against v1 (for example "宁德时代 has no offline price"), see docs/data-sources.md.
+    """
+    return _load_structured_data(snapshot_ext_enabled() if extended is None else bool(extended))
+
+
+@lru_cache(maxsize=2)
+def _load_structured_data(extended: bool) -> dict:
+    base = _read_json(DATA_DIR / "structured_data.json")
+    if not extended or not SNAPSHOT_EXT_PATH.exists():
+        return base
+    return merge_snapshot_extension(base, _read_json(SNAPSHOT_EXT_PATH))
+
+
+def merge_snapshot_extension(base: dict, extension: dict) -> dict:
+    """``base`` with the extension's records added. A key already in ``base`` always keeps the base record, so
+    the extension can add instruments but never change a value v1 already serves."""
+    merged = {key: dict(value) if isinstance(value, dict) else value for key, value in base.items()}
+    for section in _SNAPSHOT_EXT_SECTIONS:
+        target = merged.setdefault(section, {})
+        for key, record in (extension.get(section) or {}).items():
+            target.setdefault(key, record)
+    return merged
 
 
 def _resolve_data_path(env_var: str, filename: str) -> Path:
@@ -135,4 +168,4 @@ def clear_data_caches() -> None:
     load_seed_aliases.cache_clear()
     load_synonyms.cache_clear()
     load_documents.cache_clear()
-    load_structured_data.cache_clear()
+    _load_structured_data.cache_clear()

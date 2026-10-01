@@ -1,0 +1,369 @@
+{
+ "as_of": "2026-09-30",
+ "base_snapshot": {
+  "file": "data/structured_data.json",
+  "sha256": "762e977aad2dfebbf78547c9e7ecc31cd8bd458c3f7549963932bac069431947"
+ },
+ "build_command": "python -m scripts.build_offline_snapshot build",
+ "fetch_command": "python -m scripts.build_offline_snapshot fetch",
+ "instruments": [
+  {
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.stock_zh_index_daily",
+    "fetched_at": "2026-10-01T04:57:05+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "上证指数",
+   "product_type": "index",
+   "raw_file": "data/snapshot/raw/000001.SH.json",
+   "raw_sha256": "1500e2c725af6cc913c9a5e3a5225e82fdf3d19f06a71a5207f7c33f552615ce",
+   "symbol": "000001.SH"
+  },
+  {
+   "fundamentals": {
+    "cross_check": "agree",
+    "fetched_at": "2026-10-01T04:56:04+00:00",
+    "report_date": "2025-12-31",
+    "served_by": "sina.finance",
+    "valuation_date": "2026-09-30",
+    "valuation_endpoint": "akshare.stock_value_em"
+   },
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.stock_zh_a_daily",
+    "fetched_at": "2026-10-01T04:56:02+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "平安银行",
+   "product_type": "stock",
+   "raw_file": "data/snapshot/raw/000001.SZ.json",
+   "raw_sha256": "6c1306c173d6e1728697c98979932e3422da446c51632e4b16080f4b2f6dc0bd",
+   "symbol": "000001.SZ"
+  },
+  {
+   "fundamentals": {
+    "cross_check": "agree",
+    "fetched_at": "2026-10-01T04:56:46+00:00",
+    "report_date": "2025-12-31",
+    "served_by": "sina.finance",
+    "valuation_date": "2026-09-30",
+    "valuation_endpoint": "akshare.stock_value_em"
+   },
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.stock_zh_a_daily",
+    "fetched_at": "2026-10-01T04:56:44+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "美的集团",
+   "product_type": "stock",
+   "raw_file": "data/snapshot/raw/000333.SZ.json",
+   "raw_sha256": "79a1f84d2d0ddf4cee6f0b53e33b864f26eeeba5afe7118c5c3e7bb894c1291b",
+   "symbol": "000333.SZ"
+  },
+  {
+   "fundamentals": {
+    "cross_check": "agree",
+    "fetched_at": "2026-10-01T04:55:47+00:00",
+    "report_date": "2025-12-31",
+    "served_by": "sina.finance",
+    "valuation_date": "2026-09-30",
+    "valuation_endpoint": "akshare.stock_value_em"
+   },
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.stock_zh_a_daily",
+    "fetched_at": "2026-10-01T04:55:45+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "比亚迪",
+   "product_type": "stock",
+   "raw_file": "data/snapshot/raw/002594.SZ.json",
+   "raw_sha256": "156318dd4db94fcb0e55ae858ed4174287463480254999352815d551ea3f064c",
+   "symbol": "002594.SZ"
+  },
+  {
+   "fundamentals": {
+    "cross_check": "agree",
+    "fetched_at": "2026-10-01T04:55:39+00:00",
+    "report_date": "2025-12-31",
+    "served_by": "sina.finance",
+    "valuation_date": "2026-09-30",
+    "valuation_endpoint": "akshare.stock_value_em"
+   },
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.stock_zh_a_daily",
+    "fetched_at": "2026-10-01T04:55:37+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "宁德时代",
+   "product_type": "stock",
+   "raw_file": "data/snapshot/raw/300750.SZ.json",
+   "raw_sha256": "79c6b6a2aa8b56e8decb1c9bc7d01f55780b0df01eaa723135970c14c0a455da",
+   "symbol": "300750.SZ"
+  },
+  {
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.stock_zh_index_daily",
+    "fetched_at": "2026-10-01T04:57:07+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "创业板指",
+   "product_type": "index",
+   "raw_file": "data/snapshot/raw/399006.SZ.json",
+   "raw_sha256": "960d4da28e803588cb0ef979efbd8d853cf01c5cdfaf3fccb842641e92a58e30",
+   "symbol": "399006.SZ"
+  },
+  {
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.fund_etf_hist_sina",
+    "fetched_at": "2026-10-01T04:57:01+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "中证500ETF南方",
+   "product_type": "etf",
+   "raw_file": "data/snapshot/raw/510500.SH.json",
+   "raw_sha256": "2f9fb9961a37221eb136fbd7b630d68a843157de2720b4c435c3c6938488f76d",
+   "symbol": "510500.SH"
+  },
+  {
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.fund_etf_hist_sina",
+    "fetched_at": "2026-10-01T04:56:59+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "黄金ETF华安",
+   "product_type": "etf",
+   "raw_file": "data/snapshot/raw/518880.SH.json",
+   "raw_sha256": "09cf6d3526bcafa030f272d49f44f90baa3f52d1ef8a409907367bb539acdc3c",
+   "symbol": "518880.SH"
+  },
+  {
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.fund_etf_hist_sina",
+    "fetched_at": "2026-10-01T04:57:03+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "科创50ETF华夏",
+   "product_type": "etf",
+   "raw_file": "data/snapshot/raw/588000.SH.json",
+   "raw_sha256": "040ab50637609049a261bcebd1268405a5cabdceff27afdb43f424149bee863a",
+   "symbol": "588000.SH"
+  },
+  {
+   "fundamentals": {
+    "cross_check": "agree",
+    "fetched_at": "2026-10-01T04:56:21+00:00",
+    "report_date": "2025-12-31",
+    "served_by": "sina.finance",
+    "valuation_date": "2026-09-30",
+    "valuation_endpoint": "akshare.stock_value_em"
+   },
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.stock_zh_a_daily",
+    "fetched_at": "2026-10-01T04:56:19+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "中信证券",
+   "product_type": "stock",
+   "raw_file": "data/snapshot/raw/600030.SH.json",
+   "raw_sha256": "2f2993f79502cff9735b26f7857da9fb74007a957aadb59c6cf777cffbfc4833",
+   "symbol": "600030.SH"
+  },
+  {
+   "fundamentals": {
+    "cross_check": "agree",
+    "fetched_at": "2026-10-01T04:55:55+00:00",
+    "report_date": "2025-12-31",
+    "served_by": "sina.finance",
+    "valuation_date": "2026-09-30",
+    "valuation_endpoint": "akshare.stock_value_em"
+   },
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.stock_zh_a_daily",
+    "fetched_at": "2026-10-01T04:55:53+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "招商银行",
+   "product_type": "stock",
+   "raw_file": "data/snapshot/raw/600036.SH.json",
+   "raw_sha256": "61863337b5eb4aa54b379e60859af0fe3a6f03c46243c420440afea0170e5795",
+   "symbol": "600036.SH"
+  },
+  {
+   "fundamentals": {
+    "cross_check": "agree",
+    "fetched_at": "2026-10-01T04:56:30+00:00",
+    "report_date": "2025-12-31",
+    "served_by": "sina.finance",
+    "valuation_date": "2026-09-30",
+    "valuation_endpoint": "akshare.stock_value_em"
+   },
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.stock_zh_a_daily",
+    "fetched_at": "2026-10-01T04:56:28+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "长江电力",
+   "product_type": "stock",
+   "raw_file": "data/snapshot/raw/600900.SH.json",
+   "raw_sha256": "66e0b28ae988d7a66c2ee595eacc0edd4aecf3a93678fd6ade14703a9c01cb11",
+   "symbol": "600900.SH"
+  },
+  {
+   "fundamentals": {
+    "cross_check": "agree",
+    "fetched_at": "2026-10-01T04:56:12+00:00",
+    "report_date": "2025-12-31",
+    "served_by": "sina.finance",
+    "valuation_date": "2026-09-30",
+    "valuation_endpoint": "akshare.stock_value_em"
+   },
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.stock_zh_a_daily",
+    "fetched_at": "2026-10-01T04:56:10+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "工商银行",
+   "product_type": "stock",
+   "raw_file": "data/snapshot/raw/601398.SH.json",
+   "raw_sha256": "36b6dfa9ae453ea554778553953a9c2fb69dcb312d669aa2ff4a3c94f4548011",
+   "symbol": "601398.SH"
+  },
+  {
+   "fundamentals": {
+    "cross_check": "agree",
+    "fetched_at": "2026-10-01T04:56:38+00:00",
+    "report_date": "2025-12-31",
+    "served_by": "sina.finance",
+    "valuation_date": "2026-09-30",
+    "valuation_endpoint": "akshare.stock_value_em"
+   },
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 307,
+    "endpoint": "akshare.stock_zh_a_daily",
+    "fetched_at": "2026-10-01T04:56:36+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "紫金矿业",
+   "product_type": "stock",
+   "raw_file": "data/snapshot/raw/601899.SH.json",
+   "raw_sha256": "ac604d0b615866fc4d7fb33a6aa9a6023d4daf0db3f935c2bb581c0aa675a01e",
+   "symbol": "601899.SH"
+  },
+  {
+   "fundamentals": {
+    "cross_check": "disagree_resolved",
+    "fetched_at": "2026-10-01T04:56:56+00:00",
+    "report_date": "2025-12-31",
+    "served_by": "ths.finance",
+    "valuation_date": "2026-09-30",
+    "valuation_endpoint": "akshare.stock_value_em"
+   },
+   "market": {
+    "as_of": "2026-09-30",
+    "attempts": [
+     "eastmoney.quote:error(ProxyError)",
+     "sina.kline:ok"
+    ],
+    "closes": 301,
+    "endpoint": "akshare.stock_zh_a_daily",
+    "fetched_at": "2026-10-01T04:56:52+00:00",
+    "first_date": "2025-07-01"
+   },
+   "name": "中芯国际",
+   "product_type": "stock",
+   "raw_file": "data/snapshot/raw/688981.SH.json",
+   "raw_sha256": "c599470d611dbaa56b56b2a67b4e83c9bc4bdbf6541317c1e0a7494621136d8a",
+   "symbol": "688981.SH"
+  }
+ ],
+ "output": {
+  "file": "data/snapshot/structured_data_ext.json",
+  "sha256": "538d2bbe49646dc28c23987a564658b9412c7aaa5c9147114e1e4742e0da0e5a"
+ },
+ "report_period": "2025-12-31",
+ "version": "ext-2026-09-30",
+ "window": [
+  "2025-07-01",
+  "2026-09-30"
+ ]
+}
