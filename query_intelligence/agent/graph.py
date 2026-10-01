@@ -1263,7 +1263,13 @@ class AgentRuntime:
         fallback_notes: list[str] = []
         llm_draft = state.get("draft_source") in {"llm_agent", "llm_compose"}
         framed: dict[str, Any] = {}
-        if llm_draft:
+        if llm_draft and not self.config.frame_fallback:
+            # measurement switch (QI_AGENT_FRAME_FALLBACK=off): the draft is kept as written; record whether the
+            # fallback would have appended the computed result
+            _shadow, would = self._frame_fallback(state, draft)
+            if "frame_result_appended" in (would.get("degraded") or []):
+                framed = {"degraded": ["frame_fallback_off:would_append"]}
+        elif llm_draft:
             # (round 11, G4) a frame question whose final LLM draft does not state the computed result gets it
             draft, framed = self._frame_fallback(state, draft)
             if framed.get("evidence"):

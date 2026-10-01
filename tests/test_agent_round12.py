@@ -311,3 +311,42 @@ def test_recorded_drafts_keep_their_derived_numbers_end_to_end(offline_service):
     assert "1.93" in ratio["answer"] and "0.52" in ratio["answer"]
     assert ratio["verification"]["passed"] and not ratio["degraded"]
     assert len(llm.requests) == 4  # no revision round trip
+
+
+# ---- G4 measurement switch (QI_AGENT_FRAME_FALLBACK) ----
+
+
+@pytest.mark.parametrize("fallback", [True, False])
+def test_the_frame_fallback_switch(offline_service, fallback):
+    from query_intelligence.agent.graph import AgentRuntime
+    from query_intelligence.agent.llm import ScriptedLLM, final_turn, tool_call_turn
+    from query_intelligence.agent.service import AgentService
+    from query_intelligence.agent.state import AgentConfig
+    from query_intelligence.agent.tools.defaults import build_registry_for_service
+
+    llm = ScriptedLLM(
+        [
+            tool_call_turn(("get_fundamentals", {"target": "000858.SZ"})),
+            final_turn({"answer": "五粮液 ROE 为 29.4% [fundamental_000858.SZ]。", "evidence_used": []}),
+            tool_call_turn(("get_fundamentals", {"target": "600519.SH"})),
+            final_turn({"answer": "贵州茅台 ROE 为 33% [fundamental_600519.SH]。", "evidence_used": []}),
+            final_turn({"answer": "本轮工具结果中没有五粮液的数据，无法核实两者的差值。", "evidence_used": []}),
+        ]
+    )
+    config = AgentConfig(
+        planner_prefetch=False, revise_policy="cite_repair", verify_derived=True, frame_fallback=fallback
+    )
+    runtime = AgentRuntime(offline_service, build_registry_for_service(offline_service), llm, config=config)
+    service = AgentService(runtime, trace_sinks=[])
+    session = f"r12-g4-switch-{fallback}"
+    try:
+        for query in ("五粮液ROE是多少", "茅台的呢"):
+            service.chat(query, session_id=session, mode="agent")
+        gap = service.chat("两家差几个点", session_id=session, mode="agent")
+    finally:
+        runtime.close()
+    if fallback:
+        assert "frame_result_appended" in gap["degraded"] and "两者相差 3.6 个百分点" in gap["answer"]
+    else:
+        assert "frame_fallback_off:would_append" in gap["degraded"]
+        assert "frame_result_appended" not in gap["degraded"] and "3.6" not in gap["answer"]
