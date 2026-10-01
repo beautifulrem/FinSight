@@ -22,6 +22,7 @@ Graph::
 from __future__ import annotations
 
 import functools
+import os
 import re
 import time
 import uuid
@@ -55,7 +56,7 @@ from .injection import (
     sanitize_untrusted_text,
     tool_message_content,
 )
-from .llm import LLMClient, LLMError, Pricing, Usage, llm_deadline, resolve_cost
+from .llm import LLMClient, LLMError, Pricing, Usage, llm_deadline, model_capabilities, resolve_cost
 from .memory import (
     GROUP_COUNT_MISMATCH,
     MAX_HISTORY_TURNS,
@@ -445,7 +446,18 @@ class AgentRuntime:
         if decision.route == "agent" and self.llm is None:
             update["route"] = "workflow"
             update["degraded"] = ["no_llm_configured:agent_route_downgraded_to_workflow"]
+        elif decision.route == "agent" and state.get("mode", "auto") == "auto" and self._prefers_composition():
+            # Slow reasoning models: the plan + LLM composition matched the tool loop's success at a third of
+            # its P95 (evaluation/results/ablation-final4-glm-testv3.json), so auto uses composition for them.
+            update["route"] = "workflow"
+            update["route_reasons"] = [*reasons, "model_policy:composition_for_slow_model"]
         return update
+
+    def _prefers_composition(self) -> bool:
+        if os.getenv("QI_AGENT_SLOW_MODEL_POLICY", "on").strip().lower() in {"off", "0", "false"}:
+            return False
+        model = str(getattr(self.llm, "model", "") or "")
+        return bool(model) and model_capabilities(model).prefer_composition
 
     def _resolve_in_session(
         self,

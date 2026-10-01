@@ -292,7 +292,7 @@ def test_prompts_v3_and_v4_allow_derived_numbers_with_their_operands(monkeypatch
     from query_intelligence.agent import prompts
 
     monkeypatch.delenv("QI_PROMPT_VERSION", raising=False)
-    assert prompts.DEFAULT_PROMPT_VERSION == "v3"  # the default is not changed here
+    assert prompts.DEFAULT_PROMPT_VERSION == "v4"  # chosen by the v3/v4 A/B on test v3
     for prompt_id in prompts.PROMPTS:
         for version in ("v3", "v4"):
             text = prompts.get_prompt(prompt_id, version).text

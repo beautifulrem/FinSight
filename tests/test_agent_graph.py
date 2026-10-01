@@ -390,3 +390,24 @@ def test_answer_json_status():
     assert answer_json_status('```json\n{"answer": "x"}\n```') == "ok"
     assert answer_json_status('{"answer": "x", "key_points": ["a"') == "repaired"
     assert answer_json_status("plain text answer") == "failed"
+
+
+def test_auto_routes_agent_questions_to_composition_for_slow_models(monkeypatch):
+    from query_intelligence.agent.graph import AgentRuntime
+    from query_intelligence.agent.llm import ScriptedLLM
+
+    service = StubService()
+    glm = ScriptedLLM([])
+    glm.model = "cline-pass/glm-5.3-flash"
+    runtime = AgentRuntime(service, build_fake_registry(), glm)
+    question = "茅台和五粮液哪个估值更高"
+    try:
+        decision = runtime.guard_in(runtime.initial_state(question, mode="auto"))
+        assert decision["route"] == "workflow"
+        assert "model_policy:composition_for_slow_model" in decision["route_reasons"]
+        # an explicit agent mode is still honoured, and the policy can be switched off
+        assert runtime.guard_in(runtime.initial_state(question, mode="agent"))["route"] == "agent"
+        monkeypatch.setenv("QI_AGENT_SLOW_MODEL_POLICY", "off")
+        assert runtime.guard_in(runtime.initial_state(question, mode="auto"))["route"] == "agent"
+    finally:
+        runtime.close()

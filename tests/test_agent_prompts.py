@@ -65,9 +65,10 @@ def test_user_messages_serialize_with_sorted_keys():
     assert '"a": 2, "b": 1' in content
 
 
-def test_v4_adds_the_document_content_rules_and_v3_stays_default(monkeypatch):
+def test_v4_adds_the_document_content_rules_and_is_the_default(monkeypatch):
     monkeypatch.delenv("QI_PROMPT_VERSION", raising=False)
-    assert prompts.DEFAULT_PROMPT_VERSION == "v3"
+    # v4 became the default after the v3/v4 A/B on test v3 (evaluation/results/ablation-ab-prompt-v*-testv3.json)
+    assert prompts.DEFAULT_PROMPT_VERSION == "v4"
     for prompt_id in PROMPTS:
         v3, v4 = get_prompt(prompt_id, "v3").text, get_prompt(prompt_id, "v4").text
         added = v4.replace(prompts._V4_DOCUMENT_RULES + "\n", "")

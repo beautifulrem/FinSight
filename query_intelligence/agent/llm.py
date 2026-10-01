@@ -167,12 +167,15 @@ class ModelCapabilities:
 
     tool_choice_none: bool = False
     reasoning_off: bool = False
+    # Measured on test v3 / held-out: for this model the tool loop is slower and no more accurate than
+    # composition over the planned evidence, so mode=auto sends agent-route questions to composition.
+    prefer_composition: bool = False
 
 
 # Matched by substring of the model id. Unknown models get the conservative defaults above.
 _CAPABILITIES: tuple[tuple[str, ModelCapabilities], ...] = (
     ("deepseek", ModelCapabilities(tool_choice_none=True, reasoning_off=True)),
-    ("glm", ModelCapabilities(tool_choice_none=False, reasoning_off=False)),
+    ("glm", ModelCapabilities(tool_choice_none=False, reasoning_off=False, prefer_composition=True)),
 )
 
 
