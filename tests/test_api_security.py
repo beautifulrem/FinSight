@@ -137,6 +137,26 @@ def test_chunked_body_over_the_limit_is_rejected_while_streaming():
     assert response.json() == {"detail": "request body too large"}
 
 
+@pytest.mark.parametrize("path", ["/agent/chat", "/agent/resume", "/agent/claim-check", "/a2a"])
+def test_chunked_body_over_the_limit_is_413_on_every_body_endpoint(path):
+    """Round 12: why the custom middleware stays (docs/deployment.md#request-body-limit). Starlette's built-in
+    ``RequestBodyLimitMiddleware`` raises when the endpoint reads the body; behind the ``BaseHTTPMiddleware`` security
+    layer that became 400 on the FastAPI routes and a JSON-RPC 200 on /a2a. Reading the body first answers 413."""
+    client = _client(SecuritySettings())  # default limit: 1 MiB
+
+    def chunks():
+        yield b'{"jsonrpc": "2.0", "id": 1, "method": "SendMessage", "params": {"text": "'
+        for _ in range(32):  # 2 MiB, no Content-Length header
+            yield b"x" * 65536
+        yield b'"}}'
+
+    response = client.post(path, content=chunks(), headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 413
+    assert response.json() == {"detail": "request body too large"}
+    assert response.headers["connection"] == "close"
+
+
 def test_chunked_body_under_the_limit_is_replayed_intact():
     client = _client(SecuritySettings(max_request_bytes=4096))
 

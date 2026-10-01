@@ -136,6 +136,29 @@ identity, and `/agent/traces` listed every user's queries and session ids).
 Callers send `X-API-Key: <key>` or `Authorization: Bearer <key>`. The web UI keeps the key in
 `sessionStorage` unless the user ticks "Remember on this device" (see [SECURITY.md](../SECURITY.md)).
 
+### Request body limit
+
+`QI_MAX_REQUEST_BYTES` (default 1 MiB) caps every request body, with or without `Content-Length`
+(`Transfer-Encoding: chunked`): `BodyLimitMiddleware` in `query_intelligence/api/security.py` reads the body
+before authentication and routing, counts bytes as they arrive, and answers
+`413 {"detail": "request body too large"}` with `Connection: close` as soon as the cap is passed.
+
+Starlette 1.7 ships `starlette.middleware.body_limit.RequestBodyLimitMiddleware(max_body_size=…)`. We checked it
+against this app (round 12) and kept the custom class, because the built-in one is lazy: it counts bytes only
+when the endpoint reads the body and raises an exception from `receive()` at that point. In this app the body is
+read through the `@app.middleware("http")` security middleware (a `BaseHTTPMiddleware`) and by libraries that
+catch exceptions themselves, so a 2 MiB chunked POST with the built-in class got:
+
+| Path | Built-in `RequestBodyLimitMiddleware` | Custom `BodyLimitMiddleware` |
+|---|---|---|
+| `/agent/chat`, `/agent/resume`, `/agent/claim-check` | 400 "There was an error parsing the body" (FastAPI wraps the error) | 413 |
+| `/a2a` | 200 with a JSON-RPC `-32603` error (a2a-sdk catches it) | 413 |
+
+The custom class reads the body eagerly instead, so the size check never depends on how a downstream
+handler deals with errors, and an oversized body never reaches authentication, the rate limiter or an
+endpoint. `tests/test_api_security.py` checks chunked bodies over the limit on all four paths, and a chunked
+body under the limit replayed intact. Revisit this if the security middleware becomes a pure ASGI middleware.
+
 ### Network policy
 
 `networkpolicy.yaml` isolates both workloads (enforced by CNIs that implement NetworkPolicy, including

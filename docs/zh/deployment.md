@@ -106,6 +106,19 @@ Deployment 和 StatefulSet 引用 `finsight-db` 时没有 `optional`，Secret �
 
 调用方发送 `X-API-Key: <key>` 或 `Authorization: Bearer <key>`。网页界面默认把 Key 放在 `sessionStorage`，只有用户勾选“在此设备上记住”时才写入 `localStorage`（见 [SECURITY.md](../../SECURITY.md)）。
 
+### 请求体大小限制
+
+`QI_MAX_REQUEST_BYTES`（默认 1 MiB）限制每个请求体，不论有没有 `Content-Length`（`Transfer-Encoding: chunked`）：`query_intelligence/api/security.py` 里的 `BodyLimitMiddleware` 在认证和路由之前读取请求体，边收边计数，一超过上限就返回 `413 {"detail": "request body too large"}` 并带 `Connection: close`。
+
+Starlette 1.7 自带 `starlette.middleware.body_limit.RequestBodyLimitMiddleware(max_body_size=…)`。第十二轮我们用本应用实测过它，决定保留自写的类，原因是内置类是惰性的：只有接口读取请求体时才计数，并在那时从 `receive()` 抛出异常。本应用的请求体要经过 `@app.middleware("http")` 安全中间件（一个 `BaseHTTPMiddleware`）读取，还有些库会自己捕获异常，所以换成内置类后，2 MiB 的分块 POST 得到的是：
+
+| 路径 | 内置 `RequestBodyLimitMiddleware` | 自写 `BodyLimitMiddleware` |
+|---|---|---|
+| `/agent/chat`、`/agent/resume`、`/agent/claim-check` | 400 “There was an error parsing the body”（FastAPI 包装了这个异常） | 413 |
+| `/a2a` | 200，带 JSON-RPC `-32603` 错误（a2a-sdk 捕获了异常） | 413 |
+
+自写的类则一次性先读完请求体，所以大小检查不依赖下游处理器怎么处理异常，超限的请求体也不会到达认证、限流或任何接口。`tests/test_api_security.py` 在这四个路径上检查超限的分块请求体，并检查未超限的分块请求体被原样转交。如果安全中间件将来改成纯 ASGI 中间件，可以再评估是否换成内置类。
+
 ### 网络策略
 
 `networkpolicy.yaml` 隔离两个工作负载（需要支持 NetworkPolicy 的 CNI，k3s 自带的控制器也支持）：
