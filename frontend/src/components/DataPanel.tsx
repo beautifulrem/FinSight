@@ -2,7 +2,7 @@ import { ArrowDownRight, ArrowUpRight, CalendarClock, DatabaseBackup, LineChart 
 import { lazy, Suspense } from "react";
 
 import { cn } from "@/lib/cn";
-import { formatDate, formatKpi } from "@/lib/format";
+import { ageInDays, formatDate, formatKpi } from "@/lib/format";
 import type { EvidenceFreshness } from "@/lib/freshness";
 import { useI18n, type MessageKey } from "@/lib/i18n";
 import { selectKpis, type Kpi, type MarketData } from "@/lib/marketData";
@@ -10,6 +10,8 @@ import { selectKpis, type Kpi, type MarketData } from "@/lib/marketData";
 const PriceChart = lazy(() => import("./PriceChart"));
 
 const MAX_TILES = 8;
+// A multiple priced more than a week before today is marked as possibly out of date.
+const VALUATION_STALE_DAYS = 7;
 
 function KpiTile({
   kpi,
@@ -24,13 +26,21 @@ function KpiTile({
 }) {
   const { lang, t } = useI18n();
   const snapshot = freshness?.mode === "snapshot";
-  const stale = freshness?.stale;
+  // (round 13, I15) a P/E or P/B priced at a recent close is not stale because the statements are old
+  const stale = kpi.valuation ? (ageInDays(kpi.asOf) ?? 0) > VALUATION_STALE_DAYS : freshness?.stale;
   const Icon = kpi.tone === "up" ? ArrowUpRight : kpi.tone === "down" ? ArrowDownRight : null;
+  const label = `${subject ? `${subject} · ` : ""}${t(kpi.label as MessageKey)}`;
   const body = (
     <>
-      <span className={cn("block truncate text-[11.5px]", kpi.featured ? "font-medium text-cobalt" : "text-muted")}>
-        {subject ? `${subject} · ` : ""}
-        {t(kpi.label as MessageKey)}
+      {/* (round 13, I15) the label wraps instead of being cut ("China Merchants Bank · …"); the title repeats it */}
+      <span
+        className={cn(
+          "kpi-label block text-[11.5px] leading-4 [overflow-wrap:anywhere]",
+          kpi.featured ? "font-medium text-cobalt" : "text-muted",
+        )}
+        title={label}
+      >
+        {label}
         {kpi.featured && <span className="sr-only"> ({t("kpi.asked")})</span>}
       </span>
       <span
@@ -46,6 +56,7 @@ function KpiTile({
       {kpi.asOf && (
         <span className={cn("flex flex-wrap items-center gap-x-1 text-[11px]", stale || snapshot ? "text-warn" : "text-muted")}>
           {formatDate(lang, kpi.asOf)}
+          {kpi.valuation && <span className="kpi-valuation">{t("kpi.valuationDate")}</span>}
           {(snapshot || stale) && (
             <span className="kpi-freshness inline-flex items-center gap-0.5 font-medium">
               {snapshot ? <DatabaseBackup className="size-3" aria-hidden /> : <CalendarClock className="size-3" aria-hidden />}

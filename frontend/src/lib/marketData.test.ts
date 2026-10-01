@@ -210,3 +210,50 @@ describe("selectKpis (C18: compare answers)", () => {
     expect(selectKpis(kpis, 8).some((kpi) => kpi.label === "kpi.netMargin")).toBe(false);
   });
 });
+
+describe("valuation date of P/E and P/B tiles (round 13, I15)", () => {
+  const fundamentals = (extra: Record<string, unknown> = {}) =>
+    ({
+      status: "ok",
+      session_id: "s",
+      evidence_sources: [
+        {
+          evidence_id: "fundamental_600036.SH",
+          source_type: "fundamental_sql",
+          as_of: "2025-12-31",
+          payload: {
+            symbol: "600036.SH",
+            name: "招商银行",
+            report_date: "2025-12-31",
+            pe_ttm: 6.86,
+            pb: 0.91,
+            roe: 11.8,
+            metric_units: { roe: "%" },
+            ...extra,
+          },
+        },
+      ],
+    }) as AgentResponse;
+
+  it("dates P/E and P/B at the close they are priced at, and the statement figures at the report period", () => {
+    const kpis = marketDataFromAgent(fundamentals({ valuation_date: "2026-09-30" })).kpis;
+    const byLabel = Object.fromEntries(kpis.map((kpi) => [kpi.label, kpi]));
+    expect(byLabel["kpi.pe"]).toMatchObject({ asOf: "2026-09-30", valuation: true });
+    expect(byLabel["kpi.pb"]).toMatchObject({ asOf: "2026-09-30", valuation: true });
+    expect(byLabel["kpi.roe"]).toMatchObject({ asOf: "2025-12-31" });
+    expect(byLabel["kpi.roe"]?.valuation).toBeUndefined();
+  });
+
+  it("falls back to the report date when the source states no valuation date", () => {
+    const kpis = marketDataFromAgent(fundamentals()).kpis;
+    const pe = kpis.find((kpi) => kpi.label === "kpi.pe");
+    expect(pe).toMatchObject({ asOf: "2025-12-31" });
+    expect(pe?.valuation).toBeUndefined();
+  });
+
+  it("shows ROE with the answer text's precision (8.68%, not 8.7%)", () => {
+    const kpis = marketDataFromAgent(fundamentals({ roe: 8.68 })).kpis;
+    const roe = kpis.find((kpi) => kpi.label === "kpi.roe")!;
+    expect(formatKpi("zh", roe.value, roe.format)).toBe("8.68%");
+  });
+});

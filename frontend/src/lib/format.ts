@@ -38,11 +38,12 @@ export function formatKpi(lang: Lang, value: number, format: KpiFormat, unit?: s
     case "percent":
       return `${value > 0 ? "+" : ""}${trim(value)}%`;
     case "percentLevel":
-      // a level already in percent (ROE 33 -> "33%", ROE 0.8 -> "0.8%"), no sign
-      return `${trim(value, 1)}%`;
+      // a level already in percent (ROE 33 -> "33%", ROE 8.68 -> "8.68%"), no sign; two decimals like the answer
+      // text (round 13, I15: the tile said 8.7% next to "ROE 8.68%")
+      return `${trim(value, 2)}%`;
     case "fraction":
       // ROE / volatility arrive as fractions (0.33 → 33%); values above 1 are already percentages.
-      return `${trim(Math.abs(value) <= 1 ? value * 100 : value, 1)}%`;
+      return `${trim(Math.abs(value) <= 1 ? value * 100 : value, 2)}%`;
     case "ratio":
       return trim(value, 2);
     case "money":

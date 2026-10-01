@@ -168,7 +168,8 @@ export function answerView(turn: Turn): AnswerView | null {
       wallMs,
       firstTokenMs,
       factCheck: response.fact_check ?? null,
-      askedMetrics: response.nlu_summary?.asked_metrics ?? [],
+      // (round 13, I15) a forecast is answered with history: no tile is "the metric you asked about"
+      askedMetrics: response.nlu_summary?.question_style === "forecast" ? [] : (response.nlu_summary?.asked_metrics ?? []),
       englishNames: englishNames(
         response.nlu_summary?.entities,
         response.fact_check?.targets,

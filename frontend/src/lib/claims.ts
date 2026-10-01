@@ -208,11 +208,12 @@ export function claimedText(
     const words = bounded ? `${diff(check.claimed)} – ${diff(check.claimed_high!)}` : diff(check.claimed);
     const stated = bounded || !SYMBOLS[comparator] ? words : `${SYMBOLS[comparator]} ${words}`;
     const word = t(bounded ? "claim.cmp.range" : (`claim.cmp.${comparator}` as MessageKey));
-    return {
-      text: `${t("claim.difference")} ${stated}`,
-      label: `${t("claim.difference")} (${subject} − ${reference}) ${word} ${words}`,
-      detail: `${subject} − ${reference}`,
-    };
+    // (round 13, I15) "比平安银行高出接近一倍" is a relative difference (of the other side's value), not a difference of
+    // the two values: "相对差 ≈ +100%", and the detail says what it is relative to
+    const relative = check.kind === "relative_difference";
+    const kind = t(relative ? "claim.relativeDifference" : "claim.difference");
+    const detail = relative ? t("claim.relativeDetail", { subject, reference }) : `${subject} − ${reference}`;
+    return { text: `${kind} ${stated}`, label: `${kind} (${detail}) ${word} ${words}`, detail };
   }
   if (check.reference && check.claimed !== null && check.claimed !== undefined) {
     // "市净率是五粮液的1.5倍": "贵州茅台 ≈ 1.5× 五粮液"; the actual ratio and both values are on the actual side

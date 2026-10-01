@@ -28,6 +28,8 @@ export interface Kpi {
   asOf?: string;
   /** The metric the question asked about (round 11): shown first and marked. */
   featured?: boolean;
+  /** (round 13, I15) `asOf` is the trading day the multiple is priced at (P/E, P/B), not the report period. */
+  valuation?: boolean;
 }
 
 export interface MarketData {
@@ -127,9 +129,13 @@ function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asO
       add("amount", "kpi.amount", payload.amount, amountFormat(payload, sourceName));
       break;
     }
-    case "fundamental_sql":
-      add("pe", "kpi.pe", metrics.pe_ttm, "ratio", { asOf: isoDate(payload.report_date) ?? asOf });
-      add("pb", "kpi.pb", metrics.pb, "ratio");
+    case "fundamental_sql": {
+      // (round 13, I15) P/E and P/B are priced at a close (`valuation_date`, "按 2026-09-30 收盘计算"), not at the
+      // report period of the statements; the tile shows that day when the source states it.
+      const valued = isoDate(payload.valuation_date);
+      const multiple = valued ? { asOf: valued, valuation: true } : { asOf: isoDate(payload.report_date) ?? asOf };
+      add("pe", "kpi.pe", metrics.pe_ttm, "ratio", multiple);
+      add("pb", "kpi.pb", metrics.pb, "ratio", multiple);
       // Agent payloads declare units (metric_units.roe = "%"); raw provider rows may hold a fraction.
       add("roe", "kpi.roe", metrics.roe, unitOf(payload, "roe") === "%" ? "percentLevel" : "fraction");
       add("revenue", "kpi.revenue", metrics.revenue, "money");
@@ -143,6 +149,7 @@ function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asO
         }
       }
       break;
+    }
     case "industry_sql":
       add("pe", "kpi.industryPe", payload.pe, "ratio", { asOf: isoDate(payload.trade_date) ?? asOf });
       add("pct", "kpi.industryChange", payload.pct_change, "percent", { tone: tone(num(payload.pct_change)) });
