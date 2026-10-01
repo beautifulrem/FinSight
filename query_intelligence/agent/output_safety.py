@@ -32,11 +32,11 @@ relay what it says. This layer looks at the answer sentence by sentence, togethe
    is attributed with the layer's own marker, whatever the model wrote: "据一篇文档称，…（未经其他来源证实）" / "…
    (according to one document; not confirmed by other sources)". (round 11, G7) When only some clauses of a sentence
    state single-document figures and its other figures are confirmed ("营业收入1688.38亿元，同比下降1.21%" with the
-   revenue in the fundamentals), the marker "（据一篇文档，未经其他来源证实）" follows each such clause instead. A sentence that already says the claim is
-   unverified is left as it is; one that only names its source ("媒体报道称…") gets the suffix. A fundamental or
-   amount that contradicts the run's structured data for the same metric (and period and company, where stated) is
-   dropped with a note (the verifier flags the same conflict on LLM drafts, so this is the net for template answers
-   and repaired drafts).
+   revenue in the fundamentals), the marker "（据一篇文档，未经其他来源证实）" follows each such clause instead.
+   A sentence that already says the claim is unverified is left as it is; one that only names its source
+   ("媒体报道称…") gets the suffix. A fundamental or amount that contradicts the run's structured data for the same
+   metric (and period and company, where stated) is dropped with a note (the verifier flags the same conflict on LLM
+   drafts, so this is the net for template answers and repaired drafts).
 
 Target prices are trading calls (rule 1). The layer never adds a number or a claim; it only removes, replaces with
 a fixed note, or wraps a sentence in attribution. ``evaluation/agent_eval/redteam.py`` records which detector
