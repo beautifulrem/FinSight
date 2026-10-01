@@ -2,7 +2,7 @@
 # Legacy modules are not linted yet to avoid unrelated churn.
 target-version = "py313"
 line-length = 120
-extend-exclude = ["evaluation/agent_eval/independent", "evaluation/heldout_r4", "evaluation/heldout_r5", "evaluation/heldout_r6"]
+extend-exclude = ["evaluation/agent_eval/independent", "evaluation/heldout_r4", "evaluation/heldout_r5", "evaluation/heldout_r6", "evaluation/heldout_r7"]
 include = [
     "query_intelligence/agent/**/*.py",
     "evaluation/agent_eval/**/*.py",

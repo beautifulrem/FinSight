@@ -16,6 +16,8 @@ evidence value of *its* target and metric. The rules are documented in ``docs/cl
   gt → le, lt → ge, ...
 * **Bounded approximations** (round 10). "八百多亿" / "一千六百余亿" / "三倍多" is more than the number and less than
   the next step of its last significant digit (800-900亿, 3-4倍); "三成出头" is the lower half of that step (30%-35%).
+  Round 11: "10倍多" (多 after 倍, N >= 10) reaches min(step, 10% of N) above N (10-11; "十多倍" stays 10-20), and
+  "将近 / 接近 / 近N" is [0.9N, N] (the r6 slice's label rule) instead of a symmetric band.
 * **Stated values and differences** (round 10). "比白酒行业平均的30倍低": P/E is quoted in 倍, so the 30 is the
   average the claim states (its own check) next to the comparison; a multiple needs a ratio cue ("是/只有…的N倍",
   "比…的N倍还高", a fraction). "茅台ROE比五粮液高出3.6个百分点" / "相差…" / "多赚…亿": the difference of the two.
@@ -630,6 +632,8 @@ class _Number:
     # The unit of the last significant written digit (800 → 100, 24.6 → 0.1, 3 → 1): how precise a round number is.
     step: float = 1.0
     over: Literal["more", "just_over"] | None = None  # "八百多亿" / "三成出头" (see _OVER_WORD)
+    over_after_unit: bool = False  # "10倍多" (多 after the unit), not "十多倍" (多 before it); see _over_step
+    near: bool = False  # "将近900亿", "接近9倍", "nearly 30": approached from below, [0.9N, N] (see _near_holds)
     # "比白酒行业平均的30倍低", "低于五粮液的20倍": the number is the value the claim states for the compared side
     stated_reference: bool = False
     # "茅台ROE比五粮液高出3.6个百分点": the number is the difference target - reference (round 10, F2);
@@ -1514,6 +1518,31 @@ def _step(token: str) -> float:
     return 10.0 ** (len(token.lstrip("+-")) - len(digits)) if digits else 1.0
 
 
+# "将近900亿", "接近9倍", "近四成", "nearly 30": the value is approached from below (round 11, G12).
+_NEAR_WORD = re.compile(r"将近|接近|近|nearly|almost", re.IGNORECASE)
+_NEAR_LOW = 0.9  # 近N covers [0.9N, N], the r6 slice's label rule (evaluation/heldout_r6/README.md)
+
+
+def _over_step(number: _Number) -> float:
+    """How far above N a "N多" claim may reach (round 11, G12).
+
+    多 / 余 before the unit counts in the last significant digit: "十多倍" / "10多倍" is 10-20, "八百多亿" is 800-900亿.
+    After 倍 it is the excess over a whole multiple: "三倍多" is 3-4, and for N >= 10 the step is the smaller of the
+    last significant digit and 10% of N, so "10倍多" is 10-11 (11.23 contradicts it), "15倍多" 15-16, "30倍多" 30-33.
+    Other units keep the last-digit step ("三成出头" is written 30%出头 and stays 30%-35%).
+    """
+    if not number.over_after_unit or number.unit != "倍" or abs(number.value) < 10:
+        return number.step
+    return min(number.step, abs(number.value) * 0.1)
+
+
+def _near_holds(number: _Number, claimed: float, value: float) -> bool:
+    """ "将近N" holds for a value in [0.9N, N] (plus half a unit of the last written digit at the top), on the size
+    for a negative N. "将近900亿" accepts 823 (>= 810) and contradicts 905; "约900亿" stays symmetric."""
+    size, bound = (value, claimed) if claimed >= 0 else (-value, -claimed)
+    return bound * _NEAR_LOW - number.rounding - 1e-9 <= size <= bound + number.rounding + 1e-9
+
+
 def _read_comparator(number: _Number, stretch: str, after: str) -> None:
     if number.comparator == "range":
         comparator: str = "range"
@@ -1524,15 +1553,17 @@ def _read_comparator(number: _Number, stretch: str, after: str) -> None:
         over = _OVER_WORD.match(after)
         if over and comparator == "gt":
             number.over = "more" if over.group(1) else "just_over"
+            number.over_after_unit = True
     if comparator == "eq":
         # The comparator word closest to the number ("不是超过" is still about "超过").
-        best: tuple[int, str] | None = None
+        best: tuple[int, str, str] | None = None
         for name, pattern in _COMPARATOR_WORDS:
             for match in pattern.finditer(stretch):
                 if best is None or match.end() > best[0]:
-                    best = (match.end(), name)
+                    best = (match.end(), name, match.group(0))
         if best is not None:
             comparator = best[1]
+            number.near = comparator == "approx" and _NEAR_WORD.fullmatch(best[2].strip()) is not None
     if _NEGATION.search(stretch):
         number.negated = True
         if comparator != "range":
@@ -1540,7 +1571,8 @@ def _read_comparator(number: _Number, stretch: str, after: str) -> None:
     number.comparator = comparator  # type: ignore[assignment]
     if comparator == "gt" and number.over and number.high is None and number.value >= 0:
         # "八百多亿" is 800 < x < 900; "三成出头" is 30% < x <= 35% (the upper bound is kept in ``high``).
-        number.high = number.value + (number.step if number.over == "more" else number.step / 2)
+        step = _over_step(number)
+        number.high = number.value + (step if number.over == "more" else step / 2)
     else:
         number.over = None
 
@@ -2377,6 +2409,8 @@ def _check_ratio(number: _Number, base: ClaimCheck, actual: float, value: float)
     else:
         tolerance = max(number.rounding, abs(claimed) * _REL_TOLERANCE) + 1e-9
     close = abs(ratio - claimed) <= tolerance
+    if comparator == "approx" and number.near:
+        close = _near_holds(number, claimed, ratio)  # "接近2倍": 1.8-2
     bounded = number.over is not None and high is not None  # "三倍多": 3 < ratio < 4
     holds = {
         "eq": close,
@@ -2424,6 +2458,8 @@ def _check_difference(number: _Number, base: ClaimCheck, actual: float, value: f
     else:
         tolerance = max(number.rounding, bound * _REL_TOLERANCE) + 1e-9
     close = scaled > 0 and abs(scaled - bound) <= tolerance if bound else abs(scaled) <= tolerance
+    if comparator == "approx" and number.near and bound:
+        close = scaled > 0 and _near_holds(number, bound, scaled)  # "低了近10%": 9%-10%
     if comparator == "gt" and number.over and number.high is not None:
         high = abs(number.high)
         holds = bound < scaled <= high + 1e-9 if number.over == "just_over" else bound < scaled < high
@@ -2534,6 +2570,8 @@ def _compare(number: _Number, actual: float, *, declared_percent: bool = False) 
             tolerance = _approx_tolerance(number, expected)
         same_direction = number.metric != "pct_change_1d" or (claimed >= 0) == (expected >= 0) or expected == 0
         close = same_direction and abs(claimed - expected) <= tolerance
+        if comparator == "approx" and number.near:
+            close = same_direction and _near_holds(number, claimed, expected)  # "将近900亿": 810-900亿
         holds = not close if comparator == "ne" else close
     elif comparator == "gt" and number.over and number.high is not None:
         # "八百多亿": above the number and below its next step; for a move, on the size of the move.

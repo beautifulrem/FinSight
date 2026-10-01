@@ -222,6 +222,44 @@ def test_anonymous_callers_are_scoped_per_browser():
     assert ANON_COOKIE not in own.cookies
 
 
+def test_unknown_and_foreign_sessions_are_indistinguishable():
+    """No session-existence oracle: an id nobody used and another caller's id give the same 404 body
+    on read and on resume, after the same checkpointer reads."""
+    stub = StubService()
+    runtime = AgentRuntime(stub, build_fake_registry(), None, today=lambda: date(2026, 9, 24))
+    agent = AgentService(runtime, trace_sinks=[])
+    app = create_app(
+        service=stub,
+        app_config={"deepseek": {"api_key": ""}},
+        agent_service=agent,
+        security=SecuritySettings(api_keys=("key-a", "key-b")),
+    )
+    client = TestClient(app)
+    a, b = {"X-API-Key": "key-a"}, {"X-API-Key": "key-b"}
+    first = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "oracle-a"}, headers=a)
+    assert first.status_code == 200
+    reads: list[str] = []
+    for name in ("owner_of", "history", "pending_clarification"):
+        original = getattr(agent, name)
+        setattr(agent, name, lambda sid, _o=original, _n=name: reads.append(_n) or _o(sid))
+
+    foreign = client.get("/agent/sessions/oracle-a", headers=b)
+    foreign_reads, reads[:] = list(reads), []
+    unknown = client.get("/agent/sessions/oracle-nobody", headers=b)
+    unknown_reads = list(reads)
+
+    assert foreign.status_code == unknown.status_code == 404
+    assert foreign.json() == {"detail": "session oracle-a not found"}
+    assert unknown.json() == {"detail": "session oracle-nobody not found"}
+    assert foreign_reads == unknown_reads
+    for sid in ("oracle-a", "oracle-nobody"):
+        resumed = client.post("/agent/resume", json={"session_id": sid, "reply": "贵州茅台"}, headers=b)
+        assert resumed.status_code == 404 and resumed.json() == {"detail": f"session {sid} not found"}
+    # the owner still reads its session; a known session with nothing pending stays a 409 for its owner
+    assert client.get("/agent/sessions/oracle-a", headers=a).json()["turns"]
+    assert client.post("/agent/resume", json={"session_id": "oracle-a", "reply": "x"}, headers=a).status_code == 409
+
+
 def test_a_forged_or_tampered_anonymous_cookie_gets_a_fresh_identity():
     app = _app(SecuritySettings(anon_cookie_secret="server-secret"))
     alice = TestClient(app)

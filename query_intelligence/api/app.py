@@ -117,6 +117,21 @@ def _session_not_found(exc: Exception) -> HTTPException:
     return HTTPException(status_code=404, detail=f"session {exc} not found")
 
 
+def _session_view(agent: Any, session_id: str, principal: str) -> dict[str, Any] | None:
+    """The caller's view of a session, or ``None`` when the session is unknown or another caller's.
+
+    The two ``None`` cases must not be told apart (no session-existence oracle): the same three
+    checkpointer reads run whatever the outcome, and the caller turns ``None`` into the same 404 body.
+    """
+    owner = agent.owner_of(session_id)
+    turns = agent.history(session_id)
+    pending = agent.pending_clarification(session_id)
+    exists = owner is not None or bool(turns) or pending is not None
+    if not exists or owner not in {None, principal}:
+        return None
+    return {"turns": turns, "pending_clarification": pending}
+
+
 def _sse(event: dict[str, Any]) -> str:
     data = json.dumps(event["data"], ensure_ascii=False, default=str)
     return f"event: {event['event']}\ndata: {data}\n\n"
@@ -380,6 +395,9 @@ def create_app(
 
     @app.post("/agent/resume")
     async def agent_resume(payload: AgentResumeRequest, request: Request) -> dict:
+        # An unknown session is a 404 like another caller's session (not a 409 "nothing pending").
+        if _session_view(get_agent(), payload.session_id, principal_of(request)) is None:
+            raise _session_not_found(SessionAccessError(payload.session_id))
         try:
             return await run_with_timeout(
                 get_agent().resume, payload.session_id, payload.reply.strip(), owner=principal_of(request)
@@ -393,14 +411,10 @@ def create_app(
 
     @app.get("/agent/sessions/{session_id}")
     def agent_session(session_id: Annotated[str, ApiPath(pattern=SESSION_ID_PATTERN)], request: Request) -> dict:
-        agent = get_agent()
-        if agent.owner_of(session_id) not in {None, principal_of(request)}:
+        view = _session_view(get_agent(), session_id, principal_of(request))
+        if view is None:
             raise _session_not_found(SessionAccessError(session_id))
-        return {
-            "session_id": session_id,
-            "turns": agent.history(session_id),
-            "pending_clarification": agent.pending_clarification(session_id),
-        }
+        return {"session_id": session_id, **view}
 
     @app.get("/agent/traces")
     def agent_traces(

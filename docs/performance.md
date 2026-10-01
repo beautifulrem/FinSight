@@ -62,6 +62,40 @@ What this shows, and what it does not:
   low concurrency and a 7x smaller session store. The earlier "after" JSONs are kept for traceability
   in `results/perf/workflow/history-2026-09-25/`.
 
+## 1b. Workflow path under the source chaos drill (no LLM, 8 users)
+
+The round-7 review asked for a load test while sources fail, which needs no LLM quota. `scripts/chaos_drill.py
+--scenario sources-load` starts the live-data server (`QI_USE_LIVE_*=1`, no LLM key) behind the drill's blocking proxy
+and runs a closed-loop `scripts/load_test.py` (workflow mode, 8 users x 10 questions of the default rotation) in each
+phase: live, then Sina / Tencent / Eastmoney blocked (within the 60 s market TTL, after it, after the 90 s stale
+window), then unblocked after the breaker cool-down. Run 2026-10-01 02:51–02:57 UTC at `3641361` (clean tree), result
+[`results/perf/sources-load/chaos-sources-load-8users.json`](results/perf/sources-load/chaos-sources-load-8users.json)
+(the server log stays local: `*.log` is not committed).
+
+| Phase | Requests | Throughput (req/s) | P50 (ms) | P95 (ms) | P99 (ms) | Errors | What served the evidence (items) |
+|---|---:|---:|---:|---:|---:|---:|---|
+| 1 live | 80 | 2.96 | 975 | 12,448 | 14,813 | 0 | Sina k-line `live_fallback` 50 (Eastmoney quote breaker already open), THS finance / industry `live` 20 / 20, Eastmoney macro `live` 10, Sina finance `live_fallback` 10 |
+| 2a blocked, within the TTL | 80 | 3.82 | 1,434 | 5,123 | 6,852 | 0 | the same items from the TTL cache |
+| 2b blocked, after the TTL | 80 | 3.59 | 1,246 | 6,983 | 8,098 | 0 | Sina k-line **`last_known_good` 50**; breakers open: Sina k-line, Sina quote, Tencent k-line, efinance, Eastmoney quote |
+| 3 blocked, after the stale window | 80 | 3.86 | 1,258 | 6,470 | 7,959 | 0 | **no price**: `get_price_history` fails (`upstream_error`, about 0.3 s, breakers open) and the answer states the limitation instead of a stale number (the shipped snapshot is too old to stand in for a quote) |
+| 4 unblocked, after the cool-down | 80 | 2.30 | 1,525 | 10,361 | 15,419 | 0 | Sina k-line 37 / Tencent k-line 12 / Sina quote 1 `live_fallback`; the first price requests took 7–9 s (half-open trials and fresh fetches) |
+
+What this shows, and what it does not:
+
+- **0 errors in 400 requests**, every answer verified, while every blocked market source failed: the fallback chain
+  (TTL cache → last-known-good → an explicit "no data") served each phase without a 5xx or a timeout.
+- The tails are the live fetches, not the blocking: P95 is highest in the live and recovery phases (12.4 s and
+  10.4 s, the first fetch of each bundle) and lowest while blocked (5–7 s), because a blocked call fails fast and open
+  breakers skip it.
+- The macro answer kept `eastmoney.datacenter/live` throughout because its TTL is 6 h (a cached live value), and THS
+  hosts were not on the block list, so fundamentals stayed live. Only the price chain was exercised end to end.
+- The host was busy with other jobs (load average 11.6 at the start, 25.9 during phase 3, 10 CPUs), so absolute
+  latencies are pessimistic and not comparable with section 1 (offline data, load 6–9). The run is a resilience
+  measurement, not a capacity one.
+- The first attempt of this drill was discarded: its later phases reused the first phase's session ids from a new
+  client (a new anonymous identity), so the server answered 404 by the tenancy rule. The load test now makes session
+  ids unique per run (`39baa79`).
+
 ## 2. LLM agent path: throughput, latency and cost
 
 Server: the merged build run locally on port 8801 with `DEEPSEEK_MODEL=cline-pass/deepseek-v4.1-flash`,
@@ -187,7 +221,7 @@ Reading:
 
 | Change | Switch (default) | What it does |
 |---|---|---|
-| Number tokenizer fix | always on (a bug fix) | A number token ends before `x`/`bn`/`mn`/`m`/`k`/`pp`/`pct` instead of backtracking into a shorter number. Month-day dates, bond tenors and list markers are not claims. Verifier stress test on the current dev set ([`verifier_stress-perf-8a85ae5.json`](../evaluation/results/verifier_stress-perf-8a85ae5.json), 202 gold answers, 3,399 variants): true accept 1.0, false accept 1.94%. The committed `verifier_stress.json` was re-run at `9f0e46b` with the same result (202 gold answers, 1.94%); the earlier 2.1% (159 gold answers at `2494656`) is superseded. |
+| Number tokenizer fix | always on (a bug fix) | A number token ends before `x`/`bn`/`mn`/`m`/`k`/`pp`/`pct` instead of backtracking into a shorter number. Month-day dates, bond tenors and list markers are not claims. Verifier stress test on the current dev set ([`verifier_stress-perf-8a85ae5.json`](../evaluation/results/verifier_stress-perf-8a85ae5.json), 202 gold answers, 3,399 variants): true accept 1.0, false accept 1.94%. The run at `9f0e46b` gave the same result (202 gold answers, 1.94%; now `verifier_stress-9f0e46b.json`, the current `verifier_stress.json` is the round-11 run: 227 gold answers, 1.17%); the earlier 2.1% (159 gold answers at `2494656`) is superseded. |
 | Pooled LLM connections | `QI_LLM_KEEPALIVE=1` | One pooled `httpx.Client` per model instead of a new TLS connection per request. Probe ([`keepalive-probe.json`](results/perf/agent/keepalive-probe.json), 25 interleaved tiny requests): P50 1.69 s → 1.32 s per call. |
 | Citation repair before revising | `QI_AGENT_REVISE_POLICY=cite_repair` | If a draft fails only on citations (uncited or misattributed numbers, invalid or missing ids), attach the id of the **single** evidence item that holds each number, re-verify, and skip the LLM revision if the result passes. Values found in several items are not guessed. |
 | Derived numbers | `QI_AGENT_VERIFY_DERIVED=1` | Accept a number equal to the difference, sum, ratio or percent change of two supported numbers stated in the same cited sentence. False accept in the same stress test 1.94% → 2.03% (swapped numbers 0.53% → 0.93%). |

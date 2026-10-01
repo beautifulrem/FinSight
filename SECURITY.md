@@ -59,6 +59,7 @@ minutes later. Both commits are part of the published history of `master`.
 - `QI_API_KEYS` enables key authentication (`X-API-Key` or `Authorization: Bearer`).
 - The Kubernetes manifest sets `QI_PROFILE=production` and reads the keys from a required Secret. In that profile the app refuses to start without keys unless `QI_ALLOW_ANONYMOUS=1` is set explicitly ([docs/deployment.md](docs/deployment.md#authentication)).
 - Sessions, traces and A2A tasks are scoped to the caller: the SHA-256 prefix of the key, or for keyless callers a per-browser id from an HMAC-signed HttpOnly cookie.
+- Reading (`GET /agent/sessions/{id}`) or resuming (`POST /agent/resume`) a session that does not exist and one that belongs to another caller give the same 404 body (`session <id> not found`) after the same checkpointer reads, so session ids cannot be probed. Remaining difference: `POST /agent/chat` with an unused client-chosen id starts a new session, while another caller's id is a 404; finding one needs a guessed 128-bit id.
 - Keyless callers never see `/agent/traces` (403).
 
 **Web UI API key.**

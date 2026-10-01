@@ -968,3 +968,18 @@ def test_round10_tasks_against_the_round6_heldout_slice():
     mine = [turn["query"] for task in _round10_tasks() for turn in task["turns"]]
     assert _overlaps(mine, _heldout_r6_texts()) == (1, 1)
     assert _overlaps(["帮我给中国平安估个价"], _heldout_r6_texts()) == (1, 1)
+
+
+def test_verifier_stress_gold_set_is_pinned_and_rejects_load_dependent_failures():
+    from evaluation.agent_eval import verifier_stress as vs
+
+    timed_out = {"tool_log": [{"tool": "search_news", "error": {"code": "timeout"}}, {"tool": "x", "error": None}]}
+    recorded = {"tool_log": [{"tool": "get_fundamentals", "error": {"code": "no_data"}}]}  # replayed: same every run
+    assert vs._load_dependent_failures(timed_out) == ["search_news: timeout"]
+    assert vs._load_dependent_failures(recorded) == []
+
+    golds = [{"task": "t1", "draft": {"answer": "A"}}, {"task": "t2", "draft": {"answer": "B"}}]
+    digest = vs.gold_set_digest(golds)
+    assert digest["count"] == 2 and digest["tasks"] == ["t1", "t2"]
+    assert digest == vs.gold_set_digest([dict(gold) for gold in golds])
+    assert digest["sha256"] != vs.gold_set_digest([golds[0], {"task": "t2", "draft": {"answer": "C"}}])["sha256"]

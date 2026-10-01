@@ -913,3 +913,39 @@ def test_a_later_clause_belongs_to_the_subject_of_a_comparison_not_its_compared_
     ]
     report = _check_all("茅台的市盈率比五粮液高，五粮液市盈率15.2倍")
     assert [check.target for check in report.checks] == ["贵州茅台", "五粮液"]
+
+
+@pytest.mark.parametrize(
+    ("claim", "claimed", "high"),
+    [
+        # G12 (round 11): 多 after 倍 with N >= 10 reaches min(last significant digit, 10% of N) above N
+        ("茅台营收是五粮液的10倍多", 10.0, 11.0),
+        ("茅台营收是五粮液的15倍多", 15.0, 16.0),
+        ("茅台营收是五粮液的30倍多", 30.0, 33.0),
+        # 多 before the unit counts in the last significant digit: 十多倍 is 10-20; below 10 nothing changes
+        ("茅台营收是五粮液的十多倍", 10.0, 20.0),
+        ("茅台营收是五粮液的三倍多", 3.0, 4.0),
+    ],
+)
+def test_n_times_more_bounds_follow_the_position_of_duo(claim, claimed, high):
+    (check,) = _check_all(claim).checks
+
+    assert (check.comparator, check.claimed, check.claimed_high) == ("gt", claimed, high)
+
+
+@pytest.mark.parametrize(
+    ("claim", "status"),
+    [
+        # G12: 将近 / 接近 / 近N is [0.9N, N] (the r6 label rule); 约 / 左右 stay symmetric
+        ("茅台营收将近1800亿", "supported"),  # 1741.2 in [1620, 1800]
+        ("茅台营收接近1700亿", "contradicted"),  # 1741.2 > 1700 (约1700亿 accepts it)
+        ("茅台营收约1700亿", "supported"),
+        ("茅台市盈率将近24倍", "contradicted"),  # 24.6 > 24
+        ("茅台市盈率接近25倍", "supported"),
+        ("茅台市盈率将近30倍", "contradicted"),  # 24.6 < 27
+    ],
+)
+def test_nearly_n_is_approached_from_below(claim, status):
+    (check,) = _check_all(claim).checks
+
+    assert (check.comparator, check.status) == ("approx", status)
