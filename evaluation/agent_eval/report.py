@@ -87,6 +87,10 @@ STRESS_RUNS = (
 )
 REDTEAM_RUNS = (
     (
+        "redteam-offline-r11",
+        "Prompt-injection red team, offline template path after round 11 (all nine sets, CI baseline)",
+    ),
+    (
         "redteam-r10-holdout8-llm-replay",
         "Prompt-injection red team, holdout8 LLM drafts replayed after the round-10 output-layer fixes (1141736)",
     ),
