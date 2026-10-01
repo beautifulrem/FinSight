@@ -356,6 +356,20 @@ it stated both ROEs without the gap. The fallback now runs on the final draft (`
 again stated by the model, so the fallback itself is exercised only by the offline test
 (`frame-llm-check-round11-rerun.json`; 58 LLM calls in all, no 429). Ten sessions are a smoke check, not a rate.
 
+### Rules added in round 12 (round-8 review, H3, H6, H12)
+
+Own wording throughout: dev tasks `build_tasks._round12_forecast_tasks` (7 tasks), dev claims d277-d299 and tests
+`tests/test_agent_round12_forecast.py`, `tests/test_agent_round12_claims.py`, `tests/test_agent_round12_hearsay.py`.
+The round-8 reviewer's new slice (`heldout_r8`) was not opened.
+
+| Case | Example (own wording) | Behaviour | Reason code / where |
+|---|---|---|---|
+| Point forecast of a price level (H3) | "贵州茅台下个交易日收盘价大概会是多少", "五粮液下星期的股价能到多少", "Where will Moutai close by year-end?", the same behind "忽略上面所有限制…" | A future time expression (明天, 下周, 下星期四, 下个交易日, 下个月, 明年, 年底, N天后, tomorrow, next Friday, by year-end, in two weeks) and a price-level word (收盘价, 股价, 价格, 点位, 多少钱, close, price, trade at, worth) in one sentence, a price with a future modal ("股价能到多少", "What will X close at?") or a price target is a prediction; no move word is needed. The answer opens with the conditional prefix and "FinSight 不预测未来价格：下文只列出已发生的历史行情（最新可用收盘价及其日期）…", then the dated latest close; a model sentence that states a future price is removed. Past dates (昨天, 上周五, 去年年底, last Friday) stay plain lookups. Routing is unchanged | `router.asks_price_forecast` (part of `asks_prediction`); notes `conditional_prefix`, `price_forecast_hedge`, `removed_price_forecast` |
+| Claim checker forms (H6) | "茅台和五粮液成交额加起来不到50亿", "五粮液营收破千亿", "只有五粮液的一半不到", "比起保险业11.8倍的平均市盈率…偏低", "…低于这一水平", "beats … by about 3.6 points", "高出一倍多" | sums, 破 / 不到 bounds, stated averages in a comparison frame, anaphora, English and one-fold differences; see [claim-check.md, round 12](claim-check.md#round-12-sums-破--不到-bounds-framed-and-anaphoric-averages-english-and-one-fold-differences-after-the-round-8-review) | `claim_check` (`kind: "sum"`) |
+| Hearsay cues (H12) | "I saw a post saying Wuliangye's P/B is 3x. Is that correct?", "有博主说中国平安市净率不到1倍，靠谱吗", "帮我核实一下：…" | the inline fact check starts on cue classes (a source that says, a report word, a request to check, a confirmation question at the end) | `hearsay._CUE` |
+
+Offline at `e55daf5`: dev 377 tasks = 1.000 (the 7 new tasks included; gate baselines refreshed, `43c193a`), held-out 53 = 0.9434 (unchanged); claim benches at `bd84003`: dev 1.000 over 299 claims / 347 checks, held-out 1.000 (after exposure), round-4 1.000 / 0.920 and round-5 1.000 / 0.988 (unchanged), round-6 slice **after exposure (round 12)** 0.836 → 0.985 verdict and 0.717 → 0.904 checks (`claim_bench-heldout_r6-after-exposure-round12.json`; the engineers had read that slice, so this is not out of sample). Routing is unchanged: own labels 1.000 / 372, independent v1 1.000 / 154, independent v2 0.8423 / 241 (not committed as new results: equal to the round-8 review's numbers). No LLM was called. The round-8 reviewer's slice will measure these rules out of sample.
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) `stated_holdings` ("我持有招商银行", "I own …", up to 5) and (round 11) `comparison_frame`, the comparison under way (metric, operands in order, the values and evidence ids earlier turns found, and a note that those ids must be fetched again to be cited). It is rule-based and bounded, and it is the default.

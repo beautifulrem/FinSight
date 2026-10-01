@@ -1578,7 +1578,7 @@ Deterministic claim check (`POST /agent/claim-check`, no LLM) against labelled c
 | Result file | Set | Status | Commit | Claims | Verdict accuracy [95% CI] | Check accuracy [95% CI] | Comparator accuracy | Claims sha256 (first 16) | Command |
 |---|---|---|---|---|---|---|---|---|---|
 | `claim_bench-dev-baseline.json` | dev | development claims, before tuning | `3da1a48` | 131 | 0.527 [0.44, 0.61] | 0.497 [0.40, 0.58] | 0.652 | `39223b500d603e40` | `python -m evaluation.claim_bench.run --set dev --out evaluation/results/claim_bench-dev-baseline.json` |
-| `claim_bench-dev.json` | dev | development claims, after tuning (tuned on) | `4796e24` | 276 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `2f5ffc037778f92b` | `python -m evaluation.claim_bench.run --set dev --out evaluation/results/claim_bench-dev.json` |
+| `claim_bench-dev.json` | dev | development claims, after tuning (tuned on) | `bd84003` | 299 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `2cdd020ae79ed55a` | `python -m evaluation.claim_bench.run --set dev --out evaluation/results/claim_bench-dev.json` |
 | `claim_bench-holdout.json` | holdout | **held-out claims, run once** (hashed file; later fixes are not re-scored here) | `2fcb4f0` | 47 | 0.936 [0.85, 1.00] | 0.944 [0.88, 1.00] | 1.000 | `a48aa59412a06f81` | `python -m evaluation.claim_bench.run --set holdout` |
 | `claim_bench-holdout-after-round8.json` | holdout | held-out claims **after exposure** (round 8: the review's h038 class, industry averages, was fixed; not a fresh estimate) | `b04f364` | 47 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `a48aa59412a06f81` | `python -m evaluation.claim_bench.run --set holdout --out evaluation/results/claim_bench-holdout-after-round8.json` |
 | `claim_bench-heldout_r4-first-run.json` | None | – | `817a2d8` | 67 | 0.716 [0.61, 0.82] | 0.639 [0.54, 0.73] | 0.435 | `e70b8701d12df19e` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl --out outputs/agent_eval/claim_bench-heldout_r4-first.json` |
@@ -1596,6 +1596,10 @@ Deterministic claim check (`POST /agent/claim-check`, no LLM) against labelled c
 | `claim_bench-heldout_r4-after-round11.json` | None | independent round-4 claim slice **after exposure**, re-run at the round-11 commit (G12) | `4796e24` | 67 | 1.000 [1.00, 1.00] | 0.920 [0.85, 0.97] | 0.522 | `e70b8701d12df19e` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl --out evaluation/results/claim_bench-heldout_r4-after-round11.json` |
 | `claim_bench-heldout_r5-after-round11.json` | None | independent round-5 claim slice **after exposure**, re-run at the round-11 commit (G12) | `4796e24` | 56 | 1.000 [1.00, 1.00] | 0.988 [0.96, 1.00] | 0.929 | `fd58c903acd977c2` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r5/claims_r5_heldout.jsonl --out evaluation/results/claim_bench-heldout_r5-after-round11.json` |
 | `claim_bench-heldout_r6-after-exposure-round11.json` | None | independent round-6 claim slice **after exposure (round 11)**: the round-11 engineers had read the slice and the review's per-claim findings, so it is no longer out of sample | `4796e24` | 67 | 0.836 [0.75, 0.93] | 0.717 [0.64, 0.80] | 0.284 | `76e4de167ff3de83` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r6/claims_r6_heldout.jsonl --out evaluation/results/claim_bench-heldout_r6-after-exposure-round11.json` |
+| `claim_bench-holdout-after-round12.json` | holdout | held-out claims **after exposure**, re-run at the round-12 commit (H6) | `bd84003` | 47 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `a48aa59412a06f81` | `python -m evaluation.claim_bench.run --set holdout --out evaluation/results/claim_bench-holdout-after-round12.json --fail-under-verdict 0.978 --fail-under-checks 0.98` |
+| `claim_bench-heldout_r4-after-round12.json` | None | independent round-4 claim slice **after exposure**, re-run at the round-12 commit (H6) | `bd84003` | 67 | 1.000 [1.00, 1.00] | 0.920 [0.85, 0.97] | 0.522 | `e70b8701d12df19e` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl --out evaluation/results/claim_bench-heldout_r4-after-round12.json` |
+| `claim_bench-heldout_r5-after-round12.json` | None | independent round-5 claim slice **after exposure**, re-run at the round-12 commit (H6) | `bd84003` | 56 | 1.000 [1.00, 1.00] | 0.988 [0.96, 1.00] | 0.929 | `fd58c903acd977c2` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r5/claims_r5_heldout.jsonl --out evaluation/results/claim_bench-heldout_r5-after-round12.json` |
+| `claim_bench-heldout_r6-after-exposure-round12.json` | None | independent round-6 claim slice **after exposure (round 12)**: the engineers had read the slice and the reviews' per-claim findings; not an out-of-sample estimate | `bd84003` | 67 | 0.985 [0.96, 1.00] | 0.904 [0.83, 0.97] | 0.382 | `76e4de167ff3de83` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r6/claims_r6_heldout.jsonl --out evaluation/results/claim_bench-heldout_r6-after-exposure-round12.json` |
 
 ### Latency profile runs (agent path, streamed)
 
@@ -1848,8 +1852,8 @@ low − default: task success -0.038 [-0.094, +0.000], pass^k -0.038 [-0.094, +0
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `017e5a3` | 370 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
-| gate-holdout | `017e5a3` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
+| gate-dev | `e55daf5` | 377 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-holdout | `e55daf5` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
 
 ### Fault injection (overall graceful rate 1.00)
 
@@ -2409,7 +2413,7 @@ Paired comparisons (same tasks, a − b):
 | `router_eval-independent_v2-round10.json` | router_eval | `05f418a` | 2026-09-30T23:10:25+00:00 | – | written directly |
 | `router_eval-round11-own.json` | router_eval | `b7af797` | 2026-10-01T04:02:23+00:00 | – | written directly |
 | `claim_bench-dev-baseline.json` | claim_bench | `3da1a48` | 2026-09-28T06:30:24+00:00 | – | written directly |
-| `claim_bench-dev.json` | claim_bench | `4796e24` | 2026-10-01T02:04:45+00:00 | – | written directly |
+| `claim_bench-dev.json` | claim_bench | `bd84003` | 2026-10-01T07:05:12+00:00 | – | written directly |
 | `claim_bench-holdout.json` | claim_bench | `2fcb4f0` | 2026-09-28T07:14:56+00:00 | – | written directly |
 | `claim_bench-holdout-after-round8.json` | claim_bench | `b04f364` | 2026-09-30T07:51:49+00:00 | – | written directly |
 | `claim_bench-heldout_r4-first-run.json` | claim_bench | `817a2d8` | 2026-09-29T14:30:51+00:00 | – | written directly |
@@ -2427,6 +2431,10 @@ Paired comparisons (same tasks, a − b):
 | `claim_bench-heldout_r4-after-round11.json` | claim_bench | `4796e24` | 2026-10-01T02:02:29+00:00 | – | written directly |
 | `claim_bench-heldout_r5-after-round11.json` | claim_bench | `4796e24` | 2026-10-01T02:03:13+00:00 | – | written directly |
 | `claim_bench-heldout_r6-after-exposure-round11.json` | claim_bench | `4796e24` | 2026-10-01T02:03:58+00:00 | – | written directly |
+| `claim_bench-holdout-after-round12.json` | claim_bench | `bd84003` | 2026-10-01T06:47:00+00:00 | – | written directly |
+| `claim_bench-heldout_r4-after-round12.json` | claim_bench | `bd84003` | 2026-10-01T06:50:39+00:00 | – | written directly |
+| `claim_bench-heldout_r5-after-round12.json` | claim_bench | `bd84003` | 2026-10-01T06:55:05+00:00 | – | written directly |
+| `claim_bench-heldout_r6-after-exposure-round12.json` | claim_bench | `bd84003` | 2026-10-01T06:59:22+00:00 | – | written directly |
 | `perf-baseline-deepseek.json` | ablation | `8e81f48` | 2026-09-28T11:22:44+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-baseline.json` (12a1415984f0c9e3) |
 | `perf-verifierfix-deepseek.json` | ablation | `52e80dc` | 2026-09-28T12:16:08+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-verifierfix.json` (3820381e8007ecca) |
 | `perf-merged-defaults-deepseek.json` | ablation | `aae29fd` | 2026-09-28T14:55:24+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-merged-A.json` (ea673cc9c33df35d) |
@@ -2445,8 +2453,8 @@ Paired comparisons (same tasks, a − b):
 | `ablation-memsum-1-multiturn_v1.json` | ablation | `bc42017` | 2026-09-30T22:11:41+00:00 | cline-pass/deepseek-v4.1-flash | `ablation-memsum-1.json` (50162842790e1544) |
 | `ablation-glm-effort-default-holdout.json` | ablation | `bc42017` | 2026-09-30T22:18:04+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-default.json` (0443e4fcfda24919) |
 | `ablation-glm-effort-low-holdout.json` | ablation | `bc42017` | 2026-09-30T22:20:53+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-low.json` (24329b3dee31a93e) |
-| `gate-dev.json` | run | `017e5a3` | 2026-10-01T03:56:00+00:00 | – | `outputs/agent_eval/gate-dev.json` (d3ac3771e69d302a) |
-| `gate-holdout.json` | run | `017e5a3` | 2026-10-01T03:56:20+00:00 | – | `outputs/agent_eval/gate-holdout.json` (21c58973e307104f) |
+| `gate-dev.json` | run | `e55daf5` | 2026-10-01T07:41:14+00:00 | – | `outputs/agent_eval/gate-dev.json` (3734da802dd2f788) |
+| `gate-holdout.json` | run | `e55daf5` | 2026-10-01T07:48:55+00:00 | – | `outputs/agent_eval/gate-holdout.json` (85254f1ce4404c22) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |
 | `verifier_stress-round10.json` | verifier_stress | `53454f5` | 2026-09-30T23:35:04+00:00 | – | `outputs/agent_eval/verifier_stress-round10.json` (7e931de123af2bef) |
