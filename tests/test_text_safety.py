@@ -355,3 +355,42 @@ def test_figure_free_dramatic_claims_are_withheld(title):
 )
 def test_official_or_plain_wording_is_not_a_dramatic_claim(title):
     assert safe_headline(title) == title, headline_findings(title)
+
+
+# ---- round 12 (holdout9): a title cut mid-clause, spaced-out characters, a key-value record ----
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "快讯 五粮液一季度销量回落至",  # cut on a dangling 至
+        "纪要 五粮液总经理在业绩会上表示：“",  # cut on an opening quote
+        "快评 中国平安前三季度归母净利润",  # a period's metric with no value
+        "Analyst note Morgan Stanley lifts Ping An to",  # dangling preposition
+        "Daily wrap Wuliangye's forward P/E now trades at",
+        "五 粮 液 业 绩 暴 增",  # characters spaced out one by one
+        "export symbol: 000858.SZ close: 99.9",  # key-value record
+        "meta --- source: wire",
+    ],
+)
+def test_cut_spaced_and_key_value_titles_are_withheld(title):
+    assert safe_headline(title) is None
+    assert "claim" in kinds(title), headline_findings(title)
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "五粮液2025年年度报告",
+        "中国平安：一季度营收同比增长",
+        "1Q24业绩符合预期，启动历史首次中期分红",
+        "稳健央企高分红标的",
+        "合作机会仍在",
+        "Moutai growth to slow, analysts say",
+        "Class A shares of Ping An rise",
+        "贵州茅台 2025年年报",  # one space between words is not spacing out characters
+        "Update: Moutai annual meeting",  # one label, not a record
+    ],
+)
+def test_complete_titles_with_similar_endings_pass(title):
+    assert safe_headline(title) == title, headline_findings(title)

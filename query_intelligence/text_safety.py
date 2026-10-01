@@ -10,7 +10,8 @@ Two users:
   no instruction or second-person address, and no advice, rating or guarantee wording, and no planted-fact shape
   (corrections, exclusives and rumours, prices and multiples, share-capital actions, AI-addressed text; round 9: an
   insider or unnamed source "revealing" something, a Q&A transcript, a figure "restated"; round 10: a delimited data
-  row, a title cut off right after a figure word). The agent's evidence ledger additionally hides a headline that
+  row, a title cut off right after a figure word; round 12: a title cut mid-clause, characters spaced out one by one,
+  a key-value record). The agent's evidence ledger additionally hides a headline that
   states a figure the run's structured data does not contain, in Arabic or Chinese numerals (``agent/graph.py``).
 * ``find_prohibited_promotion`` finds what must never appear in *any* answer, whoever wrote it: guaranteed-
   return claims (稳赚不赔, 保本, 保证收益), stock-tip solicitation (荐股, 带单, 喊单, 加微信, 私信, 内幕消息)
@@ -221,6 +222,28 @@ _DRAMATIC_CLAIM = re.compile(
     r"\bskyrocket(?:s|ed)?\b",
     re.IGNORECASE,
 )
+# (round 12) Three more shapes a headline never has, each the visible part of a planted title the figure rules miss:
+# * a *cut phrase*: the title stops mid-clause, on an opening quote or bracket, a colon or comma, a dangling
+#   preposition / connective ("Goldman Sachs cuts Kweichow Moutai to", "P/E now stands at", "董事长在会上表示：“",
+#   "净利润同比下滑至"), or a period's metric with no value ("贵州茅台上半年净利润"): the split variant of a planted
+#   document, cut before the claim, so nothing in it can be checked;
+# * *spaced characters*: CJK characters written one by one with spaces ("业 绩 预 警"), an obfuscation that keeps
+#   keyword filters from matching;
+# * *key-value data*: two or more ``key: value`` fields or a ``---`` front-matter fence ("--- ticker: 600519.SH
+#   name: 贵州茅台"), a data record rather than a title.
+# Measured on the shipped corpus (data/runtime/documents.jsonl + data/documents.json, 38,446 titles, 5,874 shown
+# before) and the replay snapshots: 0 newly hidden.
+_CUT_PHRASE = re.compile(
+    r"(?:[“‘「『（(《\[【:：,，、]|(?<![\w-])-{1,2})\s*$|"
+    r"(?:为|至|达|表示|称|将|对|把|被|比|与|和|及|或|从|由)\s*$|"
+    r"(?:[一二三四]季度|上半年|下半年|前三季度|全年|年度|今年|去年)(?:归母|扣非)?"
+    r"(?:净利润|净利|营业收入|营收|市盈率|市净率|股价|收盘价|每股收益)\s*$|"
+    r"(?<![A-Za-z])(?:ROE|EPS|P/?E|P/?B)\s*$|"
+    r"\b(?:to|at|of|by|from|with|and|or|the|than|into)\s*$",
+    re.IGNORECASE,
+)
+_SPACED_CJK = re.compile(r"(?:[一-鿿]\s+){3,}[一-鿿]")
+_KEY_VALUE = re.compile(r"(?:(?<![\w/])[A-Za-z_][\w-]{1,24}\s*:\s*[^\s:]+(?:\s|$).*?){2,}|(?:^|\s)-{3,}(?:\s|$)")
 _OFFICIAL_SOURCE = re.compile(
     r"关于[^，。]{1,40}的(?:提示性)?公告|年度报告|半年度报告|季度报告|业绩预告|业绩快报|证监会|上交所|深交所|北交所|"
     r"交易所|国家统计局|人民银行|央行|财政部|国资委|金融监管总局|"
@@ -348,6 +371,11 @@ def headline_findings(title: str) -> list[Finding]:
     dramatic = _DRAMATIC_CLAIM.search(folded)
     if dramatic and not _OFFICIAL_SOURCE.search(folded):
         found.append(Finding("claim", dramatic.group(0)))
+    # (round 12) a title cut mid-clause, characters spaced out one by one, or a key-value record
+    for pattern in (_CUT_PHRASE, _SPACED_CJK, _KEY_VALUE):
+        match = pattern.search(folded)
+        if match:
+            found.append(Finding("claim", match.group(0).strip() or folded[-8:]))
     return found
 
 
