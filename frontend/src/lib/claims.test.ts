@@ -278,6 +278,36 @@ describe("round 10: stated values, differences and bounded approximations", () =
     expect(noteText(zh, "", relative, "zh")).toBe("相对差为 −9.89%（以比较对象的数值为基数）");
   });
 
+  it("labels a relative claim as a relative difference, not a difference (round 13, I15)", () => {
+    // "招商银行的市净率…比平安银行高出接近一倍": +100% of 平安银行's value, not 0.91 − 0.48
+    const nearDouble = {
+      target: "招商银行",
+      metric: "pb",
+      kind: "relative_difference",
+      claimed: 100,
+      comparator: "approx",
+      direction: "up",
+      reference: "平安银行",
+      reference_value: 0.48,
+      actual: 0.91,
+      difference: 89.58,
+      status: "contradicted",
+      note: "",
+    } as const;
+    expect(claimedText("zh", zh, nearDouble)).toEqual({
+      text: "相对差 ≈ +100%",
+      label: "相对差 (招商银行 相对 平安银行) 约为 +100%",
+      detail: "招商银行 相对 平安银行",
+    });
+    expect(claimedText("en", en, nearDouble).text).toBe("relative difference ≈ +100%");
+    expect(claimedText("en", en, nearDouble).detail).toBe("招商银行 relative to 平安银行");
+    expect(claimedText("zh", zh, nearDouble).text).not.toContain("差值");
+    // an absolute difference keeps its label
+    expect(claimedText("zh", zh, { ...nearDouble, kind: "difference", metric: "roe", claimed: 3 }).text).toBe(
+      "差值 ≈ +3 个百分点",
+    );
+  });
+
   it("marks a value the claim states for the compared side (F1)", () => {
     const stated = {
       target: "白酒行业平均",
