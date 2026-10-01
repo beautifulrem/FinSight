@@ -406,6 +406,32 @@ def _bound_units(answer: dict[str, Any]) -> list[tuple[str, str]]:
     return pairs
 
 
+# (round 12, H8) "(24.6 − 20.9) / 20.9 × 100 = 17.7%": the 100 of a percent formula is a constant, not a claim
+_FORMULA_CONSTANT = re.compile(r"(?<=[×*✕])\s*100(?:\.0+)?\s*%?(?![\d.])")
+# A ratio or a gap stated next to a metric name ("ROE 约为中国平安的 1.93 倍", "P/E is 17.7% above"): the number is
+# derived from the operands, not a reported value of the metric
+_COMPARISON = re.compile(
+    r"之比|比值|倍|相差|差距|差值|高出|低出|高于|低于|多出|少于|溢价|折价|÷|"
+    r"\b(?:ratio|times|above|below|higher|lower|gap|difference|premium|discount|more than|less than)\b",
+    re.IGNORECASE,
+)
+
+
+def _formula_free(text: str) -> str:
+    return _FORMULA_CONSTANT.sub(" ", text)
+
+
+def _sentence_operands(
+    sentence: str, store: EvidenceStore, unit_ids: list[str]
+) -> list[tuple[float, tuple[float, ...]]]:
+    """(round 12, H8) Supported numbers anywhere in the whole sentence, checked against the evidence the sentence
+    cites: a derivation split by "；" ("24.6 − 20.9 = 3.7; 3.7 ÷ 20.9 ≈ 17.7% [a][b]") keeps its operands."""
+    ids = [match.group(1) for match in _CITATION.finditer(sentence) if match.group(1) in store] or unit_ids
+    scope = _evidence_numbers(store, ids)
+    claims = claim_values(_formula_free(sentence))
+    return [(v, sc) for v, sc, r, sg in claims if v and _is_supported(v, scope, sc, r, sg)]
+
+
 def verify_answer(
     answer: dict[str, Any],
     store: EvidenceStore,
@@ -464,13 +490,19 @@ def verify_answer(
             if binding == "claim" and market_precedence and _MARKET_METRIC.search(unit)
             else None
         )
-        claims = claim_values(unit)
+        derived_mode = allow_derived and binding == "claim"
+        claims = claim_values(_formula_free(unit) if derived_mode else unit)
         supported_claims = (
             [(v, sc) for v, sc, r, sg in claims if v and _is_supported(v, scope, sc, r, sg)]
-            if allow_derived and unit_ids and binding == "claim"
+            if derived_mode and unit_ids
             else []
         )
+        if derived_mode and unit_ids:
+            supported_claims += [
+                claim for claim in _sentence_operands(sentence, store, unit_ids) if claim not in supported_claims
+            ]
         operands = [v for v, _sc in supported_claims]
+        derived_values: list[float] = []
         # amounts written with a magnitude unit (亿元, CNY bn): their share in percent is a derived figure too
         amounts = [v for v, sc in supported_claims if _is_amount(sc)]
         for value, scales, rounding, sign in claims:
@@ -508,6 +540,7 @@ def verify_answer(
                 continue
             shares = amounts if _is_percent(scales) else []
             if operands and _is_derived(value, rounding, [v for v in operands if v != value], shares=shares):
+                derived_values.append(value)
                 continue
             if unit_ids and _is_supported(value, known, scales, rounding, sign):
                 if value not in misattributed:
@@ -520,6 +553,9 @@ def verify_answer(
             for claim in metric_claims(unit):
                 reference = structured_metric_values(store, claim.metric)
                 if not reference or claim.stated in unsupported or claim.stated in document_market:
+                    continue
+                if claim.stated in derived_values and _COMPARISON.search(unit):
+                    # (round 12, H8) "五粮液 ROE 约为中国平安的 1.93 倍": a ratio of the two cited ROEs, not an ROE
                     continue
                 if not _is_supported(claim.value, reference, claim.scales, claim.rounding):
                     document_market.append(claim.stated)
@@ -649,6 +685,7 @@ def cite_repair(
     *,
     query: str = "",
     market_precedence: bool = True,
+    allow_derived: bool = False,
 ) -> dict[str, Any] | None:
     """Fix a draft whose only problems are citations, without an LLM call; ``None`` when that is not possible.
 
@@ -658,8 +695,15 @@ def cite_repair(
     that contains it (structured evidence preferred over document text) appended to its sentence. A number
     found in two or more items is ambiguous and is not guessed. The text is otherwise unchanged; the caller
     re-verifies the result and only uses it when it passes.
+
+    (round 12, H8) With ``allow_derived`` a number no single evidence item contains is left alone when it is the
+    difference, sum, ratio, percent change or share of two other numbers of its sentence that the evidence supports
+    ("Moutai 24.6x, Wuliangye 20.9x, (24.6 − 20.9) / 20.9 × 100 = 17.7%"): their owners' ids are appended instead
+    of deleting the sentence, and the verifier's derived-number rule then checks the arithmetic. A number that
+    neither an evidence item nor the sentence's operands reproduce still makes the repair fail.
     """
-    if report.passed or not set(failure_kinds(report)) <= CITATION_REPAIRABLE:
+    allowed = CITATION_REPAIRABLE | ({"unsupported_numbers"} if allow_derived else set())
+    if report.passed or not set(failure_kinds(report)) <= allowed:
         return None
     invalid = set(report.invalid_citations)
     query_numbers = claim_numbers(query)
@@ -676,6 +720,19 @@ def cite_repair(
                 return None  # ambiguous: several items state this value
         return None
 
+    def _repair_operands(sentence: str, sentence_ids: list[str]) -> list[tuple[float, tuple[float, ...]]]:
+        """Numbers of the sentence the cited evidence supports or exactly one evidence item contains."""
+        scope = _evidence_numbers(store, sentence_ids) if sentence_ids else []
+        found = []
+        for value, scales, rounding, sign in claim_values(_formula_free(sentence)):
+            if not value:
+                continue
+            if (sentence_ids and _is_supported(value, scope, scales, rounding, sign)) or owner(
+                value, scales, rounding, sign, market_precedence and bool(_MARKET_METRIC.search(sentence))
+            ):
+                found.append((value, scales))
+        return found
+
     def fix(text: str) -> str | None:
         if invalid:
             text = _CITATION.sub(lambda match: "" if match.group(1) in invalid else match.group(0), text)
@@ -683,6 +740,7 @@ def cite_repair(
         out = []
         for sentence in whole_sentences(text):
             sentence_ids = [m.group(1) for m in _CITATION.finditer(sentence) if m.group(1) in store]
+            operands = _repair_operands(sentence, sentence_ids) if allow_derived else []
             for unit in _split_sentences(sentence):
                 if not unit.strip():
                     continue
@@ -691,11 +749,18 @@ def cite_repair(
                 market = market_precedence and bool(_MARKET_METRIC.search(unit))
                 echo_allowed = not unit_ids or bool(_HYPOTHETICAL.search(unit))
                 added: list[str] = []
-                for value, scales, rounding, sign in claim_values(unit):
+                for value, scales, rounding, sign in claim_values(_formula_free(unit) if allow_derived else unit):
                     if value == 0 or (echo_allowed and _is_supported(value, query_numbers, _BARE_SCALES)):
                         continue
                     if unit_ids and _is_supported(value, scope, scales, rounding, sign):
                         continue
+                    if operands and _is_derived(
+                        value,
+                        rounding,
+                        [v for v, _sc in operands if v != value],
+                        shares=[v for v, sc in operands if _is_amount(sc)] if _is_percent(scales) else [],
+                    ):
+                        continue  # re-derived by the verifier from the operands, which get their own ids
                     evidence_id = owner(value, scales, rounding, sign, market)
                     if evidence_id is None:
                         return None

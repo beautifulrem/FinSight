@@ -1168,7 +1168,9 @@ class AgentRuntime:
             allow_derived=derived,
         )
         if not report.passed and llm_draft and self.config.revise_policy == "cite_repair":
-            fixed = cite_repair(draft, report, store, query=state["query"], market_precedence=True)
+            fixed = cite_repair(
+                draft, report, store, query=state["query"], market_precedence=True, allow_derived=derived
+            )
             if fixed is not None:
                 fixed_report = verify_answer(
                     fixed, store, query=state["query"], market_precedence=True, allow_derived=derived
