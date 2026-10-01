@@ -418,3 +418,19 @@ def test_an_h_share_question_is_out_of_coverage_and_names_no_a_share_price(agent
     mixed = agent.chat("中国平安和比亚迪电子的市盈率", session_id="r11-mixed")
     assert "未用名称相近的 A 股代替" in mixed["answer"]
     assert "002594.SZ" not in {call["arguments"].get("target") for call in mixed["tool_calls"]}
+
+
+# ---- G11: English labels for the fact-check rows; the asked metric for the KPI tiles ----
+
+
+def test_claim_reports_carry_english_labels_for_industries():
+    from query_intelligence.agent.claim_check import english_label
+
+    assert english_label("白酒行业平均") == "baijiu (liquor) industry average"
+    assert english_label("保险行业") == "insurance industry"
+    assert english_label("贵州茅台") == "Kweichow Moutai"
+
+
+def test_the_response_lists_the_asked_metrics(agent):
+    result = agent.chat("五粮液和中国平安的净资产收益率谁高", session_id="r11-asked")
+    assert result["nlu_summary"]["asked_metrics"][0] == "roe"

@@ -380,6 +380,7 @@ function AnswerCard({
           turn={number}
           freshness={sourceFreshness}
           displayName={(name) => displayName(view.englishNames, lang, name)}
+          asked={view.askedMetrics}
           onEvidence={(id) => onCite(turn.id, id)}
         />
       )}

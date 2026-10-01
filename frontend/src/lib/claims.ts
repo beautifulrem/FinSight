@@ -327,7 +327,7 @@ export function claimInMessage(message: string): string | null {
 /** Chinese target name → the English name the server gave (`targets[].name_en`), for the English UI. */
 export function targetName(lang: Lang, report: ClaimReport): (name: string) => string {
   if (lang !== "en") return (name) => name;
-  const names = new Map<string, string>();
+  const names = new Map<string, string>(Object.entries(report.labels_en ?? {}));
   for (const target of report.targets ?? []) {
     if (target.name && target.name_en) names.set(target.name, target.name_en);
   }

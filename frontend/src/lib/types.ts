@@ -141,6 +141,8 @@ export interface NluSummary {
   /** `name_en`: the English name from the alias table (data/synonym_dict.json), for the English UI. */
   entities?: { name?: string | null; symbol?: string | null; name_en?: string | null }[];
   risk_flags?: string[];
+  /** Metric keys the question asks about, in order ("roe", "pe", "net_margin"…): the KPI tiles lead with them. */
+  asked_metrics?: string[];
 }
 
 export interface AgentResponse {
@@ -311,6 +313,8 @@ export interface ClaimReport {
   verdict: ClaimVerdict;
   checks: ClaimCheckItem[];
   targets?: { name?: string | null; symbol?: string | null; name_en?: string | null }[];
+  /** English for the Chinese target / reference labels of the checks ("白酒行业平均" → "baijiu (liquor) industry average"). */
+  labels_en?: Record<string, string>;
   evidence_sources?: {
     evidence_id: string;
     source_name?: string | null;

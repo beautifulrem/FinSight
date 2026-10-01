@@ -203,6 +203,10 @@ describe("moves, relations and macro claims (round 4)", () => {
     const named: ClaimReport = { ...report, targets: [{ name: "贵州茅台", symbol: "600519.SH", name_en: "Kweichow Moutai" }] };
     expect(targetName("en", named)("贵州茅台")).toBe("Kweichow Moutai");
     expect(targetName("zh", named)("贵州茅台")).toBe("贵州茅台");
+    // (round 11, G11) industries come from the server's table, not from Chinese text left in the English UI
+    const industry: ClaimReport = { ...report, labels_en: { 白酒行业平均: "baijiu (liquor) industry average" } };
+    expect(targetName("en", industry)("白酒行业平均")).toBe("baijiu (liquor) industry average");
+    expect(targetName("zh", industry)("白酒行业平均")).toBe("白酒行业平均");
     expect(checkEvidence({ claimed: 0.8, status: "supported", evidence_id: "macro_CPI_CN" }, report)?.source_type).toBe("macro_sql");
   });
 

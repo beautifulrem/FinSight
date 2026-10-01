@@ -571,6 +571,31 @@ class ClaimReport(BaseModel):
         ),
     )
     disclaimer: str
+    labels_en: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "(round 11, G11) English for every Chinese target or reference label in the checks ('白酒行业平均' -> "
+            "'baijiu (liquor) industry average'), from the server's name tables, so the English UI never shows them "
+            "in Chinese"
+        ),
+    )
+
+
+_INDUSTRY_LABEL = re.compile(r"^(?P<industry>[一-鿿]+?)(?:行业|板块)(?P<average>平均|均值|平均水平)?$")
+
+
+def english_label(label: str) -> str | None:
+    """The English for a check's target or reference label: a company ("贵州茅台" -> "Kweichow Moutai"), an industry
+    or its average ("白酒行业平均" -> "baijiu (liquor) industry average"); ``None`` when there is none."""
+    match = _INDUSTRY_LABEL.match(label or "")
+    if match:
+        industry = match.group("industry")
+        english = INDUSTRY_EN.get(industry)
+        if english:
+            return f"{english} industry{' average' if match.group('average') else ''}"
+    if label in INDUSTRY_EN:
+        return INDUSTRY_EN[label]
+    return english_name(label)
 
 
 @dataclass
@@ -678,11 +703,16 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
         for target in targets
         if target["symbol"]
     ]
+    labels = {str(value) for check in checks for value in (check.target, check.reference) if value}
+    labels_en = {
+        label: english for label in sorted(labels) if re.search(r"[一-鿿]", label) and (english := english_label(label))
+    }
     return ClaimReport(
         claim=claim,
         verdict=verdict,
         checks=checks,
         targets=public_targets,
+        labels_en=labels_en,
         # One entry per evidence id: a sector target and a company's industry share one snapshot (round 9, E14).
         evidence_sources=list(
             {item.evidence_id: _source(item) for items in evidence.values() for item in items}.values()

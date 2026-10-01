@@ -28,9 +28,10 @@ function KpiTile({
   const Icon = kpi.tone === "up" ? ArrowUpRight : kpi.tone === "down" ? ArrowDownRight : null;
   const body = (
     <>
-      <span className="block truncate text-[11.5px] text-muted">
+      <span className={cn("block truncate text-[11.5px]", kpi.featured ? "font-medium text-cobalt" : "text-muted")}>
         {subject ? `${subject} · ` : ""}
         {t(kpi.label as MessageKey)}
+        {kpi.featured && <span className="sr-only"> ({t("kpi.asked")})</span>}
       </span>
       <span
         className={cn(
@@ -58,6 +59,7 @@ function KpiTile({
   const className = cn(
     "kpi-tile block min-w-0 rounded-lg border bg-surface px-3 py-2 text-left",
     stale || snapshot ? "border-warn/45 border-dashed" : "border-line",
+    kpi.featured && "kpi-featured ring-1 ring-cobalt/45",
   );
   return kpi.evidenceId && onEvidence ? (
     <button type="button" className={cn(className, "hover:border-cobalt")} onClick={() => onEvidence(kpi.evidenceId!)}>
@@ -75,12 +77,15 @@ export function DataPanel({
   onEvidence,
   turn,
   displayName = (name) => name,
+  asked = [],
 }: {
   data: MarketData;
   /** The turn number, so each turn's data region has its own name (axe landmark-unique). */
   turn?: number;
   /** The name to show for a subject (the English name in the English UI). */
   displayName?: (name: string) => string;
+  /** Metric keys the question asks about: their tiles come first and are marked. */
+  asked?: string[];
   themeKey: string;
   /** Per-evidence freshness, so a snapshot or stale tile is marked next to live ones. */
   freshness?: Map<string, EvidenceFreshness>;
@@ -123,7 +128,7 @@ export function DataPanel({
       )}
       {data.kpis.length > 0 && (
         <div className="kpi-grid grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {selectKpis(data.kpis, MAX_TILES).map((kpi) => (
+          {selectKpis(data.kpis, MAX_TILES, asked).map((kpi) => (
             <KpiTile
               key={kpi.key}
               kpi={kpi}
