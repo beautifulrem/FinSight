@@ -93,3 +93,37 @@ def test_the_corroborated_clause_is_left_alone_and_the_audit_sees_only_the_marke
     assert report["mode"] == "clauses" and report["verdict"] == "correct"
     (span,) = report["spans"]
     assert span["span"].startswith("二季度提价7.5%") and "1085" not in span["span"]
+
+
+def test_an_llm_path_run_records_turns_by_task_even_when_the_layer_edits_the_answer():
+    # (round 12) the per-edit key once shadowed the per-task recording key: an edited answer crashed the dump
+    import json
+    import re
+
+    from query_intelligence.agent.llm import AssistantTurn
+
+    class Quoting:
+        """Composes one sentence that quotes a single-document YoY figure with the document's own id."""
+
+        model = "fake"
+
+        def chat(self, messages, tools=None, **kwargs):
+            text = json.dumps(messages, ensure_ascii=False)
+            position = text.find("同比下降1.21%")
+            evidence_id = re.findall(r'evidence_id\\": \\"([^\\"]+)', text[:position])[-1]
+            draft = {
+                "answer": f"据报道，贵州茅台营业收入同比下降1.21% [{evidence_id}]。",
+                "key_points": [],
+                "evidence_used": [evidence_id],
+                "limitations": [],
+            }
+            return AssistantTurn(content=json.dumps(draft, ensure_ascii=False))
+
+    recordings: dict = {}
+    result = audit.run_set(
+        "test_v3", limit=1, path="workflow_llm", llm=Quoting(), categories=("news_sentiment",), recordings=recordings
+    )
+    assert result["answers_edited"] == 1 and result["edits_by_kind"] == {"attribution": 1}
+    (unit,) = result["units"]
+    assert unit["verdict"] == "correct" and unit["spans"][0]["figures"][0]["status"] == "single_source"
+    assert all(isinstance(key, str) for key in recordings) and json.dumps(recordings)
