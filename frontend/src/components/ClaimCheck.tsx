@@ -381,12 +381,14 @@ export function ClaimCheckView({ apiKey, ref, active = true }: { apiKey: string;
     element.scrollIntoView?.({ behavior: reduce ? "auto" : "smooth", block: "start" });
   }, [state]);
 
+  // Grow with the text. Not while the view is hidden (it mounts hidden when the page opens on the chat): a hidden
+  // textarea measures 0 and would stay 0 px tall, unclickable, after switching to this view (round 12).
   useLayoutEffect(() => {
     const element = textarea.current;
-    if (!element) return;
+    if (!element || !active) return;
     element.style.height = "auto";
     element.style.height = `${Math.min(element.scrollHeight, 200)}px`;
-  }, [value]);
+  }, [value, active]);
 
   const run = async (claim: string) => {
     controller.current?.abort();

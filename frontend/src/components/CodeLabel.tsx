@@ -28,7 +28,14 @@ export function CodeBadge({
   const { lang } = useI18n();
   return (
     <Tooltip content={<RawCode code={code} />}>
-      <Badge tabIndex={0} data-code={code} className={cn("code-label max-w-full truncate", className)} {...props}>
+      {/* Route reasons are sentences ("Computed the ROE gap: Wuliangye vs Kweichow Moutai"): they wrap instead of
+          being cut off, since the tooltip shows the raw code, not the label. */}
+      <Badge
+        tabIndex={0}
+        data-code={code}
+        className={cn("code-label max-w-full", kind === "reason" ? "whitespace-normal break-words" : "truncate", className)}
+        {...props}
+      >
         {localizeNames(lang, humanizeCode(lang, code, kind), names)}
       </Badge>
     </Tooltip>

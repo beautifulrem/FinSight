@@ -315,6 +315,30 @@ describe("ClaimReportCard relation rows (round 12, H14)", () => {
   });
 });
 
+describe("ClaimCheckView input height (round 12)", () => {
+  it("sizes the claim box when the view is shown, not while it is hidden", () => {
+    // jsdom has no layout: a hidden element measures 0, a shown one 48 px
+    const scrollHeight = vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.closest("[hidden]") ? 0 : 48;
+    });
+    const view = (active: boolean) => (
+      <div hidden={!active}>
+        <ClaimCheckView apiKey="" active={active} />
+      </div>
+    );
+    const { rerender } = wrap(view(false));
+    const input = document.getElementById("claim-input")!;
+    expect(input.style.height).not.toBe("0px");
+    rerender(
+      <I18nContext.Provider value={{ lang: "zh", t: makeTranslate("zh") }}>
+        <TooltipProvider>{view(true)}</TooltipProvider>
+      </I18nContext.Provider>,
+    );
+    expect(input.style.height).toBe("48px");
+    scrollHeight.mockRestore();
+  });
+});
+
 describe("ClaimCheckView", () => {
   afterEach(() => vi.restoreAllMocks());
 
