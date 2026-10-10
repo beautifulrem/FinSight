@@ -644,7 +644,7 @@ default data with `QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1`; not opened by
 without them 12/45 → 35/45. Per class after the fixes: cost basis, extremes, yes/no multiples, forecasts, foreign lines,
 metric aliases and controls all pass; sums 4/5, verb comparatives 2/4 (both English: "top … by", "trail"), several
 holdings 2/4, price-derived 1/3, shares of a combined total **1/4**. The failing tasks and claims are listed in the
-[README](../README.md#the-round-10-slice-per-class). From round 15 this slice is after exposure.
+[README](evaluation-history.md#the-round-10-slice-per-class). From round 15 this slice is after exposure.
 
 ### Session memory card
 
@@ -985,7 +985,7 @@ claim file scanned; the round-13 scan missed the ext set and reported 4 tasks, 1
 7/7, verb comparatives 7/7, spreads 3/3, forecasts 7/7, missing industry 3/3, controls 7/7, several holdings 2/3,
 yes/no ratios 2/3, sums **1/5**, price-derived **2/7** (3/7 before: the YTD task that states the first trading day's
 close as its basis now gets the prior year-end basis of I11). The 11 failures are listed in the
-[README](../README.md#the-round-9-slice-per-class). From round 14 this slice is after exposure.
+[README](evaluation-history.md#the-round-9-slice-per-class). From round 14 this slice is after exposure.
 A sweep of 28 own sessions (shares, totals, spreads, pairs, holdings, purchase cost) against values computed by hand
 from the snapshot found three wrong or missing results before the guards in `173f2b2` (a list written with 、 not read
 as operands, 几倍关系 not a ratio, the template path using the first two of three targets) and none after them.
