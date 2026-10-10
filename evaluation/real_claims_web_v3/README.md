@@ -342,5 +342,5 @@ offline total-profit 14.87%) changes a part but not the verdict.
   article. It is still within 1% of 归母 net profit / 365 (3.69亿), so it is labelled true.
 - **Rounding in the corrections layer.** 中国平安's served 归母 YoY is the report's one-decimal 6.5; the report's
   figures give 6.45. Reuters' "6.45%" (x13) passes only through the 1% rule, as v2's v36 did.
-- **Prices.** Every published price, % change, volume and turnover in this set agrees with the offline bars.
-  Twenty-two bar parts are true, and none is false.
+- **Prices.** Every published price, % change, volume and turnover in this set agrees with the offline bars, and so
+  does every valuation figure. 42 bar parts and 4 valuation parts are true, and none is false.
