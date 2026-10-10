@@ -1,0 +1,64 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "3480a96",
+  "run_at": "2026-10-10T18:07:59+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r10/score_claims_r10.py <out.json>",
+  "note": "independent round-10 claim slice after the round-14 fixes, run once at 3480a96 (clean tree); the engineers did not open the slice; no claim overlaps own wording"
+ },
+ "summary": {
+  "claims": 24,
+  "verdict_accuracy": 0.8333,
+  "ci95": [
+   0.6667,
+   0.9583
+  ],
+  "by_category": {
+   "colloquial_count": 0.0,
+   "compound_bounds": 1.0,
+   "control": 1.0,
+   "corrected_data": 1.0,
+   "en_fraction": 1.0,
+   "float_cap": 1.0,
+   "level_and_multiple": 1.0,
+   "multiple_bound": 1.0,
+   "points": 1.0,
+   "published_yoy": 0.333,
+   "recurring_profit": 1.0,
+   "superlative": 0.5,
+   "tenths": 1.0,
+   "times": 1.0,
+   "zh_fraction": 1.0
+  }
+ },
+ "errors": [
+  {
+   "id": "r10c06",
+   "category": "superlative",
+   "claim": "Of ICBC, CMB and CITIC Securities, CITIC has the lowest P/E",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r10c07",
+   "category": "published_yoy",
+   "claim": "2025年宁德时代实现归母净利润约722亿元，同比增长42%",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r10c08",
+   "category": "published_yoy",
+   "claim": "Zijin Mining's 2025 net profit rose about 62% year on year to RMB51.8 billion",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r10c12",
+   "category": "colloquial_count",
+   "claim": "工商银行一年的净利润抵得上两个多招行",
+   "expected": "supported",
+   "got": "unverifiable"
+  }
+ ]
+}

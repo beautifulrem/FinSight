@@ -101,7 +101,8 @@ def test_a_missing_recurring_or_free_float_field_is_unverifiable_never_a_neighbo
 @pytest.mark.parametrize(
     ("claim", "subject", "verdict"),
     [
-        ("BYD trades at a lower P/B than CATL but a higher P/B than Midea", "比亚迪", "supported"),  # 3.17 < 3.55, > 2.89
+        # 3.17 < 3.55, > 2.89
+        ("BYD trades at a lower P/B than CATL but a higher P/B than Midea", "比亚迪", "supported"),
         ("Midea's P/E is above CATL's but below BYD's", "美的集团", "partially_supported"),  # 13.77 < 15.85
         ("比亚迪的市净率高于美的集团但低于宁德时代", "比亚迪", "supported"),
         ("宁德时代的市盈率高于美的集团但低于紫金矿业", "宁德时代", "partially_supported"),  # 15.85 > 11.71

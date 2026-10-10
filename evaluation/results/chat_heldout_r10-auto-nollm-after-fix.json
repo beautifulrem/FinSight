@@ -1,0 +1,414 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "/Volumes/Remi/finsight-review/heldout_r10/chat_r10_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "3480a96",
+  "run_at": "2026-10-10T18:07:35+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 33.5,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r10/chat_r10_heldout.jsonl --out outputs/agent_eval/chat_r10-after.json",
+  "env": {
+   "QI_EVAL_SNAPSHOT_EXT": "1",
+   "QI_EVAL_SNAPSHOT_FIX": "1"
+  },
+  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r10/chat_r10_heldout.jsonl --out outputs/agent_eval/chat_r10-after.json",
+  "slice_overlap": {
+   "slice": "chat_r10_heldout.jsonl",
+   "slice_texts": 53,
+   "exact": 0,
+   "near": 3,
+   "tasks_with_overlap": [
+    "r10h_fc_zh_01",
+    "r10h_hk_zh_02",
+    "r10h_sum_en_02"
+   ],
+   "own_files": [
+    "evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_shipped_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v2.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+    "evaluation/claim_bench/claims_v1.jsonl",
+    "evaluation/claim_bench/claims_v1_holdout.jsonl"
+   ],
+   "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = every evaluation/agent_eval/tasks/*.jsonl and evaluation/claim_bench/*.jsonl text, string literals in tests/*.py"
+  }
+ },
+ "summary": {
+  "tasks": 48,
+  "turns": 53,
+  "repeats": 1,
+  "task_success": 0.7917,
+  "pass^1": 0.7917,
+  "ci": {
+   "task_success": [
+    0.6667,
+    0.8958
+   ],
+   "pass^1": [
+    0.6667,
+    0.8958
+   ],
+   "task_success_uncited": [
+    0.6667,
+    0.8958
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.7917,
+  "turn_success": 0.8113,
+  "behavior_accuracy": 1.0,
+  "fact_recall": 0.7674,
+  "fact_stated": 0.7674,
+  "tool_recall": 1.0,
+  "tool_precision": 0.6599,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 0.9796,
+  "unsupported_numbers_per_answer": 0.0204,
+  "latency_ms_p50": 105.07,
+  "latency_ms_p95": 1135.51,
+  "latency_ms_p99": 3644.92,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "control": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 382.67
+  },
+  "cost_basis": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 1135.51
+  },
+  "extremes": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 300.69
+  },
+  "forecast_beyond": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 432.52
+  },
+  "foreign_line": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 338.88
+  },
+  "metric_alias": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 367.8
+  },
+  "multi_holding": {
+   "tasks": 4,
+   "task_success": 0.5,
+   "latency_ms_p95": 3644.92
+  },
+  "price_derived": {
+   "tasks": 3,
+   "task_success": 0.3333,
+   "latency_ms_p95": 76.64
+  },
+  "share_of_total": {
+   "tasks": 4,
+   "task_success": 0.25,
+   "latency_ms_p95": 450.78
+  },
+  "sum": {
+   "tasks": 5,
+   "task_success": 0.8,
+   "latency_ms_p95": 116.24
+  },
+  "verb_comparative": {
+   "tasks": 4,
+   "task_success": 0.5,
+   "latency_ms_p95": 122.59
+  },
+  "yes_no_multiple": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 112.62
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 15,
+   "task_success": 0.6667,
+   "latency_ms_p95": 3644.92
+  },
+  "zh": {
+   "tasks": 33,
+   "task_success": 0.8485,
+   "latency_ms_p95": 1135.51
+  }
+ },
+ "failed_checks": {
+  "facts": 10,
+  "entities": 2
+ },
+ "failures": [
+  {
+   "task": "r10h_stot_zh_01",
+   "category": "share_of_total",
+   "query": "宁德时代和比亚迪两家净利润加总后，宁德时代占了多大比例",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：净利润：宁德时代 722.01 亿元，比亚迪 326.19 亿元，合计 1048.2 亿元 [fundamental_300750.SZ][fundamental_002594.SZ]。口径：以上净利润均为归母口径。宁德时代（300750.SZ）最新可用收盘价为 291.11 元（2026-09-"
+  },
+  {
+   "task": "r10h_stot_en_01",
+   "category": "share_of_total",
+   "query": "Of the combined market cap of Zijin Mining and CYPC, what percentage is Zijin's?",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Could not tell which security \"CYPC\" refers to, so the share of the combined total of the market cap cannot be computed; only the identified side is listed belo"
+  },
+  {
+   "task": "r10h_stot_zh_03",
+   "category": "share_of_total",
+   "query": "美的、宁德时代、比亚迪三家营收总和中，美的的份额是多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "口径：美的集团的收入为营业总收入，宁德时代的收入为营业收入，比亚迪的收入为营业收入；口径不同，比较仅供参考。美的集团（000333.SZ）最新可用收盘价为 80.1 元（2026-09-30），当日涨跌幅 -1.91% [price_000333.SZ]。美的集团 基本面（报告期 2025-12-31，2025年年报；"
+  },
+  {
+   "task": "r10h_sum_zh_02",
+   "category": "sum",
+   "query": "把招商银行的也算上，共多少",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：招商银行（600036.SH）最新可用收盘价为 41.26 元（2026-09-30），当日涨跌幅 1.85% [price_600036.SH]。"
+  },
+  {
+   "task": "r10h_verb_en_01",
+   "category": "verb_comparative",
+   "query": "How much does CATL's net profit top Midea's by?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: CATL fundamentals (period 2025-12-31, FY2025; P/E and P/B at the 2026-09-30 close): PE(TTM) 15.85x, PB 3.55x,"
+  },
+  {
+   "task": "r10h_verb_en_02",
+   "category": "verb_comparative",
+   "query": "How far does Ping An Bank's ROE trail CMB's?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Ping An Bank fundamentals (period 2025-12-31, FY2025; P/E and P/B at the 2026-09-30 close): PE(TTM) 5.17x, PB"
+  },
+  {
+   "task": "r10h_hold_en_01",
+   "category": "multi_holding",
+   "query": "I own 2 lots of BYD and 500 shares of CMB. What's the total at the last close?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: BYD (002594.SZ) last available close was CNY 83.31 on 2026-09-30, daily change 1.57% [price_002594.SZ]. BYD f"
+  },
+  {
+   "task": "r10h_hold_zh_03",
+   "category": "multi_holding",
+   "query": "持有黄金ETF 2万份和招行500股，合计市值多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：按 2026-09-30 的收盘价 8.633 元 计算，500 份黄金ETF华安的市值约为 500 × 8.633 = 4316.5 元 [price_518880.SH]。这是按最近收盘价计算的持仓市值，不是可成交价格，也不是估值判断或投资建议。黄金ETF华安（518880.SH）最新可用收盘"
+  },
+  {
+   "task": "r10h_price_en_01",
+   "category": "price_derived",
+   "query": "How many yuan is Zijin Mining below its 52-week closing high?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Zijin Mining (601899.SH) last available close was CNY 29.79 on 2026-09-30, daily change 1.12% [price_601899.S"
+  },
+  {
+   "task": "r10h_price_zh_02",
+   "category": "price_derived",
+   "query": "美的集团现价比52周最高收盘价低了百分之几",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：美的集团（000333.SZ）最新可用收盘价为 80.1 元（2026-09-30），当日涨跌幅 -1.91% [price_000333.SZ]。美的集团近52周（2025-10-09 至 2026-09-30，241 个交易日，按未复权收盘价）：最高收盘 88.95 元（2026-07-30）"
+  }
+ ],
+ "task_outcomes": {
+  "r10h_stot_zh_01": "0",
+  "r10h_stot_zh_02": "1",
+  "r10h_stot_en_01": "0",
+  "r10h_stot_zh_03": "0",
+  "r10h_sum_zh_01": "1",
+  "r10h_sum_en_01": "1",
+  "r10h_sum_zh_02": "0",
+  "r10h_sum_zh_03": "1",
+  "r10h_sum_en_02": "1",
+  "r10h_verb_zh_01": "1",
+  "r10h_verb_zh_02": "1",
+  "r10h_verb_en_01": "0",
+  "r10h_verb_en_02": "0",
+  "r10h_ext_zh_01": "1",
+  "r10h_ext_en_01": "1",
+  "r10h_ext_zh_02": "1",
+  "r10h_hold_zh_01": "1",
+  "r10h_hold_zh_02": "1",
+  "r10h_hold_en_01": "0",
+  "r10h_hold_zh_03": "0",
+  "r10h_pnl_zh_01": "1",
+  "r10h_pnl_en_01": "1",
+  "r10h_pnl_zh_02": "1",
+  "r10h_yn_zh_01": "1",
+  "r10h_yn_en_01": "1",
+  "r10h_yn_zh_02": "1",
+  "r10h_fc_zh_01": "1",
+  "r10h_fc_en_01": "1",
+  "r10h_fc_zh_02": "1",
+  "r10h_fc_zh_03": "1",
+  "r10h_fc_zh_04": "1",
+  "r10h_hk_zh_01": "1",
+  "r10h_hk_en_01": "1",
+  "r10h_hk_zh_02": "1",
+  "r10h_hk_zh_03": "1",
+  "r10h_alias_zh_01": "1",
+  "r10h_alias_en_01": "1",
+  "r10h_alias_zh_02": "1",
+  "r10h_alias_en_02": "1",
+  "r10h_alias_zh_03": "1",
+  "r10h_price_zh_01": "1",
+  "r10h_price_en_01": "0",
+  "r10h_price_zh_02": "0",
+  "r10h_ctrl_zh_01": "1",
+  "r10h_ctrl_en_01": "1",
+  "r10h_ctrl_zh_02": "1",
+  "r10h_ctrl_zh_03": "1",
+  "r10h_ctrl_zh_04": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r10-after.json",
+  "sha256_16": "c645506c909ac544",
+  "bytes": 180778,
+  "slimmed_at": "2026-10-10T18:08:18+00:00"
+ },
+ "notes": [
+  "independent round-10 chat slice after the round-14 fixes, run once at 3480a96 (clean tree), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay; the round-14 engineers did not open the slice, but 3 slice tasks near-copy own wording (slice_overlap-heldout_r10-at-3480a96.json): without them 12/45 -> 35/45"
+ ]
+}
