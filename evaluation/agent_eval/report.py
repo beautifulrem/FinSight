@@ -88,6 +88,7 @@ PERF_PAIRS = (
 )
 STRESS_RUNS = (
     "verifier_stress",
+    "verifier_stress-round13",
     "verifier_stress-round12",
     "verifier_stress-round10",
     "verifier_stress-round9",
@@ -102,6 +103,10 @@ REDTEAM_RUNS = (
     (
         "redteam-offline-r12-before",
         "Prompt-injection red team, offline template path at 04dac41 (ten sets, before the round-12 headline rules)",
+    ),
+    (
+        "redteam-r13-holdout10-llm",
+        "Prompt-injection red team, LLM paths on holdout10 (round-8 reviewer's styles) in round 13 (30ad952)",
     ),
     (
         "redteam-r12-holdout9-llm",
@@ -184,6 +189,8 @@ ROUTER_RUNS = (
     "router_eval-round11-own",
     "router_eval-independent_v2-round11",
     "router_eval-round12-own",
+    "router_eval-round13-own",
+    "router_eval-independent_v2-round13",
 )
 CLAIM_BENCH_RUNS = (
     "claim_bench-dev-baseline",
@@ -264,6 +271,9 @@ EXTRA_EVIDENCE = (
     "claims_heldout_r8-prefix",
     "claims_heldout_r8-after-fix",
     "claims_web_v1-first-run",
+    "slice_overlap-heldout_r8-at-6e14016",
+    "glm-auto-testv3-sample45-r13",
+    "ablation-v4-testv3-sample24-pass2-r13",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -302,9 +312,14 @@ FILE_STATUS = {
     "router_eval-independent_v2-round9": "**after exposure** (HEAD after round 9; first run 0.8008)",
     "router_eval-round10-own": "author's own labels (tuned against)",
     "router_eval-independent_v2-round10": "**after exposure** (HEAD after round 10; first run 0.8008)",
-    "router_eval-independent_v2-round11": "**after exposure** (HEAD after round 11; first run 0.8008)",
+    "router_eval-independent_v2-round11": "**after exposure** (HEAD after round 11; first run 0.8008); recorded from a "
+    "dirty tree (`40e8685-dirty`), superseded by the clean rerun `router_eval-independent_v2-round13`",
+    "router_eval-independent_v2-round13": "**after exposure**, clean rerun at `d42b181` (round 13, round-9 review I13; "
+    "first run 0.8008)",
     "router_eval-round11-own": "author's own labels (tuned against)",
-    "router_eval-round12-own": "author's own labels (tuned against)",
+    "router_eval-round12-own": "author's own labels (tuned against); recorded from a dirty tree (`b685e23-dirty`), "
+    "superseded by the clean rerun `router_eval-round13-own`",
+    "router_eval-round13-own": "author's own labels (tuned against), clean rerun at `d42b181` (round 13, I13)",
     "chat_heldout_r5-auto-nollm-first-run": "**first run** of the independent round-5 held-out chat slice",
     "chat_heldout_r5-auto-nollm-after-exposure": "**after exposure** (round 9 fixed the classes its first run showed)",
     "claim_bench-dev-baseline": "development claims, before tuning",
@@ -348,7 +363,9 @@ FILE_STATUS = {
     "chat_heldout_r7-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-7 chat slice",
     "chat_heldout_r8-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-8 chat slice",
     "chat_heldout_r8-auto-nollm-after-fix": "independent round-8 chat slice **after the round-12 fixes**; the "
-    "engineers never opened the slice, so this is out of sample",
+    "engineers did not open the slice, but three slice turns coincide with round-12 test/dev wording (r8h_hk_zh_03, "
+    "r8h_gap_en_04, r8h_hold_zh_03; written before the slice existed); without those three tasks 13/48 -> 32/48 = "
+    "0.667 (`slice_overlap-heldout_r8-at-6e14016.json`)",
     "claims_heldout_r8-prefix": "**first and only pre-fix run** of the independent round-8 claim slice",
     "claims_heldout_r8-after-fix": "independent round-8 claim slice **after the round-12 fixes** (out of sample)",
     "claims_web_v1-first-run": "engineer-collected real published claims, first run; not blind (the collector had "
@@ -1568,8 +1585,12 @@ def render_with_sources() -> tuple[str, list[str]]:
             "51 conversations / 95 turns written by the round-8 reviewer from their bug classes before any "
             "round-12 fix (`evaluation/heldout_r8/README.md`), run once before the fixes (by the reviewer) and once "
             "after them. The "
-            "round-12 engineers never opened the slice. Its 25 claims are in the evidence table below "
-            "(`claims_heldout_r8-*.json`).",
+            "round-12 engineers did not open the slice, but three slice turns coincide with round-12 test/dev wording "
+            "(`回到A股，它的市净率呢` and the 三万份证券ETF holding in `tests/test_agent_round12_frame.py`, dev task "
+            "`r12_traded_more_by_how_much_en`; per the session logs written from the round-7 classes before the slice "
+            "existed, see `evaluation/heldout_r8/README.md`). Without those three tasks the run goes 13/48 -> 32/48 = "
+            "0.667 (the slice-side overlap at the after-fix commit is `slice_overlap-heldout_r8-at-6e14016.json`). "
+            "Its 25 claims are in the evidence table below (`claims_heldout_r8-*.json`).",
             "",
         ]
         for name, result in heldout_r8:
@@ -1780,6 +1801,30 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
                 f"claim slice, verdict accuracy {_fmt(run.get('verdict_accuracy'))} [{_fmt(low)}, {_fmt(high)}] over "
                 f"{run.get('claims')} claims — " + "; ".join(parts)
             )
+        elif result.get("kind") == "slice_overlap":
+            at = result.get("at_after_fix_commit") or {}
+            named = (result.get("task_success_without") or {}).get("three_named") or {}
+            baseline = str(config.get("baseline_tree") or "").split(" ")[0]
+            new_hits = len(result.get("new_since_prefix") or [])
+            listed = ", ".join(result.get("named_by_round9_review") or [])
+            summary = (
+                f"overlap of `{config.get('slice')}` with own dev tasks / router labels / claims / test literals at "
+                f"`{config.get('commit')}`: {at.get('exact')} exact and {at.get('near')} near hits over "
+                f"{len(at.get('tasks_with_overlap') or [])} tasks; {new_hits} hits new since `{baseline}`; "
+                f"without the three turns the round-9 review named ({listed}): first run "
+                f"{named.get('prefix')} -> after fix {named.get('after_fix')} = {_fmt(named.get('after_fix_rate'))}"
+            )
+        elif result.get("kind") == "run":
+            run = result.get("summary") or {}
+            low, high = (run.get("ci") or {}).get("task_success") or (None, None)
+            sample = config.get("sample") or {}
+            scope = f"a seeded subset of {sample.get('size')} of {sample.get('of')} tasks" if sample.get("seed") else ""
+            summary = (
+                f"{config.get('model') or 'no LLM'}, mode {config.get('mode')}, {config.get('tasks_file')} "
+                f"{scope}: task {_fmt(run.get('task_success'))} [{_fmt(low)}, {_fmt(high)}], "
+                f"P50 {_fmt(run.get('latency_ms_p50'))} ms, P95 {_fmt(run.get('latency_ms_p95'))} ms, "
+                f"LLM calls/turn {_fmt(run.get('llm_calls_per_turn'))}, 429 rate {_fmt(run.get('llm_429_rate'))}"
+            )
         elif result.get("kind") == "ablation":
             parts = []
             for set_name, modes in (result.get("results") or {}).items():
@@ -1787,8 +1832,10 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
                     if mode not in {"workflow_llm", "agent"}:
                         continue
                     run = data.get("summary") or {}
+                    repeats = config.get("repeats", 1)
+                    passk = f", pass^{repeats} {_fmt(run.get(f'pass^{repeats}'))}" if repeats and repeats > 1 else ""
                     parts.append(
-                        f"{set_name} {mode}: task {_fmt(run.get('task_success'))}, "
+                        f"{set_name} {mode}: task {_fmt(run.get('task_success'))}{passk}, "
                         f"P95 {_fmt(run.get('latency_ms_p95'))} ms, cost/task {_fmt(run.get('cost_per_task'))}"
                     )
             summary = f"{config.get('model') or 'LLM'}, {config.get('repeats', 1)} repeat(s) — " + "; ".join(parts)

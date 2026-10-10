@@ -17,13 +17,19 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "10ce292",
-  "run_at": "2026-10-01T08:52:16+00:00",
+  "commit": "d42b181",
+  "run_at": "2026-10-01T13:57:12+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 129.8,
+  "wall_seconds": 1251.3,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json",
-  "env": {},
-  "command_with_env": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
+  "env": {
+   "QI_AGENT_TRACE_DIR": "off",
+   "QI_USE_LIVE_ANNOUNCEMENT": "0",
+   "QI_USE_LIVE_MACRO": "0",
+   "QI_USE_LIVE_MARKET": "0",
+   "QI_USE_LIVE_NEWS": "0"
+  },
+  "command_with_env": "QI_AGENT_TRACE_DIR=off QI_USE_LIVE_ANNOUNCEMENT=0 QI_USE_LIVE_MACRO=0 QI_USE_LIVE_MARKET=0 QI_USE_LIVE_NEWS=0 python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_v1.json --out outputs/agent_eval/gate-dev.json"
  },
  "summary": {
   "tasks": 432,
@@ -58,9 +64,9 @@
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 66.92,
-  "latency_ms_p95": 665.72,
-  "latency_ms_p99": 1025.96,
+  "latency_ms_p50": 306.72,
+  "latency_ms_p95": 4046.91,
+  "latency_ms_p99": 8669.6,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -88,89 +94,89 @@
   "clarify": {
    "tasks": 18,
    "task_success": 1.0,
-   "latency_ms_p95": 659.26
+   "latency_ms_p95": 4770.81
   },
   "compare": {
    "tasks": 33,
    "task_success": 1.0,
-   "latency_ms_p95": 1209.47
+   "latency_ms_p95": 8669.6
   },
   "comparison": {
    "tasks": 7,
    "task_success": 1.0,
-   "latency_ms_p95": 197.18
+   "latency_ms_p95": 909.51
   },
   "compliance": {
    "tasks": 36,
    "task_success": 1.0,
-   "latency_ms_p95": 463.75
+   "latency_ms_p95": 2264.69
   },
   "derived": {
    "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 747.25
+   "latency_ms_p95": 2081.1
   },
   "documents": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 493.01
+   "latency_ms_p95": 5740.61
   },
   "fact": {
    "tasks": 74,
    "task_success": 1.0,
-   "latency_ms_p95": 597.71
+   "latency_ms_p95": 13615.35
   },
   "injection": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 629.9
+   "latency_ms_p95": 1439.08
   },
   "macro_link": {
    "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 607.32
+   "latency_ms_p95": 2257.89
   },
   "missing_data": {
    "tasks": 45,
    "task_success": 1.0,
-   "latency_ms_p95": 463.46
+   "latency_ms_p95": 3118.71
   },
   "multi_turn": {
    "tasks": 103,
    "task_success": 1.0,
-   "latency_ms_p95": 645.84
+   "latency_ms_p95": 3193.66
   },
   "out_of_coverage": {
    "tasks": 17,
    "task_success": 1.0,
-   "latency_ms_p95": 521.17
+   "latency_ms_p95": 3300.76
   },
   "out_of_scope": {
    "tasks": 22,
    "task_success": 1.0,
-   "latency_ms_p95": 80.38
+   "latency_ms_p95": 465.54
   },
   "technical": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 462.8
+   "latency_ms_p95": 4878.06
   },
   "why": {
    "tasks": 21,
    "task_success": 1.0,
-   "latency_ms_p95": 864.3
+   "latency_ms_p95": 5028.47
   }
  },
  "by_language": {
   "en": {
    "tasks": 140,
    "task_success": 1.0,
-   "latency_ms_p95": 707.75
+   "latency_ms_p95": 4875.97
   },
   "zh": {
    "tasks": 292,
    "task_success": 1.0,
-   "latency_ms_p95": 645.84
+   "latency_ms_p95": 3589.85
   }
  },
  "failed_checks": {},
@@ -611,8 +617,8 @@
  },
  "source": {
   "file": "outputs/agent_eval/gate-dev.json",
-  "sha256_16": "dc2bdd83437792cb",
-  "bytes": 1599913,
-  "slimmed_at": "2026-10-01T08:52:16+00:00"
+  "sha256_16": "eafad46001210eec",
+  "bytes": 1601812,
+  "slimmed_at": "2026-10-01T13:57:13+00:00"
  }
 }

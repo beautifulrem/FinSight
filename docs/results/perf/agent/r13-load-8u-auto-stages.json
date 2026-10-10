@@ -1,0 +1,712 @@
+{
+ "trace_dir": "outputs/chaos/r13-llm-load-8u/traces",
+ "runs": 24,
+ "p95_run": {
+  "trace_id": "1677ed116f854d51a861746d8046e63e",
+  "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+  "route": "workflow",
+  "total_ms": 23902.6,
+  "guard_in_ms": 1388.2,
+  "llm_ms": 22158.0,
+  "llm_calls": 2,
+  "tool_stage_ms": 329.7,
+  "verify_ms": 14.7,
+  "llm_node_overhead_ms": 0.3,
+  "share": {
+   "guard_in": 0.058,
+   "llm": 0.927,
+   "tool_stage": 0.014
+  },
+  "tools_ms": {
+   "get_price_history": [
+    0.0
+   ],
+   "compute_indicators": [
+    2.8
+   ],
+   "get_fundamentals": [
+    0.0
+   ],
+   "analyze_sentiment": [
+    105.4
+   ]
+  }
+ },
+ "all_runs_share": {
+  "guard_in": 0.024,
+  "llm": 0.931,
+  "tool_stage": 0.035
+ },
+ "median_ms": {
+  "total_ms": 13876.1,
+  "guard_in_ms": 62.9,
+  "llm_ms": 13242.0,
+  "tool_stage_ms": 39.7
+ },
+ "tool_latency_ms": {
+  "analyze_sentiment": {
+   "n": 9,
+   "median": 18.4,
+   "max": 158.5
+  },
+  "compute_indicators": {
+   "n": 9,
+   "median": 0.5,
+   "max": 6.0
+  },
+  "get_fundamentals": {
+   "n": 36,
+   "median": 0.0,
+   "max": 2607.3
+  },
+  "get_macro_indicators": {
+   "n": 6,
+   "median": 0.2,
+   "max": 8.6
+  },
+  "get_price_history": {
+   "n": 26,
+   "median": 0.0,
+   "max": 138.8
+  },
+  "resolve_entity": {
+   "n": 6,
+   "median": 10.2,
+   "max": 935.3
+  },
+  "search_announcements": {
+   "n": 3,
+   "median": 32.4,
+   "max": 53.5
+  },
+  "search_knowledge": {
+   "n": 6,
+   "median": 165.2,
+   "max": 395.3
+  },
+  "search_news": {
+   "n": 18,
+   "median": 14.4,
+   "max": 497.4
+  }
+ },
+ "per_run": [
+  {
+   "trace_id": "caf2d43696cc4596976b720f631d4e84",
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "route": "agent",
+   "total_ms": 25761.8,
+   "guard_in_ms": 1544.7,
+   "llm_ms": 23732.0,
+   "llm_calls": 6,
+   "tool_stage_ms": 450.2,
+   "verify_ms": 8.9,
+   "llm_node_overhead_ms": 8.8,
+   "tools_ms": {
+    "get_macro_indicators": [
+     0.2,
+     8.6
+    ],
+    "get_fundamentals": [
+     29.2,
+     29.1,
+     1.3,
+     18.2
+    ],
+    "search_news": [
+     26.2,
+     7.0
+    ],
+    "resolve_entity": [
+     1.3,
+     8.1
+    ],
+    "get_price_history": [
+     106.4,
+     0.1
+    ],
+    "search_knowledge": [
+     156.9
+    ]
+   }
+  },
+  {
+   "trace_id": "1677ed116f854d51a861746d8046e63e",
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "route": "workflow",
+   "total_ms": 23902.6,
+   "guard_in_ms": 1388.2,
+   "llm_ms": 22158.0,
+   "llm_calls": 2,
+   "tool_stage_ms": 329.7,
+   "verify_ms": 14.7,
+   "llm_node_overhead_ms": 0.3,
+   "tools_ms": {
+    "get_price_history": [
+     0.0
+    ],
+    "compute_indicators": [
+     2.8
+    ],
+    "get_fundamentals": [
+     0.0
+    ],
+    "analyze_sentiment": [
+     105.4
+    ]
+   }
+  },
+  {
+   "trace_id": "cdb99135f9ed4b22a0e63388caef81a2",
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "route": "agent",
+   "total_ms": 18446.6,
+   "guard_in_ms": 23.3,
+   "llm_ms": 18314.5,
+   "llm_calls": 2,
+   "tool_stage_ms": 17.4,
+   "verify_ms": 70.1,
+   "llm_node_overhead_ms": 7.1,
+   "tools_ms": {
+    "get_price_history": [
+     0.0,
+     0.0
+    ],
+    "get_fundamentals": [
+     0.0,
+     0.0
+    ],
+    "search_news": [
+     0.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "b8c749242a034fa680972659fc87ea3e",
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "route": "agent",
+   "total_ms": 17995.9,
+   "guard_in_ms": 18.5,
+   "llm_ms": 13658.7,
+   "llm_calls": 4,
+   "tool_stage_ms": 4289.4,
+   "verify_ms": 7.3,
+   "llm_node_overhead_ms": 11.4,
+   "tools_ms": {
+    "get_macro_indicators": [
+     0.1
+    ],
+    "get_fundamentals": [
+     17.6,
+     0.0,
+     586.3,
+     2607.3,
+     1047.0
+    ],
+    "search_news": [
+     16.3,
+     50.9
+    ],
+    "resolve_entity": [
+     0.1,
+     51.0,
+     935.3
+    ],
+    "get_price_history": [
+     12.1
+    ],
+    "search_knowledge": [
+     395.3
+    ]
+   }
+  },
+  {
+   "trace_id": "7ee8586513af43069df66d2cb8e82017",
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "route": "workflow",
+   "total_ms": 17431.3,
+   "guard_in_ms": 368.3,
+   "llm_ms": 17034.4,
+   "llm_calls": 2,
+   "tool_stage_ms": 6.5,
+   "verify_ms": 12.4,
+   "llm_node_overhead_ms": 0.3,
+   "tools_ms": {
+    "get_price_history": [
+     0.0
+    ],
+    "compute_indicators": [
+     0.0
+    ],
+    "analyze_sentiment": [
+     0.0
+    ],
+    "search_knowledge": [
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "9cc9f42c01bc461eb204ee2d75604c8c",
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "route": "workflow",
+   "total_ms": 17381.7,
+   "guard_in_ms": 37.2,
+   "llm_ms": 17330.5,
+   "llm_calls": 1,
+   "tool_stage_ms": 3.9,
+   "verify_ms": 3.6,
+   "llm_node_overhead_ms": 0.2,
+   "tools_ms": {
+    "get_price_history": [
+     0.0
+    ],
+    "compute_indicators": [
+     0.1
+    ],
+    "get_fundamentals": [
+     0.0
+    ],
+    "analyze_sentiment": [
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "32debba914a44902826f124eab4e3a4c",
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "route": "agent",
+   "total_ms": 16873.0,
+   "guard_in_ms": 447.0,
+   "llm_ms": 15075.3,
+   "llm_calls": 2,
+   "tool_stage_ms": 1318.0,
+   "verify_ms": 17.2,
+   "llm_node_overhead_ms": 2.9,
+   "tools_ms": {
+    "get_price_history": [
+     105.7,
+     125.1
+    ],
+    "get_fundamentals": [
+     190.4,
+     0.0
+    ],
+    "search_news": [
+     497.4,
+     161.1
+    ]
+   }
+  },
+  {
+   "trace_id": "22733455230849ef875de4a70f04716b",
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "route": "agent",
+   "total_ms": 16652.5,
+   "guard_in_ms": 487.7,
+   "llm_ms": 14820.4,
+   "llm_calls": 3,
+   "tool_stage_ms": 1326.7,
+   "verify_ms": 3.4,
+   "llm_node_overhead_ms": 4.1,
+   "tools_ms": {
+    "get_price_history": [
+     138.8,
+     2.1
+    ],
+    "get_fundamentals": [
+     217.2
+    ],
+    "search_news": [
+     190.2,
+     6.0
+    ],
+    "compute_indicators": [
+     2.1
+    ],
+    "analyze_sentiment": [
+     34.3
+    ],
+    "search_announcements": [
+     31.2
+    ],
+    "get_macro_indicators": [
+     0.2
+    ]
+   }
+  },
+  {
+   "trace_id": "799a6862986649d3af1a4b4d5a504f45",
+   "query": "Compare the valuation of Kweichow Moutai and Wuliangye and explain the gap.",
+   "route": "agent",
+   "total_ms": 16563.8,
+   "guard_in_ms": 396.4,
+   "llm_ms": 12568.9,
+   "llm_calls": 2,
+   "tool_stage_ms": 1298.0,
+   "verify_ms": 21.1,
+   "llm_node_overhead_ms": 2.6,
+   "tools_ms": {
+    "get_price_history": [
+     115.8,
+     125.8
+    ],
+    "get_fundamentals": [
+     130.5,
+     156.5
+    ]
+   }
+  },
+  {
+   "trace_id": "8ba5b6d5640b4a1e9b1bb43445f0a205",
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "route": "workflow",
+   "total_ms": 16562.2,
+   "guard_in_ms": 242.6,
+   "llm_ms": 15021.4,
+   "llm_calls": 2,
+   "tool_stage_ms": 1281.3,
+   "verify_ms": 8.2,
+   "llm_node_overhead_ms": 0.4,
+   "tools_ms": {
+    "get_fundamentals": [
+     92.9
+    ]
+   }
+  },
+  {
+   "trace_id": "85bbadfcc5c44ebeb14a07f90922bf77",
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "route": "agent",
+   "total_ms": 15214.5,
+   "guard_in_ms": 60.0,
+   "llm_ms": 15058.0,
+   "llm_calls": 3,
+   "tool_stage_ms": 70.9,
+   "verify_ms": 7.1,
+   "llm_node_overhead_ms": 4.5,
+   "tools_ms": {
+    "get_price_history": [
+     0.0
+    ],
+    "get_fundamentals": [
+     0.0
+    ],
+    "search_news": [
+     0.0,
+     34.5
+    ],
+    "compute_indicators": [
+     2.1
+    ],
+    "search_announcements": [
+     53.5
+    ],
+    "analyze_sentiment": [
+     60.8
+    ]
+   }
+  },
+  {
+   "trace_id": "90131130e3c246fa84bff318cce3a770",
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "route": "agent",
+   "total_ms": 14166.6,
+   "guard_in_ms": 72.4,
+   "llm_ms": 13959.1,
+   "llm_calls": 3,
+   "tool_stage_ms": 62.0,
+   "verify_ms": 20.6,
+   "llm_node_overhead_ms": 5.5,
+   "tools_ms": {
+    "get_price_history": [
+     0.0,
+     0.2
+    ],
+    "get_fundamentals": [
+     0.0
+    ],
+    "search_news": [
+     0.1,
+     32.3
+    ],
+    "compute_indicators": [
+     0.5
+    ],
+    "search_announcements": [
+     32.4
+    ],
+    "analyze_sentiment": [
+     18.4
+    ]
+   }
+  },
+  {
+   "trace_id": "49e9dc451d854394a879b66c17b543a3",
+   "query": "Compare the valuation of Kweichow Moutai and Wuliangye and explain the gap.",
+   "route": "agent",
+   "total_ms": 13585.6,
+   "guard_in_ms": 27.4,
+   "llm_ms": 13523.9,
+   "llm_calls": 2,
+   "tool_stage_ms": 3.3,
+   "verify_ms": 14.0,
+   "llm_node_overhead_ms": 2.8,
+   "tools_ms": {
+    "get_price_history": [
+     0.0,
+     0.0
+    ],
+    "get_fundamentals": [
+     0.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "34ece08a61b64e0aaaeb6d5a4a3d19e9",
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "route": "agent",
+   "total_ms": 13549.9,
+   "guard_in_ms": 32.4,
+   "llm_ms": 12456.2,
+   "llm_calls": 3,
+   "tool_stage_ms": 685.9,
+   "verify_ms": 7.1,
+   "llm_node_overhead_ms": 355.9,
+   "tools_ms": {
+    "get_macro_indicators": [
+     0.0,
+     0.2
+    ],
+    "resolve_entity": [
+     12.3
+    ],
+    "search_news": [
+     12.6,
+     64.3
+    ],
+    "get_fundamentals": [
+     0.0,
+     20.6,
+     641.1
+    ],
+    "search_knowledge": [
+     289.6
+    ]
+   }
+  },
+  {
+   "trace_id": "9e95a552afef464ea0c1cf4685ee0a5d",
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "route": "agent",
+   "total_ms": 13019.0,
+   "guard_in_ms": 11.7,
+   "llm_ms": 12960.1,
+   "llm_calls": 2,
+   "tool_stage_ms": 14.1,
+   "verify_ms": 16.0,
+   "llm_node_overhead_ms": 2.7,
+   "tools_ms": {
+    "get_price_history": [
+     0.0,
+     0.0
+    ],
+    "get_fundamentals": [
+     0.0,
+     0.0
+    ],
+    "search_news": [
+     0.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "d1d619e1eff343ff8307e2bf7d2b65f7",
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "route": "workflow",
+   "total_ms": 12730.2,
+   "guard_in_ms": 35.3,
+   "llm_ms": 12678.9,
+   "llm_calls": 2,
+   "tool_stage_ms": 0.9,
+   "verify_ms": 7.8,
+   "llm_node_overhead_ms": 0.3,
+   "tools_ms": {
+    "get_fundamentals": [
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "ea4408a98ac047dc84d43f11de19a20e",
+   "query": "Compare the valuation of Kweichow Moutai and Wuliangye and explain the gap.",
+   "route": "agent",
+   "total_ms": 12579.6,
+   "guard_in_ms": 12.0,
+   "llm_ms": 12535.6,
+   "llm_calls": 2,
+   "tool_stage_ms": 3.3,
+   "verify_ms": 13.7,
+   "llm_node_overhead_ms": 2.8,
+   "tools_ms": {
+    "get_price_history": [
+     0.0,
+     0.0
+    ],
+    "get_fundamentals": [
+     0.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "c92714ac5d31498495076acaf6916bc6",
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "route": "workflow",
+   "total_ms": 11084.5,
+   "guard_in_ms": 1273.0,
+   "llm_ms": 9316.9,
+   "llm_calls": 1,
+   "tool_stage_ms": 478.2,
+   "verify_ms": 4.7,
+   "llm_node_overhead_ms": 0.2,
+   "tools_ms": {
+    "get_price_history": [
+     3.4
+    ],
+    "compute_indicators": [
+     6.0
+    ],
+    "analyze_sentiment": [
+     158.5
+    ],
+    "search_knowledge": [
+     173.4
+    ]
+   }
+  },
+  {
+   "trace_id": "3cd825d0652242299dab461e76d3eb13",
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "route": "workflow",
+   "total_ms": 10923.2,
+   "guard_in_ms": 38.4,
+   "llm_ms": 10859.6,
+   "llm_calls": 2,
+   "tool_stage_ms": 2.5,
+   "verify_ms": 12.0,
+   "llm_node_overhead_ms": 0.4,
+   "tools_ms": {
+    "get_fundamentals": [
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "2c817f3cfa164bfd922d3a08137e1ec3",
+   "query": "五粮液最新的营收和净利润增长情况如何？",
+   "route": "workflow",
+   "total_ms": 10473.7,
+   "guard_in_ms": 65.8,
+   "llm_ms": 10375.2,
+   "llm_calls": 2,
+   "tool_stage_ms": 3.7,
+   "verify_ms": 7.8,
+   "llm_node_overhead_ms": 0.5,
+   "tools_ms": {
+    "get_fundamentals": [
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "4a3c308ffd994eb9993edda00368f398",
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "route": "workflow",
+   "total_ms": 9910.5,
+   "guard_in_ms": 365.7,
+   "llm_ms": 9522.6,
+   "llm_calls": 1,
+   "tool_stage_ms": 6.9,
+   "verify_ms": 4.7,
+   "llm_node_overhead_ms": 0.2,
+   "tools_ms": {
+    "get_price_history": [
+     0.0
+    ],
+    "compute_indicators": [
+     0.0
+    ],
+    "analyze_sentiment": [
+     0.0
+    ],
+    "search_knowledge": [
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "007dc5d689e6430885c17934bdecfd23",
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "route": "workflow",
+   "total_ms": 8287.6,
+   "guard_in_ms": 37.3,
+   "llm_ms": 8232.7,
+   "llm_calls": 1,
+   "tool_stage_ms": 3.9,
+   "verify_ms": 4.9,
+   "llm_node_overhead_ms": 0.2,
+   "tools_ms": {
+    "get_price_history": [
+     0.0
+    ],
+    "compute_indicators": [
+     0.1
+    ],
+    "get_fundamentals": [
+     0.0
+    ],
+    "analyze_sentiment": [
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "bd001dc3adef4bb69bc3fdd003160679",
+   "query": "五粮液最新的营收和净利润增长情况如何？",
+   "route": "workflow",
+   "total_ms": 6215.2,
+   "guard_in_ms": 1324.4,
+   "llm_ms": 4624.2,
+   "llm_calls": 1,
+   "tool_stage_ms": 247.9,
+   "verify_ms": 2.6,
+   "llm_node_overhead_ms": 0.2,
+   "tools_ms": {
+    "get_fundamentals": [
+     0.0
+    ]
+   }
+  },
+  {
+   "trace_id": "440f4e93dca94f9ca294a144a5a36d48",
+   "query": "五粮液最新的营收和净利润增长情况如何？",
+   "route": "workflow",
+   "total_ms": 4516.2,
+   "guard_in_ms": 57.0,
+   "llm_ms": 4451.9,
+   "llm_calls": 1,
+   "tool_stage_ms": 0.9,
+   "verify_ms": 1.8,
+   "llm_node_overhead_ms": 0.1,
+   "tools_ms": {
+    "get_fundamentals": [
+     0.0
+    ]
+   }
+  }
+ ]
+}

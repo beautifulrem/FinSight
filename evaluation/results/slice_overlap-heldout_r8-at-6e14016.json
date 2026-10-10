@@ -1,0 +1,509 @@
+{
+ "kind": "slice_overlap",
+ "config": {
+  "slice": "evaluation/heldout_r8",
+  "commit": "6e14016",
+  "own_texts_tree": "6e14016 (the commit of the after-fix run; tests/, evaluation/agent_eval/tasks/, evaluation/claim_bench/ via git archive)",
+  "baseline_tree": "40e8685 (the commit of the reviewer's pre-fix run)",
+  "measured_with": "evaluation/agent_eval/slice_overlap.py at d42b181",
+  "model": null,
+  "run_at": "2026-10-01T13:45:45+00:00",
+  "command": "python -c 'slice_overlap.overlap_report(\"evaluation/heldout_r8\", root=<git archive of 6e14016 / 40e8685>)'"
+ },
+ "at_after_fix_commit": {
+  "slice_texts": 120,
+  "slice_tasks": 76,
+  "own_texts": 25507,
+  "exact": 19,
+  "near": 14,
+  "tasks_with_overlap": [
+   "r8c11",
+   "r8h_cmp_zh_04",
+   "r8h_ctrl_en_02",
+   "r8h_ctrl_zh_02",
+   "r8h_ctrl_zh_04",
+   "r8h_gap_en_01",
+   "r8h_gap_en_02",
+   "r8h_gap_en_03",
+   "r8h_gap_en_04",
+   "r8h_gap_en_05",
+   "r8h_gap_zh_01",
+   "r8h_gap_zh_02",
+   "r8h_gap_zh_03",
+   "r8h_gap_zh_05",
+   "r8h_gap_zh_06",
+   "r8h_gap_zh_07",
+   "r8h_gap_zh_08",
+   "r8h_gap_zh_09",
+   "r8h_hk_en_01",
+   "r8h_hk_en_02",
+   "r8h_hk_zh_03",
+   "r8h_hold_zh_01",
+   "r8h_hold_zh_03",
+   "r8h_hold_zh_04",
+   "r8h_metric_en_01",
+   "r8h_metric_en_02",
+   "r8h_metric_zh_01"
+  ],
+  "hits": [
+   {
+    "task": "r8h_gap_zh_01",
+    "kind": "near",
+    "chars": 10,
+    "own": [
+     "dev:r12_h1_more_traded_zh"
+    ]
+   },
+   {
+    "task": "r8h_gap_zh_02",
+    "kind": "exact",
+    "chars": 9,
+    "own": [
+     "dev:r11_frame_one_message_zh",
+     "tests/test_agent_round12_llm.py:304"
+    ]
+   },
+   {
+    "task": "r8h_gap_zh_02",
+    "kind": "exact",
+    "chars": 4,
+    "own": [
+     "tests/test_agent_round11.py:330",
+     "tests/test_agent_round12_llm.py:343"
+    ]
+   },
+   {
+    "task": "r8h_gap_zh_03",
+    "kind": "exact",
+    "chars": 6,
+    "own": [
+     "tests/test_agent_round12_frame.py:123"
+    ]
+   },
+   {
+    "task": "r8h_gap_zh_05",
+    "kind": "near",
+    "chars": 10,
+    "own": [
+     "tests/test_agent_round3b.py:92"
+    ]
+   },
+   {
+    "task": "r8h_gap_zh_06",
+    "kind": "exact",
+    "chars": 7,
+    "own": [
+     "tests/test_agent_round12_frame.py:275"
+    ]
+   },
+   {
+    "task": "r8h_gap_zh_07",
+    "kind": "exact",
+    "chars": 4,
+    "own": [
+     "tests/test_agent_eval.py:959",
+     "tests/test_agent_round11.py:282",
+     "tests/test_agent_round12_llm.py:304",
+     "tests/test_agent_round3b.py:157"
+    ]
+   },
+   {
+    "task": "r8h_gap_zh_08",
+    "kind": "exact",
+    "chars": 4,
+    "own": [
+     "tests/test_agent_eval.py:959",
+     "tests/test_agent_round11.py:282",
+     "tests/test_agent_round12_llm.py:304",
+     "tests/test_agent_round3b.py:157"
+    ]
+   },
+   {
+    "task": "r8h_gap_zh_09",
+    "kind": "near",
+    "chars": 10,
+    "own": [
+     "dev:r11_frame_operand_missing_zh"
+    ]
+   },
+   {
+    "task": "r8h_gap_en_01",
+    "kind": "near",
+    "chars": 13,
+    "own": [
+     "dev:r11_frame_revenue_ratio_former_en"
+    ]
+   },
+   {
+    "task": "r8h_gap_en_02",
+    "kind": "exact",
+    "chars": 10,
+    "own": [
+     "dev:r11_frame_latter_multiple_en",
+     "tests/test_agent_round11.py:260"
+    ]
+   },
+   {
+    "task": "r8h_gap_en_03",
+    "kind": "near",
+    "chars": 10,
+    "own": [
+     "tests/test_agent_compliance.py:122"
+    ]
+   },
+   {
+    "task": "r8h_gap_en_04",
+    "kind": "near",
+    "chars": 15,
+    "own": [
+     "tests/test_agent_round12_frame.py:113"
+    ]
+   },
+   {
+    "task": "r8h_gap_en_04",
+    "kind": "exact",
+    "chars": 27,
+    "own": [
+     "dev:r12_traded_more_by_how_much_en"
+    ]
+   },
+   {
+    "task": "r8h_gap_en_05",
+    "kind": "exact",
+    "chars": 12,
+    "own": [
+     "tests/test_agent_round12_frame.py:329",
+     "tests/test_agent_round12_llm.py:101"
+    ]
+   },
+   {
+    "task": "r8h_gap_en_05",
+    "kind": "near",
+    "chars": 19,
+    "own": [
+     "dev:r12_h11_longer_question_en"
+    ]
+   },
+   {
+    "task": "r8h_cmp_zh_04",
+    "kind": "near",
+    "chars": 18,
+    "own": [
+     "tests/test_agent_round12_frame.py:318"
+    ]
+   },
+   {
+    "task": "r8h_hold_zh_01",
+    "kind": "near",
+    "chars": 10,
+    "own": [
+     "dev:fact_price_zh_1_0"
+    ]
+   },
+   {
+    "task": "r8h_hold_zh_03",
+    "kind": "near",
+    "chars": 20,
+    "own": [
+     "tests/test_agent_round12_frame.py:205"
+    ]
+   },
+   {
+    "task": "r8h_hold_zh_04",
+    "kind": "exact",
+    "chars": 5,
+    "own": [
+     "tests/test_agent_compliance.py:258"
+    ]
+   },
+   {
+    "task": "r8h_metric_en_01",
+    "kind": "exact",
+    "chars": 8,
+    "own": [
+     "dev:r12_h11_longer_question_en"
+    ]
+   },
+   {
+    "task": "r8h_metric_en_01",
+    "kind": "exact",
+    "chars": 9,
+    "own": [
+     "tests/test_agent_compliance.py:122",
+     "tests/test_agent_hearsay.py:115",
+     "tests/test_agent_round12_frame.py:424"
+    ]
+   },
+   {
+    "task": "r8h_metric_en_02",
+    "kind": "exact",
+    "chars": 6,
+    "own": [
+     "tests/agent_fakes.py:59",
+     "tests/test_agent_memory_service.py:161",
+     "tests/test_agent_round12_llm.py:23",
+     "tests/test_agent_round12_llm.py:44",
+     "tests/test_agent_round5.py:82"
+    ]
+   },
+   {
+    "task": "r8h_metric_en_02",
+    "kind": "exact",
+    "chars": 10,
+    "own": [
+     "tests/test_agent_claim_check.py:846",
+     "tests/test_agent_claim_check.py:862",
+     "tests/test_agent_claim_check.py:884",
+     "tests/test_agent_claim_check.py:914",
+     "tests/test_agent_round11.py:65"
+    ]
+   },
+   {
+    "task": "r8h_metric_zh_01",
+    "kind": "exact",
+    "chars": 11,
+    "own": [
+     "router:route_386",
+     "tests/test_agent_round12_frame.py:399"
+    ]
+   },
+   {
+    "task": "r8h_hk_zh_03",
+    "kind": "exact",
+    "chars": 10,
+    "own": [
+     "tests/test_agent_round12_frame.py:255"
+    ]
+   },
+   {
+    "task": "r8h_hk_en_01",
+    "kind": "exact",
+    "chars": 46,
+    "own": [
+     "tests/test_agent_round12_frame.py:384"
+    ]
+   },
+   {
+    "task": "r8h_hk_en_02",
+    "kind": "near",
+    "chars": 14,
+    "own": [
+     "tests/test_agent_eval.py:967"
+    ]
+   },
+   {
+    "task": "r8h_ctrl_zh_02",
+    "kind": "exact",
+    "chars": 4,
+    "own": [
+     "tests/test_agent_round11.py:330",
+     "tests/test_agent_round12_llm.py:343"
+    ]
+   },
+   {
+    "task": "r8h_ctrl_zh_04",
+    "kind": "near",
+    "chars": 10,
+    "own": [
+     "tests/test_agent_round3b.py:152"
+    ]
+   },
+   {
+    "task": "r8h_ctrl_en_02",
+    "kind": "near",
+    "chars": 13,
+    "own": [
+     "dev:r11_frame_revenue_ratio_former_en"
+    ]
+   },
+   {
+    "task": "r8h_ctrl_en_02",
+    "kind": "exact",
+    "chars": 11,
+    "own": [
+     "dev:r10_gap_metric_two_turns_back_en",
+     "tests/test_agent_round10.py:154"
+    ]
+   },
+   {
+    "task": "r8c11",
+    "kind": "near",
+    "chars": 13,
+    "own": [
+     "tests/test_agent_claim_check.py:855"
+    ]
+   }
+  ],
+  "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = dev task turns, router labels, dev claims, string literals in tests/*.py"
+ },
+ "at_prefix_commit": {
+  "own_texts": 23812,
+  "exact": 11,
+  "near": 10,
+  "tasks_with_overlap": [
+   "r8c11",
+   "r8h_ctrl_en_02",
+   "r8h_ctrl_zh_02",
+   "r8h_ctrl_zh_04",
+   "r8h_gap_en_01",
+   "r8h_gap_en_02",
+   "r8h_gap_en_03",
+   "r8h_gap_en_05",
+   "r8h_gap_zh_02",
+   "r8h_gap_zh_05",
+   "r8h_gap_zh_07",
+   "r8h_gap_zh_08",
+   "r8h_gap_zh_09",
+   "r8h_hk_en_02",
+   "r8h_hold_zh_01",
+   "r8h_hold_zh_04",
+   "r8h_metric_en_01",
+   "r8h_metric_en_02"
+  ]
+ },
+ "new_since_prefix": [
+  {
+   "task": "r8h_gap_zh_01",
+   "kind": "near",
+   "chars": 10,
+   "own": [
+    "dev:r12_h1_more_traded_zh"
+   ]
+  },
+  {
+   "task": "r8h_gap_zh_03",
+   "kind": "exact",
+   "chars": 6,
+   "own": [
+    "tests/test_agent_round12_frame.py:123"
+   ]
+  },
+  {
+   "task": "r8h_gap_zh_06",
+   "kind": "exact",
+   "chars": 7,
+   "own": [
+    "tests/test_agent_round12_frame.py:275"
+   ]
+  },
+  {
+   "task": "r8h_gap_en_04",
+   "kind": "near",
+   "chars": 15,
+   "own": [
+    "tests/test_agent_round12_frame.py:113"
+   ]
+  },
+  {
+   "task": "r8h_gap_en_04",
+   "kind": "exact",
+   "chars": 27,
+   "own": [
+    "dev:r12_traded_more_by_how_much_en"
+   ]
+  },
+  {
+   "task": "r8h_gap_en_05",
+   "kind": "exact",
+   "chars": 12,
+   "own": [
+    "tests/test_agent_round12_frame.py:329",
+    "tests/test_agent_round12_llm.py:101"
+   ]
+  },
+  {
+   "task": "r8h_cmp_zh_04",
+   "kind": "near",
+   "chars": 18,
+   "own": [
+    "tests/test_agent_round12_frame.py:318"
+   ]
+  },
+  {
+   "task": "r8h_hold_zh_03",
+   "kind": "near",
+   "chars": 20,
+   "own": [
+    "tests/test_agent_round12_frame.py:205"
+   ]
+  },
+  {
+   "task": "r8h_metric_zh_01",
+   "kind": "exact",
+   "chars": 11,
+   "own": [
+    "router:route_386",
+    "tests/test_agent_round12_frame.py:399"
+   ]
+  },
+  {
+   "task": "r8h_hk_zh_03",
+   "kind": "exact",
+   "chars": 10,
+   "own": [
+    "tests/test_agent_round12_frame.py:255"
+   ]
+  },
+  {
+   "task": "r8h_hk_en_01",
+   "kind": "exact",
+   "chars": 46,
+   "own": [
+    "tests/test_agent_round12_frame.py:384"
+   ]
+  }
+ ],
+ "named_by_round9_review": [
+  "r8h_gap_en_04",
+  "r8h_hk_zh_03",
+  "r8h_hold_zh_03"
+ ],
+ "task_success_without": {
+  "three_named": {
+   "excluded": [
+    "r8h_gap_en_04",
+    "r8h_hk_zh_03",
+    "r8h_hold_zh_03"
+   ],
+   "tasks": 48,
+   "prefix": "13/48",
+   "after_fix": "32/48",
+   "prefix_rate": 0.2708,
+   "after_fix_rate": 0.6667
+  },
+  "three_named_plus_r8h_hk_en_01": {
+   "excluded": [
+    "r8h_gap_en_04",
+    "r8h_hk_en_01",
+    "r8h_hk_zh_03",
+    "r8h_hold_zh_03"
+   ],
+   "tasks": 47,
+   "prefix": "13/47",
+   "after_fix": "31/47",
+   "prefix_rate": 0.2766,
+   "after_fix_rate": 0.6596
+  },
+  "six_of_the_round9_review": {
+   "excluded": [
+    "r8h_cmp_zh_04",
+    "r8h_gap_en_04",
+    "r8h_hk_zh_03",
+    "r8h_hold_zh_03",
+    "r8h_metric_en_01",
+    "r8h_metric_zh_01"
+   ],
+   "tasks": 45,
+   "prefix": "13/45",
+   "after_fix": "30/45",
+   "prefix_rate": 0.2889,
+   "after_fix_rate": 0.6667
+  }
+ },
+ "notes": [
+  "Round-9 review I12. Three unpublished slice turns coincide with round-12 wording: r8h_hk_zh_03 turn 3 = tests/test_agent_round12_frame.py:255 (exact), r8h_gap_en_04 turn 3 = dev task r12_traded_more_by_how_much_en turn 3 (exact up to case), r8h_hold_zh_03 ~ tests/test_agent_round12_frame.py:205 (near).",
+  "Origin, from the local agent session logs (not in the repository): the round-12 engineer wrote the test strings at 12:47 +0800 and the dev task at 13:08 +0800 on 2026-10-01, working from the round-7 slice classes it was given (中国平安 then '那它在香港上市的股票呢', 证券ETF turnover, ETF holdings in 份, English 'trading value'); the round-8 reviewer wrote all three slice phrasings in one file write at 13:15 +0800 (the slice files did not exist before 13:12). The reviewer made no tool call in the engineer's worktree and the engineer's strings were uncommitted until 13:23/13:26 (2353778, 955b1b0); no round-12 engineer session made a tool call on finsight-review/heldout_r8. So the overlap is a coincidence of shared seeds, not exposure; the slice-side check now reports it at run time.",
+  "r8h_hk_en_01 ('What's the Hong Kong share price of China Merchants Bank?') is word for word a repro published in the round-8 review (H5), which the engineers used as a regression row; it is listed here but is not one of the three unpublished overlaps.",
+  "Short generic turns (e.g. 证券ETF呢, Wuliangye's P/E?) and the review's published repros (PB差了多少倍) also show up as exact matches; the counts are reported, not judged."
+ ]
+}

@@ -59,6 +59,7 @@ from .runner import (
     map_tasks,
     run_agent_tasks,
     run_pure_llm_tasks,
+    sample_tasks,
     summarize,
 )
 
@@ -211,6 +212,13 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         help="Override an AgentConfig field for the LLM modes (repeatable), e.g. --agent-config max_revisions=0.",
     )
     parser.add_argument("--limit", type=int, default=0, help="Only the first N tasks of each set (smoke runs).")
+    parser.add_argument(
+        "--sample",
+        type=int,
+        default=0,
+        help="A random subset of N tasks per set (seeded with --sample-seed; the task ids are recorded in the config).",
+    )
+    parser.add_argument("--sample-seed", type=int, default=20261001)
     args = parser.parse_args(argv)
     agent_config = agent_config_from_overrides(args.agent_config)
     online_modes = [mode.strip() for mode in args.modes.split(",") if mode.strip()]
@@ -227,6 +235,11 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     sets = {name: (load_tasks(TASK_SETS[name][0]), TASK_SETS[name][1]) for name in requested}
     if args.limit:
         sets = {name: (tasks[: args.limit], snapshot) for name, (tasks, snapshot) in sets.items()}
+    samples: dict[str, dict[str, Any]] = {}
+    if args.sample:
+        for name, (tasks, snapshot) in list(sets.items()):
+            subset, samples[name] = sample_tasks(tasks, args.sample, args.sample_seed)
+            sets[name] = (subset, snapshot)
     http: dict[str, dict[str, Any]] = {}
     results: dict[str, dict[str, Any]] = {}
     for set_name, (tasks, snapshot) in sets.items():
@@ -281,6 +294,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             "agent_config": asdict(agent_config),
             "agent_config_overrides": args.agent_config,
             "limit": args.limit or None,
+            **({"sample": samples} if samples else {}),
             **command_fields("evaluation.agent_eval.ablation", argv),
         },
         "results": {

@@ -347,6 +347,8 @@ def main(argv: list[str] | None = None) -> None:
                     f"{source} was recorded from a dirty working tree ({', '.join(dirty)}): commit the changes and "
                     "rerun from a clean tree, or pass --allow-dirty with a --note saying what was uncommitted"
                 )
+            if not any(note for note in args.note):
+                raise SystemExit("--allow-dirty needs a --note saying what was uncommitted")
             notes.append(
                 f"Recorded from a dirty working tree ({', '.join(dirty)}): not reproducible from a commit; "
                 "slimmed with --allow-dirty."
