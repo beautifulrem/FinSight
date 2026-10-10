@@ -1,5 +1,4 @@
 {
- "kind": "verifier_stress",
  "config": {
   "tasks": "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
   "seed": 7,
@@ -9,16 +8,16 @@
    0.2
   ],
   "model": null,
-  "commit": "7697bec",
-  "run_at": "2026-10-10T16:57:49+00:00",
-  "command": "python -m evaluation.agent_eval.verifier_stress ",
+  "commit": "aef319a",
+  "run_at": "2026-10-10T18:00:45+00:00",
+  "command": "python -m evaluation.agent_eval.verifier_stress --out evaluation/results/verifier_stress-round14.json",
   "env": {},
-  "command_with_env": "python -m evaluation.agent_eval.verifier_stress"
+  "command_with_env": "python -m evaluation.agent_eval.verifier_stress --out evaluation/results/verifier_stress-round14.json"
  },
- "gold_answers": 317,
+ "gold_answers": 324,
  "gold_set": {
-  "count": 317,
-  "sha256": "67d285139d3864e805b614dfa207001e1493ac8676cbcae9a9760096161f005c",
+  "count": 324,
+  "sha256": "569cccbf26a63dcf0e9b4cd5b65bc753decbf90490d08aa666cc259f0e520854",
   "tasks": [
    "fact_price_zh_0_0",
    "fact_price_zh_0_1",
@@ -336,7 +335,14 @@
    "r14_past_dated_close_zh",
    "r14_past_dated_close_en",
    "r14_past_year_profit_zh",
-   "r14_a_line_zh"
+   "r14_a_line_zh",
+   "r14_share_total_ordinal_zh",
+   "r14_sum_gongji_zh",
+   "r14_cost_basis_carried_zh",
+   "r14_carried_plus_named_zh",
+   "r14_dedt_missing_zh",
+   "r14_operating_profit_missing_en",
+   "r14_unresolved_operand_en"
   ]
  },
  "true_accept": {
@@ -345,41 +351,41 @@
   "claim": 1.0,
   "claim_derived": 1.0
  },
- "variants": 5330,
+ "variants": 5452,
  "false_accept": {
-  "legacy": 0.3182,
-  "run": 0.2355,
-  "claim": 0.0096,
-  "claim_derived": 0.0109
+  "legacy": 0.3179,
+  "run": 0.2357,
+  "claim": 0.0095,
+  "claim_derived": 0.0108
  },
  "by_kind": {
   "perturb_1pct": {
-   "variants": 1309,
-   "false_accept_legacy": 0.2552,
-   "false_accept_run": 0.0145,
-   "false_accept_claim": 0.0145,
-   "false_accept_claim_derived": 0.0145
+   "variants": 1338,
+   "false_accept_legacy": 0.2541,
+   "false_accept_run": 0.0149,
+   "false_accept_claim": 0.0149,
+   "false_accept_claim_derived": 0.0149
   },
   "perturb_20pct": {
-   "variants": 1438,
-   "false_accept_legacy": 0.0834,
-   "false_accept_run": 0.0271,
-   "false_accept_claim": 0.0139,
-   "false_accept_claim_derived": 0.0139
+   "variants": 1470,
+   "false_accept_legacy": 0.0823,
+   "false_accept_run": 0.0265,
+   "false_accept_claim": 0.0136,
+   "false_accept_claim_derived": 0.0136
   },
   "perturb_5pct": {
-   "variants": 1412,
-   "false_accept_legacy": 0.0503,
-   "false_accept_run": 0.0184,
-   "false_accept_claim": 0.0085,
-   "false_accept_claim_derived": 0.0085
+   "variants": 1444,
+   "false_accept_legacy": 0.0499,
+   "false_accept_run": 0.018,
+   "false_accept_claim": 0.0083,
+   "false_accept_claim_derived": 0.0083
   },
   "swap": {
-   "variants": 1171,
+   "variants": 1200,
    "false_accept_legacy": 1.0,
    "false_accept_run": 1.0,
    "false_accept_claim": 0.0,
-   "false_accept_claim_derived": 0.006
+   "false_accept_claim_derived": 0.0058
   }
  },
  "examples_caught_only_by_claim_binding": [
@@ -388,7 +394,7 @@
    "kind": "perturb_1pct",
    "original": "1409.5",
    "replacement": "1423.6",
-   "answer": "Based on the evidence retrieved for this question: Kweichow Moutai (600519.SH) last available close was CNY 1423.6 on 2026-04-22, daily change -0.1778% [price_600519.SH]."
+   "answer": "Based on the evidence retrieved for this question: Kweichow Moutai (600519.SH) last available close was CNY 1423.6 on 2026-04-22, daily change -0.18% [price_600519.SH]."
   },
   {
    "task": "fact_price_zh_2_0",
@@ -441,19 +447,13 @@
   }
  ],
  "repair": {
-  "repaired_answers": 5279,
+  "repaired_answers": 5400,
   "readable": 1.0,
   "passes_verification": 1.0,
-  "template_fallback": 0.1945,
+  "template_fallback": 0.1957,
   "with_fragment": 0.0,
-  "retained_sentences": 0.9794,
+  "retained_sentences": 0.9798,
   "answers_with_issue": {},
   "unreadable_examples": []
- },
- "source": {
-  "file": "outputs/agent_eval/verifier_stress.json",
-  "sha256_16": "d68132f612a97b1d",
-  "bytes": 13130,
-  "slimmed_at": "2026-10-10T16:58:54+00:00"
  }
 }
