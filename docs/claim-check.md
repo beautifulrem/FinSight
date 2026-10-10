@@ -447,6 +447,26 @@ review's held-out round-9 slice (`heldout_r9`) was not opened.
 The chat's output-safety layer splits clauses on the same contrast words since round 13 (I19): 但 / 但是 / 却 / 不过 /
 but / however / yet (not 不但), so a single-source figure after "但" is marked in its own clause.
 
+### Round 13 on the r13-frame branch: the round-8 slice's claim classes (after exposure)
+
+In parallel, the r13-frame branch read the five round-8 slice claims the checker still got wrong after round 12
+(两倍多一点, 三个多百分点, "26% below the insurance average", "less than half of Moutai's net profit", 是保险行业的四倍多)
+and wrote rules for their classes with 12 own dev claims (d300–d311, `note: round13`) and tests in
+`tests/test_agent_round13.py` (`476d377`). Both branches changed the same forms, so `claim_check.py` was merged by hand
+(`66fa560`). What the merged code does with the r13-frame forms:
+
+| Form | Example (own wording) | Reading in the merged code |
+| --- | --- | --- |
+| A little over | "茅台净利润是五粮液的两倍多一点", "平安营收是茅台的七倍多一点", "多一些" | the "a little" rule above drops 一点 / 一些 before the numerals are read, so 两倍多一点 is read as 两倍多: over 2 and under 3 (`claimed` 2, `claimed_high` 3). Only "多些" / "多点" (without 一) keep the r13-frame band of at most 0.3 of a step (2–2.3×). On the r13-frame branch 两倍多一点 was 2–2.3×; d300 (2.18) and d301 (7.21, supported) and d302 (0.09, contradicted) get the same verdicts either way, but a true ratio of 2.5 called "两倍多一点" is now supported |
+| Points with 多 | "茅台和平安的ROE相差十七个多百分点" | 17 < difference < 18 (the numeral before 个 is read, as in "Numerals before 个百分点" above) |
+| Multiple of another sector | "白酒行业平均市盈率是保险行业的两倍多" | the sector name before 行业 is the compared side (27.3 / 11.8 = 2.31×) |
+| A sector's average | "Wuliangye's P/E sits roughly 23% below the baijiu average" | "<sector> average" is that sector's average, a relative difference (−23.44%) |
+| English shares | "Wuliangye makes less than half of Ping An's revenue", "Ping An's P/B is under a third of Wuliangye's" | half / a third / a quarter of X's is a multiple of X (0.09 < 0.5; 0.20 < 0.333) |
+
+These rules were written after reading the round-8 slice's errors, so its 20/25 → 25/25
+(`claims_heldout_r8-after-exposure-round13.json`, `b1099d8`) is **after exposure**: the classes are covered, not
+shown to generalise.
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
@@ -609,6 +629,17 @@ python -m evaluation.claim_bench.run --set holdout
 | independent round-4 slice, after exposure, at the round-12 commit | `bd84003` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
 | independent round-5 slice, after exposure, at the round-12 commit | `bd84003` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
 | independent round-6 slice, **after exposure (round 12)** | `bd84003` | 67 / 104 | 0.985 [0.955, 1.000] | 0.904 [0.835, 0.969] | 0.382 |
+| dev with the 12 round-13 rows (d300–d311), at the merged round-13 code | `f07be9b` | 311 / 359 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the merged round-13 code | `6dd4650` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-4 slice, after exposure, at the merged round-13 code | `8f7c2c8` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
+| independent round-5 slice, after exposure, at the merged round-13 code | `f84ca52` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
+| independent round-6 slice, **after exposure**, at the merged round-13 code | `13ece57` | 67 / 104 | 0.985 [0.955, 1.000] | 0.904 [0.835, 0.969] | 0.382 |
+| independent round-8 claim slice, **after exposure (round 13)** (`score_claims_r8.py`, verdicts only) | `b1099d8` | 25 / – | 1.000 [1.00, 1.00] | – | – |
+| **independent round-9 claim slice, first run** (`score_claims_r9.py`, verdicts only) | `cbcf3b2` | 25 / – | **0.600 [0.40, 0.80]** | – | – |
+| **independent round-9 claim slice, after the round-13 fixes** (not opened; 5 claims overlap own wording) | `da9f6af` | 25 / – | **1.000 [1.00, 1.00]** | – | – |
+
+The commit column is the commit each run started from (`config.commit`). The merged-code runs were committed one after
+another, so each starts from the previous result commit; the code is the same in all of them.
 
 The result files are `evaluation/results/claim_bench-dev-baseline.json`, `claim_bench-dev.json`,
 `claim_bench-holdout.json` (the single first run), `claim_bench-holdout-after-round8.json` (the same file after
@@ -635,17 +666,25 @@ check accuracy 0.717 → 0.904. It is **after exposure**: the slice and the revi
 and several round-12 forms (English differences, 一成半, 一千四百出头, 一万二千多亿, the bracketed average) are its
 classes. The round-8 reviewer's claim slice (`heldout_r8`, not opened) is the out-of-sample measure of these rules.
 
-Round 13 (I8) re-ran every claim set at `39ba98e`: `claim_bench-dev.json` (1.000, 299 claims),
-`claim_bench-holdout-after-round13.json` (1.000), `claim_bench-heldout_r4-after-round13.json` (1.000; checks 0.920),
-`claim_bench-heldout_r5-after-round13.json` (1.000; checks 0.988) and `claim_bench-heldout_r6-after-exposure-round13.json`
-(0.985, 66 of 67, r6c10 still wrong): every number equals its round-12 value, so the new rules changed no status on these
-sets. The round-8 reviewer's claim slice moved 0.800 → **1.000** (25 of 25,
-`claims_heldout_r8-after-exposure-round13-claims.json`). That run is **after exposure**: the committed round-12 result
+Round 13 (I8) re-ran every claim set at `39ba98e` on the r13-claims branch: dev 1.000 on 299 claims, held-out 1.000,
+round-4 1.000 (checks 0.920), round-5 1.000 (checks 0.988) and round-6 0.985 (66 of 67, r6c10 still wrong): every
+number equals its round-12 value, so the new rules changed no status on these sets. After the six round-13 branches
+were merged, every set was re-run at the merged code; `claim_bench-dev.json` (311 claims with the r13-frame rows),
+`claim_bench-holdout-after-round13.json`, `claim_bench-heldout_r4-after-round13.json`,
+`claim_bench-heldout_r5-after-round13.json` and `claim_bench-heldout_r6-after-exposure-round13.json` now hold those runs,
+with the same values (table above). The round-8 reviewer's claim slice moved 0.800 → **1.000** (25 of 25,
+`claims_heldout_r8-after-exposure-round13-claims.json` at `39ba98e`, and `claims_heldout_r8-after-exposure-round13.json`
+with every round-13 fix at `b1099d8`). That run is **after exposure**: the committed round-12 result
 (`claims_heldout_r8-after-fix.json`) lists its five remaining errors (两倍多一点, 三个多百分点, "26% below the insurance
 average", "less than half of Moutai's net profit", 是保险行业的四倍多), and the round-13 engineers read them; the rules
 were tested with other wordings, but the 1.000 is not an out-of-sample estimate. The out-of-sample measure of the
-round-13 rules is the round-9 reviewer's slice (`heldout_r9`, 25 claims, not opened; first run at `cbcf3b2` by the
-reviewer: 0.600).
+round-13 rules is the round-9 reviewer's slice (`evaluation/heldout_r9/`, 25 claims, not opened by the engineers): 0.600
+[0.40, 0.80] on its first run at `cbcf3b2` (by the reviewer; `claims_heldout_r9-prefix.json`, errors in X倍半, fractions
+of another value, loose fractions, superlatives, point differences, "times more" and one 52-week reference) and
+**1.000** (25/25) after the round-13 fixes at `da9f6af` (`claims_heldout_r9-after-fix.json`). Five of its claims (r9c01,
+r9c08, r9c12–r9c14) are near copies of own test wording or of the review's published repros
+(`slice_overlap-heldout_r9-at-da9f6af.json`); all five failed on the first run, and without them the slice goes 15/20
+→ 20/20. From round 14 this slice is after exposure.
 
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \
