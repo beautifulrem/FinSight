@@ -1,0 +1,172 @@
+{
+ "base_snapshot": {
+  "file": "data/structured_data.json",
+  "sha256": "762e977aad2dfebbf78547c9e7ecc31cd8bd458c3f7549963932bac069431947"
+ },
+ "build_command": "python -m scripts.build_snapshot_corrections build",
+ "definitions": [
+  "000001.SZ",
+  "000333.SZ",
+  "002594.SZ",
+  "300750.SZ",
+  "600030.SH",
+  "600036.SH",
+  "600900.SH",
+  "601398.SH",
+  "601899.SH",
+  "688981.SH"
+ ],
+ "documents": [
+  {"published": "2026-03-21", "sha256": "2273565ecbe1b32536631fd4a019a4f4a990f4c793cfd5b70eae90d44d3ff16c", "symbol": "000001.SZ", "title": "平安银行2025年年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-03-21/1225022887.PDF"},
+  {"published": "2026-03-31", "sha256": "16f95f70527db59dcf2736f276a9479cf7ee917e5f71e4f6cbbe83acbad9f4b6", "symbol": "000333.SZ", "title": "美的集团2025年年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-03-31/1225065145.PDF"},
+  {"published": "2026-04-30", "sha256": "09133e1f44b3bb4b2cebe211529ad68f5b04b6be10b43870f2a78c947d5910a4", "symbol": "000858.SZ", "title": "宜宾五粮液股份有限公司2025年年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-04-30/1225273091.PDF"},
+  {"published": "2026-03-28", "sha256": "710d8b2e08e37ba521f1c4071d2c3e2369d3cadabc21a45073215d9f72138b0b", "symbol": "002594.SZ", "title": "比亚迪2025年年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-03-28/1225045351.PDF"},
+  {"published": "2026-03-10", "sha256": "c15272977147dee7e6935a38ea0e4fd6855370aabb106f54cfe20f7cf6048ec9", "symbol": "300750.SZ", "title": "宁德时代2025年年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-03-10/1225002214.PDF"},
+  {"published": "2026-03-27", "sha256": "438f2a53dcf4bf0569b6783b51674aae25076d23d53198b08cf7b539e14003c2", "symbol": "600030.SH", "title": "中信证券股份有限公司2025年年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225036081.PDF"},
+  {"published": "2026-03-28", "sha256": "0bdb1515fd12b5ae3d35e981452521c8d6b27bc19836186e298f62b3730bde65", "symbol": "600036.SH", "title": "招商银行股份有限公司2025年度报告摘要", "url": "http://static.cninfo.com.cn/finalpage/2026-03-28/1225047778.PDF"},
+  {"published": "2026-04-17", "sha256": "474905deeaf0f875fc0a1b097a626c0c7852c427faadc5d7fc7816cbf45ea288", "symbol": "600519.SH", "title": "贵州茅台2025年年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-04-17/1225114741.PDF"},
+  {"published": "2026-04-30", "sha256": "aa0cdb92e3aad81b1e6454594a64cacbcfeb9013b10dd31f47a93a94e7a70f91", "symbol": "600900.SH", "title": "长江电力2025年年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-04-30/1225262036.PDF"},
+  {"published": "2026-03-27", "sha256": "860c455bbad9be59d3d1bf64bf683733feb79157212532df44b91d49a0b03c2a", "symbol": "601318.SH", "title": "中国平安2025年年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038263.PDF"},
+  {"published": "2026-03-28", "sha256": "e2edab73032f143aad881f612382bc613c8b96b424bb197b125d64a0ef23c78b", "symbol": "601398.SH", "title": "工商银行2025年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-03-28/1225047240.PDF"},
+  {"published": "2026-03-21", "sha256": "01819e1c7daad939d1779a8aa729f50f02151192e609cb28c2c405634a8f343d", "symbol": "601899.SH", "title": "紫金矿业集团股份有限公司2025年年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-03-21/1225550242.PDF"},
+  {"published": "2026-03-27", "sha256": "c022cf9323967f66a239ce4f60b30507bc341db6e660a53db9c2966a9ef35531", "symbol": "688981.SH", "title": "中芯国际2025年年度报告", "url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225037057.PDF"}
+ ],
+ "extension": {
+  "file": "data/snapshot/structured_data_ext.json",
+  "sha256": "538d2bbe49646dc28c23987a564658b9412c7aaa5c9147114e1e4742e0da0e5a"
+ },
+ "fetch_command": "python -m scripts.build_snapshot_corrections fetch",
+ "output": {
+  "file": "data/snapshot/structured_data_fix.json",
+  "sha256": "a76f2804c0c8072fdb6e414d584fb0f578c4f623ecaa2c030a4546f0853082fd"
+ },
+ "prices": [
+  {
+   "action": "correct",
+   "cross_check": "tencent.kline:agree",
+   "endpoint": "akshare.stock_zh_a_daily",
+   "record": {
+    "close": 58.03,
+    "pct_change_1d": 0.0
+   },
+   "seed": {
+    "close": 53.61,
+    "pct_change_1d": 0.73
+   },
+   "seed_matches_record": false,
+   "source": "sina.stock",
+   "symbol": "601318.SH"
+  },
+  {
+   "action": "correct",
+   "cross_check": "sina.index:agree",
+   "endpoint": "akshare.stock_zh_index_hist_csindex",
+   "record": {
+    "close": 4799.63,
+    "pct_change_1d": 0.66
+   },
+   "seed": {
+    "close": 4005.2,
+    "pct_change_1d": 0.42
+   },
+   "seed_matches_record": false,
+   "source": "csindex.index",
+   "symbol": "000300.SH"
+  },
+  {
+   "action": "correct",
+   "cross_check": "tencent.kline:agree",
+   "endpoint": "akshare.fund_etf_hist_sina",
+   "record": {
+    "close": 3.758,
+    "pct_change_1d": 2.09
+   },
+   "seed": {
+    "close": 2.465,
+    "pct_change_1d": 0.86
+   },
+   "seed_matches_record": false,
+   "source": "sina.etf",
+   "symbol": "159915.SZ"
+  },
+  {
+   "action": "correct",
+   "cross_check": "tencent.kline:agree",
+   "endpoint": "akshare.fund_etf_hist_sina",
+   "record": {
+    "close": 1.075,
+    "pct_change_1d": 0.84
+   },
+   "seed": {
+    "close": 1.021,
+    "pct_change_1d": 0.59
+   },
+   "seed_matches_record": false,
+   "source": "sina.etf",
+   "symbol": "512880.SH"
+  },
+  {
+   "action": "check",
+   "cross_check": "tencent.kline:agree",
+   "endpoint": "akshare.stock_zh_a_daily",
+   "record": {
+    "close": 1409.5,
+    "pct_change_1d": -0.18
+   },
+   "seed": {
+    "close": 1409.5,
+    "pct_change_1d": -0.1778
+   },
+   "seed_matches_record": true,
+   "source": "sina.stock",
+   "symbol": "600519.SH"
+  },
+  {
+   "action": "check",
+   "cross_check": "tencent.kline:agree",
+   "endpoint": "akshare.stock_zh_a_daily",
+   "record": {
+    "close": 100.64,
+    "pct_change_1d": -0.53
+   },
+   "seed": {
+    "close": 100.64,
+    "pct_change_1d": -0.5337
+   },
+   "seed_matches_record": true,
+   "source": "sina.stock",
+   "symbol": "000858.SZ"
+  },
+  {
+   "action": "check",
+   "cross_check": "tencent.kline:agree",
+   "endpoint": "akshare.fund_etf_hist_sina",
+   "record": {
+    "close": 4.811,
+    "pct_change_1d": 0.73
+   },
+   "seed": {
+    "close": 4.811,
+    "pct_change_1d": null
+   },
+   "seed_matches_record": true,
+   "source": "sina.etf",
+   "symbol": "510300.SH"
+  }
+ ],
+ "raw": {
+  "file": "data/snapshot/raw/corrections/daily_2026-04-22.json",
+  "sha256": "864c0e14ab7a01a283a801cf5cfd320d332b279f7f53b46f114192c936de9535"
+ },
+ "retrieved": "2026-10-10",
+ "sources": {
+  "file": "data/snapshot/corrections/sources.json",
+  "sha256": "253e7a7f3ee33954145d14c72dd50cea9819110ce79cb6c087a2ce9a7a9b5be4"
+ },
+ "statements": [
+  "000858.SZ",
+  "600519.SH",
+  "601318.SH"
+ ],
+ "version": "fix-2026-10-10"
+}

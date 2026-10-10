@@ -1,0 +1,233 @@
+{
+ "records": {
+  "000300.SH|csindex.index": {
+   "endpoint": "akshare.stock_zh_index_hist_csindex",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:15+00:00",
+   "latency_ms": 118,
+   "rows": [
+    {"开盘": 4726.64, "成交量": 20168850000.0, "成交金额": 6045.51, "指数中文全称": "沪深300指数", "指数中文简称": "沪深300", "指数代码": "000300", "指数英文全称": "CSI 300 Index", "指数英文简称": "CSI 300", "收盘": 4685.25, "日期": "2026-04-15", "最低": 4672.56, "最高": 4731.27, "样本数量": 300.0, "涨跌": -16.04, "涨跌幅": -0.34, "滚动市盈率": 14.34},
+    {"开盘": 4694.43, "成交量": 19205760000.0, "成交金额": 5676.11, "指数中文全称": "沪深300指数", "指数中文简称": "沪深300", "指数代码": "000300", "指数英文全称": "CSI 300 Index", "指数英文简称": "CSI 300", "收盘": 4736.61, "日期": "2026-04-16", "最低": 4689.41, "最高": 4739.22, "样本数量": 300.0, "涨跌": 51.36, "涨跌幅": 1.1, "滚动市盈率": 14.45},
+    {"开盘": 4729.0, "成交量": 18291533600.0, "成交金额": 5876.23, "指数中文全称": "沪深300指数", "指数中文简称": "沪深300", "指数代码": "000300", "指数英文全称": "CSI 300 Index", "指数英文简称": "CSI 300", "收盘": 4728.67, "日期": "2026-04-17", "最低": 4714.47, "最高": 4738.32, "样本数量": 300.0, "涨跌": -7.94, "涨跌幅": -0.17, "滚动市盈率": 14.4},
+    {"开盘": 4727.17, "成交量": 22163349400.0, "成交金额": 6265.68, "指数中文全称": "沪深300指数", "指数中文简称": "沪深300", "指数代码": "000300", "指数英文全称": "CSI 300 Index", "指数英文简称": "CSI 300", "收盘": 4757.44, "日期": "2026-04-20", "最低": 4720.69, "最高": 4763.04, "样本数量": 300.0, "涨跌": 28.77, "涨跌幅": 0.61, "滚动市盈率": 14.49},
+    {"开盘": 4750.51, "成交量": 20561405800.0, "成交金额": 5804.08, "指数中文全称": "沪深300指数", "指数中文简称": "沪深300", "指数代码": "000300", "指数英文全称": "CSI 300 Index", "指数英文简称": "CSI 300", "收盘": 4768.0, "日期": "2026-04-21", "最低": 4722.01, "最高": 4776.83, "样本数量": 300.0, "涨跌": 10.56, "涨跌幅": 0.22, "滚动市盈率": 14.53},
+    {"开盘": 4751.28, "成交量": 20448183000.0, "成交金额": 6195.06, "指数中文全称": "沪深300指数", "指数中文简称": "沪深300", "指数代码": "000300", "指数英文全称": "CSI 300 Index", "指数英文简称": "CSI 300", "收盘": 4799.63, "日期": "2026-04-22", "最低": 4750.35, "最高": 4801.45, "样本数量": 300.0, "涨跌": 31.63, "涨跌幅": 0.66, "滚动市盈率": 14.57}
+   ],
+   "source": "csindex.index",
+   "symbol": "000300.SH"
+  },
+  "000300.SH|sina.index": {
+   "endpoint": "akshare.stock_zh_index_daily",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:17+00:00",
+   "latency_ms": 129,
+   "rows": [
+    {"close": 4685.246, "date": "2026-04-15", "high": 4731.273, "low": 4672.556, "open": 4726.638, "volume": 20168850000},
+    {"close": 4736.608, "date": "2026-04-16", "high": 4739.221, "low": 4689.414, "open": 4694.431, "volume": 19205760000},
+    {"close": 4728.672, "date": "2026-04-17", "high": 4738.324, "low": 4714.467, "open": 4728.995, "volume": 18291533600},
+    {"close": 4757.442, "date": "2026-04-20", "high": 4763.043, "low": 4720.685, "open": 4727.166, "volume": 22163349400},
+    {"close": 4767.997, "date": "2026-04-21", "high": 4776.826, "low": 4722.007, "open": 4750.515, "volume": 20561405800},
+    {"close": 4799.627, "date": "2026-04-22", "high": 4801.447, "low": 4750.35, "open": 4751.279, "volume": 20448183000}
+   ],
+   "source": "sina.index",
+   "symbol": "000300.SH"
+  },
+  "000858.SZ|sina.stock": {
+   "endpoint": "akshare.stock_zh_a_daily",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:33+00:00",
+   "latency_ms": 297,
+   "rows": [
+    {"amount": 1196292314.0, "close": 103.55, "date": "2026-04-15", "high": 103.99, "low": 102.68, "open": 102.9, "outstanding_share": 3881513391.0, "turnover": 0.0029811196907963983, "volume": 11571256.0},
+    {"amount": 934168918.0, "close": 103.44, "date": "2026-04-16", "high": 104.0, "low": 103.22, "open": 103.5, "outstanding_share": 3881513391.0, "turnover": 0.0023229681548714255, "volume": 9016632.0},
+    {"amount": 1704502562.0, "close": 101.86, "date": "2026-04-17", "high": 102.25, "low": 101.2, "open": 101.5, "outstanding_share": 3881513391.0, "turnover": 0.004313568526859167, "volume": 16743174.0},
+    {"amount": 1186004538.0, "close": 101.35, "date": "2026-04-20", "high": 101.95, "low": 101.05, "open": 101.82, "outstanding_share": 3881513391.0, "turnover": 0.0030132782813836233, "volume": 11696080.0},
+    {"amount": 1095969167.0, "close": 101.18, "date": "2026-04-21", "high": 101.82, "low": 101.0, "open": 101.3, "outstanding_share": 3881513391.0, "turnover": 0.0027896582876944143, "volume": 10828096.0},
+    {"amount": 1452833705.0, "close": 100.64, "date": "2026-04-22", "high": 101.08, "low": 100.46, "open": 101.0, "outstanding_share": 3881513391.0, "turnover": 0.0037197504028912416, "volume": 14438261.0}
+   ],
+   "source": "sina.stock",
+   "symbol": "000858.SZ"
+  },
+  "000858.SZ|tencent.kline": {
+   "endpoint": "akshare.stock_zh_a_hist_tx",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:36+00:00",
+   "latency_ms": 610,
+   "rows": [
+    {"amount": 1196292300.0, "close": 103.55, "date": "2026-04-15", "high": 103.99, "low": 102.68, "open": 102.9, "turnover": 0.003, "volume": 115713.0},
+    {"amount": 934168900.0, "close": 103.44, "date": "2026-04-16", "high": 104.0, "low": 103.22, "open": 103.5, "turnover": 0.0023, "volume": 90166.0},
+    {"amount": 1704502600.0, "close": 101.86, "date": "2026-04-17", "high": 102.25, "low": 101.2, "open": 101.5, "turnover": 0.0043, "volume": 167432.0},
+    {"amount": 1186004500.0, "close": 101.35, "date": "2026-04-20", "high": 101.95, "low": 101.05, "open": 101.82, "turnover": 0.003, "volume": 116961.0},
+    {"amount": 1095969200.0, "close": 101.18, "date": "2026-04-21", "high": 101.82, "low": 101.0, "open": 101.3, "turnover": 0.0028000000000000004, "volume": 108281.0},
+    {"amount": 1452833700.0, "close": 100.64, "date": "2026-04-22", "high": 101.08, "low": 100.46, "open": 101.0, "turnover": 0.0037, "volume": 144383.0}
+   ],
+   "source": "tencent.kline",
+   "symbol": "000858.SZ"
+  },
+  "159915.SZ|sina.etf": {
+   "endpoint": "akshare.fund_etf_hist_sina",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:19+00:00",
+   "latency_ms": 179,
+   "rows": [
+    {"amount": 4785008636, "close": 3.511, "date": "2026-04-15", "high": 3.595, "low": 3.482, "open": 3.589, "postAmt": null, "postVol": null, "prevclose": null, "volume": 1352469021},
+    {"amount": 5298080775, "close": 3.624, "date": "2026-04-16", "high": 3.624, "low": 3.511, "open": 3.522, "postAmt": null, "postVol": null, "prevclose": null, "volume": 1479654181},
+    {"amount": 5489998911, "close": 3.67, "date": "2026-04-17", "high": 3.678, "low": 3.61, "open": 3.638, "postAmt": null, "postVol": null, "prevclose": null, "volume": 1503305804},
+    {"amount": 5444544524, "close": 3.672, "date": "2026-04-20", "high": 3.689, "low": 3.636, "open": 3.657, "postAmt": null, "postVol": null, "prevclose": null, "volume": 1485358840},
+    {"amount": 5051182323, "close": 3.681, "date": "2026-04-21", "high": 3.688, "low": 3.614, "open": 3.663, "postAmt": null, "postVol": null, "prevclose": null, "volume": 1382838279},
+    {"amount": 6923895011, "close": 3.758, "date": "2026-04-22", "high": 3.761, "low": 3.66, "open": 3.66, "postAmt": null, "postVol": null, "prevclose": null, "volume": 1861500562}
+   ],
+   "source": "sina.etf",
+   "symbol": "159915.SZ"
+  },
+  "159915.SZ|tencent.kline": {
+   "endpoint": "akshare.stock_zh_a_hist_tx",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:22+00:00",
+   "latency_ms": 357,
+   "rows": [
+    {"amount": 4785008600.0, "close": 3.511, "date": "2026-04-15", "high": 3.595, "low": 3.482, "open": 3.589, "turnover": 0.0895, "volume": 1352469000.0},
+    {"amount": 5298080800.0, "close": 3.624, "date": "2026-04-16", "high": 3.624, "low": 3.511, "open": 3.522, "turnover": 0.0992, "volume": 1479654200.0},
+    {"amount": 5489998900.0, "close": 3.67, "date": "2026-04-17", "high": 3.678, "low": 3.61, "open": 3.638, "turnover": 0.1024, "volume": 1503305800.0},
+    {"amount": 5444544500.0, "close": 3.672, "date": "2026-04-20", "high": 3.689, "low": 3.636, "open": 3.657, "turnover": 0.10529999999999999, "volume": 1485358800.0},
+    {"amount": 5051182300.0, "close": 3.681, "date": "2026-04-21", "high": 3.688, "low": 3.614, "open": 3.663, "turnover": 0.1011, "volume": 1382838300.0},
+    {"amount": 6923895000.0, "close": 3.758, "date": "2026-04-22", "high": 3.761, "low": 3.66, "open": 3.66, "turnover": 0.141, "volume": 1861500600.0}
+   ],
+   "source": "tencent.kline",
+   "symbol": "159915.SZ"
+  },
+  "510300.SH|sina.etf": {
+   "endpoint": "akshare.fund_etf_hist_sina",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:38+00:00",
+   "latency_ms": 272,
+   "rows": [
+    {"amount": 3185349113, "close": 4.694, "date": "2026-04-15", "high": 4.746, "low": 4.684, "open": 4.732, "postAmt": null, "postVol": null, "volume": 675980605},
+    {"amount": 4036951794, "close": 4.746, "date": "2026-04-16", "high": 4.747, "low": 4.7, "open": 4.704, "postAmt": null, "postVol": null, "volume": 853234423},
+    {"amount": 3485941360, "close": 4.739, "date": "2026-04-17", "high": 4.75, "low": 4.722, "open": 4.737, "postAmt": null, "postVol": null, "volume": 736150074},
+    {"amount": 3627929894, "close": 4.765, "date": "2026-04-20", "high": 4.777, "low": 4.728, "open": 4.735, "postAmt": null, "postVol": null, "volume": 762457819},
+    {"amount": 3026895923, "close": 4.776, "date": "2026-04-21", "high": 4.786, "low": 4.73, "open": 4.764, "postAmt": null, "postVol": null, "volume": 636108137},
+    {"amount": 4851593064, "close": 4.811, "date": "2026-04-22", "high": 4.813, "low": 4.756, "open": 4.76, "postAmt": null, "postVol": null, "volume": 1012592563}
+   ],
+   "source": "sina.etf",
+   "symbol": "510300.SH"
+  },
+  "510300.SH|tencent.kline": {
+   "endpoint": "akshare.stock_zh_a_hist_tx",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:40+00:00",
+   "latency_ms": 451,
+   "rows": [
+    {"amount": 3185349099.9999995, "close": 4.694, "date": "2026-04-15", "high": 4.746, "low": 4.684, "open": 4.732, "turnover": 0.0154, "volume": 675980600.0},
+    {"amount": 4036951800.0, "close": 4.746, "date": "2026-04-16", "high": 4.747, "low": 4.7, "open": 4.704, "turnover": 0.0195, "volume": 853234400.0},
+    {"amount": 3485941400.0, "close": 4.739, "date": "2026-04-17", "high": 4.75, "low": 4.722, "open": 4.737, "turnover": 0.017, "volume": 736150100.0},
+    {"amount": 3627929900.0, "close": 4.765, "date": "2026-04-20", "high": 4.777, "low": 4.728, "open": 4.735, "turnover": 0.0178, "volume": 762457800.0},
+    {"amount": 3026895900.0000005, "close": 4.776, "date": "2026-04-21", "high": 4.786, "low": 4.73, "open": 4.764, "turnover": 0.015, "volume": 636108100.0},
+    {"amount": 4851593100.0, "close": 4.811, "date": "2026-04-22", "high": 4.813, "low": 4.756, "open": 4.76, "turnover": 0.0242, "volume": 1012592600.0}
+   ],
+   "source": "tencent.kline",
+   "symbol": "510300.SH"
+  },
+  "512880.SH|sina.etf": {
+   "endpoint": "akshare.fund_etf_hist_sina",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:24+00:00",
+   "latency_ms": 206,
+   "rows": [
+    {"amount": 1261625410, "close": 1.073, "date": "2026-04-15", "high": 1.086, "low": 1.072, "open": 1.084, "postAmt": null, "postVol": null, "volume": 1171114299},
+    {"amount": 1696207779, "close": 1.081, "date": "2026-04-16", "high": 1.089, "low": 1.075, "open": 1.077, "postAmt": null, "postVol": null, "volume": 1569104794},
+    {"amount": 1164918020, "close": 1.076, "date": "2026-04-17", "high": 1.081, "low": 1.07, "open": 1.078, "postAmt": null, "postVol": null, "volume": 1083969087},
+    {"amount": 1200542488, "close": 1.075, "date": "2026-04-20", "high": 1.08, "low": 1.072, "open": 1.078, "postAmt": null, "postVol": null, "volume": 1115646039},
+    {"amount": 1150286825, "close": 1.066, "date": "2026-04-21", "high": 1.073, "low": 1.064, "open": 1.072, "postAmt": null, "postVol": null, "volume": 1077791620},
+    {"amount": 1840994766, "close": 1.075, "date": "2026-04-22", "high": 1.085, "low": 1.062, "open": 1.062, "postAmt": null, "postVol": null, "volume": 1712578726}
+   ],
+   "source": "sina.etf",
+   "symbol": "512880.SH"
+  },
+  "512880.SH|tencent.kline": {
+   "endpoint": "akshare.stock_zh_a_hist_tx",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:26+00:00",
+   "latency_ms": 427,
+   "rows": [
+    {"amount": 1261625400.0, "close": 1.073, "date": "2026-04-15", "high": 1.086, "low": 1.072, "open": 1.084, "turnover": 0.0239, "volume": 1171114300.0},
+    {"amount": 1696207800.0, "close": 1.081, "date": "2026-04-16", "high": 1.089, "low": 1.075, "open": 1.077, "turnover": 0.0319, "volume": 1569104800.0},
+    {"amount": 1164918000.0, "close": 1.076, "date": "2026-04-17", "high": 1.081, "low": 1.07, "open": 1.078, "turnover": 0.022000000000000002, "volume": 1083969100.0},
+    {"amount": 1200542500.0, "close": 1.075, "date": "2026-04-20", "high": 1.08, "low": 1.072, "open": 1.078, "turnover": 0.0226, "volume": 1115646000.0},
+    {"amount": 1150286800.0, "close": 1.066, "date": "2026-04-21", "high": 1.073, "low": 1.064, "open": 1.072, "turnover": 0.0218, "volume": 1077791600.0},
+    {"amount": 1840994800.0, "close": 1.075, "date": "2026-04-22", "high": 1.085, "low": 1.062, "open": 1.062, "turnover": 0.0348, "volume": 1712578700.0}
+   ],
+   "source": "tencent.kline",
+   "symbol": "512880.SH"
+  },
+  "600519.SH|sina.stock": {
+   "endpoint": "akshare.stock_zh_a_daily",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:29+00:00",
+   "latency_ms": 283,
+   "rows": [
+    {"amount": 5049317187.0, "close": 1467.5, "date": "2026-04-15", "high": 1470.79, "low": 1442.0, "open": 1444.98, "outstanding_share": 1252270215.0, "turnover": 0.0027592670963590715, "volume": 3455348.0},
+    {"amount": 3597294838.0, "close": 1462.84, "date": "2026-04-16", "high": 1477.41, "low": 1460.0, "open": 1467.45, "outstanding_share": 1252270215.0, "turnover": 0.00195747209399211, "volume": 2451284.0},
+    {"amount": 13631929446.0, "close": 1407.24, "date": "2026-04-17", "high": 1421.0, "low": 1399.87, "open": 1400.0, "outstanding_share": 1252270215.0, "turnover": 0.007731956636850937, "volume": 9682499.0},
+    {"amount": 5127146041.0, "close": 1410.89, "date": "2026-04-20", "high": 1413.94, "low": 1400.0, "open": 1403.0, "outstanding_share": 1252270215.0, "turnover": 0.002910824641788673, "volume": 3645139.0},
+    {"amount": 3074595192.0, "close": 1412.01, "date": "2026-04-21", "high": 1419.9, "low": 1410.0, "open": 1411.0, "outstanding_share": 1252270215.0, "turnover": 0.001737186570392078, "volume": 2175427.0},
+    {"amount": 3793827534.0, "close": 1409.5, "date": "2026-04-22", "high": 1419.0, "low": 1404.98, "open": 1415.0, "outstanding_share": 1252270215.0, "turnover": 0.002149370772984487, "volume": 2691593.0}
+   ],
+   "source": "sina.stock",
+   "symbol": "600519.SH"
+  },
+  "600519.SH|tencent.kline": {
+   "endpoint": "akshare.stock_zh_a_hist_tx",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:31+00:00",
+   "latency_ms": 483,
+   "rows": [
+    {"amount": 5049317200.0, "close": 1467.5, "date": "2026-04-15", "high": 1470.79, "low": 1442.0, "open": 1444.98, "turnover": 0.0028000000000000004, "volume": 3455300.0},
+    {"amount": 3597294800.0, "close": 1462.84, "date": "2026-04-16", "high": 1477.41, "low": 1460.0, "open": 1467.45, "turnover": 0.002, "volume": 2451300.0},
+    {"amount": 13631929400.0, "close": 1407.24, "date": "2026-04-17", "high": 1421.0, "low": 1399.87, "open": 1400.0, "turnover": 0.0077, "volume": 9682500.0},
+    {"amount": 5127146000.0, "close": 1410.89, "date": "2026-04-20", "high": 1413.94, "low": 1400.0, "open": 1403.0, "turnover": 0.0029, "volume": 3645100.0},
+    {"amount": 3074595200.0, "close": 1412.01, "date": "2026-04-21", "high": 1419.9, "low": 1410.0, "open": 1411.0, "turnover": 0.0017000000000000001, "volume": 2175400.0},
+    {"amount": 3793827500.0, "close": 1409.5, "date": "2026-04-22", "high": 1419.0, "low": 1404.98, "open": 1415.0, "turnover": 0.0021, "volume": 2691600.0}
+   ],
+   "source": "tencent.kline",
+   "symbol": "600519.SH"
+  },
+  "601318.SH|sina.stock": {
+   "endpoint": "akshare.stock_zh_a_daily",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:09+00:00",
+   "latency_ms": 2103,
+   "rows": [
+    {"amount": 3032393651.0, "close": 58.7, "date": "2026-04-15", "high": 59.72, "low": 58.61, "open": 59.4, "outstanding_share": 10660065083.000002, "turnover": 0.004819038589353797, "volume": 51371265.0},
+    {"amount": 3190206251.0, "close": 58.52, "date": "2026-04-16", "high": 59.03, "low": 58.25, "open": 58.71, "outstanding_share": 10660065083.000002, "turnover": 0.0051066091600896835, "volume": 54436786.0},
+    {"amount": 3550736121.0, "close": 57.92, "date": "2026-04-17", "high": 58.4, "low": 57.61, "open": 58.4, "outstanding_share": 10660065083.000002, "turnover": 0.00574409100912991, "volume": 61232384.0},
+    {"amount": 3690691462.0, "close": 58.54, "date": "2026-04-20", "high": 58.67, "low": 57.74, "open": 57.87, "outstanding_share": 10660065083.000002, "turnover": 0.005942148336506548, "volume": 63343688.0},
+    {"amount": 3179298446.0, "close": 58.03, "date": "2026-04-21", "high": 59.11, "low": 58.03, "open": 58.54, "outstanding_share": 10660065083.000002, "turnover": 0.005103349330085886, "volume": 54402036.0},
+    {"amount": 3364574054.0, "close": 58.03, "date": "2026-04-22", "high": 58.6, "low": 57.65, "open": 58.03, "outstanding_share": 10660065083.000002, "turnover": 0.005436835943190084, "volume": 57957025.0}
+   ],
+   "source": "sina.stock",
+   "symbol": "601318.SH"
+  },
+  "601318.SH|tencent.kline": {
+   "endpoint": "akshare.stock_zh_a_hist_tx",
+   "error": null,
+   "fetched_at": "2026-10-10T12:42:13+00:00",
+   "latency_ms": 466,
+   "rows": [
+    {"amount": 3032393700.0, "close": 58.7, "date": "2026-04-15", "high": 59.72, "low": 58.61, "open": 59.4, "turnover": 0.0048, "volume": 51371300.0},
+    {"amount": 3190206300.0, "close": 58.52, "date": "2026-04-16", "high": 59.03, "low": 58.25, "open": 58.71, "turnover": 0.0051, "volume": 54436800.0},
+    {"amount": 3550736100.0, "close": 57.92, "date": "2026-04-17", "high": 58.4, "low": 57.61, "open": 58.4, "turnover": 0.005699999999999999, "volume": 61232400.0},
+    {"amount": 3690691500.0, "close": 58.54, "date": "2026-04-20", "high": 58.67, "low": 57.74, "open": 57.87, "turnover": 0.0059, "volume": 63343700.0},
+    {"amount": 3179298400.0000005, "close": 58.03, "date": "2026-04-21", "high": 59.11, "low": 58.03, "open": 58.54, "turnover": 0.0051, "volume": 54402000.0},
+    {"amount": 3364574099.9999995, "close": 58.03, "date": "2026-04-22", "high": 58.6, "low": 57.65, "open": 58.03, "turnover": 0.0054, "volume": 57957000.0}
+   ],
+   "source": "tencent.kline",
+   "symbol": "601318.SH"
+  }
+ },
+ "trade_date": "2026-04-22",
+ "window": [
+  "2026-04-15",
+  "2026-04-22"
+ ]
+}
