@@ -267,6 +267,7 @@ EXTRA_EVIDENCE = (
     "claims_heldout_r8-prefix",
     "claims_heldout_r8-after-fix",
     "slice_overlap-heldout_r8-at-6e14016",
+    "glm-auto-testv3-sample45-r13",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -1804,6 +1805,17 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
                 f"{len(at.get('tasks_with_overlap') or [])} tasks; {new_hits} hits new since `{baseline}`; "
                 f"without the three turns the round-9 review named ({listed}): first run "
                 f"{named.get('prefix')} -> after fix {named.get('after_fix')} = {_fmt(named.get('after_fix_rate'))}"
+            )
+        elif result.get("kind") == "run":
+            run = result.get("summary") or {}
+            low, high = (run.get("ci") or {}).get("task_success") or (None, None)
+            sample = config.get("sample") or {}
+            scope = f"a seeded subset of {sample.get('size')} of {sample.get('of')} tasks" if sample.get("seed") else ""
+            summary = (
+                f"{config.get('model') or 'no LLM'}, mode {config.get('mode')}, {config.get('tasks_file')} "
+                f"{scope}: task {_fmt(run.get('task_success'))} [{_fmt(low)}, {_fmt(high)}], "
+                f"P50 {_fmt(run.get('latency_ms_p50'))} ms, P95 {_fmt(run.get('latency_ms_p95'))} ms, "
+                f"LLM calls/turn {_fmt(run.get('llm_calls_per_turn'))}, 429 rate {_fmt(run.get('llm_429_rate'))}"
             )
         elif result.get("kind") == "ablation":
             parts = []

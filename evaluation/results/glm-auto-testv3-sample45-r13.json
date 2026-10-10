@@ -1,0 +1,396 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": "cline-pass/glm-5.3-flash",
+  "model": "cline-pass/glm-5.3-flash",
+  "llm_client": "deepseek",
+  "model_source": "--model",
+  "tasks_file": "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+  "snapshot": {
+   "path": "evaluation/agent_eval/fixtures/snapshot_test_v3.json",
+   "recorded": false,
+   "misses": 0
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "a70dda9",
+  "run_at": "2026-10-01T14:24:07+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 195.5,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --llm deepseek --model cline-pass/glm-5.3-flash --tasks evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_test_v3.json --sample 45 --workers 3 --out outputs/agent_eval/r13-glm-auto-testv3-s45.json",
+  "env": {
+   "DEEPSEEK_MODEL": "cline-pass/deepseek-v4.1-flash",
+   "QI_AGENT_TRACE_DIR": "off",
+   "QI_USE_LIVE_ANNOUNCEMENT": "0",
+   "QI_USE_LIVE_MACRO": "0",
+   "QI_USE_LIVE_MARKET": "0",
+   "QI_USE_LIVE_NEWS": "0"
+  },
+  "command_with_env": "DEEPSEEK_MODEL=cline-pass/deepseek-v4.1-flash QI_AGENT_TRACE_DIR=off QI_USE_LIVE_ANNOUNCEMENT=0 QI_USE_LIVE_MACRO=0 QI_USE_LIVE_MARKET=0 QI_USE_LIVE_NEWS=0 python -m evaluation.agent_eval.runner --mode auto --llm deepseek --model cline-pass/glm-5.3-flash --tasks evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_test_v3.json --sample 45 --workers 3 --out outputs/agent_eval/r13-glm-auto-testv3-s45.json",
+  "sample": {
+   "size": 45,
+   "of": 130,
+   "seed": 20261001,
+   "task_ids": [
+    "v3_fact_zh_04",
+    "v3_fact_zh_05",
+    "v3_fact_zh_10",
+    "v3_fact_en_04",
+    "v3_fact_en_06",
+    "v3_fact_en_08",
+    "v3_comp_zh_04",
+    "v3_comp_zh_05",
+    "v3_comp_en_02",
+    "v3_comp_en_03",
+    "v3_why_zh_02",
+    "v3_why_zh_04",
+    "v3_why_zh_05",
+    "v3_why_en_01",
+    "v3_why_en_02",
+    "v3_judg_zh_05",
+    "v3_judg_en_02",
+    "v3_tech_zh_01",
+    "v3_tech_zh_03",
+    "v3_tech_zh_04",
+    "v3_tech_en_01",
+    "v3_news_zh_05",
+    "v3_news_en_02",
+    "v3_news_en_03",
+    "v3_news_en_04",
+    "v3_macro_en_02",
+    "v3_miss_zh_02",
+    "v3_miss_zh_04",
+    "v3_miss_zh_06",
+    "v3_miss_en_01",
+    "v3_miss_en_05",
+    "v3_clar_zh_01",
+    "v3_clar_zh_05",
+    "v3_oos_zh_02",
+    "v3_oos_zh_03",
+    "v3_oos_en_01",
+    "v3_ooc_zh_03",
+    "v3_ooc_en_02",
+    "v3_inj_zh_03",
+    "v3_inj_en_02",
+    "v3_mixed_05",
+    "v3_multi_zh_01",
+    "v3_multi_zh_07",
+    "v3_multi_zh_08",
+    "v3_multi_en_04"
+   ]
+  }
+ },
+ "summary": {
+  "tasks": 45,
+  "turns": 51,
+  "repeats": 1,
+  "task_success": 0.8444,
+  "pass^1": 0.8444,
+  "ci": {
+   "task_success": [
+    0.7333,
+    0.9333
+   ],
+   "pass^1": [
+    0.7333,
+    0.9333
+   ],
+   "task_success_uncited": [
+    0.7333,
+    0.9333
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.8444,
+  "turn_success": 0.8627,
+  "behavior_accuracy": 1.0,
+  "fact_recall": 0.9231,
+  "fact_stated": 0.9231,
+  "tool_recall": 0.9583,
+  "tool_precision": 0.5581,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 0.8,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 4511.28,
+  "latency_ms_p95": 14725.27,
+  "latency_ms_p99": 68519.03,
+  "llm_turns": 43,
+  "llm_turn_latency_ms_p50": 5305.68,
+  "llm_turn_latency_ms_p95": 14725.27,
+  "llm_turn_latency_ms_p99": 68519.03,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 1.0196,
+  "tokens_per_turn": 2052.5294,
+  "reasoning_tokens_per_turn": 5.8431,
+  "cache_hit_ratio": 0.4495,
+  "first_pass_verification": 0.7907,
+  "revise_rate": 0.2093,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": 0.0,
+  "json_failure_rate": 0.0,
+  "cost_per_turn": 0.000357,
+  "cost_per_task": 0.000408,
+  "cost_currency": "USD"
+ },
+ "by_category": {
+  "clarification": {
+   "tasks": 2,
+   "task_success": 0.0,
+   "latency_ms_p95": 2126.25
+  },
+  "comparison": {
+   "tasks": 4,
+   "task_success": 0.75,
+   "latency_ms_p95": 11049.55
+  },
+  "judgment_advice": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 5140.16
+  },
+  "macro_market": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 5357.6
+  },
+  "missing_data": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 5656.76
+  },
+  "mixed_language": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 4406.22
+  },
+  "multi_turn": {
+   "tasks": 4,
+   "task_success": 0.5,
+   "latency_ms_p95": 8293.05
+  },
+  "news_sentiment": {
+   "tasks": 4,
+   "task_success": 0.5,
+   "latency_ms_p95": 14725.27
+  },
+  "out_of_coverage": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 2283.68
+  },
+  "out_of_scope": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 167.21
+  },
+  "prompt_injection": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 9469.75
+  },
+  "single_fact": {
+   "tasks": 6,
+   "task_success": 1.0,
+   "latency_ms_p95": 68519.03
+  },
+  "technical": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 14200.23
+  },
+  "why_causal": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 16006.75
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 19,
+   "task_success": 0.8421,
+   "latency_ms_p95": 14200.23
+  },
+  "mixed": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 4406.22
+  },
+  "zh": {
+   "tasks": 25,
+   "task_success": 0.84,
+   "latency_ms_p95": 16006.75
+  }
+ },
+ "failed_checks": {
+  "language": 3,
+  "facts": 2,
+  "hedged": 2,
+  "required_tools": 1,
+  "entities": 1
+ },
+ "failures": [
+  {
+   "task": "v3_comp_en_03",
+   "category": "comparison",
+   "query": "Who earned more last year, Ping An or Moutai?",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "The available evidence does not contain net profit or earnings data for either company, so I cannot determine who earned more last year. The only data retrieved"
+  },
+  {
+   "task": "v3_news_zh_05",
+   "category": "news_sentiment",
+   "query": "市场对茅台的情绪偏多还是偏空？",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "analyze_sentiment"
+   ],
+   "answer_excerpt": "市场对贵州茅台的情绪偏多：基于3篇相关新闻的文本情绪分析，整体情绪标签为正面（positive），3篇均为正面，平均情绪得分0.5548 [sentiment_600519.SH]。"
+  },
+  {
+   "task": "v3_news_en_02",
+   "category": "news_sentiment",
+   "query": "What's the news sentiment on Kweichow Moutai?",
+   "failed_checks": [
+    "hedged"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "search_news",
+    "analyze_sentiment"
+   ],
+   "answer_excerpt": "News sentiment on Kweichow Moutai (600519.SH) is positive: a classical sentiment model scored the three retrieved documents with a mean score of 0.5548 and an o"
+  },
+  {
+   "task": "v3_clar_zh_01",
+   "category": "clarification",
+   "query": "它现在多少钱？",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "v3_clar_zh_05",
+   "category": "clarification",
+   "query": "和上次那个比，哪个估值更低？",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "v3_multi_zh_08",
+   "category": "multi_turn",
+   "query": "帮我看看它的市盈率",
+   "failed_checks": [
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "v3_multi_en_04",
+   "category": "multi_turn",
+   "query": "So which one moved more?",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Only one instrument, 证券ETF (512880.SH), is covered by the available evidence, so there is no second instrument to compare against. On 2026-04-22 it closed at 1."
+  }
+ ],
+ "task_outcomes": {
+  "v3_fact_zh_04": "1",
+  "v3_fact_zh_05": "1",
+  "v3_fact_zh_10": "1",
+  "v3_fact_en_04": "1",
+  "v3_fact_en_06": "1",
+  "v3_fact_en_08": "1",
+  "v3_comp_zh_04": "1",
+  "v3_comp_zh_05": "1",
+  "v3_comp_en_02": "1",
+  "v3_comp_en_03": "0",
+  "v3_why_zh_02": "1",
+  "v3_why_zh_04": "1",
+  "v3_why_zh_05": "1",
+  "v3_why_en_01": "1",
+  "v3_why_en_02": "1",
+  "v3_judg_zh_05": "1",
+  "v3_judg_en_02": "1",
+  "v3_tech_zh_01": "1",
+  "v3_tech_zh_03": "1",
+  "v3_tech_zh_04": "1",
+  "v3_tech_en_01": "1",
+  "v3_news_zh_05": "0",
+  "v3_news_en_02": "0",
+  "v3_news_en_03": "1",
+  "v3_news_en_04": "1",
+  "v3_macro_en_02": "1",
+  "v3_miss_zh_02": "1",
+  "v3_miss_zh_04": "1",
+  "v3_miss_zh_06": "1",
+  "v3_miss_en_01": "1",
+  "v3_miss_en_05": "1",
+  "v3_clar_zh_01": "0",
+  "v3_clar_zh_05": "0",
+  "v3_oos_zh_02": "1",
+  "v3_oos_zh_03": "1",
+  "v3_oos_en_01": "1",
+  "v3_ooc_zh_03": "1",
+  "v3_ooc_en_02": "1",
+  "v3_inj_zh_03": "1",
+  "v3_inj_en_02": "1",
+  "v3_mixed_05": "1",
+  "v3_multi_zh_01": "1",
+  "v3_multi_zh_07": "1",
+  "v3_multi_zh_08": "0",
+  "v3_multi_en_04": "0"
+ },
+ "source": {
+  "file": "outputs/agent_eval/r13-glm-auto-testv3-s45.json",
+  "sha256_16": "1491a2cf16733246",
+  "bytes": 177391,
+  "slimmed_at": "2026-10-10T12:21:12+00:00"
+ },
+ "notes": [
+  "Round 13 (Context/Cost to_100: GLM auto end-to-end, slow-model composition policy). GLM-5.3 flash via the Cline pass, mode auto, test v3, a seeded random subset of 45 of 130 tasks (--sample 45, seed 20261001; ids in config.sample), workers 3, 52 LLM calls, 0 x 429, USD 0.0184. Offline re-routing of the 45 first turns with the GLM model id: 12 are agent-routed questions that the policy (QI_AGENT_SLOW_MODEL_POLICY=on, the default) sends to plan + composition (outputs/r13/glm-policy-routes.json). Those 12: 10/12 = 0.833 here vs 0.917 (agent tool loop) and 0.833 (workflow_llm) mean over 3 repeats in ablation-final4-glm-testv3 at 9536abf (a different commit; 12 tasks is a smoke check, not a rate); their turn latency P50 6.1 s, max 16.0 s, against the GLM tool loop's P95 81.9 s on test v3 at 9536abf. All 45: 0.844 here vs 0.822 workflow / 0.852 workflow_llm / 0.830 agent on the same ids at 9536abf."
+ ]
+}
