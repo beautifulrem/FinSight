@@ -142,7 +142,7 @@ Kubernetes 与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 | 第三套盲收集的真实公开说法（50 条） | 首次 0.540 [0.40, 0.68]，已包含第 14 轮的核查器修改：新的说法仍会出错（指标说法、日期、实体绑定） | [`claims_web_v3-first-run.json`](evaluation/real_claims_web_v3/README.md) |
 | 投毒到文档里的提示注入 | 模板路径在 12 个攻击集上 0 次成功；LLM 路径每个集合当作事实陈述 0–3.4% | [`redteam-offline-r14.json`](docs/agent-eval.md#prompt-injection-red-team-offline-template-path-after-round-14-all-twelve-sets-ci-baseline)、[`redteam-r8-llm.json`](docs/zh/evaluation-history.md#其他测量) |
 | 延迟与负载 | DeepSeek Agent P95 15.4 秒（保留集），首字约 3 秒；数据源故障演练下 8 个用户（无 LLM）400 个请求 0 错误 | [性能](docs/zh/performance.md) |
-| CI 门禁（与已提交基线比较） | 开发集 510 个任务 1.000，保留集 53 个 0.9434，ext 44 个 1.000，发布默认配置 21 个 1.000 | [门禁基线](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |
+| CI 门禁（与已提交基线比较） | 开发集 524 个任务 1.000，保留集 53 个 0.9434，ext 68 个 1.000，发布默认配置 21 个 1.000 | [门禁基线](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |
 
 更多细节：
 

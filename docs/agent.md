@@ -648,6 +648,105 @@ metric aliases and controls all pass; sums 4/5, verb comparatives 2/4 (both Engl
 holdings 2/4, price-derived 1/3, shares of a combined total **1/4**. The failing tasks and claims are listed in the
 [evaluation history](evaluation-history.md#the-round-10-slice-per-class). From round 15 this slice is after exposure.
 
+### Rules added in round 15 (round-11 review, K1, K2, K3, K4, K7, K8, K9, K10, K14)
+
+Round 15 fixed the comparison, holding and verifier classes the round-11 review found with fresh wordings, in the
+author's own wording: 14 dev tasks (`build_tasks._round15_frame_tasks`, v1 snapshot), 24 ext tasks
+(`build_ext_tasks.round15_frame_ext_tasks`, extension names) and `tests/test_agent_round15_frame.py`. The review's repro
+strings and its hidden `heldout_r11` slice are not used; `tests/test_agent_eval.py` checks the round-15 tasks, the test
+strings and every wording the operation classifier trains on against every committed slice (strict) and the quoted
+repros of the round-4–11 reviews (the round-11 ones are listed in `_ROUND11_REVIEW_PROBES`). Routing did not change
+(own labels 1.000 / 414, independent v1 1.000 / 154, v2 0.8423 / 241), so no router labels were added.
+
+**Operations added to the grammar.**
+
+* **A total compared with another value** (K1, `total_vs_one`): a total word and a comparison anchor (比 / 超过 / 高于 /
+  比得上 / than / above / below / exceed / out-earn) in one clause. The operands named before the anchor are one side, those
+  after it the other (an anchor inside a name, 比亚迪, does not count); the side with two or more operands is totalled, and
+  the other side is **never added into the total**: "A和B的净利润加在一起，能比得上C吗" is (A + B) vs C, "C一家的营业收入，比
+  D、E、F三家加起来还多吗" is C vs (D + E + F). The answer lists every operand, the total of the grouped side and the gap,
+  and a yes/no question gets "是的 / 不是" ("Yes / No") first. With no second side named ("两家加起来比去年多吗") it is a total.
+* **Mean** (K4, `mean`): 平均 / 均值 / 平均下来 / 加总再除以N / average / mean / on average, with several operands; never an
+  industry average (an operand), a weighted ROE, a moving or daily average of one target, or an average cost. Any metric
+  kind: "ROE：宁德时代 21.42%，招商银行 11.8%，长江电力 15.59%，三者平均约 16.27%". "市值加总，再除以三" is a mean, not three
+  pairwise ratios.
+* **Two operations in one message** (K4, K10): the clause is cut at commas and each piece with its own question asks
+  its own operation; a bare metric after an operation ("…几倍，净利润呢", "…, and net profit?") repeats it for that metric.
+  The first is the request, the others are `request["also"]`; the composer answers every one with its own operands and
+  ids ("两家加一起是多少，宁德占其中几成" → the total and 68.88%). "谁更高，高多少" stays one comparison; "合计中，A占几成" stays one
+  share.
+* **Two metrics of one target in one message** (K4): "长江电力的总市值是它归母净利润的多少倍" (6983.23 亿 ÷ 345.03 亿 ≈ 20.24).
+* **Words**: totals 合并起来 / 统共 / 拢共 / 汇总 / 合到一块 / 一起 (weak, with a plural and a question) / 总额 after a metric /
+  collectively / jointly / in all; verbs 多挣 / 少挣 / 压过 / 盖过 / eclipse / "by what margin" / "how wide is the lead";
+  "占其中 / 在其中占几成" is a share of the total just named; "挣了多少" is net profit.
+* **净利润总额** (K10) is net profit and a total, never 利润总额 (the chat metric list ignores 利润总额 inside it), so "A与B
+  的净利润总额" is the sum of their net profits.
+* **Names in a list that match no security** (K9, `frame.unresolved_in_list`): "X and B, revenue in all?", "Among A, X
+  and B, …", "A、某某新材和B三家…" name X ("Could not tell which security "X" refers to…", "未能识别「X」…"), never drop
+  it; Chinese short names (招行, 工行) count as known. An alias that is an operation word (the alias table lists "均值" as
+  a stock's nickname) is not an operand.
+
+**The operation classifier** (K4, `query_intelligence/agent/operation_classifier.py`, trained by
+`python -m training.operation_classifier.train`, shipped as `models/operation_classifier.joblib`, 0.6 MB). Classical
+and explainable: character 1–3-gram TF-IDF of the question plus the grammar's own word-class hits (`lex=SUM_WORD`,
+`lex=VERSUS`, …) as features, multinomial logistic regression over the ten operations and `none`. Training data:
+generated wordings (340 templates written for round 15, 11 classes × Chinese and English, × targets × metrics, seeded)
+and the dev and ext questions labelled by the grammar. It is used only:
+
+* as a **fallback** when the grammar reads no operation, the question names two or more targets (or a list word) and
+  asks something, the classifier's top class is not `none` with probability ≥ 0.6 and the operation's structural
+  precondition holds (a total vs one names a total; a spread is not one target's own extremes);
+* as a **tie-breaker** when the clause satisfies productions of two or more operations: the grammar's first production
+  is kept unless the classifier gives another matched operation ≥ 0.9 and the grammar's choice ≤ 0.05.
+
+Every use is recorded in the frame request (`classifier`: operation, probability, top three features by value ×
+coefficient, use) and in the route reason (`frame:sum:net_profit:宁德时代|比亚迪|clf:sum:0.86:lex=JOINED+lex=PLURAL+chars:凑一块`).
+`QI_OPERATION_CLASSIFIER=0` turns it off. Measured on **held-out templates** (every fifth template family of each
+operation and language is never trained on: 1,632 wordings from 68 families; `operation_classifier-r15.json`,
+trained at `37d8827`): the classifier alone 0.887 [0.871, 0.902], the grammar alone 0.861 [0.843, 0.877], grammar +
+classifier as used at run time 0.882 [0.866, 0.897] (35 of the 131 held-out wordings the grammar reads no operation in
+are recovered by the fallback). Without the lexicon features (character n-grams only, not shipped) the classifier alone
+is 0.770 (`operation_classifier-r15-nolexicon.json`). On the 942 questions of the committed evaluation sets that the
+grammar reads as non-comparisons (held-out, test v2, multi-turn, test v3, independent router labels v1 / v2; none is
+training data) the fallback fires **0** times. Caveats: the held-out wordings come from the same author as the training
+templates, and a slice written by someone else is the real test.
+
+**Holdings and costs** (K2, K7).
+
+* **Several purchases** (`coverage.cost_lots`): every (cost, count) pair a question states ("40元买了500股…后来43元又买了
+  500股", "先买2手成本44元，又买了300股成本39元", "300 shares at 75 and another 200 at 82") → each lot's shares × (close −
+  cost), the sum, the total shares and the average cost; never the first lot alone. The close is fetched for a
+  cost-basis question in English too.
+* **Counts with 万 / 千** ("1.5万股", "8千股") are holdings (15,000 / 8,000 shares), not the company's market cap.
+* **A portfolio in clauses** ("A 1,000 股；B 3,000 股；C 10 手。总市值？"): a bare value question at the end values the
+  holdings, not the companies.
+* **A position added to the last one** (`memory._added_holding`): "再加三千股X呢，总共多少", "我还有800股X，加起来一共多少",
+  "Add 3,000 X shares – what's the total now?" after a holding turn value both positions together.
+
+**Dated closes** (K8, `composer.dated_close_sentences`): a close asked for a stated day is answered from the dated closes
+the price payload carries (recent closes, the year's first close, the previous year's last close, the 52-week high and
+low, the drawdown peaks and troughs): "美的集团 2025-12-31 的收盘价为 78.15 元". A day after the last bar is said to be
+after the data ("当前数据截至 2026-09-30，没有…的收盘价"; a future day is hedged as a forecast as before, through the
+`stated_dates` reference date), and a day the payload does not carry is named missing. The year check no longer says
+"没有X 2025年的行情" when the payload's dated closes reach that year.
+
+**Price-derived** (K4, K14): "需要涨多少才能回到52周高点" / "how much would X have to rise to get back to its 52-week high" is
+(high − close) ÷ close (宁德时代 (460 − 291.11) ÷ 291.11 ≈ 58.02%); "一年内最高点 / 年内高点" is a past window, so a drawdown
+question is not hedged as a price forecast (a one-line change in `router._FUTURE_TIME`; "年内能涨到…" is still a forecast).
+
+**Verifier** (K3). The verifier now re-derives every operation the frame computes: the mean of the stated operands
+(`平均 / average / mean` in the sentence; amounts from their exact evidence values), the total of a group of stated
+operands and the gap between two sides of a total vs one, totals of three or more counted once even when the share
+sentence repeats its numerator (the template's own zh three-company share was deleted before), and Σ shares × (close −
+cost) over stated lots. Beyond the generic rules, `verify_answer(computed=…)` accepts in a cited sentence the numbers
+the frame computed from this run's tool outputs for the asked operation (`composer.frame_values`: results, the totals
+on the way, each side of a total vs one), so a correct number is never deleted because a rule cannot re-derive its
+wording. A failed LLM draft whose repair no longer states the asked result (a repair that would keep a revenue total
+for a profit question) is replaced by the template built from the frame, never by the pruned draft. Tests with
+scripted drafts are in `tests/test_agent_round15_frame.py`; verifier stress at the round-15 code: 328 gold answers / 5,551 variants on the 524-task dev set, claim-level false accepts **0.94%**, derived 1.06%, swap 0.0% / 0.57%, every correct answer accepted (`verifier_stress-round15.json`, `8b62a6c`; 0.95% / 1.08% at the round-14 code).
+
+**Results (round 15).** Gates at `9d41aab`: dev 510 → **524 = 1.000** (`gate-dev.json`), ext 44 → **68 = 1.000** (`gate-ext.json`), held-out 53 = 0.9434 and shipped 21 = 1.000 unchanged; offline red team 0 successes on all twelve sets; full pytest 2,876 passed / 70 skipped at the final code `8b62a6c` (round2 merged). The reviewer slices, all **after exposure**, rerun once at `8b62a6c` (the round-15 frame engineer worked from the round-11 review report and did not open the slice texts): round 8 51/51 (`chat_heldout_r8-auto-nollm-after-exposure-round15.json`), round 9 51/52 (`chat_heldout_r9-auto-nollm-after-exposure-round15.json`), round 10 38/48 → **39/48** (`chat_heldout_r10-auto-nollm-after-exposure-round15.json`; r10h_stot_zh_03 now passes, no task regressed; still failing: 2 several-holdings, 2 price-derived, 2 shares of a combined total, 1 total across turns, 2 English verb comparatives). The round-11 slice (`heldout_r11`) was not opened; its first run at `4ad3380` was 0.200 (chat) by the reviewer, and its after-fix run is the reviewer's.
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) `stated_holdings` ("我持有招商银行", "I own …", up to 5) and (round 11) `comparison_frame`, the comparison under way (metric, operands in order, the values and evidence ids earlier turns found, and a note that those ids must be fetched again to be cited). It is rule-based and bounded, and it is the default.
