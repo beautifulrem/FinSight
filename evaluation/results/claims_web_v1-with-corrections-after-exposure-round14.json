@@ -1,0 +1,952 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "0dd9e1e",
+  "run_at": "2026-10-10T17:15:08+00:00",
+  "command": "python -m evaluation.real_claims_web.score_claims_web_v1 --corrections --after-exposure evaluation/results/claims_web_v1-with-corrections-after-exposure-round14.json",
+  "snapshot": "offline v1 + 2026-09-30 extension + corrections layer fix-2026-10-10 (QI_OFFLINE_SNAPSHOT_EXT and QI_OFFLINE_SNAPSHOT_FIX on), no LLM",
+  "note": "after exposure (checker changed): the engineers had read this set, its README and its error classes before changing the claim checker (round 14, J12); not an out-of-sample estimate; corrections layer on, scored against the corrected labels",
+  "labels": "evaluation/real_claims_web/claims_web_v1-labels-with-corrections.jsonl (label_claims_web_v1 --corrections: the first run's parts, evaluated against the corrected data)",
+  "exposure": "after"
+ },
+ "summary": {
+  "claims": 60,
+  "verdict_accuracy": 0.7833,
+  "ci95": [
+   0.6667,
+   0.8833
+  ],
+  "by_category": {
+   "annual_figures": 0.857,
+   "annual_ratios": 0.667,
+   "daily_price": 0.867,
+   "english_or_traditional": 1.0,
+   "loose_or_relational": 0.429,
+   "market_value": 1.0
+  },
+  "by_category_counts": {
+   "annual_figures": {
+    "n": 21,
+    "correct": 18,
+    "accuracy": 0.857
+   },
+   "annual_ratios": {
+    "n": 12,
+    "correct": 8,
+    "accuracy": 0.667
+   },
+   "daily_price": {
+    "n": 15,
+    "correct": 13,
+    "accuracy": 0.867
+   },
+   "english_or_traditional": {
+    "n": 3,
+    "correct": 3,
+    "accuracy": 1.0
+   },
+   "loose_or_relational": {
+    "n": 7,
+    "correct": 3,
+    "accuracy": 0.429
+   },
+   "market_value": {
+    "n": 2,
+    "correct": 2,
+    "accuracy": 1.0
+   }
+  },
+  "by_source_type": {
+   "broker_note": {
+    "n": 5,
+    "correct": 3,
+    "accuracy": 0.6
+   },
+   "company_announcement": {
+    "n": 4,
+    "correct": 4,
+    "accuracy": 1.0
+   },
+   "media": {
+    "n": 37,
+    "correct": 32,
+    "accuracy": 0.865
+   },
+   "social": {
+    "n": 14,
+    "correct": 8,
+    "accuracy": 0.571
+   }
+  },
+  "by_expected_verdict": {
+   "contradicted": {
+    "n": 9,
+    "correct": 6,
+    "accuracy": 0.667
+   },
+   "partially_supported": {
+    "n": 21,
+    "correct": 19,
+    "accuracy": 0.905
+   },
+   "supported": {
+    "n": 29,
+    "correct": 21,
+    "accuracy": 0.724
+   },
+   "unverifiable": {
+    "n": 1,
+    "correct": 1,
+    "accuracy": 1.0
+   }
+  },
+  "against_first_run_labels": {
+   "verdict_accuracy": 0.6667,
+   "ci95": [
+    0.55,
+    0.7833
+   ]
+  },
+  "labels_changed_by_corrections": [
+   {
+    "id": "w46",
+    "before": "partially_supported",
+    "after": "supported"
+   },
+   {
+    "id": "w47",
+    "before": "contradicted",
+    "after": "supported"
+   },
+   {
+    "id": "w49",
+    "before": "contradicted",
+    "after": "supported"
+   },
+   {
+    "id": "w50",
+    "before": "contradicted",
+    "after": "supported"
+   },
+   {
+    "id": "w52",
+    "before": "contradicted",
+    "after": "supported"
+   },
+   {
+    "id": "w53",
+    "before": "contradicted",
+    "after": "supported"
+   },
+   {
+    "id": "w59",
+    "before": "contradicted",
+    "after": "partially_supported"
+   }
+  ]
+ },
+ "errors": [
+  {
+   "id": "w02",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "利润增速是营收增速的近 2.5 倍，说明宁德时代2025年，赚钱效率在大幅提升",
+   "expected": "supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "宁德时代",
+     "metric": "revenue",
+     "comparator": "approx",
+     "claimed": 2.5,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "unit_mismatch",
+     "note": "the unit '倍' does not fit revenue"
+    }
+   ]
+  },
+  {
+   "id": "w03",
+   "category": "annual_ratios",
+   "source_type": "broker_note",
+   "claim": "宁德时代整体毛利率和净利率分别达到26.3%和18.1%，创近五年新高",
+   "expected": "partially_supported",
+   "got": "contradicted",
+   "checks": [
+    {
+     "target": "宁德时代",
+     "metric": "net_margin",
+     "comparator": "eq",
+     "claimed": 26.3,
+     "actual": 17.0405,
+     "status": "contradicted",
+     "reason": null,
+     "note": "derived: net profit / revenue = 72201000000 / 423702000000 = 17.04%"
+    },
+    {
+     "target": "宁德时代",
+     "metric": "net_margin",
+     "comparator": "eq",
+     "claimed": 18.1,
+     "actual": 17.0405,
+     "status": "contradicted",
+     "reason": null,
+     "note": "derived: net profit / revenue = 72201000000 / 423702000000 = 17.04%"
+    }
+   ]
+  },
+  {
+   "id": "w04",
+   "category": "daily_price",
+   "source_type": "media",
+   "claim": "宁德时代今日高开高走，收盘报291.11元，较前一交易日上涨4.31元，涨幅1.50%",
+   "expected": "supported",
+   "got": "partially_supported",
+   "checks": [
+    {
+     "target": "宁德时代",
+     "metric": "close",
+     "comparator": "eq",
+     "claimed": 291.11,
+     "actual": 291.11,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "宁德时代",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 4.31,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "unit_mismatch",
+     "note": "the unit '元' does not fit pct_change_1d"
+    },
+    {
+     "target": "宁德时代",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 1.5,
+     "actual": 1.5028,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "w07",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "但比亚迪净利润只有326亿，比2024年的403亿少了近80亿",
+   "expected": "supported",
+   "got": "partially_supported",
+   "checks": [
+    {
+     "target": "比亚迪",
+     "metric": "net_profit",
+     "comparator": "eq",
+     "claimed": 326.0,
+     "actual": 32619000000.0,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "比亚迪",
+     "metric": "net_profit",
+     "comparator": "eq",
+     "claimed": 403.0,
+     "actual": 32619000000.0,
+     "status": "unverifiable",
+     "reason": "period_mismatch",
+     "note": "the claim is about 2024; the data is for 2025-12-31"
+    },
+    {
+     "target": "比亚迪",
+     "metric": "net_profit",
+     "comparator": "approx",
+     "claimed": 80.0,
+     "actual": 32619000000.0,
+     "status": "unverifiable",
+     "reason": "period_mismatch",
+     "note": "the claim is about 2024; the data is for 2025-12-31"
+    }
+   ]
+  },
+  {
+   "id": "w11",
+   "category": "annual_figures",
+   "source_type": "media",
+   "claim": "美的集团发布2025年年报，实现营业总收入4585亿元，同比增长12.1%",
+   "expected": "supported",
+   "got": "partially_supported",
+   "checks": [
+    {
+     "target": "美的集团",
+     "metric": "revenue",
+     "comparator": "eq",
+     "claimed": 4585.0,
+     "actual": 458502000000.0,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "美的集团",
+     "metric": "revenue_yoy",
+     "comparator": "eq",
+     "claimed": 12.1,
+     "actual": 12.1091,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names 营业总收入 (total operating revenue) revenue_yoy; the data's revenue_yoy is 营业收入 (operating revenue), a different definition"
+    }
+   ]
+  },
+  {
+   "id": "w12",
+   "category": "annual_ratios",
+   "source_type": "media",
+   "claim": "报告期内，美的集团基本每股收益为5.8元，加权平均净资产收益率为19.70%",
+   "expected": "supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "美的集团",
+     "metric": "eps",
+     "comparator": "eq",
+     "claimed": 5.8,
+     "actual": 5.76,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names basic eps; the data's eps is diluted, a different definition"
+    },
+    {
+     "target": "美的集团",
+     "metric": "roe",
+     "comparator": "eq",
+     "claimed": 19.7,
+     "actual": 19.69,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names weighted-average roe; the data's roe is period-end, a different definition"
+    }
+   ]
+  },
+  {
+   "id": "w15",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "2025年年报显示紫金矿业归母净利润已突破517亿元大关，同比增长超60%",
+   "expected": "supported",
+   "got": "partially_supported",
+   "checks": [
+    {
+     "target": "紫金矿业",
+     "metric": "net_profit",
+     "comparator": "gt",
+     "claimed": 517.0,
+     "actual": 51777000000.0,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "紫金矿业",
+     "metric": "netprofit_yoy",
+     "comparator": "gt",
+     "claimed": 60.0,
+     "actual": 62.0146,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names attributable to shareholders (归母) netprofit_yoy; the data's netprofit_yoy is total (incl. minority interests), a different definition"
+    }
+   ]
+  },
+  {
+   "id": "w16",
+   "category": "annual_ratios",
+   "source_type": "social",
+   "claim": "紫金矿业基本每股收益：1.95元/股，同比+61%",
+   "expected": "contradicted",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "紫金矿业",
+     "metric": "eps",
+     "comparator": "eq",
+     "claimed": 1.95,
+     "actual": 1.91,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names basic eps; the data's eps is diluted, a different definition"
+    },
+    {
+     "target": "紫金矿业",
+     "metric": "eps",
+     "comparator": "eq",
+     "claimed": 61.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "growth_unavailable",
+     "note": "a year-on-year change of eps; the sources carry this period's value only"
+    }
+   ]
+  },
+  {
+   "id": "w24",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "2025年，招行ROE为 13.44%，不仅远高于工商银行（9.45%）、中国银行（8.94%）等国有大行",
+   "expected": "partially_supported",
+   "got": "contradicted",
+   "checks": [
+    {
+     "target": "招商银行",
+     "metric": "roe",
+     "comparator": "eq",
+     "claimed": 13.44,
+     "actual": 11.8,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "工商银行",
+     "metric": "roe",
+     "comparator": "gt",
+     "claimed": 9.45,
+     "actual": 8.68,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "中国银行",
+     "metric": "roe",
+     "comparator": "eq",
+     "claimed": 8.94,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_data",
+     "note": "no data for this metric"
+    }
+   ]
+  },
+  {
+   "id": "w26",
+   "category": "annual_ratios",
+   "source_type": "social",
+   "claim": "招行加权 ROE 虽连续 3 年回落，但仍保持 13% 以上",
+   "expected": "contradicted",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "招商银行",
+     "metric": "roe",
+     "comparator": "eq",
+     "claimed": 3.0,
+     "actual": 11.8,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names weighted-average roe; the data's roe is period-end, a different definition"
+    },
+    {
+     "target": "招商银行",
+     "metric": null,
+     "comparator": "ge",
+     "claimed": 13.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "w40",
+   "category": "annual_figures",
+   "source_type": "media",
+   "claim": "长江电力2025年营收862.42亿元、归母净利345.03亿元，同比分别增长2.07%、6.17%",
+   "expected": "supported",
+   "got": "partially_supported",
+   "checks": [
+    {
+     "target": "长江电力",
+     "metric": "revenue",
+     "comparator": "eq",
+     "claimed": 862.42,
+     "actual": 86242000000.0,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "长江电力",
+     "metric": "net_profit",
+     "comparator": "eq",
+     "claimed": 345.03,
+     "actual": 34503000000.0,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "长江电力",
+     "metric": "netprofit_yoy",
+     "comparator": "eq",
+     "claimed": 2.07,
+     "actual": 6.1314,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names attributable to shareholders (归母) netprofit_yoy; the data's netprofit_yoy is total (incl. minority interests), a different definition"
+    },
+    {
+     "target": "长江电力",
+     "metric": "netprofit_yoy",
+     "comparator": "eq",
+     "claimed": 6.17,
+     "actual": 6.1314,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names attributable to shareholders (归母) netprofit_yoy; the data's netprofit_yoy is total (incl. minority interests), a different definition"
+    }
+   ]
+  },
+  {
+   "id": "w41",
+   "category": "annual_figures",
+   "source_type": "broker_note",
+   "claim": "长江电力2025 年归母净利同增7.4%，现金分红比例71%",
+   "expected": "contradicted",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "长江电力",
+     "metric": "netprofit_yoy",
+     "comparator": "eq",
+     "claimed": 7.4,
+     "actual": 6.1314,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names attributable to shareholders (归母) netprofit_yoy; the data's netprofit_yoy is total (incl. minority interests), a different definition"
+    },
+    {
+     "target": "长江电力",
+     "metric": "netprofit_yoy",
+     "comparator": "eq",
+     "claimed": 71.0,
+     "actual": 6.1314,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names attributable to shareholders (归母) netprofit_yoy; the data's netprofit_yoy is total (incl. minority interests), a different definition"
+    }
+   ]
+  },
+  {
+   "id": "w56",
+   "category": "daily_price",
+   "source_type": "media",
+   "claim": "中国上证综指9月30日（周三）收盘上涨11.74点，涨幅：0.31%，报3842.19点",
+   "expected": "supported",
+   "got": "partially_supported",
+   "checks": [
+    {
+     "target": "上证指数",
+     "metric": "close",
+     "comparator": "eq",
+     "claimed": 11.74,
+     "actual": 3842.195,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "上证指数",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 0.31,
+     "actual": 0.3066,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "上证指数",
+     "metric": "close",
+     "comparator": "eq",
+     "claimed": 3842.19,
+     "actual": 3842.195,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    }
+   ]
+  }
+ ],
+ "results": [
+  {
+   "id": "w01",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w02",
+   "expected": "supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "w03",
+   "expected": "partially_supported",
+   "got": "contradicted",
+   "ok": false
+  },
+  {
+   "id": "w04",
+   "expected": "supported",
+   "got": "partially_supported",
+   "ok": false
+  },
+  {
+   "id": "w05",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w06",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w07",
+   "expected": "supported",
+   "got": "partially_supported",
+   "ok": false
+  },
+  {
+   "id": "w08",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w09",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w10",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w11",
+   "expected": "supported",
+   "got": "partially_supported",
+   "ok": false
+  },
+  {
+   "id": "w12",
+   "expected": "supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "w13",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w14",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w15",
+   "expected": "supported",
+   "got": "partially_supported",
+   "ok": false
+  },
+  {
+   "id": "w16",
+   "expected": "contradicted",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "w17",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w18",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w19",
+   "expected": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "w20",
+   "expected": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "w21",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w22",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w23",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w24",
+   "expected": "partially_supported",
+   "got": "contradicted",
+   "ok": false
+  },
+  {
+   "id": "w25",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w26",
+   "expected": "contradicted",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "w27",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w28",
+   "expected": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "w29",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w30",
+   "expected": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "w31",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w32",
+   "expected": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "w33",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w34",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w35",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w36",
+   "expected": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "w37",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w38",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w39",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w40",
+   "expected": "supported",
+   "got": "partially_supported",
+   "ok": false
+  },
+  {
+   "id": "w41",
+   "expected": "contradicted",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "w42",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w43",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w44",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w45",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w46",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w47",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w48",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w49",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w50",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w51",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w52",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w53",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w54",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w55",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w56",
+   "expected": "supported",
+   "got": "partially_supported",
+   "ok": false
+  },
+  {
+   "id": "w57",
+   "expected": "unverifiable",
+   "got": "unverifiable",
+   "ok": true
+  },
+  {
+   "id": "w58",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "w59",
+   "expected": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "w60",
+   "expected": "supported",
+   "got": "supported",
+   "ok": true
+  }
+ ]
+}
