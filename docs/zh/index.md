@@ -20,6 +20,7 @@
 | [实时数据源](data-sources.md) | 实时数据源审计、降级链、熔断、有界调用池、缓存、新浪/同花顺交叉核对、来源标注、`/sources/health`（含主动探测）。 |
 | [性能](performance.md) | 确定性路径与 LLM Agent 路径压测（含人民币成本）、检查点修复的复现、k3s 多副本扩展、服务启动时间。 |
 | [部署](deployment.md) | Docker 镜像、监控 profile、Kubernetes 清单（多副本经 Postgres 共享会话）、只读根文件系统。 |
+| [开发](development.md) | 推送前检查（`scripts/prepush.sh`：推送到 master 之前在本地跑 CI 跑的东西），以及发布默认配置如何被测试。 |
 | [设计复盘](../presentation/agent-design-notes.md) | 关键取舍、自研与复用的边界、32 个真实失败案例（根因与修复）、带置信区间的消融结论、独立任务集结果、面试问答。 |
 | [面试讲稿](../presentation/interview-script.md) | 30 秒介绍、架构讲解、三个可辩护的数字、失败故事、白板提纲、AI 编程工具使用说明。 |
 | [Agent 工程实践调研](../research/agent-architecture-practices-2026.md)（英文） | 2025–2026 Agent 与 Prompt 工程一手资料调研，以及驱动本轮改动的差距分析。 |
