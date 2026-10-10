@@ -1,0 +1,275 @@
+{
+ "kind": "retrieval_contention_bench",
+ "config": {
+  "commit": "a70dda9",
+  "working_tree_clean": true,
+  "model": null,
+  "rounds_per_variant": 6,
+  "requests_per_round": 12,
+  "users": 4,
+  "parallel_tools_per_request": 4,
+  "scores_identical_on_probe": true,
+  "loadavg_1m_per_round": [
+   16.5,
+   19.7,
+   18.5,
+   16.8,
+   16.1,
+   15.8,
+   16.6,
+   24.4,
+   23.7,
+   22.7,
+   22.7,
+   23.6
+  ],
+  "cpu_count": 10,
+  "run_at": "2026-10-01T14:20:50+00:00",
+  "command": "python -m scripts.bench_retrieval_contention --rounds 6 --out outputs/perf/r13-retrieval-bench.json",
+  "env": {
+   "QI_AGENT_TRACE_DIR": "off",
+   "QI_USE_LIVE_ANNOUNCEMENT": "0",
+   "QI_USE_LIVE_MACRO": "0",
+   "QI_USE_LIVE_MARKET": "0",
+   "QI_USE_LIVE_NEWS": "0"
+  }
+ },
+ "variants": {
+  "legacy_linear_kernel": {
+   "concurrent_request_tool_stage_ms": {
+    "n": 72,
+    "p50": 4734.2,
+    "p95": 13284.4,
+    "max": 16687.8,
+    "mean": 4978.4
+   },
+   "concurrent_retrieval_call_ms": {
+    "n": 114,
+    "p50": 3940.8,
+    "p95": 7898.6,
+    "max": 16511.9,
+    "mean": 4225.1
+   },
+   "concurrent_lookup_call_ms": {
+    "n": 270,
+    "p50": 86.4,
+    "p95": 7723.9,
+    "max": 13988.9,
+    "mean": 776.9
+   },
+   "concurrent_by_tool_ms": {
+    "analyze_sentiment": {
+     "n": 30,
+     "p50": 4446.9,
+     "p95": 13763.2,
+     "max": 14634.9,
+     "mean": 5136.9
+    },
+    "compute_indicators": {
+     "n": 30,
+     "p50": 68.8,
+     "p95": 269.6,
+     "max": 444.9,
+     "mean": 88.2
+    },
+    "get_fundamentals": {
+     "n": 114,
+     "p50": 107.0,
+     "p95": 9697.4,
+     "max": 13988.9,
+     "mean": 1280.8
+    },
+    "get_macro_indicators": {
+     "n": 30,
+     "p50": 42.6,
+     "p95": 226.4,
+     "max": 259.4,
+     "mean": 67.3
+    },
+    "get_price_history": {
+     "n": 54,
+     "p50": 47.9,
+     "p95": 396.8,
+     "max": 1615.9,
+     "mean": 135.8
+    },
+    "resolve_entity": {
+     "n": 42,
+     "p50": 174.7,
+     "p95": 7303.6,
+     "max": 9188.9,
+     "mean": 1232.0
+    },
+    "search_announcements": {
+     "n": 6,
+     "p50": 3947.6,
+     "p95": 5778.5,
+     "max": 5778.5,
+     "mean": 4166.6
+    },
+    "search_knowledge": {
+     "n": 18,
+     "p50": 4614.0,
+     "p95": 7898.6,
+     "max": 16511.9,
+     "mean": 5285.7
+    },
+    "search_news": {
+     "n": 60,
+     "p50": 3331.6,
+     "p95": 6671.2,
+     "max": 13746.6,
+     "mean": 3456.9
+    }
+   },
+   "sequential_by_tool_ms": {
+    "analyze_sentiment": {
+     "n": 24,
+     "p50": 845.1,
+     "p95": 1580.4,
+     "max": 1817.3,
+     "mean": 956.1
+    },
+    "search_announcements": {
+     "n": 6,
+     "p50": 790.1,
+     "p95": 1135.1,
+     "max": 1135.1,
+     "mean": 815.0
+    },
+    "search_knowledge": {
+     "n": 12,
+     "p50": 1575.9,
+     "p95": 2449.6,
+     "max": 2842.1,
+     "mean": 1564.3
+    },
+    "search_news": {
+     "n": 48,
+     "p50": 869.9,
+     "p95": 1913.8,
+     "max": 2203.8,
+     "mean": 803.1
+    }
+   }
+  },
+  "transposed_once": {
+   "concurrent_request_tool_stage_ms": {
+    "n": 72,
+    "p50": 442.5,
+    "p95": 7032.6,
+    "max": 8801.2,
+    "mean": 1232.1
+   },
+   "concurrent_retrieval_call_ms": {
+    "n": 114,
+    "p50": 265.4,
+    "p95": 1610.1,
+    "max": 2293.8,
+    "mean": 410.3
+   },
+   "concurrent_lookup_call_ms": {
+    "n": 270,
+    "p50": 66.7,
+    "p95": 5673.2,
+    "max": 8317.9,
+    "mean": 520.2
+   },
+   "concurrent_by_tool_ms": {
+    "analyze_sentiment": {
+     "n": 30,
+     "p50": 336.5,
+     "p95": 829.8,
+     "max": 949.2,
+     "mean": 382.5
+    },
+    "compute_indicators": {
+     "n": 30,
+     "p50": 60.8,
+     "p95": 203.0,
+     "max": 302.9,
+     "mean": 88.3
+    },
+    "get_fundamentals": {
+     "n": 114,
+     "p50": 96.0,
+     "p95": 6842.2,
+     "max": 8317.9,
+     "mean": 845.7
+    },
+    "get_macro_indicators": {
+     "n": 30,
+     "p50": 43.2,
+     "p95": 248.4,
+     "max": 335.6,
+     "mean": 67.0
+    },
+    "get_price_history": {
+     "n": 54,
+     "p50": 39.6,
+     "p95": 204.1,
+     "max": 341.6,
+     "mean": 64.5
+    },
+    "resolve_entity": {
+     "n": 42,
+     "p50": 91.0,
+     "p95": 5230.5,
+     "max": 6841.2,
+     "mean": 854.8
+    },
+    "search_announcements": {
+     "n": 6,
+     "p50": 113.5,
+     "p95": 374.4,
+     "max": 374.4,
+     "mean": 188.9
+    },
+    "search_knowledge": {
+     "n": 18,
+     "p50": 1212.2,
+     "p95": 2231.7,
+     "max": 2293.8,
+     "mean": 1287.1
+    },
+    "search_news": {
+     "n": 60,
+     "p50": 173.8,
+     "p95": 388.0,
+     "max": 502.5,
+     "mean": 183.2
+    }
+   },
+   "sequential_by_tool_ms": {
+    "analyze_sentiment": {
+     "n": 24,
+     "p50": 62.0,
+     "p95": 114.8,
+     "max": 141.6,
+     "mean": 71.8
+    },
+    "search_announcements": {
+     "n": 6,
+     "p50": 37.1,
+     "p95": 55.0,
+     "max": 55.0,
+     "mean": 40.4
+    },
+    "search_knowledge": {
+     "n": 12,
+     "p50": 308.1,
+     "p95": 492.8,
+     "max": 512.1,
+     "mean": 314.7
+    },
+    "search_news": {
+     "n": 48,
+     "p50": 27.5,
+     "p95": 62.5,
+     "max": 89.8,
+     "mean": 28.2
+    }
+   }
+  }
+ }
+}
