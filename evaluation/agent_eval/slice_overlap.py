@@ -180,7 +180,7 @@ def overlap_report(path: str | Path, *, root: Path = ROOT) -> dict[str, Any]:
             hits.append({"task": task, "kind": "near", "chars": len(norm), "own": [best[1]]})
     tasks = sorted({hit["task"] for hit in hits})
     return {
-        "slice": _display(path, root),
+        "slice": _display(path, ROOT),
         "slice_texts": len(texts),
         "slice_tasks": len({task for task, _text in texts}),
         "own_texts": len(own),
