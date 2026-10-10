@@ -266,7 +266,9 @@ export type ClaimReason =
   | "forecast"
   | "period_mismatch"
   | "multi_day"
-  | "no_reference";
+  | "no_reference"
+  | "definition_mismatch"
+  | "currency";
 
 export interface ClaimCheckItem {
   target?: string | null;

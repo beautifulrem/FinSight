@@ -89,6 +89,12 @@ export function formatClaimValue(
       return `${trim(value)}%`;
     case "pmi":
       return trim(value, 1);
+    case "volume":
+      // (round 14) claimed as written ("37.52 万手"); the data in shares
+      if (side === "claimed") return `${trim(value)}${unit ? (lang === "zh" ? unit : ` ${unit}`) : ""}`;
+      return lang === "zh" ? `${trim(value / 1e4, 2)} 万股` : `${trim(value / 1e6, 2)}M shares`;
+    case "turnover_rate":
+      return `${trim(value)}%`;
     case "eps":
       return `${trim(value)} ${t("claim.unit.yuan")}`;
     case "revenue":
@@ -286,6 +292,8 @@ const REASONS: Record<ClaimReason, MessageKey> = {
   period_mismatch: "claim.note.periodMismatch",
   multi_day: "claim.note.multiDay",
   no_reference: "claim.note.noReference",
+  definition_mismatch: "claim.note.definitionMismatch",
+  currency: "claim.note.currency",
 };
 
 /** The checker's reason (or English note), localised; unknown notes are shown as written. */

@@ -72,6 +72,8 @@ const METRICS: Record<string, Text> = {
   close: { zh: "收盘价", en: "Close price" },
   pct_change_1d: { zh: "日涨跌幅", en: "Daily change" },
   amount: { zh: "成交额", en: "Turnover" },
+  volume: { zh: "成交量", en: "Volume" },
+  turnover_rate: { zh: "换手率", en: "Turnover rate" },
   pe_ttm: { zh: "市盈率(TTM)", en: "P/E (TTM)" },
   pe: { zh: "市盈率", en: "P/E" },
   pb: { zh: "市净率", en: "P/B" },
