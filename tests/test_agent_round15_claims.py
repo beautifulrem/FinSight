@@ -282,3 +282,15 @@ def test_earned_is_the_years_net_profit(checker):
     # 3685.62 > 1501.81 + 426.33
     report = _verdict(checker, "ICBC earned more than CMB and Ping An Bank combined", "supported")
     assert report.checks[0].metric == "net_profit", _rows(report)
+
+
+def test_a_share_within_a_named_group(checker):
+    # 工行 8382.70 / (8382.70 + 3375.32 + 1314.42) = 0.6413
+    report = _verdict(checker, "在工行、招行、平安银行三家里，工行营收占比超过六成", "supported")
+    (check,) = report.checks
+    assert check.kind == "ratio" and check.ratio == pytest.approx(0.6413, abs=1e-3), _rows(report)
+
+
+def test_a_share_of_an_unnamed_whole_is_never_read_as_growth(checker):
+    report = _verdict(checker, "几家大行里，工行净利润占几家合计的六成以上", "unverifiable")
+    assert report.checks[0].reason == "no_data", _rows(report)

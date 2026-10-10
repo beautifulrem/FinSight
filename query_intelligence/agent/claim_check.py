@@ -2043,9 +2043,15 @@ def _mean_operands(
 _SHARE_LIST_ZH = re.compile(
     rf"(?P<lead>占|在)\s*(?P<list>＠[＠\s、，,和与及以]*＠)\s*(?:{_COUNT_WORD})?\s*(?:的)?\s*"
     r"[^，,。；;！!？?\d＠、]{0,8}?(?P<total>合计|总和|之和|总计|总额|加起来|合起来|总量)?\s*"
-    r"(?:(?:中|里|当中|之中)\s*(?:的)?\s*(?:占比?|占到|占了)|的)?\s*"
+    r"(?:(?P<within>中|里|当中|之中)\s*(?:的)?\s*(?:占比?|占到|占了)|的)?\s*"
     r"(?:约|大约|大概|将近|接近|近|超过|不到|不足|逾|仅|只有|才|达到?|为|是)?\s*$"
 )
+# "占三家合计的约27%", "占比约27%": a share word before the number (市占率 is a market share, not this)
+_SHARE_CUE_ZH = re.compile(
+    r"(?<!市)(?:占比|占到|占了|占)(?![据领用优])[^，,。；;！!？?\d]{0,12}?"
+    r"(?:约|大约|大概|将近|接近|近|超过|不到|不足|逾|仅|只有|才|达到?|为|是)?\s*$"
+)
+_GROUP_WORD = re.compile(rf"{_COUNT_WORD}|合计|总和|之和|总计|加起来|合起来|(?:中|里|当中|之中)\s*(?:的)?\s*占")
 _SHARE_VERB_EN = re.compile(
     r"\b(?:accounts?\s+for|accounted\s+for|makes?\s+up|made\s+up|represents?|represented|contributes?|"
     r"contributed|is|was)\s+(?:about|around|roughly|nearly|almost|over|more than|less than|under|some|"
@@ -2071,8 +2077,8 @@ def _share_of_total(number: _Number, text: str, positions: list[tuple[int, dict[
         found = _named_list(text, zh.start("list"), positions)
         if found is None or len(found[0]) < 2:
             return False
-        if zh.group("lead") == "在" and not zh.group("total"):
-            return False  # "在A和B中占比": the whole must be named as a total
+        if zh.group("lead") == "在" and not (zh.group("total") or zh.group("within")):
+            return False  # "在A和B…": the whole must be named as a total or a group the share is taken in
         reference, list_start = _aggregate_target("sum", found[0]), zh.start("lead")
     elif _SHARE_VERB_EN.search(text, sentence_start, number.start):
         of = _SHARE_OF_EN.match(text, number.end)
@@ -2080,6 +2086,25 @@ def _share_of_total(number: _Number, text: str, positions: list[tuple[int, dict[
         if total is None:
             return False
         reference, list_start = total[0], number.start
+    elif percent or fraction:
+        clause_start, _clause_end = _clause_bounds(text, number.start)
+        cue = _SHARE_CUE_ZH.search(text, clause_start, number.start)
+        if cue is not None and _GROUP_WORD.search(text, sentence_start, number.start):
+            # "在招行、工行、平安银行三家中，招行净利润占比约27%": the whole is the companies the sentence names; when
+            # it names fewer than two ("三家银行里，招行…占三家合计的约27%"), the share is not checked (never read as
+            # a growth rate)
+            named = list(
+                {
+                    str(target["key"]): target
+                    for position, target in positions
+                    if sentence_start <= position < number.start and not target.get("sector")
+                }.values()
+            )
+            if len(named) >= 2:
+                reference, list_start = _aggregate_target("sum", named), cue.start()
+            else:
+                number.reasons.append(("no_data", "a share of a whole whose companies the claim does not name"))
+                return False
     if reference is None:
         return False
     subjects = [
