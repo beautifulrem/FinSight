@@ -71,6 +71,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 |---|---|---|---|
 | 开发集 | 473 个任务 | 项目作者 | 用来驱动修复（门禁基线 `gate-dev.json`：合并后的第 13 轮代码 `e54645b` 上 1.000） |
 | 快照扩展层集（`ext`，第 13 轮） | 24 个任务 / 26 轮 | 项目作者，第 13 轮修复之后编写 | 唯一在开启快照扩展层（即发布时的默认配置）下运行的集合，直接调用离线工具、不用回放；CI 门禁（`gate-ext.json`，`235d00c` 上 24/24；第 13 轮修复之前的代码为 15/24） |
+| 发布默认配置集（`shipped`，第 14 轮） | 21 个任务 / 22 轮 | 项目作者，第 14 轮，自写措辞 | 唯一在扩展层**和**更正层都开启（即产品实际提供的数据）下运行的集合，期望值取自 `data/snapshot/structured_data_fix.json`，禁止出现种子数值；CI 门禁（`gate-shipped.json`，`0096c6f` 上 21/21；关掉更正层为 2/21） |
 | 保留集 | 53 个任务 | 项目作者，在规则调优之后编写 | 参与过 Prompt 选择，属于验证集（门禁基线 `gate-holdout.json`：合并后的第 13 轮代码 `83fdb7b` 上 0.9434） |
 | 测试集 v2 | 121 个任务 / 174 轮 | 项目作者，一次性盲写 | 首次运行后读过失败类别并在开发集风格任务上修复，第二轮起属于**暴露后** |
 | 多轮集 v1 | 49 段对话 / 206 轮 | 没读过路由代码和任何任务文件的独立作者（[编写说明](evaluation/agent_eval/tasks/README_multiturn_v1.md)） | 首次运行见下；之后做过修复，属于暴露后 |
@@ -301,7 +302,7 @@ export QI_LLM_FALLBACK_MODELS=...                 # 可选：同一接口上的�
 
 实时行情、新闻、公告、宏观默认开启；设置 `QI_USE_LIVE_MARKET=0`（以及 `_NEWS`、`_ANNOUNCEMENT`、`_MACRO`）即使用随仓库提供的离线快照。离线快照由 v1（`data/structured_data.json`，7 个标的，截至 2026-04-22）和扩展层（`data/snapshot/`，另 15 个，截至 2026-09-30；`QI_OFFLINE_SNAPSHOT_EXT=0` 关闭）组成，并应用更正层（`data/snapshot/structured_data_fix.json`：种子出错处的一手来源数值和字段口径；`QI_OFFLINE_SNAPSHOT_FIX=0` 关闭）；哪些是实时、哪些是快照以及降级顺序见 [docs/zh/data-sources.md](docs/zh/data-sources.md)。
 
-Docker、Kubernetes（多副本经 Postgres 共享会话、只读根文件系统）与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
+Docker、Kubernetes（多副本经 Postgres 共享会话、只读根文件系统）与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。从第 14 轮起镜像也带上了更正层（之前容器给出的是 v1 种子数字，J2），`GET /ready` 会列出已加载的数据层（[部署](docs/zh/deployment.md#docker)）。
 
 ```bash
 TAG=$(git rev-parse --short=7 HEAD)
@@ -321,7 +322,7 @@ docker compose -f docker/docker-compose.yml --profile monitoring up -d   # 加�
 | `GET /agent/sessions/{id}`、`GET /agent/traces`、`GET /agent/traces/{id}` | 会话记忆、最近运行、完整 trace，只返回调用方自己的。 |
 | `GET /.well-known/agent-card.json`、`POST /a2a` | A2A 服务卡片与 JSON-RPC 接口。 |
 | `GET /metrics`、`GET /sources/health[?probe=1]` | Prometheus 指标；数据源状态（按需主动探测全部 19 个数据源，未探测的会标出）。 |
-| `GET /health`、`GET /ready` | 存活检查；就绪检查（检查点存储可连接且可写、LLM 配置、检索索引），未就绪返回 503。 |
+| `GET /health`、`GET /ready` | 存活检查；就绪检查（检查点存储可连接且可写、LLM 配置、检索索引、离线数据层及其记录数和 sha256），未就绪或开启的数据层缺失时返回 503。 |
 | `POST /chat` | 原聊天接口（`mode=workflow` 保持原流程；`agent`/`auto` 走 Agent）。 |
 | `POST /nlu/analyze`、`POST /retrieval/search`、`POST /query/intelligence` | 经典 NLU 与检索产物。 |
 
@@ -331,7 +332,8 @@ Schema 位于 `schemas/agent_*.schema.json`，由 `query_intelligence/contracts.
 
 ```bash
 python -m pytest -q tests                                  # 离线；除非 QI_TEST_LIVE=1，否则不访问实时数据源
-python -m evaluation.agent_eval.gate                       # 快照回放的开发集 + 保留集，与已提交基线比较
+scripts/prepush.sh                                         # 推送前在本地跑 CI 跑的全部检查（docs/zh/development.md）
+python -m evaluation.agent_eval.gate                       # 快照回放的开发集 + 保留集，以及 ext、shipped 集，与已提交基线比较
 python -m evaluation.agent_eval.router_eval                # 路由准确率与混淆矩阵
 python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets holdout,test_v2
 python -m evaluation.agent_eval.verifier_stress            # 校验器误放率
@@ -350,12 +352,12 @@ CI 包括：
 - 用 gitleaks 扫描全部 git 历史中的密钥（[SECURITY.md](SECURITY.md)）；
 - 前端检查（类型、lint、单测、可复现构建）；
 - 带 Postgres 服务的全量测试（只跑一遍），包括 axe 无障碍测试（在 CI 里缺依赖会失败而不是跳过），以及分支覆盖率下限：`query_intelligence/agent` 88%（实测 90.17%）、`query_intelligence/api` 90%（92.13%）、`answer_guards.py` 81%（83.74%），数据见 [`coverage-ef07a7f.json`](docs/results/coverage/coverage-ef07a7f.json)。之前写的 90.3% 只是 Agent 测试子集的结果；
-- 与已提交基线比较的评测门禁，以及评测文档是否最新的检查；
-- Docker 构建与只读根文件系统下的冒烟测试（等待 `/ready`），以及「状态目录不可写时容器不就绪」的检查；
-- Kubernetes 冒烟测试：通过 [`deploy/k8s-smoke`](deploy/k8s-smoke/smoke.sh) 把 kustomization 部署到临时 kind 集群，NetworkPolicy 生效。先等 `/ready`，再从被放行的客户端 Pod 拿到一次通过校验的 `/agent/chat` 回答（[本地运行记录](docs/results/k8s-smoke/)）；
+- 与已提交基线比较的评测门禁（开发集和保留集固定在 v1 种子；`ext` 开扩展层；`shipped` 开扩展层和更正层，与部署一致），以及评测文档是否最新的检查；
+- Docker 构建与只读根文件系统下的冒烟测试（等待 `/ready`，检查它列出了三个数据层，且回答里是更正后的数字：茅台市盈率 21.44，五粮液 ROE（加权） 6.89% / 营业收入 405.29 亿元），以及「状态目录不可写时容器不就绪」的检查；
+- Kubernetes 冒烟测试：通过 [`deploy/k8s-smoke`](deploy/k8s-smoke/smoke.sh) 把 kustomization 部署到临时 kind 集群，NetworkPolicy 生效。先等 `/ready`，再从被放行的客户端 Pod 检查数据层、拿到一次通过校验的 `/agent/chat` 回答，并断言一个更正后的数字（五粮液 ROE（加权） 6.89%、营业收入 405.29 亿元）（[本地运行记录](docs/results/k8s-smoke/)）；
 - Kubernetes 清单校验（渲染后的 kustomization、不提交 Secret、镜像按 commit 打标签）。
 
-`pre-commit install` 后每次提交前会跑 gitleaks、ruff 和评测文档检查。
+`pre-commit install` 后每次提交前会跑 gitleaks、ruff 和评测文档检查。推送到 `master` 之前，在要推送的提交上运行 [`scripts/prepush.sh`](scripts/prepush.sh)，通过了才推送（[docs/zh/development.md](docs/zh/development.md)）：ruff、测试套件、前端检查与构建产物比对、浏览器 e2e、所有门禁集和评测文档检查。第 14 轮最终提交上的汇总在 [`docs/results/ci/`](docs/results/ci/)。`master` 的 CI 在 `7f4f06c` 上是红的（run 38061714150：更正层成为默认之后 e2e 用例仍断言种子数值），在 `f8f5546` 上恢复通过（run 38064588334，2026-10-10）。
 
 人工评测：[evaluation/human/](evaluation/human/README.md) 是一套只能由人完成的四项输入的工具包（100 条回答的质量标注、与问财/豆包/Kimi 在 30 道冻结题目上的对比、来自研报和社交媒体的真实说法核查、带 SUS 问卷的小型用户研究）。每项输入用一条评分命令生成结果，写入 `evaluation/results/`，并记录 commit、命令和输入文件哈希；目前还没有提交任何人工评测结果。
 
@@ -372,6 +374,7 @@ CI 包括：
 | 实时数据源 | [docs/zh/data-sources.md](docs/zh/data-sources.md) |
 | 性能、压测与扩展 | [docs/zh/performance.md](docs/zh/performance.md) |
 | 部署 | [docs/zh/deployment.md](docs/zh/deployment.md) |
+| 开发：推送前检查，发布默认配置如何被测试 | [docs/zh/development.md](docs/zh/development.md) |
 | 设计复盘：取舍、自研与复用、失败案例 | [docs/presentation/agent-design-notes.md](docs/presentation/agent-design-notes.md) |
 | 面试讲稿：30 秒介绍、三个可辩护的数字、失败故事、白板提纲 | [docs/presentation/interview-script.md](docs/presentation/interview-script.md) |
 | 声明核查：规则、比较词、基准 | [docs/zh/claim-check.md](docs/zh/claim-check.md) |
@@ -441,6 +444,10 @@ CI 包括：
 | I11（第九轮） | 低 | 今年以来涨跌幅以今年首个收盘价为基准（宁德时代 −22.88%） | 已修复（`38dcaf2`）：以上年最后一个收盘价 `prior_year_end` 为基准（2025-12-31 收盘 367.26，−20.73%） |
 | I19（第九轮） | 提示 | 输出安全层的分句不在「但」/ but 处断开 | 已修复（`c45df45`）：但 / 但是 / 却 / 不过 / but / however / yet 都断开分句（「不但」除外） |
 | 数据门禁（第九轮，数据获取） | 低 | 默认配置（扩展层开启）只有少数录制的开发任务覆盖 | 已加门禁（`0ce8eef`、`3b63c5a`）：`ext` 集合在 `QI_EVAL_SNAPSHOT_EXT=1`、不用回放的条件下单独作为 CI 一步运行；开发集和保留集仍固定在 v1 |
+| J1（第十轮） | 高（CI） | `master` 的 CI 在 `7f4f06c` 上是红的：更正层成为默认，e2e 用例仍断言种子数值，合并提交没跑 e2e 就推送了；没有任何门禁或测试运行发布默认配置 | 已修复：只改用例的 `f8f5546`（CI 通过，run 38064588334）；`scripts/prepush.sh` 在推送前跑 CI 跑的东西（[docs/zh/development.md](docs/zh/development.md)）；门禁集 `shipped`（21 个任务，两层都开，`gate-shipped.json`）有单独的 CI 步骤；`tests/test_shipped_default.py` 在默认数据层上运行 API（8 个测试，把更正层默认值改为关闭时全部失败） |
+| J2（第十轮） | 中（部署的数据） | Docker 镜像缺少更正层，容器给出种子数字（茅台市盈率 24.6），本地运行却是 21.44；加载器缺层时不出声地跳过 | 已修复：镜像复制 `data/snapshot/structured_data_fix.json`、`data/snapshot/manifest_fix.json` 和 `data/snapshot/corrections/`；开启但缺失的数据层会记警告并让 `/ready` 返回 503；`/ready` 报告每层的记录数和 sha256；CI 的 docker job 和 kind 冒烟测试断言更正后的数字；已在本地只读容器上验证（[部署](docs/zh/deployment.md#docker)） |
+| J9（第十轮） | 低–中（评测诚实性） | `slice_overlap` 只扫描固定的文件清单，漏掉了 ext 集，其中有 r9h_ind_en_01 的一字之差的变体 | 已修复：扫描每个任务文件和声明文件；第九轮切片有 6 个对话任务重合，去掉后 16/46 → 36/46（`slice_overlap-heldout_r9-all-tasks.json`；按评审的 5 个任务算是 16/47 → 36/47） |
+| J11（第十轮） | 低（文档） | 「每个 v1 数字都核对过」夸大了更正层的核对范围 | 已修复：README 写明核对的是三家 v1 公司的 2025 年报数字和七个 v1 标的 2026-04-22 的日线，行业和宏观数据没有核对 |
 | H12（第八轮） | 低 | 「I read that … True?」不触发内联核查 | 已修复（`bd84003`）：传闻线索按类别识别（转述来源、报道词、请求核实、句末确认问句）；「网上说…对吗」「有博主说…靠谱吗」「Is that correct?」也会触发 |
 
 仍未解决：

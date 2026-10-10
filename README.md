@@ -64,6 +64,7 @@ Online runs use 3 repeats per task, and costs are as billed by the gateway. Each
 |---|---|---|---|
 | Development | 473 tasks | project author | used to drive fixes (gate baseline `gate-dev.json`: 1.000 at the merged round-13 code `e54645b`) |
 | Snapshot extension (`ext`, round 13) | 24 tasks / 26 turns | project author, after the round-13 fixes | the only set run with the snapshot extension on (as shipped), against the offline tools with no replay; gated in CI (`gate-ext.json`, 24/24 at `235d00c`; 15/24 with the code before the round-13 fixes) |
+| Shipped default (`shipped`, round 14) | 21 tasks / 22 turns | project author, round 14, own wording | the only set run with the extension **and** the corrections layer on (what the product serves), expected values read from `data/snapshot/structured_data_fix.json`, seed values forbidden; gated in CI (`gate-shipped.json`, 21/21 at `0096c6f`; 2/21 with the corrections layer off) |
 | Held-out | 53 tasks | project author, after the rules were tuned | also used to choose prompts, so a validation set (gate baseline `gate-holdout.json`: 0.9434 at the merged round-13 code `83fdb7b`) |
 | Test v2 | 121 tasks / 174 turns | project author, blind, in one pass | failure classes read after its first runs and fixed on dev-style tasks, so **after exposure** since round 2 |
 | Multi-turn v1 | 49 conversations / 206 turns | a separate author who did not read the routing code or any task file ([protocol](evaluation/agent_eval/tasks/README_multiturn_v1.md)) | first runs below; fixed afterwards, so after exposure |
@@ -297,7 +298,7 @@ export QI_LLM_FALLBACK_MODELS=...                 # optional failover models on 
 
 Live market, news, announcement and macro providers are on by default. For the shipped offline snapshot, set `QI_USE_LIVE_MARKET=0` (and the same for `_NEWS`, `_ANNOUNCEMENT` and `_MACRO`). The offline snapshot is v1 (`data/structured_data.json`, 7 instruments, as of 2026-04-22) plus the extension (`data/snapshot/`, 15 more, as of 2026-09-30; `QI_OFFLINE_SNAPSHOT_EXT=0` turns it off), with the corrections layer applied (`data/snapshot/structured_data_fix.json`: primary-source values where the seed was wrong, and field definitions; `QI_OFFLINE_SNAPSHOT_FIX=0` turns it off); see [data-sources.md](docs/data-sources.md#what-is-live-what-is-snapshot-and-the-fallback-order) for what is live, what is snapshot and the fallback order.
 
-Docker, Kubernetes and the monitoring stack are covered in [docs/deployment.md](docs/deployment.md). On Kubernetes, replicas share sessions through Postgres and run on a read-only root filesystem.
+Docker, Kubernetes and the monitoring stack are covered in [docs/deployment.md](docs/deployment.md). On Kubernetes, replicas share sessions through Postgres and run on a read-only root filesystem. Since round 14 the image ships the corrections layer too (before, containers served the v1 seed figures, J2), and `GET /ready` lists the data layers it loaded ([deployment.md](docs/deployment.md#docker)).
 
 ```bash
 TAG=$(git rev-parse --short=7 HEAD)
@@ -317,7 +318,7 @@ docker compose -f docker/docker-compose.yml --profile monitoring up -d   # + Pro
 | `GET /agent/sessions/{id}`, `GET /agent/traces`, `GET /agent/traces/{id}` | Session memory, recent runs and a full run trace, scoped to the caller. |
 | `GET /.well-known/agent-card.json`, `POST /a2a` | A2A agent card and JSON-RPC endpoint. |
 | `GET /metrics`, `GET /sources/health[?probe=1]` | Prometheus metrics; live source status (active probe of all 19 sources on request, unprobed ones marked). |
-| `GET /health`, `GET /ready` | Liveness; readiness (checkpoint store reachable and writable, LLM config, retrieval index), 503 when not ready. |
+| `GET /health`, `GET /ready` | Liveness; readiness (checkpoint store reachable and writable, LLM config, retrieval index, offline data layers with record counts and sha256), 503 when not ready or when a switched-on data layer is missing. |
 | `POST /chat` | Original chatbot endpoint: `mode=workflow` keeps the original pipeline; `agent` and `auto` use the agent. |
 | `POST /nlu/analyze`, `POST /retrieval/search`, `POST /query/intelligence` | Classical NLU and retrieval artifacts. |
 
@@ -327,7 +328,8 @@ Schemas are in `schemas/agent_*.schema.json`, generated from `query_intelligence
 
 ```bash
 python -m pytest -q tests                                  # offline; live sources off unless QI_TEST_LIVE=1
-python -m evaluation.agent_eval.gate                       # replayed dev + held-out against committed baselines
+scripts/prepush.sh                                         # everything CI runs, locally, before a push (docs/development.md)
+python -m evaluation.agent_eval.gate                       # replayed dev + held-out, ext and shipped sets against committed baselines
 python -m evaluation.agent_eval.router_eval                # route accuracy and confusion matrix
 python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets holdout,test_v2
 python -m evaluation.agent_eval.verifier_stress            # verifier false-accept rate
@@ -346,12 +348,12 @@ CI runs the following:
 - a gitleaks secret scan of the full git history ([SECURITY.md](SECURITY.md));
 - the frontend checks: typecheck, lint, unit tests and a reproducible build;
 - the full test suite, run once, with a Postgres service, including the axe accessibility tests (they fail rather than skip in CI), and branch-coverage floors: `query_intelligence/agent` 88% (measured 90.17%), `query_intelligence/api` 90% (92.13%), `answer_guards.py` 81% (83.74%), from [`coverage-ef07a7f.json`](docs/results/coverage/coverage-ef07a7f.json). The 90.3% quoted earlier came from the agent test subset only;
-- the evaluation gate against committed baselines, and a check that the evaluation page is up to date;
-- the Docker build with a smoke test on a read-only root filesystem (waits for `/ready`), plus a check that an unwritable state volume makes the container unready;
-- a Kubernetes smoke test: the kustomization is applied to a throwaway kind cluster through [`deploy/k8s-smoke`](deploy/k8s-smoke/smoke.sh), with NetworkPolicies enforced. It waits for `/ready`, then gets one verified `/agent/chat` answer from an admitted client pod ([local run](docs/results/k8s-smoke/));
+- the evaluation gate against committed baselines (dev and held-out pinned to the v1 seed; `ext` with the extension on; `shipped` with the extension and the corrections layer on, as deployed), and a check that the evaluation page is up to date;
+- the Docker build with a smoke test on a read-only root filesystem (waits for `/ready`, checks that it lists the three data layers and that the answers carry the corrected figures 茅台 P/E 21.44 and 五粮液 ROE（加权） 6.89% / 营业收入 405.29 亿元), plus a check that an unwritable state volume makes the container unready;
+- a Kubernetes smoke test: the kustomization is applied to a throwaway kind cluster through [`deploy/k8s-smoke`](deploy/k8s-smoke/smoke.sh), with NetworkPolicies enforced. It waits for `/ready`, then, from an admitted client pod, checks the data layers, gets one verified `/agent/chat` answer and asserts one corrected figure (五粮液 ROE（加权） 6.89%, 营业收入 405.29 亿元) ([local runs](docs/results/k8s-smoke/));
 - Kubernetes manifest validation (rendered kustomization, no committed Secret, commit-tagged image).
 
-`pre-commit install` runs gitleaks, ruff and the evaluation-page check before each commit.
+`pre-commit install` runs gitleaks, ruff and the evaluation-page check before each commit. Before a push to `master`, run [`scripts/prepush.sh`](scripts/prepush.sh) at that commit and push only when it passes ([docs/development.md](docs/development.md)): ruff, the test suite, the frontend checks and build diff, the browser e2e, every gate set and the report check. Its summary at the round-14 head is in [`docs/results/ci/`](docs/results/ci/). Master CI was red at `7f4f06c` (run 38061714150: the e2e specs asserted seed values after the corrections layer became the default) and green again at `f8f5546` (run 38064588334, 2026-10-10).
 
 Human evaluation: [evaluation/human/](evaluation/human/README.md) is a kit for the four inputs only a person can give (labels on 100 answers, a head-to-head against 问财 / 豆包 / Kimi on 30 frozen questions, real claims from research notes and social media, a small user study with SUS). Each input goes through one scoring command that writes a result with commit, command and input hashes to `evaluation/results/`; no human results are committed yet.
 
@@ -367,6 +369,7 @@ Human evaluation: [evaluation/human/](evaluation/human/README.md) is a kit for t
 | Live data sources | [docs/data-sources.md](docs/data-sources.md) |
 | Performance, load and scaling | [docs/performance.md](docs/performance.md) |
 | Deployment | [docs/deployment.md](docs/deployment.md) |
+| Development: the pre-push check, how the shipped default is tested | [docs/development.md](docs/development.md) |
 | Design notes: trade-offs, built vs reused, failure cases (Chinese) | [docs/presentation/agent-design-notes.md](docs/presentation/agent-design-notes.md) |
 | Interview script: 30-second pitch, three defended numbers, a failure story, whiteboard outline (Chinese) | [docs/presentation/interview-script.md](docs/presentation/interview-script.md) |
 | Claim check: rules, comparators, benchmark | [docs/claim-check.md](docs/claim-check.md) |
@@ -436,6 +439,10 @@ Round-3 review bugs (C1–C20) and what is still open. Every fix has a test; rep
 | I11 (round 9) | Low | YTD measured from the year's first close (宁德时代 −22.88%) | fixed (`38dcaf2`): from the previous year's last close, `prior_year_end` (−20.73% from 367.26 on 2025-12-31) |
 | I19 (round 9) | Info | The output-safety clause split ignored 但 / but | fixed (`c45df45`): 但 / 但是 / 却 / 不过 / but / however / yet end a clause (not 不但) |
 | Data gate (round 9, Data acquisition) | Low | The shipped default (snapshot extension on) was regression-tested by only a few recorded dev tasks | gated (`0ce8eef`, `3b63c5a`): the `ext` set runs with `QI_EVAL_SNAPSHOT_EXT=1` and no replay in its own CI step; dev and held-out stay pinned to v1 |
+| J1 (round 10) | High (CI) | Master CI red at `7f4f06c`: the corrections layer became the default, the e2e specs asserted seed values, and the merge was pushed without an e2e run; no gate and no test ran the shipped default | fixed: spec fix `f8f5546` (CI green, run 38064588334); `scripts/prepush.sh` runs what CI runs before a push ([docs/development.md](docs/development.md)); the gate set `shipped` (21 tasks, both layers on, `gate-shipped.json`) has its own CI step; `tests/test_shipped_default.py` runs the API on the default layers (8 tests, all fail when the corrections default is flipped off) |
+| J2 (round 10) | Medium (deployed data) | The Docker image lacked the corrections layer, so containers served seed figures (茅台 P/E 24.6) where a local run served 21.44; the loader skipped a missing layer silently | fixed: the image copies `data/snapshot/structured_data_fix.json`, `data/snapshot/manifest_fix.json` and `data/snapshot/corrections/`; a switched-on layer that is missing logs a warning and makes `/ready` 503; `/ready` reports each layer's records and sha256; the CI docker job and the kind smoke test assert corrected figures; verified on a local read-only container ([deployment.md](docs/deployment.md#docker)) |
+| J9 (round 10) | Low–Medium (eval honesty) | `slice_overlap` scanned a fixed list of files and missed the ext set, which holds a one-word variant of r9h_ind_en_01 | fixed: it scans every task and claim file; the round-9 slice has 6 overlapping chat tasks, 16/46 → 36/46 without them (`slice_overlap-heldout_r9-all-tasks.json`; the review's count of 5 tasks gives 16/47 → 36/47) |
+| J11 (round 10) | Low (docs) | "Every v1 figure was checked" overstated the corrections check | fixed: the README says the three v1 companies' FY2025 statements and the seven v1 instruments' 2026-04-22 bars were checked, the industry and macro rows were not |
 | H12 (round 8) | Low | Inline fact check missed "I read that … True?" | fixed (`bd84003`): hearsay cues are classes (a source that says, a report word, a request to check, a confirmation question at the end); "网上说…对吗", "有博主说…靠谱吗", "Is that correct?" also start it |
 
 Still open:
