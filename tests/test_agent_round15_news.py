@@ -32,7 +32,7 @@ def test_an_empty_news_search_is_stated_by_kind_and_target():
 
 def test_no_gap_without_a_news_question_with_documents_or_after_a_failed_search():
     empty = [_search("search_news", [], ["招商银行"])]
-    assert news_gaps("招商银行的市盈率是多少", empty, zh=True) == []
+    assert news_gaps("招商银行眼下市盈率几倍", empty, zh=True) == []
     found = [_search("search_news", [{"evidence_id": "n1", "title": "x"}], ["招商银行"])]
     assert news_gaps("招商银行最近有什么新闻", found, zh=True) == []
     failed = [_search("search_news", [], ["招商银行"], ok=False)]
