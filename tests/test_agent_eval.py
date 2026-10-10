@@ -602,6 +602,24 @@ def test_report_check_fails_when_readme_cites_missing_or_unrendered_results(tmp_
     assert any("perf-baseline-deepseek.json is not rendered" in problem for problem in unrendered)
 
 
+def test_report_check_covers_the_pages_the_readme_material_moved_to(tmp_path):
+    """Round 15 (round-11 review K18): the long README material moved to docs/; its citations stay checked, also when
+    a page links a result relative to itself (``../evaluation/results/x.json``)."""
+    from evaluation.agent_eval.report import README_PATHS, ROOT, citation_problems, render_with_sources
+
+    relative = {str(path.relative_to(ROOT)) for path in README_PATHS}
+    assert {"README.md", "README_CN.md", "docs/evaluation-history.md", "docs/known-issues.md"} <= relative
+    assert {"docs/zh/evaluation-history.md", "docs/zh/known-issues.md", "docs/features.md"} <= relative
+
+    page = tmp_path / "docs" / "page.md"
+    page.parent.mkdir()
+    (tmp_path / "evaluation" / "results").mkdir(parents=True)
+    (tmp_path / "evaluation" / "results" / "here.json").write_text("{}", encoding="utf-8")
+    page.write_text("[a](../evaluation/results/here.json) and [b](../evaluation/results/gone.json)", encoding="utf-8")
+    problems = citation_problems(render_with_sources()[1], readmes=(page,))
+    assert problems == ["page.md cites ../evaluation/results/gone.json, which does not exist"]
+
+
 def test_every_result_the_readmes_cite_exists_and_is_rendered():
     from evaluation.agent_eval.report import citation_problems, render_with_sources
 

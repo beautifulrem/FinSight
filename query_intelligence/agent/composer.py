@@ -1564,6 +1564,8 @@ def cost_basis_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -
     diff = round(close - cost, 4)
     pct = _num(round(diff / cost * 100, 2))
     per_share = _num(round(diff, 2))
+    # (round 15, review-11 K17) a negative factor is bracketed in the product: "200 × (−90.5)", not "200 × -90.5"
+    factor = f"(−{per_share.lstrip('-')})" if per_share.startswith("-") else per_share
     gain = diff >= 0
     shares, lots = asked.get("shares"), asked.get("lots")
     if zh:
@@ -1575,7 +1577,7 @@ def cost_basis_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -
         if shares:
             held = f"{lots} 手（{shares} 股）" if lots else f"{shares} 股"
             total = _num(round(shares * round(diff, 2), 2))
-            sentence += f"，{held}合计 {shares} × {per_share} = {total} 元"
+            sentence += f"，{held}合计 {shares} × {factor} = {total} 元"
         return [
             f"{sentence} [{eid}]。",
             "这是按最近收盘价计算的账面盈亏，未含佣金、印花税等交易费用和分红，不是卖出建议或投资建议。",
@@ -1588,7 +1590,7 @@ def cost_basis_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -
     if shares:
         held = f"{lots} lots ({shares} shares)" if lots else f"{shares} shares"
         total = _num(round(shares * round(diff, 2), 2))
-        sentence += f", or {shares} × {per_share} = CNY {total} on {held}"
+        sentence += f", or {shares} × {factor} = CNY {total} on {held}"
     return [
         f"{sentence} [{eid}].",
         "This is a paper gain or loss at the last close before fees, taxes and dividends, not a recommendation to sell "
