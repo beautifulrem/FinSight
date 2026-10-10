@@ -274,6 +274,9 @@ def compose_template(
     costed = cost_basis_sentences(tool_log, query, zh) if query else []
     if costed:
         facts = [*costed, *facts]
+    dated, dated_gaps = dated_close_sentences(query, tool_log, zh) if query else ([], [])
+    if dated:
+        facts = [*dated, *(fact for fact in facts if fact not in dated)]
     frame_gaps: list[str] = []
     if frame_request:
         framed, frame_gaps = frame_sentences(frame_request, tool_log, zh)
@@ -282,7 +285,7 @@ def compose_template(
         for sentence in _arithmetic(query, tool_log, zh):
             if sentence not in facts:
                 facts.append(sentence)
-    gaps: list[str] = list(frame_gaps)
+    gaps: list[str] = [*frame_gaps, *dated_gaps]
     if query:
         gaps += _price_date_note(query, tool_log, zh, frame_request)
         gaps += [
@@ -828,7 +831,11 @@ _OPERATION_WORDS = {
     "share_total": ("占合计的比例", "the share of the combined total"),
     "sum": ("合计", "the total"),
     "spread": ("极差", "the spread"),
+    "mean": ("平均值", "the average"),
+    "total_vs_one": ("合计与另一方的差", "the total against the other side"),
 }
+_GROUP_ZH = {2: "两", 3: "三", 4: "四", 5: "五", 6: "六"}
+_GROUP_EN = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
 
 
 def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh: bool) -> tuple[list[str], list[str]]:
@@ -837,7 +844,21 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
     Each sentence writes both operands with their evidence ids next to the result (difference in the metric's unit or
     in percentage points, ratio to two decimals, relative difference in percent of the second operand, or which is
     higher), so the verifier re-derives it. An operand without data is named in ``gaps`` and nothing is computed from
-    other figures. (round 13) When the compared figures carry definitions, a note names them after the result."""
+    other figures. (round 13) When the compared figures carry definitions, a note names them after the result.
+
+    (round 15, review-11 K4/K10) A message with two operations ("两家加一起是多少，宁德占其中几成") has the further
+    ones in ``request["also"]``: each is answered after the first, with its own operands, values and evidence ids."""
+    sentences, gaps = _one_frame_sentences(request, tool_log, zh)
+    for extra in request.get("also") or []:
+        more, more_gaps = _one_frame_sentences(extra, tool_log, zh)
+        sentences += [line for line in more if line not in sentences]
+        gaps += [line for line in more_gaps if line not in gaps]
+    return sentences, gaps
+
+
+def _one_frame_sentences(
+    request: dict[str, Any], tool_log: list[dict[str, Any]], zh: bool
+) -> tuple[list[str], list[str]]:
     from .frame import operand_name, operand_value
 
     sentences, gaps = _frame_sentences(request, tool_log, zh)
@@ -869,11 +890,13 @@ def _frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh
         # (round 14, review-10 J4) a comparison whose second operand could not be identified is never answered with
         # the other operand alone: say which one is missing
         names = "、".join(f"「{name}」" for name in unresolved) if zh else ", ".join(f'"{name}"' for name in unresolved)
+        count = len(request.get("operands") or [])
+        group = "两者" if count <= 2 else f"{_GROUP_ZH.get(count, '各')}者"
         return [], [
-            f"未能识别{names}对应的证券，因此无法计算两者{label}的{word_zh}；以下只列出能识别的一方。"
+            f"未能识别{names}对应的证券，因此无法计算{group}{label}的{word_zh}；以下只列出能识别的部分。"
             if zh
             else f"Could not tell which security {names} refers to, so {word_en} of the {label} cannot be computed; "
-            "only the identified side is listed below."
+            "only the identified part is listed below."
         ]
     for operand in request.get("operands") or []:
         hit = operand_value(tool_log, operand, key)
@@ -908,8 +931,11 @@ def _frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh
 
     cites = "".join(dict.fromkeys(f"[{eid}]" for _name, _value, eid, _data in found))
     computed = any(data.get("_computed_change") for _name, _value, _eid, data in found)
-    many = operation in {"sum", "spread", "share_total"} or (request.get("pairwise") and len(found) > 2)
-    if many and not computed and (operation not in {"sum", "share_total"} or kind in {"money", "count"}):
+    many = operation in {"sum", "spread", "share_total", "mean", "total_vs_one"} or (
+        request.get("pairwise") and len(found) > 2
+    )
+    totals = {"sum", "share_total", "total_vs_one"}
+    if many and not computed and (operation not in totals or kind in {"money", "count"}):
         return _many_operand_sentences(operation, found, label, kind, shown, cites, zh, request), []
     if len(found) > 2:
         ordered = sorted(found, key=lambda item: item[1], reverse=True)
@@ -1096,6 +1122,26 @@ def _many_operand_sentences(
 
     values = [f"{name} {shown(value, data)}" for name, value, _eid, data in found]
     listing = ("，" if zh else ", ").join(values)
+    if operation == "mean":
+        # (round 15, review-11 K4) the mean of every operand, with every value next to it
+        mean = sum(value for _name, value, _eid, _data in found) / len(found)
+        if kind == "money":
+            mean_text = _money(mean, zh)
+        elif kind == "points":
+            mean_text = f"{_num(round(mean, 2))}%"
+        elif kind == "multiple":
+            mean_text = _times(round(mean, 2), zh)
+        elif kind == "price":
+            mean_text = _px(round(mean, 3), found[0][3], zh)
+        else:
+            mean_text = _num(round(mean, 2))
+        count = len(found)
+        if zh:
+            return [f"{label}：{listing}，{_GROUP_ZH.get(count, str(count))}者平均约 {mean_text} {cites}。"]
+        group = _GROUP_EN.get(count, "operands")
+        return [f"{label}: {listing}; the average of the {group} is about {mean_text} {cites}."]
+    if operation == "total_vs_one":
+        return [_total_vs_one_sentence(found, label, kind, shown, cites, zh, request)]
     if operation in {"sum", "share_total"}:
         total = sum(value for _name, value, _eid, _data in found)
         total_text = _money(total, zh) if kind == "money" else _num(round(total, 2))
@@ -1115,7 +1161,7 @@ def _many_operand_sentences(
         if not total:
             return []
         pct = _num(round(a / total * 100, 2))
-        group = "两者" if len(found) == 2 else f"{len(found)}者"
+        group = f"{_GROUP_ZH.get(len(found), str(len(found)))}者"
         if zh:
             return [
                 f"{label}：{listing}，合计 {total_text}{note}，{shown(a, data_a)} ÷ {total_text} ≈ {pct}%，"
@@ -1163,6 +1209,44 @@ def _many_operand_sentences(
     return [
         f"{label}: {listing}; the question names {count} targets, so each pair is computed: {'; '.join(pairs)} {cites}."
     ]
+
+
+def _total_vs_one_sentence(
+    found: list[tuple], label: str, kind: str, shown: Any, cites: str, zh: bool, request: dict
+) -> str:
+    """(round 15, review-11 K1) A total compared with another value: every operand, the total of the side with two or
+    more operands (never including the other side), and the gap; a yes / no question gets the answer first."""
+    split = int(request.get("split") or 1)
+    left, right = found[:split], found[split:]
+
+    def amount(value: float) -> str:
+        return _money(value, zh) if kind == "money" else _num(round(value, 2))
+
+    def side(items: list[tuple]) -> tuple[str, float]:
+        total = sum(value for _name, value, _eid, _data in items)
+        if len(items) == 1:
+            name, value, _eid, data = items[0]
+            return f"{name}（{shown(value, data)}）" if zh else f"{name} ({shown(value, data)})", total
+        names = "、".join(item[0] for item in items) if zh else " and ".join(item[0] for item in items)
+        return (f"{names}合计 {amount(total)}" if zh else f"{names} combined ({amount(total)})"), total
+
+    listing = ("，" if zh else ", ").join(f"{name} {shown(value, data)}" for name, value, _eid, data in found)
+    left_text, left_total = side(left)
+    right_text, right_total = side(right)
+    gap = amount(abs(left_total - right_total))
+    more = left_total > right_total
+    asked = request.get("asked")
+    verdict = ""
+    if asked in {"more", "less"} and left_total != right_total:
+        yes = more if asked == "more" else not more
+        verdict = ("是的，" if yes else "不是，") if zh else ("Yes: " if yes else "No: ")
+    if zh:
+        if left_total == right_total:
+            return f"{label}：{listing}；{left_text}与{right_text}相同 {cites}。"
+        return f"{verdict}{label}：{listing}；{left_text}，比{right_text}{'多' if more else '少'} {gap} {cites}。"
+    if left_total == right_total:
+        return f"{verdict}{label}: {listing}; {left_text} equals {right_text} {cites}."
+    return f"{verdict}{label}: {listing}; {left_text} is {gap} {'more' if more else 'less'} than {right_text} {cites}."
 
 
 def _display_scale(value: float, zh: bool) -> float:
@@ -1291,13 +1375,43 @@ def _metric_pair_sentences(
     return [sentence], notes
 
 
+def frame_values(request: dict[str, Any], tool_log: list[dict[str, Any]]) -> list[float]:
+    """(round 15, review-11 K3) Every number the comparison frame computes for a request (and for the further
+    operations of the same message): the result, and the totals it states on the way (the combined total of a share
+    of the total or of a mean, each side of a total compared with another value). The verifier accepts these in a cited
+    sentence, so a correct computation is never deleted."""
+    from .frame import operand_value
+
+    values: list[float] = []
+    for item in [request, *(request.get("also") or [])] if request else []:
+        result = frame_result(item, tool_log)
+        if result is not None:
+            values.append(result)
+        operation = str(item.get("operation") or "")
+        if operation not in {"sum", "share_total", "mean", "total_vs_one"}:
+            continue
+        found = []
+        for operand in item.get("operands") or []:
+            hit = operand_value(tool_log, operand, str(operand.get("metric") or item.get("metric") or ""))
+            if hit is None:
+                break
+            found.append(float(hit[0]))
+        else:
+            if len(found) >= 2:
+                values.append(sum(found))
+                if operation == "total_vs_one":
+                    split = int(item.get("split") or 1)
+                    values += [sum(found[:split]), sum(found[split:])]
+    return [value for value in dict.fromkeys(values) if value]
+
+
 def frame_result(request: dict[str, Any], tool_log: list[dict[str, Any]]) -> float | None:
     """The number a frame request computes (gap, ratio or percent), for checking whether an LLM draft states it."""
     from .frame import operand_value
 
     key, operation = str(request.get("metric") or ""), str(request.get("operation") or "difference")
     values = []
-    many = operation in {"sum", "spread", "share_total"}
+    many = operation in {"sum", "spread", "share_total", "mean", "total_vs_one"}
     for operand in (request.get("operands") or [])[: None if many else 2]:
         hit = operand_value(tool_log, operand, str(operand.get("metric") or key))
         if hit is None or hit[2].get("_computed_change"):
@@ -1307,6 +1421,11 @@ def frame_result(request: dict[str, Any], tool_log: list[dict[str, Any]]) -> flo
         return None
     if operation == "sum":
         return round(sum(values), 2)
+    if operation == "mean":
+        return round(sum(values) / len(values), 2)
+    if operation == "total_vs_one":
+        split = int(request.get("split") or 1)
+        return round(abs(sum(values[:split]) - sum(values[split:])), 2)
     if operation == "spread":
         return round(max(values) - min(values), 2)
     if operation == "share_total":
@@ -1520,6 +1639,20 @@ def _from_52w_extremes(data: dict[str, Any], zh: bool, request: PriceRequest) ->
                 f"{name}'s latest close of {_px(close, data, zh)} is ({_num(close)} − {_num(low)}) ÷ {_num(low)} ≈ "
                 f"{pct}% above its 52-week low close of {_px(low, data, zh)} on {found.get('low_date')} [{eid}]."
             )
+    if request.back_to_high_52w and high and float(close):
+        # (round 15, review-11 K4) the rise from the latest close back to the 52-week high, in percent of the close
+        pct = _num(round((float(high) - float(close)) / float(close) * 100, 2))
+        if zh:
+            sentences.append(
+                f"{name}最新收盘 {_px(close, data, zh)}，要回到近52周最高收盘 {_px(high, data, zh)}"
+                f"（{found.get('high_date')}）需上涨 ({_num(high)} − {_num(close)}) ÷ {_num(close)} ≈ {pct}% [{eid}]。"
+            )
+        else:
+            sentences.append(
+                f"From its latest close of {_px(close, data, zh)}, {name} would need to rise ({_num(high)} − "
+                f"{_num(close)}) ÷ {_num(close)} ≈ {pct}% to get back to its 52-week high close of "
+                f"{_px(high, data, zh)} on {found.get('high_date')} [{eid}]."
+            )
     if request.off_high_52w and high:
         pct = _num(round((float(high) - float(close)) / float(high) * 100, 2))
         if zh:
@@ -1533,6 +1666,87 @@ def _from_52w_extremes(data: dict[str, Any], zh: bool, request: PriceRequest) ->
                 f"{pct}% below its 52-week high close of {_px(high, data, zh)} on {found.get('high_date')} [{eid}]."
             )
     return sentences
+
+
+_CLOSE_ASKED = re.compile(r"收盘|收于|报收|股价|价格|\bclos(?:e|ed|ing)\b|\bprice\b|\btrad(?:ed|ing) at\b", re.I)
+
+
+def dated_closes(data: dict[str, Any]) -> dict[str, float]:
+    """(round 15, review-11 K8) Every dated close the price payload carries: the recent closes, the year's first
+    close, the previous year's last close, the 52-week high and low, and the drawdown peaks and troughs."""
+    found: dict[str, float] = {}
+
+    def put(day: Any, close: Any) -> None:
+        if day and isinstance(close, int | float):
+            found.setdefault(str(day)[:10], float(close))
+
+    for row in data.get("recent_closes") or []:
+        if isinstance(row, dict):
+            put(row.get("date"), row.get("close"))
+    for key in ("year_start", "prior_year_end"):
+        row = data.get(key) or {}
+        put(row.get("date"), row.get("close"))
+    extremes = data.get("range_52w") or {}
+    put(extremes.get("high_date"), extremes.get("high"))
+    put(extremes.get("low_date"), extremes.get("low"))
+    for key in ("max_drawdown_1y", "max_drawdown_ytd"):
+        row = data.get(key) or {}
+        put(row.get("peak_date"), row.get("peak"))
+        put(row.get("trough_date"), row.get("trough"))
+    if data.get("as_of") and data.get("close") is not None:
+        put(data.get("as_of"), data.get("close"))
+    return found
+
+
+def dated_close_sentences(query: str, tool_log: list[dict[str, Any]], zh: bool) -> tuple[list[str], list[str]]:
+    """(round 15, review-11 K8) A close asked for a stated day ("招商银行2025年12月31日收盘价"): the close of that day
+    when the payload carries it (``dated_closes``), with its date; a day after the data's last bar is said to be
+    after the data (a future day is also hedged as a forecast by compliance); a day the payload does not carry is
+    named missing. ``(facts, gaps)``."""
+    from datetime import date
+
+    from .stated_dates import stated_periods
+
+    if not _CLOSE_ASKED.search(query or ""):
+        return [], []
+    facts: list[str] = []
+    gaps: list[str] = []
+    for entry in tool_log:
+        data = entry.get("data") or {}
+        if entry.get("tool") != "get_price_history" or not entry.get("ok") or not data.get("as_of"):
+            continue
+        try:
+            as_of = date.fromisoformat(str(data["as_of"])[:10])
+        except ValueError:
+            continue
+        days = [period for period in stated_periods(query, as_of) if period.kind == "day"]
+        if not days:
+            continue
+        closes = dated_closes(data)
+        name, eid = data.get("name") or data.get("symbol"), data.get("evidence_id")
+        for period in days:
+            day = period.start.isoformat()
+            if day in closes and eid and day != str(data["as_of"])[:10]:
+                value = _px(closes[day], data, zh)
+                sentence = f"{name} {day} 的收盘价为 {value} [{eid}]。"
+                facts.append(sentence if zh else f"{name} closed at {value} on {day} [{eid}].")
+            elif period.start > as_of:
+                gaps.append(
+                    f"当前数据截至 {as_of.isoformat()}，没有{name} {day} 的收盘价；以下是最新可用收盘价。"
+                    if zh
+                    else f"The data ends on {as_of.isoformat()}, so there is no close for {name} on {day}; the latest "
+                    "available close is given below."
+                )
+            elif day not in closes:
+                gaps.append(
+                    f"当前数据中没有{name} {day} 的收盘价（可能不是交易日，或不在数据提供的日期中）；"
+                    "以下是最新可用收盘价。"
+                    if zh
+                    else f"The data has no close for {name} on {day} (not a trading day, or not among the dates the "
+                    "data carries); the latest available close is given below."
+                )
+        break
+    return facts, gaps
 
 
 def cost_basis_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -> list[str]:
@@ -1555,6 +1769,8 @@ def cost_basis_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -
     close, eid, name, as_of = float(data["close"]), data.get("evidence_id"), data.get("name"), data.get("as_of")
     if not eid:
         return []
+    if asked.get("lots_detail"):
+        return _lots_sentences(asked["lots_detail"], close, data, zh)
     cost = float(asked["cost"])
     diff = round(close - cost, 4)
     pct = _num(round(diff / cost * 100, 2))
@@ -1586,6 +1802,42 @@ def cost_basis_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -
         sentence += f", or {shares} × {per_share} = CNY {total} on {held}"
     return [
         f"{sentence} [{eid}].",
+        "This is a paper gain or loss at the last close before fees, taxes and dividends, not a recommendation to sell "
+        "or investment advice.",
+    ]
+
+
+def _lots_sentences(lots: list[dict[str, Any]], close: float, data: dict[str, Any], zh: bool) -> list[str]:
+    """(round 15, review-11 K2) Several purchases at different costs: each lot's shares × (close − cost), their sum,
+    and the average cost; the costs are the user's, the close is the latest one."""
+    eid, name, as_of = data.get("evidence_id"), data.get("name"), data.get("as_of")
+    shares = sum(int(lot["shares"]) for lot in lots)
+    paid = sum(int(lot["shares"]) * float(lot["cost"]) for lot in lots)
+    gains = [round(int(lot["shares"]) * (close - float(lot["cost"])), 2) for lot in lots]
+    total = round(sum(gains), 2)
+    average = round(paid / shares, 4)
+    pct = _num(round(total / paid * 100, 2)) if paid else "0"
+    if zh:
+        parts = [
+            f"{lot['shares']} 股 × ({_num(close)} − {_num(lot['cost'])}) = {_num(gain)} 元"
+            for lot, gain in zip(lots, gains, strict=True)
+        ]
+        word = "浮盈" if total >= 0 else "浮亏"
+        return [
+            f"按 {as_of} 收盘价 {_px(close, data, zh)}和你给出的 {len(lots)} 笔买入成本分别计算，{name}："
+            f"{'；'.join(parts)}；合计{word} {_num(total)} 元（{shares} 股，你给出的平均成本 "
+            f"{_num(round(average, 3))} 元，约 {pct}%） [{eid}]。",
+            "这是按最近收盘价计算的账面盈亏，未含佣金、印花税等交易费用和分红，不是卖出建议或投资建议。",
+        ]
+    parts = [
+        f"{lot['shares']} × ({_num(close)} − {_num(lot['cost'])}) = CNY {_num(gain)}"
+        for lot, gain in zip(lots, gains, strict=True)
+    ]
+    word = "gain" if total >= 0 else "loss"
+    return [
+        f"At the {as_of} close of {_px(close, data, zh)} and your {len(lots)} stated purchase costs, {name}: "
+        f"{'; '.join(parts)}; a combined paper {word} of CNY {_num(total)} on {shares} shares (your stated average "
+        f"cost CNY {_num(round(average, 3))}, about {pct}%) [{eid}].",
         "This is a paper gain or loss at the last close before fees, taxes and dividends, not a recommendation to sell "
         "or investment advice.",
     ]

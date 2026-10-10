@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .coverage import holding_lots, holding_positions, holding_value_request
+from .coverage import cost_basis_request, holding_lots, holding_positions, holding_value_request
 from .evidence import _NUMBER as _NUMBER_TOKEN
 from .evidence import EvidenceStore, _collect_numbers, extract_numbers
 
@@ -411,6 +411,9 @@ def _bound_units(answer: dict[str, Any]) -> list[tuple[str, str]]:
 # (round 13) and the 1 of "close ÷ (1 − 0.18%)" (a previous close implied by a close and its % change)
 _FORMULA_CONSTANT = re.compile(r"(?<=[×*✕])\s*100(?:\.0+)?\s*%?(?![\d.])|(?<=[(（])\s*1\s*(?=[+\-−])")
 _TOTAL_WORD = re.compile(r"合计|总计|\bcombined\b|\bin total\b|\btogether\b|\btakes about\b", re.IGNORECASE)
+# (round 15, review-11 K3/K4) the mean of the operands stated in the sentence ("三者平均约 18.12%", "the average of the
+# three is about 18.12%")
+_MEAN_WORD = re.compile(r"平均|均值|\baverage\b|\bmean\b", re.IGNORECASE)
 _IMPLIED_PREVIOUS = re.compile(r"[÷/]\s*[(（]\s*1\s*[+\-−]")
 # A ratio or a gap stated next to a metric name ("ROE 约为中国平安的 1.93 倍", "P/E is 17.7% above"): the number is
 # derived from the operands, not a reported value of the metric
@@ -491,6 +494,7 @@ def verify_answer(
     market_precedence: bool = True,
     require_citations: bool = True,
     allow_derived: bool = False,
+    computed: list[float] | tuple[float, ...] = (),
 ) -> VerificationReport:
     """``binding="claim"`` (default) checks each number against the evidence cited in its sentence with a
     unit- and precision-aware tolerance. ``"run"`` checks against all evidence of the run, and ``"legacy"``
@@ -514,7 +518,13 @@ def verify_answer(
     ``allow_derived`` (off by default; ``AgentConfig.verify_derived``) also accepts, in a sentence that cites
     evidence, a number equal to the difference, sum, ratio or percent change of two other numbers stated in
     the same sentence that the cited evidence supports ("茅台 ROE 33%，平安 15.2%，高 17.8 个百分点"). The
-    operands must be written next to the result, so the arithmetic can be checked by the reader too."""
+    operands must be written next to the result, so the arithmetic can be checked by the reader too.
+
+    (round 15, review-11 K3) ``computed`` are the numbers the comparison frame computed from this run's tool outputs
+    for the operation the question asks (``composer.frame_values``: a total, a mean, a share of an N-company total, a
+    total against another value, a ratio of two metrics, a gain against stated costs…). With ``allow_derived`` a
+    number in a cited sentence equal to one of them (at its unit's scales and precision) is a derived figure, so a
+    correct computation is never deleted because the generic rules cannot re-derive it."""
     ids = cited_ids(answer)
     invalid = [evidence_id for evidence_id in ids if evidence_id not in store]
     known = _evidence_numbers(store)
@@ -533,6 +543,12 @@ def verify_answer(
             if count and float(count) not in query_numbers:
                 query_numbers.append(float(count))
     closes = _store_closes(store) if position_counts else []
+    cost_lots = (cost_basis_request(query) or {}).get("lots_detail") or []
+    if cost_lots:
+        for lot in cost_lots:
+            for number in (lot["cost"], lot["shares"]):
+                if number and float(number) not in query_numbers:
+                    query_numbers.append(float(number))
     unsupported: list[float] = []
     misattributed: list[float] = []
     document_market: list[float] = []
@@ -608,9 +624,16 @@ def verify_answer(
                 allow_derived
                 and unit_ids
                 and query_numbers
-                and _COST_WORD.search(unit)
-                and _is_cost_derived(value, rounding, query_numbers, operands)
+                and (
+                    (_COST_WORD.search(unit) and _is_cost_derived(value, rounding, query_numbers, operands))
+                    # (round 15, review-11 K2) the lots are listed in "；"-separated clauses of one cost sentence
+                    or (_COST_WORD.search(sentence) and _is_lots_derived(value, rounding, cost_lots, operands))
+                )
             ):
+                continue
+            # (round 15, review-11 K3) a number the comparison frame computed from this run's tool outputs
+            if allow_derived and unit_ids and computed and _is_supported(value, list(computed), scales, rounding):
+                derived_values.append(value)
                 continue
             # (round 14, review-10 J3/J5) the total value of several stated positions, each count times one of the
             # run's closes, however the products are written (in other sentences, in 万元, or not at all)
@@ -654,6 +677,7 @@ def verify_answer(
                     total_written=bool(_TOTAL_WORD.search(unit)),
                     share_of_total=_is_percent(scales) and ("÷" in unit or bool(_SHARE_OF_TOTAL.search(unit))),
                     amounts=amounts,
+                    mean_written=bool(_MEAN_WORD.search(unit)),
                 )
             ) or (_is_amount_gap(value, scales, rounding, sentence_amounts)):
                 derived_values.append(value)
@@ -1002,6 +1026,7 @@ def _is_derived(
     exact_amounts: list[float] = (),
     share_of_total: bool = False,
     amounts: list[float] = (),
+    mean_written: bool = False,
 ) -> bool:
     """``value`` is a - b, a + b, a / b or the percent change (a - b) / b of two stated operands, or, for a value
     written in percent, the share a / b of two stated amounts (a net margin: net profit / revenue, a <= b) or the
@@ -1057,10 +1082,19 @@ def _is_derived(
                     candidate = a / denominator * 100
                     if abs(abs(value) - candidate) <= tolerance + candidate * 0.0005 + 1e-9:
                         return True
-    if total_written and len(operands) >= 3:
-        # (round 13, review-9 I3) "合计" / "combined" of three or more stated operands
-        total = sum(operands)
+    distinct = list(dict.fromkeys(operands))
+    if total_written and len(distinct) >= 3:
+        # (round 13, review-9 I3) "合计" / "combined" of three or more stated operands; (round 15, review-11 K3) each
+        # operand counted once (a share sentence repeats its numerator: "A … B … C …，合计 S，A ÷ S ≈ x%")
+        total = sum(distinct)
         if abs(abs(value) - abs(total)) <= tolerance + abs(total) * 0.0005 + 1e-9:
+            return True
+        if len(distinct) <= 6 and _is_group_total(value, tolerance, distinct):
+            return True
+    if mean_written and len(distinct) >= 2:
+        # (round 15, review-11 K4) the mean of the operands stated in the sentence
+        mean = sum(distinct) / len(distinct)
+        if mean and abs(abs(value) - abs(mean)) <= tolerance + abs(mean) * 0.0005 + 1e-9:
             return True
     # (round 13) a rate minus a share of two stated amounts (a gross margin and a net margin derived from net profit
     # and revenue: "毛利率 76.1%，净利率 378 亿元 ÷ 1085 亿元 ≈ 34.84%，两者相差 41.26 个百分点")
@@ -1081,6 +1115,47 @@ def _is_derived(
             if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
                 return True
     return False
+
+
+def _is_group_total(value: float, tolerance: float, operands: list[float]) -> bool:
+    """(round 15, review-11 K1) A total compared with another value, with every operand stated: the total of a group
+    of two or more operands, or the gap between the totals of the two sides ("A 517.77，B 326.19，C 3685.62；A、B合计
+    843.96，比C少 2841.66")."""
+    from itertools import combinations
+
+    count = len(operands)
+    candidates: list[float] = []
+    for size in range(2, count):
+        candidates.extend(sum(group) for group in combinations(operands, size))
+    indices = range(count)
+    for size in range(1, count):
+        for group in combinations(indices, size):
+            left = sum(operands[i] for i in group)
+            right = sum(operands[i] for i in indices if i not in group)
+            candidates.append(left - right)
+    return any(
+        candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9
+        for candidate in candidates
+    )
+
+
+def _is_lots_derived(value: float, rounding: float | None, lots: list[dict[str, Any]], operands: list[float]) -> bool:
+    """(round 15, review-11 K2) Several purchases at different costs: Σ shares × (close − cost) over the stated lots,
+    the average cost Σ shares × cost ÷ Σ shares, the total shares and the total cost, with a supported close."""
+    if len(lots) < 2:
+        return False
+    tolerance = 0.5 if rounding is None else rounding
+    shares = sum(float(lot["shares"]) for lot in lots)
+    paid = sum(float(lot["shares"]) * float(lot["cost"]) for lot in lots)
+    candidates = [shares, paid, paid / shares if shares else 0.0]
+    for close in operands:
+        gain = sum(float(lot["shares"]) * (close - float(lot["cost"])) for lot in lots)
+        candidates += [gain, gain / paid * 100 if paid else 0.0, close * shares]
+        candidates += [float(lot["shares"]) * (close - float(lot["cost"])) for lot in lots]
+    return any(
+        candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9
+        for candidate in candidates
+    )
 
 
 def _is_product_total(
