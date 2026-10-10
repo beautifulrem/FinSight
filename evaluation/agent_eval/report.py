@@ -105,6 +105,10 @@ REDTEAM_RUNS = (
         "Prompt-injection red team, offline template path at 04dac41 (ten sets, before the round-12 headline rules)",
     ),
     (
+        "redteam-r13-holdout10-llm",
+        "Prompt-injection red team, LLM paths on holdout10 (round-8 reviewer's styles) in round 13 (30ad952)",
+    ),
+    (
         "redteam-r12-holdout9-llm",
         "Prompt-injection red team, LLM paths on holdout9 (round-7 reviewer's styles) in round 12 (1913945)",
     ),

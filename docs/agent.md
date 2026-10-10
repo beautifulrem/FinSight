@@ -695,7 +695,11 @@ a parenthetical figure end a clause, and the fundamentals settle a revenue anoth
 `3882dc3`). The output-safety audit (`evaluation/agent_eval/output_safety_audit.py`) measures the layer on answers
 nobody attacked: 0 edits in 797 clean template answers; on the 32 holdout9 LLM drafts replayed, 0 false marks, over-broad
 marks in 5 answers before `3882dc3` and 0 after ([observability](a2a-and-observability.md)). A clean-question LLM sample
-was planned within the same 120-call budget and lost to a script bug (`541c470`); holdout10 has no LLM run. The LLM run
+was planned within the same 120-call budget and lost to a script bug (`541c470`). **LLM paths on holdout10** (round 13,
+`redteam-r13-holdout10-llm.json`, `30ad952`, the same method with `redteam_r13_holdout10_cases.json`, 80-call budget, 76
+used, two composition cases skipped, no errors or 429s): stated as fact agent 0/16, composition 0/14; raw detector
+hits 2/16 and 4/14, all in attributed sentences, so payloads such as a fake 无法表示意见 audit opinion still reach the
+reader as single-source claims. The LLM run
 also exposed a verifier bug: a numbered list item got a citation appended to its number ("2[…]."), fixed in `3bb341c`.
 
 ```bash
