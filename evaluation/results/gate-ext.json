@@ -17,10 +17,10 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "fd39882",
-  "run_at": "2026-10-10T20:50:38+00:00",
+  "commit": "815d046",
+  "run_at": "2026-10-10T22:16:04+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 30.8,
+  "wall_seconds": 38.7,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl --no-replay --out outputs/agent_eval/gate-ext.json",
   "env": {
    "QI_EVAL_SNAPSHOT_EXT": "1"
@@ -28,8 +28,8 @@
   "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl --no-replay --out outputs/agent_eval/gate-ext.json"
  },
  "summary": {
-  "tasks": 54,
-  "turns": 58,
+  "tasks": 78,
+  "turns": 86,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -54,15 +54,15 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.17,
+  "tool_precision": 0.109,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 69.35,
-  "latency_ms_p95": 829.03,
-  "latency_ms_p99": 1407.0,
+  "latency_ms_p50": 82.61,
+  "latency_ms_p95": 746.45,
+  "latency_ms_p99": 4119.61,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -88,51 +88,51 @@
  },
  "by_category": {
   "comparison": {
-   "tasks": 6,
+   "tasks": 18,
    "task_success": 1.0,
-   "latency_ms_p95": 151.16
+   "latency_ms_p95": 157.9
   },
   "compliance": {
    "tasks": 9,
    "task_success": 1.0,
-   "latency_ms_p95": 439.93
+   "latency_ms_p95": 410.49
   },
   "derived": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 410.27
+   "latency_ms_p95": 367.58
   },
   "fact": {
-   "tasks": 19,
+   "tasks": 28,
    "task_success": 1.0,
-   "latency_ms_p95": 1407.0
+   "latency_ms_p95": 1261.39
   },
   "missing_data": {
    "tasks": 2,
    "task_success": 1.0,
-   "latency_ms_p95": 758.43
+   "latency_ms_p95": 670.45
   },
   "multi_turn": {
-   "tasks": 4,
+   "tasks": 7,
    "task_success": 1.0,
-   "latency_ms_p95": 1386.07
+   "latency_ms_p95": 1425.45
   },
   "out_of_coverage": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 495.04
+   "latency_ms_p95": 441.81
   }
  },
  "by_language": {
   "en": {
-   "tasks": 18,
+   "tasks": 26,
    "task_success": 1.0,
-   "latency_ms_p95": 413.1
+   "latency_ms_p95": 408.44
   },
   "zh": {
-   "tasks": 36,
+   "tasks": 52,
    "task_success": 1.0,
-   "latency_ms_p95": 1386.07
+   "latency_ms_p95": 1234.49
   }
  },
  "failed_checks": {},
@@ -191,12 +191,36 @@
   "ext_r15s_report_forecast_en": "1",
   "ext_r15s_report_lookup_zh": "1",
   "ext_r15s_no_news_zh": "1",
-  "ext_r15s_no_news_en": "1"
+  "ext_r15s_no_news_en": "1",
+  "r15_ext_total_vs_one_zh": "1",
+  "r15_ext_one_vs_total_zh": "1",
+  "r15_ext_one_vs_total_en": "1",
+  "r15_ext_mean_roe_zh": "1",
+  "r15_ext_mean_cap_en": "1",
+  "r15_ext_mean_divide_zh": "1",
+  "r15_ext_sum_and_share_zh": "1",
+  "r15_ext_second_metric_en": "1",
+  "r15_ext_cap_over_profit_zh": "1",
+  "r15_ext_verb_duozheng_zh": "1",
+  "r15_ext_margin_lead_en": "1",
+  "r15_ext_two_lots_en": "1",
+  "r15_ext_two_lots_zh": "1",
+  "r15_ext_wan_count_zh": "1",
+  "r15_ext_portfolio_clauses_zh": "1",
+  "r15_ext_added_position_zh": "1",
+  "r15_ext_dated_close_zh": "1",
+  "r15_ext_dated_close_en": "1",
+  "r15_ext_day_after_data_zh": "1",
+  "r15_ext_off_high_no_hedge_zh": "1",
+  "r15_ext_back_to_high_en": "1",
+  "r15_ext_unresolved_in_list_zh": "1",
+  "r15_ext_net_profit_total_zh": "1",
+  "r15_ext_ellipsis_two_targets_en": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-ext.json",
-  "sha256_16": "cecdd989c188c3bd",
-  "bytes": 169051,
-  "slimmed_at": "2026-10-10T20:50:39+00:00"
+  "sha256_16": "0a96aa96521f83e6",
+  "bytes": 261632,
+  "slimmed_at": "2026-10-10T22:16:04+00:00"
  }
 }
