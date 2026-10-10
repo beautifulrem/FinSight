@@ -154,9 +154,9 @@ def test_turns_and_points_above_are_differences(checker, claim, verdict, differe
 @pytest.mark.parametrize(
     ("claim", "verdict"),
     [
-        ("茅台的市盈率低于白酒行业平均，但市净率高于行业平均", "supported"),  # 24.6 < 27.3; 8.1 > 6.2
+        ("贵州茅台的PE低于白酒板块平均水平，但PB高于板块平均", "supported"),  # 24.6 < 27.3; 8.1 > 6.2
         ("贵州茅台市盈率不如白酒行业平均高，市净率却比行业平均高", "supported"),
-        ("茅台的市盈率低于白酒行业平均，但市净率也低于行业平均", "partially_supported"),
+        ("茅台的PE低于白酒行业平均，但是PB也低于行业平均", "partially_supported"),
     ],
 )
 def test_the_subject_carries_into_a_contrast_clause(checker, claim, verdict):
