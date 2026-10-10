@@ -1,0 +1,566 @@
+{
+ "companies": [
+  {
+   "definitions": {
+    "eps_basis": "basic",
+    "gross_margin_basis": "(营业收入-营业成本)/营业收入",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "归母",
+    "pb_basis": "2026-04-22收盘价×期末总股本/2025年末归母净资产",
+    "pe_basis": "2026-04-22收盘价×期末总股本/2025年归母净利润",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "weighted"
+   },
+   "derived": {
+    "gross_margin": [
+     "revenue",
+     "cost_of_sales"
+    ],
+    "valuation": {
+     "date": "2026-04-22",
+     "equity": "equity_parent",
+     "net_profit": "net_profit_parent",
+     "shares": "shares"
+    }
+   },
+   "document": "000858.SZ",
+   "figures": [
+    {"id": "revenue", "page": 7, "printed_page": "7", "prior": "89,175,178,322.70", "quote": "营业收入（元） 40,528,509,770.23 89,175,178,322.70 -54.55% 83,272,067,317.19", "section": "第二节 六、主要会计数据和财务指标", "unit": "元", "value": "40,528,509,770.23"},
+    {"id": "revenue_yoy", "page": 7, "printed_page": "7", "quote": "营业收入（元） 40,528,509,770.23 89,175,178,322.70 -54.55% 83,272,067,317.19", "section": "第二节 六、主要会计数据和财务指标", "unit": "%", "value": "-54.55%"},
+    {"id": "revenue_total", "page": 56, "printed_page": "56", "prior": "89,175,178,322.70", "quote": "一、营业总收入 40,528,509,770.23 89,175,178,322.70", "section": "合并利润表", "unit": "元", "value": "40,528,509,770.23"},
+    {"id": "cost_of_sales", "page": 56, "printed_page": "56", "quote": "其中：营业成本 9,101,956,953.59 20,461,423,083.74", "section": "合并利润表", "unit": "元", "value": "9,101,956,953.59"},
+    {"id": "net_profit_parent", "page": 7, "printed_page": "7", "prior": "31,853,172,533.98", "quote": "归属于上市公司股东的净利润（元） 8,954,257,202.51 31,853,172,533.98 -71.89% 30,210,585,269.30", "section": "第二节 六、主要会计数据和财务指标", "unit": "元", "value": "8,954,257,202.51"},
+    {"id": "net_profit_parent_yoy", "page": 7, "printed_page": "7", "quote": "归属于上市公司股东的净利润（元） 8,954,257,202.51 31,853,172,533.98 -71.89% 30,210,585,269.30", "section": "第二节 六、主要会计数据和财务指标", "unit": "%", "value": "-71.89%"},
+    {"id": "profit_dedt", "page": 7, "printed_page": "7", "quote": "归属于上市公司股东的扣除非经常性损益的净利润（元） 8,815,635,943.27 31,741,959,276.27 -72.23% 30,116,468,910.79", "section": "第二节 六、主要会计数据和财务指标", "unit": "元", "value": "8,815,635,943.27"},
+    {"id": "net_profit_total", "page": 57, "printed_page": "57", "prior": "33,193,460,484.32", "quote": "五、净利润（净亏损以“－”号填列） 9,317,113,184.68 33,193,460,484.32", "section": "合并利润表", "unit": "元", "value": "9,317,113,184.68"},
+    {"id": "eps_basic", "page": 7, "printed_page": "7", "quote": "基本每股收益（元/股） 2.3068 8.2062 -71.89% 7.7830", "section": "第二节 六、主要会计数据和财务指标", "unit": "元/股", "value": "2.3068"},
+    {"id": "eps_diluted", "page": 7, "printed_page": "7", "quote": "稀释每股收益（元/股） 2.3068 8.2062 -71.89% 7.7830", "section": "第二节 六、主要会计数据和财务指标", "unit": "元/股", "value": "2.3068"},
+    {"id": "roe_weighted", "page": 7, "printed_page": "7", "quote": "加权平均净资产收益率 6.89% 23.35% 减少 16.46 个百分点 25.06%", "section": "第二节 六、主要会计数据和财务指标", "unit": "%", "value": "6.89%"},
+    {"id": "equity_parent", "page": 7, "printed_page": "7", "quote": "归属于上市公司股东的净资产（元） 119,932,271,234.99 133,285,282,015.97 -10.02% 129,558,241,040.51", "section": "第二节 六、主要会计数据和财务指标", "unit": "元", "value": "119,932,271,234.99"},
+    {"id": "shares", "page": 53, "printed_page": "53", "quote": "股本 3,881,608,005.00 3,881,608,005.00", "section": "合并资产负债表", "unit": "股", "value": "3,881,608,005.00"}
+   ],
+   "name": "五粮液",
+   "notes": [
+    "营业收入 = 营业总收入 (40,528,509,770.23 元)",
+    "basic EPS = diluted EPS (2.3068)",
+    "The annual report states that 2025 quarterly figures differ materially from the quarterly reports already published: 公司对2025年业务模式进行梳理，基于谨慎性原则，调整2025年部分业务收入确认相关核算 (PDF page 8).",
+    "v1 seed: revenue 1085亿, net profit 378亿, ROE 29.4%, gross margin 76.1%, P/E 20.9, P/B 5.4; none matches the report."
+   ],
+   "serve": {
+    "eps": "eps_basic",
+    "net_profit": "net_profit_parent",
+    "netprofit_yoy": "net_profit_parent_yoy",
+    "profit_dedt": "profit_dedt",
+    "revenue": "revenue",
+    "revenue_yoy": "revenue_yoy",
+    "roe": "roe_weighted"
+   },
+   "symbol": "000858.SZ"
+  },
+  {
+   "definitions": {
+    "eps_basis": "basic",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "归母",
+    "pb_basis": "2026-04-22 A股收盘价×期末总股本(A+H)/2025年末归母股东权益",
+    "pe_basis": "2026-04-22 A股收盘价×期末总股本(A+H)/2025年归母净利润",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "weighted"
+   },
+   "derived": {
+    "valuation": {
+     "date": "2026-04-22",
+     "equity": "equity_parent",
+     "net_profit": "net_profit_parent",
+     "shares": "shares"
+    }
+   },
+   "document": "601318.SH",
+   "figures": [
+    {"id": "revenue", "page": 14, "printed_page": "10", "prior": "1,028,925", "quote": "营业收入 1,050,506 1,028,925 2.1 913,789", "section": "财务摘要 主要会计数据及财务指标", "unit": "百万元", "value": "1,050,506"},
+    {"id": "revenue_yoy", "page": 14, "printed_page": "10", "quote": "营业收入 1,050,506 1,028,925 2.1 913,789", "section": "财务摘要 主要会计数据及财务指标", "unit": "%", "value": "2.1"},
+    {"id": "revenue_total", "page": 190, "printed_page": "186", "prior": "1,028,925", "quote": "营业收入合计 1,050,506 1,028,925", "section": "合并利润表", "unit": "百万元", "value": "1,050,506"},
+    {"id": "net_profit_parent", "page": 14, "printed_page": "10", "prior": "126,607", "quote": "归属于母公司股东的净利润 134,778 126,607 6.5 85,665", "section": "财务摘要 主要会计数据及财务指标", "unit": "百万元", "value": "134,778"},
+    {"id": "net_profit_parent_yoy", "page": 14, "printed_page": "10", "quote": "归属于母公司股东的净利润 134,778 126,607 6.5 85,665", "section": "财务摘要 主要会计数据及财务指标", "unit": "%", "value": "6.5"},
+    {"id": "profit_dedt", "page": 14, "printed_page": "10", "quote": "归属于母公司股东的扣除非经常性损益后的净利润 143,773 117,392 22.5 86,240", "section": "财务摘要 主要会计数据及财务指标", "unit": "百万元", "value": "143,773"},
+    {"id": "net_profit_total", "page": 191, "printed_page": "187", "prior": "146,733", "quote": "五、 净利润 158,301 146,733", "section": "合并利润表", "unit": "百万元", "value": "158,301"},
+    {"id": "eps_basic", "page": 14, "printed_page": "10", "quote": "基本每股收益 7.68 7.16 7.3 4.84", "section": "财务摘要 主要会计数据及财务指标", "unit": "元/股", "value": "7.68"},
+    {"id": "eps_diluted", "page": 14, "printed_page": "10", "quote": "稀释每股收益 7.44 6.99 6.4 4.74", "section": "财务摘要 主要会计数据及财务指标", "unit": "元/股", "value": "7.44"},
+    {"id": "roe_weighted", "page": 14, "printed_page": "10", "quote": "加权平均净资产收益率 (%) 14.0 13.8 上升0.2个", "section": "财务摘要 主要会计数据及财务指标", "unit": "%", "value": "14.0"},
+    {"id": "equity_parent", "page": 14, "printed_page": "10", "quote": "归属于母公司股东权益 1,000,419 928,600 7.7 899,011", "section": "财务摘要 主要会计数据及财务指标", "unit": "百万元", "value": "1,000,419"},
+    {"id": "shares", "page": 133, "printed_page": "129", "quote": "三 股份总数 18,210,234,607 100.00 – – – -102,592,612(1) -102,592,612(1) 18,107,641,995 100.00", "section": "股本变动情况", "unit": "股", "value": "18,107,641,995"}
+   ],
+   "name": "中国平安",
+   "notes": [
+    "Insurer statement format: the top line is 营业收入合计 (no separate 营业总收入); it equals 营业收入 in the key-figures table.",
+    "Amounts in the report are in 人民币百万元; the YoY figures and weighted ROE are stated to one decimal.",
+    "Basic EPS 7.68 differs from diluted EPS 7.44; the layer serves basic.",
+    "v1 seed: revenue 12180亿, net profit 1210亿, ROE 15.2%, P/E 8.7, P/B 1.1; none matches the report."
+   ],
+   "serve": {
+    "eps": "eps_basic",
+    "net_profit": "net_profit_parent",
+    "netprofit_yoy": "net_profit_parent_yoy",
+    "profit_dedt": "profit_dedt",
+    "revenue": "revenue",
+    "revenue_yoy": "revenue_yoy",
+    "roe": "roe_weighted"
+   },
+   "symbol": "601318.SH"
+  },
+  {
+   "definitions": {
+    "eps_basis": "basic",
+    "gross_margin_basis": "(营业收入-营业成本)/营业收入",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "归母",
+    "pb_basis": "2026-04-22收盘价×期末总股本/2025年末归母净资产",
+    "pe_basis": "2026-04-22收盘价×期末总股本/2025年归母净利润",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "weighted"
+   },
+   "derived": {
+    "gross_margin": [
+     "revenue",
+     "cost_of_sales"
+    ],
+    "valuation": {
+     "date": "2026-04-22",
+     "equity": "equity_parent",
+     "net_profit": "net_profit_parent",
+     "shares": "shares"
+    }
+   },
+   "document": "600519.SH",
+   "figures": [
+    {"id": "revenue", "page": 6, "printed_page": "6", "prior": "170,899,152,276.34", "quote": "营业收入 168,838,102,514.79 170,899,152,276.34 -1.21 147,693,604,994.14", "section": "第二节 七、近三年主要会计数据和财务指标", "unit": "元", "value": "168,838,102,514.79"},
+    {"id": "revenue_yoy", "page": 6, "printed_page": "6", "quote": "营业收入 168,838,102,514.79 170,899,152,276.34 -1.21 147,693,604,994.14", "section": "第二节 七、近三年主要会计数据和财务指标", "unit": "%", "value": "-1.21"},
+    {"id": "revenue_total", "page": 61, "printed_page": "61", "prior": "174,144,069,958.25", "quote": "一、营业总收入 172,054,171,890.91 174,144,069,958.25", "section": "合并利润表", "unit": "元", "value": "172,054,171,890.91"},
+    {"id": "cost_of_sales", "page": 61, "printed_page": "61", "quote": "其中：营业成本 44 14,892,277,570.91 13,789,482,367.98", "section": "合并利润表", "unit": "元", "value": "14,892,277,570.91"},
+    {"id": "net_profit_parent", "page": 6, "printed_page": "6", "prior": "86,228,146,421.62", "quote": "归属于上市公司股东的净利润 82,320,067,101.68 86,228,146,421.62 -4.53 74,734,071,550.75", "section": "第二节 七、近三年主要会计数据和财务指标", "unit": "元", "value": "82,320,067,101.68"},
+    {"id": "net_profit_parent_yoy", "page": 6, "printed_page": "6", "quote": "归属于上市公司股东的净利润 82,320,067,101.68 86,228,146,421.62 -4.53 74,734,071,550.75", "section": "第二节 七、近三年主要会计数据和财务指标", "unit": "%", "value": "-4.53"},
+    {"id": "profit_dedt", "page": 6, "printed_page": "6", "quote": "归属于上市公司股东的扣除非经常性损益的净利润 82,293,107,655.25 86,240,905,977.42 -4.58 74,752,564,425.52", "section": "第二节 七、近三年主要会计数据和财务指标", "unit": "元", "value": "82,293,107,655.25"},
+    {"id": "net_profit_total", "page": 62, "printed_page": "62", "prior": "89,334,728,025.90", "quote": "五、净利润（净亏损以“－”号填列） 85,310,324,833.67 89,334,728,025.90", "section": "合并利润表", "unit": "元", "value": "85,310,324,833.67"},
+    {"id": "eps_basic", "page": 6, "printed_page": "6", "quote": "基本每股收益（元／股） 65.66 68.64 -4.34 59.49", "section": "第二节 七、近三年主要会计数据和财务指标", "unit": "元/股", "value": "65.66"},
+    {"id": "eps_diluted", "page": 6, "printed_page": "6", "quote": "稀释每股收益（元／股） 65.66 68.64 -4.34 59.49", "section": "第二节 七、近三年主要会计数据和财务指标", "unit": "元/股", "value": "65.66"},
+    {"id": "roe_weighted", "page": 6, "printed_page": "6", "quote": "加权平均净资产收益率（%） 32.53 36.02 减少3.49个百分点 34.19", "section": "第二节 七、近三年主要会计数据和财务指标", "unit": "%", "value": "32.53"},
+    {"id": "equity_parent", "page": 6, "printed_page": "6", "quote": "归属于上市公司股东的净资产 244,637,811,032.18 233,105,984,399.47 4.95 215,668,571,607.43", "section": "第二节 七、近三年主要会计数据和财务指标", "unit": "元", "value": "244,637,811,032.18"},
+    {"id": "shares", "page": 6, "printed_page": "6", "quote": "股本 1,252,270,215.00 1,256,197,800.00 -0.31 1,256,197,800.00", "section": "第二节 七、近三年主要会计数据和财务指标", "unit": "股", "value": "1,252,270,215.00"}
+   ],
+   "name": "贵州茅台",
+   "notes": [
+    "营业收入 168,838,102,514.79 元 differs from 营业总收入 172,054,171,890.91 元 (the difference is the group finance company's interest and fee income); the layer serves 营业收入, as the v1 seed did.",
+    "basic EPS = diluted EPS (65.66)",
+    "v1 seed revenue (1688.38亿) and net profit (823.20亿) match the report; its ROE 33.0 (weighted 32.53 reported), P/E 24.6 and P/B 8.1 do not."
+   ],
+   "serve": {
+    "eps": "eps_basic",
+    "net_profit": "net_profit_parent",
+    "netprofit_yoy": "net_profit_parent_yoy",
+    "profit_dedt": "profit_dedt",
+    "revenue": "revenue",
+    "revenue_yoy": "revenue_yoy",
+    "roe": "roe_weighted"
+   },
+   "symbol": "600519.SH"
+  }
+ ],
+ "documents": {
+  "000001.SZ": {
+   "announcement_id": "1225022887",
+   "company": "平安银行股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=000001&announcementId=1225022887&orgId=gssz0000001&announcementTime=2026-03-21",
+   "pages": 288,
+   "published": "2026-03-21",
+   "sha256": "2273565ecbe1b32536631fd4a019a4f4a990f4c793cfd5b70eae90d44d3ff16c",
+   "title": "平安银行2025年年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-03-21/1225022887.PDF"
+  },
+  "000333.SZ": {
+   "announcement_id": "1225065145",
+   "company": "美的集团股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=000333&announcementId=1225065145&orgId=9900005965&announcementTime=2026-03-31",
+   "pages": 276,
+   "published": "2026-03-31",
+   "sha256": "16f95f70527db59dcf2736f276a9479cf7ee917e5f71e4f6cbbe83acbad9f4b6",
+   "title": "美的集团2025年年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-03-31/1225065145.PDF"
+  },
+  "000858.SZ": {
+   "announcement_id": "1225273091",
+   "company": "宜宾五粮液股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=000858&announcementId=1225273091&orgId=gssz0000858&announcementTime=2026-04-30",
+   "pages": 141,
+   "published": "2026-04-30",
+   "sha256": "09133e1f44b3bb4b2cebe211529ad68f5b04b6be10b43870f2a78c947d5910a4",
+   "title": "宜宾五粮液股份有限公司2025年年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-04-30/1225273091.PDF"
+  },
+  "002594.SZ": {
+   "announcement_id": "1225045351",
+   "company": "比亚迪股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=002594&announcementId=1225045351&orgId=gshk0001211&announcementTime=2026-03-28",
+   "pages": 268,
+   "published": "2026-03-28",
+   "sha256": "710d8b2e08e37ba521f1c4071d2c3e2369d3cadabc21a45073215d9f72138b0b",
+   "title": "比亚迪2025年年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-03-28/1225045351.PDF"
+  },
+  "300750.SZ": {
+   "announcement_id": "1225002214",
+   "company": "宁德时代新能源科技股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=300750&announcementId=1225002214&orgId=GD165627&announcementTime=2026-03-10",
+   "pages": 232,
+   "published": "2026-03-10",
+   "sha256": "c15272977147dee7e6935a38ea0e4fd6855370aabb106f54cfe20f7cf6048ec9",
+   "title": "宁德时代2025年年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-03-10/1225002214.PDF"
+  },
+  "600030.SH": {
+   "announcement_id": "1225036081",
+   "company": "中信证券股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=600030&announcementId=1225036081&orgId=gssh0600030&announcementTime=2026-03-27",
+   "pages": 389,
+   "published": "2026-03-27",
+   "sha256": "438f2a53dcf4bf0569b6783b51674aae25076d23d53198b08cf7b539e14003c2",
+   "title": "中信证券股份有限公司2025年年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225036081.PDF"
+  },
+  "600036.SH": {
+   "announcement_id": "1225047778",
+   "company": "招商银行股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=600036&announcementId=1225047778&orgId=gssh0600036&announcementTime=2026-03-28",
+   "pages": 18,
+   "published": "2026-03-28",
+   "sha256": "0bdb1515fd12b5ae3d35e981452521c8d6b27bc19836186e298f62b3730bde65",
+   "title": "招商银行股份有限公司2025年度报告摘要",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-03-28/1225047778.PDF"
+  },
+  "600519.SH": {
+   "announcement_id": "1225114741",
+   "company": "贵州茅台酒股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=600519&announcementId=1225114741&orgId=gssh0600519&announcementTime=2026-04-17",
+   "pages": 143,
+   "published": "2026-04-17",
+   "sha256": "474905deeaf0f875fc0a1b097a626c0c7852c427faadc5d7fc7816cbf45ea288",
+   "title": "贵州茅台2025年年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-04-17/1225114741.PDF"
+  },
+  "600900.SH": {
+   "announcement_id": "1225262036",
+   "company": "中国长江电力股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=600900&announcementId=1225262036&orgId=gssh0600900&announcementTime=2026-04-30",
+   "pages": 259,
+   "published": "2026-04-30",
+   "sha256": "aa0cdb92e3aad81b1e6454594a64cacbcfeb9013b10dd31f47a93a94e7a70f91",
+   "title": "长江电力2025年年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-04-30/1225262036.PDF"
+  },
+  "601318.SH": {
+   "announcement_id": "1225038263",
+   "company": "中国平安保险（集团）股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=601318&announcementId=1225038263&orgId=9900002221&announcementTime=2026-03-27",
+   "pages": 370,
+   "published": "2026-03-27",
+   "sha256": "860c455bbad9be59d3d1bf64bf683733feb79157212532df44b91d49a0b03c2a",
+   "title": "中国平安2025年年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038263.PDF"
+  },
+  "601398.SH": {
+   "announcement_id": "1225047240",
+   "company": "中国工商银行股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=601398&announcementId=1225047240&orgId=jjxt0000019&announcementTime=2026-03-28",
+   "pages": 408,
+   "published": "2026-03-28",
+   "sha256": "e2edab73032f143aad881f612382bc613c8b96b424bb197b125d64a0ef23c78b",
+   "title": "工商银行2025年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-03-28/1225047240.PDF"
+  },
+  "601899.SH": {
+   "announcement_id": "1225550242",
+   "company": "紫金矿业集团股份有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=601899&announcementId=1225550242&orgId=9900004143&announcementTime=2026-03-21",
+   "pages": 352,
+   "published": "2026-03-21",
+   "sha256": "01819e1c7daad939d1779a8aa729f50f02151192e609cb28c2c405634a8f343d",
+   "title": "紫金矿业集团股份有限公司2025年年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-03-21/1225550242.PDF"
+  },
+  "688981.SH": {
+   "announcement_id": "1225037057",
+   "company": "中芯国际集成电路制造有限公司",
+   "page_url": "http://www.cninfo.com.cn/new/disclosure/detail?stockCode=688981&announcementId=1225037057&orgId=gshk0000981&announcementTime=2026-03-27",
+   "pages": 232,
+   "published": "2026-03-27",
+   "sha256": "c022cf9323967f66a239ce4f60b30507bc341db6e660a53db9c2966a9ef35531",
+   "title": "中芯国际2025年年度报告",
+   "url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225037057.PDF"
+  }
+ },
+ "extension_definitions": {
+  "000001.SZ": {
+   "definitions": {
+    "eps_basis": "basic",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "归母",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "period_end"
+   },
+   "document": "000001.SZ",
+   "figures": [
+    {"id": "revenue", "page": 17, "printed_page": "16", "prior": "146,695", "quote": "营业收入 131,442 146,695 164,699 (10.4%)", "section": "主要会计数据和财务指标", "unit": "百万元", "value": "131,442"},
+    {"id": "net_profit_parent", "page": 18, "printed_page": "17", "prior": "44,508", "quote": "归属于本行股东的净利润 42,633 44,508 46,455 (4.2%)", "section": "主要会计数据和财务指标", "unit": "百万元", "value": "42,633"},
+    {"id": "net_profit_total", "page": 120, "printed_page": "11", "prior": "44,508", "quote": "六、净利润 42,633 44,508", "section": "合并利润表", "unit": "百万元", "value": "42,633"},
+    {"id": "eps_basic", "page": 18, "printed_page": "17", "quote": "基本/稀释每股收益 2.07 2.15 2.25 (3.7%)", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "2.07"},
+    {"id": "eps_diluted", "page": 18, "printed_page": "17", "quote": "基本/稀释每股收益 2.07 2.15 2.25 (3.7%)", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "2.07"},
+    {"id": "roe_weighted", "page": 18, "printed_page": "17", "quote": "加权平均净资产收益率 9.15 10.08 11.38 -0.93 个百分点", "section": "主要会计数据和财务指标", "unit": "%", "value": "9.15"},
+    {"id": "equity_parent", "page": 17, "printed_page": "16", "quote": "股东权益 551,184 494,842 472,328 11.4%", "section": "主要会计数据和财务指标", "unit": "百万元", "value": "551,184"}
+   ],
+   "notes": [
+    "roe 7.73 = 净利润 / 期末股东权益 (including preferred shares and perpetual bonds); the report's weighted ROE is 9.15% (after preferred dividends and perpetual-bond interest).",
+    "No minority interests: 归母净利润 = 净利润 (42,633百万元), so the YoY is the same on both bases.",
+    "Banks report 营业收入 only; basic EPS = diluted EPS (2.07)."
+   ]
+  },
+  "000333.SZ": {
+   "definitions": {
+    "eps_basis": "diluted",
+    "gross_margin_basis": "(营业收入-营业成本)/营业收入",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "total",
+    "revenue_basis": "营业总收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "period_end"
+   },
+   "document": "000333.SZ",
+   "figures": [
+    {"id": "revenue", "page": 9, "printed_page": "8", "prior": "407,149,600", "quote": "营业收入（千元） 456,451,731 407,149,600 12.11% 372,037,280", "section": "主要会计数据和财务指标", "unit": "千元", "value": "456,451,731"},
+    {"id": "revenue_total", "page": 135, "printed_page": "134", "prior": "409,084,266", "quote": "一、营业总收入 458,502,407 409,084,266 936,519 946,607", "section": "合并及公司利润表", "unit": "千元", "value": "458,502,407"},
+    {"id": "net_profit_parent", "page": 9, "printed_page": "8", "prior": "38,537,237", "quote": "归属于上市公司股东的净利润（千元） 43,945,411 38,537,237 14.03% 33,719,935", "section": "主要会计数据和财务指标", "unit": "千元", "value": "43,945,411"},
+    {"id": "net_profit_total", "page": 135, "printed_page": "134", "prior": "38,757,214", "quote": "四、净利润 44,520,196 38,757,214 29,415,131 28,517,064", "section": "合并及公司利润表", "unit": "千元", "value": "44,520,196"},
+    {"id": "eps_basic", "page": 9, "printed_page": "8", "quote": "基本每股收益（元/股） 5.80 5.44 6.62% 4.93", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "5.80"},
+    {"id": "eps_diluted", "page": 9, "printed_page": "8", "quote": "稀释每股收益（元/股） 5.76 5.42 6.27% 4.92", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "5.76"},
+    {"id": "roe_weighted", "page": 10, "printed_page": "9", "quote": "加权平均净资产收益率 19.70% 21.29% -1.59% 22.23%", "section": "主要会计数据和财务指标", "unit": "%", "value": "19.70%"},
+    {"id": "equity_parent", "page": 10, "printed_page": "9", "quote": "归属于上市公司股东的净资产（千元） 223,221,305 216,750,057 2.99% 162,878,825", "section": "主要会计数据和财务指标", "unit": "千元", "value": "223,221,305"}
+   ],
+   "notes": [
+    "roe 19.69 = 归母净利润 / 期末归母净资产 (19.687); the report's weighted ROE is 19.70%, 0.01 point away.",
+    "revenue 4585.02亿 is 营业总收入 (营业收入 4564.52亿 plus interest and fee income), but revenue_yoy 12.11 and the gross margin are on 营业收入.",
+    "eps 5.76 is diluted EPS; basic EPS is 5.80.",
+    "netprofit_yoy 14.87 is the growth of total net profit; 归母净利润 grew 14.03%."
+   ]
+  },
+  "002594.SZ": {
+   "definitions": {
+    "eps_basis": "basic",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "total",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "period_end"
+   },
+   "document": "002594.SZ",
+   "figures": [
+    {"id": "revenue", "page": 11, "printed_page": "11", "prior": "777,102,455,000.00", "quote": "营业收入（元） 803,964,958,000.00 777,102,455,000.00 3.46% 602,315,354,000.00", "section": "主要会计数据和财务指标", "unit": "元", "value": "803,964,958,000.00"},
+    {"id": "net_profit_parent", "page": 11, "printed_page": "11", "prior": "40,254,346,000.00", "quote": "归属于上市公司股东的净利润（元） 32,619,022,000.00 40,254,346,000.00 -18.97% 30,040,811,000.00", "section": "主要会计数据和财务指标", "unit": "元", "value": "32,619,022,000.00"},
+    {"id": "net_profit_total", "page": 126, "printed_page": "126", "prior": "41,587,940", "quote": "四、 净利润 33,760,758 41,587,940", "section": "合并利润表", "unit": "千元", "value": "33,760,758"},
+    {"id": "eps_basic", "page": 11, "printed_page": "11", "quote": "基本每股收益（元/股） 3.58 4.61 -22.34% 3.44", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "3.58"},
+    {"id": "eps_diluted", "page": 11, "printed_page": "11", "quote": "稀释每股收益（元/股） 3.58 4.61 -22.34% 3.44", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "3.58"},
+    {"id": "roe_weighted", "page": 11, "printed_page": "11", "quote": "加权平均净资产收益率 15.31% 26.05% -10.74% 24.40%", "section": "主要会计数据和财务指标", "unit": "%", "value": "15.31%"},
+    {"id": "equity_parent", "page": 11, "printed_page": "11", "quote": "归属于上市公司股东的净资产（元） 246,274,606,000.00 185,251,104,000.00 32.94% 138,810,065,000.00", "section": "主要会计数据和财务指标", "unit": "元", "value": "246,274,606,000.00"}
+   ],
+   "notes": [
+    "roe 13.24 = 归母净利润 / 期末归母净资产 (13.245); the report's weighted ROE is 15.31%.",
+    "The income statement's top line is 营业收入 (no 营业总收入); basic EPS = diluted EPS (3.58).",
+    "netprofit_yoy -18.82 is the change of total net profit; 归母净利润 fell 18.97%."
+   ]
+  },
+  "300750.SZ": {
+   "definitions": {
+    "eps_basis": "basic",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "total",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "period_end"
+   },
+   "document": "300750.SZ",
+   "figures": [
+    {"id": "revenue_total", "page": 116, "printed_page": "116", "prior": "362,012,554", "quote": "一、营业总收入 423,701,834 362,012,554", "section": "合并利润表", "unit": "千元", "value": "423,701,834"},
+    {"id": "revenue", "page": 116, "printed_page": "116", "prior": "362,012,554", "quote": "其中：营业收入 423,701,834 362,012,554", "section": "合并利润表", "unit": "千元", "value": "423,701,834"},
+    {"id": "net_profit_parent", "page": 11, "printed_page": "11", "prior": "50,744,682", "quote": "归属于上市公司股东的净利润 72,201,282 50,744,682 42.28% 44,121,248", "section": "主要会计数据和财务指标", "unit": "千元", "value": "72,201,282"},
+    {"id": "net_profit_total", "page": 117, "printed_page": "117", "prior": "54,006,794", "quote": "五、净利润（净亏损以“－”号填列） 76,786,309 54,006,794", "section": "合并利润表", "unit": "千元", "value": "76,786,309"},
+    {"id": "eps_basic", "page": 11, "printed_page": "11", "quote": "基本每股收益（元/股） 16.14 11.58 39.38% 10.06", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "16.14"},
+    {"id": "eps_diluted", "page": 11, "printed_page": "11", "quote": "稀释每股收益（元/股） 16.14 11.58 39.38% 10.05", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "16.14"},
+    {"id": "roe_weighted", "page": 11, "printed_page": "11", "quote": "加权平均净资产收益率 24.91% 24.13% 0.78% 24.04%", "section": "主要会计数据和财务指标", "unit": "%", "value": "24.91%"},
+    {"id": "equity_parent", "page": 11, "printed_page": "11", "quote": "归属于上市公司股东的净资产 337,107,747 246,930,033 36.52% 197,708,052", "section": "主要会计数据和财务指标", "unit": "千元", "value": "337,107,747"}
+   ],
+   "notes": [
+    "roe 21.42 = 归母净利润 / 期末归母净资产; the report's weighted ROE is 24.91%.",
+    "营业收入 = 营业总收入; basic EPS = diluted EPS (16.14).",
+    "netprofit_yoy 42.18 is the growth of total net profit (incl. minority interests); 归母净利润 grew 42.28%."
+   ]
+  },
+  "600030.SH": {
+   "definitions": {
+    "eps_basis": "basic",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "total",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入(2024年调整后)",
+    "roe_basis": "period_end"
+   },
+   "document": "600030.SH",
+   "figures": [
+    {"id": "revenue", "note": "columns: 2025 | 2024 调整后 | 2024 调整前 | YoY | 2023 调整后 | 2023 调整前", "page": 19, "printed_page": "16", "prior": "58,119,003,450.22", "quote": "营业收入 74,854,368,352.85 58,119,003,450.22 63,789,215,688.23 28.79 55,411,575,431.18 60,067,992,766.11", "section": "主要会计数据和财务指标", "unit": "元", "value": "74,854,368,352.85"},
+    {"id": "net_profit_parent", "note": "row 归属于母公司股东的净利润", "page": 19, "printed_page": "16", "prior": "21,703,696,593.02", "quote": "30,076,100,951.50 21,703,696,593.02 21,703,696,593.02 38.58 19,720,547,412.84 19,720,547,412.84", "section": "主要会计数据和财务指标", "unit": "元", "value": "30,076,100,951.50"},
+    {"id": "net_profit_total", "page": 183, "printed_page": "180", "prior": "22,589,456,799.93", "quote": "五、净利润 31,006,679,490.28 22,589,456,799.93", "section": "合并利润表", "unit": "元", "value": "31,006,679,490.28"},
+    {"id": "eps_basic", "page": 20, "printed_page": "17", "quote": "基本每股收益（元／股） 1.96 1.41 1.41 39.01 1.30 1.30", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "1.96"},
+    {"id": "roe_weighted", "page": 20, "printed_page": "17", "quote": "加权平均净资产收益率（%） 10.59 8.09 8.09 增加 2.50 个百分点 7.81 7.81", "section": "主要会计数据和财务指标", "unit": "%", "value": "10.59"},
+    {"id": "equity_parent", "note": "row 归属于母公司股东的权益", "page": 20, "printed_page": "17", "quote": "319,930,442,478.96 293,108,725,612.16 293,108,725,612.16 9.15", "section": "主要会计数据和财务指标", "unit": "元", "value": "319,930,442,478.96"}
+   ],
+   "notes": [
+    "roe 9.40 = 归母净利润 / 期末归属于母公司股东的权益 (including perpetual bonds); the report's weighted ROE is 10.59%.",
+    "revenue_yoy 28.8 is against the restated 2024 营业收入 (58,119,003,450.22 元, 调整后); against the originally reported 63,789,215,688.23 元 it is 17.35%.",
+    "Brokers report 营业收入 only; basic EPS = diluted EPS (1.96).",
+    "netprofit_yoy 37.26 is the growth of total net profit; 归母净利润 grew 38.58%."
+   ]
+  },
+  "600036.SH": {
+   "definitions": {
+    "eps_basis": "basic",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "total",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "period_end"
+   },
+   "document": "600036.SH",
+   "figures": [
+    {"id": "revenue", "page": 3, "printed_page": "3", "prior": "337,488", "quote": "营业收入 337,532 337,488 0.01 339,123", "section": "3.1 本集团主要会计数据和财务指标", "unit": "百万元", "value": "337,532"},
+    {"id": "net_profit_total", "page": 3, "printed_page": "3", "prior": "149,559", "quote": "净利润 151,126 149,559 1.05 148,006", "section": "3.1 本集团主要会计数据和财务指标", "unit": "百万元", "value": "151,126"},
+    {"id": "net_profit_parent", "page": 3, "printed_page": "3", "prior": "148,391", "quote": "归属于本行股东的净利润 150,181 148,391 1.21 146,602", "section": "3.1 本集团主要会计数据和财务指标", "unit": "百万元", "value": "150,181"},
+    {"id": "eps_basic", "page": 3, "printed_page": "3", "quote": "归属于本行普通股股东的基本每股收益 (1) 5.70 5.66 0.71 5.63", "section": "3.1 本集团主要会计数据和财务指标", "unit": "元/股", "value": "5.70"},
+    {"id": "eps_diluted", "page": 3, "printed_page": "3", "quote": "归属于本行普通股股东的稀释每股收益 5.70 5.66 0.71 5.63", "section": "3.1 本集团主要会计数据和财务指标", "unit": "元/股", "value": "5.70"},
+    {"id": "roe_weighted", "page": 3, "printed_page": "3", "quote": "归属于本行普通股股东的加权平均净资产收益率 13.44 14.49 下降1.05个百分点 16.22", "section": "3.1 本集团主要会计数据和财务指标", "unit": "%", "value": "13.44"},
+    {"id": "equity_parent", "page": 4, "printed_page": "4", "quote": "归属于本行股东权益 1,272,875 1,226,014 3.82 1,076,370", "section": "3.1 本集团主要会计数据和财务指标", "unit": "百万元", "value": "1,272,875"}
+   ],
+   "notes": [
+    "Cited from the annual report summary (announcement 1225047778): the full report's text layer (1225047590) does not extract with pypdf; its figures agree.",
+    "roe 11.80 = 归属于本行股东的净利润 / 期末归属于本行股东权益 (including preferred shares and perpetual bonds); the report's ROE is 13.44% (weighted, ordinary shareholders).",
+    "Banks report 营业收入 only; basic EPS = diluted EPS (5.70).",
+    "netprofit_yoy 1.05 is the growth of total net profit; 归属于本行股东的净利润 grew 1.21%."
+   ]
+  },
+  "600900.SH": {
+   "definitions": {
+    "eps_basis": "basic",
+    "gross_margin_basis": "(营业收入-营业成本)/营业收入",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "total",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "period_end"
+   },
+   "document": "600900.SH",
+   "figures": [
+    {"id": "revenue", "page": 6, "printed_page": "6", "prior": "84,491,870,566.52", "quote": "营业收入 86,241,940,222.20 84,491,870,566.52 84,491,870,566.52 2.07 78,143,535,736.10", "section": "主要会计数据和财务指标", "unit": "元", "value": "86,241,940,222.20"},
+    {"id": "net_profit_parent", "note": "row 归属于上市公司股东的净利润", "page": 6, "printed_page": "6", "prior": "32,496,172,808.65", "quote": "东的净利润 34,502,809,176.39 32,496,172,808.65 32,496,172,808.65 6.17 27,244,616,815.27", "section": "主要会计数据和财务指标", "unit": "元", "value": "34,502,809,176.39"},
+    {"id": "net_profit_total", "page": 85, "printed_page": "85", "prior": "32,930,199,395.19", "quote": "五、净利润（净亏损以“－”号填列） 34,949,270,887.55 32,930,199,395.19", "section": "合并利润表", "unit": "元", "value": "34,949,270,887.55"},
+    {"id": "eps_basic", "page": 7, "printed_page": "7", "quote": "基本每股收益（元／股） 1.4101 1.3281 1.3281 6.17 1.1135", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "1.4101"},
+    {"id": "roe_weighted", "page": 7, "printed_page": "7", "quote": "加权平均净资产收益率（%） 15.90 15.71 15.71 增加 0.19个百分点 13.52", "section": "主要会计数据和财务指标", "unit": "%", "value": "15.90"},
+    {"id": "equity_parent", "note": "row 归属于上市公司股东的净资产", "page": 6, "printed_page": "6", "quote": "东的净资产 221,338,010,639.92 210,348,910,895.97 210,288,410,895.97 5.22 201,453,338,461.43", "section": "主要会计数据和财务指标", "unit": "元", "value": "221,338,010,639.92"}
+   ],
+   "notes": [
+    "roe 15.59 = 归母净利润 / 期末归母净资产; the report's weighted ROE is 15.90%.",
+    "营业收入 = 营业总收入; basic EPS = diluted EPS (1.4101).",
+    "netprofit_yoy 6.13 is the growth of total net profit; 归母净利润 grew 6.17%."
+   ]
+  },
+  "601398.SH": {
+   "definitions": {
+    "eps_basis": "basic",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "total",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "period_end"
+   },
+   "document": "601398.SH",
+   "figures": [
+    {"id": "revenue", "page": 14, "printed_page": "13", "prior": "821,803", "quote": "营业收入 838,270 821,803 843,070", "section": "财务概要", "unit": "百万元", "value": "838,270"},
+    {"id": "net_profit_total", "page": 14, "printed_page": "13", "prior": "366,946", "quote": "净利润 370,766 366,946 365,116", "section": "财务概要", "unit": "百万元", "value": "370,766"},
+    {"id": "net_profit_parent", "page": 14, "printed_page": "13", "prior": "365,863", "quote": "归属于母公司股东的净利润 368,562 365,863 363,993", "section": "财务概要", "unit": "百万元", "value": "368,562"},
+    {"id": "eps_basic", "page": 15, "printed_page": "14", "quote": "基本每股收益（6） 1.00 0.98 0.98", "section": "财务概要", "unit": "元/股", "value": "1.00"},
+    {"id": "eps_diluted", "page": 15, "printed_page": "14", "quote": "稀释每股收益（6） 1.00 0.98 0.98", "section": "财务概要", "unit": "元/股", "value": "1.00"},
+    {"id": "equity_parent", "page": 15, "printed_page": "14", "quote": "归属于母公司股东的权益 4,244,259 3,969,841 3,756,887", "section": "财务概要", "unit": "百万元", "value": "4,244,259"},
+    {"id": "roe_weighted", "page": 16, "printed_page": "15", "quote": "加权平均净资产收益率（2） 9.45 9.88 10.66", "section": "财务概要", "unit": "%", "value": "9.45"}
+   ],
+   "notes": [
+    "roe 8.68 = 归母净利润 / 期末归属于母公司股东的权益 (including preferred shares and perpetual bonds); the report's weighted ROE is 9.45%.",
+    "Banks report 营业收入 only; basic EPS = diluted EPS (1.00).",
+    "netprofit_yoy 1.04 is the growth of total net profit; 归母净利润 grew 0.74%."
+   ]
+  },
+  "601899.SH": {
+   "definitions": {
+    "eps_basis": "diluted",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "total",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "period_end"
+   },
+   "document": "601899.SH",
+   "figures": [
+    {"id": "revenue", "page": 15, "printed_page": "15", "prior": "303,639,957,153", "quote": "营业收入 349,079,082,852 303,639,957,153 14.96 293,403,242,878", "section": "主要会计数据和财务指标", "unit": "元", "value": "349,079,082,852"},
+    {"id": "net_profit_total", "page": 15, "printed_page": "15", "prior": "39,392,864,181", "quote": "净利润 63,822,189,587 39,392,864,181 62.01 26,539,599,469", "section": "主要会计数据和财务指标", "unit": "元", "value": "63,822,189,587"},
+    {"id": "net_profit_parent", "page": 15, "printed_page": "15", "prior": "32,050,602,437", "quote": "归属于上市公司股东的净利润 51,777,327,785 32,050,602,437 61.55 21,119,419,571", "section": "主要会计数据和财务指标", "unit": "元", "value": "51,777,327,785"},
+    {"id": "equity_parent", "page": 15, "printed_page": "15", "quote": "归属于上市公司股东的净资产 185,541,965,085 139,785,524,982 32.73 107,505,943,323", "section": "主要会计数据和财务指标", "unit": "元", "value": "185,541,965,085"},
+    {"id": "eps_basic", "page": 15, "printed_page": "15", "quote": "基本每股收益（元／股） 1.95 1.21 61.16 0.80", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "1.95"},
+    {"id": "eps_diluted", "page": 15, "printed_page": "15", "quote": "稀释每股收益（元／股） 1.91 1.20 59.17 0.80", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "1.91"},
+    {"id": "roe_weighted", "page": 15, "printed_page": "15", "quote": "加权平均净资产收益率（%） 33.04 25.89 增加 7.15 个百分点 21.43", "section": "主要会计数据和财务指标", "unit": "%", "value": "33.04"}
+   ],
+   "notes": [
+    "roe 27.91 = 归母净利润 / 期末归母净资产; the report's weighted ROE is 33.04%.",
+    "eps 1.91 is diluted EPS; basic EPS is 1.95.",
+    "netprofit_yoy 62.01 is the growth of total net profit; 归母净利润 grew 61.55%.",
+    "The income statement pages (PDF 113-128) are images without a text layer; the figures above are from the text key-figures page."
+   ]
+  },
+  "688981.SH": {
+   "definitions": {
+    "eps_basis": "basic",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "归母",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "period_end"
+   },
+   "document": "688981.SH",
+   "figures": [
+    {"id": "revenue", "page": 8, "printed_page": "8", "prior": "57,795,570", "quote": "营业收入 67,323,192 57,795,570 16.5 45,250,425", "section": "主要会计数据和财务指标", "unit": "千元", "value": "67,323,192"},
+    {"id": "revenue_total", "page": 127, "printed_page": "127", "prior": "57,795,570", "quote": "一、营业总收入 七、61 67,323,192 57,795,570", "section": "合并利润表", "unit": "千元", "value": "67,323,192"},
+    {"id": "net_profit_parent", "page": 8, "printed_page": "8", "prior": "3,698,665", "quote": "归属于上市公司股东的净利润 5,040,734 3,698,665 36.3 4,822,814", "section": "主要会计数据和财务指标", "unit": "千元", "value": "5,040,734"},
+    {"id": "net_profit_total", "page": 127, "printed_page": "127", "prior": "5,373,118", "quote": "五、净利润（净亏损以“－”号填列） 7,208,910 5,373,118", "section": "合并利润表", "unit": "千元", "value": "7,208,910"},
+    {"id": "equity_parent", "page": 8, "printed_page": "8", "quote": "归属于上市公司股东的净资产 150,823,788 148,190,613 1.8 142,475,834", "section": "主要会计数据和财务指标", "unit": "千元", "value": "150,823,788"},
+    {"id": "eps_basic", "page": 9, "printed_page": "9", "quote": "基本每股收益（元／股） 0.63 0.46 37.0 0.61", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "0.63"},
+    {"id": "eps_diluted", "page": 9, "printed_page": "9", "quote": "稀释每股收益（元／股） 0.63 0.46 37.0 0.61", "section": "主要会计数据和财务指标", "unit": "元/股", "value": "0.63"},
+    {"id": "roe_weighted", "note": "row 加权平均净资产收益率（%）; stated to one decimal", "page": 9, "printed_page": "9", "quote": "3.4 2.5 增加0.9个百分点 3.5", "section": "主要会计数据和财务指标", "unit": "%", "value": "3.4"}
+   ],
+   "notes": [
+    "Served by THS (the Sina and THS records disagreed): amounts rounded to CNY millions.",
+    "roe 3.34 = 归母净利润 / 期末归母净资产; the report's weighted ROE is 3.4% (one decimal).",
+    "营业收入 = 营业总收入; basic EPS = diluted EPS (0.63).",
+    "netprofit_yoy 36.29 is the growth of 归母净利润 (total net profit grew 34.17%)."
+   ]
+  }
+ },
+ "protocol": "Every figure is transcribed from the company's FY2025 annual report (or its summary) as published on CNINFO (www.cninfo.com.cn), the exchanges' designated disclosure site. 'quote' is the line as printed (whitespace normalised), 'page' the PDF page (1-based), 'printed_page' the page number printed on it; 'value' must appear in 'quote' (the build fails otherwise). 'documents' re-downloads every PDF, checks its sha256 and finds each quote on its page.",
+ "retrieved": "2026-10-10",
+ "version": "fix-2026-10-10"
+}

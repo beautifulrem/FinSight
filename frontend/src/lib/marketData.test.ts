@@ -257,3 +257,41 @@ describe("valuation date of P/E and P/B tiles (round 13, I15)", () => {
     expect(formatKpi("zh", roe.value, roe.format)).toBe("8.68%");
   });
 });
+
+describe("definition labels (round 13)", () => {
+  const response = (definitions?: Record<string, string>): AgentResponse => ({
+    status: "ok",
+    session_id: "s",
+    evidence_sources: [
+      {
+        evidence_id: "fundamental_000333.SZ",
+        source_type: "fundamental_sql",
+        payload: {
+          symbol: "000333.SZ",
+          name: "美的集团",
+          roe: 19.69,
+          revenue: 458.502e9,
+          net_profit: 43.945e9,
+          metric_units: { roe: "%" },
+          ...(definitions ? { definitions } : {}),
+        },
+      },
+    ],
+  });
+
+  it("names the definition the payload states, keeping the metric key for ranking", () => {
+    const kpis = marketDataFromAgent(
+      response({ roe_basis: "period_end", revenue_basis: "营业总收入", net_profit_basis: "归母", eps_basis: "diluted" }),
+    ).kpis;
+    const byLabel = Object.fromEntries(kpis.map((kpi) => [kpi.label, kpi.basisLabel]));
+    expect(byLabel["kpi.roe"]).toBe("kpi.roePeriodEnd");
+    expect(byLabel["kpi.revenue"]).toBe("kpi.revenueTotal");
+    expect(byLabel["kpi.netProfit"]).toBe("kpi.netProfitParent");
+  });
+
+  it("adds no definition label when the payload states none (v1 seed, live sources)", () => {
+    for (const kpi of marketDataFromAgent(response()).kpis) expect(kpi.basisLabel).toBeUndefined();
+    const unknown = marketDataFromAgent(response({ roe_basis: "something else" })).kpis;
+    expect(unknown.find((kpi) => kpi.label === "kpi.roe")?.basisLabel).toBeUndefined();
+  });
+});

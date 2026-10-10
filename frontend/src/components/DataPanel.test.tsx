@@ -38,6 +38,19 @@ describe("DataPanel KPI tiles (round 13, I15)", () => {
     expect(label.className).toContain("[overflow-wrap:anywhere]");
   });
 
+  it("names the definition of a figure when the data states it (round 13)", () => {
+    const { container } = renderPanel({
+      series: [],
+      kpis: [
+        tile({ label: "kpi.roe", basisLabel: "kpi.roeWeighted", value: 6.89, format: "percentLevel" }),
+        tile({ label: "kpi.revenue", basisLabel: "kpi.revenueTotal", value: 458.5e9, format: "money" }),
+        tile({ label: "kpi.netProfit", value: 1.5e9, format: "money" }),
+      ],
+    });
+    const labels = [...container.querySelectorAll(".kpi-label")].map((node) => node.textContent);
+    expect(labels).toEqual(["招商银行 · ROE（加权）", "招商银行 · 营业总收入", "招商银行 · 净利润"]);
+  });
+
   it("dates P/E and P/B at their valuation date and says so", () => {
     renderPanel({
       series: [],

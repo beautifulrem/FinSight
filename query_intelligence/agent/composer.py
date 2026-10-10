@@ -43,6 +43,100 @@ from .names import english_display
 
 _MAX_DOCS_PER_TOOL = 3
 
+# (round 13) The definition a figure uses, when the data states it (``definitions``, from the corrections layer
+# data/snapshot/structured_data_fix.json): the answer names it next to the figure ("ROE（加权）", "营业总收入",
+# "归母净利润", "basic EPS"), since the same word covers different figures (weighted vs period-end ROE, ...).
+_BASIS_FIELD = {
+    "roe": "roe_basis",
+    "revenue": "revenue_basis",
+    "net_profit": "net_profit_basis",
+    "eps": "eps_basis",
+    "netprofit_yoy": "netprofit_yoy_basis",
+    "revenue_yoy": "revenue_yoy_basis",
+}
+# basis -> (zh label, en label, zh short, en short): the label stands for the metric's name, the short form names
+# the definition in a comparison note
+_BASIS_LABELS: dict[str, dict[str, tuple[str, str, str, str]]] = {
+    "roe_basis": {
+        "weighted": ("ROE（加权）", "ROE (weighted average)", "加权平均", "weighted average"),
+        "period_end": ("ROE（期末净资产）", "ROE (on period-end equity)", "按期末净资产", "on period-end equity"),
+    },
+    "revenue_basis": {
+        "营业收入": ("营业收入", "operating revenue (营业收入)", "营业收入", "operating revenue (营业收入)"),
+        "营业总收入": (
+            "营业总收入",
+            "total operating revenue (营业总收入)",
+            "营业总收入",
+            "total operating revenue (营业总收入)",
+        ),
+    },
+    "net_profit_basis": {
+        "归母": ("归母净利润", "net profit attributable to shareholders", "归母", "attributable to shareholders"),
+        "total": (
+            "净利润（含少数股东损益）",
+            "net profit incl. minority interests",
+            "含少数股东损益",
+            "incl. minority interests",
+        ),
+    },
+    "eps_basis": {
+        "basic": ("基本每股收益", "basic EPS", "基本", "basic"),
+        "diluted": ("稀释每股收益", "diluted EPS", "稀释", "diluted"),
+    },
+    "netprofit_yoy_basis": {
+        "归母": ("归母净利润增速", "growth of net profit attributable to shareholders", "归母", "attributable"),
+        "total": (
+            "净利润（含少数股东损益）增速",
+            "growth of net profit incl. minority interests",
+            "含少数股东损益",
+            "incl. minority interests",
+        ),
+    },
+    "revenue_yoy_basis": {
+        "营业收入": ("营业收入增速", "operating revenue growth", "营业收入", "operating revenue"),
+        "营业总收入": ("营业总收入增速", "total operating revenue growth", "营业总收入", "total operating revenue"),
+        "营业收入(2024年调整后)": (
+            "营业收入增速（对比重述后的上年数据）",
+            "operating revenue growth (vs the restated prior year)",
+            "对比重述后的上年数据",
+            "vs the restated prior year",
+        ),
+    },
+}
+
+
+def _basis(data: dict[str, Any], field: str) -> tuple[str, str, str, str] | None:
+    key = _BASIS_FIELD.get(field)
+    definitions = data.get("definitions") if isinstance(data.get("definitions"), dict) else {}
+    return _BASIS_LABELS.get(key or "", {}).get(str(definitions.get(key) or "")) if key else None
+
+
+def basis_label(data: dict[str, Any], field: str, zh: bool, default: str) -> str:
+    """The metric's name with its definition when the data states one ("ROE（加权）"), else ``default``."""
+    found = _basis(data, field)
+    return (found[0] if zh else found[1]) if found else default
+
+
+def basis_note(field: str, operands: list[tuple[str, dict[str, Any]]], zh: bool) -> list[str]:
+    """(round 13) One sentence naming the definition each compared figure uses, when the data states any: "口径：
+    五粮液的ROE为加权平均，宁德时代的ROE为按期末净资产；口径不同，比较仅供参考。" (no number of its own)."""
+    if field not in _BASIS_FIELD or len(operands) < 2:
+        return []
+    found = [(name, _basis(data, field)) for name, data in operands]
+    if all(basis is None for _name, basis in found):
+        return []
+    metric = {"roe": "ROE", "revenue": "收入", "net_profit": "净利润", "eps": "每股收益"}.get(field, field)
+    metric_en = {"revenue": "revenue", "net_profit": "net profit", "eps": "EPS"}.get(field, field.upper())
+    shorts = {basis[2] if zh else basis[3] for _name, basis in found if basis is not None}
+    if all(basis is not None for _name, basis in found) and len(shorts) == 1:
+        word = shorts.pop()
+        return [f"口径：以上{metric}均为{word}口径。" if zh else f"Definition: each {metric_en} above is {word}."]
+    if zh:
+        parts = [f"{name}的{metric}为{basis[2] if basis else '数据未标明口径'}" for name, basis in found]
+        return [f"口径：{'，'.join(parts)}；口径不同，比较仅供参考。"]
+    parts = [f"{name}'s {metric_en} is {basis[3] if basis else 'of unstated definition'}" for name, basis in found]
+    return [f"Definitions: {'; '.join(parts)}. They differ, so the comparison is indicative only."]
+
 
 def answer_json_status(content: str | None) -> str:
     """``ok`` (valid JSON with an answer), ``repaired`` (needed json_repair) or ``failed`` (used as plain text)."""
@@ -400,11 +494,13 @@ def _derived_metrics(data: dict[str, Any], keys: set[str], zh: bool) -> tuple[li
     reported_margin = any(metrics.get(field) is not None for field in ("net_margin", "netprofit_margin"))
     if "net_margin" in keys and not reported_margin and revenue and profit is not None and float(revenue) > 0:
         margin = round(float(profit) / float(revenue) * 100, 2)
+        profit_word = basis_label(data, "net_profit", zh, "净利润" if zh else "net profit")
+        revenue_word = basis_label(data, "revenue", zh, "营业收入" if zh else "revenue")
         sentences.append(
-            f"{name} 净利率（净利润 ÷ 营业收入，报告期 {period}）：{_money(profit, zh)} ÷ {_money(revenue, zh)} ≈ "
-            f"{_num(margin)}% [{eid}]。"
+            f"{name} 净利率（{profit_word} ÷ {revenue_word}，报告期 {period}）：{_money(profit, zh)} ÷ "
+            f"{_money(revenue, zh)} ≈ {_num(margin)}% [{eid}]。"
             if zh
-            else f"{name} net margin (net profit / revenue, period {period}): {_money(profit, zh)} / "
+            else f"{name} net margin ({profit_word} / {revenue_word}, period {period}): {_money(profit, zh)} / "
             f"{_money(revenue, zh)} ≈ {_num(margin)}% [{eid}]."
         )
     pe = metrics.get("pe_ttm") if metrics.get("pe_ttm") is not None else metrics.get("pe")
@@ -560,7 +656,25 @@ def metric_value(entry: dict[str, Any], key: str) -> tuple[float, dict[str, Any]
 
 def _arithmetic(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
     """The difference or ratio a question asks for, derived from two cited values (see ``_ASKS_DIFFERENCE``); for a
-    comparison that asks for neither (round 10, F10: "哪个更低", "谁跌得多", "比较…的市盈率"), which value is higher."""
+    comparison that asks for neither (round 10, F10: "哪个更低", "谁跌得多", "比较…的市盈率"), which value is higher.
+    (round 13) When the compared figures carry definitions, a note names them (``basis_note``)."""
+    sentences = _arithmetic_sentences(query, tool_log, zh)
+    if not sentences:
+        return sentences
+    named = [
+        (match.start(), key)
+        for key, _label_zh, _label_en, pattern in _ARITHMETIC_METRICS
+        if (match := pattern.search(query or ""))
+    ]
+    if not named:
+        return sentences
+    key = min(named)[1]
+    companies, _industry = _arithmetic_operands(tool_log, key, zh)
+    note = basis_note(key, [(name, data) for name, _value, _eid, data in companies], zh)
+    return [*sentences, *(line for line in note if line not in sentences)]
+
+
+def _arithmetic_sentences(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
     difference, ratio = bool(_ASKS_DIFFERENCE.search(query or "")), bool(_ASKS_RATIO.search(query or ""))
     if not (difference or ratio):
         return _comparison_verdict(query, tool_log, zh) if _ASKS_COMPARISON.search(query or "") else []
@@ -713,7 +827,23 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
     Each sentence writes both operands with their evidence ids next to the result (difference in the metric's unit or
     in percentage points, ratio to two decimals, relative difference in percent of the second operand, or which is
     higher), so the verifier re-derives it. An operand without data is named in ``gaps`` and nothing is computed from
-    other figures."""
+    other figures. (round 13) When the compared figures carry definitions, a note names them after the result."""
+    from .frame import operand_name, operand_value
+
+    sentences, gaps = _frame_sentences(request, tool_log, zh)
+    if not sentences:
+        return sentences, gaps
+    key = str(request.get("metric") or "")
+    operands = []
+    for operand in request.get("operands") or []:
+        hit = operand_value(tool_log, operand, key)
+        if hit is not None and operand.get("kind") != "industry":
+            operands.append((operand_name(operand, zh), hit[2]))
+    note = basis_note(key, operands, zh)
+    return [*sentences, *(line for line in note if line not in sentences)], gaps
+
+
+def _frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh: bool) -> tuple[list[str], list[str]]:
     from .frame import METRIC_BY_KEY, metric_label, operand_name, operand_value
 
     key = str(request.get("metric") or "")
@@ -1203,7 +1333,8 @@ def _extra_metrics(data: dict[str, Any], keys: set[str], zh: bool) -> list[str]:
     for metric in (item for item in METRICS if item.key in chosen):
         key = chosen[metric.key]
         label_zh, label_en = _FIELD_LABELS.get(key, (metric.zh, metric.en))
-        part = f"{label_zh if zh else label_en} {_metric_value(key, metrics[key], data, zh)}"
+        label = basis_label(data, key, zh, label_zh if zh else label_en)
+        part = f"{label} {_metric_value(key, metrics[key], data, zh)}"
         (dated if valuation_date and key in _VALUATION_DATED else periodic).append(part)
     sentences = []
     if periodic:
@@ -1625,11 +1756,11 @@ def _fundamentals(
         # normalised payloads state ROE in percent (metric_units); older payloads may hold a fraction
         in_percent = (data.get("metric_units") or {}).get("roe") == "%"
         roe_pct = roe if in_percent or abs(float(roe)) > 1 else roe * 100
-        parts.append(f"ROE {_num(roe_pct)}%")
+        parts.append(f"{basis_label(data, 'roe', zh, 'ROE')} {_num(roe_pct)}%")
     for key, label_zh, label_en in (("revenue", "营业收入", "revenue"), ("net_profit", "净利润", "net profit")):
         value = metrics.get(key)
         if value is not None and abs(float(value)) >= 1e6:
-            parts.append(f"{label_zh if zh else label_en} {_money(value, zh)}")
+            parts.append(f"{basis_label(data, key, zh, label_zh if zh else label_en)} {_money(value, zh)}")
     if parts and eid:
         label = data.get("period")
         # (round 12) P/E and P/B are priced on the valuation date, not at the report period: say which day
