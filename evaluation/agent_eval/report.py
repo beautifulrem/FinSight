@@ -268,6 +268,7 @@ EXTRA_EVIDENCE = (
     "claims_heldout_r8-after-fix",
     "slice_overlap-heldout_r8-at-6e14016",
     "glm-auto-testv3-sample45-r13",
+    "ablation-v4-testv3-sample24-pass2-r13",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -1824,8 +1825,10 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
                     if mode not in {"workflow_llm", "agent"}:
                         continue
                     run = data.get("summary") or {}
+                    repeats = config.get("repeats", 1)
+                    passk = f", pass^{repeats} {_fmt(run.get(f'pass^{repeats}'))}" if repeats and repeats > 1 else ""
                     parts.append(
-                        f"{set_name} {mode}: task {_fmt(run.get('task_success'))}, "
+                        f"{set_name} {mode}: task {_fmt(run.get('task_success'))}{passk}, "
                         f"P95 {_fmt(run.get('latency_ms_p95'))} ms, cost/task {_fmt(run.get('cost_per_task'))}"
                     )
             summary = f"{config.get('model') or 'LLM'}, {config.get('repeats', 1)} repeat(s) — " + "; ".join(parts)
