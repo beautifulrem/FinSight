@@ -141,6 +141,59 @@ total net profit, 营业总收入, IFRS / USD) are labelled contradicted (9) or 
 data differences, and 2 more (the 2026-04-22 中国平安 and 沪深300 prices) are unresolved
 (`label_follows_offline_difference`; the reason is in `offline_vs_primary`).
 
-## First run
+## First run (the only run), `df0d212`
 
-Filled in after the single run (see below and `evaluation/results/claims_web_v1-first-run.json`).
+Run once on a clean tree at `df0d212`, on 2026-10-01T14:24Z, after the labels had been committed:
+`python -m evaluation.real_claims_web.score_claims_web_v1`. It used the offline service with the snapshot
+extension and no LLM. Result: `evaluation/results/claims_web_v1-first-run.json`.
+
+| | result |
+|---|---|
+| verdict accuracy | **0.800 [0.70, 0.88]** (48/60; 95% percentile bootstrap over claims, 2000 resamples) |
+| by category | annual_figures 0.857 (18/21), annual_ratios 0.833 (10/12), daily_price 0.800 (12/15), english_or_traditional 0.667 (2/3), loose_or_relational 0.571 (4/7), market_value 1.000 (2/2) |
+| by source type | media 0.811 (30/37), social 0.786 (11/14), broker notes 0.600 (3/5), company announcements 1.000 (4/4) |
+| by expected verdict | supported 0.696 (16/23), partially_supported 0.857 (18/21), contradicted 0.867 (13/15), unverifiable 1/1 |
+
+Every error (expected → checker):
+
+| id | claim (as checked) | expected → got | what the checker did |
+|---|---|---|---|
+| w02 | 利润增速是营收增速的近 2.5 倍… | supported → unverifiable | 倍 bound to revenue (unit mismatch); a ratio of two growth rates is not read |
+| w03 | …毛利率和净利率分别达到26.3%和18.1%… | partially → contradicted | both numbers checked as net margin (26.3 vs 17.04 too) |
+| w04 | …收盘报291.11元，较前一交易日上涨4.31元，涨幅1.50% | supported → partially | 上涨4.31元 read as a % change in 元 (unit mismatch) |
+| w07 | 但比亚迪净利润只有326亿，比2024年的403亿少了近80亿 | supported → partially | the 2024 value and the gap are "period_mismatch"; not derived from the YoY |
+| w20 | 中芯國際…營收人民幣93.27億美元，年增16.2% | contradicted → unverifiable | traditional characters (營收, 年增): no metric recognised |
+| w24 | 招行ROE为 13.44%，不仅远高于工商银行（9.45%）… | partially → contradicted | the comparand's stated value in brackets is read as a bound (工行 ROE > 9.45); the relation 招行 > 工行 is not checked |
+| w37 | 2025 年中信证券实现营业收入748.3亿元，同比增长29% | supported → partially | "2025 年" with a space is read as a number (no metric) |
+| w40 | …同比分别增长2.07%、6.17% | supported → partially | 分别 over two growth rates: both checked against net-profit growth |
+| w44 | 贵州茅台实现营业总收入1720.54亿元，归母净利润823.20亿元 | partially → supported | 营业总收入 1720.54亿 accepted for 营业收入 1688.38亿 (1.9% off): the checker's exact-figure tolerance is 2% relative, the labels' 1% |
+| w47 | …平均净资产收益率（ROE）保持在32.53%的高位 | contradicted → supported | 32.53 accepted for 33.0 (1.4% off): same tolerance difference |
+| w56 | 上证综指9月30日…收盘上涨11.74点，涨幅：0.31%，报3842.19点 | supported → partially | 上涨11.74点 read as the close (contradicted) |
+| w58 | 黄金ETF华安（518880）报收8.633元，收涨1.34%… | supported → partially | 报收 is not a close word (no metric) |
+
+### Error classes (to be fixed later; after any fix this set is labelled "after exposure")
+
+1. **分别 / list pairing across metrics.** "毛利率和净利率分别达到A和B" and "营收、净利同比分别增长A、B" bind every number to
+   one metric (w03, w40).
+2. **Absolute daily change in 元 / 点.** "上涨4.31元", "上涨11.74点" are read as a % change (unit mismatch) or as the
+   close (w04, w56).
+3. **Close words.** 报收 is not recognised as the close (w58).
+4. **Year written with a space** ("2025 年") becomes a claimed number (w37).
+5. **Traditional Chinese metric words** (營收, 年增) are not recognised (w20).
+6. **A comparand's stated value in brackets.** "远高于工商银行（9.45%）" is read as a bound on 工商银行 instead of the
+   stated value of the compared side plus the relation (w24).
+7. **Relations between two metrics of one company.** For example, a ratio of two growth rates ("利润增速是营收增速的近2.5倍",
+   w02).
+8. **Prior-year values and gaps derivable from a YoY.** "比2024年的403亿少了近80亿" is left unverifiable instead of being
+   derived from profit / (1 + YoY) (w07). This is a scope choice as much as a bug.
+9. **Exact-figure tolerance.** The checker accepts 2% relative (`_REL_TOLERANCE`) on an exact figure; the labels accept
+   the larger of 1% and the claim's own precision. A 1.4–1.9% gap therefore passes, including a different revenue
+   definition (w44, w47). Under a 2% labelling rule these two would be right (50/60). The README states the rule the
+   labels use; which one is correct for the product is a decision, not a measurement.
+
+Separately from the checker, 19 of the 60 claims are true by the company's own report but labelled contradicted or
+partially_supported because the offline data differs from the report (see above). The checker returned the labelled
+verdict on 15 of them. It missed w03 and w24 for parsing reasons (classes 1 and 6). On w44 and w47 its 2% tolerance
+happened to accept the published figure (class 9). A user pasting those 19 published claims
+would see a true statement marked wrong or partly wrong. That is a data-coverage and definition problem (field
+definitions, seed values), not something verdict accuracy shows.
