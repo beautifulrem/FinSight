@@ -1052,3 +1052,62 @@ def test_verifier_stress_gold_set_is_pinned_and_rejects_load_dependent_failures(
     assert digest["count"] == 2 and digest["tasks"] == ["t1", "t2"]
     assert digest == vs.gold_set_digest([dict(gold) for gold in golds])
     assert digest["sha256"] != vs.gold_set_digest([golds[0], {"task": "t2", "draft": {"answer": "C"}}])["sha256"]
+
+
+# The round-9 review's repros (round9.md §9, I2/I8/I10/I11), public; round-13 tests and tasks reword them.
+_ROUND9_REVIEW_PROBES = [
+    "宁德时代下周五收盘会在多少",
+    "五粮液明天能不能站上105元",
+    "Could BYD fall below 80 yuan by Friday?",
+    "招商银行的净利润是平安银行的三倍半左右",
+    "招商银行的市净率不到1倍，比平安银行高出接近一倍",
+    "平安银行的市盈率只有招行的七成多一点",
+    "宁德时代比52周最高价低了三成多",
+    "BYD trades at roughly 26 times earnings, about 10 turns above CATL",
+    "茅台的市盈率低于白酒行业平均，但市净率高于行业平均",
+    "宁德时代股价较52周高点已经腰斩",
+    "比亚迪的市盈率比所在行业平均高还是低",
+    "How does CATL's P/E compare with the battery industry average?",
+    "宁德时代今年以来涨跌幅",
+]
+
+
+def test_round13_tasks_and_claims_do_not_overlap_the_heldout_or_reviewer_sets():
+    """Round-13 dev tasks, the ext set and the round-13 claim tests were written after the round-9 review: none may
+    copy or near-copy a held-out slice text (r4-r8, read programmatically), the round-9 review's repros, the
+    independent router sets or a test set (counts only). The round-9 slice (heldout_r9) is outside the repository."""
+    import ast
+    import re
+    from pathlib import Path
+
+    from evaluation.agent_eval.build_ext_tasks import build_ext_tasks
+    from evaluation.agent_eval.build_tasks import _round13_forecast_tasks, check_overlap
+    from evaluation.agent_eval.runner import TASK_SETS, load_tasks
+
+    tasks = _round13_forecast_tasks() + build_ext_tasks()
+    mine = [turn["query"] for task in tasks for turn in task["turns"]]
+    tree = ast.parse(Path(__file__).with_name("test_agent_round13_claims.py").read_text(encoding="utf-8"))
+    claims = [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and re.search(r"[一-鿿]|[A-Z].* of ", node.value)
+        and len(node.value) >= 12
+    ]
+    assert len(claims) >= 40
+    others = [
+        row["query"]
+        for name in ("router_labels_independent_v1.jsonl", "router_labels_independent_v2.jsonl")
+        for row in _router_rows(name)
+    ]
+    for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
+        others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    heldout_r8 = _heldout_r6_texts("heldout_r8")
+    others += _heldout_r4_texts() + _heldout_r5_texts() + _heldout_r6_texts() + _heldout_r6_texts("heldout_r7")
+    others += heldout_r8 + _ROUND9_REVIEW_PROBES
+    assert len(heldout_r8) >= 100, "the round-8 slice was not read"
+    assert len(tasks) == 31 and check_overlap(tasks) == []
+    assert _overlaps(mine + claims, others) == (0, 0), (
+        "round-13 tasks or claim tests overlap a held-out or reviewer set"
+    )
