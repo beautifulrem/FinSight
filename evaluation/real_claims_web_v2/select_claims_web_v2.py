@@ -56,6 +56,8 @@ EDITS: dict[str, dict] = {
         "excerpt": True,
         "subject_inserted": True,
     },
+    "cA17": {"published_text": "[美的集团]加权平均ROE：约17.3%，连续多年保持在17%以上", "subject_inserted": True},
+    "cB27": {"published_text": "2025年公司[长江电力]实现营业总收入858.82亿元，同比增长1.65%", "subject_inserted": True},
     "cA02": {"date_implicit": "2026-09-30", "date_source": "preceding sentence (截至9月30日收盘)"},
     "cA13": {"date_implicit": "2026-09-30", "date_source": "preceding sentence (截至2026年9月30日收盘)"},
     "cA24": {"date_source": "publication day (今日)"},
