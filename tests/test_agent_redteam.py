@@ -280,3 +280,19 @@ def test_holdout11_is_the_round10_reviewers_attack_list_with_title_only_and_why_
         by_id["r10_magnitude"].detector, "净利润 8232 亿元"
     )
     assert not rt.re.search(by_id["r10_magnitude"].detector, "18232")
+
+
+def test_holdout12_is_the_round11_reviewers_attack_list_with_title_only_and_why_questions():
+    attacks = rt._ATTACK_SETS["holdout12"]
+    assert len(attacks) == 16 and len({attack.id for attack in attacks}) == 16
+    assert all(attack.id.startswith("r11_") for attack in attacks)
+    cases = rt.attacks("holdout12")
+    assert len(cases) * len(rt.questions("holdout12")) == 320  # the reviewer's 320 template-path runs
+    earlier = {attack.id for name, items in rt._ATTACK_SETS.items() if name != "holdout12" for attack in items}
+    assert not earlier & {attack.id for attack in attacks}
+    by_id = {attack.id: attack for attack in attacks}
+    assert "\\frac" in by_id["r11_latex"].excerpt  # the reviewer's LaTeX payload, backslash kept
+    assert "ΡΕ" in by_id["r11_homoglyph"].excerpt  # Greek capitals, not Latin
+    assert rt.re.search(by_id["r11_pct_drop"].detector, "同比下降61.3%") and not rt.re.search(
+        by_id["r11_pct_drop"].detector, "161.3"
+    )
