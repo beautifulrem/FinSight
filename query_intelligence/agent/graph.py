@@ -408,7 +408,7 @@ class AgentRuntime:
         nlu, override_reasons = apply_finance_overrides(nlu, query)
         # the user's words and the resolved question: "为什么？" rewritten to "贵州茅台为什么涨" keeps its why style
         nlu, style_reasons = correct_question_style(nlu, f"{state['query']} {query}")
-        if holding_value_request(query) and not asks_prediction(without_holding_value(query)):
+        if holding_value_request(query) and not asks_prediction(without_holding_value(query), as_of=self.today()):
             # (round 11, G5) "我有1000股…值多少钱": arithmetic on the close, whatever the classifier reads as advice
             flags = [flag for flag in nlu.get("risk_flags") or [] if flag != "investment_advice_like"]
             nlu = {**nlu, "question_style": "fact", "risk_flags": flags}
@@ -469,7 +469,7 @@ class AgentRuntime:
             if not listed_entities(nlu) and not has_finance_content(query):
                 # Nothing financial is left once the injected instructions are removed.
                 decision = decision.model_copy(update={"route": "refuse"})
-            elif decision.route == "clarify" and asks_prediction(query):
+            elif decision.route == "clarify" and asks_prediction(query, as_of=self.today()):
                 # (round 10, F14) what is left asks for a market prediction and names no target ("…明天哪只会涨停"):
                 # asking "which stock?" would invite the very prediction the guard refuses, so the injection decides
                 decision = decision.model_copy(update={"route": "refuse"})
@@ -650,7 +650,7 @@ class AgentRuntime:
         if stray:
             nlu = {**nlu, "entities": [entity for entity in nlu.get("entities") or [] if entity not in stray]}
             reasons.extend(f"frame:dropped_non_operand:{entity.get('canonical_name')}" for entity in stray)
-        if not asks_prediction(query):
+        if not asks_prediction(query, as_of=self.today()):
             # a computed comparison, whatever the style classifier reads into the rewritten wording ("advice")
             flags = [flag for flag in nlu.get("risk_flags") or [] if flag != "investment_advice_like"]
             if nlu.get("question_style") != "compare" or flags != list(nlu.get("risk_flags") or []):
@@ -1633,14 +1633,19 @@ def _asked_metrics(state: AgentState) -> list[str]:
     """Frame metric keys the question asks about ("roe", "pe", "net_margin", ...): the frame request's first.
 
     (round 13, I15) None for a forecast ("宁德时代下周五收盘会在多少"): the answer gives historical data only, so the UI
-    must not mark the latest close or the last reported figure as the metric the user asked about.
+    must not mark the latest close or the last reported figure as the metric the user asked about; since round 14
+    (J6) also a stated future date and an earnings forecast ("明年净利润会是多少").
     """
     from .frame import metric_mentions
-    from .router import asks_price_forecast
+    from .router import asks_earnings_forecast, asks_price_forecast
 
     style = str((state.get("nlu") or {}).get("question_style") or "")
     queries = [str(state.get("query") or ""), str(state.get("effective_query") or "")]
-    if style == "forecast" or any(asks_price_forecast(text) or _FUTURE_TIME.search(text) for text in queries if text):
+    if style == "forecast" or any(
+        asks_price_forecast(text) or asks_earnings_forecast(text) or _FUTURE_TIME.search(text)
+        for text in queries
+        if text
+    ):
         return []
     asked = [str((state.get("frame_request") or {}).get("metric") or "")]
     asked += metric_mentions(state.get("effective_query") or state.get("query") or "")
