@@ -75,6 +75,7 @@ export function formatClaimValue(
       return side === "claimed" ? `${trim(value, 1)}%` : formatKpi(lang, value, "percentLevel");
     case "revenue_yoy":
     case "netprofit_yoy":
+    case "profit_dedt_yoy":
     case "cpi_yoy":
     case "ppi_yoy":
     case "m2_yoy":
@@ -88,12 +89,20 @@ export function formatClaimValue(
       return `${trim(value)}%`;
     case "pmi":
       return trim(value, 1);
+    case "volume":
+      // (round 14) claimed as written ("37.52 万手"); the data in shares
+      if (side === "claimed") return `${trim(value)}${unit ? (lang === "zh" ? unit : ` ${unit}`) : ""}`;
+      return lang === "zh" ? `${trim(value / 1e4, 2)} 万股` : `${trim(value / 1e6, 2)}M shares`;
+    case "turnover_rate":
+      return `${trim(value)}%`;
     case "eps":
       return `${trim(value)} ${t("claim.unit.yuan")}`;
     case "revenue":
     case "net_profit":
+    case "profit_dedt":
     case "amount":
-    case "market_cap": {
+    case "market_cap":
+    case "circ_mv": {
       const amount = side === "claimed" ? claimedAmount(claim, value, unit) : value;
       // "1,741.2 亿元" / "174.12B CNY"
       return `${formatMoney(lang, amount)}${lang === "zh" ? "" : " "}${t("claim.unit.yuan")}`;
@@ -113,6 +122,7 @@ const RATE_METRICS = new Set([
   "pct_change_1d",
   "revenue_yoy",
   "netprofit_yoy",
+  "profit_dedt_yoy",
 ]);
 
 const isDifference = (check: ClaimCheckItem) => check.kind === "difference" || check.kind === "relative_difference";
@@ -282,6 +292,8 @@ const REASONS: Record<ClaimReason, MessageKey> = {
   period_mismatch: "claim.note.periodMismatch",
   multi_day: "claim.note.multiDay",
   no_reference: "claim.note.noReference",
+  definition_mismatch: "claim.note.definitionMismatch",
+  currency: "claim.note.currency",
 };
 
 /** The checker's reason (or English note), localised; unknown notes are shown as written. */

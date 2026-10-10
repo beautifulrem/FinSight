@@ -467,6 +467,47 @@ These rules were written after reading the round-8 slice's errors, so its 20/25 
 (`claims_heldout_r8-after-exposure-round13.json`, `b1099d8`) is **after exposure**: the classes are covered, not
 shown to generalise.
 
+### Round 14: 扣非 / 流通市值, two bounds, subject-first superlatives, years, YoY; the second real-claims set's classes (after the round-10 review)
+
+Two lists of failures were fixed, each with failing tests written first in the engineers' own wording.
+
+**The round-10 review's J12** (`tests/test_agent_round14_claims.py`, 40 cases; 32 of the first 39 failed before the fix):
+
+| Form | Example (own wording) | Reading |
+| --- | --- | --- |
+| 扣非净利润 | "比亚迪扣非净利润超过300亿元", "扣除非经常性损益后的净利润", "net profit excluding non-recurring items" | its own metric `profit_dedt` (294.46亿, contradicted). Before: the 净利润 inside 扣非净利润 matched net profit, so the 326.19亿 归母 figure supported it. A source without the field gives `no_data` with a note; "扣非净利润同比…" is `profit_dedt_yoy`, which no source has (`growth_unavailable`), never net-profit growth |
+| 流通市值 | "比亚迪的流通市值不到3000亿元", "free-float market cap" | its own metric `circ_mv` (2905.08亿, supported). Before: the total 7595.54亿 contradicted it. 总市值 / 市值 stay `market_cap` |
+| Two bounds split by but / 但 | "BYD's P/B is below CATL's but above Midea's", "比亚迪的市净率高于美的集团但低于宁德时代" | the compared side of one bound is never the subject of the next, in English too and inside one clause (before: the second bound compared CATL with Midea) |
+| Subject first | "紫金矿业的ROE在紫金、美的、宁德时代三家中最高", "招行是招行、工行、平安银行三家里ROE最高的" | the company named before 在 / 是 and the set is the subject (before: the last company of the set); its own short name may open the set |
+| Year tokens | "for 2025", "FY2025", "fiscal 2025", "2025 年" | never a claimed value (they still set the period) |
+| YoY | "up 42% year on year", "rose about 62% year over year", "同比提升2个百分点" | the year-on-year change of the metric named in the clause, else of the previous number's (before: "up 42%" was the daily change); the YoY of a ratio (ROE, margins) is `growth_unavailable`, not its level |
+| 不到 / 超过…的N倍 | "招商银行市净率还不到平安银行的2倍", "超过招商银行的1.2倍" | a bound on the multiple. 不到 / 不足 / 不及 / 超过 / 超出 / 至少 / 至多 / 最多 are ratio cues now; 低于 / 高于 before "X的N倍" are still read as X's stated value. Round 10 had read "茅台市盈率不到行业均值的2倍" as "the average is 2x"; that test now expects a multiple |
+| A difference without 比 | "招行ROE高出工行三个多百分点", "领先美的约1.7个百分点" | 高出 / 多出 / 领先 / 落后 right before the compared company and the number: a difference (before: 3 was checked as 工行's ROE) |
+| N个半 / N个 | "工行一年赚的钱相当于两个半招行", "相当于两个比亚迪" | after 相当于 / 等于 / 抵得上: 2.5 times, 2 times ("两个半月" is a duration) |
+| Colloquial names | "工行", "招行", "美的" next to the full name | surface forms of their company (the colloquial alias list), so a set written with both is read as one company each |
+
+**The blind second real-claims set's classes** ([evaluation/real_claims_web_v2/README.md](../evaluation/real_claims_web_v2/README.md);
+after exposure; `tests/test_agent_round14_claims_v2.py`, 46 cases, 34 failing before the fix; none are the set's
+sentences):
+
+| Class | Example (own wording) | Reading |
+| --- | --- | --- |
+| A named definition | "宁德时代加权平均净资产收益率为21.4%", "美的集团基本每股收益5.76元", "宁德时代的动态市盈率约15.9倍", "美的集团营业收入4585亿元", "比亚迪归母净利润同比下降18.8%" | the data states each field's definition (`definitions`: `roe_basis`, `eps_basis`, `net_profit_basis`, `netprofit_yoy_basis`, `revenue_basis`, `revenue_yoy_basis`, `pe_basis`). A claim that names another one is unverifiable, `reason: definition_mismatch`, with both definitions in the note; one that names the served definition is checked ("贵州茅台加权平均ROE为32.53%" is supported). The named definition carries to the growth and the parallel clause ("归母净利润518亿元，同比增长62%": the YoY is on total profit, so unverifiable). A source that states no definitions (v1) is compared, with "the source does not state its basis" in the note. A claim that names no definition is compared with the served value |
+| A dated price | "截至2026年4月22日收盘，比亚迪收于101.62元", "2026年4月22日中芯国际成交量37.52万手" | `get_price_history` takes `on_date` and returns that day's bar from the history (`bar_on_date`, evidence `price_<symbol>_<yyyymmdd>`); a date outside the history stays `period_mismatch`. A date the sentence leaves to its publication day is not known |
+| A valuation on its date | "截至2026年9月30日收盘，平安银行总市值约2245亿元" | P/E, P/B and market value are dated by their valuation date, not the report period |
+| English | "Industrial & Commercial Bank of China …", "China Yangtze Power …", "net profit attributable to shareholders", "basic earnings per share advanced 6.6% to RMB 5.80" | names with "and" / "&" resolve before the NLU turns "and" into 和 (it used to leave "Bank of China"); 长江电力 has English aliases; a move of a reported flow (revenue, profit, EPS) is its YoY |
+| Another currency | "590亿美元", "US$110 billion", "S$68.6 billion" | unverifiable, `reason: currency` (never compared with a CNY figure); "RMB 5.80" is a price in yuan |
+| Traditional characters | "工商銀行年度實現淨利潤3,707.66億元", "每股盈餘", "年增3.46%" | read through a character table and a few Taiwan / Hong Kong terms (`agent/traditional.py`); the report keeps the claim as written |
+| 扣非 written out | "扣除非经常性损益的净利润", "归母净利润（扣非）" | `profit_dedt` |
+| Close words, volume | "报83.31元", "报收41.26元", "成交量37.52万手", "换手率1.88%" | 报 / 报收 is the close; 成交量 in 股 / 手 / 万手 / 亿股 is `volume` (shares); 换手率 is its own metric with no source (before: a daily change) |
+| A base year | "和2024年相比，比亚迪营收增长约3.5%", "较 2024 年" | the year a change is measured from is not the claim's period |
+| A change in amount | "工商银行净利润比上年增加约38亿元", "an increase of RMB 2.007 billion year-on-year" | derived as level − level / (1 + YoY) from the same report, with the arithmetic in the note |
+| A total of several companies | "宁德时代的净利润高于比亚迪、蔚来和小鹏三家的利润之和" | not checked (`no_data`, the companies outside the data named in the note); before: compared with 比亚迪 alone and supported |
+
+Found by the round-14 runs and still open: a definition named more than 40 characters before the number ("The net
+profit attributable to the parent company was RMB 34.503 billion") is not seen; "人民币" is an alias of 宁德时代 in the
+runtime alias table, so a claim that writes 人民币 gets 宁德时代 as a target; "连续 3 年" with spaces is read as a value.
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
@@ -493,6 +534,8 @@ period (`as_of_basis: indicator_date`).
 | `period_mismatch` | the claim names a year or period other than the report's; or an amount with no period is compared with an interim (Q1/H1/Q3, year-to-date) report |
 | `multi_day` | 今年以来, 近一个月, 本周累计成交, this year, … (only the latest daily change and turnover are checked) |
 | `no_reference` | a relation with something no source provides, such as the market average |
+| `definition_mismatch` | (round 14) the claim names a definition other than the one the data states (加权平均 vs period-end ROE, 基本 vs diluted EPS, 归母 vs total-profit YoY, 营业总收入 vs 营业收入, 动态 vs TTM P/E) |
+| `currency` | (round 14) an amount in another currency (美元, US$, S$, 港元) |
 
 ### Growth rates
 
@@ -637,6 +680,13 @@ python -m evaluation.claim_bench.run --set holdout
 | independent round-8 claim slice, **after exposure (round 13)** (`score_claims_r8.py`, verdicts only) | `b1099d8` | 25 / – | 1.000 [1.00, 1.00] | – | – |
 | **independent round-9 claim slice, first run** (`score_claims_r9.py`, verdicts only) | `cbcf3b2` | 25 / – | **0.600 [0.40, 0.80]** | – | – |
 | **independent round-9 claim slice, after the round-13 fixes** (not opened; 5 claims overlap own wording) | `da9f6af` | 25 / – | **1.000 [1.00, 1.00]** | – | – |
+| dev (311), at the round-14 claims code | `0dd9e1e` | 311 / 359 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the round-14 claims code | `0dd9e1e` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-4 slice, after exposure, round 14 | `0dd9e1e` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
+| independent round-5 slice, after exposure, round 14 | `0dd9e1e` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
+| independent round-6 slice, **after exposure**, round 14 | `0dd9e1e` | 67 / 104 | 0.985 [0.955, 1.000] | 0.904 [0.835, 0.969] | 0.382 |
+| independent round-8 claim slice, **after exposure**, round 14 | `0dd9e1e` | 25 / – | 1.000 [1.00, 1.00] | – | – |
+| independent round-9 claim slice, **after exposure (round 14)** | `0dd9e1e` | 25 / – | 1.000 [1.00, 1.00] | – | – |
 
 The commit column is the commit each run started from (`config.commit`). The merged-code runs were committed one after
 another, so each starts from the previous result commit; the code is the same in all of them.
@@ -685,6 +735,17 @@ of another value, loose fractions, superlatives, point differences, "times more"
 r9c08, r9c12–r9c14) are near copies of own test wording or of the review's published repros
 (`slice_overlap-heldout_r9-at-da9f6af.json`); all five failed on the first run, and without them the slice goes 15/20
 → 20/20. From round 14 this slice is after exposure.
+
+Round 14 re-ran every claim set once at `0dd9e1e` (clean tree): `claim_bench-dev.json`,
+`claim_bench-holdout-after-round14.json`, `claim_bench-heldout_r4-after-round14.json`,
+`claim_bench-heldout_r5-after-round14.json`, `claim_bench-heldout_r6-after-exposure-round14.json`,
+`claims_heldout_r8-after-exposure-round14.json` and `claims_heldout_r9-after-exposure-round14.json`. Every number equals
+its round-13 value (dev 311 = 1.000, held-out 1.000 / 1.000, r4 1.000 / 0.920, r5 1.000 / 0.988, r6 0.985 / 0.904 with
+r6c10 still wrong, r8 and r9 25/25), so the round-14 rules changed no status on these sets. The real published claims
+moved (both sets after exposure): `claims_web_v1` 0.800 → 0.850 on seed data and 0.817 → 0.783 with the corrections
+layer (its labels ignore a named definition; the checker no longer does), `claims_web_v2` 0.500 (blind first run) →
+0.840 ([per class](../evaluation/real_claims_web/README.md#round-14-after-exposure-checker-changed),
+[v2](../evaluation/real_claims_web_v2/README.md#round-14-after-exposure-checker-changed)).
 
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \
@@ -737,7 +798,11 @@ FINSIGHT_REPO=. python evaluation/heldout_r8/score_claims_r8.py <out.json>
   - Offline: the v1 snapshot has 3 stocks, 3 ETFs and 1 index; the snapshot extension (on by default) adds 15
     instruments as of 2026-09-30, 10 of them companies with fundamentals but **no industry snapshot**, so an industry
     relation for them is unverifiable ("no industry snapshot").
-  - Offline: growth, index valuation, dividend yield, market cap, debt ratio and EPS are unavailable.
+  - Offline (v1 snapshot): growth, index valuation, dividend yield, market cap, debt ratio and EPS are unavailable;
+    the extension has growth, EPS, total and free-float (流通) market value and 扣非净利润 for its ten companies.
+  - Definitions (round 14): a claim naming a definition the data does not serve is unverifiable, even when the
+    company's report shows the two give the same figure (长江电力's 营业收入 = 营业总收入); the data does not state such
+    equalities.
   - Live: coverage depends on the providers.
 - **Only the daily change is checked.** Multi-day moves and comparisons with the previous session ("跌幅扩大")
   are unverifiable; "涨停" is checked only as "up".
@@ -766,7 +831,9 @@ FINSIGHT_REPO=. python evaluation/heldout_r8/score_claims_r8.py <out.json>
   supported. The step reads trailing zeros as placeholders only for approximations, bounds with 多 / 余 / 出头; a bare
   "30倍" is exact to half a unit (or 2%). Fractions have no step: "约为三分之一" allows 5% (0.354 against 1/3 is 6% off
   and contradicted, while "三分之一左右" at 0.319 is supported).
-- **Ratio or stated value.** For a metric quoted in 倍 or % (P/E, P/B, ROE, margins), "X的N倍" / "X的N%" after a bound or
+- **Ratio or stated value.** (Round 14: the bound words 不到 / 不足 / 不及 / 超过 / 超出 / 至少 / 至多 / 最多 are ratio cues
+  now, so "市盈率不到五粮液的两倍" is a multiple; the text below describes 低于 / 高于 / 比, which are unchanged.)
+  For a metric quoted in 倍 or % (P/E, P/B, ROE, margins), "X的N倍" / "X的N%" after a bound or
   比 is X's stated value unless a ratio cue is written (是 / 为 / 相当于 / 只有…的, 比…的N倍还…, a fraction). "市盈率不到五粮液
   的两倍" is therefore read as "五粮液's P/E is 2x" (contradicted, next to the relation); with a cue ("市盈率只有五粮液的1.2倍")
   it is a multiple. The rule follows the unit of the metric, not the size of N, so it never depends on the data.

@@ -18,7 +18,7 @@ replaces synthetic phrasing with published phrasing; it does not replace an inde
 | `collected_v1.jsonl` | the 60 claims as collected, before any label (committed first, `9e059cf`) |
 | `label_claims_web_v1.py` | computes every expected verdict from the offline tools (committed with the labels, before the checker was run) |
 | `claims_web_v1.jsonl` | collected fields + `category`, `expected_verdict`, `parts` (one predicate per stated number, true / false / null = not in the offline data), `context_not_checked`, `offline_vs_primary` |
-| `score_claims_web_v1.py` | runs the checker once and writes `evaluation/results/claims_web_v1-first-run.json` |
+| `score_claims_web_v1.py` | runs the checker once and writes `evaluation/results/claims_web_v1-first-run.json`; since round 14 (review J15) it refuses to write into `evaluation/results/` from a dirty tree (`dirty_guard`, `--allow-dirty` needs a `--note`), and `--after-exposure` labels a run made after the checker changed |
 | `claims_web_v1-labels-with-corrections.jsonl` | (round 13) the same parts labelled against the offline data with the corrections layer on; adds `labelled_against` and `label_without_corrections` |
 
 ```bash
@@ -27,6 +27,9 @@ python -m evaluation.real_claims_web.score_claims_web_v1     # writes evaluation
 # round 13, with the corrections layer (data/snapshot/structured_data_fix.json):
 python -m evaluation.real_claims_web.label_claims_web_v1 --corrections   # writes claims_web_v1-labels-with-corrections.jsonl
 python -m evaluation.real_claims_web.score_claims_web_v1 --corrections   # writes evaluation/results/claims_web_v1-with-corrections.json
+# round 14, after the checker changed (give OUT so the earlier files stay):
+python -m evaluation.real_claims_web.score_claims_web_v1 evaluation/results/claims_web_v1-after-exposure-round14.json --after-exposure
+python -m evaluation.real_claims_web.score_claims_web_v1 evaluation/results/claims_web_v1-with-corrections-after-exposure-round14.json --corrections --after-exposure
 ```
 
 Without `--corrections` both scripts pin the corrections layer off, so `claims_web_v1.jsonl` is reproduced byte for byte.
@@ -254,3 +257,54 @@ Result file: `evaluation/results/claims_web_v1-with-corrections.json`.
     营业总收入, IFRS / USD). w44 (茅台 营业总收入 1720.54亿) is the 15th, because the layer serves 营业收入.
   - The answers now name these definitions; the checker does not read them yet.
 
+## Round 14: after exposure (checker changed)
+
+From round 14 this set is **after exposure** for the checker too: the round-14 engineers read this README (its error
+classes) and the round-10 review's J12 list, then changed `claim_check.py` with failing tests in their own wording
+(`tests/test_agent_round14_claims.py`, `tests/test_agent_round14_claims_v2.py`). The second, blind set's error
+classes ([../real_claims_web_v2/README.md](../real_claims_web_v2/README.md)) were fixed in the same round. Rules for
+these claims' sentences were not written; the run below measures what the general rules did to them.
+
+**Runs.** Once each, on a clean tree at `0dd9e1e`, 2026-10-10T17:14Z / 17:15Z, with the labels unchanged:
+
+- seed data, first-run labels: `evaluation/results/claims_web_v1-after-exposure-round14.json`;
+- corrections layer on, corrected labels: `evaluation/results/claims_web_v1-with-corrections-after-exposure-round14.json`.
+
+| | before | round 14 |
+|---|---|---|
+| seed data, first-run labels | 0.800 [0.70, 0.88], 48/60 (`df0d212`) | **0.850 [0.75, 0.93], 51/60** |
+| corrections layer, corrected labels | 0.817 [0.72, 0.90], 49/60 (`8aa4c52`) | **0.783 [0.67, 0.88], 47/60** |
+| corrections layer, against the first run's labels | 0.700 | 0.667 |
+
+**Per error class** (the classes of the first run, above; errors before → after, seed run / corrections run):
+
+| class | claims | before | round 14 | what changed |
+|---|---|---|---|---|
+| 1. 分别 / list pairing across metrics | w03, w40 | 2 / 2 | 2 / 2 | not fixed (w40 with corrections is now wrong for class 10 instead: its 归母 growth is not compared with the total-profit YoY) |
+| 2. absolute daily change in 元 / 点 | w04, w56 | 2 / 2 | 2 / 2 | not fixed |
+| 3. close words (报收) | w58 | 1 / 1 | **0 / 0** | 报 / 报收 is the close |
+| 4. year written with a space | w37 | 1 / 1 | **0 / 0** | a year is never a value ("2025 年", "for 2025", "FY2025") |
+| 5. traditional characters | w20 | 1 / 1 | **0 / 0** | read through a character table (`traditional.py`) |
+| 6. a comparand's bracketed value | w24 | 1 / 1 | 1 / 1 | not fixed |
+| 7. two metrics of one company | w02 | 1 / 1 | 1 / 1 | not fixed |
+| 8. prior-year value and gap | w07 | 1 / 1 | 1 / 1 | not fixed ("比上年增加X亿" is now derived from the YoY; an explicit prior-year value "比2024年的403亿" is still not) |
+| 9. exact-figure tolerance | w44, w47 | 2 / 1 | 2 / **0** | with corrections w44 ("营业总收入1720.54亿" for 茅台, which serves 营业收入) is now unverifiable for that part, which is its label; the seed run is unchanged |
+| 10. (new) a named definition the corrected data does not serve | w11, w12, w15, w16, w26, w41 | – / 0 | – / **6** | see below |
+
+**Why the corrected run went down.** The corrections layer states each field's definition (`definitions`), and since
+round 14 the checker never compares a claim that names a definition with a field of another one: it says
+`definition_mismatch` (unverifiable) instead. This set's corrected labels follow the first set's rule, which ignores a
+named definition, so six claims that name one now count as errors:
+
+- w12 "美的集团基本每股收益为5.8元，加权平均净资产收益率为19.70%" and w16 紫金 "基本每股收益：1.95元" (the data's EPS
+  is diluted, its ROE period-end);
+- w11 美的 "营业总收入…同比增长12.1%", w15 紫金 and w41 长江电力 "归母净利…同比" (the data's revenue YoY is on 营业收入,
+  its profit YoY on total net profit);
+- w26 招行 "加权 ROE…仍保持 13% 以上", which also shows a bug this run found: "连续 3 年" is read as an ROE of 3 (a
+  duration with spaces is not blanked; open).
+
+Several of these sentences are true by the company's report (w12, w15). Under the second set's definition-aware rule
+their verdicts would be partly or wholly unverifiable, which is what the checker now says; under this set's rule they
+are wrong. The seed run has no definitions, so it is unaffected (0.850).
+
+The remaining errors are classes 1, 2, 6, 7, 8 and 9 above, and class 10 in the corrected run.

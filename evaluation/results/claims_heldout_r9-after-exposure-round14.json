@@ -1,0 +1,38 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "0dd9e1e",
+  "run_at": "2026-10-10T17:20:20+00:00",
+  "command": "QI_EVAL_SNAPSHOT_EXT=1 FINSIGHT_REPO=. python evaluation/heldout_r9/score_claims_r9.py outputs/agent_eval/claims_r9-r14.json",
+  "claims_file": "evaluation/heldout_r9/claims_r9_heldout.jsonl",
+  "claims_sha256": "e289d7f68c286cc26c0466b15e2b4e70e2a156e3945f7e8c9eb2c7d0f4abea93",
+  "note": "AFTER EXPOSURE (round 14): independent round-9 claim slice rerun at 0dd9e1e (clean tree, the round-14 claims code). Out of sample only for the round-13 rules (25/25 at da9f6af); from round 14 the slice is after exposure (its first-run errors and the round-13 README were readable). The round-14 engineers did not open the slice's claims file. 25/25 = 1.000."
+ },
+ "summary": {
+  "claims": 25,
+  "verdict_accuracy": 1.0,
+  "ci95": [
+   1.0,
+   1.0
+  ],
+  "by_category": {
+   "compound": 1.0,
+   "control": 1.0,
+   "fraction_of": 1.0,
+   "half_multiple": 1.0,
+   "level_and_multiple": 1.0,
+   "loose_fraction": 1.0,
+   "negation": 1.0,
+   "points_difference": 1.0,
+   "range_52w": 1.0,
+   "superlative": 1.0,
+   "times_more": 1.0
+  }
+ },
+ "errors": [],
+ "source": {
+  "file": "outputs/agent_eval/claims_r9-r14.json",
+  "sha256_16": "1cbc1bff81b2513c",
+  "bytes": 10739
+ }
+}

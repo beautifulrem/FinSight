@@ -156,10 +156,14 @@ _REASON = {
     "period_mismatch": ("说法所指的时期与数据不同", "it is about another period than the data"),
     "multi_day": ("说的是多日变化，数据只有最近一个交易日", "it is about several days; only the latest session exists"),
     "no_reference": ("数据源没有市场平均值", "the sources have no market average"),
+    # (round 14)
+    "definition_mismatch": ("说法用的口径与数据不同", "it names another definition than the data's"),
+    "currency": ("金额不是人民币", "the amount is not in CNY"),
 }
 _PERCENT_LEVELS = {"roe", "gross_margin", "net_margin", "dividend_yield", "debt_ratio", "cn10y", "lpr_1y", "lpr_5y"}
-_SIGNED = {"pct_change_1d", "revenue_yoy", "netprofit_yoy", "cpi_yoy", "ppi_yoy", "m2_yoy", "gdp_yoy"}
-_AMOUNTS = {"revenue", "net_profit", "amount", "market_cap"}
+_SIGNED = {"pct_change_1d", "revenue_yoy", "netprofit_yoy", "profit_dedt_yoy", "cpi_yoy", "ppi_yoy", "m2_yoy"}
+_SIGNED |= {"gdp_yoy"}
+_AMOUNTS = {"revenue", "net_profit", "profit_dedt", "amount", "market_cap", "circ_mv"}
 _MAX_SENTENCES = 4
 
 
