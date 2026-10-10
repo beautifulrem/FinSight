@@ -1,0 +1,403 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "/Volumes/Remi/finsight-review/heldout_r9/chat_r9_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "da9f6af",
+  "run_at": "2026-10-10T14:08:27+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 45.6,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r9/chat_r9_heldout.jsonl --out outputs/agent_eval/chat_r9-after.json",
+  "env": {
+   "QI_EVAL_SNAPSHOT_EXT": "1"
+  },
+  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r9/chat_r9_heldout.jsonl --out outputs/agent_eval/chat_r9-after.json",
+  "slice_overlap": {
+   "slice": "chat_r9_heldout.jsonl",
+   "slice_texts": 79,
+   "exact": 2,
+   "near": 2,
+   "tasks_with_overlap": [
+    "r9h_ctrl_en_03",
+    "r9h_share_zh_01",
+    "r9h_spread_zh_01",
+    "r9h_verb_en_01"
+   ],
+   "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = dev task turns, router labels, dev claims, string literals in tests/*.py"
+  }
+ },
+ "summary": {
+  "tasks": 52,
+  "turns": 79,
+  "repeats": 1,
+  "task_success": 0.7885,
+  "pass^1": 0.7885,
+  "ci": {
+   "task_success": [
+    0.6731,
+    0.8846
+   ],
+   "pass^1": [
+    0.6731,
+    0.8846
+   ],
+   "task_success_uncited": [
+    0.6731,
+    0.8846
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.7885,
+  "turn_success": 0.8608,
+  "behavior_accuracy": 0.9873,
+  "fact_recall": 0.8472,
+  "fact_stated": 0.8472,
+  "tool_recall": 0.9818,
+  "tool_precision": 0.6425,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 75.01,
+  "latency_ms_p95": 1114.89,
+  "latency_ms_p99": 3631.82,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "control": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 419.93
+  },
+  "forecast_hedge": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 390.45
+  },
+  "industry_missing": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 95.21
+  },
+  "multi_holding": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 3631.82
+  },
+  "price_derived": {
+   "tasks": 7,
+   "task_success": 0.2857,
+   "latency_ms_p95": 204.99
+  },
+  "share_ratio": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 382.2
+  },
+  "spread": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 154.36
+  },
+  "sum": {
+   "tasks": 5,
+   "task_success": 0.2,
+   "latency_ms_p95": 119.68
+  },
+  "verb_comparative": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 3473.72
+  },
+  "yes_no_ratio": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 144.85
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 19,
+   "task_success": 0.7368,
+   "latency_ms_p95": 381.92
+  },
+  "zh": {
+   "tasks": 33,
+   "task_success": 0.8182,
+   "latency_ms_p95": 1114.89
+  }
+ },
+ "failed_checks": {
+  "facts": 11,
+  "entities": 2,
+  "behavior": 1,
+  "required_tools": 1
+ },
+ "failures": [
+  {
+   "task": "r9h_sum_zh_01",
+   "category": "sum",
+   "query": "工商银行、招商银行两家去年一共赚了多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：工商银行 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-09-30 收盘计算）：PE(TTM) 7.89 倍，PB 0.74 倍，ROE 8.68%，营业收入 8382.7 亿元，净利润 3685.62 亿元 [fundamental_601398.SH]。招商银"
+  },
+  {
+   "task": "r9h_sum_en_01",
+   "category": "sum",
+   "query": "What is the combined market value of CATL and BYD?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: CATL (300750.SZ) last available close was CNY 291.11 on 2026-09-30, daily change 1.5028% [price_300750.SZ]. C"
+  },
+  {
+   "task": "r9h_sum_zh_03",
+   "category": "sum",
+   "query": "再加上美的集团，总共多少",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：美的集团（000333.SZ）最新可用收盘价为 80.1 元（2026-09-30），当日涨跌幅 -1.9104% [price_000333.SZ]。"
+  },
+  {
+   "task": "r9h_sum_en_02",
+   "category": "sum",
+   "query": "Put together, how much is that?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "r9h_price_zh_01",
+   "category": "price_derived",
+   "query": "宁德时代现在比52周最高收盘价低了百分之多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：宁德时代（300750.SZ）最新可用收盘价为 291.11 元（2026-09-30），当日涨跌幅 1.5028% [price_300750.SZ]。宁德时代近52周（2025-10-09 至 2026-09-30，241 个交易日，按未复权收盘价）：最高收盘 460 元（2026-05-06"
+  },
+  {
+   "task": "r9h_price_zh_02",
+   "category": "price_derived",
+   "query": "比亚迪从52周低点算起反弹了多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：比亚迪（002594.SZ）最新可用收盘价为 83.31 元（2026-09-30），当日涨跌幅 1.5728% [price_002594.SZ]。比亚迪近52周（2025-10-09 至 2026-09-30，241 个交易日，按未复权收盘价）：最高收盘 110.6 元（2025-10-09）"
+  },
+  {
+   "task": "r9h_price_en_01",
+   "category": "price_derived",
+   "query": "How far is CMB trading below its 52-week high, in percent?",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: China Merchants Bank fundamentals (period 2025-12-31, FY2025; P/E and P/B at the 2026-09-30 close): PE(TTM) 6"
+  },
+  {
+   "task": "r9h_price_zh_03",
+   "category": "price_derived",
+   "query": "现在离那个高点跌去了多少钱",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中芯国际（688981.SH）最新可用收盘价为 111.99 元（2026-09-30），当日涨跌幅 -4.6975% [price_688981.SH]。"
+  },
+  {
+   "task": "r9h_price_zh_05",
+   "category": "price_derived",
+   "query": "以今年第一个交易日的收盘价为基准，招商银行今年以来涨跌了多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：招商银行（600036.SH）最新可用收盘价为 41.26 元（2026-09-30），当日涨跌幅 1.8514% [price_600036.SH]。招商银行今年以来（以上年最后一个交易日收盘为基准）：2025-12-31 收盘 42.1 元，最新（2026-09-30）收盘 41.26 元，涨"
+  },
+  {
+   "task": "r9h_hold_en_01",
+   "category": "multi_holding",
+   "query": "I hold 700 Ping An Bank shares and 300 ICBC shares. Total value at the latest close?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Ping An Bank (000001.SZ) last available close was CNY 11.57 on 2026-09-30, daily change 1.9383% [price_000001"
+  },
+  {
+   "task": "r9h_yn_en_02",
+   "category": "yes_no_ratio",
+   "query": "Does Midea earn at least 1.2 times what BYD earns?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Midea Group (000333.SZ) last available close was CNY 80.1 on 2026-09-30, daily change -1.9104% [price_000333."
+  }
+ ],
+ "task_outcomes": {
+  "r9h_share_zh_01": "1",
+  "r9h_share_zh_02": "1",
+  "r9h_share_en_01": "1",
+  "r9h_share_en_02": "1",
+  "r9h_share_zh_03": "1",
+  "r9h_share_zh_04": "1",
+  "r9h_share_zh_05": "1",
+  "r9h_verb_zh_01": "1",
+  "r9h_verb_zh_02": "1",
+  "r9h_verb_zh_03": "1",
+  "r9h_verb_en_01": "1",
+  "r9h_verb_en_02": "1",
+  "r9h_verb_zh_04": "1",
+  "r9h_verb_zh_05": "1",
+  "r9h_sum_zh_01": "0",
+  "r9h_sum_zh_02": "1",
+  "r9h_sum_en_01": "0",
+  "r9h_sum_zh_03": "0",
+  "r9h_sum_en_02": "0",
+  "r9h_spread_zh_01": "1",
+  "r9h_spread_en_01": "1",
+  "r9h_spread_zh_02": "1",
+  "r9h_price_zh_01": "0",
+  "r9h_price_zh_02": "0",
+  "r9h_price_en_01": "0",
+  "r9h_price_zh_03": "0",
+  "r9h_price_zh_04": "1",
+  "r9h_price_zh_05": "0",
+  "r9h_price_en_02": "1",
+  "r9h_fc_zh_01": "1",
+  "r9h_fc_zh_02": "1",
+  "r9h_fc_zh_03": "1",
+  "r9h_fc_en_01": "1",
+  "r9h_fc_en_02": "1",
+  "r9h_fc_zh_04": "1",
+  "r9h_fc_en_03": "1",
+  "r9h_ind_zh_01": "1",
+  "r9h_ind_en_01": "1",
+  "r9h_ind_zh_02": "1",
+  "r9h_hold_zh_01": "1",
+  "r9h_hold_zh_02": "1",
+  "r9h_hold_en_01": "0",
+  "r9h_yn_en_01": "1",
+  "r9h_yn_zh_01": "1",
+  "r9h_yn_en_02": "0",
+  "r9h_ctrl_zh_01": "1",
+  "r9h_ctrl_en_01": "1",
+  "r9h_ctrl_zh_02": "1",
+  "r9h_ctrl_zh_03": "1",
+  "r9h_ctrl_en_02": "1",
+  "r9h_ctrl_zh_04": "1",
+  "r9h_ctrl_en_03": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r9-after.json",
+  "sha256_16": "10e56aaba27f93b9",
+  "bytes": 249234,
+  "slimmed_at": "2026-10-10T14:09:18+00:00"
+ },
+ "notes": [
+  "independent round-9 chat slice after the round-13 fixes, run once at da9f6af (clean tree), QI_EVAL_SNAPSHOT_EXT=1, no LLM, --no-replay; the round-13 engineers did not open the slice, but 4 slice chat tasks overlap own test/dev wording (slice_overlap-heldout_r9-at-da9f6af.json): without them 16/48 -> 37/48"
+ ]
+}

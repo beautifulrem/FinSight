@@ -1,0 +1,102 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "cbcf3b2",
+  "run_at": "2026-10-01T10:50:01+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r9/score_claims_r9.py <out.json>",
+  "note": "independent round-9 claim slice, first and only pre-fix run at cbcf3b2, recorded by the reviewer"
+ },
+ "summary": {
+  "claims": 25,
+  "verdict_accuracy": 0.6,
+  "ci95": [
+   0.4,
+   0.8
+  ],
+  "by_category": {
+   "compound": 1.0,
+   "control": 1.0,
+   "fraction_of": 0.0,
+   "half_multiple": 0.5,
+   "level_and_multiple": 1.0,
+   "loose_fraction": 0.0,
+   "negation": 1.0,
+   "points_difference": 0.5,
+   "range_52w": 0.667,
+   "superlative": 0.0,
+   "times_more": 0.5
+  }
+ },
+ "errors": [
+  {
+   "id": "r9c01",
+   "category": "half_multiple",
+   "claim": "招商银行净利润是平安银行的三倍半",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r9c04",
+   "category": "points_difference",
+   "claim": "BYD's P/E is about 10 points higher than CATL's",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r9c06",
+   "category": "times_more",
+   "claim": "招商银行的PB比平安银行高出将近一倍",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r9c08",
+   "category": "loose_fraction",
+   "claim": "平安银行的市盈率只有工行的六成多一点",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r9c11",
+   "category": "superlative",
+   "claim": "在工行、招行、平安银行三家里，平安银行的PB最低",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r9c12",
+   "category": "superlative",
+   "claim": "Among CMB, ICBC and Ping An Bank, ICBC has the highest ROE",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r9c13",
+   "category": "fraction_of",
+   "claim": "Midea's net profit is less than a third of CATL's",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r9c14",
+   "category": "fraction_of",
+   "claim": "Ping An Bank's net profit is under a quarter of CMB's",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r9c15",
+   "category": "range_52w",
+   "claim": "中芯国际距52周高点已经跌去超过三成",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r9c23",
+   "category": "half_multiple",
+   "claim": "宁德时代的每股收益超过16元，大约是比亚迪的四倍半",
+   "expected": "supported",
+   "got": "partially_supported"
+  }
+ ]
+}

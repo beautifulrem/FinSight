@@ -249,6 +249,8 @@ HELDOUT_R8_RUNS = (
     "chat_heldout_r8-auto-nollm-after-fix",
     "chat_heldout_r8-auto-nollm-after-exposure-round13",
 )
+# Round-9 held-out slice (evaluation/heldout_r9/, written by the round-9 reviewer): before and after the round-13 fixes.
+HELDOUT_R9_RUNS = ("chat_heldout_r9-auto-nollm-prefix", "chat_heldout_r9-auto-nollm-after-fix")
 # Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
 # (title, a, b, label a, label b, paths compared).
 PAIRED_ABLATIONS = (
@@ -279,6 +281,9 @@ PAIRED_ABLATIONS = (
 )
 # Other committed evidence the READMEs cite, summarised as one row each.
 EXTRA_EVIDENCE = (
+    "claims_heldout_r9-prefix",
+    "claims_heldout_r9-after-fix",
+    "slice_overlap-heldout_r9-at-da9f6af",
     "claims_heldout_r8-prefix",
     "claims_heldout_r8-after-fix",
     "claims_web_v1-first-run",
@@ -376,6 +381,14 @@ FILE_STATUS = {
     "11)**: the round-11 engineers could read the slice, so it is no longer out of sample",
     "chat_heldout_r7-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-7 chat slice",
     "chat_heldout_r8-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-8 chat slice",
+    "chat_heldout_r9-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-9 chat slice",
+    "chat_heldout_r9-auto-nollm-after-fix": "independent round-9 chat slice **after the round-13 fixes**; the "
+    "engineers did not open the slice, but 4 of its 52 tasks overlap own test/dev wording (without them 16/48 -> "
+    "37/48)",
+    "claims_heldout_r9-prefix": "**first and only pre-fix run** of the independent round-9 claim slice",
+    "claims_heldout_r9-after-fix": "independent round-9 claim slice **after the round-13 fixes**; 5 of its 25 claims "
+    "near-copy own test wording or the reviewer's published repros (without them 15/20 -> 20/20)",
+    "slice_overlap-heldout_r9-at-da9f6af": "overlap of the round-9 slice with own texts at the after-fix commit",
     "chat_heldout_r8-auto-nollm-after-fix": "independent round-8 chat slice **after the round-12 fixes**; the "
     "engineers did not open the slice, but three slice turns coincide with round-12 test/dev wording (r8h_hk_zh_03, "
     "r8h_gap_en_04, r8h_hold_zh_03; written before the slice existed); without those three tasks 13/48 -> 32/48 = "
@@ -1631,6 +1644,22 @@ def render_with_sources() -> tuple[str, list[str]]:
             "",
         ]
         for name, result in heldout_r8:
+            body += [f"#### `{name}.json`", "", *run_section(result, name, full=True)]
+    heldout_r9 = [(name, take(name)) for name in HELDOUT_R9_RUNS]
+    heldout_r9 = [(name, result) for name, result in heldout_r9 if result]
+    if heldout_r9:
+        body += [
+            "### Round-9 held-out chat slice (independent author): before and after the round-13 fixes",
+            "",
+            "52 conversations written by the round-9 reviewer from their bug classes before any round-13 fix "
+            "(`evaluation/heldout_r9/README.md`), run with `QI_EVAL_SNAPSHOT_EXT=1` once before the fixes (by the "
+            "reviewer) and once after them. The engineers did not open the slice; `slice_overlap-heldout_r9-at-da9f6af"
+            ".json` lists 4 chat tasks and 5 claims that overlap own test or dev wording (without them chat 16/48 -> "
+            "37/48, claims 15/20 -> 20/20). Its 25 claims are in the evidence table below "
+            "(`claims_heldout_r9-*.json`).",
+            "",
+        ]
+        for name, result in heldout_r9:
             body += [f"#### `{name}.json`", "", *run_section(result, name, full=True)]
     pure = [
         (name, result)
