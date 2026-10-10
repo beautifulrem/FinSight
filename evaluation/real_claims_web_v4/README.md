@@ -211,4 +211,49 @@ The other disagreements are about what the sentence quotes:
   2026-09-30 close (+0.31%, −0.23%) both parts are false. w3_49 states the close figures and is partially_supported
   (深证成指 is not in the data).
 
-First run: not yet run.
+## First run (the only blind run), `110e656`
+
+The checker was run once, on a clean tree at `110e656` (r15-claims, the round-15 K6 checker), on 2026-10-10T20:35Z,
+after the claims, labels and scorer had been committed (`327629c`, `a4b666f`). The set then lived under
+`evaluation/real_claims_web_v3/`; the command was `python -m evaluation.real_claims_web_v3.score_claims_web_v3`. It used
+the offline service with the shipped default data and no LLM, the published sentence with the brackets removed (the
+inserted subject kept) and no date. Result: `evaluation/results/claims_web_v4-first-run.json` (written by that run; only
+the `renamed` and `claims_sha256` fields were added when the set was renamed).
+
+**What the engineer had seen before the run.** The engineer who ran it had written the checker (round 15). The claims
+were collected and labelled by a separate search agent that did not open the checker's code, tests or claim benches.
+The engineer did not read the claims before the run, except three lines of one label note (w3_28's note on ICBC's IFRS
+figures) that a lint command printed.
+
+| | result |
+|---|---|
+| verdict accuracy | **0.740 [0.62, 0.86]** (37/50; 95% percentile bootstrap over claims, 2000 resamples) |
+| against the definition-blind labels | 0.720 [0.60, 0.84] |
+| by category | daily_price 1.000 (2/2), annual_ratios 0.875 (7/8), annual_figures 0.821 (23/28), loose_or_relational 0.600 (3/5), english_or_traditional 0.286 (2/7) |
+| by language | zh 0.814 (35/43), en 0.286 (2/7) |
+| by expected verdict | supported 0.800 (16/20), partially_supported 0.682 (15/22), contradicted 0.750 (3/4), unverifiable 0.750 (3/4) |
+| checker's verdicts | supported 19, partially_supported 18, contradicted 7, unverifiable 6 |
+
+This is a blind number for the round-15 K6 checker. It is higher than the second and third sets' first runs (0.500 and
+0.540, both on the round-14 checker), but the sets differ in mix (this one is 48/50 annual figures and has no
+valuation claims), so the difference is not an estimate of the K6 rules' effect.
+
+### Error classes of the first run (13)
+
+1. **A definition caution alone, under two verdict rules** (2: w3_08, w3_18). The claims name 归母 growth and the
+   data's YoY is on total net profit; every other part is true. Round 15 calls such a claim `supported` (partial
+   coverage); this set's labels (v2's rule) call it `partially_supported`.
+2. **A previous-year value read as this year's** (2: w3_19, w3_20). "较2024年的4090.84亿元" is compared with 2025 revenue
+   (period_mismatch); "down from 40.3 billion yuan the previous year" and the rest of w3_19 are read as daily moves.
+3. **Metric wording** (4: w3_23, w3_25, w3_29, w3_47). "归属于公司拥有人的利润" (Hong Kong wording) and "业绩增长" are not
+   recognised; "essentially flat (+0.01%)" has no metric; "平均净资产收益率（ROAE）13.44%" is compared with the
+   period-end ROE and contradicted (labelled unverifiable: the served ROE is another definition).
+4. **A daily average read as the year's net profit** (1: w3_35). "每天净赚超过1.2亿元" was checked as net profit > 1.2亿,
+   which is trivially true: a false accept of the wrong quantity.
+5. **人民币 as 宁德时代** (1: w3_28). The sentence's "人民币" resolved to 宁德时代 through the runtime alias table, so ICBC's
+   figures were compared with CATL's.
+6. **A name variant** (1: w3_30). "Kweichow Maotai" is not recognised.
+7. **English moves of a reported flow** (1: w3_32). "revenues plunged to CY40.53 billion, almost 55% below sales in 2024"
+   is read as daily price moves.
+8. **Tolerance** (1: w3_34). The 16.2% growth against 16.49 is within the checker's 2% and outside the labels' 1%.
+
