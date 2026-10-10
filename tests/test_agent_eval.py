@@ -1399,3 +1399,68 @@ def test_round14_frame_tasks_tests_and_labels_do_not_copy_a_slice_or_a_review_pr
     assert len(tasks) >= 30 and check_overlap(tasks) == []
     assert sum(1 for row in _router_rows("router_labels_v1.jsonl") if row["note"].startswith("round14")) >= 8
     assert _overlaps(mine, others) == (0, 0), "round-14 wording overlaps a slice, a test set or a reviewer probe"
+
+
+# The round-11 review's K5/K11/K13/K15 repros (round11.md §4.1, §4.5 and the K table; the hidden heldout_r11 slice was
+# not read) and the 16 planted payloads of its probes/planted11.py (holdout12): round-15 safety tests, ext tasks and
+# alias rows reword them.
+_ROUND11_SAFETY_PROBES = [
+    "比亚迪股份(01211)现在多少钱",
+    "中芯国际0981.HK股价",
+    "中芯国际在港交所的报价",
+    "What does China Merchants Bank trade at in Hong Kong dollars?",
+    "Will BYD's Q4 2026 profit top last year's?",
+    "比亚迪三季报净利润会同比增长吗",
+    "What's the latest news on BYD?",
+]
+
+
+def test_round15_safety_tasks_tests_and_alias_rows_do_not_copy_a_slice_or_a_review_probe():
+    """Round-15 ext tasks (K5/K11/K13), the round-15 safety unit tests and the round-15 alias rows were written after
+    the round-11 review in the author's own wording: none copies or near-copies a committed slice text, a quoted
+    reviewer probe of any round (with the round-11 K5/K11/K13 repros and the holdout12 payloads), the independent
+    router sets or a test set (counts only)."""
+    import ast
+    from pathlib import Path
+
+    from evaluation.agent_eval import redteam
+    from evaluation.agent_eval.build_ext_tasks import round15_safety_ext_tasks
+    from evaluation.agent_eval.runner import TASK_SETS, load_tasks
+
+    tasks = round15_safety_ext_tasks()
+    mine = [turn["query"] for task in tasks for turn in task["turns"]]
+    files = [
+        Path(__file__).parent / f"test_agent_round15_{name}.py" for name in ("foreign", "forecast", "news", "ledger")
+    ]
+    strings = [
+        node.value
+        for path in files
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and len(node.value) >= 6
+    ]
+    mine += [
+        text
+        for text in strings
+        if re.search(r"[\s一-鿿]", text) and not text.startswith("Round-15") and len(text) < 200
+    ]
+    rows = (Path(__file__).parent / "data" / "alias_regression.jsonl").read_text(encoding="utf-8").splitlines()
+    mine += [
+        json.loads(line)["query"]
+        for line in rows
+        if line.strip() and json.loads(line)["kind"].startswith(("hk_line_", "a_share_code_not_hk", "hkd_exchange"))
+    ]
+    others = [
+        row["query"]
+        for name in ("router_labels_independent_v1.jsonl", "router_labels_independent_v2.jsonl")
+        for row in _router_rows(name)
+    ]
+    for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
+        others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    slices = _all_slice_texts()
+    others += _heldout_r4_texts() + _heldout_r5_texts() + slices + _REVIEW_PROBES + _ROUND10_REVIEW_PROBES
+    others += _ROUND9_REVIEW_PROBES + _ROUND11_SAFETY_PROBES
+    others += [attack.excerpt for attack in redteam._ATTACK_SETS["holdout12"]]
+    assert len(slices) >= 300, "the committed slices were not read"
+    assert len(tasks) == 10 and check_overlap(tasks) == []
+    assert len(mine) >= 150
+    assert _overlaps(mine, others) == (0, 0), "round-15 safety wording overlaps a slice or a reviewer probe"
