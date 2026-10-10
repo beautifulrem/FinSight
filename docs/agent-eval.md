@@ -2401,6 +2401,160 @@ Failures (development set; first 25):
 
 * Note: AFTER EXPOSURE (round 15): independent round-10 chat slice rerun once at 8b62a6c (clean tree; the final round-15 r15-frame code, round2 merged), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay, read from the committed evaluation/heldout_r10/. The slice is after exposure from round 15 (its failing task ids and classes are published in docs/evaluation-history.md); the round-15 frame engineer fixed the round-11 review's classes from the review report and own wording and did not open the slice text. 39/48 = 0.8125, turn 0.830 (38/48 at 3480a96): r10h_stot_zh_03 now passes, no task regressed; 9 still fail (hold_en_01, hold_zh_03, price_en_01, price_zh_02, stot_en_01, stot_zh_01, sum_zh_02, verb_en_01, verb_en_02). Not an out-of-sample measure.
 
+### Round-11 held-out chat slice (independent author): before and after the round-15 fixes
+
+60 conversations written by the round-11 reviewer before any round-15 fix (`evaluation/heldout_r11/README.md`), run with the shipped default data once before the fixes (by the reviewer) and once after them, from the reviewer's folder. `slice_overlap-heldout_r11-at-c5ffb7d.json` lists the overlaps with own wording (text: 2 chat tasks and 2 claims, one claim an exact copy that is also in the reviewer's probe file; content and signature tiers wider). Its 24 claims are in the evidence table below (`claims_heldout_r11-*.json`).
+
+#### `chat_heldout_r11-auto-nollm-prefix.json`
+
+Source `evaluation/results/chat_heldout_r11-auto-nollm-prefix.json`: commit `4ad3380`, run 2026-10-10T19:12:02+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r11/chat_r11_heldout.jsonl --out /Volumes/Remi/finsight-review/heldout_r11/first_run/chat_r11-auto-4ad3380.json
+```
+
+Development set, path `auto`: 60 tasks, 73 turns. Status: **first and only pre-fix run** of the independent round-11 chat slice.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.200 [0.10, 0.30] |
+| pass^k (all k repeats succeed) | 0.200 [0.10, 0.30] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.945 |
+| Required facts stated and cited | 0.391 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.391 |
+| Task success without the citation / tool / disclaimer checks | 0.200 [0.10, 0.30] |
+| Tool recall (required tools used) | 0.983 |
+| Tool precision (calls that were relevant) | 0.616 |
+| Hedged when required (why / judgment / advice) | 0.667 |
+| States missing data when required | 0.333 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 420.1 |
+| Turn success | 0.343 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 5 | 1.00 |
+| dated_close | 4 | 0.00 |
+| ellipsis_two | 2 | 0.50 |
+| foreign_line | 5 | 0.20 |
+| holding_follow_up | 3 | 0.00 |
+| holding_forms | 4 | 0.25 |
+| mean | 5 | 0.00 |
+| multi_purchase_pnl | 3 | 0.00 |
+| mv_over_profit | 2 | 0.00 |
+| news_missing | 2 | 0.50 |
+| price_recovery | 3 | 0.00 |
+| share_of_total3 | 3 | 0.33 |
+| sum_and_share | 2 | 0.00 |
+| sum_vs_one | 4 | 0.00 |
+| sum_words | 5 | 0.00 |
+| two_questions | 2 | 0.00 |
+| unreleased_results | 3 | 0.67 |
+| verb_comparative | 3 | 0.00 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r11h_sum_zh_01 | 长江电力和美的集团的营收拢共多少 | facts |
+| r11h_sum_zh_02 | 中信证券、紫金矿业净利润统共多少亿 | facts |
+| r11h_sum_zh_03 | 平安银行跟招商银行的营收合并算是多少 | facts |
+| r11h_sum_en_01 | What do Midea and Zijin Mining earn jointly? | facts |
+| r11h_sum_zh_04 | 它俩一起挣了多少 | facts |
+| r11h_mean_zh_01 | 工商银行、招商银行、中信证券的ROE平均下来是多少 | facts |
+| r11h_mean_zh_02 | 宁德时代、美的集团两家市净率的均值 | facts |
+| r11h_mean_en_01 | Mean P/E across Zijin Mining, Midea and CITIC Securities? | facts |
+| r11h_mean_zh_03 | 两家平均一下是多少 | facts |
+| r11h_mean_zh_04 | 比亚迪、宁德时代、中芯国际的营收先加起来再除以3 | facts |
+| r11h_vsum_en_01 | Is CATL's net profit bigger than BYD's and Ping An Bank's put together, and by how much? | facts |
+| r11h_vsum_zh_01 | 工商银行一家的营收，跟招商银行、比亚迪两家合起来比，是多是少，差多少 | facts |
+| r11h_vsum_zh_02 | 中信证券和平安银行的净利润加在一起，能超过招商银行吗？差多少 | facts |
+| r11h_vsum_en_02 | Do Zijin Mining and China Yangtze Power together have a larger market cap than CATL? What's the difference? | facts |
+| r11h_stot3_zh_01 | 平安银行营收在平安、招行、工行三家营收总和里占百分之几 | facts, entities |
+| r11h_stot3_zh_02 | 紫金矿业、美的集团、比亚迪三家总市值合计中，紫金占多大比重 | facts |
+| r11h_sumshare_zh_01 | 两家合计多少，长江电力占了几成 | facts |
+| r11h_sumshare_en_01 | Total of the two, and Midea's share of that total? | facts |
+| r11h_ell2_zh_01 | 招行和紫金的呢 | facts, entities |
+| r11h_holdfu_zh_01 | 再加2手紫金矿业，一共多少 | facts, entities |
+| r11h_holdfu_en_01 | Add 500 ICBC shares to that. Total now? | facts, entities |
+| r11h_holdfu_zh_02 | 另有平安银行3手，两只合起来呢 | facts |
+| r11h_holdform_zh_01 | 我有2.5万股平安银行，按收盘价市值多少 | facts |
+| r11h_holdform_zh_02 | 持仓：美的集团 600 股，紫金矿业 1,200 股。合计市值？ | facts, required_tools |
+| r11h_holdform_en_01 | My portfolio: 1,500 CMB and 2,000 ICBC shares. Total value? | facts |
+| … | 23 more in the result file | |
+
+* Note: independent round-11 chat slice (written by the round-11 reviewer before any round-15 fix), first and only pre-fix run at 4ad3380 by the reviewer, QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay
+
+#### `chat_heldout_r11-auto-nollm-after-fix.json`
+
+Source `evaluation/results/chat_heldout_r11-auto-nollm-after-fix.json`: commit `c5ffb7d`, run 2026-10-10T22:56:23+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r11/chat_r11_heldout.jsonl --out outputs/agent_eval/chat_r11-after.json
+```
+
+Development set, path `auto`: 60 tasks, 73 turns. Status: independent round-11 chat slice **after the round-15 fixes**, run once from the reviewer's folder; 2 of its 60 tasks overlap own wording by text (without them 12/58 -> 42/58).
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.733 [0.63, 0.83] |
+| pass^k (all k repeats succeed) | 0.733 [0.63, 0.83] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.986 |
+| Required facts stated and cited | 0.768 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.768 |
+| Task success without the citation / tool / disclaimer checks | 0.733 [0.63, 0.83] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.593 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 1340.2 |
+| Turn success | 0.781 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 5 | 1.00 |
+| dated_close | 4 | 0.75 |
+| ellipsis_two | 2 | 0.50 |
+| foreign_line | 5 | 0.80 |
+| holding_follow_up | 3 | 0.67 |
+| holding_forms | 4 | 0.75 |
+| mean | 5 | 1.00 |
+| multi_purchase_pnl | 3 | 0.33 |
+| mv_over_profit | 2 | 0.50 |
+| news_missing | 2 | 1.00 |
+| price_recovery | 3 | 0.33 |
+| share_of_total3 | 3 | 0.67 |
+| sum_and_share | 2 | 0.00 |
+| sum_vs_one | 4 | 0.75 |
+| sum_words | 5 | 1.00 |
+| two_questions | 2 | 0.50 |
+| unreleased_results | 3 | 1.00 |
+| verb_comparative | 3 | 0.67 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r11h_vsum_zh_01 | 工商银行一家的营收，跟招商银行、比亚迪两家合起来比，是多是少，差多少 | facts |
+| r11h_stot3_zh_01 | 平安银行营收在平安、招行、工行三家营收总和里占百分之几 | facts, entities |
+| r11h_sumshare_zh_01 | 两家合计多少，长江电力占了几成 | facts |
+| r11h_sumshare_en_01 | Total of the two, and Midea's share of that total? | facts |
+| r11h_ell2_zh_01 | 招行和紫金的呢 | facts, entities |
+| r11h_holdfu_zh_02 | 另有平安银行3手，两只合起来呢 | facts |
+| r11h_holdform_en_01 | My portfolio: 1,500 CMB and 2,000 ICBC shares. Total value? | facts |
+| r11h_avgcost_zh_01 | 美的集团我分两次买：第一次300股75元，第二次200股85元，现在盈亏多少 | facts |
+| r11h_avgcost_zh_02 | 紫金矿业先30元买1000股，后来又25元补了1000股，按现价赚还是亏，多少 | facts |
+| r11h_recover_zh_01 | 比亚迪股价回到52周最高收盘价还需要上涨百分之几 | facts |
+| r11h_recover_zh_02 | 美的集团现在比一年来的最低收盘价高出多少元 | facts |
+| r11h_mvnp_zh_01 | 长江电力的市值相当于几年的净利润 | facts |
+| r11h_twoq_zh_01 | 宁德时代市值是美的的几倍？营收呢？ | facts |
+| r11h_verb_en_02 | How much does ICBC's revenue eclipse CMB's by? | facts |
+| r11h_date_zh_01 | 招商银行在2025年最后一个交易日收盘多少 | facts |
+| r11h_hk_en_01 | Quote me ICBC in HKD | behavior, limitations |
+
+* Note: independent round-11 chat slice after the round-15 fixes, run once at c5ffb7d (clean tree), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay, reading the reviewer's folder; the engineers state they did not open it; overlap with own wording in slice_overlap-heldout_r11-at-c5ffb7d.json: text 12/58 -> 42/58, +content 11/55 -> 39/55, +signature 9/44 -> 32/44
+
 ### The no-tools LLM baseline: strict scoring vs uncited correctness
 
 Under the strict score a task needs every required number stated **and cited with an evidence id**, the required tools and the product's risk-disclaimer field. A model without tools can meet none of these, so its 0.000 is a property of the scoring, not only of the model. The uncited columns score the same answers against the same snapshot values without those requirements. The snapshot is dated 2026-04-22 and the model has no access to it, so uncited correctness measures what the model knew or guessed.
@@ -3560,6 +3714,9 @@ Small online checks with DeepSeek over the offline tools, run sequentially (stop
 
 | Result file | Commit | Summary |
 |---|---|---|
+| `claims_heldout_r11-prefix.json` | `4ad3380` | claim slice, verdict accuracy 0.292 [0.125, 0.458] over 24 claims — contrast_implicit_subject 0.500; control 1.000; currency 1.000; dedt_vs_parent 0.000; forecast 1.000; foreign_line 0.000; mean 0.000; published_year 0.000; share_of_total3 0.000; sum_reference 0.333; trillion_unit 0.500 |
+| `claims_heldout_r11-after-fix.json` | `c5ffb7d` | claim slice, verdict accuracy 0.792 [0.625, 0.917] over 24 claims — contrast_implicit_subject 0.500; control 1.000; currency 1.000; dedt_vs_parent 1.000; forecast 1.000; foreign_line 1.000; mean 0.750; published_year 0.500; share_of_total3 0.500; sum_reference 0.667; trillion_unit 1.000 |
+| `slice_overlap-heldout_r11-at-c5ffb7d.json` | `c5ffb7d` | overlap of `heldout_r11` with every task file and claim file (12 files) and the test literals (round-10 review J9): 1 exact and 3 near hits over 4 slice items (r11c09, r11c19, r11h_fcq_en_01, r11h_hk_zh_01); chat runs ; content level (round-11 review K16): `content` 9 items (r11c09, r11c14, r11c19, r11c23, r11h_avgcost_en_01, r11h_ctrl_zh_03, r11h_fcq_en_01, r11h_hk_zh_01, r11h_holdform_zh_01), `content_signature` 23 items |
 | `operation_classifier-r15.json` | `37d8827` | operation classifier (char_wb 1-3-gram TF-IDF (max 20000) + grammar lexicon hits), held-out templates (68 families, 1632 wordings): classifier 0.887 [0.871, 0.902], grammar 0.861 [0.843, 0.877], grammar + classifier 0.882 [0.866, 0.897]; the fallback recovers 35 of 131 operations the grammar misses; fallback fires on 0 of 942 non-comparison evaluation-set questions |
 | `operation_classifier-r15-nolexicon.json` | `37d8827` | operation classifier (char_wb 1-3-gram TF-IDF (max 20000)), held-out templates (68 families, 1632 wordings): classifier 0.770 [0.749, 0.790], grammar 0.861 [0.843, 0.877], grammar + classifier 0.891 [0.875, 0.906]; the fallback recovers 50 of 131 operations the grammar misses |
 | `claims_heldout_r10-prefix.json` | `7f4f06c` | claim slice, verdict accuracy 0.667 [0.458, 0.833] over 24 claims — colloquial_count 0.000; compound_bounds 1.000; control 1.000; corrected_data 1.000; en_fraction 1.000; float_cap 0.000; level_and_multiple 1.000; multiple_bound 0.000; points 1.000; published_yoy 0.667; recurring_profit 0.000; superlative 0.500; tenths 1.000; times 1.000; zh_fraction 1.000 |
@@ -3683,6 +3840,8 @@ Paired comparisons (same tasks, a − b):
 | `chat_heldout_r10-auto-nollm-prefix.json` | run | `7f4f06c` | 2026-10-10T15:26:16+00:00 | – | `chat_r10-auto-7f4f06c.json` (5e5093e352c7941d) |
 | `chat_heldout_r10-auto-nollm-after-fix.json` | run | `3480a96` | 2026-10-10T18:07:35+00:00 | – | `outputs/agent_eval/chat_r10-after.json` (c645506c909ac544) |
 | `chat_heldout_r10-auto-nollm-after-exposure-round15.json` | run | `8b62a6c` | 2026-10-10T21:30:01+00:00 | – | `outputs/agent_eval/chat_r10-r15.json` (0a40065b4a134caa) |
+| `chat_heldout_r11-auto-nollm-prefix.json` | run | `4ad3380` | 2026-10-10T19:12:02+00:00 | – | `chat_r11-auto-4ad3380.json` (7d9e5c2b9aafe0aa) |
+| `chat_heldout_r11-auto-nollm-after-fix.json` | run | `c5ffb7d` | 2026-10-10T22:56:23+00:00 | – | `outputs/agent_eval/chat_r11-after.json` (3d06f22bf759476a) |
 | `router_eval-d78b313.json` | router_eval | `d78b313` | 2026-09-25T22:56:36+00:00 | – | written directly |
 | `router_eval-round2.json` | router_eval | `da3ec8b-dirty` | 2026-09-26T18:52:13+00:00 | – | written directly |
 | `router_eval-round3.json` | router_eval | `d3c1495` | 2026-09-28T07:16:51+00:00 | – | written directly |
@@ -3809,6 +3968,9 @@ Paired comparisons (same tasks, a − b):
 | `session-llm-check-h8-r12-after.json` | session | `4c45dac` | 2026-10-01T07:01:55+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `frame-llm-check-r12-fallback-off.json` | frame | `e9badd4` | 2026-10-01T06:26:06+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `frame-llm-check-r12-fallback-on.json` | frame | `e9badd4` | 2026-10-01T06:28:45+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
+| `claims_heldout_r11-prefix.json` | claim_slice | `4ad3380` | 2026-10-10T19:12:24+00:00 | – | written directly |
+| `claims_heldout_r11-after-fix.json` | claim_slice | `c5ffb7d` | 2026-10-10T22:56:46+00:00 | – | written directly |
+| `slice_overlap-heldout_r11-at-c5ffb7d.json` | slice_overlap_scan | `c5ffb7d` | 2026-10-10T22:57:03+00:00 | – | written directly |
 | `operation_classifier-r15.json` | operation_classifier | `None` | None | – | written directly |
 | `operation_classifier-r15-nolexicon.json` | operation_classifier | `None` | None | – | written directly |
 | `claims_heldout_r10-prefix.json` | claim_slice | `7f4f06c` | 2026-10-10T15:25:31+00:00 | – | written directly |

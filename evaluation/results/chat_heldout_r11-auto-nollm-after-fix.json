@@ -1,0 +1,555 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "/Volumes/Remi/finsight-review/heldout_r11/chat_r11_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "c5ffb7d",
+  "run_at": "2026-10-10T22:56:23+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 40.9,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r11/chat_r11_heldout.jsonl --out outputs/agent_eval/chat_r11-after.json",
+  "env": {
+   "QI_EVAL_SNAPSHOT_EXT": "1",
+   "QI_EVAL_SNAPSHOT_FIX": "1"
+  },
+  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r11/chat_r11_heldout.jsonl --out outputs/agent_eval/chat_r11-after.json",
+  "slice_overlap": {
+   "slice": "chat_r11_heldout.jsonl",
+   "slice_texts": 73,
+   "exact": 0,
+   "near": 2,
+   "tasks_with_overlap": [
+    "r11h_fcq_en_01",
+    "r11h_hk_zh_01"
+   ],
+   "own_files": [
+    "evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_shipped_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v2.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+    "evaluation/claim_bench/claims_v1.jsonl",
+    "evaluation/claim_bench/claims_v1_holdout.jsonl"
+   ],
+   "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = every evaluation/agent_eval/tasks/*.jsonl and evaluation/claim_bench/*.jsonl text, string literals in tests/*.py"
+  }
+ },
+ "summary": {
+  "tasks": 60,
+  "turns": 73,
+  "repeats": 1,
+  "task_success": 0.7333,
+  "pass^1": 0.7333,
+  "ci": {
+   "task_success": [
+    0.6333,
+    0.8333
+   ],
+   "pass^1": [
+    0.6333,
+    0.8333
+   ],
+   "task_success_uncited": [
+    0.6333,
+    0.8333
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.7333,
+  "turn_success": 0.7808,
+  "behavior_accuracy": 0.9863,
+  "fact_recall": 0.7681,
+  "fact_stated": 0.7681,
+  "tool_recall": 1.0,
+  "tool_precision": 0.5929,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 102.16,
+  "latency_ms_p95": 1340.19,
+  "latency_ms_p99": 4191.86,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "control": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 346.54
+  },
+  "dated_close": {
+   "tasks": 4,
+   "task_success": 0.75,
+   "latency_ms_p95": 417.27
+  },
+  "ellipsis_two": {
+   "tasks": 2,
+   "task_success": 0.5,
+   "latency_ms_p95": 80.06
+  },
+  "foreign_line": {
+   "tasks": 5,
+   "task_success": 0.8,
+   "latency_ms_p95": 441.85
+  },
+  "holding_follow_up": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 4191.86
+  },
+  "holding_forms": {
+   "tasks": 4,
+   "task_success": 0.75,
+   "latency_ms_p95": 3007.46
+  },
+  "mean": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 311.86
+  },
+  "multi_purchase_pnl": {
+   "tasks": 3,
+   "task_success": 0.3333,
+   "latency_ms_p95": 3332.99
+  },
+  "mv_over_profit": {
+   "tasks": 2,
+   "task_success": 0.5,
+   "latency_ms_p95": 44.53
+  },
+  "news_missing": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 28.95
+  },
+  "price_recovery": {
+   "tasks": 3,
+   "task_success": 0.3333,
+   "latency_ms_p95": 99.63
+  },
+  "share_of_total3": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 398.16
+  },
+  "sum_and_share": {
+   "tasks": 2,
+   "task_success": 0.0,
+   "latency_ms_p95": 206.61
+  },
+  "sum_vs_one": {
+   "tasks": 4,
+   "task_success": 0.75,
+   "latency_ms_p95": 170.14
+  },
+  "sum_words": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 396.04
+  },
+  "two_questions": {
+   "tasks": 2,
+   "task_success": 0.5,
+   "latency_ms_p95": 102.16
+  },
+  "unreleased_results": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 397.13
+  },
+  "verb_comparative": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 102.4
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 20,
+   "task_success": 0.8,
+   "latency_ms_p95": 3332.99
+  },
+  "zh": {
+   "tasks": 40,
+   "task_success": 0.7,
+   "latency_ms_p95": 441.85
+  }
+ },
+ "failed_checks": {
+  "facts": 15,
+  "entities": 2,
+  "behavior": 1,
+  "limitations": 1
+ },
+ "failures": [
+  {
+   "task": "r11h_vsum_zh_01",
+   "category": "sum_vs_one",
+   "query": "工商银行一家的营收，跟招商银行、比亚迪两家合起来比，是多是少，差多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：营业收入：工商银行 8382.7 亿元，招商银行 3375.32 亿元，比亚迪 8039.65 亿元，合计 19797.67 亿元 [fundamental_601398.SH][fundamental_600036.SH][fundamental_002594.SZ]。口径：以上收入均为营业收入"
+  },
+  {
+   "task": "r11h_stot3_zh_01",
+   "category": "share_of_total3",
+   "query": "平安银行营收在平安、招行、工行三家营收总和里占百分之几",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：营业收入：中国平安 10505.06 亿元，招商银行 3375.32 亿元，工商银行 8382.7 亿元，合计 22263.08 亿元，10505.06 亿元 ÷ 22263.08 亿元 ≈ 47.19%，即中国平安约占三者合计的 47.19% [fundamental_601318.SH][fu"
+  },
+  {
+   "task": "r11h_sumshare_zh_01",
+   "category": "sum_and_share",
+   "query": "两家合计多少，长江电力占了几成",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：长江电力净利润 345.03 亿元，中信证券 300.76 亿元，长江电力比中信证券高约 14.72%（以中信证券为基数） [fundamental_600900.SH][fundamental_600030.SH]。口径：以上净利润均为归母口径。长江电力（600900.SH）最新可用收盘价为 2"
+  },
+  {
+   "task": "r11h_sumshare_en_01",
+   "category": "sum_and_share",
+   "query": "Total of the two, and Midea's share of that total?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: revenue: Midea Group CNY 458.5 bn, BYD CNY 803.97 bn; combined CNY 1262.47 bn [fundamental_000333.SZ][fundame"
+  },
+  {
+   "task": "r11h_ell2_zh_01",
+   "category": "ellipsis_two",
+   "query": "招行和紫金的呢",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：招商银行 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-09-30 收盘计算）：PE(TTM) 6.86 倍，PB 0.91 倍，ROE（期末净资产） 11.8%，营业收入 3375.32 亿元，归母净利润 1501.81 亿元 [fundamental_6000"
+  },
+  {
+   "task": "r11h_holdfu_zh_02",
+   "category": "holding_follow_up",
+   "query": "另有平安银行3手，两只合起来呢",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：总市值：中信证券 4040.44 亿元，平安银行 2245.26 亿元，合计 6285.7 亿元 [fundamental_600030.SH][fundamental_000001.SZ]。中信证券（600030.SH）最新可用收盘价为 25.86 元（2026-09-30），当日涨跌幅 0.1"
+  },
+  {
+   "task": "r11h_holdform_en_01",
+   "category": "holding_forms",
+   "query": "My portfolio: 1,500 CMB and 2,000 ICBC shares. Total value?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: At the 2026-09-30 close of CNY 41.26, 2000 shares of China Merchants Bank are worth 2000 × 41.26 = CNY 82520 "
+  },
+  {
+   "task": "r11h_avgcost_zh_01",
+   "category": "multi_purchase_pnl",
+   "query": "美的集团我分两次买：第一次300股75元，第二次200股85元，现在盈亏多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "analyze_sentiment"
+   ],
+   "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出或持有建议。根据本次检索到的证据：美的集团（000333.SZ）最新可用收盘价为 80.1 元（2026-09-30），当日涨跌幅 -1.91% [price_000333.SZ]。美的集团 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 "
+  },
+  {
+   "task": "r11h_avgcost_zh_02",
+   "category": "multi_purchase_pnl",
+   "query": "紫金矿业先30元买1000股，后来又25元补了1000股，按现价赚还是亏，多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "analyze_sentiment"
+   ],
+   "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出或持有建议。根据本次检索到的证据：按 2026-09-30 收盘价 29.79 元和你给出的成本价 30 元计算，紫金矿业每股浮亏 29.79 − 30 = -0.21 元（-0.7%），1000 股合计 1000 × (−0.21) = -210 元 [pri"
+  },
+  {
+   "task": "r11h_recover_zh_01",
+   "category": "price_recovery",
+   "query": "比亚迪股价回到52周最高收盘价还需要上涨百分之几",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：比亚迪（002594.SZ）最新可用收盘价为 83.31 元（2026-09-30），当日涨跌幅 1.57% [price_002594.SZ]。比亚迪近52周（2025-10-09 至 2026-09-30，241 个交易日，按未复权收盘价）：最高收盘 110.6 元（2025-10-09），最"
+  },
+  {
+   "task": "r11h_recover_zh_02",
+   "category": "price_recovery",
+   "query": "美的集团现在比一年来的最低收盘价高出多少元",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "未能识别「一年来」对应的证券，因此无法计算两者收盘价的差值；以下只列出能识别的部分。根据本次检索到的证据：美的集团（000333.SZ）最新可用收盘价为 80.1 元（2026-09-30），当日涨跌幅 -1.91% [price_000333.SZ]。美的集团近52周（2025-10-09 至 2026-09-30，"
+  },
+  {
+   "task": "r11h_mvnp_zh_01",
+   "category": "mv_over_profit",
+   "query": "长江电力的市值相当于几年的净利润",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：长江电力 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-09-30 收盘计算）：PE(TTM) 19.29 倍，PB 3.23 倍，ROE（期末净资产） 15.59%，营业收入 862.42 亿元，归母净利润 345.03 亿元 [fundamental_6009"
+  },
+  {
+   "task": "r11h_twoq_zh_01",
+   "category": "two_questions",
+   "query": "宁德时代市值是美的的几倍？营收呢？",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：宁德时代总市值 13470.39 亿元，美的集团 6111.58 亿元，前者约为后者的 2.2 倍 [fundamental_300750.SZ][fundamental_000333.SZ]。宁德时代（300750.SZ）最新可用收盘价为 291.11 元（2026-09-30），当日涨跌幅 1"
+  },
+  {
+   "task": "r11h_verb_en_02",
+   "category": "verb_comparative",
+   "query": "How much does ICBC's revenue eclipse CMB's by?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: ICBC fundamentals (period 2025-12-31, FY2025; P/E and P/B at the 2026-09-30 close): PE(TTM) 7.89x, PB 0.74x, "
+  },
+  {
+   "task": "r11h_date_zh_01",
+   "category": "dated_close",
+   "query": "招商银行在2025年最后一个交易日收盘多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：招商银行（600036.SH）最新可用收盘价为 41.26 元（2026-09-30），当日涨跌幅 1.85% [price_600036.SH]。"
+  },
+  {
+   "task": "r11h_hk_en_01",
+   "category": "foreign_line",
+   "query": "Quote me ICBC in HKD",
+   "failed_checks": [
+    "behavior",
+    "limitations"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: ICBC (601398.SH) last available close was CNY 8.28 on 2026-09-30, daily change 1.47% [price_601398.SH]."
+  }
+ ],
+ "task_outcomes": {
+  "r11h_sum_zh_01": "1",
+  "r11h_sum_zh_02": "1",
+  "r11h_sum_zh_03": "1",
+  "r11h_sum_en_01": "1",
+  "r11h_sum_zh_04": "1",
+  "r11h_mean_zh_01": "1",
+  "r11h_mean_zh_02": "1",
+  "r11h_mean_en_01": "1",
+  "r11h_mean_zh_03": "1",
+  "r11h_mean_zh_04": "1",
+  "r11h_vsum_en_01": "1",
+  "r11h_vsum_zh_01": "0",
+  "r11h_vsum_zh_02": "1",
+  "r11h_vsum_en_02": "1",
+  "r11h_stot3_zh_01": "0",
+  "r11h_stot3_zh_02": "1",
+  "r11h_stot3_en_01": "1",
+  "r11h_sumshare_zh_01": "0",
+  "r11h_sumshare_en_01": "0",
+  "r11h_ell2_zh_01": "0",
+  "r11h_ell2_en_01": "1",
+  "r11h_holdfu_zh_01": "1",
+  "r11h_holdfu_en_01": "1",
+  "r11h_holdfu_zh_02": "0",
+  "r11h_holdform_zh_01": "1",
+  "r11h_holdform_zh_02": "1",
+  "r11h_holdform_zh_03": "1",
+  "r11h_holdform_en_01": "0",
+  "r11h_avgcost_zh_01": "0",
+  "r11h_avgcost_en_01": "1",
+  "r11h_avgcost_zh_02": "0",
+  "r11h_recover_zh_01": "0",
+  "r11h_recover_en_01": "1",
+  "r11h_recover_zh_02": "0",
+  "r11h_mvnp_zh_01": "0",
+  "r11h_mvnp_en_01": "1",
+  "r11h_twoq_zh_01": "0",
+  "r11h_twoq_en_01": "1",
+  "r11h_verb_zh_01": "1",
+  "r11h_verb_en_01": "1",
+  "r11h_verb_en_02": "0",
+  "r11h_date_zh_01": "0",
+  "r11h_date_en_01": "1",
+  "r11h_date_zh_02": "1",
+  "r11h_date_zh_03": "1",
+  "r11h_hk_zh_01": "1",
+  "r11h_hk_zh_02": "1",
+  "r11h_hk_en_01": "0",
+  "r11h_hk_zh_03": "1",
+  "r11h_hk_ctrl_zh_01": "1",
+  "r11h_fcq_zh_01": "1",
+  "r11h_fcq_en_01": "1",
+  "r11h_fcq_zh_02": "1",
+  "r11h_news_zh_01": "1",
+  "r11h_news_en_01": "1",
+  "r11h_ctrl_zh_01": "1",
+  "r11h_ctrl_en_01": "1",
+  "r11h_ctrl_zh_02": "1",
+  "r11h_ctrl_zh_03": "1",
+  "r11h_ctrl_zh_04": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r11-after.json",
+  "sha256_16": "3d06f22bf759476a",
+  "bytes": 254048,
+  "slimmed_at": "2026-10-10T22:57:26+00:00"
+ },
+ "notes": [
+  "independent round-11 chat slice after the round-15 fixes, run once at c5ffb7d (clean tree), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay, reading the reviewer's folder; the engineers state they did not open it; overlap with own wording in slice_overlap-heldout_r11-at-c5ffb7d.json: text 12/58 -> 42/58, +content 11/55 -> 39/55, +signature 9/44 -> 32/44"
+ ]
+}
