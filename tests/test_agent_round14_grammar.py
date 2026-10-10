@@ -459,7 +459,7 @@ def test_cost_basis_sentence_computes_and_verifies(zh):
     ]
     sentences = cost_basis_sentences(tool_log, question, zh)
     assert re.search(r"291\.11 − 300 = (?:CNY )?-8\.89", sentences[0]), sentences[0]
-    assert re.search(r"400 × -8\.89 = (?:CNY )?-3556", sentences[0]) and "-2.96%" in sentences[0]
+    assert re.search(r"400 × \(−8\.89\) = (?:CNY )?-3556", sentences[0]) and "-2.96%" in sentences[0]
     store = EvidenceStore()
     store.add(
         AgentEvidence(
