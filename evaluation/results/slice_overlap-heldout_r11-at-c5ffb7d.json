@@ -1,0 +1,513 @@
+{
+ "kind": "slice_overlap_scan",
+ "config": {
+  "slice": "heldout_r11",
+  "commit": "c5ffb7d",
+  "run_at": "2026-10-10T22:57:03+00:00",
+  "command": "python -m evaluation.agent_eval.slice_overlap /Volumes/Remi/finsight-review/heldout_r11 --content --out /tmp/r11-overlap-content.json"
+ },
+ "slice": "heldout_r11",
+ "slice_texts": 97,
+ "slice_tasks": 84,
+ "own_texts": 31417,
+ "own_files": [
+  "evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_shipped_v1.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_test_v2.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+  "evaluation/agent_eval/tasks/router_labels_independent_v1.jsonl",
+  "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+  "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+  "evaluation/claim_bench/claims_v1.jsonl",
+  "evaluation/claim_bench/claims_v1_holdout.jsonl"
+ ],
+ "exact": 1,
+ "near": 3,
+ "tasks_with_overlap": [
+  "r11c09",
+  "r11c19",
+  "r11h_fcq_en_01",
+  "r11h_hk_zh_01"
+ ],
+ "hits": [
+  {
+   "task": "r11h_hk_zh_01",
+   "kind": "near",
+   "chars": 14,
+   "own": [
+    "tasks/agent_eval_ext_v1.jsonl:ext_r15s_hk_bracket_code_zh"
+   ]
+  },
+  {
+   "task": "r11h_fcq_en_01",
+   "kind": "near",
+   "chars": 38,
+   "own": [
+    "tests/test_agent_round15_forecast.py:101"
+   ]
+  },
+  {
+   "task": "r11c09",
+   "kind": "exact",
+   "chars": 47,
+   "own": [
+    "tests/test_agent_round15_claims.py:60"
+   ]
+  },
+  {
+   "task": "r11c19",
+   "kind": "near",
+   "chars": 24,
+   "own": [
+    "tests/test_agent_round15_claims.py:148"
+   ]
+  }
+ ],
+ "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = every evaluation/agent_eval/tasks/*.jsonl and evaluation/claim_bench/*.jsonl text, string literals in tests/*.py",
+ "content": {
+  "tasks_content": [
+   "r11c09",
+   "r11c14",
+   "r11c19",
+   "r11c23",
+   "r11h_avgcost_en_01",
+   "r11h_ctrl_zh_03",
+   "r11h_fcq_en_01",
+   "r11h_hk_zh_01",
+   "r11h_holdform_zh_01"
+  ],
+  "tasks_content_signature": [
+   "r11c04",
+   "r11c08",
+   "r11c09",
+   "r11c12",
+   "r11c13",
+   "r11c14",
+   "r11c15",
+   "r11c16",
+   "r11c18",
+   "r11c19",
+   "r11c23",
+   "r11h_avgcost_en_01",
+   "r11h_avgcost_zh_01",
+   "r11h_avgcost_zh_02",
+   "r11h_ctrl_zh_04",
+   "r11h_hk_zh_02",
+   "r11h_holdform_zh_02",
+   "r11h_holdform_zh_03",
+   "r11h_holdfu_en_01",
+   "r11h_holdfu_zh_01",
+   "r11h_holdfu_zh_02",
+   "r11h_recover_zh_01",
+   "r11h_vsum_en_02"
+  ],
+  "hits": [
+   {
+    "task": "r11h_vsum_en_02",
+    "tier": "content_signature",
+    "reasons": [
+     "companies+operation+metric"
+    ],
+    "own": [
+     "tests/test_agent_eval.py:1500"
+    ],
+    "own_count": 1
+   },
+   {
+    "task": "r11h_holdfu_zh_01",
+    "tier": "content_signature",
+    "reasons": [
+     "company+specific operation"
+    ],
+    "own": [
+     "tests/test_agent_round15_forecast.py:87",
+     "tests/test_agent_round15_frame.py:485",
+     "tests/test_agent_round15_frame.py:515",
+     "tests/test_agent_round15_frame.py:517"
+    ],
+    "own_count": 4
+   },
+   {
+    "task": "r11h_holdfu_zh_01",
+    "tier": "content_signature",
+    "reasons": [
+     "company+specific operation"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:ext_holding_zh",
+     "tests/test_agent_round14_grammar.py:635"
+    ],
+    "own_count": 2
+   },
+   {
+    "task": "r11h_holdfu_en_01",
+    "tier": "content_signature",
+    "reasons": [
+     "company+specific operation"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:r14_ext_carried_plus_named_zh",
+     "tests/test_agent_round14_grammar.py:425",
+     "tests/test_agent_round14_grammar.py:428",
+     "tests/test_agent_round14_grammar.py:633",
+     "tests/test_agent_round14_grammar.py:636"
+    ],
+    "own_count": 8
+   },
+   {
+    "task": "r11h_holdfu_zh_02",
+    "tier": "content_signature",
+    "reasons": [
+     "company+specific operation"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:r15_ext_added_position_zh",
+     "tests/test_agent_round15_frame.py:337",
+     "tests/test_agent_round15_frame.py:486"
+    ],
+    "own_count": 3
+   },
+   {
+    "task": "r11h_holdform_zh_01",
+    "tier": "content",
+    "ratio": 0.923,
+    "reasons": [
+     "structure (companies and numbers masked)+operation"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:r15_ext_added_position_zh"
+    ]
+   },
+   {
+    "task": "r11h_holdform_zh_02",
+    "tier": "content_signature",
+    "reasons": [
+     "companies+operation+metric"
+    ],
+    "own": [
+     "tests/test_agent_round14_grammar.py:741"
+    ],
+    "own_count": 1
+   },
+   {
+    "task": "r11h_holdform_zh_03",
+    "tier": "content_signature",
+    "reasons": [
+     "company+metric+number"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:r14_ext_three_positions_zh"
+    ],
+    "own_count": 1
+   },
+   {
+    "task": "r11h_avgcost_zh_01",
+    "tier": "content_signature",
+    "reasons": [
+     "company+specific operation"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:r14_ext_carried_plus_named_zh",
+     "tests/test_agent_round14_grammar.py:425",
+     "tests/test_agent_round14_grammar.py:428",
+     "tests/test_agent_round14_grammar.py:633",
+     "tests/test_agent_round14_grammar.py:636"
+    ],
+    "own_count": 8
+   },
+   {
+    "task": "r11h_avgcost_en_01",
+    "tier": "content",
+    "ratio": 0.894,
+    "reasons": [
+     "structure (companies and numbers masked)+operation"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:r15_ext_two_lots_en"
+    ]
+   },
+   {
+    "task": "r11h_avgcost_en_01",
+    "tier": "content_signature",
+    "reasons": [
+     "company+specific operation"
+    ],
+    "own": [
+     "tests/test_agent_round14_grammar.py:424",
+     "tests/test_agent_round14_grammar.py:445"
+    ],
+    "own_count": 2
+   },
+   {
+    "task": "r11h_avgcost_zh_02",
+    "tier": "content_signature",
+    "reasons": [
+     "company+metric+number",
+     "company+specific operation"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:ext_holding_zh",
+     "tests/test_agent_round14_grammar.py:701",
+     "tests/test_slice_overlap_content.py:50",
+     "tests/test_slice_overlap_content.py:72"
+    ],
+    "own_count": 4
+   },
+   {
+    "task": "r11h_recover_zh_01",
+    "tier": "content_signature",
+    "reasons": [
+     "company+specific operation"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:r14_ext_rebound_zh",
+     "tests/test_slice_overlap_content.py:32"
+    ],
+    "own_count": 2
+   },
+   {
+    "task": "r11h_hk_zh_01",
+    "tier": "content",
+    "ratio": 0.897,
+    "reasons": [
+     "company+number"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:ext_r15s_hk_bracket_code_zh"
+    ]
+   },
+   {
+    "task": "r11h_hk_zh_02",
+    "tier": "content_signature",
+    "reasons": [
+     "company+specific operation"
+    ],
+    "own": [
+     "router:route_382",
+     "tasks/agent_eval_ext_v1.jsonl:ext_r14_hk_words_zh",
+     "tests/test_agent_round12_frame.py:386",
+     "tests/test_agent_round14_foreign.py:17",
+     "tests/test_agent_round14_foreign.py:95"
+    ],
+    "own_count": 5
+   },
+   {
+    "task": "r11h_fcq_en_01",
+    "tier": "content",
+    "ratio": 0.974,
+    "reasons": [
+     "company+operation"
+    ],
+    "own": [
+     "tests/test_agent_round15_forecast.py:101"
+    ]
+   },
+   {
+    "task": "r11h_ctrl_zh_03",
+    "tier": "content",
+    "ratio": 1.062,
+    "reasons": [
+     "structure (companies and numbers masked)+operation"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:r15_ext_added_position_zh"
+    ]
+   },
+   {
+    "task": "r11h_ctrl_zh_04",
+    "tier": "content_signature",
+    "reasons": [
+     "company+specific operation"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:r14_ext_rebound_zh",
+     "tests/test_slice_overlap_content.py:32"
+    ],
+    "own_count": 2
+   },
+   {
+    "task": "r11c04",
+    "tier": "content_signature",
+    "reasons": [
+     "companies+operation+metric"
+    ],
+    "own": [
+     "tests/test_agent_round14_claims.py:193"
+    ],
+    "own_count": 1
+   },
+   {
+    "task": "r11c08",
+    "tier": "content_signature",
+    "reasons": [
+     "company+metric+number"
+    ],
+    "own": [
+     "tests/test_agent_round15_claims.py:58"
+    ],
+    "own_count": 1
+   },
+   {
+    "task": "r11c09",
+    "tier": "content",
+    "ratio": 1.0,
+    "reasons": [
+     "company+number"
+    ],
+    "own": [
+     "tests/test_agent_round15_claims.py:60"
+    ]
+   },
+   {
+    "task": "r11c09",
+    "tier": "content_signature",
+    "reasons": [
+     "company+metric+number"
+    ],
+    "own": [
+     "tests/test_agent_round15_claims.py:60"
+    ],
+    "own_count": 1
+   },
+   {
+    "task": "r11c12",
+    "tier": "content_signature",
+    "reasons": [
+     "company+metric+number"
+    ],
+    "own": [
+     "tests/test_agent_round15_claims.py:237"
+    ],
+    "own_count": 1
+   },
+   {
+    "task": "r11c13",
+    "tier": "content_signature",
+    "reasons": [
+     "company+metric+number"
+    ],
+    "own": [
+     "tests/test_agent_round15_claims.py:76"
+    ],
+    "own_count": 1
+   },
+   {
+    "task": "r11c14",
+    "tier": "content",
+    "ratio": 0.769,
+    "reasons": [
+     "company+operation"
+    ],
+    "own": [
+     "tests/test_agent_round15_claims.py:183"
+    ]
+   },
+   {
+    "task": "r11c14",
+    "tier": "content_signature",
+    "reasons": [
+     "company+metric+number"
+    ],
+    "own": [
+     "tests/test_agent_eval.py:1195",
+     "tests/test_agent_round13_claims.py:70"
+    ],
+    "own_count": 2
+   },
+   {
+    "task": "r11c15",
+    "tier": "content_signature",
+    "reasons": [
+     "company+specific operation"
+    ],
+    "own": [
+     "tests/test_agent_eval.py:1300",
+     "tests/test_agent_eval.py:1429",
+     "tests/test_agent_eval.py:1508",
+     "tests/test_agent_round14_foreign.py:60"
+    ],
+    "own_count": 4
+   },
+   {
+    "task": "r11c16",
+    "tier": "content_signature",
+    "reasons": [
+     "company+specific operation"
+    ],
+    "own": [
+     "tasks/agent_eval_ext_v1.jsonl:r14_ext_dedt_en",
+     "tests/test_agent_eval.py:1321"
+    ],
+    "own_count": 2
+   },
+   {
+    "task": "r11c18",
+    "tier": "content_signature",
+    "reasons": [
+     "company+metric+number",
+     "company+specific operation"
+    ],
+    "own": [
+     "tests/test_agent_eval.py:1333",
+     "tests/test_agent_round14_claims.py:69",
+     "tests/test_agent_round14_claims.py:70",
+     "tests/test_agent_round14_grammar.py:649",
+     "tests/test_agent_round15_claims.py:210"
+    ],
+    "own_count": 5
+   },
+   {
+    "task": "r11c19",
+    "tier": "content",
+    "ratio": 0.898,
+    "reasons": [
+     "company+number",
+     "company+operation"
+    ],
+    "own": [
+     "tests/test_agent_round15_claims.py:148"
+    ]
+   },
+   {
+    "task": "r11c19",
+    "tier": "content_signature",
+    "reasons": [
+     "companies+operation+metric",
+     "company+metric+number"
+    ],
+    "own": [
+     "tests/test_agent_round15_claims.py:148",
+     "tests/test_agent_round15_claims.py:289"
+    ],
+    "own_count": 2
+   },
+   {
+    "task": "r11c23",
+    "tier": "content",
+    "ratio": 0.786,
+    "reasons": [
+     "company+number",
+     "company+operation"
+    ],
+    "own": [
+     "tests/test_agent_round15_claims.py:185"
+    ]
+   },
+   {
+    "task": "r11c23",
+    "tier": "content_signature",
+    "reasons": [
+     "company+metric+number"
+    ],
+    "own": [
+     "tests/test_agent_round15_claims.py:185"
+    ],
+    "own_count": 1
+   }
+  ],
+  "method": "signatures from fixed lexicons: snapshot companies (Chinese names, short names, data/synonym_dict.json English aliases), metric classes, operation classes, numbers (万/亿/%, simple Chinese numerals; years, dates, stock codes and 52-week excluded). content = (a shared company and a shared number, operation or 扣非 / 流通市值 metric, and difflib ratio >= 0.7) or (a shared operation and, with companies and numbers masked, 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85, >= 12 masked chars); content_signature = a shared (company, metric, number), or the same >= 2 companies with a shared operation and metric, or the same one company with a shared holding / cost-basis / foreign-line / 52-week operation or 扣非 / 流通市值 metric, whatever the wording"
+ }
+}

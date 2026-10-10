@@ -322,6 +322,9 @@ HELDOUT_R10_RUNS = (
     "chat_heldout_r10-auto-nollm-after-fix",
     "chat_heldout_r10-auto-nollm-after-exposure-round15",
 )
+# Round-11 held-out slice (evaluation/heldout_r11/, written by the round-11 reviewer): before and after the round-15
+# fixes.
+HELDOUT_R11_RUNS = ("chat_heldout_r11-auto-nollm-prefix", "chat_heldout_r11-auto-nollm-after-fix")
 # Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
 # (title, a, b, label a, label b, paths compared).
 PAIRED_ABLATIONS = (
@@ -352,6 +355,9 @@ PAIRED_ABLATIONS = (
 )
 # Other committed evidence the READMEs cite, summarised as one row each.
 EXTRA_EVIDENCE = (
+    "claims_heldout_r11-prefix",
+    "claims_heldout_r11-after-fix",
+    "slice_overlap-heldout_r11-at-c5ffb7d",
     "operation_classifier-r15",
     "operation_classifier-r15-nolexicon",
     "claims_heldout_r10-prefix",
@@ -488,6 +494,14 @@ FILE_STATUS = {
     "chat_heldout_r8-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-8 chat slice",
     "chat_heldout_r9-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-9 chat slice",
     "chat_heldout_r10-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-10 chat slice",
+    "chat_heldout_r11-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-11 chat slice",
+    "chat_heldout_r11-auto-nollm-after-fix": "independent round-11 chat slice **after the round-15 fixes**, run once "
+    "from the reviewer's folder; 2 of its 60 tasks overlap own wording by text (without them 12/58 -> 42/58)",
+    "claims_heldout_r11-prefix": "**first and only pre-fix run** of the independent round-11 claim slice",
+    "claims_heldout_r11-after-fix": "independent round-11 claim slice **after the round-15 fixes**; one claim is an "
+    "exact copy in a round-15 test (also in the reviewer's probe file), see the note",
+    "slice_overlap-heldout_r11-at-c5ffb7d": "overlap (text and content) of the round-11 slice with own texts at the "
+    "after-fix commit",
     "chat_heldout_r10-auto-nollm-after-fix": "independent round-10 chat slice **after the round-14 fixes**; the run "
     "read the slice from the reviewer's folder (`tasks_file`), so that the engineers did not open it is their "
     "statement, not a record; 3 of its 48 tasks near-copy own wording (without them 12/45 -> 35/45), the "
@@ -1865,6 +1879,22 @@ def render_with_sources() -> tuple[str, list[str]]:
             "",
         ]
         for name, result in heldout_r10:
+            body += [f"#### `{name}.json`", "", *run_section(result, name, full=True)]
+    heldout_r11 = [(name, take(name)) for name in HELDOUT_R11_RUNS]
+    heldout_r11 = [(name, result) for name, result in heldout_r11 if result]
+    if heldout_r11:
+        body += [
+            "### Round-11 held-out chat slice (independent author): before and after the round-15 fixes",
+            "",
+            "60 conversations written by the round-11 reviewer before any round-15 fix "
+            "(`evaluation/heldout_r11/README.md`), run with the shipped default data once before the fixes (by the "
+            "reviewer) and once after them, from the reviewer's folder. `slice_overlap-heldout_r11-at-c5ffb7d.json` "
+            "lists the overlaps with own wording (text: 2 chat tasks and 2 claims, one claim an exact copy that is also "
+            "in the reviewer's probe file; content and signature tiers wider). Its 24 claims are in the evidence table "
+            "below (`claims_heldout_r11-*.json`).",
+            "",
+        ]
+        for name, result in heldout_r11:
             body += [f"#### `{name}.json`", "", *run_section(result, name, full=True)]
     pure = [
         (name, result)

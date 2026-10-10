@@ -1,0 +1,151 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "4ad3380",
+  "run_at": "2026-10-10T19:12:24+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r11/score_claims_r11.py <out.json>",
+  "note": "independent round-11 claim slice, first and only pre-fix run at 4ad3380, recorded by the reviewer"
+ },
+ "summary": {
+  "claims": 24,
+  "verdict_accuracy": 0.2917,
+  "ci95": [
+   0.125,
+   0.4583
+  ],
+  "by_category": {
+   "contrast_implicit_subject": 0.5,
+   "control": 1.0,
+   "currency": 1.0,
+   "dedt_vs_parent": 0.0,
+   "forecast": 1.0,
+   "foreign_line": 0.0,
+   "mean": 0.0,
+   "published_year": 0.0,
+   "share_of_total3": 0.0,
+   "sum_reference": 0.333,
+   "trillion_unit": 0.5
+  }
+ },
+ "errors": [
+  {
+   "id": "r11c01",
+   "category": "mean",
+   "claim": "招商银行、工商银行、平安银行三家的平均ROE约为9.4%",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r11c02",
+   "category": "mean",
+   "claim": "The average P/B of CATL, BYD and Midea is about 3.2",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r11c03",
+   "category": "mean",
+   "claim": "紫金矿业、中信证券、长江电力三家市盈率均值超过15倍",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r11c04",
+   "category": "mean",
+   "claim": "招行、工行两家的市盈率平均在7.4倍左右",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r11c05",
+   "category": "sum_reference",
+   "claim": "长江电力的营收超过中信证券与平安银行营收之和",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r11c07",
+   "category": "sum_reference",
+   "claim": "BYD and Midea together earned more than CATL",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r11c08",
+   "category": "trillion_unit",
+   "claim": "ICBC's market capitalisation was roughly 2.95 trillion yuan at the end of September",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r11c10",
+   "category": "published_year",
+   "claim": "Midea's 2025 net profit of RMB43.9 billion grew about 15% from the prior year",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r11c11",
+   "category": "published_year",
+   "claim": "In 2025 CITIC Securities earned RMB30.1 billion, up roughly 37%",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r11c12",
+   "category": "contrast_implicit_subject",
+   "claim": "比亚迪营收高于宁德，但市值还不到宁德的六成",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r11c14",
+   "category": "foreign_line",
+   "claim": "招商银行H股市净率不到1倍",
+   "expected": "unverifiable",
+   "got": "supported"
+  },
+  {
+   "id": "r11c15",
+   "category": "foreign_line",
+   "claim": "SMIC's Hong Kong shares trade at about 60 times earnings",
+   "expected": "unverifiable",
+   "got": "contradicted"
+  },
+  {
+   "id": "r11c16",
+   "category": "dedt_vs_parent",
+   "claim": "长江电力扣非净利润低于归母净利润",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r11c17",
+   "category": "dedt_vs_parent",
+   "claim": "中信证券扣非净利润比归母净利润略高",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r11c18",
+   "category": "dedt_vs_parent",
+   "claim": "宁德时代扣非净利润比归母少77亿左右",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r11c19",
+   "category": "share_of_total3",
+   "claim": "工商银行营收占工行、招行、平安银行三家合计的六成以上",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r11c20",
+   "category": "share_of_total3",
+   "claim": "比亚迪市值占比亚迪、宁德、美的三家总和的四成以上",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  }
+ ]
+}

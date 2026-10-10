@@ -227,6 +227,7 @@ jobs:
           python evaluation/heldout_r8/verify_heldout_r8.py
           QI_EVAL_SNAPSHOT_EXT=1 python evaluation/heldout_r9/verify_heldout_r9.py
           QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python evaluation/heldout_r10/verify_heldout_r10.py
+          QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python evaluation/heldout_r11/verify_heldout_r11.py
       - name: docs/agent-eval.md matches the committed results
         run: python -m evaluation.agent_eval.report --check
       - uses: actions/upload-artifact@v6
