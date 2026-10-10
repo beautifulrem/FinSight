@@ -410,6 +410,8 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 
 **校验器**（J3）。已写出金额的占合计比例 a ÷ (a + b) 或 a ÷ Σ，在带「÷」或占合计用语（「占两家合计」「of the combined total」）的句子里算推导数；多笔持仓的合计是某种收盘价分配下的 Σ 股数 × 收盘价，以元或万元书写、乘积写在哪里都可以；句子写明成本时，收盘价 − 成本、其百分比及乘以股数都算推导数。LLM 草稿未通过校验时，回退的模板按用户的问题生成（`graph._template_update`），因此回退回答算的是所问的内容（评审的 L1、L9）。
 
+**结果（第 14 轮）。** dev 493 = 1.000、ext 36 = 1.000（`gate-dev.json`、`gate-ext.json`，`2a55c49`；`b725e4d` 上相同），保留集 53 = 0.9434 不变；自写路由标注 414 条 1.000（`router_eval-round14-own.json`），独立 v2 0.8423 不变；第八轮切片 51/51，第九轮切片 44/52 → 51/52，二者都属于**暴露之后**（后者是工程师读了失败任务之后；`chat_heldout_r9-auto-nollm-after-exposure-round14-first.json`、`chat_heldout_r9-auto-nollm-after-exposure-round14.json`）；校验器压力测试 313 个正确答案 / 5,324 个变体，逐句 0.96%，派生 1.09%（`verifier_stress-round14.json`，`631da61`）；离线红队 11 个攻击集全部 0 成功。第十轮评审的切片在仓库之外，工程师没有运行过。
+
 ### 会话记忆卡片
 
 `session_memory(turns, query)` 生成一张抽取式的小卡片，以「Session memory (from earlier turns)」的形式放进 Agent 的用户消息。卡片包含：

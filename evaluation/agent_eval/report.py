@@ -193,6 +193,7 @@ ROUTER_RUNS = (
     "router_eval-round13-own",
     "router_eval-independent_v2-round13",
     "router_eval-round14-own",
+    "router_eval-independent_v2-round14",
 )
 CLAIM_BENCH_RUNS = (
     "claim_bench-dev-baseline",
@@ -257,6 +258,7 @@ HELDOUT_R8_RUNS = (
 HELDOUT_R9_RUNS = (
     "chat_heldout_r9-auto-nollm-prefix",
     "chat_heldout_r9-auto-nollm-after-fix",
+    "chat_heldout_r9-auto-nollm-after-exposure-round14-first",
     "chat_heldout_r9-auto-nollm-after-exposure-round14",
 )
 # Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
@@ -348,6 +350,10 @@ FILE_STATUS = {
     "superseded by the clean rerun `router_eval-round13-own`",
     "router_eval-round13-own": "author's own labels (tuned against), clean rerun at the merged round-13 code (I13)",
     "router_eval-round14-own": "author's own labels (tuned against) with the 11 round-14 labels, at the round-14 code",
+    "router_eval-independent_v2-round14": "**after exposure**, re-run at the round-14 code (unchanged since round 11)",
+    "chat_heldout_r9-auto-nollm-after-exposure-round14-first": "independent round-9 chat slice, **first round-14 "
+    "run**: after the review-10 fixes, before the round-14 engineer read the slice (readable from round 14, so after "
+    "exposure)",
     "chat_heldout_r8-auto-nollm-after-exposure-round14": "independent round-8 chat slice **after exposure**, re-run "
     "at the round-14 code (a regression check, not a fresh estimate)",
     "chat_heldout_r9-auto-nollm-after-exposure-round14": "independent round-9 chat slice **after exposure (round "

@@ -2022,6 +2022,60 @@ Failures (development set; first 25):
 
 * Note: independent round-9 chat slice after the round-13 fixes, run once at da9f6af (clean tree), QI_EVAL_SNAPSHOT_EXT=1, no LLM, --no-replay; the round-13 engineers did not open the slice, but 4 slice chat tasks overlap own test/dev wording (slice_overlap-heldout_r9-at-da9f6af.json): without them 16/48 -> 37/48
 
+#### `chat_heldout_r9-auto-nollm-after-exposure-round14-first.json`
+
+Source `evaluation/results/chat_heldout_r9-auto-nollm-after-exposure-round14-first.json`: commit `cb675d2`, run 2026-10-10T17:41:27+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r9/chat_r9_heldout.jsonl --out outputs/agent_eval/chat_r9-r14-first.json
+```
+
+Development set, path `auto`: 52 tasks, 79 turns. Status: independent round-9 chat slice, **first round-14 run**: after the review-10 fixes, before the round-14 engineer read the slice (readable from round 14, so after exposure).
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.846 [0.75, 0.94] |
+| pass^k (all k repeats succeed) | 0.846 [0.75, 0.94] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.987 |
+| Required facts stated and cited | 0.889 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.889 |
+| Task success without the citation / tool / disclaimer checks | 0.846 [0.75, 0.94] |
+| Tool recall (required tools used) | 0.982 |
+| Tool precision (calls that were relevant) | 0.642 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 740.3 |
+| Turn success | 0.899 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 7 | 1.00 |
+| forecast_hedge | 7 | 1.00 |
+| industry_missing | 3 | 1.00 |
+| multi_holding | 3 | 0.67 |
+| price_derived | 7 | 0.57 |
+| share_ratio | 7 | 1.00 |
+| spread | 3 | 1.00 |
+| sum | 5 | 0.40 |
+| verb_comparative | 7 | 1.00 |
+| yes_no_ratio | 3 | 0.67 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r9h_sum_zh_01 | 工商银行、招商银行两家去年一共赚了多少 | facts |
+| r9h_sum_en_01 | What is the combined market value of CATL and BYD? | facts |
+| r9h_sum_en_02 | Put together, how much is that? | behavior, facts, entities |
+| r9h_price_zh_01 | 宁德时代现在比52周最高收盘价低了百分之多少 | facts |
+| r9h_price_en_01 | How far is CMB trading below its 52-week high, in percent? | facts, required_tools |
+| r9h_price_zh_03 | 现在离那个高点跌去了多少钱 | facts |
+| r9h_hold_en_01 | I hold 700 Ping An Bank shares and 300 ICBC shares. Total value at the latest close? | facts |
+| r9h_yn_en_02 | Does Midea earn at least 1.2 times what BYD earns? | facts |
+
+* Note: AFTER EXPOSURE (round 14), first run: independent round-9 chat slice at cb675d2 (clean tree; the round-14 code after the review-10 fixes, before the round-14 engineer read the slice), QI_EVAL_SNAPSHOT_EXT=1, no LLM, --no-replay: 44/52 = 0.846, turn 0.899. The slice was readable from round 14 (after exposure) but had not been opened when this code was written; the round-14 wording does not copy or near-copy any slice text (tests/test_agent_eval.py). The same 44/52 was measured when this commit was first run and again when the file was written (reproduced). The 8 failures were then read and 7 of their classes fixed (b725e4d: 51/52, chat_heldout_r9-auto-nollm-after-exposure-round14).
+
 #### `chat_heldout_r9-auto-nollm-after-exposure-round14.json`
 
 Source `evaluation/results/chat_heldout_r9-auto-nollm-after-exposure-round14.json`: commit `b725e4d`, run 2026-10-10T17:26:28+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
@@ -2107,6 +2161,7 @@ Route accuracy of `mode=auto` (refuse / clarify / workflow / agent) against labe
 | `router_eval-round13-own.json` | `router_labels_v1.jsonl` | author's own labels (tuned against), clean rerun at the merged round-13 code (I13) | `b1173b5` | 403 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --out evaluation/results/router_eval-round13-own.json` |
 | `router_eval-independent_v2-round13.json` | `router_labels_independent_v2.jsonl` | **after exposure**, clean rerun at `d42b181` (round 13, round-9 review I13; first run 0.8008) | `d42b181` | 241 | 0.842 | 0.967 / 0.596 / 0.927 / 0.833 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out evaluation/results/router_eval-independent_v2-round13.json` |
 | `router_eval-round14-own.json` | `router_labels_v1.jsonl` | author's own labels (tuned against) with the 11 round-14 labels, at the round-14 code | `cb675d2` | 414 | 1.000 | 1.000 / 1.000 / 1.000 / 1.000 | `python -m evaluation.agent_eval.router_eval --out evaluation/results/router_eval-round14-own.json` |
+| `router_eval-independent_v2-round14.json` | `router_labels_independent_v2.jsonl` | **after exposure**, re-run at the round-14 code (unchanged since round 11) | `dc2fcb0` | 241 | 0.842 | 0.967 / 0.596 / 0.927 / 0.833 | `python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl --out evaluation/results/router_eval-independent_v2-round14.json` |
 
 * Note (`router_eval-round2.json`): provenance (round 12): recorded from a dirty working tree (da3ec8b-dirty), so it is not exactly reproducible from a commit; kept as historical evidence and not used as a gate baseline
 * Note (`router_eval-independent_v2-first-run.json`): first and only run of the independent v2 labels, after the round-4 router changes; 4 of 241 queries coincidentally also appear in the project's own labels (什么是市净率, 今天北京天气怎么样, 招商银行的市盈率是多少, 比亚迪还能涨吗)
@@ -3147,6 +3202,7 @@ Paired comparisons (same tasks, a − b):
 | `chat_heldout_r8-auto-nollm-after-exposure-round14.json` | run | `b725e4d` | 2026-10-10T17:25:36+00:00 | – | `outputs/agent_eval/chat_r8-r14.json` (5e18fd3b9396651e) |
 | `chat_heldout_r9-auto-nollm-prefix.json` | run | `cbcf3b2` | 2026-10-01T13:03:02+00:00 | – | `chat_r9-auto-cbcf3b2.json` (b096452410530e0f) |
 | `chat_heldout_r9-auto-nollm-after-fix.json` | run | `da9f6af` | 2026-10-10T14:08:27+00:00 | – | `outputs/agent_eval/chat_r9-after.json` (10e56aaba27f93b9) |
+| `chat_heldout_r9-auto-nollm-after-exposure-round14-first.json` | run | `cb675d2` | 2026-10-10T17:41:27+00:00 | – | `outputs/agent_eval/chat_r9-r14-first.json` (4b2645b34b817e35) |
 | `chat_heldout_r9-auto-nollm-after-exposure-round14.json` | run | `b725e4d` | 2026-10-10T17:26:28+00:00 | – | `outputs/agent_eval/chat_r9-r14.json` (35963adb02939ee4) |
 | `router_eval-d78b313.json` | router_eval | `d78b313` | 2026-09-25T22:56:36+00:00 | – | written directly |
 | `router_eval-round2.json` | router_eval | `da3ec8b-dirty` | 2026-09-26T18:52:13+00:00 | – | written directly |
@@ -3166,6 +3222,7 @@ Paired comparisons (same tasks, a − b):
 | `router_eval-round13-own.json` | router_eval | `b1173b5` | 2026-10-10T13:55:38+00:00 | – | written directly |
 | `router_eval-independent_v2-round13.json` | router_eval | `d42b181` | 2026-10-01T13:36:21+00:00 | – | written directly |
 | `router_eval-round14-own.json` | router_eval | `cb675d2` | 2026-10-10T17:08:05+00:00 | – | written directly |
+| `router_eval-independent_v2-round14.json` | router_eval | `dc2fcb0` | 2026-10-10T17:33:28+00:00 | – | written directly |
 | `claim_bench-dev-baseline.json` | claim_bench | `3da1a48` | 2026-09-28T06:30:24+00:00 | – | written directly |
 | `claim_bench-dev.json` | claim_bench | `f07be9b` | 2026-10-10T13:51:02+00:00 | – | written directly |
 | `claim_bench-holdout.json` | claim_bench | `2fcb4f0` | 2026-09-28T07:14:56+00:00 | – | written directly |
