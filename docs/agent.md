@@ -626,13 +626,25 @@ sentence with "÷" or share-of-total words ("占两家合计", "of the combined 
 its percent and × count are derived when the sentence names the cost. A failed LLM draft falls back to the template
 built from the question (`graph._template_update`), so the fallback computes what was asked (L1, L9 of the review).
 
-**Results (round 14).** Dev 493 = 1.000 and ext 36 = 1.000 (`gate-dev.json`, `gate-ext.json`, `2a55c49`; the same at
-`b725e4d`), held-out 53 = 0.9434 unchanged; own router labels 1.000 on 414 (`router_eval-round14-own.json`),
-independent v2 0.8423 unchanged; the round-8 slice 51/51 and the round-9 slice 44/52 → 51/52, both **after exposure**
-(the second after the engineer read its failures; `chat_heldout_r9-auto-nollm-after-exposure-round14-first.json`,
-`chat_heldout_r9-auto-nollm-after-exposure-round14.json`); verifier stress 313 gold / 5,324 variants, claim 0.96%,
-derived 1.09% (`verifier_stress-round14.json`, `631da61`); offline red team 0 successes on all 11 sets. The round-10
-reviewer's slice is outside the repository and was not run by the engineers.
+**Results (round 14).** On the r14-frame branch: dev 493 = 1.000 and ext 36 = 1.000 at `2a55c49` (the same at
+`b725e4d`), held-out 53 = 0.9434 unchanged; own router labels 1.000 on 414 at `cb675d2`, independent v2 0.8423
+unchanged (`router_eval-independent_v2-round14.json`, `dc2fcb0`); the round-8 slice 51/51 and the round-9 slice 44/52 →
+51/52, both **after exposure** (the second after the engineer read its failures;
+`chat_heldout_r9-auto-nollm-after-exposure-round14-first.json`, `chat_heldout_r9-auto-nollm-after-exposure-round14.json`);
+verifier stress 313 gold / 5,324 variants, claim 0.96%, derived 1.09% at `631da61`; offline red team 0 successes on all
+11 sets. **At the merged round-14 code** (r14-realclaims2, r14-ops, r14-safety, r14-claims and r14-frame merged; each
+result file records its commit): dev 510 = 1.000 (`gate-dev.json`, `e7a0be7`), ext 44 = 1.000 (`gate-ext.json`,
+`d2f518f`), own router labels 414 = 1.000 (`router_eval-round14-own.json`, `7624223`), verifier stress 324 gold / 5,452
+variants, claim 0.95%, derived 1.08% (`verifier_stress-round14.json`, `aef319a`). **The round-10 slice, out of sample**
+(`evaluation/heldout_r10/`, written by the round-10 reviewer at `7f4f06c` before any round-14 fix, run on the shipped
+default data with `QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1`; not opened by the engineers): chat 12/48 = 0.250
+[0.125, 0.375] → **38/48 = 0.792 [0.67, 0.90]** at `3480a96` (`chat_heldout_r10-auto-nollm-prefix.json`,
+`chat_heldout_r10-auto-nollm-after-fix.json`), claims 16/24 → **20/24** (`claims_heldout_r10-prefix.json`,
+`claims_heldout_r10-after-fix.json`). 3 chat tasks near-copy own wording (`slice_overlap-heldout_r10-at-3480a96.json`);
+without them 12/45 → 35/45. Per class after the fixes: cost basis, extremes, yes/no multiples, forecasts, foreign lines,
+metric aliases and controls all pass; sums 4/5, verb comparatives 2/4 (both English: "top … by", "trail"), several
+holdings 2/4, price-derived 1/3, shares of a combined total **1/4**. The failing tasks and claims are listed in the
+[README](../README.md#the-round-10-slice-per-class). From round 15 this slice is after exposure.
 
 ### Session memory card
 
@@ -988,13 +1000,16 @@ python -m evaluation.agent_eval.frame_llm_check --llm deepseek --model cline-pas
 ```
 
 **Round 14: the round-10 review's J6, J7 and J10 (own examples, offline; one LLM red-team run).** Rules:
-[Rules added in round 14](#rules-added-in-round-14-round-10-review-j6-j7-j10). Dev gate 473 → **490** tasks = 1.000 and
-ext 24 → **32** tasks = 1.000 (`gate-dev.json`, `gate-ext.json`, baselines refreshed from a clean tree at `ca889e4`);
+[Rules added in round 14](#rules-added-in-round-14-round-10-review-j6-j7-j10). On the r14-safety branch: dev gate 473 →
+**490** tasks = 1.000 and ext 24 → **32** tasks = 1.000 (baselines refreshed from a clean tree at `ca889e4`; after the
+merge with the r14-frame tasks the committed baselines are dev 510 and ext 44 at the merged code, see the results
+above);
 the 17 new dev and 8 new ext tasks score 6/17 and 2/8 with the code before the fixes (`ec54b36`, exported with `git
 archive` and run with the same commands), the passes being the five past-date and A-share-line controls and three
 questions older rules already caught (the modals "What will … be on …" and "能到多少", and a Hong Kong line worded
-在香港上市的); held-out **0.9434**, unchanged. Verifier stress at `7697bec` (`verifier_stress-round14.json`): 317 gold answers, 5,330 variants, true accept
-1.000, false accept claim 0.0096, with derived numbers 0.0109. pytest at `9a1eb22`: 2,635 passed, 68 skipped.
+在香港上市的); held-out **0.9434**, unchanged. Verifier stress at `7697bec`: 317 gold answers, 5,330 variants, true accept 1.000,
+false accept claim 0.0096, with derived numbers 0.0109 (the branch's version of `verifier_stress-round14.json`,
+committed in `9417653`; the file now holds the run at the merged code, 324 / 5,452).
 **holdout11**: the round-10 reviewer's 16 planted-document styles (YAML, CSV, an HTML comment, zero-width characters,
 full-width digits, pinyin, a forwarded 更正 e-mail, a fake chat transcript, planted arithmetic, a ×10 magnitude, a
 fabricated regulator notice, a fake `TOOL_RESULT`, a markdown link, emoji hype, Japanese, a 【更正】 correction) were
