@@ -7,8 +7,9 @@ command of its run, and the provenance table at the end of the block lists them 
 
     python -m evaluation.agent_eval.report                    # render from evaluation/results/
     python -m evaluation.agent_eval.report --check            # exit 1 if the doc is out of date, or if
-                                                              # README.md / README_CN.md cite a result
-                                                              # file that is missing or not rendered
+                                                              # README.md / README_CN.md (or the docs their
+                                                              # long material moved to, README_PATHS) cite a
+                                                              # result file that is missing or not rendered
 
 Task success and pass^k carry percentile-bootstrap 95% CIs over tasks (2000 resamples, fixed
 seed). Paired comparisons use a paired bootstrap over tasks and an exact McNemar test on pass^k.
@@ -30,7 +31,17 @@ from .results import RESULTS_DIR, decode_outcomes, load_result
 
 ROOT = Path(__file__).resolve().parents[2]
 DOC_PATH = ROOT / "docs" / "agent-eval.md"
-README_PATHS = (ROOT / "README.md", ROOT / "README_CN.md")
+# The READMEs and the pages their long material moved to in round 15 (round-11 review K18): a result cited on any of
+# them must exist and be rendered here.
+README_PATHS = (
+    ROOT / "README.md",
+    ROOT / "README_CN.md",
+    *(
+        ROOT / "docs" / lang / f"{page}.md"
+        for lang in ("", "zh")
+        for page in ("evaluation-history", "known-issues", "features")
+    ),
+)
 BEGIN = "<!-- BEGIN GENERATED: python -m evaluation.agent_eval.report -->"
 END = "<!-- END GENERATED -->"
 
@@ -1552,7 +1563,9 @@ def render_with_sources() -> tuple[str, list[str]]:
         "is about 6–9 points; with 121 test tasks one task is 0.8 points. Every online table shows the share "
         "of turns where an LLM call failed and the run fell back to the deterministic path "
         "(`llm_error_rate`), with how many of those failures were HTTP 429 from the gateway. `report --check` "
-        "fails if README.md or README_CN.md cite a result file that is missing or not rendered here.",
+        "fails if README.md, README_CN.md or the pages their long material moved to (docs/evaluation-history.md, "
+        "docs/known-issues.md, docs/features.md and their Chinese versions) cite a result file that is missing or not "
+        "rendered here.",
         "",
     ]
     used: list[str] = []
@@ -2079,6 +2092,14 @@ def cited_json(text: str) -> list[str]:
     return list(dict.fromkeys(match.group(1) for match in _CITED_JSON.finditer(text)))
 
 
+def _relative_matches(base: Path, token: str) -> list[Path]:
+    if any(char in token for char in "*?["):
+        folder, _, pattern = token.rpartition("/")
+        return sorted((base / folder).resolve().glob(pattern))
+    path = (base / token).resolve()
+    return [path] if path.exists() else []
+
+
 def citation_problems(rendered: list[str], readmes: tuple[Path, ...] = README_PATHS) -> list[str]:
     """README citations of result files that do not exist, or that exist in evaluation/results/ unrendered."""
     problems: list[str] = []
@@ -2086,10 +2107,11 @@ def citation_problems(rendered: list[str], readmes: tuple[Path, ...] = README_PA
     for readme in readmes:
         if not readme.exists():
             continue
-        where = readme.name
+        where = str(readme.relative_to(ROOT)) if readme.is_relative_to(ROOT) else readme.name
         for token in cited_json(readme.read_text(encoding="utf-8")):
             if "/" in token:
-                matches = sorted(ROOT.glob(token))
+                # repo-relative, or relative to the page (docs/ pages link ``../evaluation/...``, ``results/...``)
+                matches = sorted(ROOT.glob(token)) or _relative_matches(readme.parent, token)
             else:
                 matches = sorted(RESULTS_DIR.glob(token)) or sorted((ROOT / "docs" / "results").rglob(token))
             if not matches:
