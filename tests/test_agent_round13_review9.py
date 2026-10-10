@@ -151,3 +151,33 @@ def test_i9_hong_kong_stock_with_a_possessive(agent):
     refused = agent.chat("What's Ping An’s Hong Kong stock trading at?", session_id="r13r9-hk")
     assert refused["route"] == "refuse" and refused["limitations"] == ["out_of_coverage"]
     assert "53.61" not in refused["answer"]
+
+
+# ---- correctness guards added after the first round-13 pass ----
+
+
+@pytest.mark.parametrize(
+    ("text", "operation"),
+    [
+        ("贵州茅台今天的最高价比最低价高多少", "difference"),  # one target's own extremes: never a spread
+        ("highest and lowest close in the last 52 weeks", None),
+        ("中国平安、五粮液的营收一共是多少", "sum"),  # a list with 、 is a set of operands
+        ("平安、茅台和五粮液的市净率是几倍关系", "ratio"),
+        ("五粮液的营收是不是茅台的六成以上", "share"),  # a share stated in 成
+        ("中国平安的估值倍数是多少", None),
+        ("加起来", None),
+    ],
+)
+def test_review9_operation_guards(text, operation):
+    from query_intelligence.agent.frame import frame_operation
+
+    assert frame_operation(text) == operation
+
+
+def test_review9_three_targets_are_never_reduced_to_the_first_two(agent):
+    pairs = agent.chat("平安、茅台和五粮液的市净率是几倍关系", session_id="r13r9-guard-pairs")
+    assert "逐对计算" in pairs["answer"] and "7.36 倍" in pairs["answer"] and "4.91 倍" in pairs["answer"]
+    total = agent.chat("中国平安、五粮液、茅台三家的成交额总共多少", session_id="r13r9-guard-sum")
+    assert "合计 118.87 亿元" in total["answer"] and total["verification"]["passed"]
+    tenths = agent.chat("五粮液的营收是不是茅台的六成以上", session_id="r13r9-guard-tenths")
+    assert "≈ 64.26%" in tenths["answer"] and "是的，超过六成" in tenths["answer"]
