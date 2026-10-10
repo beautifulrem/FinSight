@@ -60,7 +60,8 @@ _H_SHARE = (
     # (round 12, H5) "中芯国际港股": a company name followed by 港股 is its Hong Kong line too
     r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){2,8}?\s*(?:的\s*)?(?:H\s*股(?!指数|ETF|基金|LOF|\(QDII)|港股(?!通))|"
     r"H\s*股(?!东|指数|ETF|基金|LOF|\(QDII)|港股通|"
-    r"(?<![\w.])\d{4,5}\s*\.\s*HK(?![A-Za-z])|(?<![A-Za-z])HK\s?\d{4,5}(?!\d)|(?<![\w.])\d{4,5}\s+HK(?![A-Za-z])|"
+    r"(?<![0-9A-Za-z.])\d{4,5}\s*\.\s*HK(?![A-Za-z])|(?<![A-Za-z])HK\s?\d{4,5}(?!\d)|"
+    r"(?<![0-9A-Za-z.])\d{4,5}\s+HK(?![A-Za-z])|"
     r"\b(?:[a-z][\w&.'-]*\s+){1,3}H[- ]?shares?\b|\bH[- ]shares?\b|\bHKEX\b|"
     # (round 12, H5) "Ping An's Hong Kong listed shares", "the Hong Kong share price of China Merchants Bank"
     r"\b(?:[a-z][\w&.'-]*\s+){0,3}?hong kong[- ]listed\b|"
@@ -132,6 +133,163 @@ _AH_PREMIUM = (
     r"\bH[- ]shares?\s+(?:premium|discount)\b|\bpremium\s+(?:of\s+)?(?:its\s+|the\s+)?A[- ]shares?\s+"
     r"(?:over|to|versus|vs\.?)\s+(?:its\s+|the\s+)?H[- ]shares?\b"
 )
+# (round 15, review-11 K5) The Hong Kong line asked by its stock code, its venue or its currency. Before round 15
+# "比亚迪股份(01211)现在多少钱", "中芯国际0981.HK股价" (``\w`` in the ticker's look-behind matched the CJK name, so the
+# ticker was missed), "中芯国际在港交所的报价" and "What does China Merchants Bank trade at in Hong Kong dollars?" were
+# answered with the A-share price. As with the other line patterns, the name before the code, venue or currency is
+# part of the span, so the A-share target it names is a lookalike. An A-share code has six digits and is never one of
+# these; a bare four-digit code without a leading zero is a Hong Kong code only right after the company it belongs to
+# (``_AH_CODES``, checked in ``_ah_code_spans``), so "茅台1880附近" or "比亚迪2025年报" are not codes.
+_HK_CODE_TAIL = (
+    r"(?![\d.%％])(?!\s*(?:年|月|日|号|股(?![价票份])|手|元|块|万|亿|个|只|倍|点|%|％|基点|附近|左右|以上|以下|上下|关口|一线|能|可以|"
+    r"\b(?:yuan|RMB|CNY|shares|lots|points|times|bp)\b))"
+)
+_NOT_YEAR_CODE = r"(?!(?:19|20)\d{2}\s*[)）])"
+_HK_CODE_LINE = (
+    # "中芯国际0981.HK", "比亚迪 (1211.HK)": a ticker right after Chinese text
+    _ZH_NAME
+    + r"[(（]?\s*(?<![0-9.])\d{4,5}\s*\.\s*HK(?![A-Za-z])\s*[)）]?|"
+    # a bracketed code: "比亚迪股份(01211)", "招商银行（3968）", "Ping An (2318)"; "(2025)" is a year
+    + _ZH_NAME
+    + r"[(（]\s*(?:0\d{3,4}|"
+    + _NOT_YEAR_CODE
+    + r"[1-9]\d{3})\s*[)）]|"
+    + _EN_NAME
+    + r"\(\s*(?:0\d{3,4}|"
+    + _NOT_YEAR_CODE
+    + r"[1-9]\d{3})(?:\s*\.\s*HK)?\s*\)|"
+    # a code with its leading zero: "中国平安02318", "0981的股价"
+    + _ZH_NAME
+    + r"(?<![0-9A-Za-z.])0\d{3,4}(?![A-Za-z])"
+    + _HK_CODE_TAIL
+)
+_HK_VENUE = r"(?:港交所|联交所|香港交易所|香港联交所|香港联合交易所)"
+# a name of two to eight characters that is not a conjunction, a comparison or a currency exchange ("换", "兑")
+_ZH_NAME2 = r"(?:(?![和与跟及或比对同的、，,换兑])[一-鿿A-Za-z]){2,8}?"
+_HK_QUOTE_WORDS = (
+    r"(?:报价|价格|股价|收盘价?|行情|走势|市值|市盈率|市净率|估值|成交(?:量|额)?|涨跌幅?|涨幅|跌幅|表现|现价|最新价)"
+)
+_HKD = r"(?:港元|港币|港幣|HKD|HK\$|HK\s+dollars?|hong\s+kong\s+dollars?)"
+_EN_PRICE_VERB = (
+    r"(?:trades?|trading|traded|priced?|prices|quoted?|quotes|closes?|closed|closing|worth|valued?|value|stands?)"
+)
+_HK_VENUE_CURRENCY_LINE = (
+    # the venue, then the company: "港交所的平安", "联交所上的招商银行收盘多少"
+    _HK_VENUE
+    + r"(?:上|里)?(?:上市|挂牌|交易)?的\s*"
+    + _ZH_NAME2.replace("比", "")  # the name follows the venue: "联交所的比亚迪"
+    + r"(?=$|[\s，,。？?！!]|的|"
+    + _HK_QUOTE_WORDS
+    + r"|现在|今天|最新|多少|怎么样|如何|涨|跌)|"
+    # the company, then the venue and a quote: "中芯国际在港交所的报价", "比亚迪在香港的股价"
+    + _ZH_NAME2
+    + r"\s*(?:在|于)?(?:"
+    + _HK_VENUE
+    + r"|香港(?:市场)?)(?:上|里|那边)?的?\s*"
+    + _HK_QUOTE_WORDS
+    + r"|"
+    # the currency: "招商银行港元价格", "中国平安以港币计价的股价", "中国平安现在多少港元"
+    + _ZH_NAME2
+    + r"\s*(?:的)?\s*(?:以|用|按)?\s*"
+    + _HKD
+    + r"\s*(?:计价|计)?的?\s*"
+    + _HK_QUOTE_WORDS
+    + r"|"
+    + _ZH_NAME2
+    + r"(?:(?![换兑汇])[^，。？?！!；;]){0,8}?多少(?:钱)?\s*"
+    + _HKD
+    + r"(?!\s*(?:汇率|兑|换))|"
+    # "What does China Merchants Bank trade at in Hong Kong dollars?", "Ping An's HKD price"
+    r"\b(?:[a-z][\w&.'-]*\s+){1,6}?"
+    + _EN_PRICE_VERB
+    + r"\b(?:(?!\b(?:convert|conversion|exchange\s+rate)\b)[^.?!]){0,30}?\b(?:in|into)\s+"
+    + _HKD
+    + r"|"
+    r"\b(?:[\w&.-]+(?:'s|’s|s')\s+|(?:[a-z][\w&.'-]*\s+){1,6}?)(?:HKD|HK\$|hong\s+kong\s+dollar)\s+"
+    r"(?:share\s+)?(?:price|quote|close|closing\s+price|value|market\s+value)\b"
+)
+_HK_LINE = _HK_LINE + "|" + _HK_CODE_LINE + "|" + _HK_VENUE_CURRENCY_LINE
+# (round 15, K5) Hong Kong codes of A+H companies FinSight covers on the A-share side, with the names a question uses
+# for them: a bare four-digit code is the Hong Kong line only right after one of these names ("中国平安2318",
+# "招行 3968"). Codes with a leading zero ("0981", "02318") are matched by shape in ``_HK_CODE_LINE``.
+_AH_CODES: dict[str, tuple[str, ...]] = {
+    "2318": ("中国平安", "平安", "Ping An"),
+    "3968": ("招商银行", "招行", "China Merchants Bank", "CMB"),
+    "1398": ("工商银行", "工行", "ICBC"),
+    "3988": ("中国银行", "中行", "Bank of China", "BOC"),
+    "1288": ("农业银行", "农行", "Agricultural Bank of China", "ABC"),
+    "3328": ("交通银行", "交行", "Bank of Communications", "BOCOM"),
+    "1658": ("邮储银行", "邮储", "Postal Savings Bank", "PSBC"),
+    "1988": ("民生银行", "Minsheng Bank"),
+    "6818": ("光大银行", "Everbright Bank"),
+    "2628": ("中国人寿", "国寿", "China Life"),
+    "2601": ("中国太保", "太保", "CPIC"),
+    "1336": ("新华保险", "New China Life"),
+    "1339": ("中国人保", "PICC"),
+    "1088": ("中国神华", "神华", "China Shenhua", "Shenhua"),
+    "1898": ("中煤能源", "China Coal"),
+    "1171": ("兖矿能源", "Yankuang"),
+    "1211": ("比亚迪", "BYD"),
+    "3750": ("宁德时代", "宁德", "CATL"),
+    "6690": ("海尔智家", "海尔", "Haier"),
+    "2359": ("药明康德", "WuXi AppTec"),
+    "6030": ("中信证券", "CITIC Securities"),
+    "6886": ("华泰证券", "Huatai Securities", "Huatai"),
+    "6837": ("海通证券", "Haitong Securities", "Haitong"),
+    "1776": ("广发证券", "GF Securities"),
+    "6099": ("招商证券", "China Merchants Securities"),
+    "3908": ("中金公司", "中金", "CICC"),
+    "6881": ("中国银河", "China Galaxy"),
+    "2333": ("长城汽车", "Great Wall Motor"),
+    "2338": ("潍柴动力", "潍柴", "Weichai"),
+    "2899": ("紫金矿业", "紫金", "Zijin Mining", "Zijin"),
+    "3993": ("洛阳钼业", "CMOC"),
+    "2600": ("中国铝业", "Chalco"),
+    "1880": ("中国中免", "中免", "China Tourism Group Duty Free", "CTG Duty Free"),
+    "1276": ("恒瑞医药", "恒瑞", "Hengrui"),
+    "3606": ("福耀玻璃", "福耀", "Fuyao Glass", "Fuyao"),
+    "1766": ("中国中车", "中车", "CRRC"),
+    "1800": ("中国交建", "China Communications Construction"),
+    "1186": ("中国铁建", "China Railway Construction"),
+    "2202": ("万科", "Vanke"),
+    "2208": ("金风科技", "Goldwind"),
+    "1055": ("南方航空", "南航", "China Southern Airlines"),
+    "2607": ("上海医药", "Shanghai Pharmaceuticals"),
+    "2196": ("复星医药", "Fosun Pharma"),
+    "1157": ("中联重科", "Zoomlion"),
+    "6031": ("三一重工", "三一", "Sany"),
+    "1772": ("赣锋锂业", "赣锋", "Ganfeng Lithium", "Ganfeng"),
+    "9696": ("天齐锂业", "天齐", "Tianqi Lithium", "Tianqi"),
+    "1071": ("华电国际", "Huadian Power"),
+    "2238": ("广汽集团", "广汽", "GAC"),
+    "1919": ("中远海控", "COSCO Shipping"),
+    "6869": ("长飞光纤", "YOFC"),
+    "3958": ("东方证券", "Orient Securities"),
+    "6178": ("光大证券", "Everbright Securities"),
+    "1072": ("东方电气", "Dongfang Electric"),
+    "2727": ("上海电气", "Shanghai Electric"),
+    "1618": ("中国中冶", "MCC"),
+}
+_BARE_CODE = re.compile(r"(?<![0-9A-Za-z.])([1-9]\d{3})(?![A-Za-z])" + _HK_CODE_TAIL, re.IGNORECASE)
+
+
+def _ah_code_spans(query: str) -> list[tuple[int, int]]:
+    """(round 15, K5) "中国平安2318", "招行 3968 现在多少", "Ping An 2318": a bare Hong Kong code right after the name
+    of the company it belongs to (``_AH_CODES``); the span runs from the name to the code."""
+    spans = []
+    for match in _BARE_CODE.finditer(query or ""):
+        names = _AH_CODES.get(match.group(1))
+        if not names:
+            continue
+        before = query[: match.start()].rstrip()
+        before = before[:-1].rstrip() if before.endswith("的") else before
+        for name in sorted(names, key=len, reverse=True):
+            if before.lower().endswith(name.lower()):
+                spans.append((len(before) - len(name), match.end()))
+                break
+    return spans
+
+
 _FOREIGN_LINE = re.compile("|".join((_HK_LINE, _GDR_LINE, _ADR_LINE, _AH_PREMIUM)), re.IGNORECASE)
 # the A/H premium itself (not "A股和H股分别多少", which asks for both lines)
 _PREMIUM_WORDS = re.compile(r"溢价|折价|比价|价差|\b(?:premium|discount|spread|price\s+gap)\b", re.IGNORECASE)
@@ -154,7 +312,8 @@ def foreign_line_spans(query: str) -> list[tuple[int, int]]:
     """(round 14, J7) Where the question names a company's Hong Kong, London/Swiss or US line or its A/H premium."""
     if _LINE_CONCEPT.search(query or ""):
         return []
-    return [match.span() for match in _FOREIGN_LINE.finditer(query or "") if match.group(0).strip()]
+    spans = [match.span() for match in _FOREIGN_LINE.finditer(query or "") if match.group(0).strip()]
+    return sorted({*spans, *_ah_code_spans(query or "")})
 
 
 def foreign_line_kind(query: str) -> str | None:
