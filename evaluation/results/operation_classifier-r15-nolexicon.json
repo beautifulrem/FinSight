@@ -1,0 +1,417 @@
+{
+ "version": "operation-clf-r15",
+ "commit": "c73cf47",
+ "dirty": false,
+ "run_at": "2026-10-10T20:39:23+00:00",
+ "command": "python -m training.operation_classifier.train --no-lexicon",
+ "features": "char_wb 1-3-gram TF-IDF (max 20000)",
+ "model": "LogisticRegression(C=4, multinomial, lbfgs)",
+ "seed": 20261011,
+ "train": {
+  "generated": 6528,
+  "generated_templates": 272,
+  "dev_wordings": 744,
+  "dev_labels": {
+   "difference": 47,
+   "ratio": 20,
+   "relative": 8,
+   "share": 3,
+   "share_total": 5,
+   "sum": 12,
+   "mean": 1,
+   "spread": 3,
+   "which": 28,
+   "total_vs_one": 0,
+   "none": 617
+  }
+ },
+ "held_out": {
+  "examples": 1632,
+  "templates": 68,
+  "classifier_accuracy": {
+   "rate": 0.7653,
+   "low": 0.7441,
+   "high": 0.7852,
+   "n": 1632
+  },
+  "grammar_accuracy": {
+   "rate": 0.8609,
+   "low": 0.8433,
+   "high": 0.8768,
+   "n": 1632
+  },
+  "grammar_plus_classifier_accuracy": {
+   "rate": 0.8922,
+   "low": 0.8762,
+   "high": 0.9063,
+   "n": 1632
+  },
+  "grammar_missed_operations": 131,
+  "rescued_by_fallback": 51,
+  "recall_by_class": {
+   "difference": {
+    "rate": 0.5,
+    "low": 0.4194,
+    "high": 0.5806,
+    "n": 144
+   },
+   "ratio": {
+    "rate": 0.7014,
+    "low": 0.6222,
+    "high": 0.7701,
+    "n": 144
+   },
+   "relative": {
+    "rate": 0.6597,
+    "low": 0.5791,
+    "high": 0.7321,
+    "n": 144
+   },
+   "share": {
+    "rate": 0.8333,
+    "low": 0.764,
+    "high": 0.8854,
+    "n": 144
+   },
+   "share_total": {
+    "rate": 0.7917,
+    "low": 0.7182,
+    "high": 0.85,
+    "n": 144
+   },
+   "sum": {
+    "rate": 0.5139,
+    "low": 0.433,
+    "high": 0.5941,
+    "n": 144
+   },
+   "mean": {
+    "rate": 0.6944,
+    "low": 0.615,
+    "high": 0.7638,
+    "n": 144
+   },
+   "spread": {
+    "rate": 0.8681,
+    "low": 0.8031,
+    "high": 0.9139,
+    "n": 144
+   },
+   "which": {
+    "rate": 1.0,
+    "low": 0.974,
+    "high": 1.0,
+    "n": 144
+   },
+   "total_vs_one": {
+    "rate": 0.8333,
+    "low": 0.764,
+    "high": 0.8854,
+    "n": 144
+   },
+   "none": {
+    "rate": 0.9583,
+    "low": 0.9199,
+    "high": 0.9787,
+    "n": 192
+   }
+  },
+  "classifier_misses_sample": [
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "difference"
+   },
+   {
+    "template": "difference/zh/14",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "difference"
+   }
+  ]
+ },
+ "in_sample_dev": {
+  "examples": 744,
+  "templates": 1,
+  "classifier_accuracy": {
+   "rate": 0.9879,
+   "low": 0.9772,
+   "high": 0.9936,
+   "n": 744
+  },
+  "grammar_accuracy": {
+   "rate": 1.0,
+   "low": 0.9949,
+   "high": 1.0,
+   "n": 744
+  },
+  "grammar_plus_classifier_accuracy": {
+   "rate": 1.0,
+   "low": 0.9949,
+   "high": 1.0,
+   "n": 744
+  },
+  "grammar_missed_operations": 0,
+  "rescued_by_fallback": 0,
+  "recall_by_class": {
+   "difference": {
+    "rate": 0.9574,
+    "low": 0.8575,
+    "high": 0.9883,
+    "n": 47
+   },
+   "ratio": {
+    "rate": 0.8,
+    "low": 0.584,
+    "high": 0.9193,
+    "n": 20
+   },
+   "relative": {
+    "rate": 1.0,
+    "low": 0.6756,
+    "high": 1.0,
+    "n": 8
+   },
+   "share": {
+    "rate": 1.0,
+    "low": 0.4385,
+    "high": 1.0,
+    "n": 3
+   },
+   "share_total": {
+    "rate": 1.0,
+    "low": 0.5655,
+    "high": 1.0,
+    "n": 5
+   },
+   "sum": {
+    "rate": 1.0,
+    "low": 0.7575,
+    "high": 1.0,
+    "n": 12
+   },
+   "mean": {
+    "rate": 0.0,
+    "low": 0.0,
+    "high": 0.7935,
+    "n": 1
+   },
+   "spread": {
+    "rate": 1.0,
+    "low": 0.4385,
+    "high": 1.0,
+    "n": 3
+   },
+   "which": {
+    "rate": 0.9643,
+    "low": 0.8229,
+    "high": 0.9937,
+    "n": 28
+   },
+   "none": {
+    "rate": 0.9984,
+    "low": 0.9909,
+    "high": 0.9997,
+    "n": 617
+   }
+  },
+  "classifier_misses_sample": [
+   {
+    "template": "dev",
+    "expected": "mean",
+    "classifier": "none",
+    "grammar": "mean"
+   },
+   {
+    "template": "dev",
+    "expected": "which",
+    "classifier": "none",
+    "grammar": "which"
+   },
+   {
+    "template": "dev",
+    "expected": "ratio",
+    "classifier": "none",
+    "grammar": "ratio"
+   },
+   {
+    "template": "dev",
+    "expected": "ratio",
+    "classifier": "none",
+    "grammar": "ratio"
+   },
+   {
+    "template": "dev",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "difference"
+   },
+   {
+    "template": "dev",
+    "expected": "none",
+    "classifier": "mean",
+    "grammar": "none"
+   },
+   {
+    "template": "dev",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "difference"
+   },
+   {
+    "template": "dev",
+    "expected": "ratio",
+    "classifier": "none",
+    "grammar": "ratio"
+   },
+   {
+    "template": "dev",
+    "expected": "ratio",
+    "classifier": "share",
+    "grammar": "ratio"
+   }
+  ]
+ },
+ "thresholds": {
+  "fallback_min": 0.6
+ }
+}
