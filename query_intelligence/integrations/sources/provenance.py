@@ -115,7 +115,8 @@ def snapshot_provenance(
     """Provenance for a record served from the shipped offline snapshot.
 
     ``snapshot`` is the ``_snapshot`` metadata of a record from the snapshot extension
-    (``data/snapshot/structured_data_ext.json``): its file, version, upstream endpoint and fetch time.
+    (``data/snapshot/structured_data_ext.json``) or the corrections layer (``structured_data_fix.json``): its file,
+    version, upstream endpoint and fetch time, and for a corrected record the primary document.
     """
     meta = snapshot or {}
     record = build_provenance(
@@ -135,6 +136,14 @@ def snapshot_provenance(
         record["original_endpoint"] = str(meta["endpoint"])
     if source_name:
         record["original_source"] = str(source_name)
+    # A record of the corrections layer (data/snapshot/structured_data_fix.json): the primary document its values
+    # were transcribed from (an annual report) and why it replaces the v1 seed record.
+    if meta.get("document"):
+        record["primary_document"] = str(meta["document"])
+    if meta.get("document_url"):
+        record["primary_url"] = str(meta["document_url"])
+    if meta.get("correction"):
+        record["correction"] = str(meta["correction"])
     record["source_label"] = "离线快照"
     record["note"] = describe(record)
     return record
@@ -172,6 +181,8 @@ def describe(record: dict[str, Any]) -> str:
         parts.append("非实时（离线快照）")
     elif mode == LAST_KNOWN_GOOD:
         parts.append(f"沿用最近一次成功获取的实时数据（获取于{record.get('fetched_at')}）")
+    if record.get("primary_document"):
+        parts.append(f"数值依据{record['primary_document']}")
     if record.get("freshness") == "stale":
         parts.append("数据可能已过时")
     text = "，".join(parts)

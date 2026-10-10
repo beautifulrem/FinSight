@@ -36,6 +36,9 @@ class Settings:
     source_probe_min_interval_seconds: float = 60.0
     # Merge the offline snapshot extension (data/snapshot/structured_data_ext.json) under the v1 snapshot.
     offline_snapshot_ext: bool = True
+    # Apply the corrections layer (data/snapshot/structured_data_fix.json): primary-source values over the v1 seed
+    # values they contradict, and field definitions (ROE weighted / period-end, ...) for every company.
+    offline_snapshot_fix: bool = True
     # Cross-check live fundamentals between Sina and THS (one extra upstream call per stock).
     source_cross_check_fundamentals: bool = True
 
@@ -73,6 +76,7 @@ class Settings:
             source_probe_min_interval_seconds=_env_float("QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS", 60.0),
             source_cross_check_fundamentals=os.getenv("QI_SOURCE_CROSS_CHECK", "true").lower() in {"1", "true", "yes"},
             offline_snapshot_ext=os.getenv("QI_OFFLINE_SNAPSHOT_EXT", "true").lower() in {"1", "true", "yes"},
+            offline_snapshot_fix=os.getenv("QI_OFFLINE_SNAPSHOT_FIX", "true").lower() in {"1", "true", "yes"},
         )
 
 

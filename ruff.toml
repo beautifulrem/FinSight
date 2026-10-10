@@ -36,6 +36,8 @@ include = [
     "tests/test_ops_scripts.py",
     "evaluation/human/**/*.py",
     "tests/test_human_kit.py",
+    "scripts/build_snapshot_corrections.py",
+    "tests/test_round13_snapshot_fix.py",
 ]
 
 [lint]
