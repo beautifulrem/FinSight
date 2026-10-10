@@ -4,7 +4,7 @@
 # round-13 merge reached master without an e2e run and master CI went red). Every step runs even when an earlier one
 # fails, and the script writes a summary with the commit, the versions and one result line per step.
 #
-#   scripts/prepush.sh                          # everything (about 15-25 minutes on a laptop)
+#   scripts/prepush.sh                          # everything (35 min 40 s on an Apple-silicon laptop at 278f7cc)
 #   PYTHON=.venv/bin/python scripts/prepush.sh  # the interpreter with requirements-dev.txt installed
 #   SKIP=e2e,extras scripts/prepush.sh          # skip steps by name (they are listed as skipped in the summary)
 #   SUMMARY=docs/results/ci/prepush-$(git rev-parse --short HEAD).md scripts/prepush.sh

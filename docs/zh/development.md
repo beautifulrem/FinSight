@@ -14,7 +14,7 @@ e2e 测试，不能只看各分支各自通过。
 ## 运行内容
 
 ```bash
-scripts/prepush.sh                          # 全部步骤，笔记本上约 15–25 分钟
+scripts/prepush.sh                          # 全部步骤：在 278f7cc 上，Apple 芯片笔记本耗时 35 分 40 秒
 PYTHON=.venv/bin/python scripts/prepush.sh  # 指定装了 requirements-dev.txt 的解释器
 SKIP=e2e,extras scripts/prepush.sh          # 按名字跳过步骤；汇总里会标为 skipped
 ```
@@ -50,7 +50,9 @@ deploy/k8s-smoke/smoke.sh        # 需要 kind 和 kubectl；断言 /ready、三
 
 日志写到 `outputs/prepush/<commit>/<step>.log`，汇总写到 `outputs/prepush/<commit>/summary.md`（或 `SUMMARY=<路径>`）：
 提交、工作区是否干净、Python / Node / pnpm 版本，以及每一步的命令、结果、秒数和日志里的结果行（pytest 的通过数、门禁的任务
-成功率等）。提交到仓库的汇总在 [`docs/results/ci/`](../results/ci/)，按运行时的提交命名。
+成功率等）。提交到仓库的汇总在 [`docs/results/ci/`](../results/ci/)，按运行时的提交命名：第 14 轮在 `278f7cc` 上 17 个步骤全部通过
+（[`prepush-278f7cc.md`](../results/ci/prepush-278f7cc.md)：2508 个测试通过 / 70 个跳过，vitest 152 个，e2e 2 个，门禁 dev 1.000、
+holdout 0.9434、ext 1.000、shipped 1.000）。
 
 ## 测的是发布默认配置，而不只是固定的种子数据
 
