@@ -416,6 +416,20 @@ python -m scripts.trace_stages outputs/chaos/r13-llm-load/traces --out outputs/r
 python -m scripts.bench_retrieval_contention --rounds 6 --out outputs/perf/r13-retrieval-bench.json
 ```
 
+### 8 users, `auto`, DeepSeek (round 13)
+
+The first clean 8-user LLM run (the earlier 8- and 16-user runs hit gateway 429s): `chaos_drill --scenario llm-load
+--load-users 8 --load-requests 3`, no injected fault, at `27c70a7` (clean tree; the retrieval fix included), load
+average 6.0 at the start (a quieter host than the 4-user runs above, so latencies are not comparable with them)
+([`r13-load-8u-auto.json`](results/perf/agent/r13-load-8u-auto.json), stages in `r13-load-8u-auto-stages.json`):
+
+| Requests | HTTP errors (user-visible) | P50 / P95 / max (s) | Routes | Answered by the LLM | Verified | Gateway calls (429) | Breakers | ¥ per 1k questions |
+|---:|---:|---|---|---:|---:|---:|---|---:|
+| 24 | 0 | 13.6 / 24.3 / 26.1 | 12 workflow, 12 agent | 24 (12 composition, 12 agent) | 22 / 24 (2 agent answers repaired by sentence deletion) | 52 (0) | both closed throughout | 14.19 |
+
+LLM wait is 93% of all request time here and the tool stage 3.5% (median 40 ms per request): with the fix and a
+quiet host, the tool stage no longer matters at 8 users. 24 requests is still a small sample; 16 users was not rerun.
+
 ### Second model: GLM-5.3 flash spot check ([`perf-glm-holdout-*.json`](../evaluation/results/))
 
 Held-out, one repeat per run, 3 workers, streamed. The previous path and the defaults were run in the
