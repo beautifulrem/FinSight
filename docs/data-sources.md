@@ -124,8 +124,9 @@ available in the current data, …"), and the claim checker marks such a relatio
 ## Corrections layer: primary-source values and field definitions
 
 The v1 seed was never checked against the companies' own reports, and none of the shipped figures said
-which definition it uses. Round 13 checked every v1 figure against a primary record and adds a third
-layer, `data/snapshot/structured_data_fix.json`, that the product applies by default
+which definition it uses. Round 13 checked the FY2025 statement figures of the three v1 companies and the
+2026-04-22 bars of the seven v1 instruments against a primary record (the industry and macro rows were not checked,
+see "Not corrected, still unverified" below) and adds a third layer, `data/snapshot/structured_data_fix.json`, that the product applies by default
 (`QI_OFFLINE_SNAPSHOT_FIX=true`; precedence **corrections > v1 seed > extension**). The seed file itself
 is unchanged.
 
