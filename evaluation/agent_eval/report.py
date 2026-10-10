@@ -53,7 +53,7 @@ RATE_LIMIT_CHECK = "ablation-test_v2-deepseek-agent-w3"
 OFFLINE = "ablation-offline"  # deterministic paths on all sets at the current evaluation commit
 VARIANCE_RUNS = ("ablation-online-deepseek-v4.1-flash", "ablation-online-v1", "ablation-final")
 PROMPT_AB = ("ablation-online-v1", "ablation-online-v2")
-GATE_RUNS = ("gate-dev", "gate-holdout")
+GATE_RUNS = ("gate-dev", "gate-holdout", "gate-ext")  # gate-ext: snapshot extension on, no replay (round 13)
 TEST_V3 = ("test_v3-auto-nollm-first-run", "ablation-test_v3-purellm-deepseek")
 MULTITURN = (
     "multiturn_v1-auto-nollm-first-run",
@@ -216,6 +216,10 @@ CLAIM_BENCH_RUNS = (
     "claim_bench-heldout_r4-after-round12",
     "claim_bench-heldout_r5-after-round12",
     "claim_bench-heldout_r6-after-exposure-round12",
+    "claim_bench-holdout-after-round13",
+    "claim_bench-heldout_r4-after-round13",
+    "claim_bench-heldout_r5-after-round13",
+    "claim_bench-heldout_r6-after-exposure-round13",
 )
 # Round-4 held-out slices (evaluation/heldout_r4/, independent author): first run, then after exposure.
 HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_heldout-after-exposure")
@@ -274,6 +278,7 @@ EXTRA_EVIDENCE = (
     "slice_overlap-heldout_r8-at-6e14016",
     "glm-auto-testv3-sample45-r13",
     "ablation-v4-testv3-sample24-pass2-r13",
+    "claims_heldout_r8-after-exposure-round13-claims",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -370,6 +375,15 @@ FILE_STATUS = {
     "claims_heldout_r8-after-fix": "independent round-8 claim slice **after the round-12 fixes** (out of sample)",
     "claims_web_v1-first-run": "engineer-collected real published claims, first run; not blind (the collector had "
     "read the checker)",
+    "claims_heldout_r8-after-exposure-round13-claims": "independent round-8 claim slice **after exposure (round "
+    "13)**: the engineers had read its five remaining errors; not an out-of-sample estimate",
+    "claim_bench-holdout-after-round13": "held-out claims **after exposure**, re-run at the round-13 commit (I8)",
+    "claim_bench-heldout_r4-after-round13": "independent round-4 claim slice **after exposure**, re-run at the "
+    "round-13 commit (I8)",
+    "claim_bench-heldout_r5-after-round13": "independent round-5 claim slice **after exposure**, re-run at the "
+    "round-13 commit (I8)",
+    "claim_bench-heldout_r6-after-exposure-round13": "independent round-6 claim slice **after exposure (round 13)**: "
+    "re-run at the round-13 commit (I8); not an out-of-sample estimate",
     "chat_heldout_r7-auto-nollm-after-fix": "independent round-7 chat slice **after the round-11 fixes**; the "
     "engineers never opened the slice (four round-11 dev turns in three tasks match slice turns verbatim by "
     "coincidence)",
