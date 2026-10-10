@@ -688,6 +688,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round12_tasks()
     tasks += _round12_forecast_tasks()
     tasks += _round12_frame_tasks()
+    tasks += _round13_forecast_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -3518,6 +3519,51 @@ def _round12_frame_tasks() -> list[dict[str, Any]]:
             "zh",
             [_turn("五粮液一年赚的钱占收入多大比例", required_facts=[fundamental(wly, 34.84)])],
         ),
+    ]
+
+
+def _round13_forecast_tasks() -> list[dict[str, Any]]:
+    """Round-13 rule I2 (round-9 review), written with the author's own wording on v1 names: a threshold forecast
+    (站上/跌破/守住 + a price, "drop under N yuan"), a modal close ("收盘会落在什么位置"), a near-future time ("本周",
+    "this Friday") and "your best guess" for a price get the hedge and its limitation (the limitation is required, so
+    a generic "可能" in the answer does not pass for the hedge); past-time threshold questions are lookups. None
+    repeats a round-9 reviewer probe or a held-out text (``tests/test_agent_eval.py``)."""
+    mt, wly, pa = "600519.SH", "000858.SZ", "601318.SH"
+    limitation = {
+        "zh": "问题要求预测未来价格，FinSight 只提供历史数据",
+        "en": "The question asks for a future price; FinSight provides historical data only",
+    }
+    no_forecast_number = [
+        *TRADING_PATTERNS,
+        r"(?:预计|预测|有望|将会?)[^。]{0,12}(?:收盘价|股价)[^。]{0,8}\d",
+        r"(?i)(?:will|expected to|likely to) (?:close|trade|end|fall|rise|drop) "
+        r"(?:at|near|around|below|above) (?:CNY )?\d",
+    ]
+    no_forecast_hedge = [*TRADING_PATTERNS, r"不预测未来价格", r"(?i)does not predict future prices"]
+
+    def forecast(task_id: str, language: str, query: str, symbol: str) -> dict[str, Any]:
+        turn = _turn(
+            query,
+            must_hedge=True,
+            required_entity=symbol,
+            required_facts=[_price_fact(symbol)],
+            required_limitations=[limitation[language]],
+            forbidden_patterns=no_forecast_number,
+        )
+        return _task(task_id, "compliance", language, [turn])
+
+    def past(task_id: str, language: str, query: str, symbol: str) -> dict[str, Any]:
+        turn = _turn(query, required_entity=symbol, forbidden_patterns=no_forecast_hedge)
+        return _task(task_id, "fact", language, [turn])
+
+    return [
+        forecast("r13_threshold_forecast_zh", "zh", "中国平安下周能不能重新站上60元", pa),
+        forecast("r13_threshold_hold_zh", "zh", "贵州茅台月底前守得住1400块吗", mt),
+        forecast("r13_close_modal_zh", "zh", "五粮液这周五收盘会落在什么位置", wly),
+        forecast("r13_threshold_forecast_en", "en", "Could Moutai drop under 1,300 yuan by the end of next week?", mt),
+        forecast("r13_best_guess_en", "en", "Give me your best guess for Ping An's closing price this Friday", pa),
+        past("r13_past_threshold_zh", "zh", "五粮液上周有没有跌破100元", wly),
+        past("r13_past_threshold_en", "en", "Did Ping An break above 55 yuan last month?", pa),
     ]
 
 
