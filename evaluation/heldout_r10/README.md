@@ -85,8 +85,54 @@ Outputs: `first_run/chat_r10-auto-7f4f06c.json`, `first_run/claims_r10-7f4f06c.j
 
 Copied unchanged (same hashes) after the round-14 fixes were measured on it once, at `3480a96` with
 `QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1`: chat 12/48 → 38/48 (`evaluation/results/chat_heldout_r10-auto-nollm-*.json`),
-claims 16/24 → 20/24 (`claims_heldout_r10-*.json`). The round-14 engineers did not open this folder; before the run
-`python -m evaluation.agent_eval.slice_overlap` found 3 chat tasks that near-copy own wording (no exact copies, no
-claims; `slice_overlap-heldout_r10-at-3480a96.json`). Without them: chat 12/45 → 35/45. From round 15 this slice is
-**after exposure**.
+claims 16/24 → 20/24 (`claims_heldout_r10-*.json`). From round 15 this slice is **after exposure**.
 
+### Provenance of the after-fix run: what the record shows (round-11 review K16)
+
+- **The run read the reviewer's folder.** `chat_heldout_r10-auto-nollm-after-fix.json` records
+  `config.tasks_file = /Volumes/Remi/finsight-review/heldout_r10/chat_r10_heldout.jsonl` and
+  `run_at = 2026-10-10T18:07:35Z`, at `3480a96` (committed 18:06:33Z); the claim run followed at 18:07:59Z. The folder
+  entered the repository two minutes later, in `367636b` (18:09:28Z); it is the only commit that touches
+  `evaluation/heldout_r10/`, and its data files are byte-identical to the reviewer's (the hashes above).
+- **What supports "the engineers did not open it":** no commit in `7f4f06c..3480a96` names a slice task or claim id
+  (`git log -p 7f4f06c..3480a96` mentions `heldout_r10` only in comments and docs that say it was not read); no
+  own text is an exact copy of a slice text. These are the engineers' own statements and an absence in the history.
+- **What does not:** the folder sat on the same machine, readable, while the fixes were made; file access times on
+  that volume are not updated, so nothing records whether it was opened. The overlap scans below find fix-era own
+  texts that repeat slice content. "Not opened" is therefore a statement, not a measurement.
+- **Text-level overlap** (`slice_overlap-heldout_r10-at-3480a96.json`): no exact copy, 3 near copies (r10h_sum_en_02,
+  r10h_fc_zh_01, r10h_hk_zh_02): chat 12/45 → 35/45 without them. The scan itself ran at `aef319a` (its
+  `config.commit`); the file is named after the run's commit, and `aef319a..3480a96` changes only
+  `verifier_stress-round14.json`, so the tests, task and claim files it read are those of `3480a96`.
+- **Content-level overlap** (`slice_overlap-heldout_r10-content-at-3480a96.json`, own texts read at `3480a96` with
+  `--own-at`): the `content` tier (same company and the same number, operation or 扣非 / 流通市值 metric with difflib
+  ≥ 0.70, or the same structure once companies and numbers are masked) adds 3 chat tasks (r10h_alias_en_01,
+  r10h_hk_zh_01, r10h_hold_zh_01) and 5 claims (r10c02, r10c08, r10c09, r10c10, r10c16); the looser
+  `content_signature` tier (a shared company–metric–number triple, or the same companies with the same operation and
+  metric, whatever the wording) brings the total to 19 chat tasks and 8 claims; it is an upper bound, since it also
+  counts items written independently for the same bug class.
+
+| Exclusion | Chat, first run → after the fixes | Claims, first run → after the fixes |
+|---|---|---|
+| none | 12/48 → 38/48 | 16/24 → 20/24 |
+| text near copies (3 tasks) | 12/45 → 35/45 | 16/24 → 20/24 |
+| text + content (6 tasks, 5 claims) | 12/42 → 32/42 | 15/19 → 16/19 |
+| text + content + signature (19 tasks, 8 claims) | 10/29 → 24/29 | 13/16 → 14/16 |
+| the round-11 review's count (the 3 + 7 more tasks) | 11/38 → 29/38 | – |
+
+The round-11 review named its 7 extra tasks by content, not by id; the ids used here (r10h_hk_zh_01, r10h_fc_zh_02,
+r10h_alias_en_01, r10h_hold_zh_01, r10h_stot_en_01, r10h_hk_zh_03, r10h_hold_zh_02) match its descriptions and
+reproduce its 11/38 → 29/38 from the committed `task_outcomes`. The content check catches 3 of those 7 in its
+`content` tier and 2 more in its `signature` tier; it misses r10h_stot_en_01 (a share question whose own counterpart
+names another second company) and r10h_hold_zh_02 (a carried holding: the follow-up names no shared company). The
+gain holds under every exclusion; claims gain little once their content overlaps are removed.
+
+Reproduce:
+
+```
+python -m evaluation.agent_eval.slice_overlap evaluation/heldout_r10 --content --own-at 3480a96 \
+    --chat-runs chat_heldout_r10-auto-nollm-prefix chat_heldout_r10-auto-nollm-after-fix \
+    --claim-runs claims_heldout_r10-prefix claims_heldout_r10-after-fix \
+    --also-exclude review_round11=r10h_fc_zh_01,r10h_hk_zh_02,r10h_sum_en_02,r10h_hk_zh_01,r10h_fc_zh_02,r10h_alias_en_01,r10h_hold_zh_01,r10h_stot_en_01,r10h_hk_zh_03,r10h_hold_zh_02 \
+    --out evaluation/results/slice_overlap-heldout_r10-content-at-3480a96.json
+```

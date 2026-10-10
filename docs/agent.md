@@ -637,14 +637,16 @@ result file records its commit): dev 510 = 1.000 (`gate-dev.json`, `e7a0be7`), e
 `d2f518f`), own router labels 414 = 1.000 (`router_eval-round14-own.json`, `7624223`), verifier stress 324 gold / 5,452
 variants, claim 0.95%, derived 1.08% (`verifier_stress-round14.json`, `aef319a`). **The round-10 slice, out of sample**
 (`evaluation/heldout_r10/`, written by the round-10 reviewer at `7f4f06c` before any round-14 fix, run on the shipped
-default data with `QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1`; not opened by the engineers): chat 12/48 = 0.250
+default data with `QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1`; not opened by the engineers by their statement, the
+after-fix run read it from the reviewer's folder, [provenance](../evaluation/heldout_r10/README.md#provenance-of-the-after-fix-run-what-the-record-shows-round-11-review-k16)): chat 12/48 = 0.250
 [0.125, 0.375] → **38/48 = 0.792 [0.67, 0.90]** at `3480a96` (`chat_heldout_r10-auto-nollm-prefix.json`,
 `chat_heldout_r10-auto-nollm-after-fix.json`), claims 16/24 → **20/24** (`claims_heldout_r10-prefix.json`,
 `claims_heldout_r10-after-fix.json`). 3 chat tasks near-copy own wording (`slice_overlap-heldout_r10-at-3480a96.json`);
-without them 12/45 → 35/45. Per class after the fixes: cost basis, extremes, yes/no multiples, forecasts, foreign lines,
+without them 12/45 → 35/45 (round 15: 12/42 → 32/42 without content-level overlaps,
+`slice_overlap-heldout_r10-content-at-3480a96.json`). Per class after the fixes: cost basis, extremes, yes/no multiples, forecasts, foreign lines,
 metric aliases and controls all pass; sums 4/5, verb comparatives 2/4 (both English: "top … by", "trail"), several
 holdings 2/4, price-derived 1/3, shares of a combined total **1/4**. The failing tasks and claims are listed in the
-[README](../README.md#the-round-10-slice-per-class). From round 15 this slice is after exposure.
+[evaluation history](evaluation-history.md#the-round-10-slice-per-class). From round 15 this slice is after exposure.
 
 ### Session memory card
 
@@ -976,7 +978,7 @@ chat 35/51 → **51/51** (`chat_heldout_r8-auto-nollm-after-exposure-round13.jso
 fixes, gave the same. Round-6 and round-7 chat slices unchanged at 38/38 and 53/53. These say the classes are covered,
 not that the rules generalise. **Round-9 slice, out of sample** (`evaluation/heldout_r9/`, written by the round-9
 reviewer before any round-13 fix, on the snapshot extension's names, run with `QI_EVAL_SNAPSHOT_EXT=1`; not opened by
-the engineers): chat 18/52 = 0.346 [0.23, 0.48] at `cbcf3b2` → **41/52 = 0.788 [0.67, 0.88]** at `da9f6af`
+the engineers by their statement, the after-fix run read it from the reviewer's folder): chat 18/52 = 0.346 [0.23, 0.48] at `cbcf3b2` → **41/52 = 0.788 [0.67, 0.88]** at `da9f6af`
 (`chat_heldout_r9-auto-nollm-prefix.json`, `chat_heldout_r9-auto-nollm-after-fix.json`), claims 15/25 → **25/25**
 (`claims_heldout_r9-prefix.json`, `claims_heldout_r9-after-fix.json`). 6 chat tasks and 5 claims overlap own test /
 dev / ext-set wording or the review's published repros (`slice_overlap-heldout_r9-all-tasks.json`, every task and
@@ -985,7 +987,7 @@ claim file scanned; the round-13 scan missed the ext set and reported 4 tasks, 1
 7/7, verb comparatives 7/7, spreads 3/3, forecasts 7/7, missing industry 3/3, controls 7/7, several holdings 2/3,
 yes/no ratios 2/3, sums **1/5**, price-derived **2/7** (3/7 before: the YTD task that states the first trading day's
 close as its basis now gets the prior year-end basis of I11). The 11 failures are listed in the
-[README](../README.md#the-round-9-slice-per-class). From round 14 this slice is after exposure.
+[README](evaluation-history.md#the-round-9-slice-per-class). From round 14 this slice is after exposure.
 A sweep of 28 own sessions (shares, totals, spreads, pairs, holdings, purchase cost) against values computed by hand
 from the snapshot found three wrong or missing results before the guards in `173f2b2` (a list written with 、 not read
 as operands, 几倍关系 not a ratio, the template path using the first two of three targets) and none after them.
