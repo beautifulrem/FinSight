@@ -1,0 +1,359 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/heldout_r9/chat_r9_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "cb675d2",
+  "run_at": "2026-10-10T17:41:27+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 33.4,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r9/chat_r9_heldout.jsonl --out outputs/agent_eval/chat_r9-r14-first.json",
+  "env": {
+   "QI_EVAL_SNAPSHOT_EXT": "1"
+  },
+  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r9/chat_r9_heldout.jsonl --out outputs/agent_eval/chat_r9-r14-first.json",
+  "slice_overlap": {
+   "slice": "evaluation/heldout_r9/chat_r9_heldout.jsonl",
+   "slice_texts": 79,
+   "exact": 2,
+   "near": 2,
+   "tasks_with_overlap": [
+    "r9h_ctrl_en_03",
+    "r9h_share_zh_01",
+    "r9h_spread_zh_01",
+    "r9h_verb_en_01"
+   ],
+   "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = dev task turns, router labels, dev claims, string literals in tests/*.py"
+  }
+ },
+ "summary": {
+  "tasks": 52,
+  "turns": 79,
+  "repeats": 1,
+  "task_success": 0.8462,
+  "pass^1": 0.8462,
+  "ci": {
+   "task_success": [
+    0.75,
+    0.9423
+   ],
+   "pass^1": [
+    0.75,
+    0.9423
+   ],
+   "task_success_uncited": [
+    0.75,
+    0.9423
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.8462,
+  "turn_success": 0.8987,
+  "behavior_accuracy": 0.9873,
+  "fact_recall": 0.8889,
+  "fact_stated": 0.8889,
+  "tool_recall": 0.9818,
+  "tool_precision": 0.6425,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 68.38,
+  "latency_ms_p95": 740.29,
+  "latency_ms_p99": 3506.69,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "control": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 373.1
+  },
+  "forecast_hedge": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 370.91
+  },
+  "industry_missing": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 96.8
+  },
+  "multi_holding": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 3506.69
+  },
+  "price_derived": {
+   "tasks": 7,
+   "task_success": 0.5714,
+   "latency_ms_p95": 187.8
+  },
+  "share_ratio": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 346.98
+  },
+  "spread": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 138.39
+  },
+  "sum": {
+   "tasks": 5,
+   "task_success": 0.4,
+   "latency_ms_p95": 106.94
+  },
+  "verb_comparative": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 1818.38
+  },
+  "yes_no_ratio": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 107.21
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 19,
+   "task_success": 0.7368,
+   "latency_ms_p95": 370.91
+  },
+  "zh": {
+   "tasks": 33,
+   "task_success": 0.9091,
+   "latency_ms_p95": 740.29
+  }
+ },
+ "failed_checks": {
+  "facts": 8,
+  "behavior": 1,
+  "entities": 1,
+  "required_tools": 1
+ },
+ "failures": [
+  {
+   "task": "r9h_sum_zh_01",
+   "category": "sum",
+   "query": "工商银行、招商银行两家去年一共赚了多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：工商银行 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-09-30 收盘计算）：PE(TTM) 7.89 倍，PB 0.74 倍，ROE 8.68%，营业收入 8382.7 亿元，净利润 3685.62 亿元 [fundamental_601398.SH]。招商银"
+  },
+  {
+   "task": "r9h_sum_en_01",
+   "category": "sum",
+   "query": "What is the combined market value of CATL and BYD?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: CATL (300750.SZ) last available close was CNY 291.11 on 2026-09-30, daily change 1.5% [price_300750.SZ]. CATL"
+  },
+  {
+   "task": "r9h_sum_en_02",
+   "category": "sum",
+   "query": "Put together, how much is that?",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "This question is outside FinSight's scope. I answer questions about China A-shares, funds, ETFs, indices, sectors and the macro economy, for example \"What was K"
+  },
+  {
+   "task": "r9h_price_zh_01",
+   "category": "price_derived",
+   "query": "宁德时代现在比52周最高收盘价低了百分之多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：宁德时代（300750.SZ）最新可用收盘价为 291.11 元（2026-09-30），当日涨跌幅 1.5% [price_300750.SZ]。宁德时代近52周（2025-10-09 至 2026-09-30，241 个交易日，按未复权收盘价）：最高收盘 460 元（2026-05-06），最"
+  },
+  {
+   "task": "r9h_price_en_01",
+   "category": "price_derived",
+   "query": "How far is CMB trading below its 52-week high, in percent?",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: China Merchants Bank fundamentals (period 2025-12-31, FY2025; P/E and P/B at the 2026-09-30 close): PE(TTM) 6"
+  },
+  {
+   "task": "r9h_price_zh_03",
+   "category": "price_derived",
+   "query": "现在离那个高点跌去了多少钱",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中芯国际（688981.SH）最新可用收盘价为 111.99 元（2026-09-30），当日涨跌幅 -4.7% [price_688981.SH]。"
+  },
+  {
+   "task": "r9h_hold_en_01",
+   "category": "multi_holding",
+   "query": "I hold 700 Ping An Bank shares and 300 ICBC shares. Total value at the latest close?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Ping An Bank (000001.SZ) last available close was CNY 11.57 on 2026-09-30, daily change 1.94% [price_000001.S"
+  },
+  {
+   "task": "r9h_yn_en_02",
+   "category": "yes_no_ratio",
+   "query": "Does Midea earn at least 1.2 times what BYD earns?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Midea Group (000333.SZ) last available close was CNY 80.1 on 2026-09-30, daily change -1.91% [price_000333.SZ"
+  }
+ ],
+ "task_outcomes": {
+  "r9h_share_zh_01": "1",
+  "r9h_share_zh_02": "1",
+  "r9h_share_en_01": "1",
+  "r9h_share_en_02": "1",
+  "r9h_share_zh_03": "1",
+  "r9h_share_zh_04": "1",
+  "r9h_share_zh_05": "1",
+  "r9h_verb_zh_01": "1",
+  "r9h_verb_zh_02": "1",
+  "r9h_verb_zh_03": "1",
+  "r9h_verb_en_01": "1",
+  "r9h_verb_en_02": "1",
+  "r9h_verb_zh_04": "1",
+  "r9h_verb_zh_05": "1",
+  "r9h_sum_zh_01": "0",
+  "r9h_sum_zh_02": "1",
+  "r9h_sum_en_01": "0",
+  "r9h_sum_zh_03": "1",
+  "r9h_sum_en_02": "0",
+  "r9h_spread_zh_01": "1",
+  "r9h_spread_en_01": "1",
+  "r9h_spread_zh_02": "1",
+  "r9h_price_zh_01": "0",
+  "r9h_price_zh_02": "1",
+  "r9h_price_en_01": "0",
+  "r9h_price_zh_03": "0",
+  "r9h_price_zh_04": "1",
+  "r9h_price_zh_05": "1",
+  "r9h_price_en_02": "1",
+  "r9h_fc_zh_01": "1",
+  "r9h_fc_zh_02": "1",
+  "r9h_fc_zh_03": "1",
+  "r9h_fc_en_01": "1",
+  "r9h_fc_en_02": "1",
+  "r9h_fc_zh_04": "1",
+  "r9h_fc_en_03": "1",
+  "r9h_ind_zh_01": "1",
+  "r9h_ind_en_01": "1",
+  "r9h_ind_zh_02": "1",
+  "r9h_hold_zh_01": "1",
+  "r9h_hold_zh_02": "1",
+  "r9h_hold_en_01": "0",
+  "r9h_yn_en_01": "1",
+  "r9h_yn_zh_01": "1",
+  "r9h_yn_en_02": "0",
+  "r9h_ctrl_zh_01": "1",
+  "r9h_ctrl_en_01": "1",
+  "r9h_ctrl_zh_02": "1",
+  "r9h_ctrl_zh_03": "1",
+  "r9h_ctrl_en_02": "1",
+  "r9h_ctrl_zh_04": "1",
+  "r9h_ctrl_en_03": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r9-r14-first.json",
+  "sha256_16": "4b2645b34b817e35",
+  "bytes": 248318,
+  "slimmed_at": "2026-10-10T17:41:35+00:00"
+ },
+ "notes": [
+  "AFTER EXPOSURE (round 14), first run: independent round-9 chat slice at cb675d2 (clean tree; the round-14 code after the review-10 fixes, before the round-14 engineer read the slice), QI_EVAL_SNAPSHOT_EXT=1, no LLM, --no-replay: 44/52 = 0.846, turn 0.899. The slice was readable from round 14 (after exposure) but had not been opened when this code was written; the round-14 wording does not copy or near-copy any slice text (tests/test_agent_eval.py). The same 44/52 was measured when this commit was first run and again when the file was written (reproduced). The 8 failures were then read and 7 of their classes fixed (b725e4d: 51/52, chat_heldout_r9-auto-nollm-after-exposure-round14)."
+ ]
+}

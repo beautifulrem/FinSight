@@ -692,6 +692,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round13_forecast_tasks()
     tasks += _round13_tasks()
     tasks += _round14_tasks()
+    tasks += _round14_frame_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -3995,6 +3996,214 @@ def _round14_tasks() -> list[dict[str, Any]]:
             [_turn("中国石油美国存托凭证现在多少钱", behavior="refuse", required_limitations=["out_of_coverage"])],
         ),
         past("r14_a_line_zh", "zh", "中国平安A股今天收盘多少，不用管港股", pa),
+    ]
+
+
+def _round14_frame_tasks() -> list[dict[str, Any]]:
+    """Round-14 rules: the classes the round-10 review found (J3, J4, J5, J8, J14), in the author's own wording on the
+    v1 snapshot (no turn copies or near-copies a committed slice, a quoted review probe or another set,
+    ``tests/test_agent_eval.py``).
+
+    A share of a combined total is A ÷ (A + B); totals with 加 / 共计 / "between them"; comparative verbs 高过 /
+    "outstrip"; the most and least expensive as a P/E spread without a judgment hedge; yes/no multiples with 倍半 /
+    "over N times"; a gain or loss against a stated cost (also carried from the last turn); several positions and a
+    carried plus a named one; metrics the seed does not have (扣非, 营业利润) named missing; a stock against its
+    industry average; an operand the resolver does not know named instead of dropped."""
+
+    def fundamental(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"fundamental_{symbol}", "value": value}
+
+    def price(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"price_{symbol}", "value": value}
+
+    mt, wly, pa = "600519.SH", "000858.SZ", "601318.SH"
+    no_hedge = [*TRADING_PATTERNS, r"条件性判断", r"(?i)conditional assessment"]
+    return [
+        # J3: a share of a combined total
+        _task(
+            "r14_share_total_zh",
+            "comparison",
+            "zh",
+            [_turn("贵州茅台的净利润占它和中国平安两家之和的多少", required_facts=[fundamental(mt, 40.49)])],
+        ),
+        _task(
+            "r14_share_total_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "As a share of Wuliangye and Ping An's combined revenue, how much is Wuliangye's?",
+                    required_facts=[fundamental(wly, 8.18)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"8\.91%"],  # A ÷ B, not A ÷ (A + B)
+                )
+            ],
+        ),
+        _task(
+            "r14_share_total_ordinal_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("五粮液的营业收入", required_entity=wly),
+                _turn("换成中国平安看看", required_entity=pa),
+                _turn("前一家占两家合计的几成", required_facts=[fundamental(wly, 8.18)]),
+            ],
+        ),
+        # J4: totals in other words
+        _task(
+            "r14_sum_plus_zh",
+            "comparison",
+            "zh",
+            [_turn("五粮液加中国平安的归母净利润是多少", required_facts=[fundamental(wly, 158800000000)])],
+        ),
+        _task(
+            "r14_sum_gongji_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("茅台的营业收入", required_entity=mt),
+                _turn("再看看五粮液的", required_entity=wly),
+                _turn("两家共计多少", required_facts=[fundamental(mt, 277338000000)]),
+            ],
+        ),
+        _task(
+            "r14_sum_between_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "How much revenue do Moutai and Wuliangye bring in between them?",
+                    required_facts=[fundamental(mt, 277338000000)],
+                )
+            ],
+        ),
+        # J4: comparative verbs keep both operands
+        _task(
+            "r14_verb_gaoguo_zh",
+            "comparison",
+            "zh",
+            [_turn("茅台的净资产收益率高过五粮液多少", required_facts=[fundamental(mt, 3.6)])],
+        ),
+        _task(
+            "r14_verb_outstrip_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "By how many points does Wuliangye's ROE outstrip Ping An's?",
+                    required_facts=[fundamental(wly, 14.2)],
+                )
+            ],
+        ),
+        # J4: the most and least expensive is a P/E spread, not a judgment
+        _task(
+            "r14_spread_expensive_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "茅台、五粮液、中国平安三家里，市盈率最贵的比最便宜的贵多少",
+                    required_facts=[fundamental(mt, 15.9)],
+                    forbidden_patterns=no_hedge,
+                )
+            ],
+        ),
+        # J4: yes / no multiples
+        _task(
+            "r14_yes_no_half_zh",
+            "comparison",
+            "zh",
+            [_turn("茅台的归母净利润是不是五粮液的两倍半左右", required_facts=[fundamental(mt, 2.18)])],
+        ),
+        _task(
+            "r14_yes_no_over_en",
+            "comparison",
+            "en",
+            [_turn("Is Ping An's revenue over ten times Wuliangye's?", required_facts=[fundamental(pa, 11.23)])],
+        ),
+        # J4: a gain or loss against a stated cost
+        _task(
+            "r14_cost_basis_zh",
+            "fact",
+            "zh",
+            [_turn("我按1300元买的贵州茅台200股，现在浮盈多少", required_facts=[price(mt, 21900)])],
+        ),
+        _task(
+            "r14_cost_basis_carried_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("五粮液最新收盘价", required_entity=wly),
+                _turn("我的成本是110元，现在亏了多少", required_facts=[price(wly, 9.36)]),
+            ],
+        ),
+        _task(
+            "r14_cost_basis_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "I paid 50 a share for 1,000 Ping An shares. How much am I up?",
+                    required_facts=[price(pa, 3610)],
+                    language="en",
+                )
+            ],
+        ),
+        # J5: several positions; a carried position plus a named one
+        _task(
+            "r14_three_positions_zh",
+            "fact",
+            "zh",
+            [_turn("我有茅台100股、五粮液3手和中国平安500股，合计市值多少", required_facts=[price(mt, 197947)])],
+        ),
+        _task(
+            "r14_carried_plus_named_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("中国平安收盘价多少", required_entity=pa),
+                _turn("我手上6手，外加茅台50股，总值多少", required_facts=[price(pa, 102641)]),
+            ],
+        ),
+        # J8: metrics the v1 seed does not have are named missing, never a neighbour
+        _task(
+            "r14_dedt_missing_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "五粮液的扣非净利润是多少",
+                    must_state_missing=True,
+                    forbidden_patterns=[*TRADING_PATTERNS, r"扣非净利润[^。]{0,6}378"],
+                )
+            ],
+        ),
+        _task(
+            "r14_operating_profit_missing_en",
+            "fact",
+            "en",
+            [_turn("What is Ping An's operating profit?", must_state_missing=True, language="en")],
+        ),
+        # J14: a stock against its industry average
+        _task(
+            "r14_industry_which_zh",
+            "comparison",
+            "zh",
+            [_turn("中国平安的市盈率与保险行业平均相比是高还是低", required_facts=[fundamental(pa, 3.1)])],
+        ),
+        # J4: an operand the resolver does not know is named, never dropped
+        _task(
+            "r14_unresolved_operand_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "By how much does Moutai's ROE beat Initech's?",
+                    must_state_missing=True,
+                    forbidden_patterns=[*TRADING_PATTERNS, r"(?i)a difference of"],
+                    language="en",
+                )
+            ],
+        ),
     ]
 
 

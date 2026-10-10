@@ -52,6 +52,7 @@ from .composer import (
 )
 from .coverage import (
     asks_h_share,
+    cost_basis_request,
     coverage_gaps,
     flow_gaps,
     foreign_equity_spans,
@@ -454,7 +455,7 @@ class AgentRuntime:
             and not instruction_only
             and not injected
             and not outside
-            and holding_value_request(query)
+            and (holding_value_request(query) or cost_basis_request(query))
             and not listed_entities(nlu)
         ):
             # (round 12, H4) "我账户里有2000股，合计值多少钱" with no target anywhere: a finance question that needs a
@@ -1272,13 +1273,10 @@ class AgentRuntime:
             if llm_draft:
                 # If nothing verifiable survives the repair, answer with the deterministic template instead
                 # of a stub; it restates the same tool results and must pass the template checks itself.
-                style = str((state.get("nlu") or {}).get("question_style") or "")
-                template = compose_template(
-                    state.get("tool_log") or [],
-                    zh=self._zh(state),
-                    question_style=style,
-                    frame_request=state.get("frame_request") or None,
-                )
+                # (round 14, review-10 J3/J5) the template sees the question too, so a fallback computes what the
+                # question asks (several holdings and their total, a share of a combined total), never a different
+                # operation or a partial answer
+                template = self._template_update(state)["draft"]
                 if verify_answer(
                     template, store, query=_check_query(state), market_precedence=False, allow_derived=True
                 ).passed:

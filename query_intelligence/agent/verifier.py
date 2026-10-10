@@ -423,6 +423,14 @@ _COMPARISON = re.compile(
 
 # a division written out between two numbers ("3.7 ÷ 20.9", "15.2/29.4")
 _DIVISION = re.compile(r"\d\s*[÷/]\s*\d")
+# (round 14, review-10 J3) a share of a combined total ("占两者合计的 65.49%", "about 65.49% of the combined total"):
+# the share a ÷ (a + b) of stated amounts, also where the model does not write the division out
+_SHARE_OF_TOTAL = re.compile(
+    r"占[^。；;]{0,24}?(?:合计|总和|之和|加起来|总共|总计|共计)|(?:合计|总和|之和)(?:里|中|之中|当中)[^。；;]{0,12}?占|"
+    r"\b(?:share|percent(?:age)?|proportion|fraction|portion)\b[^.;]{0,50}?\b(?:combined|together|joint|total|sum)\b|"
+    r"\bof (?:the |their )?(?:combined|joint) total\b",
+    re.IGNORECASE,
+)
 
 
 def _formula_free(text: str) -> str:
@@ -517,11 +525,14 @@ def verify_answer(
     lots = holding_lots(query) if holding is not None else None
     if lots and float(lots) not in query_numbers:
         query_numbers.append(float(lots))  # (round 13) "买三手": the 3 of "3 手（300 股）"
+    position_counts: list[float] = []
     for position in holding_positions(query):
         # (round 13, review-9 I5) every position's count, in shares and in lots
+        position_counts.append(float(position["shares"]))
         for count in (position["shares"], position["lots"]):
             if count and float(count) not in query_numbers:
                 query_numbers.append(float(count))
+    closes = _store_closes(store) if position_counts else []
     unsupported: list[float] = []
     misattributed: list[float] = []
     document_market: list[float] = []
@@ -573,7 +584,8 @@ def verify_answer(
             checked += 1
             # Numbers from the question may be echoed or used hypothetically ("若收益率达到 10%"), but not
             # asserted as facts next to a citation ("市盈率为 99 倍 [price_…]").
-            echo_allowed = not unit_ids or bool(_HYPOTHETICAL.search(unit))
+            # (round 14) a number the user stated and the sentence attributes to the user ("你给出的成本价 90 元")
+            echo_allowed = not unit_ids or bool(_HYPOTHETICAL.search(unit)) or bool(_USER_STATED.search(unit))
             if echo_allowed and _is_supported(value, query_numbers, _BARE_SCALES):
                 continue
             # (round 11, G5) a product with a number the user stated ("1000 × 100.64 = 100640 元" for "我有1000股"): the
@@ -585,9 +597,29 @@ def verify_answer(
                 and query_numbers
                 and (
                     _is_supported(value, query_numbers, _BARE_SCALES)
-                    or _is_product(value, rounding, query_numbers, operands)
+                    or _is_product(value, rounding, query_numbers, operands, scales)
                     or _is_product_total(value, rounding, query_numbers, operands, unit)
                 )
+            ):
+                continue
+            # (round 14, review-10 J4) a gain or loss against a cost price the user stated: close − cost, its percent
+            # of the cost, and that times a stated share count
+            if (
+                allow_derived
+                and unit_ids
+                and query_numbers
+                and _COST_WORD.search(unit)
+                and _is_cost_derived(value, rounding, query_numbers, operands)
+            ):
+                continue
+            # (round 14, review-10 J3/J5) the total value of several stated positions, each count times one of the
+            # run's closes, however the products are written (in other sentences, in 万元, or not at all)
+            if (
+                allow_derived
+                and unit_ids
+                and len(position_counts) >= 2
+                and _HOLDING_TOTAL_WORD.search(unit)
+                and _is_holding_total(value, scales, rounding, position_counts, closes)
             ):
                 continue
             if _is_supported(value, scope, scales, rounding, sign):
@@ -620,6 +652,8 @@ def verify_answer(
                     share_written=_is_percent(scales) and "÷" in unit,
                     exact_amounts=sentence_amounts,
                     total_written=bool(_TOTAL_WORD.search(unit)),
+                    share_of_total=_is_percent(scales) and ("÷" in unit or bool(_SHARE_OF_TOTAL.search(unit))),
+                    amounts=amounts,
                 )
             ) or (_is_amount_gap(value, scales, rounding, sentence_amounts)):
                 derived_values.append(value)
@@ -966,6 +1000,8 @@ def _is_derived(
     share_written: bool = False,
     total_written: bool = False,
     exact_amounts: list[float] = (),
+    share_of_total: bool = False,
+    amounts: list[float] = (),
 ) -> bool:
     """``value`` is a - b, a + b, a / b or the percent change (a - b) / b of two stated operands, or, for a value
     written in percent, the share a / b of two stated amounts (a net margin: net profit / revenue, a <= b) or the
@@ -1007,6 +1043,19 @@ def _is_derived(
                 if i != j and b:
                     candidate = a / b * 100
                     if abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
+                        return True
+    if share_of_total:
+        # (round 14, review-10 J3) a share of a combined total, a ÷ (a + b) or a ÷ (a + b + …), of stated amounts
+        # (their exact evidence values, or the amounts as written)
+        for pool in (list(exact_amounts), list(amounts)):
+            positive = [item for item in dict.fromkeys(pool) if item > 0]
+            for i, a in enumerate(positive):
+                denominators = [a + b for j, b in enumerate(positive) if j != i]
+                if len(positive) >= 3:
+                    denominators.append(sum(positive))
+                for denominator in denominators:
+                    candidate = a / denominator * 100
+                    if abs(abs(value) - candidate) <= tolerance + candidate * 0.0005 + 1e-9:
                         return True
     if total_written and len(operands) >= 3:
         # (round 13, review-9 I3) "合计" / "combined" of three or more stated operands
@@ -1054,13 +1103,79 @@ def _is_product_total(
     return abs(abs(value) - total) <= tolerance + total * 0.0005 + 1e-9
 
 
-def _is_product(value: float, rounding: float | None, factors: list[float], operands: list[float]) -> bool:
-    """``value`` is a stated number from the question times a supported operand of the same sentence."""
+def _is_product(
+    value: float,
+    rounding: float | None,
+    factors: list[float],
+    operands: list[float],
+    scales: tuple[float, ...] = (1.0,),
+) -> bool:
+    """``value`` is a stated number from the question times a supported operand of the same sentence (in the unit it
+    is written in: "2000 股约 8.25 万元")."""
     tolerance = 0.5 if rounding is None else rounding
     for factor in factors:
         for operand in operands:
-            candidate = factor * operand
-            if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
+            for scale in dict.fromkeys((1.0, *scales)):
+                candidate = factor * operand * scale
+                if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
+                    return True
+    return False
+
+
+_USER_STATED = re.compile(r"你给出的|你提供的|你说的|按你|\byour stated\b|\byou stated\b|\byou gave\b", re.IGNORECASE)
+_COST_WORD = re.compile(r"成本|买入价|浮盈|浮亏|\bcost\b|\bpaper (?:gain|loss)\b|\bentry price\b", re.IGNORECASE)
+
+
+def _is_cost_derived(value: float, rounding: float | None, stated: list[float], operands: list[float]) -> bool:
+    """(round 14, review-10 J4) ``value`` is close − cost (a supported operand minus a number the user stated), that
+    difference in percent of the cost, or a stated count times it (also with the difference rounded to cents)."""
+    tolerance = 0.5 if rounding is None else rounding
+    candidates: list[float] = []
+    for operand in operands:
+        for cost in stated:
+            if not cost:
+                continue
+            diff = operand - cost
+            candidates += [diff, diff / cost * 100]
+            candidates += [count * d for count in stated if count != cost for d in (diff, round(diff, 2))]
+    return any(
+        candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9
+        for candidate in candidates
+    )
+
+
+_HOLDING_TOTAL_WORD = re.compile(
+    r"合计|总计|一共|总共|共计|加起来|\btotal\b|\bcombined\b|\baltogether\b|\bin all\b", re.I
+)
+_MAX_CLOSES = 8
+
+
+def _store_closes(store: EvidenceStore) -> list[float]:
+    """The closes of the run's structured price evidence (for the total value of several positions)."""
+    closes: list[float] = []
+    for item in store.items():
+        payload = item.payload if isinstance(item.payload, dict) else {}
+        close = payload.get("close")
+        if item.kind == "structured" and isinstance(close, int | float) and close > 0 and float(close) not in closes:
+            closes.append(float(close))
+    return closes[:_MAX_CLOSES]
+
+
+def _is_holding_total(
+    value: float, scales: tuple[float, ...], rounding: float | None, counts: list[float], closes: list[float]
+) -> bool:
+    """(round 14, review-10 J5) ``value`` is Σ count_i × close_i over the stated positions, each position valued at a
+    different close of the run (the assignment is not known to the verifier, so every one is tried)."""
+    from itertools import permutations
+
+    if len(counts) < 2 or len(closes) < len(counts):
+        return False
+    tolerance = 0.5 if rounding is None else rounding
+    for chosen in permutations(closes, len(counts)):
+        total = sum(count * close for count, close in zip(counts, chosen, strict=True))
+        for scale in dict.fromkeys((1.0, *scales)):
+            target = total * scale
+            if abs(abs(value) - target) <= tolerance + target * 0.0005 + 1e-9:
                 return True
     return False
 

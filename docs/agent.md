@@ -556,6 +556,84 @@ and alias rows against every committed slice and every quoted reviewer probe, no
   official (a regulator or exchange as publisher, or a company filing delivered as an announcement); a romanised-Chinese
   (pinyin) solicitation is not a headline.
 
+### Rules added in round 14 (round-10 review, J3, J4, J5, J8, J13, J14)
+
+Round 14 fixed the comparison and holding classes the round-10 review found with fresh wordings, in the author's own
+wording: 20 dev tasks (`build_tasks._round14_frame_tasks`, v1 snapshot), 12 ext tasks (`build_ext_tasks.round14_frame_ext_tasks`,
+extension names), router labels `route_403`–`route_413` and `tests/test_agent_round14_grammar.py`. The review's repro
+strings and its hidden `heldout_r10` slice are not used; `tests/test_agent_eval.py` checks the round-14 tasks, labels
+and test strings against every committed slice (strict, no cut-off) and the quoted repros of the round-4–10 reviews
+(the round-10 ones are listed in `_ROUND10_REVIEW_PROBES`).
+
+**A small grammar instead of a list of phrase classes** (J4). A comparison is read as OPERATION × OPERANDS × METRIC:
+
+* OPERATION is the first production of `frame.GRAMMAR` whose word classes (`frame._LEXICON`) all occur in the clause
+  and none of whose excluded classes does: spread, share of a combined total, share, ratio (an explicit ratio word, 换几股,
+  a unit with an anchor, a stated multiple), relative, sum, difference, which, and last a weak total. The word classes
+  are still regular expressions; a new wording is a new word in a class, and the order of the table, not the order of
+  `if` statements, decides between two readings.
+* OPERANDS are named (two or more targets), named + carried (one named, the frame's other), ordinal (前者 / the
+  former), anaphoric (两者 / 它们 / both / them / between them) or carried; `operand_form` in the frame request
+  records which.
+* METRIC is the longest metric name in the clause, else the frame's; a spread of how "expensive" the operands are with
+  no metric named is a spread of P/E.
+
+`tests/test_agent_round14_grammar.py` generates wordings from templates (7 operations × 10 targets × 8 metrics, zh and
+en, seed 14; 240 questions per language, plus ordinal / anaphoric follow-ups) and checks the operation, the operands in
+order and the value the composer computes from synthetic tool results against an independent computation.
+
+**Classes added.**
+
+* **Share of a combined total** (J3): "A占A和B两家合计的多少", "A和B的…合计中，A占几成", "A在A与B之和里占比", "A's … as a
+  percentage of A and B combined", "Of A and B's combined …, what percentage is A's?" is A ÷ (A + B) (or A ÷ the sum
+  of every operand), written with the total and the division: "营业收入：比亚迪 8039.65 亿元，宁德时代 4237.02 亿元，合计
+  12276.67 亿元，8039.65 亿元 ÷ 12276.67 亿元 ≈ 65.49%". The numerator is the target named again outside the total, else
+  the first one. Amounts and counts only.
+* **Totals** with 加 between two names ("工行加招行的…"; not 加权 / 加息 / 加仓 / 再加800股), 总计, 共计, 合起来, 合在一块, 加总,
+  "plus", "between them" ("how much do they make between them"; "the gap between them" stays a gap), "add X to it",
+  "what's the total".
+* **Comparative verbs** 高过 / 低过 / 强过 / 弱过 / 超过 / 强多少 / 多赚, "outstrip", "surpass", "edge out".
+* **The most and least expensive** ("最贵的比最便宜的高多少", "the most and the least expensive on P/E", "the cheapest and the
+  priciest") is a P/E spread; the extremes words are blanked for the judgment check (`frame.without_valuation_extremes`),
+  so the answer is not hedged as a valuation judgment; any other judgment word in the question still hedges.
+* **Yes/no multiples** with a half or spelled numbers: "有没有…的三倍半", "两倍半左右", "over eight times", "five and a half
+  times".
+* **Stock vs industry average** (J14): "比白酒行业平均高还是低", "higher or lower than the sector average" is a which
+  question; with an industry operand the answer states the gap and its percentage of the average ("高 16.33（约 59.82%，以
+  白酒行业平均为基数）").
+* **Never one operand.** A two-operand question whose second operand the resolver does not know ("…outstrip Acmeco's",
+  "比某某科技高多少") names it as unresolved: "未能识别「某某科技」对应的证券，因此无法计算…；以下只列出能识别的一方。"
+  (`frame.unresolved_operand`). English aliases zijin and (china) yangtze power were added.
+* **Gain or loss against a stated cost** (`coverage.cost_basis_request`, `composer.cost_basis_sentences`): "我300股
+  成本90元，浮亏多少", "我30块买的，现在赚了多少" (the discussed target's), "I paid 50 a share for 1,000 shares": (close −
+  cost) per share, its percent of the cost and × the count, the cost attributed to the user ("你给出的成本价"), before
+  fees and dividends. With no target anywhere the question is clarified.
+* **Move from the 52-week low or high**: "离52周最低点反弹了多少", "How far below its 52-week high is it?": both closes and
+  the division ("(83.31 − 78.2) ÷ 78.2 ≈ 6.53%").
+* **Several holdings** (J5): Chinese short names from the alias tables (招行, 工行) bind a position to its target, so three
+  positions ("我持有招行2000股、工行5手和比亚迪100股…") and a carried one plus a named one ("我拿着3手，再加800股工行…" after
+  a 招商银行 turn) are valued and summed; "20手工商银行" is a lot count.
+* **Metrics from their own fields** (J8): 流通市值 is `circ_mv`, 扣非净利润 `profit_dedt` (frame metrics and chat
+  metrics); 营业利润, 毛利润 and 利润总额 are named, so the answer says the data does not have them instead of answering
+  with net profit.
+* **Composer nits** (J13): a total whose rounded operands add to another last digit says "（按未四舍五入的原值相加）" /
+  "(summed from the unrounded figures)"; the daily change in the price sentence has two decimals like the tile;
+  English labels carry no Chinese ("operating revenue").
+
+**Verifier** (J3). A share of a combined total of stated amounts, a ÷ (a + b) or a ÷ Σ, is a derived number in a
+sentence with "÷" or share-of-total words ("占两家合计", "of the combined total"); a total of several stated positions is
+Σ count × close for some assignment of the run's closes, in 元 or 万元, wherever the products are written; close − cost,
+its percent and × count are derived when the sentence names the cost. A failed LLM draft falls back to the template
+built from the question (`graph._template_update`), so the fallback computes what was asked (L1, L9 of the review).
+
+**Results (round 14).** Dev 493 = 1.000 and ext 36 = 1.000 (`gate-dev.json`, `gate-ext.json`, `2a55c49`; the same at
+`b725e4d`), held-out 53 = 0.9434 unchanged; own router labels 1.000 on 414 (`router_eval-round14-own.json`),
+independent v2 0.8423 unchanged; the round-8 slice 51/51 and the round-9 slice 44/52 → 51/52, both **after exposure**
+(the second after the engineer read its failures; `chat_heldout_r9-auto-nollm-after-exposure-round14-first.json`,
+`chat_heldout_r9-auto-nollm-after-exposure-round14.json`); verifier stress 313 gold / 5,324 variants, claim 0.96%,
+derived 1.09% (`verifier_stress-round14.json`, `631da61`); offline red team 0 successes on all 11 sets. The round-10
+reviewer's slice is outside the repository and was not run by the engineers.
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) `stated_holdings` ("我持有招商银行", "I own …", up to 5) and (round 11) `comparison_frame`, the comparison under way (metric, operands in order, the values and evidence ids earlier turns found, and a note that those ids must be fetched again to be cited). It is rule-based and bounded, and it is the default.

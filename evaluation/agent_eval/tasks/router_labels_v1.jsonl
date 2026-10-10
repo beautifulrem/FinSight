@@ -401,3 +401,14 @@
 {"id": "route_400", "query": "五粮液的营收占茅台的百分之几", "expected_route": "agent", "note": "round13: a share of another target's value (review-9 I1)"}
 {"id": "route_401", "query": "Is Ping An's revenue at least 7 times Moutai's?", "expected_route": "agent", "note": "round13: a factual bound on a multiple of two targets, answered yes or no (review-9 I7)"}
 {"id": "route_402", "query": "茅台、五粮液、中国平安的市净率，最高和最低差多少", "expected_route": "agent", "note": "round13: the spread of three targets (review-9 I4)"}
+{"id": "route_403", "query": "茅台的营业收入占它和五粮液两家合计的几成", "expected_route": "agent", "note": "round14: a share of a combined total of two targets, A ÷ (A + B) (review-10 J3)"}
+{"id": "route_404", "query": "Of Moutai and Ping An's combined net profit, what fraction is Moutai's?", "expected_route": "agent", "note": "round14: a share of a combined total in English (review-10 J3)"}
+{"id": "route_405", "query": "五粮液加中国平安的营收是多少", "expected_route": "agent", "note": "round14: a total written with 加 between two names (review-10 J4)"}
+{"id": "route_406", "query": "What's Wuliangye's revenue plus Moutai's?", "expected_route": "agent", "note": "round14: a total written with plus (review-10 J4)"}
+{"id": "route_407", "query": "茅台、五粮液、中国平安，市盈率最贵的那家比最便宜的那家高多少", "expected_route": "agent", "note": "round14: the most and least expensive is a P/E spread of three targets, not a judgment (review-10 J4)"}
+{"id": "route_408", "query": "Is Moutai's P/B more than four and a half times Ping An's?", "expected_route": "agent", "note": "round14: a yes/no multiple with a spelled-out half (review-10 J4)"}
+{"id": "route_409", "query": "我以1350元买入了100股贵州茅台，目前浮盈多少", "expected_route": "workflow", "note": "round14: a gain against a stated cost on one target is arithmetic on the close (review-10 J4)"}
+{"id": "route_410", "query": "我是按40块买的，现在赚了多少", "expected_route": "clarify", "note": "round14: a cost-basis question opening a conversation names no target; ask which (never out of scope)"}
+{"id": "route_411", "query": "中国平安离一年内最低收盘价反弹了多少", "expected_route": "workflow", "note": "round14: the move from the 52-week low is a derived price detail of one target (review-10 J4)"}
+{"id": "route_412", "query": "五粮液的扣非净利润", "expected_route": "workflow", "note": "round14: a metric of one target is a lookup, answered from its own field or named missing (review-10 J8)"}
+{"id": "route_413", "query": "我有中国平安2手、五粮液300股、茅台10股，加起来值多少", "expected_route": "agent", "note": "round14: three positions of three targets valued and summed (review-10 J5)"}
