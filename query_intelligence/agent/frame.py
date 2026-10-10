@@ -27,6 +27,9 @@ from dataclasses import dataclass
 from typing import Any
 
 MAX_OPERANDS = 4
+# (round 14) the second half of a long Chinese name that is a generic word, not a short name (招商银行 → 银行 would
+# match every bank)
+GENERIC_NAME_TAILS = frozenset({"银行", "证券", "保险", "集团", "股份", "控股", "电力", "时代", "科技", "医药", "电器"})
 
 
 @dataclass(frozen=True)
@@ -1037,7 +1040,7 @@ def _mention_position(text: str, entity: dict[str, Any], fallback: int) -> int:
     canonical = str(entity.get("canonical_name") or entity.get("name") or "")
     names = [entity.get("mention"), canonical, english_name(canonical), *english_aliases(canonical)]
     names += [alias for alias, name in (load_synonyms().get("alias") or {}).items() if name == canonical]
-    if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical):
+    if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical) and canonical[2:] not in GENERIC_NAME_TAILS:
         names.append(canonical[2:])  # 贵州茅台 → 茅台, 中国平安 → 平安
     found = [lowered.find(str(name).lower()) for name in names if name]
     found = [position for position in found if position >= 0]
@@ -1050,8 +1053,8 @@ def _mention_names(entity: dict[str, Any]) -> list[str]:
     canonical = str(entity.get("canonical_name") or entity.get("name") or "")
     names = [entity.get("mention"), canonical, english_name(canonical), *english_aliases(canonical)]
     names += [alias for alias, name in (load_synonyms().get("alias") or {}).items() if name == canonical]
-    if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical):
-        names.append(canonical[2:])  # 贵州茅台 → 茅台, 中国平安 → 平安
+    if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical) and canonical[2:] not in GENERIC_NAME_TAILS:
+        names.append(canonical[2:])  # 贵州茅台 → 茅台, 中国平安 → 平安 (not 招商银行 → 银行)
     return sorted({str(name) for name in names if name}, key=len, reverse=True)
 
 
