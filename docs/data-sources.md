@@ -235,7 +235,12 @@ extension (`build_offline_service`, the task builders and the test environment;
 results as before. Opting in shows why the pin is needed: with `QI_EVAL_SNAPSHOT_FIX=1` all seven
 verify scripts fail, because their facts are seed values (r6 reports 115 problems and r7 168 failures, for example
 茅台 P/E 24.6 in the slice against 21.44 re-derived, 中国平安's close 53.61 against 58.03). The real-claims set `claims_web_v1` was relabelled against the corrected data in a
-separate file and re-scored (see `evaluation/real_claims_web/README.md`).
+separate file and re-scored: 0.800 [0.70, 0.88] (48/60) on its first run against the seed
+(`claims_web_v1-first-run.json`, `df0d212`), 0.817 [0.72, 0.90] (49/60) with the corrections layer on and the labels
+recomputed from the corrected data (`claims_web_v1-with-corrections.json`, `8aa4c52`; 0.700 against the first run's
+labels). The second number is **after exposure** (the collector had read the checker, and the correction was made
+after the first run showed the seed disagreeing with the reports); the checker itself was unchanged between the two
+runs (see `evaluation/real_claims_web/README.md`).
 
 **Not corrected, still unverified.** The v1 `industry_sql` rows (白酒 PE 27.3 / PB 6.2, 保险, 宽基指数,
 成长指数, 券商) and `macro_sql` values (CPI 0.8, PMI 50.6, M2 8.1, 10Y 2.31 for 2026-03) were not checked
