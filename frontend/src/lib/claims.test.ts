@@ -101,6 +101,16 @@ describe("comparators, reasons and claims in chat messages", () => {
     expect(formatClaimValue("zh", zh, "gross_margin", 76.1, "actual")).toBe("76.1%");
   });
 
+  it("formats 扣非净利润 and 流通市值 as amounts (round 14)", () => {
+    expect(formatClaimValue("zh", zh, "profit_dedt", 64507864000, "actual")).toBe(
+      formatClaimValue("zh", zh, "net_profit", 64507864000, "actual"),
+    );
+    expect(formatClaimValue("en", en, "circ_mv", 851150247140.54, "actual")).toBe(
+      formatClaimValue("en", en, "market_cap", 851150247140.54, "actual"),
+    );
+    expect(formatClaimValue("zh", zh, "profit_dedt_yoy", -2, "claimed")).toBe("-2%");
+  });
+
   it("localises reason codes with the data date", () => {
     const check = { claimed: 16, status: "unverifiable", reason: "period_mismatch", as_of: "2026-06-30" } as const;
     expect(noteText(zh, "the claim is about 2019; the data is for 2026-06-30", check)).toBe(
