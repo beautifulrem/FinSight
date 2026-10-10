@@ -344,3 +344,106 @@ offline total-profit 14.87%) changes a part but not the verdict.
   figures give 6.45. Reuters' "6.45%" (x13) passes only through the 1% rule, as v2's v36 did.
 - **Prices.** Every published price, % change, volume and turnover in this set agrees with the offline bars, and so
   does every valuation figure. 42 bar parts and 4 valuation parts are true, and none is false.
+
+## First run (the only run), `7ea8f5d`
+
+The checker was run once, on a clean tree at `7ea8f5d`, on 2026-10-10T20:32Z (2026-10-11 local time). The claims,
+labels and scorer had all been committed first (`ac54321`, `0eae39b`, `61b6f6e`, `7ea8f5d`). The command was
+`python -m evaluation.real_claims_web_v3.score_claims_web_v3`.
+
+- It used the offline service with the shipped default data (v1 + 2026-09-30 extension + corrections layer) and no
+  LLM.
+- The checker received the published sentence with the brackets removed and no date, as in the first two sets.
+- Result: `evaluation/results/claims_web_v3-first-run.json`.
+
+| | result |
+|---|---|
+| verdict accuracy | **0.540 [0.40, 0.68]** (27/50; 95% percentile bootstrap over claims, 2000 resamples) |
+| against the definition-blind labels | 0.500 [0.36, 0.64] (25/50) |
+| by category | annual_ratios 1.000 (3/3), daily_price 0.800 (8/10), annual_figures 0.625 (5/8), loose_or_relational 0.389 (7/18), english_or_traditional 0.375 (3/8), market_value 0.333 (1/3) |
+| by source type | broker notes 0.750 (3/4), company announcements 0.750 (3/4), media 0.654 (17/26), social 0.250 (4/16: 东方财富 3/6, 雪球 0/3, the seven other platforms 1/7) |
+| by expected verdict | unverifiable 2/2, partially_supported 0.714 (15/21), contradicted 0.500 (3/6), supported 0.333 (7/21) |
+| checker's verdicts | supported 7, partially_supported 19, contradicted 8, unverifiable 16 |
+
+This is a blind number for the round-14 checker: neither the set nor its classes were seen by anyone who changed the
+checker. It is close to the second set's blind first run (0.500 [0.36, 0.64]), which was measured on the checker
+before round 14. The two intervals overlap almost entirely. Fifty claims cannot show whether round 14's rules carried
+over to unseen wording.
+
+### Error classes (not fixed; after any fix this set is "after exposure")
+
+There are 23 errors. They are grouped below by what the checker's own `checks` show it did. Five claims whose labels
+have no false part were reported **contradicted**: x04, x06, x18, x23 and x37.
+
+1. **Metric wording not recognised** (11: x07, x08, x10, x13, x16, x29, x33, x34, x41, x47, x48). The checker reports
+   `no_metric` and the claim becomes unverifiable, or only partially supported.
+   - "市盈TTM" (x10, x33). "滚动市盈率" was read correctly (x24).
+   - Daily averages: "日赚3.68亿", "日赚近1.4亿元", "一天赚4.7个亿" (x16, x41, x47). This set added them on purpose
+     (new rule: annual / 365). Two of the three are false by the labels, so a user sees "unverifiable" for a wrong
+     figure.
+   - Bare "利润" for a profit figure (x29 "2025年的3686亿").
+   - Abbreviated bar words: "开3839.25，最高3851.22，最低3833.09，收3842.19" (x08). In the same sentence, "涨11.74点" is
+     bound to the % change and refused as a unit mismatch.
+   - English phrasings: "resumes where it ended September, at 3,842" (x07), "a 6.45% year-on-year rise in net profit"
+     (x13), "RMB 150.2 billion in net profit … growing 1.21% year-over-year" (x34), and "the previous year's 84.49
+     billion" (x48).
+2. **A number bound to the wrong metric** (3: x02, x15, x37). The result is a false `contradicted` part.
+   - x37: "RMB 803.97 billion in revenue and RMB 32.62 billion in net profit". When the number comes before the metric
+     word, 803.97 gets no metric and 32.62 is compared with revenue. The claim is contradicted, although both figures
+     are right.
+   - x15: "收入1.05万亿,利润增7%到1348亿". The 1348亿 is compared with revenue, and "利润增7%" has no metric.
+   - x02: "较上一交易日增加8.28亿元" is compared with the day's turnover (68.50亿), not with the change. "环比增幅为13.75%"
+     has no metric.
+3. **Dates** (3: x04, x05, x06).
+   - x05 says "4月22日 … 上证指数收盘指数站上4100点". The checker reports `period_mismatch`, "the data is for the
+     trading day 2026-09-30", although the extension's history has 上证指数's 2026-04-22 bar. Round 14 made a stated
+     date use that day's bar (v2's v17, a stock). This index sentence is not covered.
+   - x04 and x06 leave the date (2026-04-22) to the article. The checker compared them with the 2026-09-30 bar and
+     **contradicted** them, both the 0.52% / 1.73% moves and the 4106.26 close. A sentence with no date is checked
+     against the latest bar and contradicted, not left unverifiable. This is v2's open class (v13, v46).
+4. **Entity resolution** (4: x01, x14, x18, x32).
+   - x18: "中芯国际全年实现销售收入人民币673.23 亿元，同比增长16.5%" is checked against **宁德时代** (revenue 4237亿,
+     YoY 17.04%) and contradicted. The likely cause is v2's open v44 bug, in which the runtime alias table lists
+     "人民币" as an alias of 宁德时代: this sentence contains "人民币". The checks show only the target, so this was
+     not confirmed.
+   - x01: the fund codes in brackets ("联接基金A/C/Y：110026/004744/022907") resolve the target to a feeder fund
+     (易方达创业板ETF联接Y) rather than 159915, so the check has no data.
+   - x14: "国寿、平安、太保、人保、新华分别为1541、1348、535、466、363亿元" binds all five numbers to 中国平安, and none
+     has a metric. The label reads the metric from the preceding sentence, which the checker does not see. Even with
+     the metric, the 分别 pairing to five names would be needed.
+   - x32: "平安银行与招行的ROE差距（~9% vs 13.44%）预计2026年仍难以明显收敛" binds both ROE figures to 招商银行. The
+     trailing "预计2026年" makes both parts `forecast`, so the claim is unverifiable. The label is contradicted: the
+     offline ROE is period-end, while the published 9% and 13.44% are the reports' weighted ROE.
+5. **"降幅" read as a positive change** (1: x23). "净利润降幅为71.9%，显著大于营收降幅的54.6%" compares +71.9 with the
+   offline −71.89, and treats "大于…54.6%" as a `gt` bound on revenue YoY. The claim is contradicted, although every
+   part is true.
+6. **A named basis that the report shows is the same figure** (1: x50). "长江电力实现营业总收入862.42亿元，同比增长2.07%"
+   is `definition_mismatch` on both parts. The data serves 营业收入, and the annual report notes in `sources.json`
+   state 营业收入 = 营业总收入 for 长江电力. This is v2's open v34, unchanged. The equality is stated in the data
+   files, but the checker does not use it.
+
+**Classes already listed for the first two sets.**
+
+- Four of the 23 errors are in classes the earlier READMEs list as still open: x04 and x06 (dates left to context, as
+  in v2's v13 and v46), x50 (v2's v34), and, if the likely cause is right, x18 (the 人民币 alias of v2's v44).
+- Five more are adjacent to classes round 14 wrote rules for, in wording those rules do not cover: x05 (a stated date
+  on an index), x07, x13, x34 and x48 (English phrasings).
+- The other fourteen (x01, x02, x08, x10, x14, x15, x16, x23, x29, x32, x33, x37, x41, x47) are in classes that are
+  new for this set: 市盈TTM, daily averages, bare 利润, abbreviated bar words, the pairing
+  of a number with the metric after it, relative changes, fund codes, 分别 lists, a forecast clause after reported
+  figures, and 降幅.
+
+The engineer knew the first set's classes before selecting. The search agents knew none, and the selection rules read
+no class.
+
+**What a user would see.**
+
+- Four true published claims are marked **contradicted**: 中芯国际's revenue (x18), 五粮液's declines (x23), BYD's
+  revenue and profit (x37), and 上证指数 on 2026-04-22 (x06). A fifth, partially true (x04), is also marked
+  contradicted.
+- Two figures that are wrong by both the data and the report are shown as unverifiable, not wrong: 茅台's
+  "一天赚4.7个亿" (x47) and 紫金's "日赚近1.4亿元" (x41).
+- x32's ROE pair is labelled contradicted only because the offline ROE is period-end; the reports confirm both
+  figures. The checker returned unverifiable, but for another reason: a forecast clause.
+- Weighted ROEs named as such (x11, x49) are correctly left unverifiable. The data's period-end ROE cannot confirm
+  them, although the annual reports do.
