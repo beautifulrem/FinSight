@@ -101,6 +101,26 @@ describe("comparators, reasons and claims in chat messages", () => {
     expect(formatClaimValue("zh", zh, "gross_margin", 76.1, "actual")).toBe("76.1%");
   });
 
+  it("formats 扣非净利润 and 流通市值 as amounts (round 14)", () => {
+    expect(formatClaimValue("zh", zh, "profit_dedt", 64507864000, "actual")).toBe(
+      formatClaimValue("zh", zh, "net_profit", 64507864000, "actual"),
+    );
+    expect(formatClaimValue("en", en, "circ_mv", 851150247140.54, "actual")).toBe(
+      formatClaimValue("en", en, "market_cap", 851150247140.54, "actual"),
+    );
+    expect(formatClaimValue("zh", zh, "profit_dedt_yoy", -2, "claimed")).toBe("-2%");
+  });
+
+  it("formats volume as written and in shares, and names the round-14 reasons", () => {
+    expect(formatClaimValue("zh", zh, "volume", 37.52, "claimed", "", "万手")).toBe("37.52万手");
+    expect(formatClaimValue("zh", zh, "volume", 37521674, "actual")).toBe("3,752.17 万股");
+    expect(formatClaimValue("en", en, "volume", 37521674, "actual")).toBe("37.52M shares");
+    expect(noteText(en, "", { claimed: 21.4, status: "unverifiable", reason: "definition_mismatch" })).toMatch(
+      /another definition/,
+    );
+    expect(noteText(zh, "", { claimed: 590, status: "unverifiable", reason: "currency" })).toMatch(/人民币/);
+  });
+
   it("localises reason codes with the data date", () => {
     const check = { claimed: 16, status: "unverifiable", reason: "period_mismatch", as_of: "2026-06-30" } as const;
     expect(noteText(zh, "the claim is about 2019; the data is for 2026-06-30", check)).toBe(

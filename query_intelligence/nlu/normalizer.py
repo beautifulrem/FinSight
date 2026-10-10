@@ -85,6 +85,8 @@ class QueryNormalizer:
 
         text, typo_trace = self._correct_english_typos(text)
         trace.extend(typo_trace)
+        text, and_trace = self._replace_and_aliases(text)
+        trace.extend(and_trace)
         text, english_trace = self._rewrite_english_patterns(text)
         trace.extend(english_trace)
 
@@ -198,6 +200,20 @@ class QueryNormalizer:
             if self._phrase_in_query(query, phrase):
                 return value
         return "unknown"
+
+    def _replace_and_aliases(self, text: str) -> tuple[str, list[str]]:
+        """English names that contain "and" ("Industrial and Commercial Bank of China", also written with "&"):
+        replaced before "and" becomes 和 below, which left only "Bank of China" to match (round 14)."""
+        trace: list[str] = []
+        for source, target in sorted(self.synonyms.get("alias", {}).items(), key=lambda item: len(item[0]), reverse=True):
+            words = source.split()
+            if not source.isascii() or "and" not in {word.lower() for word in words}:
+                continue
+            body = r"\s*".join(r"(?:and|&)" if word.lower() == "and" else re.escape(word) for word in words)
+            pattern = re.compile(rf"(?<![A-Za-z0-9]){body}(?![A-Za-z0-9])", flags=re.IGNORECASE)
+            text, count = pattern.subn(target, text)
+            trace.extend([f"alias_exact: {source}->{target}"] * count)
+        return text, trace
 
     def _rewrite_english_patterns(self, text: str) -> tuple[str, list[str]]:
         rewritten = text

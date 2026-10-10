@@ -289,3 +289,43 @@ relations and loose numbers, the same request as for the first set, and those ca
 
 The data problems behind the labels are listed under "Data vs. the published reports" above. The checker problems are
 the classes in this list.
+
+## Round 14: after exposure (checker changed)
+
+The set is **after exposure** from round 14 on. The round-14 engineers read the error list above and the first run's
+errors (`claims_web_v2-first-run.json`), then wrote general rules for the classes with failing tests in their own
+wording (`tests/test_agent_round14_claims_v2.py`, 46 cases, 34 failing before the fix; none of this set's sentences).
+The labels and the scorer's scoring are unchanged; `score_claims_web_v2.py` gained `--after-exposure`, which only
+labels the output.
+
+**Run.** Once, on a clean tree at `0dd9e1e`, 2026-10-10T17:16Z:
+`python -m evaluation.real_claims_web_v2.score_claims_web_v2 --after-exposure --out
+evaluation/results/claims_web_v2-after-exposure-round14.json`.
+
+| | blind first run (`117e74b`) | round 14, after exposure (`0dd9e1e`) |
+|---|---|---|
+| verdict accuracy | 0.500 [0.36, 0.64], 25/50 | **0.840 [0.74, 0.94], 42/50** |
+| against the definition-blind labels | 0.520 [0.38, 0.66] | 0.760 [0.64, 0.88] |
+| by category | annual_ratios 0.800, annual_figures 0.615, market_value 0.500, daily_price 0.462, loose_or_relational 0.250, english_or_traditional 0.000 | annual_ratios 1.000 (10/10), annual_figures 0.846 (11/13), daily_price 0.846 (11/13), loose_or_relational 0.750 (3/4), market_value 0.750 (3/4), english_or_traditional 0.667 (4/6) |
+| checker's verdicts | supported 10, partially 21, contradicted 11, unverifiable 8 | supported 14, partially 25, contradicted 5, unverifiable 6 |
+
+The 0.840 is not an estimate of accuracy on unseen claims: the rules were written for these classes. The blind number
+is the first run's 0.500.
+
+**Per error class** (errors before → after):
+
+| class | claims | before | after | rule (round 14) |
+|---|---|---|---|---|
+| 1. named definition not read | v03, v10, v12, v19 | 4 | **0** | a named definition (加权平均ROE, 基本 / 稀释每股收益, 归母 growth, 营业总收入, 动态 / 静态 / TTM 市盈率) is checked only against a field the data states with that definition, else `definition_mismatch`; it carries to the growth and the parallel clause |
+| 2. dated price on another day | v13, v17, v46 | 3 | 2 | a stated date uses that day's bar (`get_price_history` `on_date`): v17 fixed. v13 and v46 leave the date to the publication day, which the checker is not given |
+| 3. market value on the price date | v20, v27, v31 | 3 | 1 | a valuation is dated by its valuation date: v27, v31 fixed. v20 ("以1.04万亿元居第五名…万亿市值") names the metric in a later clause and stays unread |
+| 4. English claims | v11, v14, v23, v33 | 4 | 1 | names with "and" / "&" resolve before "and" becomes 和 (Industrial & Commercial Bank of China), China Yangtze Power aliases, "net profit attributable to shareholders", "earnings per share", a move of a reported flow is its YoY, foreign-currency amounts are `currency`. v33 is still wrong: its "attributable to the parent company" lies beyond the 40-character window the definition is read in, so the 归母 growth and the derived change are compared with the total-profit YoY (supported instead of partially) |
+| 5. traditional Chinese | v22, v44 | 2 | 1 | a character table (`traditional.py`): v22 fixed. v44 is still wrong: its "人幣" becomes 人民币, which the runtime alias table lists as an alias of 宁德时代, so the YoY is bound to 宁德时代 |
+| 6. 扣非 read as 归母 | v04, v35 | 2 | **0** | 扣非 is its own metric (`profit_dedt`), written out (扣除非经常性损益的净利润) or in brackets (归母净利润（扣非）); its YoY is unverifiable |
+| 7. close words and price units | v02, v49 (v17's volume) | 2 | **0** | 报 / 报收 is the close; 成交量 in 手 / 万手 is the volume; 换手率 is not the daily change |
+| 8. a year as a claimed number | v18, v36 | 2 | 1 | a year is never a value, and the year a change is measured from (和2024年对比) is not its period: v18 fixed. v36 is partially_supported (was unverifiable): "总利润 1347 亿" is not read as net profit |
+| 9. relations outside the data | v01, v05, v30 | 3 | 1 | a comparison with a total of several companies is not checked; v30's US$ amounts are `currency`. v05 ("比亚迪≈宁德1.9倍") stays unread |
+| new | v34 | 0 | 1 | "营业总收入858.82亿元" for 长江电力 is now `definition_mismatch` (the data serves 营业收入). The label treats the two as one figure because the annual report gives the same value for both; the data does not state that |
+
+Remaining errors: v05, v13, v20, v33, v34, v36, v44, v46 (8). Two of them (v33, v44) are bugs this run found (the
+definition window, the 人民币 alias); they are listed as open in the main README and not fixed in round 14.

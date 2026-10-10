@@ -237,6 +237,10 @@ CLAIM_BENCH_RUNS = (
     "claim_bench-heldout_r4-after-round13",
     "claim_bench-heldout_r5-after-round13",
     "claim_bench-heldout_r6-after-exposure-round13",
+    "claim_bench-holdout-after-round14",
+    "claim_bench-heldout_r4-after-round14",
+    "claim_bench-heldout_r5-after-round14",
+    "claim_bench-heldout_r6-after-exposure-round14",
 )
 # Round-4 held-out slices (evaluation/heldout_r4/, independent author): first run, then after exposure.
 HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_heldout-after-exposure")
@@ -312,6 +316,11 @@ EXTRA_EVIDENCE = (
     "claims_heldout_r8-after-exposure-round13",
     "claims_web_v1-with-corrections",
     "claims_web_v2-first-run",
+    "claims_web_v1-after-exposure-round14",
+    "claims_web_v1-with-corrections-after-exposure-round14",
+    "claims_web_v2-after-exposure-round14",
+    "claims_heldout_r8-after-exposure-round14",
+    "claims_heldout_r9-after-exposure-round14",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -421,6 +430,26 @@ FILE_STATUS = {
     "claims_heldout_r8-after-exposure-round13-claims": "independent round-8 claim slice **after exposure (round "
     "13)**: the engineers had read its five remaining errors; not an out-of-sample estimate",
     "claim_bench-holdout-after-round13": "held-out claims **after exposure**, re-run at the merged round-13 code",
+    "claim_bench-holdout-after-round14": "held-out claims **after exposure**, re-run at the round-14 claims commit",
+    "claim_bench-heldout_r4-after-round14": "independent round-4 claim slice **after exposure**, re-run at the "
+    "round-14 claims commit",
+    "claim_bench-heldout_r5-after-round14": "independent round-5 claim slice **after exposure**, re-run at the "
+    "round-14 claims commit",
+    "claim_bench-heldout_r6-after-exposure-round14": "independent round-6 claim slice **after exposure (round 14)**: "
+    "re-run at the round-14 claims commit; not an out-of-sample estimate",
+    "claims_heldout_r8-after-exposure-round14": "independent round-8 claim slice **after exposure**, re-run at the "
+    "round-14 claims commit (no regression check, not a fresh estimate)",
+    "claims_heldout_r9-after-exposure-round14": "independent round-9 claim slice **after exposure (round 14)**: "
+    "re-run at the round-14 claims commit; out of sample only for the round-13 rules",
+    "claims_web_v1-after-exposure-round14": "**after exposure (checker changed, round 14)**: the round-14 engineers "
+    "had read this set and its error classes before changing the checker (J12); seed data, first-run labels; not an "
+    "out-of-sample estimate",
+    "claims_web_v1-with-corrections-after-exposure-round14": "**after exposure (checker changed, round 14)**: "
+    "corrections layer on, corrected labels (claims_web_v1-labels-with-corrections.jsonl); those labels ignore a "
+    "named definition, the round-14 checker does not",
+    "claims_web_v2-after-exposure-round14": "**after exposure (checker changed, round 14)**: the blind second set "
+    "after the round-14 engineers read its error list and wrote rules for the classes; the blind number is the "
+    "first run (0.50); not an out-of-sample estimate",
     "claim_bench-heldout_r4-after-round13": "independent round-4 claim slice **after exposure**, re-run at the "
     "merged round-13 code",
     "claim_bench-heldout_r5-after-round13": "independent round-5 claim slice **after exposure**, re-run at the "
