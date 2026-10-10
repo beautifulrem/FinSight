@@ -334,6 +334,7 @@ EXTRA_EVIDENCE = (
     "claims_web_v1-after-exposure-round14",
     "claims_web_v1-with-corrections-after-exposure-round14",
     "claims_web_v2-after-exposure-round14",
+    "claims_web_v3-first-run",
     "claims_heldout_r8-after-exposure-round14",
     "claims_heldout_r9-after-exposure-round14",
     "redteam-r7-targeted",
@@ -498,6 +499,7 @@ FILE_STATUS = {
     "at the round-13 commit (no regression check, not a fresh estimate)",
     "claims_web_v2-first-run": "engineer-collected real published claims, blind first run (collected, labelled "
     "and committed before the checker's code or tests were read; the collector had read the first set's README)",
+    "claims_web_v3-first-run": "engineer-collected real published claims, blind first run (third set)",
     "claims_web_v1-with-corrections": "**after exposure (data correction, checker unchanged)**: the same claims with "
     "the corrections layer on, scored against labels recomputed from the corrected data "
     "(claims_web_v1-labels-with-corrections.jsonl); the engineer had read the set before correcting the data",
