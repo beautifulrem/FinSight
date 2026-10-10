@@ -133,3 +133,68 @@ shortened by whole clauses (`excerpt`). Dates that a sentence leaves to its cont
 - The agents found nothing usable on 知乎, 微博 or 同花顺. Tavily often aborted and Brave failed on every call.
 - Periods: FY2025 annual figures 33, 2026-09-30 prices / valuation 11, 2026-04-22 prices 6.
 - Publication date not shown on the page: 2 (v11 TipRanks, v18 雪球). The candidates' `note` gives what is known.
+
+## Labels (`claims_web_v2.jsonl`), committed before the checker was run
+
+```bash
+python -m evaluation.real_claims_web_v2.select_claims_web_v2   # candidates_v2.jsonl -> collected_v2.jsonl (deterministic)
+python -m evaluation.real_claims_web_v2.label_claims_web_v2    # collected_v2.jsonl -> claims_web_v2.jsonl (deterministic)
+```
+
+Each row is the collected fields plus the following:
+
+- `category` and `expected_verdict`;
+- `expected_verdict_definition_blind`, the same parts with every named basis ignored;
+- `parts`, one per stated number. Each has the reading, `holds` (true / false / null), the offline `actual` and the
+  rule applied, or the reason it is null;
+- `context_not_checked`;
+- `primary`, per annual-figure part: the report's figure on the claim's basis, `offline_vs_primary` and
+  `claim_vs_primary`;
+- `offline_vs_primary`, a per-claim summary.
+
+Two reading conventions were added while labelling. Neither depends on the checker.
+
+- The v1 seed bars of 贵州茅台 and 五粮液 come from tushare. Their `amount` is read in 千元 and `volume` in 手
+  (tushare's units; the file does not state them). All other bars are in 元 and shares.
+- `pbasis` on a part changes only which annual-report figure the `primary` column compares with. Three parts
+  (v22, v23, v34) say a basis the sentence does not name: the IFRS total profit of an H-share announcement, the
+  归母 growth behind a "net income" figure, and the 营业收入 that 长江电力 reports as equal to 营业总收入.
+
+Counts:
+
+| | |
+|---|---|
+| expected verdicts | supported 19, partially_supported 25, contradicted 3, unverifiable 3 |
+| definition-blind | supported 22, partially_supported 24, contradicted 3, unverifiable 1 |
+| categories | annual_figures 13, annual_ratios 10, daily_price 13, market_value 4, loose_or_relational 4, english_or_traditional 6 |
+| source types | media 28, social 15, company announcements 4, broker notes 3 |
+
+**Labels that change under the definition rule.** Six claims differ between the two label columns:
+
+- v06, v12, v33: supported → partially_supported. They name 归母 growth or a 归母 prior-year gap, but the offline YoY is
+  on total net profit.
+- v10, v19: partially / contradicted → unverifiable. They name 加权平均 ROE, but the offline ROE is period-end.
+- v32: partially → contradicted. Its 归母 gap is no longer decidable.
+
+**Data vs. the published reports (from the `primary` columns).** No annual figure in this set shows an offline value
+that differs from the report on the same basis. The disagreements are about definitions and about prices:
+
+- **Definitions.** Twelve claims name, or imply, a basis the offline field is not on:
+  - 归母 growth against a total-net-profit YoY (比亚迪, 美的, 紫金, 工行, 长江电力);
+  - weighted against period-end ROE (美的, 招行);
+  - basic against diluted EPS (美的);
+  - 动态 against TTM P/E (宁德时代).
+
+  Four of these claims are true on every part by the company's report but are not labelled supported: v06, v12, v33
+  (partially_supported) and v23 (Bloomberg's "net income rose 0.7 per cent" for 工行, partially_supported because the
+  offline YoY is the total-profit 1.04%).
+- **Rounding in the corrections layer.** 中国平安's served 归母 YoY is the report's one-decimal 6.5; the figures give
+  6.454. v36's "6.45%" passes only through the 1% rule.
+- **Preliminary figures.** v34 quotes 长江电力's 业绩快报 (858.82亿, +1.65%). The annual report and the offline data agree
+  on 862.42亿, +2.07%.
+- **Prices.** Two published prices differ from the offline bars. Neither is resolved against an exchange record.
+  - v38: 中国平安 2026-04-22 low 52.23 vs 57.65. The bar comes from the corrections layer, cross-checked with Tencent.
+  - v48: 黄金ETF 2026-09-30 8.339 / +0.97% vs 8.633 / +1.34%. The first set's w58 (财中社) agrees with the offline bar.
+- **Wrong published figures that the offline data and the report agree against.** v32's 335.03亿 for 长江电力 (the
+  same page states 345.03亿 elsewhere); v41's 五粮液 "ROE 7.47%" (weighted 6.89%); v10's 美的 "加权平均ROE 约17.3%"
+  (19.70%).
