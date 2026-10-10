@@ -19,6 +19,9 @@ Reported:
     # CI: fail on a regression below the committed accuracy (exit code 1), without touching evaluation/results/
     python -m evaluation.claim_bench.run --set holdout --out outputs/claim_bench-holdout.json \
         --fail-under-verdict 0.978 --fail-under-checks 0.98
+
+Writing into ``evaluation/results/`` (the default output) from a dirty working tree is refused unless
+``--allow-dirty --note`` is given (round-9 review I13).
 """
 
 from __future__ import annotations
@@ -35,6 +38,7 @@ from typing import Any
 
 from query_intelligence.agent.claim_check import check_claim
 
+from ..agent_eval.dirty_guard import add_dirty_arguments, check_dirty_write
 from ..agent_eval.metrics import BOOTSTRAP_RESAMPLES, BOOTSTRAP_SEED, bootstrap_ci
 from ..agent_eval.runner import ROOT, SNAPSHOT_NAME, _command, _display_path, _git_commit
 
@@ -178,7 +182,10 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser.add_argument(
         "--fail-under-checks", type=float, default=None, help="Exit 1 when per-check accuracy is below this (CI)."
     )
+    add_dirty_arguments(parser)
     args = parser.parse_args(argv)
+    out = Path(args.out) if args.out else RESULTS_DIR / f"claim_bench-{args.set}.json"
+    dirty_note = check_dirty_write(out, _git_commit(), allow_dirty=args.allow_dirty, notes=args.note)
     path = Path(args.claims) if args.claims else SETS[args.set]
     rows = load_claims(path)
 
@@ -200,7 +207,9 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         },
         **evaluate(rows, service=service, registry=build_registry_for_service(service)),
     }
-    out = Path(args.out) if args.out else RESULTS_DIR / f"claim_bench-{args.set}.json"
+    notes = [note for note in args.note if note] + ([dirty_note] if dirty_note else [])
+    if notes:
+        report["notes"] = notes
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(

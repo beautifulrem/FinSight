@@ -15,6 +15,9 @@ with their committed baselines.
     python -m evaluation.agent_eval.gate
     python -m evaluation.agent_eval.gate --update-baseline      # after an intended change
     python -m evaluation.agent_eval.gate --extras-only          # verifier + red-team comparison
+
+``--update-baseline`` refuses to run from a working tree with uncommitted changes (round-9 review I13): a baseline
+recorded as ``<commit>-dirty`` cannot be reproduced. ``--allow-dirty --note "..."`` overrides it and labels the file.
 """
 
 from __future__ import annotations
@@ -25,8 +28,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .dirty_guard import add_dirty_arguments, check_dirty_write
 from .results import RESULTS_DIR, decode_outcomes, load_result, write_slim
-from .runner import DEFAULT_OUTPUT_DIR, TASK_SETS
+from .runner import DEFAULT_OUTPUT_DIR, TASK_SETS, _git_commit
 from .runner import main as run_eval
 
 THRESHOLDS: dict[str, dict[str, float]] = {
@@ -151,7 +155,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--update-baseline", action="store_true", help="Write the run as the committed baseline.")
     parser.add_argument("--extras", action="store_true", help="Also compare verifier stress and red team outputs.")
     parser.add_argument("--extras-only", action="store_true", help="Only the verifier / red-team comparison.")
+    add_dirty_arguments(parser)
     args = parser.parse_args(argv)
+    dirty_note = None
+    if args.update_baseline:  # refuse before running, not after the replay
+        dirty_note = check_dirty_write(RESULTS_DIR, _git_commit(), allow_dirty=args.allow_dirty, notes=args.note)
     problems: dict[str, list[str]] = {}
     notes: dict[str, list[str]] = {}
     for name in [] if args.extras_only else args.set or sorted(SETS):
@@ -164,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
         found.extend(check(report["summary"], THRESHOLDS[name]))
         baseline = load_result(f"gate-{name}")
         if args.update_baseline:
-            path = write_slim(out, f"gate-{name}")
+            path = write_slim(out, f"gate-{name}", extra_notes=[dirty_note] if dirty_note else None)
             notes.setdefault(name, []).append(f"baseline written to {path.relative_to(RESULTS_DIR.parents[1])}")
         elif baseline is None:
             notes.setdefault(name, []).append("no committed baseline; floors only")

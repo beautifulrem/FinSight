@@ -1,0 +1,1472 @@
+{
+ "scenario": "llm-load",
+ "server_env": {
+  "DEEPSEEK_MODEL": "cline-pass/deepseek-v4.1-flash",
+  "QI_AGENT_TRACE_DIR": "outputs/chaos/r13-llm-load/traces",
+  "QI_LLM_FALLBACK_MODELS": "cline-pass/glm-5.3-flash",
+  "QI_LLM_USD_CNY": "6.7489",
+  "QI_USE_LIVE_ANNOUNCEMENT": "0",
+  "QI_USE_LIVE_MACRO": "0",
+  "QI_USE_LIVE_MARKET": "0",
+  "QI_USE_LIVE_NEWS": "0"
+ },
+ "primary": "cline-pass/deepseek-v4.1-flash",
+ "fallback": "cline-pass/glm-5.3-flash",
+ "load": {
+  "users": 4,
+  "requests_per_user": 3,
+  "mode": "auto"
+ },
+ "burst": {
+  "status": null,
+  "configured_start_s": 15.0,
+  "configured_seconds": 0.0
+ },
+ "summary": {
+  "requests": 12,
+  "user_visible_error_rate": 0.0,
+  "statuses": {
+   "200": 12
+  },
+  "latency_ms": {
+   "n": 12,
+   "p50": 23009.8,
+   "p95": 28954.1,
+   "p99": 28954.1,
+   "mean": 21829.4,
+   "max": 28954.1
+  },
+  "wall_seconds": 83.1,
+  "routes": {
+   "workflow": 6,
+   "agent": 6
+  },
+  "answer_sources": {
+   "llm_compose": 6,
+   "llm_agent": 6
+  },
+  "verified_rate": 0.8333,
+  "requests_overlapping_burst": 0,
+  "llm_failure_requests": 0,
+  "llm_failure_fell_back_to_template": 0,
+  "gateway_requests": 32,
+  "gateway_injected": 0,
+  "gateway_forwarded": 32,
+  "gateway_forwarded_by_status": {
+   "200": 32
+  },
+  "gateway_429": 0,
+  "rate_429_of_forwarded": 0.0,
+  "llm_calls_reported": 32,
+  "cost": {
+   "requests_counted": 12,
+   "requests_with_llm": 12,
+   "total_usd": 0.033639,
+   "usd_cny": 6.7489,
+   "total_cny": 0.227,
+   "per_question_cny": 0.018919,
+   "per_1k_questions_cny": 18.92,
+   "per_1k_questions_usd": 2.803,
+   "questions_per_day": 1000,
+   "monthly_cny_at_questions_per_day": 567.56,
+   "tokens": {
+    "prompt": 176792,
+    "completion": 43070,
+    "cache_hit": 127360
+   },
+   "llm_calls": 32,
+   "cost_sources": [
+    "provider_reported"
+   ]
+  },
+  "breaker_transitions": [
+   {
+    "t": 1.1,
+    "model": "cline-pass/deepseek-v4.1-flash",
+    "state": "closed",
+    "fault_on": false
+   },
+   {
+    "t": 1.1,
+    "model": "cline-pass/glm-5.3-flash",
+    "state": "closed",
+    "fault_on": false
+   }
+  ]
+ },
+ "load_test": {
+  "label": "chaos llm-load burst=0.0s",
+  "base_url": "http://127.0.0.1:8861",
+  "mode": "auto",
+  "question_set": "research",
+  "fresh_connections": false,
+  "stream": false,
+  "users": 4,
+  "requests_per_user": 3,
+  "requests": 12,
+  "wall_seconds": 83.1,
+  "throughput_rps": 0.144,
+  "error_rate": 0.0,
+  "latency_ms": {
+   "n": 12,
+   "p50": 23009.8,
+   "p95": 28954.1,
+   "p99": 28954.1,
+   "mean": 21829.4,
+   "max": 28954.1
+  },
+  "ttft_ms": null,
+  "statuses": {
+   "200": 12
+  },
+  "routes": {
+   "workflow": 6,
+   "agent": 6
+  },
+  "answer_sources": {
+   "llm_compose": 6,
+   "llm_agent": 6
+  },
+  "verified_rate": 0.8333,
+  "degraded_rate": 0.25,
+  "models": {
+   "deepseek/deepseek-v4.1-flash": 12
+  },
+  "sources_served": {
+   "offline_snapshot/snapshot": 34,
+   "classical sentiment model/unlabelled": 5
+  },
+  "cost": {
+   "requests_counted": 12,
+   "requests_with_llm": 12,
+   "total_usd": 0.033639,
+   "usd_cny": 6.7489,
+   "total_cny": 0.227,
+   "per_question_cny": 0.018919,
+   "per_1k_questions_cny": 18.92,
+   "per_1k_questions_usd": 2.803,
+   "questions_per_day": 1000,
+   "monthly_cny_at_questions_per_day": 567.56,
+   "tokens": {
+    "prompt": 176792,
+    "completion": 43070,
+    "cache_hit": 127360
+   },
+   "llm_calls": 32,
+   "cost_sources": [
+    "provider_reported"
+   ]
+  },
+  "warmup": null,
+  "environment": {
+   "host": "macOS-27.0-arm64-arm-64bit-Mach-O",
+   "cpu_count": 10,
+   "loadavg_at_start": [
+    16.61,
+    18.93,
+    25.85
+   ],
+   "python": "3.13.13"
+  },
+  "commit": "4cccc78",
+  "run_at": "2026-10-01T14:03:34+00:00"
+ },
+ "per_request": [
+  {
+   "user": 2,
+   "step": 0,
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "started_at_unix": 1790863330.914,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 22493.5,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 4520,
+   "completion_tokens": 3930,
+   "reported_cost_usd": 0.00271613,
+   "degraded": [
+    "verification_failed:repaired"
+   ],
+   "sources_served": [
+    "offline_snapshot/snapshot"
+   ],
+   "t_start_s": 0.1,
+   "t_end_s": 22.6,
+   "during_burst": false
+  },
+  {
+   "user": 1,
+   "step": 0,
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "started_at_unix": 1790863330.914,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 23009.8,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 3,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 19199,
+   "completion_tokens": 3491,
+   "reported_cost_usd": 0.00316812,
+   "degraded": [],
+   "sources_served": [
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "classical sentiment model/unlabelled",
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot"
+   ],
+   "t_start_s": 0.1,
+   "t_end_s": 23.1,
+   "during_burst": false
+  },
+  {
+   "user": 0,
+   "step": 0,
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "started_at_unix": 1790863330.877,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 24257.6,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": false,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 17496,
+   "completion_tokens": 4785,
+   "reported_cost_usd": 0.00417828,
+   "degraded": [
+    "verification_failed:repaired"
+   ],
+   "sources_served": [
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot"
+   ],
+   "t_start_s": 0.1,
+   "t_end_s": 24.4,
+   "during_burst": false
+  },
+  {
+   "user": 3,
+   "step": 0,
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "started_at_unix": 1790863330.915,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 28954.1,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 5,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 33304,
+   "completion_tokens": 3602,
+   "reported_cost_usd": 0.00401454,
+   "degraded": [],
+   "sources_served": [
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot"
+   ],
+   "t_start_s": 0.1,
+   "t_end_s": 29.1,
+   "during_burst": false
+  },
+  {
+   "user": 1,
+   "step": 1,
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "started_at_unix": 1790863353.924,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 5950.0,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 1,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 1736,
+   "completion_tokens": 1001,
+   "reported_cost_usd": 0.00063521,
+   "degraded": [],
+   "sources_served": [
+    "offline_snapshot/snapshot"
+   ],
+   "t_start_s": 23.1,
+   "t_end_s": 29.1,
+   "during_burst": false
+  },
+  {
+   "user": 1,
+   "step": 2,
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "started_at_unix": 1790863359.874,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 15889.1,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 3,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 18498,
+   "completion_tokens": 1698,
+   "reported_cost_usd": 0.00162966,
+   "degraded": [
+    "verification_failed:citations_repaired:misattributed_numbers+uncited_numbers"
+   ],
+   "sources_served": [
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot"
+   ],
+   "t_start_s": 29.0,
+   "t_end_s": 44.9,
+   "during_burst": false
+  },
+  {
+   "user": 2,
+   "step": 1,
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "started_at_unix": 1790863353.408,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 23213.5,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 26933,
+   "completion_tokens": 2113,
+   "reported_cost_usd": 0.00197731,
+   "degraded": [],
+   "sources_served": [
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot"
+   ],
+   "t_start_s": 22.6,
+   "t_end_s": 45.8,
+   "during_burst": false
+  },
+  {
+   "user": 0,
+   "step": 1,
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "started_at_unix": 1790863355.135,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 24593.7,
+   "route": "agent",
+   "answer_source": "llm_agent",
+   "verified": true,
+   "llm_calls": 4,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 29141,
+   "completion_tokens": 4010,
+   "reported_cost_usd": 0.00348435,
+   "degraded": [],
+   "sources_served": [
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "classical sentiment model/unlabelled",
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot"
+   ],
+   "t_start_s": 24.3,
+   "t_end_s": 48.9,
+   "during_burst": false
+  },
+  {
+   "user": 3,
+   "step": 1,
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "started_at_unix": 1790863359.869,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 28609.3,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 7604,
+   "completion_tokens": 5599,
+   "reported_cost_usd": 0.00357802,
+   "degraded": [],
+   "sources_served": [
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "classical sentiment model/unlabelled"
+   ],
+   "t_start_s": 29.0,
+   "t_end_s": 57.6,
+   "during_burst": false
+  },
+  {
+   "user": 0,
+   "step": 2,
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "started_at_unix": 1790863379.728,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 18001.0,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 4127,
+   "completion_tokens": 3848,
+   "reported_cost_usd": 0.00245745,
+   "degraded": [],
+   "sources_served": [
+    "offline_snapshot/snapshot"
+   ],
+   "t_start_s": 48.9,
+   "t_end_s": 66.9,
+   "during_burst": false
+  },
+  {
+   "user": 2,
+   "step": 2,
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "started_at_unix": 1790863376.622,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 21486.3,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 7492,
+   "completion_tokens": 3702,
+   "reported_cost_usd": 0.00242302,
+   "degraded": [],
+   "sources_served": [
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "classical sentiment model/unlabelled"
+   ],
+   "t_start_s": 45.8,
+   "t_end_s": 67.3,
+   "during_burst": false
+  },
+  {
+   "user": 3,
+   "step": 2,
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "started_at_unix": 1790863388.478,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 25495.2,
+   "route": "workflow",
+   "answer_source": "llm_compose",
+   "verified": true,
+   "llm_calls": 2,
+   "models": [
+    "deepseek/deepseek-v4.1-flash"
+   ],
+   "prompt_tokens": 6742,
+   "completion_tokens": 5291,
+   "reported_cost_usd": 0.00337681,
+   "degraded": [],
+   "sources_served": [
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "offline_snapshot/snapshot",
+    "classical sentiment model/unlabelled"
+   ],
+   "t_start_s": 57.7,
+   "t_end_s": 83.2,
+   "during_burst": false
+  }
+ ],
+ "recovery": null,
+ "gateway_log": [
+  {
+   "t": 1790863337.412,
+   "at": "2026-10-01T14:02:17+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 2784.5,
+   "error": null
+  },
+  {
+   "t": 1790863339.364,
+   "at": "2026-10-01T14:02:19+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 4902.5,
+   "error": null
+  },
+  {
+   "t": 1790863340.866,
+   "at": "2026-10-01T14:02:20+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 2597.5,
+   "error": null
+  },
+  {
+   "t": 1790863341.226,
+   "at": "2026-10-01T14:02:21+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 6755.2,
+   "error": null
+  },
+  {
+   "t": 1790863342.673,
+   "at": "2026-10-01T14:02:22+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 8090.0,
+   "error": null
+  },
+  {
+   "t": 1790863343.698,
+   "at": "2026-10-01T14:02:23+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 2787.8,
+   "error": null
+  },
+  {
+   "t": 1790863349.123,
+   "at": "2026-10-01T14:02:29+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 8528.2,
+   "error": null
+  },
+  {
+   "t": 1790863353.275,
+   "at": "2026-10-01T14:02:33+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 11971.6,
+   "error": null
+  },
+  {
+   "t": 1790863353.498,
+   "at": "2026-10-01T14:02:33+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 7435.1,
+   "error": null
+  },
+  {
+   "t": 1790863353.865,
+   "at": "2026-10-01T14:02:33+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 4634.5,
+   "error": null
+  },
+  {
+   "t": 1790863354.984,
+   "at": "2026-10-01T14:02:34+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 12191.8,
+   "error": null
+  },
+  {
+   "t": 1790863356.694,
+   "at": "2026-10-01T14:02:36+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 2977.8,
+   "error": null
+  },
+  {
+   "t": 1790863358.642,
+   "at": "2026-10-01T14:02:38+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 3114.3,
+   "error": null
+  },
+  {
+   "t": 1790863359.624,
+   "at": "2026-10-01T14:02:39+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 5567.5,
+   "error": null
+  },
+  {
+   "t": 1790863359.671,
+   "at": "2026-10-01T14:02:39+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 6032.9,
+   "error": null
+  },
+  {
+   "t": 1790863360.925,
+   "at": "2026-10-01T14:02:40+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 2175.9,
+   "error": null
+  },
+  {
+   "t": 1790863362.977,
+   "at": "2026-10-01T14:02:42+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 2552.7,
+   "error": null
+  },
+  {
+   "t": 1790863364.649,
+   "at": "2026-10-01T14:02:44+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 4437.5,
+   "error": null
+  },
+  {
+   "t": 1790863366.971,
+   "at": "2026-10-01T14:02:46+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 2641.2,
+   "error": null
+  },
+  {
+   "t": 1790863367.58,
+   "at": "2026-10-01T14:02:47+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 3374.2,
+   "error": null
+  },
+  {
+   "t": 1790863373.676,
+   "at": "2026-10-01T14:02:53+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 7725.5,
+   "error": null
+  },
+  {
+   "t": 1790863375.246,
+   "at": "2026-10-01T14:02:55+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 11043.1,
+   "error": null
+  },
+  {
+   "t": 1790863375.607,
+   "at": "2026-10-01T14:02:55+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 5874.9,
+   "error": null
+  },
+  {
+   "t": 1790863376.485,
+   "at": "2026-10-01T14:02:56+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 6715.7,
+   "error": null
+  },
+  {
+   "t": 1790863379.447,
+   "at": "2026-10-01T14:02:59+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 5666.3,
+   "error": null
+  },
+  {
+   "t": 1790863388.291,
+   "at": "2026-10-01T14:03:08+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 12939.1,
+   "error": null
+  },
+  {
+   "t": 1790863391.908,
+   "at": "2026-10-01T14:03:11+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 11174.8,
+   "error": null
+  },
+  {
+   "t": 1790863393.001,
+   "at": "2026-10-01T14:03:13+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 12586.9,
+   "error": null
+  },
+  {
+   "t": 1790863397.673,
+   "at": "2026-10-01T14:03:17+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 4610.3,
+   "error": null
+  },
+  {
+   "t": 1790863398.029,
+   "at": "2026-10-01T14:03:18+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 6044.4,
+   "error": null
+  },
+  {
+   "t": 1790863407.783,
+   "at": "2026-10-01T14:03:27+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 17502.8,
+   "error": null
+  },
+  {
+   "t": 1790863413.887,
+   "at": "2026-10-01T14:03:33+00:00",
+   "model": "cline-pass/deepseek-v4.1-flash",
+   "fault_applied": false,
+   "status": 200,
+   "latency_ms": 5974.9,
+   "error": null
+  }
+ ],
+ "breaker_samples": [
+  {
+   "t": 0.0,
+   "fault_on": false,
+   "breaker": {}
+  },
+  {
+   "t": 1.1,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 2.9,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 3.9,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 4.9,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 5.9,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 7.0,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 8.0,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 9.0,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 10.0,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 11.0,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 12.0,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 13.1,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 14.1,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 15.2,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 16.2,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 17.2,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 18.2,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 19.2,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 20.3,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 21.3,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 22.3,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 23.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 24.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 25.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 26.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 27.5,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 28.5,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 29.6,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 30.8,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 31.9,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 33.1,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 34.1,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 35.1,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 36.1,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 37.2,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 38.3,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 39.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 40.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 41.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 42.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 43.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 44.5,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 45.5,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 46.6,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 47.6,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 48.7,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 49.8,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 50.8,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 51.9,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 53.0,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 54.0,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 55.1,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 56.2,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 57.2,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 58.2,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 59.3,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 60.3,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 61.3,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 62.3,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 63.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 64.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 65.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 66.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 67.4,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 68.5,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 69.5,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 70.5,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 71.6,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 72.6,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 73.7,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 74.7,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 75.7,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 76.7,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 77.7,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 78.8,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 79.8,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 80.8,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 81.8,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  },
+  {
+   "t": 82.8,
+   "fault_on": false,
+   "breaker": {
+    "cline-pass/deepseek-v4.1-flash": "closed",
+    "cline-pass/glm-5.3-flash": "closed"
+   }
+  }
+ ],
+ "final_metrics": [
+  "finsight_llm_circuit_state{model=\"cline-pass/deepseek-v4.1-flash\"} 0.0",
+  "finsight_llm_circuit_state{model=\"cline-pass/glm-5.3-flash\"} 0.0",
+  "finsight_llm_client_calls_total{model=\"cline-pass/deepseek-v4.1-flash\"} 32.0",
+  "finsight_llm_client_calls_total{model=\"cline-pass/glm-5.3-flash\"} 0.0",
+  "finsight_llm_consecutive_failures{model=\"cline-pass/deepseek-v4.1-flash\"} 0.0",
+  "finsight_llm_consecutive_failures{model=\"cline-pass/glm-5.3-flash\"} 0.0"
+ ],
+ "command": "python -m scripts.chaos_drill --scenario llm-load --port 8861 --load-users 4 --load-requests 3 --load-mode auto --fallback-model cline-pass/glm-5.3-flash --usd-cny 6.7489 --out outputs/chaos/r13-llm-load/before-4u.json",
+ "run_at": "2026-10-01T14:00:56+00:00",
+ "duration_s": 161.1,
+ "commit": "4cccc78",
+ "working_tree_clean": true,
+ "env": {
+  "DEEPSEEK_MODEL": "cline-pass/deepseek-v4.1-flash",
+  "QI_AGENT_TRACE_DIR": "",
+  "QI_USE_LIVE_ANNOUNCEMENT": "0",
+  "QI_USE_LIVE_MACRO": "0",
+  "QI_USE_LIVE_MARKET": "0",
+  "QI_USE_LIVE_NEWS": "0"
+ }
+}

@@ -274,6 +274,38 @@ python -m scripts.chaos_drill --scenario llm-load --port 8847 --load-users 4 --l
 0.7–6.4 秒，只有 ETF 问题的三个请求用了 19–24 秒而且没有任何 LLM 调用：trace 显示 10–13 秒花在 NLU（`guard_in`），9–11 秒花在规划器的情绪分析和知识检索工具上，
 是高负载机器上的 CPU 计算。熔断器的代价也看得到：服务商恢复后约 50 秒（45 → 94 秒）内回答仍来自模板。恢复阶段的 4 个请求全部由 LLM 回答。
 
+### 4 用户 LLM 压测的 P95 由什么决定，以及一项优化（第 13 轮）
+
+[`scripts/trace_stages.py`](../../scripts/trace_stages.py) 把每次运行的 trace 拆成 `guard_in`（NLU 与路由）、LLM 等待（本次运行所有 LLM 调用之和）、工具阶段（`agent_prefetch` + `agent_tools` + `execute_plan`）和其余部分。同一台机器、与上面相同的命令（`chaos_drill --scenario llm-load`，4 用户 × 3 请求，`auto`，DeepSeek V4.1 Flash），干净工作区：
+
+| 运行（[`results/perf/agent/`](../results/perf/agent/)） | 提交 | 开始时负载 | P50 / P95（秒） | LLM 调用（429） | 全部请求时间占比：LLM / 工具 / `guard_in` | 最慢请求 | 检索类工具中位数（秒） | 每千问（元） |
+|---|---|---:|---:|---:|---|---|---|---:|
+| `r12-load-4u-auto.json`（第 12 轮） | `fd6b157` | 17.8 | 15.3 / 53.8 | 29（0） | 0.57 / 0.32 / 0.11 | 服务端 51.8 秒：**工具 24.4 秒**，LLM 21.3 秒（6 次调用），`guard_in` 5.9 秒 | 3.6–5.6 | 12.14 |
+| `r13-load-4u-auto-before.json` | `4cccc78` | 16.6 | 23.0 / 29.0 | 32（0） | 0.84 / 0.11 / 0.05 | 28.6 秒：LLM 24.1 秒（2 次），工具 2.0 秒 | 1.1–1.8 | 18.92 |
+| `r13-load-4u-auto-after.json`（含优化） | `a70dda9` | 18.6 | 20.2 / 35.4 | 31（0） | 0.79 / 0.11 / 0.09 | 35.4 秒：LLM 31.3 秒（**7 次**），工具 3.5 秒 | **0.11–0.26** | 15.41 |
+
+**决定因素。** 三次运行里 LLM 等待都是最大的阶段（占全部请求时间 57–84%），一旦某个请求调用很多次（最慢的请求调用 5–7 次）就决定了 P95。第二大、并且随机器争用而放大的是工具阶段：第 12 轮那次它占全部时间 32%，也是最慢请求里最大的一块（24.4 秒）——检索类工具（`search_news`、`search_knowledge`、`search_announcements`、`analyze_sentiment`）每次 3.6–5.6 秒（单独运行约 0.3 秒），便宜的查询在共享工具池里排在它们后面（约 1 毫秒的 `get_fundamentals` 用了 9.5 秒）。对一次 `search_news` 做 profile，约 87% 花在 scipy 的 `csr_tocsc`：`linear_kernel(query, doc_matrix)` 每次检索都把整个 TF-IDF 矩阵转置一遍。
+
+**优化**（`a70dda9`，`query_intelligence/retrieval/doc_retriever.py`）：每个已拟合的索引只算一次 CSR 格式的 `doc_matrix.T`，打分用 `query @ T`，乘法和顺序都相同（测试在随附语料上断言与 `linear_kernel` 的结果 `np.array_equal`）。在同一台机器上用 [`scripts/bench_retrieval_contention.py`](../../scripts/bench_retrieval_contention.py) 进程内测量：重放第 12 轮 12 个请求 trace 里的工具调用，4 用户 × 3 请求（每个请求 4 个工具并行，每个请求前清缓存），新旧打分交替各 6 轮（负载 15.8–24.4；[`r13-retrieval-bench.json`](../results/perf/agent/r13-retrieval-bench.json)）：
+
+| | 旧（每次转置） | 新（只转置一次） |
+|---|---:|---:|
+| 每个请求的工具阶段 P50 / P95（毫秒） | 4,734 / 13,284 | **443 / 7,033** |
+| 4 用户下检索类调用 P50 / P95（毫秒） | 3,941 / 7,899 | **265 / 1,610** |
+| 单独一次调用 P50（毫秒）：`search_news` / `analyze_sentiment` / `search_announcements` / `search_knowledge` | 870 / 845 / 790 / 1,576 | 28 / 62 / 37 / 308 |
+
+端到端看，这项优化体现在它作用的阶段，而不是 12 个请求的 P95：上面的 LLM 运行中检索类工具中位数从 1.1–1.8 秒降到 0.11–0.26 秒，每个请求的工具阶段中位数从 2.25 秒降到 1.69 秒；P95 却从 29.0 秒变成 35.4 秒，因为「之后」那次最慢的请求调用了 7 次 LLM（LLM 等待 31.3 秒）。每次只有 12 个请求，P95 就是一个请求、由 LLM 决定；这里不声称 P95 下降了。并发下仍会排队的：行业名称的 `get_fundamentals` 和 `resolve_entity`（基准中 P95 分别 6.8 秒和 5.2 秒，都经过 NLU 实体解析），是下一步要 profile 的。LLM 调用：32 + 31 次。
+
+### 8 个用户，`auto`，DeepSeek（第 13 轮）
+
+第一次干净的 8 用户 LLM 压测（此前的 8、16 用户运行碰到网关 429）：`chaos_drill --scenario llm-load --load-users 8 --load-requests 3`，不注入故障，`27c70a7`（干净工作区，已含检索优化），开始时负载 6.0（比上面 4 用户运行时安静，延迟不能直接比较）（[`r13-load-8u-auto.json`](../results/perf/agent/r13-load-8u-auto.json)，阶段拆分见 `r13-load-8u-auto-stages.json`）：
+
+| 请求 | HTTP 错误（用户可见） | P50 / P95 / 最大（秒） | 路由 | 由 LLM 回答 | 通过校验 | 网关调用（429） | 熔断器 | 每千问（元） |
+|---:|---:|---|---|---:|---:|---:|---|---:|
+| 24 | 0 | 13.6 / 24.3 / 26.1 | 12 个 workflow，12 个 agent | 24（12 个组织答案，12 个 Agent） | 22 / 24（2 个 Agent 回答经整句删除修复） | 52（0） | 全程闭合 | 14.19 |
+
+这里 LLM 等待占全部请求时间 93%，工具阶段 3.5%（每个请求中位数 40 毫秒）：有了这项优化、机器又安静时，8 用户下工具阶段已不是问题。24 个请求仍是小样本；16 用户没有重跑。
+
 ### 第二个模型：GLM-5.3 flash 抽查（[`perf-glm-holdout-*.json`](../../evaluation/results/)）
 
 held-out，每次运行 1 次重复，3 并发，流式。由于 GLM 的延迟在不同运行之间漂移，原路径和默认配置按“关、开、开、关”的顺序运行（`8a85ae5`）：

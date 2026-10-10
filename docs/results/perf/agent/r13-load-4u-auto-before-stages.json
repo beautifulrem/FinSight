@@ -1,0 +1,440 @@
+{
+ "trace_dir": "outputs/chaos/r13-llm-load/traces",
+ "runs": 12,
+ "p95_run": {
+  "trace_id": "59ebbda9308a4e5db76c5ff966970498",
+  "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+  "route": "agent",
+  "total_ms": 28002.8,
+  "guard_in_ms": 2835.8,
+  "llm_ms": 21803.8,
+  "llm_calls": 5,
+  "tool_stage_ms": 3223.1,
+  "verify_ms": 52.8,
+  "llm_node_overhead_ms": 28.9,
+  "share": {
+   "guard_in": 0.101,
+   "llm": 0.779,
+   "tool_stage": 0.115
+  },
+  "tools_ms": {
+   "get_macro_indicators": [
+    0.7
+   ],
+   "resolve_entity": [
+    67.5,
+    13.0
+   ],
+   "get_fundamentals": [
+    54.9,
+    29.7,
+    12.4
+   ],
+   "search_news": [
+    815.9,
+    12.7,
+    1734.2
+   ],
+   "get_price_history": [
+    4.4
+   ],
+   "search_knowledge": [
+    2173.9
+   ]
+  }
+ },
+ "all_runs_share": {
+  "guard_in": 0.047,
+  "llm": 0.839,
+  "tool_stage": 0.109
+ },
+ "median_ms": {
+  "total_ms": 22678.6,
+  "guard_in_ms": 371.9,
+  "llm_ms": 19227.2,
+  "tool_stage_ms": 2254.7
+ },
+ "tool_latency_ms": {
+  "analyze_sentiment": {
+   "n": 5,
+   "median": 1195.9,
+   "max": 1566.9
+  },
+  "compute_indicators": {
+   "n": 5,
+   "median": 12.9,
+   "max": 42.1
+  },
+  "get_fundamentals": {
+   "n": 15,
+   "median": 12.4,
+   "max": 2783.9
+  },
+  "get_macro_indicators": {
+   "n": 6,
+   "median": 2.0,
+   "max": 10.5
+  },
+  "get_price_history": {
+   "n": 12,
+   "median": 12.7,
+   "max": 3280.7
+  },
+  "resolve_entity": {
+   "n": 4,
+   "median": 6.5,
+   "max": 67.5
+  },
+  "search_announcements": {
+   "n": 2,
+   "median": 1134.8,
+   "max": 1153.7
+  },
+  "search_knowledge": {
+   "n": 5,
+   "median": 1754.6,
+   "max": 2173.9
+  },
+  "search_news": {
+   "n": 12,
+   "median": 1159.7,
+   "max": 2004.7
+  }
+ },
+ "per_run": [
+  {
+   "trace_id": "78ec377615b4419c89680e908193275b",
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "route": "workflow",
+   "total_ms": 28578.8,
+   "guard_in_ms": 2237.5,
+   "llm_ms": 24146.5,
+   "llm_calls": 2,
+   "tool_stage_ms": 2049.9,
+   "verify_ms": 45.4,
+   "llm_node_overhead_ms": 2.8,
+   "tools_ms": {
+    "get_price_history": [
+     19.9
+    ],
+    "compute_indicators": [
+     42.1
+    ],
+    "analyze_sentiment": [
+     1455.5
+    ],
+    "search_knowledge": [
+     1910.0
+    ]
+   }
+  },
+  {
+   "trace_id": "59ebbda9308a4e5db76c5ff966970498",
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "route": "agent",
+   "total_ms": 28002.8,
+   "guard_in_ms": 2835.8,
+   "llm_ms": 21803.8,
+   "llm_calls": 5,
+   "tool_stage_ms": 3223.1,
+   "verify_ms": 52.8,
+   "llm_node_overhead_ms": 28.9,
+   "tools_ms": {
+    "get_macro_indicators": [
+     0.7
+    ],
+    "resolve_entity": [
+     67.5,
+     13.0
+    ],
+    "get_fundamentals": [
+     54.9,
+     29.7,
+     12.4
+    ],
+    "search_news": [
+     815.9,
+     12.7,
+     1734.2
+    ],
+    "get_price_history": [
+     4.4
+    ],
+    "search_knowledge": [
+     2173.9
+    ]
+   }
+  },
+  {
+   "trace_id": "a2b8507d897c401db838e8c5a11e27f6",
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "route": "workflow",
+   "total_ms": 25477.0,
+   "guard_in_ms": 180.6,
+   "llm_ms": 23588.0,
+   "llm_calls": 2,
+   "tool_stage_ms": 1602.7,
+   "verify_ms": 49.6,
+   "llm_node_overhead_ms": 3.8,
+   "tools_ms": {
+    "get_price_history": [
+     0.2
+    ],
+    "compute_indicators": [
+     1.2
+    ],
+    "get_fundamentals": [
+     0.1
+    ],
+    "analyze_sentiment": [
+     1566.9
+    ]
+   }
+  },
+  {
+   "trace_id": "a74fe94febde433389ea3c0c16f81512",
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "route": "agent",
+   "total_ms": 24468.0,
+   "guard_in_ms": 332.6,
+   "llm_ms": 21133.8,
+   "llm_calls": 4,
+   "tool_stage_ms": 2786.3,
+   "verify_ms": 54.0,
+   "llm_node_overhead_ms": 46.5,
+   "tools_ms": {
+    "get_price_history": [
+     0.1,
+     6.3
+    ],
+    "get_fundamentals": [
+     0.1
+    ],
+    "search_news": [
+     0.2,
+     1253.7
+    ],
+    "compute_indicators": [
+     12.9
+    ],
+    "search_announcements": [
+     1153.7
+    ],
+    "analyze_sentiment": [
+     1195.9
+    ],
+    "get_macro_indicators": [
+     3.4
+    ]
+   }
+  },
+  {
+   "trace_id": "73ee277d0fcc4ce6a236faf36e353f69",
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "route": "agent",
+   "total_ms": 23362.4,
+   "guard_in_ms": 359.8,
+   "llm_ms": 20386.9,
+   "llm_calls": 2,
+   "tool_stage_ms": 2459.4,
+   "verify_ms": 100.8,
+   "llm_node_overhead_ms": 12.3,
+   "tools_ms": {
+    "get_price_history": [
+     18.5,
+     34.7
+    ],
+    "get_fundamentals": [
+     18.2,
+     5.4
+    ],
+    "search_news": [
+     1599.2,
+     726.8
+    ]
+   }
+  },
+  {
+   "trace_id": "18781a6a3f3d496da72bc5f4b80d5877",
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "route": "agent",
+   "total_ms": 23195.3,
+   "guard_in_ms": 277.3,
+   "llm_ms": 14646.6,
+   "llm_calls": 4,
+   "tool_stage_ms": 8208.2,
+   "verify_ms": 9.0,
+   "llm_node_overhead_ms": 19.7,
+   "tools_ms": {
+    "get_macro_indicators": [
+     0.3
+    ],
+    "resolve_entity": [
+     0.1
+    ],
+    "get_fundamentals": [
+     50.8,
+     0.1,
+     2783.9
+    ],
+    "search_news": [
+     1985.8,
+     2004.7
+    ],
+    "get_price_history": [
+     3280.7,
+     6.9
+    ],
+    "search_knowledge": [
+     1754.6
+    ]
+   }
+  },
+  {
+   "trace_id": "6a711aff11cf4ebc9ea0cd6e971ad88d",
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "route": "agent",
+   "total_ms": 22161.9,
+   "guard_in_ms": 383.9,
+   "llm_ms": 18844.4,
+   "llm_calls": 3,
+   "tool_stage_ms": 2849.6,
+   "verify_ms": 30.6,
+   "llm_node_overhead_ms": 18.2,
+   "tools_ms": {
+    "get_price_history": [
+     19.0
+    ],
+    "get_fundamentals": [
+     8.8
+    ],
+    "search_news": [
+     1545.6
+    ],
+    "compute_indicators": [
+     13.5
+    ],
+    "search_announcements": [
+     1115.8
+    ],
+    "analyze_sentiment": [
+     1182.5
+    ],
+    "get_macro_indicators": [
+     4.5
+    ]
+   }
+  },
+  {
+   "trace_id": "9f8f1543b7da49698cc1e8019029aaa7",
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "route": "workflow",
+   "total_ms": 21614.7,
+   "guard_in_ms": 346.2,
+   "llm_ms": 19610.1,
+   "llm_calls": 2,
+   "tool_stage_ms": 1560.3,
+   "verify_ms": 47.2,
+   "llm_node_overhead_ms": 1.8,
+   "tools_ms": {
+    "get_fundamentals": [
+     38.5
+    ]
+   }
+  },
+  {
+   "trace_id": "cde08ed6219c4c7dbed4c3c87c90c50e",
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "route": "workflow",
+   "total_ms": 21470.0,
+   "guard_in_ms": 3974.1,
+   "llm_ms": 17307.9,
+   "llm_calls": 2,
+   "tool_stage_ms": 121.8,
+   "verify_ms": 24.7,
+   "llm_node_overhead_ms": 1.9,
+   "tools_ms": {
+    "get_price_history": [
+     0.2
+    ],
+    "compute_indicators": [
+     0.1
+    ],
+    "analyze_sentiment": [
+     0.1
+    ],
+    "search_knowledge": [
+     0.3
+    ]
+   }
+  },
+  {
+   "trace_id": "2820344a9c2a439f8941a0b90812c1a3",
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "route": "workflow",
+   "total_ms": 17945.6,
+   "guard_in_ms": 579.5,
+   "llm_ms": 17269.3,
+   "llm_calls": 2,
+   "tool_stage_ms": 40.1,
+   "verify_ms": 21.3,
+   "llm_node_overhead_ms": 2.6,
+   "tools_ms": {
+    "get_fundamentals": [
+     0.2
+    ]
+   }
+  },
+  {
+   "trace_id": "1ce31329fac84103b75bd672af17afbb",
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "route": "agent",
+   "total_ms": 15791.1,
+   "guard_in_ms": 404.0,
+   "llm_ms": 11993.9,
+   "llm_calls": 3,
+   "tool_stage_ms": 3274.2,
+   "verify_ms": 53.9,
+   "llm_node_overhead_ms": 16.1,
+   "tools_ms": {
+    "get_macro_indicators": [
+     0.1,
+     10.5
+    ],
+    "resolve_entity": [
+     0.1
+    ],
+    "get_fundamentals": [
+     73.0
+    ],
+    "search_news": [
+     1065.7,
+     71.5
+    ],
+    "get_price_history": [
+     46.4
+    ],
+    "search_knowledge": [
+     1672.7
+    ]
+   }
+  },
+  {
+   "trace_id": "c20605b509524583977ac8183dff9168",
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "route": "workflow",
+   "total_ms": 5826.6,
+   "guard_in_ms": 106.8,
+   "llm_ms": 5603.4,
+   "llm_calls": 1,
+   "tool_stage_ms": 4.9,
+   "verify_ms": 19.6,
+   "llm_node_overhead_ms": 0.7,
+   "tools_ms": {
+    "get_fundamentals": [
+     0.1
+    ]
+   }
+  }
+ ]
+}

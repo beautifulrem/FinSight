@@ -5,7 +5,7 @@
   "commit": "b685e23-dirty",
   "run_at": "2026-10-01T07:42:14+00:00",
   "command": "python -m evaluation.agent_eval.router_eval --out outputs/agent_eval/router_eval-round12-own.json",
-  "note": "Author's own router labels after round 12 at b685e23 (working tree had only docs and report.py edits): 388 queries (round-12 labels route_372-387 added for holdings, turnover, Hong Kong lines, one-message comparisons, colloquial EPS and the turnover rate, with negatives). 1.000."
+  "note": "provenance (round 13, round-9 review I13): recorded from a dirty working tree (b685e23-dirty; the round-12 engineer had uncommitted docs/report edits), so it is not exactly reproducible from a commit; superseded by the clean rerun router_eval-round13-own.json"
  },
  "queries": 388,
  "accuracy": 1.0,
