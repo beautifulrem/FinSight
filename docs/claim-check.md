@@ -530,9 +530,36 @@ of the first 40 cases failed at `4ad3380`, 47 cases now; none is a review senten
 | "earned", "by RMB …" | "ICBC earned more than CMB and Ping An Bank combined", "beat … by RMB200 billion" | "earn(s/ed)" is the year's net profit; a currency may stand after "by" |
 | A definition caution alone | "宁德时代2025年归母净利润722亿元，同比增长42%" | when every unverifiable part is `definition_mismatch`, the verdict is `supported` with partial coverage ("partly checked"), not `partially_supported`. Any other unverifiable part still makes it partial |
 
+**The blind third real-claims set's classes** ([evaluation/real_claims_web_v3/README.md](../evaluation/real_claims_web_v3/README.md);
+after exposure; `tests/test_agent_round15_claims_v3.py`, 32 cases at first, 26 failing before the fix, 36 now;
+`tests/test_agent_round15_aliases.py`; none are the set's sentences):
+
+| Class | Example (own wording) | Reading |
+| --- | --- | --- |
+| 市盈TTM | "中信证券目前的市盈TTM约为10.2倍" | P/E (the rate character left out) |
+| A daily average of net profit | "中国平安2025年平均每天净赚约3.7亿元", "宁德时代2025年日赚近2亿元", "BYD earned about RMB89 million a day" | `net_profit_daily`: the year's net profit / 365 calendar days, said in the note. A day's earnings without an average word ("今天赚了2亿") are not this. Before: no metric, or "每天净赚超过1.2亿元" checked as net profit > 1.2亿 (a false accept) |
+| A bare 利润 | "工商银行2025年的利润约为3686亿元", "利润增62%到518亿" | net profit (归母), said in the note; next to 扣非 / 利润总额 / 营业利润 in the same sentence it is ambiguous (`no_metric`); 利润总额 / 营业利润 / 毛利润 / 总利润 are never read as it |
+| Bar words | "开盘3136.53点，最高3158.91点，最低3128.48点，收报3142.56点", "finished September at about 3,840" | `open`, `high`, `low`, `close` from the session's bar (that day's bar when dated) |
+| A change in 点 / 元 | "创业板指4月22日涨了63.82点", "上证指数9月30日比前一日上涨11.74点" | `change_1d`: close − previous close (for a dated bar, close − close / (1 + pct)). Before: refused as a unit mismatch of the % change |
+| An English number before its metric | "RMB 804 billion in revenue and RMB 32.6 billion in net profit", "a 6.5% year-on-year increase in net profit" | the metric after "in / of" (the growth of a flow after a YoY or move word). Before: the second number was compared with revenue |
+| A previous-year value | "长江电力2025年营收862.42亿元，上年为844.9亿元", "the previous year's RMB409 billion", "较2024年的4090.84亿元" | derived as level / (1 + YoY) from the same report, with the arithmetic in the note |
+| Turnover against the previous session | "成交额较前一交易日减少约52亿元", "环比增长13.75%", "缩减约两成" | `amount_change_1d` / `amount_change_pct_1d` from the session's bar and the previous session's (fetched with `on_date`) |
+| A month-day without a year | "4月22日，创业板指收盘站上3750点" | the last such day on or before the latest bar (2026-04-22), and that day's bar. Before: compared with 2026-09-30 and `period_mismatch` |
+| A daily figure with no date | "截至收盘，宁德时代下跌2.51%" | checked against the latest session only when it fits; otherwise `period_mismatch` ("the claim states no date …"), because a published sentence is dated by its article. A claim that names the latest session (今天, 最新, 上一个交易日, 股价, today, latest …) is still contradicted by it. Three dev rows were relabelled for this rule (d022, d216, d208's second check) |
+| 人民币 | "比亚迪全年营业收入人民币8039.65亿元" | the runtime alias table listed 人民币 as an official name of 宁德时代 (scraped from "…人民币（300750）"); the builder now rejects currency words and phrases around a known name, the 11 rows those rules reject are gone, and currency words never fuzzy-match a name |
+| A code in brackets | "科创50成份ETF（588000）…", "创业板ETF（159915，旗下联接基金A类代码110026）…" | a code that opens the bracket names the security (it wins over the name before it); codes after words in the bracket are asides, never the subject |
+| 分别 lists and "vs" pairs | "工商银行、招商银行、宁波银行、平安银行的净利润分别为…", "平安银行与招行的ROE（7.7% vs 11.8%）预计2026年仍将承压" | element-wise in order, a name outside the data left unverifiable; "x vs y" goes to the two companies in order; a forecast after a closing bracket does not make the figures before it a forecast |
+| Declines | "净利润降幅为71.9%", "营收减少了约55%" | 降幅 / 减幅 / 缩减 / 萎缩 / 缩量 make the change negative |
+| Another growth rate stated | "净利润增幅36.3%，高于营收增幅的16.5%" | the number after the bound is the stated value of the other metric of the same company, next to a relation of the two (two declines compare their sizes) |
+| 营业总收入 = 营业收入 | "宁德时代2025年营业总收入4237亿元" | checkable where the company's report gives one top line (`data/snapshot/corrections/sources.json`: "营业收入 = 营业总收入", or no separate 营业总收入); still `definition_mismatch` where they differ (贵州茅台) |
+| 成份 | "科创50成份ETF" | "50成份" is not 50 成 (500%) |
+
 Open after round 15: a short name with no full name in the claim ("比亚迪≈宁德1.9倍"); a total or mean whose companies
-are only counted, not named ("三家银行平均市盈率"); an English share worded "X's share of …"; mean and total words are a
-fixed list.
+are only counted, not named ("三家银行平均市盈率"); an English share worded "X's share of …"; mean, total and daily-average
+words are fixed lists; 近N keeps half a unit of slack at the top (紫金 "日赚近1.4亿元" at 1.4185亿 is supported, the
+third set labels it contradicted); a date that only the article gives is not known (x04, x06 are unverifiable, not
+supported); fund names whose codes collide with stock codes are still aliases of the stock in the runtime table (1,038
+rows, e.g. 华夏成长混合 → 平安银行).
 
 ### Macro values (C13)
 
@@ -557,7 +584,7 @@ period (`as_of_basis: indicator_date`).
 | `unit_mismatch` | the unit does not fit the metric |
 | `no_unit` | an amount with no unit |
 | `forecast` | 预计, 将, 会, 明年, 目标价, will, expected, if, … |
-| `period_mismatch` | the claim names a year or period other than the report's; or an amount with no period is compared with an interim (Q1/H1/Q3, year-to-date) report |
+| `period_mismatch` | the claim names a year or period other than the report's; or an amount with no period is compared with an interim (Q1/H1/Q3, year-to-date) report; since round 15 also a daily figure in a claim that states no date and names no latest session, when it does not fit the latest session |
 | `multi_day` | 今年以来, 近一个月, 本周累计成交, this year, … (only the latest daily change and turnover are checked) |
 | `no_reference` | a relation with something no source provides, such as the market average |
 | `definition_mismatch` | (round 14) the claim names a definition other than the one the data states (加权平均 vs period-end ROE, 基本 vs diluted EPS, 归母 vs total-profit YoY, 营业总收入 vs 营业收入, 动态 vs TTM P/E) |
@@ -715,6 +742,13 @@ python -m evaluation.claim_bench.run --set holdout
 | independent round-9 claim slice, **after exposure (round 14)**, at the round-14 claims code | `0dd9e1e` | 25 / – | 1.000 [1.00, 1.00] | – | – |
 | **independent round-10 claim slice, first run** (`score_claims_r10.py`, verdicts only) | `7f4f06c` | 24 / – | **0.667 [0.46, 0.83]** | – | – |
 | **independent round-10 claim slice, after the round-14 fixes** (not opened by the engineers' statement; no claim near-copies own wording, 5 repeat own content: 16/19 without them) | `3480a96` | 24 / – | **0.833 [0.67, 0.96]** | – | – |
+| dev (311; d022, d216, d208 relabelled for the round-15 no-date rule), at the round-15 claims code | `a02821d` | 311 / 359 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the round-15 claims code | `a02821d` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-4 slice, after exposure, at the round-15 claims code | `a02821d` | 67 / 75 | 1.000 [1.000, 1.000] | 0.907 [0.836, 0.963] | 0.522 |
+| independent round-5 slice, after exposure, at the round-15 claims code | `a02821d` | 56 / 86 | 0.964 [0.911, 1.000] | 0.942 [0.884, 0.988] | 0.929 |
+| independent round-6 slice, **after exposure**, at the round-15 claims code | `a02821d` | 67 / 104 | 0.970 [0.925, 1.000] | 0.894 [0.821, 0.961] | 0.382 |
+| independent round-8 and round-9 claim slices, **after exposure**, at the round-15 claims code | `a02821d` | 25 / – each | 1.000 [1.00, 1.00] each | – | – |
+| independent round-10 claim slice, **after exposure (round 15)** | `a02821d` | 24 / – | 0.875 [0.75, 1.00] | – | – |
 
 The commit column is the commit each run started from (`config.commit`). The merged-code runs were committed one after
 another, so each starts from the previous result commit; the code is the same in all of them.
@@ -789,6 +823,29 @@ r10c08 ("rose about 62% year on year to RMB51.8 billion": partially supported, l
 ("工商银行一年的净利润抵得上两个多招行": unverifiable, labelled supported), and one regression: r10c07
 ("2025年宁德时代实现归母净利润约722亿元，同比增长42%") was supported on the first run and is partially supported after
 the round-14 fixes. From round 15 this slice is after exposure.
+
+Round 15 re-ran every claim set once at `a02821d` (clean tree, the r15-claims branch, after round 2 was merged in):
+`claim_bench-dev.json`, `claim_bench-holdout-after-round15.json`, `claim_bench-heldout_r4-after-round15.json`,
+`claim_bench-heldout_r5-after-round15.json`, `claim_bench-heldout_r6-after-exposure-round15.json`,
+`claims_heldout_r8-after-exposure-round15.json`, `claims_heldout_r9-after-exposure-round15.json` and
+`claims_heldout_r10-after-exposure-round15.json`. Dev 311 = 1.000 / 1.000 (three rows relabelled for the no-date rule),
+held-out 1.000 / 1.000, r8 and r9 25/25. The no-date rule costs the older slices: r4 1.000 / per-number 0.920 → 0.907
+(r4c011's move), r5 1.000 → **0.964** (r5c024, r5c043) and per-number 0.988 → 0.942, r6 0.985 → **0.970** (r6c51) and
+0.904 → 0.894. Each of those claims names no date and no latest session and does not fit the latest session, so it is
+now unverifiable where the slice labels it contradicted. The round-10 slice, after exposure from round 15, moved 20/24 →
+**21/24** (r10c07, the definition-caution class, is fixed; r10c06, r10c08, r10c12 still fail).
+
+Real published claims, all **after exposure** at `a02821d`: `claims_web_v1` 0.850 (51/60, unchanged; w04 and w56, the
+changes in 元 / 点, are fixed, w20 and w59 are new errors), with corrections 0.783 → **0.817** (49/60);
+`claims_web_v2` **0.840** (42/50, unchanged in count: v34 and v44 fixed, v03 and v21 now `supported` under the
+definition-caution rule while the set's labels say partially); `claims_web_v3` 0.540 (blind first run) → **0.900**
+(45/50; 0.860 against the definition-blind labels); and a fourth blind set, `claims_web_v4` (collected on this branch by
+a search agent that did not read the checker), **0.740 [0.62, 0.86]** on its blind first run at `110e656` (the K6
+checker, before the third set's rules) → 0.780 (39/50) at `a02821d`
+([v1](../evaluation/real_claims_web/README.md#round-15-after-exposure-checker-changed),
+[v2](../evaluation/real_claims_web_v2/README.md#round-15-after-exposure-checker-changed),
+[v3](../evaluation/real_claims_web_v3/README.md#round-15-after-exposure-checker-changed),
+[v4](../evaluation/real_claims_web_v4/README.md)).
 
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \

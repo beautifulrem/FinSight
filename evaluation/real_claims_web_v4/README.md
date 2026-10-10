@@ -257,3 +257,33 @@ valuation claims), so the difference is not an estimate of the K6 rules' effect.
    is read as daily price moves.
 8. **Tolerance** (1: w3_34). The 16.2% growth against 16.49 is within the checker's 2% and outside the labels' 1%.
 
+
+## Round 15: after exposure
+
+After its first run this set is **after exposure**: the engineer read its 13 errors (above). No rule was written for
+this set's sentences; the round-15 rules written for the third set's classes ([../real_claims_web_v3/README.md](../real_claims_web_v3/README.md))
+overlap several of its classes. Run once on a clean tree at `a02821d`, 2026-10-10T22:07Z:
+`python -m evaluation.real_claims_web_v4.score_claims_web_v4 --after-exposure --out
+evaluation/results/claims_web_v4-after-exposure-round15.json`.
+
+| | blind first run (`110e656`) | round 15, after exposure (`a02821d`) |
+|---|---|---|
+| verdict accuracy | 0.740 [0.62, 0.86], 37/50 | **0.780 [0.66, 0.88], 39/50** |
+| against the definition-blind labels | 0.720 [0.60, 0.84] | 0.760 [0.64, 0.88] |
+| by language | zh 35/43, en 2/7 | zh 36/43, en 3/7 |
+
+The blind number is the first run's 0.740.
+
+**Per error class** (errors before → after):
+
+| class | claims | before | after | what changed |
+|---|---|---|---|---|
+| 1. a definition caution alone, under two verdict rules | w3_08, w3_18 | 2 | 3 | unchanged; w3_15 joins it ("日赚4.11亿元" is now checked and supported, leaving only the 归母-growth caution) |
+| 2. a previous-year value read as this year's | w3_19, w3_20 | 2 | **0** | level / (1 + YoY), in Chinese and English |
+| 3. metric wording | w3_23, w3_25, w3_29, w3_47 | 4 | 3 | "归属于公司拥有人的利润" is read (a bare 利润); "essentially flat (+0.01%)", ROAE, 业绩增长 are not |
+| 4. a daily average read as the year's net profit | w3_35 | 1 | 1 | now checked as net profit / 365 (1.204亿 > 1.2亿, supported); the label treats a daily average as not checkable (partially_supported) |
+| 5. 人民币 as 宁德时代 | w3_28 | 1 | **0** | the alias row is gone; ICBC's IFRS figures are compared with ICBC's |
+| 6. a name variant | w3_30 | 1 | 1 | "Kweichow Maotai" is not recognised |
+| 7. English moves of a reported flow | w3_32 | 1 | 1 | "plunged to CY40.53 billion, almost 55% below sales in 2024" is now unverifiable (no date; the latest session does not fit), not contradicted |
+| 8. tolerance | w3_34 | 1 | 1 | unchanged (2% vs the labels' 1%) |
+| new: a daily figure with no date | w3_12 | 0 | 1 | "截至收盘，沪指涨0.27%…" does not fit the latest session (+0.31%): unverifiable under the round-15 rule, labelled contradicted |
