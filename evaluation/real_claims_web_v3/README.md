@@ -259,3 +259,88 @@ independent primary record in the data files. Where a published price differs fr
 4. `daily_price`: a daily-bar part.
 5. `annual_ratios`: only ratio parts (YoY, ROE, margins).
 6. `annual_figures`: everything else.
+
+## Labels (`claims_web_v3.jsonl`), committed before the checker was run
+
+```bash
+python -m evaluation.real_claims_web_v3.select_claims_web_v3   # candidates_v3.jsonl -> collected_v3.jsonl (deterministic)
+python -m evaluation.real_claims_web_v3.label_claims_web_v3    # collected_v3.jsonl -> claims_web_v3.jsonl (deterministic)
+```
+
+Each row is the collected fields plus the following:
+
+- `category`, `expected_verdict` and `expected_verdict_definition_blind`;
+- `parts`, one per stated number. Each has the reading, `holds` (true / false / null), the offline `actual`, and the
+  rule applied or the reason the part is null. `definition_blind_parts` lists the parts that change when every named
+  basis is ignored;
+- `context_not_checked`;
+- `primary`, per annual-figure part: the basis the claim's figure is on (`basis`), the served basis, the offline value,
+  the report's figure, `offline_vs_primary` and `claim_vs_primary`;
+- `offline_vs_primary`, a per-claim summary;
+- `label_note`, where the source shows how the published figure was built.
+
+**Reading conventions added while labelling.** None of them depends on the checker.
+
+- `pbasis` changes only which annual-report figure the `primary` column compares with. It never changes a label. It
+  is set where the sentence implies a basis without naming it:
+  - a generic "ROE" is compared with the report's weighted ROE, the only ROE an annual report prints (x32);
+  - a bank's own "净利润" is compared with total net profit (x28, x31);
+  - "净利率" is compared with 归母 / 营业收入 (x19, x26, x44);
+  - "net profit growing 1.21%" is compared with the 归母 growth (x34).
+- x14 lists five insurers' profits after a sentence that names the metric (归母净利润). The 中国平安 part reads that
+  metric. The other four insurers are null.
+- The ten extension companies have no 扣非 figure or cost of sales in `sources.json`, so their 扣非 and gross-margin
+  parts have `no_primary`.
+
+**Counts.**
+
+| | |
+|---|---|
+| expected verdicts | supported 21, partially_supported 21, contradicted 6, unverifiable 2 |
+| definition-blind | supported 21, partially_supported 21, contradicted 8 |
+| categories | loose_or_relational 18, daily_price 10, english_or_traditional 8, annual_figures 8, market_value 3, annual_ratios 3 |
+| source types | media 26, social 16, broker notes 4, company announcements 4 |
+| parts | 133: true 89, false 9, null 35 |
+
+**Labels that change under the definition rule.** Two claims differ between the two label columns. Both go from
+unverifiable to contradicted, because each names 加权平均净资产收益率 while the offline ROE is period-end:
+
+- x11: 中信证券, 10.59% against the offline 9.40;
+- x49: 长江电力, 15.90% against the offline 15.59.
+
+Both figures match the report's weighted ROE. A third named basis (x44, 美的's 归母 growth of 14.03% against the
+offline total-profit 14.87%) changes a part but not the verdict.
+
+**The six contradicted claims.**
+
+| claim | what the claim says | offline value | the report on the claim's own basis |
+|---|---|---|---|
+| x19 | 中芯国际 净利率 10.71% | 7.49% (归母 / revenue) | 归母 / revenue 7.49%; 10.71% is total net profit / revenue |
+| x26 | 宁德时代 净利率 "约18.1%" | 17.04% | 归母 17.04%; 18.1% is total net profit / revenue |
+| x32 | 平安银行 ROE "~9%", 招行 13.44% | period-end 7.73% and 11.80% | weighted 9.15% and 13.44%, so true |
+| x41 | 紫金矿业 "日赚近1.4亿元" | 1.419亿 a day | 1.419亿 a day. "近" N needs the actual value ≤ N; it is 1.3% above N |
+| x45 | 茅台 "average ROE … 34.36%" | weighted 32.53% | 32.53% |
+| x47 | 茅台 "一天赚4.7个亿" | 2.26亿 a day | 2.26亿 a day; 4.7亿 is roughly revenue / 365 |
+
+**Data vs. the published reports (from the `primary` columns).**
+
+- **Same basis.** No annual figure in this set shows an offline value that differs from the report on the same basis.
+  Every comparable part agrees. Three parts have no report figure in the data files (`no_primary`): 宁德时代's 扣非
+  (x25), 紫金's 扣非 (x39) and 美的's gross margin (x43).
+- **Definitions.** Seven parts in six claims are on a basis the offline field is not on:
+  - period-end against weighted ROE: 中信证券 x11, 平安银行 and 招商银行 x32, 长江电力 x49;
+  - total-net-profit against 归母 YoY: 招商银行 x34, 美的 x44;
+  - 营业总收入 against 营业收入 as the margin's base: 美的 x44 (9.7% is true on 营业收入, at 9.63%, and false on the
+    served 营业总收入, at 9.58%);
+  - total against 归母 net profit: 工商银行 x28. 3,707.66亿 is total net profit; the offline 归母 is 3,685.62亿. The
+    part passes through the 1% rule.
+
+  The claim is true on its own basis in every one of these parts. x32 is contradicted and x34 partially supported
+  only because of the definition.
+- **Published figures on a basis the sentence does not name.** x19 and x26 quote total-net-profit margins as "净利率".
+  x47 quotes revenue / 365 as "赚". x16's "日赚3.68亿" comes from 营运利润 (operating profit, 1344亿) according to the
+  article. It is still within 1% of 归母 net profit / 365 (3.69亿), so it is labelled true.
+- **Rounding in the corrections layer.** 中国平安's served 归母 YoY is the report's one-decimal 6.5; the report's
+  figures give 6.45. Reuters' "6.45%" (x13) passes only through the 1% rule, as v2's v36 did.
+- **Prices.** Every published price, % change, volume and turnover in this set agrees with the offline bars.
+  Twenty-two bar parts are true, and none is false.
