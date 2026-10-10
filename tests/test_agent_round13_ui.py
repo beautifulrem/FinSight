@@ -114,10 +114,10 @@ def test_topic_labels_are_fixed_strings_that_no_red_team_detector_matches():
 @pytest.mark.parametrize(
     ("query", "asked"),
     [
-        ("宁德时代下周五收盘会在多少", []),
+        ("宁德时代下个周五的收盘价大概落在哪", []),
         ("贵州茅台明天的收盘价是多少", []),
         ("Where will BYD close next Friday?", []),
-        ("招商银行ROE多少", ["roe"]),
+        ("招商银行的净资产收益率是多少", ["roe"]),
         ("宁德时代去年的净利润", ["net_profit"]),
     ],
 )
@@ -167,5 +167,5 @@ def test_a_news_question_says_what_each_cited_document_is_about(agent):
 
 
 def test_a_forecast_question_lists_no_asked_metric(agent):
-    result = agent.chat("宁德时代下周五收盘会在多少", session_id="r13-forecast")
+    result = agent.chat("宁德时代下个周五的收盘价大概落在哪", session_id="r13-forecast")
     assert result["nlu_summary"]["asked_metrics"] == []
