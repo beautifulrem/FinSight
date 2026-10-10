@@ -254,6 +254,10 @@ CLAIM_BENCH_RUNS = (
     "claim_bench-heldout_r4-after-round14",
     "claim_bench-heldout_r5-after-round14",
     "claim_bench-heldout_r6-after-exposure-round14",
+    "claim_bench-holdout-after-round15",
+    "claim_bench-heldout_r4-after-round15",
+    "claim_bench-heldout_r5-after-round15",
+    "claim_bench-heldout_r6-after-exposure-round15",
 )
 # Round-4 held-out slices (evaluation/heldout_r4/, independent author): first run, then after exposure.
 HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_heldout-after-exposure")
@@ -350,6 +354,15 @@ EXTRA_EVIDENCE = (
     "claims_web_v3-first-run",
     "claims_heldout_r8-after-exposure-round14",
     "claims_heldout_r9-after-exposure-round14",
+    "claims_web_v4-first-run",
+    "claims_web_v1-after-exposure-round15",
+    "claims_web_v1-with-corrections-after-exposure-round15",
+    "claims_web_v2-after-exposure-round15",
+    "claims_web_v3-after-exposure-round15",
+    "claims_web_v4-after-exposure-round15",
+    "claims_heldout_r8-after-exposure-round15",
+    "claims_heldout_r9-after-exposure-round15",
+    "claims_heldout_r10-after-exposure-round15",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -523,6 +536,37 @@ FILE_STATUS = {
     "claims_web_v2-first-run": "engineer-collected real published claims, blind first run (collected, labelled "
     "and committed before the checker's code or tests were read; the collector had read the first set's README)",
     "claims_web_v3-first-run": "engineer-collected real published claims, blind first run (third set)",
+    "claim_bench-holdout-after-round15": "held-out claims **after exposure**, re-run at the round-15 claims code",
+    "claim_bench-heldout_r4-after-round15": "independent round-4 claim slice **after exposure**, re-run at the "
+    "round-15 claims code (per-number 0.920 -> 0.907: r4c011's move 当日下跌超过1% names no date and does not fit "
+    "the latest session, so the round-15 rule leaves it unverifiable)",
+    "claim_bench-heldout_r5-after-round15": "independent round-5 claim slice **after exposure**, re-run at the "
+    "round-15 claims code (1.000 -> 0.964: r5c024 and r5c043 name no date and do not fit the latest session, "
+    "unverifiable under the round-15 rule, labelled contradicted by the slice)",
+    "claim_bench-heldout_r6-after-exposure-round15": "independent round-6 claim slice **after exposure**, re-run at "
+    "the round-15 claims code (0.985 -> 0.970: r6c51, no date, likewise)",
+    "claims_heldout_r8-after-exposure-round15": "independent round-8 claim slice **after exposure**, re-run at the "
+    "round-15 claims code (a regression check, not a fresh estimate)",
+    "claims_heldout_r9-after-exposure-round15": "independent round-9 claim slice **after exposure**, re-run at the "
+    "round-15 claims code (a regression check, not a fresh estimate)",
+    "claims_heldout_r10-after-exposure-round15": "independent round-10 claim slice **after exposure (round 15)**: its "
+    "after-fix errors were read before the round-15 changes; 20/24 -> 21/24 (r10c07 fixed); not an out-of-sample "
+    "estimate",
+    "claims_web_v1-after-exposure-round15": "**after exposure (checker changed, round 15)**: seed data, first-run "
+    "labels; not an out-of-sample estimate",
+    "claims_web_v1-with-corrections-after-exposure-round15": "**after exposure (checker changed, round 15)**: "
+    "corrections layer on, corrected labels (those labels ignore a named definition)",
+    "claims_web_v2-after-exposure-round15": "**after exposure (checker changed, round 15)**: the blind second set "
+    "re-run at the round-15 code; the blind number is the first run (0.50)",
+    "claims_web_v3-after-exposure-round15": "**after exposure (checker changed, round 15)**: the blind third set after "
+    "the round-15 engineer read its error list and wrote general rules for its six classes with own test wordings; "
+    "the blind number is the first run (0.54); not an out-of-sample estimate",
+    "claims_web_v4-first-run": "engineer-collected real published claims, blind first run (fourth set, collected on "
+    "r15-claims by a search agent that did not read the checker; run once at the round-15 K6 code before any rule for "
+    "its classes)",
+    "claims_web_v4-after-exposure-round15": "**after exposure (round 15)**: the fourth set re-run at the final "
+    "round-15 code; its first-run errors had been read (no rule was written for this set, but the third set's "
+    "classes overlap it); the blind number is the first run (0.74)",
     "claims_web_v1-with-corrections": "**after exposure (data correction, checker unchanged)**: the same claims with "
     "the corrections layer on, scored against labels recomputed from the corrected data "
     "(claims_web_v1-labels-with-corrections.jsonl); the engineer had read the set before correcting the data",
