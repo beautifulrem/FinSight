@@ -53,7 +53,13 @@ from ..contracts import (
     RetrievalRequest,
 )
 from ..service import QueryIntelligenceService, build_default_service
-from .readiness import ReadinessChecker, check_checkpointer, check_model_config, check_retrieval_index
+from .readiness import (
+    ReadinessChecker,
+    check_checkpointer,
+    check_data_layers,
+    check_model_config,
+    check_retrieval_index,
+)
 from .security import SecuritySettings, install_security, principal_of
 
 logger = logging.getLogger("finsight.api")
@@ -234,6 +240,7 @@ def create_app(
             "checkpointer": lambda: check_checkpointer(get_agent),
             "model_config": lambda: check_model_config(chatbot_config, lambda: agent_holder["service"]),
             "retrieval_index": lambda: check_retrieval_index(runtime),
+            "data_layers": lambda: check_data_layers(runtime),
         }
     )
 
@@ -244,7 +251,8 @@ def create_app(
 
     @app.get("/ready")
     def ready() -> JSONResponse:
-        # Readiness: checkpoint store reachable and writable, model config sane, retrieval index loaded.
+        # Readiness: checkpoint store reachable and writable, model config sane, retrieval index loaded, and every
+        # offline data layer that is switched on present (each reported with its record count and sha256).
         ok, report = readiness.run()
         return JSONResponse(report, status_code=200 if ok else 503)
 
