@@ -247,7 +247,11 @@ def compose_template(
             if sentence and sentence not in facts:
                 facts.append(sentence)
         if sentences and renderer is _documents:
-            limitations.append(DOCUMENT_TEXT_LIMITATION_ZH if zh else DOCUMENT_TEXT_LIMITATION_EN)
+            quoted = any(marker in item for item in sentences for marker in _HEADLINE_MARKERS)
+            if quoted:
+                limitations.append(DOCUMENT_HEADLINE_LIMITATION_ZH if zh else DOCUMENT_HEADLINE_LIMITATION_EN)
+            else:
+                limitations.append(DOCUMENT_TEXT_LIMITATION_ZH if zh else DOCUMENT_TEXT_LIMITATION_EN)
         for evidence_id in entry.get("evidence_ids") or []:
             if evidence_id not in evidence_used:
                 evidence_used.append(evidence_id)
@@ -286,6 +290,7 @@ def compose_template(
     if query:
         gaps += _price_date_note(query, tool_log, zh, frame_request)
         gaps += [
+            *news_gaps(query, tool_log, zh=zh),
             *coverage_gaps(query, tool_log, zh=zh, names=names),
             *industry_gaps(query, tool_log, zh=zh),
             *_missing_industry_snapshot(query, tool_log, zh),
@@ -2116,10 +2121,51 @@ def document_topics(title: str | None, *, zh: bool) -> list[str]:
     return topics[:_MAX_TOPICS]
 
 
+# (round 15, review-11 K13) A news or announcement question whose document search returned nothing: before round 15
+# the answer restated whatever else the tools gave (the close) and said nothing about the news, so "What's the latest
+# news on BYD?" read as if the close were the news. The search found no document for the target, and the answer says
+# so first, by kind (news / announcements) and target; a failed search is named by ``failure_note`` instead.
+_NEWS_ASKED = re.compile(
+    r"新闻|公告|消息|资讯|动态|报道|快讯|舆情|\bnews\b|\bheadlines?\b|\bannouncements?\b|\bfilings?\b|"
+    r"\bpress\s+releases?\b|\bwhat(?:'s|\s+is)\s+happening\b",
+    re.IGNORECASE,
+)
+_DOCUMENT_KIND = {"search_news": ("新闻", "news"), "search_announcements": ("公告", "announcements")}
+
+
+def news_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> list[str]:
+    """ "当前数据中没有找到比亚迪的相关新闻。" for each news / announcement search that ran, succeeded and returned no
+    document, when the question asks for news or announcements."""
+    if not _NEWS_ASKED.search(query or ""):
+        return []
+    gaps = []
+    for entry in tool_log:
+        kind = _DOCUMENT_KIND.get(str(entry.get("tool")))
+        data = entry.get("data") or {}
+        if not kind or not entry.get("ok") or data.get("documents"):
+            continue
+        targets = [str(name) for name in data.get("targets") or [] if name]
+        if zh:
+            gaps.append(f"当前数据中没有找到{'、'.join(targets) + '的' if targets else ''}相关{kind[0]}。")
+        else:
+            about = f" about {', '.join(targets)}" if targets else ""
+            gaps.append(f"No {kind[1]}{about} was found in the data.")
+    return list(dict.fromkeys(gaps))
+
+
 DOCUMENT_TEXT_LIMITATION_ZH = "资料标题和原文属于第三方内容，未经核实，回答中不引用；可在证据列表中查看。"
 DOCUMENT_TEXT_LIMITATION_EN = (
     "Document titles and text are unverified third-party content and are not quoted in the answer; "
     "see the evidence list."
+)
+# (round 15, K13) when a headline is quoted (``quotable_headline``), the limitation says so instead
+DOCUMENT_HEADLINE_LIMITATION_ZH = (
+    "资料原文属于第三方内容，未经核实，回答中不引用；所引标题同样未经核实，可在证据列表中查看。"
+)
+_HEADLINE_MARKERS = ("（第三方标题，未经核实）", "(a third-party headline, not verified)")
+DOCUMENT_HEADLINE_LIMITATION_EN = (
+    "Document text is unverified third-party content and is not quoted in the answer; the headlines quoted are "
+    "unverified too; see the evidence list."
 )
 
 
@@ -2154,16 +2200,53 @@ def _documents(data: dict[str, Any], zh: bool) -> list[str]:
         when = str(document.get("publish_time") or "")[:10]
         when = when if _DATE.match(when) else ""
         topics = document_topics(str(document.get("title") or ""), zh=zh)
+        headline = quotable_headline(document, targets, zh=zh)
         if zh:
             origin = f"{source}{'于' + when if when else ''}发布的" if source else (f"{when}的" if when else "")
             about = f"关于{'、'.join(topics)}的" if topics else ""
-            sentences.append(f"相关资料：{origin}一篇{about}{category_zh} [{eid}]。")
+            quoted = f"，标题为「{headline}」（第三方标题，未经核实）" if headline else ""
+            sentences.append(f"相关资料：{origin}一篇{about}{category_zh}{quoted} [{eid}]。")
         else:
             origin = f" from {source}" if source else ""
             dated = f" ({when})" if when else ""
             about = f" about {' and '.join(topics)}" if topics else ""
-            sentences.append(f"Related document: a {category_en}{about}{origin}{dated} [{eid}].")
+            quoted = f', headlined "{headline}" (a third-party headline, not verified)' if headline else ""
+            sentences.append(f"Related document: a {category_en}{about}{origin}{dated}{quoted} [{eid}].")
     return sentences
+
+
+# (round 15, review-11 K13) What happened, where a headline can be shown safely: a news or announcement title is quoted
+# in the answer, attributed as an unverified third-party headline, only when it passes every check the evidence list
+# applies (``safe_headline``: the shape rules; ``regulatory_title_withheld``: regulatory action from a non-official
+# source), states no figure at all (no digit, no Chinese-numeral figure: figures come from the tools, and a headline is
+# where a planted one would be shown), names one of the question's targets and is in the answer's language. Anything
+# else keeps the topic label only, as before.
+_QUOTABLE_TYPES = {"news", "announcement"}
+_CJK = re.compile(r"[一-鿿]")
+
+
+def quotable_headline(document: dict[str, Any], targets: list[str], *, zh: bool) -> str | None:
+    from ..text_safety import fold, regulatory_title_withheld, safe_headline
+    from .output_safety import unit_figures
+
+    if str(document.get("source_type") or "") not in _QUOTABLE_TYPES:
+        return None
+    title = str(document.get("title") or "")
+    headline = safe_headline(title)
+    if headline is None or bool(_CJK.search(headline)) != zh:
+        return None
+    if re.search(r"\d", fold(headline)) or unit_figures(headline):
+        return None
+    if regulatory_title_withheld(
+        title,
+        source_type=document.get("source_type"),
+        source_name=document.get("source_name"),
+        source_url=document.get("url") or document.get("source_url"),
+    ):
+        return None
+    if not targets or not _mentions_target({"title": headline}, targets):
+        return None
+    return headline
 
 
 def _sentiment(data: dict[str, Any], zh: bool) -> list[str]:

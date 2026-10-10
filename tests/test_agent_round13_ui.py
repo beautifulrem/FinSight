@@ -33,9 +33,13 @@ def test_each_document_gets_one_line_with_publisher_date_topic_and_citation():
             _doc("白酒板块午后走弱", eid="news_3", source="中国证券网", when="2026-04-20"),
         ],
     }
+    # (round 15, K13) a safe, figure-free headline naming the target is quoted, attributed; "白酒板块午后走弱" does not
+    # name 五粮液 and keeps its topic only; the English answer does not quote Chinese headlines
     assert _documents(data, zh=True) == [
-        "相关资料：证券日报于2026-04-18发布的一篇关于财务业绩的新闻 [news_1]。",
-        "相关资料：上海证券报于2026-04-19发布的一篇关于股东回报的新闻 [news_2]。",
+        "相关资料：证券日报于2026-04-18发布的一篇关于财务业绩的新闻，标题为「五粮液一季度营业收入稳步增长」"
+        "（第三方标题，未经核实） [news_1]。",
+        "相关资料：上海证券报于2026-04-19发布的一篇关于股东回报的新闻，标题为「五粮液拟每股派发现金红利」"
+        "（第三方标题，未经核实） [news_2]。",
         "相关资料：中国证券网于2026-04-20发布的一篇关于市场行情的新闻 [news_3]。",
     ]
     assert _documents(data, zh=False) == [
@@ -163,7 +167,8 @@ def test_a_news_question_says_what_each_cited_document_is_about(agent):
         assert re.search(r"\[[\w.:-]+\]。$", line), line  # every line cites its document
     shown = {item["title"] for item in result["evidence_sources"] if item.get("title")}
     for title in shown:
-        assert title not in result["answer"]
+        # (round 15, K13) a title appears only as an attributed quote of a headline the ledger shows too
+        assert result["answer"].replace(f"标题为「{title}」（第三方标题，未经核实）", "").count(title) == 0
 
 
 def test_a_forecast_question_lists_no_asked_metric(agent):
