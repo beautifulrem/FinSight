@@ -204,7 +204,9 @@ report's text layer does not extract with pypdf.
 slices and the replay fixtures were computed from the v1 seed, so the harness pins the layer off like the
 extension (`build_offline_service`, the task builders and the test environment;
 `QI_EVAL_SNAPSHOT_FIX=1` opts in). With it pinned, the gates and every verify script give the same
-results as before. The real-claims set `claims_web_v1` was relabelled against the corrected data in a
+results as before. Opting in shows why the pin is needed: with `QI_EVAL_SNAPSHOT_FIX=1` all seven
+verify scripts fail, because their facts are seed values (r6 reports 115 problems and r7 168 failures, for example
+茅台 P/E 24.6 in the slice against 21.44 re-derived, 中国平安's close 53.61 against 58.03). The real-claims set `claims_web_v1` was relabelled against the corrected data in a
 separate file and re-scored (see `evaluation/real_claims_web/README.md`).
 
 **Not corrected, still unverified.** The v1 `industry_sql` rows (白酒 PE 27.3 / PB 6.2, 保险, 宽基指数,
