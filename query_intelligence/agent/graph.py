@@ -48,6 +48,7 @@ from .composer import (
     failure_note,
     frame_result,
     frame_sentences,
+    frame_values,
     parse_answer,
 )
 from .coverage import (
@@ -59,6 +60,7 @@ from .coverage import (
     foreign_line_kind,
     foreign_line_note,
     foreign_line_spans,
+    holding_positions,
     holding_value_request,
     out_of_coverage,
     out_of_coverage_text,
@@ -1144,7 +1146,10 @@ class AgentRuntime:
 
             text = english_display(text)
         store = _store({**state, "evidence": {**(state.get("evidence") or {}), **update.get("evidence", {})}})
-        if not verify_answer({"answer": text}, store, query=_check_query(state), allow_derived=True).passed:
+        computed = frame_values(request, tool_log)
+        if not verify_answer(
+            {"answer": text}, store, query=_check_query(state), allow_derived=True, computed=computed
+        ).passed:
             return draft, update
         joined = f"{answer}{'' if zh else ' '}{text}".strip() if answer else text
         cited = [*draft.get("evidence_used", []), *re.findall(r"\[([^\[\]]+)\]", text)]
@@ -1234,6 +1239,9 @@ class AgentRuntime:
         # The template states derived figures itself (net margin = net profit / revenue, a year-to-date change) with
         # their operands in the same cited sentence; LLM drafts follow AgentConfig.verify_derived.
         derived = self.config.verify_derived if llm_draft else True
+        # (round 15, review-11 K3) the numbers the comparison frame computed from this run's tool outputs: a correct
+        # total, mean, share of an N-company total, total against another value or two-metric ratio is never deleted
+        computed = frame_values(state.get("frame_request") or {}, state.get("tool_log") or [])
         report = verify_answer(
             draft,
             store,
@@ -1241,6 +1249,7 @@ class AgentRuntime:
             market_precedence=llm_draft,
             require_citations=True,
             allow_derived=derived,
+            computed=computed,
         )
         if not report.passed and llm_draft and self.config.revise_policy == "cite_repair":
             fixed = cite_repair(
@@ -1248,7 +1257,12 @@ class AgentRuntime:
             )
             if fixed is not None:
                 fixed_report = verify_answer(
-                    fixed, store, query=_check_query(state), market_precedence=True, allow_derived=derived
+                    fixed,
+                    store,
+                    query=_check_query(state),
+                    market_precedence=True,
+                    allow_derived=derived,
+                    computed=computed,
                 )
                 if fixed_report.passed:
                     # Only citations changed: skip the LLM revision round trip.
@@ -1278,11 +1292,34 @@ class AgentRuntime:
                 # operation or a partial answer
                 template = self._template_update(state)["draft"]
                 if verify_answer(
-                    template, store, query=_check_query(state), market_precedence=False, allow_derived=True
+                    template,
+                    store,
+                    query=_check_query(state),
+                    market_precedence=False,
+                    allow_derived=True,
+                    computed=computed,
                 ).passed:
                     fallback = template
             repaired, notes = repair_answer(draft, report, store, zh=self._zh(state), fallback=fallback)
             degraded = ["verification_failed:repaired"]
+            request = state.get("frame_request") or {}
+            result = frame_result(request, state.get("tool_log") or []) if request else None
+            if (
+                fallback is not None
+                and result is not None
+                and repaired.get("answer") != fallback.get("answer")
+                and not _states_number(str(repaired.get("answer") or ""), result)
+            ):
+                # (round 15, review-11 K3) the pruned draft no longer states what the question asks (it may keep
+                # a figure of another metric): the frame's computation, in the template, answers instead
+                limitations = [*(draft.get("limitations") or []), *(fallback.get("limitations") or [])]
+                repaired = {**fallback, "limitations": list(dict.fromkeys(limitations))}
+                notes = [
+                    "模型回答未能保留所问的计算结果，已改用基于工具结果的模板回答。"
+                    if self._zh(state)
+                    else "The model's answer lost the computed result the question asks for; replaced with the "
+                    "evidence summary."
+                ]
             if fallback is not None and repaired.get("answer") == fallback.get("answer"):
                 degraded.append("verification_failed:template_fallback")
             update.update({"draft": repaired, "verification_notes": notes, "degraded": degraded})
@@ -1888,6 +1925,9 @@ def _check_query(state: AgentState) -> str:
     there."""
     query = str(state["query"])
     effective = str(state.get("effective_query") or query)
+    if len(holding_positions(effective)) > len(holding_positions(query)):
+        # (round 15, review-11 K7) "再加三千股工行呢，总共多少": the earlier turn's position, stated by the user, too
+        return f"{query} {effective}"
     held = holding_value_request(effective)
     if held is None or holding_value_request(query) is not None:
         return query
