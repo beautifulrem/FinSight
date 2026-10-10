@@ -1,8 +1,8 @@
 {
  "version": "operation-clf-r15",
- "commit": "c73cf47",
+ "commit": "37d8827",
  "dirty": false,
- "run_at": "2026-10-10T20:35:14+00:00",
+ "run_at": "2026-10-10T20:50:58+00:00",
  "command": "python -m training.operation_classifier.train",
  "features": "char_wb 1-3-gram TF-IDF (max 20000) + grammar lexicon hits",
  "model": "LogisticRegression(C=4, multinomial, lbfgs)",
@@ -10,28 +10,28 @@
  "train": {
   "generated": 6528,
   "generated_templates": 272,
-  "dev_wordings": 744,
+  "dev_wordings": 790,
   "dev_labels": {
-   "difference": 47,
-   "ratio": 20,
+   "difference": 49,
+   "ratio": 23,
    "relative": 8,
    "share": 3,
-   "share_total": 5,
-   "sum": 12,
-   "mean": 1,
+   "share_total": 7,
+   "sum": 16,
+   "mean": 6,
    "spread": 3,
    "which": 28,
-   "total_vs_one": 0,
-   "none": 617
+   "total_vs_one": 5,
+   "none": 642
   }
  },
  "held_out": {
   "examples": 1632,
   "templates": 68,
   "classifier_accuracy": {
-   "rate": 0.8879,
-   "low": 0.8716,
-   "high": 0.9023,
+   "rate": 0.8873,
+   "low": 0.871,
+   "high": 0.9017,
    "n": 1632
   },
   "grammar_accuracy": {
@@ -50,9 +50,9 @@
   "rescued_by_fallback": 35,
   "recall_by_class": {
    "difference": {
-    "rate": 0.8472,
-    "low": 0.7795,
-    "high": 0.8969,
+    "rate": 0.8403,
+    "low": 0.7717,
+    "high": 0.8911,
     "n": 144
    },
    "ratio": {
@@ -126,6 +126,12 @@
    {
     "template": "difference/en/9",
     "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
     "classifier": "total_vs_one",
     "grammar": "none"
    },
@@ -247,12 +253,6 @@
     "template": "difference/en/9",
     "expected": "difference",
     "classifier": "ratio",
-    "grammar": "none"
-   },
-   {
-    "template": "ratio/zh/14",
-    "expected": "ratio",
-    "classifier": "total_vs_one",
     "grammar": "none"
    },
    {
@@ -270,40 +270,40 @@
   ]
  },
  "in_sample_dev": {
-  "examples": 744,
+  "examples": 790,
   "templates": 1,
   "classifier_accuracy": {
-   "rate": 0.9973,
-   "low": 0.9903,
+   "rate": 0.9975,
+   "low": 0.9908,
    "high": 0.9993,
-   "n": 744
+   "n": 790
   },
   "grammar_accuracy": {
    "rate": 1.0,
-   "low": 0.9949,
+   "low": 0.9952,
    "high": 1.0,
-   "n": 744
+   "n": 790
   },
   "grammar_plus_classifier_accuracy": {
    "rate": 1.0,
-   "low": 0.9949,
+   "low": 0.9952,
    "high": 1.0,
-   "n": 744
+   "n": 790
   },
   "grammar_missed_operations": 0,
   "rescued_by_fallback": 0,
   "recall_by_class": {
    "difference": {
     "rate": 1.0,
-    "low": 0.9244,
+    "low": 0.9273,
     "high": 1.0,
-    "n": 47
+    "n": 49
    },
    "ratio": {
     "rate": 1.0,
-    "low": 0.8389,
+    "low": 0.8569,
     "high": 1.0,
-    "n": 20
+    "n": 23
    },
    "relative": {
     "rate": 1.0,
@@ -319,21 +319,21 @@
    },
    "share_total": {
     "rate": 1.0,
-    "low": 0.5655,
+    "low": 0.6457,
     "high": 1.0,
-    "n": 5
+    "n": 7
    },
    "sum": {
     "rate": 1.0,
-    "low": 0.7575,
+    "low": 0.8064,
     "high": 1.0,
-    "n": 12
+    "n": 16
    },
    "mean": {
     "rate": 1.0,
-    "low": 0.2065,
+    "low": 0.6097,
     "high": 1.0,
-    "n": 1
+    "n": 6
    },
    "spread": {
     "rate": 1.0,
@@ -347,11 +347,17 @@
     "high": 1.0,
     "n": 28
    },
+   "total_vs_one": {
+    "rate": 1.0,
+    "low": 0.5655,
+    "high": 1.0,
+    "n": 5
+   },
    "none": {
-    "rate": 0.9968,
-    "low": 0.9883,
+    "rate": 0.9969,
+    "low": 0.9887,
     "high": 0.9991,
-    "n": 617
+    "n": 642
    }
   },
   "classifier_misses_sample": [
@@ -412,7 +418,7 @@
  },
  "artifact": {
   "path": "models/operation_classifier.joblib",
-  "bytes": 610994,
-  "sha256": "6aeb36225d54faa01e9821c4c830c5d7b0a03a92785cb0711765a8036eebce95"
+  "bytes": 622004,
+  "sha256": "05ec3b00f6137aa018fadbba38a1f2363554ddeb7613be0e2dc95a3ef5c397b9"
  }
 }
