@@ -1,7 +1,7 @@
-"""Label the blind third real-claims set (``collected_v3.jsonl``) from the data files only.
+"""Label the blind fourth real-claims set (``collected_v4.jsonl``) from the data files only.
 
 Modelled on ``evaluation/real_claims_web_v2/label_claims_web_v2.py`` (its data reader, tolerance rules, definition
-rule, primary-source comparison and verdict aggregation are copied here unchanged), with the v3 additions written in
+rule, primary-source comparison and verdict aggregation are copied here unchanged), with this set's additions written in
 ``README.md`` before labelling:
 
 - "差 / 相差 N 倍" as a multiple of the difference (larger / smaller - 1), kind ``multiple_gap``;
@@ -20,7 +20,7 @@ Every value a part is compared with comes from:
 
 No checker code is imported or read. A person read each claim once and wrote its *parts* below.
 
-    python -m evaluation.real_claims_web_v3.label_claims_web_v3          # writes claims_web_v3.jsonl
+    python -m evaluation.real_claims_web_v4.label_claims_web_v4          # writes claims_web_v4.jsonl
 """
 
 from __future__ import annotations
@@ -34,8 +34,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
-COLLECTED = HERE / "collected_v3.jsonl"
-OUTPUT = HERE / "claims_web_v3.jsonl"
+COLLECTED = HERE / "collected_v4.jsonl"
+OUTPUT = HERE / "claims_web_v4.jsonl"
 
 UNITS = {
     "元": 1.0,
@@ -269,12 +269,12 @@ def eval_part(data: OfflineData, part: dict[str, Any]) -> dict[str, Any]:
             actual = a / b
         elif kind == "diff":
             actual = a - b
-        else:  # new in v3: "差 / 相差 N 倍" = larger / smaller - 1
+        else:  # new in this set: "差 / 相差 N 倍" = larger / smaller - 1
             actual = max(a, b) / min(a, b) - 1
         holds, rule = judge(actual, part["v"], part["u"], part.get("q", "exact"), part.get("signed", False))
         out.update(holds=holds, actual=round(actual, 6), rule=rule)
         return out
-    if kind in ("sum", "mean", "share", "sum_cmp"):  # new in v3
+    if kind in ("sum", "mean", "share", "sum_cmp"):  # new in this set
         items = [_value(data, ref) for ref in part["items"]]
         if any(v is None for v in items):
             out.update(holds=None, reason="a named company is not in the offline data")
@@ -877,7 +877,7 @@ def label_all() -> list[dict[str, Any]]:
     data = OfflineData()
     rows = [json.loads(line) for line in COLLECTED.read_text(encoding="utf-8").splitlines() if line.strip()]
     if sorted(r["id"] for r in rows) != sorted(PARTS):
-        raise SystemExit("collected_v3.jsonl ids differ from the labelled ids")
+        raise SystemExit("collected_v4.jsonl ids differ from the labelled ids")
     out = []
     for row in rows:
         cid, spec = PARTS[row["id"]]

@@ -1,4 +1,4 @@
-"""Run the project's claim checker once over ``claims_web_v3.jsonl`` (offline, no LLM) and score its verdicts.
+"""Run the project's claim checker once over ``claims_web_v4.jsonl`` (offline, no LLM) and score its verdicts.
 
 Copied from ``evaluation/real_claims_web_v2/score_claims_web_v2.py``; only the paths, names, notes and the claim-text
 field are adapted. The checker is a black box, called the way the v2 scorer calls it (and the way
@@ -10,10 +10,10 @@ a date the sentence leaves to its context is not given to the checker, as in the
 
 A claim is correct when the checker's verdict equals ``expected_verdict`` (the definition-aware label). The accuracy
 against ``expected_verdict_definition_blind`` is reported alongside. 95% percentile bootstrap CI over claims (2000
-resamples, seed 20261010). Writes OUT (default ``evaluation/results/claims_web_v3-first-run.json``) and refuses to write
+resamples, seed 20261010). Writes OUT (default ``evaluation/results/claims_web_v4-first-run.json``) and refuses to write
 into a committed results folder from a dirty tree::
 
-    python -m evaluation.real_claims_web_v3.score_claims_web_v3 [--out OUT.json]
+    python -m evaluation.real_claims_web_v4.score_claims_web_v4 [--out OUT.json]
 
 ``--after-exposure`` labels a run made after the checker was changed for this set's error classes (the set is after
 exposure from then on); give ``--out`` so the first run is not overwritten.
@@ -34,10 +34,10 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-CLAIMS = HERE / "claims_web_v3.jsonl"
-DEFAULT_OUT = ROOT / "evaluation" / "results" / "claims_web_v3-first-run.json"
+CLAIMS = HERE / "claims_web_v4.jsonl"
+DEFAULT_OUT = ROOT / "evaluation" / "results" / "claims_web_v4-first-run.json"
 CHECK_FIELDS = ("target", "metric", "comparator", "claimed", "actual", "status", "reason", "note")
-COMMAND = "python -m evaluation.real_claims_web_v3.score_claims_web_v3"
+COMMAND = "python -m evaluation.real_claims_web_v4.score_claims_web_v4"
 SEED = 20261010
 
 
@@ -121,15 +121,15 @@ def main(argv: list[str] | None = None) -> int:
     blind_hits = [1.0 if r["ok_definition_blind"] else 0.0 for r in results]
     by_category = rates(results, "category")
     notes = [
-        "real published claims, third set, blind first run: collected, selected and labelled without reading the "
+        "real published claims, fourth set, blind first run: collected, selected and labelled without reading the "
         "checker's code, its tests or the claim-bench rows; the collector saw no offline value and no earlier set's "
-        "README before collected_v3.jsonl was written, and read the v2 README (its error classes) and the data "
+        "README before collected_v4.jsonl was written, and read the v2 README (its error classes) and the data "
         "files only afterwards, before labelling",
     ]
     if args.after_exposure:
         notes = [
             "after exposure (checker changed): the checker was changed after its authors read this set's errors; "
-            "not an out-of-sample estimate (the first run, claims_web_v3-first-run.json, is the blind number)"
+            "not an out-of-sample estimate (the first run, claims_web_v4-first-run.json, is the blind number)"
         ]
     if dirty_note:
         notes.append(dirty_note)
@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
             "exposure": "after" if args.after_exposure else "blind first run",
             "snapshot": "offline v1 + 2026-09-30 extension + corrections layer (QI_OFFLINE_SNAPSHOT_EXT and "
             "QI_OFFLINE_SNAPSHOT_FIX on, the shipped default), no LLM",
-            "labels": "evaluation/real_claims_web_v3/claims_web_v3.jsonl (label_claims_web_v3, definition-aware; "
+            "labels": "evaluation/real_claims_web_v4/claims_web_v4.jsonl (label_claims_web_v4, definition-aware; "
             "expected_verdict_definition_blind reported alongside)",
             "note": notes[0],
             "notes": notes,
