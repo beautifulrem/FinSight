@@ -66,6 +66,16 @@ _HEADER_ALIAS_TEXTS = {
     "代码",
 }
 _INVALID_EXACT_NAMES = {
+    # (round 15) currency words before a bracketed code in scraped text ("…人民币（300750）") are not names; the runtime
+    # table had "人民币" as an official name of 宁德时代, so any claim quoting an amount in 人民币 got 宁德时代 as a target
+    "人民币",
+    "人民币元",
+    "美元",
+    "港元",
+    "港币",
+    "欧元",
+    "日元",
+    "英镑",
     "买入",
     "卖出",
     "增持",
@@ -408,6 +418,8 @@ class RuntimeEntityAssetBuilder:
             canonical_name = pair["canonical_name"]
             if symbol in entities_by_symbol:
                 entity = entities_by_symbol[symbol]
+                if pair.get("from_training") and not _plausible_extra_name(canonical_name, entity["canonical_name"]):
+                    continue  # (round 15) a scraped phrase or an unrelated word next to a known code, not a name
             else:
                 entity = {
                     "entity_id": str(next_entity_id),
@@ -555,6 +567,7 @@ class RuntimeEntityAssetBuilder:
                 "raw_name": sorted(raw_names[(symbol, canonical_name, entity_type)], key=len)[-1],
                 "entity_type": entity_type,
                 "industry_name": "",
+                "from_training": "true",
             }
 
     def _iter_training_symbol_name_pairs(self) -> Iterable[tuple[str, str]]:
@@ -679,6 +692,17 @@ def _extract_pairs_from_text(text: str) -> Iterable[tuple[str, str]]:
         name = _clean_security_name(match.group("name"))
         if symbol and name:
             yield symbol, name
+
+
+def _plausible_extra_name(name: str, canonical_name: str) -> bool:
+    """(round 15) A name scraped from text next to a code the universe already names is an extra alias only when it
+    shares a character with the canonical name and is not a phrase around it: "人民币（300750）" is not 宁德时代, and
+    "蔚来与宁德时代" / "和招商南油" / "以及消费品类的上海家化" are phrases that end with the name."""
+    if name == canonical_name:
+        return True
+    if canonical_name and canonical_name in name:
+        return False
+    return bool(set(name) & set(canonical_name))
 
 
 def _clean_security_name(name: str) -> str:

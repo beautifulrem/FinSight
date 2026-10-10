@@ -89480,7 +89480,6 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 89480,2362,股份,股份,official_name,1,true
 89481,3259,建议关注中远海特,建议关注中远海特,official_name,1,true
 89482,3876,重点推荐招商轮船,重点推荐招商轮船,official_name,1,true
-89483,3907,和招商南油,和招商南油,official_name,1,true
 89484,3736,建议关注中国国航,建议关注中国国航,official_name,1,true
 89485,29343,002928.SH,002928.SH,symbol,1,false
 89486,29344,833075.BJ,833075.BJ,symbol,1,false
@@ -89556,7 +89555,6 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 89556,644,通过下属公司持有瑞泰科技,通过下属公司持有瑞泰科技,official_name,1,true
 89557,3346,通过下属公司持有凯盛科技,通过下属公司持有凯盛科技,official_name,1,true
 89558,3970,通过下属公司持有国检集团,通过下属公司持有国检集团,official_name,1,true
-89559,4030,直接持有及通过下属持有中材节能,直接持有及通过下属持有中材节能,official_name,1,true
 89560,4943,华虹半导体,华虹半导体,official_name,1,true
 89561,1163,高等理工研究院,高等理工研究院,official_name,1,true
 89562,28385,中信建投国家电投,中信建投国家电投,official_name,1,true
@@ -89595,7 +89593,6 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 89595,29373,601028.SH,601028.SH,symbol,1,false
 89596,29373,601028,601028,symbol,2,false
 89597,137,白银关注兴业矿业,白银关注兴业矿业,official_name,1,true
-89598,218,和盛达资源,和盛达资源,official_name,1,true
 89599,961,具备核心器件能力的和而泰,具备核心器件能力的和而泰,official_name,1,true
 89600,1668,通信,通信,official_name,1,true
 89601,2744,卫星测试相关的西测测试,卫星测试相关的西测测试,official_name,1,true
@@ -89634,7 +89631,6 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 89634,29376,和海泰转债,和海泰转债,official_name,1,true
 89635,29376,123200.SZ,123200.SZ,symbol,1,false
 89636,29376,123200,123200,symbol,2,false
-89637,3365,和精达股份,和精达股份,official_name,1,true
 89638,3348,中药领域投资机会如康缘药业,中药领域投资机会如康缘药业,official_name,1,true
 89639,4031,重点关注昭衍新药,重点关注昭衍新药,official_name,1,true
 89640,2577,氏眼科,氏眼科,official_name,1,true
@@ -89643,12 +89639,10 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 89643,4148,自动化检测,自动化检测,official_name,1,true
 89644,4614,帅丰电器,帅丰电器,official_name,1,true
 89645,976,推荐重点关注-零售渠道类天虹百货,推荐重点关注-零售渠道类天虹百货,official_name,1,true
-89646,3174,以及消费品类的上海家化,以及消费品类的上海家化,official_name,1,true
 89647,29377,发行时间,发行时间,official_name,1,true
 89648,29377,113655.SH,113655.SH,symbol,1,false
 89649,29377,113655,113655,symbol,2,false
 89650,6320,华泰柏瑞基金,华泰柏瑞基金,official_name,1,true
-89651,2243,人民币,人民币,official_name,1,true
 89652,87,深天马A,深天马A,official_name,1,true
 89653,29378,人工智,人工智,official_name,1,true
 89654,29378,930713.SZ,930713.SZ,symbol,1,false
@@ -89835,7 +89829,6 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 89835,1556,公司研究丨点评报告丨华测检测,公司研究丨点评报告丨华测检测,official_name,1,true
 89836,650,风险提示,风险提示,official_name,1,true
 89837,27295,南方金利定开,南方金利定开,official_name,1,true
-89838,2243,蔚来与宁德时代,蔚来与宁德时代,official_name,1,true
 89839,29343,支线龙头华夏航空,支线龙头华夏航空,official_name,1,true
 89840,2963,关注南方航空,关注南方航空,official_name,1,true
 89841,653,的股票为大港股份,的股票为大港股份,official_name,1,true
@@ -89875,7 +89868,6 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 89875,2033,达志科技,达志科技,official_name,1,true
 89876,4145,路机,路机,official_name,1,true
 89877,1486,发行人湘佳股份,发行人湘佳股份,official_name,1,true
-89878,3227,和健康元,和健康元,official_name,1,true
 89879,2406,中伟股份,中伟股份,official_name,1,true
 89880,3831,转债价格调整,转债价格调整,official_name,1,true
 89881,2549,回购公告,回购公告,official_name,1,true
@@ -90000,7 +89992,6 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 90001,3247,A股上市公司三友化工,A股上市公司三友化工,official_name,1,true
 90002,77,深桑达A,深桑达A,official_name,1,true
 90003,4777,路德环境,路德环境,official_name,1,true
-90004,3484,直接及间接持有中交设计,直接及间接持有中交设计,official_name,1,true
 90005,4733,国力股份,国力股份,official_name,1,true
 90006,29443,转债,转债,official_name,1,true
 90007,29443,113652.SZ,113652.SZ,symbol,1,false
@@ -90036,9 +90027,7 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 90037,1219,宏大爆破,宏大爆破,official_name,1,true
 90038,912,推荐物流快速全赛道布局的顺丰控股,推荐物流快速全赛道布局的顺丰控股,official_name,1,true
 90039,692,对领先的韵达股份,对领先的韵达股份,official_name,1,true
-90040,3116,和圆通速递,和圆通速递,official_name,1,true
 90041,1075,铝业,铝业,official_name,1,true
-90042,344,以及产量供给有弹性的云铝股份,以及产量供给有弹性的云铝股份,official_name,1,true
 90043,304,资源自给率较高的北方铜业,资源自给率较高的北方铜业,official_name,1,true
 90044,29185,的股票为森萱医药,的股票为森萱医药,official_name,1,true
 90045,1073,财互联,财互联,official_name,1,true
