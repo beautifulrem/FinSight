@@ -1,5 +1,4 @@
 {
- "kind": "verifier_stress",
  "config": {
   "tasks": "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
   "seed": 7,
@@ -9,22 +8,16 @@
    0.2
   ],
   "model": null,
-  "commit": "d42b181",
-  "run_at": "2026-10-01T13:56:08+00:00",
+  "commit": "bd1de77",
+  "run_at": "2026-10-10T13:58:53+00:00",
   "command": "python -m evaluation.agent_eval.verifier_stress --out evaluation/results/verifier_stress-round13.json",
-  "env": {
-   "QI_AGENT_TRACE_DIR": "off",
-   "QI_USE_LIVE_ANNOUNCEMENT": "0",
-   "QI_USE_LIVE_MACRO": "0",
-   "QI_USE_LIVE_MARKET": "0",
-   "QI_USE_LIVE_NEWS": "0"
-  },
-  "command_with_env": "QI_AGENT_TRACE_DIR=off QI_USE_LIVE_ANNOUNCEMENT=0 QI_USE_LIVE_MACRO=0 QI_USE_LIVE_MARKET=0 QI_USE_LIVE_NEWS=0 python -m evaluation.agent_eval.verifier_stress --out evaluation/results/verifier_stress-round13.json"
+  "env": {},
+  "command_with_env": "python -m evaluation.agent_eval.verifier_stress --out evaluation/results/verifier_stress-round13.json"
  },
- "gold_answers": 286,
+ "gold_answers": 306,
  "gold_set": {
-  "count": 286,
-  "sha256": "41d70dd483edc28b44cc6e8a3c18ed254af9adde9e6ad4da17ecc1b8e0afa4dd",
+  "count": 306,
+  "sha256": "7f5ee3e944f017931addfa3436a213f8ec0ef762a28cb89e8d6074357eecaec1",
   "tasks": [
    "fact_price_zh_0_0",
    "fact_price_zh_0_1",
@@ -311,7 +304,27 @@
    "r12_h11_metric_switch_zh",
    "r12_h11_longer_question_en",
    "r12_h4_carried_target_zh",
-   "r12_h9_turnover_rate_missing_zh"
+   "r12_h9_turnover_rate_missing_zh",
+   "r13_threshold_forecast_zh",
+   "r13_threshold_hold_zh",
+   "r13_close_modal_zh",
+   "r13_threshold_forecast_en",
+   "r13_best_guess_en",
+   "r13_past_threshold_zh",
+   "r13_past_threshold_en",
+   "r13_verb_trails_zh",
+   "r13_verb_outran_zh",
+   "r13_verb_trails_en",
+   "r13_verb_outsells_en",
+   "r13_count_ratio_session_zh",
+   "r13_divide_en",
+   "r13_subtract_en",
+   "r13_two_rates_zh",
+   "r13_percentage_wise_en",
+   "r13_buy_lots_zh",
+   "r13_industry_turnover_rate_zh",
+   "r13_r9_share_session_zh",
+   "r13_r9_sum_session_zh"
   ]
  },
  "true_accept": {
@@ -320,41 +333,41 @@
   "claim": 1.0,
   "claim_derived": 1.0
  },
- "variants": 4990,
+ "variants": 5202,
  "false_accept": {
-  "legacy": 0.3214,
-  "run": 0.2391,
-  "claim": 0.01,
-  "claim_derived": 0.0114
+  "legacy": 0.3195,
+  "run": 0.2364,
+  "claim": 0.0096,
+  "claim_derived": 0.011
  },
  "by_kind": {
   "perturb_1pct": {
-   "variants": 1221,
-   "false_accept_legacy": 0.2531,
-   "false_accept_run": 0.0156,
-   "false_accept_claim": 0.0156,
-   "false_accept_claim_derived": 0.0156
+   "variants": 1276,
+   "false_accept_legacy": 0.2555,
+   "false_accept_run": 0.0149,
+   "false_accept_claim": 0.0149,
+   "false_accept_claim_derived": 0.0149
   },
   "perturb_20pct": {
-   "variants": 1342,
-   "false_accept_legacy": 0.0857,
-   "false_accept_run": 0.0283,
-   "false_accept_claim": 0.0142,
-   "false_accept_claim_derived": 0.0142
+   "variants": 1402,
+   "false_accept_legacy": 0.0849,
+   "false_accept_run": 0.0271,
+   "false_accept_claim": 0.0136,
+   "false_accept_claim_derived": 0.0136
   },
   "perturb_5pct": {
-   "variants": 1317,
-   "false_accept_legacy": 0.0532,
-   "false_accept_run": 0.0197,
-   "false_accept_claim": 0.0091,
-   "false_accept_claim_derived": 0.0091
+   "variants": 1377,
+   "false_accept_legacy": 0.0508,
+   "false_accept_run": 0.0189,
+   "false_accept_claim": 0.0087,
+   "false_accept_claim_derived": 0.0087
   },
   "swap": {
-   "variants": 1110,
+   "variants": 1147,
    "false_accept_legacy": 1.0,
    "false_accept_run": 1.0,
    "false_accept_claim": 0.0,
-   "false_accept_claim_derived": 0.0063
+   "false_accept_claim_derived": 0.0061
   }
  },
  "examples_caught_only_by_claim_binding": [
@@ -416,19 +429,13 @@
   }
  ],
  "repair": {
-  "repaired_answers": 4940,
+  "repaired_answers": 5152,
   "readable": 1.0,
   "passes_verification": 1.0,
-  "template_fallback": 0.182,
+  "template_fallback": 0.1902,
   "with_fragment": 0.0,
-  "retained_sentences": 0.9785,
+  "retained_sentences": 0.9792,
   "answers_with_issue": {},
   "unreadable_examples": []
- },
- "source": {
-  "file": "outputs/r13/verifier_stress-round13.raw.json",
-  "sha256_16": "3254e4c4210fc732",
-  "bytes": 12673,
-  "slimmed_at": "2026-10-01T13:58:30+00:00"
  }
 }
