@@ -1,0 +1,160 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "workflow",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/agent_eval/tasks/agent_eval_shipped_v1.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "0096c6f",
+  "run_at": "2026-10-10T16:01:55+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 27.8,
+  "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_shipped_v1.jsonl --no-replay --out outputs/agent_eval/gate-shipped.json",
+  "env": {
+   "QI_EVAL_SNAPSHOT_EXT": "1",
+   "QI_EVAL_SNAPSHOT_FIX": "1"
+  },
+  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_shipped_v1.jsonl --no-replay --out outputs/agent_eval/gate-shipped.json"
+ },
+ "summary": {
+  "tasks": 21,
+  "turns": 22,
+  "repeats": 1,
+  "task_success": 1.0,
+  "pass^1": 1.0,
+  "ci": {
+   "task_success": [
+    1.0,
+    1.0
+   ],
+   "pass^1": [
+    1.0,
+    1.0
+   ],
+   "task_success_uncited": [
+    1.0,
+    1.0
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 1.0,
+  "turn_success": 1.0,
+  "behavior_accuracy": 1.0,
+  "fact_recall": 1.0,
+  "fact_stated": 1.0,
+  "tool_recall": 1.0,
+  "tool_precision": 0.6364,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": null,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 99.8,
+  "latency_ms_p95": 551.0,
+  "latency_ms_p99": 724.44,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "comparison": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 439.05
+  },
+  "compliance": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 545.09
+  },
+  "derived": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 551.0
+  },
+  "fact": {
+   "tasks": 15,
+   "task_success": 1.0,
+   "latency_ms_p95": 724.44
+  },
+  "multi_turn": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 38.72
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 545.09
+  },
+  "zh": {
+   "tasks": 14,
+   "task_success": 1.0,
+   "latency_ms_p95": 724.44
+  }
+ },
+ "failed_checks": {},
+ "failures": [],
+ "task_outcomes": {
+  "shipped_wly_roe_zh": "1",
+  "shipped_wly_revenue_zh": "1",
+  "shipped_wly_profit_en": "1",
+  "shipped_wly_pe_en": "1",
+  "shipped_mt_pe_zh": "1",
+  "shipped_mt_pb_en": "1",
+  "shipped_mt_roe_zh": "1",
+  "shipped_mt_revenue_en": "1",
+  "shipped_pa_pe_zh": "1",
+  "shipped_pa_roe_en": "1",
+  "shipped_pa_close_zh": "1",
+  "shipped_hs300_close_zh": "1",
+  "shipped_cyb_close_en": "1",
+  "shipped_sec_close_zh": "1",
+  "shipped_pa_holding_zh": "1",
+  "shipped_roe_gap_zh": "1",
+  "shipped_followup_pe_zh": "1",
+  "shipped_cross_layer_pb_zh": "1",
+  "shipped_catl_roe_basis_zh": "1",
+  "shipped_pa_forecast_zh": "1",
+  "shipped_hs300_forecast_en": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/gate-shipped.json",
+  "sha256_16": "bf74663837895f6c",
+  "bytes": 66251,
+  "slimmed_at": "2026-10-10T16:01:55+00:00"
+ }
+}
