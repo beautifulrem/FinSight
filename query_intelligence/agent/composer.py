@@ -286,7 +286,8 @@ def compose_template(
     if query:
         gaps += _price_date_note(query, tool_log, zh, frame_request)
         gaps += [
-            *coverage_gaps(query, tool_log, zh=zh, names=names),
+            # (round 15, K12) a glossary definition is not the data a metric question asked for
+            *coverage_gaps(query, _data_tools(tool_log), zh=zh, names=names),
             *industry_gaps(query, tool_log, zh=zh),
             *_missing_industry_snapshot(query, tool_log, zh),
             *non_stock_fundamental_gaps(query, tool_log, zh=zh, names=names, types=types),
@@ -2187,6 +2188,11 @@ def _sentiment(data: dict[str, Any], zh: bool) -> list[str]:
 
 def _entities(data: dict[str, Any], zh: bool) -> list[str]:
     return []
+
+
+def _data_tools(tool_log: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The tool log without glossary lookups: "扣非和归母有什么区别" answered from the glossary has no missing data."""
+    return [entry for entry in tool_log if entry.get("tool") != "explain_concept"]
 
 
 def _concept(data: dict[str, Any], zh: bool) -> list[str]:

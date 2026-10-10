@@ -89,6 +89,8 @@ _CAUSAL_TRIGGER = re.compile(
     r"\bindicat|\bsuggest|\breflect|priced in",
     re.IGNORECASE,
 )
+# (round 15, K12) "What does weighted average ROE mean?": a definition, not a question about causes
+_DEFINITION_ONLY = re.compile(r"^\s*(?:what does .{1,60}\bmean|what is meant by\b.{1,60})\s*[?.!？]*\s*$", re.I)
 _JUDGMENT_PREFIX_ZH = "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。"
 _JUDGMENT_PREFIX_EN = (
     "Based on the current evidence this can only be a conditional assessment, not a buy, sell, or hold "
@@ -303,7 +305,11 @@ def apply_compliance(
         if not any(marker in softened for marker in ("条件性判断", "conditional assessment", "证据不足以直接判断")):
             softened = f"{prefix}{'' if zh else ' '}{softened}".strip()
             notes.append("conditional_prefix")
-    elif _CAUSAL_TRIGGER.search(asked) and not any(marker in softened.lower() for marker in _HEDGE_MARKERS):
+    elif (
+        _CAUSAL_TRIGGER.search(asked)
+        and not _DEFINITION_ONLY.search(query or "")
+        and not any(marker in softened.lower() for marker in _HEDGE_MARKERS)
+    ):
         caveat = _CAUSAL_CAVEAT_ZH if zh else _CAUSAL_CAVEAT_EN
         softened = f"{softened}{'' if zh else ' '}{caveat}".strip()
         notes.append("causal_caveat")
