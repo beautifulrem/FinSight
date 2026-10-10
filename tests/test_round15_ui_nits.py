@@ -55,3 +55,47 @@ def test_a_negative_per_share_gap_is_bracketed_and_verifies(question, zh, produc
 def test_a_positive_per_share_gap_is_not_bracketed():
     sentence = cost_basis_sentences(_TOOL_LOG, "我200股茅台成本1400，现在盈亏多少", True)[0]
     assert "200 × 9.5 = 1900 元" in sentence, sentence
+
+
+def _python_templates() -> set[str]:
+    """Every string literal and f-string of the server modules whose fixed texts the web UI re-localises, with the
+    interpolated names written as {a} / {b} the way ``frontend/src/lib/localize.ts`` writes them."""
+    import ast
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    names = {"names[0]": "{a}", "names[1]": "{b}", "name": "{a}"}
+    found: set[str] = set()
+    for module in (
+        "query_intelligence/agent/followups.py",
+        "query_intelligence/answer_guards.py",
+        "query_intelligence/chat/language.py",
+    ):
+        for node in ast.walk(ast.parse((root / module).read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                found.add(node.value)
+            elif isinstance(node, ast.JoinedStr):
+                parts = []
+                for value in node.values:
+                    if isinstance(value, ast.Constant):
+                        parts.append(str(value.value))
+                    else:
+                        parts.append(names.get(ast.unparse(value.value), "{?}"))
+                found.add("".join(parts))
+    return found
+
+
+def test_the_ui_relocalised_templates_match_the_server_templates():
+    """The web UI rebuilds next-question chips and the default disclaimer in the UI language from copies of the server
+    templates (K17); a server wording change without the same change in localize.ts would silently stop the switch."""
+    import re
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "frontend" / "src" / "lib" / "localize.ts").read_text(
+        encoding="utf-8"
+    )
+    copies = re.findall(r'(?:zh|en): "((?:[^"\\]|\\.)*)"', source)
+    assert len(copies) >= 20
+    server = _python_templates()
+    missing = [copy for copy in copies if copy not in server]
+    assert missing == []
