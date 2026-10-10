@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
-from .frame import NET_MARGIN_SHARE_SOURCE, TURNOVER
+from .frame import GENERIC_NAME_TAILS, NET_MARGIN_SHARE_SOURCE, TURNOVER
 
 # --------------------------------------------------------------------------- out of coverage
 
@@ -366,7 +366,7 @@ _HOLDING_COUNT_ZH = (
     r"(?<![每\d])(?P<n>\d[\d,，]*|[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*|"
     r"一[十百千万][零〇一二两三四五六七八九十百千万]*)"
     # (round 12) fund units count like shares ("两万份沪深300ETF"); a lot (手) is 100 shares ("3手茅台")
-    r"\s*(?P<unit>股(?![价票东份息市权本派送转配])|份|手(?![续机表头上下工动脚指]))"
+    r"\s*(?P<unit>股(?![价票东份息市权本派送转配])|份|手(?![续机表头上下动脚指]|工(?!商)))"
 )
 _HOLDING_VALUE_ZH = re.compile(
     _HOLDING_COUNT_ZH + r"[^。？?！!；;]{0,24}?"
@@ -459,7 +459,12 @@ def cost_basis_request(query: str) -> dict[str, Any] | None:
     if cost <= 0:
         return None
     shares, lots = None, 0
-    counted = re.search(_HOLDING_COUNT_ZH, text) if zh else _EN_POSITION.search(text)
+    # the count is read outside the cost ("paid 50 a share for 1,000 shares": 1,000, not 50)
+    group = next(name for name, value in found.groupdict().items() if value)
+    start, end = found.span(group)
+    end = end + len(re.match(r"\s*(?:a share|per share|each|apiece)?", text[end:]).group(0))
+    rest = f"{text[:start]}{' ' * (end - start)}{text[end:]}"
+    counted = re.search(_HOLDING_COUNT_ZH, rest) if zh else _EN_POSITION.search(rest)
     if counted is not None:
         raw = counted.group("n").replace(",", "").replace("，", "")
         count = int(raw) if raw.isdigit() else _cn_integer(raw)
@@ -593,11 +598,6 @@ def holding_positions(query: str) -> list[dict[str, Any]]:
     return found if len(found) >= 2 else []
 
 
-# the second half of a long Chinese name that is a generic word, not a short name
-# (招商银行 → 银行 would match every bank)
-_GENERIC_TAILS = frozenset({"银行", "证券", "保险", "集团", "股份", "控股", "电力", "时代", "科技", "医药", "电器"})
-
-
 def name_forms(name: str, *extra: str) -> list[str]:
     """How a target may be written: its name, the last part of a long Chinese name (贵州茅台 → 茅台), English
     names and aliases, and (round 14, review-10 J5) its Chinese short names from the alias tables (招商银行 → 招行,
@@ -605,7 +605,7 @@ def name_forms(name: str, *extra: str) -> list[str]:
     from .names import english_aliases, english_name
 
     forms = {str(item) for item in (name, *extra) if item}
-    if len(name) >= 4 and re.fullmatch(r"[一-鿿]+", name) and name[2:] not in _GENERIC_TAILS:
+    if len(name) >= 4 and re.fullmatch(r"[一-鿿]+", name) and name[2:] not in GENERIC_NAME_TAILS:
         forms.add(name[2:])
     forms.update(alias for alias in (english_name(name), *english_aliases(name)) if alias)
     forms.update(_chinese_short_names().get(name, ()))

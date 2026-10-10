@@ -52,6 +52,7 @@ from .composer import (
 )
 from .coverage import (
     asks_h_share,
+    cost_basis_request,
     coverage_gaps,
     flow_gaps,
     foreign_equity_spans,
@@ -451,7 +452,7 @@ class AgentRuntime:
             and not instruction_only
             and not injected
             and not outside
-            and holding_value_request(query)
+            and (holding_value_request(query) or cost_basis_request(query))
             and not listed_entities(nlu)
         ):
             # (round 12, H4) "我账户里有2000股，合计值多少钱" with no target anywhere: a finance question that needs a
