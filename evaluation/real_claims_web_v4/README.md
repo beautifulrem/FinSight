@@ -1,4 +1,9 @@
-# Real published claims, third set, blind (`claims_web_v3.jsonl`)
+# Real published claims, fourth set, blind (`claims_web_v4.jsonl`)
+
+**Name.** This set was collected on the r15-claims branch under `evaluation/real_claims_web_v3/` (files `*_v3`, claim ids
+`w3_01` … `w3_50`) at the same time as the round-2 branch committed a different third set under that name. It was
+renamed to `real_claims_web_v4` (files `*_v4`) after its first run; the ids keep their `w3_` prefix. The two sets were
+collected independently (different collectors, candidates and URLs).
 
 Real claims, as published by media, brokers' public notes, company announcements and social posts, about the
 companies, metrics and dates FinSight's offline data covers. Like the second set (`evaluation/real_claims_web_v2/`),
@@ -13,22 +18,22 @@ This is not the owner's real-claims set (`evaluation/human/real_claims/`), which
 
 | file | what |
 |---|---|
-| `candidates_v3.jsonl` | the 107 candidates collected from the web (each with `verified_by`, `period_basis`, `is_claim`, `multi_session`) |
-| `select_claims_web_v3.py` | the fixed selection rules, candidates → 50 claims (reads no offline value) |
-| `collected_v3.jsonl` | the 50 claims as collected, before any label (ids `w3_01` … `w3_50`) |
-| `label_claims_web_v3.py` | computes every expected verdict from the data files (v2's rules plus the v3 additions below) |
-| `claims_web_v3.jsonl` | collected fields + labels, parts, primary-source comparison |
-| `score_claims_web_v3.py` | v2's scorer with paths and names adapted; runs the checker once and writes `evaluation/results/claims_web_v3-first-run.json` (not run) |
+| `candidates_v4.jsonl` | the 107 candidates collected from the web (each with `verified_by`, `period_basis`, `is_claim`, `multi_session`) |
+| `select_claims_web_v4.py` | the fixed selection rules, candidates → 50 claims (reads no offline value) |
+| `collected_v4.jsonl` | the 50 claims as collected, before any label (ids `w3_01` … `w3_50`) |
+| `label_claims_web_v4.py` | computes every expected verdict from the data files (v2's rules plus this set's additions below) |
+| `claims_web_v4.jsonl` | collected fields + labels, parts, primary-source comparison |
+| `score_claims_web_v4.py` | v2's scorer with paths and names adapted; runs the checker once and writes `evaluation/results/claims_web_v4-first-run.json` (not run) |
 
 ```bash
-python evaluation/real_claims_web_v3/select_claims_web_v3.py          # candidates_v3.jsonl -> collected_v3.jsonl (deterministic)
-python -m evaluation.real_claims_web_v3.label_claims_web_v3           # collected_v3.jsonl -> claims_web_v3.jsonl (deterministic)
-python -m evaluation.real_claims_web_v3.score_claims_web_v3           # the first run (not yet run)
+python evaluation/real_claims_web_v4/select_claims_web_v4.py          # candidates_v4.jsonl -> collected_v4.jsonl (deterministic)
+python -m evaluation.real_claims_web_v4.label_claims_web_v4           # collected_v4.jsonl -> claims_web_v4.jsonl (deterministic)
+python -m evaluation.real_claims_web_v4.score_claims_web_v4           # the first run (not yet run)
 ```
 
 ## Protocol
 
-**Phase 1: collection and selection, with no data value known.** Before `collected_v3.jsonl` was written, the
+**Phase 1: collection and selection, with no data value known.** Before `collected_v4.jsonl` was written, the
 collector read no repository file except, through a script that printed only the `url` field, the URLs of
 `evaluation/real_claims_web/collected_v1.jsonl` and `evaluation/real_claims_web_v2/collected_v2.jsonl` (the
 do-not-use list). The session's standing project instructions (the FinSight repository's `AGENTS.md`, which
@@ -36,7 +41,7 @@ describes the agent layer and its rules but contains no checker code, claim data
 throughout. The collector was told which
 companies, metrics and dates are checkable (the scope below), and not to select by correctness.
 
-**Phase 2: labels, after `collected_v3.jsonl` was written.** Only then did the collector read:
+**Phase 2: labels, after `collected_v4.jsonl` was written.** Only then did the collector read:
 
 - the data files: `data/structured_data.json`, `data/snapshot/structured_data_ext.json`,
   `data/snapshot/structured_data_fix.json`, `data/snapshot/corrections/sources.json` (the two manifests were not
@@ -81,7 +86,7 @@ immediately surrounding text (`context`) or only in the dateline (`dateline`).
 
 ## Selection (107 candidates → 50), before any label
 
-`select_claims_web_v3.py` applies fixed rules that never read an offline value (the only repository data it reads is
+`select_claims_web_v4.py` applies fixed rules that never read an offline value (the only repository data it reads is
 the `url` field of the v1 and v2 collected files):
 
 | rule | dropped |
@@ -122,11 +127,11 @@ selected.
 
 ## Labelling rules (written before labelling)
 
-Labels come from `label_claims_web_v3.py`, which reads only the data files. Its data reader, tolerance rules,
+Labels come from `label_claims_web_v4.py`, which reads only the data files. Its data reader, tolerance rules,
 definition rule, primary comparison and verdict aggregation are copied from `label_claims_web_v2.py`; a person wrote
 each claim's parts (company, metric, the number as written, a qualifier, the basis the sentence names), and every
 value they are compared with is computed from the files. The rules are v2's, unchanged, plus the additions marked
-**(new in v3)**, which were written in this README before any part was labelled.
+**(new in this set)**, which were written in this README before any part was labelled.
 
 - **Exact figure**: true when |claimed − actual| ≤ max(half a unit of the claim's last written digit, 1% of the actual
   value). A growth rate or change must also have the right sign.
@@ -136,15 +141,15 @@ value they are compared with is computed from the files. The rules are v2's, unc
   **N 多 / N 余**: N < actual < N + one unit of the last written digit. For a signed quantity the bound applies to the
   magnitude and the sign must match.
 - **Relations**: "A 高于 / 超过 B" from the two served values. "A 是 B 的 N 倍" is A / B. A gap "比 B 多 X" is A − B.
-- **Multiples of a difference (new in v3)**: "差 / 相差 N 倍" (and "甩 … N 倍") is the difference in multiples of the
+- **Multiples of a difference (new in this set)**: "差 / 相差 N 倍" (and "甩 … N 倍") is the difference in multiples of the
   smaller value, larger / smaller − 1, under the rules above ("相差近一倍": 0.9 ≤ larger / smaller − 1 ≤ 1).
-- **A sum of several companies as the compared side (new in v3)**: compared with the total of the served values of all
+- **A sum of several companies as the compared side (new in this set)**: compared with the total of the served values of all
   named companies; null if any named company is not in the offline data.
-- **An average across named companies (new in v3)**: the arithmetic mean of the served values; null if any is missing.
-- **A share of a total (new in v3)**: A / (sum of the named parts) × 100; null if any part is missing.
-- **扣非 vs 归母 (new in v3)**: a relation or gap between 扣非净利润 and 归母净利润 is computed from the two served fields
+- **An average across named companies (new in this set)**: the arithmetic mean of the served values; null if any is missing.
+- **A share of a total (new in this set)**: A / (sum of the named parts) × 100; null if any part is missing.
+- **扣非 vs 归母 (new in this set)**: a relation or gap between 扣非净利润 and 归母净利润 is computed from the two served fields
   (`profit_dedt`, `net_profit`). 扣非 YoY stays null (not in the data).
-- **H-share / ADR / GDR / foreign currency (new in v3)**: a figure about the H-share, ADR or GDR line itself (its price,
+- **H-share / ADR / GDR / foreign currency (new in this set)**: a figure about the H-share, ADR or GDR line itself (its price,
   market value, volume, P/E) or stated in HK dollars is null: the data is A-share only. Amounts stated in US dollars or
   euros are null as in v2. A company's consolidated annual figure stays a company figure when the sentence also cites
   an H-share code or an HKEX filing; it is compared on the usual rules (its basis is handled by the definition rule).
@@ -164,7 +169,7 @@ value they are compared with is computed from the files. The rules are v2's, unc
   false or null → partially_supported; nothing decided → unverifiable.
 - **Context without a number of its own** (创历史新高, 稳居榜首, 盈利王, 首次) is not a part (`context_not_checked`).
 
-Each row of `claims_web_v3.jsonl` carries `category`, `expected_verdict`, `expected_verdict_definition_blind`,
+Each row of `claims_web_v4.jsonl` carries `category`, `expected_verdict`, `expected_verdict_definition_blind`,
 `parts` (reading, `holds`, offline `actual` and rule, or the null reason), `context_not_checked`, `primary` (the annual
 report's figure on the claim's basis, `offline_vs_primary`, `claim_vs_primary`) and a per-claim `offline_vs_primary`.
 

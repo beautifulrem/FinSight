@@ -1,4 +1,4 @@
-"""Select the v3 web-claim set from candidates_v3.jsonl.
+"""Select the v4 web-claim set from candidates_v4.jsonl.
 
 Fixed, deterministic rules. The script never reads an offline data value
 (no structured_data*.json, no snapshot, no checker); it reads only the
@@ -23,7 +23,7 @@ or to what is available if fewer than 50 qualify. Selected claims get ids
 w3_01, w3_02, ... in selection order.
 
 Usage (from the repo root):
-    python evaluation/real_claims_web_v3/select_claims_web_v3.py
+    python evaluation/real_claims_web_v4/select_claims_web_v4.py
 """
 
 from __future__ import annotations
@@ -36,8 +36,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
-CANDIDATES = HERE / "candidates_v3.jsonl"
-OUT = HERE / "collected_v3.jsonl"
+CANDIDATES = HERE / "candidates_v4.jsonl"
+OUT = HERE / "collected_v4.jsonl"
 PRIOR = [
     ROOT / "evaluation" / "real_claims_web" / "collected_v1.jsonl",
     ROOT / "evaluation" / "real_claims_web_v2" / "collected_v2.jsonl",
