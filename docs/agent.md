@@ -858,9 +858,10 @@ not that the rules generalise. **Round-9 slice, out of sample** (`evaluation/hel
 reviewer before any round-13 fix, on the snapshot extension's names, run with `QI_EVAL_SNAPSHOT_EXT=1`; not opened by
 the engineers): chat 18/52 = 0.346 [0.23, 0.48] at `cbcf3b2` → **41/52 = 0.788 [0.67, 0.88]** at `da9f6af`
 (`chat_heldout_r9-auto-nollm-prefix.json`, `chat_heldout_r9-auto-nollm-after-fix.json`), claims 15/25 → **25/25**
-(`claims_heldout_r9-prefix.json`, `claims_heldout_r9-after-fix.json`). 4 chat tasks and 5 claims overlap own test /
-dev wording or the review's published repros (`slice_overlap-heldout_r9-at-da9f6af.json`); without them chat 16/48 →
-37/48 and claims 15/20 → 20/20 (all 5 overlapping claims failed before the fixes). Per class after the fixes: shares
+(`claims_heldout_r9-prefix.json`, `claims_heldout_r9-after-fix.json`). 6 chat tasks and 5 claims overlap own test /
+dev / ext-set wording or the review's published repros (`slice_overlap-heldout_r9-all-tasks.json`, every task and
+claim file scanned; the round-13 scan missed the ext set and reported 4 tasks, 16/48 → 37/48); without them chat
+16/46 → 36/46 and claims 15/20 → 20/20 (all 5 overlapping claims failed before the fixes). Per class after the fixes: shares
 7/7, verb comparatives 7/7, spreads 3/3, forecasts 7/7, missing industry 3/3, controls 7/7, several holdings 2/3,
 yes/no ratios 2/3, sums **1/5**, price-derived **2/7** (3/7 before: the YTD task that states the first trading day's
 close as its basis now gets the prior year-end basis of I11). The 11 failures are listed in the
