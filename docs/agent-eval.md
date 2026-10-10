@@ -2069,8 +2069,9 @@ low − default: task success -0.038 [-0.094, +0.000], pass^k -0.038 [-0.094, +0
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `10ce292` | 432 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
-| gate-holdout | `10ce292-dirty` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
+| gate-dev | `235d00c` | 439 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-holdout | `235d00c` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
+| gate-ext | `235d00c` | 24 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
 
 ### Fault injection (overall graceful rate 1.00)
 
@@ -2806,8 +2807,9 @@ Paired comparisons (same tasks, a − b):
 | `ablation-memsum-1-multiturn_v1.json` | ablation | `bc42017` | 2026-09-30T22:11:41+00:00 | cline-pass/deepseek-v4.1-flash | `ablation-memsum-1.json` (50162842790e1544) |
 | `ablation-glm-effort-default-holdout.json` | ablation | `bc42017` | 2026-09-30T22:18:04+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-default.json` (0443e4fcfda24919) |
 | `ablation-glm-effort-low-holdout.json` | ablation | `bc42017` | 2026-09-30T22:20:53+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-low.json` (24329b3dee31a93e) |
-| `gate-dev.json` | run | `10ce292` | 2026-10-01T08:52:16+00:00 | – | `outputs/agent_eval/gate-dev.json` (dc2bdd83437792cb) |
-| `gate-holdout.json` | run | `10ce292-dirty` | 2026-10-01T08:53:14+00:00 | – | `outputs/agent_eval/gate-holdout.json` (2816085752dec4d0) |
+| `gate-dev.json` | run | `235d00c` | 2026-10-10T12:49:14+00:00 | – | `outputs/agent_eval/gate-dev.json` (82be99569bb592e1) |
+| `gate-holdout.json` | run | `235d00c` | 2026-10-10T12:49:55+00:00 | – | `outputs/agent_eval/gate-holdout.json` (9b7ee178ab8debf4) |
+| `gate-ext.json` | run | `235d00c` | 2026-10-10T12:49:32+00:00 | – | `outputs/agent_eval/gate-ext.json` (7d320765697341c0) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |
 | `verifier_stress-round12.json` | verifier_stress | `8cc09bc` | 2026-10-01T07:13:26+00:00 | – | `outputs/agent_eval/verifier_stress.json` (a0827fec0478998b) |
