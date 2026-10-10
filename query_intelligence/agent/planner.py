@@ -12,7 +12,13 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .coverage import holding_value_request, requested_metrics, requested_price_fields, sector_data_question
+from .coverage import (
+    cost_basis_request,
+    holding_value_request,
+    requested_metrics,
+    requested_price_fields,
+    sector_data_question,
+)
 from .glossary import lookup_concept
 from .router import asks_price_forecast
 
@@ -147,7 +153,8 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
     # comes with the stock's fundamentals.
     sector_member = bool(sectors) or any(entity.get("match_type") == "session_sector_member" for entity in entities)
     # (round 11, G5) a holding's value needs the close; an EPS question gets the close for the implied EPS
-    holding = holding_value_request(raw_query) is not None
+    # (round 15, review-11 K2) so does a gain or loss against a stated cost ("bought 500 at 40 and 500 at 43")
+    holding = holding_value_request(raw_query) is not None or cost_basis_request(raw_query) is not None
     # (round 12, H9) the metric lexicon decides: "一股赚多少钱" fetches the fundamentals and the close like 每股收益
     asks_eps = bool(_EPS_TERMS.search(text)) or any(metric.key == "eps" for metric in requested_metrics(text))
     # (round 13, I2) a price forecast ("能不能站上105元") is answered with the dated close under the hedge

@@ -99,6 +99,7 @@ PERF_PAIRS = (
 )
 STRESS_RUNS = (
     "verifier_stress",
+    "verifier_stress-round15",
     "verifier_stress-round14",
     "verifier_stress-round13",
     "verifier_stress-round12",
@@ -299,6 +300,7 @@ HELDOUT_R8_RUNS = (
     "chat_heldout_r8-auto-nollm-after-fix",
     "chat_heldout_r8-auto-nollm-after-exposure-round13",
     "chat_heldout_r8-auto-nollm-after-exposure-round14",
+    "chat_heldout_r8-auto-nollm-after-exposure-round15",
 )
 # Round-9 held-out slice (evaluation/heldout_r9/, written by the round-9 reviewer): before and after the round-13 fixes.
 # From round 14 the round-9 slice is after exposure (the round-14 engineer read its remaining failures).
@@ -307,10 +309,15 @@ HELDOUT_R9_RUNS = (
     "chat_heldout_r9-auto-nollm-after-fix",
     "chat_heldout_r9-auto-nollm-after-exposure-round14-first",
     "chat_heldout_r9-auto-nollm-after-exposure-round14",
+    "chat_heldout_r9-auto-nollm-after-exposure-round15",
 )
 # Round-10 held-out slice (evaluation/heldout_r10/, written by the round-10 reviewer): before and after the round-14
-# fixes.
-HELDOUT_R10_RUNS = ("chat_heldout_r10-auto-nollm-prefix", "chat_heldout_r10-auto-nollm-after-fix")
+# fixes; (round 15) after exposure, rerun once at the final round-15 code.
+HELDOUT_R10_RUNS = (
+    "chat_heldout_r10-auto-nollm-prefix",
+    "chat_heldout_r10-auto-nollm-after-fix",
+    "chat_heldout_r10-auto-nollm-after-exposure-round15",
+)
 # Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
 # (title, a, b, label a, label b, paths compared).
 PAIRED_ABLATIONS = (
@@ -341,6 +348,8 @@ PAIRED_ABLATIONS = (
 )
 # Other committed evidence the READMEs cite, summarised as one row each.
 EXTRA_EVIDENCE = (
+    "operation_classifier-r15",
+    "operation_classifier-r15-nolexicon",
     "claims_heldout_r10-prefix",
     "claims_heldout_r10-after-fix",
     "slice_overlap-heldout_r10-at-3480a96",
@@ -1994,6 +2003,27 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
                 + f"; false positives on {fpr.get('documents')} clean documents: "
                 + "; ".join(fpr_parts)
             )
+        elif str(result.get("version") or "").startswith("operation-clf"):
+            # (round 15, review-11 K4) the comparison operation classifier on held-out templates
+            held = result.get("held_out") or {}
+
+            def rate(key: str, held: dict[str, Any] = held) -> str:
+                value = held.get(key) or {}
+                return f"{_fmt(value.get('rate'))} [{_fmt(value.get('low'))}, {_fmt(value.get('high'))}]"
+
+            fires = result.get("fallback_on_evaluation_sets") or {}
+            summary = (
+                f"operation classifier ({result.get('features')}), held-out templates ({held.get('templates')} "
+                f"families, {held.get('examples')} wordings): classifier {rate('classifier_accuracy')}, grammar "
+                f"{rate('grammar_accuracy')}, grammar + classifier {rate('grammar_plus_classifier_accuracy')}; the "
+                f"fallback recovers {held.get('rescued_by_fallback')} of {held.get('grammar_missed_operations')} "
+                "operations the grammar misses"
+            )
+            if fires:
+                questions = sum(item.get("grammar_none", 0) for item in fires.values())
+                fired = sum(item.get("fallback_fires", 0) for item in fires.values())
+                summary += f"; fallback fires on {fired} of {questions} non-comparison evaluation-set questions"
+            config = {**config, "commit": result.get("commit")}
         elif result.get("kind") == "verifier_stress_repair_comparison":
             parts = []
             for key, label in (

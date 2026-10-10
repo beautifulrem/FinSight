@@ -365,6 +365,7 @@ def build_ext_tasks() -> list[dict[str, Any]]:
     tasks += round14_ext_tasks()
     tasks += round14_frame_ext_tasks()
     tasks += round15_safety_ext_tasks()
+    tasks += round15_frame_ext_tasks()
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
     return tasks
@@ -664,6 +665,291 @@ def round15_safety_ext_tasks() -> list[dict[str, Any]]:
                     required_limitations=["No news about CATL was found in the data."],
                     language="en",
                 )
+            ],
+        ),
+    ]
+
+
+def round15_frame_ext_tasks() -> list[dict[str, Any]]:
+    """(round 15, review-11 K1/K2/K4/K7/K8/K9/K10/K14) The round-15 classes on the extension's names, in the author's
+    own wording. Values computed from the extension tools (``QI_EVAL_SNAPSHOT_EXT=1``): 归母净利润 紫金矿业 517.77 亿,
+    比亚迪 326.19 亿, 工商银行 3685.62 亿, 长江电力 345.03 亿, 美的集团 439.45 亿, 宁德时代 722.01 亿, 中信证券
+    300.76 亿, 平安银行 426.33 亿; 营业收入 招商银行 3375.32 亿, 平安银行 1314.42 亿, 中信证券 748.54 亿, 美的集团
+    4585.02 亿, 紫金矿业 3490.79 亿; ROE 宁德时代 21.42, 招商银行 11.8, 长江电力 15.59, 美的集团 19.69; 市盈率 中信证券
+    10.19, 平安银行 5.17, 工商银行 7.89; 市净率 美的集团 2.89, 比亚迪 3.17; 总市值 美的集团 6111.58 亿, 紫金矿业
+    7921.4 亿, 长江电力 6983.23 亿; closes (2026-09-30) 平安银行 11.57, 中信证券 25.86, 招商银行 41.26, 紫金矿业 29.79,
+    美的集团 80.1, 长江电力 28.54; 2025-12-31 closes 美的集团 78.15, 紫金矿业 34.47; 52-week highs 美的集团 88.95,
+    宁德时代 460 (close 291.11)."""
+    no_forecast = [*TRADING_PATTERNS, r"不预测未来价格", r"条件性判断"]
+    return [
+        # K1: a total against one value (both orders, zh and en)
+        _task(
+            "r15_ext_total_vs_one_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "紫金矿业和比亚迪的净利润加在一起，能比得上工商银行吗",
+                    required_facts=[fundamental(ZIJIN, 84396000000), fundamental(ICBC, 284166000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"4529\.58"],  # never the total of all three
+                )
+            ],
+        ),
+        _task(
+            "r15_ext_one_vs_total_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "招商银行一家的营业收入，比平安银行、中信证券、美的集团三家加起来还多吗",
+                    required_facts=[fundamental(PAB, 664798000000), fundamental(CMB, 327266000000)],
+                )
+            ],
+        ),
+        _task(
+            "r15_ext_one_vs_total_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Does China Yangtze Power earn more than Zijin Mining and BYD combined?",
+                    required_facts=[fundamental(ZIJIN, 84396000000), fundamental(CYPC, 49893000000)],
+                    language="en",
+                )
+            ],
+        ),
+        # K4: the mean
+        _task(
+            "r15_ext_mean_roe_zh",
+            "comparison",
+            "zh",
+            [_turn("宁德时代、招商银行和长江电力的ROE平均下来是多少", required_facts=[fundamental(CATL, 16.27)])],
+        ),
+        _task(
+            "r15_ext_mean_cap_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "What is the average market cap of Midea, Zijin Mining and China Yangtze Power?",
+                    required_facts=[fundamental(MIDEA, 700540000000)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r15_ext_mean_divide_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "中信证券、平安银行、工商银行的市盈率加总以后再除以三",
+                    required_facts=[fundamental(CITIC, 7.75)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"逐对计算"],
+                )
+            ],
+        ),
+        # K4: a total and a share of it in one message; K10: a second metric in one message
+        _task(
+            "r15_ext_sum_and_share_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("紫金矿业的营业收入是多少", required_entity=ZIJIN),
+                _turn("换美的集团查一下", required_entity=MIDEA),
+                _turn(
+                    "两家合计多少，美的在其中占几成",
+                    required_facts=[fundamental(ZIJIN, 807581000000), fundamental(MIDEA, 56.78)],
+                ),
+            ],
+        ),
+        _task(
+            "r15_ext_second_metric_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Midea's net profit is how many times Ping An Bank's, and what about revenue?",
+                    required_facts=[fundamental(MIDEA, 1.03), fundamental(MIDEA, 3.49)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r15_ext_cap_over_profit_zh",
+            "comparison",
+            "zh",
+            [_turn("长江电力的总市值是它归母净利润的多少倍", required_facts=[fundamental(CYPC, 20.24)])],
+        ),
+        # K4: verbs
+        _task(
+            "r15_ext_verb_duozheng_zh",
+            "comparison",
+            "zh",
+            [_turn("宁德时代的净利润比美的集团多挣多少", required_facts=[fundamental(CATL, 28256000000)])],
+        ),
+        _task(
+            "r15_ext_margin_lead_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "By what margin does Midea's ROE lead China Yangtze Power's?",
+                    required_facts=[fundamental(MIDEA, 4.1)],
+                    language="en",
+                )
+            ],
+        ),
+        # K2: several purchases
+        _task(
+            "r15_ext_two_lots_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "I bought 400 Ping An Bank shares at 12.5 and another 600 at 10.8 - what's my gain or loss?",
+                    required_facts=[price(PAB, 90)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r15_ext_two_lots_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "我第一次在30元买了300股中信证券，第二次在24元又买了200股，现在盈亏怎样",
+                    required_facts=[price(CITIC, 870)],
+                )
+            ],
+        ),
+        # K7: counts in 万, a portfolio in clauses, a position added to the last one
+        _task(
+            "r15_ext_wan_count_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "我有0.8万股招商银行，现在值多少",
+                    required_facts=[price(CMB, 330080)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"总市值 10405"],
+                )
+            ],
+        ),
+        _task(
+            "r15_ext_portfolio_clauses_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "我的仓位：紫金矿业 1,500 股；美的集团 3 手；长江电力 2,000 股。合计市值？",
+                    required_facts=[price(ZIJIN, 125795)],
+                )
+            ],
+        ),
+        _task(
+            "r15_ext_added_position_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("我有1000股中信证券，按收盘价值多少", required_facts=[price(CITIC, 25860)]),
+                _turn("我还有800股平安银行，加起来一共多少", required_facts=[price(PAB, 35116)]),
+            ],
+        ),
+        # K8: dated closes in the payload; a day after the data
+        _task(
+            "r15_ext_dated_close_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "美的集团2025年12月31日的收盘价",
+                    required_facts=[price(MIDEA, 78.15)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"没有美的集团2025年的行情"],
+                )
+            ],
+        ),
+        _task(
+            "r15_ext_dated_close_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "What did Zijin Mining close at on 2025-12-31?",
+                    required_facts=[price(ZIJIN, 34.47)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r15_ext_day_after_data_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "工商银行10月12日的收盘价是多少",
+                    required_entity=ICBC,
+                    must_hedge=True,
+                    must_state_missing=True,
+                )
+            ],
+        ),
+        # K14 / K4: a past window is not a forecast; the rise back to the 52-week high
+        _task(
+            "r15_ext_off_high_no_hedge_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "宁德时代股价比一年内的最高点回落了多少",
+                    required_facts=[price(CATL, 36.72)],
+                    forbidden_patterns=no_forecast,
+                )
+            ],
+        ),
+        _task(
+            "r15_ext_back_to_high_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "How much would Midea have to rise to get back to its 52-week high?",
+                    required_facts=[price(MIDEA, 11.05)],
+                    language="en",
+                )
+            ],
+        ),
+        # K9: a name in a list that is no security; K10: 净利润总额 and two-target ellipsis
+        _task(
+            "r15_ext_unresolved_in_list_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "长江电力、某某能源和紫金矿业三家的净利润一共多少",
+                    must_state_missing=True,
+                    forbidden_patterns=[*TRADING_PATTERNS, r"合计 862\.8"],
+                )
+            ],
+        ),
+        _task(
+            "r15_ext_net_profit_total_zh",
+            "comparison",
+            "zh",
+            [_turn("中信证券与平安银行的净利润总额", required_facts=[fundamental(CITIC, 72709000000)])],
+        ),
+        _task(
+            "r15_ext_ellipsis_two_targets_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("What's Zijin Mining's P/B?", required_entity=ZIJIN, language="en"),
+                _turn(
+                    "And Midea and BYD?",
+                    required_facts=[fundamental(MIDEA, 2.89), fundamental(BYD, 3.17)],
+                    language="en",
+                ),
             ],
         ),
     ]

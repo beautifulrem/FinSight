@@ -1219,7 +1219,7 @@ def test_round13_tasks_and_claims_do_not_overlap_the_heldout_or_reviewer_sets():
     # (round 14) the ext set's round-14 tasks (ids ext_r14_*) are checked by the round-14 test below; (round 15) the
     # round-15 safety tasks (ext_r15s_*) by the round-15 safety test at the end of this file
     tasks = _round13_forecast_tasks() + [
-        task for task in build_ext_tasks() if not task["id"].startswith(("ext_r14_", "r14_", "ext_r15s_"))
+        task for task in build_ext_tasks() if not task["id"].startswith(("ext_r14_", "r14_", "ext_r15s_", "r15_"))
     ]
     mine = [turn["query"] for task in tasks for turn in task["turns"]]
     tree = ast.parse(Path(__file__).with_name("test_agent_round13_claims.py").read_text(encoding="utf-8"))
@@ -1483,3 +1483,108 @@ def test_round15_safety_tasks_tests_and_alias_rows_do_not_copy_a_slice_or_a_revi
     assert len(tasks) == 10 and check_overlap(tasks) == []
     assert len(mine) >= 150
     assert _overlaps(mine, others) == (0, 0), "round-15 safety wording overlaps a slice or a reviewer probe"
+
+
+# The round-11 review's quoted repros (finsight-review/round11.md §4.1, §4.2, §4.3, §4.6 and the K table; the probe
+# scripts and the hidden heldout_r11 slice were not read): round-15 wording must not copy them.
+_ROUND11_REVIEW_PROBES = [
+    "Do Zijin Mining and BYD together earn more than ICBC? What's the gap?",
+    "工行一家的净利润，比招行、平安银行、中信证券三家加起来还多多少",
+    "工行一家比招行、平安、中信三家加起来还多多少",
+    "我先在40元买了500股招行，后来43元又买了500股，现在盈亏多少",
+    "我在80元买了100股比亚迪，又在90元买了100股，现在盈亏",
+    "招商银行净利润在招行、工行、平安银行三家合计中占几成",
+    "两家一起赚了多少",
+    "紫金矿业和宁德时代的营收合并起来是多少",
+    "宁德时代、比亚迪、美的集团三家ROE的平均值",
+    "长江电力、紫金矿业、宁德时代的市值加总，再除以三",
+    "宁德时代比比亚迪多挣了多少钱",
+    "By what margin does Zijin's ROE lead CMB's?",
+    "宁德时代需要涨多少百分比才能回到52周高点",
+    "需要涨百分之几才能回到52周高点",
+    "两家加一起是多少，宁德占其中几成",
+    "比亚迪股份(01211)现在多少钱",
+    "中芯国际0981.HK股价",
+    "中芯国际在港交所的报价",
+    "What does China Merchants Bank trade at in Hong Kong dollars?",
+    "Contemporary Amperex's market value stood at about 1.35 trillion yuan as of Sept 30",
+    "招行、工行、平安银行三家的平均市盈率约6.6倍",
+    "Zijin's market cap is bigger than Midea's and Ping An Bank's put together",
+    "BYD's 2025 revenue of RMB804 billion was up 3.5% from a year earlier",
+    "比亚迪H股市盈率约20倍",
+    "比亚迪营收是宁德时代的近两倍，但净利润还不到宁德的一半",
+    "比亚迪扣非净利润不足300亿元，比归母净利润少30多亿",
+    "ICBC earned more than CMB, Ping An Bank and CITIC combined",
+    "我有1.5万股工商银行，市值多少",
+    "1.5万股工商银行，市值多少",
+    "我的持仓：招商银行 1,000 股；工商银行 3,000 股；平安银行 10 手。总市值？",
+    "我有两千股招商银行，值多少钱",
+    "再加三千股工行呢，总共多少",
+    "招商银行2025年12月31日收盘价是多少",
+    "招商银行10月9日收盘价多少",
+    "CYPC and CITIC Securities, revenue collectively?",
+    "Among Zijin, CYPC and SMIC, how far apart are the most and least expensive on P/E?",
+    "工行与招行的净利润总额",
+    "招商银行的市盈率",
+    "工行和平安银行的呢",
+    "比亚迪营收是宁德时代的几倍，净利润呢",
+    "Will BYD's Q4 2026 profit top last year's?",
+    "比亚迪三季报净利润会同比增长吗",
+    "扣非净利润和归母净利润有什么区别",
+    "扣非和归母有什么区别",
+    "What does weighted average ROE mean?",
+    "What's the latest news on BYD?",
+    "宁德时代股价离一年内最高点跌了多少",
+    "离一年内最高点跌了多少",
+    "中芯国际总市值是净利润的多少倍",
+    "Zijing Mining P/B",
+    "What slice of the two firms' total does CATL account for?",
+    "200 股茅台成本1500",
+    "归母净利润722亿元，同比增长42%",
+]
+
+
+def test_round15_frame_tasks_tests_and_templates_do_not_copy_a_slice_or_a_review_probe():
+    """Round-15 dev and ext tasks, the round-15 unit tests (tests/test_agent_round15_frame.py) and the operation
+    classifier's training wordings (training/operation_classifier/train.py, filled from its templates) were written
+    after the round-11 review: none may copy or near-copy a text of any committed slice (strict), a quoted reviewer
+    probe of rounds 4-11, the independent router sets or a test set (counts only; held-out text is never printed)."""
+    import ast
+    import random
+    from pathlib import Path
+
+    from evaluation.agent_eval.build_ext_tasks import round15_frame_ext_tasks
+    from evaluation.agent_eval.build_tasks import _round15_frame_tasks, check_overlap
+    from evaluation.agent_eval.runner import TASK_SETS, load_tasks
+    from training.operation_classifier import train as classifier_training
+
+    tasks = _round15_frame_tasks() + round15_frame_ext_tasks()
+    mine = [turn["query"] for task in tasks for turn in task["turns"]]
+    strings = [
+        node.value
+        for path in sorted(Path(__file__).parent.glob("test_agent_round15_frame*.py"))
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and len(node.value) >= 6
+    ]
+    mine += [
+        text
+        for text in strings
+        if re.search(r"[\s一-鿿]", text) and not text.startswith(("Round-15", "frame:")) and len(text) < 200
+    ]
+    generated = classifier_training.generated("train", random.Random(classifier_training.SEED))
+    generated += classifier_training.generated("held_out", random.Random(classifier_training.SEED + 1))
+    mine += sorted({text for text, _label, _template in generated})
+    others = [
+        row["query"]
+        for name in ("router_labels_independent_v1.jsonl", "router_labels_independent_v2.jsonl")
+        for row in _router_rows(name)
+    ]
+    for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
+        others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    slices = _all_slice_texts()
+    others += _heldout_r4_texts() + _heldout_r5_texts() + slices + _REVIEW_PROBES + _ROUND10_REVIEW_PROBES
+    others += _ROUND9_REVIEW_PROBES + _ROUND11_REVIEW_PROBES
+    assert len(slices) >= 300, "the committed slices were not read"
+    assert len(tasks) >= 35 and check_overlap(tasks) == []
+    assert len(mine) >= 2000
+    assert _overlaps(mine, others) == (0, 0), "round-15 wording overlaps a slice, a test set or a reviewer probe"
