@@ -10,6 +10,14 @@ type, and every error with the checker's checks, are written to OUT (default:
 ``evaluation/results/claims_web_v1-first-run.json``)::
 
     python -m evaluation.real_claims_web.score_claims_web_v1 [OUT.json]
+    python -m evaluation.real_claims_web.score_claims_web_v1 --corrections [OUT.json]
+
+``--corrections`` (round 13) runs the checker with the corrections layer on as well
+(``data/snapshot/structured_data_fix.json``, the product default ``QI_OFFLINE_SNAPSHOT_FIX``) and scores it against
+the labels made from that data (``claims_web_v1-labels-with-corrections.jsonl``, written by
+``label_claims_web_v1 --corrections``); it also reports the accuracy against the first run's labels. Default OUT:
+``evaluation/results/claims_web_v1-with-corrections.json``. This run is after exposure: the engineer had read the set
+and its README before correcting the data (the checker is unchanged).
 """
 
 from __future__ import annotations
@@ -26,7 +34,9 @@ from typing import Any
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 CLAIMS = HERE / "claims_web_v1.jsonl"
+CORRECTED_CLAIMS = HERE / "claims_web_v1-labels-with-corrections.jsonl"
 DEFAULT_OUT = ROOT / "evaluation" / "results" / "claims_web_v1-first-run.json"
+CORRECTED_OUT = ROOT / "evaluation" / "results" / "claims_web_v1-with-corrections.json"
 CHECK_FIELDS = ("target", "metric", "comparator", "claimed", "actual", "status", "reason", "note")
 COMMAND = "python -m evaluation.real_claims_web.score_claims_web_v1"
 
@@ -46,15 +56,19 @@ def rates(results: list[dict[str, Any]], key: str) -> dict[str, dict[str, Any]]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = sys.argv[1:] if argv is None else argv
-    out = Path(args[0]) if args else DEFAULT_OUT
+    args = list(sys.argv[1:] if argv is None else argv)
+    corrections = "--corrections" in args
+    args = [arg for arg in args if arg != "--corrections"]
+    out = Path(args[0]) if args else (CORRECTED_OUT if corrections else DEFAULT_OUT)
     sys.path.insert(0, str(ROOT))
     from evaluation.agent_eval.runner import build_offline_service
     from query_intelligence.agent.claim_check import check_claim
     from query_intelligence.agent.tools import build_registry_for_service
 
-    rows = [json.loads(line) for line in CLAIMS.read_text(encoding="utf-8").splitlines() if line.strip()]
-    service = build_offline_service(snapshot_ext=True)
+    claims = CORRECTED_CLAIMS if corrections else CLAIMS
+    rows = [json.loads(line) for line in claims.read_text(encoding="utf-8").splitlines() if line.strip()]
+    first_labels = {row["id"]: row for row in map(json.loads, CLAIMS.read_text(encoding="utf-8").splitlines())}
+    service = build_offline_service(snapshot_ext=True, snapshot_fix=corrections)
     registry = build_registry_for_service(service)
     results = []
     for row in rows:
@@ -70,16 +84,27 @@ def main(argv: list[str] | None = None) -> int:
     dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], capture_output=True, text=True,
                            cwd=ROOT).stdout.strip()
     by_category = rates(results, "category")
+    config = {
+        "commit": commit.stdout.strip() + ("-dirty" if dirty else ""),
+        "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "command": COMMAND,
+        "snapshot": "offline v1 + 2026-09-30 extension (QI_OFFLINE_SNAPSHOT_EXT on), no LLM",
+        "note": "engineer-collected real published claims, first run; not blind (the collector had read the "
+        "checker); labels committed before this run",
+    }
+    if corrections:
+        config.update({
+            "command": f"{COMMAND} --corrections",
+            "snapshot": "offline v1 + 2026-09-30 extension + corrections layer fix-2026-10-10 "
+            "(QI_OFFLINE_SNAPSHOT_EXT and QI_OFFLINE_SNAPSHOT_FIX on), no LLM",
+            "labels": "evaluation/real_claims_web/claims_web_v1-labels-with-corrections.jsonl (label_claims_web_v1 "
+            "--corrections: the first run's parts, evaluated against the corrected data)",
+            "note": "after exposure (data correction, checker unchanged): the engineer read this set and its README "
+            "before correcting the offline data; not an out-of-sample estimate",
+        })
     payload = {
         "kind": "claim_slice",
-        "config": {
-            "commit": commit.stdout.strip() + ("-dirty" if dirty else ""),
-            "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "command": COMMAND,
-            "snapshot": "offline v1 + 2026-09-30 extension (QI_OFFLINE_SNAPSHOT_EXT on), no LLM",
-            "note": "engineer-collected real published claims, first run; not blind (the collector had read the "
-            "checker); labels committed before this run",
-        },
+        "config": config,
         "summary": {
             "claims": len(results),
             "verdict_accuracy": round(sum(hits) / len(hits), 4),
@@ -93,6 +118,22 @@ def main(argv: list[str] | None = None) -> int:
                    for r in results if not r["ok"]],
         "results": [{k: r[k] for k in ("id", "expected", "got", "ok")} for r in results],
     }
+    if corrections:
+        # the same checker verdicts scored against the first run's labels (made from the uncorrected data)
+        against_first = [
+            1.0 if r["got"] == first_labels[r["id"]]["expected_verdict"]
+            or r["got"] in first_labels[r["id"]].get("also_acceptable", []) else 0.0
+            for r in results
+        ]
+        payload["summary"]["against_first_run_labels"] = {
+            "verdict_accuracy": round(sum(against_first) / len(against_first), 4),
+            "ci95": bootstrap_ci(against_first),
+        }
+        payload["summary"]["labels_changed_by_corrections"] = [
+            {"id": row["id"], "before": row["label_without_corrections"], "after": row["expected_verdict"]}
+            for row in rows
+            if row.get("label_without_corrections") != row["expected_verdict"]
+        ]
     for r in results:
         if not r["ok"]:
             print("XX", r["id"], r["expected"], "->", r["got"], "|", r["claim"])
