@@ -357,10 +357,15 @@ _EARNINGS_WORDS = re.compile(
 )
 # a value asked with a future modal: "会是多少", "能有多少", "能超过100亿吗", "what will … be", "will … reach / exceed"
 _EARNINGS_MODAL = re.compile(
-    r"(?:会|能|将|可能|有望|预计|预期|估计|大概)(?:是|有|达到|超过|突破|破|到|在|实现|增长|下降|下滑|翻倍|赚)|"
+    r"(?:会|能|将|可能|有望|预计|预期|估计|大概)(?:同比|环比)?(?:是|有|达到|超过|突破|破|到|在|实现|增长|下降|下滑|翻倍|赚)|"
     r"(?:能否|会否|是否能|能不能|会不会|有没有可能)|多少(?:会|能)|"
+    # (round 15, K11) a comparison asked with a modal: "中报利润会比去年高吗"
+    r"(?:会|能|将|可能|有望)(?:比|较|高于|低于|好于|差于)|"
     r"\bwhat\s+will\b|\bwill\b[^.?!]{0,60}?\b(?:be|reach|exceed|top|hit|surpass|beat|miss|come\s+in|grow|rise|"
-    r"fall|drop|double|decline|increase)\b|\b(?:expected|forecast|projected|estimated?)\b|\bhow\s+much\s+will\b",
+    r"fall|drop|double|decline|increase|earn|show|post|deliver|look)\b|"
+    # (round 15, K11) "Are CATL's Q3 earnings going to beat…", "Can CATL's fourth-quarter profit top…"
+    r"\bgoing\s+to\b|\bgonna\b|\b(?:can|could|might)\b[^.?!]{0,60}?\b(?:reach|exceed|top|hit|surpass|beat|miss|grow|"
+    r"rise|fall|drop|double|decline|increase|earn|post|deliver)\b|\b(?:expected|forecast|projected|estimated?)\b|\bhow\s+much\s+will\b",
     re.IGNORECASE,
 )
 # relative future periods for reported figures ("下季度", "明年", "next year", "next quarter", "coming year")
@@ -375,6 +380,49 @@ _CURRENT_PERIOD = re.compile(
     r"今年|本年度?|本季度?|这个?季度|当季|全年|\bthis\s+(?:year|quarter|fiscal\s+year)\b|\bfull[- ]year\b",
     re.IGNORECASE,
 )
+# (round 15, review-11 K11) The next report, not yet released: "下一份年报", "下一期财报", "即将发布的三季报", "upcoming
+# interim results", "the next annual report", "results not yet released". Like a future period, its figures are a
+# forecast; a question about when it comes out ("下一份年报什么时候发布") is a schedule question, not a forecast.
+_NEXT_REPORT = re.compile(
+    r"下一?(?:份|期|个|次)(?:的)?(?:年报|季报|季度报告|中报|半年报|半年度报告|年度报告|财报|业绩|报告|定期报告)|"
+    r"即将(?:发布|公布|披露|出炉|发)的?|尚未(?:发布|公布|披露)的?|还没(?:有)?(?:发布|公布|披露|出)的?|"
+    r"\bupcoming\b|\bforthcoming\b|\bnext\s+(?:annual|interim|quarterly|half[- ]year(?:ly)?|earnings|financial)?\s*"
+    r"(?:report|results|earnings|statements?|release|filing)\b|\b(?:yet\s+to\s+be|not\s+yet)\s+(?:released|reported|"
+    r"published)\b",
+    re.IGNORECASE,
+)
+_SCHEDULE = re.compile(r"什么时候|何时|哪天|几号|几月|日期|时间表|\bwhen\b|\bwhat\s+date\b|\bschedul", re.IGNORECASE)
+# a periodic report named without a year ("三季报", "中报", "年报", "Q3 earnings", "interim results"): with a modal it
+# asks how the coming one will turn out ("三季报净利润会同比增长吗"); without one it is the latest report, a lookup
+_REPORT_NAME = re.compile(
+    r"[一二三四1-4]季报|[一二三四1-4]季度报告?|季报|中报|半年报|半年度报告|年报|年度报告|财报|"
+    r"\bQ[1-4]\s+(?:earnings|results|profits?|revenues?|sales|numbers|EPS|report)\b|"
+    r"\b(?:first|second|third|fourth|1st|2nd|3rd|4th)[- ]quarter\s+(?:earnings|results|profits?|revenues?|sales|"
+    r"numbers|EPS|report)\b|\b(?:quarterly|interim|half[- ]year(?:ly)?|annual|full[- ]year)\s+(?:earnings|results|"
+    r"report|profits?|revenues?|sales|numbers|EPS)\b",
+    re.IGNORECASE,
+)
+# how the figures of a report change ("会同比增长吗", "will it beat"): with a report name these ask about its results
+_RESULT_CHANGE = re.compile(
+    r"增长|下滑|下降|增速|同比|环比|超预期|不及预期|改善|恶化|亏损|扭亏|好看|更高|更好|更差|\b(?:grow\w*|beat|miss|"
+    r"improve\w*|declin\w*|rise|fall|drop|better|worse|top|exceed|higher|lower|stronger|weaker|more|less)\b",
+    re.IGNORECASE,
+)
+# a comparison with a past period ("top last year's", "比去年高", "同比去年") names the past as the baseline, not as the
+# period asked about: removed before the past-tense check
+_PAST_BASELINE_EN = re.compile(
+    r"\b((?:than|top|tops|beat|beats|exceed|exceeds|surpass|surpasses|over|versus|vs\.?|from|against|compared\s+"
+    r"(?:to|with)|match|matches)\s+(?:the\s+|its\s+)?)last\s+(?:year|quarter)(?:'s|’s)?(?:\s+(?:level|figure|"
+    r"result|results|number))?",
+    re.IGNORECASE,
+)
+_PAST_BASELINE_ZH = re.compile(
+    r"(比|超过|超越|高于|低于|相比|较|对比|同比|好于|差于|不如)(?:去年|上年|上一年|上季度|上个季度)(?:同期)?"
+)
+
+
+def _without_past_baseline(part: str) -> str:
+    return _PAST_BASELINE_ZH.sub(r"\1基期", _PAST_BASELINE_EN.sub(r"\1baseline", part))
 
 
 def asks_earnings_forecast(query: str, *, as_of: date | None = None) -> bool:
@@ -384,15 +432,33 @@ def asks_earnings_forecast(query: str, *, as_of: date | None = None) -> bool:
     target ("Will Moutai's net profit reach 100 billion?"). Past periods ("去年净利润", "2025年营收") are lookups."""
     reference = as_of or date.today()
     for part in _SENTENCE_SPLIT.split(str(query or "")):
-        if not part.strip() or not _EARNINGS_WORDS.search(part) or _PAST_MARKERS.search(part) or _SO_FAR.search(part):
+        report = bool(_REPORT_NAME.search(part) or _NEXT_REPORT.search(part))
+        if not part.strip() or not (
+            _EARNINGS_WORDS.search(part)
+            or re.search(r"\bearn(?:s|ed)?\b", part, re.I)
+            or (report and (_RESULT_CHANGE.search(part) or _NEXT_REPORT.search(part)))
+        ):
             continue
+        # (round 15, K11) "Will BYD's Q4 2026 profit top last year's?": a past baseline is not the period asked about
+        checked = _without_past_baseline(part)
+        if _PAST_MARKERS.search(checked) or _SO_FAR.search(checked):
+            continue
+        modal = bool(_EARNINGS_MODAL.search(part))
         future, in_progress = _stated_status(part, reference)
         if future or _FUTURE_PERIOD.search(part):
             return True
-        modal = bool(_EARNINGS_MODAL.search(part))
-        periods = stated_periods(part, reference)
+        if _NEXT_REPORT.search(part) and (modal or not _SCHEDULE.search(part)):
+            return True
+        periods = stated_periods(checked, reference)
+        # a year-less report name with a modal ("三季报净利润会同比增长吗"), unless a past year is written next to it
+        coming_report = bool(_REPORT_NAME.search(part)) and not any(
+            period.status(reference) == "past" and period.explicit_year for period in periods
+        )
         current = (
-            in_progress or _CURRENT_PERIOD.search(part) or any(period.status(reference) != "past" for period in periods)
+            in_progress
+            or _CURRENT_PERIOD.search(part)
+            or coming_report
+            or any(period.status(reference) != "past" for period in periods)
         )
         if modal and (current or re.search(r"\bwill\b|\bwhat\s+will\b", part, re.I)):
             return True
