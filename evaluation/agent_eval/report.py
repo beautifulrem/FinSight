@@ -293,6 +293,7 @@ EXTRA_EVIDENCE = (
     "claims_heldout_r8-after-exposure-round13-claims",
     "claims_heldout_r8-after-exposure-round13",
     "claims_web_v1-with-corrections",
+    "claims_web_v2-first-run",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -415,6 +416,8 @@ FILE_STATUS = {
     "at the round-13 commit (no regression check, not a fresh estimate)",
     "chat_heldout_r7-auto-nollm-after-exposure-round13": "independent round-7 chat slice **after exposure**, re-run "
     "at the round-13 commit (no regression check, not a fresh estimate)",
+    "claims_web_v2-first-run": "engineer-collected real published claims, blind first run (collected, labelled "
+    "and committed before the checker's code or tests were read; the collector had read the first set's README)",
     "claims_web_v1-with-corrections": "**after exposure (data correction, checker unchanged)**: the same claims with "
     "the corrections layer on, scored against labels recomputed from the corrected data "
     "(claims_web_v1-labels-with-corrections.jsonl); the engineer had read the set before correcting the data",
