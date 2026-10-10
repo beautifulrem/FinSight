@@ -88,6 +88,7 @@ PERF_PAIRS = (
 )
 STRESS_RUNS = (
     "verifier_stress",
+    "verifier_stress-round13",
     "verifier_stress-round12",
     "verifier_stress-round10",
     "verifier_stress-round9",
@@ -184,6 +185,7 @@ ROUTER_RUNS = (
     "router_eval-round11-own",
     "router_eval-independent_v2-round11",
     "router_eval-round12-own",
+    "router_eval-round13-own",
 )
 CLAIM_BENCH_RUNS = (
     "claim_bench-dev-baseline",
@@ -209,6 +211,10 @@ CLAIM_BENCH_RUNS = (
     "claim_bench-heldout_r4-after-round12",
     "claim_bench-heldout_r5-after-round12",
     "claim_bench-heldout_r6-after-exposure-round12",
+    "claim_bench-holdout-after-round13",
+    "claim_bench-heldout_r4-after-round13",
+    "claim_bench-heldout_r5-after-round13",
+    "claim_bench-heldout_r6-after-exposure-round13",
 )
 # Round-4 held-out slices (evaluation/heldout_r4/, independent author): first run, then after exposure.
 HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_heldout-after-exposure")
@@ -221,6 +227,7 @@ HELDOUT_R6_RUNS = (
     "chat_heldout_r6-auto-nollm-after-fix",
     "chat_heldout_r6-auto-nollm-after-exposure-round11",
     "chat_heldout_r6-auto-nollm-after-exposure-round12",
+    "chat_heldout_r6-auto-nollm-after-exposure-round13",
 )
 # Round-7 held-out chat slice (evaluation/heldout_r7/, independent author): before and after the round-11 fixes.
 # From round 12 the round-7 slice is after exposure (the engineers read it to fix the classes it still failed).
@@ -228,9 +235,15 @@ HELDOUT_R7_RUNS = (
     "chat_heldout_r7-auto-nollm-prefix",
     "chat_heldout_r7-auto-nollm-after-fix",
     "chat_heldout_r7-auto-nollm-after-exposure-round12",
+    "chat_heldout_r7-auto-nollm-after-exposure-round13",
 )
-# Round-8 held-out slice (evaluation/heldout_r8/, written by the round-8 reviewer): before and after the round-12 fixes.
-HELDOUT_R8_RUNS = ("chat_heldout_r8-auto-nollm-prefix", "chat_heldout_r8-auto-nollm-after-fix")
+# Round-8 held-out slice (evaluation/heldout_r8/, written by the round-8 reviewer): before and after the round-12 fixes,
+# then (round 13) after exposure: the round-13 engineers read the slice and fixed the classes it still failed.
+HELDOUT_R8_RUNS = (
+    "chat_heldout_r8-auto-nollm-prefix",
+    "chat_heldout_r8-auto-nollm-after-fix",
+    "chat_heldout_r8-auto-nollm-after-exposure-round13",
+)
 # Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
 # (title, a, b, label a, label b, paths compared).
 PAIRED_ABLATIONS = (
@@ -263,6 +276,7 @@ PAIRED_ABLATIONS = (
 EXTRA_EVIDENCE = (
     "claims_heldout_r8-prefix",
     "claims_heldout_r8-after-fix",
+    "claims_heldout_r8-after-exposure-round13",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -304,6 +318,7 @@ FILE_STATUS = {
     "router_eval-independent_v2-round11": "**after exposure** (HEAD after round 11; first run 0.8008)",
     "router_eval-round11-own": "author's own labels (tuned against)",
     "router_eval-round12-own": "author's own labels (tuned against)",
+    "router_eval-round13-own": "author's own labels (tuned against)",
     "chat_heldout_r5-auto-nollm-first-run": "**first run** of the independent round-5 held-out chat slice",
     "chat_heldout_r5-auto-nollm-after-exposure": "**after exposure** (round 9 fixed the classes its first run showed)",
     "claim_bench-dev-baseline": "development claims, before tuning",
@@ -339,6 +354,13 @@ FILE_STATUS = {
     "round-12 commit (H6)",
     "claim_bench-heldout_r6-after-exposure-round12": "independent round-6 claim slice **after exposure (round 12)**: "
     "the engineers had read the slice and the reviews' per-claim findings; not an out-of-sample estimate",
+    "claim_bench-holdout-after-round13": "held-out claims **after exposure**, re-run at the round-13 commit",
+    "claim_bench-heldout_r4-after-round13": "independent round-4 claim slice **after exposure**, re-run at the "
+    "round-13 commit",
+    "claim_bench-heldout_r5-after-round13": "independent round-5 claim slice **after exposure**, re-run at the "
+    "round-13 commit",
+    "claim_bench-heldout_r6-after-exposure-round13": "independent round-6 claim slice **after exposure**, re-run at "
+    "the round-13 commit; not an out-of-sample estimate",
     "chat_heldout_r6-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-6 chat slice",
     "chat_heldout_r6-auto-nollm-after-fix": "independent round-6 chat slice **after the round-10 fixes**; the "
     "engineers never saw the slice, so this is still out of sample",
@@ -350,6 +372,15 @@ FILE_STATUS = {
     "engineers never opened the slice, so this is out of sample",
     "claims_heldout_r8-prefix": "**first and only pre-fix run** of the independent round-8 claim slice",
     "claims_heldout_r8-after-fix": "independent round-8 claim slice **after the round-12 fixes** (out of sample)",
+    "chat_heldout_r8-auto-nollm-after-exposure-round13": "independent round-8 chat slice **after exposure (round "
+    "13)**: the round-13 engineers read the slice and fixed the classes it still failed, so it is no longer out of "
+    "sample",
+    "claims_heldout_r8-after-exposure-round13": "independent round-8 claim slice **after exposure (round 13)**: the "
+    "round-13 engineers read its five wrong claims and wrote rules for their classes; not an out-of-sample estimate",
+    "chat_heldout_r6-auto-nollm-after-exposure-round13": "independent round-6 chat slice **after exposure**, re-run "
+    "at the round-13 commit (no regression check, not a fresh estimate)",
+    "chat_heldout_r7-auto-nollm-after-exposure-round13": "independent round-7 chat slice **after exposure**, re-run "
+    "at the round-13 commit (no regression check, not a fresh estimate)",
     "chat_heldout_r7-auto-nollm-after-fix": "independent round-7 chat slice **after the round-11 fixes**; the "
     "engineers never opened the slice (four round-11 dev turns in three tasks match slice turns verbatim by "
     "coincidence)",
@@ -1566,7 +1597,9 @@ def render_with_sources() -> tuple[str, list[str]]:
             "round-12 fix (`evaluation/heldout_r8/README.md`), run once before the fixes (by the reviewer) and once "
             "after them. The "
             "round-12 engineers never opened the slice. Its 25 claims are in the evidence table below "
-            "(`claims_heldout_r8-*.json`).",
+            "(`claims_heldout_r8-*.json`). The round-13 run is **after exposure**: the round-13 engineers read the "
+            "slice's remaining failures and fixed their classes in their own wording, so it is not an out-of-sample "
+            "measure.",
             "",
         ]
         for name, result in heldout_r8:
