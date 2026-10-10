@@ -62,7 +62,7 @@ def test_ready_when_all_checks_pass():
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ready"
-    assert set(body["checks"]) == {"checkpointer", "model_config", "retrieval_index"}
+    assert set(body["checks"]) == {"checkpointer", "model_config", "retrieval_index", "data_layers"}
     assert body["checks"]["checkpointer"] == {"ok": True, "backend": "InMemorySaver", "persistent": False}
     assert body["checks"]["retrieval_index"]["documents"] == 10
     assert body["checks"]["model_config"]["llm"].startswith("not configured")

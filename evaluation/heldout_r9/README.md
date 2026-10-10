@@ -165,3 +165,11 @@ claims 15/25 → 25/25 (`claims_heldout_r9-*.json`). The round-13 engineers did 
 copies of own wording (`slice_overlap-heldout_r9-at-da9f6af.json`): short follow-ups and claim forms that the round-9
 review published as repros, and three English claim tests written from the review's class descriptions. Without those
 items: chat 16/48 → 37/48, claims 15/20 → 20/20. From round 14 this slice is **after exposure**.
+
+**Correction (round 14, round-10 review J9).** That scan read a fixed list of own files (dev tasks, router labels, dev
+claims, test literals) and missed `evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl`, the ext gate set written in
+round 13. `slice_overlap` now reads every task file and claim file; rerun at `aec9cd8`
+(`slice_overlap-heldout_r9-all-tasks.json`) it finds **6 chat tasks** (the 4 above, r9h_ind_en_01 — a one-word variant
+in the ext set, failed before and passed after the fixes — and r9h_sum_en_02, whose short follow-up turn is word for
+word an ext-set turn; it failed both times) and the same 5 claims. Without them, from `task_outcomes` of the two
+committed runs: chat **16/46 → 36/46** (the review, counting 5 tasks, had 16/47 → 36/47), claims 15/20 → 20/20.

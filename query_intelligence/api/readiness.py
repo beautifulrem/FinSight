@@ -9,6 +9,9 @@ A replica is ready to take traffic only when every check passes:
   the agent actually holds an LLM client; without a key the agent runs in deterministic mode (ready).
 * ``retrieval_index``: the document corpus is loaded and its TF-IDF matrix matches it (or, for the
   Postgres document repository, the connection answers ``SELECT 1``); structured data is loaded.
+* ``data_layers``: the offline structured-data layers (v1 seed, snapshot extension, corrections layer) with their
+  record counts and sha256; a layer that is switched on (``QI_OFFLINE_SNAPSHOT_EXT`` / ``QI_OFFLINE_SNAPSHOT_FIX``)
+  but missing from the image fails the check, so a container that would serve uncorrected figures is never ready.
 
 Checks run in worker threads with a deadline (``QI_READY_TIMEOUT_S``, default 5 s). A check that is still
 running from an earlier probe (for example a Postgres pool waiting for a dead host) is reported as failed
@@ -197,4 +200,25 @@ def check_retrieval_index(service: Any) -> dict[str, Any]:
             problems.append("structured data is empty")
     if problems:
         detail.update(ok=False, error="; ".join(problems))
+    return detail
+
+
+def check_data_layers(service: Any) -> dict[str, Any]:
+    """The offline snapshot layers the retrieval pipeline was built with (round-10 review J2)."""
+    from ..data_loader import snapshot_layers
+
+    pipeline = getattr(service, "retrieval_pipeline", None)
+    extended, corrected = getattr(pipeline, "snapshot_layer_settings", (None, None))
+    layers = snapshot_layers(extended, corrected)
+    missing = [row for row in layers if row["enabled"] and not row["present"]]
+    detail: dict[str, Any] = {
+        "ok": not missing,
+        "loaded": [row["name"] for row in layers if row["loaded"]],
+        "layers": layers,
+    }
+    if missing:
+        detail["error"] = "; ".join(
+            f"{row['name']} is switched on ({row.get('setting', 'always')}) but {row['file']} is missing"
+            for row in missing
+        )
     return detail

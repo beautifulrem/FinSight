@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
+logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
@@ -136,11 +140,82 @@ def load_structured_data(extended: bool | None = None, corrected: bool | None = 
 @lru_cache(maxsize=4)
 def _load_structured_data(extended: bool, corrected: bool = False) -> dict:
     data = _read_json(DATA_DIR / "structured_data.json")
-    if extended and SNAPSHOT_EXT_PATH.exists():
-        data = merge_snapshot_extension(data, _read_json(SNAPSHOT_EXT_PATH))
-    if corrected and SNAPSHOT_FIX_PATH.exists():
-        data = apply_snapshot_corrections(data, _read_json(SNAPSHOT_FIX_PATH))
+    if extended:
+        if SNAPSHOT_EXT_PATH.exists():
+            data = merge_snapshot_extension(data, _read_json(SNAPSHOT_EXT_PATH))
+        else:
+            _warn_missing_layer("extension", "QI_OFFLINE_SNAPSHOT_EXT", SNAPSHOT_EXT_PATH)
+    if corrected:
+        if SNAPSHOT_FIX_PATH.exists():
+            data = apply_snapshot_corrections(data, _read_json(SNAPSHOT_FIX_PATH))
+        else:
+            _warn_missing_layer("corrections", "QI_OFFLINE_SNAPSHOT_FIX", SNAPSHOT_FIX_PATH)
     return data
+
+
+def _warn_missing_layer(name: str, env_var: str, path: Path) -> None:
+    # (round-10 review J2) a layer that is switched on but absent (an image built without it) is never skipped
+    # silently: the log says so once per configuration, and GET /ready reports it as not loaded (503).
+    logger.warning(
+        "offline snapshot layer %r is switched on (%s) but %s is missing; serving without it", name, env_var, path
+    )
+
+
+def _snapshot_layer_specs() -> tuple[tuple[str, Path, str | None, tuple[str, ...]], ...]:
+    """name, file, the env var that switches it (None: always on), the sections whose records it serves."""
+    return (
+        ("seed_v1", DATA_DIR / "structured_data.json", None, _SNAPSHOT_EXT_SECTIONS),
+        ("extension", SNAPSHOT_EXT_PATH, "QI_OFFLINE_SNAPSHOT_EXT", _SNAPSHOT_EXT_SECTIONS),
+        ("corrections", SNAPSHOT_FIX_PATH, "QI_OFFLINE_SNAPSHOT_FIX", (*_SNAPSHOT_FIX_SECTIONS, "definitions")),
+    )
+
+
+@lru_cache(maxsize=16)
+def _layer_file_summary(path: str, mtime_ns: int, size: int, sections: tuple[str, ...]) -> dict[str, Any]:
+    """sha256, keyed records per section and version of one layer file (cached per file state)."""
+    raw = Path(path).read_bytes()
+    data = json.loads(raw.decode("utf-8"))
+    data = data if isinstance(data, dict) else {}
+    records = {section: len(data[section]) for section in sections if isinstance(data.get(section), (dict, list))}
+    return {
+        "records": records,
+        "record_count": sum(records.values()),
+        "version": data.get("version"),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+    }
+
+
+def snapshot_layers(extended: bool | None = None, corrected: bool | None = None) -> list[dict[str, Any]]:
+    """The offline structured-data layers in load order, for ``GET /ready`` and the ops docs.
+
+    One row per layer: ``name``, ``file`` (relative to the repository root), ``enabled`` (switched on by its setting;
+    the v1 seed always is), ``present``, ``loaded`` (enabled and present), ``records`` (keyed records per section),
+    ``record_count`` (their sum), ``version`` and ``sha256`` of the file (compare with ``data/snapshot/manifest*.json``).
+    ``extended`` / ``corrected`` = ``None`` follow the environment, like :func:`load_structured_data`.
+    """
+    switches = {
+        "extension": snapshot_ext_enabled() if extended is None else bool(extended),
+        "corrections": snapshot_fix_enabled() if corrected is None else bool(corrected),
+    }
+    rows: list[dict[str, Any]] = []
+    for name, path, env_var, sections in _snapshot_layer_specs():
+        enabled = switches.get(name, True)
+        row: dict[str, Any] = {"name": name, "file": _relative(path), "enabled": enabled, "present": path.exists()}
+        if env_var:
+            row["setting"] = env_var
+        row["loaded"] = bool(enabled and row["present"])
+        if row["present"]:
+            stat = path.stat()
+            row.update(_layer_file_summary(str(path), stat.st_mtime_ns, stat.st_size, sections))
+        rows.append(row)
+    return rows
+
+
+def _relative(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
 
 
 def apply_snapshot_corrections(base: dict, corrections: dict) -> dict:
@@ -208,3 +283,4 @@ def clear_data_caches() -> None:
     load_synonyms.cache_clear()
     load_documents.cache_clear()
     _load_structured_data.cache_clear()
+    _layer_file_summary.cache_clear()
