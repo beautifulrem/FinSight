@@ -2935,7 +2935,8 @@ def _turnover_change(number: _Number, text: str, clause_start: int, sentence_sta
 # ("截至收盘，宁德时代下跌2.51%", a published sentence dated by its article) is checked against the latest session only
 # when it fits, else it is unverifiable
 _LATEST_ANCHOR = re.compile(
-    r"今天|今日|昨天|昨日|最新|目前|现在|当前|最近一个交易日|最近交易日|上一交易日|上个交易日|"
+    # "上一个交易日跌了" names the latest session; "较上一交易日增加" only compares with the one before
+    r"今天|今日|昨天|昨日|最新|目前|现在|当前|最近一个交易日|最近交易日|(?<![较比])上一个?交易日|(?<![较比])上个交易日|"
     # the current share price ("茅台股价低于1400元", "Moutai's share price is …") is the latest close
     r"股价|现价|\bshare price\b|\bstock price\b|"
     r"\btoday\b|\byesterday\b|\blatest\b|\bcurrently\b|\bright now\b|\bnow\b",
