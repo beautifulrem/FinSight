@@ -116,7 +116,8 @@ The three agents returned 104 candidates (`candidates_v2.jsonl`, agent A 33, B 3
 The other 94 are grouped by first-named entity: the 13 companies, plus one group for indices and ETFs. Within a group,
 candidates with a known publication date come first, then they are ordered by a fixed pseudo-random key (sha256 of URL
 + text). At most 4 are taken per group and 2 per URL, and the list is trimmed to 50 from the largest groups. The cap
-spreads the set over companies and is applied blind to correctness. After selection, two long English sentences were
+spreads the set over companies and is applied blind to correctness. After selection, the subject was inserted in brackets in two claims whose sentence leaves it implicit (v10
+美的集团, v34 长江电力; the agents had not bracketed it). Two long English sentences were
 shortened by whole clauses (`excerpt`). Dates that a sentence leaves to its context were also recorded
 (`date_implicit`, `date_source`).
 
