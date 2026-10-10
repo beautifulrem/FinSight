@@ -161,7 +161,8 @@ _REASON = {
     "currency": ("金额不是人民币", "the amount is not in CNY"),
 }
 _PERCENT_LEVELS = {"roe", "gross_margin", "net_margin", "dividend_yield", "debt_ratio", "cn10y", "lpr_1y", "lpr_5y"}
-_SIGNED = {"pct_change_1d", "revenue_yoy", "netprofit_yoy", "profit_dedt_yoy", "cpi_yoy", "ppi_yoy", "m2_yoy", "gdp_yoy"}
+_SIGNED = {"pct_change_1d", "revenue_yoy", "netprofit_yoy", "profit_dedt_yoy", "cpi_yoy", "ppi_yoy", "m2_yoy"}
+_SIGNED |= {"gdp_yoy"}
 _AMOUNTS = {"revenue", "net_profit", "profit_dedt", "amount", "market_cap", "circ_mv"}
 _MAX_SENTENCES = 4
 
