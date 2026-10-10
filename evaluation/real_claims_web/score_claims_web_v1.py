@@ -18,13 +18,20 @@ the labels made from that data (``claims_web_v1-labels-with-corrections.jsonl``,
 ``label_claims_web_v1 --corrections``); it also reports the accuracy against the first run's labels. Default OUT:
 ``evaluation/results/claims_web_v1-with-corrections.json``. This run is after exposure: the engineer had read the set
 and its README before correcting the data (the checker is unchanged).
+
+``--after-exposure`` (round 14) labels a run made after the checker was changed for this set's error classes (the
+set is after exposure from round 14 on); give OUT, so the first run and the round-13 file are not overwritten.
+
+Round 14 (round-10 review J15): like the other writers (``evaluation/agent_eval/dirty_guard.py``), the script refuses
+to write into a committed results folder (``evaluation/results/``) from a working tree with uncommitted changes,
+before it runs, unless ``--allow-dirty`` and a ``--note`` saying what was uncommitted are both given.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import random
-import subprocess
 import sys
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -56,11 +63,26 @@ def rates(results: list[dict[str, Any]], key: str) -> dict[str, dict[str, Any]]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = list(sys.argv[1:] if argv is None else argv)
-    corrections = "--corrections" in args
-    args = [arg for arg in args if arg != "--corrections"]
-    out = Path(args[0]) if args else (CORRECTED_OUT if corrections else DEFAULT_OUT)
     sys.path.insert(0, str(ROOT))
+    from evaluation.agent_eval.dirty_guard import add_dirty_arguments, check_dirty_write
+    from evaluation.agent_eval.runner import _git_commit
+
+    commit_at_start = _git_commit()  # the commit the run starts from (cached)
+    parser = argparse.ArgumentParser(description="Score claims_web_v1 with the claim checker (offline, no LLM).")
+    parser.add_argument("out", nargs="?", default=None, help="Output JSON (default: see the module docstring).")
+    parser.add_argument("--corrections", action="store_true", help="Corrections layer on, corrected labels.")
+    parser.add_argument(
+        "--after-exposure",
+        action="store_true",
+        help="Label the run as after exposure: the checker was changed after its authors read this set.",
+    )
+    add_dirty_arguments(parser)
+    args = parser.parse_args(sys.argv[1:] if argv is None else argv)
+    corrections = args.corrections
+    out = Path(args.out) if args.out else (CORRECTED_OUT if corrections else DEFAULT_OUT)
+    # (round 14, J15) refuse a dirty tree before any work when the output is committed evidence
+    dirty_note = check_dirty_write(out, commit_at_start, allow_dirty=args.allow_dirty, notes=args.note)
+
     from evaluation.agent_eval.runner import build_offline_service
     from query_intelligence.agent.claim_check import check_claim
     from query_intelligence.agent.tools import build_registry_for_service
@@ -80,12 +102,9 @@ def main(argv: list[str] | None = None) -> int:
             "checks": [{k: c.get(k) for k in CHECK_FIELDS} for c in report.get("checks") or []],
         })
     hits = [1.0 if r["ok"] else 0.0 for r in results]
-    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, cwd=ROOT)
-    dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], capture_output=True, text=True,
-                           cwd=ROOT).stdout.strip()
     by_category = rates(results, "category")
     config = {
-        "commit": commit.stdout.strip() + ("-dirty" if dirty else ""),
+        "commit": commit_at_start,
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "command": COMMAND,
         "snapshot": "offline v1 + 2026-09-30 extension (QI_OFFLINE_SNAPSHOT_EXT on), no LLM",
@@ -102,7 +121,18 @@ def main(argv: list[str] | None = None) -> int:
             "note": "after exposure (data correction, checker unchanged): the engineer read this set and its README "
             "before correcting the offline data; not an out-of-sample estimate",
         })
-    payload = {
+    if args.after_exposure:
+        config["command"] += " --after-exposure"
+        config["exposure"] = "after"
+        config["note"] = (
+            "after exposure (checker changed): the engineers had read this set, its README and its error classes "
+            "before changing the claim checker (round 14, J12); not an out-of-sample estimate"
+            + ("; corrections layer on, scored against the corrected labels" if corrections else "")
+        )
+    if args.out:
+        resolved = out.resolve()
+        config["command"] += f" {resolved.relative_to(ROOT) if resolved.is_relative_to(ROOT) else out}"
+    payload: dict[str, Any] = {
         "kind": "claim_slice",
         "config": config,
         "summary": {
@@ -134,6 +164,9 @@ def main(argv: list[str] | None = None) -> int:
             for row in rows
             if row.get("label_without_corrections") != row["expected_verdict"]
         ]
+    notes = [note for note in args.note if note] + ([dirty_note] if dirty_note else [])
+    if notes:
+        payload["notes"] = notes
     for r in results:
         if not r["ok"]:
             print("XX", r["id"], r["expected"], "->", r["got"], "|", r["claim"])
