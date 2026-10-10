@@ -15,6 +15,7 @@ with their committed baselines.
     python -m evaluation.agent_eval.gate
     python -m evaluation.agent_eval.gate --update-baseline      # after an intended change
     python -m evaluation.agent_eval.gate --extras-only          # verifier + red-team comparison
+    python -m evaluation.agent_eval.gate --set ext               # the snapshot extension on (round 13)
 
 ``--update-baseline`` refuses to run from a working tree with uncommitted changes (round-9 review I13): a baseline
 recorded as ``<commit>-dirty`` cannot be reproduced. ``--allow-dirty --note "..."`` overrides it and labels the file.
@@ -24,7 +25,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +51,14 @@ THRESHOLDS: dict[str, dict[str, float]] = {
         "behavior_accuracy": 0.95,
         "compliance_clean": 1.0,
     },
+    # (round 13) the snapshot extension on, as shipped: tasks/agent_eval_ext_v1.jsonl against the offline tools
+    "ext": {
+        "task_success": 0.95,
+        "behavior_accuracy": 0.98,
+        "fact_recall": 0.95,
+        "compliance_clean": 1.0,
+        "hedged_when_required": 1.0,
+    },
 }
 # Allowed drop below the committed baseline (absolute). One dev task is 0.005, one held-out task 0.019.
 TOLERANCES: dict[str, float] = {
@@ -60,7 +72,14 @@ TOLERANCES: dict[str, float] = {
     "draft_verification_pass": 0.0,
 }
 # The untouched test set (test_v2) is deliberately not gated: gating on it would turn it into a tuning target.
-SETS = {name: TASK_SETS[name] for name in ("dev", "holdout")}
+SETS: dict[str, tuple[Path, Path | None]] = {name: TASK_SETS[name] for name in ("dev", "holdout")}
+# (round 13, round-9 review) Every set above is pinned to the v1 snapshot (data/structured_data.json), whose labels
+# include absences the extension would flip. The shipped default has the extension on; the ``ext`` set runs with
+# QI_EVAL_SNAPSHOT_EXT=1 and no replay fixture (snapshot ``None``), so the extension's data path and the answers on it
+# are regression-tested too (built by ``build_ext_tasks.py``).
+EXT_TASKS = Path(__file__).resolve().parent / "tasks" / "agent_eval_ext_v1.jsonl"
+SETS["ext"] = (EXT_TASKS, None)
+EXT_SETS = {"ext"}
 
 
 def check(summary: dict[str, Any], thresholds: dict[str, float]) -> list[str]:
@@ -149,6 +168,23 @@ def extras_problems(outputs: Path = DEFAULT_OUTPUT_DIR) -> list[str]:
     return problems
 
 
+@contextmanager
+def _snapshot_ext(enabled: bool) -> Iterator[None]:
+    """``QI_EVAL_SNAPSHOT_EXT=1`` for one gate set (the evaluation harness is pinned to v1 otherwise)."""
+    previous = os.environ.get("QI_EVAL_SNAPSHOT_EXT")
+    if enabled:
+        os.environ["QI_EVAL_SNAPSHOT_EXT"] = "1"
+    else:
+        os.environ.pop("QI_EVAL_SNAPSHOT_EXT", None)
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("QI_EVAL_SNAPSHOT_EXT", None)
+        else:
+            os.environ["QI_EVAL_SNAPSHOT_EXT"] = previous
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Offline agent evaluation gate.")
     parser.add_argument("--set", choices=sorted(SETS), action="append", default=[])
@@ -165,7 +201,9 @@ def main(argv: list[str] | None = None) -> int:
     for name in [] if args.extras_only else args.set or sorted(SETS):
         tasks, snapshot = SETS[name]
         out = DEFAULT_OUTPUT_DIR / f"gate-{name}.json"
-        report = run_eval(["--mode", "workflow", "--tasks", str(tasks), "--snapshot", str(snapshot), "--out", str(out)])
+        replay = ["--snapshot", str(snapshot)] if snapshot is not None else ["--no-replay"]
+        with _snapshot_ext(name in EXT_SETS):
+            report = run_eval(["--mode", "workflow", "--tasks", str(tasks), *replay, "--out", str(out)])
         found = problems.setdefault(name, [])
         if report["config"]["snapshot"]["misses"]:
             found.append(f"{report['config']['snapshot']['misses']} tool calls missing from snapshot")

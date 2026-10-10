@@ -423,6 +423,30 @@ These rules answer the round-8 review's H6. They were written with 23 new own-wo
 | One fold | "高出一倍多", "多了将近一倍", "低了将近一半" | relative difference: 一倍 = 100% (一倍多 (100%, 200%), 将近一倍 [90%, 100%]); 一半 after 比 = 50%. 两倍 and more stay unverifiable (two or three times?), so dev row d261 ("茅台营收比五粮液高出一倍多") was relabelled unverifiable → contradicted (+55.6%) |
 | Numerals | "一成半", "一千四百出头", "一万二千多亿", 较 / 相较于 as 比 | 15%, (1400, 1450], (12000, 13000)亿 |
 
+### Round 13: X倍半, one-fold bands, "a little", 52-week references, turns, contrast clauses, superlatives, English fractions (after the round-9 review)
+
+These rules answer the round-9 review's I8 (false contradictions of true claims). Failing tests were written first,
+with the engineer's own wordings and other pairings than the review's repros, mostly on the snapshot extension's
+names (`tests/test_agent_round13_claims.py`, 50 cases; values from `data/snapshot/structured_data_ext.json`). The
+review's held-out round-9 slice (`heldout_r9`) was not opened.
+
+| Form | Example (own wording) | Reading |
+| --- | --- | --- |
+| X倍半 | "工商银行的净利润大约是招商银行的两倍半", "约为平安银行的三倍半" | X.5 times (before: the 半 was dropped, so a true 3.52 was contradicted against 3.0) |
+| 将近 / 接近一倍 | "比亚迪的营收比宁德时代高出接近一倍" | a relative difference in (80%, 100%] (before: [90%, 100%], so +89.58% was contradicted). 一倍多 stays (100%, 200%) |
+| "a little" | "只有招商银行的七成多一点", "比工商银行高一点", "低一点点", "多一些" | not a number (before: 一点 became an extra check "eq 1") |
+| 52-week high / low | "比52周最高收盘价低了三成多", "距52周高点已经跌去超过三成", "较52周高点已经腰斩", "37% below its 52-week high" | 52 is a window, never a value; the high (low) is the target's own 52-week closing high (low) from the price history (`range_52w`), and the claim is a relative difference of the latest close against it; 腰斩 is about -50%. Unverifiable when the history does not cover 52 weeks (v1 names). Before: a check "close eq 52" |
+| Turns / points above | "about 10 turns above CATL", "some 20 turns higher than CATL's", "6.5 points above BYD's" | an absolute difference of the multiple (P/E) or percentage points (ROE); before: 10 was checked as BYD's own P/E |
+| Contrast clause | "贵州茅台的PE低于白酒板块平均水平，但PB高于板块平均", "…市净率却比行业平均高" | a target named as the compared side of an earlier clause is not the subject of a later one, so the subject carries over 但 / 却 (before: the second clause compared 白酒 with 行业平均) |
+| Superlatives | "在招商银行、工商银行和平安银行三家中，平安银行的ROE最低", "市净率最高的是招商银行", "Of CMB, ICBC and Ping An Bank, ICBC has the highest ROE" | one `relation` check: the subject against the most extreme of the other companies the sentence names (shown as the compared side, with all values in the note). With one named company it stays unchecked; 最高价 / 最低收盘 / 最大回撤 are metrics, not superlatives |
+| English fractions | "less than a third of CATL's", "about a quarter of ICBC's", "roughly two-fifths of", "less than half of" | multiples 0.3333, 0.25, 0.4, 0.5 (only before a capitalised name, so "half a percent" stays 0.5 percent) |
+| Numerals before 个百分点 | "相差三个多百分点", "高约一个百分点" | (3, 4) and about 1 point; before: "三个百分点" was read as nothing |
+| A sector as a ratio reference | "保险行业平均市盈率11.8倍，不到白酒行业的一半", "是保险行业的四倍多" | a multiple of the other sector's snapshot value |
+| English sector average | "26% below the insurance average", "below the baijiu average" | the subject's industry average |
+
+The chat's output-safety layer splits clauses on the same contrast words since round 13 (I19): 但 / 但是 / 却 / 不过 /
+but / however / yet (not 不但), so a single-source figure after "但" is marked in its own clause.
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
@@ -611,9 +635,22 @@ check accuracy 0.717 → 0.904. It is **after exposure**: the slice and the revi
 and several round-12 forms (English differences, 一成半, 一千四百出头, 一万二千多亿, the bracketed average) are its
 classes. The round-8 reviewer's claim slice (`heldout_r8`, not opened) is the out-of-sample measure of these rules.
 
+Round 13 (I8) re-ran every claim set at `39ba98e`: `claim_bench-dev.json` (1.000, 299 claims),
+`claim_bench-holdout-after-round13.json` (1.000), `claim_bench-heldout_r4-after-round13.json` (1.000; checks 0.920),
+`claim_bench-heldout_r5-after-round13.json` (1.000; checks 0.988) and `claim_bench-heldout_r6-after-exposure-round13.json`
+(0.985, 66 of 67, r6c10 still wrong): every number equals its round-12 value, so the new rules changed no status on these
+sets. The round-8 reviewer's claim slice moved 0.800 → **1.000** (25 of 25,
+`claims_heldout_r8-after-exposure-round13-claims.json`). That run is **after exposure**: the committed round-12 result
+(`claims_heldout_r8-after-fix.json`) lists its five remaining errors (两倍多一点, 三个多百分点, "26% below the insurance
+average", "less than half of Moutai's net profit", 是保险行业的四倍多), and the round-13 engineers read them; the rules
+were tested with other wordings, but the 1.000 is not an out-of-sample estimate. The out-of-sample measure of the
+round-13 rules is the round-9 reviewer's slice (`heldout_r9`, 25 claims, not opened; first run at `cbcf3b2` by the
+reviewer: 0.600).
+
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \
   --out evaluation/results/claim_bench-heldout_r4-after-exposure.json
+FINSIGHT_REPO=. python evaluation/heldout_r8/score_claims_r8.py <out.json>
 ```
 
 ### How to read these numbers
@@ -658,7 +695,9 @@ python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves
 ## Limits
 
 - **Coverage of the data.**
-  - Offline: only 3 stocks, 3 ETFs and 1 index have data.
+  - Offline: the v1 snapshot has 3 stocks, 3 ETFs and 1 index; the snapshot extension (on by default) adds 15
+    instruments as of 2026-09-30, 10 of them companies with fundamentals but **no industry snapshot**, so an industry
+    relation for them is unverifiable ("no industry snapshot").
   - Offline: growth, index valuation, dividend yield, market cap, debt ratio and EPS are unavailable.
   - Live: coverage depends on the providers.
 - **Only the daily change is checked.** Multi-day moves and comparisons with the previous session ("跌幅扩大")

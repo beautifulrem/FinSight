@@ -180,6 +180,7 @@ def compose_template(
         gaps += [
             *coverage_gaps(query, tool_log, zh=zh, names=names),
             *industry_gaps(query, tool_log, zh=zh),
+            *_missing_industry_snapshot(query, tool_log, zh),
             *non_stock_fundamental_gaps(query, tool_log, zh=zh, names=names, types=types),
             *macro_gaps(query, tool_log, zh=zh),
             *foreign_macro_gaps(query, zh=zh),
@@ -1001,13 +1002,31 @@ def _computed_change(data: dict[str, Any]) -> tuple[float, float] | None:
 
 
 def _year_to_date(data: dict[str, Any], zh: bool) -> list[str]:
-    """The change from the first close of the year to the latest close, with both closes in the sentence (the
-    verifier checks the percent change against them); without ``year_start`` the gap is stated by coverage."""
+    """The year-to-date change, with both closes in the sentence (the verifier checks the percent change against
+    them); without ``year_start`` the gap is stated by coverage.
+
+    (round 13, I11) The base is the previous year's last close (``prior_year_end``, the 年初至今 basis of quote
+    vendors); a payload recorded before round 13 has only the year's first close, and the sentence then says that
+    this is its base."""
     start, close = data.get("year_start") or {}, data.get("close")
+    base = data.get("prior_year_end") or {}
     if not start or start.get("close") in (None, 0) or close is None:
         return []
-    change = (float(close) - float(start["close"])) / abs(float(start["close"])) * 100
     name, eid, as_of = data.get("name"), data.get("evidence_id"), data.get("as_of")
+    if base and base.get("close") not in (None, 0):
+        change = (float(close) - float(base["close"])) / abs(float(base["close"])) * 100
+        if zh:
+            return [
+                f"{name}今年以来（以上年最后一个交易日收盘为基准）：{base.get('date')} 收盘 "
+                f"{_px(base['close'], data, zh)}，最新（{as_of}）收盘 {_px(close, data, zh)}，"
+                f"涨跌幅 {_num(round(change, 2))}% [{eid}]。"
+            ]
+        return [
+            f"{name} year to date (from the previous year's last close): {base.get('date')} close "
+            f"{_px(base['close'], data, zh)}, latest close ({as_of}) {_px(close, data, zh)}, a change of "
+            f"{_num(round(change, 2))}% [{eid}]."
+        ]
+    change = (float(close) - float(start["close"])) / abs(float(start["close"])) * 100
     if zh:
         return [
             f"{name}今年以来：今年首个交易日（{start.get('date')}）收盘 {_px(start['close'], data, zh)}，"
@@ -1199,6 +1218,40 @@ def _price_vs_ma(data: dict[str, Any], zh: bool, request: PriceRequest) -> list[
                 f"{_px(average, data, zh)} [{eid}]."
             )
     return sentences
+
+
+_INDUSTRY_METRIC_WORDS = (
+    ("市盈率", "P/E", re.compile(r"市盈率|(?<![A-Za-z])P/?E(?![A-Za-z])|price[- ]to[- ]earnings", re.I)),
+    ("市净率", "P/B", re.compile(r"市净率|(?<![A-Za-z])P/?B(?![A-Za-z])|price[- ]to[- ]book", re.I)),
+    ("ROE", "ROE", re.compile(r"净资产收益率|(?<![A-Za-z])ROE(?![A-Za-z])|return on equity", re.I)),
+)
+
+
+def _missing_industry_snapshot(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
+    """(round 13, I10) A question about a company's industry average when the data has no industry snapshot for
+    the company (the 2026-09-30 snapshot extension carries none): say so, instead of answering with the company's
+    own figures only. ``industry_gaps`` covers an industry snapshot that lacks the asked metric."""
+    if not asks_about_industry(query):
+        return []
+    asked = [(zh_label, en_label) for zh_label, en_label, pattern in _INDUSTRY_METRIC_WORDS if pattern.search(query)]
+    sentences: list[str] = []
+    for entry in tool_log:
+        if entry.get("tool") != "get_fundamentals" or not entry.get("ok"):
+            continue
+        data = entry.get("data") or {}
+        if data.get("industry") or not data.get("symbol") or data.get("product_type") not in {None, "stock"}:
+            continue
+        name = str(data.get("name") or data.get("symbol"))
+        if zh:
+            what = "、".join(label for label, _en in asked) or "估值指标"
+            sentences.append(f"当前数据没有{name}所属行业的平均{what}，无法与行业平均比较。")
+        else:
+            what = ", ".join(en for _zh, en in asked) or "valuation multiples"
+            sentences.append(
+                f"The industry average {what} of {name}'s industry is not available in the current data, so no "
+                "comparison with the industry average can be made."
+            )
+    return list(dict.fromkeys(sentences))
 
 
 def _fundamentals(data: dict[str, Any], zh: bool, *, industry_first: bool = False) -> list[str]:

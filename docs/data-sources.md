@@ -91,6 +91,34 @@ test v3 6), and three claim labels that become checkable (r5 r5c045/r5c055 on �
 r6c19 on 宁德时代's P/E: 6 checks). The round-7 slice passes either way. Pinned to v1 (the default), every
 verify script prints OK.
 
+**The shipped default is gated too (round 13).** The extension is on by default, so a regression on its names
+would not fail a v1-pinned gate. The gate set `ext` (`evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl`, 24 tasks /
+26 turns, built by `python -m evaluation.agent_eval.build_ext_tasks`, values read by hand from
+`structured_data_ext.json`) runs with `QI_EVAL_SNAPSHOT_EXT=1` against the offline tools directly, with no replay
+fixture, so the loader, the price and fundamentals tools, the derived fields and the answers on extension names are all
+exercised: `python -m evaluation.agent_eval.gate --set ext` (its own CI step in the `agent-eval-gate` job; floors
+task success 0.95, behaviour 0.98, facts 0.95, compliance 1.0, hedged 1.0; baseline `evaluation/results/gate-ext.json`,
+24/24 at `235d00c`). It covers facts on extension names, YTD / 52-week / drawdown / holding value, price-forecast hedges
+with past-time controls, a missing industry average and follow-ups. The same tasks score 15/24 with the code at
+`cbcf3b2` (before the round-13 fixes); they were written after the fixes, so that is a regression baseline, not an
+independent measure. The dev and held-out gates stay pinned to v1 for comparability.
+
+**Year to date (round 13, review I11).** `get_price_history` also returns `prior_year_end`, the last close of the year
+before (present whenever `year_start` is), and the year-to-date change is measured from it, the 年初至今 basis of quote
+vendors: 宁德时代 −20.73% from 367.26 (2025-12-31), where round 12 said −22.88% from the 2026-01-05 close (377.5). A
+payload recorded before round 13 has only `year_start`; the answer then names "the first close of the year" as its
+base. The year-to-date drawdown window still starts at the year's first close.
+
+**No industry snapshot for the extension's companies (round 13, review I10).** The v1 industry tiles (白酒, 保险, 券商, …;
+PE, PB, turnover) are a hand seed (`source_name: "seed"`), and the live refresh (THS industry index) carries only the
+daily change, so there is no fetch path to rebuild them "the same way" for the extension's industries (banks, autos,
+batteries, securities, utilities, mining, semiconductors, appliances). On 2026-10-01 the only live industry valuation
+source that answered from this machine was cninfo `stock_industry_pe_ratio_cninfo` (date 2026-09-30, 120 rows): static
+weighted / median P/E on the CAPCO classification, no P/B and no turnover, a different basis from the v1 tiles. No tiles
+were added and no existing value changed; instead, a question about one of these companies' industry average says so
+("当前数据没有比亚迪所属行业的平均市盈率，无法与行业平均比较。" / "The industry average P/E of CATL's industry is not
+available in the current data, …"), and the claim checker marks such a relation unverifiable ("no industry snapshot").
+
 ## How the audit was run
 
 | Item | Value |

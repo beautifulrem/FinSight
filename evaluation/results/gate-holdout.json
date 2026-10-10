@@ -17,19 +17,13 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "d42b181",
-  "run_at": "2026-10-01T13:57:49+00:00",
+  "commit": "235d00c",
+  "run_at": "2026-10-10T12:49:55+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 36.0,
+  "wall_seconds": 22.8,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out outputs/agent_eval/gate-holdout.json",
-  "env": {
-   "QI_AGENT_TRACE_DIR": "off",
-   "QI_USE_LIVE_ANNOUNCEMENT": "0",
-   "QI_USE_LIVE_MACRO": "0",
-   "QI_USE_LIVE_MARKET": "0",
-   "QI_USE_LIVE_NEWS": "0"
-  },
-  "command_with_env": "QI_AGENT_TRACE_DIR=off QI_USE_LIVE_ANNOUNCEMENT=0 QI_USE_LIVE_MACRO=0 QI_USE_LIVE_MARKET=0 QI_USE_LIVE_NEWS=0 python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out outputs/agent_eval/gate-holdout.json"
+  "env": {},
+  "command_with_env": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl --snapshot evaluation/agent_eval/fixtures/snapshot_holdout_v1.json --out outputs/agent_eval/gate-holdout.json"
  },
  "summary": {
   "tasks": 53,
@@ -64,9 +58,9 @@
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 132.28,
-  "latency_ms_p95": 1798.75,
-  "latency_ms_p99": 1940.33,
+  "latency_ms_p50": 93.01,
+  "latency_ms_p95": 1047.38,
+  "latency_ms_p99": 2762.02,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -94,59 +88,59 @@
   "clarify": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 1293.87
+   "latency_ms_p95": 2762.02
   },
   "compare": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 1813.11
+   "latency_ms_p95": 1047.38
   },
   "compliance": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 227.77
+   "latency_ms_p95": 326.08
   },
   "fact": {
    "tasks": 21,
    "task_success": 1.0,
-   "latency_ms_p95": 1770.57
+   "latency_ms_p95": 998.46
   },
   "macro_link": {
    "tasks": 3,
    "task_success": 0.3333,
-   "latency_ms_p95": 404.36
+   "latency_ms_p95": 241.14
   },
   "missing_data": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 1798.75
+   "latency_ms_p95": 684.39
   },
   "multi_turn": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 612.63
+   "latency_ms_p95": 239.28
   },
   "out_of_scope": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 172.58
+   "latency_ms_p95": 53.2
   },
   "why": {
    "tasks": 4,
    "task_success": 0.75,
-   "latency_ms_p95": 300.12
+   "latency_ms_p95": 192.27
   }
  },
  "by_language": {
   "en": {
    "tasks": 15,
    "task_success": 0.8667,
-   "latency_ms_p95": 1940.33
+   "latency_ms_p95": 2762.02
   },
   "zh": {
    "tasks": 38,
    "task_success": 0.9737,
-   "latency_ms_p95": 1770.57
+   "latency_ms_p95": 981.45
   }
  },
  "failed_checks": {
@@ -255,8 +249,8 @@
  },
  "source": {
   "file": "outputs/agent_eval/gate-holdout.json",
-  "sha256_16": "ec97250c4a7540fe",
-  "bytes": 147223,
-  "slimmed_at": "2026-10-01T13:57:49+00:00"
+  "sha256_16": "9b7ee178ab8debf4",
+  "bytes": 146897,
+  "slimmed_at": "2026-10-10T12:49:55+00:00"
  }
 }

@@ -740,8 +740,12 @@ _AFTER_FIGURE = (
     r"(?:(?<=\d)|(?<=[%％元倍点股])|(?<=yuan)|(?<=billion)|(?<=million)|(?<=times)|(?<=percent)|(?<=point)"
     r"|(?<=points))"
 )
+# (round 13, I19) a contrastive conjunction is a clause break wherever it stands ("茅台营收1688亿元但二季度直营占比升至
+# 45%", "… 却 …", "… but …", "… however …"); "不但" (not only) is not one.
+_CONTRAST = r"[，,；;]?\s*(?:(?<!不)但是?|却|不过(?=\s*\S))|[，,；;]?\s+(?:but|however|yet)\b,?\s*"
 _CLAUSE_BREAK = re.compile(
-    r"[，；;]|,(?!\d{3})|"
+    _CONTRAST
+    + r"|[，；;]|,(?!\d{3})|"
     + _AFTER_FIGURE
     + r"\s*(?:以及|及|并且|并|同时|而且|而)(?=\s*\S)|"
     + r"\s+(?:while|whereas)\s+|"
