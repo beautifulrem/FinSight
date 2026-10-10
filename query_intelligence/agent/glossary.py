@@ -28,6 +28,9 @@ class GlossaryEntry:
     has_data_series: bool = False
     #: The word also has an everyday meaning ("国家队队员名单" is about sport): it needs a definition or market cue.
     needs_cue: bool = False
+    #: (round 15, K12) A label of a figure the product shows ("扣非", "ROE（加权）"): only a definition question is
+    #: about the concept; "扣非净利润是多少" asks for a company's figure and is clarified as before.
+    definition_only: bool = False
 
     @property
     def evidence_id(self) -> str:
@@ -209,6 +212,100 @@ GLOSSARY: tuple[GlossaryEntry, ...] = (
             "system."
         ),
     ),
+    # (round 15, K12) the labels of the figures the fundamentals tiles show: 扣非 next to 归母 net profit, ROE（加权）
+    GlossaryEntry(
+        term="扣非净利润",
+        aliases=(
+            "扣非",
+            "扣非后净利润",
+            "扣非归母净利润",
+            "扣除非经常性损益后的净利润",
+            "扣除非经常性损益后净利润",
+            "recurring net profit",
+            "net profit after non-recurring items",
+            "net profit excluding non-recurring items",
+        ),
+        zh=(
+            "扣非净利润是扣除非经常性损益后、归属于母公司股东的净利润。非经常性损益指与主营业务无直接关系或偶发的收支，"
+            "例如资产处置收益、政府补助、金融资产公允价值变动等。归母净利润包含这些项目，扣非净利润把它们剔除，"
+            "因此更能反映主营业务的持续盈利能力：扣非明显低于归母，说明利润里一次性收益较多；扣非高于归母，说明当期有"
+            "一次性损失。FinSight 财务数据中的“扣非”即这一口径，可与同一公司的归母净利润对照。"
+        ),
+        en=(
+            "Net profit after non-recurring items (扣非净利润, recurring net profit) is the net profit attributable to "
+            "shareholders of the parent with non-recurring gains and losses removed: items unrelated to the core "
+            "business or one-off in nature, such as gains on asset disposals, government subsidies or fair-value "
+            "changes. Attributable net profit (归母净利润) includes them, so a recurring figure well below the "
+            "attributable one means much of the profit was one-off, and a recurring figure above it means a one-off "
+            "loss. FinSight's 扣非 figure is this measure and can be read next to the same company's attributable "
+            "net profit."
+        ),
+        has_data_series=True,
+        definition_only=True,
+    ),
+    GlossaryEntry(
+        term="归母净利润",
+        aliases=(
+            "归母",
+            "归属于母公司股东的净利润",
+            "归属于上市公司股东的净利润",
+            "归属母公司净利润",
+            "net profit attributable to shareholders",
+            "attributable net profit",
+            "net income attributable to shareholders",
+        ),
+        zh=(
+            "归母净利润即归属于母公司股东（上市公司普通股股东）的净利润，是合并报表净利润减去少数股东损益后的部分，"
+            "也是计算每股收益和市盈率常用的利润口径。它包含非经常性损益；剔除非经常性损益后的口径是扣非净利润，"
+            "两者之差就是当期非经常性损益的影响。FinSight 数据中每个净利润字段的口径（归母或含少数股东）"
+            "在数据定义中标明。"
+        ),
+        en=(
+            "Attributable net profit (归母净利润) is the net profit attributable to shareholders of the parent, i.e. "
+            "consolidated net profit minus the share of minority interests; it is the profit usually behind "
+            "earnings per share and the P/E. It includes non-recurring items; removing them gives the recurring "
+            "figure (扣非净利润), and the gap between the two is the effect of the period's non-recurring items. "
+            "FinSight states for each net-profit field whether it is attributable or total (including minorities)."
+        ),
+        has_data_series=True,
+        definition_only=True,
+    ),
+    GlossaryEntry(
+        term="加权平均ROE",
+        aliases=(
+            "加权ROE",
+            "ROE（加权）",
+            "ROE(加权)",
+            "加权平均净资产收益率",
+            "加权净资产收益率",
+            "摊薄ROE",
+            "全面摊薄ROE",
+            "摊薄净资产收益率",
+            "全面摊薄净资产收益率",
+            "期末ROE",
+            "weighted average roe",
+            "weighted roe",
+            "weighted average return on equity",
+            "diluted roe",
+            "period-end roe",
+        ),
+        zh=(
+            "加权平均净资产收益率（加权ROE）是归母净利润除以报告期内加权平均的归母净资产：分母以期初净资产为基础，"
+            "期内增发、分红等引起的增减按存续时间加权，是年报按披露规则列示的主要口径。全面摊薄（期末）ROE则用期末"
+            "归母净资产作分母；期内净资产大幅增加（如增发）时，摊薄ROE通常低于加权ROE。两种口径的数值不能直接比较，"
+            "FinSight 的ROE字段标注所用口径（加权或期末/摊薄）。"
+        ),
+        en=(
+            "Weighted average ROE is attributable net profit divided by the weighted average attributable equity "
+            "over the period: opening equity, with changes such as share issues or dividends weighted by the time "
+            "they were outstanding. It is the main ROE in annual reports. Fully diluted (period-end) ROE divides by "
+            "closing equity instead, so after a large equity increase it is usually lower than the weighted figure. "
+            "The two are not directly comparable; FinSight labels which basis each ROE figure uses (weighted or "
+            "period-end / diluted)."
+        ),
+        has_data_series=True,
+        definition_only=True,
+    ),
 )
 
 _BY_FORM: dict[str, GlossaryEntry] = {}
@@ -247,8 +344,26 @@ def lookup_concept(text: str) -> GlossaryEntry | None:
             continue
         if entry.needs_cue and not _CUE.search(lowered.replace(form, " ")):
             continue
+        if entry.definition_only and not _DEFINITION_CUE.search(lowered):
+            continue
         return entry
     return None
+
+
+# (round 15, K12) a question about what a figure's label means, or how two labels differ
+_DEFINITION_CUE = re.compile(
+    r"是什么|是啥|什么意思|啥意思|什么叫|何为|指的是|指什么|是指|含义|定义|概念|区别|差别|差异|不同|差在哪|"
+    r"怎么理解|如何理解|怎么算|如何计算|计算公式|口径|"
+    r"\bwhat (?:is|are|does)\b|\bmean(?:s|ing)?\b|\bdifference\b|\bdiffer\b|\bdefin(?:e|ed|ition)\b|\bexplain\b|"
+    r"\bhow is\b.{0,40}\bcalculated\b",
+    re.IGNORECASE,
+)
+
+
+def entry_for_term(term: str) -> GlossaryEntry | None:
+    """The entry whose headword or alias is exactly ``term`` (the ``explain_concept`` tool's argument): a term the
+    planner or the model already chose needs no definition cue."""
+    return _BY_FORM.get((term or "").strip().lower())
 
 
 def concept_terms() -> tuple[str, ...]:

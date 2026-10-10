@@ -1367,7 +1367,8 @@ class AgentRuntime:
         if llm_draft:
             # The LLM usually says when a requested period or metric is missing; the limitation makes it explicit.
             asked = state.get("effective_query") or state["query"]
-            limitations.extend(coverage_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
+            data_log = [entry for entry in state.get("tool_log") or [] if entry.get("tool") != "explain_concept"]
+            limitations.extend(coverage_gaps(asked, data_log, zh=self._zh(state)))  # (round 15) not the glossary
             limitations.extend(flow_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
             limitations.extend(year_to_date_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
             limitations.extend(range_52w_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
