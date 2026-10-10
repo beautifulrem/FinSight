@@ -7,11 +7,13 @@ the reasons that fired, so routing stays explainable.
 from __future__ import annotations
 
 import re
+from datetime import date
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from .coverage import sector_data_question, without_holding_value
+from .stated_dates import stated_periods
 
 Route = Literal["refuse", "clarify", "workflow", "agent"]
 Mode = Literal["auto", "workflow", "agent"]
@@ -148,7 +150,38 @@ _PRICE_MODAL = re.compile(
     r"会跌到)|(?:能|会|将|可能)(?:涨|跌|升|回|冲)(?:到|至)(?:多少|几)|目标价|目标位|"
     r"\b(?:what|where|how\s+high|how\s+low|how\s+much)\b[^.?!]{0,40}?\bwill\b[^.?!]{0,40}?"
     r"\b(?:close|closing|open|trade|end|finish|be\s+priced|be\s+worth|be\s+at|price|reach|hit)\b|"
-    r"\bprice\s+target\b|\btarget\s+price\b",
+    r"\bprice\s+target\b|\btarget\s+price\b|"
+    # (round 14, J6) the price to trade at ("Tell me the exact price to sell at", "卖在多少合适", "什么价位买入"):
+    # a price that has not happened, asked as a recommendation; and "Where do you see CATL trading?"
+    r"\b(?:exact|best|right|ideal|optimal|precise|perfect|good)?\s*price\s+(?:to|at\s+which\s+(?:i|we)\s+should|"
+    r"(?:i|we)\s+should|should\s+(?:i|we))\s+(?:sell|buy|exit|enter|dump|unload|get\s+(?:in|out))\b|"
+    r"\bat\s+what\s+(?:price|level)\s+(?:should|do|would|could|can)\s+(?:i|we)\s+(?:sell|buy|exit|enter)\b|"
+    r"\b(?:sell|buy)\s+(?:it\s+|them\s+|my\s+(?:\w+\s+){0,2})?at\s+what\s+(?:price|level)\b|"
+    r"\bwhat\s+(?:price|level)\s+(?:should|do|would)\s+(?:i|we)\s+(?:sell|buy)\b|"
+    r"\bwhere\s+(?:do|would|will|could|can)\s+you\s+see\b[^.?!]{0,40}?\b(?:trad(?:e|ing)|priced|price|stock|"
+    r"shares?|going|head(?:ed|ing)?|end(?:ing)?\s+up|clos(?:e|ing)|at)\b|"
+    r"\bwhere\b[^.?!]{0,30}?\b(?:will|is|are)\b[^.?!]{0,30}?\b(?:head(?:ed|ing)?|going)\b|"
+    r"(?:卖|买|卖出|买入|抛|抛出|出手|出货|止盈|止损|挂单)(?:在|到|于)(?:多少|几|哪|什么(?:价|位))|"
+    r"(?:多少钱|什么价位?|哪个价位?|几块钱?|多少块)(?:卖|买|卖出|买入|抛|出手|出货|挂单|止盈|止损)|"
+    r"(?:卖出|买入|止盈|止损)(?:价|价位|价格|点位)(?:应该|应当|该|定在|设在|放在)?(?:是|在|设)?(?:多少|几|哪)",
+    re.IGNORECASE,
+)
+# (round 14, J6) an opening gap: "会高开吗", "明天高开还是低开", "gap up", "open higher". With a future time, a modal
+# or a stated future date it is a forecast; "今天高开了多少" is a lookup.
+_OPEN_GAP = re.compile(
+    r"高开|低开|平开|跳空|\bgap(?:s|ped|ping)?\s+(?:up|down|higher|lower)\b|"
+    r"\bopen(?:s|ing)?\s+(?:higher|lower|up|down|flat|in\s+the\s+(?:red|green))\b",
+    re.IGNORECASE,
+)
+# a holiday or event still ahead or just past: future only with a modal ("国庆后会高开吗")
+_EVENT_AFTER = re.compile(
+    r"(?:国庆|春节|节|假期|长假|五一|元旦|中秋|端午|清明)(?:后|之后|以后|过后|结束后)|"
+    r"\bafter\s+the\s+(?:holiday|break|national\s+day|golden\s+week)\b",
+    re.IGNORECASE,
+)
+# a period counted up to now ("2026年以来", "so far", "year to date"): history, whatever period it names
+_SO_FAR = re.compile(
+    r"以来|至今|迄今|到目前|截至目前|截止目前|\bso\s+far\b|\bto\s+date\b|\byear[- ]to[- ]date\b|\bytd\b|\bsince\b",
     re.IGNORECASE,
 )
 _SENTENCE_SPLIT = re.compile(r"[。？?！!；;\n]")
@@ -258,29 +291,124 @@ def _asks_threshold_or_near_forecast(part: str) -> bool:
     return bool(_YOUR_CALL.search(part) and price)
 
 
-def asks_price_forecast(query: str) -> bool:
+def _stated_status(part: str, as_of: date) -> tuple[bool, bool]:
+    """(round 14, J6) ``(future, in_progress)`` over the dates and periods the sentence names (``stated_dates``):
+    a date after ``as_of`` ("2027年1月4日", "2026-12-31", "Q1 2027") is future; a period that contains it ("Q4 2026"
+    in October) is in progress; a period counted up to now ("2026年以来") is neither."""
+    if _SO_FAR.search(part):
+        return False, False
+    periods = stated_periods(part, as_of)
+    future = any(period.status(as_of) == "future" for period in periods)
+    # a year-less quarter ("四季度") may mean the last reported one: in progress only with its year written
+    in_progress = any(
+        period.status(as_of) == "in_progress" and period.explicit_year and period.kind != "year" for period in periods
+    )
+    return future, in_progress
+
+
+def _asks_dated_or_gap_forecast(part: str, as_of: date) -> bool:
+    """(round 14, J6) A price on a stated future date or in a stated future period ("茅台2027年1月4日的收盘价",
+    "CMB's close on 2026-12-31", "Where is CATL trading in Q1 2027?", "Q4 2026 price"), and an opening gap asked
+    about the future ("国庆后会高开吗", "Will BYD gap up tomorrow?")."""
+    future, in_progress = _stated_status(part, as_of)
+    threshold = bool(_THRESHOLD_PRICE_ZH.search(part) or _THRESHOLD_PRICE_EN.search(part))
+    price = threshold or bool(_PRICE_LEVEL.search(part)) or bool(re.search(r"\btrad(?:e|ing)\b", part, re.I))
+    if (future or in_progress) and price and not _PAST_MARKERS.search(part):
+        return True
+    if _OPEN_GAP.search(part) and not _PAST_MARKERS.search(part) and not re.search(r"了(?:吗|多少|么)?", part):
+        return bool(
+            future
+            or _FUTURE_TIME.search(part)
+            or _NEAR_FUTURE.search(part)
+            or _FUTURE_MODAL.search(part)
+            or _EVENT_AFTER.search(part)
+        )
+    return False
+
+
+def asks_price_forecast(query: str, *, as_of: date | None = None) -> bool:
     """(round 12, H3) The question asks for a future price level: a future time expression and a price-level word in
     the same sentence, a price asked with a future modal, or a price target. Since round 13 (I2) also a threshold
     forecast ("能不能站上105元", "跌破1400", "break above 1,500"), a modal close ("收盘会在多少"), a near-future time
-    with a modal ("本周", "by Friday") and "your call" for a price."""
+    with a modal ("本周", "by Friday") and "your call" for a price. Since round 14 (J6) also a price on a stated date
+    or period after ``as_of`` (default today; compliance passes the later of today and the data's latest date), an
+    opening gap ("会高开吗") and the price to trade at ("the exact price to sell at")."""
     text = str(query or "")
     if _PRICE_MODAL.search(text):
         return True
+    reference = as_of or date.today()
     return any(
-        (_FUTURE_TIME.search(part) and _PRICE_LEVEL.search(part)) or _asks_threshold_or_near_forecast(part)
+        (_FUTURE_TIME.search(part) and _PRICE_LEVEL.search(part))
+        or _asks_threshold_or_near_forecast(part)
+        or _asks_dated_or_gap_forecast(part, reference)
         for part in _SENTENCE_SPLIT.split(text)
         if part.strip()
     )
 
 
-def asks_prediction(query: str) -> bool:
+# (round 14, J6) Earnings and other reported figures asked for a period that has not been reported: "明年净利润会是
+# 多少", "next year's EPS", "比亚迪四季度净利润能超过100亿吗", "2027年营收", "Will Moutai's net profit reach 100
+# billion?". FinSight has the reported statements only, so the answer gets the "does not forecast earnings" hedge.
+_EARNINGS_WORDS = re.compile(
+    r"净利润|净利|归母|扣非|利润|盈利|营收|营业收入|主营收入|业绩|每股收益|(?<![A-Za-z])EPS(?![A-Za-z])|(?<![A-Za-z])ROE(?![A-Za-z])|"
+    r"毛利率|净利率|分红|股息|派息|赚(?:多少|几)|"
+    r"\b(?:earnings|profits?|net\s+income|revenues?|sales|dividends?|margins?|bottom\s+line|top\s+line)\b",
+    re.IGNORECASE,
+)
+# a value asked with a future modal: "会是多少", "能有多少", "能超过100亿吗", "what will … be", "will … reach / exceed"
+_EARNINGS_MODAL = re.compile(
+    r"(?:会|能|将|可能|有望|预计|预期|估计|大概)(?:是|有|达到|超过|突破|破|到|在|实现|增长|下降|下滑|翻倍|赚)|"
+    r"(?:能否|会否|是否能|能不能|会不会|有没有可能)|多少(?:会|能)|"
+    r"\bwhat\s+will\b|\bwill\b[^.?!]{0,60}?\b(?:be|reach|exceed|top|hit|surpass|beat|miss|come\s+in|grow|rise|"
+    r"fall|drop|double|decline|increase)\b|\b(?:expected|forecast|projected|estimated?)\b|\bhow\s+much\s+will\b",
+    re.IGNORECASE,
+)
+# relative future periods for reported figures ("下季度", "明年", "next year", "next quarter", "coming year")
+_FUTURE_PERIOD = re.compile(
+    r"明年|后年|来年|下(?:个|一个?)?季度|下半年|未来|将来|今后|接下来|"
+    r"\bnext\s+(?:year|quarter|fiscal\s+year|half|twelve\s+months|12\s+months)\b|\bcoming\s+(?:year|quarter)\b|"
+    r"\bgoing\s+forward\b|\bin\s+the\s+future\b",
+    re.IGNORECASE,
+)
+# periods still being reported ("今年", "本季度", "this year", "this quarter"): a forecast only with a modal
+_CURRENT_PERIOD = re.compile(
+    r"今年|本年度?|本季度?|这个?季度|当季|全年|\bthis\s+(?:year|quarter|fiscal\s+year)\b|\bfull[- ]year\b",
+    re.IGNORECASE,
+)
+
+
+def asks_earnings_forecast(query: str, *, as_of: date | None = None) -> bool:
+    """(round 14, J6) The question asks for a reported figure (net profit, revenue, EPS, ROE, a dividend) of a period
+    that has not been reported: a future period ("明年", "next year", "2027年", "Q1 2027"), a period in progress or
+    a year-less quarter with a modal or threshold ("四季度净利润能超过100亿吗", "今年营收会是多少"), or "will" with a
+    target ("Will Moutai's net profit reach 100 billion?"). Past periods ("去年净利润", "2025年营收") are lookups."""
+    reference = as_of or date.today()
+    for part in _SENTENCE_SPLIT.split(str(query or "")):
+        if not part.strip() or not _EARNINGS_WORDS.search(part) or _PAST_MARKERS.search(part) or _SO_FAR.search(part):
+            continue
+        future, in_progress = _stated_status(part, reference)
+        if future or _FUTURE_PERIOD.search(part):
+            return True
+        modal = bool(_EARNINGS_MODAL.search(part))
+        periods = stated_periods(part, reference)
+        current = (
+            in_progress or _CURRENT_PERIOD.search(part) or any(period.status(reference) != "past" for period in periods)
+        )
+        if modal and (current or re.search(r"\bwill\b|\bwhat\s+will\b", part, re.I)):
+            return True
+    return False
+
+
+def asks_prediction(query: str, *, as_of: date | None = None) -> bool:
     """(round 10, F14) The question asks for a market prediction or a pick: a future direction ("明天…会涨停",
     "下周会反弹吗") or a judgment/timing marker (``_JUDGMENT_MARKERS``); since round 12 (H3) also a point forecast of
-    a price level ("明天的收盘价是多少", ``asks_price_forecast``)."""
+    a price level ("明天的收盘价是多少", ``asks_price_forecast``); since round 14 (J6) an earnings forecast
+    (``asks_earnings_forecast``)."""
     return bool(
         (_FORECAST_MARKERS.search(query) and _MOVE_WORDS.search(query))
         or _JUDGMENT_MARKERS.search(query)
-        or asks_price_forecast(query)
+        or asks_price_forecast(query, as_of=as_of)
+        or asks_earnings_forecast(query, as_of=as_of)
     )
 
 
@@ -466,7 +594,7 @@ def off_topic_request(query: str) -> str | None:
 # Words that only make sense about a security, a sector or the economy. Inside a conversation that already has
 # a target they mark an entity-less message ("为什么涨？", "增速是多少？", "What's the 3-day return?") as a follow-up.
 _FOLLOW_UP_CUE = re.compile(
-    r"涨|跌|反弹|回调|走势|趋势|行情|表现|收盘|开盘|最高|最低|成交|均线|MA\s*\d+|RSI|MACD|布林|站上|跌破|支撑|"
+    r"涨|跌|反弹|回调|走势|趋势|行情|表现|收盘|开盘|高开|低开|最高|最低|成交|均线|MA\s*\d+|RSI|MACD|布林|站上|跌破|支撑|"
     r"增速|增长|同比|环比|营收|收入|利润|赚|亏|毛利|净利|估值|贵|便宜|高估|低估|市盈|市净|分红|股息|市值|"
     r"舆情|情绪|正面|负面|利好|利空|消息|新闻|公告|财报|业绩|牛市|熊市|信号|抄底|买入|卖出|买吗|卖吗|能买|该买|"
     r"加仓|减仓|仓位|全仓|满仓|持有|机会|风险|波动|收益|回报|说明|意味|预示|代表|反映|怎么看|为什么|原因|影响|通缩|通胀|"

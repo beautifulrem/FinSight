@@ -57,7 +57,8 @@ _HK_US_LISTED = (
 # has no data for: the A-share target inside the span is a lookalike, never answered with A-share data.
 _H_SHARE = (
     # (round 12, H5) "中芯国际港股": a company name followed by 港股 is its Hong Kong line too
-    r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){2,8}?\s*(?:的\s*)?(?:H\s*股|港股(?!通))|H\s*股(?!东)|港股通|"
+    r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){2,8}?\s*(?:的\s*)?(?:H\s*股(?!指数|ETF|基金|LOF|\(QDII)|港股(?!通))|"
+    r"H\s*股(?!东|指数|ETF|基金|LOF|\(QDII)|港股通|"
     r"(?<![\w.])\d{4,5}\s*\.\s*HK(?![A-Za-z])|(?<![A-Za-z])HK\s?\d{4,5}(?!\d)|(?<![\w.])\d{4,5}\s+HK(?![A-Za-z])|"
     r"\b(?:[a-z][\w&.'-]*\s+){1,3}H[- ]?shares?\b|\bH[- ]shares?\b|\bHKEX\b|"
     # (round 12, H5) "Ping An's Hong Kong listed shares", "the Hong Kong share price of China Merchants Bank"
@@ -75,6 +76,96 @@ _H_SHARE = (
     r"shares? (?:listed|traded|quoted) (?:in|on(?: the)?) hong kong)\b|"
     r"\b(?:listed|traded|quoted) (?:in|on(?: the)?) hong kong\b"
 )
+# (round 14, J7) A company's own line outside the A-share market, by any wording: its Hong Kong shares described
+# ("中芯国际香港那边", "在港交所交易的那部分", "BYD's HK-listed stock"), its London / Swiss GDRs ("长江电力伦敦GDR",
+# "its London GDRs", 全球存托凭证, 沪伦通), its US ADRs ("ICBC ADR", "the NYSE-listed ADR", 美国存托凭证), and the A/H
+# premium ("招商银行A股相对H股溢价", "A+H两地", "AH溢价", "A/H premium"), which needs the H-share price. Before round 14
+# these were answered with the A-share price, and any "A股" in the question disabled the foreign check
+# (``_A_SHARE_ANCHOR``); these spans are checked first, and the name before them is part of the span, so the A-share
+# target it names is a lookalike (refused with the note that its A shares are covered). A concept question ("A股和H股
+# 有什么区别", "What is an ADR?") names no line and stays in scope.
+_ZH_NAME = r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){0,8}?\s*(?:的\s*)?"
+_EN_NAME = r"(?:\b[\w&.-]+(?:'s|’s|s')\s+|\b(?:[a-z][\w&.'-]*\s+){1,3}?)?(?:(?:the|its|their)\s+)?"
+_HK_LINE = (
+    _ZH_NAME + r"(?:在|于)?(?:香港|港股|港交所|联交所|香港交易所|H\s*股)\s*(?:市场)?(?:那边|那头|那里|那块|这边|方面|"
+    r"(?:上市|挂牌|交易|发行)?的?(?:那部分|那一部分|部分|那只|那个))|"
+    # a named company's H shares ("中国平安的H股价格", "Ping An's H shares"), with "A股" elsewhere in the question too
+    r"(?:(?![和与跟及或比对同的、，,])[一-鿿A-Za-z]){2,8}?\s*(?:的\s*)?H\s*股(?!东|指数|ETF|基金|LOF|\(QDII)|"
+    r"\b(?:[\w&.-]+(?:'s|’s|s')|(?:[a-z][\w&.'-]*\s+){1,3}?)\s*H[- ]shares?\b|"
+    + _EN_NAME
+    + r"(?:HK|hong\s+kong)[- ](?:listed|traded|quoted)\b|"
+    + _EN_NAME
+    + r"(?:listed|traded|quoted)\s+(?:in|on)\s+(?:the\s+)?(?:HK|hong\s+kong)(?:\s+(?:market|exchange|bourse))?\b|"
+    + _EN_NAME
+    + r"\bHK\s+(?:shares?|stock|line|listing|counter|price|quote|market\s+price)\b"
+)
+_GDR_LINE = (
+    _ZH_NAME + r"(?:(?:伦敦|英国|瑞士|苏黎世|法兰克福|德国)(?:证券)?(?:交易所)?(?:上市|挂牌|交易|发行)?的?\s*"
+    r"(?:GDR|全球存托凭证|存托凭证|那边|那部分|股份|股票|部分)|GDR|全球存托凭证|沪伦通(?:GDR|存托凭证)?|中欧通)|"
+    + _EN_NAME
+    + r"(?:(?:London|Swiss|Zurich|SIX|LSE)[- ](?:listed|traded|quoted)\s+)?(?:GDRs?|global\s+depositary\s+"
+    r"(?:receipts?|shares?))\b|"
+    + _EN_NAME
+    + r"(?:London|Swiss|Zurich|SIX|LSE)[- ](?:listed|traded|quoted)\b|"
+    + _EN_NAME
+    + r"(?:shares?\s+)?(?:listed|traded|quoted)\s+(?:in|on)\s+(?:the\s+)?(?:London|Zurich|Switzerland|SIX|LSE)\b"
+)
+_ADR_LINE = (
+    _ZH_NAME + r"(?:(?:美国|美股|纽约|纽交所|纳斯达克)(?:证券)?(?:交易所)?(?:上市|挂牌|交易|发行)?的?\s*"
+    r"(?:ADR|存托凭证|存托股|那边|那部分|股份|股票|部分)|ADR|美国存托(?:凭证|股票|股份)?)|"
+    + _EN_NAME
+    + r"(?:(?:NYSE|Nasdaq|US|U\.S\.|New\s+York)[- ](?:listed|traded|quoted)\s+)?(?:ADRs?|ADSs?|American\s+"
+    r"depositary\s+(?:receipts?|shares?))\b|"
+    + _EN_NAME
+    + r"(?:NYSE|Nasdaq|US|U\.S\.)[- ](?:listed|traded|quoted)\s+(?:shares?|stock|line)\b"
+)
+_AH_PREMIUM = (
+    _ZH_NAME + r"(?:A\s*股?\s*(?:[+/／&]|和|与|跟|及|加)\s*H\s*股?(?:两地|股价|价差|溢价|折价|比价)?|"
+    r"H\s*股?\s*(?:[+/／&]|和|与|跟|及|加)\s*A\s*股?(?:两地|股价|价差|溢价|折价|比价)?|"
+    r"A\s*H\s*股?\s*(?:溢价|折价|比价|价差)|"
+    r"A\s*股?(?:相对|相较|对比|比)(?:于)?\s*H\s*股[^，。？?]{0,8}?(?:溢价|折价|贵|便宜|高|低|差|价差)|"
+    r"H\s*股(?:相对|相较|对比|比)(?:于)?\s*A\s*股[^，。？?]{0,8}?(?:溢价|折价|贵|便宜|高|低|差|价差))|"
+    + _EN_NAME
+    + r"(?:A[/-]H|AH)\s+(?:share\s+)?(?:premium|discount|spread|gap|price\s+gap)\b"
+    r"(?:\s+(?:on|of|for|in)\s+(?:[\w&.'-]+(?:\s+|(?=[?.!,]|$))){1,3})?|"
+    r"\bH[- ]shares?\s+(?:premium|discount)\b|\bpremium\s+(?:of\s+)?(?:its\s+|the\s+)?A[- ]shares?\s+"
+    r"(?:over|to|versus|vs\.?)\s+(?:its\s+|the\s+)?H[- ]shares?\b"
+)
+_FOREIGN_LINE = re.compile("|".join((_HK_LINE, _GDR_LINE, _ADR_LINE, _AH_PREMIUM)), re.IGNORECASE)
+# the A/H premium itself (not "A股和H股分别多少", which asks for both lines)
+_PREMIUM_WORDS = re.compile(r"溢价|折价|比价|价差|\b(?:premium|discount|spread|price\s+gap)\b", re.IGNORECASE)
+_FOREIGN_LINE_KINDS = (
+    ("ah", re.compile(r"(?=.*(?:" + _PREMIUM_WORDS.pattern + r"))(?:" + _AH_PREMIUM + r")", re.IGNORECASE | re.S)),
+    ("gdr", re.compile(_GDR_LINE, re.IGNORECASE)),
+    ("adr", re.compile(_ADR_LINE, re.IGNORECASE)),
+    ("h", re.compile(_HK_LINE + "|" + _H_SHARE, re.IGNORECASE)),
+)
+# "A股和H股有什么区别", "What is a GDR?": a concept, not a line of a company
+_LINE_CONCEPT = re.compile(
+    r"(?:什么是|是什么|什么意思|有什么区别|有何区别|的区别|区别是|含义|定义|怎么理解|指的是|"
+    r"\bwhat\s+(?:is|are)\s+(?:an?\s+)?(?:H[- ]shares?|ADRs?|GDRs?|depositary)|\bdifference\s+between\b|"
+    r"\bwhat\s+does\s+(?:ADR|GDR|H[- ]share)\s+mean\b)",
+    re.IGNORECASE,
+)
+
+
+def foreign_line_spans(query: str) -> list[tuple[int, int]]:
+    """(round 14, J7) Where the question names a company's Hong Kong, London/Swiss or US line or its A/H premium."""
+    if _LINE_CONCEPT.search(query or ""):
+        return []
+    return [match.span() for match in _FOREIGN_LINE.finditer(query or "") if match.group(0).strip()]
+
+
+def foreign_line_kind(query: str) -> str | None:
+    """``ah`` (an A/H premium), ``gdr``, ``adr`` or ``h`` for the line the question asks about, else ``None``."""
+    text = query or ""
+    if not foreign_line_spans(text) and not re.search(_H_SHARE, text, re.IGNORECASE):
+        return None
+    if _LINE_CONCEPT.search(text):
+        return None
+    return next((kind for kind, pattern in _FOREIGN_LINE_KINDS if pattern.search(text)), "h")
+
+
 # US / Hong Kong listed names and markets. Concept-sector phrasing ("苹果概念股", "特斯拉产业链") is an
 # A-share theme and stays in scope.
 _FOREIGN_EQUITY = re.compile(
@@ -103,13 +194,19 @@ _A_SHARE_ANCHOR = re.compile(
 
 def foreign_equity_spans(query: str) -> list[tuple[int, int]]:
     """Where the question names a US / Hong Kong listed company or market: an A-share name inside such a span
-    ("平安" in 平安好医生) is part of the foreign name, not a target of its own."""
-    return [match.span() for match in _FOREIGN_EQUITY.finditer(query or "")]
+    ("平安" in 平安好医生) is part of the foreign name, not a target of its own. Since round 14 (J7) also a company's
+    Hong Kong / GDR / ADR line or its A/H premium by any wording (``foreign_line_spans``)."""
+    spans = [match.span() for match in _FOREIGN_EQUITY.finditer(query or "")]
+    return sorted({*spans, *foreign_line_spans(query)})
 
 
 def out_of_coverage(query: str) -> str | None:
-    """``crypto`` or ``foreign_equity`` when the question is about an asset FinSight has no data for."""
+    """``crypto`` or ``foreign_equity`` when the question is about an asset FinSight has no data for. A company's
+    foreign line (``foreign_line_spans``) is checked before the A-share anchor: "招商银行A股相对H股溢价多少" asks for
+    an H-share price whatever else it says (round 14, J7)."""
     text = query or ""
+    if foreign_line_spans(text):
+        return "foreign_equity"
     if _A_SHARE_ANCHOR.search(text):
         return None
     if _CRYPTO.search(text):
@@ -120,8 +217,32 @@ def out_of_coverage(query: str) -> str | None:
 
 
 def asks_h_share(query: str) -> bool:
-    """Whether the question asks for a Hong Kong (H-share) line or ticker ("中国平安H股", "2318.HK")."""
-    return bool(re.search(_H_SHARE, query or "", re.IGNORECASE))
+    """Whether the question asks for a Hong Kong (H-share) line or ticker ("中国平安H股", "2318.HK"); since round 14
+    (J7) any foreign line of a company (``foreign_line_kind``: Hong Kong, GDR, ADR, the A/H premium)."""
+    return bool(re.search(_H_SHARE, query or "", re.IGNORECASE)) or foreign_line_kind(query) is not None
+
+
+def foreign_line_note(query: str, names: str, *, zh: bool) -> str:
+    """(round 14, J7) What the refused question asked for, and that the company's A shares are covered."""
+    kind = foreign_line_kind(query) or "h"
+    asked_zh = {
+        "h": " H 股（香港上市的股份）",
+        "gdr": "在伦敦或瑞士上市的 GDR（全球存托凭证）",
+        "adr": "在美国上市的 ADR（美国存托凭证）",
+        "ah": " A 股相对 H 股的溢价，需要 H 股（香港上市的股份）的行情",
+    }[kind]
+    asked_en = {
+        "h": "the H shares (the Hong Kong line)",
+        "gdr": "the GDRs (global depositary receipts listed in London or Switzerland)",
+        "adr": "the ADRs (American depositary receipts listed in the US)",
+        "ah": "the A/H premium, which needs the H-share (Hong Kong) price",
+    }[kind]
+    if zh:
+        return f"所问的是{asked_zh}；{names}在 A 股上市的股份在覆盖范围内，如需 A 股数据请直接询问。"
+    return (
+        f" The question asks for {asked_en}; {names}'s A shares are covered, so ask about the A shares directly if "
+        "that is what you need."
+    )
 
 
 def out_of_coverage_text(category: str, *, zh: bool) -> str:

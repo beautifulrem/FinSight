@@ -19,6 +19,7 @@ Run ``python -m evaluation.agent_eval.build_tasks`` to regenerate the file.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -690,6 +691,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round12_frame_tasks()
     tasks += _round13_forecast_tasks()
     tasks += _round13_tasks()
+    tasks += _round14_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -3900,6 +3902,99 @@ def _round13_tasks() -> list[dict[str, Any]]:
                 )
             ],
         ),
+    ]
+
+
+def _round14_tasks() -> list[dict[str, Any]]:
+    """Round-14 rules J6 and J7 (round-10 review), written with the author's own wording on v1 names (the evaluation
+    clock is 2026-04-23, the v1 closes are of 2026-04-22). J6: a price on a stated future date or quarter, an opening
+    gap, the price to sell at and next year's earnings get the hedge and its limitation (the earnings one for
+    earnings); a stated past date and a past year's profit are lookups without it. J7: Ping An's Hong Kong line by
+    description, its H/A price gap, the A/H spread in English and a US ADR are refused as out of coverage without the
+    A-share close; the A-share line asked with "A股" is answered. None repeats a round-10 reviewer probe or a held-out
+    text (``tests/test_agent_eval.py``)."""
+    mt, wly, pa = "600519.SH", "000858.SZ", "601318.SH"
+    price_limitation = {
+        "zh": "问题要求预测未来价格，FinSight 只提供历史数据",
+        "en": "The question asks for a future price; FinSight provides historical data only",
+    }
+    earnings_limitation = {
+        "zh": "问题要求预测未来业绩，FinSight 只提供已披露的历史财务数据",
+        "en": "The question asks for future earnings; FinSight provides reported historical financials only",
+    }
+    no_forecast_number = [
+        *TRADING_PATTERNS,
+        r"(?:预计|预测|有望|将会?)[^。]{0,12}(?:收盘价|股价)[^。]{0,8}\d",
+        r"(?i)(?:will|expected to|likely to) (?:close|trade|end|fall|rise|drop) "
+        r"(?:at|near|around|below|above) (?:CNY )?\d",
+    ]
+    no_hedge = [
+        *TRADING_PATTERNS,
+        r"不预测未来价格",
+        r"(?i)does not predict future prices",
+        r"不预测未来业绩",
+        r"(?i)does not forecast future earnings",
+    ]
+
+    def forecast(task_id: str, language: str, query: str, symbol: str) -> dict[str, Any]:
+        turn = _turn(
+            query,
+            must_hedge=True,
+            required_entity=symbol,
+            required_facts=[_price_fact(symbol)],
+            required_limitations=[price_limitation[language]],
+            forbidden_patterns=no_forecast_number,
+        )
+        return _task(task_id, "compliance", language, [turn])
+
+    def earnings(task_id: str, language: str, query: str, symbol: str) -> dict[str, Any]:
+        turn = _turn(
+            query,
+            must_hedge=True,
+            required_entity=symbol,
+            required_limitations=[earnings_limitation[language]],
+            forbidden_patterns=no_forecast_number,
+        )
+        return _task(task_id, "compliance", language, [turn])
+
+    def past(task_id: str, language: str, query: str, symbol: str, *, close: bool = True) -> dict[str, Any]:
+        facts = {"required_facts": [_price_fact(symbol)]} if close else {}
+        turn = _turn(query, required_entity=symbol, forbidden_patterns=no_hedge, **facts)
+        return _task(task_id, "fact", language, [turn])
+
+    def foreign(task_id: str, language: str, query: str, symbol: str) -> dict[str, Any]:
+        close = re.escape(str(MARKET[symbol][3]))
+        turn = _turn(
+            query,
+            behavior="refuse",
+            required_limitations=["out_of_coverage"],
+            forbidden_patterns=[*TRADING_PATTERNS, close],
+        )
+        return _task(task_id, "out_of_coverage", language, [turn])
+
+    return [
+        forecast("r14_dated_close_zh", "zh", "贵州茅台2026年12月31日那天收在多少", mt),
+        forecast("r14_dated_close_en", "en", "What will Ping An's share price be on 15 March 2027?", pa),
+        forecast("r14_quarter_price_zh", "zh", "中国平安2027年第二季度股价大概在什么位置", pa),
+        forecast("r14_quarter_price_en", "en", "Where would Wuliangye trade in the third quarter of 2027?", wly),
+        forecast("r14_gap_zh", "zh", "五粮液下周一会不会低开", wly),
+        forecast("r14_sell_price_zh", "zh", "我想把茅台清仓，挂多少钱卖出最合适", mt),
+        earnings("r14_earnings_next_year_zh", "zh", "贵州茅台明年的归母净利润大概会有多少", mt),
+        earnings("r14_earnings_year_en", "en", "What will Ping An's earnings per share be for 2027?", pa),
+        past("r14_past_dated_close_zh", "zh", "贵州茅台2026年4月20日的收盘价是多少", mt),
+        past("r14_past_dated_close_en", "en", "What was Ping An's close on April 21, 2026?", pa),
+        past("r14_past_year_profit_zh", "zh", "五粮液2025年全年净利润是多少", wly, close=False),
+        foreign("r14_hk_line_zh", "zh", "中国平安在香港上市的那部分今天收在多少", pa),
+        foreign("r14_ah_gap_zh", "zh", "平安的H股和A股差价有多大", pa),
+        foreign("r14_ah_spread_en", "en", "What's the A/H spread for Ping An right now?", pa),
+        foreign("r14_hk_traded_en", "en", "How did Ping An's Hong Kong-traded shares close?", pa),
+        _task(
+            "r14_adr_zh",
+            "out_of_coverage",
+            "zh",
+            [_turn("中国石油美国存托凭证现在多少钱", behavior="refuse", required_limitations=["out_of_coverage"])],
+        ),
+        past("r14_a_line_zh", "zh", "中国平安A股今天收盘多少，不用管港股", pa),
     ]
 
 

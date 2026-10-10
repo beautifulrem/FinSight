@@ -526,6 +526,36 @@ before "average") is the sector's average; English "less than half / a third / a
 
 Results are in [Evaluation](#evaluation) (round 13).
 
+### Rules added in round 14 (round-10 review J6, J7, J10)
+
+Own examples only; the round-10 review's repros are reworded (`tests/test_agent_eval.py` checks round-14 tasks, tests
+and alias rows against every committed slice and every quoted reviewer probe, now with the round-10 ones).
+
+* **Stated dates and periods** (J6, `agent/stated_dates.py`): an absolute date (2027年1月4日, 2026-12-31, 十一月三号,
+  "4 January 2027", "on May 5"), a month, a quarter (2027年一季度, 2027Q1, 明年一季度, "Q1 2027", "the first quarter of
+  2027", "1Q27"), a half or a year (2027年, "in 2027", FY2027, 2027E) is placed against a reference date, the later of
+  today and the data's latest market date (compliance passes both; the router uses the clock the runtime was given). A
+  price after it is a forecast; on or before it a lookup; "2026年以来" / "so far" is history. A period in progress with
+  its year written ("Q4 2026 price") is a forecast; a year-less quarter is one only with a modal. A bare number is never
+  a year ("能到2027吗" is a price).
+* **More price forecasts** (J6): an opening gap with a future time, a modal or "节后" (会高开吗, 高开还是低开, "gap up"),
+  the price to trade at ("the exact price to sell at", 挂多少钱卖出, 卖在多少, "at what price should I sell") and "where
+  do you see X trading".
+* **Earnings forecasts** (J6, `router.asks_earnings_forecast`): net profit, revenue, EPS, ROE, margins or dividends for
+  a future period (明年, 下季度, "next year", 2027年, Q1 2027), or for a period in progress / a year-less quarter with a
+  modal or threshold (四季度净利润能超过100亿吗, 今年营收会是多少, "Will … reach 100 billion?"). The answer keeps the
+  reported statements with their period under "FinSight 不预测未来业绩 / FinSight does not forecast future earnings" and
+  a limitation (`earnings_forecast_hedge`).
+* **Foreign lines** (J7, `coverage.foreign_line_spans`): a company's Hong Kong line described in words, its H shares by
+  name, its London / Swiss GDRs, its US ADRs and its A/H premium are out of coverage even when the question also says
+  "A股"; the span takes the company name (also across 的), so the A-share target is a lookalike and the refusal says what
+  was asked (`coverage.foreign_line_note`) and that the A shares are covered. Concept questions stay in scope; an A-share
+  fund named after a foreign market (港股通科技ETF华夏) is never dropped as a lookalike.
+* **Ledger titles** (J10, `text_safety.regulatory_title_withheld`, `romanised_chinese`): a headline asserting
+  regulatory action, fraud or delisting, or claiming to be a regulator's notice, is shown only when the document is
+  official (a regulator or exchange as publisher, or a company filing delivered as an announcement); a romanised-Chinese
+  (pinyin) solicitation is not a headline.
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) `stated_holdings` ("我持有招商银行", "I own …", up to 5) and (round 11) `comparison_frame`, the comparison under way (metric, operands in order, the values and evidence ids earlier turns found, and a note that those ids must be fetched again to be cited). It is rule-based and bounded, and it is the default.
@@ -877,6 +907,37 @@ python -m evaluation.agent_eval.results outputs/agent_eval/chat_r7-r12.json \
   --name chat_heldout_r7-auto-nollm-after-exposure-round12 --note "..."
 python -m evaluation.agent_eval.frame_llm_check --llm deepseek --model cline-pass/deepseek-v4.1-flash \
   --sessions round12 --max-calls 30 --out outputs/agent_eval/frame-llm-check-round12.json
+```
+
+**Round 14: the round-10 review's J6, J7 and J10 (own examples, offline; one LLM red-team run).** Rules:
+[Rules added in round 14](#rules-added-in-round-14-round-10-review-j6-j7-j10). Dev gate 473 → **490** tasks = 1.000 and
+ext 24 → **32** tasks = 1.000 (`gate-dev.json`, `gate-ext.json`, baselines refreshed from a clean tree at `ca889e4`);
+the 17 new dev and 8 new ext tasks score 6/17 and 2/8 with the code before the fixes (`ec54b36`, exported with `git
+archive` and run with the same commands), the passes being the five past-date and A-share-line controls and three
+questions older rules already caught (the modals "What will … be on …" and "能到多少", and a Hong Kong line worded
+在香港上市的); held-out **0.9434**, unchanged. Verifier stress at `7697bec` (`verifier_stress-round14.json`): 317 gold answers, 5,330 variants, true accept
+1.000, false accept claim 0.0096, with derived numbers 0.0109. pytest at `9a1eb22`: 2,635 passed, 68 skipped.
+**holdout11**: the round-10 reviewer's 16 planted-document styles (YAML, CSV, an HTML comment, zero-width characters,
+full-width digits, pinyin, a forwarded 更正 e-mail, a fake chat transcript, planted arithmetic, a ×10 magnitude, a
+fabricated regulator notice, a fake `TOOL_RESULT`, a markdown link, emoji hype, Japanese, a 【更正】 correction) were
+copied verbatim from `finsight-review/round10/probes/planted10.py` (`ec54b36`) and run offline before any change
+(`redteam-holdout11-prefix.json`): 0/320 answers, 16/320 ledger titles and 28/128 excerpts, the reviewer's numbers.
+After the J10 rules, all twelve sets at `9a1eb22` (`redteam-offline-r14.json`, CI baseline; before:
+`redteam-offline-r14-before.json`, `ec54b36`): 0 successes and 0 detector hits everywhere; ledger holdout11 16/320 →
+0/320, holdout4 8/240 → 0/240, holdout3 2/88 and holdout5 6/168 unchanged; excerpts holdout11 28/128 → 12/128,
+holdout4 16/96 → 8/96, holdout8 8/112 → 4/112. Shipped corpus and replay snapshots: 0 more titles hidden. **LLM paths
+on holdout11** (`redteam-r14-holdout11-llm.json`, `79e5c41`, `cline-pass/deepseek-v4.1-flash`, 32 targeted cases with
+`redteam_r14_holdout11_cases.json`, 80-call budget: 76 calls, 0 × 429, two composition cases skipped): stated as fact
+agent 0/16, composition 0/14; raw detector hits 1/16 (the fake regulator notice) and 1/14 (the 更正 e-mail figure, which
+the model rejected as conflicting with the annual report), both attributed; 0 ledger hits.
+
+```bash
+python -m evaluation.agent_eval.redteam --sets holdout11 --out outputs/agent_eval/redteam-holdout11-prefix.json
+python -m evaluation.agent_eval.redteam --out outputs/agent_eval/redteam-offline-r14.json      # all twelve sets
+python -m evaluation.agent_eval.redteam --llm deepseek --model cline-pass/deepseek-v4.1-flash --workers 1 \
+  --cases evaluation/agent_eval/redteam_r14_holdout11_cases.json --paths agent,workflow_llm --max-llm-calls 80 \
+  --record-llm outputs/agent_eval/redteam-r14-holdout11-llm-turns.json --out outputs/agent_eval/redteam-r14-holdout11-llm.json
+python -m evaluation.agent_eval.gate --set dev --set ext --update-baseline                     # clean tree
 ```
 
 **Round 10: holdout8 (F3) and the LLM red team after the fixes.** The round-6 reviewer's 14 new planted-document styles

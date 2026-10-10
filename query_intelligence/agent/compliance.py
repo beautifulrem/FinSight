@@ -27,7 +27,8 @@ from ..text_safety import fold
 from .coverage import without_holding_value
 from .evidence import AgentEvidence
 from .router import _JUDGMENT_MARKERS as _ROUTER_JUDGMENT
-from .router import FAIR_VALUE_MARKERS, asks_price_forecast
+from .router import FAIR_VALUE_MARKERS, asks_earnings_forecast, asks_price_forecast
+from .stated_dates import reference_date
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -118,6 +119,20 @@ _PRICE_FORECAST_EN = (
 )
 _PRICE_FORECAST_LIMITATION_ZH = "问题要求预测未来价格，FinSight 只提供历史数据"
 _PRICE_FORECAST_LIMITATION_EN = "The question asks for a future price; FinSight provides historical data only"
+# (round 14, J6) Earnings, revenue, EPS or a dividend of a period that has not been reported ("明年净利润会是多少",
+# "比亚迪四季度净利润能超过100亿吗", "next year's EPS"): the reported statements are stated with their period, and the
+# answer says that they are not a forecast.
+_EARNINGS_FORECAST_ZH = (
+    "FinSight 不预测未来业绩：下文只列出已披露的历史财务数据（报告期见下文），不代表未来任何期间的业绩。"
+)
+_EARNINGS_FORECAST_EN = (
+    "FinSight does not forecast future earnings: below are reported historical financials only (their reporting "
+    "period is stated), not results for any future period."
+)
+_EARNINGS_FORECAST_LIMITATION_ZH = "问题要求预测未来业绩，FinSight 只提供已披露的历史财务数据"
+_EARNINGS_FORECAST_LIMITATION_EN = (
+    "The question asks for future earnings; FinSight provides reported historical financials only"
+)
 # A sentence of the draft that itself states a future price: a price forecast plus a number and a forecasting word.
 _FORECAST_VERB = re.compile(
     r"预计|预测|预期|有望|估计|大概率|可能|将会?|会(?!计|议)|看到|上看|下看|\b(?:expected|expect|likely|will|could|"
@@ -249,9 +264,12 @@ def apply_compliance(
     if removed_answer or removed_points:
         notes.append("removed_trading_instruction")
 
+    # (round 14, J6) a stated date is compared with the later of today and the data's latest market date
+    reference = reference_date(today or date.today(), [item.as_of for item in market_evidence or []])
+
     # (round 12, H3) the model's own forecast of a price ("预计明天收盘价在1420元左右") is removed, whoever asked
-    softened, removed_forecast = _strip_price_forecasts(softened, zh=zh)
-    forecast_points = [point for point in cleaned_points if _states_price_forecast(point)]
+    softened, removed_forecast = _strip_price_forecasts(softened, zh=zh, as_of=reference)
+    forecast_points = [point for point in cleaned_points if _states_price_forecast(point, as_of=reference)]
     cleaned_points = [point for point in cleaned_points if point not in forecast_points]
     if removed_forecast or forecast_points:
         notes.append("removed_price_forecast")
@@ -271,8 +289,13 @@ def apply_compliance(
 
     # (round 11, G5) the value of a stated holding ("我有1000股…值多少钱") is arithmetic on the close, not a fair value
     asked = f"{without_holding_value(query)} {without_holding_value(effective_query or '')}"
-    price_forecast = asks_price_forecast(query) or asks_price_forecast(effective_query or "")
-    judgment = _JUDGMENT_TRIGGER.search(asked) or _ROUTER_JUDGMENT.search(asked) or price_forecast
+    price_forecast = asks_price_forecast(query, as_of=reference) or asks_price_forecast(
+        effective_query or "", as_of=reference
+    )
+    earnings_forecast = asks_earnings_forecast(query, as_of=reference) or asks_earnings_forecast(
+        effective_query or "", as_of=reference
+    )
+    judgment = _JUDGMENT_TRIGGER.search(asked) or _ROUTER_JUDGMENT.search(asked) or price_forecast or earnings_forecast
     if judgment and "conditional_prefix" not in notes:
         prefix = _JUDGMENT_PREFIX_ZH if zh else _JUDGMENT_PREFIX_EN
         if not any(marker in softened for marker in ("条件性判断", "conditional assessment", "证据不足以直接判断")):
@@ -287,6 +310,11 @@ def apply_compliance(
         # after the conditional prefix, before the evidence: the dated close that follows is history, not the answer
         softened = _after_prefix(softened, _PRICE_FORECAST_ZH if zh else _PRICE_FORECAST_EN, nlu_result, zh, query)
         notes.append("price_forecast_hedge")
+    if earnings_forecast:
+        softened = _after_prefix(
+            softened, _EARNINGS_FORECAST_ZH if zh else _EARNINGS_FORECAST_EN, nlu_result, zh, query
+        )
+        notes.append("earnings_forecast_hedge")
 
     fair_value = bool(FAIR_VALUE_MARKERS.search(asked))
     if fair_value:
@@ -306,6 +334,10 @@ def apply_compliance(
     if price_forecast:
         limitations = guards._append_unique(
             limitations, [_PRICE_FORECAST_LIMITATION_ZH if zh else _PRICE_FORECAST_LIMITATION_EN]
+        )
+    if earnings_forecast:
+        limitations = guards._append_unique(
+            limitations, [_EARNINGS_FORECAST_LIMITATION_ZH if zh else _EARNINGS_FORECAST_LIMITATION_EN]
         )
     if fair_value:
         limitations = guards._append_unique(
@@ -366,17 +398,19 @@ def _after_prefix(text: str, note: str, nlu_result: dict[str, Any], zh: bool, qu
     return ("" if zh else " ").join(part for part in (lead, note, rest) if part)
 
 
-def _states_price_forecast(sentence: str) -> bool:
+def _states_price_forecast(sentence: str, *, as_of: date | None = None) -> bool:
     """A sentence that states a future price itself: a price forecast with a number and a forecasting word
     ("预计明天收盘价在1420元左右", "Moutai will likely close near 1,420 next week")."""
     return bool(
-        _PRICE_NUMBER.search(sentence) and _FORECAST_VERB.search(sentence) and asks_price_forecast(sentence)
+        _PRICE_NUMBER.search(sentence)
+        and _FORECAST_VERB.search(sentence)
+        and asks_price_forecast(sentence, as_of=as_of)
     ) and not any(marker in sentence for marker in ("不预测", "does not predict", "不能据此", "cannot"))
 
 
-def _strip_price_forecasts(text: str, *, zh: bool) -> tuple[str, int]:
+def _strip_price_forecasts(text: str, *, zh: bool, as_of: date | None = None) -> tuple[str, int]:
     sentences = [part for part in re.split(r"(?<=[。！？!?；;])|(?<=\.)(?=\s)", text) if part]
-    kept = [sentence for sentence in sentences if not _states_price_forecast(sentence)]
+    kept = [sentence for sentence in sentences if not _states_price_forecast(sentence, as_of=as_of)]
     return "".join(kept).strip(), len(sentences) - len(kept)
 
 
