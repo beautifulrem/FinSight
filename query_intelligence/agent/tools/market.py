@@ -32,20 +32,44 @@ class PriceHistoryInput(MarketTargetInput):
             "real-time quote is added and labelled intraday; otherwise the daily close is returned with the reason."
         ),
     )
+    on_date: str | None = Field(
+        default=None,
+        pattern=r"^\d{4}-\d{2}-\d{2}$",
+        description=(
+            "(round 14) A trading day (YYYY-MM-DD) whose daily bar is wanted too, for a claim about that day "
+            "('截至2026年4月22日收盘'); returned as bar_on_date when the history has it."
+        ),
+    )
 
     @model_serializer(mode="wrap")
     def _omit_default_intraday(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        # Normalised arguments key the tool cache and the evaluation snapshots: leaving the default out keeps
-        # every call recorded before this field existed byte-identical.
+        # Normalised arguments key the tool cache and the evaluation snapshots: leaving the defaults out keeps
+        # every call recorded before these fields existed byte-identical.
         data = handler(self)
         if not data.get("intraday"):
             data.pop("intraday", None)
+        if data.get("on_date") is None:
+            data.pop("on_date", None)
         return data
 
 
 class DailyClose(BaseModel):
     date: str | None
     close: float
+
+
+class DailyBar(BaseModel):
+    """(round 14) One day's bar from the history, units normalised like the latest bar (CNY, shares, percent)."""
+
+    date: str
+    close: float | None = None
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    pct_change_1d: float | None = Field(default=None, description="Daily change in percent.")
+    amount: float | None = Field(default=None, description="Turnover, CNY.")
+    volume: float | None = Field(default=None, description="Traded volume, shares (when the unit is known).")
+    volume_unit: str | None = None
 
 
 class IntradayQuote(BaseModel):
@@ -251,6 +275,9 @@ class PriceHistoryOutput(BaseModel):
         description="Latest close more than 21% away from the previous one in the (unadjusted) history: a likely "
         "ex-rights jump; a 52-week range or drawdown whose window contains it is not computed.",
     )
+    bar_on_date: DailyBar | None = Field(
+        default=None, description="(round 14) The bar of the requested on_date, when the history has that day."
+    )
 
     @model_serializer(mode="wrap")
     def _omit_missing_year_start(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -264,6 +291,7 @@ class PriceHistoryOutput(BaseModel):
             "max_drawdown_1y",
             "max_drawdown_ytd",
             "price_jump_date",
+            "bar_on_date",
         ):
             if data.get(key) is None:
                 data.pop(key, None)
@@ -299,6 +327,26 @@ def prior_year_end_close(history: list[dict[str, Any]]) -> DailyClose | None:
         return None
     date, close = earlier[-1]
     return DailyClose(date=date, close=close)
+
+
+def _bar_on_date(
+    history: list[dict[str, Any]], on_date: str, item: dict[str, Any], payload: dict[str, Any]
+) -> DailyBar | None:
+    """(round 14) The history's bar for ``on_date``, with turnover in CNY and volume in shares (``normalise_market``
+    infers the provider's units from turnover / close, as it does for the latest bar)."""
+    from .units import normalise_market
+
+    row = next((row for row in history if _iso_date(row.get("trade_date") or row.get("date")) == on_date), None)
+    if row is None:
+        return None
+    raw = {key: row.get(key) for key in ("close", "open", "high", "low", "pct_change_1d", "amount", "volume")}
+    source = " ".join(str(value or "") for value in (item.get("source_name"), payload.get("source_name")))
+    bar = normalise_market({**raw, "volume_unit": payload.get("volume_unit")}, source=source or None)
+    return DailyBar(
+        date=on_date,
+        **{key: _as_float(bar.get(key)) for key in raw},
+        volume_unit=bar.get("volume_unit"),
+    )
 
 
 def _iso_date(value: Any) -> str | None:
@@ -365,6 +413,10 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
         if not recent and payload.get("close") is not None:
             recent = [DailyClose(date=_as_str(payload.get("trade_date")), close=float(payload["close"]))]
         evidence_id = safe_evidence_id(f"price_{resolved.symbol}")
+        bar = _bar_on_date(history, args.on_date, item, payload) if args.on_date else None
+        if args.on_date:
+            # a dated request is its own evidence item (its payload differs from the latest one's)
+            evidence_id = safe_evidence_id(f"price_{resolved.symbol}_{args.on_date.replace('-', '')}")
         intraday_fields = _intraday_fields(args, resolved) if args.intraday else {}
         output = PriceHistoryOutput(
             symbol=resolved.symbol,
@@ -389,6 +441,7 @@ def build_market_tools(context: ToolContext) -> list[ToolSpec]:
             max_drawdown_1y=max_drawdown_1y(history),
             max_drawdown_ytd=max_drawdown_ytd(history),
             price_jump_date=jump_date(_dated_closes(history)),
+            bar_on_date=bar,
             **intraday_fields,
         )
         quote = output.intraday
