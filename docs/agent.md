@@ -596,6 +596,14 @@ sentence with "÷" or share-of-total words ("占两家合计", "of the combined 
 its percent and × count are derived when the sentence names the cost. A failed LLM draft falls back to the template
 built from the question (`graph._template_update`), so the fallback computes what was asked (L1, L9 of the review).
 
+**Results (round 14).** Dev 493 = 1.000 and ext 36 = 1.000 (`gate-dev.json`, `gate-ext.json`, `2a55c49`; the same at
+`b725e4d`), held-out 53 = 0.9434 unchanged; own router labels 1.000 on 414 (`router_eval-round14-own.json`),
+independent v2 0.8423 unchanged; the round-8 slice 51/51 and the round-9 slice 44/52 → 51/52, both **after exposure**
+(the second after the engineer read its failures; `chat_heldout_r9-auto-nollm-after-exposure-round14-first.json`,
+`chat_heldout_r9-auto-nollm-after-exposure-round14.json`); verifier stress 313 gold / 5,324 variants, claim 0.96%,
+derived 1.09% (`verifier_stress-round14.json`, `631da61`); offline red team 0 successes on all 11 sets. The round-10
+reviewer's slice is outside the repository and was not run by the engineers.
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) `stated_holdings` ("我持有招商银行", "I own …", up to 5) and (round 11) `comparison_frame`, the comparison under way (metric, operands in order, the values and evidence ids earlier turns found, and a note that those ids must be fetched again to be cited). It is rule-based and bounded, and it is the default.
