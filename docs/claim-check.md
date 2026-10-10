@@ -423,6 +423,19 @@ These rules answer the round-8 review's H6. They were written with 23 new own-wo
 | One fold | "高出一倍多", "多了将近一倍", "低了将近一半" | relative difference: 一倍 = 100% (一倍多 (100%, 200%), 将近一倍 [90%, 100%]); 一半 after 比 = 50%. 两倍 and more stay unverifiable (two or three times?), so dev row d261 ("茅台营收比五粮液高出一倍多") was relabelled unverifiable → contradicted (+55.6%) |
 | Numerals | "一成半", "一千四百出头", "一万二千多亿", 较 / 相较于 as 比 | 15%, (1400, 1450], (12000, 13000)亿 |
 
+### Round 13: 多一点, N个多百分点, a sector's average without "industry", English shares (round-8 slice after exposure)
+
+Round 13 read the five round-8 slice claims the checker still got wrong after round 12 and wrote rules for their
+classes with 12 own dev claims (d300–d311, `note: round13`) and tests in `tests/test_agent_round13.py`.
+
+| Form | Example (own wording) | Reading |
+| --- | --- | --- |
+| A little over | "茅台净利润是五粮液的两倍多一点", "七倍多一点", "多一些" | over N by at most 0.3 of a step (2–2.3×); 多 alone stays N to N+1, 出头 N to N+0.5 |
+| Points with 多 | "茅台和平安的ROE相差十七个多百分点" | 17 < difference < 18 (个 no longer hides the 多) |
+| Multiple of another sector | "白酒行业平均市盈率是保险行业的两倍多" | the sector name before 行业 is the compared side (2.31×) |
+| A sector's average | "Wuliangye's P/E sits roughly 23% below the baijiu average" | "<sector> average" is the sector's average, a relative difference (−23.44%) |
+| English shares | "Wuliangye makes less than half of Ping An's revenue", "under a third of Wuliangye's" | half / a third / a quarter of X's is a multiple of X (0.09 < 0.5) |
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
@@ -585,6 +598,9 @@ python -m evaluation.claim_bench.run --set holdout
 | independent round-4 slice, after exposure, at the round-12 commit | `bd84003` | 67 / 75 | 1.000 [1.000, 1.000] | 0.920 [0.849, 0.974] | 0.522 |
 | independent round-5 slice, after exposure, at the round-12 commit | `bd84003` | 56 / 86 | 1.000 [1.000, 1.000] | 0.988 [0.962, 1.000] | 0.929 |
 | independent round-6 slice, **after exposure (round 12)** | `bd84003` | 67 / 104 | 0.985 [0.955, 1.000] | 0.904 [0.835, 0.969] | 0.382 |
+| dev with the 12 round-13 rows (d300-d311) | `eec32eb` | 311 / 359 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the round-13 commit | `eec32eb` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-8 claim slice, **after exposure (round 13)** (`score_claims_r8.py`, verdicts only) | `b1099d8` | 25 / – | 1.000 [1.00, 1.00] | – | – |
 
 The result files are `evaluation/results/claim_bench-dev-baseline.json`, `claim_bench-dev.json`,
 `claim_bench-holdout.json` (the single first run), `claim_bench-holdout-after-round8.json` (the same file after
