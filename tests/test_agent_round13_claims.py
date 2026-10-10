@@ -107,7 +107,7 @@ def test_a_little_more_is_not_a_stated_value(checker, claim, verdict):
     [
         ("宁德时代的股价比52周最高收盘价低了三成多", "supported"),  # -36.71%
         ("宁德时代距52周高点已经跌去超过三成", "supported"),
-        ("宁德时代股价较52周高点已经腰斩", "contradicted"),  # -36.71%, not about -50%
+        ("宁德时代现价较52周高点几乎腰斩", "contradicted"),  # -36.71%, not about -50%
         ("CATL trades roughly 37% below its 52-week high", "supported"),
         ("宁德时代比52周低点高出不到2%", "supported"),  # +1.50%
     ],
