@@ -338,7 +338,7 @@ FILE_STATUS = {
     "router_eval-round11-own": "author's own labels (tuned against)",
     "router_eval-round12-own": "author's own labels (tuned against); recorded from a dirty tree (`b685e23-dirty`), "
     "superseded by the clean rerun `router_eval-round13-own`",
-    "router_eval-round13-own": "author's own labels (tuned against), clean rerun at `d42b181` (round 13, I13)",
+    "router_eval-round13-own": "author's own labels (tuned against), clean rerun at the merged round-13 code (I13)",
     "chat_heldout_r5-auto-nollm-first-run": "**first run** of the independent round-5 held-out chat slice",
     "chat_heldout_r5-auto-nollm-after-exposure": "**after exposure** (round 9 fixed the classes its first run showed)",
     "claim_bench-dev-baseline": "development claims, before tuning",
@@ -399,13 +399,13 @@ FILE_STATUS = {
     "read the checker)",
     "claims_heldout_r8-after-exposure-round13-claims": "independent round-8 claim slice **after exposure (round "
     "13)**: the engineers had read its five remaining errors; not an out-of-sample estimate",
-    "claim_bench-holdout-after-round13": "held-out claims **after exposure**, re-run at the round-13 commit (I8)",
+    "claim_bench-holdout-after-round13": "held-out claims **after exposure**, re-run at the merged round-13 code",
     "claim_bench-heldout_r4-after-round13": "independent round-4 claim slice **after exposure**, re-run at the "
-    "round-13 commit (I8)",
+    "merged round-13 code",
     "claim_bench-heldout_r5-after-round13": "independent round-5 claim slice **after exposure**, re-run at the "
-    "round-13 commit (I8)",
+    "merged round-13 code",
     "claim_bench-heldout_r6-after-exposure-round13": "independent round-6 claim slice **after exposure (round 13)**: "
-    "re-run at the round-13 commit (I8); not an out-of-sample estimate",
+    "re-run at the merged round-13 code; not an out-of-sample estimate",
     "chat_heldout_r8-auto-nollm-after-exposure-round13": "independent round-8 chat slice **after exposure (round "
     "13)**: the round-13 engineers read the slice and fixed the classes it still failed, so it is no longer out of "
     "sample",
