@@ -51,14 +51,17 @@ def rates(results: list[dict[str, Any]], key: str, ok: str = "ok") -> dict[str, 
     groups: dict[str, list[bool]] = defaultdict(list)
     for row in results:
         groups[str(row[key])].append(row[ok])
-    return {name: {"n": len(oks), "correct": sum(oks), "accuracy": round(sum(oks) / len(oks), 3)}
-            for name, oks in sorted(groups.items())}
+    return {
+        name: {"n": len(oks), "correct": sum(oks), "accuracy": round(sum(oks) / len(oks), 3)}
+        for name, oks in sorted(groups.items())
+    }
 
 
 def git_commit() -> str:
     commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, cwd=ROOT)
-    dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], capture_output=True, text=True,
-                           cwd=ROOT).stdout.strip()
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=no"], capture_output=True, text=True, cwd=ROOT
+    ).stdout.strip()
     return commit.stdout.strip() + ("-dirty" if dirty else "")
 
 
@@ -84,14 +87,22 @@ def main(argv: list[str] | None = None) -> int:
     for row in rows:
         text = checker_text(row["published_text"])
         report = check_claim(text, service=service, registry=registry, zh=row["lang"].startswith("zh")).model_dump()
-        results.append({
-            "id": row["id"], "category": row["category"], "source_type": row["source_type"],
-            "social_platform": row.get("social_platform") or "-", "lang": row["lang"], "claim": text,
-            "expected": row["expected_verdict"], "expected_definition_blind": row["expected_verdict_definition_blind"],
-            "got": report["verdict"], "ok": report["verdict"] == row["expected_verdict"],
-            "ok_definition_blind": report["verdict"] == row["expected_verdict_definition_blind"],
-            "checks": [{k: c.get(k) for k in CHECK_FIELDS} for c in report.get("checks") or []],
-        })
+        results.append(
+            {
+                "id": row["id"],
+                "category": row["category"],
+                "source_type": row["source_type"],
+                "social_platform": row.get("social_platform") or "-",
+                "lang": row["lang"],
+                "claim": text,
+                "expected": row["expected_verdict"],
+                "expected_definition_blind": row["expected_verdict_definition_blind"],
+                "got": report["verdict"],
+                "ok": report["verdict"] == row["expected_verdict"],
+                "ok_definition_blind": report["verdict"] == row["expected_verdict_definition_blind"],
+                "checks": [{k: c.get(k) for k in CHECK_FIELDS} for c in report.get("checks") or []],
+            }
+        )
     hits = [1.0 if r["ok"] else 0.0 for r in results]
     blind_hits = [1.0 if r["ok_definition_blind"] else 0.0 for r in results]
     by_category = rates(results, "category")
@@ -132,9 +143,21 @@ def main(argv: list[str] | None = None) -> int:
             "got_counts": {v: sum(1 for r in results if r["got"] == v) for v in sorted({r["got"] for r in results})},
         },
         "errors": [
-            {k: r[k] for k in ("id", "category", "source_type", "claim", "expected", "expected_definition_blind",
-                               "got", "checks")}
-            for r in results if not r["ok"]
+            {
+                k: r[k]
+                for k in (
+                    "id",
+                    "category",
+                    "source_type",
+                    "claim",
+                    "expected",
+                    "expected_definition_blind",
+                    "got",
+                    "checks",
+                )
+            }
+            for r in results
+            if not r["ok"]
         ],
         "results": [{k: r[k] for k in ("id", "expected", "expected_definition_blind", "got", "ok")} for r in results],
     }

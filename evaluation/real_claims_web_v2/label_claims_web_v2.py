@@ -100,8 +100,10 @@ class OfflineData:
             for sym, row in layer.get("market_api", {}).items():
                 self.bar_source[sym] = row.get("source_name", "")
                 hist = row.get("history") or [
-                    {k: row.get(k) for k in ("trade_date", "open", "high", "low", "close", "pct_change_1d",
-                                             "volume", "amount")}
+                    {
+                        k: row.get(k)
+                        for k in ("trade_date", "open", "high", "low", "close", "pct_change_1d", "volume", "amount")
+                    }
                 ]
                 self.bars[sym] = {b["trade_date"]: dict(b) for b in hist}
         self.primary: dict[str, dict[str, dict[str, Any]]] = {}
@@ -311,8 +313,17 @@ def primary_check(data: OfflineData, part: dict[str, Any]) -> dict[str, Any] | N
     if part.get("kind", "value") != "value" or ("null" in part and "m" not in part):
         return None
     sym, metric = part.get("s"), part.get("m")
-    if metric not in ("revenue", "net_profit", "eps", "roe", "profit_dedt", "netprofit_yoy", "revenue_yoy",
-                      "prior_net_profit", "net_profit_change"):
+    if metric not in (
+        "revenue",
+        "net_profit",
+        "eps",
+        "roe",
+        "profit_dedt",
+        "netprofit_yoy",
+        "revenue_yoy",
+        "prior_net_profit",
+        "net_profit_change",
+    ):
         return None
     served_basis = data.defs.get(sym, {}).get(BASIS_FIELD.get(metric, ""), None)
     basis = part.get("pbasis") or part.get("basis") or served_basis
@@ -321,8 +332,10 @@ def primary_check(data: OfflineData, part: dict[str, Any]) -> dict[str, Any] | N
         cur, prior = data.primary_value(sym, fid), data.primary_value(sym, fid, prior=True)
         primary = None if cur is None or prior is None else (prior if metric == "prior_net_profit" else cur - prior)
     elif metric in ("netprofit_yoy", "revenue_yoy"):
-        cur_id = {"netprofit_yoy": {"归母": "net_profit_parent", "total": "net_profit_total"},
-                  "revenue_yoy": {None: "revenue"}}[metric]
+        cur_id = {
+            "netprofit_yoy": {"归母": "net_profit_parent", "total": "net_profit_total"},
+            "revenue_yoy": {None: "revenue"},
+        }[metric]
         fid = cur_id.get(basis if metric == "netprofit_yoy" else None) or cur_id.get("归母")
         cur, prior = data.primary_value(sym, fid), data.primary_value(sym, fid, prior=True)
         primary = None if not cur or not prior else (cur / prior - 1) * 100
@@ -342,8 +355,9 @@ def primary_check(data: OfflineData, part: dict[str, Any]) -> dict[str, Any] | N
             res["offline_vs_primary"] = "agree" if close else "value_differs"
         res["offline"] = round(served, 6)
     if "v" in part and "u" in part:
-        res["claim_vs_primary"] = judge(primary, part["v"], part["u"], part.get("q", "exact"),
-                                        part.get("signed", False))[0]
+        res["claim_vs_primary"] = judge(
+            primary, part["v"], part["u"], part.get("q", "exact"), part.get("signed", False)
+        )[0]
     return res
 
 
@@ -385,217 +399,403 @@ def N(text: str, reason: str) -> dict[str, Any]:
 
 
 PARTS: dict[str, dict[str, Any]] = {
-    "v01": {"category": "loose_or_relational", "parts": [
-        V(CATL, "net_profit", "722.01", "亿", basis="归母"),
-        N("超过比亚迪、上汽…零跑的利润总和", "ten of the eleven carmakers are not in the offline data"),
-    ]},
-    "v02": {"category": "daily_price", "parts": [
-        G(CATL, "pct", "1.5", date=D0930), V(CATL, "close", "291.11", "元", date=D0930),
-    ]},
-    "v03": {"category": "market_value", "parts": [
-        V(CATL, "pe_ttm", "15.56", "倍", date=D0930, basis="动态"),
-        V(CATL, "pb", "3.55", "倍", date=D0930),
-    ]},
-    "v04": {"category": "annual_figures", "parts": [
-        V(CATL, "profit_dedt", "645.08", "亿"),
-        N("扣非净利润同比增长43.37%", "扣非 YoY is not in the offline data"),
-    ]},
-    "v05": {"category": "loose_or_relational", "parts": [
-        {"kind": "ratio", "a": {"s": BYD, "m": "revenue"}, "b": {"s": CATL, "m": "revenue"},
-         "v": "1.9", "u": "倍", "q": "about"},
-    ]},
-    "v06": {"category": "annual_figures", "parts": [
-        V(BYD, "net_profit", "326.19", "亿", basis="归母"),
-        V(BYD, "prior_net_profit", "402.54", "亿", basis="归母"),
-        G(BYD, "netprofit_yoy", "-19", basis="归母"),
-    ]},
-    "v07": {"category": "annual_ratios", "parts": [
-        N("毛利率从19%", "the 2024 gross margin is not in the offline data"),
-        V(BYD, "gross_margin", "18", "%"),
-    ], "context": ["近五年来毛利率的最低点"]},
-    "v08": {"category": "market_value", "parts": [
-        V(BYD, "total_mv", "7595.37", "亿", date=D0930),
-    ], "context": ["稳居榜首"]},
-    "v09": {"category": "annual_figures", "parts": [
-        V(MIDEA, "revenue", "4547", "亿"),
-        G(MIDEA, "revenue_yoy", "11.6"),
-        V(MIDEA, "net_profit", "442.9", "亿", basis="归母"),
-        G(MIDEA, "netprofit_yoy", "14.9", basis="归母"),
-    ], "context": ["增速连续四年跑赢营收增速 (a four-year relation)"]},
-    "v10": {"category": "annual_ratios", "parts": [
-        V(MIDEA, "roe", "17.3", "%", "about", basis="weighted"),
-        V(MIDEA, "roe", "17", "%", "gt", basis="weighted"),
-    ], "context": ["连续多年 (earlier years)"]},
-    "v11": {"category": "english_or_traditional", "parts": [
-        G(MIDEA, "netprofit_yoy", "14.0", basis="归母"),
-        V(MIDEA, "net_profit", "43.9", "bn", basis="归母"),
-        N("basic EPS advanced 6.6%", "EPS growth is not in the offline data"),
-        V(MIDEA, "eps", "5.80", "元", basis="basic"),
-    ]},
-    "v12": {"category": "annual_figures", "parts": [
-        V(ZIJIN, "revenue", "3491", "亿"),
-        G(ZIJIN, "revenue_yoy", "15"),
-        V(ZIJIN, "net_profit", "518", "亿", basis="归母"),
-        G(ZIJIN, "netprofit_yoy", "62", basis="归母"),
-    ]},
-    "v13": {"category": "daily_price", "parts": [
-        V(ZIJIN, "close", "35.53", "元", date=D0422), G(ZIJIN, "pct", "-0.36", date=D0422),
-    ]},
-    "v14": {"category": "english_or_traditional", "parts": [
-        N("revenue of US$49.7 billion", "USD amounts are not in the offline data"),
-        G(ZIJIN, "revenue_yoy", "15"),
-        N("net profit … of US$7.4 billion", "USD amounts are not in the offline data"),
-        G(ZIJIN, "netprofit_yoy", "62", basis="归母"),
-    ]},
-    "v15": {"category": "annual_ratios", "parts": [
-        V(SMIC, "eps", "0.63", "元", basis="basic"),
-        V(SMIC, "gross_margin", "21.0", "%"),
-        N("同比上升3.0个百分点", "the 2024 gross margin is not in the offline data"),
-    ]},
-    "v16": {"category": "annual_ratios", "parts": [
-        V(SMIC, "gross_margin", "21.62", "%"),
-        N("上年同期18.59%", "the 2024 gross margin is not in the offline data"),
-        N("提高3.03个百分点", "the 2024 gross margin is not in the offline data"),
-    ]},
-    "v17": {"category": "daily_price", "parts": [
-        V(SMIC, "close", "107.87", "元", date=D0422), G(SMIC, "pct", "0.38", date=D0422),
-        N("换手率1.88%", "换手率 is not in the offline data"),
-        V(SMIC, "volume", "37.52", "万手", date=D0422), V(SMIC, "amount", "40.23", "亿", date=D0422),
-    ]},
-    "v18": {"category": "annual_figures", "parts": [
-        V(CMB, "revenue", "3375", "亿"), V(CMB, "net_profit", "1502", "亿", basis="归母"),
-    ]},
-    "v19": {"category": "annual_ratios", "parts": [
-        V(CMB, "roe", "13.44", "%", basis="weighted"),
-        N("同比下降1.05个百分点", "the 2024 ROE is not in the offline data"),
-    ]},
-    "v20": {"category": "market_value", "parts": [
-        V(CMB, "total_mv", "1.04", "万亿", date=D0930),
-    ], "context": ["居第五名", "股份行里唯一一家站稳万亿市值 (other banks)"]},
-    "v21": {"category": "annual_figures", "parts": [
-        V(ICBC, "net_profit", "3685.62", "亿", basis="归母"),
-        G(ICBC, "netprofit_yoy", "0.7", basis="归母"),
-        N("日均盈利超10亿元", "a per-day figure is not one of the derivations the rules list"),
-    ]},
-    "v22": {"category": "english_or_traditional", "parts": [
-        V(ICBC, "net_profit", "3707.66", "亿", pbasis="total"),
-        V(ICBC, "net_profit_change", "38.20", "亿", signed=True, pbasis="total"),
-        G(ICBC, "netprofit_yoy", "1.0", pbasis="total"),
-    ], "primary_note": "agree on the claim's basis (IFRS total 淨利潤 370,766百万, +1.04%); the offline net_profit is "
-       "归母 (3685.62亿), 0.6% from the claim, so the 1% rule passes it"},
-    "v23": {"category": "english_or_traditional", "parts": [
-        G(ICBC, "netprofit_yoy", "0.7", pbasis="归母"),
-        V(ICBC, "net_profit", "368.6", "bn"),
-    ], "context": ["the world's largest lender by assets"]},
-    "v24": {"category": "market_value", "parts": [
-        V(ICBC, "total_mv", "2.95", "万亿", date=D0930),
-    ], "context": ["稳居榜首"]},
-    "v25": {"category": "annual_ratios", "parts": [
-        V(PAB, "net_margin", "32.43", "%"),
-        N("同比增6.9%", "the 2024 net margin is not in the offline data"),
-    ]},
-    "v26": {"category": "annual_figures", "parts": [
-        V(PAB, "net_profit", "426.33", "亿"),
-        G(PAB, "netprofit_yoy", "-4.2"),
-        N("环比下降达68.12%", "a sequential (环比) change is not in the offline data"),
-    ]},
-    "v27": {"category": "daily_price", "parts": [
-        V(PAB, "close", "11.57", "元", date=D0930), G(PAB, "pct", "1.94", date=D0930),
-        V(PAB, "total_mv", "2245.26", "亿", date=D0930),
-    ]},
-    "v28": {"category": "loose_or_relational", "parts": [
-        V(CITIC, "net_profit", "300.76", "亿", basis="归母"),
-        N("国泰海通（278.09亿元）", "国泰海通 is not in the offline data"),
-        N("高出22.67亿元", "国泰海通 is not in the offline data"),
-    ]},
-    "v29": {"category": "annual_ratios", "parts": [
-        V(CITIC, "roe", "9.4", "%", "about"),
-        N("归母权益3199.30亿元", "equity is not in the offline data"),
-    ]},
-    "v30": {"category": "loose_or_relational", "parts": [
-        N("摩根大通全年营收1856亿美元", "摩根大通 is not in the offline data"),
-        N("净利润570亿美元", "摩根大通 is not in the offline data"),
-        N("一家的利润=13.6家中信证券", "a ratio to 摩根大通's USD profit is not in the offline data"),
-    ]},
-    "v31": {"category": "daily_price", "parts": [
-        V(CITIC, "close", "25.86", "元", date=D0930), G(CITIC, "pct", "0.15", date=D0930),
-        V(CITIC, "total_mv", "4040.44", "亿", date=D0930),
-    ]},
-    "v32": {"category": "annual_figures", "parts": [
-        V(CYPC, "net_profit", "335.03", "亿", basis="归母"),
-        V(CYPC, "net_profit_change", "20.07", "亿", signed=True, basis="归母"),
-    ]},
-    "v33": {"category": "english_or_traditional", "parts": [
-        V(CYPC, "net_profit", "34.503", "bn", basis="归母"),
-        V(CYPC, "net_profit_change", "2.007", "bn", signed=True, basis="归母"),
-        G(CYPC, "netprofit_yoy", "6.17", basis="归母"),
-    ]},
-    "v34": {"category": "annual_figures", "parts": [
-        V(CYPC, "revenue", "858.82", "亿", basis="营业总收入", pbasis="营业收入"),
-        G(CYPC, "revenue_yoy", "1.65"),
-    ], "primary_note": "the claim quotes the preliminary 业绩快报 (858.82亿, +1.65%); the annual report and "
-       "the offline data agree on 862.42亿, +2.07% (营业收入 = 营业总收入 for 长江电力)"},
-    "v35": {"category": "annual_figures", "parts": [
-        V(PINGAN, "profit_dedt", "1437.73", "亿"),
-        N("同比增长22.5%", "扣非 YoY is not in the offline data"),
-    ]},
-    "v36": {"category": "annual_figures", "parts": [
-        V(PINGAN, "net_profit", "1347", "亿"),
-        G(PINGAN, "netprofit_yoy", "6.45", basis="归母"),
-    ]},
-    "v37": {"category": "annual_figures", "parts": [
-        V(PINGAN, "net_profit", "1348", "亿", basis="归母"),
-        V(PINGAN, "profit_dedt", "1438", "亿"),
-        N("同比增长22.5%", "扣非 YoY is not in the offline data"),
-    ]},
-    "v38": {"category": "daily_price", "parts": [
-        V(PINGAN, "close", "58.03", "元", date=D0422), G(PINGAN, "pct", "0", date=D0422),
-        V(PINGAN, "high", "58.60", "元", date=D0422), V(PINGAN, "low", "52.23", "元", date=D0422),
-    ], "primary_note": "price: the offline bar is the corrections layer's (Sina kline, cross-checked with Tencent), "
-       "low 57.65; the published low 52.23 differs (unresolved against an exchange record)"},
-    "v39": {"category": "annual_figures", "parts": [
-        V(WLY, "revenue", "405.29", "亿"), G(WLY, "revenue_yoy", "-54.55"),
-        V(WLY, "net_profit", "89.54", "亿", basis="归母"), G(WLY, "netprofit_yoy", "-71.89", basis="归母"),
-    ]},
-    "v40": {"category": "annual_ratios", "parts": [
-        V(WLY, "eps", "2.3068", "元", basis="basic"),
-        N("同比下降71.89%", "EPS growth is not in the offline data"),
-    ]},
-    "v41": {"category": "annual_ratios", "parts": [
-        V(WLY, "roe", "7.47", "%"),
-        N("减少16.43个百分点", "the 2024 ROE is not in the offline data"),
-    ], "context": ["在已披露的同业公司中排名第11"]},
-    "v42": {"category": "daily_price", "parts": [
-        V(MOUTAI, "close", "1409.50", "元", date=D0422), G(MOUTAI, "pct", "-0.18", date=D0422),
-    ]},
-    "v43": {"category": "daily_price", "parts": [
-        V(MOUTAI, "amount", "37.94", "亿", date=D0422),
-    ]},
-    "v44": {"category": "english_or_traditional", "parts": [
-        V(MOUTAI, "net_profit", "823.2", "亿", basis="归母"), G(MOUTAI, "netprofit_yoy", "-4.53", basis="归母"),
-    ]},
-    "v45": {"category": "annual_ratios", "parts": [
-        V(MOUTAI, "net_margin", "48.8", "%"),
-        N("同比降1.7pct", "the 2024 net margin is not in the offline data"),
-    ]},
-    "v46": {"category": "daily_price", "parts": [
-        G(CHINEXT, "pct", "1.7", q="gt", date=D0422),
-        V(CHINEXT, "close", "3700", "pt", "ge", date=D0422),
-    ], "context": ["再创逾十年新高"]},
-    "v47": {"category": "daily_price", "parts": [
-        V(SSE, "close", "3842.19", "pt", date=D0930), G(SSE, "pct", "0.31", date=D0930),
-    ]},
-    "v48": {"category": "daily_price", "parts": [
-        V(GOLD_ETF, "close", "8.339", "元", date=D0930), G(GOLD_ETF, "pct", "0.97", date=D0930),
-    ], "primary_note": "price: the published 8.339 / +0.97% differs from the offline bar 8.633 / +1.34%; the first "
-       "set's w58 (财中社) states 8.633 / +1.34% (unresolved against an exchange record)"},
-    "v49": {"category": "daily_price", "parts": [
-        V(CSI500_ETF, "close", "7.472", "元", date=D0930), G(CSI500_ETF, "pct", "-0.05", date=D0930),
-        V(CSI500_ETF, "amount", "16.7", "亿", date=D0930),
-    ]},
-    "v50": {"category": "daily_price", "parts": [
-        V(ZIJIN, "close", "29.79", "元", date=D0930), G(ZIJIN, "pct", "1.12", date=D0930),
-    ]},
+    "v01": {
+        "category": "loose_or_relational",
+        "parts": [
+            V(CATL, "net_profit", "722.01", "亿", basis="归母"),
+            N("超过比亚迪、上汽…零跑的利润总和", "ten of the eleven carmakers are not in the offline data"),
+        ],
+    },
+    "v02": {
+        "category": "daily_price",
+        "parts": [
+            G(CATL, "pct", "1.5", date=D0930),
+            V(CATL, "close", "291.11", "元", date=D0930),
+        ],
+    },
+    "v03": {
+        "category": "market_value",
+        "parts": [
+            V(CATL, "pe_ttm", "15.56", "倍", date=D0930, basis="动态"),
+            V(CATL, "pb", "3.55", "倍", date=D0930),
+        ],
+    },
+    "v04": {
+        "category": "annual_figures",
+        "parts": [
+            V(CATL, "profit_dedt", "645.08", "亿"),
+            N("扣非净利润同比增长43.37%", "扣非 YoY is not in the offline data"),
+        ],
+    },
+    "v05": {
+        "category": "loose_or_relational",
+        "parts": [
+            {
+                "kind": "ratio",
+                "a": {"s": BYD, "m": "revenue"},
+                "b": {"s": CATL, "m": "revenue"},
+                "v": "1.9",
+                "u": "倍",
+                "q": "about",
+            },
+        ],
+    },
+    "v06": {
+        "category": "annual_figures",
+        "parts": [
+            V(BYD, "net_profit", "326.19", "亿", basis="归母"),
+            V(BYD, "prior_net_profit", "402.54", "亿", basis="归母"),
+            G(BYD, "netprofit_yoy", "-19", basis="归母"),
+        ],
+    },
+    "v07": {
+        "category": "annual_ratios",
+        "parts": [
+            N("毛利率从19%", "the 2024 gross margin is not in the offline data"),
+            V(BYD, "gross_margin", "18", "%"),
+        ],
+        "context": ["近五年来毛利率的最低点"],
+    },
+    "v08": {
+        "category": "market_value",
+        "parts": [
+            V(BYD, "total_mv", "7595.37", "亿", date=D0930),
+        ],
+        "context": ["稳居榜首"],
+    },
+    "v09": {
+        "category": "annual_figures",
+        "parts": [
+            V(MIDEA, "revenue", "4547", "亿"),
+            G(MIDEA, "revenue_yoy", "11.6"),
+            V(MIDEA, "net_profit", "442.9", "亿", basis="归母"),
+            G(MIDEA, "netprofit_yoy", "14.9", basis="归母"),
+        ],
+        "context": ["增速连续四年跑赢营收增速 (a four-year relation)"],
+    },
+    "v10": {
+        "category": "annual_ratios",
+        "parts": [
+            V(MIDEA, "roe", "17.3", "%", "about", basis="weighted"),
+            V(MIDEA, "roe", "17", "%", "gt", basis="weighted"),
+        ],
+        "context": ["连续多年 (earlier years)"],
+    },
+    "v11": {
+        "category": "english_or_traditional",
+        "parts": [
+            G(MIDEA, "netprofit_yoy", "14.0", basis="归母"),
+            V(MIDEA, "net_profit", "43.9", "bn", basis="归母"),
+            N("basic EPS advanced 6.6%", "EPS growth is not in the offline data"),
+            V(MIDEA, "eps", "5.80", "元", basis="basic"),
+        ],
+    },
+    "v12": {
+        "category": "annual_figures",
+        "parts": [
+            V(ZIJIN, "revenue", "3491", "亿"),
+            G(ZIJIN, "revenue_yoy", "15"),
+            V(ZIJIN, "net_profit", "518", "亿", basis="归母"),
+            G(ZIJIN, "netprofit_yoy", "62", basis="归母"),
+        ],
+    },
+    "v13": {
+        "category": "daily_price",
+        "parts": [
+            V(ZIJIN, "close", "35.53", "元", date=D0422),
+            G(ZIJIN, "pct", "-0.36", date=D0422),
+        ],
+    },
+    "v14": {
+        "category": "english_or_traditional",
+        "parts": [
+            N("revenue of US$49.7 billion", "USD amounts are not in the offline data"),
+            G(ZIJIN, "revenue_yoy", "15"),
+            N("net profit … of US$7.4 billion", "USD amounts are not in the offline data"),
+            G(ZIJIN, "netprofit_yoy", "62", basis="归母"),
+        ],
+    },
+    "v15": {
+        "category": "annual_ratios",
+        "parts": [
+            V(SMIC, "eps", "0.63", "元", basis="basic"),
+            V(SMIC, "gross_margin", "21.0", "%"),
+            N("同比上升3.0个百分点", "the 2024 gross margin is not in the offline data"),
+        ],
+    },
+    "v16": {
+        "category": "annual_ratios",
+        "parts": [
+            V(SMIC, "gross_margin", "21.62", "%"),
+            N("上年同期18.59%", "the 2024 gross margin is not in the offline data"),
+            N("提高3.03个百分点", "the 2024 gross margin is not in the offline data"),
+        ],
+    },
+    "v17": {
+        "category": "daily_price",
+        "parts": [
+            V(SMIC, "close", "107.87", "元", date=D0422),
+            G(SMIC, "pct", "0.38", date=D0422),
+            N("换手率1.88%", "换手率 is not in the offline data"),
+            V(SMIC, "volume", "37.52", "万手", date=D0422),
+            V(SMIC, "amount", "40.23", "亿", date=D0422),
+        ],
+    },
+    "v18": {
+        "category": "annual_figures",
+        "parts": [
+            V(CMB, "revenue", "3375", "亿"),
+            V(CMB, "net_profit", "1502", "亿", basis="归母"),
+        ],
+    },
+    "v19": {
+        "category": "annual_ratios",
+        "parts": [
+            V(CMB, "roe", "13.44", "%", basis="weighted"),
+            N("同比下降1.05个百分点", "the 2024 ROE is not in the offline data"),
+        ],
+    },
+    "v20": {
+        "category": "market_value",
+        "parts": [
+            V(CMB, "total_mv", "1.04", "万亿", date=D0930),
+        ],
+        "context": ["居第五名", "股份行里唯一一家站稳万亿市值 (other banks)"],
+    },
+    "v21": {
+        "category": "annual_figures",
+        "parts": [
+            V(ICBC, "net_profit", "3685.62", "亿", basis="归母"),
+            G(ICBC, "netprofit_yoy", "0.7", basis="归母"),
+            N("日均盈利超10亿元", "a per-day figure is not one of the derivations the rules list"),
+        ],
+    },
+    "v22": {
+        "category": "english_or_traditional",
+        "parts": [
+            V(ICBC, "net_profit", "3707.66", "亿", pbasis="total"),
+            V(ICBC, "net_profit_change", "38.20", "亿", signed=True, pbasis="total"),
+            G(ICBC, "netprofit_yoy", "1.0", pbasis="total"),
+        ],
+        "primary_note": "agree on the claim's basis (IFRS total 淨利潤 370,766百万, +1.04%); the offline net_profit is "
+        "归母 (3685.62亿), 0.6% from the claim, so the 1% rule passes it",
+    },
+    "v23": {
+        "category": "english_or_traditional",
+        "parts": [
+            G(ICBC, "netprofit_yoy", "0.7", pbasis="归母"),
+            V(ICBC, "net_profit", "368.6", "bn"),
+        ],
+        "context": ["the world's largest lender by assets"],
+    },
+    "v24": {
+        "category": "market_value",
+        "parts": [
+            V(ICBC, "total_mv", "2.95", "万亿", date=D0930),
+        ],
+        "context": ["稳居榜首"],
+    },
+    "v25": {
+        "category": "annual_ratios",
+        "parts": [
+            V(PAB, "net_margin", "32.43", "%"),
+            N("同比增6.9%", "the 2024 net margin is not in the offline data"),
+        ],
+    },
+    "v26": {
+        "category": "annual_figures",
+        "parts": [
+            V(PAB, "net_profit", "426.33", "亿"),
+            G(PAB, "netprofit_yoy", "-4.2"),
+            N("环比下降达68.12%", "a sequential (环比) change is not in the offline data"),
+        ],
+    },
+    "v27": {
+        "category": "daily_price",
+        "parts": [
+            V(PAB, "close", "11.57", "元", date=D0930),
+            G(PAB, "pct", "1.94", date=D0930),
+            V(PAB, "total_mv", "2245.26", "亿", date=D0930),
+        ],
+    },
+    "v28": {
+        "category": "loose_or_relational",
+        "parts": [
+            V(CITIC, "net_profit", "300.76", "亿", basis="归母"),
+            N("国泰海通（278.09亿元）", "国泰海通 is not in the offline data"),
+            N("高出22.67亿元", "国泰海通 is not in the offline data"),
+        ],
+    },
+    "v29": {
+        "category": "annual_ratios",
+        "parts": [
+            V(CITIC, "roe", "9.4", "%", "about"),
+            N("归母权益3199.30亿元", "equity is not in the offline data"),
+        ],
+    },
+    "v30": {
+        "category": "loose_or_relational",
+        "parts": [
+            N("摩根大通全年营收1856亿美元", "摩根大通 is not in the offline data"),
+            N("净利润570亿美元", "摩根大通 is not in the offline data"),
+            N("一家的利润=13.6家中信证券", "a ratio to 摩根大通's USD profit is not in the offline data"),
+        ],
+    },
+    "v31": {
+        "category": "daily_price",
+        "parts": [
+            V(CITIC, "close", "25.86", "元", date=D0930),
+            G(CITIC, "pct", "0.15", date=D0930),
+            V(CITIC, "total_mv", "4040.44", "亿", date=D0930),
+        ],
+    },
+    "v32": {
+        "category": "annual_figures",
+        "parts": [
+            V(CYPC, "net_profit", "335.03", "亿", basis="归母"),
+            V(CYPC, "net_profit_change", "20.07", "亿", signed=True, basis="归母"),
+        ],
+    },
+    "v33": {
+        "category": "english_or_traditional",
+        "parts": [
+            V(CYPC, "net_profit", "34.503", "bn", basis="归母"),
+            V(CYPC, "net_profit_change", "2.007", "bn", signed=True, basis="归母"),
+            G(CYPC, "netprofit_yoy", "6.17", basis="归母"),
+        ],
+    },
+    "v34": {
+        "category": "annual_figures",
+        "parts": [
+            V(CYPC, "revenue", "858.82", "亿", basis="营业总收入", pbasis="营业收入"),
+            G(CYPC, "revenue_yoy", "1.65"),
+        ],
+        "primary_note": "the claim quotes the preliminary 业绩快报 (858.82亿, +1.65%); the annual report and "
+        "the offline data agree on 862.42亿, +2.07% (营业收入 = 营业总收入 for 长江电力)",
+    },
+    "v35": {
+        "category": "annual_figures",
+        "parts": [
+            V(PINGAN, "profit_dedt", "1437.73", "亿"),
+            N("同比增长22.5%", "扣非 YoY is not in the offline data"),
+        ],
+    },
+    "v36": {
+        "category": "annual_figures",
+        "parts": [
+            V(PINGAN, "net_profit", "1347", "亿"),
+            G(PINGAN, "netprofit_yoy", "6.45", basis="归母"),
+        ],
+    },
+    "v37": {
+        "category": "annual_figures",
+        "parts": [
+            V(PINGAN, "net_profit", "1348", "亿", basis="归母"),
+            V(PINGAN, "profit_dedt", "1438", "亿"),
+            N("同比增长22.5%", "扣非 YoY is not in the offline data"),
+        ],
+    },
+    "v38": {
+        "category": "daily_price",
+        "parts": [
+            V(PINGAN, "close", "58.03", "元", date=D0422),
+            G(PINGAN, "pct", "0", date=D0422),
+            V(PINGAN, "high", "58.60", "元", date=D0422),
+            V(PINGAN, "low", "52.23", "元", date=D0422),
+        ],
+        "primary_note": "price: the offline bar is the corrections layer's (Sina kline, cross-checked with Tencent), "
+        "low 57.65; the published low 52.23 differs (unresolved against an exchange record)",
+    },
+    "v39": {
+        "category": "annual_figures",
+        "parts": [
+            V(WLY, "revenue", "405.29", "亿"),
+            G(WLY, "revenue_yoy", "-54.55"),
+            V(WLY, "net_profit", "89.54", "亿", basis="归母"),
+            G(WLY, "netprofit_yoy", "-71.89", basis="归母"),
+        ],
+    },
+    "v40": {
+        "category": "annual_ratios",
+        "parts": [
+            V(WLY, "eps", "2.3068", "元", basis="basic"),
+            N("同比下降71.89%", "EPS growth is not in the offline data"),
+        ],
+    },
+    "v41": {
+        "category": "annual_ratios",
+        "parts": [
+            V(WLY, "roe", "7.47", "%"),
+            N("减少16.43个百分点", "the 2024 ROE is not in the offline data"),
+        ],
+        "context": ["在已披露的同业公司中排名第11"],
+    },
+    "v42": {
+        "category": "daily_price",
+        "parts": [
+            V(MOUTAI, "close", "1409.50", "元", date=D0422),
+            G(MOUTAI, "pct", "-0.18", date=D0422),
+        ],
+    },
+    "v43": {
+        "category": "daily_price",
+        "parts": [
+            V(MOUTAI, "amount", "37.94", "亿", date=D0422),
+        ],
+    },
+    "v44": {
+        "category": "english_or_traditional",
+        "parts": [
+            V(MOUTAI, "net_profit", "823.2", "亿", basis="归母"),
+            G(MOUTAI, "netprofit_yoy", "-4.53", basis="归母"),
+        ],
+    },
+    "v45": {
+        "category": "annual_ratios",
+        "parts": [
+            V(MOUTAI, "net_margin", "48.8", "%"),
+            N("同比降1.7pct", "the 2024 net margin is not in the offline data"),
+        ],
+    },
+    "v46": {
+        "category": "daily_price",
+        "parts": [
+            G(CHINEXT, "pct", "1.7", q="gt", date=D0422),
+            V(CHINEXT, "close", "3700", "pt", "ge", date=D0422),
+        ],
+        "context": ["再创逾十年新高"],
+    },
+    "v47": {
+        "category": "daily_price",
+        "parts": [
+            V(SSE, "close", "3842.19", "pt", date=D0930),
+            G(SSE, "pct", "0.31", date=D0930),
+        ],
+    },
+    "v48": {
+        "category": "daily_price",
+        "parts": [
+            V(GOLD_ETF, "close", "8.339", "元", date=D0930),
+            G(GOLD_ETF, "pct", "0.97", date=D0930),
+        ],
+        "primary_note": "price: the published 8.339 / +0.97% differs from the offline bar 8.633 / +1.34%; the first "
+        "set's w58 (财中社) states 8.633 / +1.34% (unresolved against an exchange record)",
+    },
+    "v49": {
+        "category": "daily_price",
+        "parts": [
+            V(CSI500_ETF, "close", "7.472", "元", date=D0930),
+            G(CSI500_ETF, "pct", "-0.05", date=D0930),
+            V(CSI500_ETF, "amount", "16.7", "亿", date=D0930),
+        ],
+    },
+    "v50": {
+        "category": "daily_price",
+        "parts": [
+            V(ZIJIN, "close", "29.79", "元", date=D0930),
+            G(ZIJIN, "pct", "1.12", date=D0930),
+        ],
+    },
 }
 
 
