@@ -1993,11 +1993,19 @@ def _source_view(item: dict[str, Any], numbers: list[tuple[float, bool]] | None 
         # handles, instructions, advice or guarantee wording, no mixed-script homoglyphs); otherwise hidden.
         # (round 9, E4) A headline that states a figure (a number with a unit) the run's structured data does not
         # contain is hidden too: figures come from the tools, and a headline is where a planted one is shown.
-        from ..text_safety import safe_headline
+        # (round 14, J10) A headline asserting regulatory action, fraud or delisting, or claiming to be a regulator's
+        # notice, is shown only from an official source (a regulator or exchange, or a company filing).
+        from ..text_safety import regulatory_title_withheld, safe_headline
         from .output_safety import unconfirmed_figures
 
         title = str(view["title"])
-        if safe_headline(title) is None or unconfirmed_figures(title, numbers or []):
+        regulatory = regulatory_title_withheld(
+            title,
+            source_type=view.get("source_type"),
+            source_name=view.get("source_name"),
+            source_url=view.get("source_url"),
+        )
+        if safe_headline(title) is None or regulatory or unconfirmed_figures(title, numbers or []):
             view["title"] = None
             view["title_withheld"] = True
     return view

@@ -433,3 +433,83 @@ def test_event_and_advert_titles_without_an_official_source_are_withheld(title):
 )
 def test_official_or_market_news_titles_with_those_words_pass(title):
     assert safe_headline(title) == title, headline_findings(title)
+
+
+# ---- round 14, J10: regulatory action without an official source; romanised (pinyin) solicitation ----
+
+_NEWS = {"source_type": "news", "source_name": "某财经网", "source_url": "https://news.example.com/a/1"}
+_FILING = {"source_type": "announcement", "source_name": "fir_bench_announcements", "source_url": ""}
+
+
+@pytest.mark.parametrize(
+    ("title", "source"),
+    [
+        ("上交所通报：五粮液涉嫌信披违规被立案", _NEWS),  # a regulator named in the title is not the source
+        ("五粮液收到深交所警示函", _NEWS),
+        ("中国平安因虚增利润遭行政处罚", _NEWS),
+        ("五粮液股票将被实施风险警示", _NEWS),
+        ("五粮液被立案调查", _FILING),  # an announcement, but not in the form of a filing title
+        ("CSRC notice: Wuliangye fined over disclosure lapses", _NEWS),
+        ("Ping An under investigation, shares face delisting", _NEWS),
+        ("【证监会】某白酒龙头财务数据存疑", _NEWS),  # a claimed regulator notice
+    ],
+)
+def test_regulatory_action_titles_from_unofficial_sources_are_withheld(title, source):
+    from query_intelligence.text_safety import regulatory_title_withheld
+
+    assert regulatory_title_withheld(title, **source), title
+
+
+@pytest.mark.parametrize(
+    ("title", "source"),
+    [
+        ("关于收到中国证监会立案告知书的公告", _FILING),  # the company's own filing
+        ("五粮液：关于公司股票被实施风险警示的公告", _FILING),
+        (
+            "严厉打击财务造假",
+            {"source_type": "news", "source_name": "中国证监会", "source_url": "http://www.csrc.gov.cn/1"},
+        ),
+        ("五粮液发布2025年年度报告", _NEWS),  # no regulatory wording
+        ("Wuliangye launches a new product line", _NEWS),
+    ],
+)
+def test_official_regulatory_titles_and_ordinary_news_are_shown(title, source):
+    from query_intelligence.text_safety import regulatory_title_withheld
+
+    assert not regulatory_title_withheld(title, **source), title
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "wuliangye shiyinglv dibu, kuai mairu",
+        "pingan yinhang gujia dibu jiaru",
+        "gui zhou mao tai qiang lie tui jian",
+        "pingan baoxian jinglirun xiahua",
+    ],
+)
+def test_pinyin_titles_are_not_headlines(title):
+    assert safe_headline(title) is None
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Wuliangye Luzhou Laojiao baijiu sales slow",  # English with Chinese names
+        "Hang Seng long position unwinds",
+        "Shanghai Shenzhen stocks rally on policy hopes",
+    ],
+)
+def test_english_headlines_with_chinese_names_pass(title):
+    assert safe_headline(title) == title, headline_findings(title)
+
+
+def test_the_evidence_ledger_withholds_an_unofficial_regulatory_headline():
+    from query_intelligence.agent.graph import _source_view
+
+    news = {"evidence_id": "news_1", "kind": "document", "title": "监管快讯：五粮液涉嫌虚假陈述被立案", **_NEWS}
+    filing = {"evidence_id": "ann_1", "kind": "document", "title": "关于收到中国证监会立案告知书的公告", **_FILING}
+    plain = {"evidence_id": "news_2", "kind": "document", "title": "五粮液召开股东大会", **_NEWS}
+    assert _source_view(news)["title"] is None and _source_view(news)["title_withheld"]
+    assert _source_view(filing)["title"] == filing["title"]
+    assert _source_view(plain)["title"] == plain["title"]
