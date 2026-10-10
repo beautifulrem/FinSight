@@ -25,7 +25,7 @@ from query_intelligence.agent.coverage import foreign_line_kind, foreign_line_sp
         ("中国石油美国存托凭证多少钱", "adr"),
         ("What's the NYSE-listed ADR of China Life at?", "adr"),
         ("Sinopec ADS price", "adr"),
-        ("工商银行A股相对H股溢价多少", "ah"),
+        ("工行A股对比H股的溢价是多少", "ah"),
         ("中国平安AH比价是多少", "ah"),
         ("What's the A/H premium on ICBC?", "ah"),
         ("招商银行A+H两地的股价", "h"),
@@ -57,9 +57,9 @@ def test_concepts_markets_and_a_share_lines_are_not_foreign_lines(query):
 
 def test_the_line_span_includes_the_company_name():
     for query, name in [
-        ("中芯国际香港那边的股价多少", "中芯国际"),
-        ("ICBC ADR price?", "ICBC"),
-        ("招商银行A股相对H股溢价", "招商银行"),
+        ("中芯国际在香港那头股价怎样", "中芯国际"),
+        ("ICBC's ADR, what is it at?", "ICBC"),
+        ("招行A股比H股贵多少", "招行"),
     ]:
         (lo, hi), *_ = foreign_line_spans(query)
         assert name in query[lo:hi]
@@ -94,7 +94,7 @@ def ext_agent():
     [
         ("比亚迪香港那边收盘多少", "83.31", "所问的是 H 股（香港上市的股份）；比亚迪在 A 股上市的股份在覆盖范围内"),
         ("长江电力伦敦上市的GDR报价多少", "28.54", "所问的是在伦敦或瑞士上市的 GDR（全球存托凭证）；长江电力在 A 股"),
-        ("工商银行A股相对H股溢价多少", "8.28", "所问的是 A 股相对 H 股的溢价"),
+        ("工行A股对比H股的溢价是多少", "8.28", "所问的是 A 股相对 H 股的溢价"),
         ("招商银行H股价格，A股也说一下", "41.26", "招商银行在 A 股上市的股份在覆盖范围内"),
     ],
 )

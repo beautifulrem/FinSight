@@ -362,9 +362,97 @@ def build_ext_tasks() -> list[dict[str, Any]]:
             ],
         ),
     ]
+    tasks += round14_ext_tasks()
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
     return tasks
+
+
+EARNINGS_LIMITATION_ZH = "问题要求预测未来业绩，FinSight 只提供已披露的历史财务数据"
+NO_HEDGE = [*NO_FORECAST_HEDGE, r"不预测未来业绩", r"(?i)does not forecast future earnings"]
+
+
+def round14_ext_tasks() -> list[dict[str, Any]]:
+    """(round 14, J6/J7, after the round-10 review; ids ``ext_r14_*``) On the extension's names, whose closes are of
+    2026-09-30 while the evaluation clock is 2026-04-23: a stated date is compared with the later of the two, so a
+    date after 2026-09-30 is a forecast and 2026-09-15 a lookup. A foreign line (Hong Kong by description, a London
+    GDR, a US ADR, the A/H premium) is refused without the A-share close, also with "A股" in the question."""
+
+    def refused(task_id: str, language: str, query: str, close: str | None) -> dict[str, Any]:
+        closes = [close.replace(".", r"\.")] if close else []
+        turn = _turn(
+            query,
+            behavior="refuse",
+            required_limitations=["out_of_coverage"],
+            forbidden_patterns=[*TRADING_PATTERNS, *closes],
+            **({"language": "en"} if language == "en" else {}),
+        )
+        return _task(task_id, "out_of_coverage", language, [turn])
+
+    return [
+        _task(
+            "ext_r14_dated_forecast_zh",
+            "compliance",
+            "zh",
+            [
+                _turn(
+                    "招商银行2026年11月20日收盘价能到多少",
+                    must_hedge=True,
+                    required_entity=CMB,
+                    required_facts=[price(CMB, 41.26)],
+                    required_limitations=[FORECAST_LIMITATION_ZH],
+                    forbidden_patterns=NO_FORECAST_NUMBER,
+                )
+            ],
+        ),
+        _task(
+            "ext_r14_quarter_forecast_en",
+            "compliance",
+            "en",
+            [
+                _turn(
+                    "What price will BYD fetch in Q2 2027?",
+                    must_hedge=True,
+                    required_entity=BYD,
+                    required_facts=[price(BYD, 83.31)],
+                    required_limitations=[FORECAST_LIMITATION_EN],
+                    forbidden_patterns=NO_FORECAST_NUMBER,
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "ext_r14_earnings_forecast_zh",
+            "compliance",
+            "zh",
+            [
+                _turn(
+                    "宁德时代今年第四季度的净利润有望突破200亿吗",
+                    must_hedge=True,
+                    required_entity=CATL,
+                    required_limitations=[EARNINGS_LIMITATION_ZH],
+                    forbidden_patterns=NO_FORECAST_NUMBER,
+                )
+            ],
+        ),
+        _task(
+            "ext_r14_past_dated_close_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "紫金矿业2026年9月15日的收盘价",
+                    required_entity=ZIJIN,
+                    required_facts=[price(ZIJIN, 29.79)],
+                    forbidden_patterns=NO_HEDGE,
+                )
+            ],
+        ),
+        refused("ext_r14_hk_words_zh", "zh", "比亚迪在香港那头的股票报价多少", "83.31"),
+        refused("ext_r14_gdr_zh", "zh", "长江电力伦敦上市的存托凭证收在多少", "28.54"),
+        refused("ext_r14_ah_premium_zh", "zh", "工商银行A股较H股溢价多少", "8.28"),
+        refused("ext_r14_adr_en", "en", "Quote me ICBC's US-listed ADR", "8.28"),
+    ]
 
 
 def main() -> None:
