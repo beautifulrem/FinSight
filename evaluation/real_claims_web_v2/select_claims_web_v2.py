@@ -120,8 +120,10 @@ def main() -> None:
         rec.update(EDITS.get(r["candidate_id"], {}))
         out.append(rec)
     COLLECTED.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in out), encoding="utf-8")
-    print(f"{len(rows)} candidates, {len([r for r in rows if r['candidate_id'] in DROPPED])} dropped by rule, "
-          f"{len(out)} selected")
+    print(
+        f"{len(rows)} candidates, {len([r for r in rows if r['candidate_id'] in DROPPED])} dropped by rule, "
+        f"{len(out)} selected"
+    )
     print("by group:", dict(Counter(_group(r) for r in out)))
     print("by source type:", dict(Counter(r["source_type"] for r in out)))
     print("by lang:", dict(Counter(r["lang"] for r in out)))
