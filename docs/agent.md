@@ -444,6 +444,85 @@ P/E?") carries the metric.
 
 Results are in [Evaluation](#evaluation) (round 12).
 
+### Rules added in round 13 (round-8 slice after exposure)
+
+Round 13 fixed the classes the independent round-8 slice (`evaluation/heldout_r8/`) still failed after round 12. From
+round 13 that slice is **after exposure**: the engineer read its failing tasks and wrote own examples: 22 dev tasks
+(`build_tasks._round13_tasks`, zh/en), router labels `route_388`–`route_395`, 12 claim-bench rows (`d300`–`d311`) and
+unit tests (`tests/test_agent_round13.py`). `tests/test_agent_eval.py` checks that none of them copies or near-copies a
+round-4–8 slice text (read programmatically), a reviewer probe, the independent router sets or a test set.
+
+**Comparative verbs as a class.** 领先 / 落后 / 跑赢 / 跑输 / 超出 / 胜过 / 输给 / 高出 / 多出 and "outperform", "trail",
+"lead", "lag", "beat", "exceed", "out-earn", "out-sell" are anchors like 比 and 高: with a quantity or unit word ("几个百分点",
+"多少亿", "by how many points") they ask a difference, with "几倍" or "by what multiple" a ratio. A colloquial count of
+one operand in the other ("相当于几个", "抵得上几个", "顶得上几个", "能抵几个") and imperatives ("divide the second by
+the first", "后者除以前者") are ratios; "subtract", "减去", "相减" a difference. A bare "the first" / "the second"
+before by / from / and or at the end of a clause is an ordinal. "Earns" names net profit and "out-sells" revenue;
+"closed higher / lower" names the close; "percentage-wise" asks a relative difference; "under" is a comparative.
+Opening a conversation, an ordinal or metric comparison with nothing to refer to ("Take the first and divide it by the
+second.") is clarified instead of refused (`frame.opening_comparison`).
+
+**Stated multiples, metric pairs, two industries, totals.** A ratio question that states the multiple it checks
+("茅台的市净率大概是五粮液的1.5倍吗", "Is Ping An's revenue roughly 10 times Wuliangye's?") states the ratio and then
+whether the multiple holds (within 5% for 大约 / about, 2% otherwise; else "不到 / 超过", "less / more than"), in the
+user's own words for the multiple (`frame.claimed_multiple`, `composer._claimed_multiple_verdict`). When the last two
+metric turns asked two different metrics of the same kind about one target ("五粮液的毛利率" → "那净利率呢"), "两个率相差多少
+个点" compares the two metrics with each other (`frame._metric_pair`, reason `frame:difference:<m1>-<m2>:<target>`); a
+derived net margin is written with its net profit and revenue, and the verifier accepts a rate minus such a share. A
+question with two industry names and an industry word ("白酒和保险两个行业的平均市净率") takes the second industry from the
+entity master when the NLU tags only one. "加起来 / 合计 / 一共 / combined / in total" of two operands is a total
+(`operation: "sum"`), only for amounts and counts (a total of P/Es is not a value).
+
+**Holdings, metric aspects.** The cost of buying a count of shares or lots at the last close ("按这个价格，买三手要多少钱",
+"How much would it cost to buy 400 Ping An shares?") is the holding arithmetic (count × close), worded as a purchase
+before commissions and stamp duty (`coverage.holding_purchase`); with a carried target it is never out of scope. An
+industry's turnover rate ("白酒行业今天换手率多少") is answered from its snapshot (`turnover`, a percentage per
+`tools/units.py`) instead of the glossary definition (`coverage.sector_data_question`). A change in yuan with no previous
+close is derived from the close and the reported % change: "1409.5 ÷ (1 − 0.1778%) ≈ 1412.01 元，每股下跌约 2.51 元（推算
+值）"; the verifier accepts that written-out formula only. A total of two rounded amounts is checked against the exact
+evidence values ("CNY 3.79 bn + 1.45 bn: combined CNY 5.25 bn").
+
+**Claims.** "N倍多一点" / "多一些" is a little over N: at most 0.3 of a step (两倍多一点 = 2–2.3×); "N个多百分点" is N
+to N+1 points; "是保险行业的N倍多" is a multiple of another sector's average; "the insurance average" (a sector name
+before "average") is the sector's average; English "less than half / a third / a quarter of X's" is a multiple of X.
+
+| Case | Example (own wording) | Behaviour | Reason code |
+|---|---|---|---|
+| Verb comparative | "贵州茅台的净资产收益率" → "换五粮液看看" → "后一只落后前一只几个百分点" | "两者相差 3.6 个百分点（贵州茅台更高）" | `frame:difference:roe:五粮液\|贵州茅台` |
+| Imperative ratio | "Moutai's price-to-book?" → "Ping An?" → "Take the first and divide it by the second." | "the former is about 7.36 times the latter" | `frame:ratio:pb:…` |
+| Stated multiple | "茅台的市净率大概是五粮液的1.5倍吗" | "前者约为后者的 1.5 倍 … 所以大约是1.5倍。" | `frame:ratio:pb:…` |
+| Two metrics | "五粮液净资产收益率是多少" → "它毛利率是多少" → "这两项差了几个百分点" | "两者相差 46.7 个百分点（毛利率更高）" | `frame:difference:roe-gross_margin:五粮液` |
+| Purchase cost | "五粮液最近收在多少" → "照这个价买五手需要多少钱" | "买入 5 手（500 股）五粮液约需 500 × 100.64 = 50320 元" | `holding_follow_up:500->五粮液` |
+
+**Round-9 review (I1, I3–I7, I9).** Folded into round 13 with own examples (`tests/test_agent_round13_review9.py`,
+12 dev tasks `r13_r9_*`, labels `route_396`–`route_402`; the review's repro strings and its hidden slice are not used):
+
+* **Share** (I1) is its own operation: "A相当于/占/只有 B 的百分之几 / 几成 / 比重", "what percentage / fraction of B",
+  "as a percentage of B" is A ÷ B × 100, written out with the division ("378 亿元 ÷ 823.2 亿元 ≈ 45.92%"), never the
+  relative difference (A − B) ÷ B. The base is the operand written after 相当于 / "of". The LLM fallback reads the
+  same request, so it appends the share. "是不是…的三成以上" is a share checked against the stated tenths.
+* **Totals** (I3) over two or more operands (加起来, 加一块, 合在一起, 再加上, 合计, combined, put together, add up, in
+  total; a list written with 、 is a set of operands), amounts and counts only; with nothing to add up the question is
+  clarified, never refused.
+* **Spread and every pair** (I4): "最高…最低", "highest … lowest" is the highest minus the lowest over all operands;
+  a gap, ratio or share asked of three or more named targets is computed for every pair (higher value first) and the
+  answer says so. No operand is dropped: the template path, when the frame did not read the question, orders the
+  targets instead of computing from the first two. A target's own extremes (最高价/最低价, 52周, "highest close in
+  the last …") are not a spread.
+* **Several holdings** (I5) in one question ("我持有300股五粮液和2手中国平安，一共值多少钱"): each count bound to
+  its own target and unit, each product and the total in one sentence; a bare count ("我还有5手") is the discussed
+  target's.
+* **Verbs and 换几股** (I6): see above; "一股茅台能换几股五粮液" is the ratio of the closes.
+* **Factual multiples** (I7): "double" hedges only as a forecast ("could it double?"); "more than double / at least
+  N times / 两倍还多 / 一半以上 / 有没有…的一半" states the ratio and "是的 / 不是", "So yes / no".
+* **Hong Kong line** (I9): a possessive before "Hong Kong shares / stock" ("Ping An’s Hong Kong stock") is the H
+  share, refused as out of coverage.
+
+`tests/test_agent_eval.py` now compares dev tasks, labels, round-13 tests and claim rows with every committed slice
+(`evaluation/heldout_r*`, found by glob) and the quoted round-4–9 reviewer probes.
+
+Results are in [Evaluation](#evaluation) (round 13).
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) `stated_holdings` ("我持有招商银行", "I own …", up to 5) and (round 11) `comparison_frame`, the comparison under way (metric, operands in order, the values and evidence ids earlier turns found, and a note that those ids must be fetched again to be cited). It is rule-based and bounded, and it is the default.
@@ -739,6 +818,31 @@ no 429, `frame-llm-check-round12.json` at `d315174`): 4 of 5 last turns stated t
 (turnover ratio 4.57, points apart 1.26, carried holding 30192, gap after two falls 0.36). In the fifth the model
 computed the English net margin as a share but the verifier repair removed that sentence (round-8 H8); five sessions
 are a smoke check, not a rate.
+
+**Round 13: the round-8 slice's remaining classes and the round-9 review's I1, I3–I7, I9 (own examples, offline, no
+LLM).** Rules: [Rules added in round 13](#rules-added-in-round-13-round-8-slice-after-exposure). Dev gate 432 → 466
+tasks (22 round-13 and 12 review-9 tasks), task success **1.000**, 0 snapshot misses; held-out gate **0.9434**,
+unchanged; baselines refreshed with `gate --update-baseline` from a clean tree at `eec32eb`. Own router labels
+**1.000** over 403 (`router_eval-round13-own.json`); claim dev rows 299 → 311, verdict and checks **1.000**; held-out
+claims 1.000 / 1.000 (floors 0.978 / 0.98); round-4 slice 1.000 / 0.920, round-5 1.000 / 0.988, round-6 (after
+exposure) 0.985 / 0.904, all unchanged (`claim_bench-*-after-round13.json`). Verifier stress at `b1099d8`
+(`verifier_stress-round13.json`): 299 gold answers, 5,172 variants, true accept 1.000, false accept claim 0.0097, with
+derived numbers 0.0110 (round 12: 0.0107 / 0.0121 on 248 gold answers); a first version of the rate-minus-share rule
+raised the derived false accepts on the same variants from 57 to 97 of 5,135 and was narrowed (`ad9afe6`) before
+that run. Offline red team 0 attack successes and 0 crashes on all eleven sets; `gate --extras-only` passes. pytest
+2,355 passed, 70 skipped; vitest 139. **Real Chrome** (154, driven through Playwright with
+`channel="chrome"`, own context, closed after; the Claude-in-Chrome extension was not connected) against an offline
+server from this worktree on `:8911`: "贵州茅台的净资产收益率" → "换五粮液看看" → "后一只落后前一只几个百分点" answered
+"两者相差 3.6 个百分点（贵州茅台更高）" with both citations and "引用与数字核验通过"; "Moutai's price-to-book?" → "Ping
+An?" → "Take the first and divide it by the second." answered "the former is about 7.36 times the latter"; no console
+errors. **Round-8 slice, after exposure** (round 13 read its 16 failing tasks and 5 wrong claims):
+chat 35/51 → **51/51** (`chat_heldout_r8-auto-nollm-after-exposure-round13.json`), claims 20/25 → **25/25**
+(`claims_heldout_r8-after-exposure-round13.json`), both at `b1099d8`; a first run at `f429ede`, before the review-9
+fixes, gave the same. Round-6 and round-7 chat slices unchanged at 38/38 and 53/53. These say the classes are covered,
+not that the rules generalise; the out-of-sample check is the round-9 reviewer's slice (`heldout_r9`, not opened).
+A sweep of 28 own sessions (shares, totals, spreads, pairs, holdings, purchase cost) against values computed by hand
+from the snapshot found three wrong or missing results before the guards in `173f2b2` (a list written with 、 not read
+as operands, 几倍关系 not a ratio, the template path using the first two of three targets) and none after them.
 
 ```bash
 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r7/chat_r7_heldout.jsonl \

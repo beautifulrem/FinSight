@@ -64,7 +64,14 @@ from .coverage import (
 )
 from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
-from .frame import frame_calls, frame_operation, is_frame_question, metric_of, resolve_frame_question
+from .frame import (
+    frame_calls,
+    frame_operation,
+    is_frame_question,
+    metric_of,
+    opening_comparison,
+    resolve_frame_question,
+)
 from .hearsay import fact_check_for, fact_check_prose
 from .injection import (
     REDACTION_MARKER,
@@ -140,6 +147,8 @@ _MARKET_SCOPE = re.compile(
     r"行业|板块|同行|同业|大盘|市场|\bsector\b|\bindustry\b|\bpeers?\b|\bmarket\b", re.IGNORECASE
 )
 _OWN_TARGET_TYPES = {"stock", "etf", "fund", "index", "macro_indicator", "policy", "sector"}
+# (round 13) a question about industries: industry names written in it are operands of a comparison
+_INDUSTRY_NAMED = re.compile(r"行业|板块|\bsectors?\b|\bindustr(?:y|ies)\b", re.IGNORECASE)
 # Route reason for a short name shared by two companies and read by the alias table's default ("平安" -> 中国平安).
 ALIAS_DEFAULT = "alias_default"
 _DUPLICATE_CALL = (
@@ -466,15 +475,22 @@ class AgentRuntime:
                 decision = decision.model_copy(update={"route": "refuse"})
                 reasons.append("input_guard:prediction_without_target")
         elif (
-            turns
-            and decision.route == "refuse"
+            decision.route == "refuse"
             and not off_topic
             and not instruction_only
             and not outside
             and (
-                is_difference_follow_up(state["query"])
-                or is_comparative_follow_up(state["query"])
-                or is_frame_question(state["query"])
+                (
+                    turns
+                    and (
+                        is_difference_follow_up(state["query"])
+                        or is_comparative_follow_up(state["query"])
+                        or is_frame_question(state["query"])
+                    )
+                )
+                # (round 13) "Divide the second by the first" opening a conversation: a comparison of operands it
+                # refers to by order or by metric, with nothing to refer to yet; ask instead of refusing
+                or (not turns and opening_comparison(state["query"]))
             )
         ):
             # (round 10, F4) "差多少" / "谁更高" in a conversation is never off-topic: when no earlier comparison
@@ -616,6 +632,11 @@ class AgentRuntime:
             for entity in nlu.get("entities") or []
             if entity.get("entity_type") == "sector" and entity.get("canonical_name")
         ]
+        if len(sectors) < 2 and len(named) < 2 and _INDUSTRY_NAMED.search(query):
+            # (round 13) "白酒和保险两个行业的平均市净率差多少": the NLU tags one sector; the other is an industry name
+            # the entity master knows, written in the question
+            written = [name for name in self._industry_names() if name in query]
+            sectors = sorted(dict.fromkeys([*sectors, *written]), key=lambda name: (query.find(name), name))
         framed = resolve_frame_question(query, turns, named, sectors)
         if framed is None:
             return None
@@ -733,6 +754,11 @@ class AgentRuntime:
                 reasons.append("override:out_of_scope_sector_of_discussed_target")
             return patched, reasons
         return nlu, []
+
+    def _industry_names(self) -> list[str]:
+        """Industry names of the entity master (白酒, 保险, 证券, ...), longest first; empty for stub services."""
+        names = {str(row.get("industry_name") or "") for row in self._entity_rows().values()}
+        return sorted((name for name in names if len(name) >= 2), key=len, reverse=True)
 
     def _industry_of(self, symbol: str) -> str | None:
         """The industry name of a listed target (entity master), or ``None``."""

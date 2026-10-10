@@ -1,0 +1,34 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "b1099d8",
+  "run_at": "2026-10-10T12:34:44+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r8/score_claims_r8.py outputs/agent_eval/claims_r8-r13.json",
+  "claims_file": "evaluation/heldout_r8/claims_r8_heldout.jsonl",
+  "claims_sha256": "c01bdbed66d9cf5252ddf3ca3cd0a754d39235d1b342fade96a6599502fb7e9b",
+  "note": "AFTER EXPOSURE (round 13): independent round-8 claim slice rerun at b1099d8 (clean tree, the final round-13 code). The round-13 engineers read the slice's five wrong claims (r8c09, r8c10, r8c15, r8c17, r8c22) and wrote rules for their classes with their own wording (dev rows d300-d311), so this is not an out-of-sample measure. 25/25 = 1.000 (after round 12, out of sample: 20/25 = 0.800; a first round-13 run at f429ede was also 25/25)."
+ },
+ "summary": {
+  "claims": 25,
+  "verdict_accuracy": 1.0,
+  "ci95": [
+   1.0,
+   1.0
+  ],
+  "by_category": {
+   "english_relation": 1.0,
+   "industry_relation": 1.0,
+   "loose_numeral": 1.0,
+   "move_relation": 1.0,
+   "stated_average_order": 1.0,
+   "sum": 1.0,
+   "two_company_difference": 1.0
+  }
+ },
+ "errors": [],
+ "source": {
+  "file": "outputs/agent_eval/claims_r8-r13.json",
+  "sha256_16": "5b844a8855d753c8",
+  "bytes": 11513
+ }
+}

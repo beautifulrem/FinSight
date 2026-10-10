@@ -311,7 +311,10 @@ _POST_COMPARATOR: tuple[tuple[str, re.Pattern[str]], ...] = (
 # "八百多亿", "一千六百余亿", "三倍多", "七倍有余": more than the number but less than the next step of its last
 # significant digit (800多 is 800-900, 三倍多 is 3-4). "三成出头", "八百亿出头": in the lower half of that step
 # (三成出头 is 30%-35%). Round 10 (F7): read as bounded approximations, not as an open "more than".
-_OVER_WORD = re.compile(r"^\s*(?:(多(?!少)|余|有余)|(出头))")
+_OVER_WORD = re.compile(r"^\s*(?:(?P<bit>多(?:一)?(?:些|点儿?))|(?P<more>多(?!少)|余|有余)|(?P<just>出头))")
+# (round 13) "两倍多一点" / "多一些": a little over N, at most 30% of the step above it (two-and-a-bit times is
+# 2-2.3x), tighter than 多 (2-3x) and 出头 (2-2.5x)
+_A_BIT_OVER = 0.3
 _NEGATION = _words(
     r"不是|并非|并不是|绝非|并没有|没有|没(?!有)|未(?!来)|不(?=超|高于|低于|大于|小于|少于|多于|在)|"
     r"\bnot\b|n't\b|\bnever\b|\bno\b(?=\s+(?:more|less|higher|lower|greater|fewer)\b)"
@@ -419,8 +422,9 @@ _RATIO_VERB = (
     r"(?:是|为|相当于|达到?|等于|有|不到|不足|不及|低于|小于|少于|超过|超出|高于|大于|多于|至少|至多|最多|比|连)"
 )
 _RATIO_BEFORE = re.compile(
-    # (round 13) a sector named with 行业 / 板块 is a reference too: "是保险行业的四倍多"
-    rf"(?P<verb>{_RATIO_VERB})\s*{_APPROX_WORDS}\s*(?P<ref>＠+)\s*(?:行业|板块)?\s*(?P<of>的|'s|’s)?\s*{_APPROX_WORDS}\s*$",
+    # (round 13) "是保险行业的四倍多": a sector written with its 行业 / 板块 is the compared side
+    rf"(?P<verb>{_RATIO_VERB})\s*{_APPROX_WORDS}\s*(?P<ref>＠+)\s*(?:行业|板块|\s(?:sector|industry))?\s*"
+    rf"(?P<of>的|'s|’s)?\s*{_APPROX_WORDS}\s*$",
     re.I,
 )
 # A multiple of an industry average (round 9): "市盈率只有白酒行业平均的三分之一", "不到行业均值的一半".
@@ -482,7 +486,7 @@ _CN_NUMERAL = (
 # "一千六百多亿", "八百余亿", "三十多倍": 多 / 余 may stand between the numeral and its unit (round 10, F7).
 # "股价一千四百出头", "一千四百多。" (round 12): a numeral with a place word and no unit, before 出头 or a final 多.
 _CN_BEFORE_UNIT = re.compile(
-    rf"({_CN_NUMERAL})(?=(?:多|余)?(?:倍|%|元|块|亿|万|个百分点|成|点(?![零〇一二三四五六七八九])))|"
+    rf"({_CN_NUMERAL})(?=(?:多|余)?(?:倍|%|元|块|亿|万|个百分点|百分点|成|点(?![零〇一二三四五六七八九])))|"
     rf"((?=[零〇一二两三四五六七八九十百千万]*[十百千万])[零〇一二两三四五六七八九十百千万]{{2,}})"
     r"(?=出头|多(?:[，,。；;！!？?\s]|$))"
 )
@@ -664,7 +668,7 @@ class _Number:
     industry: bool = False  # "而行业平均11.8倍": the number is the target's industry average, not the target's
     # The unit of the last significant written digit (800 → 100, 24.6 → 0.1, 3 → 1): how precise a round number is.
     step: float = 1.0
-    over: Literal["more", "just_over"] | None = None  # "八百多亿" / "三成出头" (see _OVER_WORD)
+    over: Literal["more", "just_over", "a_bit"] | None = None  # "八百多亿" / "三成出头" / "两倍多一点" (_OVER_WORD)
     over_after_unit: bool = False  # "10倍多" (多 after the unit), not "十多倍" (多 before it); see _over_step
     near: bool = False  # "将近900亿", "接近9倍", "nearly 30": approached from below, [0.9N, N] (see _near_holds)
     near_low: float = 0.9  # the lower end of 近N as a share of N; "将近一倍" (one fold) is (80%, 100%] (round 13)
@@ -812,7 +816,8 @@ _SECTOR_EN = {
 }
 _SECTOR_SAME = {"券商": "证券"}  # the NLU's canonical sector name for another alias
 _SECTOR_EN_PHRASE = {
-    name: re.compile(rf"\b(?:{'|'.join(words)})[\s-]+(?:sector|industry|stocks)\b", re.I)
+    # (round 13) "the insurance average": a sector's average written without "industry"
+    name: re.compile(rf"\b(?:{'|'.join(words)})[\s-]+(?:sector|industry|stocks|average)\b", re.I)
     for name, words in _SECTOR_EN.items()
 }
 
@@ -845,6 +850,13 @@ _PMI_LINE = re.compile(
 )
 
 
+_EN_HALF_OF_WORDS = {"half": "0.5", "a third": "0.3333", "one third": "0.3333", "a quarter": "0.25"}
+_EN_HALF_OF = re.compile(
+    r"\b(less than|more than|under|over|about|roughly|nearly|almost|only|just|barely|around|at least|at most|"
+    r"is|are|was|were|earns?|makes?)\s+(half|a third|one third|a quarter)\s+(?:of\s+)?"
+    r"(?=(?:the\s+)?(?-i:[A-Z])|its\b|their\b|that\b)",
+    re.I,
+)
 _EN_MULTIPLES = {"double": 2, "triple": 3, "quadruple": 4}
 _EN_MULTIPLE = re.compile(r"(?<![A-Za-z-])(double|triple|quadruple)\b(?![- ]+digits?\b)", re.I)
 _CN_FRACTION = re.compile(
@@ -902,6 +914,8 @@ def normalise(claim: str) -> str:
     text = _RANGE_UP.sub(lambda m: f"{m.group(1) or ''}高了", text)
     text = _A_LITTLE.sub("", text)
     text = _TIMES_AND_HALF.sub(lambda m: f"{_trim(float(_cn_number(m.group(1))) + 0.5)}倍", text)
+    # (round 13) "less than half of Moutai's net profit": a share of another value is a multiple
+    text = _EN_HALF_OF.sub(lambda m: f"{m.group(1)} {_EN_HALF_OF_WORDS[m.group(2).lower()]} times ", text)
     text = _EN_FRACTION.sub(lambda m: f"{0.5 if m.group(1) else 0.25} {m.group(3)}", text)
     text = _EN_SHARE.sub(_english_share, text)  # "less than a third of CATL's" (round 13, I8)
     text = _EN_WORD_NUMBER.sub(
@@ -1904,7 +1918,7 @@ def _read_comparator(number: _Number, stretch: str, after: str) -> None:
         comparator = next((name for name, pattern in _POST_COMPARATOR if pattern.search(after)), "eq")
         over = _OVER_WORD.match(after)
         if over and comparator == "gt":
-            number.over = "more" if over.group(1) else "just_over"
+            number.over = "a_bit" if over.group("bit") else "more" if over.group("more") else "just_over"
             number.over_after_unit = True
     if comparator == "eq":
         # The comparator word closest to the number ("不是超过" is still about "超过").
@@ -1924,7 +1938,9 @@ def _read_comparator(number: _Number, stretch: str, after: str) -> None:
     if comparator == "gt" and number.over and number.high is None and number.value >= 0:
         # "八百多亿" is 800 < x < 900; "三成出头" is 30% < x <= 35% (the upper bound is kept in ``high``).
         step = _over_step(number)
-        number.high = number.value + (step if number.over == "more" else step / 2)
+        number.high = number.value + (
+            step if number.over == "more" else step * _A_BIT_OVER if number.over == "a_bit" else step / 2
+        )
     else:
         number.over = None
 
@@ -3125,7 +3141,8 @@ def _check_ratio(number: _Number, base: ClaimCheck, actual: float, value: float)
         "eq": close,
         "approx": close,
         "ne": not close,
-        "gt": ratio > claimed and (not bounded or ratio < (high or 0.0) + (1e-9 if number.over == "just_over" else 0)),
+        "gt": ratio > claimed
+        and (not bounded or ratio < (high or 0.0) + (1e-9 if number.over in {"just_over", "a_bit"} else 0)),
         "ge": ratio >= claimed,
         "lt": ratio < claimed,
         "le": ratio <= claimed,
@@ -3171,7 +3188,7 @@ def _check_difference(number: _Number, base: ClaimCheck, actual: float, value: f
         close = scaled > 0 and _near_holds(number, bound, scaled)  # "低了近10%": 9%-10%
     if comparator == "gt" and number.over and number.high is not None:
         high = abs(number.high)
-        holds = bound < scaled <= high + 1e-9 if number.over == "just_over" else bound < scaled < high
+        holds = bound < scaled <= high + 1e-9 if number.over in {"just_over", "a_bit"} else bound < scaled < high
     else:
         holds = {
             "eq": close,
@@ -3286,7 +3303,7 @@ def _compare(number: _Number, actual: float, *, declared_percent: bool = False) 
         # "八百多亿": above the number and below its next step; for a move, on the size of the move.
         size = expected * number.direction if number.direction is not None else expected
         low, high = abs(claimed) if number.direction is not None else claimed, abs(number.high)
-        holds = low < size <= high + 1e-9 if number.over == "just_over" else low < size < high
+        holds = low < size <= high + 1e-9 if number.over in {"just_over", "a_bit"} else low < size < high
     elif number.direction is not None:
         # "跌超1%" is about the size of the fall: change <= -1. "跌不到1%": -1 < change <= 0 (a rise is not a
         # smaller fall). Negated bounds ("没有跌超过1%") hold for a move the other way.
