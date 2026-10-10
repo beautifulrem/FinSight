@@ -1,0 +1,1351 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "7ea8f5d",
+  "run_at": "2026-10-10T20:32:55+00:00",
+  "command": "python -m evaluation.real_claims_web_v3.score_claims_web_v3",
+  "exposure": "blind first run",
+  "snapshot": "offline v1 + 2026-09-30 extension + corrections layer (QI_OFFLINE_SNAPSHOT_EXT and QI_OFFLINE_SNAPSHOT_FIX on, the shipped default), no LLM",
+  "labels": "evaluation/real_claims_web_v3/claims_web_v3.jsonl (label_claims_web_v3, definition-aware; expected_verdict_definition_blind reported alongside)",
+  "note": "engineer-collected real published claims, blind first run (third set): collected, labelled and committed before the checker's code, its tests or any review report were read; the collector had read the first set's error classes (named in the v2 protocol) and the offline data, not the second set's error classes; the search agents had seen neither",
+  "notes": [
+   "engineer-collected real published claims, blind first run (third set): collected, labelled and committed before the checker's code, its tests or any review report were read; the collector had read the first set's error classes (named in the v2 protocol) and the offline data, not the second set's error classes; the search agents had seen neither"
+  ]
+ },
+ "summary": {
+  "claims": 50,
+  "verdict_accuracy": 0.54,
+  "ci95": [
+   0.4,
+   0.68
+  ],
+  "by_category": {
+   "annual_figures": 0.625,
+   "annual_ratios": 1.0,
+   "daily_price": 0.8,
+   "english_or_traditional": 0.375,
+   "loose_or_relational": 0.389,
+   "market_value": 0.333
+  },
+  "by_category_counts": {
+   "annual_figures": {
+    "n": 8,
+    "correct": 5,
+    "accuracy": 0.625
+   },
+   "annual_ratios": {
+    "n": 3,
+    "correct": 3,
+    "accuracy": 1.0
+   },
+   "daily_price": {
+    "n": 10,
+    "correct": 8,
+    "accuracy": 0.8
+   },
+   "english_or_traditional": {
+    "n": 8,
+    "correct": 3,
+    "accuracy": 0.375
+   },
+   "loose_or_relational": {
+    "n": 18,
+    "correct": 7,
+    "accuracy": 0.389
+   },
+   "market_value": {
+    "n": 3,
+    "correct": 1,
+    "accuracy": 0.333
+   }
+  },
+  "by_source_type": {
+   "broker": {
+    "n": 4,
+    "correct": 3,
+    "accuracy": 0.75
+   },
+   "company": {
+    "n": 4,
+    "correct": 3,
+    "accuracy": 0.75
+   },
+   "media": {
+    "n": 26,
+    "correct": 17,
+    "accuracy": 0.654
+   },
+   "social": {
+    "n": 16,
+    "correct": 4,
+    "accuracy": 0.25
+   }
+  },
+  "by_social_platform": {
+   "Instagram": {
+    "n": 1,
+    "correct": 0,
+    "accuracy": 0.0
+   },
+   "Substack": {
+    "n": 1,
+    "correct": 0,
+    "accuracy": 0.0
+   },
+   "东方财富股吧/财富号": {
+    "n": 1,
+    "correct": 0,
+    "accuracy": 0.0
+   },
+   "东方财富财富号": {
+    "n": 5,
+    "correct": 3,
+    "accuracy": 0.6
+   },
+   "搜狐号": {
+    "n": 1,
+    "correct": 0,
+    "accuracy": 0.0
+   },
+   "新浪看点": {
+    "n": 1,
+    "correct": 0,
+    "accuracy": 0.0
+   },
+   "新浪财经头条": {
+    "n": 1,
+    "correct": 0,
+    "accuracy": 0.0
+   },
+   "澎湃号": {
+    "n": 1,
+    "correct": 1,
+    "accuracy": 1.0
+   },
+   "知乎": {
+    "n": 1,
+    "correct": 0,
+    "accuracy": 0.0
+   },
+   "雪球": {
+    "n": 3,
+    "correct": 0,
+    "accuracy": 0.0
+   }
+  },
+  "by_lang": {
+   "en": {
+    "n": 8,
+    "correct": 3,
+    "accuracy": 0.375
+   },
+   "zh": {
+    "n": 42,
+    "correct": 24,
+    "accuracy": 0.571
+   }
+  },
+  "by_expected_verdict": {
+   "contradicted": {
+    "n": 6,
+    "correct": 3,
+    "accuracy": 0.5
+   },
+   "partially_supported": {
+    "n": 21,
+    "correct": 15,
+    "accuracy": 0.714
+   },
+   "supported": {
+    "n": 21,
+    "correct": 7,
+    "accuracy": 0.333
+   },
+   "unverifiable": {
+    "n": 2,
+    "correct": 2,
+    "accuracy": 1.0
+   }
+  },
+  "against_definition_blind_labels": {
+   "verdict_accuracy": 0.5,
+   "ci95": [
+    0.36,
+    0.64
+   ]
+  },
+  "got_counts": {
+   "contradicted": 8,
+   "partially_supported": 19,
+   "supported": 7,
+   "unverifiable": 16
+  }
+ },
+ "errors": [
+  {
+   "id": "x01",
+   "category": "loose_or_relational",
+   "source_type": "media",
+   "claim": "创业板ETF易方达（159915，联接基金A/C/Y：110026/004744/022907）全天成交额近70亿元，较上日大幅放量",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "易方达创业板ETF联接Y",
+     "metric": "amount",
+     "comparator": "approx",
+     "claimed": 70.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_data",
+     "note": "no data for this metric"
+    }
+   ]
+  },
+  {
+   "id": "x02",
+   "category": "loose_or_relational",
+   "source_type": "media",
+   "claim": "华夏上证科创板50成份ETF(588000)今日成交额68.50亿元，较上一交易日增加8.28亿元，环比增幅为13.75%",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "partially_supported",
+   "checks": [
+    {
+     "target": "科创50",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 0.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "科创50ETF华夏",
+     "metric": "amount",
+     "comparator": "eq",
+     "claimed": 68.5,
+     "actual": 6849531379.0,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "科创50ETF华夏",
+     "metric": "amount",
+     "comparator": "eq",
+     "claimed": 8.28,
+     "actual": 6849531379.0,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "科创50ETF华夏",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 13.75,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x04",
+   "category": "daily_price",
+   "source_type": "media",
+   "claim": "截至收盘，沪指涨0.52%，深成指涨1.3%，创业板指涨1.73%。",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "contradicted",
+   "checks": [
+    {
+     "target": "上证指数",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 0.52,
+     "actual": 0.3066,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "深证成指",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 1.3,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_data",
+     "note": "no data for this metric"
+    },
+    {
+     "target": "创业板指",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 1.73,
+     "actual": -0.2318,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "x05",
+   "category": "loose_or_relational",
+   "source_type": "media",
+   "claim": "4月22日，A股大盘指数延续上涨势头，上证指数收盘指数站上4100点，创业板指收盘指数创下近10年新高。",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "上证指数",
+     "metric": "pct_change_1d",
+     "comparator": "gt",
+     "claimed": 0.0,
+     "actual": 0.3066,
+     "status": "unverifiable",
+     "reason": "period_mismatch",
+     "note": "the claim is about 04-22; the data is for the trading day 2026-09-30"
+    },
+    {
+     "target": "上证指数",
+     "metric": "close",
+     "comparator": "gt",
+     "claimed": 4100.0,
+     "actual": 3842.195,
+     "status": "unverifiable",
+     "reason": "period_mismatch",
+     "note": "the claim is about 04-22; the data is for the trading day 2026-09-30"
+    }
+   ]
+  },
+  {
+   "id": "x06",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "截至收盘，上证指数上涨0.52%，报收4106.26点，成功重返4100点整数关口",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "contradicted",
+   "checks": [
+    {
+     "target": "上证指数",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 0.52,
+     "actual": 0.3066,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "上证指数",
+     "metric": "close",
+     "comparator": "eq",
+     "claimed": 4106.26,
+     "actual": 3842.195,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "上证指数",
+     "metric": "close",
+     "comparator": "eq",
+     "claimed": 4100.0,
+     "actual": 3842.195,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "x07",
+   "category": "english_or_traditional",
+   "source_type": "media",
+   "claim": "the Shanghai Composite resumes where it ended September, at 3,842.",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "上证指数",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 3842.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x08",
+   "category": "daily_price",
+   "source_type": "social",
+   "claim": "上证指数开3839.25，最高3851.22，最低3833.09，收3842.19，涨11.74点（+0.31%）。",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "partially_supported",
+   "checks": [
+    {
+     "target": "上证指数",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 3839.25,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "上证指数",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 3851.22,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "上证指数",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 3833.09,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "上证指数",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 3842.19,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "上证指数",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 11.74,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "unit_mismatch",
+     "note": "the unit '点' does not fit pct_change_1d"
+    },
+    {
+     "target": "上证指数",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 0.31,
+     "actual": 0.3066,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "x10",
+   "category": "market_value",
+   "source_type": "media",
+   "claim": "中信证券当前市盈TTM为10.19，低于行业中位数，在过去5年中处于个股0.08%的位置。",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "中信证券",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 10.19,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "中信证券",
+     "metric": null,
+     "comparator": "lt",
+     "claimed": null,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "the compared metric is not named"
+    },
+    {
+     "target": "中信证券",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 0.08,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x13",
+   "category": "english_or_traditional",
+   "source_type": "media",
+   "claim": "China's Ping An Insurance (601318.SS) reported a 6.45% year-on-year rise in net profit in 2025",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "中国平安",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 6.45,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x14",
+   "category": "loose_or_relational",
+   "source_type": "broker",
+   "claim": "其中，国寿、平安、太保、人保、新华分别为1541、1348、535、466、363亿元",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "中国平安",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 1541.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "中国平安",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 1348.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "中国平安",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 535.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "中国平安",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 466.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "中国平安",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 363.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x15",
+   "category": "annual_figures",
+   "source_type": "social",
+   "claim": "中国平安,收入1.05万亿,利润增7%到1348亿",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "partially_supported",
+   "checks": [
+    {
+     "target": "中国平安",
+     "metric": "revenue",
+     "comparator": "eq",
+     "claimed": 1.05,
+     "actual": 1050506000000.0,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "中国平安",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 7.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "中国平安",
+     "metric": "revenue",
+     "comparator": "eq",
+     "claimed": 1348.0,
+     "actual": 1050506000000.0,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "x16",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "对于到天，中国平安日赚3.68亿，堪称“超级印钞机”。",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "中国平安",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 3.68,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x18",
+   "category": "annual_figures",
+   "source_type": "company",
+   "claim": "中芯国际全年实现销售收入人民币673.23 亿元，同比增长16.5%，继续巩固全球纯晶圆代工企业第二位置",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "contradicted",
+   "checks": [
+    {
+     "target": "宁德时代",
+     "metric": "revenue",
+     "comparator": "eq",
+     "claimed": 673.23,
+     "actual": 423702000000.0,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "宁德时代",
+     "metric": "revenue_yoy",
+     "comparator": "eq",
+     "claimed": 16.5,
+     "actual": 17.0406,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "x23",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "五粮液净利润降幅为71.9%，显著大于营收降幅的54.6%",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "contradicted",
+   "checks": [
+    {
+     "target": "五粮液",
+     "metric": "netprofit_yoy",
+     "comparator": "eq",
+     "claimed": 71.9,
+     "actual": -71.89,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "五粮液",
+     "metric": "revenue_yoy",
+     "comparator": "gt",
+     "claimed": 54.6,
+     "actual": -54.55,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "x29",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "工商银行的利润从2003年的223.7亿增加到2025年的3686亿，翻了16.5倍",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "工商银行",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 223.7,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "工商银行",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 3686.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "工商银行",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 16.5,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x32",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "平安银行与招行的ROE差距（~9% vs 13.44%）预计2026年仍难以明显收敛。",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "招商银行",
+     "metric": "roe",
+     "comparator": "approx",
+     "claimed": 9.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "forecast",
+     "note": "a forecast or hypothetical, not a reported fact"
+    },
+    {
+     "target": "招商银行",
+     "metric": "roe",
+     "comparator": "eq",
+     "claimed": 13.44,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "forecast",
+     "note": "a forecast or hypothetical, not a reported fact"
+    }
+   ]
+  },
+  {
+   "id": "x33",
+   "category": "market_value",
+   "source_type": "media",
+   "claim": "招商银行当前市盈TTM为6.86，高于行业中位数，在过去5年中处于个股59.01%的位置。",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "招商银行",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 6.86,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "招商银行",
+     "metric": null,
+     "comparator": "gt",
+     "claimed": null,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "the compared metric is not named"
+    },
+    {
+     "target": "招商银行",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 59.01,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x34",
+   "category": "english_or_traditional",
+   "source_type": "social",
+   "claim": "China Merchants Bank delivered RMB 150.2 billion in net profit for FY2025, growing 1.21% year-over-year",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "招商银行",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 150.2,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "招商银行",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 1.21,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x37",
+   "category": "english_or_traditional",
+   "source_type": "social",
+   "claim": "The company BYD reported RMB 803.97 billion in revenue and RMB 32.62 billion in net profit",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "contradicted",
+   "checks": [
+    {
+     "target": "比亚迪",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 803.97,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "比亚迪",
+     "metric": "revenue",
+     "comparator": "eq",
+     "claimed": 32.62,
+     "actual": 803965000000.0,
+     "status": "contradicted",
+     "reason": null,
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "x41",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "紫金矿业这份“日赚近1.4亿元”的业绩，不仅刷新了公司自身的历史纪录",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "紫金矿业",
+     "metric": null,
+     "comparator": "approx",
+     "claimed": 1.4,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x47",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "茅台一天赚4.7个亿。",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "贵州茅台",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 4.7,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x48",
+   "category": "english_or_traditional",
+   "source_type": "media",
+   "claim": "In 2025, China Yangtze Power's revenue was 86.24 billion, an increase of 2.07% compared to the previous year's 84.49 billion.",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "partially_supported",
+   "checks": [
+    {
+     "target": "长江电力",
+     "metric": "revenue",
+     "comparator": "eq",
+     "claimed": 86.24,
+     "actual": 86242000000.0,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "长江电力",
+     "metric": "revenue_yoy",
+     "comparator": "eq",
+     "claimed": 2.07,
+     "actual": 2.0713,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "长江电力",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 84.49,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    }
+   ]
+  },
+  {
+   "id": "x50",
+   "category": "annual_figures",
+   "source_type": "social",
+   "claim": "2025年，长江电力实现营业总收入862.42亿元，同比增长2.07%",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "长江电力",
+     "metric": "revenue",
+     "comparator": "eq",
+     "claimed": 862.42,
+     "actual": 86242000000.0,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names 营业总收入 (total operating revenue) revenue; the data's revenue is 营业收入 (operating revenue), a different definition"
+    },
+    {
+     "target": "长江电力",
+     "metric": "revenue_yoy",
+     "comparator": "eq",
+     "claimed": 2.07,
+     "actual": 2.0713,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names 营业总收入 (total operating revenue) revenue_yoy; the data's revenue_yoy is 营业收入 (operating revenue), a different definition"
+    }
+   ]
+  }
+ ],
+ "results": [
+  {
+   "id": "x01",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x02",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "partially_supported",
+   "ok": false
+  },
+  {
+   "id": "x03",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x04",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "contradicted",
+   "ok": false
+  },
+  {
+   "id": "x05",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x06",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "contradicted",
+   "ok": false
+  },
+  {
+   "id": "x07",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x08",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "partially_supported",
+   "ok": false
+  },
+  {
+   "id": "x09",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x10",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x11",
+   "expected": "unverifiable",
+   "expected_definition_blind": "contradicted",
+   "got": "unverifiable",
+   "ok": true
+  },
+  {
+   "id": "x12",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x13",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x14",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x15",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "partially_supported",
+   "ok": false
+  },
+  {
+   "id": "x16",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x17",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x18",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "contradicted",
+   "ok": false
+  },
+  {
+   "id": "x19",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "x20",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x21",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x22",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x23",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "contradicted",
+   "ok": false
+  },
+  {
+   "id": "x24",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x25",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x26",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "x27",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x28",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x29",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x30",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x31",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x32",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x33",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x34",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x35",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x36",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x37",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "contradicted",
+   "ok": false
+  },
+  {
+   "id": "x38",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x39",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x40",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x41",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x42",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x43",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x44",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x45",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "x46",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x47",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x48",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "partially_supported",
+   "ok": false
+  },
+  {
+   "id": "x49",
+   "expected": "unverifiable",
+   "expected_definition_blind": "contradicted",
+   "got": "unverifiable",
+   "ok": true
+  },
+  {
+   "id": "x50",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "ok": false
+  }
+ ]
+}
