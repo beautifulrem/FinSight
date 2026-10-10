@@ -98,3 +98,9 @@ Round-11 rows (`note: round11`, d269-d276) cover the round-7 review's G12: "N倍
 10-11, so 11.23 contradicts it; 十多倍 stays 10-20; 11倍多; 1倍多 below 10) and 将近 / 接近 N read as [0.9N, N] (将近900亿
 against 823.2亿 supported, 接近800亿 contradicted, 将近24倍 against 24.6 contradicted, 接近25倍 supported). d269 and d273 are
 the review's own repro claims; every label follows the written rule and the offline values in its `basis` field.
+
+Round 15 relabelled three rows for a new convention (the third real-claims set's date class): a daily figure (close,
+change, turnover) in a claim that states no date and names no latest session (今天 / 最新 / 股价 / today …) is checked
+against the latest session only when it fits; otherwise it is unverifiable (`period_mismatch`), because a published
+sentence is dated by its article. d022 ("贵州茅台收盘价1500元") and d216 ("五粮液当天成交额超过20亿元") are now
+unverifiable, and d208's second check ("茅台收盘价1500元") too (its verdict stays partially supported).
