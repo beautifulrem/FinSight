@@ -55,6 +55,7 @@ P/E and P/B the valuation date when the source gives one, see ``as_of_basis``).
 
 from __future__ import annotations
 
+import itertools
 import math
 import re
 from dataclasses import dataclass, field, replace
@@ -119,7 +120,11 @@ _METRICS: dict[str, _Metric] = {
         _words(
             # (round 14) 报 / 报收 before the price ("报291.11元/股", "报收7.472元")
             r"收盘价?|收于|收报|报收于?|(?<![年季快研周月日电预公通情简汇画海警])报(?=\s*(?:[\d＠]|$))|股价|现价|价格|报价|"
+            # (round 15) a bar written item by item: "开3839.25，最高3851.22，最低3833.09，收3842.19"
+            r"(?:(?<=[，,、；;\s])|^)收(?=\s*[\d\u2063])|"
             r"最新价|点位|\bclos(?:e|ed|ing)\b|"
+            # (round 15) "the index ended September at 3,842": the close of the period's last session
+            r"\b(?:ended|finished|settled)\b(?:\s+[A-Za-z]+){0,2},?\s+at\b|"
             r"\bshare price\b|\bprice\b(?![- ]to[- ])"
         ),
         frozenset({_PRICE, _POINTS, None}),
@@ -151,11 +156,45 @@ _METRICS: dict[str, _Metric] = {
         frozenset({_SHARES}),
         fundamental=False,
     ),
+    # (round 15) the session's open, high and low ("开3839.25", "开盘3136.53点", "最高3851.22", "opened at 3,839")
+    "open": _Metric(
+        ("open",),
+        _words(
+            r"开盘价?|今开|(?:(?<=[，,、；;\s＠])|^)开(?=\s*(?:为|报|于|在|:|：)?\s*[\d\u2063])|"
+            r"\bopen(?:ed|ing)?(?: price)?\b(?=\s+(?:at\s+)?(?:RMB|CNY)?\s*[\d\u2063])|\bopening price\b"
+        ),
+        frozenset({_PRICE, _POINTS, None}),
+        fundamental=False,
+    ),
+    "high": _Metric(
+        ("high",),
+        _words(
+            r"最高价|最高点位|(?<!52周)(?<!年内)最高(?=\s*(?:价|点|为|报|达|:|：)?\s*[\d\u2063])|日内高点|"
+            r"\b(?:intraday |session |day's )?high(?: of)?\b(?=\s+(?:of\s+)?(?:RMB|CNY)?\s*[\d\u2063])"
+        ),
+        frozenset({_PRICE, _POINTS, None}),
+        fundamental=False,
+    ),
+    "low": _Metric(
+        ("low",),
+        _words(
+            r"最低价|最低点位|(?<!52周)(?<!年内)最低(?=\s*(?:价|点|为|报|达|:|：)?\s*[\d\u2063])|日内低点|"
+            r"\b(?:intraday |session |day's )?low(?: of)?\b(?=\s+(?:of\s+)?(?:RMB|CNY)?\s*[\d\u2063])"
+        ),
+        frozenset({_PRICE, _POINTS, None}),
+        fundamental=False,
+    ),
+    # (round 15) the change of the session in 元 / 点 ("涨11.74点", "上涨4.31元"): close minus the previous close
+    "change_1d": _Metric(("change_1d",), None, frozenset({_PRICE, _POINTS}), fundamental=False, directional=True),
+    # (round 15) the change of turnover from the previous session ("较上一交易日增加8.28亿元", "环比增幅为13.75%")
+    "amount_change_1d": _Metric(("amount_change_1d",), None, frozenset({_AMOUNT}), fundamental=False, directional=True),
+    "amount_change_pct_1d": _Metric(("amount_change_pct_1d",), None, _RATIO, fundamental=False, directional=True),
     # (round 14) named so that "换手率1.88%" is not read as the daily change; no source carries it
     "turnover_rate": _Metric(("turnover_rate",), _words(r"换手率|\bturnover rate\b"), _RATIO, fundamental=False),
     "pe_ttm": _Metric(
         ("pe_ttm", "pe"),
-        _words(r"市盈率|(?<![A-Za-z])P/?E(?![A-Za-z])|price[- ]to[- ]earnings"),
+        # (round 15) "市盈TTM", "市盈(TTM)": the rate character left out
+        _words(r"市盈率|市盈(?=\s*[（(]?\s*TTM)|(?<![A-Za-z])P/?E(?![A-Za-z])|price[- ]to[- ]earnings"),
         frozenset({_MULTIPLE, None}),
     ),
     "pb": _Metric(
@@ -177,6 +216,9 @@ _METRICS: dict[str, _Metric] = {
             r"(?<!扣非)(?<!扣非后)(?<!扣非后的)(?<!扣非归母)(?<!损益后)(?<!损益后的)(?<!损益的)"
             # (round 15) a bare 归母 is the attributable net profit ("扣非比归母少了近27亿")
             r"(?:归母净利润|净利润|净利(?!率)|归母(?!净|股东|所有者|权益|口径))(?!\s*[（(]\s*扣非)|净赚|赚的钱|"
+            # (round 15) a bare 利润 ("工行的利润3686亿", "利润增7%到1348亿"); never 利润总额 / 营业利润 / 毛利润 /
+            # 总利润
+            r"(?<![净毛总营业润非])(?<!扣非)利润(?!总额|率|表|分配|中心|总)|"
             r"(?:一年|全年|年度?)能?赚了?|"
             # (round 14) "net profit attributable to shareholders of the parent company was …": the whole phrase, so
             # the number after it is within reach
@@ -187,6 +229,16 @@ _METRICS: dict[str, _Metric] = {
             r"\bearn(?:s|ed)?\b(?!\s+(?:per|a\b|an\b))"
         ),
         frozenset({_AMOUNT, _PRICE, None}),
+    ),
+    # (round 15) a daily average of the year's net profit ("日赚3.68亿", "平均每天净赚约3.7亿元", "a day"): the year's
+    # profit divided by 365 calendar days (``_derived``); a day's earnings without an average word are not this
+    "net_profit_daily": _Metric(
+        ("net_profit_daily",),
+        _words(
+            r"日赚|日均(?:净)?(?:利润|净利润?|盈利|赚)|(?:平均)?每(?:天|日)(?:能|可以)?净?赚|一天(?:能|可以)?净?赚|"
+            r"\b(?:a|per) day\b|\bdaily (?:net )?(?:profit|earnings)\b"
+        ),
+        frozenset({_AMOUNT, _PRICE}),
     ),
     # (round 14, J12) net profit after non-recurring items: its own metric, never checked against 归母 net profit.
     # The words are longer than net profit's, so the longer match wins where both end at the same character.
@@ -333,8 +385,15 @@ _MACRO_NAMES = {
 # Industry snapshots (get_fundamentals' industry_sql item) name some metrics differently.
 _INDUSTRY_KEYS = {"pe_ttm": ("pe_ttm", "pe"), "pb": ("pb",), "pct_change_1d": ("pct_change", "pct_change_1d")}
 _GROWTH_OF = {"revenue": "revenue_yoy", "net_profit": "netprofit_yoy", "profit_dedt": "profit_dedt_yoy"}
-_LEVELS = {"revenue", "net_profit", "profit_dedt", "eps"}  # flows: an interim report holds a year-to-date total
+_LEVELS = {
+    "revenue",
+    "net_profit",
+    "profit_dedt",
+    "eps",
+    "net_profit_daily",
+}  # flows: an interim report holds a year-to-date total
 _DAILY = {"pct_change_1d", "amount", "volume"}  # one session's value: "本周" / "近5日" is a multi-day claim
+_DAILY |= {"open", "high", "low", "change_1d", "amount_change_1d", "amount_change_pct_1d"}  # (round 15)
 # (round 14, J12) a change against the same period a year earlier
 _YOY = re.compile(
     r"同比|较上年|比上年|上年同期|去年同期|\bYoY\b|\by/y\b|year[- ](?:on|over)[- ]year|"
@@ -354,7 +413,7 @@ _CHANGE_BEFORE = re.compile(
 # (round 14) reported flows (and per-share earnings) whose move ("advanced 6.6%") is a year-on-year change
 _FLOW_LEVELS = frozenset({"revenue", "net_profit", "profit_dedt", "eps"})
 _GROWTH_WORDS = re.compile(
-    r"同比|环比|增速|增幅|增长|下降|下滑|减少|\bYoY\b|year[- ]on[- ]year|\bgrowth\b|\bgrew\b", re.I
+    r"同比|环比|增速|增幅|增长|下降|下滑|减少|降幅|减幅|\bYoY\b|year[- ]on[- ]year|\bgrowth\b|\bgrew\b", re.I
 )
 
 _UNIT = re.compile(
@@ -562,7 +621,8 @@ _UP_WORDS = re.compile(
     re.I,
 )
 _DOWN_WORDS = re.compile(
-    r"大跌|收跌|下跌|跌幅|跌了|下挫|走低|下降|下滑|减少|回落|下行|跌(?![停破到至])|"
+    # (round 15) 降幅 / 减幅 / 缩减 / 萎缩 / 缩量: a decline ("净利润降幅为71.9%" is -71.9)
+    r"大跌|收跌|下跌|跌幅|跌了|下挫|走低|下降|下滑|减少|回落|下行|降幅|减幅|降低|缩减|萎缩|缩量|跌(?![停破到至])|"
     r"\b(?:fell|fall(?:s|en)?|dropped|drops?|declined|declines?|decreased?|slipped|slumped|lost|shed|went down|"
     r"go down|(?:was|is|closed|ended) (?:down|lower))\b|\bdown\b",
     re.I,
@@ -617,7 +677,7 @@ _HALF_AFTER_COMPARISON = re.compile(
     r"(?<=[高低多少大小贵])(了|出)?\s*((?:将近|接近|近|约|大约|大概|超过|不到|足足)?)\s*一半(?!以上|以下)"
 )
 _CN_PERCENT = re.compile(rf"百分之\s*({_CN_NUMERAL}|\d+(?:\.\d+)?)")
-_TENTHS = re.compile(r"(\d+(?:\.\d+)?)成(?![交本功为])")
+_TENTHS = re.compile(r"(\d+(?:\.\d+)?)成(?![交本功为份分员])")  # (round 15) "科创板50成份ETF" is not 500%
 
 _LOOK_BEHIND = 40
 _LOOK_AHEAD = 8
@@ -832,6 +892,9 @@ class _Number:
     currency: str | None = None  # (round 14) "590亿美元", "US$110 billion": not a CNY amount
     cue: tuple[int, int] | None = None  # a difference's comparison word ("above" in "40 billion yuan above …")
     reference_at: int | None = None  # (round 15) where a multiple's compared side is named ("是宁德时代的1.9倍")
+    prior_year: bool = False  # (round 15) "上年为844.9亿元", "the previous year's 84.49 billion": level / (1 + YoY)
+    anchored: bool = False  # (round 15) the claim names the latest session ("今天", "最新", "today") or a date
+    bare_profit: bool = False  # (round 15) the metric came from a bare 利润 (read as net profit, said in the note)
 
 
 def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = True) -> ClaimReport:
@@ -1020,7 +1083,7 @@ _EN_MULTIPLE = re.compile(r"(?<![A-Za-z-])(double|triple|quadruple)\b(?![- ]+dig
 _CN_FRACTION = re.compile(
     r"的\s*([一二两三四五六七八九十]+|[1-9]\d?)\s*分之\s*([一二两三四五六七八九十]+|[1-9]\d?)(?!\s*[倍%])"
 )
-_OF_TENTHS = re.compile(r"的\s*([一二两三四五六七八九]|[1-9](?:\.\d)?)\s*成(?![交本功为])")
+_OF_TENTHS = re.compile(r"的\s*([一二两三四五六七八九]|[1-9](?:\.\d)?)\s*成(?![交本功为份分员])")
 _CN_POINTS = re.compile(rf"(\d+(?:\.\d+)?|{_CN_NUMERAL})\s*个\s*(多|余)?\s*百分点")
 # (round 13, I8) "三倍半" is 3.5 times (before round 13 the 半 was dropped and a true 3.52 was contradicted)
 _TIMES_AND_HALF = re.compile(rf"({_CN_NUMERAL}|\d+)\s*倍半")
@@ -1063,6 +1126,8 @@ def normalise(claim: str) -> str:
     # "三百分点" and was read as nothing, "三个多" stayed unread)
     text = _CN_POINTS.sub(lambda m: f"{_cn_number(m.group(1))}{m.group(2) or ''}百分点", text)
     text = text.replace("个百分点", "百分点")  # "42个" would read as a count
+    # (round 15) "4.7个亿", "两个亿": the 个 before 亿 / 万亿 is a measure word
+    text = re.sub(r"(?<=[\d一二两三四五六七八九十百千])\s*个(?=亿|万亿)", "", text)
     # (round 13, I8) the 52-week high / low as a reference, "a little" and "X倍半", before the numerals are read
     text = _RANGE_52W_ZH.sub(lambda m: _RANGE_TOKEN["high" if m.group("high") else "low"], text)
     text = _RANGE_52W_EN.sub(lambda m: f"fifty-two-week {m.group(1).lower()}", text)
@@ -1488,17 +1553,27 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
             if number.metric == "pct_change_1d":
                 number.direction = _direction(text[clause_start : number.start])
         else:
-            _metric_for(
-                number,
-                before,
-                after,
-                norm[clause_start:clause_end],
-                previous,
-                plain_before=plain[max(clause_start, number.start - _LOOK_BEHIND) : number.start],
-                plain_after=plain[number.end : min(clause_end, number.end + _LOOK_AHEAD)],
-            )
+            sentence_start, _sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+            english = _english_metric_after(number, text, clause_end)
+            if english:
+                pass  # (round 15) "RMB 32.62 billion in net profit", "a 6.45% year-on-year rise in net profit"
+            elif _prior_year_value(number, plain, clause_start, sentence_start, previous):
+                pass  # (round 15) "上年为844.9亿元", "the previous year's 84.49 billion"
+            else:
+                _metric_for(
+                    number,
+                    before,
+                    after,
+                    norm[clause_start:clause_end],
+                    previous,
+                    plain_before=plain[max(clause_start, number.start - _LOOK_BEHIND) : number.start],
+                    plain_after=plain[number.end : min(clause_end, number.end + _LOOK_AHEAD)],
+                )
+            # (round 15) "较上一交易日增加8.28亿元", "环比增幅为13.75%": turnover against the previous session
+            _turnover_change(number, text, clause_start, sentence_start)
             # "跌超1%" / "fell more than 0.1%": the sign of the move word (a written "-0.18" is already negative).
-            _apply_direction(number, stretch[-_DIRECTION_WINDOW:])
+            if not english and number.metric not in {"amount_change_1d", "amount_change_pct_1d"}:
+                _apply_direction(number, stretch[-_DIRECTION_WINDOW:])
             number.industry = _industry_subject(text, number.start, positions, max(clause_start, previous_end))
             if number.metric is None:
                 # "茅台和五粮液的市盈率，分别是24.6倍和20.9倍": the metric named earlier in the sentence (after the
@@ -1515,6 +1590,15 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
                 # (round 15, K6) "三家的平均市盈率约6.6倍": the mean of the named companies, not the last one's value
                 number.target, number.bound = _aggregate_target("mean", mean_of), True
         number.currency = _currency(text, number)
+        if number.metric in {"net_profit", "netprofit_yoy"} and _BARE_PROFIT.search(
+            plain, max(clause_start, number.start - 12), number.start
+        ):
+            # (round 15) a bare 利润 is read as net profit (归母); next to 扣非 / 利润总额 / 营业利润 it is ambiguous
+            sentence_start, sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+            if _OTHER_PROFIT.search(plain, sentence_start, sentence_end):
+                number.reasons.append(("no_metric", "a bare 利润 next to another profit measure is ambiguous"))
+            elif not re.search(r"净利|净赚|归母", plain[max(clause_start, number.start - 12) : number.start]):
+                number.bare_profit = True
         window = plain[max(clause_start, previous_end, number.start - _LOOK_BEHIND) : number.start]
         number.basis = _named_basis(
             number.metric, f"{window} {plain[number.end : min(clause_end, number.end + _LOOK_AHEAD)]}"
@@ -1563,7 +1647,9 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
     numbers.extend(relations)
     numbers.sort(key=lambda item: item.start)
     lines = _foreign_lines(plain)
+    anchored = bool(_LATEST_ANCHOR.search(plain))
     for number in numbers:
+        number.anchored = anchored
         line = _foreign_line_of(number, lines, text, positions) if lines and not number.reasons else None
         if line:
             word = _FOREIGN_LINE_WORDS.search(line)
@@ -1806,6 +1892,8 @@ def _stated_reference(
             return None  # "五粮液平均的": not a stated value
         if reference.get("sector") and number.metric not in _INDUSTRY_KEYS:
             return None  # a sector's snapshot carries P/E, P/B and the daily change only
+    elif (side := _stated_side(number, text, between, cue_at, comparator, positions)) is not None:
+        return side  # (round 15) "高于营收增幅的16.5%": another figure of the same company, with its stated value
     else:
         if number.metric not in _STATED_AVERAGE_METRICS:
             return None
@@ -1853,6 +1941,66 @@ def _stated_reference(
     number.stated_reference = True
     if reference is not None:
         number.target = reference
+    return relation
+
+
+_DECLINE_WORD = re.compile(r"降幅|跌幅|减幅|下降|下滑|减少|\bdecline\b|\bdrop\b|\bfall\b", re.I)
+
+
+def _stated_side(
+    number: _Number,
+    text: str,
+    between: str,
+    cue_at: int,
+    comparator: str,
+    positions: list[tuple[int, dict[str, Any]]],
+) -> _Number | None:
+    """(round 15) "中芯国际净利润增幅36.3%，高于营收增幅的16.5%", "净利润降幅…大于营收降幅的54.6%": the number after the
+    bound is the value stated for another metric of the same company (checked as such), and the bound is a relation of
+    the company's two figures. Two declines compare their sizes (a larger fall is the lower change)."""
+    if "＠" in between or number.metric is None or not re.search(r"(?:的|\bof)\s*" + _APPROX_WORDS + r"\s*$", between):
+        return None
+    side = [
+        name for _distance, name in _nearest_metrics(between, "") if name in _GROWTH_OF or name in _GROWTH_OF.values()
+    ]
+    if not side:
+        return None
+    sentence_start, _sentence_end = _clause_bounds(text, cue_at, _SENTENCE_BREAK)
+    head = text[sentence_start:cue_at]
+    own = [name for _distance, name in _nearest_metrics(head, "") if name in _GROWTH_OF or name in _GROWTH_OF.values()]
+    if not own:
+        return None
+    growth = number.metric in _GROWTH_OF.values()
+    subject_metric = _GROWTH_OF.get(own[0], own[0]) if growth else own[0]
+    if subject_metric == number.metric or subject_metric not in _METRICS:
+        return None
+    companies = [
+        target for position, target in positions if sentence_start <= position < cue_at and not target.get("sector")
+    ]
+    if not companies:
+        return None
+    company = companies[-1]
+    if growth and _DECLINE_WORD.search(between) and _DECLINE_WORD.search(head):
+        comparator = {"gt": "lt", "ge": "le", "lt": "gt", "le": "ge"}.get(comparator, comparator)
+    relation = _Number(
+        start=cue_at,
+        end=cue_at + 1,
+        value=0.0,
+        rounding=0.0,
+        scales=_BARE_SCALES,
+        unit=None,
+        unit_class=None,
+        comparator=comparator,  # type: ignore[arg-type]
+        negated=number.negated,
+        metric=subject_metric,
+        target=company,
+        relation=True,
+        reference={**company, "metric": number.metric},
+        reference_kind="metric",
+    )
+    number.comparator = "approx" if number.comparator == "approx" else "eq"
+    number.negated = False
+    number.target, number.bound = company, True
     return relation
 
 
@@ -2637,21 +2785,167 @@ def _read_comparator(number: _Number, stretch: str, after: str) -> None:
         number.over = None
 
 
-def _nearest_metrics(before: str, after: str, *, macro: bool = False) -> list[tuple[int, str]]:
+def _nearest_metrics(before: str, after: str, *, macro: bool = False, number: bool = False) -> list[tuple[int, str]]:
     """Metric words around a number, nearest first. ``macro`` selects the macro series (matched on the
-    unmasked text, where "M2" and "10年期" are still written out) instead of the company metrics."""
+    unmasked text, where "M2" and "10年期" are still written out) instead of the company metrics. ``number``: the number
+    follows ``before`` directly, so a word that needs a number after it ("最高3851", "开3839", round 15) may end it."""
     found: list[tuple[int, int, str]] = []
     for name, metric in _METRICS.items():
         if metric.words is None or bool(metric.macro) != macro:
             continue
-        for match in metric.words.finditer(before):
-            found.append((len(before) - match.end(), -len(match.group(0)), name))
+        spans = {match.span() for match in metric.words.finditer(before)}
+        if number:
+            marked = before + _NUMBER_MARK
+            spans |= {
+                (match.start(), min(match.end(), len(before)))
+                for match in metric.words.finditer(marked)
+                if match.start() < len(before)
+            }
+        for start, end in spans:
+            found.append((len(before) - end, -(end - start), name))
         match = metric.words.search(after)
         # Ties go to the word before the number ("市盈率15倍"), which is how claims are usually written, then
         # to the longer word ("5年期LPR" over "LPR").
         if match:
             found.append((match.start() + 1, -len(match.group(0)), name))
     return [(distance, name) for distance, _length, name in sorted(found)]
+
+
+# (round 15) English metric after the number: "RMB 804 billion in revenue", "a 6.5% year-on-year increase in net profit"
+_EN_METRIC_AFTER = re.compile(
+    r"\s*(?P<yoy>(?:year[- ](?:on|over)[- ]year|y/y|yoy)\s+)?"
+    r"(?:(?P<move>rises?|increases?|growth|gains?|jumps?|climbs?|declines?|drops?|falls?|decreases?|slumps?|plunges?)\s+)?"
+    r"(?:in|of)\s+(?:its\s+|the\s+|their\s+|annual\s+|full[- ]year\s+)?",
+    re.I,
+)
+
+
+def _metric_at(text: str, start: int) -> str | None:
+    """The (non-macro) metric whose words start at ``start``; the longest match wins."""
+    best: tuple[str, int] | None = None
+    for name, metric in _METRICS.items():
+        if metric.words is None or metric.macro:
+            continue
+        match = metric.words.match(text, start)
+        if match and match.end() > start and (best is None or match.end() > best[1]):
+            best = (name, match.end())
+    return best[0] if best else None
+
+
+def _english_metric_after(number: _Number, text: str, clause_end: int) -> bool:
+    """(round 15) The metric written after an English number ("RMB 32.62 billion in net profit"); sets the metric
+    (the growth of a flow for "a 6.45% year-on-year rise in net profit") and the direction of a move word."""
+    match = _EN_METRIC_AFTER.match(text, number.end, clause_end)
+    if match is None:
+        return False
+    metric = _metric_at(text, match.end())
+    if metric is None or metric == "pct_change_1d":
+        return False
+    if number.unit_class == _PERCENT and (match.group("yoy") or match.group("move")) and metric in _GROWTH_OF:
+        number.metric = _GROWTH_OF[metric]
+        move = (match.group("move") or "").lower()
+        if move and re.match(r"declin|drop|fall|decreas|slump|plung", move):
+            number.direction, number.value = -1, -abs(number.value)
+        elif move:
+            number.direction = 1
+        return True
+    if number.unit_class in _METRICS[metric].units and not (match.group("yoy") or match.group("move")):
+        number.metric = metric
+        return True
+    return False
+
+
+# (round 15) A value of the previous year stated next to this year's: "上年为844.9亿元", "较2024年的4090.84亿元增长
+# 12.1%",
+# "the previous year's 84.49 billion", "down from 40.3 billion yuan the previous year"
+_PRIOR_BEFORE = re.compile(
+    r"(?:上年|去年|上一年度?|前一年|上年度)(?:同期)?(?:的|为|是|则为|仅为|只有)\s*(?:约|大约|近)?\s*$|"
+    r"(?:较|比|从|由|相比)\s*(?:(?:19|20)\d{2}\s*年|上年|去年)(?:同期)?的\s*(?:约|大约|近)?\s*$|"
+    r"\b(?:the\s+)?(?:previous|prior|preceding)\s+year(?:'s|’s)\s*(?:figure of\s+|level of\s+)?(?:RMB|CNY)?\s*$|"
+    r"\blast year's\s*(?:RMB|CNY)?\s*$",
+    re.I,
+)
+_PRIOR_AFTER = re.compile(
+    r"\s*(?:yuan\s+)?(?:\([^)]{0,20}\)\s*)?(?:(?:in|for)\s+)?(?:the\s+)?(?:previous|prior|preceding)\s+year\b|"
+    r"\s*(?:yuan\s+)?(?:\([^)]{0,20}\)\s*)?(?:a|one)\s+year\s+(?:earlier|ago|before)\b|"
+    r"\s*(?:yuan\s+)?(?:\([^)]{0,20}\)\s*)?in\s+(?:19|20)\d{2}\b",
+    re.I,
+)
+_FROM_BEFORE = re.compile(r"\bfrom\s+(?:RMB|CNY)?\s*$", re.I)
+
+
+def _prior_year_value(
+    number: _Number, plain: str, clause_start: int, sentence_start: int, previous: _Number | None
+) -> bool:
+    """Mark an amount that is the previous year's value of a flow; its metric is the flow named in the sentence."""
+    if number.unit_class != _AMOUNT:
+        return False
+    before = plain[clause_start : number.start]
+    stated = _PRIOR_BEFORE.search(before) or (_FROM_BEFORE.search(before) and _PRIOR_AFTER.match(plain, number.end))
+    if not stated:
+        return False
+    named = [
+        name for _distance, name in _nearest_metrics(plain[sentence_start : number.start], "") if name in _GROWTH_OF
+    ]
+    base = named[0] if named else None
+    if base is None and previous is not None:
+        base = next((level for level, growth in _GROWTH_OF.items() if previous.metric in {level, growth}), None)
+    if base is None:
+        return False
+    number.metric, number.prior_year, number.unit_mismatch = base, True, False
+    number.comparator = "approx" if number.comparator == "approx" else number.comparator
+    return True
+
+
+# (round 15) The change of turnover from the previous session ("较上一交易日增加8.28亿元", "环比增幅为13.75%")
+_PREV_SESSION = re.compile(
+    r"(?:较|比|相比|对比|相较)(?:于)?\s*(?:前一|上一|上个|前个|昨|前|上)(?:个)?(?:交易日|日|天)|较昨日|较前日|较上日|环比|"
+    r"\b(?:from|than|versus|vs\.?) (?:the )?(?:previous|prior|preceding) (?:session|trading day|day)\b|"
+    r"\bday[- ]on[- ]day\b",
+    re.I,
+)
+_TURNOVER_WORD = re.compile(
+    r"成交额|成交金额|成交(?![量价均])|交易额|放量|缩量|\bturnover\b|\btrad(?:ed|ing) value\b", re.I
+)
+_TURNOVER_UP = re.compile(r"增加|增长|增多|多了?|放量|放大|上升|\brose\b|\bincreased?\b|\bup\b", re.I)
+_TURNOVER_DOWN = re.compile(r"减少|下降|缩减|缩量|萎缩|少了?|\bfell\b|\bdecreased?\b|\bdown\b", re.I)
+
+
+def _turnover_change(number: _Number, text: str, clause_start: int, sentence_start: int) -> bool:
+    if number.unit_class not in {_AMOUNT, _PERCENT} or number.ratio or number.difference or number.sum_of:
+        return False
+    stretch = text[clause_start : number.start]
+    cue = _PREV_SESSION.search(stretch)
+    if cue is None or not _TURNOVER_WORD.search(text, sentence_start, number.start):
+        return False
+    number.metric = "amount_change_1d" if number.unit_class == _AMOUNT else "amount_change_pct_1d"
+    number.unit_mismatch = False
+    words = stretch[cue.start() :]
+    ups = [match.end() for match in _TURNOVER_UP.finditer(words)]
+    downs = [match.end() for match in _TURNOVER_DOWN.finditer(words)]
+    if ups or downs:
+        number.direction = 1 if max(ups, default=-1) > max(downs, default=-1) else -1
+        number.value = number.direction * abs(number.value)
+        if number.high is not None:
+            number.high = number.direction * abs(number.high)
+    return True
+
+
+# (round 15) A claim that names the latest session (or a date) may be contradicted by it; one that names no session
+# ("截至收盘，宁德时代下跌2.51%", a published sentence dated by its article) is checked against the latest session only
+# when it fits, else it is unverifiable
+_LATEST_ANCHOR = re.compile(
+    r"今天|今日|昨天|昨日|最新|目前|现在|当前|最近一个交易日|最近交易日|上一交易日|上个交易日|"
+    # the current share price ("茅台股价低于1400元", "Moutai's share price is …") is the latest close
+    r"股价|现价|\bshare price\b|\bstock price\b|"
+    r"\btoday\b|\byesterday\b|\blatest\b|\bcurrently\b|\bright now\b|\bnow\b",
+    re.I,
+)
+_BARE_PROFIT = re.compile(r"(?<![净毛总营业润非])(?<!扣非)利润(?!总额|率|表|分配|中心|总)")
+_OTHER_PROFIT = re.compile(r"扣非|利润总额|营业利润|毛利润|总利润|税前利润")
+
+
+_NUMBER_MARK = "\u2063"  # stands for the number after a look-behind window (see ``_nearest_metrics``)
 
 
 def _metric_for(
@@ -2673,7 +2967,18 @@ def _metric_for(
         number.metric = fitting[0] if fitting else macro[0][1]
         number.unit_mismatch = not fitting
         return
-    found = _nearest_metrics(before, after)  # both are cut at the clause boundaries
+    found = _nearest_metrics(before, after, number=True)  # both are cut at the clause boundaries
+    if (
+        number.unit_class in {_POINTS, _PRICE}
+        and found
+        and found[0][1] == "pct_change_1d"
+        and found[0][0] <= 3
+        and not re.search(r"(?:[至到于]|报收?|\bto|\bat)\s*(?:RMB|CNY|¥|￥)?\s*$", before, re.I)
+    ):
+        # (round 15) "涨11.74点", "上涨4.31元", "fell 2.3 yuan": the session's change in points or yuan, not a rate (a
+        # move "至 / 到 / to" a level is the level)
+        number.metric = "change_1d"
+        return
     compatible = [name for _distance, name in found if number.unit_class in _METRICS[name].units]
     metric: str | None = None
     if number.unit_class == _PERCENT or number.unit_class is None:
@@ -2739,7 +3044,11 @@ def _context(number: _Number, norm: str, clause_start: int, clause_end: int, pla
     if number.metric is None:
         number.reasons.append(("no_metric", "metric not recognised"))
         return
-    if _FORECAST.search(clause) or _HYPOTHETICAL.search(clause):
+    # (round 15) a forecast after a closing bracket is about something else: "平安银行与招行的ROE（~9% vs 13.44%）预计
+    # 仍难以收敛" reports two figures and forecasts their convergence
+    closing = re.search(r"[）)】]", norm[number.end : clause_end])
+    scope = norm[clause_start : number.end + closing.start()] if closing else clause
+    if _FORECAST.search(scope) or _HYPOTHETICAL.search(scope):
         number.reasons.append(("forecast", "a forecast or hypothetical, not a reported fact"))
         return
     if number.metric in _DAILY and _MULTI_DAY.search(clause):
@@ -2765,16 +3074,18 @@ def _context(number: _Number, norm: str, clause_start: int, clause_end: int, pla
         return
     # The year named in the number's clause, else earlier in its sentence ("2025年营收1741亿，净利润850亿").
     sentence_start, _sentence_end = _clause_bounds(norm, number.start, _SENTENCE_BREAK)
-    growth = number.metric in _GROWTH_OF.values() or number.yoy_change
-    for scope in (clause, norm[sentence_start : number.start]):
+    growth = number.metric in _GROWTH_OF.values() or number.yoy_change or number.prior_year
+    for searched in (scope, norm[sentence_start : number.start]):
         number.years = [
             next(group for group in match.groups() if group)
-            for match in _YEAR.finditer(scope)
+            for match in _YEAR.finditer(searched)
             # (round 14) "和2024年相比…增长6.45%": the year compared with is the base of a change, not its period
-            if not (growth and _base_year(scope, match))
+            if not (growth and _base_year(searched, match))
         ]
         if number.years:
             break
+    if number.prior_year:
+        number.years = []  # (round 15) "上年为…", "in 2024": the base year of the derived prior value, not a period
     number.period_month = next((month for pattern, month in _PERIOD_MONTH if pattern.search(clause)), None)
 
 
@@ -3456,10 +3767,11 @@ def _bind_targets(
     unplaced = [target for target in targets if id(target) not in placed]
     # Targets named only as the compared side ("比五粮液", "高于茅台"): not the subject of a later clause (round 10).
     compared = {position for position, _target in positions if _compared_side(text, position)}
+    asides = _aside_positions(text, positions)
     for number in numbers:
         if number.bound:
             continue  # a sum's first operand, a framed average's company (round 12)
-        before = [target for position, target in positions if position < number.start]
+        before = [target for position, target in positions if position < number.start and position not in asides]
         if (number.ratio or number.difference) and number.reference is not None:
             # "五粮液的跌幅大约是茅台的三倍": the subject is named before the reference
             before = [target for target in before if target["key"] != number.reference.get("key")]
@@ -3471,6 +3783,7 @@ def _bind_targets(
             target
             for position, target in positions
             if position < number.start
+            and position not in asides
             and not ((position in compared or position in referenced) and position < clause_start)
         ]
         if subjects and before and before[-1] is not subjects[-1] and not number.relation:
@@ -3492,6 +3805,20 @@ def _bind_targets(
         if len(ordered) > 1 and len(ordered) == len(in_clause):
             for number, target in zip(in_clause, ordered, strict=True):
                 number.target = target
+        elif len(in_clause) > 1:
+            # (round 15) "国寿、平安、太保、人保、新华分别为1541、1348、535、466、363亿元": the listed names in order,
+            # also those not in the data (unverifiable, never another company's number)
+            _bind_listed(in_clause, text, positions, start, match.start())
+    # (round 15) "平安银行与招行的ROE（~9% vs 13.44%）": two numbers joined by "vs" go to the two companies in order
+    for first, second in itertools.pairwise(numbers):
+        if first.bound or second.bound or not _VS_JOIN.fullmatch(text, first.end, second.start):
+            continue
+        start, _end = _clause_bounds(text, first.start, _SENTENCE_BREAK)
+        named = list(
+            {str(target["key"]): target for position, target in positions if start <= position < first.start}.values()
+        )
+        if len(named) == 2:
+            first.target, second.target = named
     expanded: list[_Number] = []
     for number in numbers:
         shared = [] if number.relation or number.bound else _shared_targets(number, numbers, positions, text)
@@ -3501,6 +3828,54 @@ def _bind_targets(
         for target in shared:
             expanded.append(replace(number, target=target, reasons=list(number.reasons), years=list(number.years)))
     return expanded
+
+
+_VS_JOIN = re.compile(r"\s*(?:vs\.?|VS\.?|versus|对比|对)\s*")
+_BRACKET = re.compile(r"[（(][^（()）]{0,80}[）)]")
+
+
+def _aside_positions(text: str, positions: list[tuple[int, dict[str, Any]]]) -> set[int]:
+    """(round 15) A bracket right after a name: its first code names that security ("创业板ETF（159915，…）", and wins
+    when the name alone resolved to something else); the other targets in it are mentioned in passing ("联接基金A/C/Y：
+    110026/004744/022907") and are never the subject of the numbers after the bracket."""
+    asides: set[int] = set()
+    for bracket in _BRACKET.finditer(text):
+        if not text[: bracket.start()].rstrip().endswith("＠"):
+            continue
+        outer = next(
+            ((position, target) for position, target in reversed(positions) if position < bracket.start()), None
+        )
+        inner = [(position, target) for position, target in positions if bracket.start() < position < bracket.end()]
+        if not inner or outer is None:
+            continue
+        asides.update(position for position, _target in inner[1:])
+        if inner[0][1] is not outer[1] and inner[0][1].get("key") != outer[1].get("key"):
+            asides.add(outer[0])  # the code identifies the security the name before it was meant to
+    return asides
+
+
+def _bind_listed(
+    in_clause: list[_Number], text: str, positions: list[tuple[int, dict[str, Any]]], start: int, cue: int
+) -> None:
+    """Bind the numbers after 分别 to the names listed before it, in order, when the counts match; a listed name that is
+    no target of the data gets ``no_target`` (its number is never given to a neighbour)."""
+    clause_start, _clause_end = _clause_bounds(text, cue)
+    head = re.sub(r"的[^、和与及]*$", "", text[max(start, clause_start) : cue]).strip()
+    items = [item.strip() for item in re.split(r"[、和与及]", head) if item.strip()]
+    if len(items) != len(in_clause):
+        return
+    offset = max(start, clause_start)
+    at = {position: target for position, target in positions}
+    cursor = offset
+    for number, item in zip(in_clause, items, strict=True):
+        index = text.find(item, cursor)
+        cursor = index + len(item) if index >= 0 else cursor
+        target = next((at[position] for position in range(index, index + len(item)) if position in at), None)
+        if target is not None:
+            number.target, number.bound = target, True
+        else:
+            number.target, number.bound = None, True
+            number.reasons = [("no_target", f"'{item}' is not a company in the data")]
 
 
 def _shared_targets(
@@ -3548,19 +3923,6 @@ def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[Age
         for subject in (*_subjects(number), *number.superlative):
             if subject and subject.get("key") and not subject.get("aggregate"):
                 subjects.setdefault(subject["key"], subject)
-    dated: dict[tuple[str, str], None] = {}
-    for number in numbers:
-        day = _iso_day(number)
-        key = (number.target or {}).get("key")
-        if (
-            day
-            and key
-            and number.metric in _BAR_METRICS
-            and not number.relation
-            and not (number.target or {}).get("sector")
-            and not (number.target or {}).get("aggregate")
-        ):
-            dated[(str(key), day)] = None
     # (round 15) up to six targets: a company against the total of four others ("超过A、B、C、D之和") needs five
     for key, subject in list(subjects.items())[:6]:
         if subject.get("sector"):
@@ -3579,6 +3941,20 @@ def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[Age
                 elif _is_industry(item):
                     evidence.setdefault(f"industry:{key}", []).append(item)
         evidence[key] = items
+    dated: dict[tuple[str, str], None] = {}
+    for number in numbers:
+        key = (number.target or {}).get("key")
+        if (
+            key
+            and number.metric in {*_BAR_METRICS, "amount_change_1d", "amount_change_pct_1d"}
+            and not number.relation
+            and not (number.target or {}).get("sector")
+            and not (number.target or {}).get("aggregate")
+        ):
+            _resolve_year(number, _latest_day(evidence.get(str(key)) or []))
+            day = _iso_day(number)
+            if day:
+                dated[(str(key), day)] = None
     for key, day in list(dated)[:4]:
         # (round 14) "截至2026年4月22日收盘…收于107.87元": that day's bar, when it is not the latest one
         latest = next((item.as_of for item in evidence.get(key) or [] if item.evidence_id.startswith("price_")), None)
@@ -3586,6 +3962,9 @@ def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[Age
             continue
         result = registry.run("get_price_history", {"target": key, "on_date": day})
         evidence[f"{key}@{day}"] = list(result.evidence) if result.ok else []
+    for number in numbers:
+        if number.metric in {"amount_change_1d", "amount_change_pct_1d"} and (number.target or {}).get("key"):
+            _fetch_previous_session(number, evidence, registry)
     if families:
         result = registry.run("get_macro_indicators", {"topics": sorted(families)})
         for item in result.evidence if result.ok else []:
@@ -3595,8 +3974,60 @@ def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[Age
     return evidence
 
 
+def _latest_day(items: list[AgentEvidence]) -> str | None:
+    """The latest bar's date in a target's price evidence."""
+    return next((str(item.as_of)[:10] for item in items if item.evidence_id.startswith("price_") and item.as_of), None)
+
+
+def _resolve_year(number: _Number, latest: str | None) -> None:
+    """(round 15) "4月22日" without a year: the last such day on or before the latest bar (2026-04-22 when the data ends
+    2026-09-30), so that day's bar is used instead of the latest one."""
+    if number.date is None or number.date[0] or not latest or not re.match(r"\d{4}-\d{2}-\d{2}", latest):
+        return
+    _year, month, day = number.date
+    year = int(latest[:4]) if (month, day) <= (int(latest[5:7]), int(latest[8:10])) else int(latest[:4]) - 1
+    number.date = (str(year), month, day)
+
+
+def _fetch_previous_session(
+    number: _Number, evidence: dict[str, list[AgentEvidence]], registry: ToolRegistry, *, lookback: int = 7
+) -> None:
+    """(round 15) The bar of the session before the claim's (its date, else the latest), stored under
+    ``<key>@prev@<day>``: from the latest bar's recent closes, else the nearest earlier day with a bar."""
+    from datetime import date, timedelta
+
+    key = str((number.target or {}).get("key"))
+    latest = _latest_day(evidence.get(key) or [])
+    day = _iso_day(number) or latest
+    if not day or f"{key}@prev@{day}" in evidence:
+        return
+    candidates: list[str] = []
+    if day == latest:
+        closes = next(
+            (
+                item.payload.get("recent_closes")
+                for item in evidence.get(key) or []
+                if item.evidence_id.startswith("price_")
+            ),
+            None,
+        )
+        dates = [str(row.get("date"))[:10] for row in closes or [] if isinstance(row, dict) and row.get("date")]
+        candidates = [value for value in dates if value < day][-1:]
+    if not candidates:
+        start = date.fromisoformat(day)
+        candidates = [(start - timedelta(days=offset)).isoformat() for offset in range(1, lookback + 1)]
+    for candidate in candidates:
+        result = registry.run("get_price_history", {"target": key, "on_date": candidate})
+        items = list(result.evidence) if result.ok else []
+        bar = next((item.payload.get("bar_on_date") for item in items if isinstance(item.payload, dict)), None)
+        if isinstance(bar, dict) and str(bar.get("date"))[:10] == candidate:
+            evidence[f"{key}@prev@{day}"] = items
+            return
+
+
 # (round 14) daily-bar metrics a dated claim reads from that day's bar
 _BAR_METRICS = {"close": "close", "pct_change_1d": "pct_change_1d", "amount": "amount", "volume": "volume"}
+_BAR_METRICS |= {"open": "open", "high": "high", "low": "low", "change_1d": "change_1d"}  # (round 15)
 
 
 def _iso_day(number: _Number) -> str | None:
@@ -3614,6 +4045,12 @@ def _dated_bar(number: _Number, evidence: dict[str, list[AgentEvidence]]) -> tup
         return None
     for item in evidence.get(f"{key}@{day}") or []:
         bar = item.payload.get("bar_on_date") if isinstance(item.payload, dict) else None
+        if number.metric == "change_1d" and isinstance(bar, dict):
+            # (round 15) close - close / (1 + pct / 100): the previous close is not in the bar
+            close, pct = bar.get("close"), bar.get("pct_change_1d")
+            if isinstance(close, int | float) and isinstance(pct, int | float) and pct > -100:
+                return item, round(float(close) - float(close) / (1 + float(pct) / 100), 4)
+            return None
         value = bar.get(_BAR_METRICS[number.metric]) if isinstance(bar, dict) else None
         if isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value):
             return item, float(value)
@@ -3714,6 +4151,13 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
             return base.model_copy(update={"reason": aggregate[0], "note": aggregate[1]})
         found = (aggregate.item, aggregate.value)
         base = base.model_copy(update=aggregate.fields())
+    elif number.metric in {"amount_change_1d", "amount_change_pct_1d"}:
+        # (round 15) turnover against the previous session's, from the two bars
+        change = _turnover_change_value(number, evidence)
+        if isinstance(change, str):
+            return base.model_copy(update={"reason": "no_data", "note": change})
+        found = (change[0], change[1])
+        base = base.model_copy(update={"note": change[2]})
     else:
         found = _dated_bar(number, evidence) or _value(
             evidence.get(number.target.get("key") or "") or [], _keys(number.target, number.metric)
@@ -3760,9 +4204,11 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
     definition = _definition_mismatch(number, item.payload)
     if definition:
         return base.model_copy(update={"reason": "definition_mismatch", "note": definition})
-    basis_note = _basis_note(number, item.payload)
+    basis_note = _basis_note(number, item.payload) or _same_revenue_note(number, item.payload)
     if number.yoy_change:
         return _check_yoy_change(number, base, item, actual)
+    if number.prior_year:
+        return _check_prior_year(number, base, item, actual)
     in_percent = any(
         (item.payload.get("metric_units") or {}).get(key) == "%" for key in _METRICS[number.metric or ""].keys
     )
@@ -3772,8 +4218,17 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
     if number.relation:
         return _check_relation(number, base, evidence, declared_percent=in_percent)
     status = _compare(number, actual, declared_percent=in_percent or bool(derived_note))
-    parts = (derived_note, aggregate_note, number.convention, _interim_note(number, item), basis_note)
-    return base.model_copy(update={"status": status, "note": "; ".join(part for part in parts if part)})
+    turnover_note = base.note if number.metric in {"amount_change_1d", "amount_change_pct_1d"} else ""
+    bare_note = "利润 read as net profit (归母)" if number.bare_profit else ""
+    parts = (derived_note, aggregate_note, turnover_note, bare_note, number.convention, _interim_note(number, item))
+    note = "; ".join(part for part in (*parts, basis_note) if part)
+    if status == "contradicted" and number.metric in _DAILY | {"close"} and number.date is None and not number.anchored:
+        # (round 15) a daily figure with no stated date ("截至收盘，…下跌2.51%", dated by its article) that does not
+        # fit the latest session may be about another session: not checkable, never contradicted by the latest one
+        latest = f"; the latest session ({str(as_of or '')[:10]}) has {_trim(round(actual, 4))}"
+        note = f"the claim states no date and does not match the latest session{latest}; other sessions are not checked"
+        return base.model_copy(update={"reason": "period_mismatch", "note": note})
+    return base.model_copy(update={"status": status, "note": note})
 
 
 @dataclass
@@ -3851,11 +4306,59 @@ def _definition_mismatch(number: _Number, payload: dict[str, Any]) -> str | None
     metric = "netprofit_yoy" if number.yoy_change and number.metric == "net_profit" else number.metric
     metric = "revenue_yoy" if number.yoy_change and number.metric == "revenue" else metric
     served = _served_basis(metric, payload)
-    if served is None or served == number.basis:
+    if served is None or served == number.basis or _same_revenue(number, metric, served, payload):
         return None
     named, data = _BASIS_LABEL.get(number.basis, number.basis), _BASIS_LABEL.get(served, served)
     what = f"{metric} growth" if metric != number.metric else metric
     return f"the claim names {named} {what}; the data's {what} is {data}, a different definition"
+
+
+@lru_cache(maxsize=1)
+def _report_notes() -> dict[str, dict[str, Any]]:
+    """(round 15) The corrections layer's report records (``data/snapshot/corrections/sources.json``) by symbol: the
+    figures read from each annual report and the notes on their definitions."""
+    import json
+
+    from ..data_loader import DATA_DIR
+
+    try:
+        data = json.loads((DATA_DIR / "snapshot" / "corrections" / "sources.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    found: dict[str, dict[str, Any]] = dict(data.get("extension_definitions") or {})
+    for entry in data.get("companies") or []:
+        if isinstance(entry, dict) and entry.get("symbol"):
+            found[str(entry["symbol"])] = entry
+    return found
+
+
+_SAME_TOP_LINE = re.compile(
+    r"营业收入\s*=\s*营业总收入|营业总收入\s*=\s*营业收入|no (?:separate )?营业总收入|report 营业收入 only", re.I
+)
+
+
+def _same_revenue(number: _Number, metric: str, served: str, payload: dict[str, Any]) -> bool:
+    """(round 15) A claim naming 营业总收入 for a company whose report gives one top line (营业收入 = 营业总收入, or no
+    separate 营业总收入): the served 营业收入 is that figure, so the claim is checkable."""
+    if number.basis != "营业总收入" or served != "营业收入" or metric not in {"revenue", "revenue_yoy"}:
+        return False
+    if not isinstance(payload.get("definitions"), dict):
+        return False  # the report records describe the corrected data only
+    entry = _report_notes().get(str(payload.get("symbol") or (number.target or {}).get("symbol") or "")) or {}
+    figures = {
+        figure.get("id"): figure.get("value") for figure in entry.get("figures") or [] if isinstance(figure, dict)
+    }
+    if figures.get("revenue_total") and figures.get("revenue_total") == figures.get("revenue"):
+        return True
+    return bool(_SAME_TOP_LINE.search(" ".join(str(note) for note in entry.get("notes") or [])))
+
+
+def _same_revenue_note(number: _Number, payload: dict[str, Any]) -> str:
+    metric = "revenue_yoy" if number.metric == "revenue_yoy" else "revenue"
+    served = _served_basis(metric, payload)
+    if number.metric in {"revenue", "revenue_yoy"} and served and _same_revenue(number, metric, served, payload):
+        return "营业总收入: the company's report gives 营业收入 = 营业总收入 (one top line)"
+    return ""
 
 
 def _basis_note(number: _Number, payload: dict[str, Any]) -> str:
@@ -3877,6 +4380,56 @@ def _check_yoy_change(number: _Number, base: ClaimCheck, item: AgentEvidence, ac
     status = _compare(number, change)
     note = f"derived: {_trim(actual)} - {_trim(actual)} / (1 + {_trim(growth)}%) = {_trim(round(change, 2))}"
     return base.model_copy(update={"status": status, "actual": round(change, 2), "note": note})
+
+
+def _check_prior_year(number: _Number, base: ClaimCheck, item: AgentEvidence, actual: float) -> ClaimCheck:
+    """(round 15) "上年为844.9亿元", "the previous year's 84.49 billion": the previous year's value of the flow, derived
+    as level / (1 + YoY / 100) from the same report."""
+    growth_metric = _GROWTH_OF.get(number.metric or "")
+    growth = _payload_number(item.payload, _METRICS[growth_metric].keys) if growth_metric else None
+    if growth is None or growth <= -100:
+        note = "a previous-year value; the source has no year-on-year growth to derive it from"
+        return base.model_copy(update={"reason": "growth_unavailable", "note": note, "actual": None})
+    prior = actual / (1 + growth / 100)
+    status = _compare(number, prior)
+    note = f"derived prior year: {_trim(actual)} / (1 + {_trim(growth)}%) = {_trim(round(prior, 2))}"
+    return base.model_copy(update={"status": status, "actual": round(prior, 2), "note": note})
+
+
+def _previous_session_amount(number: _Number, evidence: dict[str, list[AgentEvidence]]) -> tuple[str, str]:
+    """The evidence keys of the session's bar and the previous session's bar for a turnover change."""
+    key = str((number.target or {}).get("key") or "")
+    latest = _latest_day(evidence.get(key) or [])
+    day = _iso_day(number) or latest or ""
+    return (key if day == latest else f"{key}@{day}"), f"{key}@prev@{day}"
+
+
+def _bar_amount(items: list[AgentEvidence], dated: bool) -> tuple[AgentEvidence, float, str] | None:
+    for item in items:
+        payload = item.payload if isinstance(item.payload, dict) else {}
+        bar = payload.get("bar_on_date") if dated else {"amount": payload.get("amount"), "date": item.as_of}
+        if isinstance(bar, dict) and isinstance(bar.get("amount"), int | float) and bar["amount"] > 0:
+            return item, float(bar["amount"]), str(bar.get("date") or item.as_of or "")[:10]
+    return None
+
+
+def _turnover_change_value(
+    number: _Number, evidence: dict[str, list[AgentEvidence]]
+) -> tuple[AgentEvidence, float, str] | str:
+    """(round 15) The session's turnover minus (or relative to) the previous session's: (evidence, value, note), or why
+    not. ``_fetch`` stores the previous session's bar under ``<key>@prev@<day>``."""
+    this_key, previous_key = _previous_session_amount(number, evidence)
+    today = _bar_amount(evidence.get(this_key) or [], dated="@" in this_key)
+    before = _bar_amount(evidence.get(previous_key) or [], dated=True)
+    if today is None or before is None:
+        return "the turnover of the session or of the session before it is not in the data"
+    item, amount, day = today
+    _item, previous, previous_day = before
+    if number.metric == "amount_change_pct_1d":
+        value = (amount / previous - 1) * 100
+        return item, round(value, 4), f"computed: {_trim(amount)} ({day}) / {_trim(previous)} ({previous_day}) - 1"
+    value = amount - previous
+    return item, round(value, 2), f"computed: {_trim(amount)} ({day}) - {_trim(previous)} ({previous_day})"
 
 
 # Metrics a claim may name that the sources neither report nor determine (round 9, E8): say why.
@@ -3917,6 +4470,28 @@ def _derived(metric: str | None, items: list[AgentEvidence]) -> tuple[tuple[Agen
         payload = item.payload if isinstance(item.payload, dict) else {}
         if metric in {"net_margin", "peg"} and not _COVERAGE_METRICS[metric].derivable(payload):
             continue
+        if metric == "net_profit_daily":
+            # (round 15) "日赚3.68亿": the year's net profit over 365 calendar days
+            profit = _payload_number(payload, _METRICS["net_profit"].keys)
+            if profit is not None:
+                value = profit / 365
+                note = f"derived: net profit / 365 days = {_trim(profit)} / 365 = {_trim(round(value, 2))}"
+                return (item, round(value, 2)), note
+        elif metric == "change_1d":
+            # (round 15) "涨11.74点": the latest close minus the previous one
+            closes = [
+                row
+                for row in payload.get("recent_closes") or []
+                if isinstance(row, dict) and isinstance(row.get("close"), int | float) and row.get("close")
+            ]
+            latest = str(item.as_of or payload.get("as_of") or "")[:10]
+            if len(closes) >= 2 and str(closes[-1].get("date") or "")[:10] == latest:
+                previous, last = closes[-2], closes[-1]
+                value = float(last["close"]) - float(previous["close"])
+                return (item, round(value, 4)), (
+                    f"computed: {_trim(float(last['close']))} ({last.get('date')}) - "
+                    f"{_trim(float(previous['close']))} ({previous.get('date')})"
+                )
         if metric == "net_margin":
             revenue = _payload_number(payload, _METRICS["revenue"].keys)
             profit = _payload_number(payload, _METRICS["net_profit"].keys)

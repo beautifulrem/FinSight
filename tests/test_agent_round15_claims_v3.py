@@ -223,3 +223,20 @@ def test_total_operating_revenue_is_checkable_where_the_report_says_it_equals_op
     assert "营业总收入" in report.checks[0].note, _rows(report)
     report = _verdict(checker, "贵州茅台2025年营业总收入1688.4亿元", "unverifiable")  # 1720.54 by its report
     assert report.checks[0].reason == "definition_mismatch", _rows(report)
+
+
+def test_cheng_fen_is_a_constituent_not_tenths(checker):
+    # "成份" (constituent) after a number is not 成 (tenths): "科创50成份" is no 500%
+    report = _verdict(checker, "科创50成份ETF（588000）今天成交额约68.5亿元", "supported")
+    assert [check.metric for check in report.checks] == ["amount"], _rows(report)
+
+
+def test_an_english_period_end_close(checker):
+    report = _verdict(checker, "The Shanghai Composite finished September at about 3,840", "supported")
+    assert [check.metric for check in report.checks] == ["close"], _rows(report)
+
+
+def test_a_published_price_with_the_current_price_word_is_anchored_to_the_latest_session(checker):
+    # "股价" is the current price: a wrong figure is contradicted by the latest close, not left unverifiable
+    report = _verdict(checker, "宁德时代股价低于250元", "contradicted")
+    assert report.checks[0].reason is None, _rows(report)
