@@ -25,6 +25,7 @@ import { answerEdited, streamingText } from "@/lib/streaming";
 import { formatMs } from "@/lib/format";
 import { evidenceFreshness, summarizeFreshness } from "@/lib/freshness";
 import { useI18n, type MessageKey } from "@/lib/i18n";
+import { localizeDisclaimer, localizeNextQuestion } from "@/lib/localize";
 import { turnProgress, type Progress } from "@/lib/progress";
 import { liveTrace, traceStats } from "@/lib/trace";
 import type { ClaimReport } from "@/lib/types";
@@ -324,7 +325,13 @@ function AnswerCard({
     }),
     [view.evidence, onCite, turn.id, activeEvidence],
   );
-  const copyText = [stripCitations(view.answer), view.disclaimer].filter(Boolean).join("\n\n");
+  // (round 15, review-11 K17) the chips and the disclaimer follow the UI language after a switch
+  const disclaimer = localizeDisclaimer(view.disclaimer, lang);
+  const next = useMemo(
+    () => view.next.map((item) => ({ ...item, question: localizeNextQuestion(item.question, lang, view.englishNames) })),
+    [view.next, view.englishNames, lang],
+  );
+  const copyText = [stripCitations(view.answer), disclaimer].filter(Boolean).join("\n\n");
   const warn = view.kind === "classic" && view.llmStatus && view.llmStatus !== "ok";
   return (
     <article
@@ -396,11 +403,11 @@ function AnswerCard({
 
       {view.sentiment && <SentimentBar sentiment={view.sentiment} />}
 
-      {isLast && view.next.length > 0 && (
+      {isLast && next.length > 0 && (
         <section aria-label={number === undefined ? t("answer.next") : t("a11y.inTurn", { label: t("answer.next"), n: number })}>
           <h2 className="mb-1.5 text-[13px] font-medium text-muted">{t("answer.next")}</h2>
           <div className="flex flex-wrap gap-1.5">
-            {view.next.map((item) => (
+            {next.map((item) => (
               <button
                 key={item.question}
                 type="button"
@@ -417,7 +424,7 @@ function AnswerCard({
       <footer className="space-y-2 border-t border-line pt-3">
         <p className="disclaimer flex items-start gap-1.5 text-[12px] leading-relaxed text-muted">
           <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          <span>{view.disclaimer || t("answer.disclaimerDefault")}</span>
+          <span>{disclaimer || t("answer.disclaimerDefault")}</span>
         </p>
         <div className="answer-actions flex flex-wrap items-start gap-1" role="group" aria-label={t("answer.actions")}>
           {view.agent?.trace_id ? (

@@ -306,3 +306,51 @@ describe("inline fact check, region names and English names (round 4)", () => {
     expect(tiles).not.toMatch(/[\u4e00-\u9fff]/);
   });
 });
+
+describe("TurnView after a language switch (round 15, review-11 K17)", () => {
+  it("shows a zh turn's suggestions and disclaimer in English in the English UI, and asks the English question", async () => {
+    const user = userEvent.setup();
+    const onAsk = vi.fn();
+    const turn = doneTurn({
+      draft: "",
+      agent: {
+        status: "ok",
+        session_id: "s1",
+        route: "workflow",
+        answer: "贵州茅台收于 1413 元 [price_600519.SH]。",
+        evidence_used: ["price_600519.SH"],
+        evidence_sources: [],
+        nlu_summary: { entities: [{ name: "贵州茅台", symbol: "600519.SH", name_en: "Kweichow Moutai" }] },
+        risk_disclaimer: "以上内容仅基于系统检索到的证据生成，不构成投资建议或确定性买卖结论。",
+        next_questions: [
+          { question: "贵州茅台的估值和盈利指标（PE、ROE）如何？", reason: "missing_fundamentals" },
+          { question: "贵州茅台今年分红多少？", reason: "custom" },
+        ],
+      },
+    });
+    render(
+      <I18nContext.Provider value={{ lang: "en", t: makeTranslate("en") }}>
+        <TooltipProvider>
+          <TurnView
+            turn={turn}
+            view={answerView(turn)}
+            isLast
+            themeKey="light"
+            onCite={vi.fn()}
+            onInspect={vi.fn()}
+            onAsk={onAsk}
+            onRetry={vi.fn()}
+            onFeedback={vi.fn().mockResolvedValue("ok")}
+          />
+        </TooltipProvider>
+      </I18nContext.Provider>,
+    );
+    const chips = [...document.querySelectorAll(".next-question")].map((chip) => chip.textContent);
+    expect(chips).toEqual(["What are Kweichow Moutai's PE and ROE?", "贵州茅台今年分红多少？"]);
+    expect(document.querySelector(".disclaimer")).toHaveTextContent(
+      "This answer is based only on evidence retrieved by the system and is not investment advice",
+    );
+    await user.click(screen.getByRole("button", { name: "What are Kweichow Moutai's PE and ROE?" }));
+    expect(onAsk).toHaveBeenCalledWith("What are Kweichow Moutai's PE and ROE?");
+  });
+});
