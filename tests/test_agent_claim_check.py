@@ -630,8 +630,11 @@ def test_clauses_with_nothing_to_check_are_listed(claim, unchecked, checks):
         ("茅台市净率高于行业平均水平（6.2倍）", [("pb", "gt", "supported"), ("pb", "eq", "supported")]),
         ("茅台市盈率不到行业均值27.3倍", [("pe_ttm", "lt", "supported"), ("pe_ttm", "eq", "supported")]),
         # Round 10 (F1): P/E is quoted in 倍, so without a ratio cue ("是…的", "只有…的", 还/更, a fraction)
-        # "行业均值的2倍" is the average the claim states (2x, contradicted by 27.3), not twice the average
-        ("茅台市盈率不到行业均值的2倍", [("pe_ttm", "lt", "supported"), ("pe_ttm", "eq", "contradicted")]),
+        # "低于行业均值的2倍" is the average the claim states (2x, contradicted by 27.3), not twice the average.
+        # Round 14 (J12): a bound word (不到 / 不足 / 超过 / 至少) is a ratio cue, so "不到行业均值的2倍" is less than
+        # twice the average (24.6 / 27.3 = 0.9)
+        ("茅台市盈率低于行业均值的2倍", [("pe_ttm", "lt", "supported"), ("pe_ttm", "eq", "contradicted")]),
+        ("茅台市盈率不到行业均值的2倍", [("pe_ttm", "lt", "supported")]),
         ("茅台市盈率只有行业均值的0.9倍", [("pe_ttm", "eq", "supported")]),  # "只有…的": a multiple (24.6 / 27.3)
         # a relation in the clause of the company's own number, and the stated average ("of 40x")
         (
