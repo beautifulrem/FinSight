@@ -2,8 +2,8 @@
  "config": {
   "labels": "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
   "model": null,
-  "commit": "cb675d2",
-  "run_at": "2026-10-10T17:08:05+00:00",
+  "commit": "7624223",
+  "run_at": "2026-10-10T17:58:02+00:00",
   "command": "python -m evaluation.agent_eval.router_eval --out evaluation/results/router_eval-round14-own.json",
   "env": {},
   "command_with_env": "python -m evaluation.agent_eval.router_eval --out evaluation/results/router_eval-round14-own.json"
