@@ -227,7 +227,7 @@ def test_two_figures_of_one_claim_bind_to_the_right_metric(checker):
     assert [check.kind for check in report.checks] == ["value", "difference"], _rows(report)
 
 
-# ---- an implicit subject after 但 and a company's short name ----------------------------------------------------------
+# ---- an implicit subject after 但 and a company's short name -------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -256,3 +256,29 @@ def test_a_definition_caution_alone_leaves_the_verdict_supported(checker):
 def test_another_unverifiable_part_still_makes_it_partial(checker):
     report = checker("宁德时代归母净利润722亿元，市销率约5倍")
     assert report.verdict == "partially_supported", _rows(report)
+
+
+def test_a_mean_and_a_total_have_english_labels(checker):
+    mean = checker("The average P/E of CMB, ICBC and Ping An Bank is roughly 6.6x")
+    assert mean.labels_en[str(mean.checks[0].target)] == "average of China Merchants Bank, ICBC, Ping An Bank"
+    total = checker("Zijin Mining's market value exceeds that of Midea Group and Ping An Bank combined")
+    assert total.labels_en[str(total.checks[0].reference)] == "Midea Group + Ping An Bank"
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "工行净利润比招行和蔚来加起来还多2000亿",
+        "ICBC's net profit beat CMB and Xpeng combined by RMB200 billion",
+        "ICBC earned more than CMB and NIO combined",
+    ],
+)
+def test_a_difference_or_relation_with_a_total_outside_the_data_is_not_decided_by_its_first_operand(checker, claim):
+    report = _verdict(checker, claim, "unverifiable")
+    assert all(check.reason == "no_data" for check in report.checks), _rows(report)
+
+
+def test_earned_is_the_years_net_profit(checker):
+    # 3685.62 > 1501.81 + 426.33
+    report = _verdict(checker, "ICBC earned more than CMB and Ping An Bank combined", "supported")
+    assert report.checks[0].metric == "net_profit", _rows(report)
