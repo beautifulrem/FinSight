@@ -232,3 +232,23 @@ def test_contrastive_conjunctions_split_clauses(sentence, clauses):
     spans = _clause_spans(sentence)
     assert len(spans) == clauses, [sentence[a:b] for a, b in spans]
     assert all(end > start for start, end in spans)
+
+
+# ---- numerals before 个百分点, a sector as a ratio reference, an English sector average ----
+
+
+@pytest.mark.parametrize(
+    ("claim", "verdict", "kind"),
+    [
+        ("招商银行与工商银行的ROE相差三个多百分点", "supported", "difference"),  # 3.12
+        ("招商银行与工商银行的ROE相差两个百分点", "contradicted", "difference"),
+        ("工商银行比平安银行的净资产收益率高约一个百分点", "supported", "difference"),  # 0.95
+        ("保险行业平均市盈率11.8倍，不到白酒行业的一半", "supported", "ratio"),  # 11.8 / 27.3 = 0.43
+        ("白酒板块平均PE是保险行业的三倍多", "contradicted", "ratio"),  # 2.31
+        ("Wuliangye's P/E of 20.9x is about 23% below the baijiu average", "supported", "relative_difference"),
+    ],
+)
+def test_point_numerals_sector_ratios_and_sector_averages(checker, claim, verdict, kind):
+    report = checker(claim)
+    assert any(check.kind == kind and check.status != "unverifiable" for check in report.checks), _rows(report)
+    assert report.verdict == verdict, _rows(report)
