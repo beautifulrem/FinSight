@@ -10,10 +10,13 @@ measures the overlap from the slice side, for any slice file or folder, at the t
   between normalised texts (the reviewer's measure), for slice texts of at least ``MIN_NEAR_CHARS`` normalised
   characters, so "Moutai?" or "茅台呢" do not count as near copies of everything.
 
-Own texts: every turn of the dev tasks (``agent_eval_v1.jsonl``), the router labels (``router_labels_v1.jsonl``),
-the dev claims (``claims_v1.jsonl``) and every string literal in ``tests/*.py``. The report names the slice task ids
-and the own locations (``tests/test_x.py:255``, ``dev:<task id>``), never the slice text, so it can be run on a slice
-the engineers must not open.
+Own texts: every question / claim / document text of EVERY task file under ``evaluation/agent_eval/tasks/`` (the dev
+tasks, the router labels, the ext and shipped gate sets, the independent and test sets), of every claim file under
+``evaluation/claim_bench/``, and every string literal in ``tests/*.py``. Round-10 review J9: the scan used a fixed
+list (dev tasks, router labels, dev claims) and missed ``agent_eval_ext_v1.jsonl``, which holds a one-word variant of
+a round-9 slice task; a new task file is now scanned without a code change. The report names the slice task ids and
+the own locations (``tests/test_x.py:255``, ``dev:<task id>``, ``tasks/agent_eval_ext_v1.jsonl:<task id>``), never
+the slice text, so it can be run on a slice the engineers must not open.
 
 ``runner`` attaches the summary to the run's ``config.slice_overlap`` when the task file lives in a ``heldout*``
 folder; it can also be run on its own:
@@ -29,6 +32,7 @@ import ast
 import difflib
 import json
 import re
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -49,30 +53,34 @@ def _grams(norm: str) -> frozenset[str]:
     return frozenset(norm[i : i + 3] for i in range(max(1, len(norm) - 2)))
 
 
+def _collect_texts(row: Any, task: str, found: list[tuple[str, str]], key: str = "") -> None:
+    if isinstance(row, dict):
+        for name, item in row.items():
+            _collect_texts(item, task, found, str(name))
+    elif isinstance(row, list):
+        for item in row:
+            _collect_texts(item, task, found, key)
+    elif isinstance(row, str) and key in TEXT_KEYS:
+        found.append((task, row))
+
+
+def jsonl_texts(file: Path) -> list[tuple[str, str]]:
+    """``(row id, text)`` for every question / claim / document text of one ``.jsonl`` file."""
+    found: list[tuple[str, str]] = []
+    for number, line in enumerate(file.read_text(encoding="utf-8").splitlines(), start=1):
+        if line.strip():
+            row = json.loads(line)
+            fallback = f"{file.name}:{number}"
+            task = str(row.get("id") or fallback) if isinstance(row, dict) else fallback
+            _collect_texts(row, task, found)
+    return found
+
+
 def slice_texts(path: str | Path) -> list[tuple[str, str]]:
     """``(task id, text)`` for every question / claim / document text in a slice file or folder (``*.jsonl``)."""
     path = Path(path)
     files = sorted(path.glob("*.jsonl")) if path.is_dir() else [path]
-    found: list[tuple[str, str]] = []
-
-    def collect(value: Any, key: str, task: str) -> None:
-        if isinstance(value, dict):
-            for name, item in value.items():
-                collect(item, str(name), task)
-        elif isinstance(value, list):
-            for item in value:
-                collect(item, key, task)
-        elif isinstance(value, str) and key in TEXT_KEYS:
-            found.append((task, value))
-
-    for file in files:
-        for number, line in enumerate(file.read_text(encoding="utf-8").splitlines(), start=1):
-            if line.strip():
-                row = json.loads(line)
-                fallback = f"{file.name}:{number}"
-                task = str(row.get("id") or fallback) if isinstance(row, dict) else fallback
-                collect(row, "", task)
-    return found
+    return [item for file in files for item in jsonl_texts(file)]
 
 
 def _jsonl(path: Path) -> list[dict[str, Any]]:
@@ -81,16 +89,26 @@ def _jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+# Short location prefixes kept from the fixed-list version (reports and tests cite them); every other file is labelled
+# with its path under evaluation/.
+_PREFIXES = {"agent_eval_v1.jsonl": "dev", "router_labels_v1.jsonl": "router", "claims_v1.jsonl": "claims"}
+
+
+def own_files(root: Path = ROOT) -> list[Path]:
+    """Every task file under ``evaluation/agent_eval/tasks/`` and claim file under ``evaluation/claim_bench/``."""
+    evaluation = root / "evaluation"
+    return sorted((evaluation / "agent_eval" / "tasks").glob("*.jsonl")) + sorted(
+        (evaluation / "claim_bench").glob("*.jsonl")
+    )
+
+
 @lru_cache(maxsize=2)
 def own_texts(root: Path = ROOT) -> tuple[tuple[str, str], ...]:
-    """``(location, text)`` for the project's own wording: dev task turns, router labels, dev claims, test literals."""
-    tasks_dir = root / "evaluation" / "agent_eval" / "tasks"
+    """``(location, text)`` for the project's own wording: every task and claim file, and the test literals."""
     found: list[tuple[str, str]] = []
-    for task in _jsonl(tasks_dir / "agent_eval_v1.jsonl"):
-        found.extend((f"dev:{task['id']}", turn["query"]) for turn in task.get("turns") or [])
-    found.extend((f"router:{row['id']}", row["query"]) for row in _jsonl(tasks_dir / "router_labels_v1.jsonl"))
-    claims = root / "evaluation" / "claim_bench" / "claims_v1.jsonl"
-    found.extend((f"claims:{row['id']}", row["claim"]) for row in _jsonl(claims))
+    for file in own_files(root):
+        prefix = _PREFIXES.get(file.name) or f"{file.parent.name}/{file.name}"
+        found.extend((f"{prefix}:{row_id}", text) for row_id, text in jsonl_texts(file))
     for file in sorted((root / "tests").glob("*.py")):
         try:
             tree = ast.parse(file.read_text(encoding="utf-8"))
@@ -139,21 +157,23 @@ def overlap_report(path: str | Path, *, root: Path = ROOT) -> dict[str, Any]:
         "slice_texts": len(texts),
         "slice_tasks": len({task for task, _text in texts}),
         "own_texts": len(own),
+        "own_files": [_display(file, root) for file in own_files(root)],
         "exact": sum(1 for hit in hits if hit["kind"] == "exact"),
         "near": sum(1 for hit in hits if hit["kind"] == "near"),
         "tasks_with_overlap": tasks,
         "hits": hits,
         "method": (
             f"normalised equality (>= {MIN_EXACT_CHARS} chars); near = 3-gram Jaccard >= {NEAR_JACCARD} or difflib "
-            f"ratio >= {NEAR_RATIO} (>= {MIN_NEAR_CHARS} chars); own texts = dev task turns, router labels, dev "
-            "claims, string literals in tests/*.py"
+            f"ratio >= {NEAR_RATIO} (>= {MIN_NEAR_CHARS} chars); own texts = every evaluation/agent_eval/tasks/*.jsonl "
+            "and evaluation/claim_bench/*.jsonl text, string literals in tests/*.py"
         ),
     }
 
 
 def summary(report: dict[str, Any]) -> dict[str, Any]:
     """The part stored in a run's config: counts, the slice task ids with an overlap, and the method."""
-    return {key: report[key] for key in ("slice", "slice_texts", "exact", "near", "tasks_with_overlap", "method")}
+    keys = ("slice", "slice_texts", "exact", "near", "tasks_with_overlap", "own_files", "method")
+    return {key: report[key] for key in keys if key in report}
 
 
 def is_heldout_path(path: str | Path) -> bool:
@@ -166,12 +186,61 @@ def _display(path: str | Path, root: Path) -> str:
     return str(resolved.relative_to(root)) if resolved.is_relative_to(root) else resolved.name
 
 
+def without_overlap(report: dict[str, Any], run_names: list[str]) -> dict[str, Any]:
+    """Pass counts of committed chat runs of the slice (``evaluation/results/<name>.json``) with and without the
+    slice tasks the report found, e.g. ``{"chat_heldout_r9-auto-nollm-prefix": {"all": "18/52", ...}}``."""
+    from .results import decode_outcomes, load_result
+
+    overlapping = set(report["tasks_with_overlap"])
+    counts: dict[str, Any] = {}
+    for name in run_names:
+        result = load_result(name)
+        if not result:
+            raise SystemExit(f"evaluation/results/{name}.json not found")
+        outcomes = decode_outcomes(result.get("task_outcomes"))
+        passed = {task for task, runs in outcomes.items() if runs and all(runs)}
+        rest = [task for task in outcomes if task not in overlapping]
+        excluded = sorted(task for task in outcomes if task in overlapping)
+        counts[name] = {
+            "commit": (result.get("config") or {}).get("commit"),
+            "all": f"{len(passed)}/{len(outcomes)}",
+            "without_overlap": f"{sum(task in passed for task in rest)}/{len(rest)}",
+            "excluded": {task: task in passed for task in excluded},
+        }
+    return counts
+
+
 def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser = argparse.ArgumentParser(description="Overlap of a held-out slice with own dev tasks and tests.")
     parser.add_argument("slice", help="A slice .jsonl file or a folder of them.")
     parser.add_argument("--out", default=None, help="Write the full report (ids and locations only) here.")
+    parser.add_argument(
+        "--chat-runs",
+        nargs="*",
+        default=[],
+        help="Committed chat runs of the slice (evaluation/results stems): pass counts with and without the overlap.",
+    )
     args = parser.parse_args(argv)
     report = overlap_report(args.slice)
+    if args.chat_runs:
+        report["chat_runs"] = without_overlap(report, args.chat_runs)
+    if args.out:
+        from datetime import UTC, datetime
+
+        from .runner import _git_commit
+
+        given = sys.argv[1:] if argv is None else argv
+        command = " ".join(["python -m evaluation.agent_eval.slice_overlap", *given])
+        report = {
+            "kind": "slice_overlap_scan",
+            "config": {
+                "slice": report["slice"],
+                "commit": _git_commit(),
+                "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
+                "command": command,
+            },
+            **report,
+        }
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         Path(args.out).write_text(json.dumps(report, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
