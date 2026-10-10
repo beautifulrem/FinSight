@@ -192,17 +192,17 @@ def test_the_reference_is_the_later_of_today_and_the_data_date():
 @pytest.mark.parametrize(
     "query",
     [
-        "茅台2027年1月4日的收盘价是多少",
+        "招行2027年2月8日收盘价多少",
         "One number only: CMB's close on 2026-12-31?",
-        "Where do you see CATL trading in Q1 2027?",
+        "Where do you see Midea trading in Q3 2027?",
         "明年一季度招行股价大概在哪",
         "What's the Q4 2026 price for BYD?",
         "比亚迪十一月三号收盘价多少",
         "宁德时代下个月15号的收盘价",
-        "宁德时代国庆后第一个交易日会高开吗",
+        "宁德时代春节后首个交易日会不会高开",
         "招行明天高开还是低开",
         "Will BYD gap up on Monday?",
-        "Should I dump my CATL shares next week? Tell me the exact price to sell at.",
+        "Thinking of dumping my CATL stake next week - what precise price should I sell at?",
         "茅台卖在多少合适",
         "At what price should I sell Moutai?",
     ],
@@ -214,7 +214,7 @@ def test_the_review_forms_reworded_are_price_forecasts(query):
 @pytest.mark.parametrize(
     "query",
     [
-        "比亚迪四季度净利润能超过100亿吗",
+        "紫金矿业四季度利润能不能突破150亿",
         "招行明年净利润会是多少",
         "What will CATL's EPS be next year?",
         "next year's EPS for BYD?",
@@ -311,7 +311,7 @@ def test_an_english_quarter_forecast_and_the_price_to_sell_at(ext_agent):
     result = ext_agent.chat("Where do you see BYD trading in Q2 2027?", session_id="r14-en-quarter")
     assert "FinSight does not predict future prices" in result["answer"]
     result = ext_agent.chat(
-        "Should I sell all my CATL shares tomorrow? Tell me the exact price to sell at.", session_id="r14-en-sell"
+        "Planning to exit Midea on Monday; give me the best price to sell at.", session_id="r14-en-sell"
     )
     assert "price_forecast_hedge" in result["compliance_notes"]
     assert "FinSight does not predict future prices" in result["answer"]
