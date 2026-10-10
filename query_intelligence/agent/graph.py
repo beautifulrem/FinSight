@@ -48,6 +48,7 @@ from .composer import (
     failure_note,
     frame_result,
     frame_sentences,
+    news_gaps,
     parse_answer,
 )
 from .coverage import (
@@ -1371,6 +1372,8 @@ class AgentRuntime:
             limitations.extend(flow_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
             limitations.extend(year_to_date_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
             limitations.extend(range_52w_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
+            # (round 15, K13) a news question with no document found says so on the LLM path too
+            limitations.extend(news_gaps(asked, state.get("tool_log") or [], zh=self._zh(state)))
         limitations.extend(state.get("verification_notes") or [])
         draft["limitations"] = list(dict.fromkeys(limitations))
         market = [

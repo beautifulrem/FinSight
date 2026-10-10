@@ -410,7 +410,9 @@ def test_corpus_labels_are_not_publishers_and_off_target_knowledge_documents_are
     lines = _documents(data, zh=True)
     assert lines == [
         "相关资料：一篇关于市场行情的研究报告 [research_note_1]。",
-        "相关资料：证券时报于2026-04-20发布的一篇关于财务业绩的新闻 [news_3]。",
+        # (round 15, K13) a safe, figure-free headline naming the target is quoted, attributed
+        "相关资料：证券时报于2026-04-20发布的一篇关于财务业绩的新闻，标题为「五粮液发布年报」"
+        "（第三方标题，未经核实） [news_3]。",
     ]
     # without targets (a concept question) knowledge documents are all background and all listed
     assert len(_documents({**data, "targets": []}, zh=True)) == 3
