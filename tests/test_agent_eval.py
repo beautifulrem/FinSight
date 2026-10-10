@@ -1225,3 +1225,39 @@ def test_round13_tasks_and_claims_do_not_overlap_the_heldout_or_reviewer_sets():
     assert _overlaps(mine + claims, others) == (0, 0), (
         "round-13 tasks or claim tests overlap a held-out or reviewer set"
     )
+
+
+def test_shipped_tasks_do_not_overlap_the_heldout_or_reviewer_sets():
+    """(round 14) The shipped-default gate set (``build_shipped_tasks.py``) is written in the author's own wording: no
+    copy or near copy of any committed held-out slice (r4-r9, read programmatically), any reviewer probe quoted in the
+    tests, the independent router sets, the test sets or any other task file (counts only)."""
+    from evaluation.agent_eval.build_shipped_tasks import SHIPPED_TASKS_PATH, build_shipped_tasks
+    from evaluation.agent_eval.build_tasks import check_overlap
+    from evaluation.agent_eval.runner import EVAL_DIR, load_tasks
+
+    tasks = build_shipped_tasks()
+    mine = [turn["query"] for task in tasks for turn in task["turns"]]
+    others: list[str] = []
+    for path in sorted((EVAL_DIR / "tasks").glob("*.jsonl")):
+        if path == SHIPPED_TASKS_PATH:
+            continue
+        if path.name.startswith("router_labels"):
+            others.extend(row["query"] for row in _router_rows(path.name))
+        else:
+            others.extend(turn["query"] for item in load_tasks(path) for turn in item["turns"])
+    heldout = _heldout_r4_texts() + _heldout_r5_texts()
+    for name in ("heldout_r6", "heldout_r7", "heldout_r8", "heldout_r9"):
+        heldout += _heldout_r6_texts(name)
+    assert len(_heldout_r6_texts("heldout_r9")) >= 50, "the round-9 slice was not read"
+    probes = [
+        *_ROUND4_REVIEW_PROBES,
+        *_ROUND5_REVIEW_PROBES,
+        *_ROUND6_REVIEW_PROBES,
+        *_ROUND7_REVIEW_PROBES,
+        *_REVIEW_PROBES,
+        *_ROUND9_REVIEW_PROBES,
+    ]
+
+    assert len(tasks) == 21 and check_overlap(tasks) == []
+    assert load_tasks(SHIPPED_TASKS_PATH) == tasks, "run python -m evaluation.agent_eval.build_shipped_tasks"
+    assert _overlaps(mine, others + heldout + probes) == (0, 0), "a shipped task copies a held-out or reviewer text"
