@@ -232,6 +232,7 @@ HELDOUT_R6_RUNS = (
     "chat_heldout_r6-auto-nollm-after-fix",
     "chat_heldout_r6-auto-nollm-after-exposure-round11",
     "chat_heldout_r6-auto-nollm-after-exposure-round12",
+    "chat_heldout_r6-auto-nollm-after-exposure-round13",
 )
 # Round-7 held-out chat slice (evaluation/heldout_r7/, independent author): before and after the round-11 fixes.
 # From round 12 the round-7 slice is after exposure (the engineers read it to fix the classes it still failed).
@@ -239,9 +240,15 @@ HELDOUT_R7_RUNS = (
     "chat_heldout_r7-auto-nollm-prefix",
     "chat_heldout_r7-auto-nollm-after-fix",
     "chat_heldout_r7-auto-nollm-after-exposure-round12",
+    "chat_heldout_r7-auto-nollm-after-exposure-round13",
 )
-# Round-8 held-out slice (evaluation/heldout_r8/, written by the round-8 reviewer): before and after the round-12 fixes.
-HELDOUT_R8_RUNS = ("chat_heldout_r8-auto-nollm-prefix", "chat_heldout_r8-auto-nollm-after-fix")
+# Round-8 held-out slice (evaluation/heldout_r8/, written by the round-8 reviewer): before and after the round-12 fixes,
+# then (round 13) after exposure: the round-13 engineers read the slice and fixed the classes it still failed.
+HELDOUT_R8_RUNS = (
+    "chat_heldout_r8-auto-nollm-prefix",
+    "chat_heldout_r8-auto-nollm-after-fix",
+    "chat_heldout_r8-auto-nollm-after-exposure-round13",
+)
 # Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
 # (title, a, b, label a, label b, paths compared).
 PAIRED_ABLATIONS = (
@@ -279,6 +286,7 @@ EXTRA_EVIDENCE = (
     "glm-auto-testv3-sample45-r13",
     "ablation-v4-testv3-sample24-pass2-r13",
     "claims_heldout_r8-after-exposure-round13-claims",
+    "claims_heldout_r8-after-exposure-round13",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -384,6 +392,15 @@ FILE_STATUS = {
     "round-13 commit (I8)",
     "claim_bench-heldout_r6-after-exposure-round13": "independent round-6 claim slice **after exposure (round 13)**: "
     "re-run at the round-13 commit (I8); not an out-of-sample estimate",
+    "chat_heldout_r8-auto-nollm-after-exposure-round13": "independent round-8 chat slice **after exposure (round "
+    "13)**: the round-13 engineers read the slice and fixed the classes it still failed, so it is no longer out of "
+    "sample",
+    "claims_heldout_r8-after-exposure-round13": "independent round-8 claim slice **after exposure (round 13)**: the "
+    "round-13 engineers read its five wrong claims and wrote rules for their classes; not an out-of-sample estimate",
+    "chat_heldout_r6-auto-nollm-after-exposure-round13": "independent round-6 chat slice **after exposure**, re-run "
+    "at the round-13 commit (no regression check, not a fresh estimate)",
+    "chat_heldout_r7-auto-nollm-after-exposure-round13": "independent round-7 chat slice **after exposure**, re-run "
+    "at the round-13 commit (no regression check, not a fresh estimate)",
     "chat_heldout_r7-auto-nollm-after-fix": "independent round-7 chat slice **after the round-11 fixes**; the "
     "engineers never opened the slice (four round-11 dev turns in three tasks match slice turns verbatim by "
     "coincidence)",
@@ -1604,7 +1621,9 @@ def render_with_sources() -> tuple[str, list[str]]:
             "`r12_traded_more_by_how_much_en`; per the session logs written from the round-7 classes before the slice "
             "existed, see `evaluation/heldout_r8/README.md`). Without those three tasks the run goes 13/48 -> 32/48 = "
             "0.667 (the slice-side overlap at the after-fix commit is `slice_overlap-heldout_r8-at-6e14016.json`). "
-            "Its 25 claims are in the evidence table below (`claims_heldout_r8-*.json`).",
+            "Its 25 claims are in the evidence table below (`claims_heldout_r8-*.json`). The round-13 run is "
+            "**after exposure**: the round-13 engineers read the slice's remaining failures and fixed their classes in "
+            "their own wording, so it is not an out-of-sample measure.",
             "",
         ]
         for name, result in heldout_r8:

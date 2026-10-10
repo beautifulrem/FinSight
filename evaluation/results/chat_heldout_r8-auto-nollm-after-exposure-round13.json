@@ -1,0 +1,200 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/heldout_r8/chat_r8_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "b1099d8",
+  "run_at": "2026-10-10T12:33:56+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 66.7,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r8/chat_r8_heldout.jsonl --out outputs/agent_eval/chat_r8-r13.json",
+  "env": {},
+  "command_with_env": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r8/chat_r8_heldout.jsonl --out outputs/agent_eval/chat_r8-r13.json"
+ },
+ "summary": {
+  "tasks": 51,
+  "turns": 95,
+  "repeats": 1,
+  "task_success": 1.0,
+  "pass^1": 1.0,
+  "ci": {
+   "task_success": [
+    1.0,
+    1.0
+   ],
+   "pass^1": [
+    1.0,
+    1.0
+   ],
+   "task_success_uncited": [
+    1.0,
+    1.0
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 1.0,
+  "turn_success": 1.0,
+  "behavior_accuracy": 1.0,
+  "fact_recall": 1.0,
+  "fact_stated": 1.0,
+  "tool_recall": 1.0,
+  "tool_precision": 0.6481,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 104.85,
+  "latency_ms_p95": 1358.18,
+  "latency_ms_p99": 9371.66,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "control": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 828.43
+  },
+  "gap_lexicon": {
+   "tasks": 14,
+   "task_success": 1.0,
+   "latency_ms_p95": 868.98
+  },
+  "hk_lookalike": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 753.26
+  },
+  "holding_value": {
+   "tasks": 7,
+   "task_success": 1.0,
+   "latency_ms_p95": 9371.66
+  },
+  "injection_prediction": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 112.11
+  },
+  "metric_aspect": {
+   "tasks": 9,
+   "task_success": 1.0,
+   "latency_ms_p95": 192.51
+  },
+  "single_turn_compare": {
+   "tasks": 8,
+   "task_success": 1.0,
+   "latency_ms_p95": 386.95
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 18,
+   "task_success": 1.0,
+   "latency_ms_p95": 1858.9
+  },
+  "zh": {
+   "tasks": 33,
+   "task_success": 1.0,
+   "latency_ms_p95": 1096.73
+  }
+ },
+ "failed_checks": {},
+ "failures": [],
+ "task_outcomes": {
+  "r8h_gap_zh_01": "1",
+  "r8h_gap_zh_02": "1",
+  "r8h_gap_zh_03": "1",
+  "r8h_gap_zh_04": "1",
+  "r8h_gap_zh_05": "1",
+  "r8h_gap_zh_06": "1",
+  "r8h_gap_zh_07": "1",
+  "r8h_gap_zh_08": "1",
+  "r8h_gap_zh_09": "1",
+  "r8h_gap_en_01": "1",
+  "r8h_gap_en_02": "1",
+  "r8h_gap_en_03": "1",
+  "r8h_gap_en_04": "1",
+  "r8h_gap_en_05": "1",
+  "r8h_cmp_zh_01": "1",
+  "r8h_cmp_zh_02": "1",
+  "r8h_cmp_zh_03": "1",
+  "r8h_cmp_zh_04": "1",
+  "r8h_cmp_en_01": "1",
+  "r8h_cmp_en_02": "1",
+  "r8h_cmp_en_03": "1",
+  "r8h_hold_zh_01": "1",
+  "r8h_hold_zh_02": "1",
+  "r8h_hold_zh_03": "1",
+  "r8h_hold_zh_04": "1",
+  "r8h_hold_zh_05": "1",
+  "r8h_hold_en_01": "1",
+  "r8h_hold_en_02": "1",
+  "r8h_metric_en_01": "1",
+  "r8h_metric_en_02": "1",
+  "r8h_metric_zh_01": "1",
+  "r8h_metric_zh_02": "1",
+  "r8h_metric_zh_03": "1",
+  "r8h_metric_zh_04": "1",
+  "r8h_metric_zh_05": "1",
+  "r8h_metric_zh_06": "1",
+  "r8h_metric_en_03": "1",
+  "r8h_hk_zh_01": "1",
+  "r8h_hk_zh_02": "1",
+  "r8h_hk_zh_03": "1",
+  "r8h_hk_en_01": "1",
+  "r8h_hk_en_02": "1",
+  "r8h_inj_zh_01": "1",
+  "r8h_inj_zh_02": "1",
+  "r8h_inj_en_01": "1",
+  "r8h_ctrl_zh_01": "1",
+  "r8h_ctrl_zh_02": "1",
+  "r8h_cmp_zh_05": "1",
+  "r8h_ctrl_zh_04": "1",
+  "r8h_ctrl_en_01": "1",
+  "r8h_ctrl_en_02": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r8-r13.json",
+  "sha256_16": "fd00a42cab4ec437",
+  "bytes": 275565,
+  "slimmed_at": "2026-10-10T12:52:16+00:00"
+ },
+ "notes": [
+  "AFTER EXPOSURE (round 13): independent round-8 chat slice rerun at b1099d8 (clean tree; the final round-13 code, after the review-9 fixes), no LLM, --no-replay. The round-13 engineers read the 16 tasks still failing after round 12 and fixed their classes with their own dev examples (build_tasks._round13_tasks), so this is not an out-of-sample measure. 51/51 = 1.000 (after round 12, out of sample: 35/51 = 0.686; a first round-13 run at f429ede, before the review-9 fixes, was also 51/51)."
+ ]
+}

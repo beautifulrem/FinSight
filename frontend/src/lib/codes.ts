@@ -323,6 +323,11 @@ const FRAME_METRICS: Record<string, Text> = {
 };
 
 function frameMetric(lang: Lang, key: string): string {
+  if (key.includes("-")) {
+    // (round 13) two metrics of one target ("roe-gross_margin"): "ROE 与 毛利率", "ROE and gross margin"
+    const [first = "", second = ""] = key.split("-");
+    return `${frameMetric(lang, first)}${lang === "zh" ? "与" : " and "}${frameMetric(lang, second)}`;
+  }
   return FRAME_METRICS[key]?.[lang] ?? METRICS[key]?.[lang] ?? prettify(key);
 }
 
@@ -331,6 +336,17 @@ function frameLabel(lang: Lang, operation: string, metric: string, operands: str
   const names = operands.split("|").filter(Boolean).map((name) => operandName(lang, name));
   const what = frameMetric(lang, metric);
   const [a = "", b = ""] = names;
+  if (metric.includes("-") && names.length === 1) {
+    // (round 13) two metrics of one target: "frame:difference:roe-gross_margin:五粮液"
+    const verb: Record<string, Text> = {
+      difference: { zh: "差值", en: "gap" },
+      ratio: { zh: "比值", en: "ratio" },
+      relative: { zh: "相对差", en: "relative gap" },
+    };
+    const word = verb[operation]?.[lang];
+    if (!word) return null;
+    return lang === "zh" ? `计算${a}的${what}${word}` : `Computed the ${word} between ${a}'s ${what}`;
+  }
   switch (operation) {
     case "difference":
       return lang === "zh" ? `计算${what}差值：${a} 对比 ${b}` : `Computed the ${what} gap: ${a} vs ${b}`;
@@ -342,6 +358,16 @@ function frameLabel(lang: Lang, operation: string, metric: string, operands: str
       return lang === "zh"
         ? `比较${what}高低：${joinNames(lang, names)}`
         : `Compared which ${what} is higher: ${joinNames(lang, names)}`;
+    case "sum":
+      return lang === "zh"
+        ? `计算${what}合计：${names.join(" + ")}`
+        : `Computed the combined ${what}: ${names.join(" + ")}`;
+    case "share":
+      return lang === "zh" ? `计算${what}占比：${a} ÷ ${b}` : `Computed ${a}'s ${what} as a share of ${b}'s`;
+    case "spread":
+      return lang === "zh"
+        ? `计算${what}最高与最低之差：${joinNames(lang, names)}`
+        : `Computed the ${what} spread (highest minus lowest): ${joinNames(lang, names)}`;
     default:
       return null;
   }
@@ -365,7 +391,7 @@ const SESSION: [RegExp, (m: RegExpExecArray, lang: Lang) => string][] = [
     (m, lang) => (lang === "zh" ? `忽略了不在比较对象中的 ${m[1]}` : `Dropped ${m[1]}: not one of the compared targets`),
   ],
   [
-    /^frame:([a-z_]+):([a-z_0-9]+):(.+)$/,
+    /^frame:([a-z_]+):([a-z_0-9-]+):(.+)$/,
     (m, lang) => frameLabel(lang, m[1]!, m[2]!, m[3]!) ?? formatUnknown(lang, m.input),
   ],
   [

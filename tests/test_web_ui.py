@@ -762,6 +762,9 @@ def test_codes_are_humanised_and_stale_data_is_flagged(page):
         "**/agent/chat/stream",
         lambda route: route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=body),
     )
+    # The canned answer is dated 2026-09-24: pin the browser clock to that week, so the 10-day market freshness
+    # window does not turn the live tiles stale as the calendar moves on (the test failed from 2026-10-05 on)
+    page.clock.set_fixed_time("2026-09-28T10:00:00+08:00")
     try:
         _ask(page, "贵州茅台和白酒行业的估值")
         card = _last_turn(page).locator(".answer-card")

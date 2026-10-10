@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .coverage import holding_value_request
+from .coverage import holding_lots, holding_positions, holding_value_request
 from .evidence import _NUMBER as _NUMBER_TOKEN
 from .evidence import EvidenceStore, _collect_numbers, extract_numbers
 
@@ -408,7 +408,10 @@ def _bound_units(answer: dict[str, Any]) -> list[tuple[str, str]]:
 
 
 # (round 12, H8) "(24.6 − 20.9) / 20.9 × 100 = 17.7%": the 100 of a percent formula is a constant, not a claim
-_FORMULA_CONSTANT = re.compile(r"(?<=[×*✕])\s*100(?:\.0+)?\s*%?(?![\d.])")
+# (round 13) and the 1 of "close ÷ (1 − 0.18%)" (a previous close implied by a close and its % change)
+_FORMULA_CONSTANT = re.compile(r"(?<=[×*✕])\s*100(?:\.0+)?\s*%?(?![\d.])|(?<=[(（])\s*1\s*(?=[+\-−])")
+_TOTAL_WORD = re.compile(r"合计|总计|\bcombined\b|\bin total\b|\btogether\b|\btakes about\b", re.IGNORECASE)
+_IMPLIED_PREVIOUS = re.compile(r"[÷/]\s*[(（]\s*1\s*[+\-−]")
 # A ratio or a gap stated next to a metric name ("ROE 约为中国平安的 1.93 倍", "P/E is 17.7% above"): the number is
 # derived from the operands, not a reported value of the metric
 _COMPARISON = re.compile(
@@ -447,7 +450,11 @@ def _amount_operands(text: str, numbers: list[tuple[float, bool]]) -> list[float
             continue
         matched = next((scale for scale in scales if _is_supported(value, numbers, (scale,), rounding, sign)), None)
         if matched:
-            found.append(value / matched)
+            # (round 13) the evidence value itself when one matches ("CNY 3.79 bn" → 3793827534), so a total or gap
+            # of two rounded amounts is checked against the exact operands ("combined CNY 5.25 bn", not 5.24)
+            bases = [float(entry if isinstance(entry, int | float) else entry[0]) for entry in numbers]
+            exact = [base for base in bases if _is_supported(value, [base], (matched,), rounding, sign)]
+            found.append(exact[0] if exact else value / matched)
     return found
 
 
@@ -507,6 +514,14 @@ def verify_answer(
     holding = holding_value_request(query)
     if holding is not None and float(holding[0]) not in query_numbers:
         query_numbers.append(float(holding[0]))  # "两千股": a count the claim parser reads only with some units
+    lots = holding_lots(query) if holding is not None else None
+    if lots and float(lots) not in query_numbers:
+        query_numbers.append(float(lots))  # (round 13) "买三手": the 3 of "3 手（300 股）"
+    for position in holding_positions(query):
+        # (round 13, review-9 I5) every position's count, in shares and in lots
+        for count in (position["shares"], position["lots"]):
+            if count and float(count) not in query_numbers:
+                query_numbers.append(float(count))
     unsupported: list[float] = []
     misattributed: list[float] = []
     document_market: list[float] = []
@@ -571,6 +586,7 @@ def verify_answer(
                 and (
                     _is_supported(value, query_numbers, _BARE_SCALES)
                     or _is_product(value, rounding, query_numbers, operands)
+                    or _is_product_total(value, rounding, query_numbers, operands, unit)
                 )
             ):
                 continue
@@ -585,9 +601,26 @@ def verify_answer(
                 continue
             shares = amounts if _is_percent(scales) else []
             fraction = bool(_DIVISION.search(unit))
+            implied = bool(_IMPLIED_PREVIOUS.search(unit))
             if (
                 operands
-                and _is_derived(value, rounding, [v for v in operands if v != value], shares=shares, fraction=fraction)
+                and _is_derived(
+                    value,
+                    rounding,
+                    [v for v in operands if v != value],
+                    shares=shares,
+                    fraction=fraction,
+                    implied=implied,
+                    # (round 13) a rate minus a share of two amounts: only a gap in percent, next to a written-out
+                    # division, from rates stated in percent (a P/E of 8.7 minus a 9.93% margin is not a gap)
+                    rate_shares=amounts if _is_percent(scales) and "÷" in unit else [],
+                    rates=[v for v, sc in supported_claims if _is_percent(sc) and not _is_amount(sc)],
+                    # (round 13, review-9 I1) "378 亿元 ÷ 823.2 亿元 ≈ 45.92%": a share in percent, only next to
+                    # a written-out division
+                    share_written=_is_percent(scales) and "÷" in unit,
+                    exact_amounts=sentence_amounts,
+                    total_written=bool(_TOTAL_WORD.search(unit)),
+                )
             ) or (_is_amount_gap(value, scales, rounding, sentence_amounts)):
                 derived_values.append(value)
                 continue
@@ -921,7 +954,18 @@ def _is_percent(scales: tuple[float, ...]) -> bool:
 
 
 def _is_derived(
-    value: float, rounding: float | None, operands: list[float], *, shares: list[float] = (), fraction: bool = False
+    value: float,
+    rounding: float | None,
+    operands: list[float],
+    *,
+    shares: list[float] = (),
+    fraction: bool = False,
+    implied: bool = False,
+    rate_shares: list[float] = (),
+    rates: list[float] = (),
+    share_written: bool = False,
+    total_written: bool = False,
+    exact_amounts: list[float] = (),
 ) -> bool:
     """``value`` is a - b, a + b, a / b or the percent change (a - b) / b of two stated operands, or, for a value
     written in percent, the share a / b of two stated amounts (a net margin: net profit / revenue, a <= b) or the
@@ -944,7 +988,38 @@ def _is_derived(
                     # ("3.7 ÷ 20.9 ≈ 0.177"): accepting it everywhere raised the stress test's derived
                     # false-accept rate from 0.0121 to 0.0282
                     candidates.append((a - b) / abs(b))
+            if share_written and b:
+                candidates.append(a / b * 100)
+            if implied and abs(b) < 100:
+                # (round 13) "1409.5 ÷ (1 − 0.1778%) ≈ 1412.01，每股下跌约 2.51 元": the previous close a close and its
+                # daily % change imply, and the change in yuan, only where that formula is written out
+                for rate in (b, -b):
+                    previous = a / (1 + rate / 100)
+                    candidates += [previous, a - previous]
         for candidate in candidates:
+            if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
+                return True
+    if share_written:
+        # (round 13, review-9 I1) a share of two amounts from their exact evidence values ("CNY 1.45 bn ÷ CNY 3.79 bn
+        # ≈ 38.29%": 1452833705 / 3793827534)
+        for i, a in enumerate(exact_amounts):
+            for j, b in enumerate(exact_amounts):
+                if i != j and b:
+                    candidate = a / b * 100
+                    if abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
+                        return True
+    if total_written and len(operands) >= 3:
+        # (round 13, review-9 I3) "合计" / "combined" of three or more stated operands
+        total = sum(operands)
+        if abs(abs(value) - abs(total)) <= tolerance + abs(total) * 0.0005 + 1e-9:
+            return True
+    # (round 13) a rate minus a share of two stated amounts (a gross margin and a net margin derived from net profit
+    # and revenue: "毛利率 76.1%，净利率 378 亿元 ÷ 1085 亿元 ≈ 34.84%，两者相差 41.26 个百分点")
+    rates = [a for a in rates if a not in rate_shares and abs(a) <= 100]
+    for i, j in [(i, j) for i, a in enumerate(rate_shares) for j, b in enumerate(rate_shares) if i != j and 0 < a <= b]:
+        share = rate_shares[i] / rate_shares[j] * 100
+        for rate in rates:
+            candidate = rate - share
             if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
                 return True
     # (round 10, F8) the gap in percentage points between two such shares of four stated amounts (two net margins:
@@ -957,6 +1032,26 @@ def _is_derived(
             if candidate and abs(abs(value) - abs(candidate)) <= tolerance + abs(candidate) * 0.0005 + 1e-9:
                 return True
     return False
+
+
+def _is_product_total(
+    value: float, rounding: float | None, factors: list[float], operands: list[float], unit: str
+) -> bool:
+    """(round 13, review-9 I5) "200 × 1409.5 = 281900 元，300 × 100.64 = 30192 元，合计 312092 元": the total of the
+    products written out in the same sentence (each "count × price" pair as written)."""
+    if not _TOTAL_WORD.search(unit):
+        return False
+    pairs = re.findall(r"(\d[\d,]*(?:\.\d+)?)\s*×\s*(\d[\d,]*(?:\.\d+)?)", unit)
+    products = []
+    for left, right in pairs:
+        a, b = float(left.replace(",", "")), float(right.replace(",", ""))
+        if any(abs(a - f) < 1e-9 for f in factors) and any(abs(b - o) < 1e-9 for o in operands):
+            products.append(a * b)
+    if len(products) < 2:
+        return False
+    total = sum(products)
+    tolerance = 0.5 if rounding is None else rounding
+    return abs(abs(value) - total) <= tolerance + total * 0.0005 + 1e-9
 
 
 def _is_product(value: float, rounding: float | None, factors: list[float], operands: list[float]) -> bool:

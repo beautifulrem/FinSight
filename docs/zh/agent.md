@@ -347,6 +347,40 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 
 结果见[评测](#评测)（第 12 轮）。
 
+### 第 13 轮新增的规则（第 8 轮留出集暴露之后）
+
+第 13 轮修复第 8 轮独立留出集（`evaluation/heldout_r8/`）在第 12 轮之后仍失败的类别。从第 13 轮起该留出集属于**暴露之后**：工程师读了它的失败任务，用自写的例子：22 个 dev 任务（`build_tasks._round13_tasks`，中英文）、路由标注 `route_388`–`route_395`、12 条声明基准行（`d300`–`d311`）和单元测试（`tests/test_agent_round13.py`）。`tests/test_agent_eval.py` 检查它们都没有复制或近似复制第 4–8 轮切片文本（程序读取）、评审探针、独立路由集或测试集。
+
+**比较动词作为一类。** 领先 / 落后 / 跑赢 / 跑输 / 超出 / 胜过 / 输给 / 高出 / 多出，以及 outperform、trail、lead、lag、beat、exceed、out-earn、out-sell，与「比」「高」一样是锚：后面带数量或单位词（「几个百分点」「多少亿」「by how many points」）问差值，带「几倍」或「by what multiple」问倍数。口语里用一个数去数另一个（「相当于几个」「抵得上几个」「顶得上几个」「能抵几个」）和祈使句（「divide the second by the first」「后者除以前者」）是倍数，「subtract」「减去」「相减」是差值。分句末尾或在 by / from / and 之前的单独「the first / the second」是序数。「earns」指净利润，「out-sells」指营收，「closed higher / lower」指收盘价，「percentage-wise」问相对差异，「under」是比较词。开场就问、会话里没有可指的对象时（「Take the first and divide it by the second.」），按序数或指标的比较会反问，而不是拒答（`frame.opening_comparison`）。
+
+**给定倍数、两个指标、两个行业、合计。** 带着要核对的倍数问比值（「茅台的市净率大概是五粮液的1.5倍吗」「Is Ping An's revenue roughly 10 times Wuliangye's?」）时，先写出比值，再说这个倍数是否成立（「大约 / about」容差 5%，否则 2%；不成立时说「不到 / 超过」「less / more than」），倍数沿用用户原来的写法（`frame.claimed_multiple`、`composer._claimed_multiple_verdict`）。最近两轮问的是同一标的、同类单位的两个不同指标（「五粮液的毛利率」→「那净利率呢」）时，「两个率相差多少个点」比较这两个指标（`frame._metric_pair`，原因码 `frame:difference:<m1>-<m2>:<标的>`）；推算的净利率连同净利润和营收一起写出，校验器接受「比率减去这样推算的占比」。问题里写了两个行业名和行业词（「白酒和保险两个行业的平均市净率」）而 NLU 只标出一个时，第二个行业从实体主表中读出。两个操作数的「加起来 / 合计 / 一共 / combined / in total」是合计（`operation: "sum"`），只对金额和数量（市盈率加总没有意义）。
+
+**持仓、指标侧面。** 按最近收盘价买入若干股或若干手的金额（「按这个价格，买三手要多少钱」「How much would it cost to buy 400 Ping An shares?」）就是持仓算术（股数 × 收盘价），措辞为未含佣金和印花税的买入金额（`coverage.holding_purchase`）；有沿用标的时绝不按超出范围拒答。行业换手率（「白酒行业今天换手率多少」）由行业快照的 `turnover`（`tools/units.py` 声明为百分比）给出，而不是词汇表的定义（`coverage.sector_data_question`）。没有前一交易日收盘价时，涨跌金额由收盘价和报告的涨跌幅推算：「1409.5 ÷ (1 − 0.1778%) ≈ 1412.01 元，每股下跌约 2.51 元（推算值）」，校验器只接受写出公式的这种推算。两个四舍五入金额的合计按证据中的精确值核对（「CNY 3.79 bn + 1.45 bn: combined CNY 5.25 bn」）。
+
+**声明核查。** 「N倍多一点」「多一些」是比 N 多一点：至多一个步长的 0.3（两倍多一点 = 2–2.3 倍）；「N个多百分点」是 N 到 N+1 个百分点；「是保险行业的N倍多」是另一个行业平均的倍数；「the insurance average」（行业名后接 average）是该行业平均；英文「less than half / a third / a quarter of X's」是 X 的倍数。
+
+| 情形 | 例子（自写） | 行为 | 原因码 |
+|---|---|---|---|
+| 比较动词 | 「贵州茅台的净资产收益率」→「换五粮液看看」→「后一只落后前一只几个百分点」 | 「两者相差 3.6 个百分点（贵州茅台更高）」 | `frame:difference:roe:五粮液\|贵州茅台` |
+| 祈使句倍数 | 「Moutai's price-to-book?」→「Ping An?」→「Take the first and divide it by the second.」 | 「the former is about 7.36 times the latter」 | `frame:ratio:pb:…` |
+| 给定倍数 | 「茅台的市净率大概是五粮液的1.5倍吗」 | 「前者约为后者的 1.5 倍 … 所以大约是1.5倍。」 | `frame:ratio:pb:…` |
+| 两个指标 | 「五粮液净资产收益率是多少」→「它毛利率是多少」→「这两项差了几个百分点」 | 「两者相差 46.7 个百分点（毛利率更高）」 | `frame:difference:roe-gross_margin:五粮液` |
+| 买入金额 | 「五粮液最近收在多少」→「照这个价买五手需要多少钱」 | 「买入 5 手（500 股）五粮液约需 500 × 100.64 = 50320 元」 | `holding_follow_up:500->五粮液` |
+
+**第九轮评审（I1、I3–I7、I9）。** 用自写例子并入第 13 轮（`tests/test_agent_round13_review9.py`、12 个 dev 任务 `r13_r9_*`、路由标注 `route_396`–`route_402`；不使用评审的复现语句和它的隐藏切片）：
+
+* **占比**（I1）是独立的运算：「A相当于/占/只有 B 的百分之几 / 几成 / 比重」「what percentage / fraction of B」「as a percentage of B」为 A ÷ B × 100，并写出除法（「378 亿元 ÷ 823.2 亿元 ≈ 45.92%」），绝不算成相对差异 (A − B) ÷ B。基数是写在「相当于」/「of」之后的操作数。LLM 兜底读同一个请求，因此追加的是占比。「是不是…的三成以上」是按所说成数核对的占比。
+* **合计**（I3）覆盖两个及以上操作数（加起来、加一块、合在一起、再加上、合计、combined、put together、add up、in total；用「、」列出的名称就是一组操作数），只对金额和数量；没有可加的对象时反问，绝不拒答。
+* **极差与逐对**（I4）：「最高…最低」「highest … lowest」是所有操作数中最高减最低；对三个及以上点名标的问差值、倍数或占比时逐对计算（数值高的在前）并说明这样做。不丢任何操作数：框架没有读到问题时，模板路径只给出排序，不用前两个计算。单个标的自身的极值（最高价/最低价、52周、「highest close in the last …」）不是极差。
+* **多笔持仓**（I5）：「我持有300股五粮液和2手中国平安，一共值多少钱」中每个股数绑定自己的标的和单位，每笔乘积和合计写在同一句；不带名称的股数（「我还有5手」）属于正在讨论的标的。
+* **动词和「换几股」**（I6）：见上文；「一股茅台能换几股五粮液」是收盘价之比。
+* **事实性的倍数问题**（I7）：「double」只在预测语境（「could it double?」）触发限定；「more than double / at least N times / 两倍还多 / 一半以上 / 有没有…的一半」写出比值并回答「是的 / 不是」「So yes / no」。
+* **港股**（I9）：「Hong Kong shares / stock」前带所有格（「Ping An’s Hong Kong stock」）是 H 股，按超出覆盖范围拒答。
+
+`tests/test_agent_eval.py` 现在把 dev 任务、路由标注、第 13 轮测试和声明行与每个已提交的切片（`evaluation/heldout_r*`，按 glob 查找）以及第 4–9 轮评审报告中引用的探针逐一比对。
+
+结果见[评测](#评测)（第 13 轮）。
+
 ### 会话记忆卡片
 
 `session_memory(turns, query)` 生成一张抽取式的小卡片，以「Session memory (from earlier turns)」的形式放进 Agent 的用户消息。卡片包含：
@@ -562,6 +596,8 @@ python -m evaluation.agent_eval.output_safety_audit --redteam-cases evaluation/a
 ```
 
 **第 12 轮：第 7 轮留出集剩余的类别和第 8 轮评审的 H1、H2、H4、H5、H9、H11（自写例子，除注明外均为离线）。** 规则见[第 12 轮新增的规则](#第-12-轮新增的规则第-7-轮留出集暴露之后第-8-轮评审-h1h2h4h5h9h11)。dev 门禁 370 → 411 个任务，任务成功率 **1.000**，快照缺失 0（英文省略改写产生的 3 个 `search_knowledge` 调用用 `--record-missing` 补录）；保留集门禁 **0.9434**，不变；基线用 `gate --update-baseline` 在 `7343cc5` 刷新（`31ea94b`）。dev 工具精确率 0.6167 → 0.5239，原因是新任务很少写明必需工具（原有 370 个任务上为 0.6098；精确率不在门禁内）。自有路由标注 388 条 **1.000**（`router_eval-round12-own.json`，从有未提交改动的工作区记录；`d42b181` 上从干净工作区重跑结果相同，`router_eval-round13-own.json`）；multiturn_v1 回放 **1.000**，缺失 0（`multiturn_v1-auto-nollm-round12.json`）；离线红队九个集合攻击成功 0、崩溃 0，`gate --extras-only` 通过。pytest 2,068 通过、70 跳过（合并前的第 12 轮分支；合并后的 `cbcf3b2` 上 CI 为 2,282 通过、65 跳过）；vitest 124 个（新增 3 个三轮差值会话）。**切片，暴露之后**（第 12 轮读过失败任务，因此只说明类别已覆盖，不说明规则能泛化；样本外检验是第 8 轮评审的隐藏切片）：第 7 轮 44/53 → **53/53**（`chat_heldout_r7-auto-nollm-after-exposure-round12.json`），第 6 轮 35/38 → **38/38**（`chat_heldout_r6-auto-nollm-after-exposure-round12.json`），均在 `b685e23`。**在线**（Agent 路径，经 Cline pass 调用 DeepSeek V4.1 Flash，`frame_llm_check --sessions round12`，5 个自写会话，22 次 LLM 调用，无 429，`frame-llm-check-round12.json`，`d315174`）：5 个最后一轮中 4 个给出了预期数值，全部由模型自己算出（成交额倍数 4.57、相差 1.26 个点、沿用持仓 30192、两者都跌时的差 0.36）。第五个会话里模型算出了英文问法的净利润占比，但校验器修复删掉了这句（第 8 轮 H8）；5 个会话只是冒烟检查，不是比率。
+
+**第 13 轮：第 8 轮留出集剩余的类别和第九轮评审的 I1、I3–I7、I9（自写例子，离线，无 LLM）。** 规则见[第 13 轮新增的规则](#第-13-轮新增的规则第-8-轮留出集暴露之后)。dev 门禁 432 → 466 个任务（第 13 轮 22 个、第九轮评审 12 个），任务成功率 **1.000**，快照缺失 0；保留集门禁 **0.9434**，不变；基线在干净工作区上用 `gate --update-baseline` 于 `eec32eb` 刷新。自有路由标注 403 条 **1.000**（`router_eval-round13-own.json`）；声明 dev 行 299 → 311，结论和逐项均为 **1.000**；保留声明 1.000 / 1.000（门槛 0.978 / 0.98）；第 4 轮切片 1.000 / 0.920，第 5 轮 1.000 / 0.988，第 6 轮（暴露之后）0.985 / 0.904，均不变（`claim_bench-*-after-round13.json`）。`b1099d8` 上的校验器压力测试（`verifier_stress-round13.json`）：299 个标准答案、5,172 个变体，真接受率 1.000，假接受率按声明 0.0097、含推算数字 0.0110（第 12 轮在 248 个标准答案上为 0.0107 / 0.0121）；「比率减推算占比」规则的第一个版本在同一批变体上把含推算数字的假接受从 57 提高到 97（共 5,135），已在那次运行之前收窄（`ad9afe6`）。离线红队十一个集合攻击成功 0、崩溃 0；`gate --extras-only` 通过。pytest 2,355 通过、70 跳过；vitest 139 个。**真实 Chrome**（154，通过 Playwright 的 `channel="chrome"` 驱动，独立上下文，结束后关闭；Claude-in-Chrome 扩展未连接）对本工作区在 `:8911` 启动的离线服务：「贵州茅台的净资产收益率」→「换五粮液看看」→「后一只落后前一只几个百分点」回答「两者相差 3.6 个百分点（贵州茅台更高）」，两处引用，显示「引用与数字核验通过」；「Moutai's price-to-book?」→「Ping An?」→「Take the first and divide it by the second.」回答「the former is about 7.36 times the latter」；控制台无错误。**第 8 轮切片，暴露之后**（第 13 轮读了它失败的 16 个任务和 5 条错误声明）：对话 35/51 → **51/51**（`chat_heldout_r8-auto-nollm-after-exposure-round13.json`），声明 20/25 → **25/25**（`claims_heldout_r8-after-exposure-round13.json`），均在 `b1099d8`；第九轮评审修复之前在 `f429ede` 的第一次运行结果相同。第 6、7 轮对话切片仍为 38/38 和 53/53。这些只说明类别已覆盖，不说明规则能泛化；样本外检验是第九轮评审的切片（`heldout_r9`，未打开）。用 28 个自写会话（占比、合计、极差、逐对、持仓、买入金额）对照按快照手算的数值检查：在 `173f2b2` 的防护之前发现三处错误或缺失（用「、」列出的名称没被读成操作数、「几倍关系」没被识别为倍数、模板路径对三个标的只用前两个计算），之后没有。
 
 **第 11 轮：第 7 轮评审的 G1–G6 和 G11（自写例子，离线，无 LLM）。** [第 11 轮新增的规则](#第-11-轮新增的规则第-7-轮评审g1g6g11)都是自写措辞，所以这些数字只说明这些类别已被覆盖，不能证明泛化；样本外的衡量是独立的第 7 轮留出集（`evaluation/heldout_r7/`，由他人编写，第 11 轮的工程师没有读过）。dev 门禁 339 → 370 个任务，任务成功率 **1.000**，快照缺失 0（框架问题不需要新的工具调用）；保留集门禁 **0.9434**，不变（基线在 `017e5a3` 刷新）。自有路由标注 372 条 **1.000**（`evaluation/results/router_eval-round11-own.json`）；multiturn_v1 回放 **1.000**，缺失 0（`evaluation/results/multiturn_v1-auto-nollm-round11.json`）；离线红队模板路径在全部九个集合上均为 0。Agent 路径上的框架在线冒烟检查见[第 11 轮规则](#第-11-轮新增的规则第-7-轮评审g1g6g11)。
 
