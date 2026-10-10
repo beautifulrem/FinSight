@@ -1889,8 +1889,8 @@ def render_with_sources() -> tuple[str, list[str]]:
             "60 conversations written by the round-11 reviewer before any round-15 fix "
             "(`evaluation/heldout_r11/README.md`), run with the shipped default data once before the fixes (by the "
             "reviewer) and once after them, from the reviewer's folder. `slice_overlap-heldout_r11-at-c5ffb7d.json` "
-            "lists the overlaps with own wording (text: 2 chat tasks and 2 claims, one claim an exact copy that is also "
-            "in the reviewer's probe file; content and signature tiers wider). Its 24 claims are in the evidence table "
+            "lists the overlaps with own wording (text: 2 chat tasks and 2 claims, one claim an exact copy that is "
+            "also in the reviewer's probe file; content and signature tiers wider). Its 24 claims are in the evidence table "
             "below (`claims_heldout_r11-*.json`).",
             "",
         ]
