@@ -10,6 +10,17 @@ committed before anyone working on it read the checker's code or its tests.
 owner-blocked: the owner collects 30–50 claims they actually met, labels them, and scores them with
 `evaluation/human/import_real_claims.py`. This set was collected by the engineer's search agents.
 
+## Files
+
+| file | what |
+|---|---|
+| `candidates_v2.jsonl` | the 104 candidates the three search agents returned |
+| `select_claims_web_v2.py` | the fixed selection rules, candidates → 50 claims |
+| `collected_v2.jsonl` | the 50 claims as collected, before any label (committed first, `8f0b08b`; two subjects bracketed in `ab01c71`) |
+| `label_claims_web_v2.py` | computes every expected verdict from the data files (committed with the labels, `a5378bd`, before the checker was run) |
+| `claims_web_v2.jsonl` | collected fields + labels, parts, primary-source comparison |
+| `score_claims_web_v2.py` | runs the checker once and writes `evaluation/results/claims_web_v2-first-run.json` |
+
 ## Protocol (written before labelling)
 
 **Blind to the checker.** The engineer who built this set did not open `query_intelligence/` (in particular
@@ -198,3 +209,83 @@ that differs from the report on the same basis. The disagreements are about defi
 - **Wrong published figures that the offline data and the report agree against.** v32's 335.03亿 for 长江电力 (the
   same page states 345.03亿 elsewhere); v41's 五粮液 "ROE 7.47%" (weighted 6.89%); v10's 美的 "加权平均ROE 约17.3%"
   (19.70%).
+
+## First run (the only run), `117e74b`
+
+The run was made once, on a clean tree at `117e74b`, on 2026-10-10T16:27Z, after the claims, labels and scorer had been
+committed (`8f0b08b`, `ab01c71`, `a5378bd`, `117e74b`):
+`python -m evaluation.real_claims_web_v2.score_claims_web_v2`. It used the offline service with the shipped default
+data (v1 + 2026-09-30 extension + corrections layer) and no LLM. The checker received the published sentence with the
+brackets removed and no date, as in the first set. Result: `evaluation/results/claims_web_v2-first-run.json`.
+
+| | result |
+|---|---|
+| verdict accuracy | **0.500 [0.36, 0.64]** (25/50; 95% percentile bootstrap over claims, 2000 resamples) |
+| against the definition-blind labels | 0.520 [0.38, 0.66] (26/50) |
+| by category | annual_ratios 0.800 (8/10), annual_figures 0.615 (8/13), market_value 0.500 (2/4), daily_price 0.462 (6/13), loose_or_relational 0.250 (1/4), english_or_traditional 0.000 (0/6) |
+| by source type | broker notes 0.667 (2/3), media 0.536 (15/28), social 0.467 (7/15: 雪球 5/10, 东方财富股吧 2/5), company announcements 0.250 (1/4) |
+| by expected verdict | contradicted 3/3, partially_supported 0.600 (15/25), supported 0.368 (7/19), unverifiable 0/3 |
+| checker's verdicts | supported 10, partially_supported 21, contradicted 11, unverifiable 8 |
+
+The first set scored 0.800 on its first run, but that collector had read the checker; this set is blind to it. The
+two sets also differ in label rules (definitions) and in their mix of claims (6 English / traditional claims here
+against 3). The gap fits the reading that the first figure was helped by a collector who knew the checker, but this
+run alone cannot separate that from the other two differences.
+
+### Error classes (not fixed; after any fix this set is "after exposure")
+
+Every error, grouped by what the checker's own `checks` show it did:
+
+1. **A named definition is not read** (4: v03, v10, v12, v19).
+   - "动态市盈率 15.56" is accepted as the TTM P/E 15.85, inside the 2% tolerance.
+   - "加权平均ROE" is compared with the period-end ROE: v10 美的, v19 招行 13.44 vs 11.8, so the company's true figure
+     is contradicted.
+   - v12's 归母 growth 62% is accepted against the total-profit 62.01.
+
+   Scored against the definition-blind labels, v10, v12 and v19 are right. Under that rule v03 is still wrong, because
+   of the tolerance.
+2. **A dated price on a day other than the latest bar** (3: v13, v17, v46).
+   - v17 says "截至2026年4月22日收盘". The checker reports `period_mismatch`, "the data is for the trading day
+     2026-09-30", although the extension's daily history has the 2026-04-22 bar.
+   - v13 ("最终收盘35.53元") and v46 (创业板指 "站上3700点") leave the date to the publication day or the preceding
+     sentence. The checker compared them with 2026-09-30.
+3. **Market value on the price date** (3: v20, v27, v31).
+   - "最新总市值为2245.26亿元" next to a 2026-09-30 close is `period_mismatch`, "the data is for 2025-12-31": the
+     valuation's own date is not used.
+   - "以1.04万亿元居第五名…万亿市值" has no recognised metric. (v08, "以7595.37亿元市值", was read correctly.)
+4. **English claims** (4: v11, v14, v23, v33).
+   - "Industrial & Commercial Bank of China" resolves to 中国银行.
+   - "China Yangtze Power" resolves to no company.
+   - "Net profit attributable to shareholders" is not a recognised metric.
+   - "up 15% year on year" and "earnings per share advanced 6.6% to RMB 5.80" are read as a daily % change.
+   - US$ amounts are compared with CNY figures and contradicted.
+5. **Traditional Chinese** (2: v22, v44). 淨利潤, 歸屬於上市公司股東淨利 and 增長 are not recognised. This class is in
+   the first set as well.
+6. **扣非 read as 归母 net profit** (2: v04, v35). "扣除非经常性损益的净利润645.08亿元" and "归母净利润（扣非）1437.73亿元"
+   are compared with net profit. Their 扣非 growth is compared with net-profit growth. Both are contradicted, although
+   the data has 扣非净利润 and it matches.
+7. **Close words and price units** (2: v02, v49). "报291.11元/股" is bound to the % change (unit mismatch). "报收7.472元"
+   has no metric (also in the first set). "成交量37.52万手" (v17) is not recognised either.
+8. **A year read as a claimed number** (2: v18, v36). "2025 年" (with a space) and "和 2024 年对比" become numbers
+   with no metric. v36's YoY is then dated 2024 (`period_mismatch`), and "总利润 1347 亿" is not recognised. The first
+   set had the spaced-year case.
+9. **Relations with companies outside the data, or between two companies** (3: v01, v05, v30).
+   - v01, "超过比亚迪…零跑的利润总和", becomes a `gt` check on 宁德时代 with no value and is supported.
+   - v05, "比亚迪≈宁德1.9倍", is read as revenue in 倍 (unit mismatch).
+   - v30: 摩根大通's US$ revenue and profit are bound to 中信证券 and contradicted.
+
+Five of the 25 errors (v18, v22, v36, v44, v49) are in classes the first set's README already listed: spaced or
+standalone year, traditional characters, 报收. The other 20 are in classes that are new or only adjacent to the
+first set's. The collector knew the first set's classes. The
+search agents did not, and selection used a fixed key, not the classes. Still, the agents were asked for English,
+relations and loose numbers, the same request as for the first set, and those categories score lowest here.
+
+**What a user would see.** Several published claims are true by the company's report but marked wrong:
+
+- v19, v10: weighted ROE;
+- v04, v35: 扣非 figures;
+- v22, v23, v33, v44: traditional-character and English 工行 / 长江电力 / 茅台 statements, shown as unverifiable;
+- v27, v31: a correct 总市值 only partly supported.
+
+The data problems behind the labels are listed under "Data vs. the published reports" above. The checker problems are
+the classes in this list.
