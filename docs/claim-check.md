@@ -714,7 +714,7 @@ python -m evaluation.claim_bench.run --set holdout
 | independent round-8 claim slice, **after exposure**, at the round-14 claims code | `0dd9e1e` | 25 / – | 1.000 [1.00, 1.00] | – | – |
 | independent round-9 claim slice, **after exposure (round 14)**, at the round-14 claims code | `0dd9e1e` | 25 / – | 1.000 [1.00, 1.00] | – | – |
 | **independent round-10 claim slice, first run** (`score_claims_r10.py`, verdicts only) | `7f4f06c` | 24 / – | **0.667 [0.46, 0.83]** | – | – |
-| **independent round-10 claim slice, after the round-14 fixes** (not opened; no claim overlaps own wording) | `3480a96` | 24 / – | **0.833 [0.67, 0.96]** | – | – |
+| **independent round-10 claim slice, after the round-14 fixes** (not opened by the engineers' statement; no claim near-copies own wording, 5 repeat own content: 16/19 without them) | `3480a96` | 24 / – | **0.833 [0.67, 0.96]** | – | – |
 
 The commit column is the commit each run started from (`config.commit`). The merged-code runs were committed one after
 another, so each starts from the previous result commit; the code is the same in all of them.
@@ -778,8 +778,10 @@ layer (its labels ignore a named definition; the checker no longer does), `claim
 [v2](../evaluation/real_claims_web_v2/README.md#round-14-after-exposure-checker-changed)).
 
 The out-of-sample measure of the round-14 rules is the round-10 reviewer's claim slice (`evaluation/heldout_r10/`, 24
-claims written at `7f4f06c` before any round-14 fix, on the shipped default data; not opened by the engineers, no claim
-overlaps own wording): 0.667 [0.46, 0.83] on its first run (by the reviewer; `claims_heldout_r10-prefix.json`) and
+claims written at `7f4f06c` before any round-14 fix, on the shipped default data; not opened by the engineers by their statement, the after-fix run read it
+from the reviewer's folder; no claim near-copies own wording, but the round-15 content-level scan finds 5 that repeat
+own content, r10c02, r10c08, r10c09, r10c10 and r10c16, and without them it is 15/19 → 16/19,
+`slice_overlap-heldout_r10-content-at-3480a96.json`): 0.667 [0.46, 0.83] on its first run (by the reviewer; `claims_heldout_r10-prefix.json`) and
 **0.833 [0.67, 0.96]** (20/24) after the round-14 fixes at `3480a96` (`claims_heldout_r10-after-fix.json`). Fixed: both
 扣非 claims (r10c01, a false accept, and r10c02), both 不到…的N倍 bounds (r10c10, r10c11) and 流通市值 (r10c16). Still
 wrong: r10c06 ("Of ICBC, CMB and CITIC Securities, CITIC has the lowest P/E": unverifiable, labelled contradicted),
