@@ -1029,12 +1029,18 @@ def test_round12_dev_tasks_and_router_labels_do_not_overlap_the_heldout_or_revie
     assert _overlaps(mine, others) == (0, 0), "round-12 dev tasks or router labels overlap a held-out or reviewer set"
 
 
-def _all_slice_texts() -> list[str]:
+def _all_slice_texts(before_round: int | None = None) -> list[str]:
     """(round 13) Every committed independent slice (``evaluation/heldout_r*/``, found by glob, so a new slice is
-    checked as soon as it is committed), read programmatically like ``_heldout_r6_texts``."""
+    checked as soon as it is committed), read programmatically like ``_heldout_r6_texts``. ``before_round`` keeps
+    only slices numbered below it: wording written before a slice was committed is checked against that slice from
+    the slice side instead (``evaluation/agent_eval/slice_overlap.py``, recorded with the slice's after-fix run)."""
     from evaluation.agent_eval.runner import ROOT
 
-    folders = sorted(path.name for path in (ROOT / "evaluation").glob("heldout_r*") if path.is_dir())
+    folders = sorted(
+        path.name
+        for path in (ROOT / "evaluation").glob("heldout_r*")
+        if path.is_dir() and (before_round is None or int(path.name.removeprefix("heldout_r")) < before_round)
+    )
     texts: list[str] = []
     for name in folders:
         texts += _heldout_r6_texts(name)
@@ -1130,7 +1136,9 @@ def test_round13_tests_and_claim_rows_do_not_copy_a_slice_or_a_review_probe():
         if re.search(r"[\s一-鿿]", text) and not text.startswith(("Round-13", "frame:")) and len(text) < 200
     ]
     mine += [row["claim"] for row in load_claims(SETS["dev"]) if row.get("note") == "round13"]
-    others = _all_slice_texts() + _REVIEW_PROBES
+    # The round-9 slice was committed after round 13 and measured from its own side: its overlap with round-13
+    # wording is recorded in slice_overlap-heldout_r9-at-da9f6af.json and reported next to its after-fix run.
+    others = _all_slice_texts(before_round=9) + _REVIEW_PROBES
     assert _overlaps(mine, others) == (0, 0), "round-13 wording overlaps a slice or a reviewer probe"
 
 
