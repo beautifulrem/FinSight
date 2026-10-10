@@ -1,0 +1,61 @@
+{
+ "kind": "slice_overlap_scan",
+ "config": {
+  "slice": "heldout_r10",
+  "commit": "aef319a",
+  "run_at": "2026-10-10T17:59:18+00:00",
+  "command": "python -m evaluation.agent_eval.slice_overlap /Volumes/Remi/finsight-review/heldout_r10 --out /tmp/r10-overlap.json"
+ },
+ "slice": "heldout_r10",
+ "slice_texts": 77,
+ "slice_tasks": 72,
+ "own_texts": 29829,
+ "own_files": [
+  "evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_shipped_v1.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_test_v2.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+  "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+  "evaluation/agent_eval/tasks/router_labels_independent_v1.jsonl",
+  "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+  "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+  "evaluation/claim_bench/claims_v1.jsonl",
+  "evaluation/claim_bench/claims_v1_holdout.jsonl"
+ ],
+ "exact": 0,
+ "near": 3,
+ "tasks_with_overlap": [
+  "r10h_fc_zh_01",
+  "r10h_hk_zh_02",
+  "r10h_sum_en_02"
+ ],
+ "hits": [
+  {
+   "task": "r10h_sum_en_02",
+   "kind": "near",
+   "chars": 13,
+   "own": [
+    "tests/test_agent_eval.py:1062"
+   ]
+  },
+  {
+   "task": "r10h_fc_zh_01",
+   "kind": "near",
+   "chars": 25,
+   "own": [
+    "dev:r14_dated_close_zh"
+   ]
+  },
+  {
+   "task": "r10h_hk_zh_02",
+   "kind": "near",
+   "chars": 17,
+   "own": [
+    "tests/test_agent_round14_foreign.py:96"
+   ]
+  }
+ ],
+ "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = every evaluation/agent_eval/tasks/*.jsonl and evaluation/claim_bench/*.jsonl text, string literals in tests/*.py"
+}

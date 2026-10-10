@@ -1,0 +1,92 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "7f4f06c",
+  "run_at": "2026-10-10T15:25:31+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r10/score_claims_r10.py <out.json>",
+  "note": "independent round-10 claim slice, first and only pre-fix run at 7f4f06c, recorded by the reviewer"
+ },
+ "summary": {
+  "claims": 24,
+  "verdict_accuracy": 0.6667,
+  "ci95": [
+   0.4583,
+   0.8333
+  ],
+  "by_category": {
+   "colloquial_count": 0.0,
+   "compound_bounds": 1.0,
+   "control": 1.0,
+   "corrected_data": 1.0,
+   "en_fraction": 1.0,
+   "float_cap": 0.0,
+   "level_and_multiple": 1.0,
+   "multiple_bound": 0.0,
+   "points": 1.0,
+   "published_yoy": 0.667,
+   "recurring_profit": 0.0,
+   "superlative": 0.5,
+   "tenths": 1.0,
+   "times": 1.0,
+   "zh_fraction": 1.0
+  }
+ },
+ "errors": [
+  {
+   "id": "r10c01",
+   "category": "recurring_profit",
+   "claim": "宁德时代2025年扣非归母净利润超过650亿元",
+   "expected": "contradicted",
+   "got": "supported"
+  },
+  {
+   "id": "r10c02",
+   "category": "recurring_profit",
+   "claim": "比亚迪去年扣非净利润不到300亿",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r10c06",
+   "category": "superlative",
+   "claim": "Of ICBC, CMB and CITIC Securities, CITIC has the lowest P/E",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r10c08",
+   "category": "published_yoy",
+   "claim": "Zijin Mining's 2025 net profit rose about 62% year on year to RMB51.8 billion",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r10c10",
+   "category": "multiple_bound",
+   "claim": "招商银行的市盈率还不到工商银行的0.9倍",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r10c11",
+   "category": "multiple_bound",
+   "claim": "中芯国际的市净率不到宁德时代的两倍",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r10c12",
+   "category": "colloquial_count",
+   "claim": "工商银行一年的净利润抵得上两个多招行",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r10c16",
+   "category": "float_cap",
+   "claim": "招商银行流通市值约8500亿元",
+   "expected": "supported",
+   "got": "contradicted"
+  }
+ ]
+}
