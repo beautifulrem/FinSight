@@ -240,3 +240,9 @@ def test_a_published_price_with_the_current_price_word_is_anchored_to_the_latest
     # "股价" is the current price: a wrong figure is contradicted by the latest close, not left unverifiable
     report = _verdict(checker, "宁德时代股价低于250元", "contradicted")
     assert report.checks[0].reason is None, _rows(report)
+
+
+def test_codes_inside_a_bracket_that_opens_with_words_are_asides(checker):
+    # the bracket opens with the fund's own code (not a separate target) and then names feeder funds by code
+    report = _verdict(checker, "创业板ETF（159915，旗下联接基金A类代码110026）当天成交额约69.2亿元", "supported")
+    assert report.checks[0].target == "创业板ETF", _rows(report)

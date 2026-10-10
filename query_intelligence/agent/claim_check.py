@@ -3849,8 +3849,9 @@ def _aside_positions(text: str, positions: list[tuple[int, dict[str, Any]]]) -> 
         inner = [(position, target) for position, target in positions if bracket.start() < position < bracket.end()]
         if not inner or outer is None:
             continue
-        asides.update(position for position, _target in inner[1:])
-        if inner[0][1] is not outer[1] and inner[0][1].get("key") != outer[1].get("key"):
+        first_is_code = not text[bracket.start() + 1 : inner[0][0]].strip()  # "（588000…": the bracket opens with it
+        asides.update(position for position, _target in (inner[1:] if first_is_code else inner))
+        if first_is_code and inner[0][1].get("key") != outer[1].get("key"):
             asides.add(outer[0])  # the code identifies the security the name before it was meant to
     return asides
 
