@@ -76,6 +76,11 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument(
+        "--after-exposure",
+        action="store_true",
+        help="Label the run as after exposure: the checker was changed after its authors read this set's errors.",
+    )
     add_dirty_arguments(parser)
     args = parser.parse_args(argv)
     commit = git_commit()
@@ -117,6 +122,12 @@ def main(argv: list[str] | None = None) -> int:
         "set's error classes (named in the v2 protocol) and the offline data, not the second set's error classes; "
         "the search agents had seen neither",
     ]
+    if args.after_exposure:
+        notes = [
+            "after exposure (checker changed, round 15): the checker was changed after its engineers read this set's "
+            "errors (round 15 wrote general rules for the classes with their own test wordings); not an out-of-sample "
+            "estimate (the first run, claims_web_v3-first-run.json, is the blind number)"
+        ]
     if dirty_note:
         notes.append(dirty_note)
     payload = {
@@ -124,8 +135,10 @@ def main(argv: list[str] | None = None) -> int:
         "config": {
             "commit": commit,
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "command": COMMAND + (f" --out {_shown(args.out)}" if args.out != DEFAULT_OUT else ""),
-            "exposure": "blind first run",
+            "command": COMMAND
+            + (" --after-exposure" if args.after_exposure else "")
+            + (f" --out {_shown(args.out)}" if args.out != DEFAULT_OUT else ""),
+            "exposure": "after" if args.after_exposure else "blind first run",
             "snapshot": "offline v1 + 2026-09-30 extension + corrections layer (QI_OFFLINE_SNAPSHOT_EXT and "
             "QI_OFFLINE_SNAPSHOT_FIX on, the shipped default), no LLM",
             "labels": "evaluation/real_claims_web_v3/claims_web_v3.jsonl (label_claims_web_v3, definition-aware; "

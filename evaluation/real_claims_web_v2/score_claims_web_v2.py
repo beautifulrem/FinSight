@@ -126,8 +126,8 @@ def main(argv: list[str] | None = None) -> int:
     ]
     if args.after_exposure:
         notes = [
-            "after exposure (checker changed): the round-14 engineers read this set's README error list and its "
-            "first-run errors, then wrote general rules for the classes with their own test wordings; not an "
+            "after exposure (checker changed): the engineers of round 14 and later read this set's README error list "
+            "and its first-run errors, then wrote general rules for the classes with their own test wordings; not an "
             "out-of-sample estimate (the first run, claims_web_v2-first-run.json, is the blind number)"
         ]
     if dirty_note:
