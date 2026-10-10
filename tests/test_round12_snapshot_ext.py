@@ -302,4 +302,5 @@ def test_holding_value_and_ytd_change_compute_for_an_extension_etf(ext_agent):
     held = ext_agent.chat("我手上有2000股黄金ETF，按收盘价算值多少", session_id="r12-hold")["answer"]
     assert "2000 × 8.633 = 17266 元" in held
     ytd = ext_agent.chat("黄金ETF年初至今表现如何", session_id="r12-ytd")["answer"]
-    assert "今年首个交易日（2026-01-05）收盘 9.495 元" in ytd and "-9.08%" in ytd
+    # round 13 (I11): measured from the previous year's last close (9.301 on 2025-12-31), not the 2026-01-05 close
+    assert "2025-12-31 收盘 9.301 元" in ytd and "-7.18%" in ytd
