@@ -543,7 +543,8 @@ METRICS: tuple[Metric, ...] = (
         "total_profit",
         "利润总额",
         "total profit",
-        r"利润总额|税前利润|\bpre-?tax (?:profit|income)\b|\bprofit before tax\b",
+        # (round 15, review-11 K10) "净利润总额" is the total of net profits, not 利润总额
+        r"(?<!净)利润总额|税前利润|\bpre-?tax (?:profit|income)\b|\bprofit before tax\b",
         ("total_profit",),
     ),
     _metric(
@@ -643,14 +644,21 @@ for _metric_item in METRICS:
 # stated holding at the last close (shares × close), not a fair-value question. "一股/每股值多少" is a fair value, and
 # "10股派…" a dividend per share, so neither is a holding.
 _HOLDING_COUNT_ZH = (
-    r"(?<![每\d])(?P<n>\d[\d,，]*|[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*|"
+    # (round 15, review-11 K7) "1.5万股", "3万股", "2千股": a count with a 万 / 千 multiplier is a holding, not a cap
+    r"(?<![每\d.])(?P<n>\d+(?:\.\d+)?\s*[万千](?=\s*[股份手])|\d[\d,，]*|"
+    r"[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*|"
     r"一[十百千万][零〇一二两三四五六七八九十百千万]*)"
     # (round 12) fund units count like shares ("两万份沪深300ETF"); a lot (手) is 100 shares ("3手茅台")
     r"\s*(?P<unit>股(?![价票东份息市权本派送转配])|份|手(?![续机表头上下动脚指]|工(?!商)))"
 )
 _HOLDING_VALUE_ZH = re.compile(
     _HOLDING_COUNT_ZH + r"[^。？?！!；;]{0,24}?"
-    r"(?:值|市值|价值|总值|总额|合计|一共|总共|算下来|折合)[^。？?！!；;]{0,4}?(?:多少|几)"
+    r"(?:值|市值|价值|总值|总额|合计|一共|总共|算下来|折合)[^。？?！!；;]{0,4}?(?:多少|几)|"
+    # (round 15, review-11 K7) a holding listed in clauses ("招商银行 1,000 股；工商银行 3,000 股") and a bare value
+    # question at the end ("总市值？", "合计值多少"): the holdings' value, not the companies' market caps
+    + _HOLDING_COUNT_ZH.replace("(?P<n>", "(?P<n5>").replace("(?P<unit>", "(?P<unit5>")
+    + r"[^？?！!]{0,80}?[。；;，,]\s*(?:那|这些|我的|持仓|全部|一共|总共|合计|加起来|这样)*\s*"
+    r"(?:总市值|市值|总价值|总值|价值|值多少钱?|合计多少)(?:是|为|有)?(?:多少钱?|几)?(?:呢)?\s*[？?]?\s*$"
 )
 # (round 12) English word orders: "500 shares of X", "200 Moutai shares", "my 200 Moutai shares", the question in the
 # next sentence, "the worth of 300 shares"; not "3.88 billion shares"
@@ -689,8 +697,7 @@ def _purchase_match(text: str) -> tuple[int, int, str, tuple[int, int]] | None:
     """``(count in shares, lots or 0, unit word, span)`` of a purchase-cost question, else ``None``."""
     match = _PURCHASE_ZH.search(text)
     if match is not None:
-        raw = match.group("n").replace(",", "").replace("，", "")
-        count = int(raw) if raw.isdigit() else _cn_integer(raw)
+        count = count_value(match.group("n"))
         lots = count if match.group("unit") == "手" else 0
         return (count * 100 if lots else count), lots, match.group("unit"), match.span()
     match = _PURCHASE_EN.search(text)
@@ -708,7 +715,25 @@ def _purchase_match(text: str) -> tuple[int, int, str, tuple[int, int]] | None:
 # the shares when a count is stated; never advice
 _COST_ZH = re.compile(
     r"(?:成本价?|买入价|买入成本|持仓成本|持仓均价|均价|进价|入手价)(?:是|为|在|大概|大约|约)?\s*(?P<cost>\d+(?:\.\d+)?)\s*(?:元|块)?|"
-    r"(?P<cost2>\d+(?:\.\d+)?)\s*(?:元|块)(?:钱)?(?:一股|每股|1股)?\s*(?:的时候|时)?(?:买|买入|买进|入手|进的|建仓|抄底|上车)"
+    r"(?P<cost2>\d+(?:\.\d+)?)\s*(?:元|块)(?:钱)?(?:一股|每股|1股)?\s*(?:的时候|时)?(?:又|再|还|也|另外)?"
+    r"(?:买|买入|买进|入手|进的|建仓|抄底|上车|加仓|补仓)"
+)
+# (round 15, review-11 K2) several purchases at different costs, each a (cost, count) pair: "40元买了500股…43元又买了
+# 500股", "先买500股成本40元，又买300股成本45元", "bought 500 shares at 40 and another 500 at 43"
+_LOT_ZH = re.compile(
+    r"(?P<cost>\d+(?:\.\d+)?)\s*(?:元|块)(?:钱)?(?:一股|每股)?\s*(?:的时候|时)?(?:又|再|还|也|另外)?"
+    r"(?:买|买入|买进|入手|建仓|加仓|补仓|抄底)(?:了|入|进)?\s*"
+    + _HOLDING_COUNT_ZH
+    + r"|"
+    + r"(?:买|买入|买进|入手|建仓|加仓|补仓)(?:了|入|进)?\s*"
+    + _HOLDING_COUNT_ZH.replace("(?P<n>", "(?P<n2>").replace("(?P<unit>", "(?P<unit2>")
+    + r"[^，,。；;]{0,10}?(?:成本价?|买入价|均价|单价|价格|每股)(?:是|为|在|约)?\s*(?P<cost2>\d+(?:\.\d+)?)"
+)
+_LOT_EN = re.compile(
+    r"(?<![\d.,])(?P<n>\d[\d,]*)\s+(?:more\s+)?(?:(?:[A-Za-z][\w'.&-]*\s+){0,3}?(?:shares?|units?)\s+)?"
+    r"(?:of\s+[A-Z][\w'&. -]{0,30}?\s+)?"
+    r"(?:at|for)\s*(?:CNY|RMB|¥)?\s*(?P<cost>\d+(?:\.\d+)?)\b(?!\s*(?:shares|%))",
+    re.IGNORECASE,
 )
 _PNL_ASK_ZH = re.compile(
     r"赚了?(?:多少|几)|亏了?(?:多少|几)|浮盈|浮亏|盈亏|盈利(?:了)?多少|亏损(?:了)?多少|收益(?:率)?(?:是)?多少|"
@@ -746,12 +771,39 @@ def cost_basis_request(query: str) -> dict[str, Any] | None:
     rest = f"{text[:start]}{' ' * (end - start)}{text[end:]}"
     counted = re.search(_HOLDING_COUNT_ZH, rest) if zh else _EN_POSITION.search(rest)
     if counted is not None:
-        raw = counted.group("n").replace(",", "").replace("，", "")
-        count = int(raw) if raw.isdigit() else _cn_integer(raw)
+        count = count_value(counted.group("n"))
         unit = counted.group("unit").lower()
         lots = count if unit in {"手", "lot", "lots"} else 0
         shares = count * 100 if lots else count
-    return {"cost": cost, "shares": shares if shares and shares > 1 else None, "lots": lots}
+    request: dict[str, Any] = {"cost": cost, "shares": shares if shares and shares > 1 else None, "lots": lots}
+    detail = cost_lots(text)
+    if len(detail) >= 2:
+        # (round 15, review-11 K2) the gain over every lot, never the first lot alone
+        request["lots_detail"] = detail
+        request["shares"] = sum(lot["shares"] for lot in detail)
+        request["lots"] = 0
+    return request
+
+
+def cost_lots(query: str) -> list[dict[str, Any]]:
+    """(round 15, review-11 K2) ``[{cost, shares}]`` for every purchase the question states with its own cost
+    (two or more), in order; empty otherwise."""
+    text = query or ""
+    found: list[dict[str, Any]] = []
+    pattern = _LOT_ZH if re.search(r"[一-鿿]", text) else _LOT_EN
+    for match in pattern.finditer(text):
+        groups = match.groupdict()
+        raw_cost = groups.get("cost") or groups.get("cost2")
+        raw_count = groups.get("n") or groups.get("n2")
+        if not raw_cost or not raw_count:
+            continue
+        count = count_value(raw_count)
+        if (groups.get("unit") or groups.get("unit2") or "") == "手":
+            count *= 100
+        cost = float(raw_cost)
+        if count > 1 and cost > 0:
+            found.append({"cost": cost, "shares": count})
+    return found if len(found) >= 2 else []
 
 
 def holding_purchase(query: str) -> bool:
@@ -766,6 +818,17 @@ def holding_purchase(query: str) -> bool:
 _FUND_UNITS = re.compile(r"\d\s*份|[两二三四五六七八九十百千万]\s*份|\bunits?\b", re.IGNORECASE)
 _CN_DIGIT = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
 _CN_UNIT = {"十": 10, "百": 100, "千": 1000, "万": 10000}
+
+
+def count_value(raw: str) -> int:
+    """A stated count: "2,000", "两千", "1.5万" (15,000), "3万" (30,000), "2千" (2,000)."""
+    raw = (raw or "").replace(",", "").replace("，", "").replace(" ", "")
+    if raw.isdigit():
+        return int(raw)
+    multiplied = re.fullmatch(r"(\d+(?:\.\d+)?)([万千])", raw)
+    if multiplied:
+        return round(float(multiplied.group(1)) * (10000 if multiplied.group(2) == "万" else 1000))
+    return _cn_integer(raw)
 
 
 def _cn_integer(text: str) -> int:
@@ -792,10 +855,9 @@ def holding_value_request(query: str) -> tuple[int, tuple[int, int]] | None:
             return None
         return (purchase[0], purchase[3]) if purchase[0] > 1 else None
     groups = match.groupdict()
-    raw = next((groups[key] for key in ("n", "n2", "n3", "n4") if groups.get(key)), "")
-    raw = raw.replace(",", "").replace("，", "")
-    shares = int(raw) if raw.isdigit() else _cn_integer(raw)
-    if groups.get("unit") == "手":
+    raw = next((groups[key] for key in ("n", "n2", "n3", "n4", "n5") if groups.get(key)), "")
+    shares = count_value(raw)
+    if (groups.get("unit") or groups.get("unit5")) == "手":
         shares *= 100  # a board lot is 100 shares
     return (shares, match.span()) if shares > 1 else None
 
@@ -806,10 +868,10 @@ def holding_lots(query: str) -> int | None:
     if match is None:
         purchase = _purchase_match(query or "")
         return purchase[1] if purchase and purchase[1] else None
-    if match.group("unit") != "手":
+    groups = match.groupdict()
+    if (groups.get("unit") or groups.get("unit5")) != "手":
         return None
-    raw = match.group("n").replace(",", "").replace("，", "")
-    return int(raw) if raw.isdigit() else _cn_integer(raw)
+    return count_value(groups.get("n") or groups.get("n5") or "")
 
 
 def in_fund_units(query: str) -> bool:
@@ -825,8 +887,7 @@ def stated_holding_count(text: str) -> int | None:
     match = _HOLDING_COUNT.search(text or "")
     if match is None:
         return None
-    raw = (match.group("n") or match.group("n2") or "").replace(",", "").replace("，", "")
-    count = int(raw) if raw.isdigit() else _cn_integer(raw)
+    count = count_value(match.group("n") or match.group("n2") or "")
     if match.group("unit") == "手":
         count *= 100
     return count if count > 1 else None
@@ -848,8 +909,7 @@ def holding_positions(query: str) -> list[dict[str, Any]]:
         return []
     found: list[dict[str, Any]] = []
     for match in re.finditer(_HOLDING_COUNT_ZH, text):
-        raw = match.group("n").replace(",", "").replace("，", "")
-        count = int(raw) if raw.isdigit() else _cn_integer(raw)
+        count = count_value(match.group("n"))
         lots = count if match.group("unit") == "手" else 0
         found.append(
             {
@@ -1087,7 +1147,12 @@ def coverage_gaps(
                 continue
             data = entry.get("data") or {}
             as_of_year = _year_of(data.get("as_of"))
-            if as_of_year and as_of_year not in years and min(years) < as_of_year:
+            # (round 15, review-11 K8) a year the payload's dated closes reach (the previous year's last close, the
+            # 52-week window) is not missing
+            from .composer import dated_closes
+
+            present = {_year_of(day) for day in dated_closes(data)}
+            if as_of_year and as_of_year not in years and min(years) < as_of_year and not set(years) <= present:
                 name = str(data.get("name") or data.get("symbol") or "")
                 asked = _years_text(years, zh=zh)
                 sentences.append(
@@ -1315,6 +1380,17 @@ _REBOUND_FROM_LOW = re.compile(
 _BELOW_HIGH = re.compile(
     r"(?:较|离|距|相比|相对|从|(?:现在|目前|如今|当前|股价|收盘价?|最新价)比)[^，。？?；;]{0,10}?(?:最高|高点|高位|新高)[^，。？?；;]{0,12}?(?:跌|回落|回撤|低|下来|差|还差)|"
     r"\b(?:below|off|down from|under)\b (?:its|the) (?:52[- ]week |one[- ]year )?highs?\b",
+    re.IGNORECASE,
+)
+# (round 15, review-11 K4) the rise needed to get back to the 52-week high: (high − close) ÷ close, not the fall from it
+_BACK_TO_HIGH = re.compile(
+    r"(?:涨|上涨|反弹|回升|拉升)[^，。？?；;]{0,10}?(?:才能|才可以|才会|才|能|可以)?(?:回到|重回|收复|涨回|回升到|回)"
+    r"[^，。？?；;]{0,8}?(?:最高|高点|高位|前高)|"
+    r"(?:回到|重回|收复|涨回)[^，。？?；;]{0,12}?(?:最高|高点|高位|前高)[^，。？?；;]{0,8}?(?:要|需要|得|还要|还得)?"
+    r"(?:涨|上涨)(?:多少|几)|"
+    r"\b(?:rise|gain|climb|rally|go up|increase)\b[^.?!]{0,40}?\b(?:back to|to (?:get|climb|return) back to|to "
+    r"(?:regain|reclaim|retake|revisit))\b[^.?!]{0,30}?\bhighs?\b|"
+    r"\bhow much\b[^.?!]{0,40}?\b(?:back to|regain|reclaim|return to)\b[^.?!]{0,30}?\bhighs?\b",
     re.IGNORECASE,
 )
 # The session named next to a 52-week question ("今天最高多少，52周最高多少"): then the day's high/low is wanted too.
@@ -1565,6 +1641,7 @@ class PriceRequest:
     # (round 14, review-10 J4) the move from the 52-week low ("离52周低点反弹了多少") or below the 52-week high
     rebound_52w: bool = False
     off_high_52w: bool = False
+    back_to_high_52w: bool = False  # (round 15) the rise needed to get back to the 52-week high
 
     @property
     def needs_quote(self) -> bool:
@@ -1603,7 +1680,8 @@ def requested_price_fields(query: str) -> PriceRequest:
     if above and not averages:
         averages = [5]
     # "52周最高和最低" asks for the 52-week range, not the day's high and low (unless the day is named too)
-    yearly = asks_range_52w(text)
+    back = bool(_BACK_TO_HIGH.search(text))
+    yearly = asks_range_52w(text) or back
     session = not yearly or bool(_SESSION_WORDS.search(text))
     return PriceRequest(
         closes=closes if _CLOSES_WORD.search(text) or match else 0,
@@ -1623,7 +1701,8 @@ def requested_price_fields(query: str) -> PriceRequest:
         turnover_rate=bool(_TURNOVER_RATE.search(text)),
         change_amount=bool(_CHANGE_AMOUNT.search(text)),
         rebound_52w=yearly and bool(_REBOUND_FROM_LOW.search(text)),
-        off_high_52w=yearly and bool(_BELOW_HIGH.search(text)),
+        off_high_52w=yearly and bool(_BELOW_HIGH.search(text)) and not back,
+        back_to_high_52w=back,
     )
 
 

@@ -227,6 +227,9 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
         "get_fundamentals",
         (
             "营业总收入",
+            "营业收入总额",
+            "营收总额",
+            "收入总额",
             "营业收入",
             "营收",
             "收入",
@@ -243,6 +246,10 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
         "money",
         "get_fundamentals",
         (
+            # (round 15, review-11 K10) "两家的净利润总额": net profit (and a total), never 利润总额
+            "归母净利润总额",
+            "净利润总额",
+            "净利总额",
             "归母净利润",
             "净利润",
             "净利",
@@ -253,7 +260,7 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
             # (round 13) "Ping An out-earns Wuliangye", "earns less than": what a company earns is its net profit
             r"\b(?:out-?)?earn(?:s|ed)?\b",
             # (round 14) "两家去年一共赚了多少": what companies earned (not "一股赚多少", EPS, which is longer)
-            r"(?:赚(?:了|的钱|到的钱|得)?(?=[^，。？?；;]{0,4}(?:多少|几)))",
+            r"(?:[赚挣](?:了|的钱|到的钱|得)?(?=[^，。？?；;]{0,4}(?:多少|几)))",
         ),
     ),
     FrameMetric(
@@ -392,13 +399,16 @@ def metric_label(key: str, zh: bool) -> str:
 # second by the first", "后者除以前者"); "subtract" / "减去" ask a difference.
 # (round 14, review-10 J4) 高过 / 低过 / 强过 / 弱过 / 超过 / 多赚 / 少赚, "outstrip", "surpass", "edge out" join the
 # class.
+# (round 15, review-11 K4) 多挣 / 少挣 / 压过 / 盖过, "eclipse", "by what margin … lead" as well
 _VERB_COMPARATIVE_ZH = (
-    r"领先|落后|跑赢|跑输|超出|胜过|胜出|输给|赢了|高出|低出|多出|少出|高过|低过|强过|弱过|超过|多赚|少赚|甩开"
+    r"领先|落后|跑赢|跑输|超出|胜过|胜出|输给|赢了|高出|低出|多出|少出|高过|低过|强过|弱过|超过|多赚|少赚|多挣|少挣|"
+    r"压过|盖过|甩开"
 )
 _VERB_COMPARATIVE_EN = (
     r"\b(?:out-?(?:earn|sell|perform|pace|grow|gain|trade|rank)|underperform|lead|trail|lag|beat|exceed|top)"
     r"(?:s|ed|ing|ged)?\b|"
-    r"\b(?:outstrip(?:s|ped|ping)?|surpass(?:es|ed|ing)?|outdo(?:es|ne|ing)?|outshine[sd]?|edge[sd]? (?:out|past))\b"
+    r"\b(?:outstrip(?:s|ped|ping)?|surpass(?:es|ed|ing)?|outdo(?:es|ne|ing)?|outshine[sd]?|edge[sd]? (?:out|past)|"
+    r"eclips(?:e|es|ed|ing))\b"
 )
 # "是平安的两倍吗", "是不是三倍左右", "Is it about twice Ping An's?": a ratio checked against a stated multiple
 _CLAIMED_MULTIPLE_ZH = re.compile(
@@ -468,7 +478,7 @@ _RELATIVE_UNIT = re.compile(
 )
 # a comparative: 高 / 低 / 贵 / 便宜 / 大 / 小, "多" / "少" only before a verb or 了 / 出 (not the 多少 of a question)
 _COMPARATIVE = re.compile(
-    r"高|低|贵|便宜|(?<!多)大|(?<!多|大)小|超出|超过|领先|落后|多(?=[了出跌涨赚亏卖成交])|(?<!多)少(?=[了出跌涨赚亏卖成交])|"
+    r"高|低|贵|便宜|(?<!多)大|(?<!多|大)小|超出|超过|领先|落后|多(?=[了出跌涨赚挣亏卖成交])|(?<!多)少(?=[了出跌涨赚挣亏卖成交])|"
     r"\b(?:higher|lower|more|less|above|below|under|bigger|smaller|larger|cheaper|greater)\b",
     re.IGNORECASE,
 )
@@ -478,7 +488,7 @@ _DIFFERENCE = re.compile(
     # (round 14, review-10 J4) "强多少", "弱了几个点"
     r"(?:高|低|多|少|大|小|贵|便宜|强|弱)(?:了|出)?(?:有|是|大概|大约)?(?:多少|几)|"
     # (round 12) "多跌了多少", "少涨了几个点", "多成交了多少钱": more / less of a verb, by how much
-    r"(?:多|少)(?:跌|涨|赚|亏|卖|成交|交易)了?(?:有|是|大概|大约)?(?:多少|几)|"
+    r"(?:多|少)(?:跌|涨|赚|挣|亏|卖|成交|交易)了?(?:有|是|大概|大约)?(?:多少|几)|"
     # (round 13) a comparative verb, its object, then the quantity asked: "领先前者几个百分点", "落后茅台多少",
     # "跑赢五粮液几个点", "超出行业多少"; "subtract", "减去", "相减"
     rf"(?:{_VERB_COMPARATIVE_ZH})了?[^，。？?,;；]{{0,12}}?(?:有|是|大概|大约)?(?:多少|几)|减去|相减|"
@@ -486,6 +496,9 @@ _DIFFERENCE = re.compile(
     r"\bdifferences?\b|\bgap\b|\bspread\b|\bdiffer\b|"
     r"\bhow much (?:higher|lower|more|less|bigger|smaller|larger|cheaper)\b|"
     r"\bby how (?:much|many)\b|\bhow far (?:apart|above|below|under|ahead|behind)\b|"
+    # (round 15, review-11 K4) "By what margin does A lead B?", "how wide is the lead"
+    r"\bby (?:what|how (?:big|wide|large) an?) margin\b|\bhow (?:big|wide|large) (?:is |was )?(?:the|its|their) "
+    r"(?:lead|margin)\b|"
     r"\bhow many (?:more |fewer )?(?:percentage |basis )?points\b|\b(?:points?|percent) apart\b",
     re.IGNORECASE,
 )
@@ -596,10 +609,13 @@ _EN_SMALL = {
 }
 # (round 13) a total of two operands: "加起来", "合计", "一共", "combined", "in total", "the sum of"
 # (round 14, review-10 J4) 总计 / 共计 / 合在一块 / 加总 / "altogether" / "all told" as well
+# (round 15, review-11 K4/K10) 合并起来 / 统共 / 拢共 / 汇总 / 总额 ("净利润总额"), "collectively", "jointly", "in all"
 _SUM = re.compile(
-    r"加起来|加(?:在|到)?一(?:块|起)|合(?:在)?一(?:起|块)|合起来|合计|一共|总共|总和|之和|相加|再加上|总计|共计|加总|"
+    r"加起来|加(?:在|到)?一(?:块|起)|合(?:在|到)?一(?:起|块)|合起来|合计|一共|总共|总和|之和|相加|再加上|总计|共计|加总|"
+    r"合并(?!报表|利润表|资产负债表|现金流量表|口径|财务|范围)(?:起来|计算|在一起)?|统共|拢共|汇总|(?<=[润入收额值利])总额|"
     r"\bcombined\b|\bin total\b|\btogether\b|\bsum of\b|\badd(?:ed|s)? up\b|\bput together\b|"
-    r"\btotal (?:of|for)\b|\bin aggregate\b|\baltogether\b|\ball told\b",
+    r"\btotal (?:of|for)\b|\bin aggregate\b|\baltogether\b|\ball told\b|\bcollectively\b|\bjointly\b|"
+    r"\bin all\b(?=\s*(?:[?？.,;]|$))|\bbetween (?:the )?(?:two|three|four) of them\b",
     re.IGNORECASE,
 )
 # (round 14, review-10 J4) weaker total words, read only after the gap, ratio, share and which productions: 加 between
@@ -608,6 +624,8 @@ _SUM = re.compile(
 _SUM_WEAK = re.compile(
     r"(?<=[一-鿿A-Za-z）)])加(?![权息速大入仓码剧强快紧倍盟油班薪工减乘除上起一在到])(?=[一-鿿A-Za-z])|"
     r"\bplus\b|\bbetween (?:them|the two(?: of them)?|both of them)\b|"
+    # (round 15, review-11 K4) "两家一起赚了多少", "三家一起有多少营收"
+    r"(?<![同和与跟])一起(?!来|比较|对比|比|看|分析)|"
     r"\b(?:what(?:'s| is| are)|how (?:much|big) is) the (?:total|sum)\b|\btotal\s*[?？]\s*$|\bsum them\b",
     re.IGNORECASE,
 )
@@ -633,6 +651,13 @@ _QUANTITY = re.compile(r"多少|几|\bhow (?:much|many|big)\b|\bwhat\b|\btotal\b
 # percentage of A and B combined", "what share of their combined profit": A ÷ (A + B), never A ÷ B
 _TOTAL_WORDS_ZH = r"合计|总和|之和|加起来|加在一起|合起来|合在一起|总共|一共|共计|总计|总量|两(?:家|者|只|个)(?:之)?和"
 _SHARE_TOTAL = re.compile(
+    # (round 15, review-11 K4) "宁德占其中几成" after a total in the same message: a share of that total
+    r"占(?:其中|其|里面|这里面|这当中|当中|总数|总量)(?:的)?\s*(?:大约|大概|约)?\s*(?:百分之(?:多少|几)|(?:几|多少)成|"
+    r"(?:多少|几)(?:个)?(?:百分比|%)|多大比例|多少比例|多大比重|比重|比例|多少|几)|"
+    r"(?:其中|里面|这里面|这当中|当中)[^，。？?；;]{0,3}?占(?:比)?(?:的)?\s*(?:大约|大概|约)?\s*(?:百分之(?:多少|几)|"
+    r"(?:几|多少)成|(?:多少|几)(?:个)?(?:百分比|%)|多大比例|多少比例|多大比重|比重|比例|多少|几)|"
+    r"\b(?:what|how (?:big|large|much)(?: of)?)\s+(?:a\s+)?(?:share|percent(?:age)?|fraction|portion|part)\s+of\s+"
+    r"(?:that|it|this|the total|the sum)\b|"
     rf"(?:占|是|为|相当于)[^，。？?；;]{{0,24}}?(?:{_TOTAL_WORDS_ZH})(?:的?(?:数|值|数字|金额))?[^，。？?；;]{{0,4}}?的?\s*"
     r"(?:大约|大概|约)?\s*(?:百分之(?:多少|几)|(?:几|多少)成|(?:多少|几)(?:个)?(?:百分比|%)|多大比例|多少比例|多大比重|"
     r"几分之几|比重|比例|占比|份额|多少|几)|"
@@ -695,6 +720,36 @@ _SWAP_SHARES = re.compile(
     r"(?:能|可以)?换(?:成)?(?:几|多少)(?:股|份|手)|\bhow many (?:shares|units) of\b[^.?!]{0,40}\bone\b", re.I
 )
 SUM_KINDS = frozenset({"money", "count"})  # a total of P/Es, prices or rates is not a value
+
+# (round 15, review-11 K4) the mean of several operands: "三家ROE的平均值", "平均下来", "均值", "加总再除以三", "the
+# average P/E of A, B and C", "on average"; never an industry average (an operand), a weighted ROE, a moving or daily
+# average of one target, or an average cost (a holding)
+MEAN_SOURCE = (
+    r"(?<!行业)(?<!行业的)(?<!板块)(?<!板块的)(?<!同行)(?<!同业)(?<!市场)(?<!大盘)(?<!加权)(?<![日周月年天])"
+    r"平均(?!成本|价|持仓|买入|股价|线|日|摊薄|净资产收益率)(?:值|数|下来|水平|一下)?|均值|均数|"
+    r"(?:加总|加起来|合计|总和|之和|相加|加在一起)[^。？?；;]{0,6}?(?:再|然后)?(?:除以|除)\s*(?:[二两三四五六七八九十]|\d+)|"
+    r"(?<!industry )(?<!sector )(?<!peer )(?<!peers )(?<!weighted )(?<!moving )(?<!daily )"
+    r"\b(?:average|mean)\b(?!\s+(?:cost|price|purchase|entry|buy|daily|true range))|\bon average\b|"
+    r"\b(?:sum|total|add(?:ed)? (?:them |those )?up)\b[^.?!]{0,40}?\bdivide(?:d)? (?:it |that |the result )?by "
+    r"(?:two|three|four|five|[2-5])\b"
+)
+_MEAN = re.compile(MEAN_SOURCE, re.IGNORECASE)
+# (round 15, review-11 K1) a total compared with another value: "A和B加起来比C多吗", "C比A、B、D三家加起来还多多少",
+# "Do A and B together earn more than C?", "Is C bigger than A and B combined?"; the operands on each side of the
+# anchor form the two sides (``total_vs_one``)
+_VERSUS = re.compile(
+    r"(?<![占对相])比(?!例|较|重|率|值|如|方|亚迪)|超过|高于|低于|多于|少于|大于|小于|不如|赶不上|比得上|抵得上|抵不上|"
+    r"(?:是|为|相当于)[^，。？?；;]{1,14}?的\s*(?:几|多少)倍|"
+    r"\bthan\b|\babove\b|\bbelow\b|\bexceed(?:s|ed|ing)?\b|\b(?:out-?earn|outsell|outstrip|surpass|beat|top)(?:s|ed|ped|ping)?\b|"
+    r"\bcompared (?:with|to)\b|\bversus\b|\bvs\.?(?=\s)",
+    re.IGNORECASE,
+)
+# a plural reference without names: "三家", "这几家", "all three", "them"
+_PLURAL = re.compile(
+    r"两家|两者|二者|两只|三家|三只|三者|几家|这几|它们|他们|各家|\bthe (?:two|three|four)\b|\bboth\b|\bthem\b|"
+    r"\bthey\b|\ball (?:three|four)\b",
+    re.IGNORECASE,
+)
 
 
 # (round 13) "the P/E ratios of A and B": a metric's name, not a question for their ratio
@@ -760,9 +815,16 @@ _LEXICON: dict[str, Any] = {
     "QUANTITY": lambda text: _QUANTITY.search(text),
     "DIFFERENCE": lambda text: _DIFFERENCE.search(text),
     "WHICH": lambda text: _WHICH.search(text),
+    "MEAN": lambda text: _MEAN.search(text),
+    "VERSUS": lambda text: _VERSUS.search(text),
+    "PLURAL": lambda text: _PLURAL.search(text) or _ANCHOR.search(text) or _JOINED.search(text),
 }
 GRAMMAR: tuple[Production, ...] = (
     Production("spread", ("EXTREME_PAIR",), ("OWN_EXTREMES",)),
+    # (round 15, review-11 K4) a mean of several operands ("加总再除以三" is a mean, not a ratio)
+    Production("mean", ("MEAN", "PLURAL")),
+    # (round 15, review-11 K1) a total compared with another value (the operands decide the two sides)
+    Production("total_vs_one", ("SUM_WORD", "VERSUS"), ("SHARE_OF_TOTAL",)),
     Production("share_total", ("SHARE_OF_TOTAL",)),
     Production("share", ("SHARE",)),
     Production("share", ("CLAIMED_TENTHS",)),  # "是不是平安的三成以上": a share in 成, checked against the tenths
@@ -792,6 +854,8 @@ class FrameParse:
     reference: str
     metric: str | None
     classes: tuple[str, ...]
+    # (round 15) every operation whose production the clause satisfies, in table order (the first is ``operation``)
+    matched: tuple[str, ...] = ()
 
 
 def _normalised(text: str) -> str:
@@ -808,21 +872,35 @@ def parse_clause(text: str) -> FrameParse:
             seen[name] = bool(_LEXICON[name](clause))
         return seen[name]
 
-    operation = next(
-        (
+    matched = tuple(
+        dict.fromkeys(
             production.operation
             for production in GRAMMAR
             if all(has(name) for name in production.all_of) and not any(has(name) for name in production.none_of)
-        ),
-        None,
+        )
     )
+    operation = matched[0] if matched else None
     reference = "ordinal" if _ORDINAL.search(clause) else "anaphoric" if _ANAPHORA.search(clause) else "none"
     classes = tuple(sorted(name for name, present in seen.items() if present))
-    return FrameParse(operation, reference, metric_of(text or ""), classes)
+    return FrameParse(operation, reference, metric_of(text or ""), classes, matched)
 
 
 def _operation_of(text: str) -> str | None:
-    return parse_clause(text).operation
+    parsed = parse_clause(text)
+    tie = operation_tie_break(text, parsed)
+    return tie.operation if tie is not None else parsed.operation
+
+
+def operation_tie_break(text: str, parsed: FrameParse | None = None) -> Any:
+    """(round 15, review-11 K4) The operation classifier's reading when the clause satisfies productions of two or
+    more operations and the classifier confidently prefers another matched one (``operation_classifier.tie_break``),
+    else ``None``."""
+    parsed = parsed or parse_clause(text)
+    if len(parsed.matched) < 2 or parsed.operation is None:
+        return None
+    from .operation_classifier import tie_break
+
+    return tie_break(text, list(parsed.matched), parsed.operation)
 
 
 def comparison_clause(text: str) -> str | None:
@@ -832,6 +910,44 @@ def comparison_clause(text: str) -> str | None:
         if clause and len(clause) <= _clause_cap(clause) and _operation_of(clause):
             return clause
     return None
+
+
+# (round 15, review-11 K4/K10) one message with two operations: "两家加一起是多少，宁德占其中几成" (a total and a share
+# of it), "A的营收是B的几倍，净利润呢" (the same operation for a second metric). The clause is cut at commas (not
+# inside a number such as "1,000"); each piece with an operation of its own, or a bare metric after one ("净利润呢",
+# "and net profit?"), asks one operation.
+_PIECE_SPLIT = re.compile(r"(?<!\d)[，,]|[，,](?!\d)|\band\s+(?=(?:what|how|is|are|by|which)\b)", re.IGNORECASE)
+_METRIC_ELLIPSIS = re.compile(
+    r"^\s*(?:那|那么|还有|另外|再看|以及|and\s+(?:what about\s+|how about\s+)?|what about\s+|how about\s+|also\s+)?"
+    r"(?:the\s+)?(?P<metric>[^，,。？?！!]{1,16}?)(?:的)?\s*(?:呢|又如何|又是多少|怎么样|如何|\?|？)+\s*$",
+    re.IGNORECASE,
+)
+_ASKS = re.compile(r"多少|几|吗|么|呢|[?？]|\b(?:what|how|which|is|are|does|do)\b", re.IGNORECASE)
+# operations that only restate the same two-operand comparison ("谁更高，高多少"): one sentence answers both
+_SAME_FAMILY = frozenset({"which", "difference"})
+
+
+def operation_pieces(clause: str) -> list[tuple[str, str]]:
+    """``(operation, piece)`` for every piece of the clause that asks an operation of its own, in order, when there
+    are two or more different ones; a bare metric after an operation ("净利润呢") repeats that operation for it.
+    Empty when the clause asks one operation (the whole clause is read as before)."""
+    pieces = [piece.strip() for piece in _PIECE_SPLIT.split(clause or "") if piece and piece.strip()]
+    if len(pieces) < 2 or parse_clause(clause).operation in {"mean", "total_vs_one"}:
+        return []  # "市值加总，再除以三" is one mean; "A一家，比B、C加起来还多多少" one total vs one
+    found: list[tuple[str, str]] = []
+    for piece in pieces:
+        operation = _operation_of(piece)
+        if operation and _ASKS.search(piece):
+            # a piece asks its own operation only with its own question ("合计中，A占几成" is one share)
+            found.append((operation, piece))
+        elif found and (match := _METRIC_ELLIPSIS.match(piece)) and metric_of(match.group("metric")):
+            found.append((found[-1][0], piece))
+    kinds = {(operation, metric_of(piece)) for operation, piece in found}
+    if len(found) < 2 or len(kinds) < 2:
+        return []
+    if {operation for operation, _piece in found} <= _SAME_FAMILY and len({metric_of(p) for _o, p in found}) < 2:
+        return []
+    return found
 
 
 def _clause_cap(clause: str) -> int:
@@ -856,7 +972,15 @@ def frame_operation(text: str) -> str | None:
     if holding_value_request(text) is not None:
         return None  # "我有2000股，合计值多少钱": a holding's value, not a total of two operands
     clause = comparison_clause(text)
-    return _operation_of(clause) if clause else None
+    if clause:
+        pieces = operation_pieces(clause)
+        return pieces[0][0] if pieces else _operation_of(clause)
+    # (round 15, review-11 K4) the grammar's lexicon found no operation: the classical operation classifier
+    # (``operation_classifier``) may still read one, only for a question that refers to several operands
+    from .operation_classifier import fallback_operation
+
+    found = fallback_operation(text)
+    return found.operation if found is not None else None
 
 
 def without_valuation_extremes(text: str) -> str:
@@ -882,9 +1006,17 @@ def opening_comparison(text: str) -> bool:
     """(round 13) A gap, ratio, relative or total question that refers to its operands by order ("the second", "前者")
     or names the metric compared: a finance comparison even when nothing in the session supplies the operands."""
     operation = frame_operation(text)
-    return operation in {"difference", "ratio", "relative", "sum", "share", "share_total", "spread"} and bool(
-        _ORDINAL.search(text or "") or metric_of(text or "") or _TWO.search(text or "")
-    )
+    return operation in {
+        "difference",
+        "ratio",
+        "relative",
+        "sum",
+        "share",
+        "share_total",
+        "spread",
+        "mean",
+        "total_vs_one",
+    } and bool(_ORDINAL.search(text or "") or metric_of(text or "") or _TWO.search(text or ""))
 
 
 # --------------------------------------------------------------------------- the frame
@@ -1141,12 +1273,249 @@ def unresolved_operand(clause: str, entities: list[dict[str, Any]]) -> tuple[str
     return None
 
 
+# (round 15, review-11 K9) list separators around a name the resolver did not know
+_LIST_SEPARATOR_ZH = re.compile(r"[、与及跟]|(?<![之总相])和(?!计)|以及")
+_ZH_LEADING_NAME = re.compile(
+    r"^(?:比|在|把|对|就|我想知道|请问)?(?P<name>[一-鿿A-Za-z]{2,8}?)"
+    r"(?=的|[这那]?[两二三四五六几]?(?:家|只|者)|一共|合计|加起来|总共|共计|合起来|谁|哪|相比|比|$)"
+)
+_ZH_TRAILING_NAME = re.compile(r"(?:^|比|在|把|对|就|请问|看看|算算)(?P<name>[一-鿿A-Za-z]{2,8})$")
+_EN_LIST_BEFORE = re.compile(r"(?:,|\band|&|\bamong|\bbetween|\bof|\bfor)\s*$", re.IGNORECASE)
+_EN_LIST_AFTER = re.compile(r"^\s*(?:,|and\b|&)", re.IGNORECASE)
+
+
+def _known_forms(entities: list[dict[str, Any]]) -> list[str]:
+    """Every way the resolved entities may be written, with their Chinese short names (招商银行 → 招行)."""
+    from .coverage import _chinese_short_names
+
+    forms = [name.lower() for entity in entities for name in _mention_names(entity)]
+    for entity in entities:
+        canonical = str(entity.get("canonical_name") or entity.get("name") or "")
+        forms += [alias.lower() for alias in _chinese_short_names().get(canonical, ())]
+    return forms
+
+
+def unresolved_in_list(clause: str, entities: list[dict[str, Any]]) -> list[tuple[str, int]]:
+    """(round 15, review-11 K9) ``(name as written, position)`` of every item of a list of operands ("A、X和B",
+    "X and B, …", "Among A, X and B") that matches no resolved entity, when at least one item of the list did
+    resolve. Metric, question and reference words are not names."""
+    forms = _known_forms(entities)
+    if not forms:
+        return []
+
+    def known(word: str) -> bool:
+        lowered = word.lower()
+        return any(form in lowered or lowered in form for form in forms if len(form) >= 2)
+
+    found: list[tuple[str, int]] = []
+    if re.search(r"[一-鿿]", clause):
+        cuts = [match for match in _LIST_SEPARATOR_ZH.finditer(clause)]
+        if not cuts:
+            return []
+        bounds = [0, *(m.end() for m in cuts)]
+        ends = [*(m.start() for m in cuts), len(clause)]
+        pieces = [(clause[start:end], start) for start, end in zip(bounds, ends, strict=True)]
+        for index, (piece, start) in enumerate(pieces):
+            match = (_ZH_TRAILING_NAME if index == 0 else _ZH_LEADING_NAME).search(piece.strip())
+            if match is None:
+                continue
+            word = match.group("name")
+            if known(word) or _ZH_NOT_NAME.search(word) or metric_of(word) is not None or _OTHER_ASPECT.search(word):
+                continue
+            if re.search(
+                r"多少|几|什么|怎么|是否|吗|呢|哪|谁|平均|合计|一共|总共|加起来|股价|收盘|市值|营收|利润|[了是占里中之其再除乘减]",
+                word,
+            ):
+                continue
+            found.append((word, start + piece.find(word)))
+        return found if len(found) < len(pieces) else []
+    for match in _EN_NAME.finditer(clause):
+        words = [word for word in match.group(0).split() if not _EN_NOT_NAME.match(word)]
+        word = " ".join(words)
+        if not word or len(word) < 3 or known(word) or metric_of(word) is not None:
+            continue
+        start = match.start() + match.group(0).find(words[0])
+        end = match.end()
+        if _EN_LIST_BEFORE.search(clause[:start]) or _EN_LIST_AFTER.search(clause[end:]):
+            found.append((word, start))
+    return found
+
+
+def _total_sides(
+    text: str,
+    clause: str,
+    ordered: list[tuple[int, dict[str, Any]]],
+    named: list[dict[str, Any]],
+    known: list[dict[str, Any]],
+    operands: list[dict[str, Any]],
+) -> tuple[int | None, list[dict[str, Any]]]:
+    """(round 15, review-11 K1) ``(split, operands)`` of a total compared with another value: the operands named
+    before the comparison anchor (比 / than / 超过 …) form the first side, those after it the second; one side has
+    two or more operands (its total is compared). With one target named and a plural reference ("两家加起来比招行
+    多吗"), the frame's other operands form the group. ``(None, operands)`` when no two sides can be told apart."""
+    spans = [
+        (match.start(), match.end())
+        for _index, entity in ordered
+        for name in _mention_names(entity)
+        for match in re.finditer(re.escape(name), clause)
+    ]
+    anchor = next(
+        (m for m in _VERSUS.finditer(clause) if not any(start <= m.start() < end for start, end in spans)), None
+    )
+    if anchor is None:
+        return None, operands
+    offset = max(text.find(clause), 0)
+    cut = offset + anchor.start()
+    if len(named) >= 2:
+        left = [
+            item for (_i, entity), item in zip(ordered, named, strict=True) if _mention_position(text, entity, 0) < cut
+        ]
+        right = [item for item in named if item not in left]
+    elif len(named) == 1 and _PLURAL.search(clause):
+        group = [item for item in known if operand_key(item) != operand_key(named[0])]
+        single_first = _mention_position(text, ordered[0][1], 0) < cut
+        left, right = ([named[0]], group) if single_first else (group, [named[0]])
+    else:
+        return None, operands
+    if not left or not right or max(len(left), len(right)) < 2:
+        return None, operands
+    return len(left), [*left, *right]
+
+
+_MORE_ASKED = re.compile(
+    r"多(?!少)|高|大(?!概|约)|超过|超出|胜过|\bmore\b|\bhigher\b|\bbigger\b|\blarger\b|\bexceed|\bout-?earn", re.I
+)
+_LESS_ASKED = re.compile(r"(?<!多)少|低|小|不如|赶不上|\bless\b|\blower\b|\bsmaller\b|\bfewer\b", re.I)
+_YES_NO = re.compile(r"吗|么|是否|是不是|有没有|能否|^(?:do|does|did|is|are|was|were|can|could)\b", re.I)
+
+
+def _asked_side(clause: str) -> str | None:
+    """Whether a yes/no total-vs-one question asks if the first side is more (``"more"``) or less (``"less"``)."""
+    if not _YES_NO.search(clause.strip()):
+        return None
+    more, less = _MORE_ASKED.search(clause), _LESS_ASKED.search(clause)
+    if more and not less:
+        return "more"
+    if less and not more:
+        return "less"
+    return None
+
+
 # "how many times Ping An's is Moutai's?": the second operand is the numerator
 _TIMES_INVERTED = re.compile(r"\bhow many times\b(?P<rest>.*)", re.IGNORECASE)
 
 
 def resolve_frame_question(
     query: str,
+    turns: list[dict[str, Any]],
+    listed: list[dict[str, Any]],
+    sectors: list[str] | None = None,
+) -> tuple[str, str, dict[str, Any]] | None:
+    """A comparison question read against the session frame (``_resolve_operation``): ``(rewritten, reason,
+    request)``.
+
+    (round 15, review-11 K4/K10) A message that asks two operations ("两家加一起是多少，宁德占其中几成", "A的营收是B
+    的几倍，净利润呢") gets the first one as the request and the others in ``request["also"]``; the composer answers
+    every one. When the grammar's lexicon reads no operation, the operation classifier's reading is used and its
+    probability and top features are added to the reason (``|clf:<operation>:<p>:<features>``)."""
+    from .memory import strip_filler
+
+    text = strip_filler(query).strip()
+    operation = frame_operation(text)
+    classified = None
+    if operation is None and not (_NOT_A_GAP.search(text) or _NET_MARGIN_SHARE.search(text)):
+        # (round 15, review-11 K4) the grammar reads no operation: with two or more targets named (or a frame of two
+        # or more), the operation classifier may read one
+        from .coverage import holding_value_request
+        from .operation_classifier import fallback_operation
+
+        several = len([e for e in listed if e.get("symbol")]) or len((latest_frame(turns) or {}).get("operands") or [])
+        if holding_value_request(text) is None and comparison_clause(text) is None:
+            classified = fallback_operation(text, operands=several)
+            operation = classified.operation if classified is not None else None
+    if operation is None:
+        return None
+    # an alias that is an operation word ("均值" is listed as a nickname of a stock) is not an operand
+    listed = [entity for entity in listed if not _OPERATION_MENTION.fullmatch(str(entity.get("mention") or ""))]
+    clause = comparison_clause(text)
+    if clause is None:
+        if classified is None:
+            from .operation_classifier import fallback_operation
+
+            classified = fallback_operation(text)
+        clause = text
+    pieces = operation_pieces(clause)
+    found = _resolve_operation(text, operation, pieces[0][1] if pieces else clause, turns, listed, sectors)
+    if found is None:
+        return None
+    rewritten, reason, request = found
+    if classified is None and not pieces:
+        classified = operation_tie_break(clause)
+    if classified is not None:
+        request["classifier"] = classified.as_dict()
+        reason = f"{reason}|{classified.reason()}"
+    extras: list[dict[str, Any]] = []
+    for extra_operation, piece in pieces[1:]:
+        extra = _secondary_request(request, extra_operation, piece, text, listed)
+        if extra is None or any(
+            (item["operation"], item["metric"]) == (extra["operation"], extra["metric"]) for item in [request, *extras]
+        ):
+            continue
+        extras.append(extra)
+    if extras:
+        request["also"] = extras
+        reason += "".join(f"+also:{item['operation']}:{item['metric']}" for item in extras)
+    return rewritten, reason, request
+
+
+_OPERATION_MENTION = re.compile(r"均值|均数|平均(?:值|数)?|合计|总计|总和|一共|加总|合并|总额|差值|差额|比值", re.I)
+
+
+def _secondary_request(
+    primary: dict[str, Any], operation: str, piece: str, text: str, listed: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """(round 15, review-11 K4/K10) The request of a second operation in the same message: the primary request's
+    operands (the targets the piece names, when it names two or more), the piece's metric or the primary's; a share
+    of the total takes the target the piece names as the numerator ("宁德占其中几成")."""
+    if any(item.get("metric") for item in primary.get("operands") or []):
+        return None
+    metric = metric_of(piece) or str(primary.get("metric") or "")
+    if metric not in METRIC_BY_KEY:
+        return None
+    operands = [dict(item) for item in primary.get("operands") or [] if item.get("kind") != "unresolved"]
+    entities = [entity for entity in listed if entity.get("symbol")]
+    in_piece = sorted(
+        (entity for entity in entities if _mention_position(piece, entity, 0) < 10_000),
+        key=lambda entity: _mention_position(piece, entity, 0),
+    )
+    if operation == "share_total" and in_piece:
+        top = str(in_piece[0]["symbol"])
+        operands = sorted(operands, key=lambda item: str(item.get("symbol")) != top)
+    elif len(in_piece) >= 2:
+        operands = [
+            {"kind": "target", "name": str(e.get("canonical_name") or e.get("symbol")), "symbol": str(e["symbol"])}
+            for e in in_piece
+        ]
+    if len(operands) < 2:
+        return None
+    if operation in {"sum", "share_total", "total_vs_one"} and METRIC_BY_KEY[metric].kind not in SUM_KINDS:
+        return None
+    request: dict[str, Any] = {"operation": operation, "metric": metric, "operands": operands}
+    if operation == "total_vs_one" and primary.get("split"):
+        request["split"] = primary["split"]
+    elif operation == "total_vs_one":
+        request["operation"] = "sum"
+    if operation in {"difference", "ratio", "relative", "share"} and len(operands) > 2:
+        request["pairwise"] = True
+    if operation in {"ratio", "share"} and (claimed := claimed_check(piece)) is not None:
+        request["claimed"] = claimed
+    return request
+
+
+def _resolve_operation(
+    text: str,
+    operation: str,
+    clause: str,
     turns: list[dict[str, Any]],
     listed: list[dict[str, Any]],
     sectors: list[str] | None = None,
@@ -1160,16 +1529,12 @@ def resolve_frame_question(
     百分之多少", "Which of Moutai and Wuliangye has the higher P/B, and by how much?", "白酒板块的平均市盈率比保险
     板块高多少").
     ``None`` when there is no such question or nothing supplies a metric and two operands."""
-    from .memory import _TRIPLE, strip_filler
+    from .memory import _TRIPLE
 
-    text = strip_filler(query).strip()
-    operation = frame_operation(text)
-    if operation is None:
-        return None
-    clause = comparison_clause(text) or text
     frame = latest_frame(turns) or {}
     known = [dict(item) for item in frame.get("operands") or []]
-    if _TRIPLE.search(clause) and len(known) < 3 and len([e for e in listed if e.get("symbol")]) < 3:
+    resolved = [e for e in listed if e.get("symbol")]
+    if _TRIPLE.search(clause) and len(known) < 3 and len(resolved) + len(unresolved_in_list(clause, resolved)) < 3:
         # "这三家谁最高" after two targets: the group reference and its count check ask which third one is meant
         return None
     named_metric = metric_of(clause)
@@ -1222,7 +1587,40 @@ def resolve_frame_question(
         unknown = {"kind": "unresolved", "name": stray[0]}
         before = stray[1] < _mention_position(clause, entities[0], 0)
         operands = [unknown, operands[0]] if before else [operands[0], unknown]
+    split = None
+    if operation == "total_vs_one":
+        # (round 15, review-11 K1) the operands before the comparison anchor and those after it are the two sides; a
+        # side of two or more is a total, never absorbing the other side ("A和B加起来比C多吗" is (A + B) vs C)
+        split, operands = _total_sides(text, clause, ordered, named, known, operands)
+        if split is None:
+            operation = "sum"  # "两家加起来比去年多吗": no second side named, a total
+    strays = unresolved_in_list(clause, entities) if len(named) >= 1 and not industries else []
+    if strays and not any(item.get("kind") == "unresolved" for item in operands):
+        # (round 15, review-11 K9) "CYPC and CITIC Securities, revenue collectively?", "Among A, X and B …": a name in
+        # the list that matches no security is named in the answer, never dropped silently
+        unknown = [{"kind": "unresolved", "name": word, "position": position} for word, position in strays]
+        placed = [
+            (_mention_position(clause, entity, 10_000 + i), item)
+            for i, ((_index, entity), item) in enumerate(zip(ordered, named, strict=True))
+        ]
+        placed += [(item["position"], item) for item in unknown]
+        listed_order = [item for _position, item in sorted(placed, key=lambda pair: pair[0])]
+        others = [item for item in operands if item not in named]
+        operands = [{k: v for k, v in item.items() if k != "position"} for item in listed_order] + others
     zh = bool(re.search(r"[一-鿿]", text))
+    mentioned = metric_mentions(clause)
+    if (
+        len(named) == 1
+        and len(mentioned) == 2
+        and operation in {"ratio", "difference", "relative", "share", "which"}
+        and not industries
+        and not _INDUSTRY_WORDS.search(clause)
+        and not _PLURAL.search(clause)
+        and not _ORDINAL.search(clause)
+        and METRIC_BY_KEY[mentioned[0]].kind == METRIC_BY_KEY[mentioned[1]].kind
+    ):
+        # (round 15, review-11 K4) "中芯国际总市值是净利润的多少倍": two metrics of the one target the question names
+        return _metric_pair_question(text, operation, (named[0], mentioned[0], mentioned[1]), zh)
     if not named_metric and len(named) < 2 and len(industries) < 2 and len(operands) < 2 and operation != "sum":
         # (round 13) "两个率相差多少个点" after "X的毛利率" → "那净利率呢": two metrics of one target
         pair = _metric_pair(turns)
@@ -1234,7 +1632,7 @@ def resolve_frame_question(
         metric = "pe"  # (round 14, review-10 J4) "the most and the least expensive": a spread of P/E
     if not metric or len(operands) < 2:
         return None
-    if operation in {"sum", "share_total"} and METRIC_BY_KEY[metric].kind not in SUM_KINDS:
+    if operation in {"sum", "share_total", "total_vs_one"} and METRIC_BY_KEY[metric].kind not in SUM_KINDS:
         return None  # "两只的市盈率加起来": a total of multiples is not a value
     if len({operand_key(item) for item in operands}) < 2:
         return None
@@ -1244,9 +1642,11 @@ def resolve_frame_question(
         first, last = operands[0], operands[-1]
         picked = [first if match.group("first") else last for match in ordinals]
         operands = picked + [item for item in (first, last) if item not in picked]
+    elif operation == "total_vs_one":
+        pass  # both sides, in order (``split``)
     elif _TRIPLE.search(clause):
         operands = operands[-3:]
-    elif operation in {"which", "spread", "sum", "share_total"} or len(named) >= 3:
+    elif operation in {"which", "spread", "sum", "share_total", "mean"} or len(named) >= 3:
         pass  # (round 13, review-9 I3/I4) every operand: a total, a spread or a comparison of all the named targets
     elif len(operands) > 2 and _TWO.search(clause):
         operands = operands[-2:]  # "两者差多少" after three targets: the last two discussed
@@ -1296,6 +1696,10 @@ def resolve_frame_question(
     ]
     request: dict[str, Any] = {"operation": operation, "metric": metric, "operands": clean}
     request["operand_form"] = _operand_form(len(named), parse_clause(clause).reference, len(known))
+    if split is not None:
+        request["split"] = split
+        if (asked := _asked_side(clause)) is not None:
+            request["asked"] = asked
     if metric == "pct_change" and (direction := _direction(clause)):
         # (round 12) "多跌了多少" after two falls: the gap names the side that fell more, not the "higher" change
         request["direction"] = direction
@@ -1372,7 +1776,8 @@ def _direction(text: str) -> str | None:
 
 
 def frame_calls(request: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
-    """The tool calls that return every operand of a frame request (target or industry member)."""
+    """The tool calls that return every operand of a frame request (target or industry member), and of the further
+    operations the same message asks (``request["also"]``, round 15)."""
     metric = METRIC_BY_KEY.get(str(request.get("metric") or ""))
     if metric is None:
         return []
@@ -1383,6 +1788,8 @@ def frame_calls(request: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
         tool = "get_fundamentals" if operand.get("kind") == "industry" else own.tool
         if target and (tool, {"target": target}) not in calls:
             calls.append((tool, {"target": str(target)}))
+    for extra in request.get("also") or []:
+        calls.extend(call for call in frame_calls(extra) if call not in calls)
     return calls
 
 

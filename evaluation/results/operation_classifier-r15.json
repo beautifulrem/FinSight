@@ -1,0 +1,424 @@
+{
+ "version": "operation-clf-r15",
+ "commit": "37d8827",
+ "dirty": false,
+ "run_at": "2026-10-10T20:50:58+00:00",
+ "command": "python -m training.operation_classifier.train",
+ "features": "char_wb 1-3-gram TF-IDF (max 20000) + grammar lexicon hits",
+ "model": "LogisticRegression(C=4, multinomial, lbfgs)",
+ "seed": 20261011,
+ "train": {
+  "generated": 6528,
+  "generated_templates": 272,
+  "dev_wordings": 790,
+  "dev_labels": {
+   "difference": 49,
+   "ratio": 23,
+   "relative": 8,
+   "share": 3,
+   "share_total": 7,
+   "sum": 16,
+   "mean": 6,
+   "spread": 3,
+   "which": 28,
+   "total_vs_one": 5,
+   "none": 642
+  }
+ },
+ "held_out": {
+  "examples": 1632,
+  "templates": 68,
+  "classifier_accuracy": {
+   "rate": 0.8873,
+   "low": 0.871,
+   "high": 0.9017,
+   "n": 1632
+  },
+  "grammar_accuracy": {
+   "rate": 0.8609,
+   "low": 0.8433,
+   "high": 0.8768,
+   "n": 1632
+  },
+  "grammar_plus_classifier_accuracy": {
+   "rate": 0.8824,
+   "low": 0.8658,
+   "high": 0.8971,
+   "n": 1632
+  },
+  "grammar_missed_operations": 131,
+  "rescued_by_fallback": 35,
+  "recall_by_class": {
+   "difference": {
+    "rate": 0.8403,
+    "low": 0.7717,
+    "high": 0.8911,
+    "n": 144
+   },
+   "ratio": {
+    "rate": 0.8819,
+    "low": 0.8191,
+    "high": 0.925,
+    "n": 144
+   },
+   "relative": {
+    "rate": 0.8333,
+    "low": 0.764,
+    "high": 0.8854,
+    "n": 144
+   },
+   "share": {
+    "rate": 0.8333,
+    "low": 0.764,
+    "high": 0.8854,
+    "n": 144
+   },
+   "share_total": {
+    "rate": 0.6667,
+    "low": 0.5862,
+    "high": 0.7384,
+    "n": 144
+   },
+   "sum": {
+    "rate": 0.8333,
+    "low": 0.764,
+    "high": 0.8854,
+    "n": 144
+   },
+   "mean": {
+    "rate": 1.0,
+    "low": 0.974,
+    "high": 1.0,
+    "n": 144
+   },
+   "spread": {
+    "rate": 0.8333,
+    "low": 0.764,
+    "high": 0.8854,
+    "n": 144
+   },
+   "which": {
+    "rate": 1.0,
+    "low": 0.974,
+    "high": 1.0,
+    "n": 144
+   },
+   "total_vs_one": {
+    "rate": 1.0,
+    "low": 0.974,
+    "high": 1.0,
+    "n": 144
+   },
+   "none": {
+    "rate": 1.0,
+    "low": 0.9804,
+    "high": 1.0,
+    "n": 192
+   }
+  },
+  "classifier_misses_sample": [
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/en/9",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "none"
+   },
+   {
+    "template": "ratio/zh/14",
+    "expected": "ratio",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   },
+   {
+    "template": "ratio/zh/14",
+    "expected": "ratio",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   }
+  ]
+ },
+ "in_sample_dev": {
+  "examples": 790,
+  "templates": 1,
+  "classifier_accuracy": {
+   "rate": 0.9975,
+   "low": 0.9908,
+   "high": 0.9993,
+   "n": 790
+  },
+  "grammar_accuracy": {
+   "rate": 1.0,
+   "low": 0.9952,
+   "high": 1.0,
+   "n": 790
+  },
+  "grammar_plus_classifier_accuracy": {
+   "rate": 1.0,
+   "low": 0.9952,
+   "high": 1.0,
+   "n": 790
+  },
+  "grammar_missed_operations": 0,
+  "rescued_by_fallback": 0,
+  "recall_by_class": {
+   "difference": {
+    "rate": 1.0,
+    "low": 0.9273,
+    "high": 1.0,
+    "n": 49
+   },
+   "ratio": {
+    "rate": 1.0,
+    "low": 0.8569,
+    "high": 1.0,
+    "n": 23
+   },
+   "relative": {
+    "rate": 1.0,
+    "low": 0.6756,
+    "high": 1.0,
+    "n": 8
+   },
+   "share": {
+    "rate": 1.0,
+    "low": 0.4385,
+    "high": 1.0,
+    "n": 3
+   },
+   "share_total": {
+    "rate": 1.0,
+    "low": 0.6457,
+    "high": 1.0,
+    "n": 7
+   },
+   "sum": {
+    "rate": 1.0,
+    "low": 0.8064,
+    "high": 1.0,
+    "n": 16
+   },
+   "mean": {
+    "rate": 1.0,
+    "low": 0.6097,
+    "high": 1.0,
+    "n": 6
+   },
+   "spread": {
+    "rate": 1.0,
+    "low": 0.4385,
+    "high": 1.0,
+    "n": 3
+   },
+   "which": {
+    "rate": 1.0,
+    "low": 0.8794,
+    "high": 1.0,
+    "n": 28
+   },
+   "total_vs_one": {
+    "rate": 1.0,
+    "low": 0.5655,
+    "high": 1.0,
+    "n": 5
+   },
+   "none": {
+    "rate": 0.9969,
+    "low": 0.9887,
+    "high": 0.9991,
+    "n": 642
+   }
+  },
+  "classifier_misses_sample": [
+   {
+    "template": "dev",
+    "expected": "none",
+    "classifier": "relative",
+    "grammar": "none"
+   },
+   {
+    "template": "dev",
+    "expected": "none",
+    "classifier": "total_vs_one",
+    "grammar": "none"
+   }
+  ]
+ },
+ "thresholds": {
+  "fallback_min": 0.6
+ },
+ "fallback_on_evaluation_sets": {
+  "agent_eval_holdout_v1.jsonl": {
+   "questions": 56,
+   "grammar_none": 53,
+   "fallback_fires": 0,
+   "by_operation": {}
+  },
+  "agent_eval_test_v2.jsonl": {
+   "questions": 174,
+   "grammar_none": 161,
+   "fallback_fires": 0,
+   "by_operation": {}
+  },
+  "agent_eval_multiturn_v1.jsonl": {
+   "questions": 206,
+   "grammar_none": 195,
+   "fallback_fires": 0,
+   "by_operation": {}
+  },
+  "agent_eval_test_v3.jsonl": {
+   "questions": 155,
+   "grammar_none": 146,
+   "fallback_fires": 0,
+   "by_operation": {}
+  },
+  "router_labels_independent_v1.jsonl": {
+   "questions": 154,
+   "grammar_none": 149,
+   "fallback_fires": 0,
+   "by_operation": {}
+  },
+  "router_labels_independent_v2.jsonl": {
+   "questions": 241,
+   "grammar_none": 238,
+   "fallback_fires": 0,
+   "by_operation": {}
+  }
+ },
+ "artifact": {
+  "path": "models/operation_classifier.joblib",
+  "bytes": 622004,
+  "sha256": "05ec3b00f6137aa018fadbba38a1f2363554ddeb7613be0e2dc95a3ef5c397b9"
+ }
+}

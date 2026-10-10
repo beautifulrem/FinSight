@@ -693,6 +693,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round13_tasks()
     tasks += _round14_tasks()
     tasks += _round14_frame_tasks()
+    tasks += _round15_frame_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -4200,6 +4201,193 @@ def _round14_frame_tasks() -> list[dict[str, Any]]:
                     "By how much does Moutai's ROE beat Initech's?",
                     must_state_missing=True,
                     forbidden_patterns=[*TRADING_PATTERNS, r"(?i)a difference of"],
+                    language="en",
+                )
+            ],
+        ),
+    ]
+
+
+def _round15_frame_tasks() -> list[dict[str, Any]]:
+    """Round-15 rules: the classes the round-11 review found (K1, K2, K4, K7, K8, K9, K10), in the author's own wording
+    on the v1 snapshot (no turn copies or near-copies a committed slice, a quoted review probe or another set,
+    ``tests/test_agent_eval.py``). Values from the v1 tools: 归母净利润 茅台 823.2 亿 / 五粮液 378 亿 /
+    中国平安 1210 亿;
+    营业收入 1688.38 亿 / 1085 亿 / 12180 亿; ROE 33 / 29.4 / 15.2; 市盈率 24.6 / 20.9 / 8.7; 市净率 8.1 / 5.4 / 1.1;
+    closes 1409.5 / 100.64 / 53.61 (2026-04-22).
+
+    A total compared with another value is (A + B) vs C (1201.2 亿 vs 1210 亿, 8.8 亿 less; 12180 亿 − 2773.38 亿 =
+    9406.62 亿); the mean of three P/Es 18.07 and ROEs 25.87; a total and a share of it in one message (2773.38 亿,
+    39.12%); a second metric in one message (11.23 and 3.2); two purchases (100 × −90.5 + 100 × 109.5 = 1900); 1.2万股
+    (643,320); a portfolio in clauses (187,883); an added position (40,914); 净利润总额 (1201.2 亿); an ellipsis with
+    two targets (5.4 and 1.1); a day after the data; a name in a list that is no security."""
+
+    def fundamental(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"fundamental_{symbol}", "value": value}
+
+    def price(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"price_{symbol}", "value": value}
+
+    mt, wly, pa = "600519.SH", "000858.SZ", "601318.SH"
+    return [
+        # K1: a total against one value
+        _task(
+            "r15_total_vs_one_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "贵州茅台和五粮液的归母净利润合到一块，能比中国平安多吗",
+                    required_facts=[fundamental(mt, 120120000000), fundamental(pa, 880000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"2411\.2"],  # never the total of all three
+                )
+            ],
+        ),
+        _task(
+            "r15_total_vs_one_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Is Ping An's revenue bigger than Moutai and Wuliangye combined?",
+                    required_facts=[fundamental(pa, 940662000000)],
+                    language="en",
+                )
+            ],
+        ),
+        # K4: the mean
+        _task(
+            "r15_mean_pe_zh",
+            "comparison",
+            "zh",
+            [_turn("贵州茅台、五粮液和中国平安三家市盈率平均一下是多少", required_facts=[fundamental(mt, 18.07)])],
+        ),
+        _task(
+            "r15_mean_roe_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "What is the mean ROE of Moutai, Wuliangye and Ping An?",
+                    required_facts=[fundamental(mt, 25.87)],
+                    language="en",
+                )
+            ],
+        ),
+        # K4: a total and a share of it in one message, after two turns
+        _task(
+            "r15_sum_and_share_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("贵州茅台的营业收入", required_entity=mt),
+                _turn("再查一下五粮液的", required_entity=wly),
+                _turn(
+                    "两家一共多少，五粮液占当中几成",
+                    required_facts=[fundamental(mt, 277338000000), fundamental(wly, 39.12)],
+                ),
+            ],
+        ),
+        # K10: a second metric in the same message
+        _task(
+            "r15_second_metric_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Ping An's revenue is how many times Wuliangye's, and net profit?",
+                    required_facts=[fundamental(pa, 11.23), fundamental(pa, 3.2)],
+                    language="en",
+                )
+            ],
+        ),
+        # K2: two purchases at different costs
+        _task(
+            "r15_two_lots_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "我在1500元买了100股贵州茅台，又在1300元买了100股，现在浮盈多少",
+                    required_facts=[price(mt, 1900)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"100 股合计 100 × -90\.5"],  # never the first lot alone
+                )
+            ],
+        ),
+        # K7: a count in 万, a portfolio in clauses, a position added to the last one
+        _task(
+            "r15_wan_count_zh",
+            "fact",
+            "zh",
+            [_turn("我手上有1.2万股中国平安，按收盘价算市值多少", required_facts=[price(pa, 643320)])],
+        ),
+        _task(
+            "r15_portfolio_clauses_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "持仓清单：贵州茅台 100 股；五粮液 2 手；中国平安 500 股。总值多少？",
+                    required_facts=[price(mt, 187883)],
+                )
+            ],
+        ),
+        _task(
+            "r15_added_position_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("我有300股五粮液，值多少钱", required_facts=[price(wly, 30192)]),
+                _turn("另外还有200股中国平安，加起来一共多少", required_facts=[price(pa, 40914)]),
+            ],
+        ),
+        # K10: 净利润总额; an ellipsis naming two targets
+        _task(
+            "r15_net_profit_total_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "茅台和五粮液的净利润总额是多少",
+                    required_facts=[fundamental(mt, 120120000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"没有[^。]{0,12}利润总额"],
+                )
+            ],
+        ),
+        _task(
+            "r15_ellipsis_two_targets_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("贵州茅台的市净率", required_entity=mt),
+                _turn("五粮液和中国平安的呢", required_facts=[fundamental(wly, 5.4), fundamental(pa, 1.1)]),
+            ],
+        ),
+        # K8: a day after the data is said to be after it
+        _task(
+            "r15_day_after_data_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "贵州茅台4月28日的收盘价",
+                    required_entity=mt,
+                    must_hedge=True,
+                    must_state_missing=True,
+                    forbidden_patterns=[*TRADING_PATTERNS, r"4月28日的收盘价为"],
+                )
+            ],
+        ),
+        # K9: a name in a list that is no security
+        _task(
+            "r15_unresolved_in_list_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Moutai, Acmeco and Ping An: net profit in all?",
+                    must_state_missing=True,
+                    forbidden_patterns=[*TRADING_PATTERNS, r"(?i)combined CNY"],
                     language="en",
                 )
             ],
