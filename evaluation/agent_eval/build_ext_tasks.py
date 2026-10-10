@@ -363,6 +363,7 @@ def build_ext_tasks() -> list[dict[str, Any]]:
         ),
     ]
     tasks += round14_ext_tasks()
+    tasks += round14_frame_ext_tasks()
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
     return tasks
@@ -452,6 +453,125 @@ def round14_ext_tasks() -> list[dict[str, Any]]:
         refused("ext_r14_gdr_zh", "zh", "长江电力伦敦上市的存托凭证收在多少", "28.54"),
         refused("ext_r14_ah_premium_zh", "zh", "工商银行A股较H股溢价多少", "8.28"),
         refused("ext_r14_adr_en", "en", "Quote me ICBC's US-listed ADR", "8.28"),
+    ]
+
+
+def round14_frame_ext_tasks() -> list[dict[str, Any]]:
+    """(round 14, review-10 J3/J4/J5/J8) The same classes on the extension's names, in the author's own wording.
+    Values computed by hand from ``data/snapshot/structured_data_ext.json``: 招商银行 归母净利润 1501.81 亿 and
+    工商银行 3685.62 亿 (share 28.95%); 紫金矿业 517.77 亿 and 美的集团 439.45 亿 (54.09%); 比亚迪 326.19 亿 +
+    宁德时代 722.01 亿 = 1048.2 亿; closes 比亚迪 83.31, 宁德时代 291.11, 招商银行 41.26, 工商银行 8.28, 美的集团 80.1;
+    52-week low / high of 比亚迪 78.2 / 110.6 and 宁德时代 286.8 / 460; 招商银行 circ_mv 8511.5 亿; 长江电力
+    profit_dedt 334.46 亿."""
+    no_hedge = [*TRADING_PATTERNS, r"条件性判断", r"(?i)conditional assessment"]
+    return [
+        _task(
+            "r14_ext_share_total_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "工商银行和招商银行的归母净利润合计里，招商银行占多大比例", required_facts=[fundamental(CMB, 28.95)]
+                )
+            ],
+        ),
+        _task(
+            "r14_ext_share_total_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Of Zijin Mining and Midea's combined net profit, what percentage is Zijin's?",
+                    required_facts=[fundamental(ZIJIN, 54.09)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r14_ext_sum_plus_zh",
+            "comparison",
+            "zh",
+            [_turn("比亚迪加宁德时代的归母净利润是多少", required_facts=[fundamental(BYD, 104820000000)])],
+        ),
+        _task(
+            "r14_ext_three_positions_zh",
+            "fact",
+            "zh",
+            [_turn("我有比亚迪200股、宁德时代1手，还有招行500股，合计市值多少", required_facts=[price(BYD, 66403)])],
+        ),
+        _task(
+            "r14_ext_carried_plus_named_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("工商银行收盘价多少", required_entity=ICBC),
+                _turn("我有20手，再加美的集团100股，一共值多少", required_facts=[price(ICBC, 24570)]),
+            ],
+        ),
+        _task(
+            "r14_ext_rebound_zh",
+            "fact",
+            "zh",
+            [_turn("比亚迪较52周最低收盘反弹了多少", required_facts=[price(BYD, 6.53)])],
+        ),
+        _task(
+            "r14_ext_below_high_en",
+            "fact",
+            "en",
+            [_turn("How far below its 52-week high close is CATL now?", required_facts=[price(CATL, 36.72)])],
+        ),
+        _task(
+            "r14_ext_circ_mv_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "招商银行的流通市值",
+                    required_facts=[fundamental(CMB, 851150247140.54)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"流通市值\s*10405"],
+                )
+            ],
+        ),
+        _task(
+            "r14_ext_dedt_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "What is Yangtze Power's net profit excluding non-recurring items?",
+                    required_facts=[fundamental(CYPC, 33445575299.94)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r14_ext_cost_carried_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("宁德时代最新收盘价", required_entity=CATL),
+                _turn("我是300元建仓的，现在浮亏多少", required_facts=[price(CATL, 8.89)]),
+            ],
+        ),
+        _task(
+            "r14_ext_outstrip_en",
+            "comparison",
+            "en",
+            [_turn("By how many points does Zijin's ROE outstrip CATL's?", required_facts=[fundamental(ZIJIN, 6.49)])],
+        ),
+        _task(
+            "r14_ext_spread_expensive_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Of BYD, CATL and Midea, how far apart are the most and the least expensive on P/E?",
+                    required_facts=[fundamental(BYD, 12.04)],
+                    forbidden_patterns=no_hedge,
+                    language="en",
+                )
+            ],
+        ),
     ]
 
 

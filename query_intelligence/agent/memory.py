@@ -514,6 +514,7 @@ def resolve_holding_follow_up(
     turn must have been a holding-value question."""
     from .coverage import (
         bind_positions,
+        cost_basis_request,
         holding_positions,
         holding_value_request,
         in_fund_units,
@@ -552,6 +553,13 @@ def resolve_holding_follow_up(
         # that target (never refused as out of scope for lack of a name)
         held_here = holding_value_request(text)
         targets = _last_targets(turns)
+        if held_here is None and cost_basis_request(text) is not None and len(targets) == 1:
+            # (round 14, review-10 J4) "我30块买的，现在赚了多少" after a question about one target: the cost is that
+            # target's
+            name = str(targets[0].get("name") or targets[0].get("symbol"))
+            zh = bool(re.search(r"[一-鿿]", text))
+            rewritten = f"{name}：{text}" if zh else f"{text} ({name})"
+            return rewritten, f"cost_basis_follow_up:{name}"
         if held_here is None or len(targets) != 1:
             return None
         name = str(targets[0].get("name") or targets[0].get("symbol"))

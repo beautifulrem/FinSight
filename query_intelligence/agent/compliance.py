@@ -26,6 +26,7 @@ from ..chatbot import (
 from ..text_safety import fold
 from .coverage import without_holding_value
 from .evidence import AgentEvidence
+from .frame import without_valuation_extremes
 from .router import _JUDGMENT_MARKERS as _ROUTER_JUDGMENT
 from .router import FAIR_VALUE_MARKERS, asks_earnings_forecast, asks_price_forecast
 from .stated_dates import reference_date
@@ -288,7 +289,8 @@ def apply_compliance(
             notes.append("conditional_prefix")
 
     # (round 11, G5) the value of a stated holding ("我有1000股…值多少钱") is arithmetic on the close, not a fair value
-    asked = f"{without_holding_value(query)} {without_holding_value(effective_query or '')}"
+    # (round 14, review-10 J4) the spread between the most and the least expensive is arithmetic, not a judgment
+    asked = " ".join(without_valuation_extremes(without_holding_value(text)) for text in (query, effective_query or ""))
     price_forecast = asks_price_forecast(query, as_of=reference) or asks_price_forecast(
         effective_query or "", as_of=reference
     )

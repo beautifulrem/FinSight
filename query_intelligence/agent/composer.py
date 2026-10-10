@@ -62,13 +62,9 @@ _BASIS_LABELS: dict[str, dict[str, tuple[str, str, str, str]]] = {
         "period_end": ("ROE（期末净资产）", "ROE (on period-end equity)", "按期末净资产", "on period-end equity"),
     },
     "revenue_basis": {
-        "营业收入": ("营业收入", "operating revenue (营业收入)", "营业收入", "operating revenue (营业收入)"),
-        "营业总收入": (
-            "营业总收入",
-            "total operating revenue (营业总收入)",
-            "营业总收入",
-            "total operating revenue (营业总收入)",
-        ),
+        # (round 14, review-10 J13) English labels carry no Chinese
+        "营业收入": ("营业收入", "operating revenue", "营业收入", "operating revenue"),
+        "营业总收入": ("营业总收入", "total operating revenue", "营业总收入", "total operating revenue"),
     },
     "net_profit_basis": {
         "归母": ("归母净利润", "net profit attributable to shareholders", "归母", "attributable to shareholders"),
@@ -275,6 +271,9 @@ def compose_template(
             purchase=holding_purchase(query),
         )
         facts = [*holding_facts, *facts]
+    costed = cost_basis_sentences(tool_log, query, zh) if query else []
+    if costed:
+        facts = [*costed, *facts]
     frame_gaps: list[str] = []
     if frame_request:
         framed, frame_gaps = frame_sentences(frame_request, tool_log, zh)
@@ -615,8 +614,15 @@ _FUNDAMENTAL_FIELDS = {
     "dividend_yield": ("dividend_yield", "dv_ratio", "dv_ttm"),
     "eps": ("eps", "basic_eps", "diluted_eps", "eps_ttm"),
     "market_cap": ("total_mv", "market_cap", "total_market_cap"),
+    # (round 14, review-10 J8) each from its own field, never from a neighbour's
+    "float_market_cap": ("circ_mv",),
+    "profit_dedt": ("profit_dedt",),
+    "operating_profit": ("operate_profit", "operating_profit"),
+    "gross_profit": ("gross_profit",),
+    "total_profit": ("total_profit",),
 }
 _RATIO_FIELDS = {"roe", "gross_margin", "dividend_yield"}
+_STATEMENT_AMOUNTS = {"revenue", "net_profit", "profit_dedt", "operating_profit", "gross_profit", "total_profit"}
 
 
 def metric_value(entry: dict[str, Any], key: str) -> tuple[float, dict[str, Any]] | None:
@@ -649,7 +655,7 @@ def metric_value(entry: dict[str, Any], key: str) -> tuple[float, dict[str, Any]
     if key in _RATIO_FIELDS:
         in_percent = (data.get("metric_units") or {}).get(field) == "%"
         value = value if in_percent or abs(value) > 1 else value * 100
-    if key in {"revenue", "net_profit"} and abs(value) < 1e6:
+    if key in _STATEMENT_AMOUNTS and abs(value) < 1e6:
         return None  # an amount the template does not state (see _fundamentals)
     return value, data
 
@@ -818,6 +824,10 @@ _OPERATION_WORDS = {
     "ratio": ("倍数", "the ratio"),
     "relative": ("相对差异", "the relative difference"),
     "which": ("高低", "which is higher"),
+    "share": ("占比", "the share"),
+    "share_total": ("占合计的比例", "the share of the combined total"),
+    "sum": ("合计", "the total"),
+    "spread": ("极差", "the spread"),
 }
 
 
@@ -853,6 +863,18 @@ def _frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh
     if any(operand.get("metric") for operand in request.get("operands") or []):
         return _metric_pair_sentences(request, tool_log, zh)
     found, missing = [], []
+    word_zh, word_en = _OPERATION_WORDS.get(operation, _OPERATION_WORDS["difference"])
+    unresolved = [operand_name(item, zh) for item in request.get("operands") or [] if item.get("kind") == "unresolved"]
+    if unresolved:
+        # (round 14, review-10 J4) a comparison whose second operand could not be identified is never answered with
+        # the other operand alone: say which one is missing
+        names = "、".join(f"「{name}」" for name in unresolved) if zh else ", ".join(f'"{name}"' for name in unresolved)
+        return [], [
+            f"未能识别{names}对应的证券，因此无法计算两者{label}的{word_zh}；以下只列出能识别的一方。"
+            if zh
+            else f"Could not tell which security {names} refers to, so {word_en} of the {label} cannot be computed; "
+            "only the identified side is listed below."
+        ]
     for operand in request.get("operands") or []:
         hit = operand_value(tool_log, operand, key)
         if hit is not None and operand.get("kind") == "industry" and not operand.get("industry"):
@@ -863,7 +885,6 @@ def _frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh
             missing.append(name)
         else:
             found.append((name, hit[0], hit[1], hit[2]))
-    word_zh, word_en = _OPERATION_WORDS.get(operation, _OPERATION_WORDS["difference"])
     if missing or len(found) < 2 or metric is None:
         names = missing or [operand_name(item, zh) for item in request.get("operands") or []]
         gap = (
@@ -887,8 +908,8 @@ def _frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh
 
     cites = "".join(dict.fromkeys(f"[{eid}]" for _name, _value, eid, _data in found))
     computed = any(data.get("_computed_change") for _name, _value, _eid, data in found)
-    many = operation in {"sum", "spread"} or (request.get("pairwise") and len(found) > 2)
-    if many and not computed and (operation != "sum" or kind in {"money", "count"}):
+    many = operation in {"sum", "spread", "share_total"} or (request.get("pairwise") and len(found) > 2)
+    if many and not computed and (operation not in {"sum", "share_total"} or kind in {"money", "count"}):
         return _many_operand_sentences(operation, found, label, kind, shown, cites, zh, request), []
     if len(found) > 2:
         ordered = sorted(found, key=lambda item: item[1], reverse=True)
@@ -930,6 +951,30 @@ def _frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh
             relation = "持平" if zh else "is level with"
         else:
             relation = ("高于" if a > b else "低于") if zh else ("is higher than" if a > b else "is lower than")
+        industry_base = any(item.get("kind") == "industry" for item in (request.get("operands") or [])[1:2])
+        if industry_base and a != b and b and kind in {"multiple", "points"}:
+            # (round 14, review-10 J14) a target against its industry average: higher or lower, by how much and by
+            # what percentage of the average
+            gap = _num(round(abs(a - b), 2))
+            gap_text = (
+                f"{gap} 个百分点"
+                if kind == "points" and zh
+                else f"{gap} percentage points"
+                if kind == "points"
+                else gap
+            )
+            pct = _num(round(abs(a - b) / abs(b) * 100, 2))
+            if zh:
+                side = "高" if a > b else "低"
+                return [
+                    f"{label}：{name_a} {shown(a, data_a)} {relation} {name_b} {shown(b, data_b)}，{side} {gap_text}"
+                    f"（约 {pct}%，以{name_b}为基数） {cites}。"
+                ], []
+            side = "above" if a > b else "below"
+            return [
+                f"{label}: {name_a} ({shown(a, data_a)}) {relation} {name_b} ({shown(b, data_b)}), {gap_text} {side} "
+                f"it (about {pct}% of {name_b}) {cites}."
+            ], []
         if zh:
             return [f"{label}：{name_a} {shown(a, data_a)} {relation} {name_b} {shown(b, data_b)} {cites}。"], []
         return [f"{label}: {name_a} ({shown(a, data_a)}) {relation} {name_b} ({shown(b, data_b)}) {cites}."], []
@@ -1051,13 +1096,34 @@ def _many_operand_sentences(
 
     values = [f"{name} {shown(value, data)}" for name, value, _eid, data in found]
     listing = ("，" if zh else ", ").join(values)
-    if operation == "sum":
+    if operation in {"sum", "share_total"}:
         total = sum(value for _name, value, _eid, _data in found)
         total_text = _money(total, zh) if kind == "money" else _num(round(total, 2))
+        # (round 14, review-10 J13) the total is the sum of the exact values; when the rounded figures shown add up to
+        # a different last digit, the answer says so instead of showing an arithmetic that does not add up
+        note = ""
+        if kind == "money" and _shown_sum_differs([value for _name, value, _eid, _data in found], total, zh):
+            note = "（按未四舍五入的原值相加）" if zh else " (summed from the unrounded figures)"
+        if operation == "sum":
+            return [
+                f"{label}：{listing}，合计 {total_text}{note} {cites}。"
+                if zh
+                else f"{label}: {listing}; combined {total_text}{note} {cites}."
+            ]
+        # (round 14, review-10 J3) a share of the combined total: A ÷ (A + B), with the total and the division written
+        name_a, a, _ea, data_a = found[0]
+        if not total:
+            return []
+        pct = _num(round(a / total * 100, 2))
+        group = "两者" if len(found) == 2 else f"{len(found)}者"
+        if zh:
+            return [
+                f"{label}：{listing}，合计 {total_text}{note}，{shown(a, data_a)} ÷ {total_text} ≈ {pct}%，"
+                f"即{name_a}约占{group}合计的 {pct}% {cites}。"
+            ]
         return [
-            f"{label}：{listing}，合计 {total_text} {cites}。"
-            if zh
-            else f"{label}: {listing}; combined {total_text} {cites}."
+            f"{label}: {listing}; combined {total_text}{note}, and {shown(a, data_a)} ÷ {total_text} ≈ {pct}%, so "
+            f"{name_a} is about {pct}% of the combined total {cites}."
         ]
     if operation == "spread":
         ordered = sorted(found, key=lambda item: item[1], reverse=True)
@@ -1097,6 +1163,23 @@ def _many_operand_sentences(
     return [
         f"{label}: {listing}; the question names {count} targets, so each pair is computed: {'; '.join(pairs)} {cites}."
     ]
+
+
+def _display_scale(value: float, zh: bool) -> float:
+    size = abs(value)
+    if zh:
+        return 1e8 if size >= 1e8 else 1e4 if size >= 1e4 else 1.0
+    return 1e9 if size >= 1e9 else 1e6 if size >= 1e6 else 1.0
+
+
+def _shown_sum_differs(values: list[float], total: float, zh: bool) -> bool:
+    """Whether the operands as shown (two decimals at their scale) add up to another figure than the total as shown;
+    only when every figure is shown at the same scale (otherwise the shown figures are not directly added)."""
+    scale = _display_scale(total, zh)
+    if any(_display_scale(value, zh) != scale for value in values):
+        return False
+    shown = round(sum(round(value / scale, 2) for value in values), 2)
+    return abs(shown - round(total / scale, 2)) > 1e-9
 
 
 def _claimed_multiple_verdict(ratio: float, claimed: dict[str, Any], zh: bool) -> str:
@@ -1214,7 +1297,7 @@ def frame_result(request: dict[str, Any], tool_log: list[dict[str, Any]]) -> flo
 
     key, operation = str(request.get("metric") or ""), str(request.get("operation") or "difference")
     values = []
-    many = operation in {"sum", "spread"}
+    many = operation in {"sum", "spread", "share_total"}
     for operand in (request.get("operands") or [])[: None if many else 2]:
         hit = operand_value(tool_log, operand, str(operand.get("metric") or key))
         if hit is None or hit[2].get("_computed_change"):
@@ -1226,6 +1309,8 @@ def frame_result(request: dict[str, Any], tool_log: list[dict[str, Any]]) -> flo
         return round(sum(values), 2)
     if operation == "spread":
         return round(max(values) - min(values), 2)
+    if operation == "share_total":
+        return round(values[0] / sum(values) * 100, 2) if sum(values) else None
     a, b = values[:2]
     if operation == "share":
         return round(a / b * 100, 2) if b else None
@@ -1362,7 +1447,8 @@ def _price(data: dict[str, Any], zh: bool, request: PriceRequest | None = None) 
         return []
     computed = _computed_change(data) if pct is None else None
     if zh:
-        change = f"，当日涨跌幅 {_num(pct)}%" if pct is not None else ""
+        # (round 14, review-10 J13) the daily change to two decimals, as the KPI tile shows it
+        change = f"，当日涨跌幅 {_pct2(pct)}%" if pct is not None else ""
         if computed:
             previous, change_pct = computed
             change = (
@@ -1371,7 +1457,7 @@ def _price(data: dict[str, Any], zh: bool, request: PriceRequest | None = None) 
             )
         sentences = [f"{name}（{symbol}）最新可用收盘价为 {_px(close, data, zh)}（{as_of}）{change} [{eid}]。"]
     else:
-        change = f", daily change {_num(pct)}%" if pct is not None else ""
+        change = f", daily change {_pct2(pct)}%" if pct is not None else ""
         if computed:
             previous, change_pct = computed
             change = (
@@ -1385,6 +1471,7 @@ def _price(data: dict[str, Any], zh: bool, request: PriceRequest | None = None) 
         sentences.extend(_year_to_date(data, zh, first_close_base=request.ytd_first_close))
     if request is not None and request.range_52w:
         sentences.extend(_range_52w(data, zh))
+        sentences.extend(_from_52w_extremes(data, zh, request))
     if request is not None and request.drawdown:
         sentences.extend(_drawdown(data, request.drawdown, zh))
     return sentences
@@ -1408,6 +1495,99 @@ def _range_52w(data: dict[str, Any], zh: bool) -> list[str]:
         f"{name} over the 52 weeks from {start} to {end} ({count} sessions, unadjusted closes): highest close "
         f"{_px(found['high'], data, zh)} on {found.get('high_date')}, lowest close {_px(found['low'], data, zh)} on "
         f"{found.get('low_date')} [{eid}]."
+    ]
+
+
+def _from_52w_extremes(data: dict[str, Any], zh: bool, request: PriceRequest) -> list[str]:
+    """(round 14, review-10 J4) The latest close against the 52-week low ("反弹了多少") or high ("较高点跌了多少"),
+    with both closes and the division written out so the verifier and the reader can recompute it."""
+    found = data.get("range_52w") or {}
+    close, name, eid = data.get("close"), data.get("name"), data.get("evidence_id")
+    if close is None or not eid:
+        return []
+    sentences = []
+    low, high = found.get("low"), found.get("high")
+    if request.rebound_52w and low:
+        pct = _num(round((float(close) - float(low)) / float(low) * 100, 2))
+        if zh:
+            sentences.append(
+                f"{name}最新收盘 {_px(close, data, zh)}较近52周最低收盘 {_px(low, data, zh)}（{found.get('low_date')}）"
+                f"{'反弹' if float(close) >= float(low) else '下跌'}：({_num(close)} − {_num(low)}) ÷ {_num(low)} ≈ "
+                f"{pct}% [{eid}]。"
+            )
+        else:
+            sentences.append(
+                f"{name}'s latest close of {_px(close, data, zh)} is ({_num(close)} − {_num(low)}) ÷ {_num(low)} ≈ "
+                f"{pct}% above its 52-week low close of {_px(low, data, zh)} on {found.get('low_date')} [{eid}]."
+            )
+    if request.off_high_52w and high:
+        pct = _num(round((float(high) - float(close)) / float(high) * 100, 2))
+        if zh:
+            sentences.append(
+                f"{name}最新收盘 {_px(close, data, zh)}较近52周最高收盘 {_px(high, data, zh)}"
+                f"（{found.get('high_date')}）低 ({_num(high)} − {_num(close)}) ÷ {_num(high)} ≈ {pct}% [{eid}]。"
+            )
+        else:
+            sentences.append(
+                f"{name}'s latest close of {_px(close, data, zh)} is ({_num(high)} − {_num(close)}) ÷ {_num(high)} ≈ "
+                f"{pct}% below its 52-week high close of {_px(high, data, zh)} on {found.get('high_date')} [{eid}]."
+            )
+    return sentences
+
+
+def cost_basis_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -> list[str]:
+    """(round 14, review-10 J4) Gain or loss against the cost price the question states ("我300股成本90元，浮亏多
+    少"): (close − cost) per share and in percent of the cost, times the shares when a count is stated, at the latest
+    close of the one target asked about; the cost is attributed to the user. Not advice, before fees and dividends."""
+    from .coverage import cost_basis_request
+
+    asked = cost_basis_request(query)
+    if asked is None:
+        return []
+    prices = [
+        entry.get("data") or {}
+        for entry in tool_log
+        if entry.get("tool") == "get_price_history" and entry.get("ok") and (entry.get("data") or {}).get("close")
+    ]
+    if len({str(data.get("symbol")) for data in prices}) != 1:
+        return []  # no close, or several targets: which position the cost belongs to is not known
+    data = prices[0]
+    close, eid, name, as_of = float(data["close"]), data.get("evidence_id"), data.get("name"), data.get("as_of")
+    if not eid:
+        return []
+    cost = float(asked["cost"])
+    diff = round(close - cost, 4)
+    pct = _num(round(diff / cost * 100, 2))
+    per_share = _num(round(diff, 2))
+    gain = diff >= 0
+    shares, lots = asked.get("shares"), asked.get("lots")
+    if zh:
+        word = "浮盈" if gain else "浮亏"
+        sentence = (
+            f"按 {as_of} 收盘价 {_px(close, data, zh)}和你给出的成本价 {_num(cost)} 元计算，{name}每股{word} "
+            f"{_num(close)} − {_num(cost)} = {per_share} 元（{pct}%）"
+        )
+        if shares:
+            held = f"{lots} 手（{shares} 股）" if lots else f"{shares} 股"
+            total = _num(round(shares * round(diff, 2), 2))
+            sentence += f"，{held}合计 {shares} × {per_share} = {total} 元"
+        return [
+            f"{sentence} [{eid}]。",
+            "这是按最近收盘价计算的账面盈亏，未含佣金、印花税等交易费用和分红，不是卖出建议或投资建议。",
+        ]
+    word = "gain" if gain else "loss"
+    sentence = (
+        f"At the {as_of} close of {_px(close, data, zh)} and your stated cost of CNY {_num(cost)}, {name} shows a "
+        f"paper {word} of {_num(close)} − {_num(cost)} = CNY {per_share} per share ({pct}%)"
+    )
+    if shares:
+        held = f"{lots} lots ({shares} shares)" if lots else f"{shares} shares"
+        total = _num(round(shares * round(diff, 2), 2))
+        sentence += f", or {shares} × {per_share} = CNY {total} on {held}"
+    return [
+        f"{sentence} [{eid}].",
+        "This is a paper gain or loss at the last close before fees, taxes and dividends, not a recommendation to sell "
+        "or investment advice.",
     ]
 
 
@@ -2096,6 +2276,11 @@ _MONEY_FIELDS = {
     "circ_mv",
     "market_cap",
     "total_market_cap",
+    "profit_dedt",
+    "operate_profit",
+    "operating_profit",
+    "gross_profit",
+    "total_profit",
 }
 _PER_SHARE_FIELDS = {"eps", "basic_eps", "diluted_eps", "eps_ttm", "bps"}
 
@@ -2146,6 +2331,14 @@ def _px(value: Any, data: dict[str, Any], zh: bool) -> str:
 def _times(value: Any, zh: bool) -> str:
     """A valuation multiple: "24.6 倍" / "24.6x"."""
     return f"{_num(value)} 倍" if zh else f"{_num(value)}x"
+
+
+def _pct2(value: Any) -> str:
+    """A percentage to two decimals ("1.8514" → "1.85"), as the KPI tiles show it."""
+    try:
+        return _num(round(float(value), 2))
+    except (TypeError, ValueError):
+        return _num(value)
 
 
 def _num(value: Any) -> str:

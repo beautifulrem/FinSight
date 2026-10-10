@@ -152,7 +152,15 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
     asks_eps = bool(_EPS_TERMS.search(text)) or any(metric.key == "eps" for metric in requested_metrics(text))
     # (round 13, I2) a price forecast ("能不能站上105元") is answered with the dated close under the hedge
     price_forecast = asks_price_forecast(raw_query)
-    has_price_cue = bool(_PRICE_TERMS.search(text)) or request.needs_quote or holding or asks_eps or price_forecast
+    # (round 14) a 52-week range / distance question ("how far below its 52-week high") needs the price history
+    has_price_cue = (
+        bool(_PRICE_TERMS.search(text))
+        or request.needs_quote
+        or request.range_52w
+        or holding
+        or asks_eps
+        or price_forecast
+    )
     explicit_valuation_cue = bool(_VALUATION_TERMS.search(text)) or bool(_INDUSTRY_TERMS.search(text)) or asks_eps
     has_valuation_cue = explicit_valuation_cue or (sector_member and bool(listed))
     wants_technical = bool(_TECHNICAL_TERMS.search(text)) or request.needs_indicators

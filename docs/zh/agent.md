@@ -404,6 +404,37 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 * **证据列表标题**（J10，`text_safety.regulatory_title_withheld`、`romanised_chinese`）：声称监管处罚、造假或退市，或自称监管
   公告的标题，只有文档本身来自官方来源（监管机构或交易所发布，或以公告形式提供的公司公告）时才显示；拼音写的荐股文字不算标题。
 
+### 第 14 轮新增的规则（第 10 轮评审，J3、J4、J5、J8、J13、J14）
+
+第 14 轮修复第 10 轮评审用新说法找到的比较和持仓类别，全部用自写例子：20 个 dev 任务（`build_tasks._round14_tasks`，v1 快照）、12 个 ext 任务（`build_ext_tasks.round14_ext_tasks`，扩展标的）、路由标注 `route_403`–`route_413` 和 `tests/test_agent_round14_grammar.py`。不使用评审的复现语句和它的隐藏切片 `heldout_r10`；`tests/test_agent_eval.py` 把第 14 轮的任务、标注和测试字符串与每个已提交切片（严格比对，不设截止轮次）以及第 4–10 轮评审报告引用的复现语句比对（第 10 轮的列在 `_ROUND10_REVIEW_PROBES`）。
+
+**用一个小语法代替一串短语类**（J4）。比较问题读作 运算 × 操作数 × 指标：
+
+* 运算：`frame.GRAMMAR` 中第一条所需词类（`frame._LEXICON`）都出现在分句里、且排除词类都不出现的产生式：极差、占合计的比例、占比、倍数（显式倍数词、换几股、单位词加锚、给定倍数）、相对差异、合计、差值、高低，最后是弱合计词。词类仍是正则表达式；新说法就是某个词类里的一个新词，两种读法之间由表的顺序而不是 `if` 语句的顺序决定。
+* 操作数：点名（两个及以上标的）、点名 + 沿用（点名一个，另一个来自框架）、序数（前者 / the former）、指代（两者 / 它们 / both / them / between them）或沿用；框架请求里的 `operand_form` 记录是哪一种。
+* 指标：分句里最长的指标名，否则沿用框架的；问「最贵 / 最便宜」而没点名指标时是市盈率的极差。
+
+`tests/test_agent_round14_grammar.py` 从模板生成问法（7 种运算 × 10 个标的 × 8 个指标，中英文，种子 14；每种语言 240 个问题，另有序数 / 指代追问），检查读出的运算、操作数顺序，以及作答器用合成工具结果算出的数值，与测试里独立计算的值对照。
+
+**新增的类别。**
+
+* **占合计的比例**（J3）：「A占A和B两家合计的多少」「A和B的…合计中，A占几成」「A在A与B之和里占比」「A's … as a percentage of A and B combined」「Of A and B's combined …, what percentage is A's?」是 A ÷ (A + B)（或 A ÷ 所有操作数之和），写出合计和除法：「营业收入：比亚迪 8039.65 亿元，宁德时代 4237.02 亿元，合计 12276.67 亿元，8039.65 亿元 ÷ 12276.67 亿元 ≈ 65.49%」。分子是在合计之外再次点名的标的，否则是第一个。只对金额和数量。
+* **合计**：两个名称之间的「加」（「工行加招行的…」；不含加权 / 加息 / 加仓 / 再加800股）、总计、共计、合起来、合在一块、加总、「plus」、「between them」（「how much do they make between them」；「the gap between them」仍是差值）、「add X to it」、「what's the total」。
+* **比较动词**：高过 / 低过 / 强过 / 弱过 / 超过 / 强多少 / 多赚、「outstrip」「surpass」「edge out」。
+* **最贵和最便宜**（「最贵的比最便宜的高多少」「the most and the least expensive on P/E」「the cheapest and the priciest」）是市盈率极差；判断检查前把这些极值词去掉（`frame.without_valuation_extremes`），回答不再按估值判断加限定；问题里的其他判断词照样触发限定。
+* **是否题的倍数**带半或英文数词：「有没有…的三倍半」「两倍半左右」「over eight times」「five and a half times」。
+* **个股对行业平均**（J14）：「比白酒行业平均高还是低」「higher or lower than the sector average」是高低题；有行业操作数时回答写出差值及其占行业平均的百分比（「高 16.33（约 59.82%，以白酒行业平均为基数）」）。
+* **绝不只用一个操作数作答。** 两操作数问题中第二个对象解析不出（「…outstrip Acmeco's」「比某某科技高多少」）时标为未解析并说明：「未能识别「某某科技」对应的证券，因此无法计算…；以下只列出能识别的一方。」（`frame.unresolved_operand`）。新增英文别名 zijin、(china) yangtze power。
+* **按给出的成本算盈亏**（`coverage.cost_basis_request`、`composer.cost_basis_sentences`）：「我300股成本90元，浮亏多少」「我30块买的，现在赚了多少」（正在讨论的标的）、「I paid 50 a share for 1,000 shares」：每股（收盘价 − 成本）、占成本的百分比、乘以股数，成本注明是用户给出的（「你给出的成本价」），未含费用和分红。任何地方都没有标的时反问。
+* **相对 52 周低点或高点的涨跌**：「离52周最低点反弹了多少」「How far below its 52-week high is it?」：写出两个收盘价和除法（「(83.31 − 78.2) ÷ 78.2 ≈ 6.53%」）。
+* **多笔持仓**（J5）：别名表里的中文简称（招行、工行）把每笔持仓绑定到自己的标的，因此三笔持仓（「我持有招行2000股、工行5手和比亚迪100股…」）以及沿用的一笔加点名的一笔（招商银行之后的「我拿着3手，再加800股工行…」）都会估值并求和；「20手工商银行」是手数。
+* **指标取自己的字段**（J8）：流通市值是 `circ_mv`，扣非净利润是 `profit_dedt`（框架指标和对话指标）；营业利润、毛利润、利润总额有了名字，回答说明数据里没有，而不是用净利润回答。
+* **作答器细节**（J13）：四舍五入后的操作数相加与合计末位不同时注明「（按未四舍五入的原值相加）」/「(summed from the unrounded figures)」；价格句里的日涨跌幅与卡片一样保留两位小数；英文标签不再夹中文（「operating revenue」）。
+
+**校验器**（J3）。已写出金额的占合计比例 a ÷ (a + b) 或 a ÷ Σ，在带「÷」或占合计用语（「占两家合计」「of the combined total」）的句子里算推导数；多笔持仓的合计是某种收盘价分配下的 Σ 股数 × 收盘价，以元或万元书写、乘积写在哪里都可以；句子写明成本时，收盘价 − 成本、其百分比及乘以股数都算推导数。LLM 草稿未通过校验时，回退的模板按用户的问题生成（`graph._template_update`），因此回退回答算的是所问的内容（评审的 L1、L9）。
+
+**结果（第 14 轮）。** dev 493 = 1.000、ext 36 = 1.000（`gate-dev.json`、`gate-ext.json`，`2a55c49`；`b725e4d` 上相同），保留集 53 = 0.9434 不变；自写路由标注 414 条 1.000（`router_eval-round14-own.json`），独立 v2 0.8423 不变；第八轮切片 51/51，第九轮切片 44/52 → 51/52，二者都属于**暴露之后**（后者是工程师读了失败任务之后；`chat_heldout_r9-auto-nollm-after-exposure-round14-first.json`、`chat_heldout_r9-auto-nollm-after-exposure-round14.json`）；校验器压力测试 313 个正确答案 / 5,324 个变体，逐句 0.96%，派生 1.09%（`verifier_stress-round14.json`，`631da61`）；离线红队 11 个攻击集全部 0 成功。第十轮评审的切片在仓库之外，工程师没有运行过。
+
 ### 会话记忆卡片
 
 `session_memory(turns, query)` 生成一张抽取式的小卡片，以「Session memory (from earlier turns)」的形式放进 Agent 的用户消息。卡片包含：

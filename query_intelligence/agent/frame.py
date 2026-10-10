@@ -27,6 +27,9 @@ from dataclasses import dataclass
 from typing import Any
 
 MAX_OPERANDS = 4
+# (round 14) the second half of a long Chinese name that is a generic word, not a short name (招商银行 → 银行 would
+# match every bank)
+GENERIC_NAME_TAILS = frozenset({"银行", "证券", "保险", "集团", "股份", "控股", "电力", "时代", "科技", "医药", "电器"})
 
 
 @dataclass(frozen=True)
@@ -143,13 +146,78 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
         "get_fundamentals",
         ("股息率", r"\bdividend yields?\b"),
     ),
+    # (round 14, review-10 J8) the free-float market cap is its own metric (``circ_mv``), never the total
+    FrameMetric(
+        "float_market_cap",
+        "流通市值",
+        "free-float market cap",
+        "money",
+        "get_fundamentals",
+        (
+            "流通市值",
+            "流通盘市值",
+            r"\bfree[- ]?float(?:ing)? market (?:cap|value|capitali[sz]ation)\b",
+            r"\bfloat(?:ing)? market (?:cap|value)\b",
+            r"\bcirculating market (?:cap|value)\b",
+            r"\bfree[- ]float\b",
+        ),
+    ),
     FrameMetric(
         "market_cap",
         "总市值",
         "market cap",
         "money",
         "get_fundamentals",
-        ("总市值", "流通市值", "市值", r"\bmarket (?:cap|capitali[sz]ation)\b"),
+        ("总市值", "市值", r"\bmarket (?:cap|capitali[sz]ation|value)\b"),
+    ),
+    # (round 14, review-10 J8) net profit after non-recurring items (``profit_dedt``) is its own metric, never 归母
+    FrameMetric(
+        "profit_dedt",
+        "扣非净利润",
+        "net profit excluding non-recurring items",
+        "money",
+        "get_fundamentals",
+        (
+            "扣除非经常性损益后的净利润",
+            "扣除非经常性损益后净利润",
+            "扣非归母净利润",
+            "扣非后净利润",
+            "扣非净利润",
+            "扣非净利",
+            "扣非利润",
+            "扣非",
+            r"\b(?:net )?(?:profit|income|earnings) (?:excluding|ex|before|after) non-?recurring"
+            r"(?: items| gains and losses)?\b",
+            r"\b(?:excluding|ex-?) non-?recurring(?: items| gains and losses)?\b",
+            r"\b(?:recurring|core|underlying) (?:net )?(?:profit|earnings|income)\b",
+            r"\bdeducted net profit\b",
+        ),
+    ),
+    # (round 14, review-10 J8) metrics the data does not have: named, so a comparison or a question about them says
+    # they are missing instead of answering with a neighbour (营业利润 is not 净利润, 毛利润 is not 毛利率)
+    FrameMetric(
+        "operating_profit",
+        "营业利润",
+        "operating profit",
+        "money",
+        "get_fundamentals",
+        ("营业利润", "经营利润", r"\boperating (?:profit|income)\b", r"\bEBIT\b"),
+    ),
+    FrameMetric(
+        "gross_profit",
+        "毛利润",
+        "gross profit",
+        "money",
+        "get_fundamentals",
+        ("毛利润", "毛利额", r"\bgross profits?\b"),
+    ),
+    FrameMetric(
+        "total_profit",
+        "利润总额",
+        "total profit",
+        "money",
+        "get_fundamentals",
+        ("利润总额", "税前利润", r"\bpre-?tax (?:profit|income)\b", r"\bprofit before tax\b"),
     ),
     FrameMetric(
         "revenue",
@@ -184,6 +252,8 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
             r"\bearnings\b",
             # (round 13) "Ping An out-earns Wuliangye", "earns less than": what a company earns is its net profit
             r"\b(?:out-?)?earn(?:s|ed)?\b",
+            # (round 14) "两家去年一共赚了多少": what companies earned (not "一股赚多少", EPS, which is longer)
+            r"(?:赚(?:了|的钱|到的钱|得)?(?=[^，。？?；;]{0,4}(?:多少|几)))",
         ),
     ),
     FrameMetric(
@@ -320,16 +390,22 @@ def metric_label(key: str, zh: bool) -> str:
 # 元") or a question quantity they ask a difference; with "by what multiple" / "几倍" a ratio. A colloquial count of one
 # operand in the other ("相当于几个茅台", "抵得上几个", "顶得上几个") is a ratio, and so are imperatives ("divide the
 # second by the first", "后者除以前者"); "subtract" / "减去" ask a difference.
-_VERB_COMPARATIVE_ZH = r"领先|落后|跑赢|跑输|超出|胜过|胜出|输给|赢了|高出|低出|多出|少出"
+# (round 14, review-10 J4) 高过 / 低过 / 强过 / 弱过 / 超过 / 多赚 / 少赚, "outstrip", "surpass", "edge out" join the
+# class.
+_VERB_COMPARATIVE_ZH = (
+    r"领先|落后|跑赢|跑输|超出|胜过|胜出|输给|赢了|高出|低出|多出|少出|高过|低过|强过|弱过|超过|多赚|少赚|甩开"
+)
 _VERB_COMPARATIVE_EN = (
     r"\b(?:out-?(?:earn|sell|perform|pace|grow|gain|trade|rank)|underperform|lead|trail|lag|beat|exceed|top)"
-    r"(?:s|ed|ing|ged)?\b"
+    r"(?:s|ed|ing|ged)?\b|"
+    r"\b(?:outstrip(?:s|ped|ping)?|surpass(?:es|ed|ing)?|outdo(?:es|ne|ing)?|outshine[sd]?|edge[sd]? (?:out|past))\b"
 )
 # "是平安的两倍吗", "是不是三倍左右", "Is it about twice Ping An's?": a ratio checked against a stated multiple
 _CLAIMED_MULTIPLE_ZH = re.compile(
     r"(?:是|为|有|相当于|等于|是不是|有没有|是否|超过|不到|达到)[^，。？?,;；]{1,14}?的\s*"
     r"(?P<approx>大约|大概|约|将近|接近|差不多)?\s*(?P<k>\d+(?:\.\d+)?|[一两二三四五六七八九十]|半)\s*倍"
-    r"(?P<post>还要多|还多|以上|有余|多|左右|上下|不到)?\s*(?:吗|么|嘛|吧|没有|不|呢)?\s*[？?]?\s*$"
+    # (round 14, review-10 J4) "三倍半": three and a half times
+    r"(?P<half>半)?(?P<post>还要多|还多|以上|有余|多|左右|上下|不到)?\s*(?:吗|么|嘛|吧|没有|不|呢)?\s*[？?]?\s*$"
 )
 # "是不是平安的三成以上", "有没有茅台的六成": a share stated in tenths
 _CLAIMED_TENTHS_ZH = re.compile(
@@ -352,8 +428,11 @@ _BELOW_WORDS = re.compile(r"不到|不足|少于|低于|\bless than\b|\bunder\b|
 _CLAIMED_MULTIPLE_EN = re.compile(
     r"^(?:is|are|was|were|does|do|did|has)\b[^.?!]{0,60}?\b"
     r"(?P<approx>about |roughly |around |nearly |approximately |close to )?"
-    r"(?P<k>twice|double|triple|three times|four times|half|\d+(?:\.\d+)?\s?(?:x|times))\s+"
-    r"(?:(?:as \w+ as|that of|those of|of|the size of)\s+)?(?:the\s+)?"
+    r"(?P<k>twice|double|triple|half|"
+    # (round 14, review-10 J4) "over eight times", "three and a half times"
+    r"(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)(?: and a half)? times|"
+    r"\d+(?:\.\d+)?\s?(?:x|times))\s+"
+    r"(?:(?:as \w+ as|that of|those of|of|the size of|what)\s+)?(?:the\s+)?"
     r"(?:latter|former|first|second|that|its|their|his|her|(?-i:[A-Z])[\w-]*)",
     re.IGNORECASE,
 )
@@ -396,7 +475,8 @@ _COMPARATIVE = re.compile(
 # "差几个点", "相差多少", "高了多少", "大多少", "difference", "gap", "how much higher", "by how much".
 _DIFFERENCE = re.compile(
     r"差了?(?:有|是|大概|大约)?(?:多少|几|多大)|相差|差距|差额|差值|差多少|"
-    r"(?:高|低|多|少|大|小|贵|便宜)(?:了|出)?(?:有|是|大概|大约)?(?:多少|几)|"
+    # (round 14, review-10 J4) "强多少", "弱了几个点"
+    r"(?:高|低|多|少|大|小|贵|便宜|强|弱)(?:了|出)?(?:有|是|大概|大约)?(?:多少|几)|"
     # (round 12) "多跌了多少", "少涨了几个点", "多成交了多少钱": more / less of a verb, by how much
     r"(?:多|少)(?:跌|涨|赚|亏|卖|成交|交易)了?(?:有|是|大概|大约)?(?:多少|几)|"
     # (round 13) a comparative verb, its object, then the quantity asked: "领先前者几个百分点", "落后茅台多少",
@@ -414,7 +494,11 @@ _WHICH = re.compile(
     r"(?:谁|哪个|哪一个|哪只|哪家|哪边|哪一家|哪一只)[^，。？?,;；]{0,6}?(?:更|比较|相对)?"
     r"(?:高|低|大|小|多|少|贵|便宜|强|弱|活跃)(?!档|端|效|级|点位)|"
     r"\bwhich\b[^.?!]{0,30}\b(?:higher|lower|bigger|smaller|larger|more|less|cheaper|greater)\b|"
-    r"\b(?:higher|lower|bigger|larger) of the two\b",
+    r"\b(?:higher|lower|bigger|larger) of the two\b|"
+    # (round 14, review-10 J14) "比行业平均高还是低", "is it above or below the sector average?"
+    r"(?:高|低|大|小|多|少)还是(?:高|低|大|小|多|少)|"
+    r"\b(?:higher|lower|above|below|bigger|smaller|more|less) or "
+    r"(?:higher|lower|above|below|bigger|smaller|more|less)\b",
     re.IGNORECASE,
 )
 # (round 13) a question about two of several operands ("两者", "the two", "前者/后者")
@@ -438,6 +522,7 @@ _NOT_A_GAP = re.compile(
 # that asks the comparison is parsed; the cap applies to that clause, not to the whole message
 _CLAUSE = re.compile(r"[^。！？!?；;]+[。！？!?；;]?")
 MAX_CLAUSE_CHARS = 100
+MAX_CLAUSE_WORDS = 25
 
 
 def _bound(text: str) -> str:
@@ -470,13 +555,21 @@ def claimed_multiple(text: str) -> tuple[float, str, bool] | None:
         raw = found.group("k")
         value = 0.5 if raw == "半" else float(raw) if raw[0].isdigit() else float(_CN_SMALL.get(raw, 0))
         approx = bool(found.group("approx") or re.search(r"大约|大概|约|将近|接近|差不多|左右|上下", text))
+        if found.group("half") and raw != "半":
+            return (value + 0.5, f"{raw}倍半", approx) if value > 0 else None
         return (value, raw, approx) if value > 0 else None
     found = _CLAIMED_MULTIPLE_EN.search(text)
     if found is not None:
         raw = found.group("k").strip()
-        words = {"twice": 2.0, "double": 2.0, "triple": 3.0, "three times": 3.0, "four times": 4.0, "half": 0.5}
+        words = {"twice": 2.0, "double": 2.0, "triple": 3.0, "half": 0.5}
         number = re.match(r"\d+(?:\.\d+)?", raw)
-        value = float(number.group(0)) if number else words.get(raw.lower(), 0.0)
+        spelled = re.match(r"(\w+)( and a half)? times", raw.lower())
+        if number:
+            value = float(number.group(0))
+        elif spelled and spelled.group(1) in _EN_SMALL:
+            value = _EN_SMALL[spelled.group(1)] + (0.5 if spelled.group(2) else 0.0)
+        else:
+            value = words.get(raw.lower(), 0.0)
         approx = bool(found.group("approx")) or bool(
             re.search(r"\b(?:about|roughly|around|nearly|approximately|close to)\b", text, re.IGNORECASE)
         )
@@ -485,11 +578,77 @@ def claimed_multiple(text: str) -> tuple[float, str, bool] | None:
 
 
 _CN_SMALL = {"一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
+_EN_SMALL = {
+    "one": 1.0,
+    "two": 2.0,
+    "three": 3.0,
+    "four": 4.0,
+    "five": 5.0,
+    "six": 6.0,
+    "seven": 7.0,
+    "eight": 8.0,
+    "nine": 9.0,
+    "ten": 10.0,
+    "eleven": 11.0,
+    "twelve": 12.0,
+    "fifteen": 15.0,
+    "twenty": 20.0,
+}
 # (round 13) a total of two operands: "加起来", "合计", "一共", "combined", "in total", "the sum of"
+# (round 14, review-10 J4) 总计 / 共计 / 合在一块 / 加总 / "altogether" / "all told" as well
 _SUM = re.compile(
-    r"加起来|加(?:在|到)?一(?:块|起)|合(?:在)?一起|合起来|合计|一共|总共|总和|之和|相加|再加上|"
+    r"加起来|加(?:在|到)?一(?:块|起)|合(?:在)?一(?:起|块)|合起来|合计|一共|总共|总和|之和|相加|再加上|总计|共计|加总|"
     r"\bcombined\b|\bin total\b|\btogether\b|\bsum of\b|\badd(?:ed|s)? up\b|\bput together\b|"
-    r"\btotal (?:of|for)\b|\bin aggregate\b",
+    r"\btotal (?:of|for)\b|\bin aggregate\b|\baltogether\b|\ball told\b",
+    re.IGNORECASE,
+)
+# (round 14, review-10 J4) weaker total words, read only after the gap, ratio, share and which productions: 加 between
+# two names ("工行加招行的净利润"; not 加权 / 加息 / 加仓 / 再加800股), "plus", "between them" ("how much do they earn
+# between them"; "the gap between them" is a gap), "add X to it", "what's the total"
+_SUM_WEAK = re.compile(
+    r"(?<=[一-鿿A-Za-z）)])加(?![权息速大入仓码剧强快紧倍盟油班薪工减乘除上起一在到])(?=[一-鿿A-Za-z])|"
+    r"\bplus\b|\bbetween (?:them|the two(?: of them)?|both of them)\b|"
+    r"\b(?:what(?:'s| is| are)|how (?:much|big) is) the (?:total|sum)\b|\btotal\s*[?？]\s*$|\bsum them\b",
+    re.IGNORECASE,
+)
+# a bare total asked of the operands under discussion: "Total?", "And combined?", "合计呢", "一共多少"
+_SUM_BARE = re.compile(
+    r"(?:^|[.。,，]\s*)(?:and\s+|so\s+)?(?:the\s+|in\s+)?(?:total|combined|altogether|sum)\s*[?？]\s*$|"
+    r"(?:^|[，,。]\s*)(?:那)?(?:合计|总共|一共|加起来|总计|共计)(?:呢|多少|是多少|有多少)\s*[？?]?\s*$",
+    re.IGNORECASE,
+)
+# "Add CMB's to ICBC's", "add the second to it": a total of the two named or referred operands
+# (not "add more to …", "add to my position": buying)
+_SUM_ADD_TO = re.compile(
+    r"\badd(?:ing)?\s+(?!(?:more|some|a bit|a little|to)\b)[^.?!]{1,60}?\bto\s+(?!(?:my|your|our|a|an)\b)",
+    re.IGNORECASE,
+)
+_JOINED = re.compile(
+    r"和|与|跟|及|、|(?<!再)加(?![起一在到权息仓])|\band\b|\bof\b|\bboth\b|\btheir\b|\bthese\b|\bthose\b|\bplus\b|\bit\b|"
+    r"\bthat\b|\bthis\b",
+    re.IGNORECASE,
+)
+_QUANTITY = re.compile(r"多少|几|\bhow (?:much|many|big)\b|\bwhat\b|\btotal\b|[?？]", re.IGNORECASE)
+# (round 14, review-10 J3) a share of a combined total: "A占两家合计的多少", "两者合计中A占几成", "A's revenue as a
+# percentage of A and B combined", "what share of their combined profit": A ÷ (A + B), never A ÷ B
+_TOTAL_WORDS_ZH = r"合计|总和|之和|加起来|加在一起|合起来|合在一起|总共|一共|共计|总计|总量|两(?:家|者|只|个)(?:之)?和"
+_SHARE_TOTAL = re.compile(
+    rf"(?:占|是|为|相当于)[^，。？?；;]{{0,24}}?(?:{_TOTAL_WORDS_ZH})(?:的?(?:数|值|数字|金额))?[^，。？?；;]{{0,4}}?的?\s*"
+    r"(?:大约|大概|约)?\s*(?:百分之(?:多少|几)|(?:几|多少)成|(?:多少|几)(?:个)?(?:百分比|%)|多大比例|多少比例|多大比重|"
+    r"几分之几|比重|比例|占比|份额|多少|几)|"
+    rf"(?:{_TOTAL_WORDS_ZH})(?:里|中|之中|当中|里面)[^。？?；;]{{0,16}}?(?:占|是)(?:比)?[^，。？?；;]{{0,4}}?"
+    r"(?:多少|几成|百分之|多大|比例|比重|几)|"
+    r"\b(?:share|percent(?:age)?|fraction|proportion|portion|part|slice)\b[^.?!]{0,60}?"
+    r"\b(?:combined|together|put together|joint|between them|in total|their total|the total|the sum|"
+    r"(?:both|the two)(?: companies| firms| banks| stocks)?['’]? total)\b|"
+    # "Of A and B's combined net profit, what percentage is A's?"
+    r"\b(?:combined|joint)\b[^.?!]{0,60}?\b(?:what|how (?:big|large|much)(?: of)?)\s+(?:a\s+)?"
+    r"(?:share|percent(?:age)?|fraction|proportion|portion|part)\b",
+    re.IGNORECASE,
+)
+# a metric whose name starts with "total" is not a combined total ("total market cap", "CATL's total revenue")
+_TOTAL_METRIC_NAME = re.compile(
+    r"\btotal (?=market (?:cap|value|capitali[sz]ation)\b)|(?<=['’]s )total (?=(?:operating )?(?:revenue|sales)\b)",
     re.IGNORECASE,
 )
 # (round 13, review-9 I1) a share of another value: "A相当于B的百分之多少", "A是B的几成", "A占B的百分之几",
@@ -504,15 +663,24 @@ _SHARE = re.compile(
     re.IGNORECASE,
 )
 # (round 13, review-9 I4) the spread of several operands: "最高的比最低的高多少", "highest minus lowest", "the spread
-# between the highest and the lowest", "最大和最小差多少"
+# between the highest and the lowest", "最大和最小差多少"; (round 14, review-10 J4) "the most and the least expensive",
+# "the cheapest and the priciest" (a valuation spread, P/E unless another metric is named)
 _SPREAD = re.compile(
     r"最(?:高|大|多|贵)[^，。？?,;；]{0,10}?(?:比|和|与|跟|减|减去|-|−)[^，。？?,;；]{0,6}?最(?:低|小|少|便宜)|"
     r"最(?:低|小|少|便宜)[^，。？?,;；]{0,10}?(?:比|和|与|跟)[^，。？?,;；]{0,6}?最(?:高|大|多|贵)|极差|"
     r"\b(?:highest|largest|biggest|top)\b[^.?!]{0,30}?\b(?:minus|and|less|over|vs\.?|versus|to)\b[^.?!]{0,12}?"
     r"\b(?:lowest|smallest|bottom)\b|\b(?:lowest|smallest)\b[^.?!]{0,30}?\b(?:and|to|vs\.?)\b[^.?!]{0,12}?"
-    r"\b(?:highest|largest|biggest)\b|\brange (?:between|from)\b",
+    r"\b(?:highest|largest|biggest)\b|\brange (?:between|from)\b|"
+    r"\b(?:most|least) expensive\b[^.?!]{0,40}?\b(?:and|vs\.?|versus|to|minus|from)\b[^.?!]{0,20}?"
+    r"\b(?:least|most) expensive\b|\b(?:most|least) and (?:the )?(?:least|most) expensive\b|"
+    r"\bcheapest\b[^.?!]{0,40}?\b(?:and|vs\.?|versus|to|minus|from)\b[^.?!]{0,20}?"
+    r"\b(?:most expensive|priciest|dearest)\b|"
+    r"\b(?:most expensive|priciest|dearest)\b[^.?!]{0,40}?\b(?:and|vs\.?|versus|to|minus|from)\b[^.?!]{0,20}?"
+    r"\bcheapest\b",
     re.IGNORECASE,
 )
+# a spread of how "expensive" the operands are, with no metric named: P/E
+_EXPENSIVE = re.compile(r"贵|便宜|\bexpensive\b|\bcheap(?:est|er)?\b|\bpric(?:ey|iest)\b|\bdearest\b", re.IGNORECASE)
 # A single target's own extremes ("最高价和最低价", "52周最高和最低收盘", "highest and lowest close in the last
 # 52 weeks")
 # are price details of one target, not the spread of several operands
@@ -535,48 +703,148 @@ _METRIC_RATIO_NAME = re.compile(
     r"\s+ratios?\b",
     re.IGNORECASE,
 )
+# (round 14) how a comparison refers to its operands besides naming them
+_ANAPHORA = re.compile(
+    r"两者|二者|两个|两家|两只|三家|三只|三者|俩|它们|他们|它|其|\bthe two\b|\bboth\b|\bthem\b|\bthey\b|\btheir\b|"
+    r"\bthe pair\b|\bit\b|\bthat\b",
+    re.IGNORECASE,
+)
+
+
+# --------------------------------------------------------------------------- the comparison grammar (round 14)
+
+# (round 14, review-10 J4) A comparison question is read as OPERATION × OPERANDS × METRIC instead of a list of
+# phrase classes checked in turn:
+#
+#   OPERATION  ← the first production of ``GRAMMAR`` whose word classes (``_LEXICON``) all occur in the clause
+#                and none of whose excluded classes does;
+#   OPERANDS   ← named (two or more targets the question names) | named + carried (one named, the frame's other) |
+#                ordinal (前者 / 后者 / the former) | anaphoric (两者 / 它们 / both / them / between them) |
+#                carried (none written: the frame's);
+#   METRIC     ← the longest metric name in the clause (``metric_mentions``), else the frame's; a spread of how
+#                "expensive" the operands are with no metric named is a spread of P/E.
+#
+# The word classes are still regular expressions (a lexicon), but which operation a question asks is decided by one
+# ordered table, so a new wording is a new word in a class, and ``tests/test_agent_round14_grammar.py`` generates
+# wordings from templates (operation phrases × entity pairs × metric names, zh and en, seeded) and checks the
+# operation, the operands and the computed value. Rule: a two-operand question is never answered with one operand —
+# it is computed, or the answer says which operand could not be identified (``unresolved`` operands).
+
+
+@dataclass(frozen=True)
+class Production:
+    operation: str
+    all_of: tuple[str, ...]
+    none_of: tuple[str, ...] = ()
+
+
+_LEXICON: dict[str, Any] = {
+    "EXTREME_PAIR": lambda text: _SPREAD.search(text),
+    "OWN_EXTREMES": lambda text: _OWN_EXTREMES.search(text),
+    "SHARE_OF_TOTAL": lambda text: _SHARE_TOTAL.search(text),
+    "SHARE": lambda text: _SHARE.search(text),
+    "CLAIMED_TENTHS": lambda text: _CLAIMED_TENTHS_ZH.search(text),
+    "RATIO_WORD": lambda text: _RATIO_EXPLICIT.search(text),
+    "SWAP": lambda text: _SWAP_SHARES.search(text),
+    "RATIO_UNIT": lambda text: _RATIO_UNIT.search(text),
+    "ANCHOR": lambda text: _ANCHOR.search(text),
+    "CLAIMED_MULTIPLE": lambda text: claimed_multiple(text) is not None,
+    "RELATIVE_WORD": lambda text: _RELATIVE_EXPLICIT.search(text),
+    "RELATIVE_UNIT": lambda text: _RELATIVE_UNIT.search(text),
+    "COMPARATIVE": lambda text: _COMPARATIVE.search(text),
+    "SUM_WORD": lambda text: _SUM.search(text),
+    "SUM_WEAK": lambda text: _SUM_WEAK.search(text),
+    "SUM_BARE": lambda text: _SUM_BARE.search(text),
+    "SUM_ADD_TO": lambda text: _SUM_ADD_TO.search(text),
+    "JOINED": lambda text: _ANCHOR.search(text) or _JOINED.search(text),
+    "QUANTITY": lambda text: _QUANTITY.search(text),
+    "DIFFERENCE": lambda text: _DIFFERENCE.search(text),
+    "WHICH": lambda text: _WHICH.search(text),
+}
+GRAMMAR: tuple[Production, ...] = (
+    Production("spread", ("EXTREME_PAIR",), ("OWN_EXTREMES",)),
+    Production("share_total", ("SHARE_OF_TOTAL",)),
+    Production("share", ("SHARE",)),
+    Production("share", ("CLAIMED_TENTHS",)),  # "是不是平安的三成以上": a share in 成, checked against the tenths
+    Production("ratio", ("RATIO_WORD",)),
+    Production("ratio", ("SWAP",)),
+    Production("ratio", ("RATIO_UNIT", "ANCHOR")),
+    Production("ratio", ("CLAIMED_MULTIPLE",)),  # "有没有…的三倍半", "over eight times …?": yes / no and the ratio
+    Production("relative", ("RELATIVE_WORD",)),
+    Production("relative", ("RELATIVE_UNIT", "COMPARATIVE")),
+    Production("relative", ("RELATIVE_UNIT", "ANCHOR")),
+    Production("sum", ("SUM_WORD", "JOINED")),
+    Production("difference", ("DIFFERENCE",)),
+    Production("which", ("WHICH",)),
+    Production("sum", ("SUM_WEAK", "JOINED", "QUANTITY")),
+    Production("sum", ("SUM_ADD_TO", "QUANTITY")),
+    Production("sum", ("SUM_BARE",)),
+)
+COMPARISON_OPERATIONS = frozenset(production.operation for production in GRAMMAR)
+
+
+@dataclass(frozen=True)
+class FrameParse:
+    """One comparison clause read by the grammar: the operation, how it refers to its operands besides naming them
+    (``ordinal``, ``anaphoric`` or ``none``), the metric it names and the word classes that decided it."""
+
+    operation: str | None
+    reference: str
+    metric: str | None
+    classes: tuple[str, ...]
+
+
+def _normalised(text: str) -> str:
+    return _TOTAL_METRIC_NAME.sub("", _METRIC_RATIO_NAME.sub("metric", text))
+
+
+def parse_clause(text: str) -> FrameParse:
+    """The grammar's reading of one clause (see ``GRAMMAR``)."""
+    clause = _normalised(text or "")
+    seen: dict[str, bool] = {}
+
+    def has(name: str) -> bool:
+        if name not in seen:
+            seen[name] = bool(_LEXICON[name](clause))
+        return seen[name]
+
+    operation = next(
+        (
+            production.operation
+            for production in GRAMMAR
+            if all(has(name) for name in production.all_of) and not any(has(name) for name in production.none_of)
+        ),
+        None,
+    )
+    reference = "ordinal" if _ORDINAL.search(clause) else "anaphoric" if _ANAPHORA.search(clause) else "none"
+    classes = tuple(sorted(name for name, present in seen.items() if present))
+    return FrameParse(operation, reference, metric_of(text or ""), classes)
 
 
 def _operation_of(text: str) -> str | None:
-    text = _METRIC_RATIO_NAME.sub("metric", text)
-    if _SPREAD.search(text) and not _OWN_EXTREMES.search(text):
-        return "spread"
-    if _SHARE.search(text):
-        return "share"
-    if (
-        _RATIO_EXPLICIT.search(text)
-        or _SWAP_SHARES.search(text)
-        or (_RATIO_UNIT.search(text) and _ANCHOR.search(text))
-        or claimed_multiple(text) is not None
-    ):
-        if _CLAIMED_TENTHS_ZH.search(text):
-            return "share"  # "是不是平安的三成以上": a share in 成, checked against the stated tenths
-        return "ratio"
-    if _RELATIVE_EXPLICIT.search(text) or (
-        _RELATIVE_UNIT.search(text) and (_COMPARATIVE.search(text) or _ANCHOR.search(text))
-    ):
-        return "relative"
-    joined = r"和|与|跟|及|、|(?<!再)加(?![起一在到])|\band\b|\bof\b|\bboth\b|\btheir\b|\bthese\b|\bthose\b"
-    if _SUM.search(text) and (_ANCHOR.search(text) or re.search(joined, text, re.I)):
-        return "sum"
-    if _DIFFERENCE.search(text):
-        return "difference"
-    if _WHICH.search(text):
-        return "which"
-    return None
+    return parse_clause(text).operation
 
 
 def comparison_clause(text: str) -> str | None:
     """The clause of the question that asks a comparison (the whole question when it has one clause)."""
     text = (text or "").strip()
     for clause in (match.group(0).strip() for match in _CLAUSE.finditer(text)):
-        if clause and len(clause) <= MAX_CLAUSE_CHARS and _operation_of(clause):
+        if clause and len(clause) <= _clause_cap(clause) and _operation_of(clause):
             return clause
     return None
 
 
+def _clause_cap(clause: str) -> int:
+    """(round 14) An English clause spells its names out ("China Yangtze Power and China Merchants Bank combined"),
+    so its cap is in words (25), not characters; a Chinese clause keeps ``MAX_CLAUSE_CHARS``."""
+    if re.search(r"[一-鿿]", clause):
+        return MAX_CLAUSE_CHARS
+    return MAX_CLAUSE_CHARS if len(clause.split()) > MAX_CLAUSE_WORDS else len(clause)
+
+
 def frame_operation(text: str) -> str | None:
-    """``ratio``, ``relative``, ``difference`` or ``which`` for a question that compares two values, else ``None``.
+    """The comparison a question asks (``difference``, ``ratio``, ``relative``, ``share``, ``share_total``, ``sum``,
+    ``spread`` or ``which``), else ``None``.
 
     A net-margin question written as a share ("净利润是营收的百分之几") is one metric, not a comparison; advice,
     forecast and news questions are not comparisons either."""
@@ -591,6 +859,21 @@ def frame_operation(text: str) -> str | None:
     return _operation_of(clause) if clause else None
 
 
+def without_valuation_extremes(text: str) -> str:
+    """(round 14, review-10 J4) "最贵的和最便宜的差多少", "the most and the least expensive on P/E": a spread of a
+    valuation metric is arithmetic, not a valuation judgment, so the extremes words are blanked for the judgment check
+    (every other judgment word stays)."""
+    if not text or not _SPREAD.search(_normalised(text)) or _NOT_A_GAP.search(text):
+        return text
+    return re.sub(
+        r"最(?:贵|便宜)|\b(?:most|least) (?:and (?:the )?(?:least|most) )?expensive\b|\bcheapest\b|\bpriciest\b|"
+        r"\bdearest\b",
+        " ",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
 def is_frame_question(text: str) -> bool:
     return frame_operation(text) is not None
 
@@ -599,7 +882,7 @@ def opening_comparison(text: str) -> bool:
     """(round 13) A gap, ratio, relative or total question that refers to its operands by order ("the second", "前者")
     or names the metric compared: a finance comparison even when nothing in the session supplies the operands."""
     operation = frame_operation(text)
-    return operation in {"difference", "ratio", "relative", "sum", "share", "spread"} and bool(
+    return operation in {"difference", "ratio", "relative", "sum", "share", "share_total", "spread"} and bool(
         _ORDINAL.search(text or "") or metric_of(text or "") or _TWO.search(text or "")
     )
 
@@ -659,6 +942,8 @@ def operand_value(tool_log: list[dict[str, Any]], operand: dict[str, Any], key: 
     """``(value, evidence_id, data)`` of ``key`` for one operand in this run's tool results, or ``None``."""
     from .composer import metric_value
 
+    if operand.get("kind") == "unresolved":
+        return None
     for entry in tool_log:
         if not entry.get("ok"):
             continue
@@ -708,7 +993,8 @@ def next_frame(
     if request and any(item.get("metric") for item in request.get("operands") or []):
         return previous  # (round 13) two metrics of one target: the frame stays as it was
     if request and request.get("metric") and request.get("operands"):
-        metric, operands = str(request["metric"]), [dict(item) for item in request["operands"]]
+        metric = str(request["metric"])
+        operands = [dict(item) for item in request["operands"] if item.get("kind") != "unresolved"]
     else:
         metric = metric_of(query)
         operands = [
@@ -772,11 +1058,87 @@ def _mention_position(text: str, entity: dict[str, Any], fallback: int) -> int:
     canonical = str(entity.get("canonical_name") or entity.get("name") or "")
     names = [entity.get("mention"), canonical, english_name(canonical), *english_aliases(canonical)]
     names += [alias for alias, name in (load_synonyms().get("alias") or {}).items() if name == canonical]
-    if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical):
+    if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical) and canonical[2:] not in GENERIC_NAME_TAILS:
         names.append(canonical[2:])  # 贵州茅台 → 茅台, 中国平安 → 平安
     found = [lowered.find(str(name).lower()) for name in names if name]
     found = [position for position in found if position >= 0]
     return min(found) if found else 10_000 + fallback
+
+
+def _mention_names(entity: dict[str, Any]) -> list[str]:
+    from .names import english_aliases, english_name, load_synonyms
+
+    canonical = str(entity.get("canonical_name") or entity.get("name") or "")
+    names = [entity.get("mention"), canonical, english_name(canonical), *english_aliases(canonical)]
+    names += [alias for alias, name in (load_synonyms().get("alias") or {}).items() if name == canonical]
+    if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical) and canonical[2:] not in GENERIC_NAME_TAILS:
+        names.append(canonical[2:])  # 贵州茅台 → 茅台, 中国平安 → 平安 (not 招商银行 → 银行)
+    return sorted({str(name) for name in names if name}, key=len, reverse=True)
+
+
+def _mention_count(text: str, entity: dict[str, Any]) -> int:
+    """How often the question names an entity (any of its forms, longest first, without double counting)."""
+    lowered = text.lower()
+    spans: list[tuple[int, int]] = []
+    for name in _mention_names(entity):
+        for match in re.finditer(re.escape(name.lower()), lowered):
+            if not any(start < match.end() and match.start() < end for start, end in spans):
+                spans.append(match.span())
+    return len(spans)
+
+
+def _operand_form(named: int, reference: str, known: int) -> str:
+    """(round 14) How the question supplied its operands: ``named``, ``named+carried``, ``ordinal``, ``anaphoric``
+    or ``carried`` (recorded in the frame request for the trace)."""
+    if named >= 2:
+        return "named"
+    if reference in {"ordinal", "anaphoric"} and named < 2:
+        return reference
+    return "named+carried" if named == 1 and known else "carried"
+
+
+# (round 14, review-10 J4) a second operand the question names but the entity resolver did not: a capitalised name in
+# English ("Zijin's", "than Zijin"), a name around 比 / 和 in Chinese
+_EN_NAME = re.compile(r"(?<![\w/])(?-i:[A-Z])[A-Za-z&-]{2,}(?:\s+(?-i:[A-Z])[A-Za-z&-]{2,}){0,2}")
+_EN_NOT_NAME = re.compile(
+    r"^(?:by|how|what|which|whose|who|is|are|was|were|does|do|did|has|have|the|and|of|in|on|for|than|its|their|"
+    r"compared|versus|between|among|i|my|so|tell|give|show|please|cny|rmb|roe|eps|p/?e|p/?b|net|gross|operating|"
+    r"revenue|profit|margin|market|cap|close|price|dividend|yield|turnover|volume|sector|industry|average|both|it|"
+    r"they|them|over|about|more|less|higher|lower)$",
+    re.IGNORECASE,
+)
+_ZH_NAME = re.compile(
+    r"比(?P<b>[一-鿿]{2,6}?)(?:的|高|低|多|少|贵|便宜|强|弱|大|小|还)|"
+    r"(?P<a>[一-鿿]{2,6}?)(?:和|与|跟)(?P<c>[一-鿿]{2,6}?)(?:的|两|二|谁|哪|相比|比)"
+)
+_ZH_NOT_NAME = re.compile(
+    r"前者|后者|行业|板块|同行|同业|平均|大盘|指数|去年|今年|上月|上周|昨天|之前|以前|它|其|两者|二者|两家|三家|"
+    r"市场|整体|水平|当前|现在|最新|多少|几|哪个|谁"
+)
+
+
+def unresolved_operand(clause: str, entities: list[dict[str, Any]]) -> tuple[str, int] | None:
+    """``(name as written, position)`` of an operand the comparison names that matches no resolved entity, or
+    ``None``. Only one resolved entity is expected; metric and question words are not names."""
+    forms = [name.lower() for entity in entities for name in _mention_names(entity)]
+
+    def known(word: str) -> bool:
+        lowered = word.lower()
+        return any(form in lowered or lowered in form for form in forms if len(form) >= 2)
+
+    if re.search(r"[一-鿿]", clause):
+        for match in _ZH_NAME.finditer(clause):
+            for group in ("b", "a", "c"):
+                word = match.group(group)
+                if word and not known(word) and not _ZH_NOT_NAME.search(word) and metric_of(word) is None:
+                    return word, match.start(group)
+        return None
+    for match in _EN_NAME.finditer(clause):
+        words = [word for word in match.group(0).split() if not _EN_NOT_NAME.match(word)]
+        word = " ".join(words)
+        if word and len(word) >= 3 and not known(word) and metric_of(word) is None:
+            return word, match.start()
+    return None
 
 
 # "how many times Ping An's is Moutai's?": the second operand is the numerator
@@ -832,6 +1194,9 @@ def resolve_frame_question(
             operands = named  # a target against its industry (below), or nothing to compare
     else:
         operands = known
+    if operation == "share_total" and len(named) == 1:
+        # (round 14, review-10 J3) "比亚迪占两家合计的多少": the named target is the numerator
+        operands = [named[0], *[item for item in operands if operand_key(item) != operand_key(named[0])]]
     if (
         _INDUSTRY_WORDS.search(clause)
         and len(named) < 2
@@ -846,6 +1211,17 @@ def resolve_frame_question(
             return None
         member = targets[0]
         operands = [member, {"kind": "industry", "member": member.get("symbol")}]
+    if (
+        len(named) == 1
+        and len(operands) == 1
+        and operands[0].get("kind") == "target"
+        and (stray := unresolved_operand(clause, entities))
+    ):
+        # (round 14, review-10 J4) "By how many points does <unknown>'s ROE outstrip Midea's?": never answered with
+        # the one operand that resolved; the answer says which operand could not be identified
+        unknown = {"kind": "unresolved", "name": stray[0]}
+        before = stray[1] < _mention_position(clause, entities[0], 0)
+        operands = [unknown, operands[0]] if before else [operands[0], unknown]
     zh = bool(re.search(r"[一-鿿]", text))
     if not named_metric and len(named) < 2 and len(industries) < 2 and len(operands) < 2 and operation != "sum":
         # (round 13) "两个率相差多少个点" after "X的毛利率" → "那净利率呢": two metrics of one target
@@ -854,9 +1230,11 @@ def resolve_frame_question(
             return _metric_pair_question(text, operation, pair, zh)
     swap = operation == "ratio" and _SWAP_SHARES.search(clause) is not None
     metric = named_metric or ("close" if swap else frame.get("metric"))  # "一股茅台能换几股五粮液": closes
+    if not named_metric and operation == "spread" and _EXPENSIVE.search(clause):
+        metric = "pe"  # (round 14, review-10 J4) "the most and the least expensive": a spread of P/E
     if not metric or len(operands) < 2:
         return None
-    if operation == "sum" and METRIC_BY_KEY[metric].kind not in SUM_KINDS:
+    if operation in {"sum", "share_total"} and METRIC_BY_KEY[metric].kind not in SUM_KINDS:
         return None  # "两只的市盈率加起来": a total of multiples is not a value
     if len({operand_key(item) for item in operands}) < 2:
         return None
@@ -868,10 +1246,17 @@ def resolve_frame_question(
         operands = picked + [item for item in (first, last) if item not in picked]
     elif _TRIPLE.search(clause):
         operands = operands[-3:]
-    elif operation in {"which", "spread", "sum"} or len(named) >= 3:
+    elif operation in {"which", "spread", "sum", "share_total"} or len(named) >= 3:
         pass  # (round 13, review-9 I3/I4) every operand: a total, a spread or a comparison of all the named targets
     elif len(operands) > 2 and _TWO.search(clause):
         operands = operands[-2:]  # "两者差多少" after three targets: the last two discussed
+    if operation == "share_total" and len(named) >= 2 and not (ordinals and len(named) < 2):
+        # (round 14, review-10 J3) the numerator of a share of a combined total is the target the question is about:
+        # the one named again outside the total ("比亚迪的营收占比亚迪和宁德时代两家合计的多少", "BYD's revenue as a
+        # percentage of BYD and CATL combined"), else the first one named
+        counts = {str(entity.get("symbol")): _mention_count(text, entity) for entity in entities}
+        top = max(operands, key=lambda item: (counts.get(str(item.get("symbol")), 0), -operands.index(item)))
+        operands = [top, *[item for item in operands if item is not top]]
     if operation == "share" and len(named) >= 2 and (base := _SHARE.search(clause)) is not None:
         # (round 13, review-9 I1) the base of a share is the operand written after 相当于 / "of": "五粮液相当于茅台的
         # 百分之多少" is 五粮液 ÷ 茅台, "What fraction of A's does B earn?" is B ÷ A
@@ -910,6 +1295,7 @@ def resolve_frame_question(
         for item in operands
     ]
     request: dict[str, Any] = {"operation": operation, "metric": metric, "operands": clean}
+    request["operand_form"] = _operand_form(len(named), parse_clause(clause).reference, len(known))
     if metric == "pct_change" and (direction := _direction(clause)):
         # (round 12) "多跌了多少" after two falls: the gap names the side that fell more, not the "higher" change
         request["direction"] = direction
