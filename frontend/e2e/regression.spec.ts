@@ -38,14 +38,14 @@ test("three-turn gap session (zh) shows the computed gap with two citations", as
   await openFresh(page);
 
   const first = await ask(page, "五粮液的ROE是多少", 1);
-  await expect(first.locator(".answer-text")).toContainText("ROE 29.4%");
+  await expect(first.locator(".answer-text")).toContainText("ROE（加权） 6.89%");
   const second = await ask(page, "贵州茅台呢", 2);
-  await expect(second.locator(".answer-text")).toContainText("ROE 33%");
+  await expect(second.locator(".answer-text")).toContainText("ROE（加权） 32.53%");
   const third = await ask(page, "两者差几个点", 3);
   const answer = third.locator(".answer-text");
-  await expect(answer).toContainText("两者相差 3.6 个百分点（贵州茅台更高）");
+  await expect(answer).toContainText("两者相差 25.64 个百分点（贵州茅台更高）");
 
-  // The citations that close the gap sentence: everything between "3.6 个百分点" and the next "。".
+  // The citations that close the gap sentence: everything between "25.64 个百分点" and the next "。".
   const cited = await answer.evaluate((root) => {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
     let inGap = false;
@@ -53,7 +53,7 @@ test("three-turn gap session (zh) shows the computed gap with two citations", as
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       if (node.nodeType === Node.TEXT_NODE) {
         const text = node.textContent ?? "";
-        if (!inGap && text.includes("3.6 个百分点")) inGap = true;
+        if (!inGap && text.includes("25.64 个百分点")) inGap = true;
         else if (inGap && text.includes("。")) break;
       } else if (inGap && (node as Element).classList.contains("citation-chip")) {
         ids.push((node as Element).getAttribute("data-evidence-id") ?? "");
@@ -91,7 +91,7 @@ test("fact-check with a stated industry average shows the relation and the state
   const relation = report.locator('.claim-check[data-kind="relation"]');
   await expect(relation).toHaveAttribute("data-status", "supported");
   await expect(relation.locator(".claim-claimed")).toContainText("贵州茅台 < 白酒行业");
-  await expect(relation.locator(".claim-actual")).toHaveText("24.6 倍");
+  await expect(relation.locator(".claim-actual")).toHaveText("21.44 倍");
   await expect(relation.locator(".claim-reference")).toHaveText("白酒行业 27.3 倍");
 
   const stated = report.locator('.claim-check[data-kind="stated_reference"]');
