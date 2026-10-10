@@ -74,7 +74,7 @@ python -m scripts.build_offline_snapshot verify   # 哈希一致、重建结果�
 
 ## 更正层：一手来源的数值与字段口径
 
-v1 种子数据从未与公司自己的报告核对过，发布的数字也都没有说明用的是哪种口径。第 13 轮把每个 v1 数字都与一手记录做了核对，并新增第三层 `data/snapshot/structured_data_fix.json`，产品默认启用（`QI_OFFLINE_SNAPSHOT_FIX=true`；优先级 **更正层 > v1 种子 > 扩展层**）。种子文件本身不改。
+v1 种子数据从未与公司自己的报告核对过，发布的数字也都没有说明用的是哪种口径。第 13 轮把三家 v1 公司的 2025 年报数字和七个 v1 标的 2026-04-22 的日线与一手记录做了核对（行业和宏观数据没有核对，见下文「未更正、仍未核实」），并新增第三层 `data/snapshot/structured_data_fix.json`，产品默认启用（`QI_OFFLINE_SNAPSHOT_FIX=true`；优先级 **更正层 > v1 种子 > 扩展层**）。种子文件本身不改。
 
 **v1 种子数据错在哪里（2025 财年，报告期 2025-12-31）。** 来源是巨潮资讯网（交易所指定信息披露网站）上的 2025 年年度报告，2026-10-10 获取。下表每个数值都在 `data/snapshot/corrections/sources.json` 里有原文引用，附 PDF 链接、sha256、PDF 页码和印刷页码。
 
