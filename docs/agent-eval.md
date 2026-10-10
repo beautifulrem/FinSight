@@ -2039,7 +2039,7 @@ Deterministic claim check (`POST /agent/claim-check`, no LLM) against labelled c
 | Result file | Set | Status | Commit | Claims | Verdict accuracy [95% CI] | Check accuracy [95% CI] | Comparator accuracy | Claims sha256 (first 16) | Command |
 |---|---|---|---|---|---|---|---|---|---|
 | `claim_bench-dev-baseline.json` | dev | development claims, before tuning | `3da1a48` | 131 | 0.527 [0.44, 0.61] | 0.497 [0.40, 0.58] | 0.652 | `39223b500d603e40` | `python -m evaluation.claim_bench.run --set dev --out evaluation/results/claim_bench-dev-baseline.json` |
-| `claim_bench-dev.json` | dev | development claims, after tuning (tuned on) | `f07be9b` | 311 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `e66c6a46e3e5b897` | `python -m evaluation.claim_bench.run --set dev --out evaluation/results/claim_bench-dev.json` |
+| `claim_bench-dev.json` | dev | development claims, after tuning (tuned on) | `0dd9e1e` | 311 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `e66c6a46e3e5b897` | `python -m evaluation.claim_bench.run --set dev --out evaluation/results/claim_bench-dev.json --fail-under-verdict 0.978 --fail-under-checks 0.98` |
 | `claim_bench-holdout.json` | holdout | **held-out claims, run once** (hashed file; later fixes are not re-scored here) | `2fcb4f0` | 47 | 0.936 [0.85, 1.00] | 0.944 [0.88, 1.00] | 1.000 | `a48aa59412a06f81` | `python -m evaluation.claim_bench.run --set holdout` |
 | `claim_bench-holdout-after-round8.json` | holdout | held-out claims **after exposure** (round 8: the review's h038 class, industry averages, was fixed; not a fresh estimate) | `b04f364` | 47 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `a48aa59412a06f81` | `python -m evaluation.claim_bench.run --set holdout --out evaluation/results/claim_bench-holdout-after-round8.json` |
 | `claim_bench-heldout_r4-first-run.json` | None | – | `817a2d8` | 67 | 0.716 [0.61, 0.82] | 0.639 [0.54, 0.73] | 0.435 | `e70b8701d12df19e` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl --out outputs/agent_eval/claim_bench-heldout_r4-first.json` |
@@ -2065,6 +2065,10 @@ Deterministic claim check (`POST /agent/claim-check`, no LLM) against labelled c
 | `claim_bench-heldout_r4-after-round13.json` | None | independent round-4 claim slice **after exposure**, re-run at the merged round-13 code | `8f7c2c8` | 67 | 1.000 [1.00, 1.00] | 0.920 [0.85, 0.97] | 0.522 | `e70b8701d12df19e` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl --out evaluation/results/claim_bench-heldout_r4-after-round13.json` |
 | `claim_bench-heldout_r5-after-round13.json` | None | independent round-5 claim slice **after exposure**, re-run at the merged round-13 code | `f84ca52` | 56 | 1.000 [1.00, 1.00] | 0.988 [0.96, 1.00] | 0.929 | `fd58c903acd977c2` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r5/claims_r5_heldout.jsonl --out evaluation/results/claim_bench-heldout_r5-after-round13.json` |
 | `claim_bench-heldout_r6-after-exposure-round13.json` | None | independent round-6 claim slice **after exposure (round 13)**: re-run at the merged round-13 code; not an out-of-sample estimate | `13ece57` | 67 | 0.985 [0.96, 1.00] | 0.904 [0.83, 0.97] | 0.382 | `76e4de167ff3de83` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r6/claims_r6_heldout.jsonl --out evaluation/results/claim_bench-heldout_r6-after-exposure-round13.json` |
+| `claim_bench-holdout-after-round14.json` | holdout | held-out claims **after exposure**, re-run at the round-14 claims commit | `0dd9e1e` | 47 | 1.000 [1.00, 1.00] | 1.000 [1.00, 1.00] | 1.000 | `a48aa59412a06f81` | `python -m evaluation.claim_bench.run --set holdout --out evaluation/results/claim_bench-holdout-after-round14.json --fail-under-verdict 0.978 --fail-under-checks 0.98` |
+| `claim_bench-heldout_r4-after-round14.json` | None | independent round-4 claim slice **after exposure**, re-run at the round-14 claims commit | `0dd9e1e` | 67 | 1.000 [1.00, 1.00] | 0.920 [0.85, 0.97] | 0.522 | `e70b8701d12df19e` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl --out evaluation/results/claim_bench-heldout_r4-after-round14.json` |
+| `claim_bench-heldout_r5-after-round14.json` | None | independent round-5 claim slice **after exposure**, re-run at the round-14 claims commit | `0dd9e1e` | 56 | 1.000 [1.00, 1.00] | 0.988 [0.96, 1.00] | 0.929 | `fd58c903acd977c2` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r5/claims_r5_heldout.jsonl --out evaluation/results/claim_bench-heldout_r5-after-round14.json` |
+| `claim_bench-heldout_r6-after-exposure-round14.json` | None | independent round-6 claim slice **after exposure (round 14)**: re-run at the round-14 claims commit; not an out-of-sample estimate | `0dd9e1e` | 67 | 0.985 [0.96, 1.00] | 0.904 [0.83, 0.97] | 0.382 | `76e4de167ff3de83` | `python -m evaluation.claim_bench.run --claims evaluation/heldout_r6/claims_r6_heldout.jsonl --out evaluation/results/claim_bench-heldout_r6-after-exposure-round14.json` |
 
 ### Latency profile runs (agent path, streamed)
 
@@ -2963,6 +2967,11 @@ Small online checks with DeepSeek over the offline tools, run sequentially (stop
 | `claims_heldout_r8-after-exposure-round13.json` | `b1099d8` | claim slice, verdict accuracy 1.000 [1.000, 1.000] over 25 claims — english_relation 1.000; industry_relation 1.000; loose_numeral 1.000; move_relation 1.000; stated_average_order 1.000; sum 1.000; two_company_difference 1.000 |
 | `claims_web_v1-with-corrections.json` | `8aa4c52` | claim slice, verdict accuracy 0.817 [0.717, 0.900] over 60 claims — annual_figures 0.857; annual_ratios 0.917; daily_price 0.800; english_or_traditional 0.667; loose_or_relational 0.571; market_value 1.000 |
 | `claims_web_v2-first-run.json` | `117e74b` | claim slice, verdict accuracy 0.500 [0.360, 0.640] over 50 claims — annual_figures 0.615; annual_ratios 0.800; daily_price 0.462; english_or_traditional 0.000; loose_or_relational 0.250; market_value 0.500 |
+| `claims_web_v1-after-exposure-round14.json` | `0dd9e1e` | claim slice, verdict accuracy 0.850 [0.750, 0.933] over 60 claims — annual_figures 0.905; annual_ratios 0.833; daily_price 0.867; english_or_traditional 1.000; loose_or_relational 0.571; market_value 1.000 |
+| `claims_web_v1-with-corrections-after-exposure-round14.json` | `0dd9e1e` | claim slice, verdict accuracy 0.783 [0.667, 0.883] over 60 claims — annual_figures 0.857; annual_ratios 0.667; daily_price 0.867; english_or_traditional 1.000; loose_or_relational 0.429; market_value 1.000 |
+| `claims_web_v2-after-exposure-round14.json` | `0dd9e1e` | claim slice, verdict accuracy 0.840 [0.740, 0.940] over 50 claims — annual_figures 0.846; annual_ratios 1.000; daily_price 0.846; english_or_traditional 0.667; loose_or_relational 0.750; market_value 0.750 |
+| `claims_heldout_r8-after-exposure-round14.json` | `0dd9e1e` | claim slice, verdict accuracy 1.000 [1.000, 1.000] over 25 claims — english_relation 1.000; industry_relation 1.000; loose_numeral 1.000; move_relation 1.000; stated_average_order 1.000; sum 1.000; two_company_difference 1.000 |
+| `claims_heldout_r9-after-exposure-round14.json` | `0dd9e1e` | claim slice, verdict accuracy 1.000 [1.000, 1.000] over 25 claims — compound 1.000; control 1.000; fraction_of 1.000; half_multiple 1.000; level_and_multiple 1.000; loose_fraction 1.000; negation 1.000; points_difference 1.000; range_52w 1.000; superlative 1.000; times_more 1.000 |
 | `redteam-r7-targeted.json` | `8a5e95a, bf34e7a, bf34e7a-dirty` | targeted red-team replay of previously leaking cases — v3_no_layer: 8/20 detector hits, 3 stated as fact; v3_layer: 6/20 detector hits, 0 stated as fact; v4_no_layer: 4/20 detector hits, 0 stated as fact; v4_layer: 4/20 detector hits, 0 stated as fact |
 | `redteam-r8-d1-targeted.json` | `0473968, fabb6a7` | targeted red-team replay of previously leaking cases — live_prefix_fabb6a7: 1/4 detector hits, 1 stated as fact; replay_no_fix_fabb6a7: 1/4 detector hits, 1 stated as fact; replay_fixed_0473968: 1/4 detector hits, 0 stated as fact |
 | `injection_classifier-r4.json` | `d795818` | injection classifier, recall on unseen attacks (holdout2-4): classifier 0.387 [0.276, 0.511]; lexical 0.145 [0.078, 0.253]; lexical_or_classifier 0.419 [0.305, 0.543]; false positives on 3000 clean documents: classifier 0.005; lexical 0.002; lexical_or_classifier 0.007 |
@@ -3060,7 +3069,7 @@ Paired comparisons (same tasks, a − b):
 | `router_eval-round13-own.json` | router_eval | `b1173b5` | 2026-10-10T13:55:38+00:00 | – | written directly |
 | `router_eval-independent_v2-round13.json` | router_eval | `d42b181` | 2026-10-01T13:36:21+00:00 | – | written directly |
 | `claim_bench-dev-baseline.json` | claim_bench | `3da1a48` | 2026-09-28T06:30:24+00:00 | – | written directly |
-| `claim_bench-dev.json` | claim_bench | `f07be9b` | 2026-10-10T13:51:02+00:00 | – | written directly |
+| `claim_bench-dev.json` | claim_bench | `0dd9e1e` | 2026-10-10T17:20:51+00:00 | – | written directly |
 | `claim_bench-holdout.json` | claim_bench | `2fcb4f0` | 2026-09-28T07:14:56+00:00 | – | written directly |
 | `claim_bench-holdout-after-round8.json` | claim_bench | `b04f364` | 2026-09-30T07:51:49+00:00 | – | written directly |
 | `claim_bench-heldout_r4-first-run.json` | claim_bench | `817a2d8` | 2026-09-29T14:30:51+00:00 | – | written directly |
@@ -3086,6 +3095,10 @@ Paired comparisons (same tasks, a − b):
 | `claim_bench-heldout_r4-after-round13.json` | claim_bench | `8f7c2c8` | 2026-10-10T13:53:47+00:00 | – | written directly |
 | `claim_bench-heldout_r5-after-round13.json` | claim_bench | `f84ca52` | 2026-10-10T13:54:37+00:00 | – | written directly |
 | `claim_bench-heldout_r6-after-exposure-round13.json` | claim_bench | `13ece57` | 2026-10-10T13:55:19+00:00 | – | written directly |
+| `claim_bench-holdout-after-round14.json` | claim_bench | `0dd9e1e` | 2026-10-10T17:16:32+00:00 | – | written directly |
+| `claim_bench-heldout_r4-after-round14.json` | claim_bench | `0dd9e1e` | 2026-10-10T17:17:12+00:00 | – | written directly |
+| `claim_bench-heldout_r5-after-round14.json` | claim_bench | `0dd9e1e` | 2026-10-10T17:18:03+00:00 | – | written directly |
+| `claim_bench-heldout_r6-after-exposure-round14.json` | claim_bench | `0dd9e1e` | 2026-10-10T17:18:51+00:00 | – | written directly |
 | `perf-baseline-deepseek.json` | ablation | `8e81f48` | 2026-09-28T11:22:44+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-baseline.json` (12a1415984f0c9e3) |
 | `perf-verifierfix-deepseek.json` | ablation | `52e80dc` | 2026-09-28T12:16:08+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-verifierfix.json` (3820381e8007ecca) |
 | `perf-merged-defaults-deepseek.json` | ablation | `aae29fd` | 2026-09-28T14:55:24+00:00 | cline-pass/deepseek-v4.1-flash | `outputs/agent_eval/perf-merged-A.json` (ea673cc9c33df35d) |
@@ -3160,6 +3173,11 @@ Paired comparisons (same tasks, a − b):
 | `claims_heldout_r8-after-exposure-round13.json` | claim_slice | `b1099d8` | 2026-10-10T12:34:44+00:00 | – | `outputs/agent_eval/claims_r8-r13.json` (5b844a8855d753c8) |
 | `claims_web_v1-with-corrections.json` | claim_slice | `8aa4c52` | 2026-10-10T13:01:07+00:00 | – | written directly |
 | `claims_web_v2-first-run.json` | claim_slice | `117e74b` | 2026-10-10T16:27:40+00:00 | – | written directly |
+| `claims_web_v1-after-exposure-round14.json` | claim_slice | `0dd9e1e` | 2026-10-10T17:14:14+00:00 | – | written directly |
+| `claims_web_v1-with-corrections-after-exposure-round14.json` | claim_slice | `0dd9e1e` | 2026-10-10T17:15:08+00:00 | – | written directly |
+| `claims_web_v2-after-exposure-round14.json` | claim_slice | `0dd9e1e` | 2026-10-10T17:16:05+00:00 | – | written directly |
+| `claims_heldout_r8-after-exposure-round14.json` | claim_slice | `0dd9e1e` | 2026-10-10T17:19:46+00:00 | – | `outputs/agent_eval/claims_r8-r14.json` (78f9fd051660031a) |
+| `claims_heldout_r9-after-exposure-round14.json` | claim_slice | `0dd9e1e` | 2026-10-10T17:20:20+00:00 | – | `outputs/agent_eval/claims_r9-r14.json` (1cbc1bff81b2513c) |
 | `redteam-r7-targeted.json` | redteam_targeted | `None` | 2026-09-30T00:04:39+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `redteam-r8-d1-targeted.json` | redteam_targeted | `None` | 2026-09-30T06:38:30+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `injection_classifier-r4.json` | injection_classifier | `d795818` | 2026-09-29T02:53:28+00:00 | TfidfVectorizer(char_wb, 1-4, min_df=2, max_features=40000, sublinear_tf) + LogisticRegression(C=4, class_weight=balanced) | written directly |
