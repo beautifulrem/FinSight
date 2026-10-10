@@ -606,8 +606,19 @@ _SUM = re.compile(
 _SUM_WEAK = re.compile(
     r"(?<=[一-鿿A-Za-z）)])加(?![权息速大入仓码剧强快紧倍盟油班薪工减乘除上起一在到])(?=[一-鿿A-Za-z])|"
     r"\bplus\b|\bbetween (?:them|the two(?: of them)?|both of them)\b|"
-    r"\badd(?:ing)?\b[^.?!]{1,60}?\bto (?:it|that|this|them|those|the first|the latter|the former)\b|"
     r"\b(?:what(?:'s| is| are)|how (?:much|big) is) the (?:total|sum)\b|\btotal\s*[?？]\s*$|\bsum them\b",
+    re.IGNORECASE,
+)
+# a bare total asked of the operands under discussion: "Total?", "And combined?", "合计呢", "一共多少"
+_SUM_BARE = re.compile(
+    r"(?:^|[.。,，]\s*)(?:and\s+|so\s+)?(?:the\s+|in\s+)?(?:total|combined|altogether|sum)\s*[?？]\s*$|"
+    r"(?:^|[，,。]\s*)(?:那)?(?:合计|总共|一共|加起来|总计|共计)(?:呢|多少|是多少|有多少)\s*[？?]?\s*$",
+    re.IGNORECASE,
+)
+# "Add CMB's to ICBC's", "add the second to it": a total of the two named or referred operands
+# (not "add more to …", "add to my position": buying)
+_SUM_ADD_TO = re.compile(
+    r"\badd(?:ing)?\s+(?!(?:more|some|a bit|a little|to)\b)[^.?!]{1,60}?\bto\s+(?!(?:my|your|our|a|an)\b)",
     re.IGNORECASE,
 )
 _JOINED = re.compile(
@@ -740,6 +751,8 @@ _LEXICON: dict[str, Any] = {
     "COMPARATIVE": lambda text: _COMPARATIVE.search(text),
     "SUM_WORD": lambda text: _SUM.search(text),
     "SUM_WEAK": lambda text: _SUM_WEAK.search(text),
+    "SUM_BARE": lambda text: _SUM_BARE.search(text),
+    "SUM_ADD_TO": lambda text: _SUM_ADD_TO.search(text),
     "JOINED": lambda text: _ANCHOR.search(text) or _JOINED.search(text),
     "QUANTITY": lambda text: _QUANTITY.search(text),
     "DIFFERENCE": lambda text: _DIFFERENCE.search(text),
@@ -761,6 +774,8 @@ GRAMMAR: tuple[Production, ...] = (
     Production("difference", ("DIFFERENCE",)),
     Production("which", ("WHICH",)),
     Production("sum", ("SUM_WEAK", "JOINED", "QUANTITY")),
+    Production("sum", ("SUM_ADD_TO", "QUANTITY")),
+    Production("sum", ("SUM_BARE",)),
 )
 COMPARISON_OPERATIONS = frozenset(production.operation for production in GRAMMAR)
 

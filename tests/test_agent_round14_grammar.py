@@ -705,3 +705,21 @@ def test_llm_a_failed_draft_falls_back_to_the_correct_computation(shipped_servic
     assert "合计市值约为 64435 元" in result["answer"]
     assert "合计约 41260 元" not in result["answer"]
     assert "verification_failed:template_fallback" in (result.get("degraded") or [])
+
+
+@pytest.mark.parametrize(
+    ("text", "operation"),
+    [
+        ("Now add Wuliangye's to Ping An's. What do you get?", "sum"),
+        ("And combined?", "sum"),
+        ("那合计呢", "sum"),
+        ("Should I add more to Moutai?", None),
+        ("I'd like to add to my Ping An position; how much?", None),
+        ("五粮液的加权ROE比茅台低多少", "difference"),
+        ("我打算加仓五粮液", None),
+    ],
+)
+def test_more_total_wordings_and_their_negatives(text, operation):
+    from query_intelligence.agent.frame import frame_operation
+
+    assert frame_operation(text) == operation
