@@ -33,13 +33,13 @@ evidence value of *its* target and metric. The rules are documented in ``docs/cl
   compared side of one bound is not the subject of the next ("below CATL's but above BYD's"); a superlative may name
   its subject first ("X的ROE在X、A、B三家中最高"); "不到 / 超过…的N倍" bounds the multiple; "高出工行三个多百分点"
   is a difference without 比; "相当于两个半招行" is 2.5 times.
-* **Round 14 (claims_web_v2 classes, after exposure).** A named definition (加权平均ROE, 基本 / 稀释每股收益, 归母 growth,
-  营业总收入, 动态 / 静态 / TTM 市盈率) is checked only against a field the data states with that definition, else it is
-  unverifiable (``definition_mismatch``); a daily price on a stated date uses that day's bar (``get_price_history``
-  ``on_date``); a valuation is dated by its valuation date; amounts in another currency are ``currency``; traditional
-  characters are read (``traditional.py``); 报 / 报收 is the close and 成交量 (手 / 万手) the volume; the year a change is
-  measured from is not its period; "比上年增加38亿元" is derived from the level and its YoY; a comparison with a total of
-  several companies is not checked.
+* **Round 14 (claims_web_v2 classes, after exposure).** A named definition (加权平均ROE, 基本 / 稀释每股收益,
+  归母 growth, 营业总收入, 动态 / 静态 / TTM 市盈率) is checked only against a field the data states with that
+  definition, else it is unverifiable (``definition_mismatch``); a daily price on a stated date uses that day's bar
+  (``get_price_history`` ``on_date``); a valuation is dated by its valuation date; amounts in another currency are
+  ``currency``; traditional characters are read (``traditional.py``); 报 / 报收 is the close and 成交量 (手 / 万手)
+  the volume; the year a change is measured from is not its period; "比上年增加38亿元" is derived from the level and
+  its YoY; a comparison with a total of several companies is not checked.
 
 The verdict is deterministic (no LLM) and every check cites the evidence id, source and as-of date (for
 P/E and P/B the valuation date when the source gives one, see ``as_of_basis``).

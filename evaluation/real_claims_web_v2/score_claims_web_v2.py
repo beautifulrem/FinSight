@@ -13,6 +13,9 @@ resamples, seed 20261010). Writes OUT (default ``evaluation/results/claims_web_v
 into a committed results folder from a dirty tree::
 
     python -m evaluation.real_claims_web_v2.score_claims_web_v2 [--out OUT.json]
+
+``--after-exposure`` (round 14) labels a run made after the checker was changed for this set's error classes (the set
+is after exposure from then on); give ``--out`` so the first run is not overwritten.
 """
 
 from __future__ import annotations
@@ -57,6 +60,11 @@ def rates(results: list[dict[str, Any]], key: str, ok: str = "ok") -> dict[str, 
     }
 
 
+def _shown(path: Path) -> str:
+    resolved = path.resolve()
+    return str(resolved.relative_to(ROOT)) if resolved.is_relative_to(ROOT) else str(path)
+
+
 def git_commit() -> str:
     commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, cwd=ROOT)
     dirty = subprocess.run(
@@ -71,6 +79,11 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument(
+        "--after-exposure",
+        action="store_true",
+        help="Label the run as after exposure: the checker was changed after its authors read this set's errors.",
+    )
     add_dirty_arguments(parser)
     args = parser.parse_args(argv)
     commit = git_commit()
@@ -111,6 +124,12 @@ def main(argv: list[str] | None = None) -> int:
         "checker's code or tests were read; the collector had read the first set's README (its error classes) and "
         "the offline data, the search agents had not",
     ]
+    if args.after_exposure:
+        notes = [
+            "after exposure (checker changed): the round-14 engineers read this set's README error list and its "
+            "first-run errors, then wrote general rules for the classes with their own test wordings; not an "
+            "out-of-sample estimate (the first run, claims_web_v2-first-run.json, is the blind number)"
+        ]
     if dirty_note:
         notes.append(dirty_note)
     payload = {
@@ -118,7 +137,10 @@ def main(argv: list[str] | None = None) -> int:
         "config": {
             "commit": commit,
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "command": COMMAND,
+            "command": COMMAND
+            + (" --after-exposure" if args.after_exposure else "")
+            + (f" --out {_shown(args.out)}" if args.out != DEFAULT_OUT else ""),
+            "exposure": "after" if args.after_exposure else "blind first run",
             "snapshot": "offline v1 + 2026-09-30 extension + corrections layer (QI_OFFLINE_SNAPSHOT_EXT and "
             "QI_OFFLINE_SNAPSHOT_FIX on, the shipped default), no LLM",
             "labels": "evaluation/real_claims_web_v2/claims_web_v2.jsonl (label_claims_web_v2, definition-aware; "
