@@ -69,6 +69,8 @@ QUESTION_BOUNDARY_CHARS = set("哪谁怎吗么该能好更不")
 # Colloquial short names ("美的", "宁王", "工行"; see runtime_entity_assets.COLLOQUIAL_ALIASES) are common word
 # fragments ("完美的", "施工行业"): they match only exactly, only as a whole jieba token, and never fuzzily.
 COLLOQUIAL_ALIAS_TYPE = "colloquial_alias"
+# (round 15) Currency words are never a (misspelt) security name
+CURRENCY_WORDS = frozenset({"人民币", "美元", "港元", "港币", "欧元", "日元", "英镑"})
 # Degree adverbs ("挺美的", "很美的", "太美的"): a colloquial alias right after one is used as an adjective.
 DEGREE_ADVERB_CHARS = set("很挺真太好多更最超蛮怪够极")
 # Grammatical particles and question words: a fuzzy window that differs from an alias at one of these is part of the
@@ -457,6 +459,8 @@ class EntityResolver:
                 continue
             if self._is_generic_product_mention(best_match["text"]):
                 continue
+            if best_match["text"] in CURRENCY_WORDS:
+                continue  # (round 15) "以人民币计价" is a currency, never a misspelt 人民网
             if self._is_generic_action_phrase(best_match["text"]):
                 continue
             if self._should_skip_question_word_fuzzy_match(best_match["text"], alias):

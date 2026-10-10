@@ -329,3 +329,34 @@ is the first run's 0.500.
 
 Remaining errors: v05, v13, v20, v33, v34, v36, v44, v46 (8). Two of them (v33, v44) are bugs this run found (the
 definition window, the 人民币 alias); they are listed as open in the main README and not fixed in round 14.
+
+## Round 15: after exposure (checker changed)
+
+Round 15 changed the checker for the round-11 review's K6 list and the third real-claims set's error classes, with
+failing tests in the engineer's own wording; no rule was written for this set's sentences. Run once on a clean tree at
+`a02821d`, 2026-10-10T22:06Z: `python -m evaluation.real_claims_web_v2.score_claims_web_v2 --after-exposure --out
+evaluation/results/claims_web_v2-after-exposure-round15.json`.
+
+| | blind first run (`117e74b`) | round 14 (`0dd9e1e`) | round 15 (`a02821d`) |
+|---|---|---|---|
+| verdict accuracy | 0.500 [0.36, 0.64] | 0.840 [0.74, 0.94] | **0.840 [0.72, 0.94], 42/50** |
+| against the definition-blind labels | 0.520 | 0.760 | 0.760 [0.64, 0.88] |
+| checker's verdicts | supported 10, partially 21, contradicted 11, unverifiable 8 | supported 14, partially 25, contradicted 5, unverifiable 6 | supported 17, partially 23, contradicted 3, unverifiable 7 |
+
+**Errors** (8 → 8):
+
+| claim | round 14 | round 15 | why |
+|---|---|---|---|
+| v34 营业总收入858.82亿元 (长江电力) | unverifiable | **right** | 营业总收入 is checkable where the report gives one top line (营业收入 = 营业总收入) |
+| v44 歸屬於上市公司股東淨利…人幣 (茅台) | partially | **right** | 人幣 → 人民币 no longer resolves to 宁德时代 (the runtime alias row is gone) |
+| v03 动态市盈率 15.56 + 市净率 3.55 (宁德时代) | right | supported (label partially) | the only unverifiable part is a definition caution (动态 vs TTM), which round 15 calls `supported` |
+| v21 工商银行 归母 growth + 日均盈利超10亿元 | right | supported (label partially) | the same verdict rule; "日均盈利超10亿元" is now checked (3685.62 / 365 = 10.10亿, supported) |
+| v13 紫金矿业 收盘35.53元，下跌0.36% | contradicted | unverifiable | no date and the latest session does not fit: unverifiable, not contradicted (the date is the article's) |
+| v46 创业板指 大涨逾1.7%，站上3700点 | contradicted | unverifiable | likewise |
+| v05 比亚迪≈宁德1.9倍 | unverifiable | unverifiable | "宁德" alone, with no full name in the claim, is not resolved |
+| v20 以1.04万亿元居第五名…万亿市值 | unverifiable | unverifiable | the metric is named in a later clause |
+| v33 China Yangtze Power … attributable to the parent company … | supported | supported | the definition named beyond the 40-character window |
+| v36 全年总利润 1347 亿 | partially | partially | 总利润 is not read as net profit (never a bare 利润) |
+
+Against the definition-blind labels the same four claims move (v34 and v44 right, v03 and v21 wrong: both columns label
+them partially supported), so that accuracy stays 0.760 (12 errors).

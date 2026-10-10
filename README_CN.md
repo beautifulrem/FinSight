@@ -139,7 +139,8 @@ Kubernetes 与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 | 更早的评审切片（对话，首次 → 一轮修复后） | 第六轮 0.579 → 0.816；第七轮 0.264 → 0.830；第八轮 0.275 → 0.686；第九轮 0.346 → 0.788 | [评测历史](docs/zh/evaluation-history.md#独立任务集首次运行与暴露后) |
 | 独立路由标注（新写的 241 条） | 首次 0.801，暴露后 0.842 | [`router_eval-independent_v2-first-run.json`](docs/agent-eval.md#router-label-sets) |
 | 对核查器盲收集的真实公开说法（50 条） | 首次 0.500 [0.36, 0.64]；针对其错误类别修改核查器后 0.840（暴露后） | [`claims_web_v2-first-run.json`](evaluation/real_claims_web_v2/README.md) |
-| 第三套盲收集的真实公开说法（50 条） | 首次 0.540 [0.40, 0.68]，已包含第 14 轮的核查器修改：新的说法仍会出错（指标说法、日期、实体绑定） | [`claims_web_v3-first-run.json`](evaluation/real_claims_web_v3/README.md) |
+| 第三套盲收集的真实公开说法（50 条） | 首次 0.540 [0.40, 0.68]（第 14 轮核查器）；针对其错误类别修改核查器后 0.900（第 15 轮，暴露后） | [`claims_web_v3-first-run.json`](evaluation/real_claims_web_v3/README.md)、[`claims_web_v3-after-exposure-round15.json`](evaluation/real_claims_web_v3/README.md#round-15-after-exposure-checker-changed) |
+| 第四套盲收集的真实公开说法（50 条） | 首次 0.740 [0.62, 0.86]（第 15 轮核查器，第三套的规则之前）；之后 0.780（暴露后） | [`claims_web_v4-first-run.json`](evaluation/real_claims_web_v4/README.md) |
 | 投毒到文档里的提示注入 | 模板路径在 13 个攻击集上 0 次成功；LLM 路径每个集合当作事实陈述 0–3.4% | [`redteam-offline-r15.json`](docs/agent-eval.md#prompt-injection-red-team-offline-template-path-after-round-15-all-thirteen-sets-ci-baseline)、[`redteam-r8-llm.json`](docs/zh/evaluation-history.md#其他测量) |
 | 延迟与负载 | DeepSeek Agent P95 15.4 秒（保留集），首字约 3 秒；数据源故障演练下 8 个用户（无 LLM）400 个请求 0 错误 | [性能](docs/zh/performance.md) |
 | CI 门禁（与已提交基线比较） | 开发集 524 个任务 1.000，保留集 53 个 0.9434，ext 68 个 1.000，发布默认配置 21 个 1.000 | [门禁基线](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |

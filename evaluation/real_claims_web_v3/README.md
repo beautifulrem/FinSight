@@ -447,3 +447,39 @@ no class.
   figures. The checker returned unverifiable, but for another reason: a forecast clause.
 - Weighted ROEs named as such (x11, x49) are correctly left unverifiable. The data's period-end ROE cannot confirm
   them, although the annual reports do.
+
+## Round 15: after exposure (checker changed)
+
+From round 15 this set is **after exposure**. The round-15 engineer read the error list above and wrote general rules for
+its six classes, with failing tests in their own wording (`tests/test_agent_round15_claims_v3.py`, 32 cases at first,
+26 failing before the fix, 36 now; `tests/test_agent_round15_aliases.py`; none of this set's sentences). The labels and
+the scoring are unchanged; `score_claims_web_v3.py` gained `--after-exposure`, which only labels the output.
+
+**Run.** Once, on a clean tree at `a02821d`, 2026-10-10T22:06Z: `python -m evaluation.real_claims_web_v3.score_claims_web_v3
+--after-exposure --out evaluation/results/claims_web_v3-after-exposure-round15.json`.
+
+| | blind first run (`7ea8f5d`) | round 15, after exposure (`a02821d`) |
+|---|---|---|
+| verdict accuracy | 0.540 [0.40, 0.68], 27/50 | **0.900 [0.80, 0.98], 45/50** |
+| against the definition-blind labels | 0.500 [0.36, 0.64] | 0.860 [0.76, 0.94] |
+| by category | annual_ratios 3/3, daily_price 8/10, annual_figures 5/8, loose_or_relational 7/18, english_or_traditional 3/8, market_value 1/3 | annual_ratios 3/3, daily_price 9/10, annual_figures 8/8, loose_or_relational 14/18, english_or_traditional 8/8, market_value 3/3 |
+| by source type | broker 3/4, company 3/4, media 17/26, social 4/16 | broker 3/4, company 4/4, media 24/26, social 14/16 |
+| checker's verdicts | supported 7, partially 19, contradicted 8, unverifiable 16 | supported 22, partially 18, contradicted 5, unverifiable 5 |
+
+The 0.900 is not an estimate of accuracy on unseen claims: the rules were written for these classes. The blind number is
+the first run's 0.540. The fourth set ([../real_claims_web_v4/](../real_claims_web_v4/README.md)), collected in parallel
+and run blind once before these rules, scored 0.740 on the K6 checker and 0.780 after them.
+
+**Per error class** (errors before → after):
+
+| class | claims | before | after | rule (round 15) |
+|---|---|---|---|---|
+| 1. metric wording | x07, x08, x10, x13, x16, x29, x33, x34, x41, x47, x48 | 11 | 1 | 市盈TTM; a daily average of net profit (日赚 / 每天净赚 / a day = net profit / 365, in the note); a bare 利润 is net profit; bar words 开 / 最高 / 最低 / 收 and "ended September at"; English "N in net profit", "a N% year-on-year rise in net profit", "the previous year's N" (level / (1 + YoY)). Still wrong: x41 "日赚近1.4亿元" (1.4185亿) is supported because 近N keeps half a unit of slack at the top, where the labels use [0.9N, N] |
+| 2. a number bound to the wrong metric | x02, x15, x37 | 3 | **0** | the English metric after the number; 到N亿 after a bare 利润; turnover against the previous session (amount and relative change from the two bars) |
+| 3. dates | x04, x05, x06 | 3 | 2 | a month-day without a year uses that day's bar (x05 fixed). x04 and x06 leave the date to the article: they are now **unverifiable** (the latest session does not fit), no longer contradicted, but their labels are partially / supported |
+| 4. entity resolution | x01, x14, x18, x32 | 4 | 1 | 人民币 removed from the runtime alias table at its source (x18); a code that opens a bracket names the fund and later codes in it are asides (x01); "x vs y" binds in order and a forecast after a closing bracket is not about the figures (x32). x14's 分别 list now binds in order (国寿 → 中国人寿, 平安 → 中国平安, the other three not in the data) but its metric is in the preceding sentence, so it stays unverifiable |
+| 5. 降幅 read as positive | x23 | 1 | **0** | 降幅 / 减幅 / 缩减 make a change negative; "大于营收降幅的54.6%" is the other metric's stated value next to a relation of the two |
+| 6. 营业总收入 = 营业收入 | x50 | 1 | **0** | checkable where the company's report notes give one top line |
+| new | x44 | 0 | 1 | its only unverifiable part is a definition caution (归母 growth vs the total-profit YoY), so round 15 says `supported`; the label is partially_supported |
+
+Remaining errors: x04, x06, x14, x41, x44 (5).
