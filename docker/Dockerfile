@@ -47,8 +47,13 @@ COPY schemas ./schemas
 COPY models ./models
 COPY data/runtime ./data/runtime
 COPY data/*.json data/*.csv ./data/
-# Offline snapshot extension (merged under data/structured_data.json; the raw source records stay out).
-COPY data/snapshot/structured_data_ext.json data/snapshot/manifest.json ./data/snapshot/
+# Offline snapshot layers, both on by default (QI_OFFLINE_SNAPSHOT_EXT / QI_OFFLINE_SNAPSHOT_FIX): the extension
+# (merged under data/structured_data.json) and the corrections layer (primary-source values over the v1 seed, with
+# its manifest and the page-level source list). The raw source records stay out. GET /ready reports each layer
+# (records, sha256) and fails when a layer that is switched on is missing (round-10 review J2).
+COPY data/snapshot/structured_data_ext.json data/snapshot/manifest.json \
+     data/snapshot/structured_data_fix.json data/snapshot/manifest_fix.json ./data/snapshot/
+COPY data/snapshot/corrections ./data/snapshot/corrections
 
 # efinance writes <package>/data on import; point it at /tmp so the image also runs with a read-only
 # root filesystem (the Kubernetes manifest mounts an emptyDir there).
