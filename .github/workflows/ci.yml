@@ -195,6 +195,14 @@ jobs:
         env:
           QI_EVAL_SNAPSHOT_EXT: "1"
         run: python -m evaluation.agent_eval.gate --set ext
+      - name: What the product serves by default (extension AND corrections layer on) against gate-shipped.json
+        # (round-10 review J1) tasks/agent_eval_shipped_v1.jsonl: expected values from
+        # data/snapshot/structured_data_fix.json, seed values forbidden; with the corrections layer off it scores
+        # 2/21. The gate sets both variables for this set itself; the env below only makes them visible in the log.
+        env:
+          QI_EVAL_SNAPSHOT_EXT: "1"
+          QI_EVAL_SNAPSHOT_FIX: "1"
+        run: python -m evaluation.agent_eval.gate --set shipped
       - name: Verifier false-accept and offline red team against committed baselines
         run: |
           python -m evaluation.agent_eval.verifier_stress
