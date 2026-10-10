@@ -125,7 +125,8 @@ _MOVE_WORDS = re.compile(r"涨|跌|反弹|回调|走势|行情|\b(?:rise|fall|ra
 # "last Friday") are not future expressions, so a dated question about the past is answered as a lookup.
 _FUTURE_TIME = re.compile(
     r"明天|明日|明早|后天|下(?:个|一个?)?(?:周|星期|礼拜)[一二三四五六日天末]?|下(?:一|个)?(?:交易日|开盘)|"
-    r"下个?月|下(?:个)?季度|下半年|明年|后年|(?<!去年)(?<!前年)(?<!上年)(?<![去前上\d])年(?:底|末|内)|"
+    # (round 15, review-11 K14) "一年内最高点" / "年内高点" is a past window, not a future time
+    r"下个?月|下(?:个)?季度|下半年|明年|后年|(?<!去年)(?<!前年)(?<!上年)(?<![去前上\d])年(?:底|末|内(?!的?最?(?:高|低)点|最(?:高|低)))|"
     r"(?<!上)(?<!上个)月底|未来|将来|今后|接下来|"
     r"(?:\d+|[一二两三四五六七八九十几]+)\s*(?:个)?(?:交易日|天|周|星期|个?月|年)(?:以?后|之后)|"
     r"\btomorrow\b|\bnext\s+(?:mon|tues|wednes|thurs|fri|satur|sun)day\b|"
