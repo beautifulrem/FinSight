@@ -23,6 +23,8 @@ os.environ.setdefault("QI_OFFLINE_SNAPSHOT_EXT", "false")
 # Likewise the corrections layer (data/snapshot/structured_data_fix.json) replaces v1 seed values that earlier tests
 # assert (五粮液 ROE 29.4, 中国平安 close 53.61); tests/test_round13_snapshot_fix.py turns it on explicitly.
 os.environ.setdefault("QI_OFFLINE_SNAPSHOT_FIX", "false")
+# tests/test_shipped_default.py removes both switches for its module and runs the API on the shipped default (both
+# layers on), so a regression in the shipped data path fails the suite (round-10 review J1).
 
 # Graph tests script the classic tool loop turn by turn (tool call, then answer, then revision). Pin the
 # classic path; tests/test_agent_perf.py covers the latency switches and their defaults explicitly.
