@@ -264,6 +264,7 @@ EXTRA_EVIDENCE = (
     "claims_heldout_r8-prefix",
     "claims_heldout_r8-after-fix",
     "claims_web_v1-first-run",
+    "claims_web_v1-with-corrections",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -353,6 +354,9 @@ FILE_STATUS = {
     "claims_heldout_r8-after-fix": "independent round-8 claim slice **after the round-12 fixes** (out of sample)",
     "claims_web_v1-first-run": "engineer-collected real published claims, first run; not blind (the collector had "
     "read the checker)",
+    "claims_web_v1-with-corrections": "**after exposure (data correction, checker unchanged)**: the same claims with "
+    "the corrections layer on, scored against labels recomputed from the corrected data "
+    "(claims_web_v1-labels-with-corrections.jsonl); the engineer had read the set before correcting the data",
     "chat_heldout_r7-auto-nollm-after-fix": "independent round-7 chat slice **after the round-11 fixes**; the "
     "engineers never opened the slice (four round-11 dev turns in three tasks match slice turns verbatim by "
     "coincidence)",
