@@ -52,11 +52,11 @@ python -m scripts.build_offline_snapshot verify   # 哈希一致、重建结果�
 **评测仍固定在 v1。** 仓库里的所有任务集和保留切片都是对着 v1 标注的，其中包括「缺数据」标注（例如测试集 v3、多轮集和第 4/5/6 轮切片里的「宁德时代没有离线行情」）。所以评测框架（`build_offline_service` 和任务生成脚本）和测试环境固定使用 v1，`QI_EVAL_SNAPSHOT_EXT=1` 才会打开扩展层。需要扩展层的 14 个第 12 轮开发任务是在扩展层开启时录入开发回放夹具的，用的是之前没有任何开发任务录过的 9 个代码，因此之前的每个任务回放结果都和原来完全相同。设 `QI_EVAL_SNAPSHOT_EXT=1` 运行时，各 verify 脚本共报 22 项检查失败，全部是关于 v1 的前提：对 300750.SZ、600036.SH、002594.SZ、000001.SZ、000333.SZ、000001.SH 的「没有数据」检查（r4 2 项、r5 3 项、多轮集 5 项、测试集 v3 6 项），以及三条变得可核对的声明标注（r5 的 r5c045/r5c055 关于平安银行的 PE 和 ROE、r6 的 r6c19 关于宁德时代的 PE，共 6 项）。第 7 轮切片两种情况都通过。固定在 v1（默认）时，所有 verify 脚本都输出 OK。
 
 **默认配置也进了门禁（第 13 轮）。** 扩展层默认开启，固定在 v1 的门禁发现不了扩展层标的上的退化。门禁集合 `ext`
-（`evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl`，第 14 轮起 32 个任务 / 34 轮，由 `python -m evaluation.agent_eval.build_ext_tasks`
+（`evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl`，第 14 轮起 44 个任务 / 48 轮，由 `python -m evaluation.agent_eval.build_ext_tasks`
 生成，数值按 `structured_data_ext.json` 手工读取）在 `QI_EVAL_SNAPSHOT_EXT=1` 下直接调用离线工具、不用回放夹具，因此加载器、行情和
 基本面工具、衍生字段以及扩展层标的上的回答都会被检查：`python -m evaluation.agent_eval.gate --set ext`（CI `agent-eval-gate` 任务里
-单独一步；下限：任务成功率 0.95、行为 0.98、事实 0.95、合规 1.0、对冲 1.0；基线 `evaluation/results/gate-ext.json`，`ca889e4` 上
-32/32；加入第 14 轮 8 个任务之前 `235d00c` 上 24/24，这 8 个任务在第 14 轮修复之前的代码上为 2/8）。内容包括扩展层标的的事实、今年以来 / 52 周 / 回撤 / 持仓市值、价格预测对冲及过去时间的对照、缺少行业平均和追问。同样的
+单独一步；下限：任务成功率 0.95、行为 0.98、事实 0.95、合规 1.0、对冲 1.0；基线 `evaluation/results/gate-ext.json`，合并后的第 14 轮代码 `d2f518f` 上
+44/44；r14-safety 分支 `ca889e4` 上 32/32，r14-frame 分支 `2a55c49` 上 36/36；加入第 14 轮 20 个任务之前 `235d00c` 上 24/24，其中 J6/J7 的 8 个（`round14_ext_tasks`）在第 14 轮修复之前的代码上为 2/8，比较类别的 12 个是 `round14_frame_ext_tasks`）。内容包括扩展层标的的事实、今年以来 / 52 周 / 回撤 / 持仓市值、价格预测对冲及过去时间的对照、缺少行业平均和追问。最初的 24 个
 任务用 `cbcf3b2`（第 13 轮修复之前）的代码是 15/24；任务是修复之后写的，所以这只是回归基线，不是独立衡量。开发集和保留集门禁仍固定
 在 v1，以保持可比性。
 

@@ -94,14 +94,14 @@ r6c19 on 宁德时代's P/E: 6 checks). The round-7 slice passes either way. Pin
 verify script prints OK.
 
 **The shipped default is gated too (round 13).** The extension is on by default, so a regression on its names
-would not fail a v1-pinned gate. The gate set `ext` (`evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl`, 32 tasks /
-34 turns since round 14, built by `python -m evaluation.agent_eval.build_ext_tasks`, values read by hand from
+would not fail a v1-pinned gate. The gate set `ext` (`evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl`, 44 tasks /
+48 turns since round 14, built by `python -m evaluation.agent_eval.build_ext_tasks`, values read by hand from
 `structured_data_ext.json`) runs with `QI_EVAL_SNAPSHOT_EXT=1` against the offline tools directly, with no replay
 fixture, so the loader, the price and fundamentals tools, the derived fields and the answers on extension names are all
 exercised: `python -m evaluation.agent_eval.gate --set ext` (its own CI step in the `agent-eval-gate` job; floors
 task success 0.95, behaviour 0.98, facts 0.95, compliance 1.0, hedged 1.0; baseline `evaluation/results/gate-ext.json`,
-32/32 at `ca889e4`; 24/24 at `235d00c` before the 8 round-14 tasks, which score 2/8 with the code before the round-14 fixes). It covers facts on extension names, YTD / 52-week / drawdown / holding value, price-forecast hedges
-with past-time controls, a missing industry average and follow-ups. The same tasks score 15/24 with the code at
+44/44 at the merged round-14 code `d2f518f`; 32/32 at `ca889e4` on the r14-safety branch and 36/36 at `2a55c49` on the r14-frame branch; 24/24 at `235d00c` before the 20 round-14 tasks, of which the 8 J6/J7 ones (`round14_ext_tasks`) score 2/8 with the code before the round-14 fixes; the 12 comparison tasks are `round14_frame_ext_tasks`). It covers facts on extension names, YTD / 52-week / drawdown / holding value, price-forecast hedges
+with past-time controls, a missing industry average and follow-ups. The first 24 tasks score 15/24 with the code at
 `cbcf3b2` (before the round-13 fixes); they were written after the fixes, so that is a regression baseline, not an
 independent measure. The dev and held-out gates stay pinned to v1 for comparability.
 
