@@ -1382,7 +1382,7 @@ def _price(data: dict[str, Any], zh: bool, request: PriceRequest | None = None) 
     if request is not None and request.needs_quote:
         sentences.extend(_price_details(data, zh, request))
     if request is not None and request.year_to_date:
-        sentences.extend(_year_to_date(data, zh))
+        sentences.extend(_year_to_date(data, zh, first_close_base=request.ytd_first_close))
     if request is not None and request.range_52w:
         sentences.extend(_range_52w(data, zh))
     if request is not None and request.drawdown:
@@ -1462,15 +1462,15 @@ def _computed_change(data: dict[str, Any]) -> tuple[float, float] | None:
     return previous, round((latest / previous - 1) * 100, 2)
 
 
-def _year_to_date(data: dict[str, Any], zh: bool) -> list[str]:
+def _year_to_date(data: dict[str, Any], zh: bool, *, first_close_base: bool = False) -> list[str]:
     """The year-to-date change, with both closes in the sentence (the verifier checks the percent change against
     them); without ``year_start`` the gap is stated by coverage.
 
     (round 13, I11) The base is the previous year's last close (``prior_year_end``, the 年初至今 basis of quote
     vendors); a payload recorded before round 13 has only the year's first close, and the sentence then says that
-    this is its base."""
+    this is its base. (round 14) When the user names the year's first close as the base, that base is used."""
     start, close = data.get("year_start") or {}, data.get("close")
-    base = data.get("prior_year_end") or {}
+    base = {} if first_close_base else data.get("prior_year_end") or {}
     if not start or start.get("close") in (None, 0) or close is None:
         return []
     name, eid, as_of = data.get("name"), data.get("evidence_id"), data.get("as_of")
