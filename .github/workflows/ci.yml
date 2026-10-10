@@ -187,7 +187,14 @@ jobs:
           grep -vE '^(torch|transformers|accelerate|sentencepiece)' requirements.txt > requirements-core.txt
           pip install -r requirements-core.txt
       - name: Replay the agent evaluation against floors and committed baselines (evaluation/results/gate-*.json)
-        run: python -m evaluation.agent_eval.gate
+        # dev and holdout are pinned to the v1 snapshot (their labels include v1 absences)
+        run: python -m evaluation.agent_eval.gate --set dev --set holdout
+      - name: The shipped default (snapshot extension on) against its floor and baseline (gate-ext.json)
+        # tasks/agent_eval_ext_v1.jsonl run against the offline tools directly, no replay fixture; the gate sets
+        # QI_EVAL_SNAPSHOT_EXT=1 for this set itself, the env below only makes it visible in the log
+        env:
+          QI_EVAL_SNAPSHOT_EXT: "1"
+        run: python -m evaluation.agent_eval.gate --set ext
       - name: Verifier false-accept and offline red team against committed baselines
         run: |
           python -m evaluation.agent_eval.verifier_stress
