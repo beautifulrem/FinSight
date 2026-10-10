@@ -19,11 +19,17 @@ replaces synthetic phrasing with published phrasing; it does not replace an inde
 | `label_claims_web_v1.py` | computes every expected verdict from the offline tools (committed with the labels, before the checker was run) |
 | `claims_web_v1.jsonl` | collected fields + `category`, `expected_verdict`, `parts` (one predicate per stated number, true / false / null = not in the offline data), `context_not_checked`, `offline_vs_primary` |
 | `score_claims_web_v1.py` | runs the checker once and writes `evaluation/results/claims_web_v1-first-run.json` |
+| `claims_web_v1-labels-with-corrections.jsonl` | (round 13) the same parts labelled against the offline data with the corrections layer on; adds `labelled_against` and `label_without_corrections` |
 
 ```bash
 python -m evaluation.real_claims_web.label_claims_web_v1     # rewrites claims_web_v1.jsonl (deterministic)
 python -m evaluation.real_claims_web.score_claims_web_v1     # writes evaluation/results/claims_web_v1-first-run.json
+# round 13, with the corrections layer (data/snapshot/structured_data_fix.json):
+python -m evaluation.real_claims_web.label_claims_web_v1 --corrections   # writes claims_web_v1-labels-with-corrections.jsonl
+python -m evaluation.real_claims_web.score_claims_web_v1 --corrections   # writes evaluation/results/claims_web_v1-with-corrections.json
 ```
+
+Without `--corrections` both scripts pin the corrections layer off, so `claims_web_v1.jsonl` is reproduced byte for byte.
 
 Both use the offline service with the 2026-09-30 snapshot extension on (`build_offline_service(snapshot_ext=True)`,
 the product default `QI_OFFLINE_SNAPSHOT_EXT=true`). The other evaluation sets stay pinned to v1. This set needs the
@@ -136,6 +142,16 @@ These are findings about the data, not the checker; the labels follow the data.
   - 沪深300: offline +0.42% vs +0.66% (华夏时报, 证券时报).
   - Not resolved against an exchange record.
 
+**Checked against the primary documents in round 13** (FY2025 annual reports on CNINFO and daily records; quotes,
+pages and hashes in `data/snapshot/corrections/sources.json`, see
+[data-sources.md](../../docs/data-sources.md#corrections-layer-primary-source-values-and-field-definitions)). Every
+figure above is confirmed, with one exception: 美的集团's offline ROE 19.69 is the period-end figure (19.687), like the
+other extension companies, not the weighted one (19.70, 0.01 point away). The two 2026-04-22 prices are resolved: the
+media were right. 中国平安 closed at 58.03, 0.00%, 成交额 33.65亿 (Sina daily kline, cross-checked with Tencent).
+沪深300 closed at 4799.63, +0.66% (CSIndex, the index compiler). The v1 close of 4005.2 was wrong as well. The same check
+found two more wrong v1 bars on 2026-04-22: 创业板ETF (2.465, +0.86% vs 3.758, +2.09%) and 证券ETF (1.021, +0.59% vs
+1.075, +0.84%).
+
 In this set, 19 claims that the company's own report supports (on the basis the claim uses: weighted ROE, basic EPS,
 total net profit, 营业总收入, IFRS / USD) are labelled contradicted (9) or partially_supported (10) because of these
 data differences, and 2 more (the 2026-04-22 中国平安 and 沪深300 prices) are unresolved
@@ -197,3 +213,44 @@ verdict on 15 of them. It missed w03 and w24 for parsing reasons (classes 1 and 
 happened to accept the published figure (class 9). A user pasting those 19 published claims
 would see a true statement marked wrong or partly wrong. That is a data-coverage and definition problem (field
 definitions, seed values), not something verdict accuracy shows.
+
+## With the corrections layer (round 13): after exposure (data correction, checker unchanged)
+
+Round 13 added the corrections layer (`data/snapshot/structured_data_fix.json`). The engineer read this README first, so
+this run is **after exposure**. The checker (`claim_check.py`) was not changed. The layer replaces the v1 statements of
+五粮液, 中国平安 and 贵州茅台 with their annual-report figures (weighted ROE, 营业收入, 归母净利润, basic EPS, YoY). It
+also replaces four 2026-04-22 bars, including 中国平安 and 沪深300, with the daily record. The extension's values are
+kept; only their definitions are stated.
+
+**Labels.** Labels follow the offline data, so the same parts were re-evaluated against the corrected data in a separate
+file, `claims_web_v1-labels-with-corrections.jsonl` (`label_claims_web_v1 --corrections`). Seven labels change:
+
+- w47 (茅台 ROE 32.53%), w49 (五粮液 营业收入 405.29亿), w50 (五粮液 EPS / 加权ROE), w52 (平安 归母净利润 1347.78亿) and
+  w53 (平安 2026-04-22 close): contradicted → supported.
+- w46 (茅台 营收 / 同比 / 归母): partially → supported, because the YoY is now in the data.
+- w59 (沪深300 +0.66%): contradicted → partially_supported, because its other two indices are still not in the data.
+
+The new counts are supported 29, partially_supported 21, contradicted 9, unverifiable 1.
+
+**Run** at `8aa4c52`, 2026-10-10T13:01Z, `python -m evaluation.real_claims_web.score_claims_web_v1 --corrections`.
+Result file: `evaluation/results/claims_web_v1-with-corrections.json`.
+
+| | first run (seed data, seed labels) | with corrections (corrected data, corrected labels) |
+|---|---|---|
+| verdict accuracy | 0.800 [0.70, 0.88], 48/60 | **0.817 [0.72, 0.90], 49/60** |
+| annual_ratios | 0.833 (10/12) | 0.917 (11/12) |
+| other categories | unchanged | unchanged |
+| against the first run's labels | – | 0.700 (the checker now supports what the seed contradicted) |
+
+- **Errors.** w47 is no longer an error: the corrected ROE 32.53 equals the claim, so the 2% tolerance no longer decides
+  it. The other 11 errors are the same claims as before, in error classes 1–9, which are checker issues and are not
+  fixed.
+- **Checker verdicts that changed.** w46, w49, w50, w52 and w53 became supported; w59 became partially_supported.
+- **The data-difference count.**
+  - Before: of the 21 claims that the reports support but the offline data contradicted (19) or left unresolved (2),
+    the checker called 2 supported.
+  - After: it calls 6 supported.
+  - Still labelled against a differing definition: 15 claims. 14 are extension companies, whose values were kept (period-end ROE, total-profit YoY, diluted EPS, 美的's
+    营业总收入, IFRS / USD). w44 (茅台 营业总收入 1720.54亿) is the 15th, because the layer serves 营业收入.
+  - The answers now name these definitions; the checker does not read them yet.
+
