@@ -572,6 +572,10 @@ def _arithmetic(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[st
         return []
     _position, key, label_zh, label_en = min(named)
     companies, industry = _arithmetic_operands(tool_log, key, zh)
+    if len(companies) > 2:
+        # (round 13, review-9 I4) a gap or ratio of three or more targets the frame did not read: never compute it from
+        # the first two silently; order them instead (the frame computes every pair when it reads the question)
+        return _comparison_verdict(query, tool_log, zh)
     if len(companies) >= 2:
         first, second = companies[0], companies[1]
     elif len(companies) == 1 and industry is not None and _ASKS_INDUSTRY.search(query):
@@ -817,7 +821,11 @@ def frame_sentences(request: dict[str, Any], tool_log: list[dict[str, Any]], zh:
         # (round 13, review-9 I1) "A相当于B的百分之多少": A ÷ B × 100, with the division written out
         if not b:
             return [], ["后者为零，无法计算占比。" if zh else "The base value is zero, so no share can be computed."]
-        return [_share_sentence(found[0], found[1], label, shown, cites, zh, request)], []
+        sentences = [_share_sentence(found[0], found[1], label, shown, cites, zh, request)]
+        claimed = request.get("claimed") or {}
+        if claimed.get("multiple"):
+            sentences.append(_claimed_multiple_verdict(a / b, claimed, zh))
+        return sentences, []
     if operation == "ratio":
         if not b:
             return [], ["后者为零，无法计算倍数。" if zh else "The second value is zero, so no ratio can be computed."]
@@ -928,7 +936,10 @@ def _many_operand_sentences(
             return [f"{label}：{listing}，最高的{high}比最低的{low}高 {spread} {cites}。"]
         return [f"{label}: {listing}; the highest ({high}) is {spread} above the lowest ({low}) {cites}."]
     pairs = []
-    for (name_a, a, _ea, data_a), (name_b, b, _eb, data_b) in combinations(found, 2):
+    # every pair from the higher value to the lower (ratios ≥ 1, relative differences "above"); a share the other way
+    ranked = sorted(found, key=lambda item: item[1], reverse=True)
+    ordered_pairs = [(low, high) if operation == "share" else (high, low) for high, low in combinations(ranked, 2)]
+    for (name_a, a, _ea, data_a), (name_b, b, _eb, data_b) in ordered_pairs:
         if operation == "difference":
             pairs.append(
                 f"{name_a}与{name_b}相差 {gap_text(abs(a - b))}"
@@ -967,7 +978,7 @@ def _claimed_multiple_verdict(ratio: float, claimed: dict[str, Any], zh: bool) -
     bound = claimed.get("bound") or "eq"
     yes = ratio > multiple if bound == "gt" else ratio < multiple if bound == "lt" else close
     if zh:
-        times = written if written.endswith(("倍", "半")) else f"{written}倍"
+        times = written if written.endswith(("倍", "半", "成")) else f"{written}倍"
         relation = "大约是" if close else ("超过" if ratio > multiple else "不到")
         return f"{'是的' if yes else '不是'}，{relation}{times}。"
     times = written if re.search(r"[A-Za-z]$", written) and written.lower() != "x" else f"{written} times"

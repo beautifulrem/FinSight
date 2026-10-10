@@ -331,6 +331,11 @@ _CLAIMED_MULTIPLE_ZH = re.compile(
     r"(?P<approx>大约|大概|约|将近|接近|差不多)?\s*(?P<k>\d+(?:\.\d+)?|[一两二三四五六七八九十]|半)\s*倍"
     r"(?P<post>还要多|还多|以上|有余|多|左右|上下|不到)?\s*(?:吗|么|嘛|吧|没有|不|呢)?\s*[？?]?\s*$"
 )
+# "是不是平安的三成以上", "有没有茅台的六成": a share stated in tenths
+_CLAIMED_TENTHS_ZH = re.compile(
+    r"(?:是|为|有|相当于|等于|是不是|有没有|是否|超过|不到|达到)[^，。？?,;；]{1,14}?的\s*(?:大约|大概|约|将近|接近)?\s*"
+    r"(?P<k>[一二两三四五六七八九]|[1-9])\s*成(?:以上|还多|多|左右|不到)?\s*(?:吗|么|嘛|吧|没有|不|呢)?\s*[？?]?\s*$"
+)
 _CLAIMED_HALF_ZH = re.compile(
     r"(?:是|为|有|相当于|等于|是不是|有没有|是否|超过|不到|达到)[^，。？?,;；]{1,14}?的\s*(?:大约|大概|约|将近|接近)?\s*一半"
     r"(?:还要多|还多|以上|多|左右|不到)?\s*(?:吗|么|嘛|吧|没有|不|呢)?\s*[？?]?\s*$"
@@ -353,7 +358,7 @@ _CLAIMED_MULTIPLE_EN = re.compile(
     re.IGNORECASE,
 )
 _RATIO_EXPLICIT = re.compile(
-    r"倍数关系|比值|之比|几倍于|\bratios?\b|\bhow many times\b|"
+    r"倍数关系|几倍关系|比值|之比|几倍于|\bratios?\b|\bhow many times\b|"
     r"\btimes (?:as (?:high|large|big|much)|bigger|larger|higher|more|greater|the)\b|\bmultiple of\b|"
     r"(?<![\w.])\d+(?:\.\d+)?\s?[x×](?![A-Za-z])|"
     r"(?:相当于|抵得上|抵得过|顶得上|顶得过|能顶|能抵|顶|抵)(?:了)?(?:几|多少)个|除以|"
@@ -364,7 +369,8 @@ _RATIO_EXPLICIT = re.compile(
 _RATIO_UNIT = re.compile(r"(?:几|多少)倍")
 _ANCHOR = re.compile(
     r"(?:是|为|相当于|等于)[^，。？?,;；]{1,14}?的|比(?!例|较|重)|差|相对|较之|前者|后者|前一|后一|第一个|第二个|二者|两者|"
-    r"两个|两家|两只|俩|它们|\bthe former\b|\bthe latter\b|\bthan\b|\bthem\b|\bthe two\b|\bboth\b|\bversus\b|\bvs\.?|"
+    r"两个|两家|两只|俩|它们|(?<=[一-鿿A-Za-z0-9])、(?=[一-鿿A-Za-z0-9])|"
+    r"\bthe former\b|\bthe latter\b|\bthan\b|\bthem\b|\bthe two\b|\bboth\b|\bversus\b|\bvs\.?|"
     + _VERB_COMPARATIVE_ZH
     + "|"
     + _VERB_COMPARATIVE_EN,
@@ -451,6 +457,11 @@ def claimed_multiple(text: str) -> tuple[float, str, bool] | None:
     的股价大约是平安的两倍吗" → (2.0, "两", True); "Is Moutai's P/B roughly twice Ping An's?" → (2.0, "twice", True)),
     else ``None``. The answer computes the ratio and says whether the stated multiple holds."""
     text = (text or "").strip()
+    tenths = _CLAIMED_TENTHS_ZH.search(text)
+    if tenths is not None:
+        raw = tenths.group("k")
+        value = (float(raw) if raw.isdigit() else float(_CN_SMALL.get(raw, 0))) / 10
+        return (value, f"{raw}成", bool(re.search(r"大约|大概|约|将近|接近|左右", text))) if value else None
     half = _CLAIMED_HALF_ZH.search(text)
     if half is not None:
         return 0.5, "一半", bool(re.search(r"大约|大概|约|将近|接近|差不多|左右", text))
@@ -486,7 +497,7 @@ _SUM = re.compile(
 # difference (A − B) ÷ B
 _SHARE = re.compile(
     r"(?:相当于|是|占|为|等于|只有|才)[^，。？?,;；]{1,14}?的\s*(?:大约|大概|约)?\s*"
-    r"(?:百分之(?:多少|几)|(?:几|多少)成|(?:多少|几)(?:个)?(?:百分比|%)|多大比例|多少比例|几分之几)|"
+    r"(?:百分之(?:多少|几)|(?:几|多少)成|(?:多少|几)(?:个)?(?:百分比|%)|多大比例|多少比例|几分之几|比重|比例|占比)|"
     r"\bwhat (?:percent(?:age)?|share|fraction|proportion|portion) of\b|"
     r"\b(?:is|are|was|were)\s+what\s+(?:percent(?:age)?|share|fraction|proportion)\s+of\b|"
     r"\bas an? (?:percent(?:age)?|share|fraction|proportion) of\b|\bhow many percent of\b",
@@ -500,6 +511,15 @@ _SPREAD = re.compile(
     r"\b(?:highest|largest|biggest|top)\b[^.?!]{0,30}?\b(?:minus|and|less|over|vs\.?|versus|to)\b[^.?!]{0,12}?"
     r"\b(?:lowest|smallest|bottom)\b|\b(?:lowest|smallest)\b[^.?!]{0,30}?\b(?:and|to|vs\.?)\b[^.?!]{0,12}?"
     r"\b(?:highest|largest|biggest)\b|\brange (?:between|from)\b",
+    re.IGNORECASE,
+)
+# A single target's own extremes ("最高价和最低价", "52周最高和最低收盘", "highest and lowest close in the last
+# 52 weeks")
+# are price details of one target, not the spread of several operands
+_OWN_EXTREMES = re.compile(
+    r"最(?:高|低)(?:价|点|位|收盘|成交)|(?:52|五十二)\s*周|近一年|一年来|今年以来|今天|当日|盘中|日内|"
+    r"\b(?:highest|lowest)\s+(?:close|closing|price|level|point|print)s?\b|\b52[- ]week\b|\bintraday\b|"
+    r"\b(?:today|this year|last year|past year|in the last)\b",
     re.IGNORECASE,
 )
 # (round 13, review-9 I6) how many shares of B one share of A buys: "一股茅台能换几股五粮液" (a ratio of the closes)
@@ -519,7 +539,7 @@ _METRIC_RATIO_NAME = re.compile(
 
 def _operation_of(text: str) -> str | None:
     text = _METRIC_RATIO_NAME.sub("metric", text)
-    if _SPREAD.search(text):
+    if _SPREAD.search(text) and not _OWN_EXTREMES.search(text):
         return "spread"
     if _SHARE.search(text):
         return "share"
@@ -529,12 +549,14 @@ def _operation_of(text: str) -> str | None:
         or (_RATIO_UNIT.search(text) and _ANCHOR.search(text))
         or claimed_multiple(text) is not None
     ):
+        if _CLAIMED_TENTHS_ZH.search(text):
+            return "share"  # "是不是平安的三成以上": a share in 成, checked against the stated tenths
         return "ratio"
     if _RELATIVE_EXPLICIT.search(text) or (
         _RELATIVE_UNIT.search(text) and (_COMPARATIVE.search(text) or _ANCHOR.search(text))
     ):
         return "relative"
-    joined = r"和|与|跟|及|加|\band\b|\bof\b|\bboth\b|\btheir\b|\bthese\b|\bthose\b"
+    joined = r"和|与|跟|及|、|(?<!再)加(?![起一在到])|\band\b|\bof\b|\bboth\b|\btheir\b|\bthese\b|\bthose\b"
     if _SUM.search(text) and (_ANCHOR.search(text) or re.search(joined, text, re.I)):
         return "sum"
     if _DIFFERENCE.search(text):
@@ -894,7 +916,7 @@ def resolve_frame_question(
     if operation in {"difference", "ratio", "relative", "share"} and len(operands) > 2:
         # (round 13, review-9 I4) a two-operand comparison of three or more targets: every pair, said as such
         request["pairwise"] = True
-    if operation == "ratio" and (claimed := claimed_check(clause)) is not None:
+    if operation in {"ratio", "share"} and (claimed := claimed_check(clause)) is not None:
         # (round 13) "大约是平安的两倍吗", "more than double …?": the ratio, and whether the stated multiple holds
         request["claimed"] = claimed
     reason = f"frame:{operation}:{metric}:{'|'.join(operand_name(item, True) for item in operands)}"
