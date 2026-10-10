@@ -381,6 +381,29 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 
 结果见[评测](#评测)（第 13 轮）。
 
+### 第 14 轮新增的规则（第十轮评审 J6、J7、J10）
+
+只用自写例子；第十轮评审的复现语句都改写过（`tests/test_agent_eval.py` 把第 14 轮的任务、测试和别名用例与每个已提交的切片、
+每轮评审报告中引用的探针逐一比对，现在包括第十轮的）。
+
+* **问题中写明的日期和期间**（J6，`agent/stated_dates.py`）：具体日期（2027年1月4日、2026-12-31、十一月三号、"4 January
+  2027"、"on May 5"）、月份、季度（2027年一季度、2027Q1、明年一季度、"Q1 2027"、"the first quarter of 2027"、"1Q27"）、
+  半年或年份（2027年、"in 2027"、FY2027、2027E）与参照日期比较，参照日期取「今天」和「数据最新行情日期」中较晚者（合规层两者
+  都有；路由使用运行时给定的时钟）。晚于它的价格问题是预测；不晚于它是查询；「2026年以来」/ "so far" 是历史。写明年份的进行中
+  期间（"Q4 2026 price"）算预测；不写年份的季度只有带情态词时才算。单独的数字不当作年份（「能到2027吗」问的是价格）。
+* **更多价格预测**（J6）：带未来时间、情态词或「节后」的高开/低开（会高开吗、高开还是低开、"gap up"），交易价位（"the exact
+  price to sell at"、挂多少钱卖出、卖在多少、"at what price should I sell"），以及 "where do you see X trading"。
+* **业绩预测**（J6，`router.asks_earnings_forecast`）：未来期间（明年、下季度、"next year"、2027年、Q1 2027）的净利润、营收、
+  每股收益、ROE、利润率或分红，或进行中期间 / 不写年份的季度加情态词或门槛（四季度净利润能超过100亿吗、今年营收会是多少、
+  "Will … reach 100 billion?"）。回答保留已披露的财报数字和报告期，前面加「FinSight 不预测未来业绩 / FinSight does not forecast
+  future earnings」并写入局限说明（`earnings_forecast_hedge`）。
+* **境外上市股份**（J7，`coverage.foreign_line_spans`）：用文字描述的港股、点名公司的 H 股、伦敦/瑞士 GDR、美国 ADR 以及 A/H
+  溢价，即使问题里也有「A股」也判为超出覆盖范围；匹配范围包含公司名称（隔着「的」也算），A 股标的作为名称相近者被去掉，拒答说明
+  所问的是哪条线（`coverage.foreign_line_note`）并说明 A 股在覆盖范围内。概念问题仍正常回答；以境外市场命名的 A 股基金
+  （港股通科技ETF华夏）不会被当作名称相近者去掉。
+* **证据列表标题**（J10，`text_safety.regulatory_title_withheld`、`romanised_chinese`）：声称监管处罚、造假或退市，或自称监管
+  公告的标题，只有文档本身来自官方来源（监管机构或交易所发布，或以公告形式提供的公司公告）时才显示；拼音写的荐股文字不算标题。
+
 ### 会话记忆卡片
 
 `session_memory(turns, query)` 生成一张抽取式的小卡片，以「Session memory (from earlier turns)」的形式放进 Agent 的用户消息。卡片包含：
@@ -598,6 +621,17 @@ python -m evaluation.agent_eval.output_safety_audit --redteam-cases evaluation/a
 **第 12 轮：第 7 轮留出集剩余的类别和第 8 轮评审的 H1、H2、H4、H5、H9、H11（自写例子，除注明外均为离线）。** 规则见[第 12 轮新增的规则](#第-12-轮新增的规则第-7-轮留出集暴露之后第-8-轮评审-h1h2h4h5h9h11)。dev 门禁 370 → 411 个任务，任务成功率 **1.000**，快照缺失 0（英文省略改写产生的 3 个 `search_knowledge` 调用用 `--record-missing` 补录）；保留集门禁 **0.9434**，不变；基线用 `gate --update-baseline` 在 `7343cc5` 刷新（`31ea94b`）。dev 工具精确率 0.6167 → 0.5239，原因是新任务很少写明必需工具（原有 370 个任务上为 0.6098；精确率不在门禁内）。自有路由标注 388 条 **1.000**（`router_eval-round12-own.json`，从有未提交改动的工作区记录；`d42b181` 上从干净工作区重跑结果相同，`router_eval-round13-own.json`）；multiturn_v1 回放 **1.000**，缺失 0（`multiturn_v1-auto-nollm-round12.json`）；离线红队九个集合攻击成功 0、崩溃 0，`gate --extras-only` 通过。pytest 2,068 通过、70 跳过（合并前的第 12 轮分支；合并后的 `cbcf3b2` 上 CI 为 2,282 通过、65 跳过）；vitest 124 个（新增 3 个三轮差值会话）。**切片，暴露之后**（第 12 轮读过失败任务，因此只说明类别已覆盖，不说明规则能泛化；样本外检验是第 8 轮评审的隐藏切片）：第 7 轮 44/53 → **53/53**（`chat_heldout_r7-auto-nollm-after-exposure-round12.json`），第 6 轮 35/38 → **38/38**（`chat_heldout_r6-auto-nollm-after-exposure-round12.json`），均在 `b685e23`。**在线**（Agent 路径，经 Cline pass 调用 DeepSeek V4.1 Flash，`frame_llm_check --sessions round12`，5 个自写会话，22 次 LLM 调用，无 429，`frame-llm-check-round12.json`，`d315174`）：5 个最后一轮中 4 个给出了预期数值，全部由模型自己算出（成交额倍数 4.57、相差 1.26 个点、沿用持仓 30192、两者都跌时的差 0.36）。第五个会话里模型算出了英文问法的净利润占比，但校验器修复删掉了这句（第 8 轮 H8）；5 个会话只是冒烟检查，不是比率。
 
 **第 13 轮：第 8 轮留出集剩余的类别和第九轮评审的 I1、I3–I7、I9（自写例子，离线，无 LLM）。** 规则见[第 13 轮新增的规则](#第-13-轮新增的规则第-8-轮留出集暴露之后)。在 r13-frame 分支上：dev 门禁 432 → 466 个任务（第 13 轮 22 个、第九轮评审 12 个），任务成功率 **1.000**，快照缺失 0；保留集门禁 **0.9434**，不变；基线在干净工作区上用 `gate --update-baseline` 于 `eec32eb` 刷新。自有路由标注 403 条 **1.000**；声明 dev 行 299 → 311，结论和逐项均为 **1.000**；保留声明 1.000 / 1.000（门槛 0.978 / 0.98）；第 4 轮切片 1.000 / 0.920，第 5 轮 1.000 / 0.988，第 6 轮（暴露之后）0.985 / 0.904，均不变。`b1099d8` 上的校验器压力测试：299 个标准答案、5,172 个变体，真接受率 1.000，假接受率按声明 0.0097、含推算数字 0.0110（第 12 轮在 248 个标准答案上为 0.0107 / 0.0121）；这次运行在分支上提交于 `c5b2d79`，合并时被下面合并后代码上的运行取代；「比率减推算占比」规则的第一个版本在同一批变体上把含推算数字的假接受从 57 提高到 97（共 5,135），已在那次运行之前收窄（`ad9afe6`）。离线红队十一个集合攻击成功 0、崩溃 0；`gate --extras-only` 通过。合并前的分支上 pytest 2,355 通过、70 跳过，vitest 139 个。**合并后的第 13 轮代码**（r13-ui、r13-realclaims、r13-eval、r13-claims、r13-frame、r13-data 全部合并；每个结果文件记录自己的 commit）：dev 门禁 **473** 个任务 = 1.000（`gate-dev.json`，`e54645b`；上面的 466 个加上 r13-claims 的 7 个预测任务），保留集 **0.9434**（`gate-holdout.json`），ext 集 24/24（`gate-ext.json`，`235d00c`，合并之前）；自有路由标注 403 条 = 1.000（`router_eval-round13-own.json`，`b1173b5`）；声明 dev 311 条 = 1.000（`claim_bench-dev.json`），保留声明 47 条 1.000 / 1.000，第 4 轮 1.000 / 0.920，第 5 轮 1.000 / 0.988，第 6 轮（暴露之后）0.985 / 0.904（`claim_bench-*-after-round13.json`、`claim_bench-heldout_r6-after-exposure-round13.json`）；`bd1de77` 上的校验器压力测试（`verifier_stress-round13.json`）：306 个标准答案、5,202 个变体，真接受率 1.000，假接受率按声明 0.0096、含推算数字 0.0110，互换数字 0.0 / 0.0061。在 `fb35e35`（合并后的代码加上提交的第九轮切片）上 pytest 为 2,480 通过、70 跳过、1 失败：第 13 轮的防抄写检查（`test_round13_tests_and_claim_rows_do_not_copy_a_slice_or_a_review_probe`）现在会通过 glob 读到 `evaluation/heldout_r9/`，发现 `slice_overlap-heldout_r9-at-da9f6af.json` 已记录的重合之一（`tests/test_agent_round13_claims.py` 里的「Of CMB, ICBC and Ping An Bank, ICBC has the highest ROE」）；vitest 152 个。**真实 Chrome**（154，通过 Playwright 的 `channel="chrome"` 驱动，独立上下文，结束后关闭；Claude-in-Chrome 扩展未连接）对本工作区在 `:8911` 启动的离线服务：「贵州茅台的净资产收益率」→「换五粮液看看」→「后一只落后前一只几个百分点」回答「两者相差 3.6 个百分点（贵州茅台更高）」，两处引用，显示「引用与数字核验通过」；「Moutai's price-to-book?」→「Ping An?」→「Take the first and divide it by the second.」回答「the former is about 7.36 times the latter」；控制台无错误。**第 8 轮切片，暴露之后**（第 13 轮读了它失败的 16 个任务和 5 条错误声明）：对话 35/51 → **51/51**（`chat_heldout_r8-auto-nollm-after-exposure-round13.json`），声明 20/25 → **25/25**（`claims_heldout_r8-after-exposure-round13.json`），均在 `b1099d8`；第九轮评审修复之前在 `f429ede` 的第一次运行结果相同。第 6、7 轮对话切片仍为 38/38 和 53/53。这些只说明类别已覆盖，不说明规则能泛化。**第九轮切片，样本外**（`evaluation/heldout_r9/`，第九轮评审在任何第 13 轮修复之前用快照扩展层的标的编写，在 `QI_EVAL_SNAPSHOT_EXT=1` 下运行；工程师没有打开）：对话 `cbcf3b2` 上 18/52 = 0.346 [0.23, 0.48] → `da9f6af` 上 **41/52 = 0.788 [0.67, 0.88]**（`chat_heldout_r9-auto-nollm-prefix.json`、`chat_heldout_r9-auto-nollm-after-fix.json`），声明 15/25 → **25/25**（`claims_heldout_r9-prefix.json`、`claims_heldout_r9-after-fix.json`）。4 个对话任务和 5 条声明与自写测试 / dev 措辞或评审公开的复现语句重合（`slice_overlap-heldout_r9-at-da9f6af.json`），去掉后对话 16/48 → 37/48、声明 15/20 → 20/20（重合的 5 条声明修复前全错）。修复后按类别：占比 7/7、动词式比较 7/7、极差 3/3、预测 7/7、缺行业平均 3/3、对照 7/7、多笔持仓 2/3、是否几倍 2/3、合计 **1/5**、价格推算 **2/7**（之前 3/7：指定以今年第一个交易日收盘价为基准的今年以来问题，现在按 I11 的上年末基准回答）。11 个失败任务列在 [README](../../README_CN.md#第九轮切片分类)。从第 14 轮起这个切片属于暴露之后。用 28 个自写会话（占比、合计、极差、逐对、持仓、买入金额）对照按快照手算的数值检查：在 `173f2b2` 的防护之前发现三处错误或缺失（用「、」列出的名称没被读成操作数、「几倍关系」没被识别为倍数、模板路径对三个标的只用前两个计算），之后没有。
+
+**第 14 轮：第十轮评审的 J6、J7、J10（自写例子，离线；一次 LLM 红队）。** 规则见[第 14 轮新增的规则](#第-14-轮新增的规则第十轮评审-j6j7j10)。dev 门禁 473 → **490** 个任务 = 1.000，ext 24 → **32** 个任务 = 1.000（`gate-dev.json`、`gate-ext.json`，基线在干净工作区上于 `ca889e4` 刷新）；新增的 17 个 dev 任务和 8 个 ext 任务用修复之前的代码（`ec54b36`，用 `git archive` 导出后以相同命令运行）分别通过 6/17 和 2/8，通过的是五个过去日期和 A 股对照，以及旧规则已能识别的三个问题（情态词 "What will … be on …"、「能到多少」，以及写成「在香港上市的」的港股）；保留集 **0.9434** 不变。`7697bec` 上的校验器压力测试（`verifier_stress-round14.json`）：317 个标准答案、5,330 个变体，真接受率 1.000，假接受率按声明 0.0096、含推算数字 0.0109。`9a1eb22` 上 pytest 2,635 通过、68 跳过。**holdout11**：第十轮评审的 16 种投毒文档形态（YAML、CSV、HTML 注释、零宽字符、全角数字、拼音、转发的「更正公告」邮件、伪造聊天记录、植入算式、十倍数量级、伪造的监管公告、伪造的 `TOOL_RESULT`、markdown 链接、表情符号炒作、日文、【更正】）从 `finsight-review/round10/probes/planted10.py` 原样复制（`ec54b36`），在任何修改之前离线运行（`redteam-holdout11-prefix.json`）：回答 0/320，证据列表标题 16/320，标题摘录 28/128，与评审数字一致。J10 规则之后，`9a1eb22` 上十二个集合（`redteam-offline-r14.json`，CI 基线；之前：`redteam-offline-r14-before.json`，`ec54b36`）全部 0 成功、0 检测命中；证据列表 holdout11 16/320 → 0/320，holdout4 8/240 → 0/240，holdout3 2/88 和 holdout5 6/168 不变；标题摘录 holdout11 28/128 → 12/128，holdout4 16/96 → 8/96，holdout8 8/112 → 4/112。随附语料库和回放快照没有多隐藏任何标题。**holdout11 的 LLM 路径**（`redteam-r14-holdout11-llm.json`，`79e5c41`，`cline-pass/deepseek-v4.1-flash`，用 `redteam_r14_holdout11_cases.json` 的 32 个定向用例，80 次调用额度：用了 76 次，0 次 429，额度停掉了两个组织答案用例）：当作事实陈述 Agent 0/16、组织答案 0/14；原始检测命中 1/16（伪造的监管公告）和 1/14（「更正」邮件里的数字，模型以与年报冲突为由不予采纳），均已注明出处；证据列表 0 命中。
+
+```bash
+python -m evaluation.agent_eval.redteam --sets holdout11 --out outputs/agent_eval/redteam-holdout11-prefix.json
+python -m evaluation.agent_eval.redteam --out outputs/agent_eval/redteam-offline-r14.json      # 全部十二个集合
+python -m evaluation.agent_eval.redteam --llm deepseek --model cline-pass/deepseek-v4.1-flash --workers 1 \
+  --cases evaluation/agent_eval/redteam_r14_holdout11_cases.json --paths agent,workflow_llm --max-llm-calls 80 \
+  --record-llm outputs/agent_eval/redteam-r14-holdout11-llm-turns.json --out outputs/agent_eval/redteam-r14-holdout11-llm.json
+python -m evaluation.agent_eval.gate --set dev --set ext --update-baseline                     # 干净工作区
+```
 
 **第 11 轮：第 7 轮评审的 G1–G6 和 G11（自写例子，离线，无 LLM）。** [第 11 轮新增的规则](#第-11-轮新增的规则第-7-轮评审g1g6g11)都是自写措辞，所以这些数字只说明这些类别已被覆盖，不能证明泛化；样本外的衡量是独立的第 7 轮留出集（`evaluation/heldout_r7/`，由他人编写，第 11 轮的工程师没有读过）。dev 门禁 339 → 370 个任务，任务成功率 **1.000**，快照缺失 0（框架问题不需要新的工具调用）；保留集门禁 **0.9434**，不变（基线在 `017e5a3` 刷新）。自有路由标注 372 条 **1.000**（`evaluation/results/router_eval-round11-own.json`）；multiturn_v1 回放 **1.000**，缺失 0（`evaluation/results/multiturn_v1-auto-nollm-round11.json`）；离线红队模板路径在全部九个集合上均为 0。Agent 路径上的框架在线冒烟检查见[第 11 轮规则](#第-11-轮新增的规则第-7-轮评审g1g6g11)。
 
