@@ -53,7 +53,7 @@ RATE_LIMIT_CHECK = "ablation-test_v2-deepseek-agent-w3"
 OFFLINE = "ablation-offline"  # deterministic paths on all sets at the current evaluation commit
 VARIANCE_RUNS = ("ablation-online-deepseek-v4.1-flash", "ablation-online-v1", "ablation-final")
 PROMPT_AB = ("ablation-online-v1", "ablation-online-v2")
-GATE_RUNS = ("gate-dev", "gate-holdout")
+GATE_RUNS = ("gate-dev", "gate-holdout", "gate-ext")  # gate-ext: snapshot extension on, no replay (round 13)
 TEST_V3 = ("test_v3-auto-nollm-first-run", "ablation-test_v3-purellm-deepseek")
 MULTITURN = (
     "multiturn_v1-auto-nollm-first-run",
