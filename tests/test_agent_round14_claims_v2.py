@@ -8,8 +8,8 @@ sentences. Values from the shipped default data (v1 + the 2026-09-30 extension +
 * daily bars from the extension's history: 中芯国际 2026-04-22 close 107.87, +0.3815%, 成交额 40.23亿, volume
   37,521,674 shares; 比亚迪 2026-04-22 close 101.62, +0.0886%; 宁德时代 2026-09-29 close 286.8, -1.7775%
 * 平安银行 total market value 2245.26亿 at the 2026-09-30 close (valuation date 2026-09-30)
-* net profit (亿): 工商银行 3685.62 (YoY 1.041%), 长江电力 345.03, 宁德时代 722.01 (YoY 42.18%); revenue 宁德时代 4237.02
-  (YoY 17.04%), 比亚迪 8039.65 (YoY 3.46%); 扣非: 比亚迪 294.46, 美的集团 412.67
+* net profit (亿): 工商银行 3685.62 (YoY 1.041%), 长江电力 345.03, 宁德时代 722.01 (YoY 42.18%); revenue 宁德时代
+  4237.02 (YoY 17.04%), 比亚迪 8039.65 (YoY 3.46%); 扣非: 比亚迪 294.46, 美的集团 412.67
 """
 
 from __future__ import annotations
@@ -225,7 +225,8 @@ def test_bao_and_baoshou_are_the_close(checker, claim):
 
 
 @pytest.mark.parametrize(
-    "claim", ["和2024年相比，比亚迪营收增长约3.5%", "比亚迪营收较 2024 年增长约3.5%", "与2024年对比，宁德时代营收增长了17%"]
+    "claim",
+    ["和2024年相比，比亚迪营收增长约3.5%", "比亚迪营收较 2024 年增长约3.5%", "与2024年对比，宁德时代营收增长了17%"],
 )
 def test_the_year_compared_with_is_not_the_period(checker, claim):
     report = checker(claim)
