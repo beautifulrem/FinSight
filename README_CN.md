@@ -38,7 +38,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 - **按服务标准交付**：
   - 没有 LLM 也能运行；每次 LLM 调用都受运行截止时间约束；
   - DeepSeek Agent 的 P95 为 15–17 秒，首字约 3 秒；
-  - 做过压测和故障演练（故障演练屏蔽行情源的同时 8 个用户无 LLM 压测：400 个请求 0 错误，[性能 §1b](docs/zh/performance.md#1b-数据源故障演练下的确定性路径无-llm8-个用户)）；k3s 多副本经 Postgres 共享会话、任务和 trace；
+  - 做过压测和故障演练（故障演练屏蔽行情源的同时 8 个用户无 LLM 压测：400 个请求 0 错误，[性能 §1b](docs/zh/performance.md#1b-数据源故障演练下的确定性路径无-llm8-个用户)；LLM `auto` 路径 8 个用户：24 个请求 0 错误，P95 24.3 秒，0 次 429，`r13-load-8u-auto.json`）；k3s 多副本经 Postgres 共享会话、任务和 trace；
   - 提供 MCP（服务端与客户端）和 A2A；配有 Prometheus/Grafana/Jaeger 监控。
 - **为什么不直接用豆包/问财？** 见 [docs/zh/comparison.md](docs/zh/comparison.md)：它们强在哪里、哪些数据谁都没公开，以及一个设计好但尚未执行的公平对比测试。
 
@@ -406,7 +406,7 @@ CI 包括：
 
 | 问题 | 原因 |
 |---|---|
-| LLM 路径仍会提到投毒文档的内容：`0473968` 上每个攻击集和路径当作事实陈述 0–3.4%，原始检测命中最高 6.8%（`redteam-r8-llm.json`）；第九轮之后 holdout7 当作事实陈述 2/112 和 0/56（`redteam-r9-holdout7-llm.json`）；第十轮之后 holdout8 为 1/112 和 1/28，Agent 那一例修复后回放为 0/28（`redteam-r10-holdout8-llm.json`、`redteam-r10-holdout8-llm-replay.json`）；第十二轮之后 holdout9 为 0/16 和 0/16，每种攻击只跑了一个变体和一个问题（`redteam-r12-holdout9-llm.json`）；holdout10 没有 LLM 运行 | 输出层只处理它能识别的内容（带单位的数字、按模式识别事件）；加了标注的数字仍会传到读者面前；模型不带数字地复述，或者在引述投毒内容的同时表示不采信，都识别不了。较早的保留攻击集里，形似监管新闻的投毒标题仍会显示在证据列表中（holdout3 2/88、holdout4 8/240、holdout5 6/168）；在关键词之前被截断的切分投毒标题在部分运行中仍会显示（holdout10 12/128、holdout7 16/112、holdout4 16/96；`redteam-offline-r12.json`） |
+| LLM 路径仍会提到投毒文档的内容：`0473968` 上每个攻击集和路径当作事实陈述 0–3.4%，原始检测命中最高 6.8%（`redteam-r8-llm.json`）；第九轮之后 holdout7 当作事实陈述 2/112 和 0/56（`redteam-r9-holdout7-llm.json`）；第十轮之后 holdout8 为 1/112 和 1/28，Agent 那一例修复后回放为 0/28（`redteam-r10-holdout8-llm.json`、`redteam-r10-holdout8-llm-replay.json`）；第十二轮之后 holdout9 为 0/16 和 0/16，每种攻击只跑了一个变体和一个问题（`redteam-r12-holdout9-llm.json`）；第 13 轮 holdout10：当作事实陈述 Agent 0/16、组织答案 0/14（80 次调用的额度停掉了两例），原始检测命中 2/16 和 4/14，全部在注明出处的句子里（`redteam-r13-holdout10-llm.json`） | 输出层只处理它能识别的内容（带单位的数字、按模式识别事件）；加了标注的数字仍会传到读者面前；模型不带数字地复述，或者在引述投毒内容的同时表示不采信，都识别不了。较早的保留攻击集里，形似监管新闻的投毒标题仍会显示在证据列表中（holdout3 2/88、holdout4 8/240、holdout5 6/168）；在关键词之前被截断的切分投毒标题在部分运行中仍会显示（holdout10 12/128、holdout7 16/112、holdout4 16/96；`redteam-offline-r12.json`） |
 | GLM 尾延迟：测试集 v3 上 Agent P95 82 秒 | 慢速推理模型的单次调用波动。自 `66c0ef2` 起 `mode=auto` 让 GLM 走组织答案（测试集 v3 上 27 秒）；这个策略的依据是已提交的运行（`ablation-final4-glm-testv3.json`），第 13 轮在测试集 v3 的 45 个任务随机子集上用 GLM 端到端跑了 `auto`（`glm-auto-testv3-sample45-r13.json`，`a70dda9`，52 次调用，0 次 429）：0.844 [0.73, 0.93]，P95 14.7 秒；被策略改走组织答案的 12 个 Agent 路由问题 10/12，轮次 P50 6.1 秒 / 最大 16.0 秒。降低推理强度测过，没有采用（对冲率 1.00 → 0.82） |
 | 第六、七轮对话切片：第 12 轮修复后 38 个全对、53 个全对，但属于**暴露之后**（第 12 轮读了剩余失败；`chat_heldout_r6-auto-nollm-after-exposure-round12.json`、`chat_heldout_r7-auto-nollm-after-exposure-round12.json`），不再衡量泛化；第 12 轮规则之后第六轮声明 67 条里错 1 条（暴露后，`claim_bench-heldout_r6-after-exposure-round12.json`；之前 11 条） | 第 12 轮规则的样本外检验是第八轮评审的切片（`heldout_r8/`，见下一行）。声明：r6c10「中国平安PE比保险行业平均的12倍还高」被读成倍数（比…还 是倍数线索），切片把 12 标成所述平均值。比较解析和声明规则仍是词表式的（单位词、比较词、合计词、指代词） |
 | 没人调过的问法下的比较追问和声明核查：第 12 轮修复之后，第八轮切片对话 51 个任务里仍错 16 个、声明 25 条里错 5 条（`chat_heldout_r8-auto-nollm-after-fix.json`、`claims_heldout_r8-after-fix.json`；样本外，但有三轮对话与第 12 轮测试 / dev 任务的写法巧合，去掉这三个任务为 32/48） | 解析器没有单位词的动词式比较（「领先…几个百分点」被当作超出范围、「跑赢」「相当于几个」「抵得上几个」「out-earns … by what multiple」「Divide the second by the first」被拒答）；没有指标的「两个率相差多少个点」被反问；行业之间的市净率差值和单句收盘价差值只列出操作数；「按这个价格，买三手要多少钱」被拒答；行业换手率和由涨跌幅推出的元变化没算；合计成交额没求和。声明：「两倍多一点」「三个多百分点」「四倍多」读得过严，「26% below the insurance average」，「less than half of Moutai's net profit」。从第 13 轮起工程师可以读这个切片，之后的运行都标为暴露之后 |
