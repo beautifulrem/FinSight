@@ -447,7 +447,7 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
     },
     "none": {
         "zh": [
-            "{A}的{m}是多少",
+            "帮我查{A}的{m}数值",
             "{A}和{B}的{m}分别是多少",
             "{A}最近走势怎么样",
             "{A}、{B}的{m}各是多少",
@@ -460,7 +460,7 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "{A}的{m}去年是多少",
             "我有1000股{A}，值多少钱",
             "{A}属于哪个行业",
-            "{m}是什么意思",
+            "{m}这个指标是什么含义",
             "{A}和{B}的{m}都给我看看",
             "{A}的{m}现在多少",
             "{A}和{B}的{m}分别列一下",
@@ -473,8 +473,8 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "Show me the {m} of {A} and {B}",
             "How has {A} been trading lately?",
             "Tell me about {A} and {B}",
-            "What does {m} mean?",
-            "Should I buy {A}?",
+            "What is the meaning of the term {m}?",
+            "Is {A} worth buying at this level?",
             "List the {m} of {A}, {B} and {C}",
             "Any news on {A} and {B}?",
             "What was {A}'s {m} last year?",
