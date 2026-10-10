@@ -25,7 +25,9 @@ says which of these it is in `provenance` (`mode`, `as_of`, `fetched_at`, `fallb
 
 The shipped snapshot has two layers (next section): v1 (`data/structured_data.json`, as of
 2026-04-22) and the extension (`data/snapshot/structured_data_ext.json`, as of 2026-09-30). Each
-answer states each target's own date.
+answer states each target's own date. A corrections layer (`data/snapshot/structured_data_fix.json`,
+[below](#corrections-layer-primary-source-values-and-field-definitions)) replaces the v1 values that the
+companies' annual reports or the daily record contradict and states every figure's definition.
 
 ## Offline snapshot: v1 and the 2026-09-30 extension
 
@@ -90,6 +92,127 @@ checks for 300750.SZ, 600036.SH, 002594.SZ, 000001.SZ, 000333.SZ and 000001.SH (
 test v3 6), and three claim labels that become checkable (r5 r5c045/r5c055 on 平安银行's P/E and ROE, r6
 r6c19 on 宁德时代's P/E: 6 checks). The round-7 slice passes either way. Pinned to v1 (the default), every
 verify script prints OK.
+
+## Corrections layer: primary-source values and field definitions
+
+The v1 seed was never checked against the companies' own reports, and none of the shipped figures said
+which definition it uses. Round 13 checked every v1 figure against a primary record and adds a third
+layer, `data/snapshot/structured_data_fix.json`, that the product applies by default
+(`QI_OFFLINE_SNAPSHOT_FIX=true`; precedence **corrections > v1 seed > extension**). The seed file itself
+is unchanged.
+
+**What the v1 seed got wrong (FY2025, report date 2025-12-31).** Sources are the FY2025 annual reports
+on CNINFO (the exchanges' designated disclosure site), retrieved 2026-10-10. Every value below is quoted
+in `data/snapshot/corrections/sources.json` with the PDF URL, its sha256, the PDF page and the printed
+page.
+
+| Company | Field | v1 seed | Annual report | Where |
+|---|---|---|---|---|
+| 五粮液 000858.SZ | revenue | 1085亿 | 营业收入 405.29亿 (= 营业总收入), −54.55% | 2025年年度报告 (ann. 1225273091, 2026-04-30), p. 7 |
+| | net profit | 378亿 | 归母净利润 89.54亿, −71.89% (total 93.17亿) | p. 7; 合并利润表 p. 57 |
+| | ROE | 29.4% | 加权平均 6.89% (on period-end equity 7.47%) | p. 7 |
+| | gross margin | 76.1% | 77.54% (营业收入 − 营业成本 9,101,956,953.59 元, p. 56) | derived |
+| | EPS | – | basic = diluted 2.3068 元 | p. 7 |
+| 中国平安 601318.SH | revenue | 12180亿 | 营业收入 10505.06亿, +2.1% | 2025年年度报告 (ann. 1225038263, 2026-03-27), p. 14 (printed 10) |
+| | net profit | 1210亿 | 归母净利润 1347.78亿, +6.5% (total 1583.01亿) | p. 14; 合并利润表 p. 191 (187) |
+| | ROE | 15.2% | 加权平均 14.0% | p. 14 |
+| | EPS | – | basic 7.68 元, diluted 7.44 元 | p. 14 |
+| 贵州茅台 600519.SH | revenue, net profit | 1688.38亿, 823.20亿 | **correct**: 营业收入 1688.38亿 (营业总收入 1720.54亿), 归母净利润 823.20亿 | 2025年年度报告 (ann. 1225114741, 2026-04-17), p. 6 |
+| | ROE | 33.0% | 加权平均 32.53% (on period-end equity 33.65%) | p. 6 |
+| all three | P/E, P/B | 茅台 24.6 / 8.1, 五粮液 20.9 / 5.4, 平安 8.7 / 1.1 | 21.44 / 7.22, 43.63 / 3.26, 7.80 / 1.05 | derived: 2026-04-22 close × period-end shares ÷ FY2025 归母净利润 (÷ period-end 归母净资产) |
+
+五粮液's report also says its quarterly 2025 figures differ materially from the quarterly reports it had
+published ("公司对2025年业务模式进行梳理，基于谨慎性原则，调整2025年部分业务收入确认相关核算", p. 8).
+
+**2026-04-22 prices.** Every v1 bar was compared with a daily record (AKShare, fetched 2026-10-10; raw
+records in `data/snapshot/raw/corrections/`). For the index the record is the compiler's own
+(China Securities Index Co., `stock_zh_index_hist_csindex`), cross-checked with Sina; stocks and funds
+come from Sina's daily kline cross-checked with Tencent's (Eastmoney's kline host refused connections
+on 2026-10-10).
+
+| Instrument | v1 seed (close, change) | Daily record | Action |
+|---|---|---|---|
+| 中国平安 601318.SH | 53.61, +0.73%, 成交额 66.4亿 | 58.03, 0.00%, 33.65亿 | corrected |
+| 沪深300 000300.SH | 4005.2, +0.42% | 4799.63, +0.66%, 成交金额 6195.06亿 (CSIndex) | corrected |
+| 创业板ETF 159915.SZ | 2.465, +0.86% | 3.758, +2.09% | corrected |
+| 证券ETF 512880.SH | 1.021, +0.59% | 1.075, +0.84% | corrected |
+| 贵州茅台, 五粮液, 沪深300ETF | 1409.5, 100.64, 4.811 | same | checked, unchanged |
+
+The four corrected records also replace their 2026-04-21 bar (the seed's was wrong too). The daily change
+is computed from the previous close, as the exchanges publish it; CSIndex states its own.
+
+**Field definitions.** Every fundamentals record the layer serves carries `definitions`:
+`roe_basis` (`weighted` | `period_end`), `revenue_basis` (`营业收入` | `营业总收入`), `net_profit_basis`
+(`归母` | `total`), `eps_basis` (`basic` | `diluted`), `netprofit_yoy_basis`, `revenue_yoy_basis`, and for
+the v1 companies `gross_margin_basis`, `pe_basis`, `pb_basis`. The v1 corrections serve the report's
+headline figures (weighted ROE, 营业收入, 归母净利润, basic EPS). The extension's values are kept as
+fetched; the layer only states their definitions, each checked at build time against figures quoted
+from that company's annual report:
+
+| Company | ROE (served vs report's weighted) | revenue | net profit | EPS | net-profit YoY |
+|---|---|---|---|---|---|
+| 宁德时代 | period-end 21.42 (weighted 24.91) | 营业收入 = 营业总收入 | 归母 | basic = diluted | total (42.18; 归母 42.28) |
+| 比亚迪 | period-end 13.24 (15.31) | 营业收入 | 归母 | basic = diluted | total (−18.82; 归母 −18.97) |
+| 美的集团 | period-end 19.69 (19.70) | **营业总收入** 4585.02亿 (营业收入 4564.52亿; its YoY and gross margin are on 营业收入) | 归母 | **diluted** 5.76 (basic 5.80) | total (14.87; 归母 14.03) |
+| 紫金矿业 | period-end 27.91 (33.04) | 营业收入 | 归母 | **diluted** 1.91 (basic 1.95) | total (62.01; 归母 61.55) |
+| 中芯国际 | period-end 3.34 (3.4) | 营业收入 = 营业总收入 | 归母 | basic = diluted | 归母 (36.29) |
+| 招商银行 | period-end 11.80 (13.44) | 营业收入 | 归母 | basic = diluted | total (1.05; 归母 1.21) |
+| 平安银行 | period-end 7.73 (9.15) | 营业收入 | 归母 = total | basic = diluted | 归母 = total |
+| 工商银行 | period-end 8.68 (9.45) | 营业收入 | 归母 | basic = diluted | total (1.04; 归母 0.74) |
+| 中信证券 | period-end 9.40 (10.59) | 营业收入; YoY 28.8% vs the **restated** 2024 (17.35% vs the original) | 归母 | basic = diluted | total (37.26; 归母 38.58) |
+| 长江电力 | period-end 15.59 (15.90) | 营业收入 = 营业总收入 | 归母 | basic = diluted | total (6.13; 归母 6.17) |
+
+"Period-end" is 归母净利润 ÷ year-end 归母权益 (for the banks and 中信证券 including preferred shares and
+perpetual bonds). The round-12 README of `evaluation/real_claims_web/` called 美的's ROE weighted: its
+19.69 matches the period-end figure (19.687) and is 0.01 point from the weighted 19.70, so it is listed
+as period-end like the others.
+
+**How answers use it.** `get_fundamentals` returns `definitions` (omitted when the record has none, so
+recorded evaluation payloads are unchanged), the template writes the definition with the figure
+("ROE（加权） 6.89%", "营业总收入 4585.02 亿元", "归母净利润 89.54 亿元", "稀释每股收益 5.76 元",
+"净利润（含少数股东损益）增速 14.8694%"), a comparison adds one sentence naming each side's definition
+("口径：五粮液的ROE为加权平均，宁德时代的ROE为按期末净资产；口径不同，比较仅供参考。"), the KPI tiles show
+"ROE（加权）", "营业总收入", "归母净利润", and the provenance note names the document
+("数值依据宜宾五粮液股份有限公司2025年年度报告").
+
+**Correction protocol.**
+
+1. Only a primary record corrects a value: the company's annual report (or its summary) on CNINFO /
+   the exchange site for statements, the index compiler or an exchange-fed daily kline (two independent
+   services agreeing) for prices. Media figures are never a source.
+2. Each figure is transcribed into `sources.json` with the quoted line, the PDF page, the printed page,
+   the unit, the document URL, its sha256 and the retrieval date. `build` fails if a value is not in its
+   quote, if an extension definition does not match the quoted figures (amounts within 0.05%, ratios
+   within 0.011 points or half a unit of a one-decimal figure), or if a corrected price disagrees with
+   its cross-check source.
+3. A bar is corrected only when the record disagrees with the seed; bars that agree are listed as checked.
+4. The seed and the extension files are never edited; the layer records the hashes of both.
+
+```bash
+python -m scripts.build_snapshot_corrections fetch                  # live: daily records (AKShare)
+python -m scripts.build_snapshot_corrections build                  # offline, deterministic
+python -m scripts.build_snapshot_corrections verify                 # hashes, rebuild == committed, quotes parse
+python -m scripts.build_snapshot_corrections documents --cache DIR  # live: re-download the 13 reports, check
+                                                                    # sha256 and that every quote is on its page
+```
+
+`documents` was run on 2026-10-10: 13 documents, 109 quotes, all found on their pages (it needs `pypdf`,
+not a runtime dependency). 招商银行 is cited from its annual report summary (ann. 1225047778): the full
+report's text layer does not extract with pypdf.
+
+**Evaluation stays on the seed.** The expected numbers of the dev and held-out tasks, the independent
+slices and the replay fixtures were computed from the v1 seed, so the harness pins the layer off like the
+extension (`build_offline_service`, the task builders and the test environment;
+`QI_EVAL_SNAPSHOT_FIX=1` opts in). With it pinned, the gates and every verify script give the same
+results as before. The real-claims set `claims_web_v1` was relabelled against the corrected data in a
+separate file and re-scored (see `evaluation/real_claims_web/README.md`).
+
+**Not corrected, still unverified.** The v1 `industry_sql` rows (白酒 PE 27.3 / PB 6.2, 保险, 宽基指数,
+成长指数, 券商) and `macro_sql` values (CPI 0.8, PMI 50.6, M2 8.1, 10Y 2.31 for 2026-03) were not checked
+against a primary record; the 宽基指数 and 成长指数 rows repeat the seed's daily changes of 沪深300 and
+创业板ETF (+0.42%, +0.86%), which the daily records contradict. Live-mode fundamentals carry no
+`definitions` (in the extension's records Sina's ROE is the period-end figure and its EPS the diluted one where they
+differ, but a live payload does not say so).
 
 ## How the audit was run
 
@@ -499,6 +622,8 @@ running round gets `in_progress`. With live market data off the probe is `skippe
 | `QI_SOURCE_CROSS_CHECK` | `true` | Fetch Sina and THS fundamentals and reconcile them |
 | `QI_OFFLINE_SNAPSHOT_EXT` | `true` | Merge the snapshot extension (`data/snapshot/structured_data_ext.json`) under v1 |
 | `QI_EVAL_SNAPSHOT_EXT` | unset (off) | Let the evaluation harness see the extension (it is pinned to v1 otherwise) |
+| `QI_OFFLINE_SNAPSHOT_FIX` | `true` | Apply the corrections layer (`data/snapshot/structured_data_fix.json`) over v1 and state field definitions |
+| `QI_EVAL_SNAPSHOT_FIX` | unset (off) | Let the evaluation harness see the corrections layer (it is pinned to the v1 seed otherwise) |
 
 ## Tests
 
@@ -524,6 +649,11 @@ running round gets `in_progress`. With live market data off the probe is `skippe
   of the evaluation harness, provenance of an extension record, the 52-week range, the drawdowns (1y,
   YTD), the ex-rights jump guard, and the answers (drawdown, 52-week range, market cap, EPS, growth,
   holding value, YTD change, cross-date comparisons).
+- `tests/test_round13_snapshot_fix.py` (offline) covers the corrections layer: which seed records it
+  replaces and which it leaves, extension values kept with their definitions added, the precedence rule,
+  the offline rebuild (`verify`, which re-parses every quoted figure), the document of every correction,
+  the environment switch, the seed pin of the evaluation harness, provenance naming the annual report,
+  and the answers (definition labels, extra metrics, the comparison note, unchanged without the layer).
 - `tests/test_data_sources_live.py` hits real endpoints. It runs only with `QI_LIVE_TESTS=1` (or the
   repository's existing `QI_INTEGRATION_TESTS=1`).
 
