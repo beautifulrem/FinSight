@@ -2320,6 +2320,7 @@ low − default: task success -0.038 [-0.094, +0.000], pass^k -0.038 [-0.094, +0
 | gate-dev | `e54645b` | 473 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
 | gate-holdout | `83fdb7b` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
 | gate-ext | `235d00c` | 24 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
+| gate-shipped | `0096c6f` | 21 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
 
 ### Fault injection (overall graceful rate 1.00)
 
@@ -3106,6 +3107,7 @@ Paired comparisons (same tasks, a − b):
 | `gate-dev.json` | run | `e54645b` | 2026-10-10T13:49:33+00:00 | – | `outputs/agent_eval/gate-dev.json` (05b75d39c3d15aad) |
 | `gate-holdout.json` | run | `83fdb7b` | 2026-10-10T13:50:15+00:00 | – | `outputs/agent_eval/gate-holdout.json` (6f2b2db180b6681c) |
 | `gate-ext.json` | run | `235d00c` | 2026-10-10T12:49:32+00:00 | – | `outputs/agent_eval/gate-ext.json` (7d320765697341c0) |
+| `gate-shipped.json` | run | `0096c6f` | 2026-10-10T16:01:55+00:00 | – | `outputs/agent_eval/gate-shipped.json` (bf74663837895f6c) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |
 | `verifier_stress-round13.json` | verifier_stress | `bd1de77` | 2026-10-10T13:58:53+00:00 | – | written directly |
