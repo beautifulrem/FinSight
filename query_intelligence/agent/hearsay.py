@@ -11,7 +11,7 @@ import logging
 import re
 from typing import Any
 
-from .claim_check import check_claim
+from .claim_check import check_claim, english_label
 
 logger = logging.getLogger(__name__)
 
@@ -220,6 +220,8 @@ def _name(value: Any, zh: bool) -> str:
     text = str(value or "")
     if not zh and "+" in text:  # a sum's operands ("贵州茅台+五粮液", round 12)
         return " + ".join(_name(part, zh) for part in text.split("+") if part)
+    if not zh and "、" in text and text.endswith("平均"):  # (round 15) a mean of several companies
+        return english_label(text) or text
     return text if zh else (english_name(text) or english_display(text))
 
 

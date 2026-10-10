@@ -5,7 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from ..evidence import AgentEvidence
-from ..glossary import GLOSSARY, GlossaryEntry, lookup_concept
+from ..glossary import GLOSSARY, GlossaryEntry, entry_for_term, lookup_concept
 from .base import ToolFailure, ToolOutput, ToolSpec
 from .context import ToolContext
 
@@ -48,7 +48,9 @@ def build_explain_concept(_context: ToolContext) -> ToolSpec:
         text = args.term.strip() or args.query.strip()
         if not text:
             raise ToolFailure("invalid_arguments", "provide a term or a query")
-        entry = lookup_concept(text)
+        # (round 15) an exact headword or alias first: "扣非净利润" alone is a definition-only label, which free text
+        # matches only in a definition question
+        entry = entry_for_term(args.term) or lookup_concept(text)
         if entry is None:
             raise ToolFailure("not_found", f"'{text[:40]}' is not in the FinSight glossary")
         data = ConceptOutput(

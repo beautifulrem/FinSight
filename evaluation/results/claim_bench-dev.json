@@ -1,13 +1,13 @@
 {
  "config": {
   "claims": "evaluation/claim_bench/claims_v1.jsonl",
-  "claims_sha256": "e66c6a46e3e5b89742c136c52ec207838235c7b3869a8ad517646e34d621d52b",
+  "claims_sha256": "032018fbfee6869356b335eebf67f52398bf3a4594cd0b8f01a1a2ff3278a856",
   "set": "dev",
   "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
   "model": null,
-  "commit": "e2687bc",
-  "run_at": "2026-10-10T17:54:49+00:00",
-  "command": "python -m evaluation.claim_bench.run --set dev --out evaluation/results/claim_bench-dev.json"
+  "commit": "a02821d",
+  "run_at": "2026-10-10T22:07:34+00:00",
+  "command": "python -m evaluation.claim_bench.run --set dev"
  },
  "claims": 311,
  "checks": 359,
@@ -32,7 +32,7 @@
   },
   "contradicted": {
    "supported": 0,
-   "contradicted": 81,
+   "contradicted": 79,
    "partially_supported": 0,
    "unverifiable": 0
   },
@@ -46,7 +46,7 @@
    "supported": 0,
    "contradicted": 0,
    "partially_supported": 0,
-   "unverifiable": 37
+   "unverifiable": 39
   }
  },
  "check_status_confusion": {
@@ -58,14 +58,14 @@
   },
   "contradicted": {
    "supported": 0,
-   "contradicted": 100,
+   "contradicted": 97,
    "unverifiable": 0,
    "missing": 0
   },
   "unverifiable": {
    "supported": 0,
    "contradicted": 0,
-   "unverifiable": 33,
+   "unverifiable": 36,
    "missing": 0
   },
   "extra": {

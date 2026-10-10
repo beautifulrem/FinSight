@@ -565,7 +565,9 @@ def test_an_industry_average_after_a_bound_is_the_other_side_of_the_comparison()
     [
         ("茅台昨天成交37.9亿元", "eq", "supported", None),
         ("茅台成交额约38亿", "approx", "supported", None),
-        ("茅台成交额超过50亿", "gt", "contradicted", None),
+        ("茅台今天成交额超过50亿", "gt", "contradicted", None),
+        # (round 15) no date and no latest-session word: a figure that does not fit the latest session is unverifiable
+        ("茅台成交额超过50亿", "gt", "unverifiable", "period_mismatch"),
         ("茅台本周累计成交200亿元", "eq", "unverifiable", "multi_day"),
         ("茅台成交额37.9%", "eq", "unverifiable", "unit_mismatch"),
     ],

@@ -308,3 +308,34 @@ their verdicts would be partly or wholly unverifiable, which is what the checker
 are wrong. The seed run has no definitions, so it is unaffected (0.850).
 
 The remaining errors are classes 1, 2, 6, 7, 8 and 9 above, and class 10 in the corrected run.
+
+## Round 15: after exposure (checker changed)
+
+Round 15 changed the checker for the round-11 review's K6 list and for the third real-claims set's error classes
+([../real_claims_web_v3/README.md](../real_claims_web_v3/README.md)), with failing tests in the engineer's own wording;
+no rule was written for this set's sentences. The run measures what those general rules did here.
+
+**Runs.** Once each, on a clean tree at `a02821d`, 2026-10-10T22:05Z / 22:06Z, labels unchanged:
+`evaluation/results/claims_web_v1-after-exposure-round15.json` (seed data, first-run labels) and
+`evaluation/results/claims_web_v1-with-corrections-after-exposure-round15.json` (corrections layer, corrected labels).
+
+| | round 14 (`0dd9e1e`) | round 15 (`a02821d`) |
+|---|---|---|
+| seed data, first-run labels | 0.850 [0.75, 0.93], 51/60 | **0.850 [0.75, 0.93], 51/60** |
+| corrections layer, corrected labels | 0.783 [0.67, 0.88], 47/60 | **0.817 [0.72, 0.90], 49/60** |
+
+**Per error class** (errors at round 14 → round 15, seed run / corrections run):
+
+| class | claims | round 14 | round 15 | what changed |
+|---|---|---|---|---|
+| 1. 分别 / list pairing across metrics | w03, w40 | 2 / 2 | 2 / 1 | w40 with corrections is right now: its only unverifiable part is a definition caution (归母 growth vs total-profit YoY), which round 15 calls `supported`. On seed data "同比分别增长2.07%、6.17%" still pairs both rates with net profit; w03 still reads 毛利率 as net margin |
+| 2. absolute daily change in 元 / 点 | w04, w56 | 2 / 2 | **0 / 0** | `change_1d`: close − previous close |
+| 6. a comparand's bracketed value | w24 | 1 / 1 | 1 / 1 | not fixed |
+| 7. two metrics of one company | w02 | 1 / 1 | 1 / 1 | not fixed (a ratio of two growth rates) |
+| 8. prior-year value and gap | w07 | 1 / 1 | 1 / 1 | "比2024年的403亿" is now derived (401.81亿, supported); "少了近80亿" is still read as a net profit of 80亿 |
+| 9. exact-figure tolerance | w44, w47 | 2 / 0 | 2 / 1 | with corrections w44 is wrong again: "营业总收入1720.54亿" is `definition_mismatch` (茅台's report gives two top lines), its other part is true, so round 15 says `supported` where the label says partially |
+| 10. a named definition the corrected data does not serve | w11, w12, w15, w16, w26, w41 | – / 6 | – / 4 | w11 and w15 are right: their only unverifiable parts are definition cautions. w12, w16, w26, w41 are unchanged |
+| new | w20, w25, w59 | – | 2 / 2 | w20 (中芯国际 "營收人民幣93.27億美元"): with the 人民币 alias gone the US-dollar amount is `currency` and the growth is supported, so partially, labelled contradicted (round 14 was "right" only because 人民幣 sent the sentence to 宁德时代). w59 ("沪深300指数涨0.66%", no date): the latest session does not fit, so unverifiable under the round-15 rule, labelled contradicted. w25 (corrections): a definition caution, `supported` vs partially |
+
+Remaining errors: seed w02, w03, w07, w20, w24, w40, w44, w47, w59; corrections w02, w03, w07, w12, w16, w20, w24, w25,
+w26, w41, w44.
