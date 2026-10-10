@@ -177,24 +177,39 @@ def reset_cache() -> None:
 
 # a question that refers to several operands and asks a quantity: the only questions the fallback reads
 _SEVERAL = re.compile(
-    r"[和与跟及、]|两家|两者|二者|两只|三家|三只|三者|几家|这几|它们|他们|各家|\band\b|\bboth\b|\bthem\b|\bthey\b|"
-    r"\bthe (?:two|three|four)\b|\ball (?:three|four)\b|,",
+    r"[和与跟及、]|还是|两家|两者|二者|两只|三家|三只|三者|几家|这几|它们|他们|各家|\band\b|\bor\b|\bboth\b|"
+    r"\bthem\b|\bthey\b|\bversus\b|\bvs\b|\bthe (?:two|three|four)\b|\ball (?:three|four)\b|,",
     re.IGNORECASE,
 )
-_ASKS_QUANTITY = re.compile(r"多少|几|吗|呢|[?？]|\bhow\b|\bwhat\b|\bwhich\b|\bis\b|\bdo(?:es)?\b", re.IGNORECASE)
+_ASKS_QUANTITY = re.compile(
+    r"多少|几|吗|呢|哪|谁|更|[?？]|\bhow\b|\bwhat\b|\bwhich\b|\bwhose\b|\bis\b|\bdo(?:es)?\b", re.IGNORECASE
+)
 
 
-def fallback_operation(text: str) -> Reading | None:
-    """The classifier's operation for a question the grammar reads none in, or ``None``."""
-    if not _SEVERAL.search(text or "") or not _ASKS_QUANTITY.search(text or ""):
+def fallback_operation(text: str, *, operands: int = 0) -> Reading | None:
+    """The classifier's operation for a question the grammar reads none in, or ``None``. ``operands`` is how many
+    targets the question names (when the caller knows): two or more count as several without a list word."""
+    if not (operands >= 2 or _SEVERAL.search(text or "")) or not _ASKS_QUANTITY.search(text or ""):
         return None
     model = load_classifier()
     if model is None:
         return None
     label, probability = model.read(text)
-    if label == "none" or probability < FALLBACK_MIN:
+    if label == "none" or probability < FALLBACK_MIN or not compatible(label, text):
         return None
     return Reading(label, probability, model.top_features(text, label), "fallback")
+
+
+def compatible(label: str, text: str) -> bool:
+    """Structural preconditions the grammar's productions also have: a total compared with another value names a
+    total; a spread is not one target's own extremes ("当天最高价和最低价")."""
+    from .frame import _OWN_EXTREMES, _SUM, _SUM_WEAK
+
+    if label == "total_vs_one":
+        return bool(_SUM.search(text) or _SUM_WEAK.search(text))
+    if label == "spread":
+        return not _OWN_EXTREMES.search(text)
+    return True
 
 
 def tie_break(text: str, matched: list[str], chosen: str) -> Reading | None:

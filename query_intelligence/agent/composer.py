@@ -1824,7 +1824,8 @@ def _lots_sentences(lots: list[dict[str, Any]], close: float, data: dict[str, An
         ]
         word = "浮盈" if total >= 0 else "浮亏"
         return [
-            f"按 {as_of} 收盘价 {_px(close, data, zh)}和你给出的 {len(lots)} 笔买入成本分别计算，{name}："
+            f"按 {as_of} 收盘价 {_px(close, data, zh)}和你给出的{_GROUP_ZH.get(len(lots), '各')}笔买入成本"
+            f"分别计算，{name}："
             f"{'；'.join(parts)}；合计{word} {_num(total)} 元（{shares} 股，你给出的平均成本 "
             f"{_num(round(average, 3))} 元，约 {pct}%） [{eid}]。",
             "这是按最近收盘价计算的账面盈亏，未含佣金、印花税等交易费用和分红，不是卖出建议或投资建议。",
@@ -1835,7 +1836,8 @@ def _lots_sentences(lots: list[dict[str, Any]], close: float, data: dict[str, An
     ]
     word = "gain" if total >= 0 else "loss"
     return [
-        f"At the {as_of} close of {_px(close, data, zh)} and your {len(lots)} stated purchase costs, {name}: "
+        f"At the {as_of} close of {_px(close, data, zh)} and your {_GROUP_EN.get(len(lots), 'several')} stated "
+        f"purchase costs, {name}: "
         f"{'; '.join(parts)}; a combined paper {word} of CNY {_num(total)} on {shares} shares (your stated average "
         f"cost CNY {_num(round(average, 3))}, about {pct}%) [{eid}].",
         "This is a paper gain or loss at the last close before fees, taxes and dividends, not a recommendation to sell "

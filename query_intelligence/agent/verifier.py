@@ -682,6 +682,12 @@ def verify_answer(
             ) or (_is_amount_gap(value, scales, rounding, sentence_amounts)):
                 derived_values.append(value)
                 continue
+            if _MEAN_WORD.search(unit) and _is_amount(scales) and len(set(sentence_amounts)) >= 2:
+                # (round 15, review-11 K4) the mean of amounts, from their exact evidence values ("CNY 3.07 bn")
+                exact = list(dict.fromkeys(sentence_amounts))
+                if _is_supported(value, [sum(exact) / len(exact)], scales, rounding):
+                    derived_values.append(value)
+                    continue
             if unit_ids and _is_supported(value, known, scales, rounding, sign):
                 if value not in misattributed:
                     misattributed.append(value)
@@ -694,7 +700,9 @@ def verify_answer(
                 reference = structured_metric_values(store, claim.metric)
                 if not reference or claim.stated in unsupported or claim.stated in document_market:
                     continue
-                if claim.stated in derived_values and _COMPARISON.search(unit):
+                if claim.stated in derived_values and (
+                    _COMPARISON.search(unit) or _MEAN_WORD.search(unit) or _TOTAL_WORD.search(unit)
+                ):
                     # (round 12, H8) "五粮液 ROE 约为中国平安的 1.93 倍": a ratio of the two cited ROEs, not an ROE
                     continue
                 if not _is_supported(claim.value, reference, claim.scales, claim.rounding):

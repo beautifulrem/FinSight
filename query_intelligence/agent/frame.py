@@ -611,7 +611,7 @@ _EN_SMALL = {
 # (round 14, review-10 J4) 总计 / 共计 / 合在一块 / 加总 / "altogether" / "all told" as well
 # (round 15, review-11 K4/K10) 合并起来 / 统共 / 拢共 / 汇总 / 总额 ("净利润总额"), "collectively", "jointly", "in all"
 _SUM = re.compile(
-    r"加起来|加(?:在|到)?一(?:块|起)|合(?:在)?一(?:起|块)|合起来|合计|一共|总共|总和|之和|相加|再加上|总计|共计|加总|"
+    r"加起来|加(?:在|到)?一(?:块|起)|合(?:在|到)?一(?:起|块)|合起来|合计|一共|总共|总和|之和|相加|再加上|总计|共计|加总|"
     r"合并(?!报表|利润表|资产负债表|现金流量表|口径|财务|范围)(?:起来|计算|在一起)?|统共|拢共|汇总|(?<=[润入收额值利])总额|"
     r"\bcombined\b|\bin total\b|\btogether\b|\bsum of\b|\badd(?:ed|s)? up\b|\bput together\b|"
     r"\btotal (?:of|for)\b|\bin aggregate\b|\baltogether\b|\ball told\b|\bcollectively\b|\bjointly\b|"
@@ -736,9 +736,9 @@ _MEAN = re.compile(MEAN_SOURCE, re.IGNORECASE)
 # "Do A and B together earn more than C?", "Is C bigger than A and B combined?"; the operands on each side of the
 # anchor form the two sides (``total_vs_one``)
 _VERSUS = re.compile(
-    r"比(?!例|较|重|率|值|如|方|亚迪)|超过|高于|低于|多于|少于|大于|小于|不如|赶不上|比得上|抵得上|抵不上|"
+    r"(?<![占对相])比(?!例|较|重|率|值|如|方|亚迪)|超过|高于|低于|多于|少于|大于|小于|不如|赶不上|比得上|抵得上|抵不上|"
     r"(?:是|为|相当于)[^，。？?；;]{1,14}?的\s*(?:几|多少)倍|"
-    r"\bthan\b|\bexceed(?:s|ed|ing)?\b|\b(?:out-?earn|outsell|outstrip|surpass|beat|top)(?:s|ed|ped|ping)?\b|"
+    r"\bthan\b|\babove\b|\bbelow\b|\bexceed(?:s|ed|ing)?\b|\b(?:out-?earn|outsell|outstrip|surpass|beat|top)(?:s|ed|ped|ping)?\b|"
     r"\bcompared (?:with|to)\b|\bversus\b|\bvs\.?(?=\s)",
     re.IGNORECASE,
 )
@@ -1420,16 +1420,27 @@ def resolve_frame_question(
 
     text = strip_filler(query).strip()
     operation = frame_operation(text)
+    classified = None
+    if operation is None and not (_NOT_A_GAP.search(text) or _NET_MARGIN_SHARE.search(text)):
+        # (round 15, review-11 K4) the grammar reads no operation: with two or more targets named (or a frame of two
+        # or more), the operation classifier may read one
+        from .coverage import holding_value_request
+        from .operation_classifier import fallback_operation
+
+        several = len([e for e in listed if e.get("symbol")]) or len((latest_frame(turns) or {}).get("operands") or [])
+        if holding_value_request(text) is None and comparison_clause(text) is None:
+            classified = fallback_operation(text, operands=several)
+            operation = classified.operation if classified is not None else None
     if operation is None:
         return None
     # an alias that is an operation word ("均值" is listed as a nickname of a stock) is not an operand
     listed = [entity for entity in listed if not _OPERATION_MENTION.fullmatch(str(entity.get("mention") or ""))]
     clause = comparison_clause(text)
-    classified = None
     if clause is None:
-        from .operation_classifier import fallback_operation
+        if classified is None:
+            from .operation_classifier import fallback_operation
 
-        classified = fallback_operation(text)
+            classified = fallback_operation(text)
         clause = text
     pieces = operation_pieces(clause)
     found = _resolve_operation(text, operation, pieces[0][1] if pieces else clause, turns, listed, sectors)
@@ -1520,7 +1531,8 @@ def _resolve_operation(
 
     frame = latest_frame(turns) or {}
     known = [dict(item) for item in frame.get("operands") or []]
-    if _TRIPLE.search(clause) and len(known) < 3 and len([e for e in listed if e.get("symbol")]) < 3:
+    resolved = [e for e in listed if e.get("symbol")]
+    if _TRIPLE.search(clause) and len(known) < 3 and len(resolved) + len(unresolved_in_list(clause, resolved)) < 3:
         # "这三家谁最高" after two targets: the group reference and its count check ask which third one is meant
         return None
     named_metric = metric_of(clause)
