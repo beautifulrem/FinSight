@@ -173,3 +173,13 @@ round 13. `slice_overlap` now reads every task file and claim file; rerun at `ae
 in the ext set, failed before and passed after the fixes — and r9h_sum_en_02, whose short follow-up turn is word for
 word an ext-set turn; it failed both times) and the same 5 claims. Without them, from `task_outcomes` of the two
 committed runs: chat **16/46 → 36/46** (the review, counting 5 tasks, had 16/47 → 36/47), claims 15/20 → 20/20.
+
+**Provenance and content-level overlap (round 15, round-11 review K16).** Like the round-10 slice, the after-fix run
+read this slice from the reviewer's folder (`chat_heldout_r9-auto-nollm-after-fix.json`: `config.tasks_file =
+/Volumes/Remi/finsight-review/heldout_r9/chat_r9_heldout.jsonl`, `da9f6af`); the folder entered the repository later
+(`fb35e35`). "The engineers did not open the folder" above is their statement; nothing records file access. The
+content-level scan with the own texts read at `da9f6af` (`slice_overlap-heldout_r9-content-at-da9f6af.json`) adds,
+to the 6 text-level tasks and 5 claims, 4 chat tasks (r9h_hold_zh_01, r9h_price_zh_01, r9h_spread_en_01,
+r9h_spread_zh_02) and 5 claims (r9c02, r9c06, r9c07, r9c15, r9c16) that repeat own content in other words: chat
+**16/42 → 33/42**, claims 12/15 → 15/15. With the looser signature tier as well (15 chat tasks, 12 claims): chat
+13/37 → 29/37, claims 11/13 → 13/13.
