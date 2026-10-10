@@ -406,7 +406,7 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 
 ### 第 14 轮新增的规则（第 10 轮评审，J3、J4、J5、J8、J13、J14）
 
-第 14 轮修复第 10 轮评审用新说法找到的比较和持仓类别，全部用自写例子：20 个 dev 任务（`build_tasks._round14_tasks`，v1 快照）、12 个 ext 任务（`build_ext_tasks.round14_ext_tasks`，扩展标的）、路由标注 `route_403`–`route_413` 和 `tests/test_agent_round14_grammar.py`。不使用评审的复现语句和它的隐藏切片 `heldout_r10`；`tests/test_agent_eval.py` 把第 14 轮的任务、标注和测试字符串与每个已提交切片（严格比对，不设截止轮次）以及第 4–10 轮评审报告引用的复现语句比对（第 10 轮的列在 `_ROUND10_REVIEW_PROBES`）。
+第 14 轮修复第 10 轮评审用新说法找到的比较和持仓类别，全部用自写例子：20 个 dev 任务（`build_tasks._round14_frame_tasks`，v1 快照）、12 个 ext 任务（`build_ext_tasks.round14_frame_ext_tasks`，扩展标的）、路由标注 `route_403`–`route_413` 和 `tests/test_agent_round14_grammar.py`。不使用评审的复现语句和它的隐藏切片 `heldout_r10`；`tests/test_agent_eval.py` 把第 14 轮的任务、标注和测试字符串与每个已提交切片（严格比对，不设截止轮次）以及第 4–10 轮评审报告引用的复现语句比对（第 10 轮的列在 `_ROUND10_REVIEW_PROBES`）。
 
 **用一个小语法代替一串短语类**（J4）。比较问题读作 运算 × 操作数 × 指标：
 
