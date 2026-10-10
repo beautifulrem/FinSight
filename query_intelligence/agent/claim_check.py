@@ -27,6 +27,13 @@ evidence value of *its* target and metric. The rules are documented in ``docs/cl
   metric, no data, a unit that does not fit the metric, an amount with no unit, a forecast, a period
   other than the data's, or a multi-day move (only the daily change is available).
 
+* **Round 14 (J12).** 扣非净利润 (``profit_dedt``) and 流通市值 (``circ_mv``) are metrics of their own, never checked
+  against 归母 net profit or the total market value (unverifiable when the data lacks them); "up 42% year on year" /
+  "同比提升2个百分点" is the YoY of the metric named; a year ("for 2025", "FY2025", "2025 年") is never a value; the
+  compared side of one bound is not the subject of the next ("below CATL's but above BYD's"); a superlative may name
+  its subject first ("X的ROE在X、A、B三家中最高"); "不到 / 超过…的N倍" bounds the multiple; "高出工行三个多百分点"
+  is a difference without 比; "相当于两个半招行" is 2.5 times.
+
 The verdict is deterministic (no LLM) and every check cites the evidence id, source and as-of date (for
 P/E and P/B the valuation date when the source gives one, see ``as_of_basis``).
 """
@@ -41,6 +48,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from ..runtime_entity_assets import COLLOQUIAL_ALIASES
 from .coverage import METRICS as COVERAGE_METRICS
 from .coverage import PROFIT_GROWTH_FIELDS
 from .evidence import _NUMBER as _NUMBER_TOKEN
@@ -134,8 +142,23 @@ _METRICS: dict[str, _Metric] = {
     "net_profit": _Metric(
         ("net_profit", "n_income"),
         # "净赚800多亿", "一年赚的钱" (round 9, E8): colloquial words for the year's net profit.
+        # (round 14, J12) never the 净利润 inside 扣非净利润 / 扣非后净利润 / 扣非归母净利润 (``profit_dedt``)
         _words(
-            r"归母净利润|净利润|净利(?!率)|净赚|赚的钱|(?:一年|全年|年度?)能?赚了?|\bnet (?:profit|income|earnings)\b"
+            r"(?<!扣非)(?<!扣非后)(?<!扣非后的)(?<!扣非归母)(?<!损益后)(?<!损益后的)(?:归母净利润|净利润|净利(?!率))|净赚|赚的钱|"
+            r"(?:一年|全年|年度?)能?赚了?|\bnet (?:profit|income|earnings)\b"
+        ),
+        frozenset({_AMOUNT, _PRICE, None}),
+    ),
+    # (round 14, J12) net profit after non-recurring items: its own metric, never checked against 归母 net profit.
+    # The words are longer than net profit's, so the longer match wins where both end at the same character.
+    "profit_dedt": _Metric(
+        ("profit_dedt",),
+        _words(
+            r"扣非(?:后的?)?(?:归母)?净利润?|扣除非经常性损益(?:后的?)?(?:归母)?净利润?|扣非|"
+            r"\brecurring net (?:profit|income|earnings)\b|"
+            r"\bnet (?:profit|income|earnings) (?:excluding|ex|after(?: deducting)?|net of|before) "
+            r"(?:non-?recurring|one-off|one-time|extraordinary) (?:items|gains(?: and losses)?|profit and loss)\b|"
+            r"\bdeducted net (?:profit|income)\b"
         ),
         frozenset({_AMOUNT, _PRICE, None}),
     ),
@@ -163,7 +186,21 @@ _METRICS: dict[str, _Metric] = {
     ),
     "dividend_yield": _Metric(("dividend_yield",), _words(r"股息率|dividend yield"), _RATIO),
     "market_cap": _Metric(
-        ("total_mv", "market_cap"), _words(r"总市值|市值|market (?:cap|capitali[sz]ation|value)"), frozenset({_AMOUNT})
+        ("total_mv", "market_cap"),
+        _words(
+            r"总市值|(?<!流通)(?<!自由流通)市值|"
+            r"(?<!free-float )(?<!free float )(?<!float )(?<!circulating )market (?:cap|capitali[sz]ation|value)"
+        ),
+        frozenset({_AMOUNT}),
+    ),
+    # (round 14, J12) the value of the tradable (流通) shares: its own metric, never checked against the total.
+    "circ_mv": _Metric(
+        ("circ_mv",),
+        _words(
+            r"(?:A股)?(?:自由)?流通市值|\b(?:free[- ])?float(?:ing)? market (?:cap|capitali[sz]ation|value)\b|"
+            r"\bcirculating market (?:cap|capitali[sz]ation|value)\b|\bfree[- ]float (?:cap|value)\b"
+        ),
+        frozenset({_AMOUNT}),
     ),
     "eps": _Metric(("eps",), _words(r"每股收益|(?<![A-Za-z])EPS(?![A-Za-z])"), frozenset({_PRICE, None})),
     "debt_ratio": _Metric(
@@ -172,6 +209,8 @@ _METRICS: dict[str, _Metric] = {
     # Growth is not named by its own word: a percentage next to revenue / net profit (see _metric_for).
     "revenue_yoy": _Metric(("revenue_yoy", "or_yoy", "tr_yoy"), None, _RATIO, directional=True),
     "netprofit_yoy": _Metric(("netprofit_yoy",), None, _RATIO, directional=True),
+    # (round 14) "扣非净利润同比增长N%": no source carries it; never the growth of net profit
+    "profit_dedt_yoy": _Metric(("dt_netprofit_yoy", "profit_dedt_yoy"), None, _RATIO, directional=True),
     # Macro series (get_macro_indicators): the words are matched on the unmasked text ("M2", "10年期").
     "cpi_yoy": _Metric(
         ("metric_value",),
@@ -249,9 +288,15 @@ _MACRO_NAMES = {
 }
 # Industry snapshots (get_fundamentals' industry_sql item) name some metrics differently.
 _INDUSTRY_KEYS = {"pe_ttm": ("pe_ttm", "pe"), "pb": ("pb",), "pct_change_1d": ("pct_change", "pct_change_1d")}
-_GROWTH_OF = {"revenue": "revenue_yoy", "net_profit": "netprofit_yoy"}
-_LEVELS = {"revenue", "net_profit", "eps"}  # flows: an interim report holds a year-to-date total
+_GROWTH_OF = {"revenue": "revenue_yoy", "net_profit": "netprofit_yoy", "profit_dedt": "profit_dedt_yoy"}
+_LEVELS = {"revenue", "net_profit", "profit_dedt", "eps"}  # flows: an interim report holds a year-to-date total
 _DAILY = {"pct_change_1d", "amount"}  # one session's value: "本周" / "近5日" is a multi-day claim
+# (round 14, J12) a change against the same period a year earlier
+_YOY = re.compile(
+    r"同比|较上年|比上年|上年同期|去年同期|\bYoY\b|\by/y\b|year[- ](?:on|over)[- ]year|"
+    r"(?:from|than|versus|vs\.?|compared (?:with|to)) (?:a|the previous|the prior|last) year(?: earlier| ago| before)?",
+    re.I,
+)
 _GROWTH_WORDS = re.compile(
     r"同比|环比|增速|增幅|增长|下降|下滑|减少|\bYoY\b|year[- ]on[- ]year|\bgrowth\b|\bgrew\b", re.I
 )
@@ -340,7 +385,8 @@ _MULTI_DAY = re.compile(
 )
 _YEAR = re.compile(
     r"((?:19|20)\d{2})\s*(?:年|财年|年度)|\bFY\s*((?:19|20)\d{2})\b|"
-    r"\b(?:in|for|during)\s+((?:19|20)\d{2})\b|((?:19|20)\d{2})\s*(?:annual|fiscal|full[- ]year)",
+    r"\b(?:in|for|during)\s+((?:19|20)\d{2})\b|((?:19|20)\d{2})\s*(?:annual|fiscal|full[- ]year)|"
+    r"\bfiscal(?:\s+year)?\s+((?:19|20)\d{2})\b",
     re.I,
 )
 _PERIOD_MONTH: tuple[tuple[re.Pattern[str], str], ...] = (
@@ -474,6 +520,14 @@ _TIMES_EARNINGS = re.compile(
 )
 _METRIC_DIGITS = re.compile(r"(?<![A-Za-z])(P/?E|P/?B|ROE|EPS)(?=[-+]?\d)", re.I)
 _LETTER_UNITS = re.compile(r"(\d)(?=(?:x|X|bn|mn|tn|pct|k)(?![A-Za-z]))")
+_CURRENCY_BEFORE = re.compile(r"(?<![A-Za-z])(RMB|CNY)(?=\d)")
+# "相当于两个半招行", "差不多相当于三个半平安银行", "相当于两个比亚迪" (round 14, J12): N (and a half) of another
+# company after an equivalence verb is a multiple of its value; a duration or count after 个 is not ("两个半月").
+_N_OF_ANOTHER = re.compile(
+    r"(?P<lead>(?:相当于|等于|抵得上|顶得上|抵|顶)\s*(?:约|大约|大概|差不多|将近|接近|近|超过|不到|足足)?\s*)"
+    r"(?P<n>[一二两三四五六七八九十]|\d+)\s*个\s*(?P<half>半)?"
+    r"(?!\s*(?:半|多|月|小时|钟头|钟|星期|礼拜|交易日|工作日|季度|年|百分点|点|人|亿|万|元|倍))(?=\s*[一-鿿A-Za-z])"
+)
 _FULLWIDTH = str.maketrans("０１２３４５６７８９．％＋－", "0123456789.%+-")
 
 _CN_DIGITS = dict(zip("零〇一二两三四五六七八九", (0, 0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9), strict=True))
@@ -682,11 +736,13 @@ class _Number:
     # "茅台和五粮液成交额加起来不到50亿" (round 12, H6): the number is the total of these targets
     sum_of: list[dict[str, Any]] = field(default_factory=list)
     bound: bool = False  # the target was decided where the number was read; ``_bind_targets`` keeps it
+    yoy_unavailable: bool = False  # "ROE同比提升2个百分点": a YoY change of a metric whose prior value no source has
     cue: tuple[int, int] | None = None  # a difference's comparison word ("above" in "40 billion yuan above …")
 
 
 def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = True) -> ClaimReport:
-    nlu = service.analyze_query(claim)
+    # (round 14) the NLU reads "两个半招行" as 两个 / 半招 / 行; the company is a word of "相当于2.5倍招行"
+    nlu = service.analyze_query(_n_of_another(claim))
     targets: list[dict[str, Any]] = []
     for entity in nlu.get("entities") or []:
         listed = entity.get("symbol") and entity.get("entity_type") in {"stock", "etf", "fund", "index"}
@@ -914,6 +970,8 @@ def normalise(claim: str) -> str:
     text = _RANGE_UP.sub(lambda m: f"{m.group(1) or ''}高了", text)
     text = _A_LITTLE.sub("", text)
     text = _TIMES_AND_HALF.sub(lambda m: f"{_trim(float(_cn_number(m.group(1))) + 0.5)}倍", text)
+    # (round 14, J12) "相当于两个半招行": two and a half times the other company ("两个半月" is a duration)
+    text = _n_of_another(text)
     # (round 13) "less than half of Moutai's net profit": a share of another value is a multiple
     text = _EN_HALF_OF.sub(lambda m: f"{m.group(1)} {_EN_HALF_OF_WORDS[m.group(2).lower()]} times ", text)
     text = _EN_FRACTION.sub(lambda m: f"{0.5 if m.group(1) else 0.25} {m.group(3)}", text)
@@ -936,8 +994,17 @@ def normalise(claim: str) -> str:
     text = _TENTHS_AND_HALF.sub(lambda m: f"{_trim(float(m.group(1)) * 10 + 5)}%", text)
     text = _TENTHS.sub(lambda m: f"{_trim(float(m.group(1)) * 10)}%", text)
     text = _TIMES_EARNINGS.sub(r"\1x P/E", text)  # "trades at 8.7 times earnings" is a P/E
+    text = _CURRENCY_BEFORE.sub(r"\1 ", text)  # (round 14) "RMB72.2 billion": the number is not glued to RMB
     text = _METRIC_DIGITS.sub(r"\1 ", text)
     return _LETTER_UNITS.sub(r"\1 ", text)
+
+
+def _n_of_another(text: str) -> str:
+    """ "相当于两个半招行" → "相当于2.5倍招行" (round 14, J12)."""
+    return _N_OF_ANOTHER.sub(
+        lambda m: f"{m.group('lead')}{_trim(float(_cn_number(m.group('n'))) + (0.5 if m.group('half') else 0.0))}倍",
+        text,
+    )
 
 
 def _english_share(match: re.Match[str]) -> str:
@@ -1023,12 +1090,21 @@ def _surface_forms(target: dict[str, Any], lowered: str) -> list[str]:
         rest = lowered
         for name in found:
             rest = rest.replace(name.lower(), " " * len(name))
-        return found + ([] if target.get("sector") else _short_forms(names, rest, suffix_only=True))
+        # (round 14, J12) and its colloquial short name ("工行" next to 工商银行, "美的" next to 美的集团): the name the
+        # NLU reported is only one of the ways the claim writes the company
+        colloquial = [alias for alias in _colloquial(target) if alias in rest and alias not in found]
+        return found + colloquial + ([] if target.get("sector") else _short_forms(names, rest, suffix_only=True))
     aliases = _sector_english(str(target["name"])) if target.get("sector") else english_aliases(target.get("name"))
     english = [alias for alias in aliases if re.search(rf"\b{re.escape(alias.lower())}\b", lowered)]
     if english:
         return english  # "Moutai's P/E is higher than Wuliangye's"
     return _short_forms(names, lowered)
+
+
+def _colloquial(target: dict[str, Any]) -> tuple[str, ...]:
+    """The colloquial short names of a listed target ("工行", "招行", "美的"), from the alias table's source list."""
+    entry = COLLOQUIAL_ALIASES.get(str(target.get("symbol") or ""))
+    return entry[1] if entry and entry[0] == target.get("name") else ()
 
 
 def _short_forms(names: list[str], lowered: str, *, suffix_only: bool = False) -> list[str]:
@@ -1049,7 +1125,14 @@ def _blank(text: str) -> str:
     """Remove dates, durations and indicator parameters, keeping every character position."""
     for pattern in (*_DATE_PATTERNS, *_PARAMETER_PATTERNS):
         text = pattern.sub(lambda match: " " * len(match.group(0)), text)
-    return text
+    # (round 14, J12) a year is never a claimed value: "for 2025", "FY2025", "2025 年", "fiscal 2025" (the year itself
+    # is read from the unblanked text by ``_context``)
+    chars = list(text)
+    for match in _YEAR.finditer(text):
+        group = next(index for index in range(1, (match.lastindex or 0) + 1) if match.group(index))
+        for index in range(match.start(group), match.end(group)):
+            chars[index] = " "
+    return "".join(chars)
 
 
 def _clause_bounds(text: str, position: int, pattern: re.Pattern[str] = _CLAUSE_BREAK) -> tuple[int, int]:
@@ -1451,7 +1534,8 @@ def _stated_reference(
 
 # Round 12 (H6): a total of several targets. "茅台和五粮液成交额加起来不到50亿", "净利润合计约1200亿", "combined",
 # "together": before round 12 the number was bound to the last company named, so a false total could pass as true.
-_ADDITIVE = {"revenue", "net_profit", "amount", "market_cap"}  # levels whose sum means something
+# levels whose sum means something
+_ADDITIVE = {"revenue", "net_profit", "profit_dedt", "amount", "market_cap", "circ_mv"}
 _SUM_CUE = re.compile(
     r"合计|加起来|加在一起|加一起|加一块|加总|总共|一共|共计|总计|之和|总和|合起来|"
     r"\bcombined\b|\btogether\b|\bin total\b|\ba total of\b|\btotal(?:l?ed|l?ing)\b|\bsum of\b|\bjointly\b|"
@@ -1564,6 +1648,10 @@ _DIFF_AFTER_REFERENCE = re.compile(
 )
 _DIFF_SPREAD = re.compile(r"(?:相差|差距(?:为|是|有|达到?)?|差了|差)(?!不多)\s*" + _DIFF_LEAD + r"$")
 _DIFF_UP = {"高出", "多出", "多赚", "高", "多", "大", "贵"}
+# (round 14, J12) "高出工行三个多百分点", "领先美的约1.7个百分点": the compared side right after the cue word, the
+# number right after it (``_DIFF_NO_BI`` ends at the compared side, ``_DIFF_GAP`` runs from it to the number)
+_DIFF_NO_BI = re.compile(r"(?P<adj>高出|多出|领先|落后)\s*(?:了)?\s*$")
+_DIFF_GAP = re.compile(r"\s*" + _DIFF_LEAD)
 _DIFF_BI = re.compile(r"比|较之?|相较于?")
 # English differences (round 12, H6): "Moutai's ROE beats Wuliangye's by about 3.6 points", "Ping An's ROE trails
 # Wuliangye's by roughly 14 percentage points", "exceeded Wuliangye's by roughly 44.5 billion yuan"; and with the
@@ -1658,6 +1746,20 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
         cue_start, cue_end = clause_start + bi.start(), clause_start + bi.end()
         break
     if reference is None:
+        # (round 14, J12) "招行ROE高出工行三个多百分点": 高出 / 多出 / 领先 / 落后 right before the compared company and
+        # the number, without 比
+        for position, _target in reversed(positions):
+            if not clause_start <= position < number.start:
+                continue
+            found = _reference_at(text, position, positions)
+            cue = _DIFF_NO_BI.search(text, clause_start, position)
+            if found is None or cue is None or not _DIFF_GAP.fullmatch(text, found[2], number.start):
+                continue
+            reference, adjective = found, cue.group("adj")
+            direction = -1 if adjective == "落后" else 1
+            cue_start, cue_end = cue.start("adj"), cue.end("adj")
+            break
+    if reference is None:
         # (round 12, H6) English: "beats / trails / exceeded Wuliangye's by about 3.6 points", "is 60 billion yuan
         # below Moutai's"
         english = _english_difference(number, text, positions, clause_start)
@@ -1731,6 +1833,10 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
 
 
 _RATIO_CUE_VERBS = {"是", "为", "相当于", "等于", "达", "达到", "有"}  # "是/为/相当于/只有…的N倍": a multiple
+# (round 14, J12) "市净率还不到工行的1.3倍", "超过招行的1.2倍": a bound word before "X的N倍" bounds the multiple.
+# (Round 10 read "不到行业均值的2倍" as the average the claim states; the comparison words 低于 / 高于 stay ambiguous:
+# "低于五粮液的20倍" is still read as 五粮液's stated P/E.)
+_RATIO_CUE_VERBS |= {"不到", "不足", "不及", "超过", "超出", "至少", "至多", "最多"}
 
 
 def _share_values(claim: str) -> set[float]:
@@ -2004,6 +2110,19 @@ def _metric_for(
             metric = _GROWTH_OF[base]  # "净利润850亿元，同比增长15%"
         elif number.unit_class == previous.unit_class and number.unit_class in _METRICS[prior].units:
             metric = prior  # "茅台市盈率24.6倍，五粮液20.9倍"
+    if number.unit_class == _PERCENT and _YOY.search(clause):
+        # (round 14, J12) "up 42% year on year", "同比提升2个百分点": the year-on-year change of the metric the claim
+        # names (its clause, else the previous number's), never a daily move or the metric's own level
+        named = [name for _distance, name in found if name != "pct_change_1d"]
+        base = named[0] if named else (previous.metric if previous is not None else None)
+        if base in _GROWTH_OF:
+            metric, number.unit_mismatch = _GROWTH_OF[base], False
+        elif base in _GROWTH_OF.values():
+            metric, number.unit_mismatch = base, False
+        elif base is not None and not _METRICS[base].macro and base != "pct_change_1d":
+            metric, number.unit_mismatch, number.yoy_unavailable = base, False, True
+        elif metric == "pct_change_1d":
+            metric = None  # "同比上涨10%" with nothing named: not a daily move
     number.metric = metric
 
 
@@ -2026,11 +2145,15 @@ def _context(number: _Number, norm: str, clause_start: int, clause_end: int, pla
         else:
             number.reasons.append(("multi_day", "a multi-day turnover; only the latest session's is available"))
         return
+    if number.yoy_unavailable:
+        note = f"a year-on-year change of {number.metric}; the sources carry this period's value only"
+        number.reasons.append(("growth_unavailable", note))
+        return
     if number.unit_mismatch:
         unit = number.unit or "?"
         number.reasons.append(("unit_mismatch", f"the unit '{unit}' does not fit {number.metric}"))
         return
-    if number.metric in {"revenue", "net_profit", "market_cap"} and number.unit_class is None:
+    if number.metric in {"revenue", "net_profit", "profit_dedt", "market_cap", "circ_mv"} and number.unit_class is None:
         number.reasons.append(("no_unit", "an amount without a unit (亿/万/billion)"))
         return
     # The year named in the number's clause, else earlier in its sentence ("2025年营收1741亿，净利润850亿").
@@ -2222,13 +2345,16 @@ def _relation_at(
     ref_key = ref_target["key"] if ref_target else None
     # (round 13, I8) a target named as the compared side of an earlier clause ("低于白酒行业平均，但市净率高于行业
     # 平均") is not the subject of a later one: the subject carries over the contrast
-    subjects = [
-        target
+    named = [
+        (position, target)
         for position, target in positions
-        if sentence_start <= position < start
-        and target["key"] != ref_key
-        and not (position < clause_start and _COMPARED_SIDE.search(text, max(0, position - 8), position))
+        if sentence_start <= position < start and target["key"] != ref_key
     ]
+    compared = {position for position, _target in named if _compared_side(text, position)}
+    subjects = [target for position, target in named if not (position < clause_start and position in compared)]
+    # (round 14, J12) "比亚迪的市净率高于美的集团但低于宁德时代": the compared side of the first bound is not the
+    # subject of the second, in the same clause too, when another target is named before it
+    subjects = [target for position, target in named if position not in compared] or subjects
     if not subjects:
         return None
     # The comparator: the cue word ("高于"), else the adjective after the reference ("比五粮液高").
@@ -2440,6 +2566,11 @@ _SUPERLATIVE_EN = re.compile(
 )
 _SUPERLATIVE_HIGH = {"高", "大", "贵", "highest", "largest", "biggest", "priciest", "most expensive"}
 _SUBJECT_AFTER = re.compile(r"\s*(?:的)?\s*(?:是|为|属|当属|要数|就是)\s*|\s+(?:is|was|belongs to)\s+", re.I)
+# (round 14) between a subject named first and the first company of the compared set: "的ROE在", "是", "在"
+# (the subject's own short name may open the set unrecognised: "紫金矿业的ROE在紫金、美的、宁德时代三家中最高")
+_SUBJECT_THEN_SET = re.compile(
+    r"\s*(?:的)?\s*[^，,。；;！!？?＠、和与及]{0,12}?\s*(?:在|是|为)\s*(?:(?P<own>[一-鿿]{2,4})\s*[、和与及]\s*)?"
+)
 
 
 def _superlatives(text: str, plain: str, positions: list[tuple[int, dict[str, Any]]]) -> list[_Number]:
@@ -2455,8 +2586,14 @@ def _superlatives(text: str, plain: str, positions: list[tuple[int, dict[str, An
             for position, target in positions
             if sentence_start <= position < sentence_end and not target.get("sector") and target.get("key")
         ]
-        before = [target for position, target in companies if clause_start <= position < match.start()]
-        subject = before[-1] if before else None
+        placed = [(position, target) for position, target in companies if clause_start <= position < match.start()]
+        subject = placed[-1][1] if placed else None
+        gap = text[placed[0][0] : placed[1][0]].lstrip("＠") if len(placed) >= 2 else None
+        first = _SUBJECT_THEN_SET.fullmatch(gap) if gap is not None else None
+        if first is not None and (not first.group("own") or first.group("own") in str(placed[0][1].get("name"))):
+            # (round 14, J12) the subject first, then the compared set: "紫金矿业的ROE在紫金、美的、宁德时代三家中最高",
+            # "招行是招行、工行、平安银行三家里ROE最高的"
+            subject = placed[0][1]
         if subject is None:
             after = _SUBJECT_AFTER.match(text, match.end())
             index = after.end() if after else -1
@@ -2588,7 +2725,18 @@ def _relation_metric(text: str, cue_start: int, cue_end: int, start: int, end: i
     return found[0][1] if found else None
 
 
-_COMPARED_SIDE = re.compile(r"(?:比|高于|低于|大于|小于|超过|不及|不如|跑赢|跑输|than)\s*(?:了|过|the|its)?\s*$", re.I)
+# (round 14, J12) and the English bound words: "below CATL's but above BYD's" names CATL and BYD as compared sides
+_COMPARED_SIDE = re.compile(
+    r"(?:比|高于|低于|大于|小于|超过|不及|不如|跑赢|跑输|\bthan|\babove|\bbelow|\bunder|\bexceeds?|\bexceeded|"
+    r"\btrails?|\btrailed|\bbeats?|\boutperform(?:s|ed)?|\bunderperform(?:s|ed)?|\blags?|\blagged|\bbehind|"
+    r"\bahead of)\s*(?:了|过|the|its)?\s*$",
+    re.I,
+)
+
+
+def _compared_side(text: str, position: int) -> bool:
+    """The target at ``position`` is written as the compared side ("比五粮液", "高于茅台", "below CATL's")."""
+    return _COMPARED_SIDE.search(text, max(0, position - 20), position) is not None
 
 
 def _bind_targets(
@@ -2601,9 +2749,7 @@ def _bind_targets(
     placed = {id(target) for _position, target in positions}
     unplaced = [target for target in targets if id(target) not in placed]
     # Targets named only as the compared side ("比五粮液", "高于茅台"): not the subject of a later clause (round 10).
-    compared = {
-        position for position, _target in positions if _COMPARED_SIDE.search(text, max(0, position - 8), position)
-    }
+    compared = {position for position, _target in positions if _compared_side(text, position)}
     for number in numbers:
         if number.bound:
             continue  # a sum's first operand, a framed average's company (round 12)
@@ -2813,6 +2959,9 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
     if found is None:
         if number.metric in _UNAVAILABLE:
             return base.model_copy(update={"reason": "no_data", "note": _UNAVAILABLE[number.metric]})
+        if number.metric == "profit_dedt_yoy":
+            note = "no source carries the year-on-year growth of 扣非净利润; it is not compared with net profit growth"
+            return base.model_copy(update={"reason": "growth_unavailable", "note": note})
         if number.metric in {"revenue_yoy", "netprofit_yoy"}:
             note = "the fundamentals source has no year-on-year growth for this item"
             return base.model_copy(update={"reason": "growth_unavailable", "note": note})
@@ -2858,6 +3007,11 @@ _UNAVAILABLE = {
     "max_drawdown": "maximum drawdown claims are not checked: a drawdown depends on its window, which a claim rarely "
     "states; the chat answer gives the 52-week and year-to-date drawdowns when the price history covers them",
     "market_cap": "the sources carry no market cap for this target",
+    # (round 14, J12) never answered with the neighbouring field (归母 net profit, total market value)
+    "profit_dedt": "the fundamentals source has no net profit after non-recurring items (扣非净利润) for this target; "
+    "it is not compared with net profit attributable to shareholders",
+    "circ_mv": "the sources carry no free-float (流通) market value for this target; it is not compared with the total "
+    "market value",
     "peg": _COVERAGE_METRICS["peg"].needs_en,
 }
 
@@ -3239,7 +3393,7 @@ def _as_of(item: AgentEvidence, metric: str) -> tuple[str | None, str | None]:
     if _METRICS[metric].macro:
         indicator_date = payload.get("metric_date") or item.as_of
         return (str(indicator_date) if indicator_date else None), "indicator_date"
-    if metric in {"pe_ttm", "pb", "dividend_yield", "market_cap"}:
+    if metric in {"pe_ttm", "pb", "dividend_yield", "market_cap", "circ_mv"}:
         provenance = payload.get("valuation_provenance")
         valuation_date = payload.get("valuation_date") or (
             provenance.get("as_of") if isinstance(provenance, dict) else None

@@ -125,6 +125,7 @@ def test_two_bounds_split_by_but_check_both_halves_of_the_subject(checker, claim
         ("工商银行的ROE在工行、招行和平安银行三家里最高", "工商银行", "contradicted"),
         ("平安银行是平安银行、招商银行、工商银行中市盈率最低的", "平安银行", "supported"),
         ("招行是招行、工行、平安银行三家里ROE最高的", "招商银行", "supported"),
+        ("宁德时代的市盈率在宁德、比亚迪、美的集团三家中最低", "宁德时代", "contradicted"),  # 美的 13.77 is lower
     ],
 )
 def test_a_superlative_with_the_subject_named_first(checker, claim, subject, verdict):
