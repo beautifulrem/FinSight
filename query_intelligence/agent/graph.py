@@ -55,6 +55,9 @@ from .coverage import (
     coverage_gaps,
     flow_gaps,
     foreign_equity_spans,
+    foreign_line_kind,
+    foreign_line_note,
+    foreign_line_spans,
     holding_value_request,
     out_of_coverage,
     out_of_coverage_text,
@@ -408,7 +411,7 @@ class AgentRuntime:
         nlu, override_reasons = apply_finance_overrides(nlu, query)
         # the user's words and the resolved question: "为什么？" rewritten to "贵州茅台为什么涨" keeps its why style
         nlu, style_reasons = correct_question_style(nlu, f"{state['query']} {query}")
-        if holding_value_request(query) and not asks_prediction(without_holding_value(query)):
+        if holding_value_request(query) and not asks_prediction(without_holding_value(query), as_of=self.today()):
             # (round 11, G5) "我有1000股…值多少钱": arithmetic on the close, whatever the classifier reads as advice
             flags = [flag for flag in nlu.get("risk_flags") or [] if flag != "investment_advice_like"]
             nlu = {**nlu, "question_style": "fact", "risk_flags": flags}
@@ -469,7 +472,7 @@ class AgentRuntime:
             if not listed_entities(nlu) and not has_finance_content(query):
                 # Nothing financial is left once the injected instructions are removed.
                 decision = decision.model_copy(update={"route": "refuse"})
-            elif decision.route == "clarify" and asks_prediction(query):
+            elif decision.route == "clarify" and asks_prediction(query, as_of=self.today()):
                 # (round 10, F14) what is left asks for a market prediction and names no target ("…明天哪只会涨停"):
                 # asking "which stock?" would invite the very prediction the guard refuses, so the injection decides
                 decision = decision.model_copy(update={"route": "refuse"})
@@ -502,6 +505,9 @@ class AgentRuntime:
         # A fuzzy match is a guess at a misspelt name, and an advice phrase can be a company alias (值得买); next to a
         # crypto or foreign asset ("比特币ETF" -> 酒ETF鹏华) neither names an A-share target.
         coverage = None if listed_entities({"entities": _named_targets(nlu, query)}) else outside
+        if outside == "foreign_equity" and coverage is None and foreign_line_spans(state["query"]):
+            # (round 14, J7) "中国平安A股和H股分别多少": the A-share target is answered, the foreign line is not
+            reasons.append(f"foreign_line_not_covered:{foreign_line_kind(state['query'])}")
         if coverage:
             named = _named_targets(nlu, query)
             guessed = [
@@ -650,7 +656,7 @@ class AgentRuntime:
         if stray:
             nlu = {**nlu, "entities": [entity for entity in nlu.get("entities") or [] if entity not in stray]}
             reasons.extend(f"frame:dropped_non_operand:{entity.get('canonical_name')}" for entity in stray)
-        if not asks_prediction(query):
+        if not asks_prediction(query, as_of=self.today()):
             # a computed comparison, whatever the style classifier reads into the rewritten wording ("advice")
             flags = [flag for flag in nlu.get("risk_flags") or [] if flag != "investment_advice_like"]
             if nlu.get("question_style") != "compare" or flags != list(nlu.get("risk_flags") or []):
@@ -793,14 +799,10 @@ class AgentRuntime:
                 )
             )
             if lookalikes and asks_h_share(state["query"]):
-                # (round 11, G6) "中国平安H股": the H share is not covered and is never answered with the A-share price
+                # (round 11, G6) "中国平安H股": the H share is not covered and is never answered with the A-share price;
+                # (round 14, J7) the same for a GDR, an ADR and the A/H premium, each named in the note
                 names = "、".join(lookalikes) if zh else ", ".join(english_name(name) or name for name in lookalikes)
-                text += (
-                    f"所问的是 H 股（香港上市的股份）；{names}在 A 股上市的股份在覆盖范围内，如需 A 股数据请直接询问。"
-                    if zh
-                    else f" The question asks for the H shares (the Hong Kong line); {names}'s A shares are covered, "
-                    "so ask about the A shares directly if that is what you need."
-                )
+                text += foreign_line_note(state["query"], names, zh=zh)
         elif injection:
             text = (
                 "我不能按照这类指令改变设定或透露内部配置。如果有金融问题，请直接提问，例如「比亚迪的市盈率是多少？」。"
@@ -1633,14 +1635,19 @@ def _asked_metrics(state: AgentState) -> list[str]:
     """Frame metric keys the question asks about ("roe", "pe", "net_margin", ...): the frame request's first.
 
     (round 13, I15) None for a forecast ("宁德时代下周五收盘会在多少"): the answer gives historical data only, so the UI
-    must not mark the latest close or the last reported figure as the metric the user asked about.
+    must not mark the latest close or the last reported figure as the metric the user asked about; since round 14
+    (J6) also a stated future date and an earnings forecast ("明年净利润会是多少").
     """
     from .frame import metric_mentions
-    from .router import asks_price_forecast
+    from .router import asks_earnings_forecast, asks_price_forecast
 
     style = str((state.get("nlu") or {}).get("question_style") or "")
     queries = [str(state.get("query") or ""), str(state.get("effective_query") or "")]
-    if style == "forecast" or any(asks_price_forecast(text) or _FUTURE_TIME.search(text) for text in queries if text):
+    if style == "forecast" or any(
+        asks_price_forecast(text) or asks_earnings_forecast(text) or _FUTURE_TIME.search(text)
+        for text in queries
+        if text
+    ):
         return []
     asked = [str((state.get("frame_request") or {}).get("metric") or "")]
     asked += metric_mentions(state.get("effective_query") or state.get("query") or "")
@@ -1649,16 +1656,29 @@ def _asked_metrics(state: AgentState) -> list[str]:
 
 def _foreign_lookalike_notes(reasons: list[str], *, zh: bool) -> list[str]:
     """(round 11, G6) "中国平安和比亚迪电子哪个PE低": the Hong Kong / US listed name was not answered with its A-share
-    lookalike; say that only the covered part is answered."""
-    if not any(reason.startswith("foreign_listing_lookalike:") for reason in reasons):
-        return []
-    return [
-        "问题中提到的港股或美股上市公司（含 H 股）不在 FinSight 的数据范围内，未用名称相近的 A 股代替；"
-        "以上只回答 A 股部分。"
-        if zh
-        else "The Hong Kong or US listed company in the question (including H shares) is outside FinSight's data and "
-        "was not replaced by a similarly named A-share; only the A-share part is answered."
-    ]
+    lookalike; say that only the covered part is answered. (round 14, J7) Likewise a company's foreign line asked next
+    to its A shares ("中国平安A股和H股分别多少")."""
+    notes = []
+    if any(reason.startswith("foreign_listing_lookalike:") for reason in reasons):
+        notes.append(
+            "问题中提到的港股或美股上市公司（含 H 股）不在 FinSight 的数据范围内，未用名称相近的 A 股代替；"
+            "以上只回答 A 股部分。"
+            if zh
+            else "The Hong Kong or US listed company in the question (including H shares) is outside FinSight's data "
+            "and was not replaced by a similarly named A-share; only the A-share part is answered."
+        )
+    kinds = [reason.split(":", 1)[1] for reason in reasons if reason.startswith("foreign_line_not_covered:")]
+    if kinds and not notes:
+        line_zh = {"gdr": "GDR（全球存托凭证）", "adr": "ADR（美国存托凭证）", "ah": "A/H 溢价所需的 H 股行情"}
+        line_en = {"gdr": "GDR (global depositary receipt)", "adr": "ADR (American depositary receipt)"}
+        notes.append(
+            f"问题中的{line_zh.get(kinds[0], 'H 股（香港上市的股份）')}不在 FinSight 的数据范围内，未用 A 股价格代替；"
+            "以上只回答 A 股部分。"
+            if zh
+            else f"The {line_en.get(kinds[0], 'H-share (Hong Kong)')} line in the question is outside FinSight's data "
+            "and was not replaced by the A-share price; only the A-share part is answered."
+        )
+    return notes
 
 
 def _named_targets(nlu: dict[str, Any], query: str = "") -> list[dict[str, Any]]:
@@ -1687,9 +1707,30 @@ def _drop_foreign_lookalikes(
     targets = _own_targets(nlu)
     if not spans or not targets:
         return nlu, []
+    # (round 14, J7) a company's foreign line takes the name right before it ("美的集团的H股": the line pattern stops
+    # at 的, so the mention is joined to the span when only 的 or spaces separate them)
+    lines = foreign_line_spans(query)
+    for entity in targets:
+        mention = str(entity.get("mention") or "")
+        start = query.find(mention) if mention else -1
+        while start >= 0:
+            end = start + len(mention)
+            for index, (lo, hi) in enumerate(spans):
+                if (lo, hi) in lines and start < lo and end <= hi and query[end:lo].strip() in {"", "的"}:
+                    spans[index] = (start, hi)
+            start = query.find(mention, start + 1)
     blanked = "".join(" " if any(lo <= i < hi for lo, hi in spans) else ch for i, ch in enumerate(query))
     kept = {str(entity.get("symbol")) for entity in _own_targets(analyze(blanked))}
-    lookalikes = [entity for entity in targets if str(entity.get("symbol")) not in kept]
+    # (round 14) an A-share listed fund named after the market it tracks ("港股通科技ETF华夏", "港股科技ETF天弘") is the
+    # fund asked about, not a lookalike of a Hong Kong line
+    words = [query[lo:hi].strip() for lo, hi in spans]
+    funds = {
+        str(entity.get("symbol"))
+        for entity in targets
+        if entity.get("entity_type") in {"etf", "fund"}
+        and any(word and word in str(entity.get("canonical_name") or "") for word in words)
+    }
+    lookalikes = [entity for entity in targets if str(entity.get("symbol")) not in kept | funds]
     if not lookalikes:
         return nlu, []
     entities = [entity for entity in nlu.get("entities") or [] if entity not in lookalikes]
@@ -1952,11 +1993,19 @@ def _source_view(item: dict[str, Any], numbers: list[tuple[float, bool]] | None 
         # handles, instructions, advice or guarantee wording, no mixed-script homoglyphs); otherwise hidden.
         # (round 9, E4) A headline that states a figure (a number with a unit) the run's structured data does not
         # contain is hidden too: figures come from the tools, and a headline is where a planted one is shown.
-        from ..text_safety import safe_headline
+        # (round 14, J10) A headline asserting regulatory action, fraud or delisting, or claiming to be a regulator's
+        # notice, is shown only from an official source (a regulator or exchange, or a company filing).
+        from ..text_safety import regulatory_title_withheld, safe_headline
         from .output_safety import unconfirmed_figures
 
         title = str(view["title"])
-        if safe_headline(title) is None or unconfirmed_figures(title, numbers or []):
+        regulatory = regulatory_title_withheld(
+            title,
+            source_type=view.get("source_type"),
+            source_name=view.get("source_name"),
+            source_url=view.get("source_url"),
+        )
+        if safe_headline(title) is None or regulatory or unconfirmed_figures(title, numbers or []):
             view["title"] = None
             view["title_withheld"] = True
     return view

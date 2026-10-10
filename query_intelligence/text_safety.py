@@ -11,9 +11,11 @@ Two users:
   (corrections, exclusives and rumours, prices and multiples, share-capital actions, AI-addressed text; round 9: an
   insider or unnamed source "revealing" something, a Q&A transcript, a figure "restated"; round 10: a delimited data
   row, a title cut off right after a figure word; round 12: a title cut mid-clause, characters spaced out one by one,
-  a key-value record, an advertisement, figure-free audit-opinion, trading-halt and restructuring events). The
-  agent's evidence ledger additionally hides a headline that states a figure the run's structured data does not
-  contain, in Arabic or Chinese numerals (``agent/graph.py``).
+  a key-value record, an advertisement, figure-free audit-opinion, trading-halt and restructuring events; round 14:
+  romanised Chinese, i.e. pinyin buy-solicitation or several multi-syllable pinyin words). The agent's evidence ledger
+  additionally hides a headline that states a figure the run's structured data does not contain, in Arabic or Chinese
+  numerals, and (round 14) a headline asserting regulatory action, fraud or delisting, or claiming to be a regulator's
+  notice, unless the document comes from an official source (``regulatory_title_withheld``; ``agent/graph.py``).
 * ``find_prohibited_promotion`` finds what must never appear in *any* answer, whoever wrote it: guaranteed-
   return claims (稳赚不赔, 保本, 保证收益), stock-tip solicitation (荐股, 带单, 喊单, 加微信, 私信, 内幕消息)
   and contact handles offered to the reader, plus (round 7) doubling-and-compensation schemes (资金翻倍，亏损全额
@@ -269,6 +271,113 @@ _OFFICIAL_SOURCE = re.compile(
 )
 
 
+# (round 14, J10) Romanised Chinese (pinyin) in a headline: buy-solicitation written without characters ("qiang lie
+# mai ru, man cang!") slips past every Chinese keyword rule. A headline is flagged when it has a pinyin trading word
+# (mai ru, man cang, quan cang, jia cang, chao di, shang che, suo ha, bi zhang, zhang ting, mu biao jia, tui jian,
+# qiang lie) or, in a title of at least 80% pinyin words, three or more words that are each two or more syllables run
+# together ("maotai shiyinglv zhiyou"); English words that happen to be one syllable ("long", "hang") and English
+# headlines with Chinese names ("Wuliangye Luzhou Laojiao baijiu sales slow") are not flagged.
+_PINYIN_ADVICE = re.compile(
+    r"\b(?:mai\s?ru|mai\s?chu|man\s?cang|quan\s?cang|jia\s?cang|jian\s?cang|qing\s?cang|chao\s?di|shang\s?che|"
+    r"suo\s?ha|bi\s?zhang|zhang\s?ting|mu\s?biao\s?jia|tui\s?jian|qiang\s?lie|wen\s?zhuan|fan\s?bei|"
+    r"gan\s?jin|ma\s?shang)\b",
+    re.IGNORECASE,
+)
+_PINYIN_INITIALS = ("zh", "ch", "sh", "b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j", "q", "x", "r", "z",
+                    "c", "s", "y", "w", "")  # fmt: skip
+_PINYIN_FINALS = (
+    "iang", "iong", "uang", "ueng", "ang", "eng", "ing", "ong", "ian", "iao", "uai", "uan", "van", "ai", "ei", "ao",
+    "ou", "an", "en", "in", "un", "vn", "ia", "ie", "iu", "ua", "uo", "ui", "ve", "ue", "er", "a", "o", "e", "i", "u",
+    "v",
+)  # fmt: skip
+_PINYIN_SYLLABLES = frozenset(
+    initial + final for initial in _PINYIN_INITIALS for final in _PINYIN_FINALS if initial or final[0] in "aoe"
+)
+
+
+def _pinyin_syllable_count(word: str) -> int:
+    """How many pinyin syllables ``word`` splits into (0 when it does not split), fewest syllables first."""
+    word = word.lower().replace("ü", "v")
+    best: list[int | None] = [0] + [None] * len(word)
+    for end in range(1, len(word) + 1):
+        for start in range(max(0, end - 6), end):
+            if best[start] is not None and word[start:end] in _PINYIN_SYLLABLES:
+                count = best[start] + 1  # type: ignore[operator]
+                if best[end] is None or count < best[end]:  # type: ignore[operator]
+                    best[end] = count
+    return best[-1] or 0
+
+
+def romanised_chinese(text: str) -> str | None:
+    """A pinyin trading word, or three or more multi-syllable pinyin words, in ``text`` (round 14, J10)."""
+    advice = _PINYIN_ADVICE.search(text)
+    if advice:
+        return advice.group(0)
+    words = re.findall(r"[A-Za-zü]{2,}", text)
+    runs = [word for word in words if len(word) >= 4 and _pinyin_syllable_count(word) >= 2]
+    # an English headline with Chinese names ("Wuliangye Luzhou Laojiao baijiu sales slow") has English words too
+    pinyin_share = sum(1 for word in words if _pinyin_syllable_count(word)) / len(words) if words else 0.0
+    return " ".join(runs[:3]) if len(runs) >= 3 and pinyin_share >= 0.8 else None
+
+
+# (round 14, J10) Regulatory action, fraud and delisting asserted by a headline: "被立案调查", "行政处罚", "警示函",
+# "财务造假", "实施风险警示", "退市", "fined", "under investigation", "delisting". Such a title is shown only when the
+# document comes from an official source (``official_document``): a regulator or exchange as the publisher, or a
+# company filing ("关于…的公告") delivered as an announcement. Naming the regulator in the title ("证监会公告：…") is
+# not a source; a headline that claims to be a regulator's notice is withheld the same way. Applied by the agent's
+# evidence ledger (``agent/graph.py``), which has the document's source; ``safe_headline`` stays a title-only check.
+_REGULATORY_ACTION = re.compile(
+    r"立案|行政处罚|处罚决定|(?:被|遭|拟)(?:证监会|交易所|监管部门|监管机构)?(?:罚款|处罚|处分|谴责|查处|调查|留置)|"
+    r"罚款|罚没|警示函|监管函|监管警示|监管措施|纪律处分|公开谴责|通报批评|责令改正|市场禁入|风险警示|\*\s*ST|"
+    r"退市|终止上市|暂停上市|涉嫌|造假|欺诈发行|内幕交易|操纵(?:股价|市场|证券)|违规担保|资金占用|"
+    r"\b(?:investigat(?:ion|ions|ed|ing)|probe[sd]?|penalt(?:y|ies)|penali[sz]ed|fined|sanction(?:s|ed)?|"
+    r"warning\s+letter|enforcement\s+action|delist(?:ing|ed)?|fraud\w*|indicted|charged\s+with|insider\s+trading|"
+    r"market\s+manipulation|special\s+treatment)\b",
+    re.IGNORECASE,
+)
+_CLAIMED_NOTICE = re.compile(
+    r"^\s*[【\[(（]?\s*(?:中国)?(?:证监会|证券监督管理委员会|银保监会|金融监管总局|人民银行|央行|上交所|深交所|北交所|"
+    r"(?:上海|深圳|北京)证券交易所|交易所|国务院|财政部)\s*(?:官方|官网)?\s*(?:公告|通报|通知|声明|决定|快讯|消息)?\s*"
+    r"[:：】\])）]|^\s*(?:CSRC|SSE|SZSE|the\s+regulator)\s*(?:notice|announcement|statement)?\s*:",
+    re.IGNORECASE,
+)
+_OFFICIAL_PUBLISHER = re.compile(
+    r"证监会|证券监督管理委员会|证券交易所|上交所|深交所|北交所|巨潮|全国股转|金融监管总局|人民银行|"
+    r"csrc\.gov\.cn|sse\.com\.cn|szse\.cn|bse\.cn|cninfo|neeq",
+    re.IGNORECASE,
+)
+_FILING_TITLE = re.compile(
+    r"关于[^，。]{1,60}的(?:提示性|进展|补充|更正)?公告|(?:公告|年度报告|半年度报告|季度报告|年报)(?:\s*[（(][^）)]*[）)])?\s*$"
+)
+
+
+def regulatory_claim(title: str | None) -> str | None:
+    """The regulatory-action, fraud or delisting wording, or the claimed regulator notice, in ``title``."""
+    folded = re.sub(r"\s+", " ", fold(INVISIBLE.sub("", title or ""))).strip()
+    match = _CLAIMED_NOTICE.search(folded) or _REGULATORY_ACTION.search(folded)
+    return match.group(0).strip() if match else None
+
+
+def official_document(
+    title: str | None, *, source_type: str | None, source_name: str | None, source_url: str | None
+) -> bool:
+    """The document comes from a regulator or an exchange, or is a company filing delivered as an announcement."""
+    if _OFFICIAL_PUBLISHER.search(f"{source_name or ''} {source_url or ''}"):
+        return True
+    folded = fold(INVISIBLE.sub("", title or "")).strip()
+    return str(source_type or "") in {"announcement", "filing"} and bool(_FILING_TITLE.search(folded))
+
+
+def regulatory_title_withheld(
+    title: str | None, *, source_type: str | None, source_name: str | None, source_url: str | None
+) -> bool:
+    """(round 14, J10) A headline asserting regulatory action, fraud or delisting, or claiming to be a regulator's
+    notice, from a document that is not an official one."""
+    return bool(regulatory_claim(title)) and not official_document(
+        title, source_type=source_type, source_name=source_name, source_url=source_url
+    )
+
+
 def _data_row(folded: str) -> str | None:
     for chunk in _THOUSANDS.sub("", folded).split():
         fields = [field for field in _ROW_DELIMITER.split(chunk) if field]
@@ -391,6 +500,10 @@ def headline_findings(title: str) -> list[Finding]:
     advert = _ADVERTISEMENT.search(folded)
     if advert:
         found.append(Finding("promotion", advert.group(0)))
+    # (round 14, J10) buy-solicitation or claims written in pinyin
+    romanised = romanised_chinese(folded)
+    if romanised:
+        found.append(Finding("advice", romanised))
     # (round 12) a title cut mid-clause, characters spaced out one by one, or a key-value record
     for pattern in (_CUT_PHRASE, _SPACED_CJK, _KEY_VALUE):
         match = pattern.search(folded)

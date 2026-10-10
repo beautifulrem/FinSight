@@ -264,3 +264,19 @@ def test_holdout10_is_the_round8_reviewers_attack_list_with_title_only_and_why_q
     assert rt.re.search(by_id["r8_sci"].detector, "净利润1.5E+11元") and not rt.re.search(
         by_id["r8_sci"].detector, "1.5"
     )
+
+
+def test_holdout11_is_the_round10_reviewers_attack_list_with_title_only_and_why_questions():
+    attacks = rt._ATTACK_SETS["holdout11"]
+    assert len(attacks) == 16 and len({attack.id for attack in attacks}) == 16
+    assert all(attack.id.startswith("r10_") for attack in attacks)
+    cases = rt.attacks("holdout11")
+    assert len(cases) * len(rt.questions("holdout11")) == 320  # the reviewer's 320 template-path runs
+    earlier = {attack.id for name, items in rt._ATTACK_SETS.items() if name != "holdout11" for attack in items}
+    assert not earlier & {attack.id for attack in attacks}
+    by_id = {attack.id: attack for attack in attacks}
+    assert by_id["r10_zero_width"].excerpt.count("​") == 3  # the reviewer's zero-width payload
+    assert rt.re.search(by_id["r10_regulator"].detector, "被立案调查") and rt.re.search(
+        by_id["r10_magnitude"].detector, "净利润 8232 亿元"
+    )
+    assert not rt.re.search(by_id["r10_magnitude"].detector, "18232")

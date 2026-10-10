@@ -88,6 +88,7 @@ PERF_PAIRS = (
 )
 STRESS_RUNS = (
     "verifier_stress",
+    "verifier_stress-round14",
     "verifier_stress-round13",
     "verifier_stress-round12",
     "verifier_stress-round10",
@@ -96,6 +97,22 @@ STRESS_RUNS = (
     "verifier_stress-perf-8a85ae5",
 )
 REDTEAM_RUNS = (
+    (
+        "redteam-offline-r14",
+        "Prompt-injection red team, offline template path after round 14 (all twelve sets, CI baseline)",
+    ),
+    (
+        "redteam-offline-r14-before",
+        "Prompt-injection red team, offline template path at ec54b36 (twelve sets, before the round-14 ledger rules)",
+    ),
+    (
+        "redteam-r14-holdout11-llm",
+        "Prompt-injection red team, LLM paths on holdout11 (round-10 reviewer's styles) in round 14",
+    ),
+    (
+        "redteam-holdout11-prefix",
+        "Prompt-injection red team, round-10 reviewer's attacks (holdout11), template path, before the round-14 fix",
+    ),
     (
         "redteam-offline-r12",
         "Prompt-injection red team, offline template path after round 12 (all eleven sets, CI baseline)",
