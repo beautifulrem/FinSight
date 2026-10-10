@@ -168,7 +168,7 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
         "market cap",
         "money",
         "get_fundamentals",
-        ("总市值", "市值", r"\bmarket (?:cap|capitali[sz]ation)\b"),
+        ("总市值", "市值", r"\bmarket (?:cap|capitali[sz]ation|value)\b"),
     ),
     # (round 14, review-10 J8) net profit after non-recurring items (``profit_dedt``) is its own metric, never 归母
     FrameMetric(
@@ -252,6 +252,8 @@ FRAME_METRICS: tuple[FrameMetric, ...] = (
             r"\bearnings\b",
             # (round 13) "Ping An out-earns Wuliangye", "earns less than": what a company earns is its net profit
             r"\b(?:out-?)?earn(?:s|ed)?\b",
+            # (round 14) "两家去年一共赚了多少": what companies earned (not "一股赚多少", EPS, which is longer)
+            r"(?:赚(?:了|的钱|到的钱|得)?(?=[^，。？?；;]{0,4}(?:多少|几)))",
         ),
     ),
     FrameMetric(
@@ -430,7 +432,7 @@ _CLAIMED_MULTIPLE_EN = re.compile(
     # (round 14, review-10 J4) "over eight times", "three and a half times"
     r"(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)(?: and a half)? times|"
     r"\d+(?:\.\d+)?\s?(?:x|times))\s+"
-    r"(?:(?:as \w+ as|that of|those of|of|the size of)\s+)?(?:the\s+)?"
+    r"(?:(?:as \w+ as|that of|those of|of|the size of|what)\s+)?(?:the\s+)?"
     r"(?:latter|former|first|second|that|its|their|his|her|(?-i:[A-Z])[\w-]*)",
     re.IGNORECASE,
 )
@@ -622,7 +624,8 @@ _SUM_ADD_TO = re.compile(
     re.IGNORECASE,
 )
 _JOINED = re.compile(
-    r"和|与|跟|及|、|(?<!再)加(?![起一在到权息仓])|\band\b|\bof\b|\bboth\b|\btheir\b|\bthese\b|\bthose\b|\bplus\b|\bit\b",
+    r"和|与|跟|及|、|(?<!再)加(?![起一在到权息仓])|\band\b|\bof\b|\bboth\b|\btheir\b|\bthese\b|\bthose\b|\bplus\b|\bit\b|"
+    r"\bthat\b|\bthis\b",
     re.IGNORECASE,
 )
 _QUANTITY = re.compile(r"多少|几|\bhow (?:much|many|big)\b|\bwhat\b|\btotal\b|[?？]", re.IGNORECASE)

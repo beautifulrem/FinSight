@@ -723,3 +723,37 @@ def test_more_total_wordings_and_their_negatives(text, operation):
     from query_intelligence.agent.frame import frame_operation
 
     assert frame_operation(text) == operation
+
+
+# ---- classes the round-9 slice still failed at the first round-14 run (after exposure; own wording) ----
+
+
+def test_after_exposure_classes_in_own_wording():
+    from query_intelligence.agent.coverage import holding_positions, holding_value_request, requested_price_fields
+    from query_intelligence.agent.frame import claimed_check, frame_operation, metric_of
+    from query_intelligence.agent.planner import plan_from_nlu
+
+    # a total of what two companies earned
+    assert frame_operation("紫金矿业和美的集团两家一共赚了多少") == "sum"
+    assert metric_of("紫金矿业和美的集团两家一共赚了多少") == "net_profit"
+    assert metric_of("贵州茅台一股赚多少") == "eps"  # still EPS
+    # market value is the market cap; a bare follow-up total refers to "that"
+    assert metric_of("What is the combined market value of Midea and Zijin?") == "market_cap"
+    assert frame_operation("All told, how much is that?") == "sum"
+    # "at least N times what B earns"
+    assert claimed_check("Does Zijin earn at least twice what Midea earns?")["multiple"] == 2.0
+    # an English holding total asked in the next sentence
+    text = "I hold 400 Midea shares and 900 Zijin Mining shares. Total value at the last close?"
+    assert holding_value_request(text) is not None and len(holding_positions(text)) == 2
+    # "现在比52周最高收盘价低了…" is a distance below the high; a name with 比 in it is not
+    assert requested_price_fields("紫金矿业现在比52周最高收盘价低了多少").off_high_52w
+    assert not requested_price_fields("比亚迪52周最高和最低").off_high_52w
+    # a 52-week question fetches the price history
+    nlu = {
+        "entities": [{"symbol": "600036.SH", "canonical_name": "招商银行", "entity_type": "stock"}],
+        "source_plan": ["fundamental_sql"],
+        "question_style": "fact",
+        "raw_query": "How far below its one-year high is China Merchants Bank now?",
+    }
+    plan = plan_from_nlu(nlu)
+    assert "get_price_history" in [call.tool for call in plan.calls]

@@ -234,7 +234,7 @@ METRICS: tuple[Metric, ...] = (
         "market_cap",
         "总市值",
         "market cap",
-        r"总市值|市值|market cap(?:itali[sz]ation)?",
+        r"总市值|市值|market cap(?:itali[sz]ation)?|\bmarket value\b",
         ("total_mv", "market_cap", "total_market_cap"),
     ),
     _metric(
@@ -382,7 +382,7 @@ _HOLDING_VALUE_EN = re.compile(
     _EN_COUNT.format(name="n")
     + r"[^.?!]{0,60}?\b(?:worth|value|how much)\b|"
     + _EN_COUNT.format(name="n3")
-    + r"[^.?!]{0,60}\.\s+(?:so\s+|and\s+)?(?:what|how much)\b[^.?!]{0,40}?\b(?:worth|value)\b|"
+    + r"[^.?!]{0,60}\.\s+(?:so\s+|and\s+)?(?:what|how much|total|combined)\b[^.?!]{0,40}?\b(?:worth|value)\b|"
     r"\bhow much (?:are|is|would) (?:my )?(?P<n2>\d[\d,]*)\s+(?:shares?|units?)\b|"
     r"\bworth of (?:my |the |these |those )?(?P<n4>\d[\d,]*)\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?(?:shares?|units?)\b",
     re.IGNORECASE,
@@ -1033,7 +1033,7 @@ _REBOUND_FROM_LOW = re.compile(
     re.IGNORECASE,
 )
 _BELOW_HIGH = re.compile(
-    r"(?:较|离|距|相比|相对|从)[^，。？?；;]{0,10}?(?:最高|高点|高位|新高)[^，。？?；;]{0,12}?(?:跌|回落|回撤|低|下来|差|还差)|"
+    r"(?:较|离|距|相比|相对|从|(?:现在|目前|如今|当前|股价|收盘价?|最新价)比)[^，。？?；;]{0,10}?(?:最高|高点|高位|新高)[^，。？?；;]{0,12}?(?:跌|回落|回撤|低|下来|差|还差)|"
     r"\b(?:below|off|down from|under)\b (?:its|the) (?:52[- ]week |one[- ]year )?highs?\b",
     re.IGNORECASE,
 )
