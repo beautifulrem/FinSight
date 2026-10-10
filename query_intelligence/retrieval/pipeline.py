@@ -110,28 +110,31 @@ class RetrievalPipeline:
 
     @classmethod
     def build_default(cls, settings: Settings) -> "RetrievalPipeline":
+        def offline_snapshot() -> dict:
+            return load_structured_data(settings.offline_snapshot_ext, settings.offline_snapshot_fix)
+
         if settings.use_postgres_retrieval and settings.postgres_dsn:
             connection = psycopg.connect(settings.postgres_dsn, row_factory=dict_row)
             text_retriever = PostgresDocumentRepository(connection)
             sql_retriever = PostgresStructuredRepository(connection)
         else:
-            structured = load_structured_data(settings.offline_snapshot_ext)
+            structured = offline_snapshot()
             text_retriever = DocumentRetriever(load_documents())
             sql_retriever = SQLRetriever(structured)
 
         runtime = get_default_runtime()
         if settings.use_live_market and settings.tushare_token:
             market_provider = TushareMarketProvider.from_token(settings.tushare_token)
-            api_retriever = APIRetriever(load_structured_data(settings.offline_snapshot_ext))
+            api_retriever = APIRetriever(offline_snapshot())
         elif settings.use_live_market:
             market_provider = AKShareMarketProvider.from_import(
                 timeout=settings.request_timeout_seconds,
                 runtime=runtime,
                 cross_check_fundamentals=settings.source_cross_check_fundamentals,
             )
-            api_retriever = APIRetriever(load_structured_data(settings.offline_snapshot_ext))
+            api_retriever = APIRetriever(offline_snapshot())
         else:
-            structured = load_structured_data(settings.offline_snapshot_ext)
+            structured = offline_snapshot()
             market_provider = None
             api_retriever = APIRetriever(structured)
 

@@ -101,7 +101,20 @@ def eval_snapshot_ext() -> bool:
     return os.getenv("QI_EVAL_SNAPSHOT_EXT", "").strip().lower() in {"1", "true", "yes"}
 
 
-def build_offline_service(*, snapshot_ext: bool | None = None):
+def eval_snapshot_fix() -> bool:
+    """Whether the evaluation's offline tools see the corrections layer (``QI_EVAL_SNAPSHOT_FIX``, default off).
+
+    The corrections layer (``data/snapshot/structured_data_fix.json``) replaces v1 seed values that the companies'
+    annual reports or a daily record contradict (五粮液 revenue, 中国平安's 2026-04-22 close, ...). Every task set,
+    held-out slice and replay fixture computed its expected numbers from the v1 seed, so evaluation stays pinned to
+    the seed unless this is set, exactly like the snapshot extension (docs/data-sources.md, "Corrections layer").
+    """
+    import os
+
+    return os.getenv("QI_EVAL_SNAPSHOT_FIX", "").strip().lower() in {"1", "true", "yes"}
+
+
+def build_offline_service(*, snapshot_ext: bool | None = None, snapshot_fix: bool | None = None):
     from query_intelligence.service import build_default_service
 
     return build_default_service(
@@ -110,6 +123,7 @@ def build_offline_service(*, snapshot_ext: bool | None = None):
         use_live_news=False,
         use_live_announcement=False,
         offline_snapshot_ext=eval_snapshot_ext() if snapshot_ext is None else snapshot_ext,
+        offline_snapshot_fix=eval_snapshot_fix() if snapshot_fix is None else snapshot_fix,
     )
 
 

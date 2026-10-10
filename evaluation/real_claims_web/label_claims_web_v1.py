@@ -22,7 +22,13 @@ Rounding rules (README, "Labelling rules"):
 
 Run from the repo root::
 
-    python -m evaluation.real_claims_web.label_claims_web_v1
+    python -m evaluation.real_claims_web.label_claims_web_v1                # claims_web_v1.jsonl
+    python -m evaluation.real_claims_web.label_claims_web_v1 --corrections  # ...-labels-with-corrections.jsonl
+
+``--corrections`` (round 13) labels the same parts against the offline data with the corrections layer on
+(``data/snapshot/structured_data_fix.json``: the annual-report values of 五粮液 / 中国平安 / 贵州茅台 and the daily
+record of 中国平安 / 沪深300 on 2026-04-22). Labels follow the offline data, so a different data layer needs its own
+label file; ``claims_web_v1.jsonl`` (the labels of the first run) is never rewritten by it.
 """
 
 from __future__ import annotations
@@ -37,25 +43,33 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 COLLECTED = HERE / "collected_v1.jsonl"
 OUT = HERE / "claims_web_v1.jsonl"
+CORRECTED_OUT = HERE / "claims_web_v1-labels-with-corrections.jsonl"
 
 sys.path.insert(0, str(ROOT))
 
 from evaluation.agent_eval.runner import build_offline_service  # noqa: E402
 from query_intelligence.agent.tools import build_registry_for_service  # noqa: E402
 
-_service = build_offline_service(snapshot_ext=True)
-_registry = build_registry_for_service(_service)
+_registry: Any = None
+_corrections = False  # set by main(): label against the corrections layer too
 _cache: dict[str, dict[str, Any]] = {}
 
 Value = float | None
 Part = tuple[str, Callable[[], Value | bool | None]]
 
 
+def registry() -> Any:
+    global _registry
+    if _registry is None:
+        _registry = build_registry_for_service(build_offline_service(snapshot_ext=True, snapshot_fix=_corrections))
+    return _registry
+
+
 def payload(evidence_id: str) -> dict[str, Any]:
     if evidence_id not in _cache:
         kind, _, target = evidence_id.partition("_")
         tool = "get_price_history" if kind == "price" else "get_fundamentals"
-        for item in _registry.run(tool, {"target": target}).evidence:
+        for item in registry().run(tool, {"target": target}).evidence:
             _cache[item.evidence_id] = item.payload
         if evidence_id not in _cache:
             raise SystemExit(f"{tool}({target}) did not return {evidence_id}")
@@ -448,7 +462,18 @@ def verdict(truths: list[bool | None]) -> str:
     return "partially_supported"
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    global _corrections, _registry
+    args = sys.argv[1:] if argv is None else argv
+    _corrections, _registry = "--corrections" in args, None
+    _cache.clear()
+    out_path = CORRECTED_OUT if _corrections else OUT
+    original = {}
+    if _corrections:
+        original = {
+            row["id"]: row["expected_verdict"]
+            for row in map(json.loads, OUT.read_text(encoding="utf-8").splitlines())
+        }
     rows = [json.loads(line) for line in COLLECTED.read_text(encoding="utf-8").splitlines() if line.strip()]
     if {row["id"] for row in rows} != set(LABELS):
         raise SystemExit("collected ids and LABELS differ")
@@ -476,13 +501,21 @@ def main() -> int:
                 "unresolved" if row["id"] in UNRESOLVED else row["id"] in OFFLINE_DIFFERS
             ),
         })
-    with OUT.open("w", encoding="utf-8") as handle:
+        if _corrections:
+            # the seed-era notes describe the v1 data; these two fields say what this label file was made from
+            out[-1]["labelled_against"] = "offline v1 seed + 2026-09-30 extension + corrections layer (fix-2026-10-10)"
+            out[-1]["label_without_corrections"] = original.get(row["id"])
+    with out_path.open("w", encoding="utf-8") as handle:
         for item in out:
             handle.write(json.dumps(item, ensure_ascii=False) + "\n")
     counts: dict[str, int] = {}
     for item in out:
         counts[item["expected_verdict"]] = counts.get(item["expected_verdict"], 0) + 1
-    print(f"wrote {len(out)} labelled claims to {OUT}: {counts}")
+    print(f"wrote {len(out)} labelled claims to {out_path}: {counts}")
+    if _corrections:
+        changed = [item for item in out if item["expected_verdict"] != item["label_without_corrections"]]
+        for item in changed:
+            print(f"  {item['id']}: {item['label_without_corrections']} -> {item['expected_verdict']}")
     return 0
 
 

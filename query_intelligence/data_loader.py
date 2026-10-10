@@ -109,21 +109,60 @@ def snapshot_ext_enabled() -> bool:
     return os.getenv("QI_OFFLINE_SNAPSHOT_EXT", "true").strip().lower() in {"1", "true", "yes"}
 
 
-def load_structured_data(extended: bool | None = None) -> dict:
-    """The offline structured snapshot: v1 (``data/structured_data.json``), plus the extension when ``extended``.
+SNAPSHOT_FIX_PATH = DATA_DIR / "snapshot" / "structured_data_fix.json"
+# Sections of the corrections layer whose records replace the v1 record of the same key.
+_SNAPSHOT_FIX_SECTIONS = ("market_api", "fundamental_sql")
 
-    ``extended=None`` follows ``QI_OFFLINE_SNAPSHOT_EXT``. The evaluation harness pins ``extended=False``: its
-    labels were written against v1 (for example "宁德时代 has no offline price"), see docs/data-sources.md.
+
+def snapshot_fix_enabled() -> bool:
+    """``QI_OFFLINE_SNAPSHOT_FIX`` (default on): apply ``data/snapshot/structured_data_fix.json`` over v1."""
+    return os.getenv("QI_OFFLINE_SNAPSHOT_FIX", "true").strip().lower() in {"1", "true", "yes"}
+
+
+def load_structured_data(extended: bool | None = None, corrected: bool | None = None) -> dict:
+    """The offline structured snapshot: v1 (``data/structured_data.json``), plus the extension when ``extended``,
+    with the corrections layer applied when ``corrected``.
+
+    ``extended=None`` follows ``QI_OFFLINE_SNAPSHOT_EXT``; ``corrected=None`` follows ``QI_OFFLINE_SNAPSHOT_FIX``.
+    The evaluation harness pins both off: its labels were written against v1 (for example "宁德时代 has no
+    offline price", or 五粮液's v1 seed revenue), see docs/data-sources.md.
     """
-    return _load_structured_data(snapshot_ext_enabled() if extended is None else bool(extended))
+    return _load_structured_data(
+        snapshot_ext_enabled() if extended is None else bool(extended),
+        snapshot_fix_enabled() if corrected is None else bool(corrected),
+    )
 
 
-@lru_cache(maxsize=2)
-def _load_structured_data(extended: bool) -> dict:
-    base = _read_json(DATA_DIR / "structured_data.json")
-    if not extended or not SNAPSHOT_EXT_PATH.exists():
-        return base
-    return merge_snapshot_extension(base, _read_json(SNAPSHOT_EXT_PATH))
+@lru_cache(maxsize=4)
+def _load_structured_data(extended: bool, corrected: bool = False) -> dict:
+    data = _read_json(DATA_DIR / "structured_data.json")
+    if extended and SNAPSHOT_EXT_PATH.exists():
+        data = merge_snapshot_extension(data, _read_json(SNAPSHOT_EXT_PATH))
+    if corrected and SNAPSHOT_FIX_PATH.exists():
+        data = apply_snapshot_corrections(data, _read_json(SNAPSHOT_FIX_PATH))
+    return data
+
+
+def apply_snapshot_corrections(base: dict, corrections: dict) -> dict:
+    """``base`` with the corrections layer applied (precedence: corrections > v1 seed > extension).
+
+    * ``market_api`` / ``fundamental_sql``: a corrected record replaces the record of the same key (the v1 seed
+      values that a primary source contradicts: an annual report, an exchange or index-compiler daily record).
+    * ``definitions``: field definitions (``roe_basis``, ``revenue_basis``, ``net_profit_basis``, ``eps_basis``,
+      ...) added as ``definitions`` to the fundamentals record that serves the symbol, when there is one and it
+      does not carry its own (the extension's records: their values are kept, only their definitions are stated).
+    """
+    merged = {key: dict(value) if isinstance(value, dict) else value for key, value in base.items()}
+    for section in _SNAPSHOT_FIX_SECTIONS:
+        target = merged.setdefault(section, {})
+        for key, record in (corrections.get(section) or {}).items():
+            target[key] = record
+    statements = merged.setdefault("fundamental_sql", {})
+    for symbol, definitions in (corrections.get("definitions") or {}).items():
+        record = statements.get(symbol)
+        if isinstance(record, dict) and "definitions" not in record:
+            statements[symbol] = {**record, "definitions": dict(definitions)}
+    return merged
 
 
 def merge_snapshot_extension(base: dict, extension: dict) -> dict:

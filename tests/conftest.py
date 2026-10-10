@@ -20,6 +20,9 @@ if os.getenv("QI_TEST_LIVE") != "1":
 # (平安银行, 宁德时代): tests built from the environment see the v1 snapshot they were written against, like the
 # evaluation harness; tests/test_round12_snapshot_ext.py turns the extension on explicitly.
 os.environ.setdefault("QI_OFFLINE_SNAPSHOT_EXT", "false")
+# Likewise the corrections layer (data/snapshot/structured_data_fix.json) replaces v1 seed values that earlier tests
+# assert (五粮液 ROE 29.4, 中国平安 close 53.61); tests/test_round13_snapshot_fix.py turns it on explicitly.
+os.environ.setdefault("QI_OFFLINE_SNAPSHOT_FIX", "false")
 
 # Graph tests script the classic tool loop turn by turn (tool call, then answer, then revision). Pin the
 # classic path; tests/test_agent_perf.py covers the latency switches and their defaults explicitly.

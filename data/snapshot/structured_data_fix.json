@@ -1,0 +1,311 @@
+{
+ "definitions": {
+  "000001.SZ": {
+   "eps_basis": "basic",
+   "net_profit_basis": "归母",
+   "netprofit_yoy_basis": "归母",
+   "revenue_basis": "营业收入",
+   "revenue_yoy_basis": "营业收入",
+   "roe_basis": "period_end"
+  },
+  "000333.SZ": {
+   "eps_basis": "diluted",
+   "gross_margin_basis": "(营业收入-营业成本)/营业收入",
+   "net_profit_basis": "归母",
+   "netprofit_yoy_basis": "total",
+   "revenue_basis": "营业总收入",
+   "revenue_yoy_basis": "营业收入",
+   "roe_basis": "period_end"
+  },
+  "002594.SZ": {
+   "eps_basis": "basic",
+   "net_profit_basis": "归母",
+   "netprofit_yoy_basis": "total",
+   "revenue_basis": "营业收入",
+   "revenue_yoy_basis": "营业收入",
+   "roe_basis": "period_end"
+  },
+  "300750.SZ": {
+   "eps_basis": "basic",
+   "net_profit_basis": "归母",
+   "netprofit_yoy_basis": "total",
+   "revenue_basis": "营业收入",
+   "revenue_yoy_basis": "营业收入",
+   "roe_basis": "period_end"
+  },
+  "600030.SH": {
+   "eps_basis": "basic",
+   "net_profit_basis": "归母",
+   "netprofit_yoy_basis": "total",
+   "revenue_basis": "营业收入",
+   "revenue_yoy_basis": "营业收入(2024年调整后)",
+   "roe_basis": "period_end"
+  },
+  "600036.SH": {
+   "eps_basis": "basic",
+   "net_profit_basis": "归母",
+   "netprofit_yoy_basis": "total",
+   "revenue_basis": "营业收入",
+   "revenue_yoy_basis": "营业收入",
+   "roe_basis": "period_end"
+  },
+  "600900.SH": {
+   "eps_basis": "basic",
+   "gross_margin_basis": "(营业收入-营业成本)/营业收入",
+   "net_profit_basis": "归母",
+   "netprofit_yoy_basis": "total",
+   "revenue_basis": "营业收入",
+   "revenue_yoy_basis": "营业收入",
+   "roe_basis": "period_end"
+  },
+  "601398.SH": {
+   "eps_basis": "basic",
+   "net_profit_basis": "归母",
+   "netprofit_yoy_basis": "total",
+   "revenue_basis": "营业收入",
+   "revenue_yoy_basis": "营业收入",
+   "roe_basis": "period_end"
+  },
+  "601899.SH": {
+   "eps_basis": "diluted",
+   "net_profit_basis": "归母",
+   "netprofit_yoy_basis": "total",
+   "revenue_basis": "营业收入",
+   "revenue_yoy_basis": "营业收入",
+   "roe_basis": "period_end"
+  },
+  "688981.SH": {
+   "eps_basis": "basic",
+   "net_profit_basis": "归母",
+   "netprofit_yoy_basis": "归母",
+   "revenue_basis": "营业收入",
+   "revenue_yoy_basis": "营业收入",
+   "roe_basis": "period_end"
+  }
+ },
+ "fundamental_sql": {
+  "000858.SZ": {
+   "_snapshot": {
+    "correction": "replaces the v1 seed statement, which the annual report contradicts",
+    "document": "宜宾五粮液股份有限公司2025年年度报告",
+    "document_url": "http://static.cninfo.com.cn/finalpage/2026-04-30/1225273091.PDF",
+    "endpoint": "cninfo.annual_report",
+    "fetched_at": "2026-10-10",
+    "file": "data/snapshot/structured_data_fix.json",
+    "source": "cninfo.annual_report",
+    "version": "fix-2026-10-10"
+   },
+   "canonical_name": "五粮液",
+   "definitions": {
+    "eps_basis": "basic",
+    "gross_margin_basis": "(营业收入-营业成本)/营业收入",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "归母",
+    "pb_basis": "2026-04-22收盘价×期末总股本/2025年末归母净资产",
+    "pe_basis": "2026-04-22收盘价×期末总股本/2025年归母净利润",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "weighted"
+   },
+   "eps": 2.3068,
+   "gross_margin": 77.54,
+   "net_profit": 8954257202.51,
+   "netprofit_yoy": -71.89,
+   "pb": 3.26,
+   "pe_ttm": 43.63,
+   "profit_dedt": 8815635943.27,
+   "report_date": "2025-12-31",
+   "revenue": 40528509770.23,
+   "revenue_yoy": -54.55,
+   "roe": 6.89,
+   "source_name": "annual_report",
+   "symbol": "000858.SZ",
+   "total_mv": 390645029623.2,
+   "valuation_date": "2026-04-22"
+  },
+  "600519.SH": {
+   "_snapshot": {
+    "correction": "replaces the v1 seed statement, which the annual report contradicts",
+    "document": "贵州茅台2025年年度报告",
+    "document_url": "http://static.cninfo.com.cn/finalpage/2026-04-17/1225114741.PDF",
+    "endpoint": "cninfo.annual_report",
+    "fetched_at": "2026-10-10",
+    "file": "data/snapshot/structured_data_fix.json",
+    "source": "cninfo.annual_report",
+    "version": "fix-2026-10-10"
+   },
+   "canonical_name": "贵州茅台",
+   "definitions": {
+    "eps_basis": "basic",
+    "gross_margin_basis": "(营业收入-营业成本)/营业收入",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "归母",
+    "pb_basis": "2026-04-22收盘价×期末总股本/2025年末归母净资产",
+    "pe_basis": "2026-04-22收盘价×期末总股本/2025年归母净利润",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "weighted"
+   },
+   "eps": 65.66,
+   "gross_margin": 91.18,
+   "net_profit": 82320067101.68,
+   "netprofit_yoy": -4.53,
+   "pb": 7.22,
+   "pe_ttm": 21.44,
+   "profit_dedt": 82293107655.25,
+   "report_date": "2025-12-31",
+   "revenue": 168838102514.79,
+   "revenue_yoy": -1.21,
+   "roe": 32.53,
+   "source_name": "annual_report",
+   "symbol": "600519.SH",
+   "total_mv": 1765074868042.5,
+   "valuation_date": "2026-04-22"
+  },
+  "601318.SH": {
+   "_snapshot": {
+    "correction": "replaces the v1 seed statement, which the annual report contradicts",
+    "document": "中国平安2025年年度报告",
+    "document_url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038263.PDF",
+    "endpoint": "cninfo.annual_report",
+    "fetched_at": "2026-10-10",
+    "file": "data/snapshot/structured_data_fix.json",
+    "source": "cninfo.annual_report",
+    "version": "fix-2026-10-10"
+   },
+   "canonical_name": "中国平安",
+   "definitions": {
+    "eps_basis": "basic",
+    "net_profit_basis": "归母",
+    "netprofit_yoy_basis": "归母",
+    "pb_basis": "2026-04-22 A股收盘价×期末总股本(A+H)/2025年末归母股东权益",
+    "pe_basis": "2026-04-22 A股收盘价×期末总股本(A+H)/2025年归母净利润",
+    "revenue_basis": "营业收入",
+    "revenue_yoy_basis": "营业收入",
+    "roe_basis": "weighted"
+   },
+   "eps": 7.68,
+   "net_profit": 134778000000.0,
+   "netprofit_yoy": 6.5,
+   "pb": 1.05,
+   "pe_ttm": 7.8,
+   "profit_dedt": 143773000000.0,
+   "report_date": "2025-12-31",
+   "revenue": 1050506000000.0,
+   "revenue_yoy": 2.1,
+   "roe": 14.0,
+   "source_name": "annual_report",
+   "symbol": "601318.SH",
+   "total_mv": 1050786464969.85,
+   "valuation_date": "2026-04-22"
+  }
+ },
+ "market_api": {
+  "000300.SH": {
+   "_snapshot": {
+    "correction": "replaces the v1 seed bars (2026-04-22, 2026-04-21), which disagree with this record",
+    "cross_check": "sina.index:agree",
+    "endpoint": "akshare.stock_zh_index_hist_csindex",
+    "fetched_at": "2026-10-10T12:42:15+00:00",
+    "file": "data/snapshot/structured_data_fix.json",
+    "source": "csindex.index",
+    "version": "fix-2026-10-10"
+   },
+   "amount": 619506000000.0,
+   "close": 4799.63,
+   "high": 4801.45,
+   "history": [
+    {"amount": 619506000000.0, "close": 4799.63, "high": 4801.45, "low": 4750.35, "open": 4751.28, "pct_change_1d": 0.66, "trade_date": "2026-04-22", "volume": 20448183000},
+    {"amount": 580408000000.0, "close": 4768.0, "high": 4776.83, "low": 4722.01, "open": 4750.51, "pct_change_1d": 0.22, "trade_date": "2026-04-21", "volume": 20561405800}
+   ],
+   "low": 4750.35,
+   "open": 4751.28,
+   "pct_change_1d": 0.66,
+   "source_name": "akshare",
+   "symbol": "000300.SH",
+   "trade_date": "2026-04-22",
+   "volume": 20448183000,
+   "volume_unit": "share"
+  },
+  "159915.SZ": {
+   "_snapshot": {
+    "correction": "replaces the v1 seed bars (2026-04-22, 2026-04-21), which disagree with this record",
+    "cross_check": "tencent.kline:agree",
+    "endpoint": "akshare.fund_etf_hist_sina",
+    "fetched_at": "2026-10-10T12:42:19+00:00",
+    "file": "data/snapshot/structured_data_fix.json",
+    "source": "sina.kline",
+    "version": "fix-2026-10-10"
+   },
+   "amount": 6923895011.0,
+   "close": 3.758,
+   "high": 3.761,
+   "history": [
+    {"amount": 6923895011.0, "close": 3.758, "high": 3.761, "low": 3.66, "open": 3.66, "pct_change_1d": 2.09, "trade_date": "2026-04-22", "volume": 1861500562},
+    {"amount": 5051182323.0, "close": 3.681, "high": 3.688, "low": 3.614, "open": 3.663, "pct_change_1d": 0.25, "trade_date": "2026-04-21", "volume": 1382838279}
+   ],
+   "low": 3.66,
+   "open": 3.66,
+   "pct_change_1d": 2.09,
+   "source_name": "akshare",
+   "symbol": "159915.SZ",
+   "trade_date": "2026-04-22",
+   "volume": 1861500562,
+   "volume_unit": "share"
+  },
+  "512880.SH": {
+   "_snapshot": {
+    "correction": "replaces the v1 seed bars (2026-04-22, 2026-04-21), which disagree with this record",
+    "cross_check": "tencent.kline:agree",
+    "endpoint": "akshare.fund_etf_hist_sina",
+    "fetched_at": "2026-10-10T12:42:24+00:00",
+    "file": "data/snapshot/structured_data_fix.json",
+    "source": "sina.kline",
+    "version": "fix-2026-10-10"
+   },
+   "amount": 1840994766.0,
+   "close": 1.075,
+   "high": 1.085,
+   "history": [
+    {"amount": 1840994766.0, "close": 1.075, "high": 1.085, "low": 1.062, "open": 1.062, "pct_change_1d": 0.84, "trade_date": "2026-04-22", "volume": 1712578726},
+    {"amount": 1150286825.0, "close": 1.066, "high": 1.073, "low": 1.064, "open": 1.072, "pct_change_1d": -0.84, "trade_date": "2026-04-21", "volume": 1077791620}
+   ],
+   "low": 1.062,
+   "open": 1.062,
+   "pct_change_1d": 0.84,
+   "source_name": "akshare",
+   "symbol": "512880.SH",
+   "trade_date": "2026-04-22",
+   "volume": 1712578726,
+   "volume_unit": "share"
+  },
+  "601318.SH": {
+   "_snapshot": {
+    "correction": "replaces the v1 seed bars (2026-04-22, 2026-04-21), which disagree with this record",
+    "cross_check": "tencent.kline:agree",
+    "endpoint": "akshare.stock_zh_a_daily",
+    "fetched_at": "2026-10-10T12:42:09+00:00",
+    "file": "data/snapshot/structured_data_fix.json",
+    "source": "sina.kline",
+    "version": "fix-2026-10-10"
+   },
+   "amount": 3364574054.0,
+   "close": 58.03,
+   "high": 58.6,
+   "history": [
+    {"amount": 3364574054.0, "close": 58.03, "high": 58.6, "low": 57.65, "open": 58.03, "pct_change_1d": 0.0, "trade_date": "2026-04-22", "volume": 57957025},
+    {"amount": 3179298446.0, "close": 58.03, "high": 59.11, "low": 58.03, "open": 58.54, "pct_change_1d": -0.87, "trade_date": "2026-04-21", "volume": 54402036}
+   ],
+   "low": 57.65,
+   "open": 58.03,
+   "pct_change_1d": 0.0,
+   "source_name": "akshare",
+   "symbol": "601318.SH",
+   "trade_date": "2026-04-22",
+   "volume": 57957025,
+   "volume_unit": "share"
+  }
+ },
+ "retrieved": "2026-10-10",
+ "version": "fix-2026-10-10"
+}

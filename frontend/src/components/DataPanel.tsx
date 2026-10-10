@@ -29,7 +29,7 @@ function KpiTile({
   // (round 13, I15) a P/E or P/B priced at a recent close is not stale because the statements are old
   const stale = kpi.valuation ? (ageInDays(kpi.asOf) ?? 0) > VALUATION_STALE_DAYS : freshness?.stale;
   const Icon = kpi.tone === "up" ? ArrowUpRight : kpi.tone === "down" ? ArrowDownRight : null;
-  const label = `${subject ? `${subject} · ` : ""}${t(kpi.label as MessageKey)}`;
+  const label = `${subject ? `${subject} · ` : ""}${t((kpi.basisLabel ?? kpi.label) as MessageKey)}`;
   const body = (
     <>
       {/* (round 13, I15) the label wraps instead of being cut ("China Merchants Bank · …"); the title repeats it */}
