@@ -482,8 +482,11 @@ close is derived from the close and the reported % change: "1409.5 ÷ (1 − 0.1
 值）"; the verifier accepts that written-out formula only. A total of two rounded amounts is checked against the exact
 evidence values ("CNY 3.79 bn + 1.45 bn: combined CNY 5.25 bn").
 
-**Claims.** "N倍多一点" / "多一些" is a little over N: at most 0.3 of a step (两倍多一点 = 2–2.3×); "N个多百分点" is N
-to N+1 points; "是保险行业的N倍多" is a multiple of another sector's average; "the insurance average" (a sector name
+**Claims.** "N倍多一点" / "多一些" is a little over N. On the r13-frame branch it was at most 0.3 of a step (两倍多一点 =
+2–2.3×); in the merged code the r13-claims rule (I8) drops "一点 / 一些" as "a little" before the numerals are read, so
+两倍多一点 reads as 两倍多, (2, 3)×, and only "多些" / "多点" keep the 0.3-step band; dev rows d300–d302 pass either way
+([claim-check.md](claim-check.md#round-13-on-the-r13-frame-branch-the-round-8-slices-claim-classes-after-exposure)).
+"N个多百分点" is N to N+1 points; "是保险行业的N倍多" is a multiple of another sector's average; "the insurance average" (a sector name
 before "average") is the sector's average; English "less than half / a third / a quarter of X's" is a multiple of X.
 
 | Case | Example (own wording) | Behaviour | Reason code |
@@ -820,17 +823,29 @@ computed the English net margin as a share but the verifier repair removed that 
 are a smoke check, not a rate.
 
 **Round 13: the round-8 slice's remaining classes and the round-9 review's I1, I3–I7, I9 (own examples, offline, no
-LLM).** Rules: [Rules added in round 13](#rules-added-in-round-13-round-8-slice-after-exposure). Dev gate 432 → 466
-tasks (22 round-13 and 12 review-9 tasks), task success **1.000**, 0 snapshot misses; held-out gate **0.9434**,
-unchanged; baselines refreshed with `gate --update-baseline` from a clean tree at `eec32eb`. Own router labels
-**1.000** over 403 (`router_eval-round13-own.json`); claim dev rows 299 → 311, verdict and checks **1.000**; held-out
-claims 1.000 / 1.000 (floors 0.978 / 0.98); round-4 slice 1.000 / 0.920, round-5 1.000 / 0.988, round-6 (after
-exposure) 0.985 / 0.904, all unchanged (`claim_bench-*-after-round13.json`). Verifier stress at `b1099d8`
-(`verifier_stress-round13.json`): 299 gold answers, 5,172 variants, true accept 1.000, false accept claim 0.0097, with
-derived numbers 0.0110 (round 12: 0.0107 / 0.0121 on 248 gold answers); a first version of the rate-minus-share rule
-raised the derived false accepts on the same variants from 57 to 97 of 5,135 and was narrowed (`ad9afe6`) before
-that run. Offline red team 0 attack successes and 0 crashes on all eleven sets; `gate --extras-only` passes. pytest
-2,355 passed, 70 skipped; vitest 139. **Real Chrome** (154, driven through Playwright with
+LLM).** Rules: [Rules added in round 13](#rules-added-in-round-13-round-8-slice-after-exposure). On the r13-frame
+branch: dev gate 432 → 466 tasks (22 round-13 and 12 review-9 tasks), task success **1.000**, 0 snapshot misses;
+held-out gate **0.9434**, unchanged; baselines refreshed with `gate --update-baseline` from a clean tree at `eec32eb`.
+Own router labels **1.000** over 403; claim dev rows 299 → 311, verdict and checks **1.000**; held-out claims 1.000 /
+1.000 (floors 0.978 / 0.98); round-4 slice 1.000 / 0.920, round-5 1.000 / 0.988, round-6 (after exposure) 0.985 /
+0.904, all unchanged. Verifier stress at `b1099d8`: 299 gold answers, 5,172 variants, true accept 1.000, false accept
+claim 0.0097, with derived numbers 0.0110 (round 12: 0.0107 / 0.0121 on 248 gold answers); this run was committed on
+the branch in `c5b2d79` and replaced in the merge by the run at the merged code below; a first version of the rate-minus-share rule raised the derived
+false accepts on the same variants from 57 to 97 of 5,135 and was narrowed (`ad9afe6`) before that run. Offline red
+team 0 attack successes and 0 crashes on all eleven sets; `gate --extras-only` passes. pytest 2,355 passed, 70
+skipped and vitest 139 on the branch before the merge. **At the merged round-13 code** (r13-ui, r13-realclaims,
+r13-eval, r13-claims, r13-frame and r13-data merged; each result file records its commit): dev gate **473** tasks =
+1.000 (`gate-dev.json`, `e54645b`; the 466 above plus the 7 r13-claims forecast tasks), held-out **0.9434**
+(`gate-holdout.json`), ext set 24/24 (`gate-ext.json`, `235d00c`, before the merges); own router labels 403 = 1.000
+(`router_eval-round13-own.json`, `b1173b5`); claims dev 311 = 1.000 (`claim_bench-dev.json`), held-out 47 = 1.000 /
+1.000, round-4 1.000 / 0.920, round-5 1.000 / 0.988, round-6 (after exposure) 0.985 / 0.904
+(`claim_bench-*-after-round13.json`, `claim_bench-heldout_r6-after-exposure-round13.json`); verifier stress at
+`bd1de77` (`verifier_stress-round13.json`): 306 gold answers, 5,202 variants, true accept 1.000, false accept claim
+0.0096, with derived numbers 0.0110, number swaps 0.0 / 0.0061. At `fb35e35` (the merged code plus the committed
+round-9 slice) pytest gives 2,480 passed, 70 skipped and 1 failed: the round-13 anti-copy guard
+(`test_round13_tests_and_claim_rows_do_not_copy_a_slice_or_a_review_probe`) now globs `evaluation/heldout_r9/` and finds
+one of the overlaps recorded in `slice_overlap-heldout_r9-at-da9f6af.json` ("Of CMB, ICBC and Ping An Bank, ICBC has
+the highest ROE" in `tests/test_agent_round13_claims.py`); vitest 152. **Real Chrome** (154, driven through Playwright with
 `channel="chrome"`, own context, closed after; the Claude-in-Chrome extension was not connected) against an offline
 server from this worktree on `:8911`: "贵州茅台的净资产收益率" → "换五粮液看看" → "后一只落后前一只几个百分点" answered
 "两者相差 3.6 个百分点（贵州茅台更高）" with both citations and "引用与数字核验通过"; "Moutai's price-to-book?" → "Ping
@@ -839,7 +854,17 @@ errors. **Round-8 slice, after exposure** (round 13 read its 16 failing tasks an
 chat 35/51 → **51/51** (`chat_heldout_r8-auto-nollm-after-exposure-round13.json`), claims 20/25 → **25/25**
 (`claims_heldout_r8-after-exposure-round13.json`), both at `b1099d8`; a first run at `f429ede`, before the review-9
 fixes, gave the same. Round-6 and round-7 chat slices unchanged at 38/38 and 53/53. These say the classes are covered,
-not that the rules generalise; the out-of-sample check is the round-9 reviewer's slice (`heldout_r9`, not opened).
+not that the rules generalise. **Round-9 slice, out of sample** (`evaluation/heldout_r9/`, written by the round-9
+reviewer before any round-13 fix, on the snapshot extension's names, run with `QI_EVAL_SNAPSHOT_EXT=1`; not opened by
+the engineers): chat 18/52 = 0.346 [0.23, 0.48] at `cbcf3b2` → **41/52 = 0.788 [0.67, 0.88]** at `da9f6af`
+(`chat_heldout_r9-auto-nollm-prefix.json`, `chat_heldout_r9-auto-nollm-after-fix.json`), claims 15/25 → **25/25**
+(`claims_heldout_r9-prefix.json`, `claims_heldout_r9-after-fix.json`). 4 chat tasks and 5 claims overlap own test /
+dev wording or the review's published repros (`slice_overlap-heldout_r9-at-da9f6af.json`); without them chat 16/48 →
+37/48 and claims 15/20 → 20/20 (all 5 overlapping claims failed before the fixes). Per class after the fixes: shares
+7/7, verb comparatives 7/7, spreads 3/3, forecasts 7/7, missing industry 3/3, controls 7/7, several holdings 2/3,
+yes/no ratios 2/3, sums **1/5**, price-derived **2/7** (3/7 before: the YTD task that states the first trading day's
+close as its basis now gets the prior year-end basis of I11). The 11 failures are listed in the
+[README](../README.md#the-round-9-slice-per-class). From round 14 this slice is after exposure.
 A sweep of 28 own sessions (shares, totals, spreads, pairs, holdings, purchase cost) against values computed by hand
 from the snapshot found three wrong or missing results before the guards in `173f2b2` (a list written with 、 not read
 as operands, 几倍关系 not a ratio, the template path using the first two of three targets) and none after them.
