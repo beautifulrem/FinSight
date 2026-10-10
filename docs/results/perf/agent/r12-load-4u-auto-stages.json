@@ -1,0 +1,422 @@
+{
+ "trace_dir": "/Volumes/Remi/FinSight-perf/outputs/chaos/r12-llm-load/traces",
+ "runs": 12,
+ "p95_run": {
+  "trace_id": "50a9dc2bb16640efb549736da9116221",
+  "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+  "route": "agent",
+  "total_ms": 31307.7,
+  "guard_in_ms": 1015.4,
+  "llm_ms": 16727.6,
+  "llm_calls": 4,
+  "tool_stage_ms": 13119.1,
+  "verify_ms": 201.1,
+  "llm_node_overhead_ms": 42.7,
+  "share": {
+   "guard_in": 0.032,
+   "llm": 0.534,
+   "tool_stage": 0.419
+  },
+  "tools_ms": {
+   "get_price_history": [
+    8.4
+   ],
+   "get_fundamentals": [
+    10.9,
+    75.0
+   ],
+   "search_news": [
+    4946.8
+   ],
+   "compute_indicators": [
+    0.6
+   ],
+   "analyze_sentiment": [
+    3620.3
+   ],
+   "search_announcements": [
+    3647.7
+   ]
+  }
+ },
+ "all_runs_share": {
+  "guard_in": 0.106,
+  "llm": 0.565,
+  "tool_stage": 0.318
+ },
+ "median_ms": {
+  "total_ms": 17118.7,
+  "guard_in_ms": 1003.8,
+  "llm_ms": 9175.5,
+  "tool_stage_ms": 5608.6
+ },
+ "tool_latency_ms": {
+  "analyze_sentiment": {
+   "n": 5,
+   "median": 3620.3,
+   "max": 5149.2
+  },
+  "compute_indicators": {
+   "n": 5,
+   "median": 0.6,
+   "max": 13.8
+  },
+  "get_fundamentals": {
+   "n": 19,
+   "median": 55.9,
+   "max": 9770.1
+  },
+  "get_macro_indicators": {
+   "n": 5,
+   "median": 10.3,
+   "max": 21.7
+  },
+  "get_price_history": {
+   "n": 9,
+   "median": 4.5,
+   "max": 75.3
+  },
+  "resolve_entity": {
+   "n": 7,
+   "median": 23.2,
+   "max": 4880.1
+  },
+  "search_announcements": {
+   "n": 1,
+   "median": 3647.7,
+   "max": 3647.7
+  },
+  "search_knowledge": {
+   "n": 3,
+   "median": 5645.0,
+   "max": 6169.1
+  },
+  "search_news": {
+   "n": 10,
+   "median": 3943.2,
+   "max": 5057.4
+  }
+ },
+ "per_run": [
+  {
+   "trace_id": "99a502899fdb4b26a0a1adbbdb213107",
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "route": "agent",
+   "total_ms": 51814.8,
+   "guard_in_ms": 5881.4,
+   "llm_ms": 21252.1,
+   "llm_calls": 6,
+   "tool_stage_ms": 24431.8,
+   "verify_ms": 32.2,
+   "llm_node_overhead_ms": 148.4,
+   "tools_ms": {
+    "get_macro_indicators": [
+     10.3,
+     21.7
+    ],
+    "get_fundamentals": [
+     56.0,
+     379.0,
+     211.2,
+     9488.0,
+     9770.1
+    ],
+    "search_news": [
+     17.5,
+     5017.9
+    ],
+    "resolve_entity": [
+     17.9,
+     31.6,
+     4880.1,
+     74.0
+    ],
+    "get_price_history": [
+     2.3
+    ]
+   }
+  },
+  {
+   "trace_id": "50a9dc2bb16640efb549736da9116221",
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "route": "agent",
+   "total_ms": 31307.7,
+   "guard_in_ms": 1015.4,
+   "llm_ms": 16727.6,
+   "llm_calls": 4,
+   "tool_stage_ms": 13119.1,
+   "verify_ms": 201.1,
+   "llm_node_overhead_ms": 42.7,
+   "tools_ms": {
+    "get_price_history": [
+     8.4
+    ],
+    "get_fundamentals": [
+     10.9,
+     75.0
+    ],
+    "search_news": [
+     4946.8
+    ],
+    "compute_indicators": [
+     0.6
+    ],
+    "analyze_sentiment": [
+     3620.3
+    ],
+    "search_announcements": [
+     3647.7
+    ]
+   }
+  },
+  {
+   "trace_id": "c196df45af314a76af17391ffa30e826",
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "route": "agent",
+   "total_ms": 28708.5,
+   "guard_in_ms": 1626.9,
+   "llm_ms": 20430.8,
+   "llm_calls": 5,
+   "tool_stage_ms": 6394.8,
+   "verify_ms": 20.4,
+   "llm_node_overhead_ms": 114.1,
+   "tools_ms": {
+    "get_macro_indicators": [
+     1.2
+    ],
+    "resolve_entity": [
+     0.2,
+     0.2
+    ],
+    "get_fundamentals": [
+     198.7,
+     0.1
+    ],
+    "search_news": [
+     105.0,
+     4756.4
+    ],
+    "search_knowledge": [
+     5645.0
+    ],
+    "get_price_history": [
+     1.1
+    ]
+   }
+  },
+  {
+   "trace_id": "b47c72988b81448f9ab160b12a76ff78",
+   "query": "CPI 和 PMI 最近的变化对消费板块有什么影响？",
+   "route": "agent",
+   "total_ms": 27620.8,
+   "guard_in_ms": 992.2,
+   "llm_ms": 18750.3,
+   "llm_calls": 5,
+   "tool_stage_ms": 7443.9,
+   "verify_ms": 45.2,
+   "llm_node_overhead_ms": 258.8,
+   "tools_ms": {
+    "get_macro_indicators": [
+     0.2,
+     14.5
+    ],
+    "get_fundamentals": [
+     59.6,
+     0.1,
+     177.5
+    ],
+    "search_news": [
+     1.7,
+     3424.0
+    ],
+    "resolve_entity": [
+     23.2
+    ]
+   }
+  },
+  {
+   "trace_id": "c3fa47cbc3c6443d88eae9d5d17e0b3b",
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "route": "workflow",
+   "total_ms": 22216.4,
+   "guard_in_ms": 7452.9,
+   "llm_ms": 8405.8,
+   "llm_calls": 1,
+   "tool_stage_ms": 6251.0,
+   "verify_ms": 16.9,
+   "llm_node_overhead_ms": 1.0,
+   "tools_ms": {
+    "get_price_history": [
+     20.4
+    ],
+    "compute_indicators": [
+     0.4
+    ],
+    "analyze_sentiment": [
+     5149.2
+    ],
+    "search_knowledge": [
+     6169.1
+    ]
+   }
+  },
+  {
+   "trace_id": "21ee29f50c084ce7928569f0498e3234",
+   "query": "对比一下贵州茅台和五粮液的估值，并说明差异的原因",
+   "route": "agent",
+   "total_ms": 19189.6,
+   "guard_in_ms": 785.9,
+   "llm_ms": 8354.5,
+   "llm_calls": 1,
+   "tool_stage_ms": 9669.6,
+   "verify_ms": 224.1,
+   "llm_node_overhead_ms": 4.4,
+   "tools_ms": {
+    "get_price_history": [
+     75.3,
+     8.8
+    ],
+    "get_fundamentals": [
+     32.2,
+     12.5
+    ],
+    "search_news": [
+     5057.4,
+     4462.4
+    ]
+   }
+  },
+  {
+   "trace_id": "bc2de1be373f494c8028a57496d211e3",
+   "query": "中国平安最近为什么下跌？结合基本面和新闻分析",
+   "route": "agent",
+   "total_ms": 15047.8,
+   "guard_in_ms": 851.4,
+   "llm_ms": 8976.6,
+   "llm_calls": 2,
+   "tool_stage_ms": 4966.2,
+   "verify_ms": 58.6,
+   "llm_node_overhead_ms": 12.9,
+   "tools_ms": {
+    "get_price_history": [
+     0.2
+    ],
+    "get_fundamentals": [
+     0.1
+    ],
+    "search_news": [
+     0.2
+    ],
+    "compute_indicators": [
+     13.8
+    ],
+    "analyze_sentiment": [
+     4916.6
+    ]
+   }
+  },
+  {
+   "trace_id": "94e24d7fac774171a7676e937cb1415d",
+   "query": "贵州茅台最近一个月的走势和成交量有什么特点？",
+   "route": "workflow",
+   "total_ms": 14690.6,
+   "guard_in_ms": 330.8,
+   "llm_ms": 11099.1,
+   "llm_calls": 1,
+   "tool_stage_ms": 3029.5,
+   "verify_ms": 181.8,
+   "llm_node_overhead_ms": 2.4,
+   "tools_ms": {
+    "get_price_history": [
+     4.5
+    ],
+    "compute_indicators": [
+     3.2
+    ],
+    "get_fundamentals": [
+     0.1
+    ],
+    "analyze_sentiment": [
+     2942.7
+    ]
+   }
+  },
+  {
+   "trace_id": "565ed10f647c40db9af8ed8972b3f64e",
+   "query": "沪深300ETF的费率和最近走势如何？",
+   "route": "workflow",
+   "total_ms": 12885.0,
+   "guard_in_ms": 3233.2,
+   "llm_ms": 9374.5,
+   "llm_calls": 1,
+   "tool_stage_ms": 115.5,
+   "verify_ms": 114.2,
+   "llm_node_overhead_ms": 2.9,
+   "tools_ms": {
+    "get_price_history": [
+     0.3
+    ],
+    "compute_indicators": [
+     0.2
+    ],
+    "analyze_sentiment": [
+     0.1
+    ],
+    "search_knowledge": [
+     0.2
+    ]
+   }
+  },
+  {
+   "trace_id": "7a8680f2ac684d60b34a05c464e0e293",
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "route": "workflow",
+   "total_ms": 5614.8,
+   "guard_in_ms": 691.7,
+   "llm_ms": 4795.3,
+   "llm_calls": 1,
+   "tool_stage_ms": 78.0,
+   "verify_ms": 6.1,
+   "llm_node_overhead_ms": 1.1,
+   "tools_ms": {
+    "get_fundamentals": [
+     55.9
+    ]
+   }
+  },
+  {
+   "trace_id": "c9f9077893ed4026b85bd641b25a3748",
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "route": "workflow",
+   "total_ms": 4451.4,
+   "guard_in_ms": 961.8,
+   "llm_ms": 3381.1,
+   "llm_calls": 1,
+   "tool_stage_ms": 5.2,
+   "verify_ms": 1.1,
+   "llm_node_overhead_ms": 0.7,
+   "tools_ms": {
+    "get_fundamentals": [
+     2.7
+    ]
+   }
+  },
+  {
+   "trace_id": "7ccc25aee793413ebf27daa155d718d5",
+   "query": "宁德时代的盈利能力怎么样？看看ROE和毛利率",
+   "route": "workflow",
+   "total_ms": 3973.3,
+   "guard_in_ms": 1324.3,
+   "llm_ms": 2563.4,
+   "llm_calls": 1,
+   "tool_stage_ms": 3.9,
+   "verify_ms": 17.2,
+   "llm_node_overhead_ms": 0.9,
+   "tools_ms": {
+    "get_fundamentals": [
+     2.8
+    ]
+   }
+  }
+ ]
+}

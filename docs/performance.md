@@ -364,6 +364,58 @@ LLM call at all: their traces put 10–13 s in the NLU (`guard_in`) and 9–11 s
 knowledge-search tools, CPU work on the loaded host. The cost of the breaker is visible too: for about 50 s after the provider recovered (45 → 94 s)
 answers still came from the template. All four recovery requests were LLM answers.
 
+### What drives the P95 of the 4-user LLM run, and one fix (round 13)
+
+[`scripts/trace_stages.py`](../scripts/trace_stages.py) splits every run's trace into `guard_in` (NLU and routing), LLM
+wait (the sum of the run's LLM calls), the tool stage (`agent_prefetch` + `agent_tools` + `execute_plan`) and the rest.
+Same host, same command as above (`chaos_drill --scenario llm-load`, 4 users x 3 requests, `auto`, DeepSeek V4.1
+Flash), clean trees:
+
+| Run ([`results/perf/agent/`](results/perf/agent/)) | Commit | Load avg at start | P50 / P95 (s) | LLM calls (429) | Share of all request time: LLM / tools / `guard_in` | Slowest request | Retrieval tools, median (s) | ¥ per 1k questions |
+|---|---|---:|---:|---:|---|---|---|---:|
+| `r12-load-4u-auto.json` (round 12) | `fd6b157` | 17.8 | 15.3 / 53.8 | 29 (0) | 0.57 / 0.32 / 0.11 | 51.8 s server time: **tools 24.4 s**, LLM 21.3 s (6 calls), `guard_in` 5.9 s | 3.6–5.6 | 12.14 |
+| `r13-load-4u-auto-before.json` | `4cccc78` | 16.6 | 23.0 / 29.0 | 32 (0) | 0.84 / 0.11 / 0.05 | 28.6 s: LLM 24.1 s (2 calls), tools 2.0 s | 1.1–1.8 | 18.92 |
+| `r13-load-4u-auto-after.json` (with the fix) | `a70dda9` | 18.6 | 20.2 / 35.4 | 31 (0) | 0.79 / 0.11 / 0.09 | 35.4 s: LLM 31.3 s (**7 calls**), tools 3.5 s | **0.11–0.26** | 15.41 |
+
+Stage files: `r12-load-4u-auto-stages.json`, `r13-load-4u-auto-before-stages.json`, `r13-load-4u-auto-after-stages.json`.
+
+**The driver.** LLM wait is the largest stage in all three runs (57–84% of all request time) and sets the P95 whenever
+one request makes many calls (the slowest requests made 5–7). The second stage, and the one that grows with host
+contention, is the tool stage: in the round-12 run it was 32% of all time and the largest part of the slowest
+request (24.4 s), because the retrieval tools (`search_news`, `search_knowledge`, `search_announcements`,
+`analyze_sentiment`) took 3.6–5.6 s each against ~0.3 s alone, and cheap lookups queued behind them in the shared
+tool pool (`get_fundamentals` 9.5 s for a ~1 ms call). A profile of one `search_news` call put ~87% of it in scipy's
+`csr_tocsc`: `linear_kernel(query, doc_matrix)` transposed the whole TF-IDF matrix on every search.
+
+**The fix** (`a70dda9`, `query_intelligence/retrieval/doc_retriever.py`): keep `doc_matrix.T` as CSR once per fitted
+index and score with `query @ T`, the same products in the same order (the tests assert `np.array_equal` with
+`linear_kernel` on the shipped corpus). Measured in process on the same host with
+[`scripts/bench_retrieval_contention.py`](../scripts/bench_retrieval_contention.py), which replays the tool calls of
+the twelve traced round-12 requests as 4 users x 3 requests (4 tools in parallel per request, cache cleared per
+request), the old and the new scoring alternating over 6 rounds each (load average 15.8–24.4;
+[`r13-retrieval-bench.json`](results/perf/agent/r13-retrieval-bench.json)):
+
+| | old (transpose per call) | new (transpose once) |
+|---|---:|---:|
+| tool stage per request, P50 / P95 (ms) | 4,734 / 13,284 | **443 / 7,033** |
+| retrieval-backed calls under 4 users, P50 / P95 (ms) | 3,941 / 7,899 | **265 / 1,610** |
+| one call alone, P50 (ms): `search_news` / `analyze_sentiment` / `search_announcements` / `search_knowledge` | 870 / 845 / 790 / 1,576 | 28 / 62 / 37 / 308 |
+
+End to end the fix shows where it acts, not in the 12-request P95: in the LLM runs above the retrieval tools' median
+fell from 1.1–1.8 s to 0.11–0.26 s and the median tool stage per request from 2.25 s to 1.69 s, while the P95 went
+29.0 → 35.4 s because the slowest "after" request made seven LLM calls (31.3 s of LLM wait). With 12 requests per
+run, P95 is one request and LLM-bound; this is not a claim that the P95 fell. What still queues under concurrency:
+`get_fundamentals` on industry names and `resolve_entity` (P95 6.8 s and 5.2 s in the benchmark, both through the NLU
+entity resolver), the next thing to profile. LLM calls used: 32 + 31.
+
+```bash
+source /tmp/llmenv.sh
+python -m scripts.chaos_drill --scenario llm-load --port 8861 --load-users 4 --load-requests 3 --load-mode auto \
+    --fallback-model cline-pass/glm-5.3-flash --usd-cny 6.7489 --out outputs/chaos/r13-llm-load/before-4u.json
+python -m scripts.trace_stages outputs/chaos/r13-llm-load/traces --out outputs/r13/stages-before-4u.json
+python -m scripts.bench_retrieval_contention --rounds 6 --out outputs/perf/r13-retrieval-bench.json
+```
+
 ### Second model: GLM-5.3 flash spot check ([`perf-glm-holdout-*.json`](../evaluation/results/))
 
 Held-out, one repeat per run, 3 workers, streamed. The previous path and the defaults were run in the
