@@ -164,6 +164,8 @@ _IMPERATIVE = re.compile(
 )
 _ADVICE = re.compile(
     r"买入|卖出|加仓|减仓|建仓|清仓|抄底|上车|梭哈|满仓|全仓|重仓|推荐|评级|目标价|必涨|必跌|翻倍|机会难得|入场|离场|止盈|止损|"
+    # (round 15, K15) "逢低加码" (traditional 加碼 reads the same after ``_simplified``)
+    r"逢低(?:加码|布局|吸纳|买)|加码买|"
     r"\b(?:buy|sell|strong buy|target price|price target|outperform|overweight|underweight|must-buy|all[- ]in|"
     r"full position|entry point|guarantee\w*|upside)\b",
     re.IGNORECASE,
@@ -211,6 +213,78 @@ _CUT_FIGURE = re.compile(
     r"\s*[:：]?\s*[-+]?(?!(?:19|20)\d{2}$)\d+(?:\.\d+)?$",
     re.IGNORECASE,
 )
+
+
+# (round 15, review-11 K15) Planted financial-fact headlines the round-11 reviewer showed in the evidence list in their
+# split (title cut in half) and title-only variants, written in shapes the rules above did not read:
+# * *traditional characters and Taiwanese terms*: "貴州茅臺本益比僅 5.2" (本益比 = 市盈率, 僅 = 仅). Headline checks
+#   read the title with common traditional characters mapped to simplified ones (``_TRADITIONAL``) and 本益比 /
+#   股價淨值比 as 市盈率 / 市净率, so every keyword rule applies to them ("法人建議逢低加碼" is advice);
+# * *a limiter cut before or at its figure*: "…仅", "…只有四", "…仅 5.2", "高达 12": a valuation or result claim stopped
+#   right where its value starts, Arabic or Chinese numerals;
+# * *a metric cut at its change word*: "归母净利润同", "营收下", "market value has reache": a figure claim cut before
+#   its value;
+# * *Latin look-alike words in another script*: "ΡΕ(ΤΤΜ)" in Greek capitals reads as "PE (TTM)" but no Latin keyword
+#   rule sees it; a word of two or more letters that are all Greek / Cyrillic confusables of Latin letters is a
+#   homoglyph word like a mixed-script one.
+# Measured on the shipped corpus (data/runtime/documents.jsonl + data/documents.json, 38,446 titles, 5,874 shown
+# before) and the replay snapshots (747 titles, 445 shown before): see ``SECURITY.md`` for the count newly hidden.
+_TRADITIONAL_PAIRS = (
+    "臺台灣湾僅仅淨净營营價价漲涨億亿萬万報报導导盤盘為为達达約约與与業业績绩稅税東东長长開开當当現现創创歷历預预測测"
+    "幣币國国際际銀银資资產产總总額额減减權权衝冲擊击點点來来後后會会將将對对進进這这還还經经濟济據据傳传聞闻獨独調调"
+    "罰罚議议碼码買买賣卖倉仓擇择機机優优勢势險险虧亏損损補补鎖锁時时間间問问題题說说話话請请讀读寫写書书訊讯號号錢钱"
+    "費费貨货證证監监處处決决違违規规範范檢检査查詐诈騙骗偽伪實实圓圆匯汇兌兑換换帳账戶户單单線线綫线動动態态勝胜敗败"
+    "獎奖紅红戰战爭争縮缩擴扩張张頂顶鋒锋鋰锂電电車车輛辆軟软體体網网絡络華华興兴發发財财計计劃划條条層层級级類类標标"
+    "準准確确認认識识雙双齊齐豐丰嚴严廣广礦矿藥药醫医療疗壽寿貸贷債债協协務务環环節节氣气溫温驗验訂订購购銷销運运輸输"
+    "鐵铁鋼钢煉炼熱热頭头緊紧寬宽兩两個个們们嗎吗啟启從从無无雖虽讓让給给該该應应須须樣样簡简檔档漢汉擁拥護护師师員员"
+    "顧顾團团隊队廠厂聯联"
+)
+_TRADITIONAL = str.maketrans(dict(zip(_TRADITIONAL_PAIRS[::2], _TRADITIONAL_PAIRS[1::2], strict=True)))
+_TAIWAN_TERMS = (("本益比", "市盈率"), ("股价净值比", "市净率"), ("净值比", "市净率"))
+
+
+def _simplified(folded: str) -> str:
+    """``folded`` with common traditional characters and Taiwanese valuation terms read as simplified ones."""
+    text = folded.translate(_TRADITIONAL)
+    for term, simplified in _TAIWAN_TERMS:
+        text = text.replace(term, simplified)
+    return text
+
+
+_CN_DIGITS = r"[零〇一二两三四五六七八九十百千万亿点]+"
+_LIMITER = r"(?:(?<!不)仅为?|只有|只剩|(?<![人天英奇口刚方])才|不到|不足|高达|低至|最低|最高)"
+_CUT_LIMIT = re.compile(
+    # a limiter at the very end, or followed by a bare figure (Arabic or Chinese numerals) and nothing else
+    r"(?:(?<!不)仅为?|只有|只剩|(?<![人天英奇口刚方])才|高达|低至)\s*$|"
+    + _LIMITER
+    + r"\s*[:：]?\s*(?:[-+]?\d+(?:\.\d+)?|"
+    + _CN_DIGITS
+    + r")\s*$"
+)
+_CUT_CHANGE = re.compile(
+    # a metric followed by the start of a change word and nothing else: "归母净利润同", "营收下", "市值较上" (a whole
+    # change word, "毛利率提升", is a complete headline)
+    r"(?:净利润|净利|营业收入|营收|收入|利润|市值|股价|市盈率|市净率|每股收益|毛利率|净利率|(?<![A-Za-z])(?:ROE|EPS))"
+    r"(?:同比?|环比?|较上?年?|下|上)\s*$|"
+    # "Kweichow Moutai's market value has reache", "net profit fell", "P/E ratio stands": a metric and a verb, no value
+    r"\b(?:market\s+(?:value|cap\w*)|valuation|net\s+(?:profit|income)|revenues?|sales|earnings|profits?|"
+    r"(?:share|stock)\s+price|P/?E(?:\s+ratio)?|P/?B(?:\s+ratio)?|dividend(?:\s+yield)?|EPS|ROE)\s+"
+    r"(?:(?:has|have|had|is|was|were|will|now)\s+)*(?:\w+ly\s+)?(?:reach\w*|hit\w*|ris\w*|rose|fell|fall\w*|drop\w*|"
+    r"climb\w*|surg\w*|soar\w*|plung\w*|jump\w*|slid\w*|slump\w*|stand\w*|stood|grew|grow\w*|declin\w*|increas\w*|"
+    r"decreas\w*|top\w*|tumbl\w*|doubl\w*|halv\w*|exceed\w*|surpass\w*|came\s+in|come\w*)\s*$",
+    re.IGNORECASE,
+)
+
+
+def lookalike_word(text: str) -> str | None:
+    """(round 15, K15) A word of two or more Greek / Cyrillic / Armenian letters that are all confusables of Latin
+    letters ("ΡΕ", "ТТМ"): it reads as a Latin abbreviation that the Latin keyword rules never see."""
+    for word in re.findall(r"[^\W\d_]+", unicodedata.normalize("NFKC", INVISIBLE.sub("", text or ""))):
+        if len(word) < 2 or any("a" <= char.lower() <= "z" or "一" <= char <= "鿿" for char in word):
+            continue
+        if all(char in _CONFUSABLE_PAIRS for char in word):
+            return word
+    return None
 
 
 # (round 11, G8) A dramatic financial claim with no figure ("净利润腰斩", "暴雷", "崩盘", "退市风险", "plunges",
@@ -353,7 +427,7 @@ _FILING_TITLE = re.compile(
 
 def regulatory_claim(title: str | None) -> str | None:
     """The regulatory-action, fraud or delisting wording, or the claimed regulator notice, in ``title``."""
-    folded = re.sub(r"\s+", " ", fold(INVISIBLE.sub("", title or ""))).strip()
+    folded = _simplified(re.sub(r"\s+", " ", fold(INVISIBLE.sub("", title or ""))).strip())
     match = _CLAIMED_NOTICE.search(folded) or _REGULATORY_ACTION.search(folded)
     return match.group(0).strip() if match else None
 
@@ -470,11 +544,12 @@ def _allowed_domain(link: str) -> bool:
 def headline_findings(title: str) -> list[Finding]:
     """Everything that stops ``title`` from being shown as a headline (empty = safe)."""
     text = re.sub(r"\s+", " ", INVISIBLE.sub("", title or "")).strip()
-    folded = re.sub(r"\s+", " ", fold(text)).strip()
+    # (round 15, K15) traditional characters and Taiwanese terms are read as simplified ones by every rule below
+    folded = _simplified(re.sub(r"\s+", " ", fold(text)).strip())
     found: list[Finding] = []
     if not folded:
         return [Finding("charset", "")]
-    word = mixed_script_word(text)
+    word = mixed_script_word(text) or lookalike_word(text)
     if word:
         found.append(Finding("mixed_script", word))
     if len(folded) > MAX_HEADLINE_CHARS:
@@ -505,7 +580,8 @@ def headline_findings(title: str) -> list[Finding]:
     if romanised:
         found.append(Finding("advice", romanised))
     # (round 12) a title cut mid-clause, characters spaced out one by one, or a key-value record
-    for pattern in (_CUT_PHRASE, _SPACED_CJK, _KEY_VALUE):
+    # (round 15, K15) a limiter or a metric's change word cut before its value
+    for pattern in (_CUT_PHRASE, _SPACED_CJK, _KEY_VALUE, _CUT_LIMIT, _CUT_CHANGE):
         match = pattern.search(folded)
         if match:
             found.append(Finding("claim", match.group(0).strip() or folded[-8:]))
