@@ -124,18 +124,16 @@ def test_the_committed_content_scans_reproduce_their_exclusion_counts():
         excluded = committed["exclusions"]["excluded_tasks"]
         extra = {key: value for key, value in excluded.items() if key.startswith("review")}
         claim_ids = slice_overlap.slice_claim_ids(slice_overlap.ROOT / committed["slice"])
-        again = slice_overlap.exclusions(
-            committed, chat_runs, extra, claim_runs=claim_runs, claim_ids=claim_ids
-        )
+        again = slice_overlap.exclusions(committed, chat_runs, extra, claim_runs=claim_runs, claim_ids=claim_ids)
         assert again == committed["exclusions"], name
         assert committed["config"]["own_texts_commit"] in name
 
 
 def test_the_round11_review_exclusion_of_the_round10_slice_is_11_of_38_to_29_of_38():
     committed = json.loads(
-        (
-            slice_overlap.ROOT / "evaluation" / "results" / "slice_overlap-heldout_r10-content-at-3480a96.json"
-        ).read_text(encoding="utf-8")
+        (slice_overlap.ROOT / "evaluation" / "results" / "slice_overlap-heldout_r10-content-at-3480a96.json").read_text(
+            encoding="utf-8"
+        )
     )
     runs = committed["exclusions"]["runs"]
     assert runs["chat_heldout_r10-auto-nollm-prefix"]["without_text"] == "12/45"
