@@ -508,6 +508,32 @@ Found by the round-14 runs and still open: a definition named more than 40 chara
 profit attributable to the parent company was RMB 34.503 billion") is not seen; "人民币" is an alias of 宁德时代 in the
 runtime alias table, so a claim that writes 人民币 gets 宁德时代 as a target; "连续 3 年" with spaces is read as a value.
 
+### Round 15: trillions, several companies as one side, 扣非 vs 归母, foreign lines (after the round-11 review, K6)
+
+The round-11 review's new claims scored 17/30, with false contradictions of true published-style sentences and false
+accepts (K6). Failing tests were written first in the engineer's own wording (`tests/test_agent_round15_claims.py`; 34
+of the first 40 cases failed at `4ad3380`, 47 cases now; none is a review sentence).
+
+| Form | Example (own wording) | Reading |
+| --- | --- | --- |
+| Trillion | "CATL's market capitalisation was roughly RMB1.35 trillion", "about CNY 1.04tn" | 10^12 (the 万亿 scales). Before: the bare scale compared 1.35 with 1.347×10^12, a contradiction |
+| A mean of named companies | "招商银行、工商银行和平安银行三家的市盈率平均下来约6.6倍", "ROE均值约18%", "The average P/E of CMB, ICBC and Ping An Bank is roughly 6.6x" | `kind: "mean"`: the arithmetic mean of every company named in the sentence before the number (6.86, 7.89, 5.17 → 6.64), each operand's value and evidence id in the check. Not an industry / market / peer average and not 加权平均 (a definition). Before: the last company's own P/E (5.17, contradicted) |
+| A total as the compared side | "紫金矿业的总市值比美的集团和平安银行加起来还高", "more than CMB's, Ping An Bank's and CITIC Securities' combined", "the combined net profit of A, B and C" | the reference is the total of the listed companies (`reference` "美的集团+平安银行", `reference_value` 8356.84亿, operands in the check), for a relation, a stated difference ("比…三家加起来还多1450多亿") or a share. Before: the first company alone (紫金 7921.40亿 > 美的 6111.58亿, a false accept) |
+| A total as the subject | "美的集团和平安银行的总市值合计超过紫金矿业" | the listed companies' total is the subject. Before: 平安银行 alone |
+| A total with a company outside the data | "工行净利润比招行和蔚来加起来还多2000亿", "ICBC's net profit beat CMB and Xpeng combined by RMB200 billion" | `no_data` with the missing names; never the first operand alone, in English lists too ("and" ends a clause, so round 14's check missed them) |
+| A share of an N-company total | "招商银行的净利润占招行、工行、平安银行三家合计的两成多", "在工行、招行、平安银行三家里，工行营收占比超过六成", "CMB accounts for about 27% of the combined net profit of CMB, ICBC and Ping An Bank" | a multiple of the total (1501.81 / 5613.76 = 0.2675). A share of a whole whose companies are not named ("几家大行里，工行…占几家合计的六成以上") is `no_data`, never a growth rate. Before: a sum with a unit mismatch, or the YoY of the last company |
+| 扣非 vs 归母 of one company | "中国平安的扣非净利润比归母净利润高", "比亚迪扣非净利润不足300亿元，比归母净利润少30多亿", "recurring net profit was about RMB3.2 billion below its net profit attributable to shareholders" | another figure of the same target as the compared side (`reference_metric`), for a relation or a stated gap (31.73亿). A bare 归母 is net profit. Before: no check, or the gap read as a net profit of 30-40亿 |
+| A year before the line item | "Midea Group's 2025 revenue of RMB458.5 billion", "CATL's 2025 net profit of …" | the year is the period, not a value. Before: "2025" was a revenue with no unit |
+| A foreign line | "比亚迪H股的市净率约3.2倍", "招商银行港股市盈率不到7倍", "ICBC's Hong Kong-listed shares …", "长江电力伦敦GDR …", "…，H股约2.5倍" | `no_data`, "the data covers the A-share line only, so A-share data neither supports nor contradicts it" (the chat's own detector, `coverage.foreign_line_spans`, plus bare H股 / 港股 / ADR / GDR words, HK codes and the venue). The A-share part of the same claim is still checked. Before: the A-share P/B supported an H-share claim |
+| A short name after the full name | "美的集团营收比宁德时代还多，但净利润只有宁德的六成左右" | a four-character name's two-character head ("宁德", "中芯", "紫金") is that company when the full name is in the claim, except heads several companies share (中国, 招商, 平安, 长江, …) |
+| The subject across 但 | "比亚迪的营收是宁德时代的1.9倍，但净利润只有约326亿元" | the compared side of a multiple is not the subject of a later clause (as round 13 did for 比 / 高于). Before: 宁德时代's 722亿 contradicted it |
+| "earned", "by RMB …" | "ICBC earned more than CMB and Ping An Bank combined", "beat … by RMB200 billion" | "earn(s/ed)" is the year's net profit; a currency may stand after "by" |
+| A definition caution alone | "宁德时代2025年归母净利润722亿元，同比增长42%" | when every unverifiable part is `definition_mismatch`, the verdict is `supported` with partial coverage ("partly checked"), not `partially_supported`. Any other unverifiable part still makes it partial |
+
+Open after round 15: a short name with no full name in the claim ("比亚迪≈宁德1.9倍"); a total or mean whose companies
+are only counted, not named ("三家银行平均市盈率"); an English share worded "X's share of …"; mean and total words are a
+fixed list.
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
@@ -526,7 +552,7 @@ period (`as_of_basis: indicator_date`).
 | --- | --- |
 | `no_target` | no listed company, fund or index is recognised |
 | `no_metric` | the number cannot be tied to a metric |
-| `no_data` | the source has no value for the target and metric (a company outside the offline snapshot, an ETF with no daily change and no two closes ending at its quote date, index P/E, price-to-sales, max drawdown, PEG without a growth rate, index turnover reported as 0, dividend yield, market cap) |
+| `no_data` | the source has no value for the target and metric (a company outside the offline snapshot, an ETF with no daily change and no two closes ending at its quote date, index P/E, price-to-sales, max drawdown, PEG without a growth rate, index turnover reported as 0, dividend yield, market cap); since round 15 also a figure of an H-share / Hong Kong / ADR / GDR line, and a total or share whose companies are not all in the data or not named |
 | `growth_unavailable` | a YoY growth claim, but the fundamentals payload has no YoY field |
 | `unit_mismatch` | the unit does not fit the metric |
 | `no_unit` | an amount with no unit |

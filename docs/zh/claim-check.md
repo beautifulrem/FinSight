@@ -477,6 +477,30 @@ insurance average」、「less than half of Moutai's net profit」、是保险�
 34.503 billion”）时读不到；运行时别名表把“人民币”列为宁德时代的别名，写了“人民币”的说法会把宁德时代当作标的；带空格的
 “连续 3 年”被读成数值。
 
+### 第 15 轮：万亿、多家公司作为一方、扣非与归母、境外股份（第 11 轮评审之后，K6）
+
+第 11 轮评审的新说法得分 17/30，其中有把真实的、发布式的说法判为不符，也有误判为相符（K6）。先用工程师自己的措辞写失败测试
+（`tests/test_agent_round15_claims.py`；前 40 条中 34 条在 `4ad3380` 失败，现共 47 条；都不是评审的句子）。
+
+| 写法 | 例子（自写） | 读法 |
+| --- | --- | --- |
+| trillion | “CATL's market capitalisation was roughly RMB1.35 trillion”“about CNY 1.04tn” | 10^12（与万亿相同的换算）。之前没有换算，把 1.35 与 1.347×10^12 比较，判为不符 |
+| 点名多家公司的平均 | “招商银行、工商银行和平安银行三家的市盈率平均下来约6.6倍”“ROE均值约18%”“The average P/E of CMB, ICBC and Ping An Bank is roughly 6.6x” | `kind: "mean"`：数字之前本句点名的所有公司的算术平均（6.86、7.89、5.17 → 6.64），每家的数值和证据 ID 写在核查里。不是行业 / 市场 / 同行平均，也不是加权平均（口径）。之前取最后一家自己的市盈率（5.17，判为不符） |
+| 合计作为比较对象 | “紫金矿业的总市值比美的集团和平安银行加起来还高”“more than CMB's, Ping An Bank's and CITIC Securities' combined”“the combined net profit of A, B and C” | 比较对象是所列公司的合计（`reference` “美的集团+平安银行”，`reference_value` 8356.84亿，各家数值写在核查里），用于关系、所写差值（“比…三家加起来还多1450多亿”）和占比。之前只取第一家（紫金 7921.40亿 > 美的 6111.58亿，误判为相符） |
+| 合计作为主语 | “美的集团和平安银行的总市值合计超过紫金矿业” | 主语是所列公司的合计。之前只取平安银行 |
+| 合计里有数据之外的公司 | “工行净利润比招行和蔚来加起来还多2000亿”“ICBC's net profit beat CMB and Xpeng combined by RMB200 billion” | `no_data`，说明里列出缺的公司；绝不只与第一家比较，英文列表同样（and 会断开分句，第 14 轮的检查漏掉了它们） |
+| 在 N 家合计中的占比 | “招商银行的净利润占招行、工行、平安银行三家合计的两成多”“在工行、招行、平安银行三家里，工行营收占比超过六成”“CMB accounts for about 27% of the combined net profit of CMB, ICBC and Ping An Bank” | 合计的倍数（1501.81 / 5613.76 = 0.2675）。整体的公司没有点名时（“几家大行里，工行…占几家合计的六成以上”）为 `no_data`，绝不读成增速。之前读成单位不符的合计，或最后一家的同比 |
+| 同一公司的扣非与归母 | “中国平安的扣非净利润比归母净利润高”“比亚迪扣非净利润不足300亿元，比归母净利润少30多亿”“recurring net profit was about RMB3.2 billion below its net profit attributable to shareholders” | 比较对象是同一标的的另一项数字（`reference_metric`），用于关系和所写差值（31.73亿）。单独的“归母”即归母净利润。之前没有核查，或把差值读成 30–40 亿的净利润 |
+| 年份写在科目前 | “Midea Group's 2025 revenue of RMB458.5 billion”“CATL's 2025 net profit of …” | 年份是期间，不是数值。之前把“2025”读成没有单位的营收 |
+| 境外股份 | “比亚迪H股的市净率约3.2倍”“招商银行港股市盈率不到7倍”“ICBC's Hong Kong-listed shares …”“长江电力伦敦GDR …”“…，H股约2.5倍” | `no_data`，“数据只覆盖 A 股，A 股数据既不支持也不否定它”（沿用聊天自己的识别 `coverage.foreign_line_spans`，加上单独的 H股 / 港股 / ADR / GDR、港股代码和交易所）。同一说法里的 A 股部分照常核对。之前用 A 股市净率把 H 股说法判为相符 |
+| 全称之后的简称 | “美的集团营收比宁德时代还多，但净利润只有宁德的六成左右” | 说法里有全称时，四字公司名的前两个字（“宁德”“中芯”“紫金”）即该公司；多家公司共用的开头（中国、招商、平安、长江等）除外 |
+| 跨“但”的主语 | “比亚迪的营收是宁德时代的1.9倍，但净利润只有约326亿元” | 倍数的比较对象不是后面分句的主语（第 13 轮对“比 / 高于”已这样处理）。之前用宁德时代的 722亿 判为不符 |
+| earned、by RMB … | “ICBC earned more than CMB and Ping An Bank combined”“beat … by RMB200 billion” | earn(s/ed) 是全年净利润；by 之后可以有币种 |
+| 只有口径提示 | “宁德时代2025年归母净利润722亿元，同比增长42%” | 无法核实的部分全是 `definition_mismatch` 时，结论为 `supported`、覆盖为部分（“部分核查”），不再是 `partially_supported`；有其他无法核实的部分时仍为部分相符 |
+
+第 15 轮之后仍未解决：说法里没有全称的简称（“比亚迪≈宁德1.9倍”）；只说家数、没有点名公司的合计或平均（“三家银行平均市盈率”）；
+英文“X's share of …”式的占比；平均和合计用词是固定列表。
+
 ### 宏观数值（C13）
 
 宏观说法与 `get_macro_indicators` 的最新一期读数比对，`as_of` 是读数所属期间（`as_of_basis: indicator_date`）。
@@ -492,7 +516,7 @@ insurance average」、「less than half of Moutai's net profit」、是保险�
 | --- | --- |
 | `no_target` | 没有识别到上市公司、基金或指数 |
 | `no_metric` | 无法判断数字对应哪个指标 |
-| `no_data` | 数据源没有该标的的这项数据。例如：离线快照之外的公司、没有涨跌幅且最近两个收盘价不以报价日结束的 ETF、指数市盈率、市销率、最大回撤、没有增速时的 PEG、成交额报 0 的指数、股息率、市值 |
+| `no_data` | 数据源没有该标的的这项数据。例如：离线快照之外的公司、没有涨跌幅且最近两个收盘价不以报价日结束的 ETF、指数市盈率、市销率、最大回撤、没有增速时的 PEG、成交额报 0 的指数、股息率、市值；第 15 轮起还包括 H 股 / 港股 / ADR / GDR 的数字，以及有公司不在数据中或没有点名的合计、占比 |
 | `growth_unavailable` | 说的是同比增速，但基本面数据里没有同比字段 |
 | `unit_mismatch` | 单位与指标不符 |
 | `no_unit` | 金额没有单位 |
