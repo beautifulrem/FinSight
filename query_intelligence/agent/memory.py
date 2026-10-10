@@ -496,7 +496,88 @@ def resolve_ellipsis(
         name = str(current_targets[0].get("canonical_name") or current_targets[0].get("symbol"))
         rewritten = f"{name}的{'、'.join(aspects)}呢？" if zh else f"What is {name}'s {', '.join(aspects)}?"
         return rewritten, f"ellipsis:aspect->{'+'.join(aspects)}"
+    if 2 <= len(current_targets) <= 4 and marker and not aspects_now and _only_listed_names(text, current_targets):
+        # (round 15, review-11 K10) "工行和平安银行的呢" after a P/E question: the same aspects for every new target
+        aspects = _last_aspects(turns, zh)
+        if not aspects:
+            return None
+        names = [str(t.get("canonical_name") or t.get("symbol")) for t in current_targets]
+        joined = "和".join(names) if zh else " and ".join(names)
+        listed = "、".join(aspects) if zh else ", ".join(aspects)
+        rewritten = f"{joined}的{listed}分别是多少？" if zh else f"What are the {listed} of {joined}?"
+        return rewritten, f"ellipsis:aspect->{'+'.join(aspects)}"
     return None
+
+
+def _only_listed_names(text: str, entities: list[dict[str, Any]]) -> bool:
+    """Whether the follow-up is nothing but the targets' names joined by 和 / 与 / 、 / and and an ellipsis marker
+    ("工行和平安银行的呢", "And ICBC and Ping An Bank?")."""
+    from .coverage import name_forms
+
+    remainder = text.lower()
+    forms = [
+        form
+        for entity in entities
+        for form in name_forms(str(entity.get("canonical_name") or ""), str(entity.get("mention") or ""))
+    ]
+    for form in sorted({form.lower() for form in forms if form}, key=len, reverse=True):
+        remainder = remainder.replace(form, " ")
+    remainder = _ELLIPSIS_ZH.sub(" ", remainder)
+    remainder = _ELLIPSIS_EN.sub(" ", remainder)
+    filler = r"(?:'s|’s|\b(?:and|what|about|how|then|please)\b|[和与跟及、的呢吗\s?？。.!！,，])"
+    return not re.sub(filler, "", remainder)
+
+
+# (round 15, review-11 K7) a further position added to the holding of the turn before, with a total asked: "再加三千股
+# 工行呢，总共多少", "我还有500股平安银行，加起来值多少", "Add 3,000 ICBC shares - what's the total now?"
+_HOLDING_ADD = re.compile(
+    r"再加|加上|还有|另外|另有|又买|再买|又有|\bplus\b|\banother\b|\balso (?:have|hold|own)\b|\badd(?:ing)?\b|"
+    r"\bas well\b",
+    re.IGNORECASE,
+)
+_HOLDING_TOTAL = re.compile(
+    r"总共|一共|合计|加起来|总计|共计|总市值|\bin total\b|\baltogether\b|\bcombined\b|\btotal\b|\ball together\b",
+    re.IGNORECASE,
+)
+
+
+def _added_holding(
+    text: str, turns: list[dict[str, Any]], current_targets: list[dict[str, Any]]
+) -> tuple[str, str] | None:
+    """(round 15, review-11 K7) A position added to the previous turn's holding, with a total asked: the earlier
+    position(s) and the new one are valued together ("我有两千股招商银行，值多少钱" → "再加三千股工行呢，总共多少"
+    values 2,000 招商银行 and 3,000 工商银行). ``(rewritten, reason)`` or ``None``."""
+    from .coverage import holding_positions, holding_value_request, in_fund_units, stated_holding_count
+
+    if not turns or len(current_targets) != 1 or not _HOLDING_ADD.search(text) or not _HOLDING_TOTAL.search(text):
+        return None
+    count = (holding_value_request(text) or (stated_holding_count(text), None))[0]
+    if not count or holding_positions(text):
+        return None
+    new = (count, None)
+    previous = _effective(turns[-1])
+    held = holding_value_request(previous)
+    earlier = [t for t in turns[-1].get("entities") or [] if t.get("symbol")]
+    if held is None or holding_positions(previous) or len(earlier) != 1:
+        return None
+    if str(earlier[0]["symbol"]) == str(current_targets[0].get("symbol")):
+        return None  # "再加500股" of the same target: one position, its count stated again
+    zh = bool(re.search(r"[一-鿿]", text))
+    old_name = str(earlier[0].get("name") or earlier[0].get("canonical_name") or earlier[0]["symbol"])
+    new_name = str(current_targets[0].get("canonical_name") or current_targets[0].get("symbol"))
+    unit_old = "份" if in_fund_units(previous) else "股"
+    unit_new = "份" if in_fund_units(text) else "股"
+    if zh:
+        rewritten = f"我持有{held[0]}{unit_old}{old_name}和{new[0]}{unit_new}{new_name}，合计市值多少"
+    else:
+        from .names import english_name
+
+        old_en, new_en = english_name(old_name) or old_name, english_name(new_name) or new_name
+        rewritten = (
+            f"I hold {held[0]} {'units' if unit_old == '份' else 'shares'} of {old_en} and {new[0]} "
+            f"{'units' if unit_new == '份' else 'shares'} of {new_en}: what are they worth in total?"
+        )
+    return rewritten, f"holding_added:{held[0]}->{old_name}+{new[0]}->{new_name}"
 
 
 _HOLDING_SWITCH = re.compile(r"换成|改成|换作|如果是|要是|假如|若是|\binstead\b|\bif\b", re.IGNORECASE)
@@ -546,6 +627,9 @@ def resolve_holding_follow_up(
                     inserted = f" of {english_name(name) or name}"
                 return f"{text[:cut]}{inserted}{text[cut:]}", f"holding_follow_up:{bare[0]['shares']}->{name}"
         return None
+    added = _added_holding(text, turns, current_targets)
+    if added is not None:
+        return added
     if not turns or len(current_targets) > 1:
         return None
     if not current_targets:
