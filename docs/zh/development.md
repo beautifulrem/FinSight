@@ -50,7 +50,7 @@ deploy/k8s-smoke/smoke.sh        # 需要 kind 和 kubectl；断言 /ready、三
 
 日志写到 `outputs/prepush/<commit>/<step>.log`，汇总写到 `outputs/prepush/<commit>/summary.md`（或 `SUMMARY=<路径>`）：
 提交、工作区是否干净、Python / Node / pnpm 版本，以及每一步的命令、结果、秒数和日志里的结果行（pytest 的通过数、门禁的任务
-成功率等）。提交到仓库的汇总在 [`docs/results/ci/`](../results/ci/)，按运行时的提交命名：第 14 轮在 `278f7cc` 上 17 个步骤全部通过
+成功率等）。提交到仓库的汇总在 [`docs/results/ci/`](../results/ci/)，按运行时的提交命名：第 14 轮在 `278f7cc` 上（r14-ops 分支，第 14 轮合并之前，所以是 dev 473 / ext 24）17 个步骤全部通过
 （[`prepush-278f7cc.md`](../results/ci/prepush-278f7cc.md)：2508 个测试通过 / 70 个跳过，vitest 152 个，e2e 2 个，门禁 dev 1.000、
 holdout 0.9434、ext 1.000、shipped 1.000）。
 
