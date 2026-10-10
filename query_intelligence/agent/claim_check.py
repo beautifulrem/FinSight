@@ -40,6 +40,14 @@ evidence value of *its* target and metric. The rules are documented in ``docs/cl
   ``currency``; traditional characters are read (``traditional.py``); 报 / 报收 is the close and 成交量 (手 / 万手)
   the volume; the year a change is measured from is not its period; "比上年增加38亿元" is derived from the level and
   its YoY; a comparison with a total of several companies is not checked.
+* **Round 15 (review 11, K6).** "trillion" / "tn" are 10^12; several named companies may be one side of a claim: a
+  total as the compared side or the subject ("比B和C加起来还大", "more than A's, B's and C's combined"; never the first
+  operand alone; still unchecked when a listed company is outside the data), a mean ("三家的平均市盈率", "the average
+  P/E of"), the whole of a share ("占A、B、C三家合计的两成多"); two figures of one company are compared with each other
+  (扣非 vs 归母); a year before the line item ("BYD's 2025 revenue of …") is not a value; a figure of an H-share / Hong
+  Kong / ADR / GDR line is unverifiable (the data is A-share only); a two-character head of a name written after the
+  full name ("宁德") is that company, and the compared side of a multiple is not the subject of a later clause; a claim
+  whose only unverifiable parts are definition cautions is "supported" with partial coverage.
 
 The verdict is deterministic (no LLM) and every check cites the evidence id, source and as-of date (for
 P/E and P/B the valuation date when the source gives one, see ``as_of_basis``).
@@ -167,13 +175,16 @@ _METRICS: dict[str, _Metric] = {
         # (round 14, J12) never the 净利润 inside 扣非净利润 / 扣非后净利润 / 扣非归母净利润 (``profit_dedt``)
         _words(
             r"(?<!扣非)(?<!扣非后)(?<!扣非后的)(?<!扣非归母)(?<!损益后)(?<!损益后的)(?<!损益的)"
-            r"(?:归母净利润|净利润|净利(?!率))(?!\s*[（(]\s*扣非)|净赚|赚的钱|"
+            # (round 15) a bare 归母 is the attributable net profit ("扣非比归母少了近27亿")
+            r"(?:归母净利润|净利润|净利(?!率)|归母(?!净|股东|所有者|权益|口径))(?!\s*[（(]\s*扣非)|净赚|赚的钱|"
             r"(?:一年|全年|年度?)能?赚了?|"
             # (round 14) "net profit attributable to shareholders of the parent company was …": the whole phrase, so
             # the number after it is within reach
             r"\bnet (?:profit|income|earnings) attributable to (?:the )?(?:ordinary )?(?:shareholders|owners|equity "
             r"holders|parent)(?: of (?:the )?(?:parent(?: company)?|listed company|company))?|"
-            r"\bnet (?:profit|income|earnings)\b"
+            r"\bnet (?:profit|income|earnings)\b|"
+            # (round 15) "ICBC earned more than CMB, Ping An Bank and CITIC combined": the year's net profit
+            r"\bearn(?:s|ed)?\b(?!\s+(?:per|a\b|an\b))"
         ),
         frozenset({_AMOUNT, _PRICE, None}),
     ),
@@ -434,7 +445,12 @@ _MULTI_DAY = re.compile(
 _YEAR = re.compile(
     r"((?:19|20)\d{2})\s*(?:年|财年|年度)|\bFY\s*((?:19|20)\d{2})\b|"
     r"\b(?:in|for|during)\s+((?:19|20)\d{2})\b|((?:19|20)\d{2})\s*(?:annual|fiscal|full[- ]year)|"
-    r"\bfiscal(?:\s+year)?\s+((?:19|20)\d{2})\b",
+    r"\bfiscal(?:\s+year)?\s+((?:19|20)\d{2})\b|"
+    # (round 15, K6) a year written before the line item it dates: "BYD's 2025 revenue of RMB804 billion", "its 2025
+    # net profit", "2025 results"
+    r"\b((?:19|20)\d{2})(?=\s+(?:(?:full[- ]year|annual|fiscal|reported|audited)\s+)?(?:revenues?|sales|net\b|"
+    r"profits?\b|earnings|income|results|turnover|operating|total|attributable|recurring|ROE|EPS|gross|dividends?|"
+    r"figures?|reports?)\b)",
     re.I,
 )
 _PERIOD_MONTH: tuple[tuple[re.Pattern[str], str], ...] = (
@@ -636,6 +652,13 @@ class ClaimCheck(BaseModel):
     )
     reference_value: float | None = None
     reference_evidence_id: str | None = None
+    reference_metric: str | None = Field(
+        default=None,
+        description=(
+            "(round 15) The compared side is another metric of the same target ('扣非净利润比归母净利润少30多亿': "
+            "net_profit); `reference` then names the target itself."
+        ),
+    )
     ratio: float | None = Field(
         default=None,
         description=(
@@ -651,21 +674,30 @@ class ClaimCheck(BaseModel):
             "then the stated difference, signed by the stated direction (高出 +, 低 -)."
         ),
     )
-    kind: Literal["value", "stated_reference", "relation", "ratio", "difference", "relative_difference", "sum"] = Field(
+    kind: Literal[
+        "value", "stated_reference", "relation", "ratio", "difference", "relative_difference", "sum", "mean"
+    ] = Field(
         default="value",
         description=(
             "What the check compares: a target's own value; 'stated_reference', the value the claim states for the "
             "compared side ('比白酒行业平均的30倍低': the average is 30x, round 10); a relation of two values; a "
-            "multiple of the other side; a stated (absolute or relative) difference of the two; or 'sum', the total "
-            "of several targets ('茅台和五粮液成交额加起来不到50亿', round 12)."
+            "multiple of the other side; a stated (absolute or relative) difference of the two; 'sum', the total "
+            "of several targets ('茅台和五粮液成交额加起来不到50亿', round 12); or 'mean', their arithmetic mean "
+            "('三家的平均市盈率约6.6倍', round 15)."
         ),
     )
     operands: list[str] = Field(
         default_factory=list,
-        description="For a sum: the targets added up, in the claim's order; `actual` is their total.",
+        description=(
+            "For a sum or a mean (or, since round 15, a compared side that is the total of several targets, 'A的市值"
+            "比B和C加起来还大'): the targets, in the claim's order; `actual` (or `reference_value`) is their total or "
+            "mean."
+        ),
     )
-    operand_values: list[float] = Field(default_factory=list, description="For a sum: each target's value.")
-    operand_evidence_ids: list[str] = Field(default_factory=list, description="For a sum: each value's evidence id.")
+    operand_values: list[float] = Field(default_factory=list, description="For a sum or mean: each target's value.")
+    operand_evidence_ids: list[str] = Field(
+        default_factory=list, description="For a sum or mean: each value's evidence id."
+    )
     actual: float | None = None
     status: Status
     reason: Reason | None = Field(default=None, description="Why a check is unverifiable (machine-readable).")
@@ -726,6 +758,11 @@ def english_label(label: str) -> str | None:
     """The English for a check's target or reference label: a company ("贵州茅台" -> "Kweichow Moutai"), an industry
     or its average ("白酒行业平均" -> "baijiu (liquor) industry average"), a sum's operands ("贵州茅台+五粮液" ->
     "Kweichow Moutai + Wuliangye"); ``None`` when there is none."""
+    mean = re.fullmatch(r"(?P<names>[^+]+、[^+]+)平均", label or "")
+    if mean:
+        # (round 15) a mean of several companies ("招商银行、工商银行、平安银行平均")
+        parts = mean.group("names").split("、")
+        return "average of " + ", ".join(english_label(part) or part for part in parts)
     if "+" in (label or ""):
         parts = [part for part in label.split("+") if part]
         english = [english_label(part) for part in parts]
@@ -765,7 +802,7 @@ class _Number:
     direction: int | None = None  # -1/+1 from a move word, for directional metrics
     relation: bool = False  # "茅台PE比五粮液高": compared with ``reference``, not with a number
     reference: dict[str, Any] | None = None
-    reference_kind: Literal["target", "industry", "market", "macro", "high_52w", "low_52w"] | None = None
+    reference_kind: Literal["target", "industry", "market", "macro", "high_52w", "low_52w", "metric"] | None = None
     ratio: bool = False  # "是五粮液的1.5倍": ``value`` is a multiple of the reference's value
     date: tuple[str | None, int, int] | None = None  # (year, month, day) named for a daily value
     convention: str | None = None  # the threshold behind a qualitative move word ("大跌": at least 3%)
@@ -794,6 +831,7 @@ class _Number:
     basis: str | None = None
     currency: str | None = None  # (round 14) "590亿美元", "US$110 billion": not a CNY amount
     cue: tuple[int, int] | None = None  # a difference's comparison word ("above" in "40 billion yuan above …")
+    reference_at: int | None = None  # (round 15) where a multiple's compared side is named ("是宁德时代的1.9倍")
 
 
 def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = True) -> ClaimReport:
@@ -840,9 +878,12 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
     evidence = _fetch([number for number in numbers if not number.reasons], registry)
     checks = [_check(number, evidence, zh=zh) for number in numbers]
     statuses = {check.status for check in checks}
+    cautions = all(check.reason == "definition_mismatch" for check in checks if check.status == "unverifiable")
     if not checks or statuses == {"unverifiable"}:
         verdict = "unverifiable"
-    elif statuses == {"supported"}:
+    elif statuses == {"supported"} or (statuses == {"supported", "unverifiable"} and cautions):
+        # (round 15, K6) a part that names another definition than the data's is a caution, not a failed part:
+        # "supported" with partial coverage (the UI says "partly checked"), never "partially supported" for it alone
         verdict = "supported"
     elif "supported" not in statuses:
         verdict = "contradicted"
@@ -896,6 +937,7 @@ def _vocabulary_mention(claim: str, mention: str) -> bool:
     if not mention:
         return False
     patterns = [_INDUSTRY_SUBJECT, _INDUSTRY_REFERENCE, _MARKET_REFERENCE, _STATED_AVERAGE_WORDS, _AVERAGE_ALONE]
+    patterns.append(_METRIC_MEAN)  # (round 15) "ROE均值约18%": a mean, not the company 均值 is an alias of
     patterns += [metric.words for metric in _METRICS.values() if metric.words is not None]
     spans = [match.span() for pattern in patterns for match in pattern.finditer(claim) if match.end() > match.start()]
     starts = [index for index in range(len(claim)) if claim.startswith(mention, index)]
@@ -1153,12 +1195,30 @@ def _surface_forms(target: dict[str, Any], lowered: str) -> list[str]:
         # (round 14, J12) and its colloquial short name ("工行" next to 工商银行, "美的" next to 美的集团): the name the
         # NLU reported is only one of the ways the claim writes the company
         colloquial = [alias for alias in _colloquial(target) if alias in rest and alias not in found]
-        return found + colloquial + ([] if target.get("sector") else _short_forms(names, rest, suffix_only=True))
+        if target.get("sector"):
+            return found + colloquial
+        # (round 15, K6) and its two-character head ("宁德" after 宁德时代, "中芯" after 中芯国际), unless the head is a
+        # place, a group or a word several listed companies share ("中国", "招商", "平安", "长江")
+        heads = [
+            name[:2]
+            for name in names
+            if re.fullmatch(r"[一-鿿]{4,}", name) and name[:2] in rest and name[:2] not in _SHARED_HEADS
+        ]
+        heads = [head for head in dict.fromkeys(heads) if head not in colloquial]
+        return found + colloquial + heads + _short_forms(names, rest, suffix_only=True)
     aliases = _sector_english(str(target["name"])) if target.get("sector") else english_aliases(target.get("name"))
     english = [alias for alias in aliases if re.search(rf"\b{re.escape(alias.lower())}\b", lowered)]
     if english:
         return english  # "Moutai's P/E is higher than Wuliangye's"
     return _short_forms(names, lowered)
+
+
+_SHARED_HEADS_TEXT = (
+    "中国 中信 中金 上海 北京 深圳 广州 天津 重庆 江苏 浙江 广东 山东 四川 安徽 福建 湖南 湖北 河南 河北 贵州 云南 "
+    "国泰 华夏 招商 平安 工商 建设 农业 交通 光大 民生 兴业 浦发 海通 华泰 国信 东方 南方 长江 银河 申万 东吴 长城 "
+    "华安 泰康 新华 人民 太平 东风 上汽 金融 证券 银行 保险 科技 国际 集团 股份"
+)
+_SHARED_HEADS = frozenset(_SHARED_HEADS_TEXT.split(" "))
 
 
 def _colloquial(target: dict[str, Any]) -> tuple[str, ...]:
@@ -1223,7 +1283,14 @@ def _scales(unit: str | None, unit_class: str | None) -> tuple[float, ...]:
         return (_SHARE_SCALES[unit],)  # the payload's volume is in shares
     if unit_class != _AMOUNT or unit is None:
         return _BARE_SCALES
+    if _TRILLION.match(unit):
+        # (round 15, K6) "RMB1.35 trillion", "1.04tn": 10^12 (the verifier's table has 万亿 only; before round 15 the
+        # bare scale made a true "about 1.35 trillion yuan" a contradiction)
+        return next(scales for pattern, scales in _UNIT_SCALES if pattern.search("万亿"))
     return next((scales for pattern, scales in _UNIT_SCALES if pattern.search(unit)), _BARE_SCALES)
+
+
+_TRILLION = re.compile(r"^(?:trillion|tn)$", re.I)
 
 
 _FOREIGN_BEFORE = re.compile(r"(?:(?:US|HK|S|NT|A|C)?\$|\b(?:USD|HKD|EUR|GBP|JPY|SGD)|[€£])\s*$", re.I)
@@ -1381,7 +1448,15 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
         before = text[max(clause_start, number.start - _LOOK_BEHIND) : number.start]
         after = text[number.end : min(clause_end, number.end + _LOOK_AHEAD)]
         _read_comparator(number, stretch, after)
-        number.sum_of = _sum_operands(number, text, positions)
+        # (round 15, K6) "占A、B、C三家合计的两成多": a share of a total is a multiple of it, not a total itself
+        share = _share_of_total(number, text, positions)
+        number.sum_of = [] if share else _sum_operands(number, text, positions)
+        mean_of = [] if share or number.sum_of else _mean_operands(number, text, positions, previous_end)
+        if share:
+            sentence_start, sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+            number.metric = _relation_metric(
+                text, number.start, number.end, clause_start, clause_end
+            ) or _relation_metric(text, number.start, number.end, sentence_start, sentence_end)
         if number.sum_of:
             # "茅台和五粮液成交额加起来不到50亿": the total of the targets, never one of them (round 12, H6)
             _metric_for(number, before, after, norm[clause_start:clause_end], previous)
@@ -1400,7 +1475,7 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
                 if number.metric not in _ADDITIVE:
                     # "茅台和五粮液的市盈率加起来约45倍": a total of multiples or rates means nothing
                     number.reasons.append(("no_data", f"a total of {number.metric} across companies is not a value"))
-        if number.sum_of:
+        if number.sum_of or share:
             pass
         elif _difference(number, text, positions):
             pass  # "茅台ROE比五粮液高出约3.6个百分点": the difference of the two, checked in ``_check_difference``
@@ -1436,6 +1511,9 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
                     name for _d, name in _nearest_metrics(earlier, "") if number.unit_class in _METRICS[name].units
                 ]
                 number.metric = fitting[0] if fitting else None
+            if mean_of and number.metric and not _METRICS[number.metric].macro and not number.industry:
+                # (round 15, K6) "三家的平均市盈率约6.6倍": the mean of the named companies, not the last one's value
+                number.target, number.bound = _aggregate_target("mean", mean_of), True
         number.currency = _currency(text, number)
         window = plain[max(clause_start, previous_end, number.start - _LOOK_BEHIND) : number.start]
         number.basis = _named_basis(
@@ -1449,7 +1527,7 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
         ):
             number.basis = previous.basis  # "归母净利润518亿元，同比增长62%": the YoY of the 归母 figure
         _context(number, norm, clause_start, clause_end, plain)
-        if not number.ratio and not number.sum_of:
+        if not number.ratio and not number.sum_of and not (number.target or {}).get("aggregate"):
             averaged = _stated_reference(number, text, max(clause_start, previous_end), positions, shares)
             if averaged is not None:
                 averaged.reasons = list(number.reasons)
@@ -1484,10 +1562,79 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
             number.target = _macro_target(metric.macro, zh=zh)
     numbers.extend(relations)
     numbers.sort(key=lambda item: item.start)
+    lines = _foreign_lines(plain)
     for number in numbers:
+        line = _foreign_line_of(number, lines, text, positions) if lines and not number.reasons else None
+        if line:
+            word = _FOREIGN_LINE_WORDS.search(line)
+            line = word.group(0).strip() if word else line
+            note = (
+                f"a figure of the company's line outside the A-share market ({line}); the data covers the A-share line "
+                "only, so A-share data neither supports nor contradicts it"
+            )
+            number.reasons.append(("no_data", note))
         if number.target is None and not number.reasons:
             number.reasons.append(("no_target", "no listed company, fund or index"))
     return _Reading(numbers, text, plain, positions)
+
+
+# (round 15, K6) A company's line outside the A-share market: its H shares / Hong Kong line (by name, HK code or
+# exchange), its US ADRs, its London / Swiss GDRs. The data is A-share only, so a figure about such a line is never
+# checked against the A-share figure (before round 15 "比亚迪H股市盈率约20倍" was contradicted by the A-share P/E, and
+# an H-share P/B was supported by the A-share one). ``coverage.foreign_line_spans`` is the chat's own detector; the
+# extra forms here are the bare ones a claim uses after a comma ("…，H股约2.5倍"), stock codes and the venue.
+_FOREIGN_LINE_WORDS = re.compile(
+    r"H\s*股(?!东|指数|ETF|基金|LOF)|港股(?!通)|(?<![A-Za-z])H[- ]shares?\b|(?<![A-Za-z])ADRs?\b|(?<![A-Za-z])ADSs?\b|"
+    r"(?<![A-Za-z])GDRs?\b|存托凭证|港交所|联交所|香港交易所|(?:在|于)?香港(?:上市|挂牌|交易|市场)|在港(?:上市|挂牌|交易)|"
+    r"\bHong Kong[- ](?:listed|traded|quoted|shares?|stock|line)\b|\b(?:listed|traded|quoted) in Hong Kong\b|\bHKEX\b|"
+    r"[（(]\s*0\d{4}(?:\s*\.?\s*HK)?\s*[)）]|(?<![\d.])\d{4,5}\s*\.\s*HK\b|伦敦(?:证券交易所)?(?:上市|挂牌)?|"
+    r"\bLondon[- ](?:listed|traded)\b|瑞士(?:上市)?|纽交所|美股|\bNYSE\b",
+    re.I,
+)
+
+
+def _foreign_lines(plain: str) -> list[tuple[int, int, str]]:
+    from .coverage import foreign_line_spans
+
+    spans = [(start, end, plain[start:end].strip()) for start, end in foreign_line_spans(plain)]
+    spans += [(match.start(), match.end(), match.group(0).strip()) for match in _FOREIGN_LINE_WORDS.finditer(plain)]
+    return spans
+
+
+_A_SHARE_LINE = re.compile(r"A\s*股(?!东)|(?<![A-Za-z])A[- ]shares?\b|(?:沪|深)市|上交所|深交所", re.I)
+
+
+def _foreign_line_of(
+    number: _Number, lines: list[tuple[int, int, str]], text: str, positions: list[tuple[int, dict[str, Any]]]
+) -> str | None:
+    """The foreign line a number is about: one named in its clause, or earlier in its sentence with no A-share line or
+    other company named between it and the number ("比亚迪H股市盈率约20倍，市净率约2.5倍")."""
+    clause_start, clause_end = _clause_bounds(text, number.start)
+    sentence_start, _sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+    for start, _end, words in lines:
+        if clause_start <= start < clause_end:
+            if start >= number.start and _A_SHARE_LINE.search(text, clause_start, number.start):
+                continue  # "比亚迪A股市盈率25.8倍高于H股": the number is the A share's
+            return words
+    earlier = [(start, end, words) for start, end, words in lines if sentence_start <= start < clause_start]
+    if earlier:
+        start, end, words = earlier[-1]
+        between = text[end : number.start]
+        named = any(end <= position < number.start for position, _target in positions)
+        if not _A_SHARE_LINE.search(between) and not named:
+            return words
+    return None
+
+
+def _subjects(number: _Number) -> list[dict[str, Any]]:
+    """The targets a number is about: its target, compared side, sum operands and (round 15) the companies of an
+    aggregate (a mean, a total as the compared side)."""
+    found: list[dict[str, Any]] = []
+    for subject in (number.target, number.reference, *number.sum_of):
+        if subject:
+            found.append(subject)
+            found.extend(subject.get("operands") or [])
+    return found
 
 
 def _unchecked(reading: _Reading) -> list[UncheckedClause]:
@@ -1513,12 +1660,10 @@ def _unchecked(reading: _Reading) -> list[UncheckedClause]:
         sentence_start, sentence_end = _clause_bounds(text, clause_start, _SENTENCE_BREAK)
         in_sentence = [number for number in numbers if sentence_start <= number.start < sentence_end]
         keys = {
-            str(subject.get("key") or subject.get("macro"))
-            for number in in_sentence
-            for subject in (number.target, number.reference, *number.sum_of)
-            if subject
+            str(subject.get("key") or subject.get("macro")) for number in in_sentence for subject in _subjects(number)
         }
         checked = {number.metric for number in in_sentence}
+        checked |= {(number.reference or {}).get("metric") for number in in_sentence}  # "扣非…比归母净利润高"
         if named <= keys and metrics <= checked:
             continue
         found.append(UncheckedClause(text=words))
@@ -1581,6 +1726,8 @@ _STATED_AVERAGE_WORDS = re.compile(
     r"\b(?:the\s+)?(?:(?:[a-z]+|＠+)[- ])?(?:industry|sector|peers?)(?:'s)?\s+(?:average|median|mean)\b",
     re.I,
 )
+# (round 15) a mean word right after a metric word: "ROE均值", "市盈率均值", "P/E平均值"
+_METRIC_MEAN = re.compile(r"(?<=[A-Za-z率润入利益价额值])\s*(?:均值|平均值)")
 # "…6.2倍的平均值": the average word on its own ("均值科技" as a name is not an average)
 _AVERAGE_ALONE = re.compile(r"平均(?:值|水平|估值|数)?|(?<=的)均值|中位数")
 # The number after the phrase: "行业平均11.8倍", "行业均值为1.45倍", "行业平均水平（3倍）", "sector average of 3x".
@@ -1744,9 +1891,220 @@ def _sum_operands(number: _Number, text: str, positions: list[tuple[int, dict[st
     if len(companies) < 2:
         return []
     between = text[first : cue.start()]  # "茅台比五粮液…合计": a comparison, not a total ("合计超过50亿" is a bound)
-    if _REL_BI.search(between) or _REL_WORD.search(between) or re.search(r"\bthan\b", between, re.I):
+    if _REL_BI.search(between) or _REL_WORD.search(between) or _EN_COMPARED.search(between):
         return []
     return companies
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Round 15 (K6): several named companies as one side of a claim. A total ("A的市值比B和C加起来还大", "more than CMB's,
+# Ping An Bank's and CITIC's combined"), a mean ("三家的平均市盈率约6.6倍", "the average P/E of A, B and C") or the
+# whole a share is taken of ("A的净利润占A、B、C三家合计的两成多"). Before round 15 the compared side was the first
+# company of the list ("bigger than Midea's and Ping An Bank's put together" was supported against Midea alone) and a
+# mean was read as the last company's own value. The aggregate is a synthetic target whose value is computed from every
+# operand's evidence (each operand's value and evidence id is in the check).
+# ---------------------------------------------------------------------------------------------------------
+_LIST_SEP = re.compile(
+    r"(?:\s*(?:、|，|,|和|与|及|以及|跟)\s*|\s*,?\s+(?:and|plus|as well as|&)\s+|\s*,\s*)(?:the\s+)?", re.I
+)
+_POSSESSIVE = re.compile(r"(?:'s|’s|s'|'|’)")
+_COUNT_WORD = r"(?:这|那)?(?:[两三四五六七八九十]|\d+)\s*(?:家|个|只)(?:公司|银行|企业|券商|上市公司)?"
+_TOTAL_WORDS = (
+    r"(?:加起来|加在一起|加一起|加一块|合计|合起来|之和|总和|总计|总共|一共|共计|加总|总额|"
+    r"\bput together\b|\bcombined\b|\btogether\b|\bin total\b|\btaken together\b)"
+)
+# after the list: "三家的利润之和", "两家加起来", "'s combined" (no list word or name in between: "和小鹏三家之和"
+# with an unknown 小鹏 is not a total of the named ones)
+_TOTAL_AFTER_LIST = re.compile(
+    rf"\s*(?:{_COUNT_WORD})?\s*(?:的)?\s*[^，,。；;！!？?\d＠、和与及]{{0,8}}?\s*{_TOTAL_WORDS}", re.I
+)
+# before the list (English): "the combined net profit of CMB, ICBC and Ping An Bank", "the total market value of"
+_TOTAL_BEFORE_LIST = re.compile(
+    r"(?:the\s+)?(?:combined|total|aggregate|joint)\s+(?:[A-Za-z/'’-]+\s+){0,4}?(?:of|for|across)\s+(?:the\s+)?", re.I
+)
+
+
+def _name_end(text: str, position: int) -> int:
+    """The end of the masked name starting at ``position``, with its possessive ("＠＠＠'s")."""
+    end = position
+    while end < len(text) and text[end] == "＠":
+        end += 1
+    possessive = _POSSESSIVE.match(text, end)
+    return possessive.end() if possessive else end
+
+
+def _named_list(
+    text: str, start: int, positions: list[tuple[int, dict[str, Any]]]
+) -> tuple[list[dict[str, Any]], int] | None:
+    """The companies of a list that starts with the name at ``start`` ("＠＠、＠＠和＠＠", "＠'s, ＠'s and ＠'"), and
+    the index after the last; ``None`` when ``start`` is not a name."""
+    at = {position: target for position, target in positions if not target.get("sector")}
+    if start not in at:
+        return None
+    operands, end = [at[start]], _name_end(text, start)
+    while True:
+        separator = _LIST_SEP.match(text, end)
+        if separator is None or separator.end() not in at:
+            break
+        operands.append(at[separator.end()])
+        end = _name_end(text, separator.end())
+    unique = list({str(target["key"]): target for target in operands}.values())
+    return unique, end
+
+
+def _aggregate_target(kind: Literal["sum", "mean"], operands: list[dict[str, Any]]) -> dict[str, Any]:
+    names = [str(target.get("name") or target.get("key")) for target in operands]
+    return {
+        "name": "+".join(names) if kind == "sum" else "、".join(names) + "平均",
+        "symbol": None,
+        "key": f"{kind}:" + "+".join(str(target["key"]) for target in operands),
+        "aggregate": kind,
+        "operands": operands,
+    }
+
+
+def _total_reference(
+    text: str, start: int, positions: list[tuple[int, dict[str, Any]]]
+) -> tuple[dict[str, Any], int] | None:
+    """A total of two or more named companies at ``start`` (the compared side of a relation, difference or share):
+    the list with a total word after it ("比美的集团和平安银行加起来", "than CMB's, Ping An Bank's and CITIC's
+    combined"), or English "the combined X of A, B and C"."""
+    before = _TOTAL_BEFORE_LIST.match(text, start)
+    if before is not None:
+        found = _named_list(text, before.end(), positions)
+        if found is not None and len(found[0]) >= 2:
+            return _aggregate_target("sum", found[0]), found[1]
+    found = _named_list(text, start, positions)
+    if found is None or len(found[0]) < 2:
+        return None
+    total = _TOTAL_AFTER_LIST.match(text, found[1])
+    if total is None:
+        return None
+    return _aggregate_target("sum", found[0]), total.end()
+
+
+def _total_subject(
+    text: str, positions: list[tuple[int, dict[str, Any]]], clause_start: int, cue_start: int
+) -> dict[str, Any] | None:
+    """ "美的集团和平安银行的总市值合计超过紫金矿业": the subject before a relation's cue is the total of the listed
+    companies when a total word closes the list (the first operand alone is not the subject)."""
+    placed = [position for position, target in positions if clause_start <= position < cue_start]
+    for position in placed:
+        found = _named_list(text, position, positions)
+        if found is None or len(found[0]) < 2:
+            continue
+        total = _TOTAL_AFTER_LIST.match(text, found[1])
+        if total is None:
+            # "A和B的总市值合计超过C": the metric may stand between the list and the total word
+            total = re.compile(rf"[^，,。；;！!？?\d＠、和与及]{{0,10}}?{_TOTAL_WORDS}", re.I).match(text, found[1])
+        if total is not None and total.end() <= cue_start and "＠" not in text[total.end() : cue_start]:
+            return _aggregate_target("sum", found[0])
+        return None
+    return None
+
+
+# A mean over the companies named before it: "三家的平均市盈率", "市盈率平均下来", "ROE均值", "the average P/E of",
+# "average a P/E of". Not an industry, market or peer average ("行业平均", "the sector average"), not 加权平均 (a
+# definition of ROE) and not 均价 (a price).
+_MEAN_CUE = re.compile(
+    r"(?<!加权)(?<!行业)(?<!板块)(?<!同行)(?<!同业)(?<!市场)(?<!大盘)(?<![一-鿿]业)(?<!行业的)(?<!板块的)"
+    r"(?:平均(?:值|数|水平)?|均值)|"
+    r"(?<!weighted )(?<!industry )(?<!sector )(?<!peer )(?<!peers' )(?<!market )(?<!industry's )(?<!sector's )"
+    r"\b(?:average[sd]?|mean)\b",
+    re.I,
+)
+_MEAN_BLOCK = re.compile(r"比|较|高于|低于|超过|不及|不如|\bthan\b|\babove\b|\bbelow\b|分别|\brespectively\b", re.I)
+
+
+def _mean_operands(
+    number: _Number, text: str, positions: list[tuple[int, dict[str, Any]]], previous_end: int
+) -> list[dict[str, Any]]:
+    """The companies a number is the mean of: a mean word after the previous number of the sentence and two or more
+    companies named in the sentence before the number, with no comparison between them and the number."""
+    sentence_start, _sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+    stretch_start = max(sentence_start, previous_end)
+    cue = _MEAN_CUE.search(text, stretch_start, number.start)
+    if cue is None or _INDUSTRY_SUBJECT.search(text, max(stretch_start, cue.start() - 6), cue.end()):
+        return []
+    companies: list[dict[str, Any]] = []
+    first = -1
+    for position, target in positions:
+        placed = sentence_start <= position < number.start and not target.get("sector")
+        if placed and all(other["key"] != target["key"] for other in companies):
+            companies.append(target)
+            first = position if first < 0 else first
+    if len(companies) < 2 or _MEAN_BLOCK.search(text, max(first, stretch_start), number.start):
+        return []
+    return companies
+
+
+# The whole a share is taken of (round 15): "占招行、工行、平安银行三家合计的两成多", "在…三家合计中占约15%",
+# "accounts for about 27% of the combined net profit of CMB, ICBC and Ping An Bank".
+_SHARE_LIST_ZH = re.compile(
+    rf"(?P<lead>占|在)\s*(?P<list>＠[＠\s、，,和与及以]*＠)\s*(?:{_COUNT_WORD})?\s*(?:的)?\s*"
+    r"[^，,。；;！!？?\d＠、]{0,8}?(?P<total>合计|总和|之和|总计|总额|加起来|合起来|总量)?\s*"
+    r"(?:(?:中|里|当中|之中)\s*(?:的)?\s*(?:占比?|占到|占了)|的)?\s*"
+    r"(?:约|大约|大概|将近|接近|近|超过|不到|不足|逾|仅|只有|才|达到?|为|是)?\s*$"
+)
+_SHARE_VERB_EN = re.compile(
+    r"\b(?:accounts?\s+for|accounted\s+for|makes?\s+up|made\s+up|represents?|represented|contributes?|"
+    r"contributed|is|was)\s+(?:about|around|roughly|nearly|almost|over|more than|less than|under|some|"
+    r"approximately|just over|just under|close to)?\s*$",
+    re.I,
+)
+_SHARE_OF_EN = re.compile(r"\s+of\s+", re.I)
+
+
+def _share_of_total(number: _Number, text: str, positions: list[tuple[int, dict[str, Any]]]) -> bool:
+    """A percentage (or 成) that is the share of one company in the total of a list of companies: the number becomes a
+    multiple (0.2675) of the aggregate, and the subject the company named before the list."""
+    # "两成多" is read "的0.2倍" (a share word after 的), "27%" stays a percentage
+    percent = number.unit_class == _PERCENT and number.unit == "%"
+    fraction = number.unit == "倍" and 0 < number.value <= 1
+    if not (percent or fraction) or number.comparator == "range":
+        return False
+    sentence_start, _sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+    reference: dict[str, Any] | None = None
+    list_start = -1
+    zh = _SHARE_LIST_ZH.search(text, sentence_start, number.start)
+    if zh is not None:
+        found = _named_list(text, zh.start("list"), positions)
+        if found is None or len(found[0]) < 2:
+            return False
+        if zh.group("lead") == "在" and not zh.group("total"):
+            return False  # "在A和B中占比": the whole must be named as a total
+        reference, list_start = _aggregate_target("sum", found[0]), zh.start("lead")
+    elif _SHARE_VERB_EN.search(text, sentence_start, number.start):
+        of = _SHARE_OF_EN.match(text, number.end)
+        total = _total_reference(text, of.end(), positions) if of else None
+        if total is None:
+            return False
+        reference, list_start = total[0], number.start
+    if reference is None:
+        return False
+    subjects = [
+        target for position, target in positions if sentence_start <= position < list_start and not target.get("sector")
+    ]
+    if not subjects:
+        return False
+    number.target, number.bound = subjects[-1], True
+    number.ratio = number.relation = True
+    number.reference, number.reference_kind = reference, "target"
+    if percent:
+        number.value, number.rounding = number.value / 100, number.rounding / 100
+        number.step /= 100
+        number.high = None if number.high is None else number.high / 100
+        number.unit, number.unit_class = "倍", _MULTIPLE
+    return True
+
+
+# (round 15) English comparison words between the first company and a total word: "ICBC beat CMB and CITIC combined"
+# compares ICBC with a total, it does not add ICBC to it
+_EN_COMPARED = re.compile(
+    r"\bthan\b|\b(?:beat|beats|exceed(?:s|ed)?|tops?|topped|outpac(?:es|ed)|leads?|led|trails?|trailed|lags?|"
+    r"lagged|above|below|ahead of|behind|versus|vs\.?)\b",
+    re.I,
+)
 
 
 # Round 12 (H6): an industry average stated inside a comparison frame, "比起保险业11.8倍的平均市盈率，平安的8.7倍明显
@@ -1840,7 +2198,8 @@ _EN_DIFF_BY = re.compile(
     r"\b(?P<verb>beats?|beat|tops?|topped|exceed(?:s|ed)?|outpac(?:es|ed)|leads|led|trails?|trailed|lags?|lagged|"
     r"(?:higher|lower|greater|smaller|bigger|larger|more|less)\s+than|above|below|ahead of|behind)\s+"
     r"(?P<rest>[^,.;!?\d]{0,60}?)\bby\s+(?:(?:about|around|roughly|approximately|nearly|almost|some|just|over|"
-    r"more than|less than|under|at least|at most|close to|a little over|a little under)\s+)*$",
+    r"more than|less than|under|at least|at most|close to|a little over|a little under)\s+)*"
+    r"(?:(?:RMB|CNY|¥|￥)\s*)?$",  # (round 15) "by RMB 200 billion"
     re.I,
 )
 _EN_DIFF_AFTER = re.compile(
@@ -1856,6 +2215,13 @@ def _english_difference(
     """``(reference, direction, cue_start, cue_end)`` of an English stated difference, or None."""
     head = text[clause_start : number.start]
     by = _EN_DIFF_BY.search(head)
+    if by is None:
+        # (round 15) "beat CMB and CITIC combined by …": the compared side is a list joined by "and", which ends a
+        # clause; read the cue from the sentence when the list ends in a total word
+        sentence_start, _sentence_end = _clause_bounds(text, number.start, _SENTENCE_BREAK)
+        wide = _EN_DIFF_BY.search(text[sentence_start : number.start])
+        if wide is not None and re.search(_TOTAL_WORDS, wide.group("rest"), re.I):
+            by, head, clause_start = wide, text[sentence_start : number.start], sentence_start
     if by is not None:
         cue_start, cue_end = clause_start + by.start("verb"), clause_start + by.end("verb")
         found = _reference_at(text, cue_end, positions)
@@ -1962,6 +2328,10 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
         else:
             return False
     kind, ref_target, _ref_end = reference
+    unlisted = None
+    if kind == "target" and not (ref_target or {}).get("aggregate"):
+        # (round 15) "比招行和蔚来加起来还多…", "beat CMB and CITIC combined by …": never a difference with the first
+        unlisted = _UNLISTED_TOTAL.match(text, _ref_end, sentence_end)
     subjects = [
         target
         for position, target in positions
@@ -1972,6 +2342,17 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
     metric = _relation_metric(text, cue_start, cue_end, clause_start, clause_end) or _relation_metric(
         text, cue_start, cue_end, sentence_start, sentence_end
     )
+    if kind == "metric":
+        # (round 15, K6) "扣非净利润…，比归母净利润少30多亿": the gap between two figures of the subject
+        other = str((ref_target or {}).get("metric"))
+        metric = _subject_metric(text, sentence_start, cue_start, other)
+        if metric is None:
+            return False
+        ref_target = {**subjects[-1], "metric": other}
+        number.target, number.bound = subjects[-1], True
+    elif (ref_target or {}).get("aggregate"):
+        # (round 15, K6) "比招行、平安银行、中信证券三家加起来还多1450多亿": the subject is named before the cue
+        number.target, number.bound = subjects[-1], True
     if metric is None and adjective in {"多赚", "少赚"}:
         metric = "net_profit"  # "多赚四百多亿": the year's net profit
     if kind in {"high_52w", "low_52w"}:
@@ -2003,6 +2384,8 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
     number.difference_unsigned = direction is None
     number.direction = direction
     number.cue = (cue_start, cue_end)
+    if unlisted is not None:
+        number.reasons.append(("no_data", _unlisted_note(unlisted.group(0))))
     if direction is not None:
         number.value = direction * abs(number.value)
         number.high = None if number.high is None else direction * abs(number.high)
@@ -2084,6 +2467,7 @@ def _ratio_reference(
             number.reference, number.reference_kind = None, "industry"
         else:
             number.reference, number.reference_kind = at[ref_at], "target"
+            number.reference_at = ref_at
         if share:
             number.value, number.rounding = number.value / 100, number.rounding / 100
             number.step /= 100
@@ -2557,7 +2941,7 @@ def _relation_at(
     if reference is None:
         return None
     kind, ref_target, ref_end = reference
-    ref_key = ref_target["key"] if ref_target else None
+    ref_key = (ref_target or {}).get("key")
     # (round 13, I8) a target named as the compared side of an earlier clause ("低于白酒行业平均，但市净率高于行业
     # 平均") is not the subject of a later one: the subject carries over the contrast
     named = [
@@ -2603,6 +2987,17 @@ def _relation_at(
     fell = re.search(r"跌|\b(?:fell|fall|dropped|declined|lost)\b", text[clause_start:clause_end], re.I)
     if metric == "pct_change_1d" and fell:
         comparator = "lt" if comparator == "gt" else "gt"  # "跌幅比五粮液大": it fell more, a lower change
+    subject = subjects[-1]
+    if kind == "metric":
+        # (round 15, K6) "中国平安的扣非净利润比归母净利润高": two figures of the subject
+        other = str((ref_target or {}).get("metric"))
+        metric = _subject_metric(text, sentence_start, start, other)
+        if metric is None:
+            return None
+        ref_target = {**subject, "metric": other}
+    else:
+        # (round 15, K6) "美的集团和平安银行的总市值合计超过紫金矿业": the total of the listed companies is the subject
+        subject = _total_subject(text, positions, clause_start, start) or subject
     number = _Number(
         start=start,
         end=relation_end,
@@ -2614,23 +3009,22 @@ def _relation_at(
         comparator=_FLIP[comparator] if negated else comparator,
         negated=negated,
         metric=metric,
-        target=subjects[-1],
+        target=subject,
         relation=True,
         reference=ref_target,
         reference_kind=kind,
     )
     clause = plain[clause_start:clause_end]
-    summed = _SUMMED_LIST.match(text, ref_end, clause_end) if kind == "target" else None
+    summed = None
+    if kind == "target" and not (ref_target or {}).get("aggregate"):
+        # (round 15) English lists too ("than CMB, Ping An Bank and CITIC combined": "and" ends a clause)
+        summed = _SUMMED_LIST.match(text, ref_end, clause_end) or _UNLISTED_TOTAL.match(text, ref_end, sentence_end)
     if metric is None:
         number.reasons.append(("no_metric", "the compared metric is not named"))
     elif summed is not None:
         # (round 14) "高于比亚迪、蔚来和小鹏三家的利润之和": the compared side is a total of several companies, some
         # of them outside the data; comparing with the first one alone would decide a claim about another quantity
-        unknown = [item.strip() for item in re.split(r"[、，,和与及]", summed.group("list")) if item.strip(" ＠")]
-        note = "compared with a total of several companies, which is not checked" + (
-            f"; not in the data: {'、'.join(unknown)}" if unknown else ""
-        )
-        number.reasons.append(("no_data", note))
+        number.reasons.append(("no_data", _unlisted_note(summed.group(0))))
     elif _FORECAST.search(clause) or _HYPOTHETICAL.search(clause):
         number.reasons.append(("forecast", "a forecast or hypothetical, not a reported fact"))
     elif kind == "market":
@@ -2638,6 +3032,30 @@ def _relation_at(
     elif metric == "pct_change_1d" and _MULTI_DAY.search(clause):
         number.reasons.append(("multi_day", "a multi-day move; only the latest daily change is available"))
     return number
+
+
+# (round 15) after the first compared company, a list with a name the data does not have, then a total word, in either
+# language ("、蔚来和小鹏三家的利润之和", ", Ping An Bank and CITIC combined"): the total cannot be computed, and the
+# first company alone is another quantity
+_UNLISTED_TOTAL = re.compile(
+    r"(?P<list>(?:\s*(?:、|，|,|和|与|及|以及|跟|\band\b|\bplus\b|&)\s*(?:the\s+)?"
+    r"[^，,。；;！!？?\d、和与及]{1,30}?(?:'s|’s|s'|')?)+)"
+    rf"\s*(?:{_COUNT_WORD})?\s*(?:的)?\s*[^，,。；;！!？?\d]{{0,8}}?{_TOTAL_WORDS}",
+    re.I,
+)
+
+
+def _unlisted_note(matched: str) -> str:
+    listed = re.sub(rf"{_TOTAL_WORDS}\s*$", "", matched, flags=re.I)
+    listed = re.sub(rf"(?:{_COUNT_WORD}|的).*$", "", listed)
+    unknown = [
+        re.sub(r"(?:'s|’s|s'|')$", "", item.strip()).strip()
+        for item in re.split(r"[、，,和与及]|\band\b|\bplus\b|&", listed, flags=re.I)
+        if item.strip() and "＠" not in item
+    ]
+    return "compared with a total of several companies, which is not checked" + (
+        f"; not in the data: {'、'.join(unknown)}" if unknown else ""
+    )
 
 
 # (round 14) after the first compared company: more names, then a total word ("、蔚来和小鹏三家的利润之和")
@@ -2918,13 +3336,16 @@ def _macro_target(family: str, *, zh: bool) -> dict[str, Any]:
 
 def _reference_at(
     text: str, index: int, positions: list[tuple[int, dict[str, Any]]]
-) -> tuple[Literal["target", "industry", "market"], dict[str, Any] | None, int] | None:
+) -> tuple[Literal["target", "industry", "market", "metric"], dict[str, Any] | None, int] | None:
     """What a comparison cue points at: a named target, the industry, or the market; since round 12 also an anaphora
     ("低于这一水平", "比它低", "below that"), resolved to the value stated before it by ``_resolve_anaphora``."""
     anaphora = _ANAPHORA.match(text, index)
     if anaphora is not None:
         return "anaphora", None, anaphora.end()  # type: ignore[return-value]
     start = _REFERENCE_FILLER.match(text, index).end()  # type: ignore[union-attr]
+    total = _total_reference(text, start, positions)
+    if total is not None:
+        return "target", total[0], total[1]  # (round 15) "比美的集团和平安银行加起来", "than A's, B's and C's combined"
     for position, target in positions:
         if position == start:
             end = start
@@ -2942,6 +3363,35 @@ def _reference_at(
     if match:
         side = (match.group(1) or match.group(2) or "").lower()
         return ("high_52w" if side in {"高", "high"} else "low_52w"), None, match.end()  # type: ignore[return-value]
+    # (round 15, K6) another figure of the same company: "扣非净利润比归母净利润少30多亿", "below its net profit
+    # attributable to shareholders"; the subject and its own metric are read by the caller
+    found = _metric_side(text, start)
+    if found is not None:
+        return "metric", {"metric": found[0]}, found[1]  # type: ignore[return-value]
+    return None
+
+
+# (round 15) the figures of one company that a claim may compare with each other (amounts of the same report or day)
+_METRIC_SIDES = ("profit_dedt", "net_profit", "revenue", "market_cap", "circ_mv")
+
+
+def _metric_side(text: str, start: int) -> tuple[str, int] | None:
+    """The metric named at ``start`` (the longest word wins: 扣非净利润 over 净利润) and the index after it."""
+    best: tuple[str, int] | None = None
+    for name in _METRIC_SIDES:
+        words = _METRICS[name].words
+        match = words.match(text, start) if words is not None else None
+        if match and match.end() > start and (best is None or match.end() > best[1]):
+            best = (name, match.end())
+    return best
+
+
+def _subject_metric(text: str, start: int, cue_start: int, other: str) -> str | None:
+    """The subject's metric of a relation with another metric of the same company: the nearest compared-figure word
+    before the cue (in its sentence), other than the compared side's."""
+    for _distance, name in _nearest_metrics(text[start:cue_start], ""):
+        if name in _METRIC_SIDES and name != other:
+            return name
     return None
 
 
@@ -2987,12 +3437,16 @@ def _bind_targets(
         before = [target for position, target in positions if position < number.start]
         if (number.ratio or number.difference) and number.reference is not None:
             # "五粮液的跌幅大约是茅台的三倍": the subject is named before the reference
-            before = [target for target in before if target["key"] != number.reference["key"]]
+            before = [target for target in before if target["key"] != number.reference.get("key")]
         clause_start, _clause_end = _clause_bounds(text, number.start)
+        # (round 15, K6) the compared side of an earlier multiple is not the subject of a later clause either: "比亚迪
+        # 的营收是宁德时代的1.9倍，但净利润只有约326亿元" (the net profit is 比亚迪's)
+        referenced = {other.reference_at for other in numbers if other.reference_at is not None and other is not number}
         subjects = [
             target
             for position, target in positions
-            if position < number.start and not (position in compared and position < clause_start)
+            if position < number.start
+            and not ((position in compared or position in referenced) and position < clause_start)
         ]
         if subjects and before and before[-1] is not subjects[-1] and not number.relation:
             # "茅台ROE比五粮液高出3.6个百分点，一年营收一千六百多亿": the revenue is 茅台's, not the compared side's
@@ -3066,8 +3520,8 @@ def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[Age
         wanted_fundamental = (
             wanted_fundamental or metric.fundamental or number.reference_kind == "industry" or number.industry
         )
-        for subject in (number.target, number.reference, *number.sum_of, *number.superlative):
-            if subject and subject.get("key"):
+        for subject in (*_subjects(number), *number.superlative):
+            if subject and subject.get("key") and not subject.get("aggregate"):
                 subjects.setdefault(subject["key"], subject)
     dated: dict[tuple[str, str], None] = {}
     for number in numbers:
@@ -3079,9 +3533,11 @@ def _fetch(numbers: list[_Number], registry: ToolRegistry) -> dict[str, list[Age
             and number.metric in _BAR_METRICS
             and not number.relation
             and not (number.target or {}).get("sector")
+            and not (number.target or {}).get("aggregate")
         ):
             dated[(str(key), day)] = None
-    for key, subject in list(subjects.items())[:4]:
+    # (round 15) up to six targets: a company against the total of four others ("超过A、B、C、D之和") needs five
+    for key, subject in list(subjects.items())[:6]:
         if subject.get("sector"):
             result = registry.run("get_fundamentals", {"target": subject["sector"]})
             evidence[key] = list(result.evidence) if result.ok else []
@@ -3226,6 +3682,13 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
         if found is None:
             note = "the industry snapshot has no value for this metric" if items else "no industry snapshot"
             return base.model_copy(update={"reason": "no_data", "note": note})
+    elif number.target.get("aggregate"):
+        # (round 15, K6) a mean of several companies, or their total as a relation's subject
+        aggregate = _aggregate_value(number.target, number.metric, number, evidence)
+        if isinstance(aggregate, tuple):
+            return base.model_copy(update={"reason": aggregate[0], "note": aggregate[1]})
+        found = (aggregate.item, aggregate.value)
+        base = base.model_copy(update=aggregate.fields())
     else:
         found = _dated_bar(number, evidence) or _value(
             evidence.get(number.target.get("key") or "") or [], _keys(number.target, number.metric)
@@ -3278,11 +3741,75 @@ def _check(number: _Number, evidence: dict[str, list[AgentEvidence]], *, zh: boo
     in_percent = any(
         (item.payload.get("metric_units") or {}).get(key) == "%" for key in _METRICS[number.metric or ""].keys
     )
+    aggregate_note = ""
+    if number.target.get("aggregate"):
+        in_percent, aggregate_note = True, base.note  # the aggregate's values are in percent (_aggregate_value)
     if number.relation:
         return _check_relation(number, base, evidence, declared_percent=in_percent)
     status = _compare(number, actual, declared_percent=in_percent or bool(derived_note))
-    parts = (derived_note, number.convention, _interim_note(number, item), basis_note)
+    parts = (derived_note, aggregate_note, number.convention, _interim_note(number, item), basis_note)
     return base.model_copy(update={"status": status, "note": "; ".join(part for part in parts if part)})
+
+
+@dataclass
+class _Aggregate:
+    """(round 15) The total or mean of several companies' values, with each operand's value and evidence."""
+
+    item: AgentEvidence  # the first operand's evidence (its as-of date and source stand for the aggregate)
+    value: float
+    names: list[str]
+    values: list[float]
+    ids: list[str]
+    note: str
+
+    def fields(self) -> dict[str, Any]:
+        return {"operands": self.names, "operand_values": self.values, "operand_evidence_ids": self.ids,
+                "note": self.note}  # fmt: skip
+
+
+def _aggregate_value(
+    subject: dict[str, Any], metric: str, number: _Number, evidence: dict[str, list[AgentEvidence]]
+) -> _Aggregate | tuple[Reason, str]:
+    """The total ("sum") or arithmetic mean ("mean") of the operands' values; ``(reason, note)`` when an operand has no
+    value, another period or another definition (never an aggregate of fewer operands than the claim names). Rates
+    held as fractions (0.33) are put in percent first, so every operand is in the same unit."""
+    names: list[str] = []
+    values: list[float] = []
+    ids: list[str] = []
+    first: AgentEvidence | None = None
+    for operand in subject.get("operands") or []:
+        name = str(operand.get("name") or operand.get("key"))
+        found = _value(evidence.get(str(operand.get("key") or "")) or [], _keys(operand, metric))
+        if found is None or (metric == "amount" and found[1] <= 0):
+            return "no_data", f"no data for {name}"
+        item, value = found
+        as_of, basis = _as_of(item, metric)
+        if basis == "trade_date":
+            mismatch = _date_mismatch(number, as_of)
+        elif basis == "valuation_date":
+            mismatch = _date_mismatch(number, as_of) or _valuation_year_mismatch(number, as_of)
+        else:
+            mismatch = _period_mismatch(number, item) if _METRICS[metric].fundamental else None
+        if mismatch:
+            return "period_mismatch", f"{mismatch} ({name})"
+        definition = _definition_mismatch(number, item.payload)
+        if definition:
+            return "definition_mismatch", f"{definition} ({name})"
+        declared = any((item.payload.get("metric_units") or {}).get(key) == "%" for key in _METRICS[metric].keys)
+        if _METRICS[metric].fraction and not declared and abs(value) <= 1.5:
+            value *= 100  # an undeclared fraction (0.33) next to percent values
+        names.append(name)
+        values.append(value)
+        ids.append(item.evidence_id)
+        first = first or item
+    if first is None or len(values) < 2:
+        return "no_data", "fewer than two companies with data"
+    total = sum(values)
+    listed = " + ".join(_trim(round(value, 4)) for value in values)
+    if subject.get("aggregate") == "mean":
+        mean = total / len(values)
+        return _Aggregate(first, mean, names, values, ids, f"mean ({listed}) / {len(values)} = {_trim(round(mean, 4))}")
+    return _Aggregate(first, total, names, values, ids, f"sum {listed} = {_trim(round(total, 4))}")
 
 
 def _valuation_year_mismatch(number: _Number, as_of: str | None) -> str | None:
@@ -3439,6 +3966,8 @@ def _check_sum(number: _Number, base: ClaimCheck, evidence: dict[str, list[Agent
 def _kind(number: _Number) -> str:
     if number.sum_of:
         return "sum"
+    if (number.target or {}).get("aggregate") == "mean" and not number.relation:
+        return "mean"
     if number.difference:
         return "difference" if number.difference == "absolute" else "relative_difference"
     if number.ratio:
@@ -3479,6 +4008,8 @@ def _reference_name(number: _Number, evidence: dict[str, list[AgentEvidence]], *
         return name
     if number.reference_kind == "market":
         return "市场平均" if zh else "market average"
+    if number.reference_kind == "metric":
+        return _target_name(number.target, zh=zh)  # (round 15) another figure of the same target
     if number.reference_kind == "macro":
         return str((number.reference or {}).get("name"))
     if number.reference_kind in _RANGE_LABEL:
@@ -3529,11 +4060,29 @@ def _check_relation(
         if reference is None:
             note = "the industry snapshot has no value for this metric" if items else "no industry snapshot"
             return base.model_copy(update={"reason": "no_data", "note": note})
+    elif number.reference_kind == "metric":
+        # (round 15, K6) another figure of the same target ("扣非净利润比归母净利润少30多亿")
+        other = str((number.reference or {}).get("metric"))
+        items = evidence.get((number.target or {}).get("key") or "") or []
+        reference = _value(items, _keys(number.target, other))
+        base = base.model_copy(update={"reference_metric": other, "reference": base.target})
+        if reference is None:
+            return base.model_copy(
+                update={"reason": "no_data", "note": _UNAVAILABLE.get(other, f"no data for {other}")}
+            )
+    elif (number.reference or {}).get("aggregate"):
+        # (round 15, K6) the total of several companies ("比美的集团和平安银行加起来还高"): every operand's value
+        aggregate = _aggregate_value(number.reference or {}, metric, number, evidence)
+        if isinstance(aggregate, tuple):
+            return base.model_copy(update={"reason": aggregate[0], "note": f"compared side: {aggregate[1]}"})
+        reference = (aggregate.item, aggregate.value)
+        base = base.model_copy(update={**aggregate.fields(), "note": f"compared side: {aggregate.note}"})
     else:
         subject = number.reference or {}
         reference = _value(evidence.get(subject.get("key") or "") or [], _keys(subject, metric))
         if reference is None:
             return base.model_copy(update={"reason": "no_data", "note": "no data for the compared target"})
+    total_side = bool((number.reference or {}).get("aggregate"))
     item, value = reference
     as_of, basis = _as_of(item, metric)
     mismatch = (
@@ -3545,11 +4094,11 @@ def _check_relation(
     base = base.model_copy(update={"reference_value": value, "reference_evidence_id": item.evidence_id})
     actual = float(base.actual or 0.0)
     if number.ratio:
-        return _check_ratio(number, base, actual, value)
+        return _side_note(_check_ratio(number, base, actual, value), base.note if total_side else "")
     if number.difference:
         if _METRICS[metric].fraction and not declared_percent and max(abs(actual), abs(value)) <= 1.5:
             actual, value = actual * 100, value * 100  # an undeclared fraction (0.33) against percentage points
-        return _check_difference(number, base, actual, value)
+        return _side_note(_check_difference(number, base, actual, value), base.note if total_side else "")
     holds = {
         "gt": actual > value,
         "ge": actual >= value,
@@ -3557,6 +4106,13 @@ def _check_relation(
         "le": actual <= value,
     }.get(number.comparator, math.isclose(actual, value, rel_tol=_REL_TOLERANCE))
     return base.model_copy(update={"status": "supported" if holds else "contradicted"})
+
+
+def _side_note(check: ClaimCheck, note: str) -> ClaimCheck:
+    """(round 15) Keep how a total compared side was computed next to the ratio or difference note."""
+    if not note:
+        return check
+    return check.model_copy(update={"note": "; ".join(part for part in (check.note, note) if part)})
 
 
 def _check_superlative(number: _Number, base: ClaimCheck, evidence: dict[str, list[AgentEvidence]]) -> ClaimCheck:
