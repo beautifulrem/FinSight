@@ -419,7 +419,9 @@ _RATIO_VERB = (
     r"(?:是|为|相当于|达到?|等于|有|不到|不足|不及|低于|小于|少于|超过|超出|高于|大于|多于|至少|至多|最多|比|连)"
 )
 _RATIO_BEFORE = re.compile(
-    rf"(?P<verb>{_RATIO_VERB})\s*{_APPROX_WORDS}\s*(?P<ref>＠+)\s*(?P<of>的|'s|’s)?\s*{_APPROX_WORDS}\s*$", re.I
+    # (round 13) a sector named with 行业 / 板块 is a reference too: "是保险行业的四倍多"
+    rf"(?P<verb>{_RATIO_VERB})\s*{_APPROX_WORDS}\s*(?P<ref>＠+)\s*(?:行业|板块)?\s*(?P<of>的|'s|’s)?\s*{_APPROX_WORDS}\s*$",
+    re.I,
 )
 # A multiple of an industry average (round 9): "市盈率只有白酒行业平均的三分之一", "不到行业均值的一半".
 _RATIO_BEFORE_AVERAGE = re.compile(
@@ -849,6 +851,7 @@ _CN_FRACTION = re.compile(
     r"的\s*([一二两三四五六七八九十]+|[1-9]\d?)\s*分之\s*([一二两三四五六七八九十]+|[1-9]\d?)(?!\s*[倍%])"
 )
 _OF_TENTHS = re.compile(r"的\s*([一二两三四五六七八九]|[1-9](?:\.\d)?)\s*成(?![交本功为])")
+_CN_POINTS = re.compile(rf"(\d+(?:\.\d+)?|{_CN_NUMERAL})\s*个\s*(多|余)?\s*百分点")
 # (round 13, I8) "三倍半" is 3.5 times (before round 13 the 半 was dropped and a true 3.52 was contradicted)
 _TIMES_AND_HALF = re.compile(rf"({_CN_NUMERAL}|\d+)\s*倍半")
 # "多一点", "高一点", "低一点点", "多一些": "a little", never the number 1 (before round 13 "七成多一点" added a check
@@ -885,7 +888,11 @@ def normalise(claim: str) -> str:
     """Full-width digits, Chinese numerals ("十五倍" → "15倍", "三成" → "30%"), English number words ("half a
     percent" → "0.5 percent", "three times" → "3 times", "double" → "2 times"), shares of another value ("的三分之一"
     → "的0.3333倍", "的六成" → "的0.6倍"), "荣枯线" → "50", "15x" → "15 x"."""
-    text = claim.translate(_FULLWIDTH).replace("个百分点", "百分点")  # "42个" would read as a count
+    text = claim.translate(_FULLWIDTH)
+    # (round 13) "三个百分点", "三个多百分点", "3个多百分点": the numeral before 个 (before round 13 "三个百分点" became
+    # "三百分点" and was read as nothing, "三个多" stayed unread)
+    text = _CN_POINTS.sub(lambda m: f"{_cn_number(m.group(1))}{m.group(2) or ''}百分点", text)
+    text = text.replace("个百分点", "百分点")  # "42个" would read as a count
     # (round 13, I8) the 52-week high / low as a reference, "a little" and "X倍半", before the numerals are read
     text = _RANGE_52W_ZH.sub(lambda m: _RANGE_TOKEN["high" if m.group("high") else "low"], text)
     text = _RANGE_52W_EN.sub(lambda m: f"fifty-two-week {m.group(1).lower()}", text)
@@ -2124,6 +2131,9 @@ _PERFORMANCE_WORDS |= {"outperformed"}
 _PERFORMANCE_WORDS |= {"underperform", "underperforms", "underperformed", "lag", "lags", "lagged"}
 _REFERENCE_FILLER = re.compile(r"\s*(?:了|过)?\s*(?:that of|those of|the|its|其|它的|它)?\s*", re.I)
 _INDUSTRY_REFERENCE = re.compile(
+    # (round 13) "the insurance average", "the baijiu sector median": the subject's industry named by its sector
+    r"(?:its\s+)?(?:baijiu|liquor|insurance|insurers'?|brokerage|securities|brokers'?|banking|banks'?)\s+"
+    r"(?:sector\s+|industry\s+)?(?:average|median|mean)\b|"
     r"(?:其?所在|所属|同)?(?:行业|板块|同行|同业)(?:的)?(?:平均|均值|整体|中位数)?(?:水平)?|"
     r"(?:its\s+)?(?:industry|sector|peers?)(?:\s+(?:average|median|mean|peers))?",
     re.I,
