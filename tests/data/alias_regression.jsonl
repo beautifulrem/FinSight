@@ -60,3 +60,48 @@
 {"query": "Ping An's Hong Kong-listed shares today", "expect_symbols": [], "forbid_symbols": ["601318.SH"], "kind": "h_share_by_description", "level": "agent", "coverage": "foreign_equity"}
 {"query": "招商银行港股今天涨了吗", "expect_symbols": [], "forbid_symbols": ["600036.SH"], "kind": "h_share_by_description", "level": "agent", "coverage": "foreign_equity"}
 {"query": "港股通南向资金对茅台的持股", "expect_symbols": ["600519.SH"], "forbid_symbols": [], "kind": "a_share_not_foreign", "level": "agent"}
+{"query": "中国平安香港那边今天收在多少", "expect_symbols": [], "forbid_symbols": ["601318.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中国平安A股比H股贵多少", "expect_symbols": [], "forbid_symbols": ["601318.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "招商银行在港交所挂牌交易的那部分股价", "expect_symbols": [], "forbid_symbols": ["600036.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "招商银行的AH溢价率是多少", "expect_symbols": [], "forbid_symbols": ["600036.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "工商银行的H股报价多少，顺便说下A股", "expect_symbols": [], "forbid_symbols": ["601398.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "工商银行A+H两边的股价", "expect_symbols": [], "forbid_symbols": ["601398.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "建设银行A股比H股贵多少", "expect_symbols": [], "forbid_symbols": ["601939.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "建设银行香港那边今天收在多少", "expect_symbols": [], "forbid_symbols": ["601939.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中国人寿的AH溢价率是多少", "expect_symbols": [], "forbid_symbols": ["601628.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中国人寿在港交所挂牌交易的那部分股价", "expect_symbols": [], "forbid_symbols": ["601628.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "比亚迪A+H两边的股价", "expect_symbols": [], "forbid_symbols": ["002594.SZ"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "比亚迪的H股报价多少，顺便说下A股", "expect_symbols": [], "forbid_symbols": ["002594.SZ"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中芯国际香港那边今天收在多少", "expect_symbols": [], "forbid_symbols": ["688981.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中芯国际A股比H股贵多少", "expect_symbols": [], "forbid_symbols": ["688981.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "药明康德在港交所挂牌交易的那部分股价", "expect_symbols": [], "forbid_symbols": ["603259.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "药明康德的AH溢价率是多少", "expect_symbols": [], "forbid_symbols": ["603259.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中国神华的H股报价多少，顺便说下A股", "expect_symbols": [], "forbid_symbols": ["601088.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中国神华A+H两边的股价", "expect_symbols": [], "forbid_symbols": ["601088.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "紫金矿业A股比H股贵多少", "expect_symbols": [], "forbid_symbols": ["601899.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "紫金矿业香港那边今天收在多少", "expect_symbols": [], "forbid_symbols": ["601899.SH"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "宁德时代的AH溢价率是多少", "expect_symbols": [], "forbid_symbols": ["300750.SZ"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "宁德时代在港交所挂牌交易的那部分股价", "expect_symbols": [], "forbid_symbols": ["300750.SZ"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "美的集团A+H两边的股价", "expect_symbols": [], "forbid_symbols": ["000333.SZ"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "美的集团的H股报价多少，顺便说下A股", "expect_symbols": [], "forbid_symbols": ["000333.SZ"], "kind": "foreign_line_h", "level": "agent", "coverage": "foreign_equity"}
+{"query": "长江电力在伦敦上市的GDR现在什么价", "expect_symbols": [], "forbid_symbols": ["600900.SH"], "kind": "foreign_line_gdr", "level": "agent", "coverage": "foreign_equity"}
+{"query": "华泰证券的全球存托凭证收盘多少", "expect_symbols": [], "forbid_symbols": ["601688.SH"], "kind": "foreign_line_gdr", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中国太保伦敦那边的价格", "expect_symbols": [], "forbid_symbols": ["601601.SH"], "kind": "foreign_line_gdr", "level": "agent", "coverage": "foreign_equity"}
+{"query": "国投电力在伦敦上市的GDR现在什么价", "expect_symbols": [], "forbid_symbols": ["600886.SH"], "kind": "foreign_line_gdr", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中国石化在美国上市的ADR什么价", "expect_symbols": [], "forbid_symbols": ["600028.SH"], "kind": "foreign_line_adr", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中国石油的美国存托凭证股价", "expect_symbols": [], "forbid_symbols": ["601857.SH"], "kind": "foreign_line_adr", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中国人寿纽交所那边的股份价格", "expect_symbols": [], "forbid_symbols": ["601628.SH"], "kind": "foreign_line_adr", "level": "agent", "coverage": "foreign_equity"}
+{"query": "How is CMB's Hong Kong-traded stock doing?", "expect_symbols": [], "forbid_symbols": ["600036.SH"], "kind": "foreign_line_en", "level": "agent", "coverage": "foreign_equity"}
+{"query": "ICBC HK-listed shares, last price?", "expect_symbols": [], "forbid_symbols": ["601398.SH"], "kind": "foreign_line_en", "level": "agent", "coverage": "foreign_equity"}
+{"query": "What's the A/H premium on BYD?", "expect_symbols": [], "forbid_symbols": ["002594.SZ"], "kind": "foreign_line_en", "level": "agent", "coverage": "foreign_equity"}
+{"query": "SMIC ADR quote please", "expect_symbols": [], "forbid_symbols": ["688981.SH"], "kind": "foreign_line_en", "level": "agent", "coverage": "foreign_equity"}
+{"query": "Price of Ping An's US-listed ADS?", "expect_symbols": [], "forbid_symbols": ["601318.SH"], "kind": "foreign_line_en", "level": "agent", "coverage": "foreign_equity"}
+{"query": "What are Sinopec's London-listed GDRs worth?", "expect_symbols": [], "forbid_symbols": ["600028.SH"], "kind": "foreign_line_en", "level": "agent", "coverage": "foreign_equity"}
+{"query": "How is China Life's Hong Kong-traded stock doing?", "expect_symbols": [], "forbid_symbols": ["601628.SH"], "kind": "foreign_line_en", "level": "agent", "coverage": "foreign_equity"}
+{"query": "CATL HK-listed shares, last price?", "expect_symbols": [], "forbid_symbols": ["300750.SZ"], "kind": "foreign_line_en", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中芯国际A股最新收盘价", "expect_symbols": ["688981.SH"], "forbid_symbols": [], "kind": "a_share_line", "level": "agent"}
+{"query": "长江电力A股最新收盘价", "expect_symbols": ["600900.SH"], "forbid_symbols": [], "kind": "a_share_line", "level": "agent"}
+{"query": "招商银行A股最新收盘价", "expect_symbols": ["600036.SH"], "forbid_symbols": [], "kind": "a_share_line", "level": "agent"}
+{"query": "What did BYD's A shares close at?", "expect_symbols": ["002594.SZ"], "forbid_symbols": [], "kind": "a_share_line", "level": "agent"}
+{"query": "港股科技ETF天弘的净值", "expect_symbols": ["159128.SZ"], "forbid_symbols": [], "kind": "a_share_fund_named_after_hk", "level": "agent"}
+{"query": "港股通红利ETF南方收盘多少", "expect_symbols": ["159127.SZ"], "forbid_symbols": [], "kind": "a_share_fund_named_after_hk", "level": "agent"}
