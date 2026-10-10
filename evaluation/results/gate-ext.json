@@ -1,0 +1,167 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "workflow",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "235d00c",
+  "run_at": "2026-10-10T12:49:32+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 16.8,
+  "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl --no-replay --out outputs/agent_eval/gate-ext.json",
+  "env": {
+   "QI_EVAL_SNAPSHOT_EXT": "1"
+  },
+  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl --no-replay --out outputs/agent_eval/gate-ext.json"
+ },
+ "summary": {
+  "tasks": 24,
+  "turns": 26,
+  "repeats": 1,
+  "task_success": 1.0,
+  "pass^1": 1.0,
+  "ci": {
+   "task_success": [
+    1.0,
+    1.0
+   ],
+   "pass^1": [
+    1.0,
+    1.0
+   ],
+   "task_success_uncited": [
+    1.0,
+    1.0
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 1.0,
+  "turn_success": 1.0,
+  "behavior_accuracy": 1.0,
+  "fact_recall": 1.0,
+  "fact_stated": 1.0,
+  "tool_recall": 1.0,
+  "tool_precision": 0.3269,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 128.45,
+  "latency_ms_p95": 1058.98,
+  "latency_ms_p99": 1124.29,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "comparison": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 231.24
+  },
+  "compliance": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 1124.29
+  },
+  "derived": {
+   "tasks": 6,
+   "task_success": 1.0,
+   "latency_ms_p95": 995.88
+  },
+  "fact": {
+   "tasks": 9,
+   "task_success": 1.0,
+   "latency_ms_p95": 839.59
+  },
+  "missing_data": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 780.44
+  },
+  "multi_turn": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 168.1
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 8,
+   "task_success": 1.0,
+   "latency_ms_p95": 1058.98
+  },
+  "zh": {
+   "tasks": 16,
+   "task_success": 1.0,
+   "latency_ms_p95": 1124.29
+  }
+ },
+ "failed_checks": {},
+ "failures": [],
+ "task_outcomes": {
+  "ext_close_zh": "1",
+  "ext_close_en": "1",
+  "ext_pe_zh": "1",
+  "ext_pb_en": "1",
+  "ext_roe_zh": "1",
+  "ext_market_cap_zh": "1",
+  "ext_ytd_zh": "1",
+  "ext_ytd_en": "1",
+  "ext_ytd_etf_zh": "1",
+  "ext_range_52w_zh": "1",
+  "ext_drawdown_en": "1",
+  "ext_holding_zh": "1",
+  "ext_forecast_threshold_zh": "1",
+  "ext_forecast_close_modal_zh": "1",
+  "ext_forecast_threshold_en": "1",
+  "ext_forecast_best_guess_en": "1",
+  "ext_past_threshold_not_hedged_zh": "1",
+  "ext_this_week_not_hedged_zh": "1",
+  "ext_industry_missing_zh": "1",
+  "ext_industry_missing_en": "1",
+  "ext_compare_roe_zh": "1",
+  "ext_followup_pb_zh": "1",
+  "ext_followup_roe_en": "1",
+  "ext_pab_close_and_pe_zh": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/gate-ext.json",
+  "sha256_16": "7d320765697341c0",
+  "bytes": 78962,
+  "slimmed_at": "2026-10-10T12:49:32+00:00"
+ }
+}
