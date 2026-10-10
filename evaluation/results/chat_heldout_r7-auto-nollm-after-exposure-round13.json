@@ -17,10 +17,10 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "3ec3f0c",
-  "run_at": "2026-10-01T14:10:08+00:00",
+  "commit": "b1099d8",
+  "run_at": "2026-10-10T12:36:05+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 354.7,
+  "wall_seconds": 77.9,
   "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r7/chat_r7_heldout.jsonl --out outputs/agent_eval/chat_r7-r13.json",
   "env": {},
   "command_with_env": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r7/chat_r7_heldout.jsonl --out outputs/agent_eval/chat_r7-r13.json"
@@ -58,9 +58,9 @@
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 454.46,
-  "latency_ms_p95": 3822.47,
-  "latency_ms_p99": 10245.22,
+  "latency_ms_p50": 96.91,
+  "latency_ms_p95": 868.91,
+  "latency_ms_p99": 2233.42,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -88,39 +88,39 @@
   "control": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 3658.64
+   "latency_ms_p95": 868.91
   },
   "derived_metric": {
    "tasks": 11,
    "task_success": 1.0,
-   "latency_ms_p95": 8277.63
+   "latency_ms_p95": 1533.89
   },
   "fair_value_implied": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 1162.88
+   "latency_ms_p95": 172.33
   },
   "gap_followup": {
    "tasks": 23,
    "task_success": 1.0,
-   "latency_ms_p95": 2675.78
+   "latency_ms_p95": 782.2
   },
   "hk_out_of_coverage": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 10245.22
+   "latency_ms_p95": 2233.42
   }
  },
  "by_language": {
   "en": {
    "tasks": 20,
    "task_success": 1.0,
-   "latency_ms_p95": 3441.82
+   "latency_ms_p95": 928.33
   },
   "zh": {
    "tasks": 33,
    "task_success": 1.0,
-   "latency_ms_p95": 4215.77
+   "latency_ms_p95": 850.71
   }
  },
  "failed_checks": {},
@@ -182,11 +182,11 @@
  },
  "source": {
   "file": "outputs/agent_eval/chat_r7-r13.json",
-  "sha256_16": "e025a2416861db1e",
-  "bytes": 364777,
-  "slimmed_at": "2026-10-01T14:22:17+00:00"
+  "sha256_16": "c3af37d6269a7c85",
+  "bytes": 364445,
+  "slimmed_at": "2026-10-10T12:52:24+00:00"
  },
  "notes": [
-  "AFTER EXPOSURE: independent round-7 chat slice rerun at the final round-13 commit 3ec3f0c (clean tree), no LLM, --no-replay; a regression check after the round-13 and review-9 fixes, not an out-of-sample measure. 53/53 = 1.000 (after round 12: 53/53)."
+  "AFTER EXPOSURE: independent round-7 chat slice rerun at the final round-13 code b1099d8 (clean tree), no LLM, --no-replay; a regression check, not an out-of-sample measure. 53/53 = 1.000 (after round 12: 53/53)."
  ]
 }

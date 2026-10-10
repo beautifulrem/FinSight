@@ -17,10 +17,10 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "f429ede",
-  "run_at": "2026-10-01T12:36:26+00:00",
+  "commit": "b1099d8",
+  "run_at": "2026-10-10T12:33:56+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 459.9,
+  "wall_seconds": 66.7,
   "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r8/chat_r8_heldout.jsonl --out outputs/agent_eval/chat_r8-r13.json",
   "env": {},
   "command_with_env": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r8/chat_r8_heldout.jsonl --out outputs/agent_eval/chat_r8-r13.json"
@@ -58,9 +58,9 @@
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 572.36,
-  "latency_ms_p95": 13497.39,
-  "latency_ms_p99": 44228.22,
+  "latency_ms_p50": 104.85,
+  "latency_ms_p95": 1358.18,
+  "latency_ms_p99": 9371.66,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -88,49 +88,49 @@
   "control": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 2512.61
+   "latency_ms_p95": 828.43
   },
   "gap_lexicon": {
    "tasks": 14,
    "task_success": 1.0,
-   "latency_ms_p95": 6392.5
+   "latency_ms_p95": 868.98
   },
   "hk_lookalike": {
    "tasks": 5,
    "task_success": 1.0,
-   "latency_ms_p95": 1991.88
+   "latency_ms_p95": 753.26
   },
   "holding_value": {
    "tasks": 7,
    "task_success": 1.0,
-   "latency_ms_p95": 44228.22
+   "latency_ms_p95": 9371.66
   },
   "injection_prediction": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 309.09
+   "latency_ms_p95": 112.11
   },
   "metric_aspect": {
    "tasks": 9,
    "task_success": 1.0,
-   "latency_ms_p95": 796.21
+   "latency_ms_p95": 192.51
   },
   "single_turn_compare": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 2338.19
+   "latency_ms_p95": 386.95
   }
  },
  "by_language": {
   "en": {
    "tasks": 18,
    "task_success": 1.0,
-   "latency_ms_p95": 14385.19
+   "latency_ms_p95": 1858.9
   },
   "zh": {
    "tasks": 33,
    "task_success": 1.0,
-   "latency_ms_p95": 6392.5
+   "latency_ms_p95": 1096.73
   }
  },
  "failed_checks": {},
@@ -190,11 +190,11 @@
  },
  "source": {
   "file": "outputs/agent_eval/chat_r8-r13.json",
-  "sha256_16": "b4e6f267dd8a1666",
-  "bytes": 275883,
-  "slimmed_at": "2026-10-01T12:44:19+00:00"
+  "sha256_16": "fd00a42cab4ec437",
+  "bytes": 275565,
+  "slimmed_at": "2026-10-10T12:52:16+00:00"
  },
  "notes": [
-  "AFTER EXPOSURE (round 13): independent round-8 chat slice rerun once at f429ede (clean tree) after the round-13 fixes, no LLM, --no-replay. The round-13 engineers read the 16 tasks still failing after round 12 and fixed their classes with their own dev examples (build_tasks._round13_tasks), so this is not an out-of-sample measure. 51/51 = 1.000 (after round 12, out of sample: 35/51 = 0.686)."
+  "AFTER EXPOSURE (round 13): independent round-8 chat slice rerun at b1099d8 (clean tree; the final round-13 code, after the review-9 fixes), no LLM, --no-replay. The round-13 engineers read the 16 tasks still failing after round 12 and fixed their classes with their own dev examples (build_tasks._round13_tasks), so this is not an out-of-sample measure. 51/51 = 1.000 (after round 12, out of sample: 35/51 = 0.686; a first round-13 run at f429ede, before the review-9 fixes, was also 51/51)."
  ]
 }

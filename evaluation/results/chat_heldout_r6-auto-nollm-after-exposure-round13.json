@@ -17,10 +17,10 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "3ec3f0c",
-  "run_at": "2026-10-01T14:08:29+00:00",
+  "commit": "b1099d8",
+  "run_at": "2026-10-10T12:37:02+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 255.4,
+  "wall_seconds": 53.3,
   "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r6/chat_r6_heldout.jsonl --out outputs/agent_eval/chat_r6-r13.json",
   "env": {},
   "command_with_env": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r6/chat_r6_heldout.jsonl --out outputs/agent_eval/chat_r6-r13.json"
@@ -58,9 +58,9 @@
   "states_missing_when_required": null,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 636.34,
-  "latency_ms_p95": 4290.62,
-  "latency_ms_p99": 6985.98,
+  "latency_ms_p50": 128.93,
+  "latency_ms_p95": 927.46,
+  "latency_ms_p99": 1703.57,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -88,54 +88,54 @@
   "comparison_winner": {
    "tasks": 4,
    "task_success": 1.0,
-   "latency_ms_p95": 1592.25
+   "latency_ms_p95": 247.5
   },
   "derived_metric": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 3456.16
+   "latency_ms_p95": 772.61
   },
   "difference_followup": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 5230.23
+   "latency_ms_p95": 1512.81
   },
   "fair_value": {
    "tasks": 7,
    "task_success": 1.0,
-   "latency_ms_p95": 3614.91
+   "latency_ms_p95": 561.84
   },
   "news_control": {
    "tasks": 2,
    "task_success": 1.0,
-   "latency_ms_p95": 2533.0
+   "latency_ms_p95": 467.56
   },
   "news_corroborated": {
    "tasks": 3,
    "task_success": 1.0,
-   "latency_ms_p95": 4290.62
+   "latency_ms_p95": 1058.32
   },
   "out_of_coverage": {
    "tasks": 7,
    "task_success": 1.0,
-   "latency_ms_p95": 3603.13
+   "latency_ms_p95": 779.76
   },
   "two_target_compare": {
    "tasks": 1,
    "task_success": 1.0,
-   "latency_ms_p95": 2708.77
+   "latency_ms_p95": 838.12
   }
  },
  "by_language": {
   "en": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 3614.91
+   "latency_ms_p95": 779.76
   },
   "zh": {
    "tasks": 32,
    "task_success": 1.0,
-   "latency_ms_p95": 4901.87
+   "latency_ms_p95": 1058.32
   }
  },
  "failed_checks": {},
@@ -182,11 +182,11 @@
  },
  "source": {
   "file": "outputs/agent_eval/chat_r6-r13.json",
-  "sha256_16": "039974a6bb563ab1",
-  "bytes": 179273,
-  "slimmed_at": "2026-10-01T14:22:10+00:00"
+  "sha256_16": "7f126b97cbf87b3f",
+  "bytes": 179112,
+  "slimmed_at": "2026-10-10T12:52:20+00:00"
  },
  "notes": [
-  "AFTER EXPOSURE: independent round-6 chat slice rerun at the final round-13 commit 3ec3f0c (clean tree), no LLM, --no-replay; a regression check after the round-13 and review-9 fixes, not an out-of-sample measure. 38/38 = 1.000 (after round 12: 38/38)."
+  "AFTER EXPOSURE: independent round-6 chat slice rerun at the final round-13 code b1099d8 (clean tree), no LLM, --no-replay; a regression check, not an out-of-sample measure. 38/38 = 1.000 (after round 12: 38/38)."
  ]
 }
