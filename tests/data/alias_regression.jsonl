@@ -105,3 +105,13 @@
 {"query": "What did BYD's A shares close at?", "expect_symbols": ["002594.SZ"], "forbid_symbols": [], "kind": "a_share_line", "level": "agent"}
 {"query": "港股科技ETF天弘的净值", "expect_symbols": ["159128.SZ"], "forbid_symbols": [], "kind": "a_share_fund_named_after_hk", "level": "agent"}
 {"query": "港股通红利ETF南方收盘多少", "expect_symbols": ["159127.SZ"], "forbid_symbols": [], "kind": "a_share_fund_named_after_hk", "level": "agent"}
+{"query": "工商银行（01398）今天收在哪", "expect_symbols": [], "forbid_symbols": ["601398.SH"], "kind": "hk_line_code", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中芯国际00981.HK最新报价", "expect_symbols": [], "forbid_symbols": ["688981.SH"], "kind": "hk_line_code", "level": "agent", "coverage": "foreign_equity"}
+{"query": "招行3968最近涨了没有", "expect_symbols": [], "forbid_symbols": ["600036.SH"], "kind": "hk_line_code", "level": "agent", "coverage": "foreign_equity"}
+{"query": "联交所上市的工商银行市盈率", "expect_symbols": [], "forbid_symbols": ["601398.SH"], "kind": "hk_line_venue", "level": "agent", "coverage": "foreign_equity"}
+{"query": "比亚迪在联交所的成交量", "expect_symbols": [], "forbid_symbols": ["002594.SZ"], "kind": "hk_line_venue", "level": "agent", "coverage": "foreign_equity"}
+{"query": "中国平安用港币计价的收盘价", "expect_symbols": [], "forbid_symbols": ["601318.SH"], "kind": "hk_line_currency", "level": "agent", "coverage": "foreign_equity"}
+{"query": "How much is ICBC quoted at in HKD today?", "expect_symbols": [], "forbid_symbols": ["601398.SH"], "kind": "hk_line_currency", "level": "agent", "coverage": "foreign_equity"}
+{"query": "工商银行601398今天收盘多少", "expect_symbols": ["601398.SH"], "forbid_symbols": [], "kind": "a_share_code_not_hk", "level": "agent"}
+{"query": "比亚迪1000股现在市值多少", "expect_symbols": ["002594.SZ"], "forbid_symbols": [], "kind": "a_share_code_not_hk", "level": "agent"}
+{"query": "100港元能换多少人民币", "expect_symbols": [], "forbid_symbols": [], "kind": "hkd_exchange_not_a_line", "level": "agent"}
