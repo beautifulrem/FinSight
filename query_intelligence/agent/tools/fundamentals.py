@@ -61,13 +61,20 @@ class FundamentalsOutput(BaseModel):
         description="Trading day of pe_ttm, pb, ps_ttm and the market cap (total_mv) when the source states it; "
         "they are priced on that day, not at report_date.",
     )
+    definitions: dict[str, str] | None = Field(
+        default=None,
+        description="Which definition each figure uses, when the data states it: roe_basis (weighted | period_end), "
+        "revenue_basis (营业收入 | 营业总收入), net_profit_basis (归母 | total), eps_basis (basic | diluted), "
+        "netprofit_yoy_basis, revenue_yoy_basis. Name the definition when stating the figure.",
+    )
 
     @model_serializer(mode="wrap")
     def _omit_missing_valuation_date(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        # Payloads without the field stay byte-identical to those recorded before it existed (evaluation snapshots).
+        # Payloads without the fields stay byte-identical to those recorded before they existed (evaluation snapshots).
         data = handler(self)
-        if data.get("valuation_date") is None:
-            data.pop("valuation_date", None)
+        for key in ("valuation_date", "definitions"):
+            if data.get(key) is None:
+                data.pop(key, None)
         return data
 
 
@@ -200,6 +207,7 @@ def build_fundamentals_tool(context: ToolContext) -> ToolSpec:
             provenance=provenance_from(payload),
             valuation_provenance=provenance_from(payload, "valuation_provenance"),
             valuation_date=_as_str(payload.get("valuation_date")),
+            definitions=_definitions(payload),
         )
         return ToolOutput(data=output, evidence=evidence)
 
@@ -251,3 +259,11 @@ def _metrics(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _as_str(value: Any) -> str | None:
     return None if value is None else str(value)
+
+
+def _definitions(payload: dict[str, Any]) -> dict[str, str] | None:
+    """The record's field definitions (corrections layer, data/snapshot/structured_data_fix.json), strings only."""
+    found = payload.get("definitions")
+    if not isinstance(found, dict) or not found:
+        return None
+    return {str(key): str(value) for key, value in found.items() if isinstance(value, str)}
