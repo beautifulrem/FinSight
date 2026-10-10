@@ -754,6 +754,9 @@ CANNED_ANSWER = {
 
 
 def test_codes_are_humanised_and_stale_data_is_flagged(page):
+    # The canned records are dated; freeze the page's clock (timers keep running) so the freshness badges do not
+    # depend on the day the suite runs.
+    page.clock.set_fixed_time("2026-10-01T12:00:00+08:00")
     body = _sse([("session", {"session_id": "canned"}), ("answer", CANNED_ANSWER), ("done", {"session_id": "canned"})])
     page.route(
         "**/agent/chat/stream",
