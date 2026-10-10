@@ -8,12 +8,12 @@
    0.2
   ],
   "model": null,
-  "commit": "3ec3f0c",
-  "run_at": "2026-10-01T14:15:46+00:00",
+  "commit": "b1099d8",
+  "run_at": "2026-10-10T12:35:58+00:00",
   "command": "python -m evaluation.agent_eval.verifier_stress ",
   "env": {},
   "command_with_env": "python -m evaluation.agent_eval.verifier_stress",
-  "note": "Round 13 at 3ec3f0c (clean tree): 299 gold answers, 5,172 variants; claim false-accept 0.0097, derived 0.0110 (round 12 at 8cc09bc: 0.0107 / 0.0121 on 248 gold answers). A first version of the rate-minus-share rule raised derived false accepts on the same variants to 97/5135 (vs 57 with the round-12 verifier); it was narrowed in ad9afe6 before this run."
+  "note": "Round 13 at b1099d8 (clean tree): 299 gold answers, 5,172 variants; claim false-accept 0.0097, derived 0.0110 (round 12 at 8cc09bc: 0.0107 / 0.0121 on 248 gold answers). A first version of the round-13 rate-minus-share rule raised derived false accepts on the same variants to 97/5135 (57 with the round-12 verifier); it was narrowed in ad9afe6 before this run."
  },
  "gold_answers": 299,
  "gold_set": {
