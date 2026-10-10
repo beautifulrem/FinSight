@@ -32,7 +32,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 
 - **数字可追溯**：逐句校验器拦下了 5,202 个被篡改答案中的 99.0%（默认允许派生数字时 98.9%），306 个正确答案全部通过（`verifier_stress-round13.json`，合并后的第 13 轮代码 `bd1de77`，正确答案集合已固定，记录任务 id 和 sha256）。把另一家公司的数字写进来，原来的整批比对 100% 放过，现在 1,147 次里 0 次放过（允许派生数字时 0.6%）。校验不通过的答案按整句删除修复，100% 可读；原来的按子句拼接只有 26% 可读（`verifier_stress-clause-salvage.json`）。
 - **在没人调过的任务集上测**：测试集 v3（独立作者编写的 130 个任务，在最终 commit `9536abf` 上首次跑 LLM 路径）上，DeepSeek Agent 通过 **0.869 [0.81, 0.92]**，LLM 组织答案 0.831，确定性固定流程 0.769，不调工具的 LLM 为 0（要求引用的一票否决口径）。Agent 显著优于固定流程（+0.100 [+0.049, +0.156]，McNemar p = 0.007），单次成功率也优于 LLM 组织答案（+0.038 [+0.003, +0.082]），但 pass^3 不显著。换成 GLM 时，Agent 与组织答案持平（−0.003 [−0.044, +0.041]），P95 达 82 秒。
-- **修复之后的样本外结果**：每轮评审的作者在任何修复之前，按自己发现的缺陷写一组保留切片；修这些缺陷类别的工程师从不打开它，修复前后各跑一次。第七轮（53 个对话会话：差值与倍数追问、推算指标、隐含价格、港股）：**0.264 → 0.830**（差值追问 0.17 → 0.83，推算指标 0.09 → 0.64；[分类结果](#第七轮切片分类)）。第六轮：声明 **0.537 → 0.836**，对话 **0.579 → 0.816**。第八轮（另一位评审把第七轮类别换了说法）：第 12 轮之后 **0.275 → 0.686**（声明 0.600 → 0.800；去掉三轮与自写措辞巧合的任务后为 32/48，[来源说明](evaluation/heldout_r8/README.md#provenance-of-the-after-fix-run-round-13-check)）。第九轮（52 个对话任务和 25 条声明，用快照扩展层的标的：占比、动词式比较、合计、极差、多笔持仓、52 周与今年以来问题、预测）：第 13 轮修复之后对话 **0.346 → 0.788**（18/52 → 41/52），声明 **0.600 → 1.000**；其中 4 个对话任务和 5 条声明与自写措辞重合，去掉后对话 16/48 → 37/48、声明 15/20 → 20/20（[分类结果](#第九轮切片分类)）。合计（5 个只对 1 个）和价格推算问题（7 个只对 2 个）仍然薄弱（[已知未修复问题](#已知未修复问题)）。第 13 轮读过第八轮切片，所以此后的 51/51 和 25/25 属于**暴露之后**。
+- **修复之后的样本外结果**：每轮评审的作者在任何修复之前，按自己发现的缺陷写一组保留切片；修这些缺陷类别的工程师从不打开它，修复前后各跑一次。第七轮（53 个对话会话：差值与倍数追问、推算指标、隐含价格、港股）：**0.264 → 0.830**（差值追问 0.17 → 0.83，推算指标 0.09 → 0.64；[分类结果](#第七轮切片分类)）。第六轮：声明 **0.537 → 0.836**，对话 **0.579 → 0.816**。第八轮（另一位评审把第七轮类别换了说法）：第 12 轮之后 **0.275 → 0.686**（声明 0.600 → 0.800；去掉三轮与自写措辞巧合的任务后为 32/48，[来源说明](evaluation/heldout_r8/README.md#provenance-of-the-after-fix-run-round-13-check)）。第九轮（52 个对话任务和 25 条声明，用快照扩展层的标的：占比、动词式比较、合计、极差、多笔持仓、52 周与今年以来问题、预测）：第 13 轮修复之后对话 **0.346 → 0.788**（18/52 → 41/52），声明 **0.600 → 1.000**；其中 6 个对话任务和 5 条声明与自写措辞重合（扫描了每个任务文件和声明文件），去掉后对话 16/46 → 36/46、声明 15/20 → 20/20（[分类结果](#第九轮切片分类)）。合计（5 个只对 1 个）和价格推算问题（7 个只对 2 个）仍然薄弱（[已知未修复问题](#已知未修复问题)）。第 13 轮读过第八轮切片，所以此后的 51/51 和 25/25 属于**暴露之后**。
 - **每套独立任务集都报两次：首次运行，以及暴露后**。多轮集、测试集 v3、两套路由标注和第四轮的三组保留切片，都由没看过代码的独立作者编写。首次运行：多轮集 0.224（无 LLM）/ 0.361（Agent），路由标注 0.740，第四轮声明核查 0.716，第四轮多轮 0.667，投毒文档攻击在模板路径上 0/168。修复暴露出的问题之后测得的数字一律标「暴露后」；另写的一套新路由标注首次运行得分 0.801（暴露后为 0.842，`d42b181` 上从干净工作区重跑），第五轮保留切片首次运行时声明核查 0.821、对话 0.921。
 - **统计如实**：每个比率都附 95% bootstrap 置信区间，路径之间做配对 bootstrap 和精确 McNemar 检验。保留集上 Agent（1.000）并不显著优于组织答案（0.981）；第 8 轮输出层修复之后，LLM 路径仍把 0–3.4% 的投毒文档内容当作事实陈述（原始检测命中 2.8–6.8%），而模板路径为 0（见[已知未修复问题](#已知未修复问题)）。
 - **按服务标准交付**：
@@ -71,6 +71,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 |---|---|---|---|
 | 开发集 | 473 个任务 | 项目作者 | 用来驱动修复（门禁基线 `gate-dev.json`：合并后的第 13 轮代码 `e54645b` 上 1.000） |
 | 快照扩展层集（`ext`，第 13 轮） | 24 个任务 / 26 轮 | 项目作者，第 13 轮修复之后编写 | 唯一在开启快照扩展层（即发布时的默认配置）下运行的集合，直接调用离线工具、不用回放；CI 门禁（`gate-ext.json`，`235d00c` 上 24/24；第 13 轮修复之前的代码为 15/24） |
+| 发布默认配置集（`shipped`，第 14 轮） | 21 个任务 / 22 轮 | 项目作者，第 14 轮，自写措辞 | 唯一在扩展层**和**更正层都开启（即产品实际提供的数据）下运行的集合，期望值取自 `data/snapshot/structured_data_fix.json`，禁止出现种子数值；CI 门禁（`gate-shipped.json`，`0096c6f` 上 21/21；关掉更正层为 2/21） |
 | 保留集 | 53 个任务 | 项目作者，在规则调优之后编写 | 参与过 Prompt 选择，属于验证集（门禁基线 `gate-holdout.json`：合并后的第 13 轮代码 `83fdb7b` 上 0.9434） |
 | 测试集 v2 | 121 个任务 / 174 轮 | 项目作者，一次性盲写 | 首次运行后读过失败类别并在开发集风格任务上修复，第二轮起属于**暴露后** |
 | 多轮集 v1 | 49 段对话 / 206 轮 | 没读过路由代码和任何任务文件的独立作者（[编写说明](evaluation/agent_eval/tasks/README_multiturn_v1.md)） | 首次运行见下；之后做过修复，属于暴露后 |
@@ -80,7 +81,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 | 第六轮保留切片 | 67 条声明、38 个对话任务 / 61 轮 | 独立作者，基于 `bc42017`、在第 10 轮修复之前编写（[说明](evaluation/heldout_r6/README.md)） | 修复前跑一次（`05c4d7b`），修复后再跑一次（`68279eb`）；做修复的工程师**从未看过它**，所以两次都是样本外测量 |
 | 第七轮保留切片 | 53 个对话任务 / 129 轮 | 第七轮评审，在第 11 轮修复之前编写（[说明](evaluation/heldout_r7/README.md)） | 修复前（`12a28eb`）和修复后（`960432d`）各跑一次，样本外；第 12 轮读过，此后属于暴露之后 |
 | 第八轮保留切片 | 51 个对话任务 / 95 轮，25 条声明 | 第八轮评审，在第 12 轮修复之前编写（[说明](evaluation/heldout_r8/README.md)） | 修复前（`40e8685`，由评审运行）和修复后（`6e14016`）各跑一次，除三轮巧合外为样本外；第 13 轮读过，此后属于暴露之后 |
-| 第九轮保留切片 | 52 个对话任务 / 79 轮，25 条声明 | 第九轮评审，在第 13 轮修复之前、用快照扩展层的标的编写（[说明](evaluation/heldout_r9/README.md)） | 在 `QI_EVAL_SNAPSHOT_EXT=1` 下修复前（`cbcf3b2`，由评审运行）和修复后（`da9f6af`）各跑一次；工程师没有打开，但 4 个对话任务和 5 条声明与自写措辞重合（`slice_overlap-heldout_r9-at-da9f6af.json`）；从第 14 轮起属于暴露之后 |
+| 第九轮保留切片 | 52 个对话任务 / 79 轮，25 条声明 | 第九轮评审，在第 13 轮修复之前、用快照扩展层的标的编写（[说明](evaluation/heldout_r9/README.md)） | 在 `QI_EVAL_SNAPSHOT_EXT=1` 下修复前（`cbcf3b2`，由评审运行）和修复后（`da9f6af`）各跑一次；工程师没有打开，但 6 个对话任务和 5 条声明与测试、dev 任务或 ext 门禁集里的自写措辞重合（`slice_overlap-heldout_r9-all-tasks.json`，扫描了每个任务文件和声明文件）；从第 14 轮起属于暴露之后 |
 | 独立路由标注 v1 / v2 | 154 / 241 条 | 独立作者按书面策略标注（[v2 说明](evaluation/agent_eval/tasks/README_router_labels_independent_v2.md)） | v1 首次运行后已暴露；v2 首次运行 0.801，在 HEAD 上重跑属于暴露后 |
 
 ### 最终在线运行（commit `9536abf`）
@@ -124,7 +125,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 | 第七轮对话（53 个任务 / 129 轮：差值与倍数追问、推算指标、隐含价格、港股），确定性路径 | 任务 **0.264 [0.15, 0.38]**，轮次 0.643（`chat_heldout_r7-auto-nollm-prefix.json`，`12a28eb`） | **未暴露**：第 11 轮修复之后任务 **0.830 [0.74, 0.92]**，轮次 0.907，行为 0.977（`chat_heldout_r7-auto-nollm-after-fix.json`，`960432d`）；第 11 轮有四条 dev 轮次（分属三个任务）与切片轮次字面巧合相同（数目由第八轮评审更正），去掉这三个任务后为 13/50 → 43/50 |
 | 第八轮对话（51 个任务 / 95 轮：第七轮类别换了说法——动词式比较、单句比较、按手/份的持仓、指标说法、港股、注入加预测），确定性路径 | 任务 **0.275 [0.16, 0.39]**，轮次 0.579（`chat_heldout_r8-auto-nollm-prefix.json`，`40e8685`，由评审运行） | **未暴露**：第 12 轮修复之后任务 **0.686 [0.55, 0.80]**，轮次 0.832，行为 0.958（`chat_heldout_r8-auto-nollm-after-fix.json`，`6e14016`）；工程师没有打开切片，但有三轮与第 12 轮测试 / dev 任务的写法相同或近似（`tests/test_agent_round12_frame.py` 里的 `回到A股，它的市净率呢` 和三万份证券ETF持仓，dev 任务 `r12_traded_more_by_how_much_en`），去掉这三个任务后为 13/48 → 32/48 = 0.667（`slice_overlap-heldout_r8-at-6e14016.json`）。**暴露之后（第 13 轮）**：1.000（51/51，`chat_heldout_r8-auto-nollm-after-exposure-round13.json`，`b1099d8`）；第 13 轮读过它失败的 16 个任务，不是样本外结果 |
 | 第八轮声明（25 条：新顺序的行业平均、约数、合计、英文关系） | 结论准确率 **0.600 [0.40, 0.80]**（`claims_heldout_r8-prefix.json`，`40e8685`） | **未暴露**：第 12 轮修复之后 **0.800 [0.64, 0.96]**（`claims_heldout_r8-after-fix.json`，`6e14016`）；第 13 轮声明规则之后为 1.000（25/25，`claims_heldout_r8-after-exposure-round13-claims.json`，`39ba98e`），加上第 13 轮全部修复后同为 1.000（`claims_heldout_r8-after-exposure-round13.json`，`b1099d8`），均属**暴露之后**（工程师读过其中 5 条错误） |
-| 第九轮对话（52 个任务 / 79 轮，快照扩展层标的：占比、动词式比较、合计、极差、多笔持仓、是否几倍、52 周与今年以来问题、预测、缺行业平均），确定性路径，`QI_EVAL_SNAPSHOT_EXT=1` | 任务 **0.346 [0.23, 0.48]**（18/52），轮次 0.570（`chat_heldout_r9-auto-nollm-prefix.json`，`cbcf3b2`，由评审运行） | **未暴露**：第 13 轮修复之后任务 **0.788 [0.67, 0.88]**（41/52），轮次 0.861（`chat_heldout_r9-auto-nollm-after-fix.json`，`da9f6af`）；工程师没有打开切片，但 4 个任务与自写测试 / dev 措辞重合，去掉后为 16/48 → 37/48（`slice_overlap-heldout_r9-at-da9f6af.json`） |
+| 第九轮对话（52 个任务 / 79 轮，快照扩展层标的：占比、动词式比较、合计、极差、多笔持仓、是否几倍、52 周与今年以来问题、预测、缺行业平均），确定性路径，`QI_EVAL_SNAPSHOT_EXT=1` | 任务 **0.346 [0.23, 0.48]**（18/52），轮次 0.570（`chat_heldout_r9-auto-nollm-prefix.json`，`cbcf3b2`，由评审运行） | **未暴露**：第 13 轮修复之后任务 **0.788 [0.67, 0.88]**（41/52），轮次 0.861（`chat_heldout_r9-auto-nollm-after-fix.json`，`da9f6af`）；工程师没有打开切片，但 6 个任务与测试、dev 任务或 ext 门禁集里的自写措辞重合，去掉后为 16/46 → 36/46（`slice_overlap-heldout_r9-all-tasks.json`） |
 | 第九轮声明（25 条：X倍半、分数与约略分数、52 周基准、最高 / 最低、百分点差、「times more」、复合与否定说法、对照组） | 结论准确率 **0.600 [0.40, 0.80]**（`claims_heldout_r9-prefix.json`，`cbcf3b2`） | **未暴露**：第 13 轮修复之后 **1.000**（25/25，`claims_heldout_r9-after-fix.json`，`da9f6af`）；5 条与自写测试措辞或评审公开的复现语句近似，修复前这 5 条全错，去掉后为 15/20 → 20/20 |
 | 工程师收集的真实公开说法（60 条：媒体、券商公开研报、公司公告、雪球/知乎/股吧原文引用的 2025 年报数字与 2026-09-30、2026-04-22 行情；**非盲**：收集者读过核查器代码） | 结论准确率 **0.800 [0.70, 0.88]**，48/60（`claims_web_v1-first-run.json`，`df0d212`） | **暴露后（数据更正，核查器未改）**：开启第 13 轮更正层、按更正后数据重新标注，0.817 [0.72, 0.90]，49/60（`claims_web_v1-with-corrections.json`，`8aa4c52`；按首次运行的标注为 0.700） |
 | 工程师收集的真实公开说法第二套（50 条：同样的公司、指标和日期，媒体 28、雪球与股吧帖子 15、公司公告 4、券商研报 3，英文或繁体 6 条；**对核查器盲测**：在阅读核查器代码或测试之前完成收集、标注并提交，检索代理从未看到离线数值） | 结论准确率 **0.500 [0.36, 0.64]**，25/50（`claims_web_v2-first-run.json`，`117e74b`，默认数据含更正层）；按忽略口径的标注为 0.520 [0.38, 0.66] | 仅首次运行，未做任何修复。错误分 9 类（[evaluation/real_claims_web_v2/README.md](evaluation/real_claims_web_v2/README.md)） |
@@ -172,7 +173,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 
 #### 第九轮切片分类
 
-第九轮评审在第 13 轮开始之前，按第九轮评审的类别写了 52 个对话任务和 25 条声明，用的是快照扩展层的标的，因此要在 `QI_EVAL_SNAPSHOT_EXT=1` 下运行。第 13 轮的工程师用自己的例子修这些类别，没有打开切片；但 `slice_overlap` 发现其中 4 个对话任务（r9h_share_zh_01、r9h_spread_zh_01、r9h_verb_en_01、r9h_ctrl_en_03）和 5 条声明（r9c01、r9c08、r9c12–r9c14）与自写测试 / dev 措辞或评审公开的复现语句相同或近似（`slice_overlap-heldout_r9-at-da9f6af.json`）。首次运行（`cbcf3b2`）→ 修复之后（`da9f6af`），取自 `chat_heldout_r9-auto-nollm-prefix.json` 和 `chat_heldout_r9-auto-nollm-after-fix.json` 的 `by_category`：
+第九轮评审在第 13 轮开始之前，按第九轮评审的类别写了 52 个对话任务和 25 条声明，用的是快照扩展层的标的，因此要在 `QI_EVAL_SNAPSHOT_EXT=1` 下运行。第 13 轮的工程师用自己的例子修这些类别，没有打开切片；但 `slice_overlap` 发现其中 6 个对话任务（r9h_share_zh_01、r9h_spread_zh_01、r9h_verb_en_01、r9h_ctrl_en_03、r9h_ind_en_01、r9h_sum_en_02）和 5 条声明（r9c01、r9c08、r9c12–r9c14）与自写测试 / dev 措辞、ext 门禁集或评审公开的复现语句相同或近似（`slice_overlap-heldout_r9-all-tasks.json`）。第 13 轮的扫描只读一份固定的文件清单，漏掉了 ext 集（`tasks/agent_eval_ext_v1.jsonl`）：其中有 r9h_ind_en_01 的一字之差的变体（失败 → 通过），以及 r9h_sum_en_02 的一个简短追问轮（两次都失败），所以之前的 4 个任务、16/48 → 37/48 偏乐观；第十轮评审算出 5 个任务、16/47 → 36/47，扫描全部任务文件和声明文件后为 16/46 → 36/46（第十轮评审 J9）。首次运行（`cbcf3b2`）→ 修复之后（`da9f6af`），取自 `chat_heldout_r9-auto-nollm-prefix.json` 和 `chat_heldout_r9-auto-nollm-after-fix.json` 的 `by_category`：
 
 | 类别 | 任务数 | 首次运行 | 修复之后 |
 |---|---|---|---|
@@ -209,7 +210,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 | 真实网关与数据源上的故障演练 | **LLM**：主模型失效 → 熔断打开 → GLM 接手 → 半开试探 → 关闭。**数据源**：屏蔽新浪/腾讯/东方财富 → 60 秒缓存 → 最近一次成功数据 → 过期后如实说明缺数据，而不是拿 4 月的快照价冒充行情。两者都在 2026-09-30 于干净的 commit 上重跑（`3b03369`、`3d7afd5`）；有了运行截止时间，慢速备用模型现在约 90 秒时以通过校验的确定性答案结束，而不是 504 | [docs/zh/a2a-and-observability.md](docs/zh/a2a-and-observability.md#故障演练) |
 | 实时数据源审计：64 次探测（加盘中探测后 67 次） | 49 次成功，10/10 条降级链正常；三次已提交的运行（09-28 下午、夜间、09-29 盘中：52/67、10/10）失败的都是同样 15 个探测；修复了错误的 M2 序列、停更的 CPI/PMI、始终为空的 PE/PB 和取不到的公告；新浪/同花顺增速与报告期绝对值交叉核对。**HEAD `c915aef`，2026-10-01**（休市日；2 轮，顺序调用，每次间隔 1 秒）：134 次探测 98 次成功，10/10 条降级链正常；按数据源 24 个全部成功、2 个部分成功（ETF 没有公告）、8 个不可用（经本网络代理的东方财富 `push2`/`push2his` 共 5 个接口、雪球 Token、一个已被 AKShare 移除的函数，以及盘中报价：休市日正确地拒绝 2026-09-30 的报价）、Tushare 未配置；无 schema 漂移；日线落后最近交易日 0 个交易日；可用数据源单次调用 P50 从 45 ms（新浪报价）到 2.2 秒（中债），未使用的旧金十序列除外（19–28 秒） | `docs/results/data_sources/audit-20260928-6dde495.json`、`audit-20260928T1955Z-4742453.json`、`audit-20260929T0257Z-5d4c192.json`、`audit-20261001T0626Z-c915aef.json`（及 `.md`）、[docs/zh/data-sources.md](docs/zh/data-sources.md) |
 | 离线快照扩展层（第 12 轮） | v1 快照没有的 15 个常被问到的标的（宁德时代、比亚迪、招商银行、平安银行、黄金ETF、上证指数……）：各有 301–307 个日收盘价、2025 年报和 2026-09-30 的估值，2026-10-01 从实时降级链抓取，并可由提交的原始记录离线重建（带 sha256 清单）。有行情的标的 7 → 22，有基本面的公司 3 → 13；这些标的的每股收益、总市值、同比增速、持仓市值、今年以来涨跌、52 周最高/最低和最大回撤现在可以离线计算。v1 的值一个都没改；评测仍固定在 v1 | `data/snapshot/manifest.json`、`scripts/build_offline_snapshot.py`、[docs/zh/data-sources.md](docs/zh/data-sources.md) |
-| 更正层与字段口径（第 13 轮） | 每个 v1 数字都与一手记录核对过。种子里五粮液 2025 年数据（营收 1085亿、净利润 378亿、ROE 29.4%，年报为 405.29亿、89.54亿、加权 6.89%）和中国平安（12180亿、1210亿、15.2%，年报为 10505.06亿、1347.78亿、14.0%）是错的；贵州茅台的 ROE（33.0，年报加权 32.53）、三家的市盈率和市净率，以及四条 2026-04-22 日线（中国平安 53.61 实为 58.03；沪深300 4005.2、+0.42% 实为中证指数公布的 4799.63、+0.66%；创业板ETF；证券ETF）也是错的。新增的第三层提供年报数字（附来源、页码和 sha256），并标明每家公司的字段口径；回答和指标卡片会写出口径（「ROE（加权）」「营业总收入」「归母净利润」「稀释每股收益」）。产品默认开启（`QI_OFFLINE_SNAPSHOT_FIX`），评测仍固定在种子数据 | `data/snapshot/corrections/sources.json`、`scripts/build_snapshot_corrections.py`、[docs/zh/data-sources.md](docs/zh/data-sources.md#更正层一手来源的数值与字段口径) |
+| 更正层与字段口径（第 13 轮） | 与一手记录核对过的是：三家 v1 公司的 2025 年报数字（对年报）和七个 v1 标的 2026-04-22 的日线（对交易所或指数编制方的日线记录）；v1 的五条行业数据和四个宏观数值**没有**核对（见 [docs/zh/data-sources.md](docs/zh/data-sources.md#更正层一手来源的数值与字段口径)「未更正、仍未核实」）。种子里五粮液 2025 年数据（营收 1085亿、净利润 378亿、ROE 29.4%，年报为 405.29亿、89.54亿、加权 6.89%）和中国平安（12180亿、1210亿、15.2%，年报为 10505.06亿、1347.78亿、14.0%）是错的；贵州茅台的 ROE（33.0，年报加权 32.53）、三家的市盈率和市净率，以及四条 2026-04-22 日线（中国平安 53.61 实为 58.03；沪深300 4005.2、+0.42% 实为中证指数公布的 4799.63、+0.66%；创业板ETF；证券ETF）也是错的。新增的第三层提供年报数字（附来源、页码和 sha256），并标明每家公司的字段口径；回答和指标卡片会写出口径（「ROE（加权）」「营业总收入」「归母净利润」「稀释每股收益」）。产品默认开启（`QI_OFFLINE_SNAPSHOT_FIX`），评测仍固定在种子数据 | `data/snapshot/corrections/sources.json`、`scripts/build_snapshot_corrections.py`、[docs/zh/data-sources.md](docs/zh/data-sources.md#更正层一手来源的数值与字段口径) |
 
 ## 架构
 
@@ -302,7 +303,7 @@ export QI_LLM_FALLBACK_MODELS=...                 # 可选：同一接口上的�
 
 实时行情、新闻、公告、宏观默认开启；设置 `QI_USE_LIVE_MARKET=0`（以及 `_NEWS`、`_ANNOUNCEMENT`、`_MACRO`）即使用随仓库提供的离线快照。离线快照由 v1（`data/structured_data.json`，7 个标的，截至 2026-04-22）和扩展层（`data/snapshot/`，另 15 个，截至 2026-09-30；`QI_OFFLINE_SNAPSHOT_EXT=0` 关闭）组成，并应用更正层（`data/snapshot/structured_data_fix.json`：种子出错处的一手来源数值和字段口径；`QI_OFFLINE_SNAPSHOT_FIX=0` 关闭）；哪些是实时、哪些是快照以及降级顺序见 [docs/zh/data-sources.md](docs/zh/data-sources.md)。
 
-Docker、Kubernetes（多副本经 Postgres 共享会话、只读根文件系统）与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
+Docker、Kubernetes（多副本经 Postgres 共享会话、只读根文件系统）与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。从第 14 轮起镜像也带上了更正层（之前容器给出的是 v1 种子数字，J2），`GET /ready` 会列出已加载的数据层（[部署](docs/zh/deployment.md#docker)）。
 
 ```bash
 TAG=$(git rev-parse --short=7 HEAD)
@@ -322,7 +323,7 @@ docker compose -f docker/docker-compose.yml --profile monitoring up -d   # 加�
 | `GET /agent/sessions/{id}`、`GET /agent/traces`、`GET /agent/traces/{id}` | 会话记忆、最近运行、完整 trace，只返回调用方自己的。 |
 | `GET /.well-known/agent-card.json`、`POST /a2a` | A2A 服务卡片与 JSON-RPC 接口。 |
 | `GET /metrics`、`GET /sources/health[?probe=1]` | Prometheus 指标；数据源状态（按需主动探测全部 19 个数据源，未探测的会标出）。 |
-| `GET /health`、`GET /ready` | 存活检查；就绪检查（检查点存储可连接且可写、LLM 配置、检索索引），未就绪返回 503。 |
+| `GET /health`、`GET /ready` | 存活检查；就绪检查（检查点存储可连接且可写、LLM 配置、检索索引、离线数据层及其记录数和 sha256），未就绪或开启的数据层缺失时返回 503。 |
 | `POST /chat` | 原聊天接口（`mode=workflow` 保持原流程；`agent`/`auto` 走 Agent）。 |
 | `POST /nlu/analyze`、`POST /retrieval/search`、`POST /query/intelligence` | 经典 NLU 与检索产物。 |
 
@@ -332,7 +333,8 @@ Schema 位于 `schemas/agent_*.schema.json`，由 `query_intelligence/contracts.
 
 ```bash
 python -m pytest -q tests                                  # 离线；除非 QI_TEST_LIVE=1，否则不访问实时数据源
-python -m evaluation.agent_eval.gate                       # 快照回放的开发集 + 保留集，与已提交基线比较
+scripts/prepush.sh                                         # 推送前在本地跑 CI 跑的全部检查（docs/zh/development.md）
+python -m evaluation.agent_eval.gate                       # 快照回放的开发集 + 保留集，以及 ext、shipped 集，与已提交基线比较
 python -m evaluation.agent_eval.router_eval                # 路由准确率与混淆矩阵
 python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets holdout,test_v2
 python -m evaluation.agent_eval.verifier_stress            # 校验器误放率
@@ -351,12 +353,12 @@ CI 包括：
 - 用 gitleaks 扫描全部 git 历史中的密钥（[SECURITY.md](SECURITY.md)）；
 - 前端检查（类型、lint、单测、可复现构建）；
 - 带 Postgres 服务的全量测试（只跑一遍），包括 axe 无障碍测试（在 CI 里缺依赖会失败而不是跳过），以及分支覆盖率下限：`query_intelligence/agent` 88%（实测 90.17%）、`query_intelligence/api` 90%（92.13%）、`answer_guards.py` 81%（83.74%），数据见 [`coverage-ef07a7f.json`](docs/results/coverage/coverage-ef07a7f.json)。之前写的 90.3% 只是 Agent 测试子集的结果；
-- 与已提交基线比较的评测门禁，以及评测文档是否最新的检查；
-- Docker 构建与只读根文件系统下的冒烟测试（等待 `/ready`），以及「状态目录不可写时容器不就绪」的检查；
-- Kubernetes 冒烟测试：通过 [`deploy/k8s-smoke`](deploy/k8s-smoke/smoke.sh) 把 kustomization 部署到临时 kind 集群，NetworkPolicy 生效。先等 `/ready`，再从被放行的客户端 Pod 拿到一次通过校验的 `/agent/chat` 回答（[本地运行记录](docs/results/k8s-smoke/)）；
+- 与已提交基线比较的评测门禁（开发集和保留集固定在 v1 种子；`ext` 开扩展层；`shipped` 开扩展层和更正层，与部署一致），以及评测文档是否最新的检查；
+- Docker 构建与只读根文件系统下的冒烟测试（等待 `/ready`，检查它列出了三个数据层，且回答里是更正后的数字：茅台市盈率 21.44，五粮液 ROE（加权） 6.89% / 营业收入 405.29 亿元），以及「状态目录不可写时容器不就绪」的检查；
+- Kubernetes 冒烟测试：通过 [`deploy/k8s-smoke`](deploy/k8s-smoke/smoke.sh) 把 kustomization 部署到临时 kind 集群，NetworkPolicy 生效。先等 `/ready`，再从被放行的客户端 Pod 检查数据层、拿到一次通过校验的 `/agent/chat` 回答，并断言一个更正后的数字（五粮液 ROE（加权） 6.89%、营业收入 405.29 亿元）（[本地运行记录](docs/results/k8s-smoke/)）；
 - Kubernetes 清单校验（渲染后的 kustomization、不提交 Secret、镜像按 commit 打标签）。
 
-`pre-commit install` 后每次提交前会跑 gitleaks、ruff 和评测文档检查。
+`pre-commit install` 后每次提交前会跑 gitleaks、ruff 和评测文档检查。推送到 `master` 之前，在要推送的提交上运行 [`scripts/prepush.sh`](scripts/prepush.sh)，通过了才推送（[docs/zh/development.md](docs/zh/development.md)）：ruff、测试套件、前端检查与构建产物比对、浏览器 e2e、所有门禁集和评测文档检查。第 14 轮最终提交上的汇总在 [`docs/results/ci/`](docs/results/ci/)。`master` 的 CI 在 `7f4f06c` 上是红的（run 38061714150：更正层成为默认之后 e2e 用例仍断言种子数值），在 `f8f5546` 上恢复通过（run 38064588334，2026-10-10）。
 
 人工评测：[evaluation/human/](evaluation/human/README.md) 是一套只能由人完成的四项输入的工具包（100 条回答的质量标注、与问财/豆包/Kimi 在 30 道冻结题目上的对比、来自研报和社交媒体的真实说法核查、带 SUS 问卷的小型用户研究）。每项输入用一条评分命令生成结果，写入 `evaluation/results/`，并记录 commit、命令和输入文件哈希；目前还没有提交任何人工评测结果。
 
@@ -373,6 +375,7 @@ CI 包括：
 | 实时数据源 | [docs/zh/data-sources.md](docs/zh/data-sources.md) |
 | 性能、压测与扩展 | [docs/zh/performance.md](docs/zh/performance.md) |
 | 部署 | [docs/zh/deployment.md](docs/zh/deployment.md) |
+| 开发：推送前检查，发布默认配置如何被测试 | [docs/zh/development.md](docs/zh/development.md) |
 | 设计复盘：取舍、自研与复用、失败案例 | [docs/presentation/agent-design-notes.md](docs/presentation/agent-design-notes.md) |
 | 面试讲稿：30 秒介绍、三个可辩护的数字、失败故事、白板提纲 | [docs/presentation/interview-script.md](docs/presentation/interview-script.md) |
 | 声明核查：规则、比较词、基准 | [docs/zh/claim-check.md](docs/zh/claim-check.md) |
@@ -384,7 +387,7 @@ CI 包括：
 ## 局限
 
 - **只测了两个模型族，都是 flash 级别，都经同一个网关调用**：最终在线运行在 `9536abf`；第七、八轮输出层和之后的界面修复在它之后提交（它们不改变离线任务成功率；LLM 路径红队已在 `0473968` 上重跑）。
-- **未暴露的任务集很少**：测试集 v3 从未用于任何修复，但在 `bc42017` 上用来选过默认 Prompt。每个评审切片只对一轮修复是样本外的：第六轮（第 10 轮之后声明 0.836、对话 0.816）、第七轮（第 11 轮之后对话 0.830）、第八轮（第 12 轮之后对话 0.686、声明 0.800）和第九轮（第 13 轮之后对话 0.788、声明 1.000，其中 4 个对话任务和 5 条声明与自写措辞重合）。它们规模都小（25–67 条声明、38–53 个对话任务），之后的运行都属于暴露之后；第九轮切片从第 14 轮起属于暴露之后。保留集参与过 Prompt 选择；测试集 v2、多轮集 v1、独立路由标注 v1、第四轮和第五轮切片都属于暴露后。
+- **未暴露的任务集很少**：测试集 v3 从未用于任何修复，但在 `bc42017` 上用来选过默认 Prompt。每个评审切片只对一轮修复是样本外的：第六轮（第 10 轮之后声明 0.836、对话 0.816）、第七轮（第 11 轮之后对话 0.830）、第八轮（第 12 轮之后对话 0.686、声明 0.800）和第九轮（第 13 轮之后对话 0.788、声明 1.000，其中 6 个对话任务和 5 条声明与自写措辞重合）。它们规模都小（25–67 条声明、38–53 个对话任务），之后的运行都属于暴露之后；第九轮切片从第 14 轮起属于暴露之后。保留集参与过 Prompt 选择；测试集 v2、多轮集 v1、独立路由标注 v1、第四轮和第五轮切片都属于暴露后。
 - **路由在新问法上仍约有五分之一出错**：新写的独立路由标注首次运行得分 0.801，暴露后为 0.842（`d42b181` 上从干净工作区重跑），主要错在没有标的的建议类问题，以及澄清与拒答之间的边界情况。
 - **Agent 工具循环只比「LLM 组织答案」略好**：DeepSeek 在测试集 v3 上单次成功率领先 +0.038，pass^3 不显著；GLM 上两者持平；Agent 成本是后者的 1.1–4 倍。
 - **校验证明的是可追溯，不是真实**：校验器检查数字是否来自所引证据；一条证据含多个报告期或指标时，它无法判断选对了哪一个。投毒到新闻正文里的假价格能通过校验，因为它确实「在证据里」。
@@ -442,6 +445,10 @@ CI 包括：
 | I11（第九轮） | 低 | 今年以来涨跌幅以今年首个收盘价为基准（宁德时代 −22.88%） | 已修复（`38dcaf2`）：以上年最后一个收盘价 `prior_year_end` 为基准（2025-12-31 收盘 367.26，−20.73%） |
 | I19（第九轮） | 提示 | 输出安全层的分句不在「但」/ but 处断开 | 已修复（`c45df45`）：但 / 但是 / 却 / 不过 / but / however / yet 都断开分句（「不但」除外） |
 | 数据门禁（第九轮，数据获取） | 低 | 默认配置（扩展层开启）只有少数录制的开发任务覆盖 | 已加门禁（`0ce8eef`、`3b63c5a`）：`ext` 集合在 `QI_EVAL_SNAPSHOT_EXT=1`、不用回放的条件下单独作为 CI 一步运行；开发集和保留集仍固定在 v1 |
+| J1（第十轮） | 高（CI） | `master` 的 CI 在 `7f4f06c` 上是红的：更正层成为默认，e2e 用例仍断言种子数值，合并提交没跑 e2e 就推送了；没有任何门禁或测试运行发布默认配置 | 已修复：只改用例的 `f8f5546`（CI 通过，run 38064588334）；`scripts/prepush.sh` 在推送前跑 CI 跑的东西（[docs/zh/development.md](docs/zh/development.md)）；门禁集 `shipped`（21 个任务，两层都开，`gate-shipped.json`）有单独的 CI 步骤；`tests/test_shipped_default.py` 在默认数据层上运行 API（8 个测试，把更正层默认值改为关闭时全部失败） |
+| J2（第十轮） | 中（部署的数据） | Docker 镜像缺少更正层，容器给出种子数字（茅台市盈率 24.6），本地运行却是 21.44；加载器缺层时不出声地跳过 | 已修复：镜像复制 `data/snapshot/structured_data_fix.json`、`data/snapshot/manifest_fix.json` 和 `data/snapshot/corrections/`；开启但缺失的数据层会记警告并让 `/ready` 返回 503；`/ready` 报告每层的记录数和 sha256；CI 的 docker job 和 kind 冒烟测试断言更正后的数字；已在本地只读容器上验证（[部署](docs/zh/deployment.md#docker)） |
+| J9（第十轮） | 低–中（评测诚实性） | `slice_overlap` 只扫描固定的文件清单，漏掉了 ext 集，其中有 r9h_ind_en_01 的一字之差的变体 | 已修复：扫描每个任务文件和声明文件；第九轮切片有 6 个对话任务重合，去掉后 16/46 → 36/46（`slice_overlap-heldout_r9-all-tasks.json`；按评审的 5 个任务算是 16/47 → 36/47） |
+| J11（第十轮） | 低（文档） | 「每个 v1 数字都核对过」夸大了更正层的核对范围 | 已修复：README 写明核对的是三家 v1 公司的 2025 年报数字和七个 v1 标的 2026-04-22 的日线，行业和宏观数据没有核对 |
 | H12（第八轮） | 低 | 「I read that … True?」不触发内联核查 | 已修复（`bd84003`）：传闻线索按类别识别（转述来源、报道词、请求核实、句末确认问句）；「网上说…对吗」「有博主说…靠谱吗」「Is that correct?」也会触发 |
 
 仍未解决：
@@ -451,7 +458,7 @@ CI 包括：
 | LLM 路径仍会提到投毒文档的内容：`0473968` 上每个攻击集和路径当作事实陈述 0–3.4%，原始检测命中最高 6.8%（`redteam-r8-llm.json`）；第九轮之后 holdout7 当作事实陈述 2/112 和 0/56（`redteam-r9-holdout7-llm.json`）；第十轮之后 holdout8 为 1/112 和 1/28，Agent 那一例修复后回放为 0/28（`redteam-r10-holdout8-llm.json`、`redteam-r10-holdout8-llm-replay.json`）；第十二轮之后 holdout9 为 0/16 和 0/16，每种攻击只跑了一个变体和一个问题（`redteam-r12-holdout9-llm.json`）；第 13 轮 holdout10：当作事实陈述 Agent 0/16、组织答案 0/14（80 次调用的额度停掉了两例），原始检测命中 2/16 和 4/14，全部在注明出处的句子里（`redteam-r13-holdout10-llm.json`） | 输出层只处理它能识别的内容（带单位的数字、按模式识别事件）；加了标注的数字仍会传到读者面前；模型不带数字地复述，或者在引述投毒内容的同时表示不采信，都识别不了。较早的保留攻击集里，形似监管新闻的投毒标题仍会显示在证据列表中（holdout3 2/88、holdout4 8/240、holdout5 6/168）；在关键词之前被截断的切分投毒标题在部分运行中仍会显示（holdout10 12/128、holdout7 16/112、holdout4 16/96；`redteam-offline-r12.json`） |
 | GLM 尾延迟：测试集 v3 上 Agent P95 82 秒 | 慢速推理模型的单次调用波动。自 `66c0ef2` 起 `mode=auto` 让 GLM 走组织答案（测试集 v3 上 27 秒）；这个策略的依据是已提交的运行（`ablation-final4-glm-testv3.json`），第 13 轮在测试集 v3 的 45 个任务随机子集上用 GLM 端到端跑了 `auto`（`glm-auto-testv3-sample45-r13.json`，`a70dda9`，52 次调用，0 次 429）：0.844 [0.73, 0.93]，P95 14.7 秒；被策略改走组织答案的 12 个 Agent 路由问题 10/12，轮次 P50 6.1 秒 / 最大 16.0 秒。降低推理强度测过，没有采用（对冲率 1.00 → 0.82） |
 | 第六、七轮对话切片：第 12 轮修复后 38 个全对、53 个全对（第 13 轮代码 `b1099d8` 上不变：`chat_heldout_r6-auto-nollm-after-exposure-round13.json`、`chat_heldout_r7-auto-nollm-after-exposure-round13.json`），但属于**暴露之后**（第 12 轮读了剩余失败；`chat_heldout_r6-auto-nollm-after-exposure-round12.json`、`chat_heldout_r7-auto-nollm-after-exposure-round12.json`），不再衡量泛化；第 12 轮规则之后第六轮声明 67 条里错 1 条，合并后的第 13 轮代码上仍错 1 条（暴露后，`claim_bench-heldout_r6-after-exposure-round12.json`、`claim_bench-heldout_r6-after-exposure-round13.json`；之前 11 条） | 第 12 轮规则的样本外检验是第八轮评审的切片（`heldout_r8/`：对话 0.686，声明 0.800），第 13 轮规则的是第九轮评审的切片（见下一行）。声明：r6c10「中国平安PE比保险行业平均的12倍还高」被读成倍数（比…还 是倍数线索），切片把 12 标成所述平均值。比较解析和声明规则仍是词表式的（单位词、比较词、合计词、指代词） |
-| 没人调过的问法下的合计和价格推算问题：第 13 轮修复之后，第九轮切片 52 个对话任务里仍错 11 个（`chat_heldout_r9-auto-nollm-after-fix.json`，`da9f6af`；样本外，4 个任务与自写措辞重合，去掉后为 37/48）：合计 5 个错 4 个，价格推算 7 个错 5 个，一个英文两笔持仓合计，一个英文「at least 1.2 times」（[分类结果](#第九轮切片分类)） | 跨轮次的合计（「再加上美的集团，总共多少」、「Put together, how much is that?」被拒答）以及两家点名公司的净利润 / 市值合计没有求和；收盘价离 52 周最高 / 最低的距离（百分比、元）和从低点的反弹没有推算，尽管区间已经给出；自己说明基准的今年以来问题（今年第一个交易日的收盘价）按上年最后一个收盘价回答（第 13 轮 I11 改动带来的回退：之前是通过的）；英文持仓合计和带「at least」的英文倍数问题没有计算。第八轮切片的类别（动词式比较、相当于几个、「divide … by」、同一标的两个指标、买入金额、行业换手率、由涨跌幅推出的元变化、合计成交额；声明「两倍多一点」「三个多百分点」「the insurance average」「less than half of」「四倍多」）已在第 13 轮修复（`476d377`、`061ad94`）：35/51 → 51/51，20/25 → 25/25，属于**暴露之后**（`chat_heldout_r8-auto-nollm-after-exposure-round13.json`、`claims_heldout_r8-after-exposure-round13.json`）。这些规则仍是词表式的（运算词、比较动词、合计和占比词、序数词）；从第 14 轮起第九轮切片也属于暴露之后 |
+| 没人调过的问法下的合计和价格推算问题：第 13 轮修复之后，第九轮切片 52 个对话任务里仍错 11 个（`chat_heldout_r9-auto-nollm-after-fix.json`，`da9f6af`；样本外，6 个任务与自写措辞重合，去掉后为 36/46）：合计 5 个错 4 个，价格推算 7 个错 5 个，一个英文两笔持仓合计，一个英文「at least 1.2 times」（[分类结果](#第九轮切片分类)） | 跨轮次的合计（「再加上美的集团，总共多少」、「Put together, how much is that?」被拒答）以及两家点名公司的净利润 / 市值合计没有求和；收盘价离 52 周最高 / 最低的距离（百分比、元）和从低点的反弹没有推算，尽管区间已经给出；自己说明基准的今年以来问题（今年第一个交易日的收盘价）按上年最后一个收盘价回答（第 13 轮 I11 改动带来的回退：之前是通过的）；英文持仓合计和带「at least」的英文倍数问题没有计算。第八轮切片的类别（动词式比较、相当于几个、「divide … by」、同一标的两个指标、买入金额、行业换手率、由涨跌幅推出的元变化、合计成交额；声明「两倍多一点」「三个多百分点」「the insurance average」「less than half of」「四倍多」）已在第 13 轮修复（`476d377`、`061ad94`）：35/51 → 51/51，20/25 → 25/25，属于**暴露之后**（`chat_heldout_r8-auto-nollm-after-exposure-round13.json`、`claims_heldout_r8-after-exposure-round13.json`）。这些规则仍是词表式的（运算词、比较动词、合计和占比词、序数词）；从第 14 轮起第九轮切片也属于暴露之后 |
 | 声明核查遇到真实公开说法：首次运行 60 条里错 12 条（`claims_web_v1-first-run.json`；工程师收集，非盲）；开启更正层、按更正后数据重新标注后错 11 条（`claims_web_v1-with-corrections.json`，暴露后） | 数据更正让答对的从 48 条变为 49 条；还没有针对下列类别的核查规则，合并后的第 13 轮代码上也没有重跑这套集合。错误类别：「分别」列举的多个数字被绑到同一指标；以元/点表示的日涨跌被读成百分比或收盘价；「报收」不是收盘词；「2025 年」被当成数字；繁体字（營收、年增）；括号里对比方的数值被读成界限；两个增速之比；可由同比推出的上年数值；精确数字 2% 的容差把营业总收入当成营业收入接受。修复之后该集合属于暴露后（[evaluation/real_claims_web/README.md](evaluation/real_claims_web/README.md)） |
 | 声明核查遇到盲测收集的真实公开说法：首次运行 50 条里错 25 条（`claims_web_v2-first-run.json`，`117e74b`） | 尚未修复。错误类别：说法写明的口径（加权 ROE、动态市盈率、归母增速）被拿去和数据里另一口径的字段比较；非最新交易日的收盘价（未使用扩展层的日线历史）；与股价同日的总市值被当作 2025-12-31 的数据；英文公司名（Industrial & Commercial Bank of China 被识别成中国银行，China Yangtze Power 无法识别）、英文指标说法与美元金额；繁体字；扣非净利润被当成归母净利润；「报」/「报收」和「万手」；年份被当成声明数字；与数据外公司的关系。修复之后该集合属于暴露后（[evaluation/real_claims_web_v2/README.md](evaluation/real_claims_web_v2/README.md)） |
 | LLM 在 16 并发下不受网关限流的压测；超过五轮的长对话上的上下文压缩实验 | 需要 LLM 额度：之前 8/16 并发的运行遇到 HTTP 429（16 并发时 190 次调用中 81 次，[performance.md](docs/zh/performance.md)），记忆摘要消融只覆盖了多轮集 v1。第 12 轮补了 4 并发、有无 30 秒 503 突发的两次运行（用户可见错误 0，429 为 0；`r12-load-4u-auto*.json`）；第 13 轮补了一次干净的 8 并发运行（24 个请求，0 错误，0 次 429，P95 24.3 秒；`r13-load-8u-auto.json`），样本仍小 |

@@ -12,7 +12,7 @@ docker build -f docker/Dockerfile -t finsight:$TAG .
 docker run -d --name finsight -p 8000:8000 \
   -e DEEPSEEK_API_KEY=... finsight:$TAG           # omit the key to run on the deterministic path only
 curl http://127.0.0.1:8000/health                 # liveness
-curl http://127.0.0.1:8000/ready                  # readiness: checkpointer, model config, retrieval index
+curl http://127.0.0.1:8000/ready                  # readiness: checkpointer, model config, retrieval index, data layers
 ```
 
 - Multi-stage build: wheels are compiled in `python:3.13`, the runtime is `python:3.13-slim` without a compiler (2 GB; torch is only added with `--build-arg WITH_TORCH=1`).
@@ -20,6 +20,17 @@ curl http://127.0.0.1:8000/ready                  # readiness: checkpointer, mod
 - `.dockerignore` keeps `.git`, `.env*`, virtualenvs, `frontend/` (including `node_modules`), outputs,
   docs and tests out of the build context; the image only copies the runtime directories.
 - The web UI is the committed build in `query_intelligence/web/dist`, so the image needs no Node toolchain; CI checks that the committed build matches `frontend/`.
+- **Offline data layers.** The image ships the v1 seed (`data/structured_data.json`), the snapshot extension
+  (`data/snapshot/structured_data_ext.json` + `manifest.json`) and, since round 14, the corrections layer
+  (`data/snapshot/structured_data_fix.json` + `manifest_fix.json` + `corrections/sources.json`). Before round 14 the
+  image copied the extension only, so a container served the v1 seed figures (茅台 P/E 24.6) while a local run served
+  the corrected ones (21.44), and nothing noticed (round-10 review J2). Now `GET /ready` has a `data_layers` check:
+  one row per layer with `enabled` (its setting, `QI_OFFLINE_SNAPSHOT_EXT` / `QI_OFFLINE_SNAPSHOT_FIX`, both default
+  on), `present`, `loaded`, record counts per section, `version` and the file's `sha256` (the same hash as
+  `output.sha256` in the layer's manifest). A layer that is switched on but missing makes `/ready` 503 and logs
+  `offline snapshot layer 'corrections' is switched on (QI_OFFLINE_SNAPSHOT_FIX) but … is missing; serving without it`.
+  Set the variable to `0` to run without a layer on purpose. `tests/test_data_layers.py` checks that the Dockerfile
+  copies every layer file the loader reads; the CI `docker` job and the kind smoke test ask for a corrected figure.
 - `docker/docker-compose.yml` adds optional profiles: `postgres`, `tracing` (Jaeger over OTLP) and
   `monitoring` (Prometheus with the alert rules, Grafana with the FinSight dashboard, Jaeger); see
   [a2a-and-observability.md](a2a-and-observability.md#dashboards-alerts-and-the-monitoring-stack).
@@ -33,6 +44,18 @@ curl http://127.0.0.1:8000/ready                  # readiness: checkpointer, mod
 (the images measured in [performance.md](performance.md) were built with it); it is part of
 `api/app.py` since `e9d9a9a` and the patch file has been deleted. `tests/test_source_reliability.py`
 covers both endpoints.
+
+Verified on 2026-10-11 (colima, arm64; image built at `0b79131`, 2.02 GB), read-only as in CI
+(`--read-only --tmpfs /tmp --tmpfs /app/state:uid=10001 --tmpfs /app/outputs:uid=10001`, live sources off):
+`/ready` 200 after 26 s with `data_layers.loaded = ["seed_v1", "extension", "corrections"]` (records 26 / 25 / 17;
+`version` `ext-2026-09-30` and `fix-2026-10-10`; sha256 `538d2bbe…0e5a` and `a76f2804…82fd`, equal to the manifests);
+uid 10001; `touch /app/x` → read-only file system. Answers: 「贵州茅台的市盈率是多少」 → `PE(TTM) 21.44 倍, … ROE（加权）
+32.53%`; 「五粮液2025年的加权ROE是多少」 → `ROE（加权） 6.89%，营业收入 405.29 亿元，归母净利润 89.54 亿元`;
+「中国平安最新收盘价」 → `58.03 元（2026-04-22）`; all `status: ok`, verification passed. The CI job's assertions,
+run against this container, passed. The same image with an empty tmpfs over `/app/data/snapshot` (both layers
+missing) answers `/health` but `/ready` 503: `loaded = ["seed_v1"]`, error `extension is switched on
+(QI_OFFLINE_SNAPSHOT_EXT) but data/snapshot/structured_data_ext.json is missing; corrections is switched on
+(QI_OFFLINE_SNAPSHOT_FIX) but data/snapshot/structured_data_fix.json is missing`, and the two warnings in the log.
 
 Verified on 2026-09-25 (colima, arm64): the container becomes healthy, serves the UI, answers `/agent/chat` with a verified answer, publishes the A2A agent card and Prometheus metrics, and reports `/sources/health`. Load-test numbers are in [performance.md](performance.md).
 
@@ -228,9 +251,16 @@ cluster. It goes through the [`deploy/k8s-smoke`](../deploy/k8s-smoke/kustomizat
 replica, HPA minimum 1, live data sources off. The script creates a test Secret with a random password and
 loads every image from the host, so the node pulls nothing. It waits for Postgres and for the API rollout,
 which is gated by the readinessProbe `GET /ready`. Then a pod labelled `finsight.io/client=true` checks
-`/ready` (checkpointer ok) and gets one verified `/agent/chat` answer. kindnetd enforces NetworkPolicy, so
+`/ready` (checkpointer ok, and since round 14 `data_layers` ok with all three layers loaded), gets one verified
+`/agent/chat` answer and asks one corrected figure, 「五粮液2025年的加权ROE是多少」, asserting `ROE（加权） 6.89%` and
+`营业收入 405.29 亿元` in the answer (the v1 seed has 29.4% and 1,085 亿元), so an image without the corrections layer
+fails the job. kindnetd enforces NetworkPolicy, so
 the policies are exercised too. CI runs it on every push with the image built from that commit (kind pinned
 by checksum). A local run is recorded in
-[`results/k8s-smoke/kind-smoke-20260929-e095837.txt`](results/k8s-smoke/kind-smoke-20260929-e095837.txt).
+[`results/k8s-smoke/kind-smoke-20260929-e095837.txt`](results/k8s-smoke/kind-smoke-20260929-e095837.txt). The run with
+the round-14 assertions ([`kind-smoke-20261011-c930b96.txt`](results/k8s-smoke/kind-smoke-20261011-c930b96.txt), image
+built at `0b79131`, kind v0.33.0, colima arm64) passed: API ready after 53 s, `/ready` 200 with the Postgres
+checkpointer and `data_layers.loaded = ["seed_v1","extension","corrections"]`, the corrected-figure answer
+`ROE（加权） 6.89%，营业收入 405.29 亿元`, `SMOKE OK` in 2 min 15 s.
 
     IMAGE=finsight:$(git rev-parse --short=7 HEAD) deploy/k8s-smoke/smoke.sh   # KEEP=1 keeps the cluster

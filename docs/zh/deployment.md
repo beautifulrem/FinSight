@@ -17,19 +17,40 @@ docker build -f docker/Dockerfile -t finsight:$TAG .
 docker run -d --name finsight -p 8000:8000 \
   -e DEEPSEEK_API_KEY=... finsight:$TAG           # 不传 Key 就只走确定性路径
 curl http://127.0.0.1:8000/health                 # 存活
-curl http://127.0.0.1:8000/ready                  # 就绪：检查点、模型配置、检索索引
+curl http://127.0.0.1:8000/ready                  # 就绪：检查点、模型配置、检索索引、数据层
 ```
 
 - **多阶段构建**：wheel 在 `python:3.13` 里编译，运行镜像是不带编译器的 `python:3.13-slim`（2 GB；只有 `--build-arg WITH_TORCH=1` 时才装 torch）。
 - **运行身份**：以 uid 10001 运行，Docker `HEALTHCHECK` 检查 `/health`。
 - **构建上下文**：`.dockerignore` 排除 `.git`、`.env*`、虚拟环境、`frontend/`（含 `node_modules`）、输出目录、文档和测试；镜像只复制运行所需的目录。
 - **前端**：网页用的是仓库里已提交的构建产物 `query_intelligence/web/dist`，镜像不需要 Node 工具链；CI 会检查它与 `frontend/` 源码一致。
+- **离线数据层**：镜像里有 v1 种子（`data/structured_data.json`）、快照扩展层（`data/snapshot/structured_data_ext.json` +
+  `manifest.json`），从第 14 轮起还有更正层（`data/snapshot/structured_data_fix.json` + `manifest_fix.json` +
+  `corrections/sources.json`）。第 14 轮之前镜像只复制了扩展层，所以容器给出的是 v1 种子数字（茅台市盈率 24.6），本地运行给出的
+  却是更正后的数字（21.44），而且没有任何检查发现（第十轮评审 J2）。现在 `GET /ready` 有一个 `data_layers` 检查：每层一行，
+  包括 `enabled`（对应开关 `QI_OFFLINE_SNAPSHOT_EXT` / `QI_OFFLINE_SNAPSHOT_FIX`，默认都开）、`present`、`loaded`、各部分
+  的记录数、`version` 和文件的 `sha256`（与该层 manifest 里的 `output.sha256` 相同）。开关打开但文件缺失时 `/ready` 返回 503，
+  日志里写 `offline snapshot layer 'corrections' is switched on (QI_OFFLINE_SNAPSHOT_FIX) but … is missing; serving without
+  it`。确实要不带某一层运行时，把对应变量设为 `0`。`tests/test_data_layers.py` 检查 Dockerfile 复制了加载器读取的每个数据层
+  文件；CI 的 `docker` job 和 kind 冒烟测试都会问一个更正后的数字。
 - **可选 profile**：`docker/docker-compose.yml` 提供 `postgres`、`tracing`（通过 OTLP 接 Jaeger）和 `monitoring`（带告警规则的 Prometheus、带 FinSight 看板的 Grafana、Jaeger），见 [A2A、容灾与可观测性](a2a-and-observability.md#看板告警与监控栈)。
 - **出网代理**：容器不能直接访问外网时，`FINSIGHT_EGRESS_PROXY` 把 HTTP(S) 代理传给应用。
 
 ### 运维指标与主动探测的接线
 
 `/metrics` 在抓取时提供熔断器和线程池指标（`OpsMetricsCollector`），`/sources/health` 支持 `?probe=1`。这部分接线最初以 `deploy/patches/app-ops-wiring.patch` 的形式保存（[性能](performance.md)里测量的镜像就是带着它构建的），从 `e9d9a9a` 起已直接合入 `api/app.py`，补丁文件已删除。`tests/test_source_reliability.py` 覆盖了这两个接口。
+
+2026-10-11 验证（colima、arm64；镜像在 `0b79131` 构建，2.02 GB），与 CI 一样只读运行（`--read-only --tmpfs /tmp --tmpfs
+/app/state:uid=10001 --tmpfs /app/outputs:uid=10001`，实时数据源关闭）：
+- 26 秒后 `/ready` 返回 200，`data_layers.loaded = ["seed_v1", "extension", "corrections"]`（记录数 26 / 25 / 17；`version` 为
+  `ext-2026-09-30` 和 `fix-2026-10-10`；sha256 为 `538d2bbe…0e5a` 和 `a76f2804…82fd`，与 manifest 一致）；uid 10001；
+  `touch /app/x` 报只读文件系统；
+- 回答：「贵州茅台的市盈率是多少」→ `PE(TTM) 21.44 倍，… ROE（加权） 32.53%`；「五粮液2025年的加权ROE是多少」→
+  `ROE（加权） 6.89%，营业收入 405.29 亿元，归母净利润 89.54 亿元`；「中国平安最新收盘价」→ `58.03 元（2026-04-22）`；都是
+  `status: ok`、校验通过。CI job 里的断言对这个容器运行通过；
+- 同一镜像在 `/app/data/snapshot` 上挂一个空 tmpfs（两层都缺）时，`/health` 正常，`/ready` 返回 503：`loaded = ["seed_v1"]`，
+  错误为 `extension is switched on (QI_OFFLINE_SNAPSHOT_EXT) but data/snapshot/structured_data_ext.json is missing;
+  corrections is switched on (QI_OFFLINE_SNAPSHOT_FIX) but data/snapshot/structured_data_fix.json is missing`，日志里有两条警告。
 
 2026-09-25 验证（colima、arm64）：
 - 容器进入 healthy 状态，能访问网页；
@@ -170,3 +191,18 @@ kubelet 探针不受影响（节点到本机 Pod 的流量总是放行）。Netw
 - **日志采集的问题**：通过 colima 的 kubelet 端口执行 `kubectl logs` 时偶尔报「unexpected EOF」，脚本会退回到对应容器的 `docker logs`；在 Docker 运行时的节点上两者是同一个流。
 
 扩展测试会为了测量改动部署（关闭实时数据、关闭限流、固定 HPA）。测完请重新 `kubectl apply -k deploy/k8s` 恢复默认配置。
+
+### kind 冒烟测试（CI job `k8s-smoke`）
+
+[`deploy/k8s-smoke/smoke.sh`](../../deploy/k8s-smoke/smoke.sh) 通过 [`deploy/k8s-smoke`](../../deploy/k8s-smoke/kustomization.yaml)
+overlay（1 个 API 副本、HPA 最少 1 个、实时数据源关闭）把真实的 kustomization 应用到一个临时 kind 集群。脚本用随机密码创建测试
+Secret，所有镜像都从宿主机加载，节点不拉取任何镜像。它等待 Postgres 和 API 滚动更新完成（由就绪探针 `GET /ready` 把关），然后由
+一个带 `finsight.io/client=true` 标签的 Pod 检查 `/ready`（检查点正常；从第 14 轮起还要求 `data_layers` 正常、三层都已加载），
+取得一个校验通过的 `/agent/chat` 回答，并问一个更正后的数字「五粮液2025年的加权ROE是多少」，断言回答里有 `ROE（加权） 6.89%` 和
+`营业收入 405.29 亿元`（v1 种子是 29.4% 和 1,085 亿元），因此不带更正层的镜像会让这个 job 失败。kindnetd 会执行 NetworkPolicy，
+所以网络策略也被检验到。带第 14 轮断言的本地运行（[`kind-smoke-20261011-c930b96.txt`](../results/k8s-smoke/kind-smoke-20261011-c930b96.txt)，
+镜像在 `0b79131` 构建，kind v0.33.0，colima arm64）通过：API 53 秒后就绪，`/ready` 200（Postgres 检查点、
+`data_layers.loaded = ["seed_v1","extension","corrections"]`），更正数字的回答为 `ROE（加权） 6.89%，营业收入 405.29 亿元`，
+2 分 15 秒后 `SMOKE OK`。
+
+    IMAGE=finsight:$(git rev-parse --short=7 HEAD) deploy/k8s-smoke/smoke.sh   # KEEP=1 保留集群

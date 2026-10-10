@@ -53,7 +53,7 @@ RATE_LIMIT_CHECK = "ablation-test_v2-deepseek-agent-w3"
 OFFLINE = "ablation-offline"  # deterministic paths on all sets at the current evaluation commit
 VARIANCE_RUNS = ("ablation-online-deepseek-v4.1-flash", "ablation-online-v1", "ablation-final")
 PROMPT_AB = ("ablation-online-v1", "ablation-online-v2")
-GATE_RUNS = ("gate-dev", "gate-holdout", "gate-ext")  # gate-ext: snapshot extension on, no replay (round 13)
+GATE_RUNS = ("gate-dev", "gate-holdout", "gate-ext", "gate-shipped")  # ext: extension on; shipped: + corrections
 TEST_V3 = ("test_v3-auto-nollm-first-run", "ablation-test_v3-purellm-deepseek")
 MULTITURN = (
     "multiturn_v1-auto-nollm-first-run",
@@ -284,6 +284,7 @@ EXTRA_EVIDENCE = (
     "claims_heldout_r9-prefix",
     "claims_heldout_r9-after-fix",
     "slice_overlap-heldout_r9-at-da9f6af",
+    "slice_overlap-heldout_r9-all-tasks",
     "claims_heldout_r8-prefix",
     "claims_heldout_r8-after-fix",
     "claims_web_v1-first-run",
@@ -384,12 +385,14 @@ FILE_STATUS = {
     "chat_heldout_r8-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-8 chat slice",
     "chat_heldout_r9-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-9 chat slice",
     "chat_heldout_r9-auto-nollm-after-fix": "independent round-9 chat slice **after the round-13 fixes**; the "
-    "engineers did not open the slice, but 4 of its 52 tasks overlap own test/dev wording (without them 16/48 -> "
-    "37/48)",
+    "engineers did not open the slice, but 6 of its 52 tasks overlap own wording in tests, dev tasks or the ext set "
+    "(`slice_overlap-heldout_r9-all-tasks.json`; without them 16/46 -> 36/46)",
     "claims_heldout_r9-prefix": "**first and only pre-fix run** of the independent round-9 claim slice",
     "claims_heldout_r9-after-fix": "independent round-9 claim slice **after the round-13 fixes**; 5 of its 25 claims "
     "near-copy own test wording or the reviewer's published repros (without them 15/20 -> 20/20)",
-    "slice_overlap-heldout_r9-at-da9f6af": "overlap of the round-9 slice with own texts at the after-fix commit",
+    "slice_overlap-heldout_r9-at-da9f6af": "overlap of the round-9 slice with own texts at the after-fix commit "
+    "(fixed-list scan: dev tasks, router labels, dev claims, tests; superseded by "
+    "`slice_overlap-heldout_r9-all-tasks.json`, which scans every task and claim file)",
     "chat_heldout_r8-auto-nollm-after-fix": "independent round-8 chat slice **after the round-12 fixes**; the "
     "engineers did not open the slice, but three slice turns coincide with round-12 test/dev wording (r8h_hk_zh_03, "
     "r8h_gap_en_04, r8h_hold_zh_03; written before the slice existed); without those three tasks 13/48 -> 32/48 = "
@@ -1656,9 +1659,11 @@ def render_with_sources() -> tuple[str, list[str]]:
             "",
             "52 conversations written by the round-9 reviewer from their bug classes before any round-13 fix "
             "(`evaluation/heldout_r9/README.md`), run with `QI_EVAL_SNAPSHOT_EXT=1` once before the fixes (by the "
-            "reviewer) and once after them. The engineers did not open the slice; `slice_overlap-heldout_r9-at-da9f6af"
-            ".json` lists 4 chat tasks and 5 claims that overlap own test or dev wording (without them chat 16/48 -> "
-            "37/48, claims 15/20 -> 20/20). Its 25 claims are in the evidence table below "
+            "reviewer) and once after them. The engineers did not open the slice; `slice_overlap-heldout_r9-all-tasks"
+            ".json` (every task and claim file scanned, round-10 review J9) lists 6 chat tasks and 5 claims that "
+            "overlap own wording in tests, dev tasks or the ext gate set (without them chat 16/46 -> 36/46, claims "
+            "15/20 -> 20/20; the earlier fixed-list scan `slice_overlap-heldout_r9-at-da9f6af.json` missed the ext set "
+            "and found 4 chat tasks, 16/48 -> 37/48). Its 25 claims are in the evidence table below "
             "(`claims_heldout_r9-*.json`).",
             "",
         ]
@@ -1882,6 +1887,18 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
                 f"{len(at.get('tasks_with_overlap') or [])} tasks; {new_hits} hits new since `{baseline}`; "
                 f"without the three turns the round-9 review named ({listed}): first run "
                 f"{named.get('prefix')} -> after fix {named.get('after_fix')} = {_fmt(named.get('after_fix_rate'))}"
+            )
+        elif result.get("kind") == "slice_overlap_scan":
+            runs = "; ".join(
+                f"`{counts.get('commit')}` {counts.get('all')} ({counts.get('without_overlap')} without them)"
+                for counts in (result.get("chat_runs") or {}).values()
+            )
+            summary = (
+                f"overlap of `{config.get('slice')}` with every task file and claim file "
+                f"({len(result.get('own_files') or [])} files) and the test literals (round-10 review J9): "
+                f"{result.get('exact')} exact and {result.get('near')} near hits over "
+                f"{len(result.get('tasks_with_overlap') or [])} slice items "
+                f"({', '.join(result.get('tasks_with_overlap') or [])}); chat runs {runs}"
             )
         elif result.get("kind") == "run":
             run = result.get("summary") or {}

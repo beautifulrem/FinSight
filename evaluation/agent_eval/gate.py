@@ -16,6 +16,7 @@ with their committed baselines.
     python -m evaluation.agent_eval.gate --update-baseline      # after an intended change
     python -m evaluation.agent_eval.gate --extras-only          # verifier + red-team comparison
     python -m evaluation.agent_eval.gate --set ext               # the snapshot extension on (round 13)
+    python -m evaluation.agent_eval.gate --set shipped           # extension AND corrections layer on (round 14)
 
 ``--update-baseline`` refuses to run from a working tree with uncommitted changes (round-9 review I13): a baseline
 recorded as ``<commit>-dirty`` cannot be reproduced. ``--allow-dirty --note "..."`` overrides it and labels the file.
@@ -59,6 +60,15 @@ THRESHOLDS: dict[str, dict[str, float]] = {
         "compliance_clean": 1.0,
         "hedged_when_required": 1.0,
     },
+    # (round 14, round-10 review J1) the shipped default: extension AND corrections layer on,
+    # tasks/agent_eval_shipped_v1.jsonl (expected values from data/snapshot/structured_data_fix.json)
+    "shipped": {
+        "task_success": 0.95,
+        "behavior_accuracy": 0.98,
+        "fact_recall": 0.95,
+        "compliance_clean": 1.0,
+        "hedged_when_required": 1.0,
+    },
 }
 # Allowed drop below the committed baseline (absolute). One dev task is 0.005, one held-out task 0.019.
 TOLERANCES: dict[str, float] = {
@@ -79,7 +89,13 @@ SETS: dict[str, tuple[Path, Path | None]] = {name: TASK_SETS[name] for name in (
 # are regression-tested too (built by ``build_ext_tasks.py``).
 EXT_TASKS = Path(__file__).resolve().parent / "tasks" / "agent_eval_ext_v1.jsonl"
 SETS["ext"] = (EXT_TASKS, None)
-EXT_SETS = {"ext"}
+# (round 14, round-10 review J1) ``ext`` still runs with the corrections layer off, so no gate measured what the product
+# serves by default. The ``shipped`` set runs with QI_EVAL_SNAPSHOT_EXT=1 and QI_EVAL_SNAPSHOT_FIX=1 (built by
+# ``build_shipped_tasks.py``); with the corrections layer off it scores 2/21, so it fails when the layer is lost.
+SHIPPED_TASKS = Path(__file__).resolve().parent / "tasks" / "agent_eval_shipped_v1.jsonl"
+SETS["shipped"] = (SHIPPED_TASKS, None)
+EXT_SETS = {"ext", "shipped"}
+FIX_SETS = {"shipped"}
 
 
 def check(summary: dict[str, Any], thresholds: dict[str, float]) -> list[str]:
@@ -169,20 +185,24 @@ def extras_problems(outputs: Path = DEFAULT_OUTPUT_DIR) -> list[str]:
 
 
 @contextmanager
-def _snapshot_ext(enabled: bool) -> Iterator[None]:
-    """``QI_EVAL_SNAPSHOT_EXT=1`` for one gate set (the evaluation harness is pinned to v1 otherwise)."""
-    previous = os.environ.get("QI_EVAL_SNAPSHOT_EXT")
-    if enabled:
-        os.environ["QI_EVAL_SNAPSHOT_EXT"] = "1"
-    else:
-        os.environ.pop("QI_EVAL_SNAPSHOT_EXT", None)
+def _snapshot_env(*, ext: bool, fix: bool) -> Iterator[None]:
+    """``QI_EVAL_SNAPSHOT_EXT`` / ``QI_EVAL_SNAPSHOT_FIX`` for one gate set (the evaluation harness is pinned to the v1
+    seed otherwise); a variable that is off for the set is removed, so a shell export cannot leak into another set."""
+    names = {"QI_EVAL_SNAPSHOT_EXT": ext, "QI_EVAL_SNAPSHOT_FIX": fix}
+    previous = {name: os.environ.get(name) for name in names}
+    for name, enabled in names.items():
+        if enabled:
+            os.environ[name] = "1"
+        else:
+            os.environ.pop(name, None)
     try:
         yield
     finally:
-        if previous is None:
-            os.environ.pop("QI_EVAL_SNAPSHOT_EXT", None)
-        else:
-            os.environ["QI_EVAL_SNAPSHOT_EXT"] = previous
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -202,7 +222,7 @@ def main(argv: list[str] | None = None) -> int:
         tasks, snapshot = SETS[name]
         out = DEFAULT_OUTPUT_DIR / f"gate-{name}.json"
         replay = ["--snapshot", str(snapshot)] if snapshot is not None else ["--no-replay"]
-        with _snapshot_ext(name in EXT_SETS):
+        with _snapshot_env(ext=name in EXT_SETS, fix=name in FIX_SETS):
             report = run_eval(["--mode", "workflow", "--tasks", str(tasks), *replay, "--out", str(out)])
         found = problems.setdefault(name, [])
         if report["config"]["snapshot"]["misses"]:

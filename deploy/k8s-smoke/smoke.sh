@@ -12,7 +12,11 @@
 #   2. Postgres becomes ready; the API rollout completes (its readinessProbe is GET /ready, which checks
 #      the Postgres checkpointer, the model config and the retrieval index);
 #   3. from a pod labelled finsight.io/client=true (the in-namespace client the NetworkPolicy admits):
-#      GET /ready = 200 with checkpointer ok, and one verified /agent/chat answer on the offline path.
+#      GET /ready = 200 with checkpointer ok and all three offline data layers loaded (v1 seed, snapshot
+#      extension, corrections layer), one verified /agent/chat answer on the offline path, and one corrected
+#      figure: 五粮液's FY2025 weighted ROE 6.89% and revenue 405.29 亿元 from the annual report (the v1 seed has
+#      29.4% and 1,085 亿元), so an image built without data/snapshot/structured_data_fix.json fails here
+#      (round-10 review J2).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -113,7 +117,11 @@ k -n "$NS" run smoke-client --restart=Never --labels=finsight.io/client=true \
       -w "POST /agent/chat -> %{http_code}\n"
     head -c 400 /tmp/chat.json; echo
     echo "answer status: $(grep -o "\"status\":\"[a-z_]*\"" /tmp/chat.json | head -1)"
-    echo "verification: $(grep -o "\"verification\":{\"passed\":[a-z]*" /tmp/chat.json | head -1)"'
+    echo "verification: $(grep -o "\"verification\":{\"passed\":[a-z]*" /tmp/chat.json | head -1)"
+    curl -fsS -X POST http://finsight-api/agent/chat -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
+      -d "{\"query\":\"五粮液2025年的加权ROE是多少\",\"mode\":\"workflow\"}" -o /tmp/corrected.json \
+      -w "POST /agent/chat (corrected figure) -> %{http_code}\n"
+    echo "corrected answer: $(grep -o "\"answer\":\"[^\"]*\"" /tmp/corrected.json | head -1)"'
 k -n "$NS" wait pod/smoke-client --for=jsonpath='{.status.phase}'=Succeeded --timeout=180s
 out="$(k -n "$NS" logs smoke-client)"
 printf '%s\n' "$out"
@@ -122,4 +130,8 @@ printf '%s\n' "$out" | grep -q '"checkpointer":{"ok":true'
 printf '%s\n' "$out" | grep -q 'POST /agent/chat -> 200'
 printf '%s\n' "$out" | grep -q 'answer status: "status":"ok"'
 printf '%s\n' "$out" | grep -q 'verification: "verification":{"passed":true'
+printf '%s\n' "$out" | grep -q '"data_layers":{"ok":true,"loaded":\["seed_v1","extension","corrections"\]'
+printf '%s\n' "$out" | grep -q 'POST /agent/chat (corrected figure) -> 200'
+printf '%s\n' "$out" | grep -q 'corrected answer: .*ROE（加权） 6\.89%'
+printf '%s\n' "$out" | grep -q 'corrected answer: .*营业收入 405\.29 亿元'
 log "SMOKE OK"

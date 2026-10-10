@@ -1853,7 +1853,7 @@ Development set, path `auto`: 51 tasks, 95 turns. Status: independent round-8 ch
 
 ### Round-9 held-out chat slice (independent author): before and after the round-13 fixes
 
-52 conversations written by the round-9 reviewer from their bug classes before any round-13 fix (`evaluation/heldout_r9/README.md`), run with `QI_EVAL_SNAPSHOT_EXT=1` once before the fixes (by the reviewer) and once after them. The engineers did not open the slice; `slice_overlap-heldout_r9-at-da9f6af.json` lists 4 chat tasks and 5 claims that overlap own test or dev wording (without them chat 16/48 -> 37/48, claims 15/20 -> 20/20). Its 25 claims are in the evidence table below (`claims_heldout_r9-*.json`).
+52 conversations written by the round-9 reviewer from their bug classes before any round-13 fix (`evaluation/heldout_r9/README.md`), run with `QI_EVAL_SNAPSHOT_EXT=1` once before the fixes (by the reviewer) and once after them. The engineers did not open the slice; `slice_overlap-heldout_r9-all-tasks.json` (every task and claim file scanned, round-10 review J9) lists 6 chat tasks and 5 claims that overlap own wording in tests, dev tasks or the ext gate set (without them chat 16/46 -> 36/46, claims 15/20 -> 20/20; the earlier fixed-list scan `slice_overlap-heldout_r9-at-da9f6af.json` missed the ext set and found 4 chat tasks, 16/48 -> 37/48). Its 25 claims are in the evidence table below (`claims_heldout_r9-*.json`).
 
 #### `chat_heldout_r9-auto-nollm-prefix.json`
 
@@ -1935,7 +1935,7 @@ Source `evaluation/results/chat_heldout_r9-auto-nollm-after-fix.json`: commit `d
 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r9/chat_r9_heldout.jsonl --out outputs/agent_eval/chat_r9-after.json
 ```
 
-Development set, path `auto`: 52 tasks, 79 turns. Status: independent round-9 chat slice **after the round-13 fixes**; the engineers did not open the slice, but 4 of its 52 tasks overlap own test/dev wording (without them 16/48 -> 37/48).
+Development set, path `auto`: 52 tasks, 79 turns. Status: independent round-9 chat slice **after the round-13 fixes**; the engineers did not open the slice, but 6 of its 52 tasks overlap own wording in tests, dev tasks or the ext set (`slice_overlap-heldout_r9-all-tasks.json`; without them 16/46 -> 36/46).
 
 | Metric | Value |
 |---|---|
@@ -2320,6 +2320,7 @@ low − default: task success -0.038 [-0.094, +0.000], pass^k -0.038 [-0.094, +0
 | gate-dev | `e54645b` | 473 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
 | gate-holdout | `83fdb7b` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
 | gate-ext | `235d00c` | 24 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
+| gate-shipped | `0096c6f` | 21 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
 
 ### Fault injection (overall graceful rate 1.00)
 
@@ -2953,6 +2954,7 @@ Small online checks with DeepSeek over the offline tools, run sequentially (stop
 | `claims_heldout_r9-prefix.json` | `cbcf3b2` | claim slice, verdict accuracy 0.600 [0.400, 0.800] over 25 claims — compound 1.000; control 1.000; fraction_of 0.000; half_multiple 0.500; level_and_multiple 1.000; loose_fraction 0.000; negation 1.000; points_difference 0.500; range_52w 0.667; superlative 0.000; times_more 0.500 |
 | `claims_heldout_r9-after-fix.json` | `da9f6af` | claim slice, verdict accuracy 1.000 [1.000, 1.000] over 25 claims — compound 1.000; control 1.000; fraction_of 1.000; half_multiple 1.000; level_and_multiple 1.000; loose_fraction 1.000; negation 1.000; points_difference 1.000; range_52w 1.000; superlative 1.000; times_more 1.000 |
 | `slice_overlap-heldout_r9-at-da9f6af.json` | `n/a` | exact, hits, method, near, own_texts, slice, slice_tasks, slice_texts, tasks_with_overlap |
+| `slice_overlap-heldout_r9-all-tasks.json` | `aec9cd8` | overlap of `evaluation/heldout_r9` with every task file and claim file (12 files) and the test literals (round-10 review J9): 3 exact and 8 near hits over 11 slice items (r9c01, r9c08, r9c12, r9c13, r9c14, r9h_ctrl_en_03, r9h_ind_en_01, r9h_share_zh_01, r9h_spread_zh_01, r9h_sum_en_02, r9h_verb_en_01); chat runs `cbcf3b2` 18/52 (16/46 without them); `da9f6af` 41/52 (36/46 without them) |
 | `claims_heldout_r8-prefix.json` | `40e8685` | claim slice, verdict accuracy 0.600 [0.400, 0.800] over 25 claims — english_relation 0.250; industry_relation 0.000; loose_numeral 0.800; move_relation 1.000; stated_average_order 0.667; sum 0.000; two_company_difference 0.500 |
 | `claims_heldout_r8-after-fix.json` | `6e14016` | claim slice, verdict accuracy 0.800 [0.640, 0.960] over 25 claims — english_relation 0.500; industry_relation 0.000; loose_numeral 0.900; move_relation 1.000; stated_average_order 1.000; sum 1.000; two_company_difference 0.500 |
 | `claims_web_v1-first-run.json` | `df0d212` | claim slice, verdict accuracy 0.800 [0.700, 0.883] over 60 claims — annual_figures 0.857; annual_ratios 0.833; daily_price 0.800; english_or_traditional 0.667; loose_or_relational 0.571; market_value 1.000 |
@@ -3107,6 +3109,7 @@ Paired comparisons (same tasks, a − b):
 | `gate-dev.json` | run | `e54645b` | 2026-10-10T13:49:33+00:00 | – | `outputs/agent_eval/gate-dev.json` (05b75d39c3d15aad) |
 | `gate-holdout.json` | run | `83fdb7b` | 2026-10-10T13:50:15+00:00 | – | `outputs/agent_eval/gate-holdout.json` (6f2b2db180b6681c) |
 | `gate-ext.json` | run | `235d00c` | 2026-10-10T12:49:32+00:00 | – | `outputs/agent_eval/gate-ext.json` (7d320765697341c0) |
+| `gate-shipped.json` | run | `0096c6f` | 2026-10-10T16:01:55+00:00 | – | `outputs/agent_eval/gate-shipped.json` (bf74663837895f6c) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |
 | `verifier_stress-round13.json` | verifier_stress | `bd1de77` | 2026-10-10T13:58:53+00:00 | – | written directly |
@@ -3150,6 +3153,7 @@ Paired comparisons (same tasks, a − b):
 | `claims_heldout_r9-prefix.json` | claim_slice | `cbcf3b2` | 2026-10-01T10:50:01+00:00 | – | written directly |
 | `claims_heldout_r9-after-fix.json` | claim_slice | `da9f6af` | 2026-10-10T14:08:53+00:00 | – | written directly |
 | `slice_overlap-heldout_r9-at-da9f6af.json` | slice_overlap | `None` | None | – | written directly |
+| `slice_overlap-heldout_r9-all-tasks.json` | slice_overlap_scan | `aec9cd8` | 2026-10-10T16:07:06+00:00 | – | written directly |
 | `claims_heldout_r8-prefix.json` | claim_slice | `40e8685` | 2026-10-01T05:20:35+00:00 | – | written directly |
 | `claims_heldout_r8-after-fix.json` | claim_slice | `6e14016` | 2026-10-01T08:59:23+00:00 | – | written directly |
 | `claims_web_v1-first-run.json` | claim_slice | `df0d212` | 2026-10-01T14:24:38+00:00 | – | written directly |

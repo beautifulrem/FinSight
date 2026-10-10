@@ -153,6 +153,8 @@ class RetrievalPipeline:
             packager=RetrievalPackager(),
         )
         instance.source_runtime = runtime
+        # which offline snapshot layers this pipeline was built with (GET /ready reports them, round-10 review J2)
+        instance.snapshot_layer_settings = (settings.offline_snapshot_ext, settings.offline_snapshot_fix)
         if settings.use_live_market:
             instance.market_provider = market_provider
         if settings.use_live_macro:
