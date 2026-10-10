@@ -2219,10 +2219,25 @@ def _documents(data: dict[str, Any], zh: bool) -> list[str]:
 # in the answer, attributed as an unverified third-party headline, only when it passes every check the evidence list
 # applies (``safe_headline``: the shape rules; ``regulatory_title_withheld``: regulatory action from a non-official
 # source), states no figure at all (no digit, no Chinese-numeral figure: figures come from the tools, and a headline is
-# where a planted one would be shown), names one of the question's targets and is in the answer's language. Anything
-# else keeps the topic label only, as before.
+# where a planted one would be shown), names one of the question's targets and is in the answer's language. Stricter
+# than the evidence list, because the answer is read as FinSight's own text: no colon or question mark (a "结论：…",
+# "用户：…" transcript or an "X宣布：…" lead-in), no judgment or recommendation words (建议, 观点, 目标, 看好, 低估…),
+# no ending on a dangling word or a Chinese numeral (a title cut before its claim: "…一致给出茅台目标", "…同比下滑百"),
+# and a whole headline, not a short label ("茅台快讯"). Anything else keeps the topic label only, as before.
 _QUOTABLE_TYPES = {"news", "announcement"}
 _CJK = re.compile(r"[一-鿿]")
+_NOT_QUOTABLE = re.compile(
+    r"[:：?？]|建议|观点|结论|研判|点评|目标|能买|能不能|值得|机会|黄金坑|低估|高估|看好|看空|看多|利好|利空|必然|"
+    r"稳了|抢筹|布局|上涨空间|下跌空间|预计|预期|有望|或将|将会|"
+    r"\b(?:should|could|would|may|might|expects?|expected|likely|upside|downside|target|bullish|bearish|"
+    r"recommend\w*|opinion|view)\b",
+    re.IGNORECASE,
+)
+_DANGLING_END = re.compile(
+    r"(?:[零〇一二两三四五六七八九十百千万亿的了在将为至于与和及把被对向从起是给让比同达超破至起称]|宣布|表示|透露|指出)\s*$|"
+    r"\b(?:the|a|an|to|at|of|by|for|from|with|and|or|as|on|in|than|its|their|has|have|is|are|was|were)\s*$",
+    re.IGNORECASE,
+)
 
 
 def quotable_headline(document: dict[str, Any], targets: list[str], *, zh: bool) -> str | None:
@@ -2236,6 +2251,10 @@ def quotable_headline(document: dict[str, Any], targets: list[str], *, zh: bool)
     if headline is None or bool(_CJK.search(headline)) != zh:
         return None
     if re.search(r"\d", fold(headline)) or unit_figures(headline):
+        return None
+    if _NOT_QUOTABLE.search(headline) or _DANGLING_END.search(headline):
+        return None
+    if len(_CJK.findall(headline)) < 8 if zh else len(headline.split()) < 4:
         return None
     if regulatory_title_withheld(
         title,
