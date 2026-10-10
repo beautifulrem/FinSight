@@ -369,10 +369,10 @@ def test_metric_names_map_to_their_own_metric(text, metric):
 def test_metric_requests_read_their_own_fields():
     from query_intelligence.agent.coverage import requested_metrics
 
-    assert [m.key for m in requested_metrics("招商银行流通市值")] == ["float_market_cap"]
-    assert [m.fields for m in requested_metrics("招商银行流通市值")] == [("circ_mv",)]
+    assert [m.key for m in requested_metrics("工商银行的流通盘市值")] == ["float_market_cap"]
+    assert [m.fields for m in requested_metrics("工商银行的流通盘市值")] == [("circ_mv",)]
     assert "circ_mv" not in requested_metrics("招商银行总市值")[0].fields
-    assert [m.key for m in requested_metrics("长江电力的扣非净利润")] == ["profit_dedt"]
+    assert [m.key for m in requested_metrics("紫金矿业扣非以后的净利润")] == ["profit_dedt"]
     assert [m.key for m in requested_metrics("比亚迪的营业利润和毛利润")] == ["operating_profit", "gross_profit"]
 
 
