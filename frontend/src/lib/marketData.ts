@@ -30,6 +30,11 @@ export interface Kpi {
   featured?: boolean;
   /** (round 13, I15) `asOf` is the trading day the multiple is priced at (P/E, P/B), not the report period. */
   valuation?: boolean;
+  /**
+   * (round 13) i18n key of the label naming the figure's definition when the data states it ("ROE（加权）",
+   * "营业总收入", "归母净利润"); `label` stays the metric's key for ranking and grouping.
+   */
+  basisLabel?: string;
 }
 
 export interface MarketData {
@@ -110,6 +115,20 @@ function priceFormat(payload: Payload): KpiFormat {
   return FUND_SYMBOL.test(str(payload.symbol ?? payload.ts_code) ?? "") ? "fundPrice" : "price";
 }
 
+/** (round 13) Display labels for the definitions a payload states (`definitions`, from the corrections layer). */
+const BASIS_LABELS: Record<string, Record<string, string>> = {
+  roe_basis: { weighted: "kpi.roeWeighted", period_end: "kpi.roePeriodEnd" },
+  revenue_basis: { 营业收入: "kpi.revenueOperating", 营业总收入: "kpi.revenueTotal" },
+  net_profit_basis: { 归母: "kpi.netProfitParent", total: "kpi.netProfitTotal" },
+};
+
+function basisLabel(payload: Payload, field: string): Partial<Kpi> {
+  const definitions = payload.definitions as Record<string, unknown> | undefined;
+  const basis = definitions && typeof definitions === "object" ? str(definitions[field]) : undefined;
+  const label = basis ? BASIS_LABELS[field]?.[basis] : undefined;
+  return label ? { basisLabel: label } : {};
+}
+
 function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asOf?: string, sourceName?: string): Kpi[] {
   const subject = subjectOf(payload);
   const base = { evidenceId, subject, asOf };
@@ -137,9 +156,9 @@ function kpisFrom(sourceType: string, payload: Payload, evidenceId?: string, asO
       add("pe", "kpi.pe", metrics.pe_ttm, "ratio", multiple);
       add("pb", "kpi.pb", metrics.pb, "ratio", multiple);
       // Agent payloads declare units (metric_units.roe = "%"); raw provider rows may hold a fraction.
-      add("roe", "kpi.roe", metrics.roe, unitOf(payload, "roe") === "%" ? "percentLevel" : "fraction");
-      add("revenue", "kpi.revenue", metrics.revenue, "money");
-      add("net_profit", "kpi.netProfit", metrics.net_profit, "money");
+      add("roe", "kpi.roe", metrics.roe, unitOf(payload, "roe") === "%" ? "percentLevel" : "fraction", basisLabel(payload, "roe_basis"));
+      add("revenue", "kpi.revenue", metrics.revenue, "money", basisLabel(payload, "revenue_basis"));
+      add("net_profit", "kpi.netProfit", metrics.net_profit, "money", basisLabel(payload, "net_profit_basis"));
       {
         // net margin = net profit / revenue, the figure the answer derives; shown only when asked (lowest rank)
         const revenue = num(metrics.revenue);
