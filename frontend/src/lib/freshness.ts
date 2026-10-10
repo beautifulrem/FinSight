@@ -79,7 +79,7 @@ export function evidenceFreshness(source: EvidenceSource, now = new Date()): Evi
 }
 
 export interface FreshnessSummary {
-  /** Earliest and latest as-of date among the answer's structured evidence. */
+  /** Earliest and latest as-of date among the answer's structured evidence (valuation dates included). */
   from?: string;
   to?: string;
   /** Days between the oldest and newest daily-moving value (price, industry, indicators). */
@@ -95,6 +95,16 @@ export interface FreshnessSummary {
 }
 
 const dayOf = (value: string) => value.slice(0, 10);
+
+/** `payload.valuation_date` ("2026-04-22" or "20260422") as YYYY-MM-DD: the close P/E and P/B are priced at. */
+function valuationDateOf(source: EvidenceSource): string | undefined {
+  const raw = source.payload?.valuation_date;
+  if (typeof raw !== "string" || !raw) return undefined;
+  const compact = /^(\d{4})(\d{2})(\d{2})$/.exec(raw);
+  if (compact) return `${compact[1]}-${compact[2]}-${compact[3]}`;
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(raw);
+  return iso ? `${iso[1]}-${iso[2]!.padStart(2, "0")}-${iso[3]!.padStart(2, "0")}` : undefined;
+}
 
 /**
  * The banner for an answer. Only evidence the reader sees matters: structured data (shown as tiles
@@ -117,6 +127,10 @@ export function summarizeFreshness(sources: EvidenceSource[], cited: Set<string>
     if (source.kind === "structured" && info.asOf && info.days !== undefined) {
       dates.push(dayOf(info.asOf));
       if (DAILY.has(typeOf(source))) daily.push(new Date(`${dayOf(info.asOf)}T00:00:00`).getTime());
+      // (round 15, review-11 K17) statements valued at a later close: the P/E and P/B tiles show that 估值日, so the
+      // banner's range includes it
+      const valued = valuationDateOf(source);
+      if (valued) dates.push(valued);
     }
   }
   dates.sort();

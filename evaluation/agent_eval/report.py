@@ -7,8 +7,9 @@ command of its run, and the provenance table at the end of the block lists them 
 
     python -m evaluation.agent_eval.report                    # render from evaluation/results/
     python -m evaluation.agent_eval.report --check            # exit 1 if the doc is out of date, or if
-                                                              # README.md / README_CN.md cite a result
-                                                              # file that is missing or not rendered
+                                                              # README.md / README_CN.md (or the docs their
+                                                              # long material moved to, README_PATHS) cite a
+                                                              # result file that is missing or not rendered
 
 Task success and pass^k carry percentile-bootstrap 95% CIs over tasks (2000 resamples, fixed
 seed). Paired comparisons use a paired bootstrap over tasks and an exact McNemar test on pass^k.
@@ -30,7 +31,17 @@ from .results import RESULTS_DIR, decode_outcomes, load_result
 
 ROOT = Path(__file__).resolve().parents[2]
 DOC_PATH = ROOT / "docs" / "agent-eval.md"
-README_PATHS = (ROOT / "README.md", ROOT / "README_CN.md")
+# The READMEs and the pages their long material moved to in round 15 (round-11 review K18): a result cited on any of
+# them must exist and be rendered here.
+README_PATHS = (
+    ROOT / "README.md",
+    ROOT / "README_CN.md",
+    *(
+        ROOT / "docs" / lang / f"{page}.md"
+        for lang in ("", "zh")
+        for page in ("evaluation-history", "known-issues", "features")
+    ),
+)
 BEGIN = "<!-- BEGIN GENERATED: python -m evaluation.agent_eval.report -->"
 END = "<!-- END GENERATED -->"
 
@@ -317,10 +328,12 @@ EXTRA_EVIDENCE = (
     "claims_heldout_r10-prefix",
     "claims_heldout_r10-after-fix",
     "slice_overlap-heldout_r10-at-3480a96",
+    "slice_overlap-heldout_r10-content-at-3480a96",
     "claims_heldout_r9-prefix",
     "claims_heldout_r9-after-fix",
     "slice_overlap-heldout_r9-at-da9f6af",
     "slice_overlap-heldout_r9-all-tasks",
+    "slice_overlap-heldout_r9-content-at-da9f6af",
     "claims_heldout_r8-prefix",
     "claims_heldout_r8-after-fix",
     "claims_web_v1-first-run",
@@ -437,14 +450,24 @@ FILE_STATUS = {
     "chat_heldout_r8-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-8 chat slice",
     "chat_heldout_r9-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-9 chat slice",
     "chat_heldout_r10-auto-nollm-prefix": "**first and only pre-fix run** of the independent round-10 chat slice",
-    "chat_heldout_r10-auto-nollm-after-fix": "independent round-10 chat slice **after the round-14 fixes**; the "
-    "engineers did not open the slice, but 3 of its 48 tasks near-copy own wording (without them 12/45 -> 35/45)",
+    "chat_heldout_r10-auto-nollm-after-fix": "independent round-10 chat slice **after the round-14 fixes**; the run "
+    "read the slice from the reviewer's folder (`tasks_file`), so that the engineers did not open it is their "
+    "statement, not a record; 3 of its 48 tasks near-copy own wording (without them 12/45 -> 35/45), the "
+    "content-level check adds 3 (32/42), the round-11 review counted 10 (29/38)",
     "claims_heldout_r10-prefix": "**first and only pre-fix run** of the independent round-10 claim slice",
     "claims_heldout_r10-after-fix": "independent round-10 claim slice **after the round-14 fixes** (out of sample)",
-    "slice_overlap-heldout_r10-at-3480a96": "overlap of the round-10 slice with own texts at the after-fix commit",
-    "chat_heldout_r9-auto-nollm-after-fix": "independent round-9 chat slice **after the round-13 fixes**; the "
-    "engineers did not open the slice, but 6 of its 52 tasks overlap own wording in tests, dev tasks or the ext set "
-    "(`slice_overlap-heldout_r9-all-tasks.json`; without them 16/46 -> 36/46)",
+    "slice_overlap-heldout_r10-at-3480a96": "overlap of the round-10 slice with own texts, scanned at `aef319a` (its "
+    "`config.commit`); the file is named after the run's commit `3480a96`, whose tests, task and claim files are "
+    "identical (`aef319a..3480a96` changes only `verifier_stress-round14.json`)",
+    "slice_overlap-heldout_r10-content-at-3480a96": "text and content-level overlap of the round-10 slice (round-11 "
+    "review K16), own texts read at `3480a96` with `--own-at`; pass counts without each exclusion set, including the "
+    "10 tasks the round-11 review counted",
+    "slice_overlap-heldout_r9-content-at-da9f6af": "text and content-level overlap of the round-9 slice (round-11 "
+    "review K16), own texts read at the after-fix commit `da9f6af` with `--own-at`",
+    "chat_heldout_r9-auto-nollm-after-fix": "independent round-9 chat slice **after the round-13 fixes**; the run "
+    "read the slice from the reviewer's folder, the engineers state they did not open it; 6 of its 52 tasks overlap "
+    "own wording in tests, dev tasks or the ext set (`slice_overlap-heldout_r9-all-tasks.json`; without them "
+    "16/46 -> 36/46)",
     "claims_heldout_r9-prefix": "**first and only pre-fix run** of the independent round-9 claim slice",
     "claims_heldout_r9-after-fix": "independent round-9 claim slice **after the round-13 fixes**; 5 of its 25 claims "
     "near-copy own test wording or the reviewer's published repros (without them 15/20 -> 20/20)",
@@ -1542,7 +1565,9 @@ def render_with_sources() -> tuple[str, list[str]]:
         "is about 6–9 points; with 121 test tasks one task is 0.8 points. Every online table shows the share "
         "of turns where an LLM call failed and the run fell back to the deterministic path "
         "(`llm_error_rate`), with how many of those failures were HTTP 429 from the gateway. `report --check` "
-        "fails if README.md or README_CN.md cite a result file that is missing or not rendered here.",
+        "fails if README.md, README_CN.md or the pages their long material moved to (docs/evaluation-history.md, "
+        "docs/known-issues.md, docs/features.md and their Chinese versions) cite a result file that is missing or not "
+        "rendered here.",
         "",
     ]
     used: list[str] = []
@@ -1738,11 +1763,14 @@ def render_with_sources() -> tuple[str, list[str]]:
             "",
             "52 conversations written by the round-9 reviewer from their bug classes before any round-13 fix "
             "(`evaluation/heldout_r9/README.md`), run with `QI_EVAL_SNAPSHOT_EXT=1` once before the fixes (by the "
-            "reviewer) and once after them. The engineers did not open the slice; `slice_overlap-heldout_r9-all-tasks"
+            "reviewer) and once after them; the after-fix run read the slice from the reviewer's folder and the "
+            "engineers state they did not open it. `slice_overlap-heldout_r9-all-tasks"
             ".json` (every task and claim file scanned, round-10 review J9) lists 6 chat tasks and 5 claims that "
             "overlap own wording in tests, dev tasks or the ext gate set (without them chat 16/46 -> 36/46, claims "
             "15/20 -> 20/20; the earlier fixed-list scan `slice_overlap-heldout_r9-at-da9f6af.json` missed the ext set "
-            "and found 4 chat tasks, 16/48 -> 37/48). Its 25 claims are in the evidence table below "
+            "and found 4 chat tasks, 16/48 -> 37/48); the content-level check "
+            "(`slice_overlap-heldout_r9-content-at-da9f6af.json`) adds 4 chat tasks and 5 claims (chat 16/42 -> 33/42, "
+            "claims 12/15 -> 15/15). Its 25 claims are in the evidence table below "
             "(`claims_heldout_r9-*.json`).",
             "",
         ]
@@ -1757,10 +1785,14 @@ def render_with_sources() -> tuple[str, list[str]]:
             "48 conversations written by the round-10 reviewer from their bug classes before any round-14 fix "
             "(`evaluation/heldout_r10/README.md`), run with the extension and the corrections layer on "
             "(`QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1`) once before the fixes (by the reviewer) and once after "
-            "them. The engineers did not open the slice; `slice_overlap-heldout_r10-at-3480a96.json` lists 3 chat "
-            "tasks "
-            "that near-copy own wording (without them 12/45 -> 35/45). Its 24 claims are in the evidence table below "
-            "(`claims_heldout_r10-*.json`).",
+            "them. The after-fix run read the slice from the reviewer's folder (`config.tasks_file` = "
+            "`/Volumes/Remi/finsight-review/heldout_r10/chat_r10_heldout.jsonl`, at `3480a96`); the slice entered the "
+            "repository two minutes later (`367636b`). That the round-14 engineers did not open it is their statement: "
+            "no fix-era commit names a slice item, but nothing records file access either. "
+            "`slice_overlap-heldout_r10-at-3480a96.json` lists 3 chat tasks that near-copy own wording (without them "
+            "12/45 -> 35/45); the content-level check (`slice_overlap-heldout_r10-content-at-3480a96.json`) adds 3 "
+            "more (12/42 -> 32/42), and the round-11 review's own count of 10 gives 11/38 -> 29/38. Its 24 claims are "
+            "in the evidence table below (`claims_heldout_r10-*.json`).",
             "",
         ]
         for name, result in heldout_r10:
@@ -1996,6 +2028,22 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
                 f"{len(result.get('tasks_with_overlap') or [])} slice items "
                 f"({', '.join(result.get('tasks_with_overlap') or [])}); chat runs {runs}"
             )
+            if config.get("own_texts_commit"):
+                summary += f"; own texts read at `{config['own_texts_commit']}`"
+            content = result.get("content") or {}
+            if content:
+                summary += (
+                    f"; content level (round-11 review K16): `content` {len(content.get('tasks_content') or [])} "
+                    f"items ({', '.join(content.get('tasks_content') or [])}), `content_signature` "
+                    f"{len(content.get('tasks_content_signature') or [])} items"
+                )
+            for run_name, counts in ((result.get("exclusions") or {}).get("runs") or {}).items():
+                shown = ", ".join(
+                    f"{key.removeprefix('without_')} {value}"
+                    for key, value in counts.items()
+                    if key.startswith("without_")
+                )
+                summary += f"; `{run_name}` {counts.get('all')}, without {shown}"
         elif result.get("kind") == "run":
             run = result.get("summary") or {}
             low, high = (run.get("ci") or {}).get("task_success") or (None, None)
@@ -2046,6 +2094,14 @@ def cited_json(text: str) -> list[str]:
     return list(dict.fromkeys(match.group(1) for match in _CITED_JSON.finditer(text)))
 
 
+def _relative_matches(base: Path, token: str) -> list[Path]:
+    if any(char in token for char in "*?["):
+        folder, _, pattern = token.rpartition("/")
+        return sorted((base / folder).resolve().glob(pattern))
+    path = (base / token).resolve()
+    return [path] if path.exists() else []
+
+
 def citation_problems(rendered: list[str], readmes: tuple[Path, ...] = README_PATHS) -> list[str]:
     """README citations of result files that do not exist, or that exist in evaluation/results/ unrendered."""
     problems: list[str] = []
@@ -2053,10 +2109,11 @@ def citation_problems(rendered: list[str], readmes: tuple[Path, ...] = README_PA
     for readme in readmes:
         if not readme.exists():
             continue
-        where = readme.name
+        where = str(readme.relative_to(ROOT)) if readme.is_relative_to(ROOT) else readme.name
         for token in cited_json(readme.read_text(encoding="utf-8")):
             if "/" in token:
-                matches = sorted(ROOT.glob(token))
+                # repo-relative, or relative to the page (docs/ pages link ``../evaluation/...``, ``results/...``)
+                matches = sorted(ROOT.glob(token)) or _relative_matches(readme.parent, token)
             else:
                 matches = sorted(RESULTS_DIR.glob(token)) or sorted((ROOT / "docs" / "results").rglob(token))
             if not matches:
