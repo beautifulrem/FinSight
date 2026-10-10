@@ -2600,7 +2600,7 @@ low − default: task success -0.038 [-0.094, +0.000], pass^k -0.038 [-0.094, +0
 |---|---|---|---|---|---|---|
 | gate-dev | `e7a0be7` | 510 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
 | gate-holdout | `83fdb7b` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
-| gate-ext | `d2f518f` | 44 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
+| gate-ext | `fd39882` | 54 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
 | gate-shipped | `0096c6f` | 21 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
 
 ### Fault injection (overall graceful rate 1.00)
@@ -3572,7 +3572,7 @@ Paired comparisons (same tasks, a − b):
 | `ablation-glm-effort-low-holdout.json` | ablation | `bc42017` | 2026-09-30T22:20:53+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-low.json` (24329b3dee31a93e) |
 | `gate-dev.json` | run | `e7a0be7` | 2026-10-10T17:52:55+00:00 | – | `outputs/agent_eval/gate-dev.json` (7485d9968ab50ba0) |
 | `gate-holdout.json` | run | `83fdb7b` | 2026-10-10T13:50:15+00:00 | – | `outputs/agent_eval/gate-holdout.json` (6f2b2db180b6681c) |
-| `gate-ext.json` | run | `d2f518f` | 2026-10-10T17:53:24+00:00 | – | `outputs/agent_eval/gate-ext.json` (778a2ea432d96d51) |
+| `gate-ext.json` | run | `fd39882` | 2026-10-10T20:50:38+00:00 | – | `outputs/agent_eval/gate-ext.json` (cecdd989c188c3bd) |
 | `gate-shipped.json` | run | `0096c6f` | 2026-10-10T16:01:55+00:00 | – | `outputs/agent_eval/gate-shipped.json` (bf74663837895f6c) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |

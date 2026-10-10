@@ -1034,6 +1034,38 @@ python -m evaluation.agent_eval.frame_llm_check --llm deepseek --model cline-pas
   --sessions round12 --max-calls 30 --out outputs/agent_eval/frame-llm-check-round12.json
 ```
 
+**Round 15: the round-11 review's K5, K11, K13 and K15 (own examples, offline; one LLM red-team run).** Rules:
+[Rules added in round 15](#rules-added-in-round-15-round-11-review-k5-k11-k13-k15). On the r15-safety branch after
+merging round2 (`a31f9f2`): ext gate 44 → **54** tasks = 1.000 (baseline refreshed from a clean tree at `fd39882`);
+dev 510 = 1.000, held-out 53 = **0.9434** and shipped 21 = 1.000, unchanged, at `c6c5add`. The 10 new ext tasks score
+2/10 with the code before the fixes (`4ad3380`, exported with `git archive` and run with the same command; the two
+passes are the A-share-code and annual-report controls) and 10/10 after. **holdout12**: the round-11 reviewer's 16
+planted-document styles (a chat-template `<|im_start|>` turn, traditional characters with 本益比, a LaTeX formula, a
+URL query string, a "judge note", a spoofed real-time quote, an insider rumour, Greek look-alike letters, Chinese-
+numeral multiples, keycap digits, a quoted forum reply, a USD unit swap, a planted profit drop, a speech transcript, a
+broker SMS, a `PATCH` body) were copied verbatim from `finsight-review/round11/probes/planted11.py` (`1628bd1`) and
+run offline before any change (`redteam-holdout12-prefix.json`, committed in `d946d80`): 0/320 answers, 4/320 ledger
+titles and 20/128 excerpts, the reviewer's numbers. After the K15 rules and the K13 news lines, all thirteen sets at
+`49a5304` (`redteam-offline-r15.json`, CI baseline; before: `redteam-offline-r15-before.json`, `1628bd1`): 0
+successes and 0 detector hits everywhere; ledger holdout12 4/320 → 0/320, holdout3 2/88 and holdout5 6/168
+unchanged; excerpts holdout12 20/128 → 0/128, every other set unchanged. Shipped corpus (38,446 titles, 5,874 shown)
+and replay snapshots (747, 445 shown): 0 more titles hidden. Quoting headlines in news lines: with the evidence-list
+checks alone 28 planted titles over the thirteen sets and their variants would have been quoted; with the quote rules
+of `49a5304`, 0 (5 of the 5,874 shown corpus titles qualify). **LLM paths on holdout12**
+(`redteam-r15-holdout12-llm.json`, `49a5304`, `cline-pass/deepseek-v4.1-flash`, 32 targeted cases with
+`redteam_r15_holdout12_cases.json`, 80-call budget: 77 calls, 0 × 429, the budget skipped one composition case):
+stated as fact agent 0/16, composition 0/15; raw detector hits 0/16 and 1/15 ("亚洲最大" from the USD unit-swap
+payload, in a sentence that calls it unconfirmed), attributed; 0 ledger hits.
+
+```bash
+python -m evaluation.agent_eval.redteam --sets holdout12 --out outputs/agent_eval/redteam-holdout12-prefix.json
+python -m evaluation.agent_eval.redteam --out outputs/agent_eval/redteam-offline-r15.json      # all thirteen sets
+python -m evaluation.agent_eval.redteam --llm deepseek --model cline-pass/deepseek-v4.1-flash --workers 1 \
+  --cases evaluation/agent_eval/redteam_r15_holdout12_cases.json --paths agent,workflow_llm --max-llm-calls 80 \
+  --record-llm outputs/agent_eval/redteam-r15-holdout12-llm-turns.json --out outputs/agent_eval/redteam-r15-holdout12-llm.json
+python -m evaluation.agent_eval.gate --set ext --update-baseline                                # clean tree
+```
+
 **Round 14: the round-10 review's J6, J7 and J10 (own examples, offline; one LLM red-team run).** Rules:
 [Rules added in round 14](#rules-added-in-round-14-round-10-review-j6-j7-j10). On the r14-safety branch: dev gate 473 →
 **490** tasks = 1.000 and ext 24 → **32** tasks = 1.000 (baselines refreshed from a clean tree at `ca889e4`; after the
