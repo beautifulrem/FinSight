@@ -646,6 +646,39 @@ metric aliases and controls all pass; sums 4/5, verb comparatives 2/4 (both Engl
 holdings 2/4, price-derived 1/3, shares of a combined total **1/4**. The failing tasks and claims are listed in the
 [README](../README.md#the-round-10-slice-per-class). From round 15 this slice is after exposure.
 
+### Rules added in round 15 (round-11 review K5, K11, K13, K15)
+
+Own examples only; the round-11 review's repros and the holdout12 payloads are reworded (`tests/test_agent_eval.py`
+checks the round-15 safety ext tasks, the four `tests/test_agent_round15_{foreign,forecast,news,ledger}.py` files and
+the round-15 alias rows against every committed slice and every quoted reviewer probe, now with the round-11 ones).
+
+* **Hong Kong line by code, venue or currency** (K5, `coverage._HK_CODE_LINE`, `_HK_VENUE_CURRENCY_LINE`,
+  `_ah_code_spans`): a Hong Kong code in brackets ("(01398)", "（3968）") or with its leading zero ("02318", "0981"), a
+  ticker right after Chinese text ("00981.HK": the look-behind used `\w`, which matches CJK), a bare four-digit code
+  right after the A+H company it belongs to (`_AH_CODES`, 56 codes: "中国平安2318", "招行 3968"), the venue without
+  上市/挂牌 ("联交所的…", "…在港交所的成交量", "…在香港的股价") and the currency ("港币计价", "多少港元", "in HKD", "HKD
+  price") are foreign lines: refused with the A-share-covered note. Six-digit A-share codes, share counts (1000股),
+  prices (1880附近), years (2025年报, "(2025)"), currency exchange (100港元能换多少人民币, 汇率) and 港交所 as a
+  regulator stay in scope.
+* **Earnings forecasts for reports** (K11, `router.asks_earnings_forecast`): earnings asked with a modal for a periodic
+  report named without a year (三季报, 中报, 年报, "Q3 earnings", "interim results"), for the next report not yet
+  released (下一份年报, 即将发布的, 尚未发布的, "upcoming", "the next annual report") or against a past baseline ("…top
+  last year's", "会比去年高吗": the baseline is not the period asked about) get the earnings hedge; 会同比增长, 会比,
+  "going to", "can … top" are modals. Without a modal the latest report is a lookup (三季报净利润多少), as are a written
+  past year, the past tense and a schedule question (下一份年报什么时候发布).
+* **News questions** (K13, `composer.news_gaps`, `quotable_headline`): a news or announcement question whose search
+  succeeded with no document says so first ("当前数据中没有找到比亚迪的相关新闻。", "No news about BYD was found in the
+  data."), on the template path and as a limitation on the LLM path. A news line quotes the headline, marked
+  "（第三方标题，未经核实）" / "(a third-party headline, not verified)", only for a news item or announcement whose title
+  passes every evidence-list check, states no figure, names a target of the question, is in the answer's language, has
+  no colon or question mark, no judgment, recommendation or forecast word, does not end on a dangling word or a Chinese
+  numeral and is a whole headline (8+ CJK characters / 4+ words); otherwise the topic label stays.
+* **Ledger titles** (K15, `text_safety._simplified`, `_CUT_LIMIT`, `_CUT_CHANGE`, `lookalike_word`): headline checks
+  read common traditional characters as simplified ones and 本益比 / 股價淨值比 as 市盈率 / 市净率 (so 逢低加碼 is advice);
+  a limiter (仅, 只有, 才, 高达, 低至, 不到) at the end or followed only by a bare figure, a metric cut at the start of a
+  change word ("归母净利润同", "营收下"), an English metric and verb with no value ("market value has reache") and a word
+  of two or more Greek/Cyrillic Latin look-alikes ("ΡΕ") are not headlines.
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) `stated_holdings` ("我持有招商银行", "I own …", up to 5) and (round 11) `comparison_frame`, the comparison under way (metric, operands in order, the values and evidence ids earlier turns found, and a note that those ids must be fetched again to be cited). It is rule-based and bounded, and it is the default.
