@@ -49,6 +49,10 @@ def test_alias_regression_at_the_agent_guard(runtime, case):
     assert not symbols & set(case["forbid_symbols"]), (case["kind"], symbols)
     if case.get("coverage"):
         assert update["route"] == "refuse" and update["refusal_category"] == f"out_of_coverage:{case['coverage']}"
+    elif case.get("not_foreign_line"):
+        # A currency question is not a Hong Kong line; it may still be out of scope (no exchange-rate conversion), but
+        # never refused as a foreign listing. (Before the round-15 alias fix "人民币" resolved to 宁德时代 here.)
+        assert not str(update.get("refusal_category") or "").startswith("out_of_coverage"), update["route_reasons"]
     else:
         assert update["route"] != "refuse", update["route_reasons"]
 

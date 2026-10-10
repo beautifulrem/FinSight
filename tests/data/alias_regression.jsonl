@@ -114,4 +114,4 @@
 {"query": "How much is ICBC quoted at in HKD today?", "expect_symbols": [], "forbid_symbols": ["601398.SH"], "kind": "hk_line_currency", "level": "agent", "coverage": "foreign_equity"}
 {"query": "工商银行601398今天收盘多少", "expect_symbols": ["601398.SH"], "forbid_symbols": [], "kind": "a_share_code_not_hk", "level": "agent"}
 {"query": "比亚迪1000股现在市值多少", "expect_symbols": ["002594.SZ"], "forbid_symbols": [], "kind": "a_share_code_not_hk", "level": "agent"}
-{"query": "100港元能换多少人民币", "expect_symbols": [], "forbid_symbols": [], "kind": "hkd_exchange_not_a_line", "level": "agent"}
+{"query": "100港元能换多少人民币", "expect_symbols": [], "forbid_symbols": [], "kind": "hkd_exchange_not_a_line", "level": "agent", "not_foreign_line": true}
