@@ -53,7 +53,7 @@ deploy/k8s-smoke/smoke.sh        # kind + kubectl; asserts /ready, the three dat
 Logs go to `outputs/prepush/<commit>/<step>.log` and the summary to `outputs/prepush/<commit>/summary.md` (or
 `SUMMARY=<path>`): commit, whether the tree was clean, Python / Node / pnpm versions, and per step the command, result,
 seconds and the result line of its log (pytest's pass count, the gate's task success, ...). Committed summaries are in
-[`docs/results/ci/`](results/ci/), named after the commit they ran at: at `278f7cc` (round 14) all 17 steps passed
+[`docs/results/ci/`](results/ci/), named after the commit they ran at: at `278f7cc` (round 14, on the r14-ops branch before the round-14 merge, so dev 473 / ext 24) all 17 steps passed
 ([`prepush-278f7cc.md`](results/ci/prepush-278f7cc.md): 2508 tests passed / 70 skipped, vitest 152, e2e 2, gates dev 1.000,
 holdout 0.9434, ext 1.000, shipped 1.000).
 
