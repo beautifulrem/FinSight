@@ -75,6 +75,7 @@ export function formatClaimValue(
       return side === "claimed" ? `${trim(value, 1)}%` : formatKpi(lang, value, "percentLevel");
     case "revenue_yoy":
     case "netprofit_yoy":
+    case "profit_dedt_yoy":
     case "cpi_yoy":
     case "ppi_yoy":
     case "m2_yoy":
@@ -92,8 +93,10 @@ export function formatClaimValue(
       return `${trim(value)} ${t("claim.unit.yuan")}`;
     case "revenue":
     case "net_profit":
+    case "profit_dedt":
     case "amount":
-    case "market_cap": {
+    case "market_cap":
+    case "circ_mv": {
       const amount = side === "claimed" ? claimedAmount(claim, value, unit) : value;
       // "1,741.2 亿元" / "174.12B CNY"
       return `${formatMoney(lang, amount)}${lang === "zh" ? "" : " "}${t("claim.unit.yuan")}`;
@@ -113,6 +116,7 @@ const RATE_METRICS = new Set([
   "pct_change_1d",
   "revenue_yoy",
   "netprofit_yoy",
+  "profit_dedt_yoy",
 ]);
 
 const isDifference = (check: ClaimCheckItem) => check.kind === "difference" || check.kind === "relative_difference";
