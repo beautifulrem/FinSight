@@ -1270,13 +1270,10 @@ class AgentRuntime:
             if llm_draft:
                 # If nothing verifiable survives the repair, answer with the deterministic template instead
                 # of a stub; it restates the same tool results and must pass the template checks itself.
-                style = str((state.get("nlu") or {}).get("question_style") or "")
-                template = compose_template(
-                    state.get("tool_log") or [],
-                    zh=self._zh(state),
-                    question_style=style,
-                    frame_request=state.get("frame_request") or None,
-                )
+                # (round 14, review-10 J3/J5) the template sees the question too, so a fallback computes what the
+                # question asks (several holdings and their total, a share of a combined total), never a different
+                # operation or a partial answer
+                template = self._template_update(state)["draft"]
                 if verify_answer(
                     template, store, query=_check_query(state), market_precedence=False, allow_derived=True
                 ).passed:

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
 from .frame import NET_MARGIN_SHARE_SOURCE, TURNOVER
@@ -218,12 +219,52 @@ METRICS: tuple[Metric, ...] = (
             "dt_netprofit_yoy",
         ),
     ),
+    # (round 14, review-10 J8) the free-float market cap and the net profit after non-recurring items are answered from
+    # their own fields (circ_mv, profit_dedt), never from the total market cap or 归母 net profit; operating, gross and
+    # pre-tax profit are named so a question about them is told they are missing, not answered with net profit.
+    _metric(
+        "float_market_cap",
+        "流通市值",
+        "free-float market cap",
+        r"流通(?:盘)?市值|\bfree[- ]?float(?:ing)? market (?:cap|value)|\bfloat(?:ing)? market (?:cap|value)|"
+        r"\bcirculating market (?:cap|value)",
+        ("circ_mv",),
+    ),
     _metric(
         "market_cap",
         "总市值",
         "market cap",
-        r"总市值|流通市值|市值|market cap(?:itali[sz]ation)?",
-        ("total_mv", "market_cap", "circ_mv", "total_market_cap"),
+        r"总市值|市值|market cap(?:itali[sz]ation)?",
+        ("total_mv", "market_cap", "total_market_cap"),
+    ),
+    _metric(
+        "profit_dedt",
+        "扣非净利润",
+        "net profit excluding non-recurring items",
+        r"扣除非经常性损益|扣非|\bnon-?recurring\b|"
+        r"\b(?:recurring|core|underlying) (?:net )?(?:profit|earnings|income)\b|\bdeducted net profit\b",
+        ("profit_dedt",),
+    ),
+    _metric(
+        "operating_profit",
+        "营业利润",
+        "operating profit",
+        r"营业利润(?!率)|经营利润(?!率)|\boperating (?:profit|income)\b(?! margin)|\bEBIT\b",
+        ("operate_profit", "operating_profit"),
+    ),
+    _metric(
+        "gross_profit",
+        "毛利润",
+        "gross profit",
+        r"毛利润(?!率)|毛利额|\bgross profits?\b(?! margin)",
+        ("gross_profit",),
+    ),
+    _metric(
+        "total_profit",
+        "利润总额",
+        "total profit",
+        r"利润总额|税前利润|\bpre-?tax (?:profit|income)\b|\bprofit before tax\b",
+        ("total_profit",),
     ),
     _metric(
         "dividend_yield",
@@ -382,6 +423,52 @@ def _purchase_match(text: str) -> tuple[int, int, str, tuple[int, int]] | None:
     return None
 
 
+# (round 14, review-10 J4) gain or loss against a stated cost price: "我300股成本90元，浮亏多少", "我30块买的，现在赚了
+# 多少", "I bought 500 shares at 70 — what's my profit?": (close − cost) per share, in percent of the cost, and times
+# the shares when a count is stated; never advice
+_COST_ZH = re.compile(
+    r"(?:成本价?|买入价|买入成本|持仓成本|持仓均价|均价|进价|入手价)(?:是|为|在|大概|大约|约)?\s*(?P<cost>\d+(?:\.\d+)?)\s*(?:元|块)?|"
+    r"(?P<cost2>\d+(?:\.\d+)?)\s*(?:元|块)(?:钱)?(?:一股|每股|1股)?\s*(?:的时候|时)?(?:买|买入|买进|入手|进的|建仓|抄底|上车)"
+)
+_PNL_ASK_ZH = re.compile(
+    r"赚了?(?:多少|几)|亏了?(?:多少|几)|浮盈|浮亏|盈亏|盈利(?:了)?多少|亏损(?:了)?多少|收益(?:率)?(?:是)?多少|"
+    r"赚(?:还是|了还是)亏|是赚是亏|赚钱了吗|亏钱了吗|回本"
+)
+_COST_EN = re.compile(
+    r"\bpaid\s*(?:CNY|RMB|¥)?\s*(?P<cost3>\d+(?:\.\d+)?)\s*(?:a share|per share|each|apiece|for)\b|"
+    r"\b(?:bought|purchased|paid|got in)\b[^.?!]{0,40}?\b(?:at|for)\s*(?:CNY|RMB|¥)?\s*(?P<cost>\d+(?:\.\d+)?)|"
+    r"\b(?:cost(?: basis| price)?|entry(?: price)?|average (?:cost|price)|avg\.? cost)\s*(?:is|was|of|at|=|:)?\s*"
+    r"(?:CNY|RMB|¥)?\s*(?P<cost2>\d+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
+_PNL_ASK_EN = re.compile(
+    r"\b(?:profit|loss|gain|p&l|pnl|up|down|made|lost|making|losing|underwater|in the (?:red|green))\b", re.IGNORECASE
+)
+
+
+def cost_basis_request(query: str) -> dict[str, Any] | None:
+    """``{cost, shares, lots}`` when the question asks the gain or loss against a cost price it states (``shares`` is
+    ``None`` when no count is stated), else ``None``."""
+    text = query or ""
+    zh = bool(re.search(r"[一-鿿]", text))
+    found = _COST_ZH.search(text) if zh else _COST_EN.search(text)
+    asked = _PNL_ASK_ZH.search(text) if zh else _PNL_ASK_EN.search(text)
+    if found is None or asked is None:
+        return None
+    cost = float(next(value for value in found.groupdict().values() if value))
+    if cost <= 0:
+        return None
+    shares, lots = None, 0
+    counted = re.search(_HOLDING_COUNT_ZH, text) if zh else _EN_POSITION.search(text)
+    if counted is not None:
+        raw = counted.group("n").replace(",", "").replace("，", "")
+        count = int(raw) if raw.isdigit() else _cn_integer(raw)
+        unit = counted.group("unit").lower()
+        lots = count if unit in {"手", "lot", "lots"} else 0
+        shares = count * 100 if lots else count
+    return {"cost": cost, "shares": shares if shares and shares > 1 else None, "lots": lots}
+
+
 def holding_purchase(query: str) -> bool:
     """Whether a holding-value question asks the cost of buying the shares ("买三手要多少钱") rather than the value of
     shares already held."""
@@ -506,16 +593,49 @@ def holding_positions(query: str) -> list[dict[str, Any]]:
     return found if len(found) >= 2 else []
 
 
+# the second half of a long Chinese name that is a generic word, not a short name
+# (招商银行 → 银行 would match every bank)
+_GENERIC_TAILS = frozenset({"银行", "证券", "保险", "集团", "股份", "控股", "电力", "时代", "科技", "医药", "电器"})
+
+
 def name_forms(name: str, *extra: str) -> list[str]:
     """How a target may be written: its name, the last part of a long Chinese name (贵州茅台 → 茅台), English
-    names and aliases; longest first."""
+    names and aliases, and (round 14, review-10 J5) its Chinese short names from the alias tables (招商银行 → 招行,
+    工商银行 → 工行); longest first."""
     from .names import english_aliases, english_name
 
     forms = {str(item) for item in (name, *extra) if item}
-    if len(name) >= 4 and re.fullmatch(r"[一-鿿]+", name):
+    if len(name) >= 4 and re.fullmatch(r"[一-鿿]+", name) and name[2:] not in _GENERIC_TAILS:
         forms.add(name[2:])
     forms.update(alias for alias in (english_name(name), *english_aliases(name)) if alias)
+    forms.update(_chinese_short_names().get(name, ()))
     return sorted(forms, key=len, reverse=True)
+
+
+@lru_cache(maxsize=1)
+def _chinese_short_names() -> dict[str, tuple[str, ...]]:
+    """Canonical name → its colloquial / common Chinese aliases (招行, 工行, 茅台), from the runtime and seed alias
+    tables and the synonym dictionary."""
+    from ..data_loader import load_aliases, load_entities, load_seed_aliases, load_seed_entities, load_synonyms
+
+    found: dict[str, set[str]] = {}
+    for entities, aliases in ((load_entities(), load_aliases()), (load_seed_entities(), load_seed_aliases())):
+        names = {str(row.get("entity_id")): str(row.get("canonical_name") or "") for row in entities}
+        for row in aliases:
+            alias = str(row.get("alias_text") or "")
+            if row.get("alias_type") not in {"colloquial_alias", "common_alias"} or not re.fullmatch(
+                r"[一-鿿]{2,6}", alias
+            ):
+                continue
+            entity_id = str(row.get("entity_id") or "")
+            entity_id = str(int(entity_id)) if entity_id.isdigit() else entity_id
+            canonical = names.get(entity_id)
+            if canonical and alias != canonical:
+                found.setdefault(canonical, set()).add(alias)
+    for alias, canonical in (load_synonyms().get("alias") or {}).items():
+        if re.fullmatch(r"[一-鿿]{2,6}", str(alias)) and alias != canonical:
+            found.setdefault(str(canonical), set()).add(str(alias))
+    return {name: tuple(sorted(items, key=len, reverse=True)) for name, items in found.items()}
 
 
 def bind_positions(text: str, positions: list[dict[str, Any]], candidates: dict[str, list[str]]) -> list[str | None]:
@@ -903,6 +1023,20 @@ _RANGE_52W = re.compile(
     r"\b(?:high|low)s? (?:of|over|in) the (?:past|last) (?:year|12 months|52 weeks)\b",
     re.IGNORECASE,
 )
+# (round 14, review-10 J4) "离52周最低点反弹了多少", "how far has it bounced off its 52-week low?";
+# "较52周高点跌了多少", "how far below its 52-week high is it?"
+_REBOUND_FROM_LOW = re.compile(
+    r"(?:低点|最低|低位|新低)[^，。？?；;]{0,12}?(?:反弹|回升|涨回|涨了|涨起来|上涨|拉升)|"
+    r"(?:反弹|回升)[^，。？?；;]{0,6}?(?:多少|几)|"
+    r"\b(?:rebound(?:ed)?|bounced?|recovered|rallied|risen|climbed|up)\b[^.?!]{0,30}?\b(?:from|off|since)\b"
+    r"[^.?!]{0,20}?\blows?\b|\babove (?:its|the) (?:52[- ]week |one[- ]year )?lows?\b",
+    re.IGNORECASE,
+)
+_BELOW_HIGH = re.compile(
+    r"(?:较|离|距|相比|相对|从)[^，。？?；;]{0,10}?(?:最高|高点|高位|新高)[^，。？?；;]{0,12}?(?:跌|回落|回撤|低|下来|差|还差)|"
+    r"\b(?:below|off|down from|under)\b (?:its|the) (?:52[- ]week |one[- ]year )?highs?\b",
+    re.IGNORECASE,
+)
 # The session named next to a 52-week question ("今天最高多少，52周最高多少"): then the day's high/low is wanted too.
 _SESSION_WORDS = re.compile(r"今天|今日|当天|当日|日内|\btoday\b|\bintraday\b|\bsession\b", re.IGNORECASE)
 
@@ -1148,6 +1282,9 @@ class PriceRequest:
     # change in yuan against the previous close ("今天跌了多少钱")
     turnover_rate: bool = False
     change_amount: bool = False
+    # (round 14, review-10 J4) the move from the 52-week low ("离52周低点反弹了多少") or below the 52-week high
+    rebound_52w: bool = False
+    off_high_52w: bool = False
 
     @property
     def needs_quote(self) -> bool:
@@ -1205,6 +1342,8 @@ def requested_price_fields(query: str) -> PriceRequest:
         drawdown=drawdown_window(text),
         turnover_rate=bool(_TURNOVER_RATE.search(text)),
         change_amount=bool(_CHANGE_AMOUNT.search(text)),
+        rebound_52w=yearly and bool(_REBOUND_FROM_LOW.search(text)),
+        off_high_52w=yearly and bool(_BELOW_HIGH.search(text)),
     )
 
 
