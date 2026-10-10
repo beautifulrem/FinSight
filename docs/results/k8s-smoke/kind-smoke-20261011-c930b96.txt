@@ -1,0 +1,90 @@
+# kind smoke at c930b96 (smoke.sh with the round-14 data-layer and corrected-figure assertions), 2026-10-10T16:17:49Z
+# image finsight:r14-ops = docker build -f docker/Dockerfile at 0b79131 (image id sha256:489ba5cf86b5...; the later commits change evaluation/, scripts/prepush.sh,
+# tests/ and docs, nothing the API loads), colima arm64 4 CPU / 8 GiB; command:
+#   IMAGE=finsight:r14-ops CLUSTER=finsight-smoke-r14 deploy/k8s-smoke/smoke.sh
+# (U+FFFD below: the script's `head -c 400` cuts the first answer inside a UTF-8 character)
+
+
+[16:17:49] commit c930b96 (working tree clean: yes)
+
+[16:17:49] versions: kind v0.33.0 go1.27.1 darwin/arm64 / kubectl v1.37.1
+No kind clusters found.
+
+[16:17:49] creating kind cluster finsight-smoke-r14
+Creating cluster "finsight-smoke-r14" ...
+ • Ensuring node image (kindest/node:v1.37.0) 🖼️  ...
+ ✓ Ensuring node image (kindest/node:v1.37.0) 🖼️
+ • Preparing nodes 📦   ...
+ ✓ Preparing nodes 📦 
+ • Writing configuration 📜  ...
+ ✓ Writing configuration 📜
+ • Starting control-plane 🕹️  ...
+ ✓ Starting control-plane 🕹️
+ • Installing CNI 🔌  ...
+ ✓ Installing CNI 🔌
+ • Installing StorageClass 💾  ...
+ ✓ Installing StorageClass 💾
+ • Waiting ≤ 3m0s for control-plane = Ready ⏳  ...
+ ✓ Waiting ≤ 3m0s for control-plane = Ready ⏳
+ • Ready after 18s 💚
+Set kubectl context to "kind-finsight-smoke-r14"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-finsight-smoke-r14
+
+Not sure what to do next? 😅  Check out https://kind.sigs.k8s.io/docs/user/quick-start/
+
+[16:18:20] loading finsight:smoke, postgres:16-alpine and curlimages/curl:8.11.1 into the cluster
+Image: "finsight:smoke" with ID "sha256:489ba5cf86b5af2eb7c5ffafb458de307c46f651070b61c2e14ce58967bf43da" not yet present on node "finsight-smoke-r14-control-plane", loading...
+
+[16:18:55] rendering and applying deploy/k8s-smoke (base deploy/k8s)
+   1 kind: ConfigMap
+   1 kind: Deployment
+   1 kind: HorizontalPodAutoscaler
+   1 kind: Namespace
+   2 kind: NetworkPolicy
+   1 kind: PodDisruptionBudget
+   2 kind: Service
+   1 kind: StatefulSet
+namespace/finsight created
+secret/finsight-db created
+secret/finsight-api-keys created
+namespace/finsight unchanged
+configmap/finsight-config created
+service/finsight-api created
+service/finsight-postgres created
+deployment.apps/finsight-api created
+statefulset.apps/finsight-postgres created
+poddisruptionbudget.policy/finsight-api created
+horizontalpodautoscaler.autoscaling/finsight-api created
+networkpolicy.networking.k8s.io/finsight-api created
+networkpolicy.networking.k8s.io/finsight-postgres created
+
+[16:18:56] waiting for Postgres
+Waiting for 1 pods to be ready...
+partitioned roll out complete: 1 new pods have been updated...
+
+[16:19:05] waiting for the API rollout (readinessProbe = GET /ready)
+Waiting for deployment "finsight-api" rollout to finish: 0 of 1 updated replicas are available...
+deployment "finsight-api" successfully rolled out
+
+[16:19:58] API ready after 53 s
+NAME                            READY   STATUS    RESTARTS   AGE   IP           NODE                               NOMINATED NODE   READINESS GATES
+finsight-api-5c47f6c8b5-7zrjd   1/1     Running   0          62s   10.244.0.5   finsight-smoke-r14-control-plane   <none>           <none>
+finsight-postgres-0             1/1     Running   0          62s   10.244.0.7   finsight-smoke-r14-control-plane   <none>           <none>
+
+[16:19:58] in-cluster checks from a finsight.io/client=true pod
+pod/smoke-client created
+pod/smoke-client condition met
+GET /ready -> 200
+{"status":"ready","duration_ms":1.7,"checks":{"checkpointer":{"ok":true,"backend":"PostgresSaver","persistent":true,"database":"postgres","pool":{"size":2,"available":2}},"model_config":{"ok":true,"llm":"not configured (deterministic agent)"},"retrieval_index":{"ok":true,"backend":"DocumentRetriever","documents":38446,"index_rows":38446,"structured_tables":5},"data_layers":{"ok":true,"loaded":["seed_v1","extension","corrections"],"layers":[{"name":"seed_v1","file":"data/structured_data.json","enabled":true,"present":true,"loaded":true,"records":{"market_api":7,"fundamental_sql":3,"industry_sql":5,"macro_sql":4,"entity_to_industry":7},"record_count":26,"version":null,"sha256":"762e977aad2dfebbf78547c9e7ecc31cd8bd458c3f7549963932bac069431947"},{"name":"extension","file":"data/snapshot/structured_data_ext.json","enabled":true,"present":true,"setting":"QI_OFFLINE_SNAPSHOT_EXT","loaded":true,"records":{"market_api":15,"fundamental_sql":10},"record_count":25,"version":"ext-2026-09-30","sha256":"538d2bbe49646dc28c23987a564658b9412c7aaa5c9147114e1e4742e0da0e5a"},{"name":"corrections","file":"data/snapshot/structured_data_fix.json","enabled":true,"present":true,"setting":"QI_OFFLINE_SNAPSHOT_FIX","loaded":true,"records":{"market_api":4,"fundamental_sql":3,"definitions":10},"record_count":17,"version":"fix-2026-10-10","sha256":"a76f2804c0c8072fdb6e414d584fb0f578c4f623ecaa2c030a4546f0853082fd"}]}}}
+POST /agent/chat -> 200
+{"status":"ok","session_id":"4636412c994742eba92517f1c05315e0","trace_id":"d4ea1d560ef24e74aae43731fa245eda","run_id":"d4ea1d560ef24e74aae43731fa245eda","query":"贵州茅台的市盈率是多少","language":"zh","route":"workflow","route_reasons":["mode:workflow"],"answer":"根据本次检索到的证据：贵州茅台 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-04-22 收�
+answer status: "status":"ok"
+verification: "verification":{"passed":true
+POST /agent/chat (corrected figure) -> 200
+corrected answer: "answer":"根据本次检索到的证据：五粮液 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-04-22 收盘计算）：PE(TTM) 43.63 倍，PB 3.26 倍，ROE（加权） 6.89%，营业收入 405.29 亿元，归母净利润 89.54 亿元 [fundamental_000858.SZ]。所属行业 白酒：PE 27.3 倍，PB 6.2 倍，涨跌幅 -1.05% [industry_白酒]。"
+
+[16:20:02] SMOKE OK
+env IMAGE=finsight:r14-ops CLUSTER=finsight-smoke-r14   6.15s user 7.19s system 9% cpu 2:14.61 total
+exit=0

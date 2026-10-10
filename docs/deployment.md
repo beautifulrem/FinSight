@@ -257,6 +257,10 @@ which is gated by the readinessProbe `GET /ready`. Then a pod labelled `finsight
 fails the job. kindnetd enforces NetworkPolicy, so
 the policies are exercised too. CI runs it on every push with the image built from that commit (kind pinned
 by checksum). A local run is recorded in
-[`results/k8s-smoke/kind-smoke-20260929-e095837.txt`](results/k8s-smoke/kind-smoke-20260929-e095837.txt).
+[`results/k8s-smoke/kind-smoke-20260929-e095837.txt`](results/k8s-smoke/kind-smoke-20260929-e095837.txt). The run with
+the round-14 assertions ([`kind-smoke-20261011-c930b96.txt`](results/k8s-smoke/kind-smoke-20261011-c930b96.txt), image
+built at `0b79131`, kind v0.33.0, colima arm64) passed: API ready after 53 s, `/ready` 200 with the Postgres
+checkpointer and `data_layers.loaded = ["seed_v1","extension","corrections"]`, the corrected-figure answer
+`ROE（加权） 6.89%，营业收入 405.29 亿元`, `SMOKE OK` in 2 min 15 s.
 
     IMAGE=finsight:$(git rev-parse --short=7 HEAD) deploy/k8s-smoke/smoke.sh   # KEEP=1 keeps the cluster

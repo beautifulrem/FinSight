@@ -200,6 +200,9 @@ Secret，所有镜像都从宿主机加载，节点不拉取任何镜像。它�
 一个带 `finsight.io/client=true` 标签的 Pod 检查 `/ready`（检查点正常；从第 14 轮起还要求 `data_layers` 正常、三层都已加载），
 取得一个校验通过的 `/agent/chat` 回答，并问一个更正后的数字「五粮液2025年的加权ROE是多少」，断言回答里有 `ROE（加权） 6.89%` 和
 `营业收入 405.29 亿元`（v1 种子是 29.4% 和 1,085 亿元），因此不带更正层的镜像会让这个 job 失败。kindnetd 会执行 NetworkPolicy，
-所以网络策略也被检验到。
+所以网络策略也被检验到。带第 14 轮断言的本地运行（[`kind-smoke-20261011-c930b96.txt`](../results/k8s-smoke/kind-smoke-20261011-c930b96.txt)，
+镜像在 `0b79131` 构建，kind v0.33.0，colima arm64）通过：API 53 秒后就绪，`/ready` 200（Postgres 检查点、
+`data_layers.loaded = ["seed_v1","extension","corrections"]`），更正数字的回答为 `ROE（加权） 6.89%，营业收入 405.29 亿元`，
+2 分 15 秒后 `SMOKE OK`。
 
     IMAGE=finsight:$(git rev-parse --short=7 HEAD) deploy/k8s-smoke/smoke.sh   # KEEP=1 保留集群
