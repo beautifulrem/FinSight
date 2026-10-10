@@ -9,7 +9,9 @@ rule:
 * the gate's ``--update-baseline`` (``evaluation/results/gate-<set>.json``),
 * ``router_eval --out evaluation/results/...``,
 * ``claim_bench.run`` (its default output is ``evaluation/results/claim_bench-<set>.json``),
-* ``verifier_stress --out evaluation/results/...``.
+* ``verifier_stress --out evaluation/results/...``,
+* (round 14, J15) ``evaluation.real_claims_web.score_claims_web_v1`` (its default outputs are in
+  ``evaluation/results/``).
 
 A dirty run aimed at a committed folder stops before it starts unless ``--allow-dirty`` and a ``--note`` saying
 what was uncommitted are both given; the file then carries a ``dirty_tree`` label in its notes. Scratch outputs
