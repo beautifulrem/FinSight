@@ -320,6 +320,12 @@ const FRAME_METRICS: Record<string, Text> = {
   amount: { zh: "成交额", en: "turnover" },
   volume: { zh: "成交量", en: "volume" },
   close: { zh: "收盘价", en: "close" },
+  // (round 14) metrics answered from their own fields, and the ones the data lacks (named missing)
+  float_market_cap: { zh: "流通市值", en: "free-float market cap" },
+  profit_dedt: { zh: "扣非净利润", en: "recurring net profit" },
+  operating_profit: { zh: "营业利润", en: "operating profit" },
+  gross_profit: { zh: "毛利润", en: "gross profit" },
+  total_profit: { zh: "利润总额", en: "total profit" },
 };
 
 function frameMetric(lang: Lang, key: string): string {
@@ -364,6 +370,11 @@ function frameLabel(lang: Lang, operation: string, metric: string, operands: str
         : `Computed the combined ${what}: ${names.join(" + ")}`;
     case "share":
       return lang === "zh" ? `计算${what}占比：${a} ÷ ${b}` : `Computed ${a}'s ${what} as a share of ${b}'s`;
+    case "share_total":
+      // (round 14) a share of a combined total: A ÷ (A + B)
+      return lang === "zh"
+        ? `计算${what}占合计的比例：${a} ÷ (${names.join(" + ")})`
+        : `Computed ${a}'s share of the combined ${what}: ${a} ÷ (${names.join(" + ")})`;
     case "spread":
       return lang === "zh"
         ? `计算${what}最高与最低之差：${joinNames(lang, names)}`
@@ -461,6 +472,10 @@ const SESSION: [RegExp, (m: RegExpExecArray, lang: Lang) => string][] = [
       const kind = OFF_TOPIC[m[1]!]?.[lang] ?? prettify(m[1]!).toLowerCase();
       return lang === "zh" ? `不是投研问题（${kind}），已拒答` : `Not a research question (${kind}); refused`;
     },
+  ],
+  [
+    /^cost_basis_follow_up:(.+)$/,
+    (m, lang) => (lang === "zh" ? `按你给出的成本价计算 ${m[1]} 的盈亏` : `Gain or loss on ${m[1]} at your stated cost`),
   ],
   [/^concept:glossary:(.+)$/, (m, lang) => (lang === "zh" ? `术语解释：${m[1]}` : `Glossary term: ${m[1]}`)],
   [

@@ -184,6 +184,9 @@ describe("route reasons (round 12, H14)", () => {
     "frame:which:net_margin:五粮液|贵州茅台|泸州老窖",
     "frame:sum:amount:贵州茅台|五粮液",
     "frame:share:net_profit:五粮液|贵州茅台",
+    "frame:share_total:revenue:比亚迪|宁德时代",
+    "frame:sum:profit_dedt:工商银行|招商银行",
+    "cost_basis_follow_up:美的集团",
     "frame:spread:roe:贵州茅台|五粮液|中国平安",
     "frame:difference:roe-gross_margin:五粮液",
     "clarified:贵州茅台",
@@ -237,6 +240,11 @@ describe("route reasons (round 12, H14)", () => {
     expect(humanizeCode("zh", "frame:difference:roe-gross_margin:五粮液")).toBe("计算五粮液的ROE与毛利率差值");
     expect(humanizeCode("zh", "frame:sum:amount:A|B|C")).toBe("计算成交额合计：A + B + C");
     expect(humanizeCode("zh", "frame:share:net_profit:A|B")).toBe("计算净利润占比：A ÷ B");
+    // (round 14) a share of a combined total, and metrics read from their own fields
+    expect(humanizeCode("zh", "frame:share_total:revenue:A|B")).toBe("计算营业收入占合计的比例：A ÷ (A + B)");
+    expect(humanizeCode("en", "frame:share_total:revenue:A|B")).toBe("Computed A's share of the combined revenue: A ÷ (A + B)");
+    expect(humanizeCode("zh", "frame:sum:float_market_cap:A|B")).toBe("计算流通市值合计：A + B");
+    expect(humanizeCode("en", "frame:difference:profit_dedt:A|B")).toBe("Computed the recurring net profit gap: A vs B");
     expect(humanizeCode("en", "frame:spread:roe:A|B|C")).toBe("Computed the ROE spread (highest minus lowest): A, B and C");
     expect(humanizeCode("en", "frame:difference:gross_margin-net_margin:A")).toBe(
       "Computed the gap between A's gross margin and net margin",
