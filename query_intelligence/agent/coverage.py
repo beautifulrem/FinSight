@@ -829,6 +829,19 @@ def asks_year_to_date(query: str) -> bool:
     return bool(_YEAR_TO_DATE.search(query or ""))
 
 
+# (round 14) A year-to-date question that names the year's first trading day (or its first close) as the base keeps
+# that base instead of the previous year's last close ("从首个交易日的收盘算起", "from the first close of the year").
+_YTD_FIRST_CLOSE_BASE = re.compile(
+    r"(?:今年|年内|本年)?(?:第一个|首个|头一个)交易日|年初第一(?:个|天)|年内首个收盘|"
+    r"\bfirst (?:trading day|close|session) of (?:the|this) year\b|\bthe year's first (?:close|trading day)\b",
+    re.IGNORECASE,
+)
+
+
+def ytd_from_first_close(query: str) -> bool:
+    return bool(_YTD_FIRST_CLOSE_BASE.search(query or ""))
+
+
 def year_to_date_gaps(query: str, tool_log: list[dict[str, Any]], *, zh: bool) -> list[str]:
     """A year-to-date question whose price data does not reach back to the first trading day of the year.
 
@@ -1128,6 +1141,7 @@ class PriceRequest:
     moving_averages: tuple[int, ...] = ()
     above_ma: bool = False
     year_to_date: bool = False
+    ytd_first_close: bool = False  # the user named the year's first close as the year-to-date base (round 14)
     range_52w: bool = False  # 52-week (one-year) high and low close
     drawdown: str = ""  # "1y" or "ytd": the window of a maximum drawdown question
     # (round 12, H9) the stock turnover rate (换手率), answered when the source has it, else named missing; the
@@ -1186,6 +1200,7 @@ def requested_price_fields(query: str) -> PriceRequest:
         moving_averages=tuple(averages),
         above_ma=above,
         year_to_date=asks_year_to_date(text) and not asks_drawdown(text),
+        ytd_first_close=ytd_from_first_close(text),
         range_52w=yearly,
         drawdown=drawdown_window(text),
         turnover_rate=bool(_TURNOVER_RATE.search(text)),

@@ -112,3 +112,30 @@ def test_a_missing_industry_snapshot_is_stated(ext_agent, query, expected):
 def test_a_company_with_an_industry_snapshot_gets_it_and_no_missing_statement(ext_agent):
     result = ext_agent.chat("五粮液的市盈率比行业平均高还是低", session_id="r13-industry-v1")
     assert "所属行业 白酒" in result["answer"] and "所属行业的平均" not in result["answer"]
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "从今年首个交易日的收盘算起，宁德时代涨跌幅是多少",
+        "按年内第一个交易日收盘计，宁德时代今年以来表现如何",
+        "How has CATL done since the first close of the year?",
+    ],
+)
+def test_a_named_first_close_base_is_kept_for_year_to_date(query):
+    """(round 14) A user who names the year's first close as the base gets that base, not the prior year-end close
+    (round 13 made the prior year-end close the default, which overrode an explicit request)."""
+    from query_intelligence.agent.composer import _year_to_date
+    from query_intelligence.agent.coverage import requested_price_fields
+
+    request = requested_price_fields(query)
+    assert request.ytd_first_close
+    data = {**_PAYLOAD, "prior_year_end": {"date": "2025-12-31", "close": 367.26}}
+    (sentence,) = _year_to_date(data, "CATL" not in query, first_close_base=request.ytd_first_close)
+    assert "-22.88%" in sentence and "2026-01-05" in sentence and "367.26" not in sentence
+
+
+def test_a_plain_year_to_date_question_keeps_the_prior_year_end_base():
+    from query_intelligence.agent.coverage import requested_price_fields
+
+    assert not requested_price_fields("宁德时代今年以来涨了多少").ytd_first_close
