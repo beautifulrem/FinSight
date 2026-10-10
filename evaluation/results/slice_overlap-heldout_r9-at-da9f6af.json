@@ -1,0 +1,94 @@
+{
+ "slice": "heldout_r9",
+ "slice_texts": 104,
+ "slice_tasks": 77,
+ "own_texts": 27006,
+ "exact": 2,
+ "near": 7,
+ "tasks_with_overlap": [
+  "r9c01",
+  "r9c08",
+  "r9c12",
+  "r9c13",
+  "r9c14",
+  "r9h_ctrl_en_03",
+  "r9h_share_zh_01",
+  "r9h_spread_zh_01",
+  "r9h_verb_en_01"
+ ],
+ "hits": [
+  {
+   "task": "r9h_share_zh_01",
+   "kind": "near",
+   "chars": 11,
+   "own": [
+    "tests/test_agent_round13_ui.py:121"
+   ]
+  },
+  {
+   "task": "r9h_verb_en_01",
+   "kind": "exact",
+   "chars": 7,
+   "own": [
+    "tests/test_agent_eval.py:1057"
+   ]
+  },
+  {
+   "task": "r9h_spread_zh_01",
+   "kind": "exact",
+   "chars": 5,
+   "own": [
+    "tests/test_agent_eval.py:1070"
+   ]
+  },
+  {
+   "task": "r9h_ctrl_en_03",
+   "kind": "near",
+   "chars": 18,
+   "own": [
+    "dev:r12_h1_over_n_times_en"
+   ]
+  },
+  {
+   "task": "r9c01",
+   "kind": "near",
+   "chars": 16,
+   "own": [
+    "tests/test_agent_eval.py:1168"
+   ]
+  },
+  {
+   "task": "r9c08",
+   "kind": "near",
+   "chars": 18,
+   "own": [
+    "tests/test_agent_eval.py:1170"
+   ]
+  },
+  {
+   "task": "r9c12",
+   "kind": "near",
+   "chars": 45,
+   "own": [
+    "tests/test_agent_round13_claims.py:177"
+   ]
+  },
+  {
+   "task": "r9c13",
+   "kind": "near",
+   "chars": 38,
+   "own": [
+    "tests/test_agent_round13_claims.py:201"
+   ]
+  },
+  {
+   "task": "r9c14",
+   "kind": "near",
+   "chars": 41,
+   "own": [
+    "tests/test_agent_round13_claims.py:202"
+   ]
+  }
+ ],
+ "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = dev task turns, router labels, dev claims, string literals in tests/*.py"
+}
