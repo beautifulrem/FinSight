@@ -73,6 +73,13 @@ def test_a_safe_figure_free_headline_naming_the_target_is_quoted(title):
         ("五粮液发布投资者关系活动记录", ["五粮液"], "research_note", True),  # not news or an announcement
         ("五粮液召开经销商大会", ["五粮液"], "news", False),  # a Chinese headline in an English answer
         ("Wuliangye holds dealer conference", ["Wuliangye"], "news", True),  # an English headline in a Chinese one
+        ("券商结论：长江电力进入配置窗口", ["长江电力"], "news", True),  # a colon lead-in
+        ("分析人士看好美的集团海外渠道扩张", ["美的集团"], "news", True),  # a judgment word
+        ("紫金矿业海外项目有望提前投产", ["紫金矿业"], "news", True),  # a forecast word
+        ("机构普遍给出宁德时代新的", ["宁德时代"], "news", True),  # cut on a dangling word
+        ("比亚迪一季度海外销量同比增长三", ["比亚迪"], "news", True),  # cut on a Chinese numeral
+        ("招商银行快讯", ["招商银行"], "news", True),  # a label, not a headline
+        ("Midea plans new plant in", ["Midea"], "news", False),  # cut on a preposition
     ],
 )
 def test_headlines_that_are_not_quoted(title, targets, kind, zh):
