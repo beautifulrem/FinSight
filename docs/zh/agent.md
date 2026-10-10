@@ -435,6 +435,33 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 
 **结果（第 14 轮）。** 在 r14-frame 分支上：`2a55c49` 上 dev 493 = 1.000、ext 36 = 1.000（`b725e4d` 上相同），保留集 53 = 0.9434 不变；`cb675d2` 上自写路由标注 414 条 1.000，独立 v2 0.8423 不变（`router_eval-independent_v2-round14.json`，`dc2fcb0`）；第八轮切片 51/51，第九轮切片 44/52 → 51/52，二者都属于**暴露之后**（后者是工程师读了失败任务之后；`chat_heldout_r9-auto-nollm-after-exposure-round14-first.json`、`chat_heldout_r9-auto-nollm-after-exposure-round14.json`）；`631da61` 上校验器压力测试 313 个正确答案 / 5,324 个变体，逐句 0.96%，派生 1.09%；离线红队 11 个攻击集全部 0 成功。**合并后的第 14 轮代码上**（r14-realclaims2、r14-ops、r14-safety、r14-claims、r14-frame 全部合并；每个结果文件记录自己的 commit）：dev 510 = 1.000（`gate-dev.json`，`e7a0be7`），ext 44 = 1.000（`gate-ext.json`，`d2f518f`），自写路由标注 414 条 = 1.000（`router_eval-round14-own.json`，`7624223`），校验器压力测试 324 个正确答案 / 5,452 个变体，逐句 0.95%，派生 1.08%（`verifier_stress-round14.json`，`aef319a`）。**第十轮切片，样本外**（`evaluation/heldout_r10/`，第十轮评审在 `7f4f06c` 上、任何第 14 轮修复之前编写，用发布默认数据在 `QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1` 下运行；工程师没有打开）：对话 12/48 = 0.250 [0.125, 0.375] → `3480a96` 上 **38/48 = 0.792 [0.67, 0.90]**（`chat_heldout_r10-auto-nollm-prefix.json`、`chat_heldout_r10-auto-nollm-after-fix.json`），声明 16/24 → **20/24**（`claims_heldout_r10-prefix.json`、`claims_heldout_r10-after-fix.json`）。3 个对话任务与自写措辞近似（`slice_overlap-heldout_r10-at-3480a96.json`），去掉后为 12/45 → 35/45。修复之后分类别：按成本算盈亏、最高与最低、是否几倍、预测、境外上市线、指标别名和对照组全部通过；合计 4/5，动词式比较 2/4（错的两个都是英文：「top … by」「trail」），多笔持仓 2/4，价格推算 1/3，占合计的比例 **1/4**。失败的任务和声明列在 [README](../../README_CN.md#第十轮切片分类)。从第 15 轮起这个切片属于暴露之后。
 
+### 第 15 轮新增的规则（第十一轮评审 K5、K11、K13、K15）
+
+只用自写例子；第十一轮评审的复现语句和 holdout12 的投毒内容都改写过（`tests/test_agent_eval.py` 把第 15 轮的 ext 任务、
+`tests/test_agent_round15_{foreign,forecast,news,ledger}.py` 四个测试文件和第 15 轮的别名用例与每个已提交的切片、每轮评审报告中
+引用的探针逐一比对，现在包括第十一轮的）。
+
+* **按代码、交易所或币种问港股**（K5，`coverage._HK_CODE_LINE`、`_HK_VENUE_CURRENCY_LINE`、`_ah_code_spans`）：括号里的港股
+  代码（"(01398)"、"（3968）"）或带前导零的代码（"02318"、"0981"）、紧跟在中文后面的 "00981.HK"（原来的后顾断言用 `\w`，会匹配
+  汉字）、紧跟在所属 A+H 公司名称后面的四位裸代码（`_AH_CODES`，56 个代码：「中国平安2318」「招行 3968」）、不带「上市/挂牌」的
+  交易所说法（「联交所的…」「…在港交所的成交量」「…在香港的股价」）以及币种（「港币计价」「多少港元」"in HKD"、"HKD price"）
+  都算境外上市股份：拒答并说明 A 股在覆盖范围内。六位 A 股代码、股数（1000股）、价格（1880附近）、年份（2025年报、「(2025)」）、
+  换汇（100港元能换多少人民币、汇率）以及作为监管方的港交所仍正常处理。
+* **定期报告的业绩预测**（K11，`router.asks_earnings_forecast`）：对不写年份的定期报告（三季报、中报、年报、"Q3 earnings"、
+  "interim results"）、尚未发布的下一份报告（下一份年报、即将发布的、尚未发布的、"upcoming"、"the next annual report"），或以过去
+  期间为比较基准（"…top last year's"、「会比去年高吗」：基准不是所问的期间）带情态词问业绩，都加业绩预测提示；「会同比增长」「会比」
+  "going to"、"can … top" 算情态词。不带情态词时最新一期报告是查询（三季报净利润多少），写明的过去年份、过去时和问发布时间
+  （下一份年报什么时候发布）也是查询。
+* **新闻问题**（K13，`composer.news_gaps`、`quotable_headline`）：问新闻或公告、检索成功但没有文档时，回答先说明（「当前数据中
+  没有找到比亚迪的相关新闻。」"No news about BYD was found in the data."），模板路径写在回答里，LLM 路径写入局限说明。新闻条目
+  只在以下条件全部满足时引用标题并标注「（第三方标题，未经核实）」/ "(a third-party headline, not verified)"：新闻或公告；标题
+  通过证据列表的全部检查；不含任何数字；点名问题中的标的；与回答同一语言；没有冒号或问号；没有判断、建议或预测用语；不以悬空词或
+  中文数字结尾；是完整标题（至少 8 个汉字 / 4 个英文词）。否则仍只给主题标签。
+* **证据列表标题**（K15，`text_safety._simplified`、`_CUT_LIMIT`、`_CUT_CHANGE`、`lookalike_word`）：标题检查把常见繁体字按简体
+  读，把「本益比 / 股價淨值比」按「市盈率 / 市净率」读（「逢低加碼」算建议用语）；以限定词（仅、只有、才、高达、低至、不到）结尾或
+  其后只跟一个裸数字的标题、在变化词开头处截断的指标（「归母净利润同」「营收下」）、只有英文指标和动词而没有数值的标题（"market
+  value has reache"），以及由两个以上看起来像拉丁字母的希腊/西里尔字母组成的词（"ΡΕ"）都不算标题。
+
 ### 会话记忆卡片
 
 `session_memory(turns, query)` 生成一张抽取式的小卡片，以「Session memory (from earlier turns)」的形式放进 Agent 的用户消息。卡片包含：
