@@ -73,6 +73,7 @@ from .evidence import AgentEvidence, EvidenceStore
 from .followups import next_questions, sentiment_summary
 from .frame import (
     frame_calls,
+    frame_extra_reasons,
     frame_operation,
     is_frame_question,
     metric_of,
@@ -652,7 +653,7 @@ class AgentRuntime:
             return None
         query, reason, request = framed
         nlu, carried = _set_aside_context_carry(analyze(query))
-        reasons = [reason]
+        reasons = [reason, *frame_extra_reasons(request)]
         # the frame decides the targets: a listed entity the rewritten wording adds is a misreading ("多多少" read
         # as 多氟多 by fuzzy matching), not an operand
         operands = {str(item.get("symbol") or item.get("member")) for item in request.get("operands") or []}

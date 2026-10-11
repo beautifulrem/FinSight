@@ -174,10 +174,12 @@ def score_wordings(service: Any, rows: list[dict[str, Any]]) -> dict[str, Any]:
             "rescued_by_fallback": tallies["rescued"],
         },
         "by_operation": {
-            label: {key: f"{counter[key]}/{counter['n']}" for key in keys} for label, counter in sorted(per_class.items())
+            label: {key: f"{counter[key]}/{counter['n']}" for key in keys}
+            for label, counter in sorted(per_class.items())
         },
         "by_language": {
-            lang: {key: f"{counter[key]}/{counter['n']}" for key in keys} for lang, counter in sorted(per_language.items())
+            lang: {key: f"{counter[key]}/{counter['n']}" for key in keys}
+            for lang, counter in sorted(per_language.items())
         },
         "combined_misses": misses,
     }
