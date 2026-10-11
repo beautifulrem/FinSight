@@ -160,8 +160,9 @@ def test_midea_hong_kong_line_is_refused_with_the_a_share_note(agent, query):
     result = agent.chat(query, session_id=f"r16-midea-{abs(hash(query))}")
     assert result["route"] == "refuse" and result["limitations"] == ["out_of_coverage"]
     assert "80.1" not in result["answer"]
-    assert "美的集团在 A 股上市的股份在覆盖范围内" in result["answer"] or "Midea Group's A shares are covered" in (
-        result["answer"]
+    assert (
+        "美的集团在 A 股上市的股份在覆盖范围内" in result["answer"]
+        or "Midea Group's A shares are covered" in (result["answer"])
     )
 
 
