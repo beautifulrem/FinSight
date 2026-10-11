@@ -1,0 +1,276 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "/Volumes/Remi/finsight-review/heldout_r13/chat_r13_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "71cb928",
+  "run_at": "2026-10-11T10:02:04+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 42.7,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r13/chat_r13_heldout.jsonl --out outputs/agent_eval/chat_r13-after.json",
+  "env": {
+   "QI_EVAL_SNAPSHOT_EXT": "1",
+   "QI_EVAL_SNAPSHOT_FIX": "1"
+  },
+  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r13/chat_r13_heldout.jsonl --out outputs/agent_eval/chat_r13-after.json",
+  "slice_overlap": {
+   "slice": "chat_r13_heldout.jsonl",
+   "slice_texts": 58,
+   "exact": 0,
+   "near": 2,
+   "tasks_with_overlap": [
+    "r13h_book_zh_01",
+    "r13h_carry_en_01"
+   ],
+   "own_files": [
+    "evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_shipped_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v2.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+    "evaluation/claim_bench/claims_v1.jsonl",
+    "evaluation/claim_bench/claims_v1_holdout.jsonl"
+   ],
+   "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = every evaluation/agent_eval/tasks/*.jsonl and evaluation/claim_bench/*.jsonl text, string literals in tests/*.py"
+  }
+ },
+ "summary": {
+  "tasks": 46,
+  "turns": 58,
+  "repeats": 1,
+  "task_success": 0.9783,
+  "pass^1": 0.9783,
+  "ci": {
+   "task_success": [
+    0.9348,
+    1.0
+   ],
+   "pass^1": [
+    0.9348,
+    1.0
+   ],
+   "task_success_uncited": [
+    0.9348,
+    1.0
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.9783,
+  "turn_success": 0.9828,
+  "behavior_accuracy": 1.0,
+  "fact_recall": 0.9773,
+  "fact_stated": 0.9773,
+  "tool_recall": 1.0,
+  "tool_precision": 0.6101,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 127.15,
+  "latency_ms_p95": 1818.65,
+  "latency_ms_p99": 5163.28,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "book_value_followup": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 386.89
+  },
+  "breakeven_rise": {
+   "tasks": 4,
+   "task_success": 0.75,
+   "latency_ms_p95": 375.47
+  },
+  "control": {
+   "tasks": 8,
+   "task_success": 1.0,
+   "latency_ms_p95": 412.49
+  },
+  "definition_in_session": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 36.18
+  },
+  "exclusion": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 361.29
+  },
+  "fx_missing": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 68.07
+  },
+  "leading_adverb": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 129.94
+  },
+  "lookalike_entity": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 940.8
+  },
+  "lots_in_shou": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 375.45
+  },
+  "partial_sell": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 5163.28
+  },
+  "position_sizing": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 381.51
+  },
+  "rank_spread": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 145.49
+  },
+  "statement_carry_total": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 4787.82
+  },
+  "traditional_chinese": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 84.84
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 11,
+   "task_success": 0.9091,
+   "latency_ms_p95": 5163.28
+  },
+  "zh": {
+   "tasks": 35,
+   "task_success": 1.0,
+   "latency_ms_p95": 1183.46
+  }
+ },
+ "failed_checks": {
+  "facts": 1
+ },
+ "failures": [
+  {
+   "task": "r13h_rise_en_01",
+   "category": "breakeven_rise",
+   "query": "My cost basis in CMB is 45 yuan. What percentage gain from the last close would get me back to breakeven?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: China Merchants Bank (600036.SH) last available close was CNY 41.26 on 2026-09-30, daily change 1.85% [price_"
+  }
+ ],
+ "task_outcomes": {
+  "r13h_sell_zh_01": "1",
+  "r13h_sell_zh_02": "1",
+  "r13h_sell_en_01": "1",
+  "r13h_sell_zh_03": "1",
+  "r13h_excl_zh_01": "1",
+  "r13h_excl_zh_02": "1",
+  "r13h_excl_en_01": "1",
+  "r13h_excl_zh_03": "1",
+  "r13h_alike_zh_01": "1",
+  "r13h_alike_zh_02": "1",
+  "r13h_alike_zh_03": "1",
+  "r13h_alike_en_01": "1",
+  "r13h_rise_zh_01": "1",
+  "r13h_rise_zh_02": "1",
+  "r13h_rise_en_01": "0",
+  "r13h_rise_zh_03": "1",
+  "r13h_shou_zh_01": "1",
+  "r13h_shou_zh_02": "1",
+  "r13h_shou_zh_03": "1",
+  "r13h_carry_zh_01": "1",
+  "r13h_carry_en_01": "1",
+  "r13h_carry_zh_02": "1",
+  "r13h_defs_zh_01": "1",
+  "r13h_defs_zh_02": "1",
+  "r13h_defs_en_01": "1",
+  "r13h_book_zh_01": "1",
+  "r13h_book_zh_02": "1",
+  "r13h_trad_zh_01": "1",
+  "r13h_trad_zh_02": "1",
+  "r13h_trad_zh_03": "1",
+  "r13h_adv_en_01": "1",
+  "r13h_adv_en_02": "1",
+  "r13h_size_zh_01": "1",
+  "r13h_size_en_01": "1",
+  "r13h_fx_zh_01": "1",
+  "r13h_fx_en_01": "1",
+  "r13h_rank_zh_01": "1",
+  "r13h_rank_en_01": "1",
+  "r13h_ctrl_zh_01": "1",
+  "r13h_ctrl_zh_02": "1",
+  "r13h_ctrl_zh_03": "1",
+  "r13h_ctrl_zh_04": "1",
+  "r13h_ctrl_zh_05": "1",
+  "r13h_ctrl_zh_06": "1",
+  "r13h_ctrl_zh_07": "1",
+  "r13h_ctrl_zh_08": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r13-after.json",
+  "sha256_16": "b9a4be55b0ad724f",
+  "bytes": 182127,
+  "slimmed_at": "2026-10-11T10:02:40+00:00"
+ },
+ "notes": [
+  "independent round-13 chat slice after the round-17 fixes, run once at 71cb928 (clean tree), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay, reading the reviewer's folder; the engineers state they did not open it; overlap tiers (slice_overlap-heldout_r13-at-71cb928.json): none chat 19/46 → 45/46, claims 14/22 → 22/22; text near-copies (2 exact claim copies in round-17 claim tests) chat 18/44 → 43/44, claims 12/18 → 18/18; + content overlaps chat 15/39 → 38/39, claims 11/15 → 15/15; + content signatures (upper bound) chat 11/27 → 26/27, claims 9/12 → 12/12"
+ ]
+}

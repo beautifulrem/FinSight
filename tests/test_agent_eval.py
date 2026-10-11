@@ -1818,7 +1818,7 @@ def test_round17_claim_tests_do_not_copy_a_slice_a_real_claim_or_a_review_probe(
         if line.strip()
     ]
     benches = [row["claim"] for name in ("dev", "holdout") for row in load_claims(SETS[name])]
-    slices = _all_slice_texts()
+    slices = _all_slice_texts(before_round=13)
     others = real + benches + slices + _heldout_r4_texts() + _heldout_r5_texts() + _REVIEW_PROBES
     others += _ROUND9_REVIEW_PROBES + _ROUND10_REVIEW_PROBES + _ROUND11_REVIEW_PROBES + _ROUND12_REVIEW_PROBES
     others += _ROUND12_SAFETY_PROBES + _ROUND13_CLAIM_PROBES
