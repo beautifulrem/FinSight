@@ -1130,13 +1130,16 @@ def frame_operation(text: str) -> str | None:
 
     A net-margin question written as a share ("净利润是营收的百分之几") is one metric, not a comparison; advice,
     forecast and news questions are not comparisons either."""
-    from .coverage import holding_value_request
+    from .coverage import holding_value_request, stated_holding_count
 
     text = (text or "").strip()
     if not text or _NOT_A_GAP.search(text) or _NET_MARGIN_SHARE.search(text):
         return None
     if holding_value_request(text) is not None:
         return None  # "我有2000股，合计值多少钱": a holding's value, not a total of two operands
+    if stated_holding_count(text) is not None and (_SUM.search(text) or _SUM_WEAK.search(text)):
+        # (round 16) "另有X 3手，两只合起来呢" after a holding turn: a position added to it, not a total of a metric
+        return None
     clause = comparison_clause(text)
     if clause:
         if asks_which_and_gap(text):

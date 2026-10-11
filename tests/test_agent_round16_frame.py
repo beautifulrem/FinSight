@@ -369,3 +369,14 @@ def test_the_last_session_of_a_stated_year():
     ]
     facts, _gaps = dated_close_sentences("招商银行2025年最后一天收盘价是多少", tool_log, True)
     assert facts and "2025-12-31" in facts[0] and "42.1" in facts[0]
+
+
+def test_an_added_position_with_a_total_word_is_a_holding_not_a_metric_total():
+    from query_intelligence.agent.frame import frame_operation
+    from query_intelligence.agent.memory import _added_holding
+
+    question = "还有招商银行2手，两只合起来呢"
+    assert frame_operation(question) is None
+    turns = [{"query": "我手上有工商银行800股，市值多少", "entities": [{"symbol": "601398.SH", "name": "工商银行"}]}]
+    found = _added_holding(question, turns, [_entity(ENTITIES[5], True)])
+    assert found is not None and "800股工商银行和200股招商银行" in found[0]
