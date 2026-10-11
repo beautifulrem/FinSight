@@ -52,7 +52,9 @@ _VALUATION_TERMS = re.compile(
     r"valuation|valued|earnings|profit|revenue|fundamental|price-to-(?:book|earnings)|expensive|cheap|margin|"
     r"dividend|market cap|debt|leverage|cash ?flow|growth rate|\bearns?\b|more profitable|"
     # (round 16, review-12 L8) "ICBC's market value": the market value is in the fundamentals, not the quote
-    r"\bmarket\s+(?:value|capitali[sz]ation)\b|\bmkt\.?\s+cap\b",
+    r"\bmarket\s+(?:value|capitali[sz]ation)\b|\bmkt\.?\s+cap\b|"
+    # (round 17, review-13 M8) book value: "跌破净资产了吗", "破净", "below book value" are answered with the P/B
+    r"净资产|破净|账面价值|\bbook value\b|\bbelow book\b|\bunder book\b",
     re.IGNORECASE,
 )
 _INDUSTRY_TERMS = re.compile(r"行业|板块|sector|industry", re.IGNORECASE)

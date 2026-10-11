@@ -1,0 +1,392 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/heldout_r12/chat_r12_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "7378156",
+  "run_at": "2026-10-11T07:30:22+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 110.9,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r12/chat_r12_heldout.jsonl --out outputs/agent_eval/chat_r12-r17.json",
+  "env": {
+   "QI_EVAL_SNAPSHOT_EXT": "1",
+   "QI_EVAL_SNAPSHOT_FIX": "1"
+  },
+  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r12/chat_r12_heldout.jsonl --out outputs/agent_eval/chat_r12-r17.json",
+  "slice_overlap": {
+   "slice": "evaluation/heldout_r12/chat_r12_heldout.jsonl",
+   "slice_texts": 54,
+   "exact": 0,
+   "near": 1,
+   "tasks_with_overlap": [
+    "r12h_lots_zh_03"
+   ],
+   "own_files": [
+    "evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_shipped_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v2.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+    "evaluation/claim_bench/claims_v1.jsonl",
+    "evaluation/claim_bench/claims_v1_holdout.jsonl"
+   ],
+   "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = every evaluation/agent_eval/tasks/*.jsonl and evaluation/claim_bench/*.jsonl text, string literals in tests/*.py"
+  }
+ },
+ "summary": {
+  "tasks": 50,
+  "turns": 54,
+  "repeats": 1,
+  "task_success": 0.84,
+  "pass^1": 0.84,
+  "ci": {
+   "task_success": [
+    0.74,
+    0.94
+   ],
+   "pass^1": [
+    0.74,
+    0.94
+   ],
+   "task_success_uncited": [
+    0.76,
+    0.96
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.86,
+  "turn_success": 0.8519,
+  "behavior_accuracy": 0.9815,
+  "fact_recall": 0.8478,
+  "fact_stated": 0.8478,
+  "tool_recall": 0.9535,
+  "tool_precision": 0.6667,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 325.71,
+  "latency_ms_p95": 4253.17,
+  "latency_ms_p99": 11285.86,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "compound_count": {
+   "tasks": 4,
+   "task_success": 0.5,
+   "latency_ms_p95": 287.72
+  },
+  "control": {
+   "tasks": 8,
+   "task_success": 1.0,
+   "latency_ms_p95": 895.65
+  },
+  "dated_close": {
+   "tasks": 1,
+   "task_success": 1.0,
+   "latency_ms_p95": 940.75
+  },
+  "dividend_forecast": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 99.09
+  },
+  "etf_plus_stock": {
+   "tasks": 1,
+   "task_success": 0.0,
+   "latency_ms_p95": 2601.67
+  },
+  "future_market_value": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 884.65
+  },
+  "holding_list_carry": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 11285.86
+  },
+  "leading_adverb": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 415.32
+  },
+  "metric_definition": {
+   "tasks": 4,
+   "task_success": 0.75,
+   "latency_ms_p95": 325.71
+  },
+  "multi_purchase_forms": {
+   "tasks": 5,
+   "task_success": 0.6,
+   "latency_ms_p95": 9690.71
+  },
+  "price_gap_yuan": {
+   "tasks": 2,
+   "task_success": 0.5,
+   "latency_ms_p95": 189.14
+  },
+  "short_name": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 552.18
+  },
+  "total_vs_one_anchor": {
+   "tasks": 5,
+   "task_success": 0.8,
+   "latency_ms_p95": 1668.67
+  },
+  "two_operations": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 318.3
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 15,
+   "task_success": 0.7333,
+   "latency_ms_p95": 11285.86
+  },
+  "zh": {
+   "tasks": 35,
+   "task_success": 0.8857,
+   "latency_ms_p95": 3740.18
+  }
+ },
+ "failed_checks": {
+  "facts": 7,
+  "required_tools": 2,
+  "behavior": 1,
+  "disclaimer": 1,
+  "language": 1,
+  "entity": 1
+ },
+ "failures": [
+  {
+   "task": "r12h_tvo_en_01",
+   "category": "total_vs_one_anchor",
+   "query": "Taken together, are BYD's and Midea's revenues larger than ICBC's? By how much?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: revenue from highest to lowest: ICBC CNY 838.27 bn, BYD CNY 803.97 bn, Midea Group CNY 458.5 bn [fundamental_"
+  },
+  {
+   "task": "r12h_lots_en_01",
+   "category": "multi_purchase_forms",
+   "query": "Bought 200 Midea at 85, then 300 more at 76 — where does that leave me now?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Midea Group (000333.SZ) last available close was CNY 80.1 on 2026-09-30, daily change -1.91% [price_000333.SZ"
+  },
+  {
+   "task": "r12h_lots_zh_03",
+   "category": "multi_purchase_forms",
+   "query": "我先后两次买的：7.6元买了2000股，8.8元买了1000股，合计盈亏多少",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "disclaimer",
+    "language",
+    "entity"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "r12h_count_zh_01",
+   "category": "compound_count",
+   "query": "两万五千股工商银行按收盘价是多少钱",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：工商银行（601398.SH）最新可用收盘价为 8.28 元（2026-09-30），当日涨跌幅 1.47% [price_601398.SH]。"
+  },
+  {
+   "task": "r12h_count_zh_02",
+   "category": "compound_count",
+   "query": "1万5千股中信证券，现在市值",
+   "failed_checks": [
+    "facts",
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中信证券 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-09-30 收盘计算）：PE(TTM) 10.19 倍，PB 1.37 倍，ROE（期末净资产） 9.4%，营业收入 748.54 亿元，归母净利润 300.76 亿元 [fundamental_600030"
+  },
+  {
+   "task": "r12h_def_en_01",
+   "category": "metric_definition",
+   "query": "Explain what return on equity measures",
+   "failed_checks": [
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_macro_indicators",
+    "search_knowledge"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: CPI_CN latest value 0.8% (2026-03-31) [macro_CPI_CN]. PMI_CN latest value 50.6 (2026-03-31) [macro_PMI_CN]. M"
+  },
+  {
+   "task": "r12h_gapy_en_01",
+   "category": "price_gap_yuan",
+   "query": "How many yuan below its 52-week closing high is CMB?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: China Merchants Bank (600036.SH) last available close was CNY 41.26 on 2026-09-30, daily change 1.85% [price_"
+  },
+  {
+   "task": "r12h_etfmix_zh_01",
+   "category": "etf_plus_stock",
+   "query": "我有2000份中证500ETF和300股中信证券，总共值多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：按 2026-09-30 的收盘价 7.472 元 计算，2000 份中证500ETF南方的市值约为 2000 × 7.472 = 14944 元 [price_510500.SH]。这是按最近收盘价计算的持仓市值，不是可成交价格，也不是估值判断或投资建议。中证500ETF南方（510500.SH"
+  }
+ ],
+ "task_outcomes": {
+  "r12h_tvo_zh_01": "1",
+  "r12h_tvo_zh_02": "1",
+  "r12h_tvo_zh_03": "1",
+  "r12h_tvo_en_01": "0",
+  "r12h_tvo_en_02": "1",
+  "r12h_adv_en_01": "1",
+  "r12h_adv_en_02": "1",
+  "r12h_adv_en_03": "1",
+  "r12h_lots_zh_01": "1",
+  "r12h_lots_zh_02": "1",
+  "r12h_lots_en_01": "0",
+  "r12h_lots_zh_03": "0",
+  "r12h_lots_en_02": "1",
+  "r12h_count_zh_01": "0",
+  "r12h_count_zh_02": "0",
+  "r12h_count_zh_03": "1",
+  "r12h_count_en_01": "1",
+  "r12h_hold_zh_01": "1",
+  "r12h_hold_en_01": "1",
+  "r12h_hold_zh_02": "1",
+  "r12h_hold_en_02": "1",
+  "r12h_hold_zh_03": "1",
+  "r12h_twoop_zh_01": "1",
+  "r12h_twoop_zh_02": "1",
+  "r12h_twoop_zh_03": "1",
+  "r12h_twoop_en_01": "1",
+  "r12h_short_zh_01": "1",
+  "r12h_short_zh_02": "1",
+  "r12h_short_zh_03": "1",
+  "r12h_def_zh_01": "1",
+  "r12h_def_zh_02": "1",
+  "r12h_def_en_01": "0",
+  "r12h_def_zh_03": "1",
+  "r12h_fmv_zh_01": "1",
+  "r12h_fmv_en_01": "1",
+  "r12h_fmv_zh_02": "1",
+  "r12h_div_zh_01": "1",
+  "r12h_div_en_01": "1",
+  "r12h_gapy_zh_01": "1",
+  "r12h_gapy_en_01": "0",
+  "r12h_etfmix_zh_01": "0",
+  "r12h_date_zh_01": "1",
+  "r12h_ctrl_zh_01": "1",
+  "r12h_ctrl_zh_02": "1",
+  "r12h_ctrl_zh_03": "1",
+  "r12h_ctrl_zh_04": "1",
+  "r12h_ctrl_zh_05": "1",
+  "r12h_ctrl_zh_06": "1",
+  "r12h_ctrl_zh_07": "1",
+  "r12h_ctrl_zh_08": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r12-r17.json",
+  "sha256_16": "19326b5b446a90a9",
+  "bytes": 184368,
+  "slimmed_at": "2026-10-11T07:33:25+00:00"
+ },
+ "notes": [
+  "round 17: rerun once at the final round-17 code 7378156, after exposure (QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 no LLM); the round-17 frame engineer did not read the slice text"
+ ]
+}

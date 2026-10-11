@@ -44,7 +44,10 @@ from ..integrations.intraday import asks_about_today
 from .compliance import apply_compliance, data_layer_note, language_violation
 from .composer import (
     answer_json_status,
+    asked_result,
     compose_template,
+    cost_basis_values,
+    could_not_verify_note,
     failure_note,
     frame_result,
     frame_sentences,
@@ -75,11 +78,13 @@ from .frame import (
     frame_calls,
     frame_extra_reasons,
     frame_operation,
+    has_exclusion_word,
     is_frame_question,
     metric_of,
     opening_comparison,
     resolve_frame_question,
 )
+from .glossary import definition_question
 from .hearsay import fact_check_for, fact_check_prose
 from .injection import (
     REDACTION_MARKER,
@@ -110,6 +115,7 @@ from .memory import (
     resolve_group_reference,
     resolve_holding_follow_up,
     resolve_industry_reference,
+    resolve_ledger_total,
     session_memory,
     turn_record,
 )
@@ -408,6 +414,10 @@ class AgentRuntime:
             if carried_nlu is not None:
                 if _own_targets(nlu):
                     rewrite_reasons.append("session_memory_over_nlu_context_carry")
+                elif definition_question(query):
+                    # (round 17, review-13 M7) "How is net margin calculated?" after a company's figure asks the
+                    # definition: the NLU's carry of that company is not kept
+                    rewrite_reasons.append("definition_over_nlu_context_carry")
                 else:
                     # Nothing in the session resolved the question: keep the NLU's own dialog-context carry-over.
                     nlu, _ = drop_fuzzy_concepts(carried_nlu, query)
@@ -592,6 +602,12 @@ class AgentRuntime:
             reasons.append(reason)
             nlu, carried_nlu = _set_aside_context_carry(analyze(query))
         listed = listed_entities(nlu)
+        ledger = resolve_ledger_total(query, turns, listed)
+        if ledger is not None:
+            # (round 17, review-13 M6) positions stated in earlier turns, then a bare total: their value at the close
+            query, reason = ledger
+            nlu, carried = _set_aside_context_carry(analyze(query))
+            return query, nlu, [*reasons, reason], (carried_nlu if carried is not None else None), {}
         framed = self._frame_rewrite(query, turns, nlu, analyze)
         if framed is not None:
             query, nlu, frame_reasons, carried, request = framed
@@ -619,7 +635,9 @@ class AgentRuntime:
             carried_nlu = carried_nlu if carried is not None else None
             listed = listed_entities(nlu)
         # (round 12) "要是换成同样数量的中国平安呢" after a holding-value turn values the same holding of the new target
-        ellipsis = resolve_holding_follow_up(query, turns, listed) or resolve_ellipsis(query, turns, listed)
+        # (round 17) a fuzzy match inside a holding follow-up ("昨天280卖了" read as a bond "天23") is not its target
+        exact = [entity for entity in listed if "fuzzy" not in str(entity.get("match_type") or "")]
+        ellipsis = resolve_holding_follow_up(query, turns, exact) or resolve_ellipsis(query, turns, listed)
         if ellipsis is not None:
             query, reason = ellipsis
             reasons.append(reason)
@@ -1121,6 +1139,10 @@ class AgentRuntime:
         request = state.get("frame_request") or {}
         if not request:
             return draft, {}
+        if has_exclusion_word(str(state["query"])) and not request.get("excluded"):
+            # (round 17, review-13 M2) the question leaves a target out, but the frame's operands do not: its result
+            # would be another group's, so it is never appended to the model's answer
+            return draft, {}
         tool_log = list(state.get("tool_log") or [])
         update: dict[str, Any] = {}
         fetched = {(entry["tool"], _key(entry.get("arguments"))) for entry in tool_log if entry.get("ok")}
@@ -1148,7 +1170,7 @@ class AgentRuntime:
 
             text = english_display(text)
         store = _store({**state, "evidence": {**(state.get("evidence") or {}), **update.get("evidence", {})}})
-        computed = frame_values(request, tool_log)
+        computed = _computed_values({**state, "tool_log": tool_log})
         if not verify_answer(
             {"answer": text}, store, query=_check_query(state), allow_derived=True, computed=computed
         ).passed:
@@ -1157,6 +1179,41 @@ class AgentRuntime:
         cited = [*draft.get("evidence_used", []), *re.findall(r"\[([^\[\]]+)\]", text)]
         update["degraded"] = ["frame_result_appended"]
         return {**draft, "answer": joined, "evidence_used": list(dict.fromkeys(cited))}, update
+
+    def _cost_basis_fallback(self, state: AgentState, draft: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        """(round 17, review-13 M1/M4) A gain or loss against costs the user states (lots, a sale, the rise back to
+        the cost) whose final LLM draft does not state the asked result (the model may decline to compute the user's
+        own figures): the template's arithmetic sentence is appended, only when it passes the verifier on its own.
+        Returns ``(draft, state update)``."""
+        from .composer import cost_basis_sentences
+
+        if state.get("frame_request"):
+            return draft, {}
+        asked_query = str(state.get("effective_query") or state["query"])
+        tool_log = list(state.get("tool_log") or [])
+        zh = self._zh(state)
+        asked = asked_result(asked_query, tool_log, None, zh) if cost_basis_request(asked_query) else None
+        values = list((asked or {}).get("values") or [])
+        answer = str(draft.get("answer") or "")
+        if not values or any(_states_number(answer, value) for value in values):
+            return draft, {}
+        sentences = cost_basis_sentences(tool_log, asked_query, zh)
+        if not sentences:
+            return draft, {}
+        text = " ".join(sentences[:2]) if not zh else "".join(sentences[:2])
+        if not verify_answer(
+            {"answer": text},
+            _store(state),
+            query=_check_query(state),
+            allow_derived=True,
+            computed=_computed_values(state),
+        ).passed:
+            return draft, {}
+        joined = f"{answer}{'' if zh else ' '}{text}".strip() if answer else text
+        cited = [*draft.get("evidence_used", []), *re.findall(r"\[([^\[\]]+)\]", text)]
+        return {**draft, "answer": joined, "evidence_used": list(dict.fromkeys(cited))}, {
+            "degraded": ["cost_basis_result_appended"]
+        }
 
     def _memory_summary(self, state: AgentState, zh: bool) -> dict[str, Any]:
         """Fold turns older than the verbatim history window into the LLM memory card (when enabled).
@@ -1243,7 +1300,9 @@ class AgentRuntime:
         derived = self.config.verify_derived if llm_draft else True
         # (round 15, review-11 K3) the numbers the comparison frame computed from this run's tool outputs: a correct
         # total, mean, share of an N-company total, total against another value or two-metric ratio is never deleted
-        computed = frame_values(state.get("frame_request") or {}, state.get("tool_log") or [])
+        # (round 17, review-13 M4) and every number the template's own arithmetic computes (a P&L over stated lots or
+        # after a sale, a lot count in shares, the rise back to a cost)
+        computed = _computed_values(state)
         report = verify_answer(
             draft,
             store,
@@ -1302,10 +1361,44 @@ class AgentRuntime:
                     computed=computed,
                 ).passed:
                     fallback = template
-            repaired, notes = repair_answer(draft, report, store, zh=self._zh(state), fallback=fallback)
+            zh = self._zh(state)
+            asked = (
+                asked_result(
+                    str(state.get("effective_query") or state["query"]),
+                    list(state.get("tool_log") or []),
+                    state.get("frame_request") or {},
+                    zh,
+                )
+                if llm_draft
+                else None
+            )
+            values = list((asked or {}).get("values") or [])
+            if (
+                fallback is not None
+                and values
+                and not any(_states_number(str(fallback.get("answer") or ""), value) for value in values)
+            ):
+                # (round 17, review-13 M4) the template does not state what the question asks (it would answer another
+                # operation, e.g. the loss in percent for the rise back to a cost): it is not used as the answer
+                fallback = None
+            repaired, notes = repair_answer(draft, report, store, zh=zh, fallback=fallback)
             degraded = ["verification_failed:repaired"]
-            request = state.get("frame_request") or {}
-            result = frame_result(request, state.get("tool_log") or []) if request else None
+            result = next(
+                (value for value in values if fallback is not None and _states_number(str(fallback["answer"]), value)),
+                None,
+            )
+            if (
+                asked is not None
+                and values
+                and fallback is None
+                and not any(_states_number(str(repaired.get("answer") or ""), value) for value in values)
+            ):
+                # (round 17, review-13 M4) neither the repaired draft nor the template states the asked result: the
+                # answer says it could not be verified, never answers a different operation
+                note = could_not_verify_note(str(asked["label"]), zh)
+                body = str(repaired.get("answer") or "")
+                repaired = {**repaired, "answer": f"{note}{'' if zh else ' '}{body}".strip()}
+                degraded.append("verification_failed:asked_result_unverified")
             if (
                 fallback is not None
                 and result is not None
@@ -1383,6 +1476,9 @@ class AgentRuntime:
         elif llm_draft:
             # (round 11, G4) a frame question whose final LLM draft does not state the computed result gets it
             draft, framed = self._frame_fallback(state, draft)
+            if not state.get("frame_request"):
+                # (round 17, review-13 M1/M4) likewise a gain or loss against the user's stated costs
+                draft, framed = self._cost_basis_fallback(state, draft)
             if framed.get("evidence"):
                 state = {  # type: ignore[assignment]
                     **state,
@@ -1420,9 +1516,12 @@ class AgentRuntime:
             for item in (state.get("evidence") or {}).values()
             if item.get("source_type") in _MARKET_SOURCE_TYPES
         ]
+        ledger = any(str(reason).startswith("holding_ledger:") for reason in state.get("route_reasons") or [])
         answer, notes = apply_compliance(
             draft,
-            query=state["query"],
+            # (round 17, review-13 M6) "这些一共值多少钱" after stated positions asks their value at the close (the
+            # rewritten question with the counts), not a fair value
+            query=str(state.get("effective_query") or state["query"]) if ledger else state["query"],
             nlu_result=state.get("nlu") or {},
             tool_failures=_failures(state.get("tool_log") or [], zh=self._zh(state)),
             market_evidence=market,
@@ -1946,6 +2045,18 @@ def _evidence_update(results: list[ToolResult]) -> tuple[dict[str, dict[str, Any
                     flagged_any = flagged_any or flagged
             update[item.evidence_id] = dumped
     return update, flagged_any
+
+
+def _computed_values(state: AgentState) -> list[float]:
+    """(round 15, review-11 K3; round 17, review-13 M4) Every number this run's deterministic arithmetic computes for
+    the question: the comparison frame's results (``frame_values``) and the cost-basis arithmetic
+    (``cost_basis_values``: lots, sales, a lot count in shares, the rise back to a cost). The verifier accepts them in
+    a cited sentence, so a correct computation is never deleted."""
+    tool_log = list(state.get("tool_log") or [])
+    values = frame_values(state.get("frame_request") or {}, tool_log)
+    asked = str(state.get("effective_query") or state.get("query") or "")
+    values += cost_basis_values(asked, tool_log)
+    return list(dict.fromkeys(values))
 
 
 def _check_query(state: AgentState) -> str:

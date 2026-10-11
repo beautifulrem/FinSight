@@ -368,6 +368,7 @@ def build_ext_tasks() -> list[dict[str, Any]]:
     tasks += round15_frame_ext_tasks()
     tasks += round16_safety_ext_tasks()
     tasks += round16_frame_ext_tasks()
+    tasks += round17_frame_ext_tasks()
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
     return tasks
@@ -1190,6 +1191,165 @@ def round16_frame_ext_tasks() -> list[dict[str, Any]]:
                     "Between ICBC and Ping An Bank, which has the lower P/E? By how much?",
                     required_facts=[fundamental(ICBC, 2.72)],
                     language="en",
+                )
+            ],
+        ),
+    ]
+
+
+def round17_frame_ext_tasks() -> list[dict[str, Any]]:
+    """(round 17, review-13 M1/M2/M4-M8/M10) The round-17 classes on the extension's names, in the author's own wording.
+    Values from the extension tools: closes (2026-09-30) 招商银行 41.26, 紫金矿业 29.79, 美的集团 80.1, 工商银行 8.28,
+    比亚迪 83.31 (52-week high close 110.6); 营业收入 宁德时代 4237.02 亿, 美的集团 4585.02 亿, 比亚迪 8039.65 亿,
+    长江电力 862.42 亿, 中信证券 748.54 亿; 归母净利润 招商银行 1501.81 亿, 平安银行 426.33 亿, 工商银行 3685.62 亿,
+    紫金矿业 517.77 亿, 长江电力 345.03 亿; 市净率 工商银行 0.74."""
+    no_advice = [*TRADING_PATTERNS, r"条件性判断", r"(?i)conditional assessment"]
+    return [
+        # M1: a sale reduces the position
+        _task(
+            "r17_ext_sale_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "招商银行我38元建仓了1500股，后来43元出掉了500股，余下的按收盘价赚了多少",
+                    required_facts=[price(CMB, 3260), price(CMB, 2500)],
+                    forbidden_patterns=[*no_advice, r"(?<![\d.])4890(?![\d.])", r"(?<!\d)2000 股"],
+                )
+            ],
+        ),
+        _task(
+            "r17_ext_sale_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "I bought 2,000 Zijin Mining shares at 27 and sold 800 of them at 31 last month. What's my gain or "
+                    "loss now?",
+                    required_facts=[price(ZIJIN, 3348), price(ZIJIN, 3200)],
+                    forbidden_patterns=[*no_advice, r"(?<![\d.])5580(?![\d.])", r"2800 shares"],
+                    language="en",
+                )
+            ],
+        ),
+        # M2: an exclusion before the group operation
+        _task(
+            "r17_ext_exclusion_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "宁德时代、比亚迪、美的集团三家，不算比亚迪，营业收入合计多少",
+                    required_facts=[fundamental(CATL, 882204000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"16861\.69"],
+                )
+            ],
+        ),
+        _task(
+            "r17_ext_exclusion_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Excluding ICBC, what is the total net profit of ICBC, CMB and Ping An Bank?",
+                    required_facts=[fundamental(CMB, 192814000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"561\.38"],  # never all three (CNY 561.38 bn)
+                    language="en",
+                )
+            ],
+        ),
+        # M5: the rise back to the 52-week high (asked in the next clause) and back to a cost
+        _task(
+            "r17_ext_rise_to_high_zh",
+            "fact",
+            "zh",
+            [_turn("比亚迪想重回52周最高收盘价，股价还要涨百分之几", required_facts=[price(BYD, 32.76)])],
+        ),
+        _task(
+            "r17_ext_rise_to_cost_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "美的集团成本96元，离回本还差多少",
+                    required_facts=[price(MIDEA, 19.85), price(MIDEA, 15.9)],
+                    forbidden_patterns=[*no_advice, r"-16\.56"],
+                )
+            ],
+        ),
+        # M4: a lot count in hand units is computed and kept by the verifier
+        _task(
+            "r17_ext_lots_in_hands_zh",
+            "fact",
+            "zh",
+            [_turn("工商银行7.5元买进了20手，按最新收盘价算赚了多少", required_facts=[price(ICBC, 1560)])],
+        ),
+        # M6: positions stated in earlier turns, then a bare total
+        _task(
+            "r17_ext_ledger_total_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("记录一下，紫金矿业我拿着3000股", required_entity=ZIJIN, forbidden_patterns=TRADING_PATTERNS),
+                _turn("美的集团那边还有200股", required_entity=MIDEA),
+                _turn(
+                    "总的值多少钱",
+                    required_facts=[price(ZIJIN, 105390)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"合理估值"],
+                ),
+            ],
+        ),
+        # M7: a definition asked as "how is it computed" after a figure of that metric
+        _task(
+            "r17_ext_definition_after_figure_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("美的集团毛利率有多高", required_entity=MIDEA),
+                _turn(
+                    "毛利率一般是如何算的",
+                    required_tools=["explain_concept"],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"26\.39"],
+                ),
+            ],
+        ),
+        # M8: a book-value follow-up answers the P/B
+        _task(
+            "r17_ext_book_value_follow_up_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("工商银行的市净率", required_entity=ICBC),
+                _turn(
+                    "那它现在是不是跌到净资产以下了",
+                    required_facts=[fundamental(ICBC, 0.74)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"RSI", r"MA5"],
+                ),
+            ],
+        ),
+        # M10: an opening adverb of totalling; CYPC as an alias
+        _task(
+            "r17_ext_opening_adverb_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "All in all, what revenue do CYPC and CITIC Securities report?",
+                    required_entity=CYPC,
+                    required_facts=[fundamental(CYPC, 161096000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"(?i)could not tell which security"],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r17_ext_opening_adverb_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "总体来看，紫金矿业和长江电力的净利润有多少",
+                    required_facts=[fundamental(ZIJIN, 86280000000)],
                 )
             ],
         ),
