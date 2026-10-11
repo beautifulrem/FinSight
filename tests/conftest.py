@@ -52,3 +52,19 @@ def offline_service():
         use_live_news=False,
         use_live_announcement=False,
     )
+
+
+@pytest.fixture(scope="session")
+def shipped_offline_service():
+    """(round 17) The offline service on the shipped default (snapshot extension and corrections layer on), built once
+    for every module that needs it."""
+    from query_intelligence.service import build_default_service
+
+    return build_default_service(
+        use_live_market=False,
+        use_live_macro=False,
+        use_live_news=False,
+        use_live_announcement=False,
+        offline_snapshot_ext=True,
+        offline_snapshot_fix=True,
+    )

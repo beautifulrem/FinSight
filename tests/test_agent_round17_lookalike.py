@@ -55,17 +55,8 @@ _FAMILIES = {"保险": "保险人寿寿险财险", "银行": "银行", "证券":
 
 
 @pytest.fixture(scope="module")
-def service():
-    from query_intelligence.service import build_default_service
-
-    return build_default_service(
-        use_live_market=False,
-        use_live_macro=False,
-        use_live_news=False,
-        use_live_announcement=False,
-        offline_snapshot_ext=True,
-        offline_snapshot_fix=True,
-    )
+def service(shipped_offline_service):
+    return shipped_offline_service
 
 
 @pytest.fixture(scope="module")
@@ -77,13 +68,19 @@ def _resolve(pipeline, text: str, *, full: bool = True) -> tuple[set[str], list[
     """The listed symbols and the trace the NLU front end gives ``text`` (normalizer, then exact matching, then the
     fuzzy passes when nothing matched exactly). With ``full=False`` only exact matching runs: the fuzzy passes see
     the question with the lookalike name blanked out (``_mask_lookalikes``), so they cannot reach it; a sample of
-    every property test runs the full path."""
+    every property test (eight evenly spaced cases; the fuzzy passes take about half a second a question) runs the
+    full path."""
     normalized, normal_trace = pipeline.normalizer.normalize(text)
     resolver = pipeline.entity_resolver
     entities, _targets, trace = resolver.resolve_exact(normalized)
     if full and not [entity for entity in entities if entity.get("symbol")]:
         entities, _targets, trace = resolver.resolve(normalized)
     return {str(entity["symbol"]) for entity in entities if entity.get("symbol")}, [*normal_trace, *trace]
+
+
+def _sampled(index: int, total: int, count: int = 8) -> bool:
+    """Eight evenly spaced cases of ``total`` (the first included)."""
+    return index % max(1, total // count) == 0
 
 
 def _short_names() -> dict[str, list[str]]:
@@ -139,7 +136,7 @@ def test_the_property_test_covers_every_short_name_and_word():
 def test_a_short_name_with_a_business_line_word_never_names_the_covered_company(pipeline):
     wrong = []
     for index, (query, name, word, symbols) in enumerate(ZH_CASES):
-        found, trace = _resolve(pipeline, query, full=index % 25 == 0)
+        found, trace = _resolve(pipeline, query, full=_sampled(index, len(ZH_CASES)))
         own = [symbol for symbol in symbols if symbol in found]
         allowed = [symbol for symbol in symbols if _describes(name, word, symbol)]
         if allowed:
@@ -206,7 +203,7 @@ def test_english_names_with_a_business_line_word_never_name_the_covered_company(
     }
     wrong = []
     for index, (query, word, symbol) in enumerate(EN_CASES):
-        found, trace = _resolve(pipeline, query, full=index % 25 == 0)
+        found, trace = _resolve(pipeline, query, full=_sampled(index, len(EN_CASES)))
         if word in own_industry.get(symbol, set()):
             if symbol not in found:
                 wrong.append((query, "descriptor lost", sorted(found)))
@@ -241,8 +238,9 @@ def test_the_hong_kong_only_list_is_data_with_a_source():
 
 def test_every_hong_kong_only_name_resolves_to_no_listed_security(pipeline):
     wrong = []
-    for index, row in enumerate(_hk_rows()):
-        found, trace = _resolve(pipeline, f"{row['name_zh']}的股价是多少", full=index % 100 == 0)
+    rows = _hk_rows()
+    for index, row in enumerate(rows):
+        found, trace = _resolve(pipeline, f"{row['name_zh']}的股价是多少", full=_sampled(index, len(rows)))
         if found or not any(item.startswith("hk_only_name:") for item in trace):
             wrong.append((row["name_zh"], sorted(found)))
     assert not wrong, f"{len(wrong)}: {wrong[:10]}"
