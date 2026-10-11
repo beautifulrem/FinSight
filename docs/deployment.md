@@ -29,6 +29,10 @@ curl http://127.0.0.1:8000/ready                  # readiness: checkpointer, mod
   on), `present`, `loaded`, record counts per section, `version` and the file's `sha256` (the same hash as
   `output.sha256` in the layer's manifest). A layer that is switched on but missing makes `/ready` 503 and logs
   `offline snapshot layer 'corrections' is switched on (QI_OFFLINE_SNAPSHOT_FIX) but … is missing; serving without it`.
+  Since round 16 (round-12 review L19) the chat says so too: an answer that uses offline-snapshot market or
+  fundamental records while the corrections file is missing opens with "数据更正层未加载，以下为未经更正的原始数据…" /
+  "The data corrections layer is not loaded: …", carries it as a limitation and reports `degraded:
+  data_layer_missing:corrections` (the service answers rather than refuses).
   Set the variable to `0` to run without a layer on purpose. `tests/test_data_layers.py` checks that the Dockerfile
   copies every layer file the loader reads; the CI `docker` job and the kind smoke test ask for a corrected figure.
 - `docker/docker-compose.yml` adds optional profiles: `postgres`, `tracing` (Jaeger over OTLP) and
