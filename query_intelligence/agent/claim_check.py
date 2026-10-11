@@ -634,7 +634,9 @@ _DOWN_WORDS = re.compile(
 _DIRECTION_WINDOW = 20
 # (round 16) "while" / "whereas" join two claims ("Midea's revenue was up 12% while BYD's declined")
 _CLAUSE_BREAK = re.compile(
-    r"[，,。；;！!？?\n]|\bbut\b|\bwhile\b|\bwhereas\b|而且|并且|但是|同时|\band\b(?!\s*[-+]?\d)"
+    r"[，,。；;！!？?\n]|\bbut\b|\bwhile\b|\bwhereas\b|而且|并且|但是|同时|\band\b(?!\s*[-+]?\d)|"
+    # (round 16, L4) "比亚迪营收增长3.5%而宁德时代营收下降", "净利润722亿元且同比下降": 而 / 且 between two claims
+    r"(?<![因从然进反继])而(?![且言是非已后])|(?<![而并])且(?![说慢])"
 )
 _SENTENCE_BREAK = re.compile(r"[。；;！!？?\n]")
 _INDEX_NAMES = re.compile(
@@ -3308,6 +3310,29 @@ _PART_FILLER = re.compile(
     r"\s+|\b(?:also|too|as well|sharply|slightly|further|again|it|its|they|their)\b",
     re.I,
 )
+# (round 16, L4) the whole predicate left out: "…，工商银行也是", "五粮液也一样", "and ICBC's did too"
+_PART_SAME = re.compile(
+    r"^\s*(?:的)?\s*(?:也是|也一样|一样|也如此|同样如此|亦然|也同样|也是如此|也是这样|也不例外)\s*$|"
+    r"^\s*(?:'s|’s)?\s*(?:(?:did|does|was|is|were|are|has|have)\s+)?(?:so\s+)?(?:too|as well|also)\s*$",
+    re.I,
+)
+
+
+def _plain_value(number: _Number) -> bool:
+    """A part a left-out predicate may repeat for another company: one figure of one company, or a direction."""
+    return bool(number.metric) and not (
+        number.relation
+        or number.ratio
+        or number.difference
+        or number.sum_of
+        or number.stated_reference
+        or number.industry
+        or number.superlative
+        or number.reasons
+        or (number.target or {}).get("aggregate")
+    )
+
+
 _PART_NEGATION = re.compile(
     r"(?:没有|没|并未|未能?|并没有|不是|并非|不再)\s*(?:出现|实现)?\s*(?:同比)?\s*(?:有所)?\s*$|"
     r"\b(?:not|never|no longer)\b|n't\b",
@@ -3442,6 +3467,23 @@ def _clause_parts(
                 number.unit, number.unit_class, number.relation = None, None, True
                 number.part, number.antecedent = "comparative", antecedent
                 parts.append(number)
+            continue
+        same = _PART_SAME.match(segment.replace("＠", ""))
+        if same and named and antecedent is not None and _plain_value(antecedent):
+            # "招商银行净利润同比增长，工商银行也是", "茅台市盈率24倍，五粮液也一样", "and ICBC's did too": the same
+            # claim about another company
+            copy = replace(
+                antecedent,
+                start=clause_start + len(segment) - len(segment.lstrip()),
+                end=clause_end,
+                target=None,
+                bound=False,
+                reasons=[],
+                years=[],
+                part="change",
+                antecedent=antecedent,
+            )
+            parts.append(copy)
             continue
         if _PART_RATE.search(segment) or _WIDENING.search(segment):
             continue
