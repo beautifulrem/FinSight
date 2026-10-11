@@ -1,0 +1,234 @@
+{"id": "ow001", "lang": "en", "question": "Any recent news on CATL?", "operation": "none", "companies": ["宁德时代"], "metric": null}
+{"id": "ow002", "lang": "en", "question": "What percentage of Moutai's net profit is Wuliangye's?", "operation": "share", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow003", "lang": "en", "question": "CITIC Securities revenue last year?", "operation": "none", "companies": ["中信证券"], "metric": "revenue"}
+{"id": "ow004", "lang": "en", "question": "Does Yangtze Power have a lower dividend yield than Ping An Insurance?", "operation": "which", "companies": ["长江电力", "中国平安"], "metric": "dividend_yield"}
+{"id": "ow005", "lang": "en", "question": "Of ICBC, CMB, Ping An Bank and CITIC Securities, what's the revenue difference between the largest and the smallest?", "operation": "spread", "companies": ["工商银行", "招商银行", "平安银行", "中信证券"], "metric": "revenue"}
+{"id": "ow006", "lang": "en", "question": "How much higher, percentage-wise, is Ping An Insurance's EPS than Ping An Bank's?", "operation": "relative", "companies": ["中国平安", "平安银行"], "metric": "eps"}
+{"id": "ow007", "lang": "zh", "question": "宁德时代和比亚迪营收合计多少亿？", "operation": "sum", "companies": ["宁德时代", "比亚迪"], "metric": "revenue"}
+{"id": "ow008", "lang": "zh", "question": "今天宁德时代、比亚迪、中芯国际里涨得最多的和最少的差了多少", "operation": "spread", "companies": ["宁德时代", "比亚迪", "中芯国际"], "metric": "pct_change"}
+{"id": "ow009", "lang": "zh", "question": "长江电力、中国平安、工商银行股息率平均下来是多少？", "operation": "mean", "companies": ["长江电力", "中国平安", "工商银行"], "metric": "dividend_yield"}
+{"id": "ow010", "lang": "zh", "question": "比亚迪营收是宁德时代的几倍啊", "operation": "ratio", "companies": ["比亚迪", "宁德时代"], "metric": "revenue"}
+{"id": "ow011", "lang": "en", "question": "CATL revenue is what % higher than BYD's?", "operation": "relative", "companies": ["宁德时代", "比亚迪"], "metric": "revenue"}
+{"id": "ow012", "lang": "zh", "question": "什么是市净率？", "operation": "none", "companies": [], "metric": "pb"}
+{"id": "ow013", "lang": "en", "question": "I read that Moutai trades way above Wuliangye. By what percent is its share price higher?", "operation": "relative", "companies": ["贵州茅台", "五粮液"], "metric": "close"}
+{"id": "ow014", "lang": "en", "question": "What does dividend yield mean?", "operation": "none", "companies": [], "metric": "dividend_yield"}
+{"id": "ow015", "lang": "zh", "question": "我手里有2000股紫金矿业，按今天收盘价算值多少", "operation": "none", "companies": ["紫金矿业"], "metric": "close"}
+{"id": "ow016", "lang": "en", "question": "Today, CATL, BYD and SMIC: difference between the best and worst daily move?", "operation": "spread", "companies": ["宁德时代", "比亚迪", "中芯国际"], "metric": "pct_change"}
+{"id": "ow017", "lang": "zh", "question": "长江电力、工商银行、中国平安三家股息率最高与最低之间差几个百分点", "operation": "spread", "companies": ["长江电力", "工商银行", "中国平安"], "metric": "dividend_yield"}
+{"id": "ow018", "lang": "en", "question": "What proportion of ICBC's revenue does Midea's revenue represent?", "operation": "share", "companies": ["工商银行", "美的集团"], "metric": "revenue"}
+{"id": "ow019", "lang": "en", "question": "If you average CITIC Securities and Ping An Insurance, what net margin do you get?", "operation": "mean", "companies": ["中信证券", "中国平安"], "metric": "net_margin"}
+{"id": "ow020", "lang": "en", "question": "Against Ping An Insurance's net profit, how do CMB and CITIC Securities stack up combined?", "operation": "total_vs_one", "companies": ["中国平安", "招商银行", "中信证券"], "metric": "net_profit"}
+{"id": "ow021", "lang": "zh", "question": "五粮液总市值才到茅台的三分之一吗？具体是百分之多少", "operation": "share", "companies": ["五粮液", "贵州茅台"], "metric": "market_cap"}
+{"id": "ow022", "lang": "en", "question": "Among Moutai, Wuliangye and Midea, what's the gap between the highest and lowest P/E?", "operation": "spread", "companies": ["贵州茅台", "五粮液", "美的集团"], "metric": "pe"}
+{"id": "ow023", "lang": "zh", "question": "在紫金矿业、长江电力和美的集团之间，净利率的最大差值是多少", "operation": "spread", "companies": ["紫金矿业", "长江电力", "美的集团"], "metric": "net_margin"}
+{"id": "ow024", "lang": "zh", "question": "招行市值比工行低多少%", "operation": "relative", "companies": ["招商银行", "工商银行"], "metric": "market_cap"}
+{"id": "ow025", "lang": "en", "question": "CMB's price-to-book is how many times ICBC's?", "operation": "ratio", "companies": ["招商银行", "工商银行"], "metric": "pb"}
+{"id": "ow026", "lang": "en", "question": "Is SMIC overvalued?", "operation": "none", "companies": ["中芯国际"], "metric": null}
+{"id": "ow027", "lang": "zh", "question": "算一下宁德时代的营收比比亚迪少多少亿", "operation": "difference", "companies": ["宁德时代", "比亚迪"], "metric": "revenue"}
+{"id": "ow028", "lang": "zh", "question": "算一算美的集团营业收入比五粮液多出几成", "operation": "relative", "companies": ["美的集团", "五粮液"], "metric": "revenue"}
+{"id": "ow029", "lang": "zh", "question": "中信证券、紫金矿业、中芯国际三家净利润总和与中国平安相比，哪个大？", "operation": "total_vs_one", "companies": ["中信证券", "紫金矿业", "中芯国际", "中国平安"], "metric": "net_profit"}
+{"id": "ow030", "lang": "zh", "question": "美的和比亚迪的营收合计比宁德时代多出多少？", "operation": "total_vs_one", "companies": ["美的集团", "比亚迪", "宁德时代"], "metric": "revenue"}
+{"id": "ow031", "lang": "zh", "question": "今天宁德时代和比亚迪谁跌得更多", "operation": "which", "companies": ["宁德时代", "比亚迪"], "metric": "pct_change"}
+{"id": "ow032", "lang": "zh", "question": "工商银行、招商银行、中国平安三者中市值最大的是哪个", "operation": "which", "companies": ["工商银行", "招商银行", "中国平安"], "metric": "market_cap"}
+{"id": "ow033", "lang": "en", "question": "What's the gap between CMB's ROE and ICBC's ROE in percentage points?", "operation": "difference", "companies": ["招商银行", "工商银行"], "metric": "roe"}
+{"id": "ow034", "lang": "en", "question": "Wuliangye vs Midea: who earns more per share?", "operation": "which", "companies": ["五粮液", "美的集团"], "metric": "eps"}
+{"id": "ow035", "lang": "en", "question": "how much turnover did CITIC Securities and Ping An Insurance do today in total", "operation": "sum", "companies": ["中信证券", "中国平安"], "metric": "amount"}
+{"id": "ow036", "lang": "zh", "question": "净资产收益率怎么计算", "operation": "none", "companies": [], "metric": "roe"}
+{"id": "ow037", "lang": "en", "question": "Add up CATL's and BYD's revenue.", "operation": "sum", "companies": ["宁德时代", "比亚迪"], "metric": "revenue"}
+{"id": "ow038", "lang": "zh", "question": "长江电力和中国平安谁的股息率更低？", "operation": "which", "companies": ["长江电力", "中国平安"], "metric": "dividend_yield"}
+{"id": "ow039", "lang": "en", "question": "Zijin Mining vs CITIC Securities: what's the P/E difference?", "operation": "difference", "companies": ["紫金矿业", "中信证券"], "metric": "pe"}
+{"id": "ow040", "lang": "en", "question": "Compute SMIC's P/E as a multiple of China Yangtze Power's P/E.", "operation": "ratio", "companies": ["中芯国际", "长江电力"], "metric": "pe"}
+{"id": "ow041", "lang": "en", "question": "Ping An Insurance EPS divided by Ping An Bank EPS, expressed as x times", "operation": "ratio", "companies": ["中国平安", "平安银行"], "metric": "eps"}
+{"id": "ow042", "lang": "en", "question": "What's the combined net profit of Moutai and Wuliangye?", "operation": "sum", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow043", "lang": "zh", "question": "论净利率，贵州茅台领先招商银行多少个百分点？", "operation": "difference", "companies": ["贵州茅台", "招商银行"], "metric": "net_margin"}
+{"id": "ow044", "lang": "zh", "question": "五粮液在茅台加五粮液合计营收里的份额是多少", "operation": "share_total", "companies": ["五粮液", "贵州茅台"], "metric": "revenue"}
+{"id": "ow045", "lang": "zh", "question": "紫金矿业净利润能有中信证券的几倍吗", "operation": "ratio", "companies": ["紫金矿业", "中信证券"], "metric": "net_profit"}
+{"id": "ow046", "lang": "zh", "question": "我想知道美的集团的每股收益跟五粮液之间差多少钱", "operation": "difference", "companies": ["美的集团", "五粮液"], "metric": "eps"}
+{"id": "ow047", "lang": "en", "question": "How is EPS calculated?", "operation": "none", "companies": [], "metric": "eps"}
+{"id": "ow048", "lang": "zh", "question": "茅台的净利润是五粮液的几倍？", "operation": "ratio", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow049", "lang": "zh", "question": "工行市值相当于招行的多少倍", "operation": "ratio", "companies": ["工商银行", "招商银行"], "metric": "market_cap"}
+{"id": "ow050", "lang": "zh", "question": "拿长江电力的股息率跟中芯国际比，前者是后者的几倍？", "operation": "ratio", "companies": ["长江电力", "中芯国际"], "metric": "dividend_yield"}
+{"id": "ow051", "lang": "en", "question": "What multiple of CMB's market cap is ICBC's market cap?", "operation": "ratio", "companies": ["招商银行", "工商银行"], "metric": "market_cap"}
+{"id": "ow052", "lang": "en", "question": "average P/B of SMIC and Zijin Mining", "operation": "mean", "companies": ["中芯国际", "紫金矿业"], "metric": "pb"}
+{"id": "ow053", "lang": "en", "question": "How much of the combined Moutai, Wuliangye and Ping An Insurance market cap is Moutai?", "operation": "share_total", "companies": ["贵州茅台", "五粮液", "中国平安"], "metric": "market_cap"}
+{"id": "ow054", "lang": "zh", "question": "算一下中芯国际的市盈率是长江电力的多少倍", "operation": "ratio", "companies": ["中芯国际", "长江电力"], "metric": "pe"}
+{"id": "ow055", "lang": "en", "question": "Max minus min P/B among SMIC, Zijin Mining and CITIC Securities.", "operation": "spread", "companies": ["中芯国际", "紫金矿业", "中信证券"], "metric": "pb"}
+{"id": "ow056", "lang": "zh", "question": "比亚迪和宁德时代哪个更值得长期投资？", "operation": "none", "companies": ["比亚迪", "宁德时代"], "metric": null}
+{"id": "ow057", "lang": "zh", "question": "比亚迪、宁德时代、美的集团，哪家营收最大？", "operation": "which", "companies": ["比亚迪", "宁德时代", "美的集团"], "metric": "revenue"}
+{"id": "ow058", "lang": "en", "question": "Today's mean daily change for CATL, BYD and Midea", "operation": "mean", "companies": ["宁德时代", "比亚迪", "美的集团"], "metric": "pct_change"}
+{"id": "ow059", "lang": "en", "question": "Compute the average net profit of BYD and CATL.", "operation": "mean", "companies": ["比亚迪", "宁德时代"], "metric": "net_profit"}
+{"id": "ow060", "lang": "en", "question": "Total market cap of CMB, ICBC and Ping An Bank together?", "operation": "sum", "companies": ["招商银行", "工商银行", "平安银行"], "metric": "market_cap"}
+{"id": "ow061", "lang": "zh", "question": "宁德时代、比亚迪、美的集团今天平均涨跌幅是多少", "operation": "mean", "companies": ["宁德时代", "比亚迪", "美的集团"], "metric": "pct_change"}
+{"id": "ow062", "lang": "zh", "question": "我持有500股中国平安，现在市值多少钱？", "operation": "none", "companies": ["中国平安"], "metric": "close"}
+{"id": "ow063", "lang": "en", "question": "Is the combined net profit of Wuliangye and Midea bigger than Moutai's?", "operation": "total_vs_one", "companies": ["五粮液", "美的集团", "贵州茅台"], "metric": "net_profit"}
+{"id": "ow064", "lang": "en", "question": "Biggest market cap minus smallest among Moutai, CATL, ICBC and Ping An Insurance?", "operation": "spread", "companies": ["贵州茅台", "宁德时代", "工商银行", "中国平安"], "metric": "market_cap"}
+{"id": "ow065", "lang": "zh", "question": "长江电力的每股收益是茅台每股收益的百分之几", "operation": "share", "companies": ["长江电力", "贵州茅台"], "metric": "eps"}
+{"id": "ow066", "lang": "zh", "question": "如果把茅台、五粮液、中国平安的市值加总，结果是多少？", "operation": "sum", "companies": ["贵州茅台", "五粮液", "中国平安"], "metric": "market_cap"}
+{"id": "ow067", "lang": "zh", "question": "工行、招行、平安银行、中信证券营收的高低差", "operation": "spread", "companies": ["工商银行", "招商银行", "平安银行", "中信证券"], "metric": "revenue"}
+{"id": "ow068", "lang": "zh", "question": "招行、工行、平安银行的ROE极差是多少", "operation": "spread", "companies": ["招商银行", "工商银行", "平安银行"], "metric": "roe"}
+{"id": "ow069", "lang": "zh", "question": "以五粮液为基准，贵州茅台的每股收益高多少百分比", "operation": "relative", "companies": ["五粮液", "贵州茅台"], "metric": "eps"}
+{"id": "ow070", "lang": "en", "question": "Midea's revenue minus BYD's revenue, how much is that in 100 million yuan?", "operation": "difference", "companies": ["美的集团", "比亚迪"], "metric": "revenue"}
+{"id": "ow071", "lang": "zh", "question": "贵州茅台、五粮液、中国平安、招商银行，每股收益最高和最低的差距多大", "operation": "spread", "companies": ["贵州茅台", "五粮液", "中国平安", "招商银行"], "metric": "eps"}
+{"id": "ow072", "lang": "zh", "question": "中芯国际和紫金矿业的收盘价各是多少", "operation": "none", "companies": ["中芯国际", "紫金矿业"], "metric": "close"}
+{"id": "ow073", "lang": "zh", "question": "招行跟工行比，谁的ROE高一点", "operation": "which", "companies": ["招商银行", "工商银行"], "metric": "roe"}
+{"id": "ow074", "lang": "zh", "question": "平安银行和招商银行市净率哪个低", "operation": "which", "companies": ["平安银行", "招商银行"], "metric": "pb"}
+{"id": "ow075", "lang": "en", "question": "Show me Moutai's and Wuliangye's net margins side by side.", "operation": "none", "companies": ["贵州茅台", "五粮液"], "metric": "net_margin"}
+{"id": "ow076", "lang": "zh", "question": "中信证券和紫金矿业今天的成交额，哪边更大", "operation": "which", "companies": ["中信证券", "紫金矿业"], "metric": "amount"}
+{"id": "ow077", "lang": "zh", "question": "相对于平安银行，中国平安的每股收益高出百分之多少", "operation": "relative", "companies": ["平安银行", "中国平安"], "metric": "eps"}
+{"id": "ow078", "lang": "zh", "question": "茅台的总市值能顶得上五粮液、美的集团、中信证券三家之和吗", "operation": "total_vs_one", "companies": ["贵州茅台", "五粮液", "美的集团", "中信证券"], "metric": "market_cap"}
+{"id": "ow079", "lang": "zh", "question": "茅台、宁德、工行、平安四家市值里头最大的减掉最小的，是多少？", "operation": "spread", "companies": ["贵州茅台", "宁德时代", "工商银行", "中国平安"], "metric": "market_cap"}
+{"id": "ow080", "lang": "zh", "question": "美的集团、比亚迪、宁德时代三家公司营业收入总共有多少？", "operation": "sum", "companies": ["美的集团", "比亚迪", "宁德时代"], "metric": "revenue"}
+{"id": "ow081", "lang": "zh", "question": "紫金矿业的成交额比宁德时代少了百分之几", "operation": "relative", "companies": ["紫金矿业", "宁德时代"], "metric": "amount"}
+{"id": "ow082", "lang": "zh", "question": "新能源这边，比亚迪和宁德时代今天成交额共计多少", "operation": "sum", "companies": ["比亚迪", "宁德时代"], "metric": "amount"}
+{"id": "ow083", "lang": "zh", "question": "茅台、五粮液、美的集团三家里，最高和最低的市盈率相差多少？", "operation": "spread", "companies": ["贵州茅台", "五粮液", "美的集团"], "metric": "pe"}
+{"id": "ow084", "lang": "en", "question": "Should I buy BYD at this level?", "operation": "none", "companies": ["比亚迪"], "metric": null}
+{"id": "ow085", "lang": "en", "question": "How has Wuliangye's net profit trended over the last five years?", "operation": "none", "companies": ["五粮液"], "metric": "net_profit"}
+{"id": "ow086", "lang": "zh", "question": "招商银行的股价过去一个月是涨还是跌", "operation": "none", "companies": ["招商银行"], "metric": "close"}
+{"id": "ow087", "lang": "en", "question": "Is Moutai worth more than Wuliangye, Midea and CITIC Securities put together?", "operation": "total_vs_one", "companies": ["贵州茅台", "五粮液", "美的集团", "中信证券"], "metric": "market_cap"}
+{"id": "ow088", "lang": "zh", "question": "帮我看看茅台和五粮液各自的每股收益", "operation": "none", "companies": ["贵州茅台", "五粮液"], "metric": "eps"}
+{"id": "ow089", "lang": "en", "question": "Combined trading value of BYD and CATL shares today?", "operation": "sum", "companies": ["比亚迪", "宁德时代"], "metric": "amount"}
+{"id": "ow090", "lang": "zh", "question": "请问中国平安的每股收益是平安银行的几倍", "operation": "ratio", "companies": ["中国平安", "平安银行"], "metric": "eps"}
+{"id": "ow091", "lang": "en", "question": "Taking CATL's net profit as 100%, where does BYD land?", "operation": "share", "companies": ["宁德时代", "比亚迪"], "metric": "net_profit"}
+{"id": "ow092", "lang": "en", "question": "Sum of China Yangtze Power and Zijin Mining net profit, please.", "operation": "sum", "companies": ["长江电力", "紫金矿业"], "metric": "net_profit"}
+{"id": "ow093", "lang": "zh", "question": "请给出招商银行和工商银行市值的算术平均", "operation": "mean", "companies": ["招商银行", "工商银行"], "metric": "market_cap"}
+{"id": "ow094", "lang": "zh", "question": "中信证券去年营收是多少亿", "operation": "none", "companies": ["中信证券"], "metric": "revenue"}
+{"id": "ow095", "lang": "en", "question": "CATL turnover today vs Midea, how many times over?", "operation": "ratio", "companies": ["宁德时代", "美的集团"], "metric": "amount"}
+{"id": "ow096", "lang": "en", "question": "Zijin's turnover today amounts to what fraction of CITIC Securities' turnover?", "operation": "share", "companies": ["紫金矿业", "中信证券"], "metric": "amount"}
+{"id": "ow097", "lang": "zh", "question": "茅台净利润比五粮液高百分之多少？", "operation": "relative", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow098", "lang": "en", "question": "Among CMB, ICBC and Ping An Bank, what fraction of the three banks' combined market cap belongs to CMB?", "operation": "share_total", "companies": ["招商银行", "工商银行", "平安银行"], "metric": "market_cap"}
+{"id": "ow099", "lang": "zh", "question": "宁德时代最近有什么新闻", "operation": "none", "companies": ["宁德时代"], "metric": null}
+{"id": "ow100", "lang": "en", "question": "How much did ICBC and CMB earn altogether last year?", "operation": "sum", "companies": ["工商银行", "招商银行"], "metric": "net_profit"}
+{"id": "ow101", "lang": "en", "question": "For BYD, CATL, Midea and Yangtze Power, how far is the top net profit from the bottom one?", "operation": "spread", "companies": ["比亚迪", "宁德时代", "美的集团", "长江电力"], "metric": "net_profit"}
+{"id": "ow102", "lang": "en", "question": "Work out the difference in market cap between ICBC and Ping An Insurance.", "operation": "difference", "companies": ["工商银行", "中国平安"], "metric": "market_cap"}
+{"id": "ow103", "lang": "zh", "question": "中芯国际加紫金矿业的营收总和，有没有比亚迪的多", "operation": "total_vs_one", "companies": ["中芯国际", "紫金矿业", "比亚迪"], "metric": "revenue"}
+{"id": "ow104", "lang": "zh", "question": "中芯国际的市盈率比紫金矿业高吗", "operation": "which", "companies": ["中芯国际", "紫金矿业"], "metric": "pe"}
+{"id": "ow105", "lang": "zh", "question": "算下中芯国际的营收大约是美的集团的百分之几", "operation": "share", "companies": ["中芯国际", "美的集团"], "metric": "revenue"}
+{"id": "ow106", "lang": "en", "question": "Midea vs BYD: of their total sales together, what proportion is Midea?", "operation": "share_total", "companies": ["美的集团", "比亚迪"], "metric": "revenue"}
+{"id": "ow107", "lang": "zh", "question": "平安银行净利润只有中国平安的多少？用百分比表示", "operation": "share", "companies": ["平安银行", "中国平安"], "metric": "net_profit"}
+{"id": "ow108", "lang": "zh", "question": "分别列一下招行、工行、平安银行的ROE", "operation": "none", "companies": ["招商银行", "工商银行", "平安银行"], "metric": "roe"}
+{"id": "ow109", "lang": "en", "question": "SMIC's P/E is what percent higher than Zijin's?", "operation": "relative", "companies": ["中芯国际", "紫金矿业"], "metric": "pe"}
+{"id": "ow110", "lang": "en", "question": "Compare the total turnover of Zijin Mining and Yangtze Power with CATL's turnover.", "operation": "total_vs_one", "companies": ["紫金矿业", "长江电力", "宁德时代"], "metric": "amount"}
+{"id": "ow111", "lang": "zh", "question": "五粮液的净利润相当于茅台的百分之多少？", "operation": "share", "companies": ["五粮液", "贵州茅台"], "metric": "net_profit"}
+{"id": "ow112", "lang": "en", "question": "Which has higher net profit, Moutai or Wuliangye?", "operation": "which", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow113", "lang": "zh", "question": "贵州茅台的市盈率是多少？", "operation": "none", "companies": ["贵州茅台"], "metric": "pe"}
+{"id": "ow114", "lang": "zh", "question": "茅台和五粮液的净利润加起来是多少", "operation": "sum", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow115", "lang": "en", "question": "China Yangtze Power's EPS is roughly what percent of Kweichow Moutai's?", "operation": "share", "companies": ["长江电力", "贵州茅台"], "metric": "eps"}
+{"id": "ow116", "lang": "zh", "question": "比亚迪、宁德时代、美的、长江电力这几家，净利润最高的比最低的多多少", "operation": "spread", "companies": ["比亚迪", "宁德时代", "美的集团", "长江电力"], "metric": "net_profit"}
+{"id": "ow117", "lang": "en", "question": "Explain ICBC's dividend policy.", "operation": "none", "companies": ["工商银行"], "metric": null}
+{"id": "ow118", "lang": "en", "question": "Do SMIC plus Zijin Mining generate more revenue than BYD alone?", "operation": "total_vs_one", "companies": ["中芯国际", "紫金矿业", "比亚迪"], "metric": "revenue"}
+{"id": "ow119", "lang": "en", "question": "Work out Zijin Mining's slice of the total net profit of Yangtze Power, Zijin Mining and SMIC.", "operation": "share_total", "companies": ["紫金矿业", "长江电力", "中芯国际"], "metric": "net_profit"}
+{"id": "ow120", "lang": "zh", "question": "和中国平安的净利润比起来，招行、中信证券两家合计是高还是低？", "operation": "total_vs_one", "companies": ["中国平安", "招商银行", "中信证券"], "metric": "net_profit"}
+{"id": "ow121", "lang": "zh", "question": "长江电力的股息率高不高，适合长期持有吗", "operation": "none", "companies": ["长江电力"], "metric": "dividend_yield"}
+{"id": "ow122", "lang": "en", "question": "Is SMIC's P/E higher than Zijin Mining's?", "operation": "which", "companies": ["中芯国际", "紫金矿业"], "metric": "pe"}
+{"id": "ow123", "lang": "en", "question": "Take the arithmetic mean of CMB's and ICBC's market caps.", "operation": "mean", "companies": ["招商银行", "工商银行"], "metric": "market_cap"}
+{"id": "ow124", "lang": "en", "question": "CITIC Securities' percentage of the combined turnover of CITIC Securities and Ping An Insurance today", "operation": "share_total", "companies": ["中信证券", "中国平安"], "metric": "amount"}
+{"id": "ow125", "lang": "en", "question": "CITIC Securities, Zijin Mining and SMIC's earnings added together vs Ping An Insurance: which side is larger?", "operation": "total_vs_one", "companies": ["中信证券", "紫金矿业", "中芯国际", "中国平安"], "metric": "net_profit"}
+{"id": "ow126", "lang": "zh", "question": "中芯国际与紫金矿业的市净率取个平均", "operation": "mean", "companies": ["中芯国际", "紫金矿业"], "metric": "pb"}
+{"id": "ow127", "lang": "zh", "question": "工商银行的分红政策是怎样的", "operation": "none", "companies": ["工商银行"], "metric": null}
+{"id": "ow128", "lang": "zh", "question": "五粮液近一年的净利润走势怎么样", "operation": "none", "companies": ["五粮液"], "metric": "net_profit"}
+{"id": "ow129", "lang": "zh", "question": "工商银行一家的净利润，是不是比招行加平安银行加起来还多？", "operation": "total_vs_one", "companies": ["工商银行", "招商银行", "平安银行"], "metric": "net_profit"}
+{"id": "ow130", "lang": "zh", "question": "算一下宁德时代占宁德时代和比亚迪净利润总和的百分比", "operation": "share_total", "companies": ["宁德时代", "比亚迪"], "metric": "net_profit"}
+{"id": "ow131", "lang": "en", "question": "Give me China Yangtze Power's dividend yield as a multiple of SMIC's.", "operation": "ratio", "companies": ["长江电力", "中芯国际"], "metric": "dividend_yield"}
+{"id": "ow132", "lang": "zh", "question": "中信证券与中国平安今天成交额合计，其中中信证券贡献了百分之几？", "operation": "share_total", "companies": ["中信证券", "中国平安"], "metric": "amount"}
+{"id": "ow133", "lang": "en", "question": "Out of BYD, CATL and Midea, which one has the biggest revenue?", "operation": "which", "companies": ["比亚迪", "宁德时代", "美的集团"], "metric": "revenue"}
+{"id": "ow134", "lang": "en", "question": "What's the market cap of China Yangtze Power?", "operation": "none", "companies": ["长江电力"], "metric": "market_cap"}
+{"id": "ow135", "lang": "en", "question": "ICBC accounts for what share of ICBC and CMB's market cap put together?", "operation": "share_total", "companies": ["工商银行", "招商银行"], "metric": "market_cap"}
+{"id": "ow136", "lang": "zh", "question": "招行和工行的ROE差了几个百分点", "operation": "difference", "companies": ["招商银行", "工商银行"], "metric": "roe"}
+{"id": "ow137", "lang": "en", "question": "By what percentage does Moutai's net profit exceed Wuliangye's?", "operation": "relative", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow138", "lang": "en", "question": "Has CMB's share price been rising this quarter?", "operation": "none", "companies": ["招商银行"], "metric": "close"}
+{"id": "ow139", "lang": "zh", "question": "长江电力与紫金矿业的净利润之和", "operation": "sum", "companies": ["长江电力", "紫金矿业"], "metric": "net_profit"}
+{"id": "ow140", "lang": "zh", "question": "宁德时代今天成交额大概是美的集团的几倍？", "operation": "ratio", "companies": ["宁德时代", "美的集团"], "metric": "amount"}
+{"id": "ow141", "lang": "zh", "question": "你觉得比亚迪现在值得买吗", "operation": "none", "companies": ["比亚迪"], "metric": null}
+{"id": "ow142", "lang": "zh", "question": "长江电力净利润比中信证券多百分之多少", "operation": "relative", "companies": ["长江电力", "中信证券"], "metric": "net_profit"}
+{"id": "ow143", "lang": "zh", "question": "美的集团的营业收入大概相当于工商银行的多大比例", "operation": "share", "companies": ["美的集团", "工商银行"], "metric": "revenue"}
+{"id": "ow144", "lang": "en", "question": "What's the mean ROE across CMB, ICBC and Ping An Bank?", "operation": "mean", "companies": ["招商银行", "工商银行", "平安银行"], "metric": "roe"}
+{"id": "ow145", "lang": "en", "question": "On average, what dividend yield do Yangtze Power, Ping An Insurance and ICBC offer?", "operation": "mean", "companies": ["长江电力", "中国平安", "工商银行"], "metric": "dividend_yield"}
+{"id": "ow146", "lang": "zh", "question": "茅台和五粮液的净利润加起来，茅台占多少？", "operation": "share_total", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow147", "lang": "en", "question": "Relative to CATL, how many percent lower is BYD's share price?", "operation": "relative", "companies": ["宁德时代", "比亚迪"], "metric": "close"}
+{"id": "ow148", "lang": "en", "question": "How much less turnover did China Yangtze Power have today than CITIC Securities?", "operation": "difference", "companies": ["长江电力", "中信证券"], "metric": "amount"}
+{"id": "ow149", "lang": "en", "question": "Give me the closing prices of Zijin Mining and China Yangtze Power separately.", "operation": "none", "companies": ["紫金矿业", "长江电力"], "metric": "close"}
+{"id": "ow150", "lang": "en", "question": "List the ROE of CMB, ICBC and Ping An Bank one by one.", "operation": "none", "companies": ["招商银行", "工商银行", "平安银行"], "metric": "roe"}
+{"id": "ow151", "lang": "en", "question": "Compared with Wuliangye, how much higher is Moutai's EPS?", "operation": "difference", "companies": ["五粮液", "贵州茅台"], "metric": "eps"}
+{"id": "ow152", "lang": "zh", "question": "贵州茅台股价是五粮液股价的多少倍", "operation": "ratio", "companies": ["贵州茅台", "五粮液"], "metric": "close"}
+{"id": "ow153", "lang": "zh", "question": "茅台和五粮液哪个净利润更高？", "operation": "which", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow154", "lang": "en", "question": "Range of ROE across CMB, ICBC and Ping An Bank?", "operation": "spread", "companies": ["招商银行", "工商银行", "平安银行"], "metric": "roe"}
+{"id": "ow155", "lang": "zh", "question": "工商银行跟招商银行去年一共赚了多少钱", "operation": "sum", "companies": ["工商银行", "招商银行"], "metric": "net_profit"}
+{"id": "ow156", "lang": "en", "question": "Which traded more value today, CITIC Securities or Zijin Mining?", "operation": "which", "companies": ["中信证券", "紫金矿业"], "metric": "amount"}
+{"id": "ow157", "lang": "zh", "question": "招行、工行、平安银行三家总市值一共多少", "operation": "sum", "companies": ["招商银行", "工商银行", "平安银行"], "metric": "market_cap"}
+{"id": "ow158", "lang": "en", "question": "What's Moutai's P/E right now?", "operation": "none", "companies": ["贵州茅台"], "metric": "pe"}
+{"id": "ow159", "lang": "zh", "question": "招行、工行、平安银行三家总市值中，招行占几成？", "operation": "share_total", "companies": ["招商银行", "工商银行", "平安银行"], "metric": "market_cap"}
+{"id": "ow160", "lang": "zh", "question": "算一下中芯国际、紫金矿业、中信证券市净率的最大值减最小值", "operation": "spread", "companies": ["中芯国际", "紫金矿业", "中信证券"], "metric": "pb"}
+{"id": "ow161", "lang": "zh", "question": "拿宁德时代的净利润做分母，比亚迪的净利润能到多少百分比？", "operation": "share", "companies": ["宁德时代", "比亚迪"], "metric": "net_profit"}
+{"id": "ow162", "lang": "en", "question": "BYD's market cap is what percent of CATL's", "operation": "share", "companies": ["比亚迪", "宁德时代"], "metric": "market_cap"}
+{"id": "ow163", "lang": "en", "question": "How far short of ICBC's revenue is the total of CMB and Ping An Bank?", "operation": "total_vs_one", "companies": ["工商银行", "招商银行", "平安银行"], "metric": "revenue"}
+{"id": "ow164", "lang": "en", "question": "Of Moutai and Wuliangye's combined net profit, what share is Moutai's?", "operation": "share_total", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow165", "lang": "zh", "question": "中芯国际的收盘价较紫金矿业高出多少百分比？", "operation": "relative", "companies": ["中芯国际", "紫金矿业"], "metric": "close"}
+{"id": "ow166", "lang": "zh", "question": "帮我算一下中信证券加上中国平安今天的成交额总和", "operation": "sum", "companies": ["中信证券", "中国平安"], "metric": "amount"}
+{"id": "ow167", "lang": "zh", "question": "比亚迪市值是宁德时代的几成？", "operation": "share", "companies": ["比亚迪", "宁德时代"], "metric": "market_cap"}
+{"id": "ow168", "lang": "zh", "question": "贵州茅台、五粮液营收的平均数", "operation": "mean", "companies": ["贵州茅台", "五粮液"], "metric": "revenue"}
+{"id": "ow169", "lang": "en", "question": "Work out the high-low spread in net margin for Zijin Mining, Yangtze Power and Midea.", "operation": "spread", "companies": ["紫金矿业", "长江电力", "美的集团"], "metric": "net_margin"}
+{"id": "ow170", "lang": "zh", "question": "中信证券的成交额与平安银行的差额是多少", "operation": "difference", "companies": ["中信证券", "平安银行"], "metric": "amount"}
+{"id": "ow171", "lang": "zh", "question": "美的集团今天涨了多少", "operation": "none", "companies": ["美的集团"], "metric": "pct_change"}
+{"id": "ow172", "lang": "en", "question": "Find the average revenue of Kweichow Moutai and Wuliangye.", "operation": "mean", "companies": ["贵州茅台", "五粮液"], "metric": "revenue"}
+{"id": "ow173", "lang": "en", "question": "Moutai's net profit is how many times Wuliangye's?", "operation": "ratio", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow174", "lang": "en", "question": "By how many yuan does CATL's share price exceed BYD's?", "operation": "difference", "companies": ["宁德时代", "比亚迪"], "metric": "close"}
+{"id": "ow175", "lang": "en", "question": "which bank trades at the lower P/B, Ping An Bank or CMB", "operation": "which", "companies": ["平安银行", "招商银行"], "metric": "pb"}
+{"id": "ow176", "lang": "en", "question": "Could BYD and Yangtze Power together outweigh CATL in market cap?", "operation": "total_vs_one", "companies": ["比亚迪", "长江电力", "宁德时代"], "metric": "market_cap"}
+{"id": "ow177", "lang": "en", "question": "Just curious: Moutai plus Wuliangye plus Ping An Insurance market cap equals what?", "operation": "sum", "companies": ["贵州茅台", "五粮液", "中国平安"], "metric": "market_cap"}
+{"id": "ow178", "lang": "zh", "question": "在比亚迪、宁德时代两家的营收合计里，比亚迪占比多少", "operation": "share_total", "companies": ["比亚迪", "宁德时代"], "metric": "revenue"}
+{"id": "ow179", "lang": "en", "question": "Express Ping An Bank's earnings as a percentage of Ping An Insurance's earnings.", "operation": "share", "companies": ["平安银行", "中国平安"], "metric": "net_profit"}
+{"id": "ow180", "lang": "en", "question": "Wuliangye's share of the Moutai plus Wuliangye revenue pool?", "operation": "share_total", "companies": ["五粮液", "贵州茅台"], "metric": "revenue"}
+{"id": "ow181", "lang": "zh", "question": "比亚迪加上长江电力的市值，能不能超过宁德时代？", "operation": "total_vs_one", "companies": ["比亚迪", "长江电力", "宁德时代"], "metric": "market_cap"}
+{"id": "ow182", "lang": "zh", "question": "美的和比亚迪两家营收合在一起，美的能占一半以上吗？具体占比多少", "operation": "share_total", "companies": ["美的集团", "比亚迪"], "metric": "revenue"}
+{"id": "ow183", "lang": "zh", "question": "招行、工行、平安银行三家银行ROE的平均值", "operation": "mean", "companies": ["招商银行", "工商银行", "平安银行"], "metric": "roe"}
+{"id": "ow184", "lang": "en", "question": "I'm curious, how far apart are Ping An Bank and CMB on P/B?", "operation": "difference", "companies": ["平安银行", "招商银行"], "metric": "pb"}
+{"id": "ow185", "lang": "en", "question": "Midea, BYD and CATL: what's their total revenue when you put them together?", "operation": "sum", "companies": ["美的集团", "比亚迪", "宁德时代"], "metric": "revenue"}
+{"id": "ow186", "lang": "en", "question": "Does ICBC alone earn more than CMB and Ping An Bank combined?", "operation": "total_vs_one", "companies": ["工商银行", "招商银行", "平安银行"], "metric": "net_profit"}
+{"id": "ow187", "lang": "zh", "question": "宁德时代的营收比比亚迪少百分之几？", "operation": "relative", "companies": ["宁德时代", "比亚迪"], "metric": "revenue"}
+{"id": "ow188", "lang": "en", "question": "I own 300 shares of Ping An Insurance, what is my position worth today?", "operation": "none", "companies": ["中国平安"], "metric": "close"}
+{"id": "ow189", "lang": "zh", "question": "招商银行的市净率是工商银行的几倍？", "operation": "ratio", "companies": ["招商银行", "工商银行"], "metric": "pb"}
+{"id": "ow190", "lang": "en", "question": "Average P/E of Moutai and Wuliangye?", "operation": "mean", "companies": ["贵州茅台", "五粮液"], "metric": "pe"}
+{"id": "ow191", "lang": "en", "question": "How much did Midea move today?", "operation": "none", "companies": ["美的集团"], "metric": "pct_change"}
+{"id": "ow192", "lang": "en", "question": "Work out by what percent Zijin Mining's turnover falls short of CATL's.", "operation": "relative", "companies": ["紫金矿业", "宁德时代"], "metric": "amount"}
+{"id": "ow193", "lang": "en", "question": "Is CMB's net profit even half of ICBC's? Give me the percentage.", "operation": "share", "companies": ["招商银行", "工商银行"], "metric": "net_profit"}
+{"id": "ow194", "lang": "en", "question": "How much bigger, in percent, is ICBC's market cap than CMB's?", "operation": "relative", "companies": ["工商银行", "招商银行"], "metric": "market_cap"}
+{"id": "ow195", "lang": "zh", "question": "算一下紫金矿业和长江电力的成交额加总后与宁德时代成交额的差", "operation": "total_vs_one", "companies": ["紫金矿业", "长江电力", "宁德时代"], "metric": "amount"}
+{"id": "ow196", "lang": "zh", "question": "茅台、五粮液这两家白酒龙头，净利润合计里茅台拿走了多大份额？", "operation": "share_total", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow197", "lang": "en", "question": "Which of ICBC, CMB and Ping An Insurance is the largest by market cap?", "operation": "which", "companies": ["工商银行", "招商银行", "中国平安"], "metric": "market_cap"}
+{"id": "ow198", "lang": "zh", "question": "中芯国际和紫金矿业的市值合起来能有多少", "operation": "sum", "companies": ["中芯国际", "紫金矿业"], "metric": "market_cap"}
+{"id": "ow199", "lang": "zh", "question": "紫金矿业的成交额相当于中信证券成交额的几分之几", "operation": "share", "companies": ["紫金矿业", "中信证券"], "metric": "amount"}
+{"id": "ow200", "lang": "en", "question": "Is Moutai's share price like 10x Wuliangye's? What's the exact multiple?", "operation": "ratio", "companies": ["贵州茅台", "五粮液"], "metric": "close"}
+{"id": "ow201", "lang": "zh", "question": "中芯国际和紫金矿业的市盈率相差多少？", "operation": "difference", "companies": ["中芯国际", "紫金矿业"], "metric": "pe"}
+{"id": "ow202", "lang": "en", "question": "How big is SMIC's revenue relative to Midea's, as a percentage of it?", "operation": "share", "companies": ["中芯国际", "美的集团"], "metric": "revenue"}
+{"id": "ow203", "lang": "en", "question": "How wide is the EPS range across Moutai, Wuliangye, Ping An Insurance and CMB?", "operation": "spread", "companies": ["贵州茅台", "五粮液", "中国平安", "招商银行"], "metric": "eps"}
+{"id": "ow204", "lang": "en", "question": "Together, how big are SMIC and Zijin Mining by market cap?", "operation": "sum", "companies": ["中芯国际", "紫金矿业"], "metric": "market_cap"}
+{"id": "ow205", "lang": "zh", "question": "招行和平安银行两家营收合计跟工行比差多少", "operation": "total_vs_one", "companies": ["招商银行", "平安银行", "工商银行"], "metric": "revenue"}
+{"id": "ow206", "lang": "en", "question": "If you add up CATL and BYD earnings, how much of that total is CATL's?", "operation": "share_total", "companies": ["宁德时代", "比亚迪"], "metric": "net_profit"}
+{"id": "ow207", "lang": "zh", "question": "工商银行总市值超出中国平安的幅度是多少（按百分比算）", "operation": "relative", "companies": ["工商银行", "中国平安"], "metric": "market_cap"}
+{"id": "ow208", "lang": "en", "question": "Zijin Mining earns how many times as much as CITIC Securities?", "operation": "ratio", "companies": ["紫金矿业", "中信证券"], "metric": "net_profit"}
+{"id": "ow209", "lang": "zh", "question": "招行的营收是工行营收的多少比例", "operation": "share", "companies": ["招商银行", "工商银行"], "metric": "revenue"}
+{"id": "ow210", "lang": "en", "question": "Using CITIC Securities as the base, how much larger in % is China Yangtze Power's net profit?", "operation": "relative", "companies": ["中信证券", "长江电力"], "metric": "net_profit"}
+{"id": "ow211", "lang": "zh", "question": "茅台的净利润比五粮液多多少？", "operation": "difference", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow212", "lang": "zh", "question": "今天比亚迪的收盘价比宁德时代低了多少元？", "operation": "difference", "companies": ["比亚迪", "宁德时代"], "metric": "close"}
+{"id": "ow213", "lang": "zh", "question": "茅台和五粮液的平均市盈率是多少", "operation": "mean", "companies": ["贵州茅台", "五粮液"], "metric": "pe"}
+{"id": "ow214", "lang": "en", "question": "How many times bigger is BYD's revenue than CATL's?", "operation": "ratio", "companies": ["比亚迪", "宁德时代"], "metric": "revenue"}
+{"id": "ow215", "lang": "en", "question": "Midea and Wuliangye, average EPS?", "operation": "mean", "companies": ["美的集团", "五粮液"], "metric": "eps"}
+{"id": "ow216", "lang": "en", "question": "Spread between the highest and lowest dividend yield of Yangtze Power, ICBC and Ping An Insurance", "operation": "spread", "companies": ["长江电力", "工商银行", "中国平安"], "metric": "dividend_yield"}
+{"id": "ow217", "lang": "zh", "question": "我在纠结，五粮液和美的集团哪个每股收益更高一些？", "operation": "which", "companies": ["五粮液", "美的集团"], "metric": "eps"}
+{"id": "ow218", "lang": "en", "question": "Midea's sales are how many percent above Wuliangye's", "operation": "relative", "companies": ["美的集团", "五粮液"], "metric": "revenue"}
+{"id": "ow219", "lang": "en", "question": "Is BYD or CATL the better long-term investment?", "operation": "none", "companies": ["比亚迪", "宁德时代"], "metric": null}
+{"id": "ow220", "lang": "en", "question": "CMB or ICBC, whose ROE is higher?", "operation": "which", "companies": ["招商银行", "工商银行"], "metric": "roe"}
+{"id": "ow221", "lang": "en", "question": "By how much does the sum of Midea's and BYD's revenue exceed CATL's?", "operation": "total_vs_one", "companies": ["美的集团", "比亚迪", "宁德时代"], "metric": "revenue"}
+{"id": "ow222", "lang": "zh", "question": "五粮液和美的集团的净利润加起来，比茅台多还是少？", "operation": "total_vs_one", "companies": ["五粮液", "美的集团", "贵州茅台"], "metric": "net_profit"}
+{"id": "ow223", "lang": "zh", "question": "长江电力股息率高出中国平安多少个点？", "operation": "difference", "companies": ["长江电力", "中国平安"], "metric": "dividend_yield"}
+{"id": "ow224", "lang": "en", "question": "Between CATL and BYD, which fell more today?", "operation": "which", "companies": ["宁德时代", "比亚迪"], "metric": "pct_change"}
+{"id": "ow225", "lang": "zh", "question": "工行总市值减去招行总市值，等于多少？", "operation": "difference", "companies": ["工商银行", "招商银行"], "metric": "market_cap"}
+{"id": "ow226", "lang": "zh", "question": "算一下比亚迪和宁德时代净利润的均值", "operation": "mean", "companies": ["比亚迪", "宁德时代"], "metric": "net_profit"}
+{"id": "ow227", "lang": "en", "question": "What percent of the total revenue of BYD and CATL comes from BYD?", "operation": "share_total", "companies": ["比亚迪", "宁德时代"], "metric": "revenue"}
+{"id": "ow228", "lang": "en", "question": "How much more net profit did Kweichow Moutai make than Wuliangye?", "operation": "difference", "companies": ["贵州茅台", "五粮液"], "metric": "net_profit"}
+{"id": "ow229", "lang": "en", "question": "how much lower is SMIC's dividend yield than China Yangtze Power's", "operation": "difference", "companies": ["中芯国际", "长江电力"], "metric": "dividend_yield"}
+{"id": "ow230", "lang": "en", "question": "Wuliangye's revenue as a fraction of Moutai's revenue?", "operation": "share", "companies": ["五粮液", "贵州茅台"], "metric": "revenue"}
+{"id": "ow231", "lang": "zh", "question": "把长江电力、紫金矿业、中芯国际的净利润加总，紫金矿业的占比是多少", "operation": "share_total", "companies": ["长江电力", "紫金矿业", "中芯国际"], "metric": "net_profit"}
+{"id": "ow232", "lang": "zh", "question": "中信证券和中国平安两家的平均净利率是多少", "operation": "mean", "companies": ["中信证券", "中国平安"], "metric": "net_margin"}
+{"id": "ow233", "lang": "zh", "question": "工商银行市值在工行与招行合计市值中所占的比重", "operation": "share_total", "companies": ["工商银行", "招商银行"], "metric": "market_cap"}
+{"id": "ow234", "lang": "zh", "question": "美的集团和五粮液每股收益平均是多少", "operation": "mean", "companies": ["美的集团", "五粮液"], "metric": "eps"}

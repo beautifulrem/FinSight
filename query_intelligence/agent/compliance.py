@@ -24,7 +24,7 @@ from ..chatbot import (
     detect_query_language,
 )
 from ..text_safety import fold
-from .coverage import without_holding_value
+from .coverage import cost_basis_request, holding_value_request, without_holding_value
 from .evidence import AgentEvidence
 from .frame import without_valuation_extremes
 from .router import _JUDGMENT_MARKERS as _ROUTER_JUDGMENT
@@ -301,7 +301,12 @@ def apply_compliance(
     if removed_promotion or promotion_points:
         notes.append("removed_prohibited_promotion")
 
-    if guards._needs_conditional_answer_guard(nlu_result, pseudo_retrieval, None, query):
+    # (round 16, review-12 L13) the gain or loss against a stated cost, or the value of a stated holding, is arithmetic
+    # on the close: the NLU's hold / advice reading of "持有" alone does not prefix it (a judgment word still does)
+    arithmetic_only = (cost_basis_request(query) is not None or holding_value_request(query) is not None) and not (
+        _JUDGMENT_TRIGGER.search(without_holding_value(query)) or _ROUTER_JUDGMENT.search(without_holding_value(query))
+    )
+    if not arithmetic_only and guards._needs_conditional_answer_guard(nlu_result, pseudo_retrieval, None, query):
         prefix = guards._conditional_answer_prefix(nlu_result, zh=zh, query=query).strip()
         if prefix and prefix not in softened:
             softened = f"{prefix}{'' if zh else ' '}{softened}".strip()
@@ -383,6 +388,10 @@ def apply_compliance(
     limitations = guards._append_unique(
         limitations, guards._guardrail_limitations(pseudo_retrieval, nlu_result, zh=zh, query=query)
     )
+    if arithmetic_only:
+        # (round 16, review-12 L13) no advice / forecast limitation on arithmetic the question states the inputs of
+        dropped = {"问题包含投资建议或预测属性", "The query has advice or forecast-like risk"}
+        limitations = [item for item in limitations if item not in dropped]
     if "conditional_prefix" in notes:
         limitations = guards._append_unique(
             limitations, ["问题包含投资建议或预测属性" if zh else "The query has advice or forecast-like risk"]

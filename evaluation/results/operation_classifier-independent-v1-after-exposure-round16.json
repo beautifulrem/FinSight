@@ -1,0 +1,186 @@
+{
+ "label": "after-exposure-round16",
+ "commit": "d3b5cc2",
+ "dirty": false,
+ "run_at": "2026-10-11T03:17:20+00:00",
+ "command": "python -m training.operation_classifier.evaluate_independent --label after-exposure-round16",
+ "wordings": "evaluation/operation_wordings_independent_v1.jsonl",
+ "wordings_sha256": "faabe7d90d1cf300bb6d8570e0f8f6456f087d6c8debf87c4bf23d58c2b56a92",
+ "offline_nlu": "ext + corrections snapshot (shipped default), no session",
+ "classifier_version": "operation-clf-r16",
+ "independent": {
+  "questions": 234,
+  "accuracy": {
+   "grammar": {
+    "rate": 0.9915,
+    "low": 0.9694,
+    "high": 0.9977,
+    "n": 234
+   },
+   "classifier": {
+    "rate": 0.9786,
+    "low": 0.951,
+    "high": 0.9908,
+    "n": 234
+   },
+   "combined": {
+    "rate": 1.0,
+    "low": 0.9838,
+    "high": 1.0,
+    "n": 234
+   },
+   "frame_request_classifier_off": {
+    "rate": 0.9744,
+    "low": 0.9452,
+    "high": 0.9882,
+    "n": 234
+   },
+   "frame_request": {
+    "rate": 0.9829,
+    "low": 0.9569,
+    "high": 0.9933,
+    "n": 234
+   },
+   "frame_request_and_operands": {
+    "rate": 0.9744,
+    "low": 0.9452,
+    "high": 0.9882,
+    "n": 234
+   }
+  },
+  "classifier_use": {
+   "fires": 2,
+   "changes_operation": 2,
+   "changes_to_right": 2,
+   "changes_to_wrong": 0,
+   "changes_frame_request": 2,
+   "frame_changes_to_right": 2,
+   "frame_changes_to_wrong": 0,
+   "grammar_none_on_an_operation": 2,
+   "rescued_by_fallback": 2
+  },
+  "by_operation": {
+   "difference": {
+    "grammar": "20/20",
+    "classifier": "20/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "20/20",
+    "frame_request": "20/20",
+    "frame_request_and_operands": "20/20"
+   },
+   "mean": {
+    "grammar": "20/20",
+    "classifier": "20/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "19/20",
+    "frame_request": "19/20",
+    "frame_request_and_operands": "19/20"
+   },
+   "none": {
+    "grammar": "34/34",
+    "classifier": "32/34",
+    "combined": "34/34",
+    "frame_request_classifier_off": "34/34",
+    "frame_request": "34/34",
+    "frame_request_and_operands": "34/34"
+   },
+   "ratio": {
+    "grammar": "19/20",
+    "classifier": "20/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "19/20",
+    "frame_request": "20/20",
+    "frame_request_and_operands": "20/20"
+   },
+   "relative": {
+    "grammar": "20/20",
+    "classifier": "20/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "20/20",
+    "frame_request": "20/20",
+    "frame_request_and_operands": "20/20"
+   },
+   "share": {
+    "grammar": "20/20",
+    "classifier": "20/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "20/20",
+    "frame_request": "20/20",
+    "frame_request_and_operands": "20/20"
+   },
+   "share_total": {
+    "grammar": "20/20",
+    "classifier": "20/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "20/20",
+    "frame_request": "20/20",
+    "frame_request_and_operands": "20/20"
+   },
+   "spread": {
+    "grammar": "20/20",
+    "classifier": "20/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "20/20",
+    "frame_request": "20/20",
+    "frame_request_and_operands": "18/20"
+   },
+   "sum": {
+    "grammar": "20/20",
+    "classifier": "18/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "20/20",
+    "frame_request": "20/20",
+    "frame_request_and_operands": "20/20"
+   },
+   "total_vs_one": {
+    "grammar": "20/20",
+    "classifier": "19/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "17/20",
+    "frame_request": "17/20",
+    "frame_request_and_operands": "17/20"
+   },
+   "which": {
+    "grammar": "19/20",
+    "classifier": "20/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "19/20",
+    "frame_request": "20/20",
+    "frame_request_and_operands": "20/20"
+   }
+  },
+  "by_language": {
+   "en": {
+    "grammar": "116/117",
+    "classifier": "112/117",
+    "combined": "117/117",
+    "frame_request_classifier_off": "112/117",
+    "frame_request": "113/117",
+    "frame_request_and_operands": "112/117"
+   },
+   "zh": {
+    "grammar": "116/117",
+    "classifier": "117/117",
+    "combined": "117/117",
+    "frame_request_classifier_off": "116/117",
+    "frame_request": "117/117",
+    "frame_request_and_operands": "116/117"
+   }
+  },
+  "combined_misses": []
+ },
+ "dev_and_ext_use": {
+  "agent_eval_v1.jsonl": {
+   "questions": 743,
+   "classifier_fires": 0,
+   "by_use": {},
+   "changes_frame_request": 0
+  },
+  "agent_eval_ext_v1.jsonl": {
+   "questions": 98,
+   "classifier_fires": 0,
+   "by_use": {},
+   "changes_frame_request": 0
+  }
+ }
+}

@@ -71,6 +71,16 @@ QUESTION_BOUNDARY_CHARS = set("哪谁怎吗么该能好更不")
 COLLOQUIAL_ALIAS_TYPE = "colloquial_alias"
 # (round 15) Currency words are never a (misspelt) security name
 CURRENCY_WORDS = frozenset({"人民币", "美元", "港元", "港币", "欧元", "日元", "英镑"})
+# (round 16, review-12 L9) A short name derived from the entity table that is also an ordinary word (宁德 is a city, 紫金
+# a colour; ``is_official`` "derived_word") names the company only in a question with a finance cue: "宁德营收",
+# "紫金市净率", never "宁德的天气冷吗".
+DERIVED_WORD_MARK = "derived_word"
+FINANCE_CUE = re.compile(
+    r"营收|收入|利润|净利|赚|亏|市值|市盈|市净|估值|股价|股票|个股|收盘|开盘|涨|跌|成交|分红|股息|财报|年报|季报|业绩|毛利|"
+    r"每股|买入|卖出|持有|持仓|仓位|\d\s*股|[万千百]股|股份|基本面|走势|行情|公告|研报|评级|合计|加起来|相比|比较|差多少|几倍|占比|"
+    r"平均|ROE|EPS|(?<![A-Za-z])P/?[EB](?![A-Za-z])",
+    re.IGNORECASE,
+)
 # Degree adverbs ("挺美的", "很美的", "太美的"): a colloquial alias right after one is used as an adjective.
 DEGREE_ADVERB_CHARS = set("很挺真太好多更最超蛮怪够极")
 # Grammatical particles and question words: a fuzzy window that differs from an alias at one of these is part of the
@@ -132,6 +142,24 @@ class EntityResolver:
             if rows and all(row.get("alias_type") == COLLOQUIAL_ALIAS_TYPE for row in rows)
         }
         self._word_boundaries = _WordBoundaries(self._colloquial_aliases)
+        self._context_gated_aliases = {
+            alias
+            for alias, rows in self._alias_rows_by_normalized.items()
+            if rows and all(row.get("is_official") == DERIVED_WORD_MARK for row in rows)
+        }
+
+    def _finance_context(self, query: str, alias: str) -> bool:
+        """(round 16) A finance cue, or another security named exactly ("招行和紫金的呢"), around a derived short name
+        that is also an ordinary word."""
+        rest = query.replace(alias, " ")
+        if FINANCE_CUE.search(rest):
+            return True
+        return any(
+            other in rest
+            for other in self._alias_rows_by_normalized
+            if len(other) >= 2 and other not in self._context_gated_aliases and other in rest and not other.isdigit()
+            and not self._is_generic_product_mention(other)
+        )
 
     def resolve(self, query: str) -> tuple[list[dict], list[str], list[str]]:
         resolved_entities: list[dict] = []
@@ -401,6 +429,8 @@ class EntityResolver:
             if self._is_generic_product_mention(alias):
                 continue
             colloquial = alias in self._colloquial_aliases
+            if alias in self._context_gated_aliases and not self._finance_context(query, alias):
+                continue  # (round 16) "宁德的天气冷吗": the city, not 宁德时代
             for hit in re.finditer(re.escape(alias), query):
                 if self._should_skip_exact_alias_hit(query, hit.start(), hit.end(), rows, alias):
                     continue

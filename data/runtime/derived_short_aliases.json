@@ -1,0 +1,146 @@
+{
+ "parameters": {
+  "scope": [
+   "000001.SZ",
+   "000333.SZ",
+   "000858.SZ",
+   "002594.SZ",
+   "300750.SZ",
+   "600030.SH",
+   "600036.SH",
+   "600519.SH",
+   "600900.SH",
+   "601318.SH",
+   "601398.SH",
+   "601899.SH",
+   "688981.SH"
+  ],
+  "min_suffix_names": 5,
+  "max_word_frequency": 1000,
+  "max_rivals": 2,
+  "dominance": 5.0,
+  "min_documents": 8
+ },
+ "accepted": [
+  {
+   "alias": "宁德",
+   "entity_id": "2243",
+   "canonical_name": "宁德时代",
+   "rule": "R1:prefix",
+   "evidence": "unique",
+   "dictionary_word": true
+  },
+  {
+   "alias": "平银",
+   "entity_id": "11",
+   "canonical_name": "平安银行",
+   "rule": "R2:initials",
+   "evidence": "unique",
+   "dictionary_word": false
+  },
+  {
+   "alias": "招银",
+   "entity_id": "2969",
+   "canonical_name": "招商银行",
+   "rule": "R2:initials",
+   "evidence": "unique",
+   "dictionary_word": false
+  },
+  {
+   "alias": "紫金",
+   "entity_id": "3886",
+   "canonical_name": "紫金矿业",
+   "rule": "R1:prefix",
+   "evidence": "documents 紫金矿业 9 : 紫金银行 1",
+   "dictionary_word": true
+  },
+  {
+   "alias": "美集",
+   "entity_id": "117",
+   "canonical_name": "美的集团",
+   "rule": "R2:initials",
+   "evidence": "unique",
+   "dictionary_word": false
+  },
+  {
+   "alias": "长电",
+   "entity_id": "3633",
+   "canonical_name": "长江电力",
+   "rule": "R2:initials",
+   "evidence": "documents 长江电力 14 : 长电科技 1",
+   "dictionary_word": false
+  }
+ ],
+ "rejected": [
+  {
+   "alias": "中信",
+   "entity_id": "2964",
+   "canonical_name": "中信证券",
+   "rule": "R1:prefix",
+   "evidence": "starts 325 other names"
+  },
+  {
+   "alias": "中国",
+   "entity_id": "5250",
+   "canonical_name": "中芯国际",
+   "rule": "R2:initials",
+   "evidence": "common word (jieba frequency 129470)"
+  },
+  {
+   "alias": "中证",
+   "entity_id": "2964",
+   "canonical_name": "中信证券",
+   "rule": "R2:initials",
+   "evidence": "starts 100 other names"
+  },
+  {
+   "alias": "宁时",
+   "entity_id": "2243",
+   "canonical_name": "宁德时代",
+   "rule": "R2:initials",
+   "evidence": "abbreviation never written in the corpus"
+  },
+  {
+   "alias": "工商",
+   "entity_id": "3800",
+   "canonical_name": "工商银行",
+   "rule": "R1:prefix",
+   "evidence": "common word (jieba frequency 1684)"
+  },
+  {
+   "alias": "工银",
+   "entity_id": "3800",
+   "canonical_name": "工商银行",
+   "rule": "R2:initials",
+   "evidence": "starts 411 other names"
+  },
+  {
+   "alias": "平安",
+   "entity_id": "11",
+   "canonical_name": "平安银行",
+   "rule": "R1:prefix",
+   "evidence": "alias of another entity"
+  },
+  {
+   "alias": "招商",
+   "entity_id": "2969",
+   "canonical_name": "招商银行",
+   "rule": "R1:prefix",
+   "evidence": "starts 550 other names"
+  },
+  {
+   "alias": "紫矿",
+   "entity_id": "3886",
+   "canonical_name": "紫金矿业",
+   "rule": "R2:initials",
+   "evidence": "abbreviation never written in the corpus"
+  },
+  {
+   "alias": "长江",
+   "entity_id": "3633",
+   "canonical_name": "长江电力",
+   "rule": "R1:prefix",
+   "evidence": "common word (jieba frequency 18930)"
+  }
+ ]
+}

@@ -1,0 +1,499 @@
+{
+ "version": "operation-clf-r16",
+ "commit": "d049ebe",
+ "dirty": false,
+ "run_at": "2026-10-11T01:58:05+00:00",
+ "command": "python -m training.operation_classifier.train --no-words",
+ "features": "char_wb 1-3-gram TF-IDF (max 20000) + grammar lexicon hits + structure (order of total and comparison words, list of three, yes/no); lexicon dropout (every question once more without them)",
+ "model": "LogisticRegression(C=4, multinomial, lbfgs)",
+ "seed": 20261011,
+ "train": {
+  "generated": 8640,
+  "generated_templates": 360,
+  "dev_wordings": 827,
+  "dev_labels": {
+   "difference": 50,
+   "ratio": 24,
+   "relative": 8,
+   "share": 3,
+   "share_total": 7,
+   "sum": 22,
+   "mean": 6,
+   "spread": 3,
+   "which": 33,
+   "total_vs_one": 9,
+   "none": 662
+  },
+  "dev_wordings_sha256": "b53cb9dc749ba7ff31ddcb367d0c7cb0b716b0510ba5f8f8f85f5588c0ba6b6f"
+ },
+ "held_out": {
+  "examples": 2160,
+  "templates": 90,
+  "classifier_accuracy": {
+   "rate": 0.9417,
+   "low": 0.931,
+   "high": 0.9508,
+   "n": 2160
+  },
+  "grammar_accuracy": {
+   "rate": 0.8153,
+   "low": 0.7984,
+   "high": 0.8311,
+   "n": 2160
+  },
+  "grammar_plus_classifier_accuracy": {
+   "rate": 0.8889,
+   "low": 0.8749,
+   "high": 0.9015,
+   "n": 2160
+  },
+  "grammar_missed_operations": 247,
+  "rescued_by_fallback": 159,
+  "recall_by_class": {
+   "difference": {
+    "rate": 0.875,
+    "low": 0.8207,
+    "high": 0.9145,
+    "n": 192
+   },
+   "ratio": {
+    "rate": 0.9844,
+    "low": 0.9551,
+    "high": 0.9947,
+    "n": 192
+   },
+   "relative": {
+    "rate": 0.875,
+    "low": 0.8207,
+    "high": 0.9145,
+    "n": 192
+   },
+   "share": {
+    "rate": 1.0,
+    "low": 0.9804,
+    "high": 1.0,
+    "n": 192
+   },
+   "share_total": {
+    "rate": 0.75,
+    "low": 0.6843,
+    "high": 0.8059,
+    "n": 192
+   },
+   "sum": {
+    "rate": 0.8698,
+    "low": 0.8149,
+    "high": 0.9102,
+    "n": 192
+   },
+   "mean": {
+    "rate": 0.9896,
+    "low": 0.9628,
+    "high": 0.9971,
+    "n": 192
+   },
+   "spread": {
+    "rate": 1.0,
+    "low": 0.9804,
+    "high": 1.0,
+    "n": 192
+   },
+   "which": {
+    "rate": 1.0,
+    "low": 0.9804,
+    "high": 1.0,
+    "n": 192
+   },
+   "total_vs_one": {
+    "rate": 1.0,
+    "low": 0.9804,
+    "high": 1.0,
+    "n": 192
+   },
+   "none": {
+    "rate": 1.0,
+    "low": 0.9842,
+    "high": 1.0,
+    "n": 240
+   }
+  },
+  "classifier_misses_sample": [
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "sum",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "ratio",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "ratio/zh/14",
+    "expected": "ratio",
+    "classifier": "none",
+    "grammar": "none"
+   }
+  ]
+ },
+ "in_sample_dev": {
+  "examples": 827,
+  "templates": 1,
+  "classifier_accuracy": {
+   "rate": 1.0,
+   "low": 0.9954,
+   "high": 1.0,
+   "n": 827
+  },
+  "grammar_accuracy": {
+   "rate": 1.0,
+   "low": 0.9954,
+   "high": 1.0,
+   "n": 827
+  },
+  "grammar_plus_classifier_accuracy": {
+   "rate": 1.0,
+   "low": 0.9954,
+   "high": 1.0,
+   "n": 827
+  },
+  "grammar_missed_operations": 0,
+  "rescued_by_fallback": 0,
+  "recall_by_class": {
+   "difference": {
+    "rate": 1.0,
+    "low": 0.9287,
+    "high": 1.0,
+    "n": 50
+   },
+   "ratio": {
+    "rate": 1.0,
+    "low": 0.862,
+    "high": 1.0,
+    "n": 24
+   },
+   "relative": {
+    "rate": 1.0,
+    "low": 0.6756,
+    "high": 1.0,
+    "n": 8
+   },
+   "share": {
+    "rate": 1.0,
+    "low": 0.4385,
+    "high": 1.0,
+    "n": 3
+   },
+   "share_total": {
+    "rate": 1.0,
+    "low": 0.6457,
+    "high": 1.0,
+    "n": 7
+   },
+   "sum": {
+    "rate": 1.0,
+    "low": 0.8513,
+    "high": 1.0,
+    "n": 22
+   },
+   "mean": {
+    "rate": 1.0,
+    "low": 0.6097,
+    "high": 1.0,
+    "n": 6
+   },
+   "spread": {
+    "rate": 1.0,
+    "low": 0.4385,
+    "high": 1.0,
+    "n": 3
+   },
+   "which": {
+    "rate": 1.0,
+    "low": 0.8957,
+    "high": 1.0,
+    "n": 33
+   },
+   "total_vs_one": {
+    "rate": 1.0,
+    "low": 0.7009,
+    "high": 1.0,
+    "n": 9
+   },
+   "none": {
+    "rate": 1.0,
+    "low": 0.9942,
+    "high": 1.0,
+    "n": 662
+   }
+  },
+  "classifier_misses_sample": []
+ },
+ "thresholds": {
+  "fallback_min": 0.45
+ },
+ "fallback_threshold_sweep": {
+  "held_out_templates": {
+   "grammar_none_eligible": 295,
+   "operations_among_them": 223,
+   "0.35": {
+    "fires": 172,
+    "right": 172,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.9782,
+     "high": 1.0,
+     "n": 172
+    }
+   },
+   "0.40": {
+    "fires": 168,
+    "right": 168,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.9776,
+     "high": 1.0,
+     "n": 168
+    }
+   },
+   "0.45": {
+    "fires": 159,
+    "right": 159,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.9764,
+     "high": 1.0,
+     "n": 159
+    }
+   },
+   "0.50": {
+    "fires": 150,
+    "right": 150,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.975,
+     "high": 1.0,
+     "n": 150
+    }
+   },
+   "0.55": {
+    "fires": 150,
+    "right": 150,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.975,
+     "high": 1.0,
+     "n": 150
+    }
+   },
+   "0.60": {
+    "fires": 146,
+    "right": 146,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.9744,
+     "high": 1.0,
+     "n": 146
+    }
+   }
+  },
+  "independent_v1_after_exposure": {
+   "grammar_none_eligible": 6,
+   "operations_among_them": 2,
+   "0.35": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   },
+   "0.40": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   },
+   "0.45": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   },
+   "0.50": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   },
+   "0.55": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   },
+   "0.60": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   }
+  }
+ }
+}

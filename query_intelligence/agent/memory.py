@@ -531,12 +531,14 @@ def _only_listed_names(text: str, entities: list[dict[str, Any]]) -> bool:
 # (round 15, review-11 K7) a further position added to the holding of the turn before, with a total asked: "再加三千股
 # 工行呢，总共多少", "我还有500股平安银行，加起来值多少", "Add 3,000 ICBC shares - what's the total now?"
 _HOLDING_ADD = re.compile(
-    r"再加|加上|还有|另外|另有|又买|再买|又有|\bplus\b|\banother\b|\balso (?:have|hold|own)\b|\badd(?:ing)?\b|"
+    r"再加|加上|还有|另外|另有|又买|再买|又有|再有|外加|再算上|算上|连同|\bplus\b|\banother\b|"
+    r"\balso (?:have|hold|own)\b|\badd(?:ing)?\b|"
     r"\bas well\b",
     re.IGNORECASE,
 )
 _HOLDING_TOTAL = re.compile(
-    r"总共|一共|合计|加起来|总计|共计|总市值|\bin total\b|\baltogether\b|\bcombined\b|\btotal\b|\ball together\b",
+    r"总共|一共|合计|加起来|合起来|合在一起|放一起|总计|共计|总市值|\bin total\b|\baltogether\b|\bcombined\b|\btotal\b|"
+    r"\ball together\b",
     re.IGNORECASE,
 )
 
@@ -557,6 +559,9 @@ def _added_holding(
     new = (count, None)
     previous = _effective(turns[-1])
     held = holding_value_request(previous)
+    if held is None and (stated := stated_holding_count(previous)):
+        # (round 16, review-12 L3) a position stated without a value question ("我持有比亚迪600股") is still held
+        held = (stated, None)
     earlier = [t for t in turns[-1].get("entities") or [] if t.get("symbol")]
     if held is None or holding_positions(previous) or len(earlier) != 1:
         return None

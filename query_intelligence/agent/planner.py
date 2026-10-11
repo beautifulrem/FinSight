@@ -179,7 +179,9 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
     causal = style == "why" or bool(_CAUSAL_TERMS.search(text))
     wants_news_docs = bool(_NEWS_TERMS.search(text)) or causal or news_topic
     wants_announcements = bool(_ANNOUNCEMENT_TERMS.search(text))
-    wants_sentiment = bool(_SENTIMENT_TERMS.search(text)) or style == "advice"
+    # (round 16, review-12 L13) a gain or loss against a stated cost, or a stated holding's value, is arithmetic on the
+    # close: the "advice" style the NLU gives "持有…赚了多少" does not fetch sentiment (asked by name, it still does)
+    wants_sentiment = bool(_SENTIMENT_TERMS.search(text)) or (style == "advice" and not holding)
     wants_price = (
         has_price_cue
         or style in {"why", *_JUDGMENT_STYLES}
