@@ -91,7 +91,7 @@ _DERIVED_MARK = "derived"
 
 
 def _is_derived(row: dict[str, str]) -> bool:
-    return row.get("is_official") == _DERIVED_MARK
+    return str(row.get("is_official") or "").startswith(_DERIVED_MARK)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -106,12 +106,10 @@ def main(argv: list[str] | None = None) -> int:
     kept = [row for row in rows if not _is_derived(row)]
     next_id = max(int(row["alias_id"]) for row in kept) + 1
     added = short_alias_rows(accepted, next_id)
-    for row in added:
-        row["is_official"] = _DERIVED_MARK
     wanted = kept + added
     if args.check:
-        same_rows = [(r["entity_id"], r["alias_text"]) for r in rows if _is_derived(r)] == [
-            (r["entity_id"], r["alias_text"]) for r in added
+        same_rows = [(r["entity_id"], r["alias_text"], r["is_official"]) for r in rows if _is_derived(r)] == [
+            (r["entity_id"], r["alias_text"], r["is_official"]) for r in added
         ]
         same_report = REPORT.exists() and REPORT.read_text(encoding="utf-8") == rendered
         print(json.dumps({"rows_up_to_date": same_rows, "report_up_to_date": same_report}))
