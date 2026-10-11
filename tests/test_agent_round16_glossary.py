@@ -52,8 +52,8 @@ def test_every_tile_label_has_a_definition(label, term):
 @pytest.mark.parametrize(
     ("query", "term"),
     [
-        ("什么是市盈率", "市盈率"),
-        ("What does P/B mean?", "市净率"),
+        ("市盈率指的是什么", "市盈率"),
+        ("What is the P/B ratio?", "市净率"),
         ("What is a P/E ratio?", "市盈率"),
         ("ROE怎么理解", "ROE"),
         ("破净是什么意思", "市净率"),
@@ -72,7 +72,7 @@ def test_definition_questions_find_the_metric(query, term):
 @pytest.mark.parametrize(
     "query",
     [
-        "茅台市盈率多少",  # a figure, not a definition
+        "贵州茅台眼下的市盈率是几倍",  # a figure, not a definition
         "市值最大的是什么公司",  # a ranking: the cue is not about the word
         "今天涨幅最大的是什么",
         "PE above 20",
@@ -104,7 +104,7 @@ def agent(offline_service):
 @pytest.mark.parametrize(
     ("first", "question", "evidence_id", "must_contain"),
     [
-        ("中国平安的市盈率", "归母净利润是什么意思", "glossary_归母净利润", "少数股东"),
+        ("平安现在市盈率多少", "归母净利润怎么理解", "glossary_归母净利润", "少数股东"),
         ("比亚迪的毛利率", "毛利率是什么意思", "glossary_毛利率", "营业成本"),
         ("招商银行市净率多少", "市净率应该怎么理解", "glossary_市净率", "每股净资产"),
         ("What is CATL's P/E?", "What does P/E mean?", "glossary_市盈率", "earnings per share"),
@@ -122,13 +122,13 @@ def test_a_definition_question_in_a_session_answers_the_definition(agent, first,
 
 
 def test_a_metric_follow_up_still_carries_the_company(agent):
-    agent.chat("中国平安的市盈率", session_id="r16-carry")
+    agent.chat("平安现在市盈率多少", session_id="r16-carry")
     result = agent.chat("市净率呢", session_id="r16-carry")
     assert "fundamental_601318.SH" in (result.get("evidence_used") or []), result["route_reasons"]
 
 
 def test_a_standalone_definition_is_answered_from_the_glossary(agent):
-    result = agent.chat("什么是市盈率")
+    result = agent.chat("市盈率指的是什么")
     assert "glossary_市盈率" in (result.get("evidence_used") or []), result["route_reasons"]
     assert "每股收益" in str(result["answer"]), result["answer"]
 

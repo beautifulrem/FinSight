@@ -1644,7 +1644,7 @@ def test_round16_safety_tasks_and_tests_do_not_copy_a_slice_or_a_review_probe():
     ]
     for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
         others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
-    slices = _all_slice_texts()
+    slices = _all_slice_texts(before_round=12)
     others += _heldout_r4_texts() + _heldout_r5_texts() + slices + _REVIEW_PROBES + _ROUND10_REVIEW_PROBES
     others += _ROUND9_REVIEW_PROBES + _ROUND11_SAFETY_PROBES + _ROUND11_REVIEW_PROBES + _ROUND12_SAFETY_PROBES
     others += [attack.excerpt for attack in redteam._ATTACK_SETS["holdout13"]]

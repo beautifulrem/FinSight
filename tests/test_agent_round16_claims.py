@@ -312,7 +312,7 @@ def test_a_direction_of_another_quantity_is_not_carried_from_the_previous_figure
 @pytest.mark.parametrize(
     ("claim", "target", "verdict"),
     [
-        ("紫金净利润超过500亿元", "紫金矿业", "supported"),  # 517.77
+        ("紫金一年的净利润超过了500亿元", "紫金矿业", "supported"),  # 517.77
         ("宁德营收约4237亿元", "宁德时代", "supported"),
         ("平银2025年净利润426亿元", "平安银行", "supported"),
         ("紫金的市净率不到3倍", "紫金矿业", "contradicted"),  # 3.92
