@@ -1,10 +1,11 @@
-"""Round-17 rules M15 and M16 (round-13 review).
+"""Round-17 rules M15, M16 and M19 (round-13 review).
 
 M15: an H-share question about a covered company with no Hong Kong line says the company has no H shares (the covered
 companies are audited against the HKEX list in ``data/runtime/hong_kong_line_audit.csv``; a company outside the audit
 keeps the neutral note, because the dual-listing table does not list every A+H company).
 M16: a holding stated with no question gets no advice prefix; a curated glossary entry is never attributed as a single
 document ("据一篇文档称…（未经其他来源证实）").
+M19: a conversion into another currency says the data has no exchange rate and the figures are in CNY.
 """
 
 from __future__ import annotations
@@ -131,3 +132,33 @@ def test_a_glossary_entry_in_a_session_is_not_attributed_as_one_document(agent, 
     result = _chat(agent, second, session)
     assert "glossary_" in result["answer"]
     assert "据一篇文档" not in result["answer"] and "未经其他来源证实" not in result["answer"]
+
+
+# ---------------------------------------------------------------- M19 currency conversion
+
+
+@pytest.mark.parametrize(
+    ("query", "currency"),
+    [
+        ("宁德时代的市值换算成美元是多少", "美元"),
+        ("招商银行净利润约合多少美元", "美元"),
+        ("贵州茅台市值以港币计是多少", "港币"),
+        ("紫金矿业营收折合欧元多少", "欧元"),
+    ],
+)
+def test_a_currency_conversion_says_there_is_no_exchange_rate(agent, query, currency):
+    result = _chat(agent, query)
+    note = f"当前数据中没有汇率，无法把人民币金额换算成{currency}"
+    assert result["answer"].startswith(note) and any(item.startswith(note) for item in result["limitations"])
+
+
+def test_an_english_currency_conversion_says_so_too(agent):
+    result = _chat(agent, "What is CATL's market cap in US dollars?")
+    assert "The data has no exchange rate" in result["answer"] and "US dollars" in result["answer"]
+
+
+@pytest.mark.parametrize("query", ["宁德时代的市值是多少", "美元兑人民币汇率是多少", "美元债收益率"])
+def test_no_currency_note_without_a_conversion(query):
+    from query_intelligence.agent.coverage import currency_conversion_note
+
+    assert currency_conversion_note(query, zh=True) is None

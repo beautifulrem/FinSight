@@ -1378,6 +1378,71 @@ def _year_of(value: Any) -> int | None:
     return int(match.group(1)) if match else None
 
 
+# (round 17, review-13 M19) A conversion into another currency ("比亚迪的市值换算成美元是多少", "BYD's market cap in US
+# dollars"): FinSight's figures are in CNY and its data has no exchange rate. Before round 17 the answer gave the CNY
+# figure and said nothing about the conversion; it now says that the rate is missing and that the figures are in CNY.
+_FX_ZH = r"(?P<zh>美元|美金|港元|港币|欧元|日元|英镑|澳元|加元|新加坡元|新元|韩元|瑞郎|瑞士法郎|卢布|外币)"
+_FX_EN = (
+    r"(?P<en>US\s*dollars?|U\.S\.\s*dollars?|USD|US\$|dollars?|HKD|HK\$|Hong\s+Kong\s+dollars?|euros?|EUR|yen|JPY|"
+    r"pounds?(?:\s+sterling)?|GBP|sterling|Singapore\s+dollars?|SGD|Australian\s+dollars?|AUD|foreign\s+currency)"
+)
+_FX_CONVERSION = re.compile(
+    r"(?:换算|折算|折合|兑换|转换|转化|换成|折成|算成|合成|计成)(?:成|为|到|一下)?\s*(?:多少)?\s*" + _FX_ZH + r"|"
+    r"(?:以|用|按)\s*" + _FX_ZH.replace("?P<zh>", "?P<zh2>") + r"\s*(?:计|计价|计算|来算|算|表示)|"
+    r"(?:约合|合|相当于|等于)\s*(?:多少|几)\s*(?:亿|万|千)?\s*" + _FX_ZH.replace("?P<zh>", "?P<zh3>") + r"|"
+    r"(?:市值|营收|收入|净利润|利润|股价|价格|收盘价|总资产|分红)[^，。？?！!；;]{0,8}?(?:是|有|为)?(?:多少|几)\s*(?:亿|万|千)?\s*"
+    + _FX_ZH.replace("?P<zh>", "?P<zh4>")
+    + r"|"
+    r"\bconvert(?:ed|ing)?\b[^.?!]{0,60}?\b(?:to|into)\s+" + _FX_EN + r"\b|"
+    r"\b(?:in|into)\s+(?:terms\s+of\s+)?" + _FX_EN.replace("?P<en>", "?P<en2>") + r"(?:\s+terms)?\b|"
+    r"\b(?:how\s+many|how\s+much\s+in)\s+" + _FX_EN.replace("?P<en>", "?P<en3>") + r"\b|"
+    r"\b(?:USD|dollar|euro|yen|sterling)[- ](?:terms|equivalent|value|denominated)\b",
+    re.IGNORECASE,
+)
+_FX_NAME_EN = {"美元": "US dollars", "美金": "US dollars", "港元": "Hong Kong dollars", "港币": "Hong Kong dollars",
+               "欧元": "euros", "日元": "yen", "英镑": "pounds sterling"}  # fmt: skip
+
+
+def _fx_english(name: str) -> str:
+    """ "USD", "dollar", "HK$" -> the currency's English name ("" for a currency not listed)."""
+    lowered = re.sub(r"\s+", " ", name.lower()).strip()
+    if any(word in lowered for word in ("hk", "hong kong")):
+        return "Hong Kong dollars"
+    if "singapore" in lowered or lowered == "sgd":
+        return "Singapore dollars"
+    if "australian" in lowered or lowered == "aud":
+        return "Australian dollars"
+    if "dollar" in lowered or lowered in {"usd", "us$"}:
+        return "US dollars"
+    if "euro" in lowered or lowered == "eur":
+        return "euros"
+    if lowered in {"yen", "jpy"}:
+        return "yen"
+    if "pound" in lowered or "sterling" in lowered or lowered == "gbp":
+        return "pounds sterling"
+    return ""
+
+
+def currency_conversion_note(query: str, *, zh: bool) -> str | None:
+    """(round 17, review-13 M19) The sentence for a question that asks for a CNY figure in another currency, else
+    ``None``. A Hong Kong-dollar price of a company's H shares is a foreign line (``foreign_line_spans``), refused
+    before this applies."""
+    match = _FX_CONVERSION.search(query or "")
+    if match is None:
+        return None
+    zh_name = next((match.group(name) for name in ("zh", "zh2", "zh3", "zh4") if match.group(name)), None)
+    en_name = next((match.group(name) for name in ("en", "en2", "en3") if match.group(name)), None)
+    english = _fx_english(en_name or "")
+    if zh:
+        currency = zh_name or next((key for key, value in _FX_NAME_EN.items() if value == english), "外币")
+        return f"当前数据中没有汇率，无法把人民币金额换算成{currency}；以下数值均以人民币计。"
+    currency = _FX_NAME_EN.get(zh_name or "", "") or english or "another currency"
+    return (
+        f"The data has no exchange rate, so the CNY figures cannot be converted to {currency}; the figures below are "
+        "in CNY."
+    )
+
+
 def coverage_gaps(
     query: str, tool_log: list[dict[str, Any]], *, zh: bool, names: dict[str, str] | None = None
 ) -> list[str]:

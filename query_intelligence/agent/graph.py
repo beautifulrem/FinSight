@@ -58,6 +58,7 @@ from .coverage import (
     asks_h_share,
     cost_basis_request,
     coverage_gaps,
+    currency_conversion_note,
     flow_gaps,
     foreign_equity_spans,
     foreign_line_kind,
@@ -1476,6 +1477,16 @@ class AgentRuntime:
             }
             notes = [*notes, "data_layer_missing_note"]
             framed = {**framed, "degraded": [*(framed.get("degraded") or []), *layer_degraded]}
+        # (round 17, review-13 M19) "市值换算成美元": the data has no exchange rate; the CNY figures are said to be CNY
+        fx_note = currency_conversion_note(state["query"], zh=self._zh(state))
+        if fx_note and fx_note not in str(answer.get("answer") or ""):
+            separator = "" if self._zh(state) else " "
+            answer = {
+                **answer,
+                "answer": f"{fx_note}{separator}{answer.get('answer') or ''}".strip(),
+                "limitations": [*(answer.get("limitations") or []), fx_note],
+            }
+            notes = [*notes, "currency_conversion_note"]
         assumed = _assumption_notes(state.get("route_reasons") or [], zh=self._zh(state))
         assumed += _foreign_lookalike_notes(state.get("route_reasons") or [], zh=self._zh(state))
         if assumed:
