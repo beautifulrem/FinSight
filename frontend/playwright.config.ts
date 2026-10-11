@@ -7,7 +7,8 @@ import { defineConfig } from "@playwright/test";
  *   FINSIGHT_PYTHON=../.venv/bin/python pnpm run e2e
  *
  * The server is started here with every live source off and traces off, so answers come from the offline snapshot
- * and are the same on every machine. `FINSIGHT_E2E_PORT` moves it off 8905. `FINSIGHT_E2E_START_TIMEOUT_MS` sets how
+ * and are the same on every machine. Both offline layers are pinned on (the extension and the corrections layer, the
+ * shipped default; round-13 review M17), so a variable inherited from the shell cannot switch the tests to the seed. `FINSIGHT_E2E_PORT` moves it off 8905. `FINSIGHT_E2E_START_TIMEOUT_MS` sets how
  * long to wait for it to come up (default 10 min locally, 4 min in CI).
  */
 const port = Number(process.env.FINSIGHT_E2E_PORT ?? 8905);
@@ -52,6 +53,9 @@ export default defineConfig({
       QI_USE_LIVE_NEWS: "0",
       QI_USE_LIVE_ANNOUNCEMENT: "0",
       QI_AGENT_TRACE_DIR: "off",
+      // what the product serves by default: v1 seed + 2026-09-30 extension + FY2025 corrections layer
+      QI_OFFLINE_SNAPSHOT_EXT: "true",
+      QI_OFFLINE_SNAPSHOT_FIX: "true",
       // no LLM: the deterministic path answers, so the expected numbers hold on every machine
       DEEPSEEK_API_KEY: "",
     },

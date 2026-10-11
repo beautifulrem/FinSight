@@ -3,7 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 /**
  * Round-12 browser regressions against the offline server (see playwright.config.ts):
  * - a three-turn gap session in Chinese computes the ROE gap and cites both companies' fundamentals;
- * - a fact-check with a stated industry average shows the relation row and the "stated in the claim" row.
+ * - a fact-check with a stated industry average shows the relation row and the "stated in the claim" row;
+ * - (round 17) /ready lists the three offline layers and the answers carry corrected figures, not the seed's.
  * Every test also fails on a console error.
  */
 
@@ -116,6 +117,28 @@ test("fact-check with a stated industry average shows the relation and the state
   expect(layout.panelScroll).toBeGreaterThan(0);
   expect((await header.boundingBox())?.y).toBe(0);
   await expect(header).toBeInViewport();
+
+  expect(errors).toEqual([]);
+});
+
+test("the shipped default serves the corrected FY2025 figures, not the seed (round-13 review M17)", async ({ page, request }) => {
+  // the server Playwright starts loads all three offline layers (playwright.config.ts pins both switches on)
+  const ready = await request.get("/ready");
+  expect(ready.ok()).toBe(true);
+  expect((await ready.json()).checks.data_layers.loaded).toEqual(["seed_v1", "extension", "corrections"]);
+
+  const errors = collectConsoleErrors(page);
+  await openFresh(page);
+
+  // corrections layer: 茅台 P/E (TTM) 21.44 from the FY2025 annual report; the v1 seed had 24.6
+  const pe = (await ask(page, "贵州茅台的市盈率是多少", 1)).locator(".answer-text");
+  await expect(pe).toContainText("PE(TTM) 21.44 倍");
+  await expect(pe).not.toContainText("24.6 倍");
+
+  // corrections layer: 中国平安's 2026-04-22 close 58.03; the seed had 53.61
+  const close = (await ask(page, "中国平安最新收盘价", 2)).locator(".answer-text");
+  await expect(close).toContainText("58.03 元（2026-04-22）");
+  await expect(close).not.toContainText("53.61");
 
   expect(errors).toEqual([]);
 });

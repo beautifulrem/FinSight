@@ -95,3 +95,34 @@ def test_a_two_company_gap_uses_the_corrected_figures(client):
     answer = _answer(client, "茅台和五粮液ROE差多少")
 
     assert "相差 25.64 个百分点" in answer, answer
+
+
+# QI_TEST_SHIPPED_DEFAULT=1 (round-13 review M17): the whole suite on the shipped default, minus the seed-pinned list.
+
+
+def test_the_seed_pinned_list_names_existing_tests():
+    import re
+    from pathlib import Path
+
+    from tests.conftest import ROOT, seed_data_tests
+
+    listed = seed_data_tests()
+    assert listed and len(listed) < 200, len(listed)  # a short list of exceptions, not a second suite
+    for node in sorted(listed):
+        path, *_, name = node.split("::")
+        source = ROOT / path
+        assert Path(path).parts[0] == "tests" and source.is_file(), node
+        function = re.sub(r"\[.*\]$", "", name)
+        assert re.search(rf"^\s*def {re.escape(function)}\(", source.read_text(encoding="utf-8"), re.M), node
+
+
+def test_a_shipped_default_run_has_both_layers_on():
+    import os
+
+    from query_intelligence.data_loader import snapshot_ext_enabled, snapshot_fix_enabled
+    from tests.conftest import SHIPPED_DEFAULT
+
+    if not SHIPPED_DEFAULT:
+        pytest.skip("the shipped-default run (QI_TEST_SHIPPED_DEFAULT=1) checks this")
+    assert os.environ["QI_OFFLINE_SNAPSHOT_EXT"] == os.environ["QI_OFFLINE_SNAPSHOT_FIX"] == "true"
+    assert snapshot_ext_enabled() and snapshot_fix_enabled()
