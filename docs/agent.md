@@ -877,7 +877,8 @@ evidence.
 
 Known limits:
 
-- "宁德" is also a city, so "宁德是哪个省的城市" now resolves to 宁德时代.
+- "宁德" is also a city. Without a finance word it stays the city ("宁德的天气冷吗"), but "宁德的房价涨了吗" (涨 is a
+  market word) resolves to 宁德时代.
 - "长电" is also 长电科技's usual short name.
 - "和平银…" tokenises as 和平 + 银, so "宁德和平银…" does not resolve 平银 ("平银与宁德…" does).
 
@@ -923,7 +924,7 @@ clean tree). Changes:
 - English word 1–2-grams.
 - Structural features: whether the total word comes before or after the comparison word, a list of three, a yes/no
   question.
-- 50 more own-wording templates.
+- 110 more own-wording templates (5 per operation and language).
 - **Lexicon dropout**: every training question is used a second time without the lexicon and structure features.
   Without dropout the model had learned "no lexicon word → `none`", so it could not read the wordings the grammar
   misses.
