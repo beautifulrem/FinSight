@@ -16,7 +16,7 @@ Data
   ``agent_eval_ext_v1.jsonl``) labelled with the comparison grammar's reading (``none`` where it reads no operation).
   They are training data only (in-sample), so the classifier agrees with the grammar where the grammar is right.
 
-Evaluation (``evaluation/results/operation_classifier-r15.json``)
+Evaluation (``evaluation/results/operation_classifier-r16.json``; round 15: ``operation_classifier-r15.json``)
 -------------------------------------------------------------------
 * accuracy and per-class recall on the held-out templates, with a Wilson 95% interval;
 * the grammar alone on the same held-out wordings (``frame.parse_clause``), and the grammar with the classifier as
@@ -50,14 +50,17 @@ from query_intelligence.agent.operation_classifier import (
     OperationClassifier,
     lexicon_hits,
     normalise,
+    structure_hits,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
 SEED = 20261011
-VERSION = "operation-clf-r15"
+VERSION = "operation-clf-r16"
 HELD_OUT_EVERY = 5
 PER_TEMPLATE = 24
-RESULTS = ROOT / "evaluation" / "results" / "operation_classifier-r15.json"
+RESULTS = ROOT / "evaluation" / "results" / "operation_classifier-r16.json"
+INDEPENDENT = ROOT / "evaluation" / "operation_wordings_independent_v1.jsonl"
+SWEEP = (0.35, 0.4, 0.45, 0.5, 0.55, 0.6)
 
 # (Chinese name, English name) of targets
 TARGETS = [
@@ -80,7 +83,19 @@ TARGETS = [
     ("格力电器", "Gree"),
     ("海天味业", "Haitian"),
 ]
-METRICS_ZH = ["净利润", "营收", "营业收入", "总市值", "市盈率", "市净率", "ROE", "毛利率", "成交额", "扣非净利润", "股息率"]
+METRICS_ZH = [
+    "净利润",
+    "营收",
+    "营业收入",
+    "总市值",
+    "市盈率",
+    "市净率",
+    "ROE",
+    "毛利率",
+    "成交额",
+    "扣非净利润",
+    "股息率",
+]
 METRICS_EN = ["net profit", "revenue", "market cap", "P/E", "P/B", "ROE", "gross margin", "turnover", "earnings"]
 
 # operation → language → templates ({A} {B} {C} targets, {m} a metric). Every fifth template is held out.
@@ -102,6 +117,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "{A}和{B}的{m}还差着多少",
             "{A}{m}跟{B}之间差了多少钱",
             "{A}比{B}的{m}多出来的部分是多少",
+            # (round 16) own wording, written after the round-12 review
+            "{A}和{B}在{m}上相去多少",
+            "{A}{m}减{B}{m}还剩多少",
+            "{A}与{B}的{m}隔了多远",
+            "{B}{m}比{A}少掉多少",
+            "{A}的{m}多{B}一截，这一截是多少",
         ],
         "en": [
             "How much higher is {A}'s {m} than {B}'s?",
@@ -119,6 +140,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "How much daylight is between {A}'s {m} and {B}'s?",
             "{A} minus {B}, {m}?",
             "How much more {m} does {A} bring in than {B}?",
+            # (round 16) own wording, written after the round-12 review
+            "How big a gap separates {A} from {B} on {m}?",
+            "{A} less {B}, in {m} terms?",
+            "Work out {A}'s {m} minus {B}'s",
+            "What's the shortfall of {B} versus {A} in {m}?",
+            "How much does {B} lag {A} by on {m}?",
         ],
     },
     "ratio": {
@@ -138,6 +165,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "{A}的{m}够{B}的几倍",
             "拿{B}的{m}做基数，{A}是几倍",
             "{A}{m}对{B}{m}是几比一",
+            # (round 16) own wording, written after the round-12 review
+            "{A}{m}抵得过几个{B}",
+            "{A}的{m}约莫是{B}的几倍",
+            "{A}的{m}除{B}的{m}得几",
+            "{A}的{m}能装下几个{B}",
+            "{B}的{m}乘几倍才到{A}",
         ],
         "en": [
             "How many times {B}'s {m} is {A}'s?",
@@ -155,6 +188,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "{A} to {B} on {m}, what multiple?",
             "Is {A}'s {m} over four times {B}'s?",
             "Express {A}'s {m} as a multiple of {B}'s",
+            # (round 16) own wording, written after the round-12 review
+            "{A}'s {m} over {B}'s, as a multiple?",
+            "How many {B}s would match {A} on {m}?",
+            "Roughly how many times does {A} out-{m} {B}?",
+            "Is {A}'s {m} a multiple of {B}'s, and which?",
+            "Give the {m} multiple of {A} relative to {B}",
         ],
     },
     "relative": {
@@ -174,6 +213,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "以{B}为准，{A}的{m}多出百分之几",
             "{A}{m}相较{B}上浮了多少%",
             "{A}比{B}的{m}便宜了百分之几",
+            # (round 16) own wording, written after the round-12 review
+            "{A}的{m}比{B}溢价几成",
+            "{A}{m}较{B}偏高的幅度按百分比是多少",
+            "{A}的{m}超出{B}的百分点是多少成",
+            "{B}的{m}比{A}打了几折",
+            "以{B}作基准，{A}的{m}多出百分之几",
         ],
         "en": [
             "By what percentage is {A}'s {m} above {B}'s?",
@@ -191,6 +236,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "By what percentage does {B} trail {A} on {m}?",
             "How much cheaper in percent is {A} than {B} on {m}?",
             "Relative to {B}, {A}'s {m} is up by what percent?",
+            # (round 16) own wording, written after the round-12 review
+            "How much richer, in percent, is {A}'s {m} than {B}'s?",
+            "{A} over {B} on {m}: the percent markup?",
+            "In relative terms, by what percent does {A} beat {B} on {m}?",
+            "What's the percent discount of {B} to {A} on {m}?",
+            "{A} versus {B}, percentage difference in {m}",
         ],
     },
     "share": {
@@ -210,9 +261,15 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "{A}的{m}约占{B}的多大比例",
             "{A}的{m}相当于{B}的多少比例",
             "拿{B}当整体，{A}的{m}占多少",
+            # (round 16) own wording, written after the round-12 review
+            "拿{B}当一百，{A}的{m}是多少",
+            "{A}的{m}够不够{B}的一半，具体百分比多少",
+            "{A}的{m}是{B}的几分之几",
+            "按{B}为分母，{A}的{m}到了百分之几",
+            "{A}的{m}能顶{B}的几成",
         ],
         "en": [
-            "{A}'s {m} is what percentage of {B}'s?",
+            "{A}'s {m} works out to what percentage of {B}'s?",  # (round 16) reworded
             "What percent of {B}'s {m} is {A}'s?",
             "What fraction of {B}'s {m} does {A} have?",
             "As a share of {B}'s, how big is {A}'s {m}?",
@@ -227,6 +284,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "How large is {A}'s {m} relative to {B}'s, as a percent?",
             "{A}'s {m} equals what fraction of {B}'s?",
             "What percentage of {B}'s {m} does {A} make up?",
+            # (round 16) own wording, written after the round-12 review
+            "With {B} as the base, what percent is {A}'s {m}?",
+            "Is {A}'s {m} at least a third of {B}'s? What percent exactly?",
+            "{A}'s {m} measured as a fraction of {B}'s?",
+            "Setting {B}'s {m} at 100%, where is {A}?",
+            "What proportion of {B}'s {m} does {A} reach?",
         ],
     },
     "share_total": {
@@ -246,6 +309,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "两家{m}的盘子里{A}占多少",
             "{A}的{m}占这两家加总的比例",
             "{A}、{B}、{C}三家{m}合计，{A}的占比",
+            # (round 16) own wording, written after the round-12 review
+            "{A}和{B}的{m}凑起来，{A}拿了几成",
+            "{A}、{B}两家{m}合并后，{A}贡献了多少比例",
+            "{A}在{A}、{B}合计{m}中所占份额",
+            "{A}和{B}的{m}加总，其中{B}占多大比重",
+            "{A}、{B}、{C}的{m}放在一起，{C}分得多少比例",
         ],
         "en": [
             "What is {A}'s {m} as a percentage of {A} and {B} combined?",
@@ -263,6 +332,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "In the combined {m} of {A}, {B} and {C}, {A}'s percentage?",
             "How much of the two firms' total {m} is {A}'s?",
             "Share of {A} within {A} plus {B} {m}?",
+            # (round 16) own wording, written after the round-12 review
+            "Of the {m} {A} and {B} make together, how much is {A}'s part?",
+            "{A} and {B} pooled: what slice of the {m} is {B}'s?",
+            "Add {A} and {B}'s {m}; what fraction of that comes from {A}?",
+            "What percent of the joint {m} of {A}, {B} and {C} is {C}'s?",
+            "How much of the {A} plus {B} {m} total does {A} represent?",
         ],
     },
     "sum": {
@@ -282,6 +357,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "把{A}和{B}的{m}加一加",
             "{A}、{B}两家的{m}一起算是多少",
             "{A}和{B}{m}的总数",
+            # (round 16) own wording, written after the round-12 review
+            "{A}跟{B}的{m}算到一起是多少",
+            "{A}{B}两家{m}一并算多少",
+            "{A}、{B}的{m}全加上",
+            "{A}与{B}的{m}总量",
+            "{A}加上{B}，{m}一共多少",
         ],
         "en": [
             "What is the combined {m} of {A} and {B}?",
@@ -299,6 +380,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "The {m} of {A} and {B} taken as one?",
             "How much {m} do {A} and {B} have jointly?",
             "{A} and {B}: {m} in all?",
+            # (round 16) own wording, written after the round-12 review
+            "What's the aggregate {m} of {A} and {B}?",
+            "Lump {A} and {B} together: {m}?",
+            "Combine {A}'s and {B}'s {m}",
+            "{A} plus {B}: how much {m} in all?",
+            "What do {A}, {B} and {C} report in {m}, summed?",
         ],
     },
     "mean": {
@@ -318,6 +405,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "{A}、{B}、{C}三家{m}的均数",
             "{A}、{B}的{m}取个平均",
             "{A}、{B}、{C}的{m}平均起来是多少",
+            # (round 16) own wording, written after the round-12 review
+            "{A}、{B}、{C}的{m}平均水准是多少",
+            "{A}和{B}的{m}取中间值是多少",
+            "{A}、{B}、{C}三家{m}均摊下来",
+            "{A}与{B}的{m}平均数",
+            "{A}、{B}的{m}二者平均",
         ],
         "en": [
             "What is the average {m} of {A}, {B} and {C}?",
@@ -335,6 +428,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "Average out {A}'s and {B}'s {m}",
             "The {m} averaged across {A}, {B} and {C}?",
             "What's the arithmetic mean of {A} and {B}'s {m}?",
+            # (round 16) own wording, written after the round-12 review
+            "What does the {m} of {A}, {B} and {C} average to?",
+            "Typical {m} across {A} and {B}, as a mean?",
+            "Mean of {A}'s and {B}'s {m}?",
+            "{A}, {B}, {C}: what's their average {m}?",
+            "Average {A} and {B} on {m} for me",
         ],
     },
     "spread": {
@@ -354,6 +453,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "{A}、{B}、{C}中{m}最大的减最小的",
             "{A}、{B}、{C}三家里{m}最便宜的和最贵的差多少",
             "{A}、{B}、{C}的{m}上下差多少",
+            # (round 16) own wording, written after the round-12 review
+            "{A}、{B}、{C}的{m}最高和最低隔多少",
+            "{A}、{B}、{C}里{m}最强的比最弱的强多少",
+            "{A}、{B}、{C}的{m}极值之差",
+            "{A}、{B}、{C}三家{m}的落差有多大",
+            "{A}、{B}、{C}的{m}高低差是多少",
         ],
         "en": [
             "Among {A}, {B} and {C}, how far apart are the highest and lowest {m}?",
@@ -371,6 +476,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "{A}, {B}, {C}: lowest to highest {m}, how far?",
             "What's the max-min spread of {m} across {A}, {B} and {C}?",
             "Priciest versus cheapest of {A}, {B} and {C} on {m}?",
+            # (round 16) own wording, written after the round-12 review
+            "Among {A}, {B} and {C}, how wide is the {m} range?",
+            "Best minus worst {m} for {A}, {B} and {C}?",
+            "The {m} span from top to bottom across {A}, {B} and {C}?",
+            "{A}, {B} and {C}: maximum less minimum {m}?",
+            "What's the high-low {m} gap for {A}, {B} and {C}?",
         ],
     },
     "which": {
@@ -390,6 +501,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "{A}和{B}哪边{m}更强",
             "{A}、{B}哪个{m}低一些",
             "{A}的{m}和{B}比起来哪个高",
+            # (round 16) own wording, written after the round-12 review
+            "{A}的{m}是不是比{B}高",
+            "{A}和{B}，{m}谁占上风",
+            "{A}、{B}、{C}里谁的{m}最大",
+            "{A}与{B}比，{m}哪家更胜一筹",
+            "{A}的{m}有没有{B}高",
         ],
         "en": [
             "Which is higher, {A}'s {m} or {B}'s?",
@@ -407,6 +524,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "Does {A} or {B} have more {m}?",
             "Higher {m}: {A} or {B}?",
             "Which of {A} and {B} is lower on {m}?",
+            # (round 16) own wording, written after the round-12 review
+            "Does {A} have a higher {m} than {B}?",
+            "Who comes out ahead on {m}, {A} or {B}?",
+            "Among {A}, {B} and {C}, which tops the {m} table?",
+            "Is {B}'s {m} lower than {A}'s?",
+            "Whose {m} is bigger, {A}'s or {B}'s?",
         ],
     },
     "total_vs_one": {
@@ -426,6 +549,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "{C}的{m}比{A}和{B}两家加总还多吗",
             "{A}加上{B}的{m}比{C}还少多少",
             "两家{m}加一起比{C}多多少",
+            # (round 16) own wording, written after the round-12 review
+            "跟{C}相比，{A}和{B}的{m}加起来够不够",
+            "{A}与{B}的{m}合计，和{C}一比谁大",
+            "{A}加上{B}的{m}能不能赶得上{C}",
+            "{C}的{m}比{A}、{B}两家凑一起高出多少",
+            "拿{A}和{B}的{m}总和去比{C}，差多少",
         ],
         "en": [
             "Do {A} and {B} together earn more than {C}?",
@@ -443,6 +572,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "Taken together, are {A} and {B} ahead of {C} on {m}?",
             "Combined {m} of {A} and {B} versus {C}: by how much?",
             "Does {C} beat {A} and {B} put together on {m}?",
+            # (round 16) own wording, written after the round-12 review
+            "Against {C}, how do {A} and {B} fare on {m} combined?",
+            "Can {A} plus {B} together outweigh {C} in {m}?",
+            "How far short of {C} are {A} and {B} combined on {m}?",
+            "Relative to {C}, is the {m} of {A} and {B} together bigger?",
+            "Put {A} and {B} together: do they top {C} on {m}?",
         ],
     },
     "none": {
@@ -467,6 +602,12 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "{A}的{m}是怎么变化的",
             "{A}今天涨了吗",
             "{A}有什么风险",
+            # (round 16) own wording, written after the round-12 review
+            "{A}和{B}的{m}各自报一下",
+            "{A}最近{m}有什么变化",
+            "{m}这个指标高好还是低好",
+            "{A}和{B}哪个更值得长期拿着",
+            "帮我看看{A}的{m}历史走势",
         ],
         "en": [
             "What is {A}'s {m}?",
@@ -487,8 +628,14 @@ TEMPLATES: dict[str, dict[str, list[str]]] = {
             "Show {A}'s {m}",
             "What are {A}'s and {B}'s {m} figures?",
             "How is {A} doing?",
-            "Did {A} rise today?",
+            "Did {A} close up today?",  # (round 16) reworded: a fill near-copied a router label
             "What are the risks for {A}?",
+            # (round 16) own wording, written after the round-12 review
+            "Report {A}'s and {B}'s {m} separately",
+            "Has {A}'s {m} been improving?",
+            "Is a high {m} good or bad?",
+            "Which is the better long-term hold, {A} or {B}?",
+            "Show {A}'s {m} history",
         ],
     },
 }
@@ -533,18 +680,32 @@ def dev_wordings() -> list[tuple[str, str]]:
     return sorted(set(rows))
 
 
-def build_pipeline(lexicon: bool = True, c: float = 4.0) -> Pipeline:
+def build_pipeline(lexicon: bool = True, c: float = 4.0, words: bool = True) -> Pipeline:
     parts: list[tuple[str, Any]] = [
         (
             "chars",
-            TfidfVectorizer(
-                analyzer="char_wb", ngram_range=(1, 3), min_df=2, sublinear_tf=True, max_features=20000
-            ),
+            TfidfVectorizer(analyzer="char_wb", ngram_range=(1, 3), min_df=2, sublinear_tf=True, max_features=20000),
         )
     ]
-    if lexicon:
+    if words:
+        # (round 16, review-12 L17) English word 1-2-grams: "stack up", "short of", "how much of"
         parts.append(
-            ("lexicon", Pipeline([("hits", FunctionTransformer(lexicon_hits)), ("dict", DictVectorizer())]))
+            (
+                "words",
+                TfidfVectorizer(
+                    analyzer="word",
+                    token_pattern=r"(?u)\b[a-z][a-z'/-]+\b",
+                    ngram_range=(1, 2),
+                    min_df=2,
+                    sublinear_tf=True,
+                    max_features=20000,
+                ),
+            )
+        )
+    if lexicon:
+        parts.append(("lexicon", Pipeline([("hits", FunctionTransformer(lexicon_hits)), ("dict", DictVectorizer())])))
+        parts.append(
+            ("structure", Pipeline([("hits", FunctionTransformer(structure_hits)), ("dict", DictVectorizer())]))
         )
     return Pipeline([("features", FeatureUnion(parts)), ("model", LogisticRegression(C=c, max_iter=4000))])
 
@@ -654,9 +815,11 @@ def fallback_activations(model: OperationClassifier) -> dict[str, Any]:
     for name in EVALUATION_SETS:
         path = ROOT / "evaluation" / "agent_eval" / "tasks" / name
         rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-        queries = [row["query"] for row in rows] if "query" in rows[0] else [
-            turn["query"] for row in rows for turn in row.get("turns") or []
-        ]
+        queries = (
+            [row["query"] for row in rows]
+            if "query" in rows[0]
+            else [turn["query"] for row in rows for turn in row.get("turns") or []]
+        )
         none = fired = 0
         by_operation: dict[str, int] = {}
         for query in queries:
@@ -672,8 +835,42 @@ def fallback_activations(model: OperationClassifier) -> dict[str, Any]:
             if label != "none" and probability >= FALLBACK_MIN and oc.compatible(label, query):
                 fired += 1
                 by_operation[label] = by_operation.get(label, 0) + 1
-        report[name] = {"questions": len(queries), "grammar_none": none, "fallback_fires": fired, "by_operation": by_operation}
+        report[name] = {
+            "questions": len(queries),
+            "grammar_none": none,
+            "fallback_fires": fired,
+            "by_operation": by_operation,
+        }
     return report
+
+
+def fallback_sweep(model: OperationClassifier, rows: list[tuple[str, str, int]]) -> dict[str, Any]:
+    """(round 16, review-12 L17) The fallback at several thresholds on the rows the grammar reads no operation in:
+    how often it fires and how often it is right (``rows``: text, label, targets named)."""
+    from query_intelligence.agent import operation_classifier as oc
+
+    eligible = [
+        (text, label)
+        for text, label, named in rows
+        if _grammar(text) == "none" and (named >= 2 or oc._SEVERAL.search(text)) and oc._ASKS_QUANTITY.search(text)
+    ]
+    readings = [(model.read(text), text, label) for text, label in eligible]
+    report: dict[str, Any] = {"grammar_none_eligible": len(eligible),
+                              "operations_among_them": sum(1 for _t, label in eligible if label != "none")}  # fmt: skip
+    for threshold in SWEEP:
+        fired = [
+            (predicted, label)
+            for (predicted, probability), text, label in readings
+            if predicted != "none" and probability >= threshold and oc.compatible(predicted, text)
+        ]
+        right = sum(1 for predicted, label in fired if predicted == label)
+        report[f"{threshold:.2f}"] = {"fires": len(fired), "right": right, "precision": wilson(right, len(fired))}
+    return report
+
+
+def _independent_rows() -> list[tuple[str, str, int]]:
+    rows = [json.loads(line) for line in INDEPENDENT.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [(row["question"], row["operation"], len(row.get("companies") or [])) for row in rows]
 
 
 def _git(*args: str) -> str | None:
@@ -686,6 +883,7 @@ def _git(*args: str) -> str | None:
 def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--no-lexicon", action="store_true", help="ablation: character n-grams only (not written)")
+    parser.add_argument("--no-words", action="store_true", help="ablation: without word n-grams (not written)")
     parser.add_argument("--out", default=str(RESULTS))
     args = parser.parse_args(argv)
     rng = random.Random(SEED)
@@ -694,7 +892,8 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     dev = dev_wordings()
     texts = [normalise(text) for text, _label, _template in train] + [normalise(text) for text, _label in dev]
     labels = [label for _text, label, _template in train] + [label for _text, label in dev]
-    pipeline = build_pipeline(lexicon=not args.no_lexicon)
+    ablation = args.no_lexicon or args.no_words
+    pipeline = build_pipeline(lexicon=not args.no_lexicon, words=not (args.no_lexicon or args.no_words))
     pipeline.fit(texts, labels)
     model = OperationClassifier(pipeline=pipeline, version=VERSION)
     report: dict[str, Any] = {
@@ -702,8 +901,15 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "commit": _git("rev-parse", "--short", "HEAD"),
         "dirty": bool(_git("status", "--porcelain", "--untracked-files=no")),
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "command": "python -m training.operation_classifier.train" + (" --no-lexicon" if args.no_lexicon else ""),
-        "features": "char_wb 1-3-gram TF-IDF (max 20000)" + ("" if args.no_lexicon else " + grammar lexicon hits"),
+        "command": "python -m training.operation_classifier.train"
+        + (" --no-lexicon" if args.no_lexicon else " --no-words" if args.no_words else ""),
+        "features": "char_wb 1-3-gram TF-IDF (max 20000)"
+        + ("" if args.no_lexicon or args.no_words else " + English word 1-2-gram TF-IDF (max 20000)")
+        + (
+            ""
+            if args.no_lexicon
+            else " + grammar lexicon hits + structure (order of total and comparison words, list of three, yes/no)"
+        ),
         "model": "LogisticRegression(C=4, multinomial, lbfgs)",
         "seed": SEED,
         "train": {
@@ -715,20 +921,31 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "held_out": evaluate(model, held_out),
         "in_sample_dev": evaluate(model, [(text, label, "dev") for text, label in dev]),
         "thresholds": {"fallback_min": FALLBACK_MIN},
+        # (round 16, review-12 L17) the fallback threshold swept on the rows the grammar reads nothing in: held-out
+        # templates, and the independent wording set (read by the engineers after its first run: after exposure)
+        "fallback_threshold_sweep": {
+            "held_out_templates": fallback_sweep(model, [(text, label, 2) for text, label, _t in held_out]),
+            "independent_v1_after_exposure": fallback_sweep(model, _independent_rows()),
+        },
     }
-    if not args.no_lexicon:
+    dev_hash = hashlib.sha256(json.dumps(sorted(dev), ensure_ascii=False).encode("utf-8")).hexdigest()
+    report["train"]["dev_wordings_sha256"] = dev_hash
+    if not ablation:
         report["fallback_on_evaluation_sets"] = fallback_activations(model)
-    if not args.no_lexicon:
         path = ROOT / "models" / ARTIFACT_NAME
-        joblib.dump({"pipeline": pipeline, "version": VERSION}, path, compress=3)
+        # (round 16, review-12 L16) the training commit and the dev wordings' hash travel with the artifact
+        provenance = {"trained_at_commit": report["commit"], "dirty": report["dirty"], "dev_wordings_sha256": dev_hash}
+        joblib.dump({"pipeline": pipeline, "version": VERSION, **provenance}, path, compress=3)
         report["artifact"] = {
             "path": f"models/{ARTIFACT_NAME}",
             "bytes": path.stat().st_size,
             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            **provenance,
         }
         out = Path(args.out)
     else:
-        out = Path(args.out).with_name("operation_classifier-r15-nolexicon.json")
+        suffix = "nolexicon" if args.no_lexicon else "nowords"
+        out = Path(args.out).with_name(f"operation_classifier-r16-{suffix}.json")
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(json.dumps({key: report[key] for key in ("version", "train")}, ensure_ascii=False))
     held = report["held_out"]
