@@ -149,7 +149,8 @@ en and zh) sit between `<!-- generated:<region> ... -->` markers and are rendere
 (the highest `evaluation/heldout_r<N>/` with an after-fix chat run; overlap tiers recomputed from the slice-side
 overlap lists and both runs' task outcomes), the highest `verifier_stress-round<N>.json`, the gate baselines, the
 router labels, the blind real-claims sets, the red team, the newest CI record `docs/results/ci/ci-run-<sha>.json` and
-the newest pre-push summary. `python -m evaluation.agent_eval.report` re-renders them and `report --check` (CI job
+the newest pre-push summary (so a new summary in `docs/results/ci/` is committed with the re-rendered READMEs too).
+`python -m evaluation.agent_eval.report` re-renders them and `report --check` (CI job
 heldout-verify, pre-push step report-check) fails when a region is stale or missing, so a result file that changes a
 headline number is committed together with the re-rendered READMEs (round-13 review M14: the round-16 READMEs
 quoted the round-11 slice, round-15 verifier numbers and a CI run of an older commit).
