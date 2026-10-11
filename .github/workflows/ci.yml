@@ -182,9 +182,10 @@ jobs:
     # (round 17, round-13 review M17) the suite again on what the product serves by default: tests/conftest.py pins
     # the v1 seed unless QI_TEST_SHIPPED_DEFAULT=1, which turns the snapshot extension and the corrections layer on and
     # deselects the tests listed in tests/seed_data_tests.txt (they assert seed values). No coverage; its own job so
-    # the tests job keeps its time budget (scripts/ci_budget.py).
+    # the tests job keeps its time budget (scripts/ci_budget.py). 120 min: about 700 s locally on an idle laptop x an
+    # assumed slowdown of 4 (no CI run yet to calibrate it) is about 49 min, 41% of the budget.
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6

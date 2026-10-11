@@ -129,7 +129,7 @@ README 的关键数字（「30 秒看懂」列表、结果表、CI 段落和简�
 标记之间，由 [`evaluation/agent_eval/readme.py`](../../evaluation/agent_eval/readme.py) 根据已提交的文件生成：最近一组评审切片
 （有修复后对话运行的、编号最大的 `evaluation/heldout_r<N>/`；重合分层由切片侧的重合列表和两次运行的任务结果重新计算）、编号
 最大的 `verifier_stress-round<N>.json`、门禁基线、路由标注、盲收集的真实说法集、红队、最新的 CI 记录
-`docs/results/ci/ci-run-<sha>.json` 和最新的推送前摘要。`python -m evaluation.agent_eval.report` 会重新生成这些区块，
+`docs/results/ci/ci-run-<sha>.json` 和最新的推送前摘要（因此新的推送前摘要也要和重新生成的 README 一起提交）。`python -m evaluation.agent_eval.report` 会重新生成这些区块，
 `report --check`（CI job heldout-verify，推送前步骤 report-check）在区块过期或缺失时失败，所以改变关键数字的结果文件要和
 重新生成的 README 一起提交（第十三轮评审 M14：第 16 轮的 README 引用的是第十一轮切片、第 15 轮校验器数字和一个较早提交的 CI 运行）。
 
