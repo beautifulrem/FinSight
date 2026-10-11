@@ -11,6 +11,7 @@ from ..config import Settings
 from ..data_loader import load_aliases, load_entities, load_seed_aliases, load_seed_entities, load_synonyms
 from ..query_terms import contains_bucket_market_term
 from ..training_data import filter_rows_for_label, load_training_rows
+from ..traditional import to_simplified
 from .classifiers import INTENT_SAMPLES, TOPIC_SAMPLES, MultiLabelClassifier, ProductTypeClassifier, SingleLabelTextClassifier
 from .clarification_gate import ClarificationGate
 from .entity_boundary_crf import EntityBoundaryCRF
@@ -270,7 +271,13 @@ class NLUPipeline:
             return None
 
     def run(self, query: str, user_profile: dict, dialog_context: list, debug: bool) -> dict:
+        # (round 17, review-13 M9) traditional characters are read as simplified ones before any rule or model
+        # ("長江電力的市淨率是多少" was refused as out of scope); ``raw_query`` keeps what the user wrote
+        raw_query = query
+        query = to_simplified(query)
         normalized_query, normalization_trace = self.normalizer.normalize(query)
+        if query != raw_query:
+            normalization_trace = ["traditional_to_simplified", *normalization_trace]
         time_scope = self.normalizer.detect_time_scope(normalized_query)
         operation = self.normalizer.detect_operation(normalized_query)
 
@@ -403,7 +410,7 @@ class NLUPipeline:
 
         return {
             "query_id": str(uuid4()),
-            "raw_query": query,
+            "raw_query": raw_query,
             "normalized_query": normalized_query,
             "question_style": question_style,
             "product_type": {"label": product["label"], "score": product["score"]},
