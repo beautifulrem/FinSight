@@ -36,6 +36,13 @@ Command line (used by prepush.sh)::
     python scripts/ci_budget.py jobs                                          # timeout-minutes per job
 
 Environment: ``CI_BUDGET_FRACTION`` (default 0.6; ``off`` or 0 disables the failure, the table is still written).
+
+The estimate uses wall-clock seconds, so a busy host inflates it: in round 16, with five other evaluation processes
+running on the same 4-performance-core laptop, pytest took 1186 s instead of about 550 s. Each step therefore records
+the host's load average (the highest of the 1-minute value at its start and the 1-, 5- or 15-minute value at its end,
+by the step's length); a step that fails its budget while the load exceeded ``CI_BUDGET_BUSY_LOAD`` (default: the
+number of performance cores, else half the CPUs) still fails, and its message says that the host was busy and the
+step should be re-measured on an idle host.
 """
 
 from __future__ import annotations
@@ -44,6 +51,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -192,17 +200,51 @@ def estimate(records: list[dict], timeouts: dict[str, int], default_factor: floa
     }
 
 
+def busy_load_threshold() -> float:
+    """CI_BUDGET_BUSY_LOAD, else the number of performance cores (macOS), else half the CPUs."""
+    raw = os.environ.get("CI_BUDGET_BUSY_LOAD", "").strip()
+    if raw:
+        return float(raw)
+    if sys.platform == "darwin":
+        try:
+            out = subprocess.run(
+                ["sysctl", "-n", "hw.perflevel0.physicalcpu"], capture_output=True, text=True, timeout=5, check=False
+            ).stdout.strip()
+            if out.isdigit() and int(out) > 0:
+                return float(out)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return max(1.0, (os.cpu_count() or 2) / 2)
+
+
+def step_load(seconds: int, load_start: float | None, load_end: tuple[float, float, float] | None) -> float | None:
+    """The host load a step ran under: max of the 1-min load at its start and the end-of-step load average whose
+    window best covers the step (1 min under 5 min, 5 min under 15 min, else 15 min)."""
+    values = [] if load_start is None else [load_start]
+    if load_end is not None:
+        values.append(load_end[0] if seconds < 300 else load_end[1] if seconds < 900 else load_end[2])
+    return round(max(values), 2) if values else None
+
+
 def _read_state(path: Path) -> list[dict]:
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def check(step: str, seconds: int, state: Path, workflow: Path = CI_WORKFLOW) -> tuple[bool, str]:
+def check(
+    step: str,
+    seconds: int,
+    state: Path,
+    workflow: Path = CI_WORKFLOW,
+    load_start: float | None = None,
+    load_end: tuple[float, float, float] | None = None,
+) -> tuple[bool, str]:
     """Record a step's local duration; (within budget, one-line message) for the step's job so far."""
     if step not in STEP_JOBS:
         return False, f"budget: step {step!r} is not mapped to a CI job in scripts/ci_budget.py STEP_JOBS"
-    records = [*_read_state(state), {"step": step, "seconds": int(seconds)}]
+    load = step_load(int(seconds), load_start, load_end)
+    records = [*_read_state(state), {"step": step, "seconds": int(seconds), "load": load}]
     state.parent.mkdir(parents=True, exist_ok=True)
     state.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
     job = STEP_JOBS[step]
@@ -219,7 +261,13 @@ def check(step: str, seconds: int, state: Path, workflow: Path = CI_WORKFLOW) ->
         f"({job_estimate.share:.0%}; local {job_estimate.local_seconds}s so far)"
     )
     if fraction and job_estimate.share > fraction:
-        return False, f"{message} > {fraction:.0%} of the job's timeout-minutes"
+        message = f"{message} > {fraction:.0%} of the job's timeout-minutes"
+        job_loads = [r.get("load") for r in records if STEP_JOBS.get(r["step"]) == job and r.get("load") is not None]
+        threshold = busy_load_threshold()
+        if job_loads and max(job_loads) > threshold:
+            busy = f"; host busy (load {max(job_loads):g} > {threshold:g})"
+            message += f"{busy}: local times inflated, re-measure on an idle host"
+        return False, message
     return True, message
 
 
@@ -236,17 +284,24 @@ def summary(state: Path, workflow: Path = CI_WORKFLOW) -> str:
         f"{f'{fraction:.0%}' if fraction else 'no limit (CI_BUDGET_FRACTION=off)'} of the job's `timeout-minutes` "
         "in `.github/workflows/ci.yml`. Skipped steps are not counted.",
         "",
-        "| CI job | timeout-minutes | Steps | Local seconds | Estimated CI minutes | Share of budget | Within budget |",
-        "|---|---|---|---|---|---|---|",
+        "| CI job | timeout-minutes | Steps | Local seconds | Estimated CI minutes | Share of budget | Within budget "
+        "| Max host load during its steps |",
+        "|---|---|---|---|---|---|---|---|",
     ]
+    loads: dict[str, list[float]] = {}
+    for record in _read_state(state):
+        job = STEP_JOBS.get(record["step"])
+        if job and record.get("load") is not None:
+            loads.setdefault(job, []).append(record["load"])
     for job in sorted(estimates, key=lambda name: list(timeouts).index(name) if name in timeouts else 99):
         item = estimates[job]
         ok = not fraction or item.share <= fraction
         lines.append(
             f"| {job} | {item.timeout_minutes} | {', '.join(step for step, _, _ in item.steps)} | "
             f"{item.local_seconds} | {item.estimated_seconds / 60:.1f} | {item.share:.0%} | "
-            f"{'yes' if ok else '**no**'} |"
+            f"{'yes' if ok else '**no**'} | {max(loads[job]) if job in loads else '–'} |"
         )
+    lines += ["", f"Busy-host threshold (`CI_BUDGET_BUSY_LOAD`): load average {busy_load_threshold():g}."]
     return "\n".join(lines)
 
 
@@ -257,12 +312,13 @@ def main(argv: list[str] | None = None) -> int:
     check_parser.add_argument("--step", required=True)
     check_parser.add_argument("--seconds", required=True, type=int)
     check_parser.add_argument("--state", required=True, type=Path)
+    check_parser.add_argument("--load-start", type=float, default=None, help="1-min load average at the step's start")
     summary_parser = sub.add_parser("summary")
     summary_parser.add_argument("--state", required=True, type=Path)
     sub.add_parser("jobs")
     args = parser.parse_args(argv)
     if args.command == "check":
-        ok, message = check(args.step, args.seconds, args.state)
+        ok, message = check(args.step, args.seconds, args.state, load_start=args.load_start, load_end=os.getloadavg())
         print(message)
         return 0 if ok else 1
     if args.command == "summary":

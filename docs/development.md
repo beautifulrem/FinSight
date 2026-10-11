@@ -80,6 +80,14 @@ steps, the local seconds, the estimated CI minutes and the share of the budget.
 | `CI_BUDGET_FRACTION` | `0.6` | share of a job's `timeout-minutes` its estimate may use; `off` or `0` only reports |
 | `CI_SLOWDOWN` | `3` | runner seconds per local second for every step without its own factor |
 | `CI_SLOWDOWN_STEPS` | `pytest=5` (built in) | per-step factors, e.g. `pytest=5,e2e=2.5`; recalibrate on a host other than an Apple-silicon laptop |
+| `CI_BUDGET_BUSY_LOAD` | performance-core count (4 on the M-series laptop), else half the CPUs | load average above which a budget failure is labelled "host busy" |
+
+**A busy host inflates the estimate.** The durations are wall-clock seconds. The factors were calibrated on an
+otherwise idle laptop. In round 16, with five other evaluation processes running on the same 4-performance-core
+laptop, pytest took 1186 s instead of about 550 s. The `tests` job was then estimated at 113% of its budget. Each step
+therefore records the host's load average (the 1-minute value at its start and the end-of-step average whose window
+covers the step). A budget failure under a load above `CI_BUDGET_BUSY_LOAD` still fails, but its message and the
+summary's "Max host load" column say so. Re-measure that job on an idle host before you trust or dismiss it.
 
 With the local durations of `7cc9a4c`, the layout that was cancelled is estimated at 48.5 min of 45 for
 `agent-eval-gate` (108%) and 49.7 of 60 for `tests` (83%), so both would have failed before the push. To keep
