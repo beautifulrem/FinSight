@@ -4,7 +4,7 @@
   "commit": "c5ffb7d",
   "run_at": "2026-10-10T22:56:46+00:00",
   "command": "FINSIGHT_REPO=. python evaluation/heldout_r11/score_claims_r11.py <out.json>",
-  "note": "independent round-11 claim slice after the round-15 fixes, run once at c5ffb7d (clean tree); r11c09 is an exact copy in a round-15 claim test (the same sentence is in the round-11 reviewer's probe file round11/probes/planted11.py); overlap-excluded: text 6/22 -> 17/22, +content 5/20 -> 15/20, +signature 4/13 -> 9/13"
+  "note": "independent round-11 claim slice after the round-15 fixes, run once at c5ffb7d (clean tree); r11c09 is an exact copy in a round-15 claim test (committed in 138d64d before the slice entered the repository; the record does not explain the copy, coincidence or exposure; corrected in round 16: the sentence is not in the round-11 reviewer's probe file planted11.py as this note said before); overlap-excluded: text 6/22 -> 17/22, +content 5/20 -> 15/20, +signature 4/13 -> 9/13"
  },
  "summary": {
   "claims": 24,

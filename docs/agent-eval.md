@@ -2403,7 +2403,7 @@ Failures (development set; first 25):
 
 ### Round-11 held-out chat slice (independent author): before and after the round-15 fixes
 
-60 conversations written by the round-11 reviewer before any round-15 fix (`evaluation/heldout_r11/README.md`), run with the shipped default data once before the fixes (by the reviewer) and once after them, from the reviewer's folder. `slice_overlap-heldout_r11-at-c5ffb7d.json` lists the overlaps with own wording (text: 2 chat tasks and 2 claims, one claim an exact copy that is also in the reviewer's probe file; content and signature tiers wider). Its 24 claims are in the evidence table below (`claims_heldout_r11-*.json`).
+60 conversations written by the round-11 reviewer before any round-15 fix (`evaluation/heldout_r11/README.md`), run with the shipped default data once before the fixes (by the reviewer) and once after them, from the reviewer's folder. `slice_overlap-heldout_r11-at-c5ffb7d.json` lists the overlaps with own wording (text: 2 chat tasks and 2 claims, one claim, r11c09, an exact copy in a round-15 test that the record does not explain, coincidence or exposure; content and signature tiers wider). Its 24 claims are in the evidence table below (`claims_heldout_r11-*.json`).
 
 #### `chat_heldout_r11-auto-nollm-prefix.json`
 
