@@ -187,6 +187,11 @@ describe("route reasons (round 12, H14)", () => {
     "frame:share_total:revenue:比亚迪|宁德时代",
     "frame:sum:profit_dedt:工商银行|招商银行",
     "cost_basis_follow_up:美的集团",
+    "frame_excluded:招商银行",
+    "holding_ledger:1000->招商银行+500->工商银行",
+    "definition_over_nlu_context_carry",
+    "verification_failed:asked_result_unverified",
+    "cost_basis_result_appended",
     "frame:spread:roe:贵州茅台|五粮液|中国平安",
     "frame:difference:roe-gross_margin:五粮液",
     "clarified:贵州茅台",
@@ -281,6 +286,17 @@ describe("operation classifier and further operations (round 16, L14)", () => {
     );
     expect(humanizeCode("zh", "frame:sum:revenue:贵州茅台|五粮液+also:share_total:revenue")).toBe(
       "计算营业收入合计：贵州茅台 + 五粮液",
+    );
+  });
+
+  it("labels an exclusion, a total of stated positions and a definition question (round 17)", () => {
+    expect(humanizeCode("zh", "frame_excluded:招商银行")).toBe("按要求在计算中排除了 招商银行");
+    expect(humanizeCode("en", "frame_excluded:CMB")).toBe("Left CMB out of the calculation, as asked");
+    expect(humanizeCode("zh", "holding_ledger:1000->招商银行+500->工商银行")).toBe(
+      "合计前几轮说明的持仓：1000 股招商银行、500 股工商银行",
+    );
+    expect(humanizeCode("en", "definition_over_nlu_context_carry")).toBe(
+      "A definition question: the earlier company is not carried over",
     );
   });
 
