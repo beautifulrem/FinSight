@@ -17,24 +17,19 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "079f461",
-  "run_at": "2026-10-11T01:29:42+00:00",
+  "commit": "f2a74de",
+  "run_at": "2026-10-11T04:04:55+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 89.8,
+  "wall_seconds": 41.0,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl --no-replay --out outputs/agent_eval/gate-ext.json",
   "env": {
-   "QI_AGENT_TRACE_DIR": "off",
-   "QI_EVAL_SNAPSHOT_EXT": "1",
-   "QI_USE_LIVE_ANNOUNCEMENT": "false",
-   "QI_USE_LIVE_MACRO": "false",
-   "QI_USE_LIVE_MARKET": "false",
-   "QI_USE_LIVE_NEWS": "false"
+   "QI_EVAL_SNAPSHOT_EXT": "1"
   },
-  "command_with_env": "QI_AGENT_TRACE_DIR=off QI_EVAL_SNAPSHOT_EXT=1 QI_USE_LIVE_ANNOUNCEMENT=false QI_USE_LIVE_MACRO=false QI_USE_LIVE_MARKET=false QI_USE_LIVE_NEWS=false python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl --no-replay --out outputs/agent_eval/gate-ext.json"
+  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl --no-replay --out outputs/agent_eval/gate-ext.json"
  },
  "summary": {
-  "tasks": 87,
-  "turns": 95,
+  "tasks": 99,
+  "turns": 107,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -59,15 +54,15 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.1012,
+  "tool_precision": 0.0885,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 172.9,
-  "latency_ms_p95": 1676.72,
-  "latency_ms_p99": 10767.42,
+  "latency_ms_p50": 82.02,
+  "latency_ms_p95": 670.71,
+  "latency_ms_p99": 1456.89,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -93,51 +88,51 @@
  },
  "by_category": {
   "comparison": {
-   "tasks": 18,
+   "tasks": 24,
    "task_success": 1.0,
-   "latency_ms_p95": 357.86
+   "latency_ms_p95": 153.23
   },
   "compliance": {
    "tasks": 13,
    "task_success": 1.0,
-   "latency_ms_p95": 1032.2
+   "latency_ms_p95": 419.26
   },
   "derived": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 865.06
+   "latency_ms_p95": 368.29
   },
   "fact": {
-   "tasks": 30,
+   "tasks": 36,
    "task_success": 1.0,
-   "latency_ms_p95": 2776.24
+   "latency_ms_p95": 1244.55
   },
   "missing_data": {
    "tasks": 2,
    "task_success": 1.0,
-   "latency_ms_p95": 1536.49
+   "latency_ms_p95": 670.71
   },
   "multi_turn": {
    "tasks": 7,
    "task_success": 1.0,
-   "latency_ms_p95": 3944.26
+   "latency_ms_p95": 1456.89
   },
   "out_of_coverage": {
    "tasks": 11,
    "task_success": 1.0,
-   "latency_ms_p95": 1000.48
+   "latency_ms_p95": 444.83
   }
  },
  "by_language": {
   "en": {
-   "tasks": 29,
+   "tasks": 33,
    "task_success": 1.0,
-   "latency_ms_p95": 1142.55
+   "latency_ms_p95": 423.26
   },
   "zh": {
-   "tasks": 58,
+   "tasks": 66,
    "task_success": 1.0,
-   "latency_ms_p95": 1676.72
+   "latency_ms_p95": 754.12
   }
  },
  "failed_checks": {},
@@ -229,12 +224,24 @@
   "ext_r16s_market_value_horizon_en": "1",
   "ext_r16s_market_value_lookup_zh": "1",
   "ext_r16s_dividend_this_year_zh": "1",
-  "ext_r16s_stop_loss_en": "1"
+  "ext_r16s_stop_loss_en": "1",
+  "r16_ext_comparand_zh": "1",
+  "r16_ext_relative_to_en": "1",
+  "r16_ext_leading_adverb_en": "1",
+  "r16_ext_short_name_zh": "1",
+  "r16_ext_short_names_total_zh": "1",
+  "r16_ext_lots_zh": "1",
+  "r16_ext_mixed_count_zh": "1",
+  "r16_ext_gap_to_high_yuan_zh": "1",
+  "r16_ext_worth_wan_en": "1",
+  "r16_ext_plain_gain_zh": "1",
+  "r16_ext_total_then_share_zh": "1",
+  "r16_ext_which_then_gap_en": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-ext.json",
-  "sha256_16": "9d61940e536638e9",
-  "bytes": 286067,
-  "slimmed_at": "2026-10-11T01:29:42+00:00"
+  "sha256_16": "5dc4fd0ee976957f",
+  "bytes": 325365,
+  "slimmed_at": "2026-10-11T04:04:55+00:00"
  }
 }
