@@ -288,3 +288,84 @@ def test_the_shipped_classifier_records_where_it_was_trained():
     payload = joblib.load(_artifact_path())
     assert payload["version"] == "operation-clf-r16"
     assert payload["trained_at_commit"] and len(payload["dev_wordings_sha256"]) == 64
+
+
+# ---- after the round-11 slice rerun (after exposure): the remaining forms of the same classes, own wording ----
+
+
+def test_a_group_led_by_a_connector_after_a_comma_is_the_totalled_side():
+    from query_intelligence.agent.frame import resolve_frame_question
+
+    a, b, c = ENTITIES[9], ENTITIES[7], ENTITIES[2]
+    question = f"{a[1]}单独的净利润，与{b[1]}、{c[1]}两家加起来比较，哪边多"
+    request = resolve_frame_question(question, [], [_entity(row, True) for row in (a, b, c)], [])[2]
+    assert request["operation"] == "total_vs_one" and request["split"] == 1
+    assert request["operands"][0]["symbol"] == a[0]
+
+
+def test_a_total_without_its_own_question_then_a_share_of_it():
+    from query_intelligence.agent.frame import operation_pieces
+
+    pieces = operation_pieces("Sum of the pair, and Moutai's share of that sum?")
+    assert [operation for operation, _piece in pieces] == ["sum", "share_total"]
+
+
+def test_lots_written_as_count_then_cost_after_an_ordinal():
+    from query_intelligence.agent.coverage import cost_basis_request
+
+    asked = cost_basis_request("工行我买过两回：第一回？不，第一次1000股6元，第二次500股7元，现在盈亏多少")
+    assert asked is not None
+    assert [(lot["cost"], lot["shares"]) for lot in asked["lots_detail"]] == [(6.0, 1000), (7.0, 500)]
+
+
+def test_an_english_list_with_the_unit_written_once():
+    from query_intelligence.agent.coverage import holding_positions
+
+    text = "In my account: 600 Zijin and 900 ICBC shares. Total value?"
+    assert [item["shares"] for item in holding_positions(text)] == [600, 900]
+
+
+@pytest.mark.parametrize(
+    ("question", "field"),
+    [
+        ("宁德时代要回到52周最高收盘价还需要涨百分之多少", "back_to_high_52w"),
+        ("比亚迪现在比一年来的最低收盘价高了多少钱", "rebound_52w"),
+    ],
+)
+def test_the_rise_back_to_the_high_and_the_distance_above_the_low(question, field):
+    from query_intelligence.agent.coverage import requested_price_fields
+    from query_intelligence.agent.frame import resolve_frame_question
+
+    assert getattr(requested_price_fields(question), field)
+    # a price-derived question of one target: the time window is not a second security, so no comparison frame
+    target = ENTITIES[3] if question.startswith("宁德") else ENTITIES[4]
+    assert resolve_frame_question(question, [], [_entity(target, True)], []) is None
+
+
+def test_market_cap_as_years_of_net_profit_is_a_ratio_of_two_metrics():
+    from query_intelligence.agent.frame import resolve_frame_question
+
+    request = resolve_frame_question("美的集团的总市值相当于多少年的净利润", [], [_entity(ENTITIES[8], True)], [])[2]
+    assert request["operation"] == "ratio"
+    assert [item["metric"] for item in request["operands"]] == ["market_cap", "net_profit"]
+
+
+def test_the_last_session_of_a_stated_year():
+    from query_intelligence.agent.composer import dated_close_sentences
+
+    tool_log = [
+        {
+            "tool": "get_price_history",
+            "ok": True,
+            "data": {
+                "symbol": "600036.SH",
+                "name": "招商银行",
+                "evidence_id": "price_600036.SH",
+                "as_of": "2026-09-30",
+                "close": 41.26,
+                "prior_year_end": {"date": "2025-12-31", "close": 42.1},
+            },
+        }
+    ]
+    facts, _gaps = dated_close_sentences("招商银行2025年最后一天收盘价是多少", tool_log, True)
+    assert facts and "2025-12-31" in facts[0] and "42.1" in facts[0]

@@ -737,7 +737,11 @@ _LOT_ZH = re.compile(
     + r"|"
     + r"(?:买|买入|买进|入手|建仓|加仓|补仓)(?:了|入|进)?\s*"
     + _HOLDING_COUNT_ZH.replace("(?P<n>", "(?P<n2>").replace("(?P<unit>", "(?P<unit2>")
-    + r"[^，,。；;]{0,10}?(?:成本价?|买入价|均价|单价|价格|每股)(?:是|为|在|约)?\s*(?P<cost2>\d+(?:\.\d+)?)"
+    + r"[^，,。；;]{0,10}?(?:成本价?|买入价|均价|单价|价格|每股)(?:是|为|在|约)?\s*(?P<cost2>\d+(?:\.\d+)?)|"
+    # (round 16) "第一次300股75元，第二次200股85元": a count then its cost, after an ordinal purchase word
+    + r"(?:第[一二三四五六七八九十\d]+(?:次|笔|批)|头一次|先|后来|然后|再)[^，,。；;：:]{0,4}?"
+    + _HOLDING_COUNT_ZH.replace("(?P<n>", "(?P<n3>").replace("(?P<unit>", "(?P<unit3>")
+    + r"\s*(?:的)?(?:成本|价格|均价|每股)?\s*(?P<cost3>\d+(?:\.\d+)?)\s*(?:元|块)"
 )
 _LOT_EN = re.compile(
     r"(?<![\d.,])(?P<n>\d[\d,]*)\s+(?:more\s+)?(?:(?:[A-Za-z][\w'.&-]*\s+){0,3}?(?:shares?|units?)\s+)?"
@@ -772,6 +776,10 @@ def cost_basis_request(query: str) -> dict[str, Any] | None:
     zh = bool(re.search(r"[一-鿿]", text))
     found = _COST_ZH.search(text) if zh else _COST_EN.search(text)
     asked = _PNL_ASK_ZH.search(text) if zh else _PNL_ASK_EN.search(text)
+    if found is None and asked is not None and len(detail := cost_lots(text)) >= 2:
+        # (round 16) lots written as count then cost ("第一次300股75元，第二次200股85元"): no cost word or buy verb
+        return {"cost": detail[0]["cost"], "shares": sum(lot["shares"] for lot in detail), "lots": 0,
+                "lots_detail": detail}  # fmt: skip
     if found is None or asked is None:
         return None
     cost = float(next(value for value in found.groupdict().values() if value))
@@ -807,12 +815,12 @@ def cost_lots(query: str) -> list[dict[str, Any]]:
     pattern = _LOT_ZH if re.search(r"[一-鿿]", text) else _LOT_EN
     for match in pattern.finditer(text):
         groups = match.groupdict()
-        raw_cost = groups.get("cost") or groups.get("cost2")
-        raw_count = groups.get("n") or groups.get("n2")
+        raw_cost = groups.get("cost") or groups.get("cost2") or groups.get("cost3")
+        raw_count = groups.get("n") or groups.get("n2") or groups.get("n3")
         if not raw_cost or not raw_count:
             continue
         count = count_value(raw_count)
-        if (groups.get("unit") or groups.get("unit2") or "") == "手":
+        if (groups.get("unit") or groups.get("unit2") or groups.get("unit3") or "") == "手":
             count *= 100
         cost = float(raw_cost)
         if count > 1 and cost > 0:
@@ -929,7 +937,9 @@ _EN_POSITION = re.compile(
 
 
 _EN_BARE_POSITION = re.compile(
-    r"(?:,|\band\b|\bplus\b|&)\s*(?:another\s+|also\s+)?(?P<n>\d[\d,]*)\s+(?:of\s+|in\s+)?(?=(?-i:[A-Z]))",
+    r"(?:,|\band\b|\bplus\b|&)\s*(?:another\s+|also\s+)?(?P<n>\d[\d,]*)\s+(?:of\s+|in\s+)?(?=(?-i:[A-Z]))|"
+    # (round 16) a count and a name before the next item of the list ("1,500 CMB and 2,000 ICBC shares")
+    r"(?<![\d.,])(?P<n2>\d[\d,]*)\s+(?=(?-i:[A-Z])[\w&.-]*(?:\s+(?-i:[A-Z])[\w&.-]*){0,2}\s*(?:,|\band\b|&))",
     re.IGNORECASE,
 )
 
@@ -973,20 +983,22 @@ def holding_positions(query: str) -> list[dict[str, Any]]:
             # its unit takes the unit of the position before it
             taken = [(item["start"], item["end"]) for item in found]
             for match in _EN_BARE_POSITION.finditer(text):
-                if any(start <= match.start("n") < end for start, end in taken):
+                group = "n" if match.group("n") else "n2"
+                if any(start <= match.start(group) < end for start, end in taken):
                     continue
                 before = [item for item in found if item["end"] <= match.start()]
-                if not before:
+                after = [item for item in found if item["start"] >= match.end(group)]
+                if not (before or (group == "n2" and after)):
                     continue
-                count = int(match.group("n").replace(",", ""))
-                unit = before[-1]
+                count = int(match.group(group).replace(",", ""))
+                unit = before[-1] if before else after[0]
                 found.append(
                     {
                         "shares": count * 100 if unit["lots"] else count,
                         "lots": count if unit["lots"] else 0,
                         "units": unit["units"],
-                        "start": match.start("n"),
-                        "end": match.end("n"),
+                        "start": match.start(group),
+                        "end": match.end(group),
                     }
                 )
             found.sort(key=lambda item: item["start"])
@@ -1428,6 +1440,8 @@ _RANGE_52W = re.compile(
 # "较52周高点跌了多少", "how far below its 52-week high is it?"
 _REBOUND_FROM_LOW = re.compile(
     r"(?:低点|最低|低位|新低)[^，。？?；;]{0,12}?(?:反弹|回升|涨回|涨了|涨起来|上涨|拉升)|"
+    # (round 16) "现在比一年来的最低收盘价高出多少元"
+    r"(?:比|较|离)[^，。？?；;]{0,10}?(?:最低|低点|低位)[^，。？?；;]{0,8}?(?:高出|高了|多出|高(?=多少|几))|"
     r"(?:反弹|回升)[^，。？?；;]{0,6}?(?:多少|几)|"
     r"\b(?:rebound(?:ed)?|bounced?|recovered|rallied|risen|climbed|up)\b[^.?!]{0,30}?\b(?:from|off|since)\b"
     r"[^.?!]{0,20}?\blows?\b|\babove (?:its|the) (?:52[- ]week |one[- ]year )?lows?\b",
@@ -1443,7 +1457,7 @@ _BACK_TO_HIGH = re.compile(
     r"(?:涨|上涨|反弹|回升|拉升)[^，。？?；;]{0,10}?(?:才能|才可以|才会|才|能|可以)?(?:回到|重回|收复|涨回|回升到|回)"
     r"[^，。？?；;]{0,8}?(?:最高|高点|高位|前高)|"
     r"(?:回到|重回|收复|涨回)[^，。？?；;]{0,12}?(?:最高|高点|高位|前高)[^，。？?；;]{0,8}?(?:要|需要|得|还要|还得)?"
-    r"(?:涨|上涨)(?:多少|几)|"
+    r"(?:涨|上涨)(?:多少|几|百分之(?:多少|几))|"
     r"\b(?:rise|gain|climb|rally|go up|increase)\b[^.?!]{0,40}?\b(?:back to|to (?:get|climb|return) back to|to "
     r"(?:regain|reclaim|retake|revisit))\b[^.?!]{0,30}?\bhighs?\b|"
     r"\bhow much\b[^.?!]{0,40}?\b(?:back to|regain|reclaim|return to)\b[^.?!]{0,30}?\bhighs?\b",

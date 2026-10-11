@@ -148,6 +148,19 @@ class EntityResolver:
             if rows and all(row.get("is_official") == DERIVED_WORD_MARK for row in rows)
         }
 
+    def _finance_context(self, query: str, alias: str) -> bool:
+        """(round 16) A finance cue, or another security named exactly ("招行和紫金的呢"), around a derived short name
+        that is also an ordinary word."""
+        rest = query.replace(alias, " ")
+        if FINANCE_CUE.search(rest):
+            return True
+        return any(
+            other in rest
+            for other in self._alias_rows_by_normalized
+            if len(other) >= 2 and other not in self._context_gated_aliases and other in rest and not other.isdigit()
+            and not self._is_generic_product_mention(other)
+        )
+
     def resolve(self, query: str) -> tuple[list[dict], list[str], list[str]]:
         resolved_entities: list[dict] = []
         flags: list[str] = []
@@ -416,7 +429,7 @@ class EntityResolver:
             if self._is_generic_product_mention(alias):
                 continue
             colloquial = alias in self._colloquial_aliases
-            if alias in self._context_gated_aliases and not FINANCE_CUE.search(query.replace(alias, " ")):
+            if alias in self._context_gated_aliases and not self._finance_context(query, alias):
                 continue  # (round 16) "宁德的天气冷吗": the city, not 宁德时代
             for hit in re.finditer(re.escape(alias), query):
                 if self._should_skip_exact_alias_hit(query, hit.start(), hit.end(), rows, alias):

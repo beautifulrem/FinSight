@@ -1634,16 +1634,19 @@ def _from_52w_extremes(data: dict[str, Any], zh: bool, request: PriceRequest) ->
     low, high = found.get("low"), found.get("high")
     if request.rebound_52w and low:
         pct = _num(round((float(close) - float(low)) / float(low) * 100, 2))
+        # (round 16) the distance in yuan as well as in percent ("比一年来的最低收盘价高出多少元")
+        gap = _num(round(float(close) - float(low), 3))
         if zh:
             sentences.append(
                 f"{name}最新收盘 {_px(close, data, zh)}较近52周最低收盘 {_px(low, data, zh)}（{found.get('low_date')}）"
-                f"{'反弹' if float(close) >= float(low) else '下跌'}：({_num(close)} − {_num(low)}) ÷ {_num(low)} ≈ "
-                f"{pct}% [{eid}]。"
+                f"{'反弹' if float(close) >= float(low) else '下跌'} {_num(close)} − {_num(low)} = {gap} 元，即 "
+                f"({_num(close)} − {_num(low)}) ÷ {_num(low)} ≈ {pct}% [{eid}]。"
             )
         else:
             sentences.append(
-                f"{name}'s latest close of {_px(close, data, zh)} is ({_num(close)} − {_num(low)}) ÷ {_num(low)} ≈ "
-                f"{pct}% above its 52-week low close of {_px(low, data, zh)} on {found.get('low_date')} [{eid}]."
+                f"{name}'s latest close of {_px(close, data, zh)} is {_num(close)} − {_num(low)} = CNY {gap}, or "
+                f"({_num(close)} − {_num(low)}) ÷ {_num(low)} ≈ {pct}%, above its 52-week low close of "
+                f"{_px(low, data, zh)} on {found.get('low_date')} [{eid}]."
             )
     if request.back_to_high_52w and high and float(close):
         # (round 15, review-11 K4) the rise from the latest close back to the 52-week high, in percent of the close
@@ -1681,6 +1684,13 @@ def _from_52w_extremes(data: dict[str, Any], zh: bool, request: PriceRequest) ->
     return sentences
 
 
+# (round 16) the last session of a stated year
+_YEAR_LAST_SESSION = re.compile(
+    r"((?:19|20)\d{2})\s*年(?:的)?(?:最后一个交易日|最后一天|最后一个工作日|收官日|年末|年底)|"
+    r"\blast (?:trading day|session) of ((?:19|20)\d{2})\b|"
+    r"\b((?:19|20)\d{2})['’]?s? (?:last|final) (?:trading day|session)\b",
+    re.IGNORECASE,
+)
 _CLOSE_ASKED = re.compile(r"收盘|收于|报收|股价|价格|\bclos(?:e|ed|ing)\b|\bprice\b|\btrad(?:ed|ing) at\b", re.I)
 
 
@@ -1733,10 +1743,23 @@ def dated_close_sentences(query: str, tool_log: list[dict[str, Any]], zh: bool) 
         except ValueError:
             continue
         days = [period for period in stated_periods(query, as_of) if period.kind == "day"]
+        last = _YEAR_LAST_SESSION.search(query or "")
+        prior = data.get("prior_year_end") or {}
+        name, eid = data.get("name") or data.get("symbol"), data.get("evidence_id")
+        if last is not None and not days:
+            # (round 16) "2025年最后一个交易日收盘多少": the previous year's last close the payload carries
+            year = next(group for group in last.groups() if group)
+            if str(prior.get("date") or "").startswith(year) and prior.get("close") is not None and eid:
+                value, day = _px(prior["close"], data, zh), str(prior["date"])[:10]
+                facts.append(
+                    f"{name} {year}年最后一个交易日（{day}）的收盘价为 {value} [{eid}]。"
+                    if zh
+                    else f"{name} closed at {value} on {day}, the last trading day of {year} [{eid}]."
+                )
+            break
         if not days:
             continue
         closes = dated_closes(data)
-        name, eid = data.get("name") or data.get("symbol"), data.get("evidence_id")
         for period in days:
             day = period.start.isoformat()
             if day in closes and eid and day != str(data["as_of"])[:10]:

@@ -451,6 +451,8 @@ _RATIO_EXPLICIT = re.compile(
     r"\btimes (?:as (?:high|large|big|much)|bigger|larger|higher|more|greater|the)\b|\bmultiple of\b|"
     r"(?<![\w.])\d+(?:\.\d+)?\s?[x×](?![A-Za-z])|"
     r"(?:相当于|抵得上|抵得过|顶得上|顶得过|能顶|能抵|顶|抵)(?:了)?(?:几|多少)个|除以|"
+    # (round 16) "市值相当于几年的净利润": market cap ÷ net profit
+    r"相当于(?:几|多少)年(?:的)?|"
     r"\bby what (?:multiple|factor)\b|\bwhat multiple\b|\bhow many [\w' -]{1,30}?(?:'s|’s) worth\b|"
     r"\bdivide\b[^.?!]{0,40}?\bby\b|\bdivided by\b",
     re.IGNORECASE,
@@ -993,7 +995,12 @@ def operation_tie_break(text: str, parsed: FrameParse | None = None) -> Any:
         return None
     from .operation_classifier import tie_break
 
-    return tie_break(text, list(parsed.matched), parsed.operation)
+    found = tie_break(text, list(parsed.matched), parsed.operation)
+    if found is not None and found.operation == "which" and parsed.operation in {"difference", "relative", "ratio"}:
+        # (round 16) "哪个更低，低多少": the gap states both values and which is higher, so it answers "which" too; a
+        # tie-break never trades it for the bare direction
+        return None
+    return found
 
 
 def _clauses(text: str) -> list[str]:
@@ -1062,13 +1069,22 @@ def operation_pieces(clause: str, *, across: bool = False) -> list[tuple[str, st
     if len(pieces) < 2 or (not across and parse_clause(clause).operation in {"mean", "total_vs_one"}):
         return []  # "市值加总，再除以三" is one mean; "A一家，比B、C加起来还多多少" one total vs one
     found: list[tuple[str, str]] = []
+    unasked: tuple[str, str] | None = None
+    # "A和B的X合计中，A占几成" is one share of the total, not a total and a share
+    whole_share = parse_clause(clause).operation == "share_total"
     for piece in pieces:
         operation = _operation_of(piece)
-        if operation and _ASKS.search(piece):
+        share_of_it = operation in {None, "sum"} and _SHARE_OF_IT.search(piece) and _ASKS.search(piece)
+        if share_of_it and found and found[-1][0] == "sum":
+            found.append(("share_total", piece))
+        elif share_of_it and not found and unasked and unasked[0] == "sum" and not whole_share:
+            # (round 16) "Total of the two, and Midea's share of that total?": the total is asked with the share
+            found += [unasked, ("share_total", piece)]
+        elif operation and _ASKS.search(piece):
             # a piece asks its own operation only with its own question ("合计中，A占几成" is one share)
             found.append((operation, piece))
-        elif found and found[-1][0] == "sum" and _SHARE_OF_IT.search(piece) and _ASKS.search(piece):
-            found.append(("share_total", piece))
+        elif operation and not found:
+            unasked = (operation, piece)
         elif found and (match := _METRIC_ELLIPSIS.match(piece)) and metric_of(match.group("metric")):
             found.append((found[-1][0], piece))
     kinds = {(operation, metric_of(piece)) for operation, piece in found}
@@ -1408,7 +1424,9 @@ _ZH_NAME = re.compile(
 )
 _ZH_NOT_NAME = re.compile(
     r"前者|后者|行业|板块|同行|同业|平均|大盘|指数|去年|今年|上月|上周|昨天|之前|以前|它|其|两者|二者|两家|三家|"
-    r"市场|整体|水平|当前|现在|最新|多少|几|哪个|谁"
+    r"市场|整体|水平|当前|现在|最新|多少|几|哪个|谁|"
+    # (round 16) a time window or an extreme is never a second security ("比一年来的最低收盘价高出多少")
+    r"一年|年来|年内|近年|周内|52周|五十二周|最低|最高|历史|高点|低点"
 )
 
 
@@ -1533,6 +1551,10 @@ def _total_sides(
         return None, operands
     offset = max(text.find(clause), 0)
     cut = offset + anchor.start()
+    led = _GROUP_LEAD.search(clause[: anchor.start()])
+    if led is not None and _SUM.search(clause[led.end() : anchor.end() + 2]):
+        # (round 16) "A一家的营收，跟B、C两家合起来比": the group starts at the connector that opens its comma piece
+        cut = offset + led.start()
     single = _comparand(clause, ordered)
     if single is not None and (len(named) >= 3 or (len(named) == 2 and _PLURAL.search(clause))):
         # (round 16, review-12 L1) "A和B合计，与C相比哪个多", "A和B加起来，跟C比谁多", "Compared with C, do A and B
@@ -1567,6 +1589,8 @@ def _total_sides(
 # after a comparison preposition ("相比C", "比起C", "较之C", "compared with C", "relative to C", "against C")
 _COMPARAND_CONNECTOR = re.compile(r"(?:与|跟|同|和|较|对照)\s*$")
 _COMPARAND_VERB = re.compile(r"^(?:相比|相较|比较|对比|比起来|比一比|比(?!亚迪|例|重|率|值|如|方))")
+# (round 16) a connector that opens a comma piece and leads the totalled group: "…，跟B、C两家合起来比"
+_GROUP_LEAD = re.compile(r"(?:^|[，,]\s*)(?:跟|与|同|和|拿)(?=[^，,。？?；;]*$)")
 _LIST_CONTINUES = re.compile(
     r"\s*(?:的[^，,。？?]{0,6}?)?\s*(?:和|与|跟|及|、|以及|加上?|\band\b|\bplus\b|&)", re.IGNORECASE
 )
