@@ -9728,6 +9728,36 @@
     }
    ],
    "error": null
+  },
+  "explain_concept:{\"query\": \"毛利率通常是怎么计算出来的\", \"term\": \"毛利率\"}": {
+   "ok": true,
+   "data": {
+    "term": "毛利率",
+    "definition_zh": "毛利率是毛利润占营业收入的比例：（营业收入 − 营业成本）÷ 营业收入。它反映产品或服务本身的盈利空间，还没有扣除销售、管理、研发、财务等期间费用和税费。不同行业的毛利率差异很大，宜与同行或自身历史比较；银行、券商等金融企业通常不披露毛利率。",
+    "definition_en": "Gross margin is gross profit as a share of operating revenue: (revenue - cost of revenue) / revenue. It shows the margin on the products or services themselves, before selling, administrative, R&D and financial expenses and taxes. Gross margins differ widely across industries, so compare them with peers or the company's own history; banks and brokers usually report none.",
+    "has_data_series": true,
+    "evidence_id": "glossary_毛利率",
+    "source": "FinSight glossary"
+   },
+   "evidence": [
+    {
+     "evidence_id": "glossary_毛利率",
+     "kind": "document",
+     "source_type": "glossary",
+     "title": "毛利率",
+     "source_name": "FinSight glossary",
+     "source_url": null,
+     "provider": null,
+     "as_of": null,
+     "text_excerpt": "毛利率是毛利润占营业收入的比例：（营业收入 − 营业成本）÷ 营业收入。它反映产品或服务本身的盈利空间，还没有扣除销售、管理、研发、财务等期间费用和税费。不同行业的毛利率差异很大，宜与同行或自身历史比较；银行、券商等金融企业通常不披露毛利率。\nGross margin is gross profit as a share of operating revenue: (revenue - cost of revenue) / revenue. It shows the margin on the products or services themselves, before selling, administrative, R&D and financial expenses and taxes. Gross margins differ widely across industries, so compare them with peers or the company's own history; banks and brokers usually report none.",
+     "payload": {
+      "term": "毛利率",
+      "has_data_series": true
+     },
+     "produced_by": "explain_concept"
+    }
+   ],
+   "error": null
   }
  },
  "extended_at": [
@@ -9739,6 +9769,7 @@
   "2026-09-30T08:22:01+00:00",
   "2026-10-01T05:37:33+00:00",
   "2026-10-01T05:18:26+00:00",
-  "2026-10-11T02:32:01+00:00"
+  "2026-10-11T02:32:01+00:00",
+  "2026-10-11T06:39:52+00:00"
  ]
 }

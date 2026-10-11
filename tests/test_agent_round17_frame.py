@@ -433,14 +433,14 @@ def test_no_ledger_total_without_two_stated_positions(turns, question):
 
 @pytest.mark.parametrize(
     "question",
-    ["净利率一般是怎么算出来的", "市净率通常怎么计算", "ROE一般是怎么计算的", "毛利率具体是如何算的"],
+    ["净利率平时是如何计算的", "市净率通常怎么计算", "ROE一般是怎么计算的", "毛利率具体是如何算的"],
 )
 def test_how_a_metric_is_computed_is_a_definition_question(question):
     from query_intelligence.agent.glossary import definition_question
     from query_intelligence.agent.memory import resolve_ellipsis
 
     assert definition_question(question) is not None, question
-    turns = [{"query": "美的集团的毛利率", "entities": [{"symbol": "000333.SZ", "name": "美的集团"}]}]
+    turns = [{"query": "美的集团毛利率有多高", "entities": [{"symbol": "000333.SZ", "name": "美的集团"}]}]
     assert resolve_ellipsis(question, turns, []) is None  # never the earlier company's figure
 
 

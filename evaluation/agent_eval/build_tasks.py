@@ -702,6 +702,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round14_frame_tasks()
     tasks += _round15_frame_tasks()
     tasks += _round16_frame_tasks()
+    tasks += _round17_frame_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -4588,6 +4589,186 @@ def _round16_frame_tasks() -> list[dict[str, Any]]:
                     "成本价1300元，持有茅台50股，赚了多少",
                     required_facts=[price(mt, 5475)],
                     forbidden_patterns=no_advice,
+                )
+            ],
+        ),
+    ]
+
+
+def _round17_frame_tasks() -> list[dict[str, Any]]:
+    """Round-17 rules: the classes the round-13 review found (M1, M2, M4-M8, M10), in the author's own wording on the
+    v1 snapshot (no turn copies or near-copies a committed slice, a quoted review probe or another set,
+    ``tests/test_agent_eval.py``). Values from the v1 tools (closes 茅台 1409.5 / 五粮液 100.64 / 中国平安 53.61 on
+    2026-04-22; 营业收入 1688.38 亿 / 1085 亿 / 12180 亿; 归母净利润 823.2 亿 / 378 亿; 市盈率 24.6 / 20.9 / 8.7;
+    市净率 中国平安 1.1): a sale (400 × −9.36 = −3744 and 200 × −5 = −1000; 60 × 59.5 = 3570 and 40 × 70 = 2800), an
+    exclusion (13868.38 亿; mean P/E 22.75), the rise back to a cost (11.92%, 19.24%), a lot count in hand units (200 ×
+    29.5 = 5900), stated positions then a bare total (137412; 120795), a definition after a figure, a book-value
+    follow-up (P/B 1.1) and an opening adverb of totalling (1201.2 亿)."""
+
+    def fundamental(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"fundamental_{symbol}", "value": value}
+
+    def price(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"price_{symbol}", "value": value}
+
+    mt, wly, pa = "600519.SH", "000858.SZ", "601318.SH"
+    no_advice = [*TRADING_PATTERNS, r"条件性判断", r"(?i)conditional assessment"]
+    return [
+        # M1: a sale reduces the position (never the whole position's P&L, never a second purchase)
+        _task(
+            "r17_sale_rest_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "五粮液我110元买过600股，上个月以105元抛掉了200股，剩下那些现在是赚是亏",
+                    required_facts=[price(wly, -3744), price(wly, -1000)],
+                    forbidden_patterns=[*no_advice, r"-5616", r"(?<!\d)800 股"],
+                )
+            ],
+        ),
+        _task(
+            "r17_sale_rest_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "I picked up 100 Moutai shares at 1350, then sold 40 of them at 1420. How much am I up or down on "
+                    "the rest?",
+                    required_facts=[price(mt, 3570), price(mt, 2800)],
+                    forbidden_patterns=[*no_advice, r"(?<![\d.])5950(?![\d.])", r"140 shares"],
+                    language="en",
+                )
+            ],
+        ),
+        # M2: an exclusion before the group operation
+        _task(
+            "r17_exclusion_sum_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "茅台、五粮液、中国平安三家，去掉五粮液，剩下两家营业收入加总多少",
+                    required_facts=[fundamental(mt, 1386838000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"14953\.38"],  # never all three
+                )
+            ],
+        ),
+        _task(
+            "r17_exclusion_mean_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Of Moutai, Wuliangye and Ping An, what is the mean P/E if we leave out Ping An?",
+                    required_facts=[fundamental(mt, 22.75)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"18\.07"],
+                    language="en",
+                )
+            ],
+        ),
+        # M5: the rise back to a cost, not the loss in percent of it
+        _task(
+            "r17_rise_to_cost_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "中国平安我是60块进的，从现在的价位要涨百分之几才能解套",
+                    required_facts=[price(pa, 11.92)],
+                    forbidden_patterns=[*no_advice, r"-10\.65"],
+                )
+            ],
+        ),
+        _task(
+            "r17_rise_to_cost_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "I got into Wuliangye at 120. What percentage gain would it take for me to break even?",
+                    required_facts=[price(wly, 19.24)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"-16\.13"],
+                    language="en",
+                )
+            ],
+        ),
+        # M4: a lot count in hand units is computed and kept by the verifier
+        _task(
+            "r17_lots_in_hands_zh",
+            "fact",
+            "zh",
+            [_turn("茅台我按1380元买进了2手，用最新收盘价算浮盈多少", required_facts=[price(mt, 5900)])],
+        ),
+        # M6: positions stated in earlier turns, then a bare total
+        _task(
+            "r17_ledger_total_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("帮我记着，我手上有五粮液300股", required_entity=wly),
+                _turn("中国平安我也拿着2000股", required_entity=pa),
+                _turn(
+                    "全部加起来现在值多少钱",
+                    required_facts=[price(pa, 137412)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"合理估值"],
+                ),
+            ],
+        ),
+        _task(
+            "r17_ledger_total_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("Note that I own 50 Moutai shares.", required_entity=mt, language="en"),
+                _turn("Plus 500 Wuliangye shares.", required_entity=wly, language="en"),
+                _turn(
+                    "What's all that worth combined?",
+                    required_facts=[price(mt, 120795)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"(?i)fair value"],
+                    language="en",
+                ),
+            ],
+        ),
+        # M7: a definition asked as "how is it computed" after a figure of that metric
+        _task(
+            "r17_definition_after_figure_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("五粮液的毛利率", required_entity=wly),
+                _turn(
+                    "毛利率通常是怎么计算出来的",
+                    required_tools=["explain_concept"],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"76\.1"],  # never the earlier company's figure
+                ),
+            ],
+        ),
+        # M8: a book-value follow-up answers the P/B, not technicals
+        _task(
+            "r17_book_value_follow_up_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("中国平安现在的市净率是多少倍", required_entity=pa),
+                _turn(
+                    "那它现在跌破净资产没有",
+                    required_facts=[fundamental(pa, 1.1)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"RSI", r"MA5"],
+                ),
+            ],
+        ),
+        # M10: an opening adverb of totalling
+        _task(
+            "r17_opening_adverb_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Overall, what do Moutai and Wuliangye earn in net profit?",
+                    required_facts=[fundamental(mt, 120120000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"(?i)could not tell which security"],
+                    language="en",
                 )
             ],
         ),
