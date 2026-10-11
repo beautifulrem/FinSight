@@ -1,0 +1,563 @@
+{
+ "label": "first-run",
+ "commit": "c39008b",
+ "dirty": false,
+ "run_at": "2026-10-11T00:47:40+00:00",
+ "command": "python -m training.operation_classifier.evaluate_independent --label first-run",
+ "wordings": "evaluation/operation_wordings_independent_v1.jsonl",
+ "wordings_sha256": "faabe7d90d1cf300bb6d8570e0f8f6456f087d6c8debf87c4bf23d58c2b56a92",
+ "offline_nlu": "ext + corrections snapshot (shipped default), no session",
+ "classifier_version": "operation-clf-r15",
+ "independent": {
+  "questions": 234,
+  "accuracy": {
+   "grammar": {
+    "rate": 0.7906,
+    "low": 0.734,
+    "high": 0.8378,
+    "n": 234
+   },
+   "classifier": {
+    "rate": 0.812,
+    "low": 0.757,
+    "high": 0.8568,
+    "n": 234
+   },
+   "combined": {
+    "rate": 0.7991,
+    "low": 0.7432,
+    "high": 0.8455,
+    "n": 234
+   },
+   "frame_request_classifier_off": {
+    "rate": 0.7778,
+    "low": 0.7203,
+    "high": 0.8263,
+    "n": 234
+   },
+   "frame_request": {
+    "rate": 0.7863,
+    "low": 0.7294,
+    "high": 0.834,
+    "n": 234
+   },
+   "frame_request_and_operands": {
+    "rate": 0.7692,
+    "low": 0.7112,
+    "high": 0.8186,
+    "n": 234
+   }
+  },
+  "classifier_use": {
+   "fires": 2,
+   "changes_operation": 2,
+   "changes_to_right": 2,
+   "changes_to_wrong": 0,
+   "changes_frame_request": 2,
+   "frame_changes_to_right": 2,
+   "frame_changes_to_wrong": 0,
+   "grammar_none_on_an_operation": 20,
+   "rescued_by_fallback": 2
+  },
+  "by_operation": {
+   "difference": {
+    "grammar": "20/20",
+    "classifier": "20/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "20/20",
+    "frame_request": "20/20",
+    "frame_request_and_operands": "20/20"
+   },
+   "mean": {
+    "grammar": "18/20",
+    "classifier": "18/20",
+    "combined": "18/20",
+    "frame_request_classifier_off": "17/20",
+    "frame_request": "17/20",
+    "frame_request_and_operands": "17/20"
+   },
+   "none": {
+    "grammar": "34/34",
+    "classifier": "33/34",
+    "combined": "34/34",
+    "frame_request_classifier_off": "34/34",
+    "frame_request": "34/34",
+    "frame_request_and_operands": "34/34"
+   },
+   "ratio": {
+    "grammar": "19/20",
+    "classifier": "20/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "19/20",
+    "frame_request": "20/20",
+    "frame_request_and_operands": "20/20"
+   },
+   "relative": {
+    "grammar": "19/20",
+    "classifier": "19/20",
+    "combined": "19/20",
+    "frame_request_classifier_off": "19/20",
+    "frame_request": "19/20",
+    "frame_request_and_operands": "19/20"
+   },
+   "share": {
+    "grammar": "15/20",
+    "classifier": "16/20",
+    "combined": "15/20",
+    "frame_request_classifier_off": "15/20",
+    "frame_request": "15/20",
+    "frame_request_and_operands": "15/20"
+   },
+   "share_total": {
+    "grammar": "7/20",
+    "classifier": "8/20",
+    "combined": "7/20",
+    "frame_request_classifier_off": "7/20",
+    "frame_request": "7/20",
+    "frame_request_and_operands": "7/20"
+   },
+   "spread": {
+    "grammar": "11/20",
+    "classifier": "12/20",
+    "combined": "11/20",
+    "frame_request_classifier_off": "11/20",
+    "frame_request": "11/20",
+    "frame_request_and_operands": "8/20"
+   },
+   "sum": {
+    "grammar": "20/20",
+    "classifier": "19/20",
+    "combined": "20/20",
+    "frame_request_classifier_off": "20/20",
+    "frame_request": "20/20",
+    "frame_request_and_operands": "19/20"
+   },
+   "total_vs_one": {
+    "grammar": "10/20",
+    "classifier": "12/20",
+    "combined": "10/20",
+    "frame_request_classifier_off": "8/20",
+    "frame_request": "8/20",
+    "frame_request_and_operands": "8/20"
+   },
+   "which": {
+    "grammar": "12/20",
+    "classifier": "13/20",
+    "combined": "13/20",
+    "frame_request_classifier_off": "12/20",
+    "frame_request": "13/20",
+    "frame_request_and_operands": "13/20"
+   }
+  },
+  "by_language": {
+   "en": {
+    "grammar": "93/117",
+    "classifier": "94/117",
+    "combined": "94/117",
+    "frame_request_classifier_off": "91/117",
+    "frame_request": "92/117",
+    "frame_request_and_operands": "91/117"
+   },
+   "zh": {
+    "grammar": "92/117",
+    "classifier": "96/117",
+    "combined": "93/117",
+    "frame_request_classifier_off": "91/117",
+    "frame_request": "92/117",
+    "frame_request_and_operands": "89/117"
+   }
+  },
+  "combined_misses": [
+   {
+    "id": "ow004",
+    "expected": "which",
+    "grammar": "none",
+    "classifier": "total_vs_one",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow008",
+    "expected": "spread",
+    "grammar": "difference",
+    "classifier": "spread",
+    "combined": "difference",
+    "frame_request": "difference"
+   },
+   {
+    "id": "ow016",
+    "expected": "spread",
+    "grammar": "difference",
+    "classifier": "difference",
+    "combined": "difference",
+    "frame_request": "difference"
+   },
+   {
+    "id": "ow020",
+    "expected": "total_vs_one",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow021",
+    "expected": "share",
+    "grammar": "none",
+    "classifier": "none",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow023",
+    "expected": "spread",
+    "grammar": "difference",
+    "classifier": "difference",
+    "combined": "difference",
+    "frame_request": "difference"
+   },
+   {
+    "id": "ow029",
+    "expected": "total_vs_one",
+    "grammar": "sum",
+    "classifier": "which",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow032",
+    "expected": "which",
+    "grammar": "none",
+    "classifier": "none",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow034",
+    "expected": "which",
+    "grammar": "none",
+    "classifier": "total_vs_one",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow044",
+    "expected": "share_total",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow053",
+    "expected": "share_total",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow055",
+    "expected": "spread",
+    "grammar": "difference",
+    "classifier": "difference",
+    "combined": "difference",
+    "frame_request": "difference"
+   },
+   {
+    "id": "ow058",
+    "expected": "mean",
+    "grammar": "none",
+    "classifier": "none",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow061",
+    "expected": "mean",
+    "grammar": "none",
+    "classifier": "none",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow067",
+    "expected": "spread",
+    "grammar": "none",
+    "classifier": "none",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow078",
+    "expected": "total_vs_one",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow091",
+    "expected": "share",
+    "grammar": "none",
+    "classifier": "none",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow101",
+    "expected": "spread",
+    "grammar": "none",
+    "classifier": "total_vs_one",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow103",
+    "expected": "total_vs_one",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow104",
+    "expected": "which",
+    "grammar": "none",
+    "classifier": "total_vs_one",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow106",
+    "expected": "share_total",
+    "grammar": "total_vs_one",
+    "classifier": "total_vs_one",
+    "combined": "total_vs_one",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow107",
+    "expected": "share",
+    "grammar": "none",
+    "classifier": "none",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow110",
+    "expected": "total_vs_one",
+    "grammar": "none",
+    "classifier": "sum",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow118",
+    "expected": "total_vs_one",
+    "grammar": "sum",
+    "classifier": "total_vs_one",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow122",
+    "expected": "which",
+    "grammar": "none",
+    "classifier": "ratio",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow130",
+    "expected": "share_total",
+    "grammar": "total_vs_one",
+    "classifier": "total_vs_one",
+    "combined": "total_vs_one",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow132",
+    "expected": "share_total",
+    "grammar": "sum",
+    "classifier": "share_total",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow133",
+    "expected": "which",
+    "grammar": "none",
+    "classifier": "none",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow146",
+    "expected": "share_total",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow154",
+    "expected": "spread",
+    "grammar": "none",
+    "classifier": "mean",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow159",
+    "expected": "share_total",
+    "grammar": "relative",
+    "classifier": "relative",
+    "combined": "relative",
+    "frame_request": "relative"
+   },
+   {
+    "id": "ow161",
+    "expected": "share",
+    "grammar": "relative",
+    "classifier": "relative",
+    "combined": "relative",
+    "frame_request": "relative"
+   },
+   {
+    "id": "ow163",
+    "expected": "total_vs_one",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow169",
+    "expected": "spread",
+    "grammar": "difference",
+    "classifier": "difference",
+    "combined": "difference",
+    "frame_request": "difference"
+   },
+   {
+    "id": "ow176",
+    "expected": "total_vs_one",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow180",
+    "expected": "share_total",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow181",
+    "expected": "total_vs_one",
+    "grammar": "none",
+    "classifier": "total_vs_one",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow182",
+    "expected": "share_total",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow193",
+    "expected": "share",
+    "grammar": "ratio",
+    "classifier": "share",
+    "combined": "ratio",
+    "frame_request": "ratio"
+   },
+   {
+    "id": "ow195",
+    "expected": "total_vs_one",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow196",
+    "expected": "share_total",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow197",
+    "expected": "which",
+    "grammar": "none",
+    "classifier": "none",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow203",
+    "expected": "spread",
+    "grammar": "none",
+    "classifier": "none",
+    "combined": "none",
+    "frame_request": "none"
+   },
+   {
+    "id": "ow206",
+    "expected": "share_total",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow207",
+    "expected": "relative",
+    "grammar": "difference",
+    "classifier": "difference",
+    "combined": "difference",
+    "frame_request": "difference"
+   },
+   {
+    "id": "ow231",
+    "expected": "share_total",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   },
+   {
+    "id": "ow233",
+    "expected": "share_total",
+    "grammar": "sum",
+    "classifier": "sum",
+    "combined": "sum",
+    "frame_request": "sum"
+   }
+  ]
+ },
+ "dev_and_ext_use": {
+  "agent_eval_v1.jsonl": {
+   "questions": 728,
+   "classifier_fires": 0,
+   "by_use": {},
+   "changes_frame_request": 0
+  },
+  "agent_eval_ext_v1.jsonl": {
+   "questions": 86,
+   "classifier_fires": 0,
+   "by_use": {},
+   "changes_frame_request": 0
+  }
+ }
+}
