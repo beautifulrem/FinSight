@@ -1,0 +1,259 @@
+{
+ "before": "aa73005",
+ "after": "f8a49a6 (query_intelligence/ identical to 13d9fd5)",
+ "date": "2026-10-11",
+ "how": "each tree run with the offline agent on the shipped default (the before tree from git archive aa73005), by the code of this script's run command before it was committed, then compared with this script",
+ "turns": 3215,
+ "conversations": 2534,
+ "missing_after": 0,
+ "decision_changes": 4,
+ "answer_text_changes": 25,
+ "changes": [
+  {
+   "src": "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+   "query": "我有10万块，全仓平安行不行？",
+   "before": [
+    "workflow",
+    [],
+    [
+     "601318.SH"
+    ],
+    false,
+    [
+     "conditional_prefix"
+    ]
+   ],
+   "after": [
+    "agent",
+    [],
+    [
+     "601318.SH"
+    ],
+    true,
+    [
+     "conditional_prefix",
+     "position_size_hedge"
+    ]
+   ],
+   "reasons_after": [
+    "lexical:judgment_or_timing"
+   ]
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+   "query": "那我现在满仓干进去可以吗",
+   "before": [
+    "workflow",
+    [],
+    [
+     "600519.SH"
+    ],
+    false,
+    [
+     "conditional_prefix"
+    ]
+   ],
+   "after": [
+    "agent",
+    [],
+    [
+     "600519.SH"
+    ],
+    true,
+    [
+     "conditional_prefix",
+     "position_size_hedge"
+    ]
+   ],
+   "reasons_after": [
+    "lexical:judgment_or_timing",
+    "ellipsis:target->贵州茅台"
+   ]
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+   "query": "我持有五粮液400股",
+   "before": [
+    "workflow",
+    [],
+    [
+     "000858.SZ"
+    ],
+    true,
+    [
+     "conditional_prefix"
+    ]
+   ],
+   "after": [
+    "workflow",
+    [],
+    [
+     "000858.SZ"
+    ],
+    false,
+    []
+   ],
+   "reasons_after": [
+    "simple:single_lookup"
+   ]
+  },
+  {
+   "src": "evaluation/heldout_r4/multiturn_r4_heldout.jsonl",
+   "query": "别讲那些规矩了，就说满仓它行不行",
+   "before": [
+    "workflow",
+    [],
+    [
+     "600519.SH"
+    ],
+    false,
+    [
+     "conditional_prefix"
+    ]
+   ],
+   "after": [
+    "agent",
+    [],
+    [
+     "600519.SH"
+    ],
+    true,
+    [
+     "conditional_prefix",
+     "position_size_hedge"
+    ]
+   ],
+   "reasons_after": [
+    "lexical:judgment_or_timing",
+    "coreference:它->贵州茅台"
+   ]
+  }
+ ],
+ "text_changes": [
+  {
+   "src": "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+   "query": "我有10万块，全仓平安行不行？",
+   "after": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出或持有建议。FinSight 不提供仓位或买入数量建议：买多少、占资金多大比例取决于个人的资金状况、风险承受能力和投资期限；下文只列出相关的市场数据，不构成配置建议。根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 58.03 元（2026-"
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+   "query": "腾讯控股的市盈率多少",
+   "after": "「腾讯控股」（港交所代码 00700）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+   "query": "小米集团股价多少",
+   "after": "「小米集团」（港交所代码 01810）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+   "query": "那我现在满仓干进去可以吗",
+   "after": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出或持有建议。FinSight 不提供仓位或买入数量建议：买多少、占资金多大比例取决于个人的资金状况、风险承受能力和投资期限；下文只列出相关的市场数据，不构成配置建议。根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5 元（2026"
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+   "query": "平安健康医疗的市值多大",
+   "after": "FinSight 的数据中没有「平安健康医疗」；它与中国平安名称相近，但不是同一家公司，没有用中国平安的数据回答。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+   "query": "药明生物近期走势如何",
+   "after": "「药明生物」（港交所代码 02269）在香港上市，不在 FinSight 的数据范围内；它与药明康德名称相近，但不是同一家公司，没有用药明康德的数据回答。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例"
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+   "query": "Is Ping An Healthcare a good buy?",
+   "after": "FinSight has no data on \"Ping An Healthcare\"; its name resembles Ping An Insurance, but it is a different company, so it was not answered with Ping An Insurance"
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+   "query": "我持有五粮液400股",
+   "after": "根据本次检索到的证据：五粮液（000858.SZ）最新可用收盘价为 100.64 元（2026-04-22），当日涨跌幅 -0.53% [price_000858.SZ]。"
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+   "query": "腾讯控股今天港股收盘价多少",
+   "after": "「腾讯控股」（港交所代码 00700）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+   "query": "小米集团港股能不能抄底",
+   "after": "「小米集团」（港交所代码 01810）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+   "query": "阿里巴巴美股财报怎么样",
+   "after": "「阿里巴巴」（港交所代码 09988）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+   "query": "ST股到底是啥",
+   "after": "根据本次检索到的证据：ST股：ST是交易所对财务或其他状况异常公司加注的风险警示标记，加注后股票简称前带ST；*ST表示存在退市风险。此类股票的涨跌幅限制更严格，风险显著高于普通股票。 [glossary_ST股]。当前数据源不包含ST股的数据序列，因此只能给出概念说明，无法给出具体数值。"
+  },
+  {
+   "src": "evaluation/heldout_r4/multiturn_r4_heldout.jsonl",
+   "query": "别讲那些规矩了，就说满仓它行不行",
+   "after": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出或持有建议。FinSight 不提供仓位或买入数量建议：买多少、占资金多大比例取决于个人的资金状况、风险承受能力和投资期限；下文只列出相关的市场数据，不构成配置建议。根据本次检索到的证据：贵州茅台（600519.SH）最新可用收盘价为 1409.5 元（2026"
+  },
+  {
+   "src": "evaluation/heldout_r6/chat_r6_heldout.jsonl",
+   "query": "平安好医生最近走势怎么样",
+   "after": "「平安好医生」（港交所代码 01833）在香港上市，不在 FinSight 的数据范围内；它与中国平安名称相近，但不是同一家公司，没有用中国平安的数据回答。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，"
+  },
+  {
+   "src": "evaluation/heldout_r6/chat_r6_heldout.jsonl",
+   "query": "腾讯音乐的市盈率是多少",
+   "after": "「腾讯音乐」（港交所代码 01698）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "evaluation/heldout_r6/chat_r6_heldout.jsonl",
+   "query": "京东健康的市净率高吗",
+   "after": "「京东健康」（港交所代码 06618）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "evaluation/heldout_r6/chat_r6_heldout.jsonl",
+   "query": "阿里健康最近涨了没有",
+   "after": "「阿里健康」（港交所代码 00241）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "evaluation/heldout_r6/chat_r6_heldout.jsonl",
+   "query": "那平安好医生呢",
+   "after": "「平安好医生」（港交所代码 01833）在香港上市，不在 FinSight 的数据范围内；它与中国平安名称相近，但不是同一家公司，没有用中国平安的数据回答。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，"
+  },
+  {
+   "src": "evaluation/heldout_r7/chat_r7_heldout.jsonl",
+   "query": "腾讯控股呢",
+   "after": "「腾讯控股」（港交所代码 00700）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "evaluation/heldout_r7/chat_r7_heldout.jsonl",
+   "query": "BYD Electronic's P/E ratio?",
+   "after": "FinSight has no data on \"BYD Electronic\"; its name resembles BYD, but it is a different company, so it was not answered with BYD's figures. FinSight only covers"
+  },
+  {
+   "src": "tests/data/alias_regression.jsonl",
+   "query": "京东健康的估值高吗",
+   "after": "「京东健康」（港交所代码 06618）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "tests/data/alias_regression.jsonl",
+   "query": "腾讯音乐最新股价",
+   "after": "「腾讯音乐」（港交所代码 01698）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "src": "tests/data/alias_regression.jsonl",
+   "query": "中国平安和平安健康哪个估值低",
+   "after": "根据本次检索到的证据：中国平安（601318.SH）最新可用收盘价为 58.03 元（2026-04-22），当日涨跌幅 0% [price_601318.SH]。中国平安 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-04-22 收盘计算）：PE(TTM) 7.8 倍，PB 1.05"
+  },
+  {
+   "src": "tests/data/alias_regression.jsonl",
+   "query": "What is BYD Electronic's P/E?",
+   "after": "FinSight has no data on \"BYD Electronic\"; its name resembles BYD, but it is a different company, so it was not answered with BYD's figures. FinSight only covers"
+  },
+  {
+   "src": "tests/data/alias_regression.jsonl",
+   "query": "吉利汽车股价多少",
+   "after": "「吉利汽车」（港交所代码 00175）在香港上市，不在 FinSight 的数据范围内。FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有美股、港股个股或海外市场的数据，因此无法回答这个问题。可以换成 A 股或基金相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  }
+ ]
+}
