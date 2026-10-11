@@ -17,6 +17,7 @@ e2e 测试，不能只看各分支各自通过。
 scripts/prepush.sh                          # 全部步骤：在 278f7cc 上，Apple 芯片笔记本耗时 35 分 40 秒
 PYTHON=.venv/bin/python scripts/prepush.sh  # 指定装了 requirements-dev.txt 的解释器
 SKIP=e2e,extras scripts/prepush.sh          # 按名字跳过步骤；汇总里会标为 skipped
+CI_BUDGET_FRACTION=0.5 scripts/prepush.sh   # CI 时间预算比例（默认 0.6；off 表示只报告不判失败）
 ```
 
 | 步骤 | 命令 | 对应的 CI job |
@@ -30,10 +31,10 @@ SKIP=e2e,extras scripts/prepush.sh          # 按名字跳过步骤；汇总里�
 | `gate-dev-holdout` | `python -m evaluation.agent_eval.gate --set dev --set holdout`（固定在 v1 种子） | agent-eval-gate |
 | `gate-ext` | `gate --set ext`（开扩展层，关更正层） | agent-eval-gate |
 | `gate-shipped` | `gate --set shipped`（扩展层**和**更正层都开：产品实际提供的数据） | agent-eval-gate |
-| `extras` | `verifier_stress`、`redteam`、`gate --extras-only` | agent-eval-gate |
+| `extras` | `verifier_stress`、`redteam`、`gate --extras-only` | agent-eval-extras |
 | `claim-holdout` | `claim_bench.run --set holdout`，用 CI 的下限 | agent-eval-gate |
-| `verify-slices` | 八个保留切片的 verify 脚本（r9 带 `QI_EVAL_SNAPSHOT_EXT=1`） | agent-eval-gate |
-| `report-check` | `python -m evaluation.agent_eval.report --check` | agent-eval-gate |
+| `verify-slices` | 十个保留切片的 verify 脚本（r9 带 `QI_EVAL_SNAPSHOT_EXT=1`，r10、r11 另带 `QI_EVAL_SNAPSHOT_FIX=1`） | heldout-verify |
+| `report-check` | `python -m evaluation.agent_eval.report --check` | heldout-verify |
 
 前面的步骤失败后，后面的步骤照样运行；只有所有运行了的步骤都通过，退出码才是 0。与 CI 一样，实时数据源和 trace 都关闭。
 e2e 服务由脚本挑一个空闲端口启动：在 CI 之外，Playwright 会复用已经在该端口上监听的服务，那可能是另一个工作目录的代码。
@@ -46,11 +47,43 @@ docker build -f docker/Dockerfile -t finsight:$(git rev-parse --short=7 HEAD) .
 deploy/k8s-smoke/smoke.sh        # 需要 kind 和 kubectl；断言 /ready、三个数据层和一个更正后的数字
 ```
 
+## CI 时间预算
+
+一个步骤在本地通过，仍可能因为时间让 CI 失败。run 38095861905（`bb99360`）里每个步骤都通过了，但 `agent-eval-gate` job
+在它 45 分钟的 `timeout-minutes` 处被取消：第 15 轮的切片让它的最后一步变长，而这个 job 在 `4ad3380` 上已经用掉 45 分钟里的
+43 分 51 秒。推送前检查只知道通过或失败，看不到这一点（第十二轮评审 L16）。
+
+从第 16 轮起，`scripts/prepush.sh` 每跑完一步就调用 [`scripts/ci_budget.py`](../../scripts/ci_budget.py)：
+
+1. **job 预算**：从 `.github/workflows/ci.yml` 读出每个 job 的 `timeout-minutes`。没写的按 GitHub 的默认值 360。
+2. **步骤到 job**：`STEP_JOBS` 写明每个推送前步骤对应的 CI job（即上表）。有测试检查脚本里的每一步都有映射、映射到的 job
+   都存在，并且该 job 确实运行这一步的命令。
+3. **估算**：一个 job 的 CI 时间估为 runner 的准备秒数，加上这个 job 至今每一步的本地秒数 × 减速系数。系数是同一份代码上
+   托管 runner 秒数与笔记本秒数之比（CI run 38077019773 对 `03dd10d` 的推送前运行，38095861905 对 `7cc9a4c`）。门禁、声明、
+   verify 和 e2e 在 runner 上慢 2.4–3.1 倍，所以默认系数是 3。pytest 慢 4.2–4.8 倍，因为 CI 加了分支覆盖率，所以它的系数是 5。
+4. **判失败**：job 的估算超过 `timeout-minutes` 的 `CI_BUDGET_FRACTION`（默认 0.6）时，越线的那一步记为
+   `FAIL (CI time budget)`。估算是累计的，所以越线的那一步即使本身很短也会失败。38095861905 那样每步都快、合起来太慢的
+   情况就是这样被拦住的。
+
+汇总里多一列，写每一步所属 job 的估算，最后附一张按 job 的表。表里列出超时、步骤、本地秒数、估算的 CI 分钟数和占预算的比例。
+
+| 变量 | 默认 | 含义 |
+|---|---|---|
+| `CI_BUDGET_FRACTION` | `0.6` | job 的估算最多可用其 `timeout-minutes` 的比例；`off` 或 `0` 只报告 |
+| `CI_SLOWDOWN` | `3` | 没有单独系数的步骤，每本地秒对应的 runner 秒数 |
+| `CI_SLOWDOWN_STEPS` | `pytest=5`（内置） | 按步骤的系数，例如 `pytest=5,e2e=2.5`；换到 Apple 芯片笔记本以外的机器上要重新标定 |
+
+用 `7cc9a4c` 的本地耗时估算，被取消的那种布局下 `agent-eval-gate` 是 48.5 / 45 分钟（108%），`tests` 是 49.7 / 60（83%），
+所以两者都会在推送前失败。为了留出余量，第 16 轮把校验器压力测试和红队移到单独的 job `agent-eval-extras`（60 分钟），并把
+`tests` 的超时提到 90 分钟。现在的估算是：tests 49.7 / 90（55%），agent-eval-gate 11.8 / 45（26%），agent-eval-extras
+28.6 / 60（48%），heldout-verify 10.1 / 45（22%）。`tests/test_ci_budget.py` 检查这两种布局。跳过的步骤不计入，所以用了 `SKIP`
+时估算只是下限。
+
 ## 输出
 
 日志写到 `outputs/prepush/<commit>/<step>.log`，汇总写到 `outputs/prepush/<commit>/summary.md`（或 `SUMMARY=<路径>`）：
-提交、工作区是否干净、Python / Node / pnpm 版本，以及每一步的命令、结果、秒数和日志里的结果行（pytest 的通过数、门禁的任务
-成功率等）。提交到仓库的汇总在 [`docs/results/ci/`](../results/ci/)，按运行时的提交命名：第 14 轮在 `278f7cc` 上（r14-ops 分支，第 14 轮合并之前，所以是 dev 473 / ext 24）17 个步骤全部通过
+提交、工作区是否干净、Python / Node / pnpm 版本，以及每一步的命令、结果、秒数、所属 CI job 至今的估算时间与预算，和日志里的结果行（pytest 的通过数、门禁的任务
+成功率等），最后是按 job 的预算表。提交到仓库的汇总在 [`docs/results/ci/`](../results/ci/)，按运行时的提交命名：第 14 轮在 `278f7cc` 上（r14-ops 分支，第 14 轮合并之前，所以是 dev 473 / ext 24）17 个步骤全部通过
 （[`prepush-278f7cc.md`](../results/ci/prepush-278f7cc.md)：2508 个测试通过 / 70 个跳过，vitest 152 个，e2e 2 个，门禁 dev 1.000、
 holdout 0.9434、ext 1.000、shipped 1.000）。
 

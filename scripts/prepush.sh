@@ -8,6 +8,13 @@
 #   PYTHON=.venv/bin/python scripts/prepush.sh  # the interpreter with requirements-dev.txt installed
 #   SKIP=e2e,extras scripts/prepush.sh          # skip steps by name (they are listed as skipped in the summary)
 #   SUMMARY=docs/results/ci/prepush-$(git rev-parse --short HEAD).md scripts/prepush.sh
+#   CI_BUDGET_FRACTION=0.5 scripts/prepush.sh  # CI time budget share (default 0.6; "off" disables the failure)
+#
+# CI time budgets (round-12 review L16: run 38095861905 was cancelled at its job's 45-min timeout, which this script
+# could not see): after each step, scripts/ci_budget.py adds the step's local seconds x a hosted-runner slowdown
+# factor to the estimate of the CI job that runs it (job -> timeout-minutes read from .github/workflows/ci.yml) and
+# fails the step when the job's estimate exceeds CI_BUDGET_FRACTION of its timeout-minutes. Factors: CI_SLOWDOWN
+# (default 3), CI_SLOWDOWN_STEPS ("pytest=5,..."); see scripts/ci_budget.py for the calibration.
 #
 # Steps (names for SKIP): ruff, actionlint, pytest, fe-install, fe-typecheck, fe-lint, fe-test, fe-build, dist-diff,
 # e2e, gate-dev-holdout, gate-ext, gate-shipped, extras, claim-holdout, verify-slices, report-check.
@@ -27,6 +34,8 @@ COMMIT="$(git rev-parse --short=7 HEAD)"
 LOG_DIR="$ROOT/outputs/prepush/$COMMIT"
 SUMMARY="${SUMMARY:-$LOG_DIR/summary.md}"
 mkdir -p "$LOG_DIR" "$(dirname "$SUMMARY")"
+BUDGET_STATE="$LOG_DIR/ci-budget.jsonl"
+rm -f "$BUDGET_STATE"
 CLEAN_AT_START="$(test -z "$(git status --porcelain --untracked-files=no)" && echo yes || echo no)"
 
 # The e2e server must be this checkout's code: Playwright reuses a server already listening on its port outside CI,
@@ -42,11 +51,11 @@ run() {
   local name="$1" pattern="$2" shown="$3"
   shift 3
   if [[ "$SKIP" == *",$name,"* ]]; then
-    ROWS+=("| $name | \`$shown\` | skipped (SKIP) | – | – |")
+    ROWS+=("| $name | \`$shown\` | skipped (SKIP) | – | – | – |")
     printf '[prepush] %-16s skipped\n' "$name"
     return
   fi
-  local log="$LOG_DIR/$name.log" started status seconds line
+  local log="$LOG_DIR/$name.log" started status seconds line budget budget_status
   printf '[prepush] %-16s ...' "$name"
   started=$(date +%s)
   "$@" >"$log" 2>&1
@@ -56,12 +65,20 @@ run() {
   line="$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -E "$pattern" | tail -1)"
   [ -n "$line" ] || line="$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -v '^\s*$' | tail -1)"
   line="$(printf '%s' "$line" | tr '|' '/' | sed 's/^[[:space:]]*//' | cut -c1-160)"
-  if [ "$status" = 0 ]; then
-    ROWS+=("| $name | \`$shown\` | pass | $seconds | $line |")
-    printf ' pass (%ss)\n' "$seconds"
+  # the CI job's estimated time so far against its timeout-minutes (scripts/ci_budget.py)
+  budget="$("$PYTHON" "$ROOT/scripts/ci_budget.py" check --step "$name" --seconds "$seconds" --state "$BUDGET_STATE" 2>&1)"
+  budget_status=$?
+  budget="$(printf '%s' "$budget" | tail -1 | tr '|' '/' | cut -c1-160)"
+  if [ "$status" = 0 ] && [ "$budget_status" = 0 ]; then
+    ROWS+=("| $name | \`$shown\` | pass | $seconds | $budget | $line |")
+    printf ' pass (%ss; %s)\n' "$seconds" "${budget#budget: }"
+  elif [ "$status" = 0 ]; then
+    FAILED=1
+    ROWS+=("| $name | \`$shown\` | **FAIL** (CI time budget) | $seconds | **$budget** | $line |")
+    printf ' FAIL (CI time budget, %ss): %s\n' "$seconds" "$budget"
   else
     FAILED=1
-    ROWS+=("| $name | \`$shown\` | **FAIL** (exit $status) | $seconds | $line |")
+    ROWS+=("| $name | \`$shown\` | **FAIL** (exit $status) | $seconds | $budget | $line |")
     printf ' FAIL (exit %s, %ss): see %s\n' "$status" "$seconds" "${log#"$ROOT"/}"
   fi
 }
@@ -112,7 +129,10 @@ verify_slices() {
     PYTHONPATH=. "$PYTHON" "$script" || return 1
   done
   QI_EVAL_SNAPSHOT_EXT=1 PYTHONPATH=. "$PYTHON" evaluation/heldout_r9/verify_heldout_r9.py || return 1
-  echo "8 verify scripts passed"
+  for script in evaluation/heldout_r10/verify_heldout_r10.py evaluation/heldout_r11/verify_heldout_r11.py; do
+    QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 PYTHONPATH=. "$PYTHON" "$script" || return 1
+  done
+  echo "10 verify scripts passed"
 }
 
 # CI's environment: live sources off, traces off
@@ -135,7 +155,7 @@ run gate-ext '^result:' "python -m evaluation.agent_eval.gate --set ext" gate --
 run gate-shipped '^result:' "python -m evaluation.agent_eval.gate --set shipped" gate --set shipped
 run extras '"gate"' "verifier_stress; redteam; gate --extras-only" extras
 run claim-holdout "verdict|accuracy" "claim_bench.run --set holdout (floors 0.978 / 0.98)" claim_holdout
-run verify-slices "verify scripts passed|FAIL|Error" "8 held-out verify scripts (r9 with QI_EVAL_SNAPSHOT_EXT=1)" verify_slices
+run verify-slices "verify scripts passed|FAIL|Error" "10 held-out verify scripts (r9 with QI_EVAL_SNAPSHOT_EXT=1, r10/r11 also FIX=1)" verify_slices
 run report-check "up to date|out of date|missing" "python -m evaluation.agent_eval.report --check" \
   "$PYTHON" -m evaluation.agent_eval.report --check
 
@@ -155,9 +175,11 @@ run report-check "up to date|out of date|missing" "python -m evaluation.agent_ev
   echo "| Skipped by request | $(echo "$SKIP" | sed 's/^,//; s/,$//' | sed 's/^$/none/') |"
   echo "| Result | $([ "$FAILED" = 0 ] && echo "**all steps passed**" || echo "**at least one step failed**") |"
   echo
-  echo "| Step | Command | Result | Seconds | Result line from the log |"
-  echo "|---|---|---|---|---|"
+  echo "| Step | Command | Result | Seconds | CI job budget (estimate so far) | Result line from the log |"
+  echo "|---|---|---|---|---|---|"
   printf '%s\n' "${ROWS[@]}"
+  echo
+  "$PYTHON" "$ROOT/scripts/ci_budget.py" summary --state "$BUDGET_STATE"
 } >"$SUMMARY"
 echo "[prepush] summary: ${SUMMARY#"$ROOT"/}"
 exit "$FAILED"
