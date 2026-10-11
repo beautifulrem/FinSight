@@ -468,8 +468,10 @@ def asks_h_share(query: str) -> bool:
     return bool(re.search(_H_SHARE, query or "", re.IGNORECASE)) or foreign_line_kind(query) is not None
 
 
-def foreign_line_note(query: str, names: str, *, zh: bool) -> str:
-    """(round 14, J7) What the refused question asked for, and that the company's A shares are covered."""
+def foreign_line_note(query: str, names: str, *, zh: bool, companies: list[str] | tuple[str, ...] | None = None) -> str:
+    """(round 14, J7) What the refused question asked for, and that the company's A shares are covered. (round 17,
+    M15) ``companies`` (entity-master names): when none of them has a Hong Kong line in the dual-listing table, an
+    H-share question is told that the company has no H shares."""
     kind = foreign_line_kind(query) or "h"
     asked_zh = {
         "h": " H 股（香港上市的股份）",
@@ -483,6 +485,19 @@ def foreign_line_note(query: str, names: str, *, zh: bool) -> str:
         "adr": "the ADRs (American depositary receipts listed in the US)",
         "ah": "the A/H premium, which needs the H-share (Hong Kong) price",
     }[kind]
+    if kind in {"h", "ah"} and has_hong_kong_line(companies or ()) is False:
+        # (round 17, review-13 M15) "茅台港股多少钱": the dual-listing table has no Hong Kong line for the company, so
+        # the note says so instead of implying an H share that FinSight merely does not cover
+        if zh:
+            return (
+                f"所问的是{asked_zh}；据港交所证券名单，{names}没有在香港上市的股份（没有 H 股）。{names}在 A 股上市的"
+                "股份在覆盖范围内，如需 A 股数据请直接询问。"
+            )
+        return (
+            f" The question asks for {asked_en}; according to the HKEX list of securities, {names} has no shares "
+            f"listed in Hong Kong (no H shares). {names}'s A shares are covered, so ask about the A shares directly if "
+            "that is what you need."
+        )
     if zh:
         return f"所问的是{asked_zh}；{names}在 A 股上市的股份在覆盖范围内，如需 A 股数据请直接询问。"
     return (
@@ -552,6 +567,45 @@ def not_covered_note(names: list[NotCoveredName], *, zh: bool, english: Any = No
             )
             parts.append(head + tail)
     return ("" if zh else " ").join(parts)
+
+
+@lru_cache(maxsize=1)
+def _a_share_stock_names() -> frozenset[str]:
+    from ..data_loader import load_entities
+
+    return frozenset(
+        str(row.get("canonical_name"))
+        for row in load_entities()
+        if row.get("entity_type") == "stock" and row.get("symbol")
+    )
+
+
+def a_share_stocks(names: list[str] | tuple[str, ...]) -> list[str]:
+    """(round 17) The names that are A-share stocks of the entity master (not an index such as 恒生指数, which the
+    NLU can pick up next to 港股): only these get the "its A shares are covered" note."""
+    stocks = _a_share_stock_names()
+    return [name for name in names if name in stocks]
+
+
+def has_hong_kong_line(names: list[str] | tuple[str, ...]) -> bool | None:
+    """(round 17, review-13 M15) Whether any of these A-share companies (entity-master names) has a Hong Kong line:
+    ``True`` when the dual-listing table or the audit lists one, ``False`` only when every named company is in the
+    audit (``data/runtime/hong_kong_line_audit.csv``: the covered companies, each checked against the HKEX list of
+    securities) without a Hong Kong code, ``None`` otherwise. The dual-listing table does not list every A+H company,
+    so a company outside the audit is never said to have no H shares."""
+    from ..data_loader import load_hong_kong_line_audit
+
+    wanted = {str(name) for name in names if name}
+    if not wanted:
+        return None
+    if any(str(row.get("name_zh")) in wanted for row in _dual_listing_rows()):
+        return True
+    audit = {str(row.get("name_zh")): str(row.get("h_code") or "") for row in load_hong_kong_line_audit()}
+    if any(audit.get(name) for name in wanted):
+        return True
+    if all(name in audit for name in wanted):
+        return False
+    return None
 
 
 def out_of_coverage_text(category: str, *, zh: bool) -> str:
