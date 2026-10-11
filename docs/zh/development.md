@@ -117,7 +117,8 @@ holdout 0.9434、ext 1.000、shipped 1.000）。
   （CI job `tests-shipped`，推送前步骤 `pytest-shipped`）。这时 `tests/conftest.py` 打开两层，并取消选中
   `tests/seed_data_tests.txt` 列出的测试：16 个模块里的 103 个测试，它们断言的是种子数值（茅台市盈率 24.6、中国平安
   53.61、五粮液 ROE 29.4 等）、只在种子里才缺的数据或只有 v1 才有的记录；它们带 `seed_data` 标记，在常规运行中仍在种子上跑。
-  第 17 轮时发布默认数据上的结果是 4,294 个通过、70 个跳过、103 个未选中。只在种子上成立的新测试要加进名单；名单里的条目
+  在 `e7bf090` 上，发布默认数据上的结果是 4,308 个通过、70 个跳过、103 个未选中
+  （[`prepush-e7bf090.md`](../results/ci/prepush-e7bf090.md)）。只在种子上成立的新测试要加进名单；名单里的条目
   找不到对应测试时 `tests/test_shipped_default.py` 会失败。
 * Playwright e2e 的服务（`frontend/playwright.config.ts`）固定 `QI_OFFLINE_SNAPSHOT_EXT=true` 和
   `QI_OFFLINE_SNAPSHOT_FIX=true`，其中一个场景检查 `/ready`（三个数据层）和界面上的两个更正后数字（茅台市盈率 21.44、

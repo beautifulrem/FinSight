@@ -135,7 +135,8 @@ covered by:
   `tests/conftest.py` then turns both layers on and deselects the tests listed in `tests/seed_data_tests.txt`: 103
   tests in 16 modules whose assertions name seed figures (茅台 P/E 24.6, 中国平安 53.61, 五粮液 ROE 29.4 ...), a
   seed-only absence or a v1-only record; they get the `seed_data` marker and still run on the seed in the normal run.
-  At round 17 the shipped-default run was 4,294 passed, 70 skipped, 103 deselected. A new test that only holds on the
+  At `e7bf090` the shipped-default run was 4,308 passed, 70 skipped, 103 deselected
+  ([`prepush-e7bf090.md`](results/ci/prepush-e7bf090.md)). A new test that only holds on the
   seed goes on the list; `tests/test_shipped_default.py` fails when an entry names no test.
 * the Playwright e2e server (`frontend/playwright.config.ts`) pins `QI_OFFLINE_SNAPSHOT_EXT=true` and
   `QI_OFFLINE_SNAPSHOT_FIX=true`, and one scenario checks `/ready` (three layers) and two corrected figures in the UI
