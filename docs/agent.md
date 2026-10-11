@@ -974,6 +974,128 @@ Where the fallback fired:
   (`verifier_stress-round16.json`).
 - **Red team.** 0 successes on all 13 sets.
 
+### Rules added in round 17 (round-13 review, M1, M2, M4–M8, M10, M18)
+
+Round 17 fixed the holding, exclusion, verifier and session classes the round-13 review found with fresh wordings. The
+fixes use the author's own wording:
+
+- 12 dev tasks (`build_tasks._round17_frame_tasks`, v1 snapshot);
+- 12 ext tasks (`build_ext_tasks.round17_frame_ext_tasks`, extension names);
+- `tests/test_agent_round17_frame.py` (generated wordings × stocks, zh and en, and scripted-LLM tests of the LLM path).
+
+The review's repro strings and its hidden `heldout_r13` slice are not used. `tests/test_agent_eval.py`
+(`test_round17_frame_tasks_and_tests_do_not_copy_a_slice_or_a_review_probe`) checks the tasks and the test strings
+against every slice committed before round 13 (the round-12 slice included), the quoted repros of the round-4–13
+reviews (the round-13 ones are in `_ROUND13_REVIEW_PROBES`), the independent router sets, the test sets and the
+independent operation wording set.
+
+**Sales reduce the position** (M1, `coverage.stated_sales`, `coverage._with_sales`, `composer.sale_numbers`).
+
+- A sale is a verb (卖出 / 卖掉 / 出掉 / 抛 / 减持 / 割 / 止盈; sold / trimmed / offloaded / cut / got rid of) with a
+  count, a fraction (一半 / 三成 / half / a third) or "N of my M … shares", and an optional price written before the
+  verb ("32元卖掉了1000股", "88元的位置卖了", "280卖了一半") or after the count ("卖出500股，卖价45元", "sold 400 at
+  320").
+- A sale is never read as a purchase lot, a cost or the held count: its span is blanked before the cost, the lots and
+  the count are read.
+- The answer gives the purchased shares and their average cost, then each sale against that cost (realised, sold ×
+  (sale price − average cost); without a sale price it says the realised part cannot be computed), then the remaining
+  shares at the close (unrealised, remaining × (close − average cost)), then the two together. A sale of more shares
+  than were bought is stated, not valued.
+- Costs and counts in more forms: a bare price before the buy verb ("我250买了400股"), 买在 N 元, 每股 N 元 next to a
+  purchase, "N元的成本", "got into … at N", "my N purchase price", "I hold N … bought at C".
+
+**The rise back to a cost or to the 52-week high** (M5). "得涨百分之多少才能回本", "涨回成本要几个点", "离回本还差多少",
+"What percentage gain would it take to break even?" ask (cost − close) ÷ close, in percent of the close and in yuan
+(`composer._rise_to_cost_sentences`), never the loss in percent of the cost. The rise back to the 52-week high is
+read when it is asked in the next clause ("要回到52周最高收盘价，还需要上涨百分之几", "… to return to its 52-week high");
+"距离52周最高还差多少百分比" gives both the fall from the high and the rise back to it.
+
+**Exclusions** (M2, `frame.excluded_operands`). 除了 / 除去 / 不算 / 去掉 / 排除 / 剔除 / X除外 / X不算 / excluding /
+except (for) / other than / leaving out / not counting remove the named target from the group before a total, mean,
+share or spread, also from the operands a frame carries ("不算招商银行的话，另外两家合计多少" after three banks).
+
+- 除了 also means "besides": "除了A，还有B和C，三家合计" (还 / 也 / 以及 / 外加 later in the clause) excludes nothing.
+- "other than" is no longer a comparison anchor (it had turned "Other than A, what do A, B and C add up to?" into a
+  total compared with A).
+- The answer says what was left out ("按你的要求，以上计算不含招商银行。") and the trace has `frame_excluded:<name>`.
+- On the LLM path a frame result is never appended to the draft when the question uses an exclusion word and the
+  frame request excluded nothing (`frame_result_appended` would otherwise add a total of another group).
+- Not read: an exclusion inside a total compared with another value.
+
+**Computed numbers are registered, and a failed draft never answers another operation** (M4).
+
+- `graph._computed_values` passes the verifier every number the deterministic arithmetic computes for the question:
+  the comparison frame's results (as in round 15) and the cost-basis arithmetic (`composer.cost_basis_values`: the
+  user's counts and costs, a lot count in shares, per-share and percent gains, each lot's and each sale's P&L, the
+  remaining and realised parts, the rise back to the cost). A correct "5 手（500 股）合计 500 × 1.26 = 630 元" is no
+  longer deleted.
+- On the LLM path, `composer.asked_result` names the operation the question asks and its computed value(s). When a
+  draft fails verification and the template does not state that value (it would answer another operation, e.g. the
+  loss in percent for the rise back to a cost), the template is not used; the repaired draft opens with "未能核实所问的
+  <operation>：…" / "Could not verify the <operation> asked for: …" (`verification_failed:asked_result_unverified`).
+- A draft that does not state the asked cost-basis result (a model that will not compute the user's own figures) gets
+  the template's arithmetic appended when it passes the verifier on its own (`cost_basis_result_appended`), like the
+  round-11 frame fallback.
+
+**Positions stated earlier, then a bare total** (M6, `memory.resolve_ledger_total`). The consecutive earlier turns that
+state a position ("记一下：我有X 1000股", "另外Y也有500股", "I own 300 X shares.") form a ledger; a later statement of the
+same target replaces its count. A short question that asks a total value ("一共多少？", "这些现在一共值多少钱", "What are
+they worth altogether?") with no count of its own is rewritten to the holdings' value at the close
+(`holding_ledger:<count>-><name>+…`), and compliance reads the rewritten question, so no fair-value hedge is added.
+Two or more targets are needed; a hypothetical or a purchase-cost turn breaks the ledger.
+
+**Definitions and book value in a session** (M7, M8).
+
+- An adverb or "这个指标" between the word and the cue ("毛利率一般是怎么算出来的", "净利率这个指标是怎么计算的") is still a
+  definition cue (`glossary._CUE_AFTER`), so the ellipsis carry leaves it alone; the NLU's own dialog carry of the
+  previous company is dropped for a definition question too ("How is net margin calculated?").
+- 净资产 / 破净 / 账面价值 / below book value fetch the fundamentals (`planner._VALUATION_TERMS`) and are answered with the
+  P/B first ("平安银行市净率（PB）0.48 倍，股价低于每股净资产，即通常所说的“破净”"); 跌破净资产 is not a moving-average
+  break; book value is an aspect of its own, so "那它破净了没有" after a price question does not carry the price.
+
+**Opening adverbs and CYPC** (M10). An opening adverb of totalling (Overall, / All in all, / Cumulatively, / In
+aggregate, / 总体来看，) reads a total when two or more operands are named and no comparison, mean, which or difference
+word is in the clause (a grammar production after the which productions). `cypc` is an English alias of 长江电力 in
+`data/synonym_dict.json`; a test checks that no alias-table row or entity owns it.
+
+**A fuzzy match is not a holding follow-up's target.** "昨天280卖了一半" was fuzzy-matched to a bond name (天23); a
+fuzzy entity no longer blocks the cost-basis follow-up that attaches the discussed target.
+
+**Grammar-first or classifier-first** (M18, `training/operation_classifier/compare_policies.py`). The review asked
+whether the classifier should decide where it disagrees with the grammar. The rule was committed before the comparison
+ran (`6db4943`, [the rule](../evaluation/operation_wordings_independent_v1.README.md#round-17-grammar-first-or-classifier-first-rule-written-before-the-comparison-was-run)):
+classifier-first (the classifier's top label, `none` included, at probability ≥ 0.6 and with the fallback's structural
+checks) replaces grammar-first only if it is at least as accurate on both sets, one point better on one of them, and
+changes at most 1% of the dev and ext questions.
+
+| Set | grammar-first | classifier-first | changed (to right / to wrong) |
+|---|---|---|---|
+| Independent operation wordings (234, after exposure) | 1.000 | 0.996 | 1 (0 / 1) |
+| Fresh held-out template split (2,160 wordings / 90 templates, seed 20261017, never trained on) | 0.919 | 0.929 | 48 (35 / 13) |
+| Dev + ext questions (850; labels are the grammar's) | – | – | 9 (1.06%) |
+
+Classifier-first loses on the independent set and changes more than 1% of the dev and ext questions, so grammar-first
+stays (`operation_classifier-policies-round17.json`, `951d085`). Every classifier decision stays explainable (the
+`clf:<op>:<p>:<features>` reason). At the final round-17 code the classifier changes the operation of 2 of the 234
+independent wordings (both right) and of 0 of the 884 dev + ext questions
+(`operation_classifier-independent-v1-after-exposure-round17.json`): the grammar still decides almost everything.
+
+**Results** (offline, no LLM, at the final round-17 frame code):
+
+- **Review repros.** The 12 deterministic repros the round-13 review quoted for M1, M2, M4–M8 and M10 (17 turns),
+  re-asked on the shipped default, all give the review's expected answer: −210 (+2,000 realised), −5,334 (+8,000),
+  4,111.95 亿, 1,610.96 亿, 630, 14.03%, 58.02%, 45,400, the 毛利率 definition, PB 0.48 破净, 957.22 亿, 1,610.96 亿. The
+  LLM-path repros are covered by scripted-LLM tests only; no online LLM run this round.
+- **Gates.** dev 550 = 1.000, held-out 53 = 0.9434, ext 111 = 1.000, shipped 21 = 1.000; dev and ext baselines refreshed
+  at `67c28da` from a clean tree after the sets grew.
+- **Slices**, rerun once at `7378156`, all after exposure, slice text not read: round 8 51/51; round 9 51/52; round 10
+  42/48 → 43/48; round 11 58/60 → 59/60; round 12 42/50, the same 8 tasks failing (`chat_heldout_r*-auto-nollm-after-
+  exposure-round17.json`). The round-13 slice (`heldout_r13`) was not run by the frame engineer.
+- **Verifier stress.** 333 gold answers / 5,666 variants, claim-level false accepts 0.92 %, derived 1.04 %, true accepts
+  1.0 (`verifier_stress-round17-frame.json`).
+- **Red team.** 0 successes on all 14 sets on the template path (offline run at `7378156`); `gate --extras-only`
+  passed.
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) `stated_holdings` ("我持有招商银行", "I own …", up to 5) and (round 11) `comparison_frame`, the comparison under way (metric, operands in order, the values and evidence ids earlier turns found, and a note that those ids must be fetched again to be cited). It is rule-based and bounded, and it is the default.
