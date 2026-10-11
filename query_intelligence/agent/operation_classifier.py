@@ -53,10 +53,23 @@ OPERATIONS = (
     "total_vs_one",
     "none",
 )
-FALLBACK_MIN = 0.6
+# (round 16, review-12 L17) 0.6 -> 0.45 after lexicon dropout: on the held-out templates the grammar reads nothing
+# in, the fallback is right on 146/146 at 0.6 and 152/152 at 0.45 (operation_classifier-r16.json, threshold sweep)
+FALLBACK_MIN = 0.45
 TIE_MIN = 0.9
 TIE_MAX_OTHER = 0.05
 TOP_FEATURES = 3
+
+
+# (round 16, review-12 L17) lexicon dropout: a training copy of a question starts with this mark and gets no lexicon or
+# structure features, so the character and word n-grams must carry the operation on their own (the wordings the
+# grammar misses are exactly those without lexicon hits). Questions at run time never start with it.
+DROPOUT_MARK = "⊘"
+
+
+def strip_mark(text: str) -> str:
+    """The text the n-gram vectorizers see (the dropout mark removed). Module-level for pickling."""
+    return str(text or "").removeprefix(DROPOUT_MARK)
 
 
 def lexicon_hits(texts: Any) -> list[dict[str, float]]:
@@ -66,6 +79,9 @@ def lexicon_hits(texts: Any) -> list[dict[str, float]]:
 
     rows = []
     for text in texts:
+        if str(text or "").startswith(DROPOUT_MARK):
+            rows.append({})
+            continue
         clause = _normalised(str(text or ""))
         rows.append({f"lex={name}": 1.0 for name, test in _LEXICON.items() if test(clause)})
     return rows
@@ -80,6 +96,9 @@ def structure_hits(texts: Any) -> list[dict[str, float]]:
 
     rows = []
     for text in texts:
+        if str(text or "").startswith(DROPOUT_MARK):
+            rows.append({})
+            continue
         clause = _normalised(str(text or ""))
         row: dict[str, float] = {}
         total = _SUM.search(clause) or _SUM_WEAK.search(clause)
