@@ -266,3 +266,30 @@ describe("route reasons (round 12, H14)", () => {
     expect(formatUnknown("zh", "a_b:c|d")).toBe("A b: c、d");
   });
 });
+
+describe("operation classifier and further operations (round 16, L14)", () => {
+  it("shows the classifier reading as its own chip, never as an operand", () => {
+    const zh = humanizeCode("zh", "clf:sum:0.72:lex=JOINED+lex=PLURAL+chars:一块是");
+    expect(zh).toBe("运算分类器：合计（概率 0.72；依据：JOINED、PLURAL、一块是）");
+    expect(humanizeCode("en", "clf:mean:0.81:chars:折中")).toBe("Operation classifier: mean (p 0.81; features: 折中)");
+    expect(zh).not.toContain("clf:");
+  });
+
+  it("drops a classifier or further-operation tail that older traces appended to the operands", () => {
+    expect(humanizeCode("zh", "frame:sum:net_profit:宁德时代|比亚迪|clf:sum:0.72:lex=JOINED")).toBe(
+      "计算净利润合计：宁德时代 + 比亚迪",
+    );
+    expect(humanizeCode("zh", "frame:sum:revenue:贵州茅台|五粮液+also:share_total:revenue")).toBe(
+      "计算营业收入合计：贵州茅台 + 五粮液",
+    );
+  });
+
+  it("labels a further operation, a mean and a total compared with one value", () => {
+    expect(humanizeCode("zh", "frame_also:share_total:revenue")).toBe("同一问题还计算了营业收入占合计的比例");
+    expect(humanizeCode("en", "frame_also:sum:revenue")).toBe("Also computed the revenue total");
+    expect(humanizeCode("zh", "frame:mean:roe:A|B|C")).toBe("计算ROE平均值：A、B、C");
+    expect(humanizeCode("en", "frame:total_vs_one:net_profit:A|B|C")).toBe(
+      "Compared a combined net profit with one value: (A + B) vs C",
+    );
+  });
+});
