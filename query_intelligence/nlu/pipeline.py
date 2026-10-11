@@ -9,7 +9,7 @@ from joblib import load
 
 from ..config import Settings
 from ..data_loader import load_aliases, load_entities, load_seed_aliases, load_seed_entities, load_synonyms
-from ..query_terms import contains_bucket_market_term
+from ..query_terms import asks_position_size, contains_bucket_market_term
 from ..training_data import filter_rows_for_label, load_training_rows
 from ..traditional import to_simplified
 from .classifiers import INTENT_SAMPLES, TOPIC_SAMPLES, MultiLabelClassifier, ProductTypeClassifier, SingleLabelTextClassifier
@@ -377,6 +377,10 @@ class NLUPipeline:
             )
         ):
             question_style = "compare"
+        if question_style != "advice" and (asks_position_size(query) or asks_position_size(semantic_query)):
+            # (round 17, review-13 M11) how many shares to buy / how much of a portfolio: advice, whatever else it says
+            question_style = "advice"
+            normalization_trace = [*normalization_trace, "position_sizing:advice"]
         requires_entity_clarification = self._requires_entity_clarification(
             semantic_query,
             product["label"],
