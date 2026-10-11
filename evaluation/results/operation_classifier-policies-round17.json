@@ -1,0 +1,321 @@
+{
+ "commit": "951d085",
+ "dirty": false,
+ "run_at": "2026-10-11T06:38:04+00:00",
+ "command": "python -m training.operation_classifier.compare_policies",
+ "rule": "evaluation/operation_wordings_independent_v1.README.md, 'Round 17' (committed in 6db4943 before the first run)",
+ "classifier_first_min": 0.6,
+ "fresh_seed": 20261017,
+ "classifier_version": "operation-clf-r16",
+ "wordings_sha256": "faabe7d90d1cf300bb6d8570e0f8f6456f087d6c8debf87c4bf23d58c2b56a92",
+ "independent_v1_after_exposure": {
+  "questions": 234,
+  "grammar_first": {
+   "rate": 1.0,
+   "low": 0.9838,
+   "high": 1.0,
+   "n": 234
+  },
+  "classifier_first": {
+   "rate": 0.9957,
+   "low": 0.9762,
+   "high": 0.9992,
+   "n": 234
+  },
+  "changed": 1,
+  "changed_to_right": 0,
+  "changed_to_wrong": 1,
+  "change_sample": [
+   {
+    "expected": "sum",
+    "grammar_first": "sum",
+    "classifier_first": "none"
+   }
+  ]
+ },
+ "fresh_held_out_split": {
+  "questions": 2160,
+  "grammar_first": {
+   "rate": 0.919,
+   "low": 0.9067,
+   "high": 0.9298,
+   "n": 2160
+  },
+  "classifier_first": {
+   "rate": 0.9292,
+   "low": 0.9176,
+   "high": 0.9392,
+   "n": 2160
+  },
+  "changed": 48,
+  "changed_to_right": 35,
+  "changed_to_wrong": 13,
+  "change_sample": [
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "relative",
+    "classifier_first": "difference"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "difference",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "difference",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "difference",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "difference",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "difference",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "difference",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "difference",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "difference",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "difference",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "difference",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "relative",
+    "grammar_first": "difference",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "share",
+    "grammar_first": "share",
+    "classifier_first": "relative"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   },
+   {
+    "expected": "share_total",
+    "grammar_first": "sum",
+    "classifier_first": "share_total"
+   }
+  ],
+  "templates_held_out": 90,
+  "templates_trained": 360
+ },
+ "dev_and_ext_changes": {
+  "agent_eval_v1.jsonl": {
+   "questions": 743,
+   "operation_changed": 6
+  },
+  "agent_eval_ext_v1.jsonl": {
+   "questions": 107,
+   "operation_changed": 3
+  },
+  "total": {
+   "questions": 850,
+   "operation_changed": 9,
+   "rate": 0.0106
+  }
+ },
+ "decision": {
+  "policy": "grammar-first",
+  "gain_independent": -0.0043,
+  "gain_fresh_split": 0.0102,
+  "not_worse_on_both": false,
+  "at_least_one_point_better_on_one": true,
+  "dev_changes_within_1pct": false
+ }
+}
