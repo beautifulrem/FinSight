@@ -99,6 +99,7 @@ PERF_PAIRS = (
 )
 STRESS_RUNS = (
     "verifier_stress",
+    "verifier_stress-round17-frame",
     "verifier_stress-round16",
     "verifier_stress-round15",
     "verifier_stress-round14",
@@ -331,6 +332,7 @@ HELDOUT_R8_RUNS = (
     "chat_heldout_r8-auto-nollm-after-exposure-round14",
     "chat_heldout_r8-auto-nollm-after-exposure-round15",
     "chat_heldout_r8-auto-nollm-after-exposure-round16",
+    "chat_heldout_r8-auto-nollm-after-exposure-round17",
 )
 # Round-9 held-out slice (evaluation/heldout_r9/, written by the round-9 reviewer): before and after the round-13 fixes.
 # From round 14 the round-9 slice is after exposure (the round-14 engineer read its remaining failures).
@@ -341,6 +343,7 @@ HELDOUT_R9_RUNS = (
     "chat_heldout_r9-auto-nollm-after-exposure-round14",
     "chat_heldout_r9-auto-nollm-after-exposure-round15",
     "chat_heldout_r9-auto-nollm-after-exposure-round16",
+    "chat_heldout_r9-auto-nollm-after-exposure-round17",
 )
 # Round-10 held-out slice (evaluation/heldout_r10/, written by the round-10 reviewer): before and after the round-14
 # fixes; (round 15) after exposure, rerun once at the final round-15 code.
@@ -349,6 +352,7 @@ HELDOUT_R10_RUNS = (
     "chat_heldout_r10-auto-nollm-after-fix",
     "chat_heldout_r10-auto-nollm-after-exposure-round15",
     "chat_heldout_r10-auto-nollm-after-exposure-round16",
+    "chat_heldout_r10-auto-nollm-after-exposure-round17",
 )
 # Round-11 held-out slice (evaluation/heldout_r11/, written by the round-11 reviewer): before and after the round-15
 # fixes.
@@ -358,10 +362,16 @@ HELDOUT_R11_RUNS = (
     "chat_heldout_r11-auto-nollm-prefix",
     "chat_heldout_r11-auto-nollm-after-fix",
     "chat_heldout_r11-auto-nollm-after-exposure-round16",
+    "chat_heldout_r11-auto-nollm-after-exposure-round17",
 )
 # Round-12 held-out slice (evaluation/heldout_r12/, written by the round-12 reviewer): before and after the
 # round-16 fixes.
-HELDOUT_R12_RUNS = ("chat_heldout_r12-auto-nollm-prefix", "chat_heldout_r12-auto-nollm-after-fix")
+# (round 17) after exposure: rerun once at the final round-17 frame code (the slice text was not read in round 17).
+HELDOUT_R12_RUNS = (
+    "chat_heldout_r12-auto-nollm-prefix",
+    "chat_heldout_r12-auto-nollm-after-fix",
+    "chat_heldout_r12-auto-nollm-after-exposure-round17",
+)
 # Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
 # (title, a, b, label a, label b, paths compared).
 PAIRED_ABLATIONS = (
@@ -397,6 +407,8 @@ EXTRA_EVIDENCE = (
     "slice_overlap-heldout_r12-at-9564263",
     "operation_classifier-independent-v1-first-run",
     "operation_classifier-independent-v1-after-exposure-round16",
+    "operation_classifier-independent-v1-after-exposure-round17",
+    "operation_classifier-policies-round17",
     "operation_classifier-r16",
     "operation_classifier-r16-nolexicon",
     "operation_classifier-r16-nowords",
@@ -772,6 +784,20 @@ FILE_STATUS = {
     "c39008b before any round-16 change",
     "operation_classifier-independent-v1-after-exposure-round16": "independent operation wording set **after "
     "exposure**: the round-16 engineer generalised grammar classes from its first-run misses, so not an estimate",
+    "operation_classifier-independent-v1-after-exposure-round17": "independent operation wording set **after "
+    "exposure**, rerun once at the final round-17 frame code",
+    "operation_classifier-policies-round17": "grammar-first vs classifier-first, decided by the rule committed before "
+    "the run (6db4943); the independent set is after exposure, the fresh template split was never trained on",
+    "chat_heldout_r8-auto-nollm-after-exposure-round17": "independent round-8 chat slice **after exposure**, rerun "
+    "once at the final round-17 frame code",
+    "chat_heldout_r9-auto-nollm-after-exposure-round17": "independent round-9 chat slice **after exposure**, rerun "
+    "once at the final round-17 frame code",
+    "chat_heldout_r10-auto-nollm-after-exposure-round17": "independent round-10 chat slice **after exposure**, rerun "
+    "once at the final round-17 frame code (its text was not read in round 17)",
+    "chat_heldout_r11-auto-nollm-after-exposure-round17": "independent round-11 chat slice **after exposure**, rerun "
+    "once at the final round-17 frame code (its text was not read in round 17)",
+    "chat_heldout_r12-auto-nollm-after-exposure-round17": "independent round-12 chat slice **after exposure**, rerun "
+    "once at the final round-17 frame code (its text was not read in round 17)",
 }
 
 
@@ -2238,6 +2264,26 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
                 + f"; false positives on {fpr.get('documents')} clean documents: "
                 + "; ".join(fpr_parts)
             )
+        elif isinstance(result.get("decision"), dict) and result.get("fresh_held_out_split"):
+            # (round 17, review-13 M18) grammar-first vs classifier-first, decided by a rule committed before the run
+            independent, fresh = result["independent_v1_after_exposure"], result["fresh_held_out_split"]
+            dev = (result.get("dev_and_ext_changes") or {}).get("total") or {}
+
+            def rates(block: dict[str, Any]) -> str:
+                grammar, classifier = block["grammar_first"], block["classifier_first"]
+                return (
+                    f"grammar-first {_fmt(grammar.get('rate'))}, classifier-first {_fmt(classifier.get('rate'))} "
+                    f"({block.get('changed')} changed: {block.get('changed_to_right')} to right, "
+                    f"{block.get('changed_to_wrong')} to wrong)"
+                )
+
+            summary = (
+                f"combination policy (rule committed first): independent set ({independent.get('questions')}) "
+                f"{rates(independent)}; fresh held-out template split ({fresh.get('questions')}) {rates(fresh)}; "
+                f"classifier-first would change {dev.get('operation_changed')} of {dev.get('questions')} dev + ext "
+                f"questions; decision: {result['decision'].get('policy')}"
+            )
+            config = {**config, "commit": result.get("commit")}
         elif isinstance(result.get("independent"), dict) and result.get("wordings"):
             # (round 16, review-12 L17) the operation on wordings its template author did not write
             independent = result["independent"]

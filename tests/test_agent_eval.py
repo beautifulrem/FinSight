@@ -1218,11 +1218,12 @@ def test_round13_tasks_and_claims_do_not_overlap_the_heldout_or_reviewer_sets():
 
     # (round 14) the ext set's round-14 tasks (ids ext_r14_*) are checked by the round-14 test below; (round 15) the
     # round-15 safety tasks (ext_r15s_*) by the round-15 safety test at the end of this file; (round 16) the round-16
-    # safety tasks (ext_r16s_*) by the round-16 test after it
+    # safety tasks (ext_r16s_*) by the round-16 test after it; (round 17) the round-17 frame tasks (r17_*) by the
+    # round-17 test at the end of this file
     tasks = _round13_forecast_tasks() + [
         task
         for task in build_ext_tasks()
-        if not task["id"].startswith(("ext_r14_", "r14_", "ext_r15s_", "r15_", "ext_r16s_", "r16_"))
+        if not task["id"].startswith(("ext_r14_", "r14_", "ext_r15s_", "r15_", "ext_r16s_", "r16_", "r17_"))
     ]
     mine = [turn["query"] for task in tasks for turn in task["turns"]]
     tree = ast.parse(Path(__file__).with_name("test_agent_round13_claims.py").read_text(encoding="utf-8"))
@@ -1824,3 +1825,106 @@ def test_round17_claim_tests_do_not_copy_a_slice_a_real_claim_or_a_review_probe(
     assert len(files) >= 2 and len(mine) >= 80, "the round-17 tests were not read"
     assert len(real) >= 250 and len(benches) >= 350 and len(slices) >= 380, "the compared sets were not read"
     assert _overlaps(mine, others) == (0, 0), "round-17 claim wording overlaps a slice, a real claim or a review probe"
+
+
+# The round-13 reviewer's probes as quoted in the review report (finsight-review/round13.md §3, §4 and §9, M1-M19; the
+# probe scripts and the hidden heldout_r13 slice were not read): round-17 wording must not copy them.
+_ROUND13_REVIEW_PROBES = [
+    "我30元买了2000股，后来32元卖掉了1000股，剩下那1000股现在浮盈还是浮亏，多少",
+    "Bought 1,000 CATL at 300, sold 400 at 320. What is the P&L on the remaining shares?",
+    "招行、工行、平安银行三家里，除了招行，另外两家净利润加起来多少",
+    "中信证券、长江电力、紫金矿业三家里，不算紫金矿业，营收合计多少",
+    "美的置业股价多少",
+    "美的置业控股的市盈率",
+    "中芯集成最新股价",
+    "平安证券的营收",
+    "Midea Real Estate share price",
+    "上周以40元买进招行5手，按最新收盘价算赚了多少",
+    "比亚迪我是95块买的，得涨百分之多少才能回本",
+    "宁德时代要回到52周最高收盘价，还需要上涨百分之几",
+    "记一下：我有招行1000股",
+    "另外工行也有500股",
+    "这些现在一共值多少钱",
+    "紫金矿业的毛利率",
+    "毛利率一般是怎么算出来的",
+    "平安银行的市净率",
+    "它是不是已经跌破净资产了",
+    "招商銀行的淨利潤是多少",
+    "比亞迪和寧德時代的營收合計",
+    "長江電力的市淨率是多少",
+    "Overall, how much do Midea and Zijin earn?",
+    "All told, what is the revenue of CYPC and CITIC Securities?",
+    "Overall, how much do CMB and ICBC earn?",
+    "我有10万块，买多少股招行比较合适",
+    "把仓位的三成放宁德时代行吗",
+    "三成仓位放宁德时代行吗",
+    "Is it OK to put 30% of my portfolio in CATL?",
+    "茅台港股多少钱",
+    "比亚迪的市值换算成美元是多少",
+    "把比亚迪、美的、宁德按营收从高到低排一下",
+    "Rank Moutai, Wuliangye and Ping An by ROE",
+    "现在市值超过3万亿了吗",
+    "宁德的呢",
+    "两家加总",
+    "两家差几个百分点",
+    "几倍？差多少？",
+    "市净率是什么意思",
+    "Give me a stop-loss level for Midea",
+    "中芯国际2028年市值能超过2万亿吗",
+    "美的港股多少钱",
+    "那它破净了吗",
+    "ICBC trades below book value, and its net profit rose about 1%",
+    "中国平安的市盈率",
+    "归母净利润是什么意思",
+    "工商银行营收8382.7亿元，净利润同比微降",
+    "中信证券2025年营收748.5亿元，同比增长28.8%，增速快于其净利润增速",
+    "ROE等于净利润除以营业收入，紫金矿业ROE为27.91%",
+    "市净率低于1意味着股价高于每股净资产，工商银行市净率0.74倍",
+    "中国平安2025年归母净利润1347.8亿元，扣非净利润更低",
+    "招商银行净利润同比基本持平，营收同比大增",
+    "紫金矿业净利润同比增速是营收增速的4倍多",
+    "贵州茅台市盈率24.6倍",
+    "净利润增速明显快于营收增速",
+]
+
+
+def test_round17_frame_tasks_and_tests_do_not_copy_a_slice_or_a_review_probe():
+    """Round-17 dev and ext tasks and the round-17 frame tests (tests/test_agent_round17_frame*.py) were written after
+    the round-13 review: none may copy or near-copy a text of any slice committed before round 13 (the round-12 slice
+    included), a quoted reviewer probe of rounds 4-13, the independent router sets, a test set, or the independent
+    operation wording set. Counts only; held-out text is never printed."""
+    import ast
+    from pathlib import Path
+
+    from evaluation.agent_eval.build_ext_tasks import round17_frame_ext_tasks
+    from evaluation.agent_eval.build_tasks import _round17_frame_tasks, check_overlap
+    from evaluation.agent_eval.runner import TASK_SETS, load_tasks
+
+    tasks = _round17_frame_tasks() + round17_frame_ext_tasks()
+    mine = [turn["query"] for task in tasks for turn in task["turns"]]
+    strings = [
+        node.value
+        for path in sorted(Path(__file__).parent.glob("test_agent_round17_frame*.py"))
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and len(node.value) >= 6
+    ]
+    mine += [
+        text
+        for text in strings
+        if re.search(r"[\s一-鿿]", text) and not text.startswith(("Round-17", "Round 17", "frame")) and len(text) < 200
+    ]
+    others = [
+        row["query"]
+        for name in ("router_labels_independent_v1.jsonl", "router_labels_independent_v2.jsonl")
+        for row in _router_rows(name)
+    ]
+    for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
+        others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    slices = _all_slice_texts(before_round=13)
+    others += _heldout_r4_texts() + _heldout_r5_texts() + slices + _REVIEW_PROBES + _ROUND10_REVIEW_PROBES
+    others += _ROUND9_REVIEW_PROBES + _ROUND11_REVIEW_PROBES + _ROUND12_REVIEW_PROBES + _ROUND13_REVIEW_PROBES
+    others += _independent_operation_wordings()
+    assert len(slices) >= 450, "the committed slices were not read"
+    assert len(tasks) >= 24 and check_overlap(tasks) == []
+    assert len(mine) >= 120
+    assert _overlaps(mine, others) == (0, 0), "round-17 wording overlaps a slice, a test set or a reviewer probe"

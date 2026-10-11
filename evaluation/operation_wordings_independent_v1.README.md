@@ -54,3 +54,34 @@ questions. Results are written to `evaluation/results/operation_classifier-indep
   change. Nobody had read the questions before this run.
 - **Every later run is after exposure.** The engineers read the misses of the first run while working on round 16, so
   later numbers do not measure generalisation to unseen wordings.
+
+## Round 17: grammar-first or classifier-first (rule written before the comparison was run)
+
+The round-13 review (M18) asked whether the classifier should decide where it disagrees with the grammar. Two ways of
+combining them are compared:
+
+- **grammar-first** (shipped since round 15): the grammar's operation; the classifier only breaks a tie between two
+  matched productions (probability ≥ 0.9, the grammar's choice ≤ 0.05) or reads an operation when the grammar reads
+  none (probability ≥ 0.45, several operands, a quantity asked).
+- **classifier-first**: the classifier's top label, `none` included, whenever its probability is at least **0.6** (the
+  round-15 fallback threshold, fixed here before any number of this comparison was computed) and the label passes the
+  same structural checks as the fallback (`operation_classifier.compatible`, several operands and a quantity asked for
+  an operation); otherwise grammar-first.
+
+They are scored on the operation only (`none` included) on two sets:
+
+1. **this set** (234 questions; after exposure since round 16, so it is not a measure of unseen wordings);
+2. **a fresh held-out split** of the training templates: within each operation and language the templates are
+   shuffled with seed `20261017` and every fifth one of the shuffled order is held out; a model with the shipped
+   pipeline and lexicon dropout is trained on the other templates and the dev wordings and is not shipped. Both
+   policies use this model on this split.
+
+On the dev and ext task questions (whose labels are the grammar's readings) only the number of questions whose
+operation changes is reported.
+
+**Decision rule.** classifier-first replaces grammar-first only if, on both sets, its accuracy is at least that of
+grammar-first, on at least one set it is higher by at least one percentage point, and it changes the operation of at
+most 1% of the dev and ext questions. Otherwise grammar-first stays and the documentation says how rarely the
+classifier changes an answer. A tie keeps grammar-first. The command is
+`python -m training.operation_classifier.compare_policies`; its result file is
+`evaluation/results/operation_classifier-policies-round17.json`.

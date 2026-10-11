@@ -642,6 +642,15 @@ _SUM_WEAK = re.compile(
     r"\b(?:what(?:'s| is| are)|how (?:much|big) is) the (?:total|sum)\b|\btotal\s*[?？]\s*$|\bsum them\b",
     re.IGNORECASE,
 )
+# (round 17, review-13 M10) an opening adverb of totalling, with no "together" word: "Overall, how much do A and B
+# earn?", "All in all, what is the revenue of A and B?", "总的来说，A和B一年赚多少". Read as a total only with two or
+# more operands, a quantity asked and no comparison, mean or which word (``GRAMMAR``).
+_SUM_ADVERB = re.compile(
+    r"(?:^|[.?!;:。？！；]\s*)(?:overall|all in all|in sum|all up|summed up|on the whole|cumulatively|in aggregate|"
+    r"altogether|all told|taken together|as a whole|in all)\s*[,，:]|"
+    r"(?:^|[。？！；]\s*)(?:总的来说|总的算|总体来看|总体上|总体而言|整体来看|整体上|整体而言|全部算上|统统算上|算总账)[，,：:]",
+    re.IGNORECASE,
+)
 # a bare total asked of the operands under discussion: "Total?", "And combined?", "合计呢", "一共多少"
 _SUM_BARE = re.compile(
     r"(?:^|[.。,，]\s*)(?:and\s+|so\s+)?(?:the\s+|in\s+)?(?:total|combined|altogether|sum)\s*[?？]\s*$|"
@@ -823,7 +832,9 @@ _VERSUS = re.compile(
     r"(?:与|跟|同)[^，。？?；;]{1,16}?(?:的)?(?:差距|差额|差值|差)(?!不多)|"
     r"\bshort of\b|\bbehind\b|\bahead of\b|\boutweigh(?:s|ed)?\b|\bstack up\b|\bcompare\b[^.?!]{0,80}?\bwith\b|"
     r"(?:是|为|相当于)[^，。？?；;]{1,14}?的\s*(?:几|多少)倍|"
-    r"\bthan\b|\babove\b|\bbelow\b|\bexceed(?:s|ed|ing)?\b|\b(?:out-?earn|outsell|outstrip|surpass|beat|top)(?:s|ed|ped|ping)?\b|"
+    # (round 17, review-13 M2) "other than X" is an exclusion, not a comparison
+    r"(?<!other )\bthan\b|\babove\b|\bbelow\b|\bexceed(?:s|ed|ing)?\b|"
+    r"\b(?:out-?earn|outsell|outstrip|surpass|beat|top)(?:s|ed|ped|ping)?\b|"
     r"\bcompared (?:with|to)\b|\bversus\b|\bvs\.?(?=\s)",
     re.IGNORECASE,
 )
@@ -897,6 +908,7 @@ _LEXICON: dict[str, Any] = {
     "SUM_WORD": lambda text: _SUM.search(text),
     "SUM_WEAK": lambda text: _SUM_WEAK.search(text),
     "SUM_BARE": lambda text: _SUM_BARE.search(text),
+    "SUM_ADVERB": lambda text: _SUM_ADVERB.search(text),
     "SUM_ADD_TO": lambda text: _SUM_ADD_TO.search(text),
     "JOINED": lambda text: _ANCHOR.search(text) or _JOINED.search(text),
     "QUANTITY": lambda text: _QUANTITY.search(text),
@@ -936,6 +948,8 @@ GRAMMAR: tuple[Production, ...] = (
     Production("sum", ("SUM_WEAK", "JOINED", "QUANTITY")),
     Production("sum", ("SUM_ADD_TO", "QUANTITY")),
     Production("sum", ("SUM_BARE",)),
+    # (round 17, review-13 M10) "Overall, how much do A and B earn?": a total, never with a comparison, mean or which
+    Production("sum", ("SUM_ADVERB", "JOINED", "QUANTITY"), ("WHICH", "COMPARATIVE", "VERSUS", "MEAN", "DIFFERENCE")),
 )
 COMPARISON_OPERATIONS = frozenset(production.operation for production in GRAMMAR)
 
@@ -1653,6 +1667,59 @@ def _asked_side(clause: str) -> str | None:
 _TIMES_INVERTED = re.compile(r"\bhow many times\b(?P<rest>.*)", re.IGNORECASE)
 
 
+# (round 17, review-13 M2) an exclusion before a group operation: "除了A，另外两家…", "不算A", "去掉A", "排除A",
+# "A除外", "excluding A", "except (for) A", "other than A", "leaving out A", "not counting A", "A aside". 除了 also
+# means "besides" ("除了A，还有B也…"): it excludes unless its clause goes on with 还 / 也 / 以及 / 外加 / 另加.
+EXCLUSION_BEFORE = re.compile(
+    r"(?:除了|除去|除开|除掉|刨去|刨除|扣除|剔除|排除|去掉|去除|拿掉|不算|不计|不含|不包括|不包含|撇开|抛开)"
+    r"(?:掉|了|上)?\s*$|"
+    r"\b(?:excluding|exclude|except(?: for)?|other than|leaving out|leave out|not counting|not including|without|"
+    r"minus the|bar|barring|apart from|aside from|setting aside|leaving aside|ignoring|ignore|drop(?:ping)?|"
+    r"take out|taking out|remove|removing)\s+(?:the\s+)?$",
+    re.IGNORECASE,
+)
+EXCLUSION_AFTER = re.compile(
+    r"^\s*(?:的\S{0,6}?)?(?:除外|(?:先)?不算(?:在内|进去|进来|的话)?(?=[，,。？?；;\s]|$)|不计(?:在内|入)?|不包括在内|"
+    r"排除在外|先不管|"
+    r"\s*(?:aside|excluded|left out|not counted|set aside))",
+    re.IGNORECASE,
+)
+_INCLUSIVE_BESIDES = re.compile(r"^[^。？?；;]{0,24}?(?:还|也|以及|外加|另加|再加|加上)")
+_BESIDES_WORDS = re.compile(r"(?:除了|apart from|aside from)\s*$", re.IGNORECASE)
+
+
+def excluded_operands(text: str, entities: list[dict[str, Any]]) -> list[str]:
+    """(round 17, review-13 M2) The symbols of the named targets the question leaves out of its group ("除了招行，另外
+    两家…", "不算紫金矿业", "excluding CMB"), in order."""
+    found: list[str] = []
+    for entity in entities:
+        symbol = str(entity.get("symbol") or "")
+        if not symbol:
+            continue
+        for name in _mention_names(entity):
+            for match in re.finditer(re.escape(name), text, re.IGNORECASE):
+                before, after = text[: match.start()], text[match.end() :]
+                lead = EXCLUSION_BEFORE.search(before)
+                if lead is not None and _BESIDES_WORDS.search(before) and _INCLUSIVE_BESIDES.match(after):
+                    lead = None  # "除了A，还有B也…": besides, not except
+                if (lead is not None or EXCLUSION_AFTER.match(after)) and symbol not in found:
+                    found.append(symbol)
+    return found
+
+
+def has_exclusion_word(text: str) -> bool:
+    """Whether the question uses an exclusion word anywhere (for the LLM path: a frame result whose operands ignore it
+    must never be appended)."""
+    return bool(
+        re.search(
+            r"除了|除去|除开|除掉|刨去|刨除|剔除|排除|去掉|不算|不计|不含|不包括|除外|"
+            r"\b(?:excluding|except|other than|leaving out|not counting|not including)\b",
+            text or "",
+            re.IGNORECASE,
+        )
+    )
+
+
 def resolve_frame_question(
     query: str,
     turns: list[dict[str, Any]],
@@ -1731,6 +1798,8 @@ def frame_extra_reasons(request: dict[str, Any]) -> list[str]:
         features = "+".join(str(item) for item in reading.get("top_features") or [])
         reasons.append(f"clf:{reading['operation']}:{float(reading.get('probability') or 0):.2f}:{features}")
     reasons += [f"frame_also:{item['operation']}:{item['metric']}" for item in request.get("also") or []]
+    # (round 17, review-13 M2) the targets the question left out of the group
+    reasons += [f"frame_excluded:{item['name']}" for item in request.get("excluded") or []]
     return reasons
 
 
@@ -1805,6 +1874,15 @@ def _resolve_operation(
         return None
     named_metric = metric_of(clause)
     entities = [entity for entity in listed if entity.get("symbol")]
+    # (round 17, review-13 M2) the targets the question leaves out ("除了招行，另外两家…", "excluding CMB") are removed
+    # from the operands before any group operation, also from the frame's carried operands
+    every_entity = list(entities)  # the excluded names are still names (never "unresolved" operands)
+    excluded = excluded_operands(text, entities) if operation != "total_vs_one" else []
+    if excluded:
+        dropped = [entity for entity in entities if str(entity.get("symbol")) in excluded]
+        entities = [entity for entity in entities if str(entity.get("symbol")) not in excluded]
+        known = [item for item in known if operand_key(item) not in excluded]
+        resolved = [entity for entity in resolved if str(entity.get("symbol")) not in excluded]
     ordered = sorted(enumerate(entities), key=lambda item: _mention_position(text, item[1], item[0]))
     named = [
         {"kind": "target", "name": str(e.get("canonical_name") or e.get("symbol")), "symbol": str(e["symbol"])}
@@ -1846,7 +1924,7 @@ def _resolve_operation(
         len(named) == 1
         and len(operands) == 1
         and operands[0].get("kind") == "target"
-        and (stray := unresolved_operand(clause, entities))
+        and (stray := unresolved_operand(clause, every_entity))
     ):
         # (round 14, review-10 J4) "By how many points does <unknown>'s ROE outstrip Midea's?": never answered with
         # the one operand that resolved; the answer says which operand could not be identified
@@ -1860,7 +1938,7 @@ def _resolve_operation(
         split, operands = _total_sides(text, clause, ordered, named, known, operands)
         if split is None:
             operation = "sum"  # "两家加起来比去年多吗": no second side named, a total
-    strays = unresolved_in_list(clause, entities) if len(named) >= 1 and not industries else []
+    strays = unresolved_in_list(clause, every_entity) if len(named) >= 1 and not industries else []
     if strays and not any(item.get("kind") == "unresolved" for item in operands):
         # (round 15, review-11 K9) "CYPC and CITIC Securities, revenue collectively?", "Among A, X and B …": a name in
         # the list that matches no security is named in the answer, never dropped silently
@@ -1962,6 +2040,11 @@ def _resolve_operation(
     ]
     request: dict[str, Any] = {"operation": operation, "metric": metric, "operands": clean}
     request["operand_form"] = _operand_form(len(named), parse_clause(clause).reference, len(known))
+    if excluded:
+        request["excluded"] = [
+            {"name": str(entity.get("canonical_name") or entity.get("symbol")), "symbol": str(entity["symbol"])}
+            for entity in dropped
+        ]
     if split is not None:
         request["split"] = split
         if (asked := _asked_side(clause)) is not None:
