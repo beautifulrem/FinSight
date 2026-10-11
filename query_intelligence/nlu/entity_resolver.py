@@ -9,6 +9,7 @@ from rapidfuzz.distance import Levenshtein
 
 from .entity_boundary_crf import EntityBoundaryCRF
 from .entity_linker import EntityLinker
+from .lookalike import lookalike_end
 from .typo_linker import TypoLinker
 
 GENERIC_CRYPTO_PRODUCT_MENTIONS = {
@@ -51,6 +52,9 @@ GENERIC_ENTITY_SUFFIX_MENTIONS = {
     "保险",
 }
 
+# (round 17, review-13 M3) fragments of a legal form are never a company's name: the alias table has "限公司" as an
+# official name of 国晟科技 (a cut "…股份有限公司"), so "比亚迪股份有限公司的营收" also named 国晟科技
+LEGAL_FORM_FRAGMENTS = frozenset({"限公司", "有限公司", "股份有限公司", "有限责任公司", "责任公司", "公司"})
 SECTOR_CONTEXT_SUFFIXES = {"板块", "行业", "赛道", "方向", "主题"}
 # Words that place an ambiguous short name in one industry ("平安的保费" is the insurer, "平安的不良率" the bank).
 INDUSTRY_CONTEXT = {
@@ -86,6 +90,26 @@ DEGREE_ADVERB_CHARS = set("很挺真太好多更最超蛮怪够极")
 # Grammatical particles and question words: a fuzzy window that differs from an alias at one of these is part of the
 # sentence, not a misspelt name.
 PARTICLE_CHARS = set("是的了吗呢么吧啊呀有在和与及或也都就还没不要会能该多少几谁哪什怎")
+# (round 17, review-13 M3) alias types of a stock's short names: a short name followed by a business-line word
+# ("美的置业", "平安证券") names another company (``nlu/lookalike.py``); official names are not short names
+SHORT_ALIAS_TYPES = frozenset({"common_alias", "colloquial_alias"})
+LOOKALIKE_TRACE = "lookalike_name"
+HK_ONLY_TRACE = "hk_only_name"
+# a Hong Kong-only name followed by one of these is a sector or a product named after it, not the company
+_HK_NAME_NOT_COMPANY = re.compile(r"\s*(?:行业|板块|产业|领域|概念|指数|ETF|基金|赛道|主题)", re.IGNORECASE)
+
+
+def _hk_only_pattern() -> tuple[re.Pattern[str] | None, dict[str, str]]:
+    """(round 17, M3) One pattern over the shipped Hong Kong-only names (``data/runtime/hk_only_names.csv``)."""
+    from ..data_loader import load_hk_only_names
+
+    codes: dict[str, str] = {}
+    for row in load_hk_only_names():  # sorted by code: a name's Hong Kong-dollar counter comes before its RMB one
+        codes.setdefault(str(row.get("name_zh") or ""), str(row.get("h_code") or ""))
+    names = sorted((name for name in codes if len(name) >= 4), key=len, reverse=True)
+    if not names:
+        return None, {}
+    return re.compile("|".join(re.escape(name) for name in names)), codes
 
 
 class _WordBoundaries:
@@ -147,6 +171,20 @@ class EntityResolver:
             for alias, rows in self._alias_rows_by_normalized.items()
             if rows and all(row.get("is_official") == DERIVED_WORD_MARK for row in rows)
         }
+        self._hk_only, self._hk_codes = _hk_only_pattern()
+        # (round 17, M3) short names of stocks: alias -> [(canonical name, industry)] of every company it names
+        self._short_stock_aliases: dict[str, list[tuple[str, str]]] = {}
+        for alias, rows in self._alias_rows_by_normalized.items():
+            owners = [self._entity_by_id(int(row["entity_id"])) for row in rows]
+            if (
+                len(alias) >= 2
+                and rows
+                and all(row.get("alias_type") in SHORT_ALIAS_TYPES for row in rows)
+                and all(owner is not None and owner.get("entity_type") == "stock" for owner in owners)
+            ):
+                self._short_stock_aliases[alias] = [
+                    (str(owner["canonical_name"]), str(owner.get("industry_name") or "")) for owner in owners if owner
+                ]
 
     def _finance_context(self, query: str, alias: str) -> bool:
         """(round 16) A finance cue, or another security named exactly ("招行和紫金的呢"), around a derived short name
@@ -161,10 +199,81 @@ class EntityResolver:
             and not self._is_generic_product_mention(other)
         )
 
+    def lookalike_names(self, query: str) -> list[tuple[int, int, str, str]]:
+        """(round 17, review-13 M3) ``(start, end, name, covered company)`` for each name in ``query`` that starts with
+        a covered company's short name and continues with a business-line word ("美的置业控股" -> 美的集团,
+        "平安证券" -> 中国平安 / 平安银行): another company, which the entity master does not have. A longer alias
+        at the same place (平安银行, 中信证券) is the company itself and is not a lookalike."""
+        found: list[tuple[int, int, str, str]] = []
+        for alias, owners in self._short_stock_aliases.items():
+            if alias not in query:
+                continue
+            for hit in re.finditer(re.escape(alias), query):
+                ends = [
+                    lookalike_end(query, hit.end(), alias=alias, owner=owner, industry=industry)
+                    for owner, industry in owners
+                ]
+                if not ends or any(end is None for end in ends):
+                    continue
+                end = max(end for end in ends if end is not None)
+                if any(
+                    len(other) > len(alias) and query.startswith(other, hit.start())
+                    for other in self._aliases_by_first_char.get(alias[0], [])
+                ):
+                    continue  # "平安银行": a longer name of a listed company starts here
+                found.append((hit.start(), end, query[hit.start() : end], owners[0][0]))
+        found.sort()
+        kept: list[tuple[int, int, str, str]] = []
+        for item in found:
+            if kept and item[0] < kept[-1][1]:
+                if item[1] - item[0] > kept[-1][1] - kept[-1][0]:
+                    kept[-1] = item
+                continue
+            kept.append(item)
+        return kept
+
+    def hong_kong_only_names(self, query: str) -> list[tuple[int, int, str, str]]:
+        """(round 17, review-13 M3) ``(start, end, name, HKEX code)`` for each Hong Kong-only company the question
+        names ("中信国际电讯", "美的置业", "招商局港口"): FinSight has no data on them, and a name that starts like an
+        A-share ("美的置业" ~ 美的) must not be read as the A-share. A name followed by a sector word ("中国电力行业")
+        is not the company."""
+        if self._hk_only is None:
+            return []
+        found = []
+        for match in self._hk_only.finditer(query):
+            if _HK_NAME_NOT_COMPANY.match(query, match.end()):
+                continue
+            found.append((match.start(), match.end(), match.group(0), self._hk_codes.get(match.group(0), "")))
+        return found
+
+    def _mask_lookalikes(self, query: str) -> tuple[str, list[str]]:
+        """``query`` with Hong Kong-only names and lookalike names blanked out, and their trace entries
+        ("hk_only_name:美的置业|03990", "lookalike_name:平安证券->中国平安")."""
+        masked = list(query)
+        trace: list[str] = []
+        for start, end, name, code in self.hong_kong_only_names(query):
+            masked[start:end] = " " * (end - start)
+            # the covered company whose short name the Hong Kong name starts with ("美的置业" -> 美的集团), if any
+            owner = next(
+                (
+                    owners[0][0]
+                    for alias, owners in sorted(self._short_stock_aliases.items(), key=lambda item: -len(item[0]))
+                    if name.startswith(alias)
+                ),
+                "",
+            )
+            trace.append(f"{HK_ONLY_TRACE}:{name}|{code}" + (f"->{owner}" if owner else ""))
+        text = "".join(masked)
+        for start, end, name, owner in self.lookalike_names(text):
+            masked[start:end] = " " * (end - start)
+            trace.append(f"{LOOKALIKE_TRACE}:{name}->{owner}")
+        return ("".join(masked), trace) if trace else (query, [])
+
     def resolve(self, query: str) -> tuple[list[dict], list[str], list[str]]:
         resolved_entities: list[dict] = []
         flags: list[str] = []
-        trace: list[str] = []
+        query, lookalike_trace = self._mask_lookalikes(query)
+        trace: list[str] = list(lookalike_trace)
 
         mention_groups = self._exact_alias_mentions(query)
         if mention_groups:
@@ -240,7 +349,8 @@ class EntityResolver:
     def resolve_exact(self, query: str) -> tuple[list[dict], list[str], list[str]]:
         resolved_entities: list[dict] = []
         flags: list[str] = []
-        trace: list[str] = []
+        query, lookalike_trace = self._mask_lookalikes(query)
+        trace: list[str] = list(lookalike_trace)
         for mention_group in self._exact_alias_mentions(query):
             candidates = []
             for row in mention_group["rows"]:
@@ -253,7 +363,7 @@ class EntityResolver:
                 resolved_entities.extend(self._disambiguate(query, mention_group["text"], candidates, trace, flags))
         comparison_targets = self._extract_comparison_targets(query)
         if not resolved_entities:
-            return [], comparison_targets, ["entity_not_found"]
+            return [], comparison_targets, ["entity_not_found", *lookalike_trace]
         resolved_entities = self._dedupe_resolved_entities(query, resolved_entities)
         if len(resolved_entities) == 1:
             flags = [flag for flag in flags if flag != "entity_ambiguous"]
@@ -267,7 +377,7 @@ class EntityResolver:
         masked out and the rest of the question gets the same fuzzy alias matching; only listed securities are
         kept (a fuzzy metric or sector next to an exact one adds nothing).
         """
-        masked = query
+        masked, _lookalikes = self._mask_lookalikes(query)
         for entity in found:
             # the mention may be a ticker ("510300.SH") while the name is written too ("沪深300ETF (510300.SH)")
             for text in sorted(
@@ -426,7 +536,7 @@ class EntityResolver:
             rows = self._alias_rows_by_normalized[alias]
             if not alias:
                 continue
-            if self._is_generic_product_mention(alias):
+            if self._is_generic_product_mention(alias) or alias in LEGAL_FORM_FRAGMENTS:
                 continue
             colloquial = alias in self._colloquial_aliases
             if alias in self._context_gated_aliases and not self._finance_context(query, alias):
@@ -474,7 +584,7 @@ class EntityResolver:
             rows = self._alias_rows_by_normalized[alias]
             if not alias or alias in query or alias in self._colloquial_aliases:
                 continue
-            if self._is_generic_product_mention(alias):
+            if self._is_generic_product_mention(alias) or alias in LEGAL_FORM_FRAGMENTS:
                 continue
             if self._should_skip_alias_rows_for_query(query, alias, rows):
                 continue
@@ -507,6 +617,8 @@ class EntityResolver:
                 continue
             if self._replaces_the_chinese_part(best_match["text"], alias):
                 continue
+            if self._extends_into_another_name(query, best_match, rows):
+                continue  # (round 17, M3) "中信国际电讯": a near miss of 中工国际 followed by a business-line word
             ml_score = self.typo_linker.predict_probability(query=query, mention=best_match["text"], alias=alias, heuristic_score=best_match["score"]) if self.typo_linker else best_match["score"]
             threshold = 0.72 if len(alias) <= 4 else 0.62
             if ml_score < threshold:
@@ -541,6 +653,24 @@ class EntityResolver:
                 }
             )
         return groups
+
+    def _extends_into_another_name(self, query: str, match: dict, rows: list[dict[str, str]]) -> bool:
+        """(round 17, review-13 M3) A fuzzy window followed by a business-line word is part of another company's
+        name, not a misspelt name of this one."""
+        for row in rows:
+            owner = self._entity_by_id(int(row["entity_id"]))
+            if owner is None or owner.get("entity_type") != "stock":
+                return False
+            end = lookalike_end(
+                query,
+                int(match["end"]),
+                alias=str(match["text"]),
+                owner=str(owner["canonical_name"]),
+                industry=str(owner.get("industry_name") or ""),
+            )
+            if end is None:
+                return False
+        return bool(rows)
 
     def _splits_a_word(self, query: str, match: dict) -> bool:
         """A fuzzy window that starts or ends inside a word of the question is not a typo'd name.

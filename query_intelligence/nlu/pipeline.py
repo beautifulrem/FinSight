@@ -43,6 +43,15 @@ def _security_names(entities: list[dict]) -> frozenset[str]:
         for row in entities
         if row.get("canonical_name") and row.get("symbol") and row.get("entity_type") in _LISTED_TYPES
     )
+def _stock_industries(entities: list[dict]) -> dict[str, str]:
+    """(round 17, review-13 M3) Canonical name -> industry of listed stocks, for the normalizer's lookalike guard."""
+    return {
+        str(row["canonical_name"]): str(row.get("industry_name") or "")
+        for row in entities
+        if row.get("canonical_name") and row.get("symbol") and row.get("entity_type") == "stock"
+    }
+
+
 GENERIC_PRODUCT_TARGETS = {
     "etf",
     "lof",
@@ -102,7 +111,9 @@ class NLUPipeline:
         boundary_model = EntityBoundaryCRF.build_from_queries([text for text, _ in INTENT_SAMPLES + [(q, []) for q, _ in TOPIC_SAMPLES]], [row["normalized_alias"] for row in aliases])
         typo_linker = TypoLinker.build_from_aliases(aliases)
         return cls(
-            normalizer=QueryNormalizer(synonyms, security_names=_security_names(entities)),
+            normalizer=QueryNormalizer(
+                synonyms, security_names=_security_names(entities), stock_industries=_stock_industries(entities)
+            ),
             entity_resolver=EntityResolver(entities, aliases, linker=EntityLinker.build_from_catalog(entities, aliases), boundary_model=boundary_model, typo_linker=typo_linker),
             product_classifier=ProductTypeClassifier.build_demo(),
             intent_classifier=MultiLabelClassifier.build_demo(INTENT_SAMPLES),
@@ -248,7 +259,9 @@ class NLUPipeline:
             )
 
         return cls(
-            normalizer=QueryNormalizer(synonyms, security_names=_security_names(entities)),
+            normalizer=QueryNormalizer(
+                synonyms, security_names=_security_names(entities), stock_industries=_stock_industries(entities)
+            ),
             entity_resolver=EntityResolver(entities, aliases, linker=EntityLinker.build_from_catalog(entities, aliases), boundary_model=boundary_model, typo_linker=typo_linker),
             product_classifier=product_classifier,
             intent_classifier=intent_classifier,
@@ -302,7 +315,17 @@ class NLUPipeline:
                 ([], []) if precheck_entities else self.entity_resolver.resolve_typos_beside(normalized_query, [])
             )
             if not typo_entities:
-                return self._build_out_of_scope_result(query, normalized_query, out_of_scope_score)
+                # (round 17, M3) a Hong Kong-only or lookalike company name stays visible in the trace
+                not_covered = list(
+                    dict.fromkeys(
+                        item
+                        for item in [*normalization_trace, *precheck_trace]
+                        if item.startswith(("hk_only_name:", "lookalike_name:"))
+                    )
+                )
+                return self._build_out_of_scope_result(
+                    raw_query, normalized_query, out_of_scope_score, extra_rules=not_covered
+                )
             precheck_entities, precheck_trace = typo_entities, [*precheck_trace, *typo_trace]
 
         if precheck_entities:
@@ -431,7 +454,9 @@ class NLUPipeline:
             "explainability": explainability,
         }
 
-    def _build_out_of_scope_result(self, query: str, normalized_query: str, out_of_scope_score: float) -> dict:
+    def _build_out_of_scope_result(
+        self, query: str, normalized_query: str, out_of_scope_score: float, extra_rules: list[str] | None = None
+    ) -> dict:
         return {
             "query_id": str(uuid4()),
             "raw_query": query,
@@ -453,7 +478,7 @@ class NLUPipeline:
             "missing_slots": [],
             "confidence": round(out_of_scope_score, 2),
             "explainability": {
-                "matched_rules": [f"out_of_scope_ml:{out_of_scope_score:.2f}"],
+                "matched_rules": [f"out_of_scope_ml:{out_of_scope_score:.2f}", *(extra_rules or [])],
                 "top_features": [],
             },
         }
