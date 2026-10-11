@@ -3523,6 +3523,9 @@ _PART_MORE_FIGURE = re.compile(
 )
 
 
+_DECLINE_RATE = re.compile(r"降幅|跌幅|减幅|下降幅度|下滑幅度|\b(?:decline|drop|fall)\b", re.I)
+
+
 def _other_figure(segment: str, before: int, antecedent: _Number | None) -> str | None:
     """(round 17, M12d) The figure an elided comparison names when it is another figure of the previous clause's
     company ("扣非净利润更低" after 归母净利润; "净利润增速更快" after a revenue growth): its metric, else ``None``."""
@@ -3539,8 +3542,9 @@ def _other_figure(segment: str, before: int, antecedent: _Number | None) -> str 
         return None
     name = best[2]
     previous = antecedent.metric
-    if previous in _GROWTH_OF.values() and name in _GROWTH_OF and _PART_RATE.search(head):
-        name = _GROWTH_OF[name]  # "营收增长3.5%，净利润增速更快": the growth rates
+    speed = re.search(r"(?:快|慢|faster|slower)$", segment[before:].strip(), re.I)
+    if previous in _GROWTH_OF.values() and name in _GROWTH_OF and (_PART_RATE.search(head) or speed):
+        name = _GROWTH_OF[name]  # "营收增长3.5%，净利润增速更快 / 净利润增长更快": the growth rates
     if name == previous or (previous not in _METRIC_SIDES and previous not in _GROWTH_OF.values()):
         return None
     if (name in _GROWTH_OF.values()) != (previous in _GROWTH_OF.values()):
@@ -3661,11 +3665,14 @@ def _clause_parts(
             # (round 17, review-13 M12d) "…归母净利润1347.8亿元，扣非净利润更低", "and its recurring net profit was
             # even lower": another figure of the previous clause's company, compared with that figure
             adjective = (figure_more.group("adj") or figure_more.groupdict().get("adj2") or "").lower()
+            higher = adjective in _PART_MORE_GT
+            if figure in _BAND_METRICS and _DECLINE_RATE.search(segment, 0, figure_more.start()):
+                higher = not higher  # "净利润降幅更大": a larger decline is a lower growth rate
             number = _part_number(
                 clause_start + figure_more.start(),
                 clause_start + figure_more.end(),
                 figure,
-                "gt" if adjective in _PART_MORE_GT else "lt",
+                "gt" if higher else "lt",
                 bool(figure_more.groupdict().get("neg")),
             )
             number.unit, number.unit_class, number.relation = None, None, True
@@ -4155,9 +4162,12 @@ def _relation_at(
             return None
         # (round 17, review-13 M12c) "营收增长28.8%，增速快于其净利润增速", "revenue grew faster than its net profit":
         # a growth named on the subject's side makes both sides growth rates
-        metric, other = _growth_sides(
-            text, ref_end, metric, other, subject_growth=_subject_growth(text, sentence_start, start, end, metric)
-        )
+        tail = _subject_tail(text, sentence_start, start, end, metric)
+        metric, other = _growth_sides(text, ref_end, metric, other, subject_growth=bool(_SUBJECT_GROWTH.search(tail)))
+        decline_ref = _DECLINE_AFTER.match(text, ref_end) and not re.search(r"增速|增幅|增长", tail)
+        if metric in _BAND_METRICS and (_DECLINE_RATE.search(tail) or decline_ref):
+            # "净利润降幅大于营收降幅", "净利润的降幅比营收大": a larger decline is a lower growth rate
+            comparator = {"gt": "lt", "lt": "gt", "ge": "le", "le": "ge"}.get(comparator, comparator)
         ref_target = {**subject, "metric": other}
     else:
         # (round 15, K6) "美的集团和平安银行的总市值合计超过紫金矿业": the total of the listed companies is the subject
@@ -4551,7 +4561,10 @@ def _metric_side(text: str, start: int) -> tuple[str, int] | None:
 
 
 # (round 16, review 12 L5) a growth rate as the compared figure of the same company: "净利润增速高于营收增速"
-_GROWTH_AFTER = re.compile(r"\s*(?:的)?\s*(?:同比)?\s*(?:增速|增幅|增长率|增长速度|增长幅度|\bgrowth\b)", re.I)
+_GROWTH_AFTER = re.compile(
+    r"\s*(?:的)?\s*(?:同比)?\s*(?:增速|增幅|增长率|增长速度|增长幅度|降幅|跌幅|减幅|\bgrowth\b)", re.I
+)
+_DECLINE_AFTER = re.compile(r"\s*(?:的)?\s*(?:同比)?\s*(?:降幅|跌幅|减幅)")  # (round 17) the compared decline
 
 
 def _growth_sides(text: str, ref_end: int, metric: str, other: str, *, subject_growth: bool = False) -> tuple[str, str]:
@@ -4563,19 +4576,22 @@ def _growth_sides(text: str, ref_end: int, metric: str, other: str, *, subject_g
     return metric, other
 
 
-_SUBJECT_GROWTH = re.compile(r"增速|增幅|增长率|增长速度|增长幅度|\bgrowth\b|\bgr[eo]w(?:s|n|ing)?\b", re.I)
+_SUBJECT_GROWTH = re.compile(
+    r"增速|增幅|增长率|增长速度|增长幅度|降幅|跌幅|减幅|\bgrowth\b|\bgr[eo]w(?:s|n|ing)?\b", re.I
+)
+
+
+def _subject_tail(text: str, sentence_start: int, cue_start: int, cue_end: int, metric: str) -> str:
+    """(round 17, M12c) The text between the subject's metric word and the end of the comparison cue ("营收增速明显
+    快于", "营收…同比增长28.8%，增速快于", "revenue grew faster than"): a growth word there makes it a growth rate."""
+    words = _METRICS[metric].words if metric in _METRICS else None
+    named = list(words.finditer(text, sentence_start, cue_start)) if words is not None else []
+    return text[named[-1].end() : cue_end] if named else ""
 
 
 def _subject_growth(text: str, sentence_start: int, cue_start: int, cue_end: int, metric: str) -> bool:
-    """(round 17, M12c) A growth word between the subject's metric word and the comparison cue ("营收增速明显快于",
-    "营收…同比增长28.8%，增速快于", "revenue grew faster than")."""
-    words = _METRICS[metric].words if metric in _METRICS else None
-    if words is None:
-        return False
-    named = list(words.finditer(text, sentence_start, cue_start))
-    if not named:
-        return False
-    return bool(_SUBJECT_GROWTH.search(text[named[-1].end() : cue_end]))
+    """(round 17, M12c) A growth word between the subject's metric word and the comparison cue."""
+    return bool(_SUBJECT_GROWTH.search(_subject_tail(text, sentence_start, cue_start, cue_end, metric)))
 
 
 def _subject_metric(text: str, start: int, cue_start: int, other: str) -> str | None:

@@ -213,3 +213,33 @@ def test_a_figure_as_a_multiple_of_another_figure_of_the_same_company(checker):
     assert report.verdict == "supported", _rows(report)
     (check,) = report.checks
     assert (check.kind, check.metric, check.reference_metric) == ("ratio", "profit_dedt", "net_profit"), _rows(report)
+
+
+@pytest.mark.parametrize(
+    ("claim", "metric", "comparator", "verdict"),
+    [
+        ("五粮液净利润的降幅比营收大", "netprofit_yoy", "lt", "supported"),  # -71.89 < -54.55
+        ("贵州茅台净利润降幅大于营收降幅", "netprofit_yoy", "lt", "supported"),  # -4.53 < -1.21
+        ("平安银行营收降幅小于净利润降幅", "revenue_yoy", "gt", "contradicted"),  # a 10.40 fall is the larger
+    ],
+)
+def test_a_decline_rate_comparison_is_a_growth_comparison_the_other_way(checker, claim, metric, comparator, verdict):
+    report = checker(claim)
+    assert report.verdict == verdict, _rows(report)
+    (check,) = report.checks
+    assert (check.metric, check.comparator) == (metric, comparator), _rows(report)
+
+
+@pytest.mark.parametrize(
+    ("claim", "verdict"),
+    [
+        ("贵州茅台营收同比小幅下降1.2%，净利润降幅更大", "supported"),  # -4.53 < -1.21
+        ("中芯国际营收增长16.5%，净利润增长更快", "supported"),  # 36.29 > 16.49
+        ("宁德时代营收同比增长17%，净利润增长反而更慢", "partially_supported"),  # 42.18
+    ],
+)
+def test_an_elided_growth_comparison_of_another_figure(checker, claim, verdict):
+    report = checker(claim)
+    assert report.verdict == verdict, _rows(report)
+    relation = report.checks[-1]
+    assert (relation.metric, relation.reference_metric) == ("netprofit_yoy", "revenue_yoy"), _rows(report)
