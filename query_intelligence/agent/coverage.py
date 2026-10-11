@@ -491,7 +491,79 @@ def foreign_line_note(query: str, names: str, *, zh: bool) -> str:
     )
 
 
+LOOKALIKE_REASON = "lookalike_name"
+HK_ONLY_REASON = "hk_only_name"
+
+
+@dataclass(frozen=True)
+class NotCoveredName:
+    """(round 17, review-13 M3) A company the question names that the entity master does not have: a Hong Kong-only
+    company (``code`` its HKEX code) or a lookalike of a covered company's short name; ``owner`` is the covered
+    company it resembles ("" if none)."""
+
+    name: str
+    owner: str = ""
+    code: str = ""
+
+
+def not_covered_names(reasons: list[str] | tuple[str, ...]) -> list[NotCoveredName]:
+    """The ``hk_only_name:美的置业|03990->美的集团`` and ``lookalike_name:平安证券->中国平安`` entries of an NLU trace
+    or of the route reasons, once per name."""
+    found: dict[str, NotCoveredName] = {}
+    for reason in reasons or []:
+        text = str(reason)
+        if not text.startswith((f"{LOOKALIKE_REASON}:", f"{HK_ONLY_REASON}:")):
+            continue
+        body = text.split(":", 1)[1]
+        body, _arrow, owner = body.partition("->")
+        name, _bar, code = body.partition("|")
+        if name.strip() and name.strip() not in found:
+            found[name.strip()] = NotCoveredName(name.strip(), owner.strip(), code.strip())
+    return list(found.values())
+
+
+def not_covered_note(names: list[NotCoveredName], *, zh: bool, english: Any = None) -> str:
+    """(round 17, M3) What the question named that FinSight has no data on, and that a resembling covered company
+    was not used instead ("「美的置业」（港交所代码 03990）只在香港上市…与美的集团名称相近，但不是同一家公司")."""
+    parts = []
+    for item in names:
+        owner_en = ((english(item.owner) if english else None) or item.owner) if item.owner else ""
+        if zh:
+            head = (
+                f"「{item.name}」（港交所代码 {item.code}）在香港上市，不在 FinSight 的数据范围内"
+                if item.code
+                else f"FinSight 的数据中没有「{item.name}」"
+            )
+            tail = (
+                f"；它与{item.owner}名称相近，但不是同一家公司，没有用{item.owner}的数据回答。" if item.owner else "。"
+            )
+            parts.append(head + tail)
+        else:
+            head = (
+                f'"{item.name}" (HKEX {item.code}) is listed in Hong Kong and is outside FinSight\'s data'
+                if item.code
+                else f'FinSight has no data on "{item.name}"'
+            )
+            tail = (
+                f"; its name resembles {owner_en}, but it is a different company, so it was not answered with "
+                f"{owner_en}'s figures."
+                if item.owner
+                else "."
+            )
+            parts.append(head + tail)
+    return ("" if zh else " ").join(parts)
+
+
 def out_of_coverage_text(category: str, *, zh: bool) -> str:
+    if category == LOOKALIKE_REASON:
+        # (round 17, M3) a company absent from the entity master; the note before this names it
+        return (
+            "FinSight 覆盖 A 股（实体库中的上市公司）、公募基金/ETF、指数和中国宏观数据；如需名称相近的那家公司的数据，"
+            "请使用它的全称或代码提问。"
+            if zh
+            else "FinSight covers China A-shares (the companies in its entity master), funds/ETFs, indices and China "
+            "macro data; to ask about the similarly named covered company, use its full name or code."
+        )
     if category == "crypto":
         return (
             "FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有比特币等加密资产的行情或数据，"

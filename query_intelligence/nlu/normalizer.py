@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 
+from .lookalike import lookalike_end
+
 ENGLISH_PATTERN_REWRITES: list[tuple[str, str]] = [
     (r"(?i)\bwhat(?:'s| is) the difference between\s+(.+?)\s+and\s+(.+?)(?:\?|$)", r"\1和\2有什么区别"),
     (r"(?i)\bwhich is better[, ]+\s*(.+?)\s+or\s+(.+?)(?:\?|$)", r"\1和\2哪个好"),
@@ -56,8 +58,16 @@ _MIN_TYPO_TOKEN = 6  # shorter names ("BYD", "Gree") differ from ordinary words 
 
 
 class QueryNormalizer:
-    def __init__(self, synonyms: dict, security_names: set[str] | frozenset[str] | None = None) -> None:
+    def __init__(
+        self,
+        synonyms: dict,
+        security_names: set[str] | frozenset[str] | None = None,
+        stock_industries: dict[str, str] | None = None,
+    ) -> None:
         self.synonyms = synonyms
+        # (round 17, review-13 M3) canonical name -> industry of listed stocks: an alias of one followed by a
+        # business-line word ("Midea Real Estate", "茅台置业") is another company's name and is not rewritten
+        self._stock_industries = dict(stock_industries or {})
         # English aliases of listed securities, for typo correction ("Moutia" -> "moutai"); off without the list.
         self._typo_aliases: list[tuple[str, tuple[str, ...]]] = sorted(
             (
@@ -90,15 +100,26 @@ class QueryNormalizer:
         text, english_trace = self._rewrite_english_patterns(text)
         trace.extend(english_trace)
 
+        # (round 17, M3) a lookalike name is set aside while the aliases are rewritten, so a shorter alias inside it
+        # ("Ping An" in "Ping An Insurance Real Estate") is not rewritten either; it is restored afterwards
+        protected: list[str] = []
         for source, target in sorted(
             self.synonyms.get("alias", {}).items(),
             key=lambda item: len(item[0]),
             reverse=True,
         ):
-            updated_text, replacements = self._replace_alias_mentions(text, source, target)
+            lookalikes: list[str] = []
+            updated_text, replacements = self._replace_alias_mentions(text, source, target, lookalikes)
+            trace.extend(f"lookalike_name:{name}->{target}" for name in lookalikes)
             if replacements:
                 text = updated_text
                 trace.extend([f"alias_exact: {source}->{target}"] * replacements)
+            for name in lookalikes:
+                if name in text:
+                    text = text.replace(name, f"\ue000{len(protected)}\ue001", 1)
+                    protected.append(name)
+        for index, name in enumerate(protected):
+            text = text.replace(f"\ue000{index}\ue001", name, 1)
 
         normalized = re.sub(r"([?])", " ", text)
         normalized = re.sub(r"\s+", " ", normalized).strip()
@@ -150,7 +171,9 @@ class QueryNormalizer:
             text = f"{text[:start]}{alias}{text[end:]}"
         return text, trace[::-1]
 
-    def _replace_alias_mentions(self, text: str, source: str, target: str) -> tuple[str, int]:
+    def _replace_alias_mentions(
+        self, text: str, source: str, target: str, lookalikes: list[str] | None = None
+    ) -> tuple[str, int]:
         if not source or source == target:
             return text, 0
         is_ascii_source = source.isascii()
@@ -177,6 +200,14 @@ class QueryNormalizer:
             current_slice = text[max(0, start - len(protected_prefix)) : end]
             if protected_prefix and current_slice.lower() == target.lower():
                 continue
+            if target in self._stock_industries:
+                lookalike = lookalike_end(
+                    text, end, alias=source, owner=target, industry=self._stock_industries[target]
+                )
+                if lookalike is not None:
+                    if lookalikes is not None:
+                        lookalikes.append(text[start:lookalike])
+                    continue
 
             pieces.append(text[last_end:start])
             pieces.append(target)
@@ -211,7 +242,21 @@ class QueryNormalizer:
                 continue
             body = r"\s*".join(r"(?:and|&)" if word.lower() == "and" else re.escape(word) for word in words)
             pattern = re.compile(rf"(?<![A-Za-z0-9]){body}(?![A-Za-z0-9])", flags=re.IGNORECASE)
-            text, count = pattern.subn(target, text)
+
+            def replace(match: re.Match[str], target: str = target) -> str:
+                # (round 17, M3) "… Bank of China Real Estate" is another company's name, not this one
+                if target in self._stock_industries and (
+                    lookalike_end(
+                        match.string, match.end(), alias=source, owner=target, industry=self._stock_industries[target]
+                    )
+                    is not None
+                ):
+                    return match.group(0)
+                return target
+
+            replaced = pattern.sub(replace, text)
+            count = sum(1 for match in pattern.finditer(text)) - sum(1 for match in pattern.finditer(replaced))
+            text = replaced
             trace.extend([f"alias_exact: {source}->{target}"] * count)
         return text, trace
 
