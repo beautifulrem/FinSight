@@ -64,6 +64,7 @@ from .coverage import (
     foreign_line_note,
     foreign_line_spans,
     holding_positions,
+    holding_statement,
     holding_value_request,
     not_covered_names,
     not_covered_note,
@@ -439,6 +440,11 @@ class AgentRuntime:
             flags = [flag for flag in nlu.get("risk_flags") or [] if flag != "investment_advice_like"]
             nlu = {**nlu, "question_style": "fact", "risk_flags": flags}
             style_reasons = [*style_reasons, "holding_value"]
+        elif holding_statement(state["query"]) and not asks_prediction(state["query"], as_of=self.today()):
+            # (round 17, review-13 M16) "我持有比亚迪600股": a holding stated with no question is not hold advice
+            flags = [flag for flag in nlu.get("risk_flags") or [] if flag != "investment_advice_like"]
+            nlu = {**nlu, "question_style": "fact", "risk_flags": flags}
+            style_reasons = [*style_reasons, "holding_statement"]
         override_reasons = [*dropped_reasons, *override_reasons, *style_reasons]
         decision = decide_route(nlu, mode=mode, query=query)  # type: ignore[arg-type]
         reasons = [*decision.reasons, *override_reasons, *rewrite_reasons]

@@ -25,7 +25,7 @@ from ..chatbot import (
 )
 from ..query_terms import asks_position_size
 from ..text_safety import fold
-from .coverage import cost_basis_request, holding_value_request, without_holding_value
+from .coverage import cost_basis_request, holding_statement, holding_value_request, without_holding_value
 from .evidence import AgentEvidence
 from .frame import without_valuation_extremes
 from .router import _JUDGMENT_MARKERS as _ROUTER_JUDGMENT
@@ -329,7 +329,10 @@ def apply_compliance(
 
     # (round 16, review-12 L13) the gain or loss against a stated cost, or the value of a stated holding, is arithmetic
     # on the close: the NLU's hold / advice reading of "持有" alone does not prefix it (a judgment word still does)
-    arithmetic_only = (cost_basis_request(query) is not None or holding_value_request(query) is not None) and not (
+    # (round 17, review-13 M16) and a holding stated with no question ("我持有比亚迪600股") is not advice either
+    arithmetic_only = (
+        cost_basis_request(query) is not None or holding_value_request(query) is not None or holding_statement(query)
+    ) and not (
         _JUDGMENT_TRIGGER.search(without_holding_value(query)) or _ROUTER_JUDGMENT.search(without_holding_value(query))
     )
     if not arithmetic_only and guards._needs_conditional_answer_guard(nlu_result, pseudo_retrieval, None, query):
