@@ -1,0 +1,135 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "bb99360",
+  "run_at": "2026-10-11T00:06:29+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r12/score_claims_r12.py <out.json>",
+  "note": "independent round-12 claim slice, first and only pre-fix run at bb99360, recorded by the reviewer"
+ },
+ "summary": {
+  "claims": 26,
+  "verdict_accuracy": 0.4231,
+  "ci95": [
+   0.2308,
+   0.6154
+  ],
+  "by_category": {
+   "amount_after_growth": 0.5,
+   "book_value": 0.0,
+   "control": 1.0,
+   "direction_only": 0.0,
+   "elided_second_clause": 0.5,
+   "foreign_line": 1.0,
+   "group_extreme": 1.0,
+   "growth_comparison": 0.0,
+   "short_name": 0.0
+  }
+ },
+ "errors": [
+  {
+   "id": "r12c01",
+   "category": "amount_after_growth",
+   "claim": "长江电力2025年归母净利润同比增长6.1%，达到345.0亿元",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c02",
+   "category": "amount_after_growth",
+   "claim": "美的集团营业总收入同比增长约12%，至4585亿元",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c05",
+   "category": "direction_only",
+   "claim": "比亚迪去年的归母净利润比前一年少了",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c06",
+   "category": "direction_only",
+   "claim": "五粮液营收同比增长",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c07",
+   "category": "direction_only",
+   "claim": "Midea's revenue increased last year",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c08",
+   "category": "direction_only",
+   "claim": "中信证券的净利润较上年有所减少",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c09",
+   "category": "book_value",
+   "claim": "平安银行股价低于每股净资产",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c10",
+   "category": "book_value",
+   "claim": "Zijin Mining trades at less than book value",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c11",
+   "category": "book_value",
+   "claim": "招商银行跌破净资产",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c14",
+   "category": "elided_second_clause",
+   "claim": "美的集团净利润增长约15%，比亚迪也实现了增长",
+   "expected": "partially_supported",
+   "got": "supported"
+  },
+  {
+   "id": "r12c15",
+   "category": "elided_second_clause",
+   "claim": "工商银行市净率0.74倍，招商银行更低",
+   "expected": "partially_supported",
+   "got": "supported"
+  },
+  {
+   "id": "r12c16",
+   "category": "growth_comparison",
+   "claim": "宁德时代营收增速高于比亚迪",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r12c17",
+   "category": "growth_comparison",
+   "claim": "长江电力净利润增速快过中信证券",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c18",
+   "category": "short_name",
+   "claim": "紫金的市盈率不到12倍",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c19",
+   "category": "short_name",
+   "claim": "宁德的市值已在1.3万亿元之上",
+   "expected": "supported",
+   "got": "unverifiable"
+  }
+ ]
+}

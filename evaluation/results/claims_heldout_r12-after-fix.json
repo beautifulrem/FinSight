@@ -1,0 +1,44 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "9564263",
+  "run_at": "2026-10-11T04:09:48+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r12/score_claims_r12.py <out.json>",
+  "note": "independent round-12 claim slice after the round-16 fixes, run once at 9564263 (clean tree); overlap tiers in slice_overlap-heldout_r12-at-9564263.json"
+ },
+ "summary": {
+  "claims": 26,
+  "verdict_accuracy": 0.9231,
+  "ci95": [
+   0.8077,
+   1.0
+  ],
+  "by_category": {
+   "amount_after_growth": 1.0,
+   "book_value": 1.0,
+   "control": 1.0,
+   "direction_only": 0.75,
+   "elided_second_clause": 1.0,
+   "foreign_line": 1.0,
+   "group_extreme": 1.0,
+   "growth_comparison": 0.5,
+   "short_name": 1.0
+  }
+ },
+ "errors": [
+  {
+   "id": "r12c05",
+   "category": "direction_only",
+   "claim": "比亚迪去年的归母净利润比前一年少了",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c17",
+   "category": "growth_comparison",
+   "claim": "长江电力净利润增速快过中信证券",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  }
+ ]
+}
