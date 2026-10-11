@@ -12,6 +12,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from ..query_terms import POSITION_SIZING
 from .coverage import sector_data_question, without_holding_value
 from .stated_dates import stated_periods
 
@@ -110,7 +111,10 @@ _JUDGMENT_MARKERS = re.compile(
     r"\boutlook\b|\bprospects?\b|\bupside\b|\bdownside\b|\bsafe\b|"
     # (round 16, review-12 L20) English stop-loss / take-profit / entry and exit levels, like 止损 / 止盈 / 买点 / 卖点
     r"\bstop[- ]?loss(?:es)?\b|\btake[- ]?profits?\b|\bprofit[- ]taking\b|\btrailing[- ]stops?\b|"
-    r"\bprofit\s+targets?\b|\b(?:entry|exit)\s+(?:levels?|prices?|points?)\b",
+    r"\bprofit\s+targets?\b|\b(?:entry|exit)\s+(?:levels?|prices?|points?)\b|"
+    # (round 17, review-13 M11) position size and allocation ("买多少股比较合适", "三成仓位放宁德时代行吗", "Is it OK
+    # to put 30% of my portfolio in CATL?"): ``query_terms.POSITION_SIZING``
+     + POSITION_SIZING.pattern,
     re.IGNORECASE,
 )
 # A direction forecast about the future ("A股下周会反弹吗", "大盘接下来怎么走", "next month").

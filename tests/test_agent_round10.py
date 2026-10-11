@@ -282,7 +282,13 @@ def test_the_hong_kong_and_us_listing_lexicon(query, category):
 
 def test_a_lookalike_inside_a_foreign_name_is_never_answered(agent):
     result = agent.chat("平安健康医疗的市值多大", session_id="r10-lookalike")
-    assert result["route"] == "refuse" and "foreign_listing_lookalike:中国平安" in result["route_reasons"]
+    # (round 17, M3) the NLU no longer resolves 平安 inside the name at all ("lookalike_name:平安健康医疗->中国平安");
+    # before, the resolved target was dropped afterwards ("foreign_listing_lookalike:中国平安")
+    reasons = result["route_reasons"]
+    assert result["route"] == "refuse"
+    assert "foreign_listing_lookalike:中国平安" in reasons or any(
+        reason.startswith("lookalike_name:平安健康") and reason.endswith("->中国平安") for reason in reasons
+    )
     assert not result.get("tool_calls")
 
 

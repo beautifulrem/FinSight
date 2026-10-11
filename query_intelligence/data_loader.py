@@ -81,6 +81,31 @@ def load_dual_listings() -> list[dict[str, str]]:
 
 
 @lru_cache(maxsize=1)
+def load_hk_only_names() -> list[dict[str, str]]:
+    """(round 17, review-13 M3) Hong Kong-listed equities with no A-share line: ``h_code``, ``name_zh`` (simplified)
+    and ``hkex_name`` (as HKEX lists it), from the HKEX list of securities (``scripts/build_hk_only_names.py``; the
+    first line of the file records the list's date and sha256). ``QI_HK_ONLY_NAMES_PATH`` overrides the file; a
+    missing file gives an empty list."""
+    path = _resolve_data_path("QI_HK_ONLY_NAMES_PATH", "hk_only_names.csv")
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8") as handle:
+        return list(csv.DictReader(line for line in handle if not line.startswith("#")))
+
+
+@lru_cache(maxsize=1)
+def load_hong_kong_line_audit() -> list[dict[str, str]]:
+    """(round 17, review-13 M15) The covered A-share companies checked against the HKEX list of securities:
+    ``a_symbol``, ``name_zh``, ``h_code`` (empty when no Hong Kong line is listed) and ``checked`` (what was checked,
+    and the list's date). ``QI_HONG_KONG_LINE_AUDIT_PATH`` overrides the file; a missing file gives an empty list."""
+    path = _resolve_data_path("QI_HONG_KONG_LINE_AUDIT_PATH", "hong_kong_line_audit.csv")
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8") as handle:
+        return list(csv.DictReader(line for line in handle if not line.startswith("#")))
+
+
+@lru_cache(maxsize=1)
 def load_synonyms() -> dict:
     return _read_json(DATA_DIR / "synonym_dict.json")
 

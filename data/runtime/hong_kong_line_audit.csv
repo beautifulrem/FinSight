@@ -1,0 +1,18 @@
+# The covered A-share companies (those with offline snapshot data), each checked by name and English name against the HKEX
+# list of securities (ListOfSecurities.xlsx and ListOfSecurities_c.xlsx as at 12/10/2026, equities, warrants excluded).
+# h_code empty = no Hong Kong line listed. Used only to say "no H shares" (agent/coverage.py has_hong_kong_line); companies not
+# in this file get the neutral note, because data/runtime/dual_listings.csv does not list every A+H company.
+a_symbol,name_zh,h_code,checked
+000001.SZ,平安银行,,HKEX 12/10/2026: no equity named 平安银行 / PING AN BANK (02318 PING AN is 中国平安)
+000333.SZ,美的集团,00300,HKEX 12/10/2026: 00300 美的集团 / MIDEA GROUP
+000858.SZ,五粮液,,HKEX 12/10/2026: no equity named 五粮液 / WULIANGYE
+002594.SZ,比亚迪,01211,HKEX 12/10/2026: 01211 比亚迪股份 / BYD COMPANY
+300750.SZ,宁德时代,03750,HKEX 12/10/2026: 03750 宁德时代 / CATL
+600030.SH,中信证券,06030,HKEX 12/10/2026: 06030 中信证券 / CITIC SEC
+600036.SH,招商银行,03968,HKEX 12/10/2026: 03968 招商银行 / CM BANK
+600519.SH,贵州茅台,,HKEX 12/10/2026: no equity named 茅台 / MOUTAI
+600900.SH,长江电力,,HKEX 12/10/2026: no equity named 长江电力 / 三峡 / YANGTZE POWER (its GDRs trade in London and Zurich)
+601318.SH,中国平安,02318,HKEX 12/10/2026: 02318 中国平安 / PING AN
+601398.SH,工商银行,01398,HKEX 12/10/2026: 01398 工商银行 / ICBC
+601899.SH,紫金矿业,02899,HKEX 12/10/2026: 02899 紫金矿业 / ZIJIN MINING
+688981.SH,中芯国际,00981,HKEX 12/10/2026: 00981 中芯国际 / SMIC

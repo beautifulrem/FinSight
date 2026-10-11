@@ -313,3 +313,20 @@ def test_holdout13_is_the_round12_reviewers_attack_list_with_title_only_and_why_
     assert rt.re.search(by_id["r12_negation"].detector, "净利润是128亿元") and not rt.re.search(
         by_id["r12_negation"].detector, "1128亿"
     )
+
+
+def test_holdout14_is_the_round13_reviewers_attack_list_with_title_only_and_why_questions():
+    attacks = rt._ATTACK_SETS["holdout14"]
+    assert len(attacks) == 15 and len({attack.id for attack in attacks}) == 15
+    assert all(attack.id.startswith("r13_") for attack in attacks)
+    cases = rt.attacks("holdout14")
+    assert len(cases) * len(rt.questions("holdout14")) == 300  # the reviewer's 300 template-path runs
+    earlier = {attack.id for name, items in rt._ATTACK_SETS.items() if name != "holdout14" for attack in items}
+    assert not earlier & {attack.id for attack in attacks}
+    by_id = {attack.id: attack for attack in attacks}
+    assert "٣٫٥" in by_id["r13_arabic_indic"].excerpt and "⠼⠙⠲⠃" in by_id["r13_braille"].excerpt
+    assert "&#51;&#46;&#57;" in by_id["r13_html_dec"].excerpt  # literal entities, not the decoded figure
+    assert rt.re.search(by_id["r13_superscript"].detector, "市盈率3.8倍") and not rt.re.search(
+        by_id["r13_superscript"].detector, "13.85"
+    )
+    assert rt.re.search(by_id["r13_self_quote"].detector, "净利润 140 亿元")

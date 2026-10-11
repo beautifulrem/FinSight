@@ -468,8 +468,10 @@ def asks_h_share(query: str) -> bool:
     return bool(re.search(_H_SHARE, query or "", re.IGNORECASE)) or foreign_line_kind(query) is not None
 
 
-def foreign_line_note(query: str, names: str, *, zh: bool) -> str:
-    """(round 14, J7) What the refused question asked for, and that the company's A shares are covered."""
+def foreign_line_note(query: str, names: str, *, zh: bool, companies: list[str] | tuple[str, ...] | None = None) -> str:
+    """(round 14, J7) What the refused question asked for, and that the company's A shares are covered. (round 17,
+    M15) ``companies`` (entity-master names): when none of them has a Hong Kong line in the dual-listing table, an
+    H-share question is told that the company has no H shares."""
     kind = foreign_line_kind(query) or "h"
     asked_zh = {
         "h": " H 股（香港上市的股份）",
@@ -483,6 +485,19 @@ def foreign_line_note(query: str, names: str, *, zh: bool) -> str:
         "adr": "the ADRs (American depositary receipts listed in the US)",
         "ah": "the A/H premium, which needs the H-share (Hong Kong) price",
     }[kind]
+    if kind in {"h", "ah"} and has_hong_kong_line(companies or ()) is False:
+        # (round 17, review-13 M15) "茅台港股多少钱": the dual-listing table has no Hong Kong line for the company, so
+        # the note says so instead of implying an H share that FinSight merely does not cover
+        if zh:
+            return (
+                f"所问的是{asked_zh}；据港交所证券名单，{names}没有在香港上市的股份（没有 H 股）。{names}在 A 股上市的"
+                "股份在覆盖范围内，如需 A 股数据请直接询问。"
+            )
+        return (
+            f" The question asks for {asked_en}; according to the HKEX list of securities, {names} has no shares "
+            f"listed in Hong Kong (no H shares). {names}'s A shares are covered, so ask about the A shares directly if "
+            "that is what you need."
+        )
     if zh:
         return f"所问的是{asked_zh}；{names}在 A 股上市的股份在覆盖范围内，如需 A 股数据请直接询问。"
     return (
@@ -491,7 +506,118 @@ def foreign_line_note(query: str, names: str, *, zh: bool) -> str:
     )
 
 
+LOOKALIKE_REASON = "lookalike_name"
+HK_ONLY_REASON = "hk_only_name"
+
+
+@dataclass(frozen=True)
+class NotCoveredName:
+    """(round 17, review-13 M3) A company the question names that the entity master does not have: a Hong Kong-only
+    company (``code`` its HKEX code) or a lookalike of a covered company's short name; ``owner`` is the covered
+    company it resembles ("" if none)."""
+
+    name: str
+    owner: str = ""
+    code: str = ""
+
+
+def not_covered_names(reasons: list[str] | tuple[str, ...]) -> list[NotCoveredName]:
+    """The ``hk_only_name:美的置业|03990->美的集团`` and ``lookalike_name:平安证券->中国平安`` entries of an NLU trace
+    or of the route reasons, once per name."""
+    found: dict[str, NotCoveredName] = {}
+    for reason in reasons or []:
+        text = str(reason)
+        if not text.startswith((f"{LOOKALIKE_REASON}:", f"{HK_ONLY_REASON}:")):
+            continue
+        body = text.split(":", 1)[1]
+        body, _arrow, owner = body.partition("->")
+        name, _bar, code = body.partition("|")
+        if name.strip() and name.strip() not in found:
+            found[name.strip()] = NotCoveredName(name.strip(), owner.strip(), code.strip())
+    return list(found.values())
+
+
+def not_covered_note(names: list[NotCoveredName], *, zh: bool, english: Any = None) -> str:
+    """(round 17, M3) What the question named that FinSight has no data on, and that a resembling covered company
+    was not used instead ("「美的置业」（港交所代码 03990）只在香港上市…与美的集团名称相近，但不是同一家公司")."""
+    parts = []
+    for item in names:
+        owner_en = ((english(item.owner) if english else None) or item.owner) if item.owner else ""
+        if zh:
+            head = (
+                f"「{item.name}」（港交所代码 {item.code}）在香港上市，不在 FinSight 的数据范围内"
+                if item.code
+                else f"FinSight 的数据中没有「{item.name}」"
+            )
+            tail = (
+                f"；它与{item.owner}名称相近，但不是同一家公司，没有用{item.owner}的数据回答。" if item.owner else "。"
+            )
+            parts.append(head + tail)
+        else:
+            head = (
+                f'"{item.name}" (HKEX {item.code}) is listed in Hong Kong and is outside FinSight\'s data'
+                if item.code
+                else f'FinSight has no data on "{item.name}"'
+            )
+            tail = (
+                f"; its name resembles {owner_en}, but it is a different company, so it was not answered with "
+                f"{owner_en}'s figures."
+                if item.owner
+                else "."
+            )
+            parts.append(head + tail)
+    return ("" if zh else " ").join(parts)
+
+
+@lru_cache(maxsize=1)
+def _a_share_stock_names() -> frozenset[str]:
+    from ..data_loader import load_entities
+
+    return frozenset(
+        str(row.get("canonical_name"))
+        for row in load_entities()
+        if row.get("entity_type") == "stock" and row.get("symbol")
+    )
+
+
+def a_share_stocks(names: list[str] | tuple[str, ...]) -> list[str]:
+    """(round 17) The names that are A-share stocks of the entity master (not an index such as 恒生指数, which the
+    NLU can pick up next to 港股): only these get the "its A shares are covered" note."""
+    stocks = _a_share_stock_names()
+    return [name for name in names if name in stocks]
+
+
+def has_hong_kong_line(names: list[str] | tuple[str, ...]) -> bool | None:
+    """(round 17, review-13 M15) Whether any of these A-share companies (entity-master names) has a Hong Kong line:
+    ``True`` when the dual-listing table or the audit lists one, ``False`` only when every named company is in the
+    audit (``data/runtime/hong_kong_line_audit.csv``: the covered companies, each checked against the HKEX list of
+    securities) without a Hong Kong code, ``None`` otherwise. The dual-listing table does not list every A+H company,
+    so a company outside the audit is never said to have no H shares."""
+    from ..data_loader import load_hong_kong_line_audit
+
+    wanted = {str(name) for name in names if name}
+    if not wanted:
+        return None
+    if any(str(row.get("name_zh")) in wanted for row in _dual_listing_rows()):
+        return True
+    audit = {str(row.get("name_zh")): str(row.get("h_code") or "") for row in load_hong_kong_line_audit()}
+    if any(audit.get(name) for name in wanted):
+        return True
+    if all(name in audit for name in wanted):
+        return False
+    return None
+
+
 def out_of_coverage_text(category: str, *, zh: bool) -> str:
+    if category == LOOKALIKE_REASON:
+        # (round 17, M3) a company absent from the entity master; the note before this names it
+        return (
+            "FinSight 覆盖 A 股（实体库中的上市公司）、公募基金/ETF、指数和中国宏观数据；如需名称相近的那家公司的数据，"
+            "请使用它的全称或代码提问。"
+            if zh
+            else "FinSight covers China A-shares (the companies in its entity master), funds/ETFs, indices and China "
+            "macro data; to ask about the similarly named covered company, use its full name or code."
+        )
     if category == "crypto":
         return (
             "FinSight 只覆盖 A 股、公募基金/ETF、指数和中国宏观数据，没有比特币等加密资产的行情或数据，"
@@ -1359,6 +1485,35 @@ def bind_positions(text: str, positions: list[dict[str, Any]], candidates: dict[
     return bound
 
 
+# (round 17, review-13 M16) A holding stated with no question ("我持有比亚迪600股", "记一下：我有招行1000股",
+# "I hold 500 CATL shares."): before round 17 the NLU read 持有 as hold advice and the answer opened with the advice
+# prefix and "问题包含投资建议或预测属性". It is a statement of fact; the answer gives the close without that prefix.
+_POSSESSION_ZH = re.compile(
+    r"(?:我|本人|俺|咱)?(?:现在|目前|手里|手上|账户里|账户上|仓里)?(?:还)?(?:有|持有|持仓|拿着|拿了|握有|买了|买入了|入了|建仓了|囤了)"
+)
+_POSSESSION_EN = re.compile(
+    r"\b(?:i|we)\s+(?:currently\s+|now\s+|also\s+)?(?:have|hold|own|bought|am\s+holding|'m\s+holding|picked\s+up)\b",
+    re.IGNORECASE,
+)
+_A_QUESTION = re.compile(
+    r"[？?]|吗|呢|么|吧|多少|几|怎么|怎样|如何|什么|啥|哪|谁|是否|能不能|要不要|该不该|值不值|行不行|可不可以|会不会|有没有|"
+    r"帮我|请|算一下|看看|分析|评价|建议|\b(?:what|how|which|why|when|should|could|would|can|is|are|do|does|"
+    r"worth|tell|show|please|help)\b",
+    re.IGNORECASE,
+)
+
+
+def holding_statement(query: str) -> bool:
+    """(round 17, review-13 M16) The message only states a holding (a possession verb and a share / lot / unit count)
+    and asks nothing."""
+    text = (query or "").strip()
+    if not text or stated_holding_count(text) is None:
+        return False
+    if not (_POSSESSION_ZH.search(text) or _POSSESSION_EN.search(text)):
+        return False
+    return not _A_QUESTION.search(text)
+
+
 def without_holding_value(query: str) -> str:
     """The question with a holding-value request blanked out, for the fair-value and judgment checks."""
     found = holding_value_request(query)
@@ -1408,6 +1563,71 @@ def requested_years(query: str) -> list[int]:
 def _year_of(value: Any) -> int | None:
     match = re.match(r"\s*((?:19|20)\d{2})", str(value or ""))
     return int(match.group(1)) if match else None
+
+
+# (round 17, review-13 M19) A conversion into another currency ("比亚迪的市值换算成美元是多少", "BYD's market cap in US
+# dollars"): FinSight's figures are in CNY and its data has no exchange rate. Before round 17 the answer gave the CNY
+# figure and said nothing about the conversion; it now says that the rate is missing and that the figures are in CNY.
+_FX_ZH = r"(?P<zh>美元|美金|港元|港币|欧元|日元|英镑|澳元|加元|新加坡元|新元|韩元|瑞郎|瑞士法郎|卢布|外币)"
+_FX_EN = (
+    r"(?P<en>US\s*dollars?|U\.S\.\s*dollars?|USD|US\$|dollars?|HKD|HK\$|Hong\s+Kong\s+dollars?|euros?|EUR|yen|JPY|"
+    r"pounds?(?:\s+sterling)?|GBP|sterling|Singapore\s+dollars?|SGD|Australian\s+dollars?|AUD|foreign\s+currency)"
+)
+_FX_CONVERSION = re.compile(
+    r"(?:换算|折算|折合|兑换|转换|转化|换成|折成|算成|合成|计成)(?:成|为|到|一下)?\s*(?:多少)?\s*" + _FX_ZH + r"|"
+    r"(?:以|用|按)\s*" + _FX_ZH.replace("?P<zh>", "?P<zh2>") + r"\s*(?:计|计价|计算|来算|算|表示)|"
+    r"(?:约合|合|相当于|等于)\s*(?:多少|几)\s*(?:亿|万|千)?\s*" + _FX_ZH.replace("?P<zh>", "?P<zh3>") + r"|"
+    r"(?:市值|营收|收入|净利润|利润|股价|价格|收盘价|总资产|分红)[^，。？?！!；;]{0,8}?(?:是|有|为)?(?:多少|几)\s*(?:亿|万|千)?\s*"
+    + _FX_ZH.replace("?P<zh>", "?P<zh4>")
+    + r"|"
+    r"\bconvert(?:ed|ing)?\b[^.?!]{0,60}?\b(?:to|into)\s+" + _FX_EN + r"\b|"
+    r"\b(?:in|into)\s+(?:terms\s+of\s+)?" + _FX_EN.replace("?P<en>", "?P<en2>") + r"(?:\s+terms)?\b|"
+    r"\b(?:how\s+many|how\s+much\s+in)\s+" + _FX_EN.replace("?P<en>", "?P<en3>") + r"\b|"
+    r"\b(?:USD|dollar|euro|yen|sterling)[- ](?:terms|equivalent|value|denominated)\b",
+    re.IGNORECASE,
+)
+_FX_NAME_EN = {"美元": "US dollars", "美金": "US dollars", "港元": "Hong Kong dollars", "港币": "Hong Kong dollars",
+               "欧元": "euros", "日元": "yen", "英镑": "pounds sterling"}  # fmt: skip
+
+
+def _fx_english(name: str) -> str:
+    """ "USD", "dollar", "HK$" -> the currency's English name ("" for a currency not listed)."""
+    lowered = re.sub(r"\s+", " ", name.lower()).strip()
+    if any(word in lowered for word in ("hk", "hong kong")):
+        return "Hong Kong dollars"
+    if "singapore" in lowered or lowered == "sgd":
+        return "Singapore dollars"
+    if "australian" in lowered or lowered == "aud":
+        return "Australian dollars"
+    if "dollar" in lowered or lowered in {"usd", "us$"}:
+        return "US dollars"
+    if "euro" in lowered or lowered == "eur":
+        return "euros"
+    if lowered in {"yen", "jpy"}:
+        return "yen"
+    if "pound" in lowered or "sterling" in lowered or lowered == "gbp":
+        return "pounds sterling"
+    return ""
+
+
+def currency_conversion_note(query: str, *, zh: bool) -> str | None:
+    """(round 17, review-13 M19) The sentence for a question that asks for a CNY figure in another currency, else
+    ``None``. A Hong Kong-dollar price of a company's H shares is a foreign line (``foreign_line_spans``), refused
+    before this applies."""
+    match = _FX_CONVERSION.search(query or "")
+    if match is None:
+        return None
+    zh_name = next((match.group(name) for name in ("zh", "zh2", "zh3", "zh4") if match.group(name)), None)
+    en_name = next((match.group(name) for name in ("en", "en2", "en3") if match.group(name)), None)
+    english = _fx_english(en_name or "")
+    if zh:
+        currency = zh_name or next((key for key, value in _FX_NAME_EN.items() if value == english), "外币")
+        return f"当前数据中没有汇率，无法把人民币金额换算成{currency}；以下数值均以人民币计。"
+    currency = _FX_NAME_EN.get(zh_name or "", "") or english or "another currency"
+    return (
+        f"The data has no exchange rate, so the CNY figures cannot be converted to {currency}; the figures below are "
+        "in CNY."
+    )
 
 
 def coverage_gaps(
