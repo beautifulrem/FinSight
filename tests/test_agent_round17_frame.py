@@ -77,11 +77,15 @@ SALE_ZH = [
     "持仓成本{c}元，原本有{n}股{name}，减持{s}股（卖价{p}元）之后，剩下的浮盈浮亏是多少",
     "我以{c}元买入{name}{n}股，后来按{p}元卖了{s}股，现在盈亏情况如何",
     "{name}：{c}元进的{n}股，{p}元的时候抛了{s}股，留着的部分现在盈亏多少",
+    "{name}我{c}买了{n}股，前天{p}卖了{s}股，手上剩的赚了多少",
+    "{name}持有{n}股成本{c}元，在{p}元的位置割了{s}股，剩余部分浮盈浮亏多少",
 ]
 SALE_EN = [
     "I bought {n} shares of {en} at {c} and later sold {s} at {p}. How much am I up or down now?",
     "Paid {c} a share for {n} {en} shares, then trimmed {s} shares for {p} each. What's my P&L?",
     "{en}: got in at {c} with {n} shares, sold off {s} at {p}; what's the gain or loss on what's left?",
+    "I hold {n} {en} bought at {c}; I sold {s} at {p} last week. What's the profit on the shares I kept?",
+    "Sold {s} of my {n} {en} shares at {p}; I'd paid {c} each. Where am I now on the remaining stake?",
 ]
 
 
@@ -164,10 +168,13 @@ RISE_ZH = [
     "{name}我当初{c}元买的，股价得再涨百分之几我才回本",
     "按{c}元的成本，{name}从现在要涨多少个百分点才能解套",
     "{name}成本{c}元，离回本还差多少",
+    "{name}我买在{c}元，还得涨多少才回得到成本",
+    "{name}我{c}块入手的，涨回成本要几个点",
 ]
 RISE_EN = [
     "I bought {en} at {c}. What percentage gain does it need for me to break even?",
     "My {en} entry was {c}; how much would it have to rise to get back to my cost?",
+    "How far does {en} have to climb to get back to my {c} purchase price?",
 ]
 
 
@@ -205,6 +212,8 @@ def test_the_rise_back_to_a_cost_is_measured_from_the_close(language):
         "离一年来最高收盘价还要再上涨多少",
         "要回到近52周高点，还需要涨多少",
         "How much would BYD have to climb to get back to its 52-week high?",
+        "What gain would CATL need to return to its 52-week high close?",
+        "宁德时代离52周最高收盘价还差几个点",
     ],
 )
 def test_the_rise_back_to_the_52_week_high_is_asked(question):
