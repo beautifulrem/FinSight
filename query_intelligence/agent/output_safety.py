@@ -247,7 +247,9 @@ class _Context:
         self._corroborate = corroborate
         self._corroborating: list[tuple[float, bool]] | None = None
         self.zh = zh
-        self.documents = [item for item in store.items() if item.kind == "document"]
+        # (round 17, review-13 M16) curated glossary entries are FinSight's own definitions, not third-party documents:
+        # they are never attributed as "据一篇文档称…（未经其他来源证实）"
+        self.documents = [item for item in store.items() if item.kind == "document" and not _curated(item)]
         self.raw_texts = {item.evidence_id: _document_text(item) for item in self.documents}
         self.document_texts = {evidence_id: _compact(text) for evidence_id, text in self.raw_texts.items()}
         self.notes: set[str] = set()
@@ -306,7 +308,11 @@ class _Context:
 
     def scrub_sentence(self, sentence: str) -> tuple[str, str] | None:
         cited = [match.group(1) for match in _CITATION.finditer(sentence) if match.group(1) in self.store]
-        doc_ids = [i for i in cited if self.store.get(i).kind == "document"]  # type: ignore[union-attr]
+        doc_ids = [
+            i
+            for i in cited
+            if self.store.get(i).kind == "document" and not _curated(self.store.get(i))  # type: ignore[union-attr,arg-type]
+        ]
         structured_ids = [i for i in cited if i not in doc_ids]
 
         findings = find_prohibited_promotion(sentence)
@@ -810,6 +816,11 @@ def _claim_wording(text: str, start: int, end: int) -> str:
     left = max((m.end() for m in _CLAIM_BOUNDARY.finditer(text, 0, start)), default=0)
     right = next((m.start() for m in _CLAIM_BOUNDARY.finditer(text, end)), len(text))
     return _compact(text[max(left, start - 40) : min(right, end + 40)])
+
+
+def _curated(item: AgentEvidence | None) -> bool:
+    """(round 17, M16) A curated glossary entry (``explain_concept``, source type ``glossary``)."""
+    return item is not None and item.source_type == "glossary"
 
 
 def _document_text(item: AgentEvidence) -> str:

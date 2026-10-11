@@ -1298,6 +1298,35 @@ def bind_positions(text: str, positions: list[dict[str, Any]], candidates: dict[
     return bound
 
 
+# (round 17, review-13 M16) A holding stated with no question ("我持有比亚迪600股", "记一下：我有招行1000股",
+# "I hold 500 CATL shares."): before round 17 the NLU read 持有 as hold advice and the answer opened with the advice
+# prefix and "问题包含投资建议或预测属性". It is a statement of fact; the answer gives the close without that prefix.
+_POSSESSION_ZH = re.compile(
+    r"(?:我|本人|俺|咱)?(?:现在|目前|手里|手上|账户里|账户上|仓里)?(?:还)?(?:有|持有|持仓|拿着|拿了|握有|买了|买入了|入了|建仓了|囤了)"
+)
+_POSSESSION_EN = re.compile(
+    r"\b(?:i|we)\s+(?:currently\s+|now\s+|also\s+)?(?:have|hold|own|bought|am\s+holding|'m\s+holding|picked\s+up)\b",
+    re.IGNORECASE,
+)
+_A_QUESTION = re.compile(
+    r"[？?]|吗|呢|么|吧|多少|几|怎么|怎样|如何|什么|啥|哪|谁|是否|能不能|要不要|该不该|值不值|行不行|可不可以|会不会|有没有|"
+    r"帮我|请|算一下|看看|分析|评价|建议|\b(?:what|how|which|why|when|should|could|would|can|is|are|do|does|"
+    r"worth|tell|show|please|help)\b",
+    re.IGNORECASE,
+)
+
+
+def holding_statement(query: str) -> bool:
+    """(round 17, review-13 M16) The message only states a holding (a possession verb and a share / lot / unit count)
+    and asks nothing."""
+    text = (query or "").strip()
+    if not text or stated_holding_count(text) is None:
+        return False
+    if not (_POSSESSION_ZH.search(text) or _POSSESSION_EN.search(text)):
+        return False
+    return not _A_QUESTION.search(text)
+
+
 def without_holding_value(query: str) -> str:
     """The question with a holding-value request blanked out, for the fair-value and judgment checks."""
     found = holding_value_request(query)
