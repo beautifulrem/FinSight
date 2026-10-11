@@ -851,7 +851,8 @@ _PNL_ASK_ZH = re.compile(
 )
 _COST_EN = re.compile(
     r"\bpaid\s*(?:CNY|RMB|¥)?\s*(?P<cost3>\d+(?:\.\d+)?)\s*(?:a share|per share|each|apiece|for)\b|"
-    r"\b(?:bought|purchased|paid|got in|picked up|acquired|added)\b[^.?!]{0,40}?\b(?:at|for)\s*(?:CNY|RMB|¥)?\s*"
+    r"\b(?:bought|purchased|paid|got in|got into|bought into|went into|picked up|acquired|added|entered)\b[^.?!]{0,40}?"
+    r"\b(?:at|for)\s*(?:CNY|RMB|¥)?\s*"
     r"(?P<cost>\d+(?:\.\d+)?)|"
     r"\b(?:cost(?: basis| price)?|entry(?: price)?|average (?:cost|price)|avg\.? cost)\s*(?:is|was|of|at|=|:)?\s*"
     r"(?:CNY|RMB|¥)?\s*(?P<cost2>\d+(?:\.\d+)?)",
