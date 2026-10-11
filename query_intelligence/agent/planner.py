@@ -50,7 +50,9 @@ _VALUATION_TERMS = re.compile(
     r"(?<![A-Za-z])P/?S(?![A-Za-z])|price[- ]to[- ]sales|"
     r"undervalued|overvalued|\bworth\b(?! buying)|intrinsic value|fair value|"
     r"valuation|valued|earnings|profit|revenue|fundamental|price-to-(?:book|earnings)|expensive|cheap|margin|"
-    r"dividend|market cap|debt|leverage|cash ?flow|growth rate|\bearns?\b|more profitable",
+    r"dividend|market cap|debt|leverage|cash ?flow|growth rate|\bearns?\b|more profitable|"
+    # (round 16, review-12 L8) "ICBC's market value": the market value is in the fundamentals, not the quote
+    r"\bmarket\s+(?:value|capitali[sz]ation)\b|\bmkt\.?\s+cap\b",
     re.IGNORECASE,
 )
 _INDUSTRY_TERMS = re.compile(r"行业|板块|sector|industry", re.IGNORECASE)

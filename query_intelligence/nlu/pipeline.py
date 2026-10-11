@@ -1430,7 +1430,11 @@ class NLUPipeline:
         advice_terms = ["值得", "能买吗", "买吗", "买入", "卖出", "上车", "止盈", "止损", "持有", "拿吗", "还能拿吗", "还能不能拿", "值不值得拿", "不适合", "适不适合", "适合长期拿", "适合长期持有", "长期拿", "长期持有", "长期定投", "适合定投", "继续定投", "适合继续定投", "更适合", "更稳"]
         forecast_terms = ["未来", "接下来", "后市", "会怎么走", "后面会怎么走", "怎么看后市"]
         lowered = query.lower()
-        english_advice_terms = ["should i", "worth", "suitable", "good to buy", "hold it", "cut the loss"]
+        # (round 16, review-12 L20) stop-loss / take-profit levels are advice, like 止损 / 止盈 in advice_terms
+        english_advice_terms = [
+            "should i", "worth", "suitable", "good to buy", "hold it", "cut the loss", "stop loss", "stop-loss",
+            "stoploss", "take profit", "take-profit", "profit taking", "profit-taking", "trailing stop", "profit target",
+        ]
         english_compare_terms = ["compare", "difference", "better"]
         open_evaluation_terms = ["你觉得", "怎么看", "如何看", "评价一下", "分析一下", "从投资角度", "后面怎么看", "后续怎么看"]
         has_advice_marker = any(term in query for term in advice_terms) or any(term in lowered for term in english_advice_terms)
