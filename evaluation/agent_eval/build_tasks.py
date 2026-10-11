@@ -694,6 +694,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round14_tasks()
     tasks += _round14_frame_tasks()
     tasks += _round15_frame_tasks()
+    tasks += _round16_frame_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -4389,6 +4390,197 @@ def _round15_frame_tasks() -> list[dict[str, Any]]:
                     must_state_missing=True,
                     forbidden_patterns=[*TRADING_PATTERNS, r"(?i)combined CNY"],
                     language="en",
+                )
+            ],
+        ),
+    ]
+
+
+def _round16_frame_tasks() -> list[dict[str, Any]]:
+    """Round-16 rules: the classes the round-12 review found (L1, L2, L3, L10, L12, L13), in the author's own wording on
+    the v1 snapshot (no turn copies or near-copies a committed slice, a quoted review probe or another set,
+    ``tests/test_agent_eval.py``). Values from the v1 tools (归母净利润 茅台 823.2 亿 / 五粮液 378 亿 /
+    中国平安 1210 亿;
+    营业收入 1688.38 亿 / 1085 亿 / 12180 亿; 市盈率 24.6 / 20.9 / 8.7; closes 1409.5 / 100.64 / 53.61 on
+    2026-04-22):
+    (A + B) vs C named with the comparison word (1201.2 亿, 8.8 亿 less); a total after a leading adverb (2033.2 亿); a
+    total and a share of it (13868.38 亿, 12.17%); which and by how much (12.2); a ratio then a total across two
+    sentences (11.23, 13265 亿); two lots (200 × −40.5 + 100 × 29.5 = −5150; 300 × −9.36 + 200 × 5.64 = −1680); 2万3千
+    shares (1,233,030); a 、-list valued at the close (183,838); a second English position (73,738); a stated position
+    then an added one (56,339); 1万 shares in English (536,100); a stated-cost gain with no advice prefix (5,475)."""
+
+    def fundamental(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"fundamental_{symbol}", "value": value}
+
+    def price(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"price_{symbol}", "value": value}
+
+    mt, wly, pa = "600519.SH", "000858.SZ", "601318.SH"
+    no_advice = [*TRADING_PATTERNS, r"条件性判断", r"(?i)conditional assessment"]
+    return [
+        # L1: the single value named with the comparison word
+        _task(
+            "r16_comparand_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "茅台和五粮液的归母净利润合起来，同中国平安比较一下谁多",
+                    required_facts=[fundamental(mt, 120120000000), fundamental(pa, 880000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"2411\.2"],  # never the total of all three
+                )
+            ],
+        ),
+        _task(
+            "r16_compared_with_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Compared with Ping An, do Moutai and Wuliangye together earn more?",
+                    required_facts=[fundamental(mt, 120120000000), fundamental(pa, 880000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"241\.12"],
+                    language="en",
+                )
+            ],
+        ),
+        # L10: a leading adverb is not a security
+        _task(
+            "r16_leading_adverb_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Altogether, what do Moutai and Ping An earn?",
+                    required_facts=[fundamental(mt, 203320000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"(?i)could not tell which security"],
+                    language="en",
+                )
+            ],
+        ),
+        # L12: two operations in one message
+        _task(
+            "r16_total_then_share_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "贵州茅台和中国平安的营业收入合计是多少，茅台的占比呢",
+                    required_facts=[fundamental(mt, 1386838000000), fundamental(mt, 12.17)],
+                )
+            ],
+        ),
+        _task(
+            "r16_which_then_gap_zh",
+            "comparison",
+            "zh",
+            [_turn("五粮液和中国平安，谁的市盈率更低？低了多少", required_facts=[fundamental(wly, 12.2)])],
+        ),
+        _task(
+            "r16_ratio_then_total_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "中国平安的营收是五粮液的多少倍？顺便算下两家合计",
+                    required_facts=[fundamental(pa, 11.23), fundamental(pa, 1326500000000)],
+                )
+            ],
+        ),
+        # L2: two purchases in natural forms
+        _task(
+            "r16_lots_name_between_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "我在1450元买入贵州茅台200股，后来1380元又补了100股，现在总共赚还是亏",
+                    required_facts=[price(mt, -5150), price(mt, 2950)],
+                    forbidden_patterns=[*no_advice, r"每股浮亏"],  # never the first lot alone
+                )
+            ],
+        ),
+        _task(
+            "r16_lots_another_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "I bought 300 Wuliangye at 110 and another 200 at 95. P&L now?",
+                    required_facts=[price(wly, -1680), price(wly, 1128)],
+                    forbidden_patterns=[*no_advice, r"(?i)per share"],
+                    language="en",
+                )
+            ],
+        ),
+        # L3: mixed-unit counts, a 、-list, a second English position, a stated position then an added one
+        _task(
+            "r16_mixed_count_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "我有2万3千股中国平安，按收盘价值多少",
+                    required_facts=[price(pa, 1233030)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"(?<![\d万])3000 股"],
+                )
+            ],
+        ),
+        _task(
+            "r16_list_at_close_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "我账户里有茅台100股、平安800股，用最新收盘价算一下总市值",
+                    required_facts=[price(mt, 183838)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"总市值 \d+(?:\.\d+)? 亿元"],  # never the companies' caps
+                )
+            ],
+        ),
+        _task(
+            "r16_second_position_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "I hold 200 shares of Wuliangye and 1,000 of Ping An. Total value?",
+                    required_facts=[price(pa, 73738)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r16_stated_then_added_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("我持有五粮液400股", required_entity=wly),
+                _turn("再加上中国平安300股，一共值多少", required_facts=[price(pa, 56339)]),
+            ],
+        ),
+        # L13: a count in 万 asked "worth" in English; a stated-cost gain without an advice prefix
+        _task(
+            "r16_worth_wan_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "How much are 1万 shares of Ping An worth?",
+                    required_facts=[price(pa, 536100)],
+                    language="en",
+                )
+            ],
+        ),
+        _task(
+            "r16_plain_gain_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "成本价1300元，持有茅台50股，赚了多少",
+                    required_facts=[price(mt, 5475)],
+                    forbidden_patterns=no_advice,
                 )
             ],
         ),

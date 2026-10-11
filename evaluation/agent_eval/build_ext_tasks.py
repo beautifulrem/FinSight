@@ -366,6 +366,7 @@ def build_ext_tasks() -> list[dict[str, Any]]:
     tasks += round14_frame_ext_tasks()
     tasks += round15_safety_ext_tasks()
     tasks += round15_frame_ext_tasks()
+    tasks += round16_frame_ext_tasks()
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
     return tasks
@@ -950,6 +951,139 @@ def round15_frame_ext_tasks() -> list[dict[str, Any]]:
                     required_facts=[fundamental(MIDEA, 2.89), fundamental(BYD, 3.17)],
                     language="en",
                 ),
+            ],
+        ),
+    ]
+
+
+def round16_frame_ext_tasks() -> list[dict[str, Any]]:
+    """(round 16, review-12 L1/L2/L3/L9/L10/L12/L13) The round-16 classes on the extension's names, in the author's own
+    wording. Values from the extension tools: 归母净利润 紫金矿业 517.77 亿, 中信证券 300.76 亿, 工商银行 3685.62 亿,
+    宁德时代 722.01 亿, 美的集团 439.45 亿, 招商银行 1501.81 亿, 平安银行 426.33 亿; 营业收入 紫金矿业 3490.79 亿,
+    美的集团 4585.02 亿, 招商银行 3375.32 亿, 工商银行 8382.7 亿; ROE 长江电力 15.59; 市盈率 工商银行 7.89,
+    平安银行 5.17; closes
+    (2026-09-30) 紫金矿业 29.79, 招商银行 41.26, 美的集团 80.1, 工商银行 8.28; 52-week high close 美的集团 88.95."""
+    no_advice = [*TRADING_PATTERNS, r"条件性判断", r"(?i)conditional assessment"]
+    return [
+        # L1: the single value named with the comparison word (zh and en)
+        _task(
+            "r16_ext_comparand_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "紫金矿业和中信证券的净利润合在一起，同工商银行比较哪个多",
+                    required_facts=[fundamental(ZIJIN, 81853000000), fundamental(ICBC, 286709000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"4504\.15"],  # never the total of all three
+                )
+            ],
+        ),
+        _task(
+            "r16_ext_relative_to_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Relative to CMB, how do CATL and Midea compare on net profit combined?",
+                    required_facts=[fundamental(CATL, 116146000000), fundamental(CMB, 34035000000)],
+                    language="en",
+                )
+            ],
+        ),
+        # L10: a leading adverb
+        _task(
+            "r16_ext_leading_adverb_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Collectively, what revenue do Zijin Mining and Midea report?",
+                    required_facts=[fundamental(ZIJIN, 807581000000)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"(?i)could not tell which security"],
+                    language="en",
+                )
+            ],
+        ),
+        # L9: short names derived from the entity table
+        _task(
+            "r16_ext_short_name_zh",
+            "fact",
+            "zh",
+            [_turn("长电去年的ROE", required_entity=CYPC, required_facts=[fundamental(CYPC, 15.59)])],
+        ),
+        _task(
+            "r16_ext_short_names_total_zh",
+            "comparison",
+            "zh",
+            [_turn("平银与宁德的净利润合计", required_facts=[fundamental(PAB, 114834000000)])],
+        ),
+        # L2: two purchases, the name between the verb and the count, 块 / 加了
+        _task(
+            "r16_ext_lots_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "我在32元买进紫金矿业500股，过了几天28块又加了500股，盈亏怎么样",
+                    required_facts=[price(ZIJIN, -1105), price(ZIJIN, 895)],
+                    forbidden_patterns=[*no_advice, r"每股浮亏"],
+                )
+            ],
+        ),
+        # L3: a mixed-unit count
+        _task(
+            "r16_ext_mixed_count_zh",
+            "fact",
+            "zh",
+            [_turn("3千2百股招商银行按收盘价值多少钱", required_facts=[price(CMB, 132032)])],
+        ),
+        # L13: the yuan gap to the 52-week high; "worth" with a count in 万
+        _task(
+            "r16_ext_gap_to_high_yuan_zh",
+            "fact",
+            "zh",
+            [_turn("美的集团现在离一年里最高的收盘价还差几块钱", required_facts=[price(MIDEA, 8.85)])],
+        ),
+        _task(
+            "r16_ext_worth_wan_en",
+            "fact",
+            "en",
+            [_turn("How much are 3万 shares of ICBC worth?", required_facts=[price(ICBC, 248400)], language="en")],
+        ),
+        _task(
+            "r16_ext_plain_gain_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "持有美的集团600股，成本75元，现在赚多少",
+                    required_facts=[price(MIDEA, 3060)],
+                    forbidden_patterns=no_advice,
+                )
+            ],
+        ),
+        # L12: a total and a share of it across two sentences (the share names the second target); which and by how much
+        _task(
+            "r16_ext_total_then_share_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "招商银行和工商银行的营收加起来多少？工行占比多少",
+                    required_facts=[fundamental(ICBC, 1175802000000), fundamental(ICBC, 71.29)],
+                )
+            ],
+        ),
+        _task(
+            "r16_ext_which_then_gap_en",
+            "comparison",
+            "en",
+            [
+                _turn(
+                    "Between ICBC and Ping An Bank, which has the lower P/E? By how much?",
+                    required_facts=[fundamental(ICBC, 2.72)],
+                    language="en",
+                )
             ],
         ),
     ]
