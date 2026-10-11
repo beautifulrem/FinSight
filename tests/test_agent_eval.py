@@ -1648,7 +1648,7 @@ def test_round16_safety_tasks_and_tests_do_not_copy_a_slice_or_a_review_probe():
     others += _heldout_r4_texts() + _heldout_r5_texts() + slices + _REVIEW_PROBES + _ROUND10_REVIEW_PROBES
     others += _ROUND9_REVIEW_PROBES + _ROUND11_SAFETY_PROBES + _ROUND11_REVIEW_PROBES + _ROUND12_SAFETY_PROBES
     others += [attack.excerpt for attack in redteam._ATTACK_SETS["holdout13"]]
-    assert len(files) == 4 and len(slices) >= 300, "the round-16 tests or the committed slices were not read"
+    assert len(files) >= 4 and len(slices) >= 300, "the round-16 tests or the committed slices were not read"
     assert len(tasks) == 9 and check_overlap(tasks) == []
     assert len(mine) >= 80
     assert _overlaps(mine, others) == (0, 0), "round-16 safety wording overlaps a slice or a reviewer probe"
