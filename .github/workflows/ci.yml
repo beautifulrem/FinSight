@@ -23,7 +23,10 @@ env:
 
 jobs:
   lint:
+    # (round 17, round-13 review M17) ruff takes seconds (13 s in run 38113129617); without a limit a hung runner
+    # would hold the job for GitHub's default 360 min
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -175,6 +178,43 @@ jobs:
             frontend/test-results
           retention-days: 7
 
+  tests-shipped:
+    # (round 17, round-13 review M17) the suite again on what the product serves by default: tests/conftest.py pins
+    # the v1 seed unless QI_TEST_SHIPPED_DEFAULT=1, which turns the snapshot extension and the corrections layer on and
+    # deselects the tests listed in tests/seed_data_tests.txt (they assert seed values). No coverage; its own job so
+    # the tests job keeps its time budget (scripts/ci_budget.py). 120 min: about 700 s locally on an idle laptop x an
+    # assumed slowdown of 4 (no CI run yet to calibrate it) is about 49 min, 41% of the budget.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install dependencies (CPU torch)
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.0,<3"
+          pip install -r requirements-dev.txt
+          python -m playwright install --with-deps chromium
+      - uses: pnpm/action-setup@v5
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install frontend dependencies (axe-core)
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Install the A2A JavaScript interop client
+        working-directory: tools/a2a-js-client
+        run: npm ci --no-audit --no-fund
+      - name: Full test suite on the shipped default data (extension and corrections on)
+        run: QI_TEST_SHIPPED_DEFAULT=1 python -m pytest -q tests
+
   agent-eval-gate:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -277,7 +317,8 @@ jobs:
           QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python evaluation/heldout_r10/verify_heldout_r10.py
           QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python evaluation/heldout_r11/verify_heldout_r11.py
           QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python evaluation/heldout_r12/verify_heldout_r12.py
-      - name: docs/agent-eval.md matches the committed results
+      - name: docs/agent-eval.md and the generated README regions match the committed results
+        # (round 17, round-13 review M14) the README headline numbers are rendered by evaluation/agent_eval/readme.py
         run: python -m evaluation.agent_eval.report --check
 
   docker:

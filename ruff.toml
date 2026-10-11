@@ -39,9 +39,15 @@ include = [
     "tests/test_human_kit.py",
     "scripts/build_snapshot_corrections.py",
     "tests/test_round13_snapshot_fix.py",
+    "scripts/record_ci_run.py",
+    "tests/test_readme_generated.py",
 ]
 
 [lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 # Chinese text legitimately contains full-width punctuation.
 ignore = ["RUF001", "RUF002", "RUF003"]
+
+[lint.per-file-ignores]
+# The README regions are English and Chinese prose templates; ruff counts each CJK character as two columns.
+"evaluation/agent_eval/readme.py" = ["E501"]

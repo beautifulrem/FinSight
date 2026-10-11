@@ -9,7 +9,12 @@ command of its run, and the provenance table at the end of the block lists them 
     python -m evaluation.agent_eval.report --check            # exit 1 if the doc is out of date, or if
                                                               # README.md / README_CN.md (or the docs their
                                                               # long material moved to, README_PATHS) cite a
-                                                              # result file that is missing or not rendered
+                                                              # result file that is missing or not rendered,
+                                                              # or if a generated README region (headline
+                                                              # numbers, evaluation/agent_eval/readme.py) is
+                                                              # missing or stale
+
+Rendering also rewrites the generated regions of README.md and README_CN.md (round-13 review M14).
 
 Task success and pass^k carry percentile-bootstrap 95% CIs over tasks (2000 resamples, fixed
 seed). Paired comparisons use a paired bootstrap over tasks and an exact McNemar test on pass^k.
@@ -26,6 +31,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from . import readme as readme_regions
 from .metrics import pass_all_value, task_success_value, uncited_success_bounds
 from .results import RESULTS_DIR, decode_outcomes, load_result
 
@@ -2509,14 +2515,22 @@ def main(argv: list[str] | None = None) -> int:
         for problem in problems:
             print(f"citation: {problem}")
             failed = True
+        for problem in readme_regions.problems():
+            print(f"readme: {problem}")
+            failed = True
         if failed:
             return 1
-        print(f"{DOC_PATH.relative_to(ROOT)} is up to date; every result the READMEs cite exists and is rendered")
+        print(
+            f"{DOC_PATH.relative_to(ROOT)} is up to date; every result the READMEs cite exists and is rendered; "
+            "the generated README regions are up to date"
+        )
         return 0
     for problem in problems:
         print(f"citation: {problem}")
     DOC_PATH.write_text(updated, encoding="utf-8")
     print(f"wrote {DOC_PATH.relative_to(ROOT)}")
+    for message in readme_regions.write():
+        print(message)
     return 0
 
 
