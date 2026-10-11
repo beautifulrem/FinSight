@@ -76,7 +76,8 @@ def test_bare_ellipsis_concept_and_market_target_helpers():
             "agent",
             "lexical:judgment_or_timing",
         ),
-        ("净利率怎么算", {"missing": ["missing_entity"]}, "workflow", "concept:definition"),
+        # (round 16, L11) 净利率 is a glossary entry now (reason concept:glossary:净利率); a metric outside the glossary
+        ("资产负债率怎么算", {"missing": ["missing_entity"]}, "workflow", "concept:definition"),
         ("Should we buy now?", {}, "clarify", "no_target:advice"),
         ("推荐几只红利基金", {}, "clarify", "no_target:recommendation"),
         ("What's the payout?", {}, "clarify", "metric_without_target"),
