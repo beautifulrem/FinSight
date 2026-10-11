@@ -28,7 +28,7 @@ from .coverage import without_holding_value
 from .evidence import AgentEvidence
 from .frame import without_valuation_extremes
 from .router import _JUDGMENT_MARKERS as _ROUTER_JUDGMENT
-from .router import FAIR_VALUE_MARKERS, asks_earnings_forecast, asks_price_forecast
+from .router import FAIR_VALUE_MARKERS, asks_earnings_forecast, asks_market_value_forecast, asks_price_forecast
 from .stated_dates import reference_date
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -80,7 +80,10 @@ _JUDGMENT_TRIGGER = re.compile(
     r"when to (?:buy|sell)|worth buying|\bwill\b.*\b(?:rise|fall|go up|go down|double|rally|drop|rebound)\b|"
     r"\bbuying opportunit|\bopportunit(?:y|ies)\b|\bcheap(?:er|est)?\b|\bexpensive\b|\bover(?:valued|priced)\b|"
     r"\bunder(?:valued|priced)\b|\bbull(?:ish)? market\b|\bbear(?:ish)? market\b|\bguarantee|\btrending\b|"
-    r"\b(?:up|down)trend\b|\bgood time to\b",
+    r"\b(?:up|down)trend\b|\bgood time to\b|"
+    # (round 16, review-12 L20) English stop-loss / take-profit / entry and exit levels, like 止损 / 止盈
+    r"\bstop[- ]?loss(?:es)?\b|\btake[- ]?profits?\b|\bprofit[- ]taking\b|\btrailing[- ]stops?\b|"
+    r"\bprofit\s+targets?\b|\b(?:entry|exit)\s+(?:levels?|prices?|points?)\b",
     re.IGNORECASE,
 )
 _CAUSAL_TRIGGER = re.compile(
@@ -122,6 +125,20 @@ _PRICE_FORECAST_EN = (
 )
 _PRICE_FORECAST_LIMITATION_ZH = "问题要求预测未来价格，FinSight 只提供历史数据"
 _PRICE_FORECAST_LIMITATION_EN = "The question asks for a future price; FinSight provides historical data only"
+# (round 16, review-12 L8) A market value at a future year or horizon ("2030年市值能到3万亿吗", "market cap in five
+# years"): the latest market value is stated with its date, and the answer says that it is not a forecast.
+_MARKET_VALUE_FORECAST_ZH = (
+    "FinSight 不预测未来市值或股价：下文只列出已发生的历史数据（最新可用收盘价和按其计算的市值，均注明日期），"
+    "不代表未来任何时点的市值。"
+)
+_MARKET_VALUE_FORECAST_EN = (
+    "FinSight does not forecast market values or prices: below is historical data only (the latest available close "
+    "and the market value at that close, with their dates), not the market value at any future time."
+)
+_MARKET_VALUE_FORECAST_LIMITATION_ZH = "问题要求预测未来市值，FinSight 只提供历史数据"
+_MARKET_VALUE_FORECAST_LIMITATION_EN = (
+    "The question asks for a future market value; FinSight provides historical data only"
+)
 # (round 14, J6) Earnings, revenue, EPS or a dividend of a period that has not been reported ("明年净利润会是多少",
 # "比亚迪四季度净利润能超过100亿吗", "next year's EPS"): the reported statements are stated with their period, and the
 # answer says that they are not a forecast.
@@ -314,7 +331,15 @@ def apply_compliance(
         softened = f"{softened}{'' if zh else ' '}{caveat}".strip()
         notes.append("causal_caveat")
 
-    if price_forecast:
+    market_value_forecast = asks_market_value_forecast(query, as_of=reference) or asks_market_value_forecast(
+        effective_query or "", as_of=reference
+    )
+    if market_value_forecast:
+        # (round 16, L8) the market value hedge replaces the price one: the figure that follows is today's market value
+        hedge = _MARKET_VALUE_FORECAST_ZH if zh else _MARKET_VALUE_FORECAST_EN
+        softened = _after_prefix(softened, hedge, nlu_result, zh, query)
+        notes.append("market_value_forecast_hedge")
+    elif price_forecast:
         # after the conditional prefix, before the evidence: the dated close that follows is history, not the answer
         softened = _after_prefix(softened, _PRICE_FORECAST_ZH if zh else _PRICE_FORECAST_EN, nlu_result, zh, query)
         notes.append("price_forecast_hedge")
@@ -339,7 +364,11 @@ def apply_compliance(
         notes.append("fair_value_hedge")
 
     limitations = [str(item) for item in guarded.get("limitations") or [] if str(item).strip()]
-    if price_forecast:
+    if market_value_forecast:
+        limitations = guards._append_unique(
+            limitations, [_MARKET_VALUE_FORECAST_LIMITATION_ZH if zh else _MARKET_VALUE_FORECAST_LIMITATION_EN]
+        )
+    elif price_forecast:
         limitations = guards._append_unique(
             limitations, [_PRICE_FORECAST_LIMITATION_ZH if zh else _PRICE_FORECAST_LIMITATION_EN]
         )
@@ -373,6 +402,38 @@ def apply_compliance(
     if not disclaimer or contains_trading_instruction(disclaimer) or guards.contains_prohibited_promotion(disclaimer):
         guarded["risk_disclaimer"] = default_disclaimer
     return guarded, notes
+
+
+# (round 16, review-12 L19) With the corrections layer switched on but its file missing, ``GET /ready`` is 503 but the
+# chat used to serve the v1 seed values (茅台 P/E 24.6 instead of the corrected 21.44) with no word about it. Chosen
+# behaviour: answer, and say so. Every answer whose market or fundamental figures come from the offline snapshot
+# opens with this note and carries it as a limitation (and ``degraded: data_layer_missing:corrections``); refusing
+# would also refuse the figures the layer does not touch. Live-provider figures are not affected.
+DATA_LAYER_NOTE_ZH = "数据更正层未加载，以下为未经更正的原始数据（离线快照种子值，可能与原始披露不符）。"
+DATA_LAYER_NOTE_EN = (
+    "The data corrections layer is not loaded: the figures below are uncorrected seed data from the offline snapshot "
+    "and may differ from the primary filings."
+)
+_CORRECTED_SOURCE_TYPES = {"market_api", "fundamental_sql"}
+
+
+def data_layer_note(
+    evidence: list[dict[str, Any]], missing_layers: list[str], *, zh: bool
+) -> tuple[str | None, list[str]]:
+    """``(note, degraded)`` when the corrections layer is missing and the run used offline-snapshot market or
+    fundamental figures (the records the layer corrects), else ``(None, [])``."""
+    if "corrections" not in missing_layers:
+        return None, []
+    used = any(
+        item.get("kind") == "structured"
+        and item.get("source_type") in _CORRECTED_SOURCE_TYPES
+        and str(((item.get("payload") or {}).get("provenance") or {}).get("source") or "") == "offline_snapshot"
+        for item in evidence
+        if isinstance(item, dict)
+    )
+    if not used:
+        return None, []
+    return (DATA_LAYER_NOTE_ZH if zh else DATA_LAYER_NOTE_EN), ["data_layer_missing:corrections"]
 
 
 def _strip_trading_sentences(text: str, *, zh: bool) -> tuple[str, int]:

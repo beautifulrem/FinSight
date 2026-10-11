@@ -209,66 +209,28 @@ _HK_VENUE_CURRENCY_LINE = (
     r"(?:share\s+)?(?:price|quote|close|closing\s+price|value|market\s+value)\b"
 )
 _HK_LINE = _HK_LINE + "|" + _HK_CODE_LINE + "|" + _HK_VENUE_CURRENCY_LINE
+
+
 # (round 15, K5) Hong Kong codes of A+H companies FinSight covers on the A-share side, with the names a question uses
 # for them: a bare four-digit code is the Hong Kong line only right after one of these names ("中国平安2318",
 # "招行 3968"). Codes with a leading zero ("0981", "02318") are matched by shape in ``_HK_CODE_LINE``.
+# (round 16, review-12 L7) The codes and names come from the dual-listing table (``data/runtime/dual_listings.csv``,
+# ``data_loader.load_dual_listings``) instead of a list in the code.
+def _dual_listing_rows() -> list[dict[str, str]]:
+    from ..data_loader import load_dual_listings
+
+    return [row for row in load_dual_listings() if row.get("a_symbol") and str(row.get("h_code") or "").isdigit()]
+
+
+def _row_names(row: dict[str, str]) -> tuple[str, ...]:
+    """The names the table gives a company: its entity-master name, its short names and its English names."""
+    names = [row.get("name_zh") or "", *(row.get("short_zh") or "").split("|"), row.get("name_en") or ""]
+    names += (row.get("short_en") or "").split("|")
+    return tuple(dict.fromkeys(name.strip() for name in names if name and name.strip()))
+
+
 _AH_CODES: dict[str, tuple[str, ...]] = {
-    "2318": ("中国平安", "平安", "Ping An"),
-    "3968": ("招商银行", "招行", "China Merchants Bank", "CMB"),
-    "1398": ("工商银行", "工行", "ICBC"),
-    "3988": ("中国银行", "中行", "Bank of China", "BOC"),
-    "1288": ("农业银行", "农行", "Agricultural Bank of China", "ABC"),
-    "3328": ("交通银行", "交行", "Bank of Communications", "BOCOM"),
-    "1658": ("邮储银行", "邮储", "Postal Savings Bank", "PSBC"),
-    "1988": ("民生银行", "Minsheng Bank"),
-    "6818": ("光大银行", "Everbright Bank"),
-    "2628": ("中国人寿", "国寿", "China Life"),
-    "2601": ("中国太保", "太保", "CPIC"),
-    "1336": ("新华保险", "New China Life"),
-    "1339": ("中国人保", "PICC"),
-    "1088": ("中国神华", "神华", "China Shenhua", "Shenhua"),
-    "1898": ("中煤能源", "China Coal"),
-    "1171": ("兖矿能源", "Yankuang"),
-    "1211": ("比亚迪", "BYD"),
-    "3750": ("宁德时代", "宁德", "CATL"),
-    "6690": ("海尔智家", "海尔", "Haier"),
-    "2359": ("药明康德", "WuXi AppTec"),
-    "6030": ("中信证券", "CITIC Securities"),
-    "6886": ("华泰证券", "Huatai Securities", "Huatai"),
-    "6837": ("海通证券", "Haitong Securities", "Haitong"),
-    "1776": ("广发证券", "GF Securities"),
-    "6099": ("招商证券", "China Merchants Securities"),
-    "3908": ("中金公司", "中金", "CICC"),
-    "6881": ("中国银河", "China Galaxy"),
-    "2333": ("长城汽车", "Great Wall Motor"),
-    "2338": ("潍柴动力", "潍柴", "Weichai"),
-    "2899": ("紫金矿业", "紫金", "Zijin Mining", "Zijin"),
-    "3993": ("洛阳钼业", "CMOC"),
-    "2600": ("中国铝业", "Chalco"),
-    "1880": ("中国中免", "中免", "China Tourism Group Duty Free", "CTG Duty Free"),
-    "1276": ("恒瑞医药", "恒瑞", "Hengrui"),
-    "3606": ("福耀玻璃", "福耀", "Fuyao Glass", "Fuyao"),
-    "1766": ("中国中车", "中车", "CRRC"),
-    "1800": ("中国交建", "China Communications Construction"),
-    "1186": ("中国铁建", "China Railway Construction"),
-    "2202": ("万科", "Vanke"),
-    "2208": ("金风科技", "Goldwind"),
-    "1055": ("南方航空", "南航", "China Southern Airlines"),
-    "2607": ("上海医药", "Shanghai Pharmaceuticals"),
-    "2196": ("复星医药", "Fosun Pharma"),
-    "1157": ("中联重科", "Zoomlion"),
-    "6031": ("三一重工", "三一", "Sany"),
-    "1772": ("赣锋锂业", "赣锋", "Ganfeng Lithium", "Ganfeng"),
-    "9696": ("天齐锂业", "天齐", "Tianqi Lithium", "Tianqi"),
-    "1071": ("华电国际", "Huadian Power"),
-    "2238": ("广汽集团", "广汽", "GAC"),
-    "1919": ("中远海控", "COSCO Shipping"),
-    "6869": ("长飞光纤", "YOFC"),
-    "3958": ("东方证券", "Orient Securities"),
-    "6178": ("光大证券", "Everbright Securities"),
-    "1072": ("东方电气", "Dongfang Electric"),
-    "2727": ("上海电气", "Shanghai Electric"),
-    "1618": ("中国中冶", "MCC"),
+    row["h_code"][-4:]: _row_names(row) for row in _dual_listing_rows() if row["h_code"][-4] != "0"
 }
 _BARE_CODE = re.compile(r"(?<![0-9A-Za-z.])([1-9]\d{3})(?![A-Za-z])" + _HK_CODE_TAIL, re.IGNORECASE)
 
@@ -288,6 +250,127 @@ def _ah_code_spans(query: str) -> list[tuple[int, int]]:
                 spans.append((len(before) - len(name), match.end()))
                 break
     return spans
+
+
+# (round 16, review-12 L7) The line patterns above take the company as "two to eight characters that are not a
+# conjunction or 的" before the line word, so a name that contains 的 (美的集团, "美的港股多少钱一股") escaped
+# them and was answered with the A-share price. For every company in the dual-listing table the check is driven by
+# data: one of its names (the entity master's name, the table's short names, the alias table's colloquial names,
+# its English names), then optionally 的 / 在 / 于, then a line word: 港股, H股, a Hong Kong venue with a listing or
+# quote word, its own HKEX code, a Hong Kong-dollar quote, a GDR or an ADR. The name is part of the span, so the
+# A-share target it names is a lookalike (refused with the note that its A shares are covered), whatever characters
+# the name has.
+_ZH_LINE_WORDS = (
+    r"(?P<h>港股(?!通)|H\s*股(?!东|指数|ETF|基金|LOF|\(QDII)|"
+    # a venue: an exchange by name, or 香港 with a listing or quote word ("在香港有工厂" is not a line)
+    r"(?:在|于)?\s*(?:港交所|联交所|香港联合交易所|香港联交所|香港交易所)|"
+    r"(?:在|于)?\s*香港(?:市场)?(?:上|里|那边|那头)?(?:上市|挂牌|发行|交易|的?\s*(?:股票|股份|那部分|部分|那只|"
+    + _HK_QUOTE_WORDS
+    + r"))|"
+    # a Hong Kong-dollar quote: "美的港币价格", "美的现在多少港元" (not a currency exchange: 换, 兑, 汇率)
+    r"(?:以|用|按)?\s*" + _HKD + r"(?!\s*(?:汇率|兑|换))|"
+    r"(?:(?![换兑汇])[^，。？?！!；;]){0,10}?多少(?:钱)?\s*" + _HKD + r"(?!\s*(?:汇率|兑|换))"
+    r")|"
+    r"(?P<gdr>(?:伦敦|英国|瑞士|苏黎世|法兰克福|德国)(?:证券)?(?:交易所)?(?:上市|挂牌|交易|发行)?的?\s*(?:GDR|全球存托凭证|存托凭证)|"
+    r"GDR|全球存托凭证|沪伦通)|"
+    r"(?P<adr>(?:美国|美股|纽约|纽交所|纳斯达克)(?:证券)?(?:交易所)?(?:上市|挂牌|交易|发行)?的?\s*(?:ADR|ADS|存托凭证|存托股)|"
+    r"ADR|ADS|美国存托(?:凭证|股票|股份)?)"
+)
+_EN_LINE_WORDS = (
+    r"(?P<h>H[- ]?shares?|(?:Hong\s+Kong|HK)[- ](?:shares?|stocks?|listing|line|counter|quotes?|prices?|share\s+price|"
+    r"listed|traded|quoted)|(?:HKD|HK\$|Hong\s+Kong\s+dollar)\s+(?:share\s+)?(?:price|quote|close|closing\s+price|"
+    r"value|market\s+value)|"
+    r"(?:(?!\b(?:convert|conversion|exchange\s+rate)\b)[^.?!]){0,40}?\b(?:in|into)\s+(?:HKD|HK\$|HK\s+dollars?|"
+    r"Hong\s+Kong\s+dollars?)|(?:listed|traded|quoted)\s+(?:in|on)\s+(?:the\s+)?(?:HK|Hong\s+Kong))|"
+    r"(?P<gdr>(?:(?:London|Swiss|Zurich|SIX|LSE)[- ](?:listed|traded|quoted)\s+)?(?:GDRs?|global\s+depositary\s+"
+    r"(?:receipts?|shares?)))|"
+    r"(?P<adr>(?:(?:NYSE|Nasdaq|US|U\.S\.)[- ](?:listed|traded|quoted)\s+)?(?:ADRs?|ADSs?|American\s+depositary\s+"
+    r"(?:receipts?|shares?)))"
+)
+
+
+@dataclass(frozen=True)
+class _DualListingMatcher:
+    zh: re.Pattern[str]
+    en: re.Pattern[str]
+    codes: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...]
+
+
+def _alias_names(symbols: set[str]) -> dict[str, list[str]]:
+    """The alias table's colloquial names of these A-share symbols ("美的", "宁王", "中芯"): Chinese only, two to six
+    characters, no spaces or brackets (the table also holds fund names and spaced variants under other types)."""
+    from ..data_loader import load_aliases, load_entities
+
+    ids = {
+        row.get("entity_id"): row.get("symbol")
+        for row in load_entities()
+        if row.get("symbol") in symbols and row.get("entity_type") == "stock"
+    }
+    names: dict[str, list[str]] = {}
+    for alias in load_aliases():
+        symbol = ids.get(str(alias.get("entity_id") or ""))
+        text = str(alias.get("alias_text") or "")
+        if symbol and alias.get("alias_type") == "colloquial_alias" and re.fullmatch(r"[一-鿿]{2,6}", text):
+            names.setdefault(symbol, []).append(text)
+    return names
+
+
+@lru_cache(maxsize=1)
+def _dual_listing_matcher() -> _DualListingMatcher:
+    rows = _dual_listing_rows()
+    aliases = _alias_names({row["a_symbol"] for row in rows})
+    zh_names: set[str] = set()
+    en_names: set[str] = set()
+    codes = []
+    for row in rows:
+        names = [*_row_names(row), *aliases.get(row["a_symbol"], [])]
+        zh = {name for name in names if re.search(r"[一-鿿]", name)}
+        en = {name for name in names if not re.search(r"[一-鿿]", name)}
+        zh_names |= zh
+        en_names |= en
+        code = row["h_code"]
+        # its own code after the name: "美的0300", "美的（00300）", "Midea 300.HK"; a bare code without a leading
+        # zero also follows ``_HK_CODE_TAIL`` ("比亚迪1211" yes, "比亚迪2025年报" is a year)
+        code_part = (
+            r"[(（]?\s*(?:HK\s?)?(?<![\d.])0?"
+            + re.escape(code[-4:])
+            + r"(?:\s*\.\s*HK)?(?![\d.])\s*[)）]?"
+            + _HK_CODE_TAIL
+        )
+        name_part = "|".join(re.escape(name) for name in sorted(zh | en, key=len, reverse=True))
+        codes.append(
+            (
+                re.compile(r"(?:" + name_part + r")\s*(?:的\s*)?" + code_part, re.IGNORECASE),
+                tuple(sorted(zh | en)),
+            )
+        )
+    zh_part = "|".join(re.escape(name) for name in sorted(zh_names, key=len, reverse=True))
+    en_part = "|".join(re.escape(name) for name in sorted(en_names, key=len, reverse=True))
+    return _DualListingMatcher(
+        zh=re.compile(r"(?:" + zh_part + r")\s*(?:的\s*)?(?:" + _ZH_LINE_WORDS + r")", re.IGNORECASE),
+        en=re.compile(
+            r"(?<![\w&.-])(?:" + en_part + r")(?![\w&-])(?:'s|’s)?\s*(?:" + _EN_LINE_WORDS + r")(?![A-Za-z])",
+            re.IGNORECASE,
+        ),
+        codes=tuple(codes),
+    )
+
+
+def dual_listing_spans(query: str) -> list[tuple[int, int, str]]:
+    """(round 16, L7) ``(start, end, kind)`` where a company of the dual-listing table is named right before one of
+    its foreign lines (``h``, ``gdr``, ``adr``); the span starts at the name."""
+    text = query or ""
+    if not text.strip():
+        return []
+    matcher = _dual_listing_matcher()
+    found: list[tuple[int, int, str]] = []
+    for pattern in (matcher.zh, matcher.en):
+        for match in pattern.finditer(text):
+            kind = next(kind for kind in ("h", "gdr", "adr") if match.group(kind) is not None)
+            found.append((match.start(), match.end(), kind))
+    for pattern, _names in matcher.codes:
+        found.extend((match.start(), match.end(), "h") for match in pattern.finditer(text))
+    return sorted(set(found))
 
 
 _FOREIGN_LINE = re.compile("|".join((_HK_LINE, _GDR_LINE, _ADR_LINE, _AH_PREMIUM)), re.IGNORECASE)
@@ -313,7 +396,8 @@ def foreign_line_spans(query: str) -> list[tuple[int, int]]:
     if _LINE_CONCEPT.search(query or ""):
         return []
     spans = [match.span() for match in _FOREIGN_LINE.finditer(query or "") if match.group(0).strip()]
-    return sorted({*spans, *_ah_code_spans(query or "")})
+    table = [(start, end) for start, end, _kind in dual_listing_spans(query or "")]
+    return sorted({*spans, *_ah_code_spans(query or ""), *table})
 
 
 def foreign_line_kind(query: str) -> str | None:
@@ -323,7 +407,9 @@ def foreign_line_kind(query: str) -> str | None:
         return None
     if _LINE_CONCEPT.search(text):
         return None
-    return next((kind for kind, pattern in _FOREIGN_LINE_KINDS if pattern.search(text)), "h")
+    # (round 16, L7) the line word after a table company's name when no line pattern names the kind
+    table = next((kind for _start, _end, kind in dual_listing_spans(text)), "h")
+    return next((kind for kind, pattern in _FOREIGN_LINE_KINDS if pattern.search(text)), table)
 
 
 # US / Hong Kong listed names and markets. Concept-sector phrasing ("苹果概念股", "特斯拉产业链") is an
@@ -551,7 +637,8 @@ METRICS: tuple[Metric, ...] = (
         "dividend_yield",
         "股息率",
         "dividend yield",
-        r"股息率|股息|dividend yield|\bdividends?\b",
+        # (round 16, review-12 L8) "今年会分红多少": a dividend asked as 分红 / 派息 is not in the data either
+        r"股息率|股息|分红|派息|派现|dividend yield|\bdividends?\b",
         ("dividend_yield", "dv_ratio", "dv_ttm"),
     ),
     _metric(

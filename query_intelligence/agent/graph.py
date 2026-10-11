@@ -41,7 +41,7 @@ from ..chat.language import (
     session_answer_language,
 )
 from ..integrations.intraday import asks_about_today
-from .compliance import apply_compliance, language_violation
+from .compliance import apply_compliance, data_layer_note, language_violation
 from .composer import (
     answer_json_status,
     compose_template,
@@ -1429,6 +1429,19 @@ class AgentRuntime:
             language="zh" if self._zh(state) else "en",
             effective_query=state.get("effective_query") or "",
         )
+        # (round 16, review-12 L19) uncorrected seed figures are said to be uncorrected
+        layer_note, layer_degraded = data_layer_note(
+            list((state.get("evidence") or {}).values()), self._missing_data_layers(), zh=self._zh(state)
+        )
+        if layer_note and layer_note not in str(answer.get("answer") or ""):
+            separator = "" if self._zh(state) else " "
+            answer = {
+                **answer,
+                "answer": f"{layer_note}{separator}{answer.get('answer') or ''}".strip(),
+                "limitations": [layer_note, *(answer.get("limitations") or [])],
+            }
+            notes = [*notes, "data_layer_missing_note"]
+            framed = {**framed, "degraded": [*(framed.get("degraded") or []), *layer_degraded]}
         assumed = _assumption_notes(state.get("route_reasons") or [], zh=self._zh(state))
         assumed += _foreign_lookalike_notes(state.get("route_reasons") or [], zh=self._zh(state))
         if assumed:
@@ -1441,6 +1454,17 @@ class AgentRuntime:
             }
             notes = [*notes, "alias_assumption_stated"]
         return {**framed, "answer": answer, "compliance_notes": [*fallback_notes, *notes]}
+
+    def _missing_data_layers(self) -> list[str]:
+        """(round 16, L19) Snapshot layers switched on for this service's retrieval pipeline but missing on disk."""
+        from ..data_loader import missing_snapshot_layers
+
+        pipeline = getattr(self.service, "retrieval_pipeline", None)
+        extended, corrected = getattr(pipeline, "snapshot_layer_settings", (None, None))
+        try:
+            return missing_snapshot_layers(extended, corrected)
+        except (OSError, ValueError):
+            return []
 
     def _corroborating_numbers(self, state: AgentState) -> list[tuple[float, bool]]:
         """(round 10, F9) The structured fundamentals of the question's named stocks that the run did not fetch (a news
