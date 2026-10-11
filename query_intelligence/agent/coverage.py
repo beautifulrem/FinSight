@@ -637,7 +637,8 @@ METRICS: tuple[Metric, ...] = (
         "dividend_yield",
         "股息率",
         "dividend yield",
-        r"股息率|股息|dividend yield|\bdividends?\b",
+        # (round 16, review-12 L8) "今年会分红多少": a dividend asked as 分红 / 派息 is not in the data either
+        r"股息率|股息|分红|派息|派现|dividend yield|\bdividends?\b",
         ("dividend_yield", "dv_ratio", "dv_ttm"),
     ),
     _metric(
