@@ -107,7 +107,10 @@ _JUDGMENT_MARKERS = re.compile(
     r"underperform|keep (?:falling|rising|dropping|climbing))\b|"
     r"\bgood (?:time|entry|moment|buy|investment)\b|\bentry point\b|\bovervalued\b|\bundervalued\b|"
     r"\bbottom(?:ed)?\b|\bcheap\b|\bexpensive\b|\bpricey\b|\battractive\b|\bopportunit(?:y|ies)\b|"
-    r"\boutlook\b|\bprospects?\b|\bupside\b|\bdownside\b|\bsafe\b",
+    r"\boutlook\b|\bprospects?\b|\bupside\b|\bdownside\b|\bsafe\b|"
+    # (round 16, review-12 L20) English stop-loss / take-profit / entry and exit levels, like 止损 / 止盈 / 买点 / 卖点
+    r"\bstop[- ]?loss(?:es)?\b|\btake[- ]?profits?\b|\bprofit[- ]taking\b|\btrailing[- ]stops?\b|"
+    r"\bprofit\s+targets?\b|\b(?:entry|exit)\s+(?:levels?|prices?|points?)\b",
     re.IGNORECASE,
 )
 # A direction forecast about the future ("A股下周会反弹吗", "大盘接下来怎么走", "next month").
@@ -164,7 +167,10 @@ _PRICE_MODAL = re.compile(
     r"\bwhere\b[^.?!]{0,30}?\b(?:will|is|are)\b[^.?!]{0,30}?\b(?:head(?:ed|ing)?|going)\b|"
     r"(?:卖|买|卖出|买入|抛|抛出|出手|出货|止盈|止损|挂单)(?:在|到|于)(?:多少|几|哪|什么(?:价|位))|"
     r"(?:多少钱|什么价位?|哪个价位?|几块钱?|多少块)(?:卖|买|卖出|买入|抛|出手|出货|挂单|止盈|止损)|"
-    r"(?:卖出|买入|止盈|止损)(?:价|价位|价格|点位)(?:应该|应当|该|定在|设在|放在)?(?:是|在|设)?(?:多少|几|哪)",
+    r"(?:卖出|买入|止盈|止损)(?:价|价位|价格|点位)(?:应该|应当|该|定在|设在|放在)?(?:是|在|设)?(?:多少|几|哪)|"
+    # (round 16, review-12 L20) "take profit at what price", "at what level should the stop loss go", like 止盈在多少
+    r"\b(?:stop[- ]?loss|take[- ]?profit|sell|exit)\b[^.?!]{0,20}?\bat\s+what\s+(?:price|level)\b|"
+    r"\b(?:at\s+)?what\s+(?:price|level)\b[^.?!]{0,30}?\b(?:stop[- ]?loss|take[- ]?profit|stop\s+out)\b",
     re.IGNORECASE,
 )
 # (round 14, J6) an opening gap: "会高开吗", "明天高开还是低开", "gap up", "open higher". With a future time, a modal
@@ -333,13 +339,21 @@ def asks_price_forecast(query: str, *, as_of: date | None = None) -> bool:
     forecast ("能不能站上105元", "跌破1400", "break above 1,500"), a modal close ("收盘会在多少"), a near-future time
     with a modal ("本周", "by Friday") and "your call" for a price. Since round 14 (J6) also a price on a stated date
     or period after ``as_of`` (default today; compliance passes the later of today and the data's latest date), an
-    opening gap ("会高开吗") and the price to trade at ("the exact price to sell at")."""
+    opening gap ("会高开吗") and the price to trade at ("the exact price to sell at"). Since round 16 (L8) also a
+    market value asked for a future year or horizon or with a target (``asks_market_value_forecast``)."""
     text = str(query or "")
     if _PRICE_MODAL.search(text):
         return True
     reference = as_of or date.today()
+    # (round 16, review-12 L8) a market value by a future year or horizon is a price level times the share count
+    if asks_market_value_forecast(text, as_of=reference):
+        return True
     return any(
         (_FUTURE_TIME.search(part) and _PRICE_LEVEL.search(part))
+        # (round 16, L8) a horizon ("三年内", "within three years", "by 2030") is a future time for a price level
+        or (
+            _horizon(part) and _PRICE_LEVEL.search(part) and not _SO_FAR.search(part) and not _PAST_MARKERS.search(part)
+        )
         or _asks_threshold_or_near_forecast(part)
         or _asks_dated_or_gap_forecast(part, reference)
         for part in _SENTENCE_SPLIT.split(text)
@@ -359,11 +373,13 @@ _EARNINGS_WORDS = re.compile(
 # a value asked with a future modal: "会是多少", "能有多少", "能超过100亿吗", "what will … be", "will … reach / exceed"
 _EARNINGS_MODAL = re.compile(
     r"(?:会|能|将|可能|有望|预计|预期|估计|大概)(?:同比|环比)?(?:是|有|达到|超过|突破|破|到|在|实现|增长|下降|下滑|翻倍|赚)|"
+    # (round 16, review-12 L8) a dividend asked with a modal: "今年会分红多少", "能派息多少", "打算分多少"
+    r"(?:会|能|将|可能|有望|预计|打算|计划)(?:分红|派息|派发|派现|分|派)|"
     r"(?:能否|会否|是否能|能不能|会不会|有没有可能)|多少(?:会|能)|"
     # (round 15, K11) a comparison asked with a modal: "中报利润会比去年高吗"
     r"(?:会|能|将|可能|有望)(?:比|较|高于|低于|好于|差于)|"
     r"\bwhat\s+will\b|\bwill\b[^.?!]{0,60}?\b(?:be|reach|exceed|top|hit|surpass|beat|miss|come\s+in|grow|rise|"
-    r"fall|drop|double|decline|increase|earn|show|post|deliver|look)\b|"
+    r"fall|drop|double|decline|increase|earn|show|post|deliver|look|pay|distribute|declare)\b|"
     # (round 15, K11) "Are CATL's Q3 earnings going to beat…", "Can CATL's fourth-quarter profit top…"
     r"\bgoing\s+to\b|\bgonna\b|\b(?:can|could|might)\b[^.?!]{0,60}?\b(?:reach|exceed|top|hit|surpass|beat|miss|grow|"
     r"rise|fall|drop|double|decline|increase|earn|post|deliver)\b|\b(?:expected|forecast|projected|estimated?)\b|\bhow\s+much\s+will\b",
@@ -446,7 +462,12 @@ def asks_earnings_forecast(query: str, *, as_of: date | None = None) -> bool:
             continue
         modal = bool(_EARNINGS_MODAL.search(part))
         future, in_progress = _stated_status(part, reference)
-        if future or _FUTURE_PERIOD.search(part):
+        # (round 16, L8) a horizon ("五年后", "in five years", "by 2030") is a future period too
+        if future or _FUTURE_PERIOD.search(part) or _horizon(part):
+            return True
+        # (round 16, L8) this year's dividend has not been declared in the reported statements: "比亚迪今年分红多少",
+        # "this year's dividend"; a dividend already paid ("今年已经分红了吗", "paid") is a past marker
+        if _DIVIDEND.search(part) and _CURRENT_PERIOD.search(part) and not _DIVIDEND_PAID.search(part):
             return True
         if _NEXT_REPORT.search(part) and (modal or not _SCHEDULE.search(part)):
             return True
@@ -462,6 +483,71 @@ def asks_earnings_forecast(query: str, *, as_of: date | None = None) -> bool:
             or any(period.status(reference) != "past" for period in periods)
         )
         if modal and (current or re.search(r"\bwill\b|\bwhat\s+will\b", part, re.I)):
+            return True
+    return False
+
+
+# (round 16, review-12 L8) A market value asked for a future year or horizon ("2030年市值能到3万亿吗", "Could its
+# market value hit 3 trillion yuan by 2030?", "五年后市值多少"), for a period still running with a modal
+# ("今年年底市值能到2万亿吗"), or with a target and a modal and no time ("市值能突破3万亿吗", "will its market cap
+# top …"): before round 16 it was read as a period lookup and answered with today's market cap and no hedge (in
+# English the market cap was not even fetched, so the answer said it was missing). A past period ("2025年末市值",
+# "去年年底的市值", "market cap at the end of 2025") and a plain "市值多少" stay lookups.
+_MARKET_VALUE = re.compile(
+    r"(?:总|流通)?市值|\bmarket\s+(?:cap(?:itali[sz]ation)?|value|valuation)\b|\bmkt\.?\s+cap\b", re.IGNORECASE
+)
+_EN_COUNT = r"(?:a|one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|few|several|\d+)"
+_HORIZON = re.compile(
+    r"(?:\d+|[一二两三四五六七八九十几]+)\s*(?:个)?年(?:以?后|之后)|若干年后|"
+    r"未来(?:\d+|[一二两三四五六七八九十几]+)?\s*年|到(?:19|20)\d{2}\s*年|"
+    r"\b(?:in|over)\s+(?:the\s+next\s+)?" + _EN_COUNT + r"\s+years?\b|"
+    r"\b" + _EN_COUNT + r"\s+years?\s+(?:from\s+now|later|out|ahead)\b|"
+    r"\bby\s+(?:the\s+end\s+of\s+)?(?:19|20)\d{2}\b|\bby\s+(?:the\s+)?end\s+of\s+(?:the\s+)?decade\b|"
+    r"\b(?:the\s+)?next\s+(?:" + _EN_COUNT + r"\s+)?(?:years|decade)\b",
+    re.IGNORECASE,
+)
+# "三年内", "within three years": also a past window ("一年内最高点", round 15 K14), so a horizon only with a modal
+_HORIZON_WITHIN = re.compile(
+    r"(?:\d+|[一二两三四五六七八九十几]+)\s*(?:个)?年(?:内|里|之内|以内)|\bwithin\s+(?:the\s+next\s+)?"
+    + _EN_COUNT
+    + r"\s+years?\b",
+    re.IGNORECASE,
+)
+
+
+def _horizon(part: str) -> bool:
+    """(round 16, L8) A future horizon: "五年后", "in five years", "by 2030"; "三年内" / "within three years" only
+    with a future modal ("三年内能到多少"), since "一年内最高点" is a past window."""
+    return bool(_HORIZON.search(part) or (_HORIZON_WITHIN.search(part) and _FUTURE_MODAL.search(part)))
+
+
+_VALUE_MODAL = re.compile(
+    r"(?:能|会|将|可能|有望|能否|会否|能不能|会不会|可不可能|有没有可能)(?:再|重新|继续|一举|成功|顺利)?"
+    r"(?:突破|达到|到达?|超过|站上|跌破|回到|涨到|跌到|冲上|冲击|破|是|有|在)|"
+    r"\b(?:will|would|could|can|might|may|going\s+to|likely\s+to|expected\s+to)\b(?!\s+you\b)[^.?!]{0,50}?"
+    r"\b(?:reach|top|hit|exceed|surpass|get\s+to|be|climb|rise|fall|drop|break|cross|pass|double|shrink|grow)\b",
+    re.IGNORECASE,
+)
+_DIVIDEND = re.compile(r"分红|派息|股息|派现|\bdividends?\b|\bpayouts?\b", re.IGNORECASE)
+_DIVIDEND_PAID = re.compile(r"已经|已|了|\b(?:paid|declared|did|was|were|has|had)\b", re.IGNORECASE)
+
+
+def asks_market_value_forecast(query: str, *, as_of: date | None = None) -> bool:
+    """(round 16, L8) The question asks for a company's market value at a future year or horizon, for a period
+    still running with a modal, or with a modal and no time ("市值能突破3万亿吗")."""
+    reference = as_of or date.today()
+    for part in _SENTENCE_SPLIT.split(str(query or "")):
+        if not part.strip() or not _MARKET_VALUE.search(part):
+            continue
+        checked = _without_past_baseline(part)
+        if _PAST_MARKERS.search(checked) or _SO_FAR.search(checked):
+            continue
+        future, in_progress = _stated_status(part, reference)
+        if future or _FUTURE_TIME.search(part) or _FUTURE_PERIOD.search(part) or _horizon(part):
+            return True
+        if _VALUE_MODAL.search(part):
+            return True
+        if in_progress and _FUTURE_MODAL.search(part):
             return True
     return False
 

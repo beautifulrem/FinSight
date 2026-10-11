@@ -53,7 +53,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from ..text_safety import find_prohibited_promotion, fold
+from ..text_safety import find_prohibited_promotion, fold, joined_digits, spelled_numbers
 from .compliance import contains_trading_instruction
 from .evidence import _NUMBER as _NUMBER_TOKEN
 from .evidence import AgentEvidence, EvidenceStore, _collect_numbers
@@ -683,10 +683,13 @@ _FIGURE_UNIT = re.compile(
 _CURRENCY_BEFORE = re.compile(r"(?:CNY|RMB|US\$|\$|¥|￥)\s*$", re.IGNORECASE)
 
 
-def unit_figures(text: str, *, with_context: bool = False) -> list[tuple]:
+def unit_figures(text: str, *, with_context: bool = False, spelled: bool = False) -> list[tuple]:
     """``(value, scales, rounding)`` for every figure in ``text`` (see ``_FIGURE_UNIT``); with ``with_context`` also the
-    compacted text around it, so copies of one wording count as one source."""
-    cleaned = _cleaned(fold(text or ""))
+    compacted text around it, so copies of one wording count as one source. With ``spelled`` (headlines, round 16,
+    review-12 L18) English numbers in words and spaced-out digits are figures too ("four point two times" = 4.2x,
+    "6 . 7 倍" = 6.7x)."""
+    folded = fold(text or "")
+    cleaned = _cleaned(joined_digits(spelled_numbers(folded)) if spelled else folded)
     found: list[tuple] = []
     for match in _NUMBER_TOKEN.finditer(cleaned):
         tail = cleaned[match.end() : match.end() + 24]
@@ -717,9 +720,12 @@ def unit_figures(text: str, *, with_context: bool = False) -> list[tuple]:
 
 
 def unconfirmed_figures(text: str, numbers: list[tuple[float, bool]]) -> list[float]:
-    """Figures in ``text`` (``unit_figures``) that none of ``numbers`` (the run's structured values) supports."""
+    """Figures in ``text`` (``unit_figures``, numbers in words included) that none of ``numbers`` (the run's
+    structured values) supports."""
     return [
-        value for value, scales, rounding in unit_figures(text) if not _is_supported(value, numbers, scales, rounding)
+        value
+        for value, scales, rounding in unit_figures(text, spelled=True)
+        if not _is_supported(value, numbers, scales, rounding)
     ]
 
 

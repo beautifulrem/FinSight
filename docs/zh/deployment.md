@@ -31,7 +31,9 @@ curl http://127.0.0.1:8000/ready                  # 就绪：检查点、模型�
   包括 `enabled`（对应开关 `QI_OFFLINE_SNAPSHOT_EXT` / `QI_OFFLINE_SNAPSHOT_FIX`，默认都开）、`present`、`loaded`、各部分
   的记录数、`version` 和文件的 `sha256`（与该层 manifest 里的 `output.sha256` 相同）。开关打开但文件缺失时 `/ready` 返回 503，
   日志里写 `offline snapshot layer 'corrections' is switched on (QI_OFFLINE_SNAPSHOT_FIX) but … is missing; serving without
-  it`。确实要不带某一层运行时，把对应变量设为 `0`。`tests/test_data_layers.py` 检查 Dockerfile 复制了加载器读取的每个数据层
+  it`。第 16 轮起（第 12 轮评审 L19）对话也会说明：更正层文件缺失、而回答用到离线快照的行情或基本面记录时，回答以
+  「数据更正层未加载，以下为未经更正的原始数据……」开头，同时作为限制说明，并在 `degraded` 中记录
+  `data_layer_missing:corrections`（服务照常回答，不拒答）。确实要不带某一层运行时，把对应变量设为 `0`。`tests/test_data_layers.py` 检查 Dockerfile 复制了加载器读取的每个数据层
   文件；CI 的 `docker` job 和 kind 冒烟测试都会问一个更正后的数字。
 - **可选 profile**：`docker/docker-compose.yml` 提供 `postgres`、`tracing`（通过 OTLP 接 Jaeger）和 `monitoring`（带告警规则的 Prometheus、带 FinSight 看板的 Grafana、Jaeger），见 [A2A、容灾与可观测性](a2a-and-observability.md#看板告警与监控栈)。
 - **出网代理**：容器不能直接访问外网时，`FINSIGHT_EGRESS_PROXY` 把 HTTP(S) 代理传给应用。

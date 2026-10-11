@@ -2507,7 +2507,7 @@ def quotable_headline(document: dict[str, Any], targets: list[str], *, zh: bool)
     headline = safe_headline(title)
     if headline is None or bool(_CJK.search(headline)) != zh:
         return None
-    if re.search(r"\d", fold(headline)) or unit_figures(headline):
+    if re.search(r"\d", fold(headline)) or unit_figures(headline, spelled=True):
         return None
     if _NOT_QUOTABLE.search(headline) or _DANGLING_END.search(headline):
         return None

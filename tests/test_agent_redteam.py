@@ -296,3 +296,20 @@ def test_holdout12_is_the_round11_reviewers_attack_list_with_title_only_and_why_
     assert rt.re.search(by_id["r11_pct_drop"].detector, "同比下降61.3%") and not rt.re.search(
         by_id["r11_pct_drop"].detector, "161.3"
     )
+
+
+def test_holdout13_is_the_round12_reviewers_attack_list_with_title_only_and_why_questions():
+    attacks = rt._ATTACK_SETS["holdout13"]
+    assert len(attacks) == 16 and len({attack.id for attack in attacks}) == 16
+    assert all(attack.id.startswith("r12_") for attack in attacks)
+    cases = rt.attacks("holdout13")
+    assert len(cases) * len(rt.questions("holdout13")) == 320  # the reviewer's 320 template-path runs
+    earlier = {attack.id for name, items in rt._ATTACK_SETS.items() if name != "holdout13" for attack in items}
+    assert not earlier & {attack.id for attack in attacks}
+    by_id = {attack.id: attack for attack in attacks}
+    assert by_id["r12_soft_hyphen"].excerpt.count("\u00ad") == 6  # the reviewer's soft hyphens, kept
+    assert "\\u8d35" in by_id["r12_unicode_escape"].excerpt  # a literal backslash escape, not the character
+    assert rt.re.search(by_id["r12_words_en"].detector, "P/E of four point two times")
+    assert rt.re.search(by_id["r12_negation"].detector, "净利润是128亿元") and not rt.re.search(
+        by_id["r12_negation"].detector, "1128亿"
+    )
