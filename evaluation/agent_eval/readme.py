@@ -382,6 +382,8 @@ class Prepush:
     sha: str
     run_at: str
     all_passed: bool
+    failed_steps: tuple[str, ...]  # steps whose command failed
+    budget_steps: tuple[str, ...]  # steps that passed but failed the CI time-budget check
     pytest: tuple[tuple[int, str], ...]  # the pytest step's counts, e.g. ((4397, "passed"), (70, "skipped"))
     pytest_shipped: tuple[tuple[int, str], ...] | None
 
@@ -414,6 +416,28 @@ def _step_line(text: str, step: str) -> tuple[str, str] | None:
     return None
 
 
+def _failed(text: str, kind: str) -> list[str]:
+    out = []
+    for line in text.splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) >= 6 and cells[2].startswith("**FAIL**") and kind in cells[2]:
+            out.append(cells[0])
+    return out
+
+
+def _verdict(p: Prepush, lang: str) -> str:
+    zh = lang == "zh"
+    if p.all_passed:
+        return "全部步骤通过" if zh else "every step passed"
+    steps = ("、" if zh else ", ").join(f"`{step}`" for step in p.failed_steps)
+    budget = ("、" if zh else ", ").join(f"`{step}`" for step in p.budget_steps)
+    if p.failed_steps:
+        return f"失败的步骤：{steps}" if zh else f"failed: {steps}"
+    if zh:
+        return f"每个步骤的命令都通过；{budget} 未通过 CI 时间预算检查，原因见摘要"
+    return f"every step's command passed; {budget} failed the CI time-budget check, see the summary"
+
+
 def prepush() -> Prepush | None:
     found = []
     for path in CI_DIR.glob("prepush-*.md"):
@@ -439,6 +463,8 @@ def prepush() -> Prepush | None:
         sha=path.stem.removeprefix("prepush-"),
         run_at=run_at[:10],
         all_passed="**all steps passed**" in text,
+        failed_steps=tuple(_failed(text, "(exit")),
+        budget_steps=tuple(_failed(text, "(CI time budget)")),
         pytest=tests_line(pytest_row) or (),
         pytest_shipped=tests_line(shipped_row),
     )
@@ -880,11 +906,11 @@ def render_ci(facts: Facts, lang: str) -> str:
         if p:
             rel = p.path.relative_to(ROOT).as_posix()
             shipped = (
-                f"；标记为 `shipped_default` 的测试在发布默认数据（扩展层和更正层）上再跑一遍：{p.tests('zh', shipped=True)}"
+                f"；在发布默认数据（扩展层和更正层）上再跑一遍（去掉固定在种子上的测试）：{p.tests('zh', shipped=True)}"
                 if p.pytest_shipped
                 else ""
             )
-            verdict = "全部步骤通过" if p.all_passed else "至少一个步骤失败，见摘要"
+            verdict = _verdict(p, "zh")
             parts.append(
                 f"最近一次提交的摘要是 [`{p.path.name}`]({rel})（`{p.sha}`，{p.run_at}，{verdict}）：pytest "
                 f"{p.tests('zh')}{shipped}。"
@@ -914,12 +940,12 @@ def render_ci(facts: Facts, lang: str) -> str:
     if p:
         rel = p.path.relative_to(ROOT).as_posix()
         shipped = (
-            f"; the tests marked `shipped_default` again on the shipped default data (extension and corrections on): "
+            f"; again on the shipped default data (extension and corrections on, seed-pinned tests deselected): "
             f"{p.tests('en', shipped=True)}"
             if p.pytest_shipped
             else ""
         )
-        verdict = "every step passed" if p.all_passed else "at least one step failed, see the summary"
+        verdict = _verdict(p, "en")
         parts.append(
             f" The latest committed summary is [`{p.path.name}`]({rel}) (`{p.sha}`, {p.run_at}, {verdict}): pytest "
             f"{p.tests('en')}{shipped}."

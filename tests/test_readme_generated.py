@@ -119,7 +119,7 @@ def test_prepush_and_ci_records_are_parsed(tmp_path, monkeypatch):
         encoding="utf-8",
     )
     found = readme.prepush()
-    assert found.sha == "2222222" and found.all_passed
+    assert found.sha == "2222222" and found.all_passed and readme._verdict(found, "en") == "every step passed"
     assert found.tests("en") == "4,400 passed, 71 skipped"
     assert found.tests("zh", shipped=True) == "512 个通过、3 个跳过、4,000 个未选中"
     record = {
@@ -157,3 +157,26 @@ def test_a_slice_without_its_agent_eval_section_is_reported_not_a_crash(results_
     (results_copy / "evaluation" / f"heldout_r{top}").mkdir()
     found = readme.problems()
     assert len(found) == 1 and f"Round-{top} held-out chat slice" in found[0]
+
+
+def test_a_budget_only_failure_is_named_as_such():
+    text = (
+        "| Result | **at least one step failed** |\n"
+        "| pytest | `x` | **FAIL** (CI time budget) | 983 | **budget** | 4409 passed |\n"
+        "| e2e | `y` | **FAIL** (CI time budget) | 36 | **budget** | 3 passed |\n"
+        "| ruff | `z` | pass | 0 | budget | ok |\n"
+    )
+    found = readme.Prepush(
+        path=readme.CI_DIR / "prepush-x.md",
+        sha="x",
+        run_at="2026-10-11",
+        all_passed=False,
+        failed_steps=tuple(readme._failed(text, "(exit")),
+        budget_steps=tuple(readme._failed(text, "(CI time budget)")),
+        pytest=((4409, "passed"),),
+        pytest_shipped=None,
+    )
+    assert readme._verdict(found, "en") == (
+        "every step's command passed; `pytest`, `e2e` failed the CI time-budget check, see the summary"
+    )
+    assert "`pytest`、`e2e` 未通过 CI 时间预算检查" in readme._verdict(found, "zh")
