@@ -33,9 +33,16 @@ ALIAS_FIELDS = [
 
 _NAME_CHARS = r"\u4e00-\u9fffA-Za-z0-9·\-\*"
 _CODE_PATTERN = r"\d{6}(?:\.(?:SH|SZ|BJ)|\s*CH)?"
-_NAME_CODE_RE = re.compile(rf"(?P<name>[{_NAME_CHARS}]{{2,24}})\s*[（(]\s*(?P<code>{_CODE_PATTERN})\s*[)）]", re.IGNORECASE)
-_CODE_LABELED_NAME_RE = re.compile(rf"(?P<code>\d{{6}}\.(?:SH|SZ|BJ)|\d{{6}}\s+CH)\s+(?:股票简称|证券简称|基金简称|简称)\s+(?P<name>[{_NAME_CHARS}]{{2,24}})", re.IGNORECASE)
-_CODE_NAME_RE = re.compile(rf"(?P<code>\d{{6}}\.(?:SH|SZ|BJ)|\d{{6}}\s+CH)\s+(?P<name>[{_NAME_CHARS}]{{2,24}})", re.IGNORECASE)
+_NAME_CODE_RE = re.compile(
+    rf"(?P<name>[{_NAME_CHARS}]{{2,24}})\s*[（(]\s*(?P<code>{_CODE_PATTERN})\s*[)）]", re.IGNORECASE
+)
+_CODE_LABELED_NAME_RE = re.compile(
+    rf"(?P<code>\d{{6}}\.(?:SH|SZ|BJ)|\d{{6}}\s+CH)\s+(?:股票简称|证券简称|基金简称|简称)\s+(?P<name>[{_NAME_CHARS}]{{2,24}})",
+    re.IGNORECASE,
+)
+_CODE_NAME_RE = re.compile(
+    rf"(?P<code>\d{{6}}\.(?:SH|SZ|BJ)|\d{{6}}\s+CH)\s+(?P<name>[{_NAME_CHARS}]{{2,24}})", re.IGNORECASE
+)
 
 _STOCK_SUFFIX_RE = re.compile(r"(?:[-－](?:U|W|WD|B|S|R))+$", re.IGNORECASE)
 _INVALID_NAME_PARTS = {
@@ -378,7 +385,9 @@ class RuntimeEntityAssetBuilder:
         self.training_assets_dir = Path(training_assets_dir)
         self.max_training_pairs = max_training_pairs
 
-    def build(self, extra_universe_rows: Iterable[dict[str, str]] | None = None) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    def build(
+        self, extra_universe_rows: Iterable[dict[str, str]] | None = None
+    ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
         entities = [self._normalize_entity_row(row) for row in self.seed_entities]
         valid_entity_ids = {row["entity_id"] for row in entities if row.get("entity_id")}
         aliases = [
@@ -388,11 +397,7 @@ class RuntimeEntityAssetBuilder:
         ]
 
         entities_by_symbol = {row["symbol"]: row for row in entities if row.get("symbol")}
-        entities_by_scope_key = {
-            _scope_entity_key(row): row
-            for row in entities
-            if not row.get("symbol")
-        }
+        entities_by_scope_key = {_scope_entity_key(row): row for row in entities if not row.get("symbol")}
         aliases_by_entity: dict[str, set[str]] = defaultdict(set)
         alias_owner_by_normalized: dict[str, str] = {}
         for row in aliases:
@@ -461,7 +466,9 @@ class RuntimeEntityAssetBuilder:
                 next_alias_id += 1
 
         aliases.extend(colloquial_alias_rows(entities, aliases, next_alias_id))
-        entities.sort(key=lambda row: (row.get("entity_type", ""), row.get("symbol", ""), row.get("canonical_name", "")))
+        entities.sort(
+            key=lambda row: (row.get("entity_type", ""), row.get("symbol", ""), row.get("canonical_name", ""))
+        )
         aliases.sort(key=lambda row: int(row["alias_id"]))
         return entities, aliases
 
@@ -529,7 +536,9 @@ class RuntimeEntityAssetBuilder:
                 next_alias_id += 1
         return next_entity_id, next_alias_id
 
-    def write(self, output_dir: str | Path, extra_universe_rows: Iterable[dict[str, str]] | None = None) -> RuntimeEntitySummary:
+    def write(
+        self, output_dir: str | Path, extra_universe_rows: Iterable[dict[str, str]] | None = None
+    ) -> RuntimeEntitySummary:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         entities, aliases = self.build(extra_universe_rows=extra_universe_rows)
@@ -643,7 +652,9 @@ def _fetch_akshare_table(ak_module: object, function_name: str, entity_type: str
         symbol = _normalize_symbol(code)
         canonical_name = _canonicalize_security_name(name)
         if symbol and _is_valid_security_name(canonical_name):
-            rows.append({"symbol": symbol, "canonical_name": canonical_name, "raw_name": name, "entity_type": entity_type})
+            rows.append(
+                {"symbol": symbol, "canonical_name": canonical_name, "raw_name": name, "entity_type": entity_type}
+            )
     return rows
 
 
@@ -802,3 +813,149 @@ def _write_csv(path: Path, rows: list[dict[str, str]], fieldnames: list[str]) ->
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+# (round 16, review-12 L9) Short names derived from the entity table instead of a hand list: "紫金" (紫金矿业), "宁德"
+# (宁德时代), "平银" (平安银行), "长电" (长江电力), for the securities the data covers (``scope``). A four-character stock
+# name that ends in a company-type word shared by many stock names (矿业, 时代, 银行, 电力 …, counted from the table)
+# gives two candidates: its first two characters (R1, 紫金) and the first character of each half (R2, 平银). A candidate
+# is dropped when it
+#   * is any entity's name or an alias another entity already owns;
+#   * is a common word (jieba dictionary frequency >= SHORT_ALIAS_MAX_WORD_FREQ: 长江 18,930, 工商, 贵州);
+#   * (R2 only) is never written in the document corpus outside a longer name (紫矿, 美集: nobody writes them);
+#   * starts the names of more than SHORT_ALIAS_MAX_RIVALS other listed securities (中信 → ten names, 工银 → hundreds of
+#     funds, 招商 → eight), or of one or two others that the corpus does not dominate: kept only when the target is
+#     named in at least SHORT_ALIAS_MIN_DOCUMENTS documents and SHORT_ALIAS_DOMINANCE times as often as the others
+#     together (紫金矿业 9 : 紫金银行 1; 长江电力 14 : 长电科技 1 + 长源电力 0).
+# The rows are colloquial aliases: matched only as a whole jieba token and never fuzzily (``entity_resolver``).
+SHORT_ALIAS_MIN_SUFFIX_NAMES = 5
+SHORT_ALIAS_MAX_WORD_FREQ = 1000
+SHORT_ALIAS_MAX_RIVALS = 2
+SHORT_ALIAS_DOMINANCE = 5.0
+SHORT_ALIAS_MIN_DOCUMENTS = 8
+_LISTED_TYPES = {"stock", "etf", "index", "fund"}
+
+
+def short_alias_candidates(
+    entities: list[dict[str, str]], scope: set[str] | None = None
+) -> dict[str, list[tuple[str, str]]]:
+    """``{candidate: [(entity_id, rule), …]}`` for every four-character Chinese stock name (of a symbol in ``scope``,
+    when given) that ends in a common company-type word (R1: the first two characters, R2: the first character of
+    each half)."""
+    stocks = [
+        row
+        for row in entities
+        if row.get("entity_type") == "stock" and re.fullmatch(r"[一-鿿]{4}", str(row.get("canonical_name") or ""))
+    ]
+    suffixes = Counter(str(row["canonical_name"])[2:] for row in stocks)
+    found: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    for row in stocks:
+        name = str(row["canonical_name"])
+        if suffixes[name[2:]] < SHORT_ALIAS_MIN_SUFFIX_NAMES or (scope is not None and row.get("symbol") not in scope):
+            continue
+        entity_id = str(row["entity_id"])
+        found[name[:2]].append((entity_id, "R1:prefix"))
+        found[name[0] + name[2]].append((entity_id, "R2:initials"))
+    return dict(found)
+
+
+def document_name_counts(documents: Iterable[dict], names: Iterable[str], short: Iterable[str] = ()) -> dict[str, int]:
+    """How many documents name each of ``names`` (title or body), and (``short:<form>``) how many write each short
+    form outside a longer name of ``names`` that starts with it."""
+    wanted = sorted(set(names), key=len, reverse=True)
+    forms = sorted(set(short))
+    longer = {form: [name for name in wanted if name.startswith(form) and name != form] for form in forms}
+    counts: Counter[str] = Counter()
+    for document in documents:
+        text = f"{document.get('title') or ''} {document.get('body') or ''}"
+        for name in wanted:
+            if name in text:
+                counts[name] += 1
+        for form in forms:
+            if form in text:
+                bare = text
+                for name in longer[form]:
+                    bare = bare.replace(name, " ")
+                if form in bare:
+                    counts[f"short:{form}"] += 1
+    return dict(counts)
+
+
+def derive_short_aliases(
+    entities: list[dict[str, str]],
+    aliases: list[dict[str, str]],
+    *,
+    scope: set[str] | None = None,
+    document_counts: dict[str, int] | None = None,
+    word_frequency: dict[str, int] | None = None,
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """``(accepted, rejected)``: ``{alias, entity_id, canonical_name, rule, evidence}`` for every candidate of
+    ``short_alias_candidates`` (see the comment above for the checks)."""
+    names = {str(row["entity_id"]): str(row.get("canonical_name") or "") for row in entities}
+    listed_names = {str(row.get("canonical_name") or "") for row in entities if row.get("entity_type") in _LISTED_TYPES}
+    owners: dict[str, set[str]] = defaultdict(set)
+    for row in aliases:
+        owners[str(row.get("normalized_alias") or row.get("alias_text") or "")].add(str(row.get("entity_id")))
+    canonical = set(names.values())
+    counts = document_counts or {}
+    frequency = word_frequency or {}
+    accepted: list[dict[str, str]] = []
+    rejected: list[dict[str, str]] = []
+    for alias, claims in sorted(short_alias_candidates(entities, scope).items()):
+        claimants = sorted({entity_id for entity_id, _rule in claims})
+        rules = {entity_id: rule for entity_id, rule in claims}
+
+        def verdict(bucket: list[dict[str, str]], entity_id: str, evidence: str) -> None:
+            bucket.append({"alias": alias, "entity_id": entity_id, "canonical_name": names[entity_id],
+                           "rule": rules[entity_id], "evidence": evidence})  # fmt: skip
+
+        if alias in canonical:
+            for entity_id in claimants:
+                verdict(rejected, entity_id, "is an entity name")
+            continue
+        if owners.get(alias, set()) - set(claimants):
+            for entity_id in claimants:
+                verdict(rejected, entity_id, "alias of another entity")
+            continue
+        if owners.get(alias):
+            continue  # already an alias of the entity itself
+        if frequency.get(alias, 0) >= SHORT_ALIAS_MAX_WORD_FREQ:
+            for entity_id in claimants:
+                verdict(rejected, entity_id, f"common word (jieba frequency {frequency[alias]})")
+            continue
+        best = max(claimants, key=lambda entity_id: counts.get(names[entity_id], 0))
+        if rules[best].startswith("R2") and counts.get(f"short:{alias}", 0) < 1:
+            verdict(rejected, best, "abbreviation never written in the corpus")
+            continue
+        rivals = sorted(({name for name in listed_names if name.startswith(alias)} | {names[e] for e in claimants})
+                        - {names[best]})  # fmt: skip
+        if not rivals:
+            verdict(accepted, best, "unique")
+            continue
+        if len(rivals) > SHORT_ALIAS_MAX_RIVALS:
+            verdict(rejected, best, f"starts {len(rivals)} other names")
+            continue
+        mine = counts.get(names[best], 0)
+        others = sum(counts.get(name, 0) for name in rivals)
+        evidence = f"documents {names[best]} {mine} : {' + '.join(f'{n} {counts.get(n, 0)}' for n in rivals)}"
+        dominant = mine >= SHORT_ALIAS_MIN_DOCUMENTS and mine >= SHORT_ALIAS_DOMINANCE * max(others, 1)
+        verdict(accepted if dominant else rejected, best, evidence if dominant else f"ambiguous: {evidence}")
+    return accepted, rejected
+
+
+def short_alias_rows(accepted: list[dict[str, str]], next_alias_id: int) -> list[dict[str, str]]:
+    rows = []
+    for item in accepted:
+        rows.append(
+            {
+                "alias_id": str(next_alias_id),
+                "entity_id": item["entity_id"],
+                "alias_text": item["alias"],
+                "normalized_alias": item["alias"],
+                "alias_type": COLLOQUIAL_ALIAS_TYPE,
+                "priority": "1",
+                "is_official": "false",
+            }
+        )
+        next_alias_id += 1
+    return rows
