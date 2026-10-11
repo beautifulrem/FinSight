@@ -591,6 +591,24 @@ carried as the previous figure; the fifth real-claims set's classes below (an En
 companies outside the data, a gap to an unnamed second place, metrics written after the number and a year, a change in
 brackets with no move word, "作为参照" read as a hypothetical).
 
+### Round 17: weak direction words as bounded growth parts (after the round-13 review, M12; bands stated before the rules)
+
+The bands below were written into this document (commit before any round-17 rule code) and are not tuned on any set
+afterwards. They apply to a direction word **without a number** about a reported figure's year-on-year change
+(revenue, net profit, and the other figures `_clause_parts` reads); `g` is the year-on-year growth in percent from the
+fundamentals source. A daily price move keeps the round-6 conventions (big at least 3 %, small under 1 %). With a
+number ("微降0.5%") the word only gives the sign and the number is checked as written. A negation ("没有大幅下降",
+"did not edge up") flips the band (outside it). Each check's note names the band.
+
+| Band | Words (zh; en) | Holds when |
+| --- | --- | --- |
+| flat | 基本持平, 大致持平, 持平, 变化不大, 几乎没有变化; flat, roughly / broadly / essentially / largely flat, little changed, (largely / essentially / broadly) unchanged | −2 ≤ g ≤ 2 |
+| slight | 微增, 微升, 微降, 略增, 略降, 略有 / 稍有 增长 / 增加 / 提升 / 上升 / 下降 / 下滑 / 减少; edged / inched / ticked up / down, rose / grew / fell / declined slightly, slightly higher / lower, marginally up / down | the stated direction and 0 < \|g\| ≤ 5 |
+| modest | 小幅 增长 / 增加 / 提升 / 上升 / 下降 / 下滑 / 减少; rose / grew / fell / declined modestly, modestly higher / lower | the stated direction and 0 < \|g\| ≤ 10 |
+| sharp | 大增, 暴增, 猛增, 激增, 大幅 增长 / 增加 / 提升 / 上升, 大降, 骤降, 锐减, 大幅 下降 / 下滑 / 减少; surged, soared, skyrocketed, plunged, plummeted, slumped, rose / grew / fell / declined sharply | the stated direction and \|g\| ≥ 20 |
+
+Words outside these lists (明显增长, 显著下降, "rose", "fell") stay plain directions (g > 0 or g < 0).
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's

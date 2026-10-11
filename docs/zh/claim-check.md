@@ -553,6 +553,22 @@ insurance average」、「less than half of Moutai's net profit」、是保险�
 没有所有格、只带股价词的“BYD rose too”沿用上一项指标；以及下文第五套真实说法的错误类别（英文扣非短语、含数据之外公司的合计、
 与未点名的第二名之差、写在数字和年份之后的指标、括号里没有涨跌词的变化、“作为参照”被当作假设）。
 
+### 第 17 轮：弱方向词作为有界的增速判断（第 13 轮评审之后，M12；区间在写规则之前确定）
+
+下列区间先写入本文档（在任何第 17 轮规则代码之前提交），之后不在任何数据集上调整。它们只用于**不带数字**、描述报告指标同比变化的
+方向词（营收、净利润以及 `_clause_parts` 读取的其他指标）；`g` 是基本面数据源给出的同比增速（百分比）。当日股价涨跌仍沿用第 6
+轮的约定（大涨大跌至少 3%，小幅涨跌不到 1%）。带数字时（“微降0.5%”），方向词只给出符号，数字按所写核对。否定（“没有大幅下降”
+“did not edge up”）取区间之外。每项核查的备注写明所用区间。
+
+| 区间 | 用词（中文；英文） | 成立条件 |
+| --- | --- | --- |
+| 持平 | 基本持平、大致持平、持平、变化不大、几乎没有变化；flat、roughly / broadly / essentially / largely flat、little changed、(largely / essentially / broadly) unchanged | −2 ≤ g ≤ 2 |
+| 微小 | 微增、微升、微降、略增、略降、略有 / 稍有 增长 / 增加 / 提升 / 上升 / 下降 / 下滑 / 减少；edged / inched / ticked up / down、rose / grew / fell / declined slightly、slightly higher / lower、marginally up / down | 方向一致且 0 < \|g\| ≤ 5 |
+| 小幅 | 小幅 增长 / 增加 / 提升 / 上升 / 下降 / 下滑 / 减少；rose / grew / fell / declined modestly、modestly higher / lower | 方向一致且 0 < \|g\| ≤ 10 |
+| 大幅 | 大增、暴增、猛增、激增、大幅 增长 / 增加 / 提升 / 上升、大降、骤降、锐减、大幅 下降 / 下滑 / 减少；surged、soared、skyrocketed、plunged、plummeted、slumped、rose / grew / fell / declined sharply | 方向一致且 \|g\| ≥ 20 |
+
+不在这些列表里的词（明显增长、显著下降、rose、fell）仍是普通方向（g > 0 或 g < 0）。
+
 ### 宏观数值（C13）
 
 宏观说法与 `get_macro_indicators` 的最新一期读数比对，`as_of` 是读数所属期间（`as_of_basis: indicator_date`）。
