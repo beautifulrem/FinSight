@@ -236,6 +236,56 @@ re-run after `ruff format` and gave byte-identical files):
 - Prices and market values have no independent record in the data files (11 claims: the ten 2026-09-30 claims and
   the 2026-04-22 claim).
 
-## First run
+## First run (the only blind run), `c795172`
 
-Not yet run.
+The checker was run once, on a clean tree at `c795172` (r16-claims, the final round-16 claims code: review-12 L4-L6
+parts without a number, growth-rate comparisons, book value, L9 short names), on 2026-10-11T02:43Z, after the set had
+been committed unread (`ac7ea79`): `python -m evaluation.real_claims_web_v5.score_claims_web_v5`. It used the offline
+service with the shipped default data and no LLM, the published sentence with the brackets removed (the inserted
+subject kept) and no date. Result: `evaluation/results/claims_web_v5-first-run.json` (written by that run).
+
+**What the engineer had seen before the run.** The engineer who ran it wrote the round-16 checker rules. The claims were
+collected and labelled by a separate search agent that did not open the checker's code, tests, claim benches, docs or
+results; its report to the engineer named counts only. The engineer did not read the claims or labels before the run.
+The round-16 rules were written for the round-12 review's classes (L4-L6, L9) with the engineer's own test wordings,
+not for this set.
+
+| | result |
+|---|---|
+| verdict accuracy | **0.680 [0.56, 0.80]** (34/50; 95% percentile bootstrap over claims, 2000 resamples, seed 20261010) |
+| against the definition-blind labels | 0.700 [0.58, 0.82] |
+| by category | annual_ratios 0.800 (4/5), daily_price 0.750 (6/8), annual_figures 0.667 (16/24), english_or_traditional 0.667 (6/9), loose_or_relational 0.500 (1/2), market_value 0.500 (1/2) |
+| by language | zh 0.683 (28/41), en 0.667 (6/9) |
+| by expected verdict | supported 0.667 (8/12), partially_supported 0.727 (24/33), contradicted 0.000 (0/2), unverifiable 0.667 (2/3) |
+| checker's verdicts | supported 15, partially_supported 26, contradicted 2, unverifiable 7 |
+
+This is a blind number for the round-16 checker. It is lower than the fourth set's first run (0.740, round-15 K6
+checker); the sets differ in mix (this one has 10 dated price and market-value claims, the fourth had 2), so the
+difference is not an estimate of a change in the checker.
+
+### Error classes of the first run (16)
+
+Read after the run (from here on the set is after exposure):
+
+1. **A definition caution alone, under two verdict rules** (7: w5_02, w5_19, w5_20, w5_28, w5_32, w5_41, w5_44). The
+   claims name 归母 growth (w5_19 also 营业总收入) and the data's YoY is on total net profit; every other part is true.
+   Round 15 calls such a claim `supported` with partial coverage; this set's labels (v2's rule) call it
+   `partially_supported` (w5_20, w5_41 and w5_44 are `supported` under the definition-blind labels).
+2. **A figure or move the checker does not read** (4). "rising 0.31 percent" with no metric word and "heads into …
+   reopening at 3,842.19 points" read as an ADS line (the chat's foreign-line detector matches "ads" inside "heads",
+   `coverage.foreign_line_spans`) (w5_01); "operating income … approximately 168.838 billion yuan" and "April 2026" read
+   as a value (w5_17); "以8382.70亿元2025年营业收入蝉联榜首" (the metric after the number and a year) (w5_39); "沪深300（+0.29%）
+   明显强于创业板指（-0.23%）" (a change in brackets with no move word) (w5_46).
+3. **A reference price read as a hypothetical** (1: w5_03). "以…时公司股票收盘价291.11元/股作为参照" is unverifiable as a
+   forecast or hypothetical; it states a close.
+4. **A five-company sum with companies outside the data** (1: w5_23, a false contradiction). "比亚迪、吉利、上汽、长城、长安
+   五家…净利润加在一起是735亿元" is checked as 比亚迪's own net profit (contradicted); the sum includes four companies
+   the data does not have, so it should be unverifiable.
+5. **An English 扣非 phrase** (1: w5_37, a false contradiction). "net profit attributable to shareholders of the parent
+   company excluding non-recurring gains and losses" is read as 归母 net profit (1347.78亿 against 1437.73亿), not as
+   扣非 net profit, which matches.
+6. **A gap to an unnamed second place read as a bound** (1: w5_15). "超越第二名1074亿元" is checked as market value >
+   1074亿 (supported); the second place (国泰海通) is not in the data, so the part is unverifiable and the claim,
+   whose market value is false, is contradicted.
+7. **Approximation width** (1: w5_08). "ROE约30%" against 32.53: the checker's 约 band is half the last significant
+   digit's step (25-35%, round 10 F7), the labels' 5% (28.5-31.5%).
