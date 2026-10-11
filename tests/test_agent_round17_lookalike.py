@@ -306,7 +306,7 @@ def test_lookalike_companies_are_refused_with_their_name(agent, query, forbidden
 
 def test_a_lookalike_follow_up_does_not_inherit_the_session_company(agent):
     session = "r17-look-session"
-    agent.chat("美的集团的市盈率", session_id=session)
+    agent.chat("美的集团眼下市盈率多少倍", session_id=session)
     result = agent.chat("那美的置业呢", session_id=session)
     assert result["route"] == "refuse"
     assert "13.77" not in result["answer"] and "80.1" not in result["answer"]
