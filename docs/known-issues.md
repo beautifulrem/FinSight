@@ -2,7 +2,7 @@
 
 [README](../README.md) · [中文](zh/known-issues.md) · [Evaluation history](evaluation-history.md)
 
-Every review bug and what is still open, moved verbatim in round 15 from `README.md` at `4ad3380` (only relative links adjusted). New rows for the current round go into the table in the README's [Known open issues](../README.md#known-open-issues) section first and are merged here when the round closes. From round 16 a row says "fixed" only when it cites a run in which the reported class passes (a slice class, ext tasks or a test of the review's wordings); otherwise it says "partly fixed" and lists what still fails (round-12 review L15).
+Every review bug and what is still open, moved verbatim in round 15 from `README.md` at `4ad3380` (only relative links adjusted). New rows for the current round go into the table in the README's [Known open issues](../README.md#known-open-issues) section first and are merged here when the round closes. From round 16 a row is set to "fixed" only when it cites a run in which the reported class passes (a slice class, ext tasks or a test of the review's wordings); otherwise it says "partly fixed" and lists what still fails (round-12 review L15). K1, K2 and K4 were changed to "partly fixed" in round 16; the K5, K7, K8 and K10 rows were written earlier and still say "fixed" although their round-11 slice classes have failing tasks ([per class](evaluation-history.md#the-round-11-slice-per-class)).
 
 Round-3 review bugs (C1–C20) and what is still open. Every fix has a test; reproductions are in the review.
 

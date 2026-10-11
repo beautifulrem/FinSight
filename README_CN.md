@@ -31,7 +31,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 
 ## 30 秒看懂
 
-- **数字可追溯**：逐句校验器把每个数字绑定到本句引用的证据。5,452 个被篡改的答案里，它只误放 **0.95%**；324 个正确答案全部通过（[校验器压力测试](docs/agent-eval.md#verifier-stress-test-324-gold-answers-5452-corrupted-variants-verifier_stress-round14json)）。
+- **数字可追溯**：逐句校验器把每个数字绑定到本句引用的证据。5,551 个被篡改的答案里，它只误放 **0.94%**；328 个正确答案全部通过（[校验器压力测试](docs/agent-eval.md#verifier-stress-test-328-gold-answers-5551-corrupted-variants-verifier_stress-round15json)，`8b62a6c`）。
 - **在没人调过的任务集上测**：测试集 v3 由独立作者编写，共 130 个任务，这里报的是首次 LLM 运行。在要求引用的一票否决口径下，DeepSeek Agent 通过 **0.869** [0.81, 0.92]，确定性固定流程 0.769，不调工具的 LLM 为 0（[测试集 v3](docs/agent-eval.md#test-set-v3-independent-author-untouched-first-runs)）。
 - **修复之后的样本外结果，并把重合算进去**：每轮评审在任何修复之前，按自己发现的缺陷写一组保留切片。最近一组切片经过一轮修复后从 **0.200 → 0.733**（对话 12/60 → 44/60；声明 0.292 → 0.792），上一组为 **0.250 → 0.792**。去掉与自写措辞重合的任务后结论仍然成立：最近一组按文本 42/58，按内容 39/55，按内容特征 32/44（[来源说明](evaluation/heldout_r11/README.md#committed-to-the-repository-after-the-round-15-fixes)）。
 - **首次运行的数字照报，不被替换**：每套独立任务集都同时保留首次运行的数字和之后标为「暴露后」的数字。例如新写的独立路由标注首次得 0.801，盲收集的真实说法首次得 0.500（[评测历史](docs/zh/evaluation-history.md#独立任务集首次运行与暴露后)）。
@@ -134,7 +134,7 @@ Kubernetes 与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 | 测什么 | 结果 | 证据 |
 |---|---|---|
 | 测试集 v3：独立作者写的 130 个任务，首次 LLM 运行，DeepSeek | Agent **0.869** [0.81, 0.92]，LLM 组织答案 0.831，确定性固定流程 0.769，不调工具的 LLM 0/130。Agent 对固定流程 +0.100 [+0.049, +0.156]，McNemar p = 0.007。Agent 对组织答案在 pass^3 上不显著 | [`ablation-final4-deepseek-testv3-holdout.json`](docs/agent-eval.md#test-set-v3-independent-author-untouched-first-runs) |
-| 校验器压力测试：324 个正确答案，5,452 个篡改答案 | 篡改答案误放 **0.95%**（默认允许派生数字时 1.08%）；正确答案全部通过；换入另一家公司的数字 0.0% 放过（允许派生数字时 0.58%） | [`verifier_stress-round14.json`](docs/agent-eval.md#verifier-stress-test-324-gold-answers-5452-corrupted-variants-verifier_stress-round14json) |
+| 校验器压力测试（第 15 轮，`8b62a6c`）：328 个正确答案，5,551 个篡改答案 | 篡改答案误放 **0.94%**（默认允许派生数字时 1.06%）；正确答案全部通过；换入另一家公司的数字 0.0% 放过（允许派生数字时 0.57%） | [`verifier_stress-round15.json`](docs/agent-eval.md#verifier-stress-test-328-gold-answers-5551-corrupted-variants-verifier_stress-round15json) |
 | 最近一组评审切片（第十一轮）：60 个对话任务、24 条声明，一轮修复前后各跑一次 | 对话 **0.200 → 0.733**，声明 0.292 → 0.792。去掉重合任务后：12/58 → 42/58（文本），11/55 → 39/55（加内容），9/44 → 32/44（加内容特征） | [`chat_heldout_r11-auto-nollm-after-fix.json`](docs/agent-eval.md#round-11-held-out-chat-slice-independent-author-before-and-after-the-round-15-fixes)、[`slice_overlap-heldout_r11-at-c5ffb7d.json`](evaluation/heldout_r11/README.md#committed-to-the-repository-after-the-round-15-fixes) |
 | 上一组评审切片（第十轮）：48 个对话任务、24 条声明，一轮修复前后各跑一次 | 对话 **0.250 → 0.792**，声明 0.667 → 0.833。去掉重合任务后：12/45 → 35/45（文本），12/42 → 32/42（加内容），11/38 → 29/38（评审的口径） | [`chat_heldout_r10-auto-nollm-after-fix.json`](docs/agent-eval.md#round-10-held-out-chat-slice-independent-author-before-and-after-the-round-14-fixes)、[`slice_overlap-heldout_r10-content-at-3480a96.json`](evaluation/heldout_r10/README.md#provenance-of-the-after-fix-run-what-the-record-shows-round-11-review-k16) |
 | 更早的评审切片（对话，首次 → 一轮修复后） | 第六轮 0.579 → 0.816；第七轮 0.264 → 0.830；第八轮 0.275 → 0.686；第九轮 0.346 → 0.788 | [评测历史](docs/zh/evaluation-history.md#独立任务集首次运行与暴露后) |
@@ -144,7 +144,7 @@ Kubernetes 与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 | 第四套盲收集的真实公开说法（50 条） | 首次 0.740 [0.62, 0.86]（第 15 轮核查器，第三套的规则之前）；之后 0.780（暴露后） | [`claims_web_v4-first-run.json`](evaluation/real_claims_web_v4/README.md) |
 | 投毒到文档里的提示注入 | 模板路径在 13 个攻击集上 0 次成功；LLM 路径每个集合当作事实陈述 0–3.4% | [`redteam-offline-r15.json`](docs/agent-eval.md#prompt-injection-red-team-offline-template-path-after-round-15-all-thirteen-sets-ci-baseline)、[`redteam-r8-llm.json`](docs/zh/evaluation-history.md#其他测量) |
 | 延迟与负载 | DeepSeek Agent P95 15.4 秒（保留集），首字约 3 秒；数据源故障演练下 8 个用户（无 LLM）400 个请求 0 错误 | [性能](docs/zh/performance.md) |
-| CI 门禁（与已提交基线比较） | 开发集 524 个任务 1.000，保留集 53 个 0.9434，ext 68 个 1.000，发布默认配置 21 个 1.000 | [门禁基线](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |
+| CI 门禁（与已提交基线比较） | 开发集 524 个任务 1.000，保留集 53 个 0.9434，ext 78 个 1.000，发布默认配置 21 个 1.000 | [门禁基线](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |
 
 更多细节：
 
@@ -172,8 +172,8 @@ python -m scripts.chaos_drill --scenario sources           # 对运行中的服�
 
 ## 局限
 
-- **未暴露的任务集很少**：每组评审切片只对一轮修复是样本外的。切片规模小（38–53 个对话任务），而且每组都有一部分与自写测试措辞重合，见上面的重合计数。「工程师在修复后运行之前没打开过切片」是工程师的陈述：那次运行是从评审的目录读取切片的，没有任何记录能证明是否打开过（[来源说明](evaluation/heldout_r10/README.md#provenance-of-the-after-fix-run-what-the-record-shows-round-11-review-k16)）。
-- **比较类问题靠词表泛化**：比较语法按词类判断运算，而词类是正则表达式，词类之外的问法仍会漏掉。最近一组切片修复后仍有 48 个里的 10 个对话任务失败。
+- **未暴露的任务集很少**：每组评审切片只对一轮修复是样本外的。切片规模小（38–60 个对话任务），而且每组都有一部分与自写测试措辞重合，见上面的重合计数。「工程师在修复后运行之前没打开过切片」是工程师的陈述：那次运行是从评审的目录读取切片的，没有任何记录能证明是否打开过（[来源说明](evaluation/heldout_r10/README.md#provenance-of-the-after-fix-run-what-the-record-shows-round-11-review-k16)）。
+- **比较类问题靠词表泛化**：比较语法按词类判断运算，而词类是正则表达式，词类之外的问法仍会漏掉。最近一组切片（第十一轮）修复后仍有 60 个里的 16 个对话任务失败（[按类别](docs/zh/evaluation-history.md#第十一轮切片分类)）。
 - **路由在新问法上约有五分之一出错**：新写的独立标注上为 0.801。
 - **Agent 工具循环只比「LLM 组织答案」略好**：DeepSeek 上单次成功率领先，pass^3 不显著；GLM 上两者持平，Agent 成本是后者的 1.1–4 倍。
 - **校验证明的是可追溯，不是真实**：投毒到新闻正文里的假价格能通过校验，因为它确实「在证据里」。
@@ -188,7 +188,7 @@ python -m scripts.chaos_drill --scenario sources           # 对运行中的服�
 
 | 编号 | 严重度 | 问题 | 状态 |
 |---|---|---|---|
-| K16（第十一轮） | 低–中（评测如实） | 第十轮切片修复后运行的来源被当作事实陈述（「没打开过」），而且只统计了文本层面的重合 | 已修复：[切片说明](evaluation/heldout_r10/README.md#provenance-of-the-after-fix-run-what-the-record-shows-round-11-review-k16)写明记录显示的事实：那次运行读的是评审的目录，切片之后才进入仓库（`367636b`）。`slice_overlap --content` 增加了内容层面的检查。去掉内容重合后，第十轮对话为 12/42 → 32/42，第九轮对话为 16/42 → 33/42 |
+| K16（第十一轮） | 低–中（评测如实） | 第十轮切片修复后运行的来源被当作事实陈述（「没打开过」），而且只统计了文本层面的重合 | 基本修复（第十二轮评审）：[切片说明](evaluation/heldout_r10/README.md#provenance-of-the-after-fix-run-what-the-record-shows-round-11-review-k16)写明记录显示的事实：那次运行读的是评审的目录，切片之后才进入仓库（`367636b`）。`slice_overlap --content` 增加了内容层面的检查。去掉内容重合后，第十轮对话为 12/42 → 32/42，第九轮对话为 16/42 → 33/42。新的不准确之处（第十二轮评审 L15），第 16 轮已更正：第十一轮切片说明用一个并不包含该句的探针文件来解释声明 r11c09 的完全相同副本；记录无法解释这份副本（[来历](evaluation/heldout_r11/README.md#committed-to-the-repository-after-the-round-15-fixes)） |
 | K17（第十一轮） | 低（界面） | 成本盈亏乘式写成「200 × -90.5」；数据日期横幅没包含估值日；切换到英文后，中文那一轮的推荐追问仍是中文 | 已修复（`d9d2923`、`1e2c38c`）：写成「200 × (−90.5)」；横幅的日期范围包含估值日；推荐追问和默认免责声明随界面语言切换。测试：`tests/test_round15_ui_nits.py`、vitest |
 | K18（第十一轮） | 低（文档） | README 有 1.85 万词，「30 秒看懂」是五大段 | 已修复：README 改为落地页，长内容原样移到 [docs/zh/evaluation-history.md](docs/zh/evaluation-history.md)、[docs/zh/known-issues.md](docs/zh/known-issues.md) 和 [docs/zh/features.md](docs/zh/features.md) |
 
