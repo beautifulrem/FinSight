@@ -23,7 +23,10 @@ env:
 
 jobs:
   lint:
+    # (round 17, round-13 review M17) ruff takes seconds (13 s in run 38113129617); without a limit a hung runner
+    # would hold the job for GitHub's default 360 min
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
