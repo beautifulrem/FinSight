@@ -1,0 +1,333 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "evaluation/heldout_r11/chat_r11_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "d3b5cc2",
+  "run_at": "2026-10-11T03:10:19+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 53.0,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r11/chat_r11_heldout.jsonl --out outputs/agent_eval/chat_r11-r16.json",
+  "env": {
+   "QI_EVAL_SNAPSHOT_EXT": "1",
+   "QI_EVAL_SNAPSHOT_FIX": "1"
+  },
+  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r11/chat_r11_heldout.jsonl --out outputs/agent_eval/chat_r11-r16.json",
+  "slice_overlap": {
+   "slice": "evaluation/heldout_r11/chat_r11_heldout.jsonl",
+   "slice_texts": 73,
+   "exact": 0,
+   "near": 2,
+   "tasks_with_overlap": [
+    "r11h_fcq_en_01",
+    "r11h_hk_zh_01"
+   ],
+   "own_files": [
+    "evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_shipped_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v2.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+    "evaluation/claim_bench/claims_v1.jsonl",
+    "evaluation/claim_bench/claims_v1_holdout.jsonl"
+   ],
+   "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = every evaluation/agent_eval/tasks/*.jsonl and evaluation/claim_bench/*.jsonl text, string literals in tests/*.py"
+  }
+ },
+ "summary": {
+  "tasks": 60,
+  "turns": 73,
+  "repeats": 1,
+  "task_success": 0.9667,
+  "pass^1": 0.9667,
+  "ci": {
+   "task_success": [
+    0.9167,
+    1.0
+   ],
+   "pass^1": [
+    0.9167,
+    1.0
+   ],
+   "task_success_uncited": [
+    0.9167,
+    1.0
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.9667,
+  "turn_success": 0.9726,
+  "behavior_accuracy": 0.9863,
+  "fact_recall": 0.9855,
+  "fact_stated": 0.9855,
+  "tool_recall": 1.0,
+  "tool_precision": 0.5833,
+  "compliance_clean": 1.0,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 1.0,
+  "draft_verification_pass": 1.0,
+  "unsupported_numbers_per_answer": 0.0,
+  "latency_ms_p50": 131.8,
+  "latency_ms_p95": 1665.76,
+  "latency_ms_p99": 5510.19,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "control": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 475.22
+  },
+  "dated_close": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 537.68
+  },
+  "ellipsis_two": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 110.07
+  },
+  "foreign_line": {
+   "tasks": 5,
+   "task_success": 0.8,
+   "latency_ms_p95": 579.59
+  },
+  "holding_follow_up": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 5510.19
+  },
+  "holding_forms": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 3777.72
+  },
+  "mean": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 436.08
+  },
+  "multi_purchase_pnl": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 4252.72
+  },
+  "mv_over_profit": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 93.62
+  },
+  "news_missing": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 35.98
+  },
+  "price_recovery": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 127.63
+  },
+  "share_of_total3": {
+   "tasks": 3,
+   "task_success": 0.6667,
+   "latency_ms_p95": 508.67
+  },
+  "sum_and_share": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 271.24
+  },
+  "sum_vs_one": {
+   "tasks": 4,
+   "task_success": 1.0,
+   "latency_ms_p95": 226.37
+  },
+  "sum_words": {
+   "tasks": 5,
+   "task_success": 1.0,
+   "latency_ms_p95": 529.55
+  },
+  "two_questions": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 131.27
+  },
+  "unreleased_results": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 542.53
+  },
+  "verb_comparative": {
+   "tasks": 3,
+   "task_success": 1.0,
+   "latency_ms_p95": 138.25
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 20,
+   "task_success": 0.95,
+   "latency_ms_p95": 4252.72
+  },
+  "zh": {
+   "tasks": 40,
+   "task_success": 0.975,
+   "latency_ms_p95": 1253.38
+  }
+ },
+ "failed_checks": {
+  "facts": 1,
+  "entities": 1,
+  "behavior": 1,
+  "limitations": 1
+ },
+ "failures": [
+  {
+   "task": "r11h_stot3_zh_01",
+   "category": "share_of_total3",
+   "query": "平安银行营收在平安、招行、工行三家营收总和里占百分之几",
+   "failed_checks": [
+    "facts",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：营业收入：中国平安 10505.06 亿元，招商银行 3375.32 亿元，工商银行 8382.7 亿元，合计 22263.08 亿元，10505.06 亿元 ÷ 22263.08 亿元 ≈ 47.19%，即中国平安约占三者合计的 47.19% [fundamental_601318.SH][fu"
+  },
+  {
+   "task": "r11h_hk_en_01",
+   "category": "foreign_line",
+   "query": "Quote me ICBC in HKD",
+   "failed_checks": [
+    "behavior",
+    "limitations"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: ICBC (601398.SH) last available close was CNY 8.28 on 2026-09-30, daily change 1.47% [price_601398.SH]."
+  }
+ ],
+ "task_outcomes": {
+  "r11h_sum_zh_01": "1",
+  "r11h_sum_zh_02": "1",
+  "r11h_sum_zh_03": "1",
+  "r11h_sum_en_01": "1",
+  "r11h_sum_zh_04": "1",
+  "r11h_mean_zh_01": "1",
+  "r11h_mean_zh_02": "1",
+  "r11h_mean_en_01": "1",
+  "r11h_mean_zh_03": "1",
+  "r11h_mean_zh_04": "1",
+  "r11h_vsum_en_01": "1",
+  "r11h_vsum_zh_01": "1",
+  "r11h_vsum_zh_02": "1",
+  "r11h_vsum_en_02": "1",
+  "r11h_stot3_zh_01": "0",
+  "r11h_stot3_zh_02": "1",
+  "r11h_stot3_en_01": "1",
+  "r11h_sumshare_zh_01": "1",
+  "r11h_sumshare_en_01": "1",
+  "r11h_ell2_zh_01": "1",
+  "r11h_ell2_en_01": "1",
+  "r11h_holdfu_zh_01": "1",
+  "r11h_holdfu_en_01": "1",
+  "r11h_holdfu_zh_02": "1",
+  "r11h_holdform_zh_01": "1",
+  "r11h_holdform_zh_02": "1",
+  "r11h_holdform_zh_03": "1",
+  "r11h_holdform_en_01": "1",
+  "r11h_avgcost_zh_01": "1",
+  "r11h_avgcost_en_01": "1",
+  "r11h_avgcost_zh_02": "1",
+  "r11h_recover_zh_01": "1",
+  "r11h_recover_en_01": "1",
+  "r11h_recover_zh_02": "1",
+  "r11h_mvnp_zh_01": "1",
+  "r11h_mvnp_en_01": "1",
+  "r11h_twoq_zh_01": "1",
+  "r11h_twoq_en_01": "1",
+  "r11h_verb_zh_01": "1",
+  "r11h_verb_en_01": "1",
+  "r11h_verb_en_02": "1",
+  "r11h_date_zh_01": "1",
+  "r11h_date_en_01": "1",
+  "r11h_date_zh_02": "1",
+  "r11h_date_zh_03": "1",
+  "r11h_hk_zh_01": "1",
+  "r11h_hk_zh_02": "1",
+  "r11h_hk_en_01": "0",
+  "r11h_hk_zh_03": "1",
+  "r11h_hk_ctrl_zh_01": "1",
+  "r11h_fcq_zh_01": "1",
+  "r11h_fcq_en_01": "1",
+  "r11h_fcq_zh_02": "1",
+  "r11h_news_zh_01": "1",
+  "r11h_news_en_01": "1",
+  "r11h_ctrl_zh_01": "1",
+  "r11h_ctrl_en_01": "1",
+  "r11h_ctrl_zh_02": "1",
+  "r11h_ctrl_zh_03": "1",
+  "r11h_ctrl_zh_04": "1"
+ },
+ "source": {
+  "file": "outputs/agent_eval/chat_r11-r16.json",
+  "sha256_16": "56f56dc96514484c",
+  "bytes": 244148,
+  "slimmed_at": "2026-10-11T03:21:05+00:00"
+ },
+ "notes": [
+  "AFTER EXPOSURE (round 16): independent round-11 chat slice (evaluation/heldout_r11/) rerun at d3b5cc2 (clean tree; the final round-16 code), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay: 44/60 -> 58/60 = 0.967. Not an estimate: the round-16 engineer read the slice's failing tasks at 0d102c2 (12 tasks) and fixed their classes in own wording (6b02ed3, d3b5cc2). Still failing r11h_hk_en_01 (a Hong Kong line in HKD, the foreign-line owner's class) and r11h_stot3_zh_01 (平安 in a list read as 中国平安)."
+ ]
+}
