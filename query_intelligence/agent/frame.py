@@ -473,6 +473,8 @@ _RELATIVE_EXPLICIT = re.compile(
 )
 _RELATIVE_UNIT = re.compile(
     r"百分之(?:多少|几)|(?:多少|几)(?:个)?(?:百分比|%)|几成|多少成|\s%|\bhow many percent\b|"
+    # (round 16, L17) "超出…的幅度是多少（按百分比算）"
+    r"(?:按|以|用)百分比|"
     r"\bin percent(?:age)?(?! points?)(?: terms)?\b|\bpercentage[- ]wise\b|\bas a percent(?:age)?\b",
     re.IGNORECASE,
 )
@@ -506,6 +508,10 @@ _DIFFERENCE = re.compile(
 _WHICH = re.compile(
     r"(?:谁|哪个|哪一个|哪只|哪家|哪边|哪一家|哪一只)[^，。？?,;；]{0,6}?(?:更|比较|相对)?"
     r"(?:高|低|大|小|多|少|贵|便宜|强|弱|活跃)(?!档|端|效|级|点位)|"
+    # (round 16, L17) "三者中市值最大的是哪个", "Which of A, B and C is the largest …?", "who earns more per share?"
+    r"最(?:高|低|大|小|多|少|贵|便宜|强|弱)的?(?:是|为)?(?:哪|谁)|"
+    r"\bwhich\b[^.?!]{0,60}\b(?:highest|lowest|biggest|largest|smallest|most|least|cheapest|priciest)\b|"
+    r"\bwho\b[^.?!]{0,30}\b(?:higher|lower|bigger|smaller|larger|more|less|cheaper|greater)\b|"
     r"\bwhich\b[^.?!]{0,30}\b(?:higher|lower|bigger|smaller|larger|more|less|cheaper|greater)\b|"
     r"\b(?:higher|lower|bigger|larger) of the two\b|"
     # (round 14, review-10 J14) "比行业平均高还是低", "is it above or below the sector average?"
@@ -611,10 +617,13 @@ _EN_SMALL = {
 # (round 14, review-10 J4) 总计 / 共计 / 合在一块 / 加总 / "altogether" / "all told" as well
 # (round 15, review-11 K4/K10) 合并起来 / 统共 / 拢共 / 汇总 / 总额 ("净利润总额"), "collectively", "jointly", "in all"
 _SUM = re.compile(
-    r"加起来|加(?:在|到)?一(?:块|起)|合(?:在|到)?一(?:起|块)|合起来|合计|一共|总共|总和|之和|相加|再加上|总计|共计|加总|"
+    r"加起来|加(?:在|到)?一(?:块|起)|合(?:在|到)?一(?:起|块)|凑(?:在|到)?一(?:起|块)|合起来|合计|一共|总共|总和|之和|"
+    r"相加|再加上|总计|共计|加总|"
     r"合并(?!报表|利润表|资产负债表|现金流量表|口径|财务|范围)(?:起来|计算|在一起)?|统共|拢共|汇总|(?<=[润入收额值利])总额|"
     r"\bcombined\b|\bin total\b|\btogether\b|\bsum of\b|\badd(?:ed|s)? up\b|\bput together\b|"
     r"\btotal (?:of|for)\b|\bin aggregate\b|\baltogether\b|\ball told\b|\bcollectively\b|\bjointly\b|"
+    # (round 16, L17) "the total turnover of A and B"
+    r"\b(?:the |their )total (?:[a-z/-]+ ){1,2}of\b|"
     r"\bin all\b(?=\s*(?:[?？.,;]|$))|\bbetween (?:the )?(?:two|three|four) of them\b",
     re.IGNORECASE,
 )
@@ -623,6 +632,8 @@ _SUM = re.compile(
 # between them"; "the gap between them" is a gap), "add X to it", "what's the total"
 _SUM_WEAK = re.compile(
     r"(?<=[一-鿿A-Za-z）)])加(?![权息速大入仓码剧强快紧倍盟油班薪工减乘除上起一在到])(?=[一-鿿A-Za-z])|"
+    # (round 16, L17) "比亚迪加上长江电力的市值"
+    r"(?<=[一-鿿A-Za-z）)])加上(?=[一-鿿A-Za-z])|"
     r"\bplus\b|\bbetween (?:them|the two(?: of them)?|both of them)\b|"
     # (round 15, review-11 K4) "两家一起赚了多少", "三家一起有多少营收"
     r"(?<![同和与跟])一起(?!来|比较|对比|比|看|分析)|"
@@ -649,7 +660,10 @@ _JOINED = re.compile(
 _QUANTITY = re.compile(r"多少|几|\bhow (?:much|many|big)\b|\bwhat\b|\btotal\b|[?？]", re.IGNORECASE)
 # (round 14, review-10 J3) a share of a combined total: "A占两家合计的多少", "两者合计中A占几成", "A's revenue as a
 # percentage of A and B combined", "what share of their combined profit": A ÷ (A + B), never A ÷ B
-_TOTAL_WORDS_ZH = r"合计|总和|之和|加起来|加在一起|合起来|合在一起|总共|一共|共计|总计|总量|两(?:家|者|只|个)(?:之)?和"
+_TOTAL_WORDS_ZH = (
+    r"合计|总和|之和|加起来|加在一起|合起来|合在一起|总共|一共|共计|总计|总量|两(?:家|者|只|个)(?:之)?和|"
+    r"加总|相加|合并|凑在一起|凑一起"  # (round 16, L17)
+)
 _SHARE_TOTAL = re.compile(
     # (round 15, review-11 K4) "宁德占其中几成" after a total in the same message: a share of that total
     r"占(?:其中|其|里面|这里面|这当中|当中|总数|总量)(?:的)?\s*(?:大约|大概|约)?\s*(?:百分之(?:多少|几)|(?:几|多少)成|"
@@ -668,7 +682,25 @@ _SHARE_TOTAL = re.compile(
     r"(?:both|the two)(?: companies| firms| banks| stocks)?['’]? total)\b|"
     # "Of A and B's combined net profit, what percentage is A's?"
     r"\b(?:combined|joint)\b[^.?!]{0,60}?\b(?:what|how (?:big|large|much)(?: of)?)\s+(?:a\s+)?"
-    r"(?:share|percent(?:age)?|fraction|proportion|portion|part)\b",
+    r"(?:share|percent(?:age)?|fraction|proportion|portion|part)\b|"
+    # (round 16, L17) "合计营收里的份额", "合计市值中所占的比重", "加总，紫金矿业的占比",
+    # "合在一起，美的能占一半以上吗",
+    # "三家总市值中，招行占几成", "其中中信证券贡献了百分之几", "占…总和的百分比"
+    rf"(?:{_TOTAL_WORDS_ZH})[^，。？?；;]{{0,8}}?(?:里|中|之中|当中|里面)[^。？?；;]{{0,12}}?"
+    r"(?:份额|比重|占比|比例|分量|百分比|占(?:了)?(?:多少|几成|百分之|多大|一半))|"
+    rf"(?:{_TOTAL_WORDS_ZH})[^，。？?；;]{{0,6}}?[，,][^，。？?；;]{{0,12}}?(?:占|贡献|拿走|分得)(?:了)?(?:比)?"
+    r"[^，。？?；;]{0,6}?(?:多少|几成|百分之|多大|比例|比重|份额|一半|几)|"
+    r"(?:[两二三四五六几]家|[两二三四五六几]者|这几家|它们)(?:的)?[^，。？?；;]{0,6}?(?:中|里|之中|当中)[，,]?\s*"
+    r"[^，。？?；;]{0,8}?占(?:比)?[^，。？?；;]{0,4}?(?:多少|几成|百分之|多大|比例|比重|几)|"
+    r"(?:其中|里面|这里面|这当中|当中)[^，。？?；;]{0,8}?(?:贡献|拿走|分得)(?:了)?[^，。？?；;]{0,4}?"
+    r"(?:多少|几成|百分之|多大|比例|比重|份额|几)|"
+    rf"占[^，。？?；;]{{0,24}}?(?:{_TOTAL_WORDS_ZH})的?(?:百分比|百分数|比重|份额)|"
+    r"\bhow much of (?:the |their |that |this )?(?:combined|total|joint|pooled|sum)\b|"
+    r"\b(?:of )?(?:that|the|their|this) (?:total|sum)\b[^.?!]{0,20}?\bis\b[^.?!]{0,30}?['’]s\b|"
+    r"\b(?:combined|together|their total|the total|the sum|pool(?:ed)?)\b[^.?!]{0,40}?"
+    r"\b(?:what|how (?:big|large|much))\b[^.?!]{0,10}?"
+    r"\b(?:share|proportion|percent(?:age)?|portion|fraction|part|slice)\b|"
+    r"\bshare of the\b[^.?!]{0,50}?\b(?:pool|total|combined|plus)\b",
     re.IGNORECASE,
 )
 # a metric whose name starts with "total" is not a combined total ("total market cap", "CATL's total revenue")
@@ -684,7 +716,34 @@ _SHARE = re.compile(
     r"(?:百分之(?:多少|几)|(?:几|多少)成|(?:多少|几)(?:个)?(?:百分比|%)|多大比例|多少比例|几分之几|比重|比例|占比)|"
     r"\bwhat (?:percent(?:age)?|share|fraction|proportion|portion) of\b|"
     r"\b(?:is|are|was|were)\s+what\s+(?:percent(?:age)?|share|fraction|proportion)\s+of\b|"
-    r"\bas an? (?:percent(?:age)?|share|fraction|proportion) of\b|\bhow many percent of\b",
+    r"\bas an? (?:percent(?:age)?|share|fraction|proportion) of\b|\bhow many percent of\b|"
+    # (round 16, L17) "只有中国平安的多少，用百分比表示"
+    r"(?:只有|才|才到|相当于|是|占|为|等于|有)[^，。？?；;]{1,14}?的\s*(?:多少|几)[^。]{0,12}?(?:百分比|百分之|%)",
+    re.IGNORECASE,
+)
+# (round 16, L17) a share against a stated base: "拿A做分母，B能到多少百分比", "Taking A as 100%, where does B land?"
+_SHARE_BASE = re.compile(
+    r"(?:拿|以|把|用|将)[^，。？?；;]{1,16}?(?:做|作为|当作?|为|作)(?:分母|基数|基准|100%|百分之百|整体|一百)|"
+    r"\b(?:taking|take|treat(?:ing)?|using|with|setting|set)\b[^.?!]{1,40}?\bas (?:100\s?%|(?:100 percent|the base|"
+    r"the denominator|the baseline|a base)\b)",
+    re.IGNORECASE,
+)
+# (round 16, L17) a stated fraction asked as a share: "才到茅台的三分之一吗？具体是百分之多少", "Is A even half of B's?
+# Give me the percentage."
+_CLAIMED_FRACTION = re.compile(
+    r"的\s*(?:大约|大概|约|将近|接近)?\s*(?:一半|[一二两三四五六七八九十]分之[一二三四五六七八九])|"
+    r"\b(?:half|a third|one third|a quarter|one quarter|two thirds)\b",
+    re.IGNORECASE,
+)
+_PERCENT_ASKED = re.compile(r"百分比|百分之|占比|%|\bpercent(?:age)?\b", re.IGNORECASE)
+_QUANTITY_ASKED = re.compile(r"多少|几|\bhow (?:much|many|far)\b|\bby what\b", re.IGNORECASE)
+# (round 16, L17) a sentence that only asks the unit of the one before ("…才到茅台的三分之一吗？具体是百分之多少", "…?
+# Give me the percentage."): read with that sentence
+_UNIT_FOLLOW_UP = re.compile(
+    r"^\s*(?:具体|那|请|麻烦)?(?:是|用|以|按|给我|告诉我)?(?:百分之(?:多少|几)|百分比(?:表示|是多少|多少)?|"
+    r"占比(?:是)?多少|多少%|几成)\s*[。？?！!]?\s*$|"
+    r"^\s*(?:please\s+)?(?:give me|tell me|in|as|show)\s+(?:it\s+)?(?:the |a )?(?:as a )?percent(?:age)?"
+    r"(?: terms)?[.?!]?\s*$",
     re.IGNORECASE,
 )
 # (round 13, review-9 I4) the spread of several operands: "最高的比最低的高多少", "highest minus lowest", "the spread
@@ -693,7 +752,7 @@ _SHARE = re.compile(
 _SPREAD = re.compile(
     r"最(?:高|大|多|贵)[^，。？?,;；]{0,10}?(?:比|和|与|跟|减|减去|-|−)[^，。？?,;；]{0,6}?最(?:低|小|少|便宜)|"
     r"最(?:低|小|少|便宜)[^，。？?,;；]{0,10}?(?:比|和|与|跟)[^，。？?,;；]{0,6}?最(?:高|大|多|贵)|极差|"
-    r"\b(?:highest|largest|biggest|top)\b[^.?!]{0,30}?\b(?:minus|and|less|over|vs\.?|versus|to)\b[^.?!]{0,12}?"
+    r"\b(?:highest|largest|biggest|top)\b[^.?!]{0,30}?\b(?:minus|and|less|over|vs\.?|versus|to|from)\b[^.?!]{0,12}?"
     r"\b(?:lowest|smallest|bottom)\b|\b(?:lowest|smallest)\b[^.?!]{0,30}?\b(?:and|to|vs\.?)\b[^.?!]{0,12}?"
     r"\b(?:highest|largest|biggest)\b|\brange (?:between|from)\b|"
     r"\b(?:most|least) expensive\b[^.?!]{0,40}?\b(?:and|vs\.?|versus|to|minus|from)\b[^.?!]{0,20}?"
@@ -701,7 +760,15 @@ _SPREAD = re.compile(
     r"\bcheapest\b[^.?!]{0,40}?\b(?:and|vs\.?|versus|to|minus|from)\b[^.?!]{0,20}?"
     r"\b(?:most expensive|priciest|dearest)\b|"
     r"\b(?:most expensive|priciest|dearest)\b[^.?!]{0,40}?\b(?:and|vs\.?|versus|to|minus|from)\b[^.?!]{0,20}?"
-    r"\bcheapest\b",
+    r"\bcheapest\b|"
+    # (round 16, L17) "最好的和最差的", "最大差值", "高低差", "best and worst", "max minus min", "the top … from the
+    # bottom", "range of ROE across", "high-low spread"
+    r"最(?:好|强)[^，。？?,;；]{0,10}?(?:比|和|与|跟)[^，。？?,;；]{0,6}?最(?:差|弱)|"
+    r"最大(?:的)?(?:差值|差距|差额|落差)|高低(?:之)?差|高低相差|上下(?:之)?差|"
+    r"\b(?:best|strongest)\b[^.?!]{0,30}?\b(?:and|vs\.?|versus|to|minus)\b[^.?!]{0,12}?\b(?:worst|weakest)\b|"
+    r"\bmax(?:imum)?\b[^.?!]{0,12}?\b(?:minus|less|to)\b[^.?!]{0,12}?\bmin(?:imum)?\b|\bmax[- ]min\b|"
+    r"\btop\b[^.?!]{0,30}?\bfrom the bottom\b|\bhigh[- ]low\b|"
+    r"\brange\b[^.?!]{0,30}?\b(?:across|among|between|of)\b|\b(?:across|among)\b[^.?!]{0,60}?\brange\b",
     re.IGNORECASE,
 )
 # a spread of how "expensive" the operands are, with no metric named: P/E
@@ -710,9 +777,11 @@ _EXPENSIVE = re.compile(r"贵|便宜|\bexpensive\b|\bcheap(?:est|er)?\b|\bpric(?
 # 52 weeks")
 # are price details of one target, not the spread of several operands
 _OWN_EXTREMES = re.compile(
-    r"最(?:高|低)(?:价|点|位|收盘|成交)|(?:52|五十二)\s*周|近一年|一年来|今年以来|今天|当日|盘中|日内|"
+    r"最(?:高|低)(?:价|点|位|收盘|成交)|(?:52|五十二)\s*周|近一年|一年来|今年以来|"
+    # (round 16, L17) a session word next to the extremes ("今天最高和最低"), not "今天三家里涨得最多的和最少的"
+    r"(?:今天|当日|盘中|日内)[^，。？?；;]{0,4}?最(?:高|低)|盘中|日内|"
     r"\b(?:highest|lowest)\s+(?:close|closing|price|level|point|print)s?\b|\b52[- ]week\b|\bintraday\b|"
-    r"\b(?:today|this year|last year|past year|in the last)\b",
+    r"\btoday['’]?s? (?:high|low)\b|\b(?:this year|last year|past year|in the last)\b",
     re.IGNORECASE,
 )
 # (round 13, review-9 I6) how many shares of B one share of A buys: "一股茅台能换几股五粮液" (a ratio of the closes)
@@ -725,11 +794,14 @@ SUM_KINDS = frozenset({"money", "count"})  # a total of P/Es, prices or rates is
 # average P/E of A, B and C", "on average"; never an industry average (an operand), a weighted ROE, a moving or daily
 # average of one target, or an average cost (a holding)
 MEAN_SOURCE = (
-    r"(?<!行业)(?<!行业的)(?<!板块)(?<!板块的)(?<!同行)(?<!同业)(?<!市场)(?<!大盘)(?<!加权)(?<![日周月年天])"
+    r"(?<!行业)(?<!行业的)(?<!板块)(?<!板块的)(?<!同行)(?<!同业)(?<!市场)(?<!大盘)(?<!加权)"
+    # (round 16, L17) "日均" is a daily average of one target, "今天平均" is today's mean of several
+    r"(?<!(?<![今昨当前])[日周月年天])"
     r"平均(?!成本|价|持仓|买入|股价|线|日|摊薄|净资产收益率)(?:值|数|下来|水平|一下)?|均值|均数|"
     r"(?:加总|加起来|合计|总和|之和|相加|加在一起)[^。？?；;]{0,6}?(?:再|然后)?(?:除以|除)\s*(?:[二两三四五六七八九十]|\d+)|"
     r"(?<!industry )(?<!sector )(?<!peer )(?<!peers )(?<!weighted )(?<!moving )(?<!daily )"
-    r"\b(?:average|mean)\b(?!\s+(?:cost|price|purchase|entry|buy|daily|true range))|\bon average\b|"
+    r"\b(?:average|mean)\b(?!\s+(?:cost|price|purchase|entry|buy|true range|daily(?! (?:change|move|return)s?\b)))|"
+    r"\bon average\b|"
     r"\b(?:sum|total|add(?:ed)? (?:them |those )?up)\b[^.?!]{0,40}?\bdivide(?:d)? (?:it |that |the result )?by "
     r"(?:two|three|four|five|[2-5])\b"
 )
@@ -742,6 +814,10 @@ _VERSUS = re.compile(
     # (round 16, review-12 L1) "与C相比", "相较于C", "比起C", "和C对比", "同C比较一下"
     r"相比|相较|比起|对比(?!度)|比较(?=\s*(?:[，,。？?！!]|$|一下|起来|的话|哪|谁|下来))|"
     r"\brelative to\b|\bin comparison (?:with|to)\b|\bagainst\b|"
+    # (round 16, L17) "顶得上C吗", "有没有C的多", "与C的差", "short of C's", "outweigh C", "compare … with C"
+    r"顶得上|顶得住|赶得上|比得过|够得上|及得上|有没有[^，。？?；;]{1,12}?(?:多|高|大)|"
+    r"(?:与|跟|同)[^，。？?；;]{1,16}?(?:的)?(?:差距|差额|差值|差)(?!不多)|"
+    r"\bshort of\b|\bbehind\b|\bahead of\b|\boutweigh(?:s|ed)?\b|\bstack up\b|\bcompare\b[^.?!]{0,80}?\bwith\b|"
     r"(?:是|为|相当于)[^，。？?；;]{1,14}?的\s*(?:几|多少)倍|"
     r"\bthan\b|\babove\b|\bbelow\b|\bexceed(?:s|ed|ing)?\b|\b(?:out-?earn|outsell|outstrip|surpass|beat|top)(?:s|ed|ped|ping)?\b|"
     r"\bcompared (?:with|to)\b|\bversus\b|\bvs\.?(?=\s)",
@@ -801,6 +877,10 @@ _LEXICON: dict[str, Any] = {
     "OWN_EXTREMES": lambda text: _OWN_EXTREMES.search(text),
     "SHARE_OF_TOTAL": lambda text: _SHARE_TOTAL.search(text),
     "SHARE": lambda text: _SHARE.search(text),
+    "SHARE_BASE": lambda text: _SHARE_BASE.search(text),
+    "CLAIMED_FRACTION": lambda text: _CLAIMED_FRACTION.search(text),
+    "PERCENT_ASKED": lambda text: _PERCENT_ASKED.search(text),
+    "YES_NO": lambda text: _YES_NO.search(text.strip()),
     "CLAIMED_TENTHS": lambda text: _CLAIMED_TENTHS_ZH.search(text),
     "RATIO_WORD": lambda text: _RATIO_EXPLICIT.search(text),
     "SWAP": lambda text: _SWAP_SHARES.search(text),
@@ -820,6 +900,7 @@ _LEXICON: dict[str, Any] = {
     "WHICH": lambda text: _WHICH.search(text),
     "MEAN": lambda text: _MEAN.search(text),
     "VERSUS": lambda text: _VERSUS.search(text),
+    "QUANTITY_ASKED": lambda text: _QUANTITY_ASKED.search(text),
     "PLURAL": lambda text: _PLURAL.search(text) or _ANCHOR.search(text) or _JOINED.search(text),
 }
 GRAMMAR: tuple[Production, ...] = (
@@ -828,8 +909,13 @@ GRAMMAR: tuple[Production, ...] = (
     Production("mean", ("MEAN", "PLURAL")),
     # (round 15, review-11 K1) a total compared with another value (the operands decide the two sides)
     Production("total_vs_one", ("SUM_WORD", "VERSUS"), ("SHARE_OF_TOTAL",)),
+    # (round 16, L17) "A加B比C多吗", "Do A plus B make more than C alone?"
+    Production("total_vs_one", ("SUM_WEAK", "VERSUS", "JOINED"), ("SHARE_OF_TOTAL", "RATIO_WORD", "SHARE")),
     Production("share_total", ("SHARE_OF_TOTAL",)),
     Production("share", ("SHARE",)),
+    # (round 16, L17) a share against a stated base; a stated fraction asked in percent
+    Production("share", ("SHARE_BASE",), ("COMPARATIVE", "RELATIVE_WORD")),
+    Production("share", ("CLAIMED_FRACTION", "PERCENT_ASKED")),
     Production("share", ("CLAIMED_TENTHS",)),  # "是不是平安的三成以上": a share in 成, checked against the tenths
     Production("ratio", ("RATIO_WORD",)),
     Production("ratio", ("SWAP",)),
@@ -841,6 +927,8 @@ GRAMMAR: tuple[Production, ...] = (
     Production("sum", ("SUM_WORD", "JOINED")),
     Production("difference", ("DIFFERENCE",)),
     Production("which", ("WHICH",)),
+    # (round 16, L17) a yes / no comparison of two values: "A的PE比B高吗", "Is A's P/E higher than B's?"
+    Production("which", ("YES_NO", "COMPARATIVE", "VERSUS"), ("SUM_WORD", "SUM_WEAK", "QUANTITY_ASKED")),
     Production("sum", ("SUM_WEAK", "JOINED", "QUANTITY")),
     Production("sum", ("SUM_ADD_TO", "QUANTITY")),
     Production("sum", ("SUM_BARE",)),
@@ -906,10 +994,21 @@ def operation_tie_break(text: str, parsed: FrameParse | None = None) -> Any:
     return tie_break(text, list(parsed.matched), parsed.operation)
 
 
+def _clauses(text: str) -> list[str]:
+    """The sentences of a message; one that only asks the unit of the sentence before is joined to it."""
+    clauses: list[str] = []
+    for clause in (match.group(0).strip() for match in _CLAUSE.finditer(text)):
+        if clauses and _UNIT_FOLLOW_UP.match(clause):
+            clauses[-1] = f"{clauses[-1].rstrip('。？?！!；; ')}，{clause}"
+        elif clause:
+            clauses.append(clause)
+    return clauses
+
+
 def comparison_clause(text: str) -> str | None:
     """The clause of the question that asks a comparison (the whole question when it has one clause)."""
     text = (text or "").strip()
-    for clause in (match.group(0).strip() for match in _CLAUSE.finditer(text)):
+    for clause in _clauses(text):
         if clause and len(clause) <= _clause_cap(clause) and _operation_of(clause):
             return clause
     return None
@@ -1234,26 +1333,23 @@ def latest_frame(turns: list[dict[str, Any]]) -> dict[str, Any] | None:
 
 
 def _mention_position(text: str, entity: dict[str, Any], fallback: int) -> int:
-    """Where the question names an entity (its mention, canonical name or English name), for operand order."""
-    from .names import english_aliases, english_name, load_synonyms
-
+    """Where the question names an entity (its mention, canonical name, English name or a short name), for operand
+    order."""
     lowered = text.lower()
-    canonical = str(entity.get("canonical_name") or entity.get("name") or "")
-    names = [entity.get("mention"), canonical, english_name(canonical), *english_aliases(canonical)]
-    names += [alias for alias, name in (load_synonyms().get("alias") or {}).items() if name == canonical]
-    if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical) and canonical[2:] not in GENERIC_NAME_TAILS:
-        names.append(canonical[2:])  # 贵州茅台 → 茅台, 中国平安 → 平安
-    found = [lowered.find(str(name).lower()) for name in names if name]
+    found = [lowered.find(str(name).lower()) for name in _mention_names(entity) if name]
     found = [position for position in found if position >= 0]
     return min(found) if found else 10_000 + fallback
 
 
 def _mention_names(entity: dict[str, Any]) -> list[str]:
+    from .coverage import _chinese_short_names
     from .names import english_aliases, english_name, load_synonyms
 
     canonical = str(entity.get("canonical_name") or entity.get("name") or "")
     names = [entity.get("mention"), canonical, english_name(canonical), *english_aliases(canonical)]
     names += [alias for alias, name in (load_synonyms().get("alias") or {}).items() if name == canonical]
+    # (round 16) the short names of the alias tables too ("工行占比多少" names 工商银行)
+    names += list(_chinese_short_names().get(canonical, ()))
     if len(canonical) >= 4 and re.fullmatch(r"[一-鿿]+", canonical) and canonical[2:] not in GENERIC_NAME_TAILS:
         names.append(canonical[2:])  # 贵州茅台 → 茅台, 中国平安 → 平安 (not 招商银行 → 银行)
     return sorted({str(name) for name in names if name}, key=len, reverse=True)
