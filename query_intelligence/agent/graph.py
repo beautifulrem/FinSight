@@ -54,6 +54,7 @@ from .composer import (
     parse_answer,
 )
 from .coverage import (
+    a_share_stocks,
     asks_h_share,
     cost_basis_request,
     coverage_gaps,
@@ -819,18 +820,21 @@ class AgentRuntime:
             if uncovered:
                 text = f"{uncovered}{'' if zh else ' '}{text}"
             # (round 12) "它在港交所挂牌的那部分股票呢": the session's target the question refers to is named too
-            lookalikes = list(
-                dict.fromkeys(
-                    reason.split(":", 1)[1]
-                    for reason in state.get("route_reasons") or []
-                    if reason.startswith(("foreign_listing_lookalike:", "dropped_unnamed_target_out_of_coverage:"))
+            # (round 17) only A-share stocks: "腾讯控股今天港股收盘价" picks up 恒生指数, which has no "A shares"
+            lookalikes = a_share_stocks(
+                list(
+                    dict.fromkeys(
+                        reason.split(":", 1)[1]
+                        for reason in state.get("route_reasons") or []
+                        if reason.startswith(("foreign_listing_lookalike:", "dropped_unnamed_target_out_of_coverage:"))
+                    )
                 )
             )
             if lookalikes and asks_h_share(state["query"]):
                 # (round 11, G6) "中国平安H股": the H share is not covered and is never answered with the A-share price;
                 # (round 14, J7) the same for a GDR, an ADR and the A/H premium, each named in the note
                 names = "、".join(lookalikes) if zh else ", ".join(english_name(name) or name for name in lookalikes)
-                text += foreign_line_note(state["query"], names, zh=zh)
+                text += foreign_line_note(state["query"], names, zh=zh, companies=lookalikes)
         elif injection:
             text = (
                 "我不能按照这类指令改变设定或透露内部配置。如果有金融问题，请直接提问，例如「比亚迪的市盈率是多少？」。"
