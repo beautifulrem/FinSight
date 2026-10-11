@@ -278,6 +278,9 @@ def compose_template(
     costed = cost_basis_sentences(tool_log, query, zh) if query else []
     if costed:
         facts = [*costed, *facts]
+    booked = book_value_sentences(query, tool_log, zh) if query else []
+    if booked:
+        facts = [*booked, *(fact for fact in facts if fact not in booked)]
     dated, dated_gaps = dated_close_sentences(query, tool_log, zh) if query else ([], [])
     if dated:
         facts = [*dated, *(fact for fact in facts if fact not in dated)]
@@ -877,6 +880,16 @@ def _one_frame_sentences(
         if hit is not None and operand.get("kind") != "industry":
             operands.append((operand_name(operand, zh), hit[2]))
     note = basis_note(key, operands, zh)
+    left_out = [str(item.get("name") or item.get("symbol")) for item in request.get("excluded") or []]
+    if left_out:
+        # (round 17, review-13 M2) the targets the question excluded are named, so the reader sees the group used
+        if zh:
+            note = [f"按你的要求，以上计算不含{'、'.join(left_out)}。", *note]
+        else:
+            from .names import english_name
+
+            names = ", ".join(english_name(name) or name for name in left_out)
+            note = [f"As asked, {names} {'is' if len(left_out) == 1 else 'are'} left out of this calculation.", *note]
     return [*sentences, *(line for line in note if line not in sentences)], gaps
 
 
@@ -1785,6 +1798,40 @@ def dated_close_sentences(query: str, tool_log: list[dict[str, Any]], zh: bool) 
     return facts, gaps
 
 
+# (round 17, review-13 M8) a book-value question: "跌破净资产了吗", "破净了没有", "Is it below book value?"
+_BOOK_VALUE_ASKED = re.compile(
+    r"破净|(?:跌破|低于|不到|高于|超过|跌到|跌回)(?:了)?(?:每股)?净资产|净资产(?:以下|之下)|账面价值|"
+    r"\b(?:below|under|above|beneath)\s+(?:its\s+)?book(?: value)?\b|\bbook value\b",
+    re.IGNORECASE,
+)
+
+
+def book_value_sentences(query: str, tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
+    """(round 17, review-13 M8) A question whether a stock trades below its book value answered with the P/B: below 1
+    means the price is below book value per share (破净), at or above 1 it is not; the P/B is the cited figure."""
+    if not _BOOK_VALUE_ASKED.search(query or ""):
+        return []
+    sentences = []
+    for entry in tool_log:
+        data = entry.get("data") or {}
+        pb = (data.get("metrics") or {}).get("pb")
+        if entry.get("tool") != "get_fundamentals" or not entry.get("ok") or pb is None or not data.get("evidence_id"):
+            continue
+        name, eid, value = data.get("name") or data.get("symbol"), data["evidence_id"], float(pb)
+        if zh:
+            # no bare "1" in the sentence: a constant is not a figure the verifier can trace
+            verdict = "股价低于每股净资产，即通常所说的“破净”" if value < 1 else "股价不低于每股净资产，没有破净"
+            sentences.append(f"{name}市净率（PB）{_num(value)} 倍，{verdict} [{eid}]。")
+        else:
+            verdict = (
+                "so the share price is below book value per share (it trades below book)"
+                if value < 1
+                else "so the share price is not below book value per share"
+            )
+            sentences.append(f"{name}'s P/B is {_num(value)}x, {verdict} [{eid}].")
+    return sentences
+
+
 def cost_basis_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -> list[str]:
     """(round 14, review-10 J4) Gain or loss against the cost price the question states ("我300股成本90元，浮亏多
     少"): (close − cost) per share and in percent of the cost, times the shares when a count is stated, at the latest
@@ -1805,6 +1852,10 @@ def cost_basis_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -
     close, eid, name, as_of = float(data["close"]), data.get("evidence_id"), data.get("name"), data.get("as_of")
     if not eid:
         return []
+    if asked.get("sales"):
+        return _sale_sentences(asked, close, data, zh)
+    if asked.get("rise_to_cost"):
+        return _rise_to_cost_sentences(asked, close, data, zh)
     if asked.get("lots_detail"):
         return _lots_sentences(asked["lots_detail"], close, data, zh)
     cost = float(asked["cost"])
@@ -1843,6 +1894,285 @@ def cost_basis_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -
         "This is a paper gain or loss at the last close before fees, taxes and dividends, not a recommendation to sell "
         "or investment advice.",
     ]
+
+
+_PNL_DISCLAIMER_ZH = "这是按最近收盘价计算的账面盈亏，未含佣金、印花税等交易费用和分红，不是卖出建议或投资建议。"
+_PNL_DISCLAIMER_EN = (
+    "This is a paper gain or loss at the last close before fees, taxes and dividends, not a recommendation to sell or "
+    "investment advice."
+)
+
+
+def sale_numbers(asked: dict[str, Any], close: float) -> dict[str, Any]:
+    """(round 17, review-13 M1) The arithmetic of a position with stated sales: the average cost over the purchases,
+    each sale's realised gain (sold × (sale price − average cost); ``None`` without a sale price), the remaining
+    shares' paper gain at the close and the total of what can be computed."""
+    average = float(asked.get("average_cost") or asked["cost"])
+    sales = []
+    for sale in asked.get("sales") or []:
+        price = sale.get("price")
+        realised = round(int(sale["shares"]) * (float(price) - average), 2) if price is not None else None
+        sales.append({**sale, "realised": realised})
+    remaining = asked.get("shares") if not asked.get("oversold") else None
+    diff = round(close - average, 4)
+    unrealised = round(int(remaining) * round(diff, 2), 2) if remaining else None
+    parts = [sale["realised"] for sale in sales if sale["realised"] is not None]
+    if unrealised is not None:
+        parts.append(unrealised)
+    complete = all(sale["realised"] is not None for sale in sales) and (unrealised is not None or remaining == 0)
+    return {
+        "average": average,
+        "sales": sales,
+        "sold": sum(int(sale["shares"]) for sale in sales),
+        "remaining": remaining,
+        "diff": round(diff, 2),
+        "pct": round(diff / average * 100, 2) if average else 0.0,
+        "unrealised": unrealised,
+        "total": round(sum(parts), 2) if complete and len(parts) >= 2 else None,
+    }
+
+
+def _sale_sentences(asked: dict[str, Any], close: float, data: dict[str, Any], zh: bool) -> list[str]:
+    """(round 17, review-13 M1) A position with stated sales: the remaining shares valued at the close against the
+    average cost (unrealised) and each sale against the average cost (realised), never a sale read as a purchase.
+    The user's numbers are attributed to the user; the close is cited."""
+    eid, name, as_of = data.get("evidence_id"), data.get("name"), data.get("as_of")
+    found = sale_numbers(asked, close)
+    average, bought, remaining = found["average"], asked.get("bought"), found["remaining"]
+    avg_text = _num(round(average, 3))
+    several_buys = bool(asked.get("lots_detail"))
+    if zh:
+        head = (
+            f"按你给出的数字，{name}共买入 {bought} 股（{'平均' if several_buys else ''}成本 {avg_text} 元），"
+            f"卖出 {found['sold']} 股" + (f"，剩余 {remaining} 股" if remaining is not None else "")
+            if bought is not None
+            else f"按你给出的成本 {avg_text} 元，{name}卖出 {found['sold']} 股"
+            "（你没有给出买入的总股数，剩余持仓无法计算）"
+        )
+        clauses = [head]
+        for sale in found["sales"]:
+            if sale["realised"] is None:
+                clauses.append(f"卖出的 {sale['shares']} 股你没有给出卖出价格，已实现盈亏无法计算")
+            else:
+                word = "已实现盈利" if sale["realised"] >= 0 else "已实现亏损"
+                clauses.append(
+                    f"卖出的 {sale['shares']} 股按卖出价 {_num(sale['price'])} 元对平均成本计算，{word} "
+                    f"{sale['shares']} × ({_num(sale['price'])} − {avg_text}) = {_num(sale['realised'])} 元"
+                )
+        if asked.get("oversold"):
+            clauses.append(f"卖出的股数（{found['sold']}）多于买入的股数（{bought}），无法计算剩余持仓的盈亏")
+        elif remaining:
+            factor = f"(−{_num(abs(found['diff']))})" if found["diff"] < 0 else _num(found["diff"])
+            word = "浮盈" if found["diff"] >= 0 else "浮亏"
+            clauses.append(
+                f"剩余 {remaining} 股按 {as_of} 收盘价 {_px(close, data, zh)}计算，"
+                f"每股{word} {_num(close)} − {avg_text} = "
+                f"{_num(found['diff'])} 元（{_num(found['pct'])}%），合计 {remaining} × {factor} = "
+                f"{_num(found['unrealised'])} 元"
+            )
+        elif remaining == 0:
+            clauses.append("已全部卖出，没有剩余持仓")
+        if found["total"] is not None:
+            clauses.append(f"已实现与未实现两部分合计 {_num(found['total'])} 元")
+        return ["；".join(clauses) + f" [{eid}]。", _PNL_DISCLAIMER_ZH]
+    head = (
+        f"From your stated figures, {name}: {bought} shares bought ({'average ' if several_buys else ''}cost CNY "
+        f"{avg_text}), {found['sold']} sold" + (f", {remaining} remaining" if remaining is not None else "")
+        if bought is not None
+        else f"From your stated cost of CNY {avg_text}, {name}: {found['sold']} shares sold (the number bought is not "
+        "stated, so the remaining position cannot be computed)"
+    )
+    clauses = [head]
+    for sale in found["sales"]:
+        if sale["realised"] is None:
+            clauses.append(f"no sale price is given for the {sale['shares']} shares sold, so their realised result "
+                           "cannot be computed")  # fmt: skip
+        else:
+            word = "realised gain" if sale["realised"] >= 0 else "realised loss"
+            clauses.append(
+                f"the {sale['shares']} shares sold at CNY {_num(sale['price'])} against the average cost: a {word} of "
+                f"{sale['shares']} × ({_num(sale['price'])} − {avg_text}) = CNY {_num(sale['realised'])}"
+            )
+    if asked.get("oversold"):
+        clauses.append(f"more shares are sold ({found['sold']}) than bought ({bought}), so the remaining position "
+                       "cannot be valued")  # fmt: skip
+    elif remaining:
+        factor = f"(−{_num(abs(found['diff']))})" if found["diff"] < 0 else _num(found["diff"])
+        word = "gain" if found["diff"] >= 0 else "loss"
+        clauses.append(
+            f"the remaining {remaining} shares at the {as_of} close of {_px(close, data, zh)}: a paper {word} of "
+            f"{_num(close)} − {avg_text} = CNY {_num(found['diff'])} per share ({_num(found['pct'])}%), "
+            f"or {remaining} × "
+            f"{factor} = CNY {_num(found['unrealised'])}"
+        )
+    elif remaining == 0:
+        clauses.append("the whole position is sold, nothing remains")
+    if found["total"] is not None:
+        clauses.append(f"realised and unrealised together CNY {_num(found['total'])}")
+    return ["; ".join(clauses) + f" [{eid}].", _PNL_DISCLAIMER_EN]
+
+
+def _rise_to_cost_sentences(asked: dict[str, Any], close: float, data: dict[str, Any], zh: bool) -> list[str]:
+    """(round 17, review-13 M5) The rise needed from the latest close back to a stated cost: (cost − close) ÷ close,
+    in percent of the close (not the loss in percent of the cost), with the yuan gap; a close at or above the cost
+    needs no rise."""
+    eid, name, as_of = data.get("evidence_id"), data.get("name"), data.get("as_of")
+    cost = float(asked.get("average_cost") or asked["cost"])
+    gap = round(cost - close, 3)
+    if zh:
+        if gap <= 0:
+            return [
+                f"按 {as_of} 收盘价 {_px(close, data, zh)}，{name}已不低于你给出的成本价 {_num(cost)} 元"
+                f"（高出 {_num(close)} − {_num(cost)} = {_num(round(close - cost, 3))} 元），"
+                f"不需要上涨即可回本 [{eid}]。",
+                _PNL_DISCLAIMER_ZH,
+            ]
+        pct = _num(round(gap / close * 100, 2))
+        return [
+            f"按 {as_of} 收盘价 {_px(close, data, zh)}，{name}要回到你给出的成本价 {_num(cost)} 元，"
+            f"需上涨 {_num(cost)} − "
+            f"{_num(close)} = {_num(gap)} 元，即 ({_num(cost)} − {_num(close)}) ÷ {_num(close)} ≈ {pct}% [{eid}]。",
+            "回本所需涨幅按最新收盘价计算，未含交易费用；这不是对股价能否回到该价位的预测，也不是投资建议。",
+        ]
+    if gap <= 0:
+        return [
+            f"At the {as_of} close of {_px(close, data, zh)}, {name} is already at or above your stated cost of CNY "
+            f"{_num(cost)} ({_num(close)} − {_num(cost)} = CNY {_num(round(close - cost, 3))} above it), so no rise is "
+            f"needed to break even [{eid}].",
+            _PNL_DISCLAIMER_EN,
+        ]
+    pct = _num(round(gap / close * 100, 2))
+    return [
+        f"From the {as_of} close of {_px(close, data, zh)}, {name} would need to rise {_num(cost)} − {_num(close)} = "
+        f"CNY {_num(gap)}, or ({_num(cost)} − {_num(close)}) ÷ {_num(close)} ≈ {pct}%, to get back to your stated "
+        f"cost of CNY {_num(cost)} [{eid}].",
+        "The rise is measured from the latest close before fees; it is not a forecast that the price will get there, "
+        "nor investment advice.",
+    ]
+
+
+_OPERATION_LABELS = {
+    "sum": ("合计", "total"),
+    "mean": ("平均值", "mean"),
+    "difference": ("差值", "difference"),
+    "ratio": ("倍数", "ratio"),
+    "relative": ("相对差幅", "relative difference"),
+    "share": ("占比", "share"),
+    "share_total": ("占合计的比例", "share of the total"),
+    "spread": ("最高与最低之差", "spread"),
+    "total_vs_one": ("合计与另一方的差", "total against the other side"),
+}
+
+
+def asked_result(
+    query: str, tool_log: list[dict[str, Any]], frame_request: dict[str, Any] | None, zh: bool
+) -> dict[str, Any] | None:
+    """(round 17, review-13 M4) The operation the question asks and the value(s) the deterministic arithmetic
+    computes for it: ``{"label", "values"}`` (``values`` may be empty when the operands are missing), else ``None``.
+    A failed LLM draft is answered with this operation's result or with "could not verify <label>", never with a
+    template answering another operation."""
+    from .coverage import cost_basis_request, requested_price_fields
+    from .frame import metric_label
+
+    request = frame_request or {}
+    if request.get("operation") in _OPERATION_LABELS:
+        zh_label, en_label = _OPERATION_LABELS[str(request["operation"])]
+        metric = metric_label(str(request.get("metric") or ""), zh) if request.get("metric") else ""
+        label = f"{metric}{zh_label}" if zh else f"{metric} {en_label}".strip()
+        result = frame_result(request, tool_log)
+        return {"label": label, "values": [result] if result is not None else []}
+    asked = cost_basis_request(query or "")
+    closes = [
+        float((entry.get("data") or {})["close"])
+        for entry in tool_log
+        if entry.get("tool") == "get_price_history" and entry.get("ok") and (entry.get("data") or {}).get("close")
+    ]
+    close = closes[0] if len(set(closes)) == 1 else None
+    if asked is not None:
+        cost = float(asked.get("average_cost") or asked["cost"])
+        if asked.get("sales"):
+            found = sale_numbers(asked, close) if close is not None else {}
+            values = [found.get("unrealised"), *(sale.get("realised") for sale in found.get("sales") or [])]
+            label = "卖出后剩余持仓与已卖出部分的盈亏" if zh else "P&L on the remaining and the sold shares"
+        elif asked.get("rise_to_cost"):
+            values = [round((cost - close) / close * 100, 2)] if close else []
+            label = "回到成本价所需的涨幅" if zh else "rise needed to get back to the cost"
+        else:
+            shares = asked.get("shares")
+            values = [round(int(shares) * round(close - cost, 2), 2)] if close is not None and shares else []
+            if close is not None and not shares:
+                values = [round(close - cost, 2), round((close - cost) / cost * 100, 2)]
+            label = "按成本价计算的盈亏" if zh else "gain or loss against the stated cost"
+        return {"label": label, "values": [float(v) for v in values if v is not None]}
+    wanted = requested_price_fields(query or "")
+    if wanted.back_to_high_52w:
+        values = []
+        for entry in tool_log:
+            data = entry.get("data") or {}
+            high = (data.get("range_52w") or {}).get("high")
+            if entry.get("tool") == "get_price_history" and entry.get("ok") and high and data.get("close"):
+                values.append(round((float(high) - float(data["close"])) / float(data["close"]) * 100, 2))
+        return {"label": "回到52周最高收盘价所需的涨幅" if zh else "rise needed to get back to the 52-week high",
+                "values": values}  # fmt: skip
+    return None
+
+
+def could_not_verify_note(label: str, zh: bool) -> str:
+    """(round 17, review-13 M4) The sentence a failed draft opens with when neither its repair nor the template
+    states the asked result."""
+    if zh:
+        return f"未能核实所问的{label}：模型回答中的相关数字无法由本次证据核实，因此不给出该结果。"
+    return (
+        f"Could not verify the {label} asked for: the figures in the model's answer cannot be traced to this run's "
+        "evidence, so no result is given."
+    )
+
+
+def cost_basis_values(query: str, tool_log: list[dict[str, Any]]) -> list[float]:
+    """(round 17, review-13 M4) Every number the cost-basis arithmetic computes for this question from this run's
+    close (the user's counts and costs, the per-share and percent gain, each lot's and the total gain, the realised and
+    unrealised parts after a sale, the rise needed back to the cost), so the verifier never deletes a correct one."""
+    from .coverage import cost_basis_request
+
+    asked = cost_basis_request(query or "")
+    if asked is None:
+        return []
+    closes = {
+        str((entry.get("data") or {}).get("symbol")): float((entry.get("data") or {})["close"])
+        for entry in tool_log
+        if entry.get("tool") == "get_price_history" and entry.get("ok") and (entry.get("data") or {}).get("close")
+    }
+    if len(closes) != 1:
+        return []
+    close = next(iter(closes.values()))
+    cost = float(asked.get("average_cost") or asked["cost"])
+    values: list[float] = [cost, round(cost, 3), round(close - cost, 2), round((close - cost) / cost * 100, 2)]
+    for key in ("shares", "bought", "lots"):
+        if asked.get(key):
+            values.append(float(asked[key]))
+    if asked.get("shares"):
+        values.append(round(int(asked["shares"]) * round(close - cost, 2), 2))
+    for lot in asked.get("lots_detail") or []:
+        values += [
+            float(lot["shares"]),
+            float(lot["cost"]),
+            round(int(lot["shares"]) * (close - float(lot["cost"])), 2),
+        ]
+    if asked.get("lots_detail"):
+        paid = sum(int(lot["shares"]) * float(lot["cost"]) for lot in asked["lots_detail"])
+        held = sum(int(lot["shares"]) for lot in asked["lots_detail"])
+        gain = round(sum(int(lot["shares"]) * (close - float(lot["cost"])) for lot in asked["lots_detail"]), 2)
+        values += [float(held), gain, round(paid / held, 3), round(gain / paid * 100, 2) if paid else 0.0]
+    if asked.get("sales"):
+        found = sale_numbers(asked, close)
+        values += [float(found["sold"]), found["diff"], found["pct"]]
+        values += [float(v) for v in (found["remaining"], found["unrealised"], found["total"]) if v is not None]
+        for sale in found["sales"]:
+            values += [float(sale["shares"])]
+            values += [float(v) for v in (sale.get("price"), sale.get("realised")) if v is not None]
+    if asked.get("rise_to_cost") and close:
+        values += [round(cost - close, 3), round(abs(cost - close) / close * 100, 2), round(close - cost, 3)]
+    return [value for value in dict.fromkeys(values) if value]
 
 
 def _lots_sentences(lots: list[dict[str, Any]], close: float, data: dict[str, Any], zh: bool) -> list[str]:

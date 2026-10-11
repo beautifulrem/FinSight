@@ -760,8 +760,10 @@ _CUE_BEFORE = re.compile(
     re.IGNORECASE,
 )
 _CUE_AFTER = re.compile(
-    r"^\s*(?:ratio\s*)?(?:到底|究竟|应该|应当|又该|该|要)?\s*(?:是什么|是啥|什么意思|啥意思|指什么|指的是|是指|的含义|的定义|的意思|的概念|含义|"
-    r"定义|怎么算|如何计算|怎么计算|的计算公式|计算公式|怎么理解|如何理解|是怎么算的|是如何计算的|"
+    # (round 17, review-13 M7) an adverb before the cue: "毛利率一般是怎么算出来的", "市净率通常怎么计算"
+    r"^\s*(?:ratio\s*)?(?:一般来说|通常来说|一般|通常|平时|大致|大概|具体|到底|究竟|应该|应当|又该|该|要)?\s*(?:都)?(?:是)?\s*"
+    r"(?:是什么|是啥|什么意思|啥意思|指什么|指的是|是指|的含义|的定义|的意思|的概念|含义|"
+    r"定义|怎么算|如何计算|怎么计算|如何算|的计算公式|计算公式|怎么理解|如何理解|是怎么算的|是如何计算的|"
     r"(?:有|又有)?(?:什么|啥)(?:区别|差别|不同)|"
     r"(?:和|与|跟|vs\.?|对比)\s*.{1,16}?(?:有什么|有啥|的|之间的)?\s*(?:区别|差别|不同|差异|差在哪|有何不同)|"
     r"\bmeans?\b|\bstands? for\b|\b(?:is|are)\s+(?:calculated|defined|computed|measured)\b|"
@@ -782,7 +784,7 @@ def _cue_next_to(lowered: str, form: str) -> bool:
 # (round 15, K12) a question about what a figure's label means, or how two labels differ
 _DEFINITION_CUE = re.compile(
     r"是什么|什么是|是啥|什么意思|啥意思|什么叫|何为|何谓|指的是|指什么|是指|含义|定义|概念|区别|差别|差异|不同|差在哪|"
-    r"怎么理解|如何理解|怎么算|如何计算|计算公式|口径|"
+    r"怎么理解|如何理解|怎么算|如何计算|如何算|怎么计算|计算公式|口径|"
     r"\bwhat (?:is|are|does)\b|\bmean(?:s|ing)?\b|\bdifference\b|\bdiffer\b|\bdefin(?:e|ed|ition)\b|\bexplain\b|"
     r"\bhow is\b.{0,40}\bcalculated\b",
     re.IGNORECASE,

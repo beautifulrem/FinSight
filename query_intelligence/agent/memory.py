@@ -381,6 +381,7 @@ _ASPECT_WORDS_ZH = (
     "收盘价", "收盘", "股价", "走势", "最高价", "最高", "最低价", "最低", "开盘价", "开盘", "成交量",
     "成交金额", "成交额", "涨跌幅", "涨跌", "估值", "公告", "新闻", "分红", "业绩", "财报", "舆情", "均线",
     "波动率", "最大回撤", "回撤", "52周", "换手率",
+    "每股净资产", "净资产", "破净", "账面价值",  # (round 17, review-13 M8) book value is an aspect of its own
 )  # fmt: skip
 _ASPECT = re.compile(
     "|".join(re.escape(word) for word in sorted(_ASPECT_WORDS_ZH, key=len, reverse=True)) + "|"
@@ -586,6 +587,97 @@ def _added_holding(
             f"{'units' if unit_new == '份' else 'shares'} of {new_en}: what are they worth in total?"
         )
     return rewritten, f"holding_added:{held[0]}->{old_name}+{new[0]}->{new_name}"
+
+
+# (round 17, review-13 M6) a bare total of the positions stated in earlier turns: "一共多少？", "这些现在一共值多少钱",
+# "它们加起来值多少", "What are they worth altogether?", "Total value of all that?"
+_LEDGER_TOTAL = re.compile(
+    r"(?:一共|总共|合计|加起来|合起来|加在一起|放一起|总计|共计|统共|拢共|全部|总的)[^。？?！!；;]{0,8}?(?:值|价值|市值|多少钱|多少|几)|"
+    r"(?:这些|它们|这几只|这两只|这三只|我的持仓|全部持仓|持仓)[^。？?！!；;]{0,8}?(?:值|价值|市值)[^。？?！!；;]{0,4}?(?:多少|几)|"
+    r"\b(?:worth|value)\b[^.?!]{0,30}?\b(?:in total|altogether|combined|all together|together|total)\b|"
+    r"\b(?:total|combined|overall)\b[^.?!]{0,20}?\b(?:worth|value)\b|"
+    r"\bhow much\b[^.?!]{0,30}?\b(?:altogether|in total|all together|combined)\b|"
+    r"\b(?:they|those|these|them|my (?:holdings|positions|shares))\b[^.?!]{0,20}?\bworth\b",
+    re.IGNORECASE,
+)
+_HYPOTHETICAL_HOLDING = re.compile(r"如果|要是|假如|假设|若是|\bif\b|\bsuppose\b|\bwhat if\b", re.IGNORECASE)
+
+
+def _stated_positions(turn: dict[str, Any]) -> list[tuple[dict[str, Any], int]]:
+    """``(target, shares)`` for each position a turn states as held ("我有招行1000股", "另外工行也有500股", "我持有200
+    股茅台和3手五粮液"); empty for a hypothetical or a purchase-cost question."""
+    from .coverage import _HOLDING_COUNT, bind_positions, count_value, holding_purchase, name_forms
+
+    text = _effective(turn)
+    targets = [entity for entity in turn.get("entities") or [] if entity.get("symbol")]
+    if not text or not targets or _HYPOTHETICAL_HOLDING.search(text) or holding_purchase(text):
+        return []
+    positions = []
+    for match in _HOLDING_COUNT.finditer(text):
+        count = count_value(match.group("n") or match.group("n2") or "")
+        if match.group("unit") == "手":
+            count *= 100
+        if count > 1:
+            positions.append({"shares": count, "start": match.start(), "end": match.end()})
+    if not positions:
+        return []
+    if len(targets) == 1 and len(positions) == 1:
+        return [(targets[0], positions[0]["shares"])]
+    candidates = {
+        str(t["symbol"]): name_forms(str(t.get("name") or t.get("canonical_name") or ""), str(t.get("mention") or ""))
+        for t in targets
+    }
+    bound = bind_positions(text, positions, candidates)
+    if any(key is None for key in bound) or len(set(bound)) != len(bound):
+        return []
+    by_symbol = {str(t["symbol"]): t for t in targets}
+    return [(by_symbol[str(key)], position["shares"]) for key, position in zip(bound, positions, strict=True)]
+
+
+def resolve_ledger_total(
+    query: str, turns: list[dict[str, Any]], current_targets: list[dict[str, Any]]
+) -> tuple[str, str] | None:
+    """(round 17, review-13 M6) Positions stated in earlier turns without a question ("记一下：我有招行1000股" → "另外
+    工行也有500股"), then a bare total question ("一共多少？", "这些现在一共值多少钱", "What are they worth
+    altogether?"):
+    the holdings' value at the latest close, never a fair-value question. The positions are those of the consecutive
+    turns that state one, latest first (a later statement of the same target replaces the earlier count); two or more
+    targets are needed. ``(rewritten, reason)`` or ``None``."""
+    from .coverage import holding_value_request, stated_holding_count
+
+    text = strip_filler(query).strip()
+    if not turns or not text or not _LEDGER_TOTAL.search(text) or not _is_short(text):
+        return None
+    if stated_holding_count(text) is not None or holding_value_request(text) is not None:
+        return None  # the question states its own count: the holding paths read it
+    if metric_of(text) not in (None, "close", "market_cap"):
+        return None
+    ledger: dict[str, tuple[dict[str, Any], int]] = {}
+    for turn in reversed(turns[-MAX_CONTEXT_TURNS:]):
+        stated = _stated_positions(turn)
+        if not stated:
+            break
+        for target, shares in stated:
+            ledger.setdefault(str(target["symbol"]), (target, shares))
+    if len(ledger) < 2:
+        return None
+    if current_targets and not {str(t.get("symbol")) for t in current_targets} <= set(ledger):
+        return None  # a new target named: not a total of the stated positions
+    zh = bool(re.search(r"[一-鿿]", text))
+    held = list(reversed(list(ledger.values())))
+    names = [str(target.get("name") or target.get("canonical_name") or target["symbol"]) for target, _ in held]
+    if zh:
+        listed = "和".join(f"{shares}股{name}" for (_target, shares), name in zip(held, names, strict=True))
+        rewritten = f"我持有{listed}，按最新收盘价合计市值多少"
+    else:
+        from .names import english_name
+
+        listed = " and ".join(
+            f"{shares} shares of {english_name(name) or name}" for (_t, shares), name in zip(held, names, strict=True)
+        )
+        rewritten = f"I hold {listed}: what are they worth in total at the latest close?"
+    reason = "holding_ledger:" + "+".join(f"{shares}->{name}" for (_t, shares), name in zip(held, names, strict=True))
+    return rewritten, reason
 
 
 _HOLDING_SWITCH = re.compile(r"换成|改成|换作|如果是|要是|假如|若是|\binstead\b|\bif\b", re.IGNORECASE)
