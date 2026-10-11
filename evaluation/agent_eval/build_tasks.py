@@ -472,12 +472,19 @@ def build_tasks() -> list[dict[str, Any]]:
         ("五粮液最近有哪些消息面利好或利空？", ["search_news"], "zh"),
         ("中国平安最新公告说了什么", ["search_announcements"], "zh"),
         ("ETF的申购赎回规则是什么？", ["search_knowledge"], "zh"),
-        ("什么是市盈率TTM？", ["search_knowledge"], "zh"),
+        # (round 16, review 12 L11) 市盈率 is a glossary entry: the curated definition answers it, research notes stay
+        # acceptable
+        ("什么是市盈率TTM？", ["explain_concept", "search_knowledge"], "zh"),
         ("What is the recent news sentiment around Kweichow Moutai?", ["analyze_sentiment"], "en"),
         ("Any recent news about Wuliangye?", ["search_news"], "en"),
     ]
     for index, (query, tools, language) in enumerate(documents):
         tasks.append(_task(f"documents_{language}_{index}", "documents", language, [_turn(query, any_of_tools=tools)]))
+        if "explain_concept" in tools:
+            tasks[-1]["relabelled"] = (
+                "round 16 (review 12 L11): 市盈率 is a glossary entry; the curated definition (explain_concept) "
+                "answers it, the research-note search stays acceptable"
+            )
 
     # H. multi-turn follow-ups ----------------------------------------------
     follow_ups = [
