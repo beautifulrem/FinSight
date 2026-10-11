@@ -920,11 +920,21 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
     claim = _AMPERSAND.sub(" and ", to_simplified(claim))
     # (round 14) the NLU reads "两个半招行" as 两个 / 半招 / 行; the company is a word of "相当于2.5倍招行"
     nlu = service.analyze_query(_n_of_another(claim))
-    targets: list[dict[str, Any]] = []
+    # (round 16, review 12 L9) everyday short names ("紫金", "宁德", "平银"): written out before the NLU reads the
+    # claim; an ambiguous one ("长电": 长江电力 or 长电科技) is its own target that no data belongs to
+    expanded, ambiguous = _expand_short_names(claim, nlu.get("entities") or [])
+    if expanded != claim:
+        claim = expanded
+        nlu = service.analyze_query(_n_of_another(claim))
+    targets: list[dict[str, Any]] = list(ambiguous)
     for entity in nlu.get("entities") or []:
         listed = entity.get("symbol") and entity.get("entity_type") in {"stock", "etf", "fund", "index"}
         if listed and _vocabulary_mention(claim, str(entity.get("mention") or "")):
             continue  # "行业均值": "均值" is also an alias of an unrelated listed company (round 9, E9)
+        if listed and entity.get("match_type") == "alias_fuzzy" and len(str(entity.get("mention") or "")) <= 2:
+            continue  # (round 16, L9) a two-character fuzzy match ("长电" -> 长江投资) names no company reliably
+        if listed and any(_covers(str(entity.get("mention") or ""), item["_mentions"][0]) for item in ambiguous):
+            continue
         if listed and all(target["key"] != entity["symbol"] for target in targets):
             targets.append(
                 {
@@ -1009,6 +1019,61 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
 # ---------------------------------------------------------------------------------------------------------
 # Reading the claim
 # ---------------------------------------------------------------------------------------------------------
+@dataclass(frozen=True)
+class ShortName:
+    """(round 16, review 12 L9) An everyday short name of a company in the data ("紫金" for 紫金矿业). ``others``
+    are the listed stocks whose names also start with it: written in full they are those stocks ("紫金银行"), and the
+    test ``test_the_short_name_table_names_every_listed_stock_it_could_mean`` keeps the list complete against the
+    entity master. ``company`` is ``None`` for an ambiguous short name ("长电" is 长电科技's own short name and a
+    common one for 长江电力): a figure about it is checked against neither."""
+
+    company: str | None
+    others: tuple[str, ...] = ()
+    not_before: str = ""  # continuations that make the word something else ("宁德市", "宁德港": the city)
+    alternatives: tuple[str, ...] = ()  # for an ambiguous short name: the companies it may mean
+
+
+SHORT_NAMES: dict[str, ShortName] = {
+    "紫金": ShortName("紫金矿业", others=("紫金银行",)),
+    "宁德": ShortName("宁德时代", not_before="市|地区|港|核电|师范|人|籍"),
+    "平银": ShortName("平安银行"),
+    "长电": ShortName(None, others=("长电科技",), alternatives=("长江电力", "长电科技")),
+}
+
+
+def _covers(mention: str, short: str) -> bool:
+    return bool(mention) and short in mention and mention != short
+
+
+def _expand_short_names(claim: str, entities: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
+    """Write out the everyday short names in ``claim`` ("紫金净利润" -> "紫金矿业净利润"); a short name inside a longer
+    name the NLU found ("紫金银行", "华泰紫金天天金…") or written out in full is left as it is. Returns the claim and a
+    target for each ambiguous short name (no symbol: a number bound to it is ``no_target`` with a note)."""
+    mentions = [str(entity.get("mention") or entity.get("canonical_name") or "") for entity in entities]
+    ambiguous: list[dict[str, Any]] = []
+    for short, entry in SHORT_NAMES.items():
+        rests = [name[len(short) :] for name in (entry.company or "", *entry.others) if name.startswith(short)]
+        rests = [rest for rest in rests if rest] + ([entry.not_before] if entry.not_before else [])
+        ahead = f"(?!{'|'.join(rests)})" if rests else ""
+        pattern = re.compile(rf"{re.escape(short)}{ahead}")
+        spans = [
+            (claim.find(mention), claim.find(mention) + len(mention))
+            for mention in mentions
+            if _covers(mention, short) and claim.find(mention) >= 0
+        ]
+        hits = [match for match in pattern.finditer(claim) if not any(a <= match.start() < b for a, b in spans)]
+        if not hits:
+            continue
+        if entry.company is None:
+            note = f"'{short}' may be {' or '.join(entry.alternatives)}; name the company in full to check it"
+            ambiguous.append({"name": short, "symbol": None, "key": f"ambiguous:{short}", "ambiguous": note,
+                              "_mentions": [short]})  # fmt: skip
+            continue
+        for match in reversed(hits):
+            claim = f"{claim[: match.start()]}{entry.company}{claim[match.end() :]}"
+    return claim, ambiguous
+
+
 def _vocabulary_mention(claim: str, mention: str) -> bool:
     """The NLU matched a listed company on a word of the claim's own vocabulary: every occurrence of the mention
     lies inside an industry or market reference ("行业均值", "所属行业的平均水平") or a metric word. The alias table
@@ -1682,6 +1747,10 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
             number.reasons.append(("no_data", note))
         if number.target is None and not number.reasons:
             number.reasons.append(("no_target", "no listed company, fund or index"))
+        for subject in _subjects(number):
+            if subject.get("ambiguous") and not any(reason == "no_target" for reason, _note in number.reasons):
+                # (round 16, L9) "长电营收862亿元": an ambiguous short name, never checked against either company
+                number.reasons.insert(0, ("no_target", str(subject["ambiguous"])))
     return _Reading(numbers, text, plain, positions)
 
 
