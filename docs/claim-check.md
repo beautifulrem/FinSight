@@ -561,6 +561,36 @@ third set labels it contradicted); a date that only the article gives is not kno
 supported); fund names whose codes collide with stock codes are still aliases of the stock in the runtime table (1,038
 rows, e.g. 华夏成长混合 → 平安银行).
 
+### Round 16: parts without a number, growth-rate comparisons, book value, short names (after the round-12 review, L4-L6, L9)
+
+The round-12 review found false `supported` verdicts when a true number sat next to a false clause without a number
+(L4: the clause was listed as unchecked and ignored by the verdict), a growth-rate comparison checked on the levels
+(L5), direction-only, book-value and "增长X%至Y亿元" claims left unverifiable (L6), and short names with no target (L9).
+Failing tests were written first in the engineer's own wording (`tests/test_agent_round16_claims.py`, 75 of the first 85
+cases failing at `c39008b`, 113 cases now, among them 36 claims with a true number next to a false clause, none of which
+may be `supported`; none is a review sentence). Code: `_clause_parts` / `_resolve_parts` in `claim_check.py`.
+
+| Form | Example (own wording) | Reading |
+| --- | --- | --- |
+| A direction of a reported figure | "平安银行2025年净利润同比下降", "BYD's net profit declined year on year", "中芯国际净利润没有同比下降" | a part of its own: the growth of the figure against 0 (`netprofit_yoy` < 0; negated ≥ 0), noted "a change without a number". Before: unchecked, so the claim was unverifiable or carried by its other numbers |
+| The previous clause's figure, elided | "比亚迪营收增长3.5%，宁德时代则有所下降", "Zijin Mining's net profit jumped 62%, and Moutai's increased too", "宁德时代2025年净利润722亿元，较上年下降" | the clause with no metric word takes the previous part's figure (a level gives its growth) and its own company (else the previous one). A price word (跌 / rose) is carried only with 也 / 则 / 同样 / too / a possessive with no noun / a year-on-year phrase; a clause naming another quantity ("产能利用率持续提升", "海外销量大幅增长", "赚钱效率在大幅提升") is not carried |
+| A possessive with no noun before a move | "Midea's net profit rose 15% while CATL's rose about 42%" | the 42% is CATL's net profit growth, never its day's price move; "while", "whereas", 而 and 且 end a clause |
+| A left-out predicate | "招商银行净利润同比增长，工商银行也是", "茅台市盈率约21倍，五粮液也一样", "and ICBC's did too" | the previous part repeated for the new company |
+| An elided comparison | "工商银行市净率低于招商银行，平安银行更低", "Midea's P/E is lower than BYD's, and CATL's is lower still", "比亚迪市盈率25.8倍，中芯国际更低" | a relation with the earlier subject (A高于B，C更高: C > A; A高于B，C更低: C < B; after a stated value, with its company) |
+| Two figures with one direction | "平安银行营收和净利润都同比下降", "BYD's revenue and net profit both rose" | one part for each figure |
+| A growth-rate comparison | "比亚迪的营收增速低于美的集团", "紫金矿业的净利润增速比宁德时代快", "Midea's revenue grew faster than BYD's", "BYD's revenue growth lagged CATL's", "宁德时代净利润增速高于营收增速" | the growth rates (增速 / 增幅 / 增长率 / 增长速度 / growth / grew faster; 快 / 慢), also between two figures of one company, and for a stated gap ("低22个百分点"). Before: the levels (8039.65 > 4237.02 contradicted a true claim) |
+| Price against book value | "平安银行处于破净状态", "招商银行的股价跌破了每股净资产", "ICBC shares trade below book value", "Ping An Insurance is trading above book value", "工商银行没有破净" | a P/B bound of 1 (below: < 1; above: > 1; negated: the other way), with the convention in the note |
+| N times book value | "Moutai trades at about 7.2 times book value", "China Merchants Bank trades at 0.9x book value" | the P/B (as "N times earnings" is the P/E); "book value per share" is not |
+| An amount after a growth | "紫金矿业营收同比增长约15%，至3491亿元", "比亚迪净利润同比下降约19%，降至326亿元", "达到4585亿元", "rose 42% to RMB72.2 billion" | the level the growth reached. Before: no metric for the amount |
+| Strong English verbs | "net profit nosedived by 72%", "plunged", "soared" | a direction for the number |
+| Everyday short names | "紫金净利润超过500亿元", "宁德营收约4237亿元", "平银2025年净利润426亿元" | written out before the NLU reads the claim, unless they are part of a longer name the NLU found or written in full (紫金银行, 华泰紫金…, 宁德市). "长电" is ambiguous (长电科技's own short name and a common one for 长江电力): `no_target`, the note names both. A two-character fuzzy NLU match ("长电" → 长江投资) is not a target. A test checks the table against `data/runtime/entity_master.csv` |
+
+Open after round 16: a direction of a figure the checker has no word for is still only listed as unchecked (no part, so
+a claim can be `supported` with partial coverage next to it); "BYD rose too" with a price word and no possessive is
+carried as the previous figure; the fifth real-claims set's classes below (an English 扣非 phrase, a sum with
+companies outside the data, a gap to an unnamed second place, metrics written after the number and a year, a change in
+brackets with no move word, "作为参照" read as a hypothetical).
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
@@ -749,6 +779,14 @@ python -m evaluation.claim_bench.run --set holdout
 | independent round-6 slice, **after exposure**, at the round-15 claims code | `a02821d` | 67 / 104 | 0.970 [0.925, 1.000] | 0.894 [0.821, 0.961] | 0.382 |
 | independent round-8 and round-9 claim slices, **after exposure**, at the round-15 claims code | `a02821d` | 25 / – each | 1.000 [1.00, 1.00] each | – | – |
 | independent round-10 claim slice, **after exposure (round 15)** | `a02821d` | 24 / – | 0.875 [0.75, 1.00] | – | – |
+| dev (311), at the round-16 claims code | `c795172` | 311 / 359 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the round-16 claims code | `c795172` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-4 slice, after exposure, at the round-16 claims code | `c795172` | 67 / 75 | 1.000 [1.000, 1.000] | 0.907 [0.836, 0.963] | 0.522 |
+| independent round-5 slice, after exposure, at the round-16 claims code | `c795172` | 56 / 86 | 0.964 [0.911, 1.000] | 0.942 [0.884, 0.988] | 0.929 |
+| independent round-6 slice, **after exposure**, at the round-16 claims code | `c795172` | 67 / 104 | 0.970 [0.925, 1.000] | 0.894 [0.821, 0.961] | 0.382 |
+| independent round-8 and round-9 claim slices, **after exposure**, at the round-16 claims code | `c795172` | 25 / – each | 1.000 [1.00, 1.00] each | – | – |
+| independent round-10 claim slice, **after exposure**, at the round-16 claims code | `c795172` | 24 / – | 0.875 [0.75, 1.00] | – | – |
+| independent round-11 claim slice, **after exposure (round 16)** | `c795172` | 24 / – | 0.875 [0.75, 1.00] | – | – |
 
 The commit column is the commit each run started from (`config.commit`). The merged-code runs were committed one after
 another, so each starts from the previous result commit; the code is the same in all of them.
@@ -846,6 +884,18 @@ checker, before the third set's rules) → 0.780 (39/50) at `a02821d`
 [v2](../evaluation/real_claims_web_v2/README.md#round-15-after-exposure-checker-changed),
 [v3](../evaluation/real_claims_web_v3/README.md#round-15-after-exposure-checker-changed),
 [v4](../evaluation/real_claims_web_v4/README.md)).
+
+Round 16 re-ran every claim set once at `c795172` (clean tree, r16-claims, the final round-16 claims code), with
+`*-round16.json` names (`claim_bench-dev.json` in place). The benches and the round-4 to round-10 slices are unchanged
+(dev 311 = 1.000 / 1.000, held-out 1.000 / 1.000 with the CI floors 0.978 / 0.98, r4 1.000 / 0.907, r5 0.964 / 0.942,
+r6 0.970 / 0.894, r8 and r9 25/25, r10 21/24). The round-11 slice, whose round-15 after-fix errors were published (so
+after exposure from round 16), moved 19/24 → **21/24** (r11c12 and r11c20: "宁德" written alone, the L9 short names;
+r11c03, r11c07, r11c11 still fail). The four real-claims sets are unchanged in count (v1 0.850, with corrections 0.817,
+v2 0.840, v3 0.900, v4 0.780; one v4 verdict moved and is still wrong, [v4](../evaluation/real_claims_web_v4/README.md#round-16-after-exposure-per-class)).
+A **fifth blind set**, `claims_web_v5` (collected on r16-claims by a search agent that did not open the checker's code,
+tests, benches, docs or results, committed unread), scored **0.680 [0.56, 0.80]** (34/50) on its only blind run at
+`c795172`; 7 of its 16 errors are the definition-caution convention the labels do not follow
+([v5](../evaluation/real_claims_web_v5/README.md#first-run-the-only-blind-run-c795172)).
 
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \
