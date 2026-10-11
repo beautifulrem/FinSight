@@ -748,11 +748,14 @@ _LOT_EN = re.compile(
 )
 _PNL_ASK_ZH = re.compile(
     r"赚了?(?:多少|几)|亏了?(?:多少|几)|浮盈|浮亏|盈亏|盈利(?:了)?多少|亏损(?:了)?多少|收益(?:率)?(?:是)?多少|"
-    r"赚(?:还是|了还是)亏|是赚是亏|赚钱了吗|亏钱了吗|回本"
+    r"赚(?:还是|了还是)亏|是赚是亏|赚钱了吗|亏钱了吗|回本|"
+    # (round 16, L2) "亏了没有", "赚没赚", "浮盈浮亏"
+    r"[赚亏]了没有|赚没赚|亏没亏|有没有[赚亏]"
 )
 _COST_EN = re.compile(
     r"\bpaid\s*(?:CNY|RMB|¥)?\s*(?P<cost3>\d+(?:\.\d+)?)\s*(?:a share|per share|each|apiece|for)\b|"
-    r"\b(?:bought|purchased|paid|got in)\b[^.?!]{0,40}?\b(?:at|for)\s*(?:CNY|RMB|¥)?\s*(?P<cost>\d+(?:\.\d+)?)|"
+    r"\b(?:bought|purchased|paid|got in|picked up|acquired|added)\b[^.?!]{0,40}?\b(?:at|for)\s*(?:CNY|RMB|¥)?\s*"
+    r"(?P<cost>\d+(?:\.\d+)?)|"
     r"\b(?:cost(?: basis| price)?|entry(?: price)?|average (?:cost|price)|avg\.? cost)\s*(?:is|was|of|at|=|:)?\s*"
     r"(?:CNY|RMB|¥)?\s*(?P<cost2>\d+(?:\.\d+)?)",
     re.IGNORECASE,
