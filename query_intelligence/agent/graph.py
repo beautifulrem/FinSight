@@ -84,6 +84,7 @@ from .frame import (
     opening_comparison,
     resolve_frame_question,
 )
+from .glossary import definition_question
 from .hearsay import fact_check_for, fact_check_prose
 from .injection import (
     REDACTION_MARKER,
@@ -413,6 +414,10 @@ class AgentRuntime:
             if carried_nlu is not None:
                 if _own_targets(nlu):
                     rewrite_reasons.append("session_memory_over_nlu_context_carry")
+                elif definition_question(query):
+                    # (round 17, review-13 M7) "How is net margin calculated?" after a company's figure asks the
+                    # definition: the NLU's carry of that company is not kept
+                    rewrite_reasons.append("definition_over_nlu_context_carry")
                 else:
                     # Nothing in the session resolved the question: keep the NLU's own dialog-context carry-over.
                     nlu, _ = drop_fuzzy_concepts(carried_nlu, query)
@@ -630,7 +635,9 @@ class AgentRuntime:
             carried_nlu = carried_nlu if carried is not None else None
             listed = listed_entities(nlu)
         # (round 12) "要是换成同样数量的中国平安呢" after a holding-value turn values the same holding of the new target
-        ellipsis = resolve_holding_follow_up(query, turns, listed) or resolve_ellipsis(query, turns, listed)
+        # (round 17) a fuzzy match inside a holding follow-up ("昨天280卖了" read as a bond "天23") is not its target
+        exact = [entity for entity in listed if "fuzzy" not in str(entity.get("match_type") or "")]
+        ellipsis = resolve_holding_follow_up(query, turns, exact) or resolve_ellipsis(query, turns, listed)
         if ellipsis is not None:
             query, reason = ellipsis
             reasons.append(reason)
