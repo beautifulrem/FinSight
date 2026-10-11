@@ -5,8 +5,8 @@
   "set": "dev",
   "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
   "model": null,
-  "commit": "c795172",
-  "run_at": "2026-10-11T02:43:57+00:00",
+  "commit": "e12eaa3",
+  "run_at": "2026-10-11T06:53:54+00:00",
   "command": "python -m evaluation.claim_bench.run --set dev"
  },
  "claims": 311,

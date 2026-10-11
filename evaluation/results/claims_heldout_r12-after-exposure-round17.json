@@ -1,0 +1,46 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "e12eaa3",
+  "run_at": "2026-10-11T07:21:59+00:00",
+  "command": "QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 FINSIGHT_REPO=. python evaluation/heldout_r12/score_claims_r12.py outputs/agent_eval/claims_r12-r17.json",
+  "claims_file": "evaluation/heldout_r12/claims_r12_heldout.jsonl",
+  "claims_sha256": "f39498ac3bdf344c9e016cf6b3468c25d3c41f6203e7e78d500c5c86ab75dc74",
+  "note": "AFTER EXPOSURE (round 17): independent round-12 claim slice rerun at e12eaa3 (clean tree, the round-17 claims code); its after-fix errors at 9564263 were committed before round 17. 24/26 = 0.923, unchanged from the after-fix run (r12c05, r12c17 still fail); not an out-of-sample estimate."
+ },
+ "summary": {
+  "claims": 26,
+  "verdict_accuracy": 0.9231,
+  "ci95": [
+   0.8077,
+   1.0
+  ],
+  "by_category": {
+   "amount_after_growth": 1.0,
+   "book_value": 1.0,
+   "control": 1.0,
+   "direction_only": 0.75,
+   "elided_second_clause": 1.0,
+   "foreign_line": 1.0,
+   "group_extreme": 1.0,
+   "growth_comparison": 0.5,
+   "short_name": 1.0
+  }
+ },
+ "errors": [
+  {
+   "id": "r12c05",
+   "category": "direction_only",
+   "claim": "比亚迪去年的归母净利润比前一年少了",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r12c17",
+   "category": "growth_comparison",
+   "claim": "长江电力净利润增速快过中信证券",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  }
+ ]
+}

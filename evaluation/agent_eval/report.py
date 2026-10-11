@@ -296,6 +296,10 @@ CLAIM_BENCH_RUNS = (
     "claim_bench-heldout_r4-after-round16",
     "claim_bench-heldout_r5-after-round16",
     "claim_bench-heldout_r6-after-exposure-round16",
+    "claim_bench-holdout-after-round17",
+    "claim_bench-heldout_r4-after-round17",
+    "claim_bench-heldout_r5-after-round17",
+    "claim_bench-heldout_r6-after-exposure-round17",
 )
 # Round-4 held-out slices (evaluation/heldout_r4/, independent author): first run, then after exposure.
 HELDOUT_R4_RUNS = ("multiturn_r4_heldout-auto-nollm-first-run", "multiturn_r4_heldout-after-exposure")
@@ -446,6 +450,17 @@ EXTRA_EVIDENCE = (
     "claims_heldout_r9-after-exposure-round16",
     "claims_heldout_r10-after-exposure-round16",
     "claims_heldout_r11-after-exposure-round16",
+    "claims_web_v1-after-exposure-round17",
+    "claims_web_v1-with-corrections-after-exposure-round17",
+    "claims_web_v2-after-exposure-round17",
+    "claims_web_v3-after-exposure-round17",
+    "claims_web_v4-after-exposure-round17",
+    "claims_web_v5-after-exposure-round17",
+    "claims_heldout_r8-after-exposure-round17",
+    "claims_heldout_r9-after-exposure-round17",
+    "claims_heldout_r10-after-exposure-round17",
+    "claims_heldout_r11-after-exposure-round17",
+    "claims_heldout_r12-after-exposure-round17",
     "redteam-r7-targeted",
     "redteam-r8-d1-targeted",
     "injection_classifier-r4",
@@ -692,6 +707,36 @@ FILE_STATUS = {
     "the round-16 code; the blind number is the first run (0.54)",
     "claims_web_v4-after-exposure-round16": "**after exposure (round 16)**: the fourth set re-run at the round-16 "
     "code (review-12 L4-L6 and L9 rules, none written for this set); the blind number is the first run (0.74)",
+    "claim_bench-holdout-after-round17": "held-out claims **after exposure**, re-run at the round-17 claims code",
+    "claim_bench-heldout_r4-after-round17": "independent round-4 claim slice **after exposure**, re-run at the "
+    "round-17 claims code (unchanged from round 16)",
+    "claim_bench-heldout_r5-after-round17": "independent round-5 claim slice **after exposure**, re-run at the "
+    "round-17 claims code (unchanged from round 16)",
+    "claim_bench-heldout_r6-after-exposure-round17": "independent round-6 claim slice **after exposure**, re-run at "
+    "the round-17 claims code (unchanged from round 16)",
+    "claims_heldout_r8-after-exposure-round17": "independent round-8 claim slice **after exposure**, re-run at the "
+    "round-17 claims code (a regression check, not a fresh estimate)",
+    "claims_heldout_r9-after-exposure-round17": "independent round-9 claim slice **after exposure**, re-run at the "
+    "round-17 claims code (a regression check, not a fresh estimate)",
+    "claims_heldout_r10-after-exposure-round17": "independent round-10 claim slice **after exposure**, re-run at the "
+    "round-17 claims code (21/24, unchanged)",
+    "claims_heldout_r11-after-exposure-round17": "independent round-11 claim slice **after exposure**, re-run at the "
+    "round-17 claims code (21/24, unchanged)",
+    "claims_heldout_r12-after-exposure-round17": "independent round-12 claim slice **after exposure (round 17)**: "
+    "its after-fix errors were committed before round 17; 24/26, unchanged; not an out-of-sample estimate",
+    "claims_web_v1-after-exposure-round17": "**after exposure (checker changed, round 17)**: seed data, first-run "
+    "labels; not an out-of-sample estimate",
+    "claims_web_v1-with-corrections-after-exposure-round17": "**after exposure (checker changed, round 17)**: "
+    "corrections layer on, corrected labels",
+    "claims_web_v2-after-exposure-round17": "**after exposure (checker changed, round 17)**: the second set re-run at "
+    "the round-17 code; the blind number is the first run (0.50)",
+    "claims_web_v3-after-exposure-round17": "**after exposure (checker changed, round 17)**: the third set re-run at "
+    "the round-17 code; the blind number is the first run (0.54)",
+    "claims_web_v4-after-exposure-round17": "**after exposure (round 17)**: the fourth set re-run at the round-17 "
+    "code (review-13 M12 rules, none written for this set); the blind number is the first run (0.74)",
+    "claims_web_v5-after-exposure-round17": "**after exposure (round 17)**: the fifth set re-run at the round-17 "
+    "code (review-13 M12 rules, none written for this set; its error classes were published in round 16); the "
+    "blind number is the first run (0.68)",
     "claims_web_v5-first-run": "engineer-collected real published claims, **blind first run** (fifth set, collected "
     "on r16-claims by a search agent that did not open the checker's code, tests, claim benches, docs or results; "
     "committed before the run and not read by the engineer; run once at the final round-16 claims code)",

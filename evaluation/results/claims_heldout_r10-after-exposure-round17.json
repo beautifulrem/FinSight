@@ -1,0 +1,59 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "e12eaa3",
+  "run_at": "2026-10-11T07:19:56+00:00",
+  "command": "QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 FINSIGHT_REPO=. python evaluation/heldout_r10/score_claims_r10.py outputs/agent_eval/claims_r10-r17.json",
+  "claims_file": "evaluation/heldout_r10/claims_r10_heldout.jsonl",
+  "claims_sha256": "12105276e9719fc2252b33be3eda03f228d6a8caacad40f1502dad76dff32f63",
+  "note": "AFTER EXPOSURE (since round 15): independent round-10 claim slice rerun at e12eaa3 (clean tree, the round-17 claims code). 21/24 = 0.875, unchanged from round 16 (r10c06, r10c08, r10c12 still fail)."
+ },
+ "summary": {
+  "claims": 24,
+  "verdict_accuracy": 0.875,
+  "ci95": [
+   0.75,
+   1.0
+  ],
+  "by_category": {
+   "colloquial_count": 0.0,
+   "compound_bounds": 1.0,
+   "control": 1.0,
+   "corrected_data": 1.0,
+   "en_fraction": 1.0,
+   "float_cap": 1.0,
+   "level_and_multiple": 1.0,
+   "multiple_bound": 1.0,
+   "points": 1.0,
+   "published_yoy": 0.667,
+   "recurring_profit": 1.0,
+   "superlative": 0.5,
+   "tenths": 1.0,
+   "times": 1.0,
+   "zh_fraction": 1.0
+  }
+ },
+ "errors": [
+  {
+   "id": "r10c06",
+   "category": "superlative",
+   "claim": "Of ICBC, CMB and CITIC Securities, CITIC has the lowest P/E",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r10c08",
+   "category": "published_yoy",
+   "claim": "Zijin Mining's 2025 net profit rose about 62% year on year to RMB51.8 billion",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r10c12",
+   "category": "colloquial_count",
+   "claim": "工商银行一年的净利润抵得上两个多招行",
+   "expected": "supported",
+   "got": "unverifiable"
+  }
+ ]
+}
