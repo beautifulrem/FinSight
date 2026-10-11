@@ -874,7 +874,9 @@ _PNL_ASK_EN = re.compile(
 # (round 17, review-13 M1) a sale reduces the position: "后来32元卖掉了1000股", "又以320元卖了400股", "卖出500股，卖价
 # 45元", "减持了一半", "sold 400 at 320", "trimmed 300 shares for 41 each", "sold half". A lot with a sale verb is
 # never a purchase; the realised part is the sold shares × (sale price − average cost), the rest is valued at the close.
-_SALE_VERB_ZH = r"(?:卖出|卖掉|卖了|抛出|抛掉|抛了|出掉|出了|减持|减仓|减掉|清掉|止盈|止损|割肉|割掉|割了|卖|抛)(?:了|掉|出)?"
+_SALE_VERB_ZH = (
+    r"(?:卖出|卖掉|卖了|抛出|抛掉|抛了|出掉|出了|减持|减仓|减掉|清掉|止盈|止损|割肉|割掉|割了|卖|抛)(?:了|掉|出)?"
+)
 _FRACTION_ZH = (
     r"(?P<frac>一半|半仓|三分之一|三分之二|四分之一|四分之三|五分之一|"
     r"一成|两成|二成|三成|四成|五成|六成|七成|八成|九成)"
@@ -1040,7 +1042,8 @@ def cost_basis_request(query: str) -> dict[str, Any] | None:
 
 
 _EN_HELD_COUNT = re.compile(
-    r"\b(?:hold|own|have|had|holding|owned|got|bought|purchased|picked up)\s+(?P<n>\d[\d,]*)\b(?!\.\d|\s*(?:%|percent))",
+    r"\b(?:hold|own|have|had|holding|owned|got|bought|purchased|picked up)\s+(?P<n>\d[\d,]*)\b"
+    r"(?!\.\d|\s*(?:%|percent))",
     re.IGNORECASE,
 )
 # (round 17) a price per share stated next to a purchase: "我买了3手比亚迪，每股78元"
