@@ -798,6 +798,8 @@ MEAN_SOURCE = (
     # (round 16, L17) "日均" is a daily average of one target, "今天平均" is today's mean of several
     r"(?<!(?<![今昨当前])[日周月年天])"
     r"平均(?!成本|价|持仓|买入|股价|线|日|摊薄|净资产收益率)(?:值|数|下来|水平|一下)?|均值|均数|"
+    # (round 16, review-12 L17) the middle of two values
+    r"折中|取中(?:间)?(?:值|数)?|中间值|"
     r"(?:加总|加起来|合计|总和|之和|相加|加在一起)[^。？?；;]{0,6}?(?:再|然后)?(?:除以|除)\s*(?:[二两三四五六七八九十]|\d+)|"
     r"(?<!industry )(?<!sector )(?<!peer )(?<!peers )(?<!weighted )(?<!moving )(?<!daily )"
     r"\b(?:average|mean)\b(?!\s+(?:cost|price|purchase|entry|buy|true range|daily(?! (?:change|move|return)s?\b)))|"
