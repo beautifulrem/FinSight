@@ -537,7 +537,8 @@ _HOLDING_ADD = re.compile(
     re.IGNORECASE,
 )
 _HOLDING_TOTAL = re.compile(
-    r"总共|一共|合计|加起来|总计|共计|总市值|\bin total\b|\baltogether\b|\bcombined\b|\btotal\b|\ball together\b",
+    r"总共|一共|合计|加起来|合起来|合在一起|放一起|总计|共计|总市值|\bin total\b|\baltogether\b|\bcombined\b|\btotal\b|"
+    r"\ball together\b",
     re.IGNORECASE,
 )
 
