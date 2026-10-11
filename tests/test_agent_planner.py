@@ -163,7 +163,8 @@ def test_listed_target_without_plan_gets_default_snapshot():
 
 
 def test_no_entities_no_sources_falls_back_to_knowledge():
-    plan = plan_from_nlu(_nlu(raw_query="什么是市盈率", normalized_query="什么是市盈率"))
+    # (round 16, L11) 市盈率 is a glossary entry now (explain_concept); a concept outside the glossary still falls back
+    plan = plan_from_nlu(_nlu(raw_query="什么是商誉", normalized_query="什么是商誉"))
 
     assert _tools(plan) == [("search_knowledge", ())]
 
