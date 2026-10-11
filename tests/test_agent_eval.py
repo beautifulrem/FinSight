@@ -1771,3 +1771,56 @@ def test_round16_frame_tasks_tests_and_templates_do_not_copy_a_slice_or_a_review
     assert len(tasks) >= 25 and check_overlap(tasks) == []
     assert len(mine) >= 2500
     assert _overlaps(mine, others) == (0, 0), "round-16 wording overlaps a slice, a test set or a reviewer probe"
+
+
+# The round-13 reviewer's claim probes as quoted in the review report (finsight-review/round13.md §4.3 and §9, M12 and
+# M13; the probe files and the hidden heldout_r13 slice were not read): round-17 claim tests must not copy them.
+_ROUND13_CLAIM_PROBES = [
+    "工商银行营收8382.7亿元，净利润同比微降",
+    "中信证券2025年营收748.5亿元，同比增长28.8%，增速快于其净利润增速",
+    "ROE等于净利润除以营业收入，紫金矿业ROE为27.91%",
+    "市净率低于1意味着股价高于每股净资产，工商银行市净率0.74倍",
+    "中国平安2025年归母净利润1347.8亿元，扣非净利润更低",
+    "招商银行净利润同比基本持平，营收同比大增",
+    "紫金矿业净利润同比增速是营收增速的4倍多",
+    "净利润增速明显快于营收增速",
+    "净利润增速快于营收增速",
+    "较52周高点回落不到5%",
+    "贵州茅台市盈率24.6倍",
+]
+
+
+def test_round17_claim_tests_do_not_copy_a_slice_a_real_claim_or_a_review_probe():
+    """Round-17 claim tests (tests/test_agent_round17_*.py, review-13 M12 / M13) were written in the engineer's own
+    wording after the round-13 review: none may copy or near-copy a text of any committed slice, a claim of the five
+    real-claims sets or the claim benches, or a quoted reviewer probe of rounds 4-13. Counts only."""
+    import ast
+    from pathlib import Path
+
+    from evaluation.agent_eval.runner import ROOT
+    from evaluation.claim_bench.run import SETS, load_claims
+
+    files = sorted(Path(__file__).parent.glob("test_agent_round17_*.py"))
+    strings = [
+        node.value
+        for path in files
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and len(node.value) >= 6
+    ]
+    mine = [
+        text for text in strings if re.search(r"[\s一-鿿]", text) and not text.startswith("Round") and len(text) < 200
+    ]
+    real = [
+        json.loads(line).get("claim_text") or ""
+        for path in sorted((ROOT / "evaluation").glob("real_claims_web*/claims_web_v*.jsonl"))
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    benches = [row["claim"] for name in ("dev", "holdout") for row in load_claims(SETS[name])]
+    slices = _all_slice_texts()
+    others = real + benches + slices + _heldout_r4_texts() + _heldout_r5_texts() + _REVIEW_PROBES
+    others += _ROUND9_REVIEW_PROBES + _ROUND10_REVIEW_PROBES + _ROUND11_REVIEW_PROBES + _ROUND12_REVIEW_PROBES
+    others += _ROUND12_SAFETY_PROBES + _ROUND13_CLAIM_PROBES
+    assert len(files) >= 2 and len(mine) >= 80, "the round-17 tests were not read"
+    assert len(real) >= 250 and len(benches) >= 350 and len(slices) >= 380, "the compared sets were not read"
+    assert _overlaps(mine, others) == (0, 0), "round-17 claim wording overlaps a slice, a real claim or a review probe"
