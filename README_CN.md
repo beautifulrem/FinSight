@@ -33,7 +33,7 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 
 - **数字可追溯**：逐句校验器把每个数字绑定到本句引用的证据。5,551 个被篡改的答案里，它只误放 **0.94%**；328 个正确答案全部通过（[校验器压力测试](docs/agent-eval.md#verifier-stress-test-328-gold-answers-5551-corrupted-variants-verifier_stress-round15json)，`8b62a6c`）。
 - **在没人调过的任务集上测**：测试集 v3 由独立作者编写，共 130 个任务，这里报的是首次 LLM 运行。在要求引用的一票否决口径下，DeepSeek Agent 通过 **0.869** [0.81, 0.92]，确定性固定流程 0.769，不调工具的 LLM 为 0（[测试集 v3](docs/agent-eval.md#test-set-v3-independent-author-untouched-first-runs)）。
-- **修复之后的样本外结果，并把重合算进去**：每轮评审在任何修复之前，按自己发现的缺陷写一组保留切片。最近一组切片经过一轮修复后从 **0.200 → 0.733**（对话 12/60 → 44/60；声明 0.292 → 0.792），上一组为 **0.250 → 0.792**。去掉与自写措辞重合的任务后结论仍然成立：最近一组按文本 42/58，按内容 39/55，按内容特征 32/44（[来源说明](evaluation/heldout_r11/README.md#committed-to-the-repository-after-the-round-15-fixes)）。
+- **修复之后的样本外结果，并把重合算进去**：每轮评审在任何修复之前，按自己发现的缺陷写一组保留切片。最近一组切片经过一轮修复后从 **0.320 → 0.840**（对话 16/50 → 42/50；声明 0.423 → 0.923），之前两组为 **0.200 → 0.733** 和 **0.250 → 0.792**。去掉与自写措辞重合的任务后最近一组仍然成立：按文本 42/49，按内容 37/43，按内容特征 31/35（[来源说明](evaluation/heldout_r12/README.md#committed-to-the-repository-after-the-round-16-fixes)）。
 - **首次运行的数字照报，不被替换**：每套独立任务集都同时保留首次运行的数字和之后标为「暴露后」的数字。例如新写的独立路由标注首次得 0.801，盲收集的真实说法首次得 0.500（[评测历史](docs/zh/evaluation-history.md#独立任务集首次运行与暴露后)）。
 - **按服务标准交付**：没有 LLM 也能运行，每次 LLM 调用都受运行截止时间约束。做过压测和故障演练，k3s 多副本经 Postgres 共享会话。提供 MCP 和 A2A，配有 Prometheus、Grafana、Jaeger 监控（[性能](docs/zh/performance.md)、[部署](docs/zh/deployment.md)）。
 
@@ -135,8 +135,9 @@ Kubernetes 与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 |---|---|---|
 | 测试集 v3：独立作者写的 130 个任务，首次 LLM 运行，DeepSeek | Agent **0.869** [0.81, 0.92]，LLM 组织答案 0.831，确定性固定流程 0.769，不调工具的 LLM 0/130。Agent 对固定流程 +0.100 [+0.049, +0.156]，McNemar p = 0.007。Agent 对组织答案在 pass^3 上不显著 | [`ablation-final4-deepseek-testv3-holdout.json`](docs/agent-eval.md#test-set-v3-independent-author-untouched-first-runs) |
 | 校验器压力测试（第 15 轮，`8b62a6c`）：328 个正确答案，5,551 个篡改答案 | 篡改答案误放 **0.94%**（默认允许派生数字时 1.06%）；正确答案全部通过；换入另一家公司的数字 0.0% 放过（允许派生数字时 0.57%） | [`verifier_stress-round15.json`](docs/agent-eval.md#verifier-stress-test-328-gold-answers-5551-corrupted-variants-verifier_stress-round15json) |
-| 最近一组评审切片（第十一轮）：60 个对话任务、24 条声明，一轮修复前后各跑一次 | 对话 **0.200 → 0.733**，声明 0.292 → 0.792。去掉重合任务后：12/58 → 42/58（文本），11/55 → 39/55（加内容），9/44 → 32/44（加内容特征） | [`chat_heldout_r11-auto-nollm-after-fix.json`](docs/agent-eval.md#round-11-held-out-chat-slice-independent-author-before-and-after-the-round-15-fixes)、[`slice_overlap-heldout_r11-at-c5ffb7d.json`](evaluation/heldout_r11/README.md#committed-to-the-repository-after-the-round-15-fixes) |
-| 上一组评审切片（第十轮）：48 个对话任务、24 条声明，一轮修复前后各跑一次 | 对话 **0.250 → 0.792**，声明 0.667 → 0.833。去掉重合任务后：12/45 → 35/45（文本），12/42 → 32/42（加内容），11/38 → 29/38（评审的口径） | [`chat_heldout_r10-auto-nollm-after-fix.json`](docs/agent-eval.md#round-10-held-out-chat-slice-independent-author-before-and-after-the-round-14-fixes)、[`slice_overlap-heldout_r10-content-at-3480a96.json`](evaluation/heldout_r10/README.md#provenance-of-the-after-fix-run-what-the-record-shows-round-11-review-k16) |
+| 最近一组评审切片（第十二轮）：50 个对话任务、26 条声明，一轮修复前后各跑一次 | 对话 **0.320 → 0.840**，声明 0.423 → 0.923。去掉重合任务后：16/49 → 42/49（文本），14/43 → 37/43（加内容），14/35 → 31/35（加内容特征） | [`chat_heldout_r12-auto-nollm-after-fix.json`](docs/agent-eval.md#round-12-held-out-chat-slice-independent-author-before-and-after-the-round-16-fixes)、[`slice_overlap-heldout_r12-at-9564263.json`](evaluation/heldout_r12/README.md#committed-to-the-repository-after-the-round-16-fixes) |
+| 上一组评审切片（第十一轮）：60 个对话任务、24 条声明，一轮修复前后各跑一次 | 对话 **0.200 → 0.733**，声明 0.292 → 0.792。去掉重合任务后：12/58 → 42/58（文本），11/55 → 39/55（加内容），9/44 → 32/44（加内容特征） | [`chat_heldout_r11-auto-nollm-after-fix.json`](docs/agent-eval.md#round-11-held-out-chat-slice-independent-author-before-and-after-the-round-15-fixes)、[`slice_overlap-heldout_r11-at-c5ffb7d.json`](evaluation/heldout_r11/README.md#committed-to-the-repository-after-the-round-15-fixes) |
+| 更早一组评审切片（第十轮）：48 个对话任务、24 条声明，一轮修复前后各跑一次 | 对话 **0.250 → 0.792**，声明 0.667 → 0.833。去掉重合任务后：12/45 → 35/45（文本），12/42 → 32/42（加内容），11/38 → 29/38（评审的口径） | [`chat_heldout_r10-auto-nollm-after-fix.json`](docs/agent-eval.md#round-10-held-out-chat-slice-independent-author-before-and-after-the-round-14-fixes)、[`slice_overlap-heldout_r10-content-at-3480a96.json`](evaluation/heldout_r10/README.md#provenance-of-the-after-fix-run-what-the-record-shows-round-11-review-k16) |
 | 更早的评审切片（对话，首次 → 一轮修复后） | 第六轮 0.579 → 0.816；第七轮 0.264 → 0.830；第八轮 0.275 → 0.686；第九轮 0.346 → 0.788 | [评测历史](docs/zh/evaluation-history.md#独立任务集首次运行与暴露后) |
 | 独立路由标注（新写的 241 条） | 首次 0.801，暴露后 0.842 | [`router_eval-independent_v2-first-run.json`](docs/agent-eval.md#router-label-sets) |
 | 对核查器盲收集的真实公开说法（50 条） | 首次 0.500 [0.36, 0.64]；针对其错误类别修改核查器后 0.840（暴露后） | [`claims_web_v2-first-run.json`](evaluation/real_claims_web_v2/README.md) |
@@ -145,7 +146,7 @@ Kubernetes 与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 | 第五套盲收集的真实公开说法（50 条） | 唯一一次盲测 0.680 [0.56, 0.80]（第 16 轮核查器）；16 个错误中 7 个是标注不采用的结论约定 | [`claims_web_v5-first-run.json`](evaluation/real_claims_web_v5/README.md#first-run-the-only-blind-run-c795172) |
 | 投毒到文档里的提示注入 | 模板路径在 14 个攻击集上 0 次成功；LLM 路径每个集合当作事实陈述 0–3.4% | [`redteam-offline-r16.json`](docs/agent-eval.md#prompt-injection-red-team-offline-template-path-after-round-16-all-fourteen-sets-ci-baseline)、[`redteam-r8-llm.json`](docs/zh/evaluation-history.md#其他测量) |
 | 延迟与负载 | DeepSeek Agent P95 15.4 秒（保留集），首字约 3 秒；数据源故障演练下 8 个用户（无 LLM）400 个请求 0 错误 | [性能](docs/zh/performance.md) |
-| CI 门禁（与已提交基线比较） | 开发集 524 个任务 1.000，保留集 53 个 0.9434，ext 78 个 1.000，发布默认配置 21 个 1.000 | [门禁基线](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |
+| CI 门禁（与已提交基线比较） | 开发集 538 个任务 1.000，保留集 53 个 0.9434，ext 99 个 1.000，发布默认配置 21 个 1.000 | [门禁基线](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |
 
 更多细节：
 
