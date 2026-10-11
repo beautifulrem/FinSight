@@ -72,6 +72,15 @@ def load_seed_aliases() -> list[dict[str, str]]:
 
 
 @lru_cache(maxsize=1)
+def load_dual_listings() -> list[dict[str, str]]:
+    """(round 16, review-12 L7) A-share companies with a Hong Kong (H-share) line: ``a_symbol``, ``h_code`` (HKEX,
+    five digits), ``name_zh`` (the entity master's name), ``short_zh`` / ``short_en`` (``|``-separated), ``name_en``,
+    ``hkex_name`` and ``source`` (the HKEX list of securities that confirms the code). ``QI_DUAL_LISTINGS_PATH``
+    overrides the file. The agent's foreign-line check (``agent/coverage.py``) joins it with the alias table."""
+    return _read_csv(_resolve_data_path("QI_DUAL_LISTINGS_PATH", "dual_listings.csv"))
+
+
+@lru_cache(maxsize=1)
 def load_synonyms() -> dict:
     return _read_json(DATA_DIR / "synonym_dict.json")
 
@@ -280,6 +289,7 @@ def clear_data_caches() -> None:
     load_aliases.cache_clear()
     load_seed_entities.cache_clear()
     load_seed_aliases.cache_clear()
+    load_dual_listings.cache_clear()
     load_synonyms.cache_clear()
     load_documents.cache_clear()
     _load_structured_data.cache_clear()
