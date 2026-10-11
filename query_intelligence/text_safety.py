@@ -210,7 +210,7 @@ _CUT_FIGURE = re.compile(
     r"(?:派发?|派息|派现|红利|股息|分红|营收|收入|利润|净利|毛利率?|净利率|市盈率|市净率|(?<![A-Za-z])(?:PE|PB|ROE|EPS)|"
     r"股价|价格|收于|收报|报|涨幅?|跌幅?|增长|增加|减少|下滑|下降|上升|提升|同比|环比|为|至|达到?|约|超过?|逾|近|"
     r"收益率?|回报率?|年化)"
-    r"\s*[:：]?\s*[-+]?(?!(?:19|20)\d{2}$)\d+(?:\.\d+)?$",
+    r"\s*[:：]?\s*[-+]?(?!(?:19|20)\d{2}$)\d+(?:\.\d*)?$",
     re.IGNORECASE,
 )
 
@@ -257,7 +257,7 @@ _CUT_LIMIT = re.compile(
     # a limiter at the very end, or followed by a bare figure (Arabic or Chinese numerals) and nothing else
     r"(?:(?<!不)仅为?|只有|只剩|(?<![人天英奇口刚方])才|高达|低至)\s*$|"
     + _LIMITER
-    + r"\s*[:：]?\s*(?:[-+]?\d+(?:\.\d+)?|"
+    + r"\s*[:：]?\s*(?:[-+]?\d+(?:\.\d*)?|"
     + _CN_DIGITS
     + r")\s*$"
 )
@@ -272,6 +272,83 @@ _CUT_CHANGE = re.compile(
     r"(?:(?:has|have|had|is|was|were|will|now)\s+)*(?:\w+ly\s+)?(?:reach\w*|hit\w*|ris\w*|rose|fell|fall\w*|drop\w*|"
     r"climb\w*|surg\w*|soar\w*|plung\w*|jump\w*|slid\w*|slump\w*|stand\w*|stood|grew|grow\w*|declin\w*|increas\w*|"
     r"decreas\w*|top\w*|tumbl\w*|doubl\w*|halv\w*|exceed\w*|surpass\w*|came\s+in|come\w*)\s*$",
+    re.IGNORECASE,
+)
+
+
+# (round 16, review-12 L18) Figures written so that the digit rules above do not read them, from the round-12 reviewer's
+# planted headlines that the evidence list showed:
+# * *English numbers in words*: "P/E is now just four point two times" (``spelled_numbers`` reads it as "4.2 times",
+#   so the ledger's figure check and every cut / claim rule see a figure);
+# * *digits spaced out or split by soft hyphens*: "市盈率 6 . 7 倍", "1 2 3 亿元", "仅­5­.­9" (the soft hyphens are
+#   invisible characters, removed by ``fold``; the spaced digits are joined: ``joined_digits``);
+# * *a figure cut after its decimal point*: "…市盈率仅5." (the bare figure of ``_CUT_FIGURE`` / ``_CUT_LIMIT`` may end
+#   on a dot);
+# * *an English limiter before a bare figure at the end*: "…P/E is now just 4." (``_CUT_LIMIT_EN``) and an English
+#   valuation multiple with its value ("P/E of 4.2 times", ``_CLAIM_MULTIPLE_EN``), like 市盈率…倍 in ``_CLAIM_SHAPE``;
+# * a year or a report and a metric with no value ("贵州茅台2025年净利", in ``_CUT_PHRASE``) and "fell by half"
+#   ("halved" in words, in ``_DRAMATIC_CLAIM``).
+_EN_UNIT_WORDS = [
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+    "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+]  # fmt: skip
+_EN_TENS_WORDS = ["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
+_EN_VALUES = {
+    **{word: value for value, word in enumerate(_EN_UNIT_WORDS)},
+    **{word: 20 + 10 * index for index, word in enumerate(_EN_TENS_WORDS)},
+}
+_EN_WORD = r"(?:" + "|".join(sorted([*_EN_VALUES, "hundred", "thousand"], key=len, reverse=True)) + r")"
+_EN_DIGIT_WORD = r"(?:" + "|".join(_EN_UNIT_WORDS[:10]) + r")"
+_EN_NUMBER = re.compile(
+    r"\b(?P<int>" + _EN_WORD + r"(?:(?:\s*-\s*|\s+(?:and\s+)?)" + _EN_WORD + r")*)\b"
+    r"(?P<point>\s+point(?P<decimals>(?:\s+" + _EN_DIGIT_WORD + r")*)\b)?",
+    re.IGNORECASE,
+)
+
+
+def _english_integer(words: list[str]) -> int:
+    total = current = 0
+    for word in words:
+        if word == "hundred":
+            current = max(current, 1) * 100
+        elif word == "thousand":
+            total += max(current, 1) * 1000
+            current = 0
+        else:
+            current += _EN_VALUES[word]
+    return total + current
+
+
+def spelled_numbers(text: str) -> str:
+    """(round 16, L18) ``text`` with English numbers written in words as digits: "four point two times" → "4.2
+    times", "forty-two percent" → "42 percent", "twelve billion" → "12 billion", "four point" (cut) → "4.". For
+    matching only."""
+
+    def digits(match: re.Match[str]) -> str:
+        words = [word for word in re.split(r"[\s-]+", match.group("int").lower()) if word and word != "and"]
+        number = str(_english_integer(words))
+        if match.group("point") is None:
+            return number
+        decimals = "".join(str(_EN_VALUES[word]) for word in (match.group("decimals") or "").lower().split())
+        return f"{number}.{decimals}"
+
+    return _EN_NUMBER.sub(digits, text or "")
+
+
+def joined_digits(text: str) -> str:
+    """(round 16, L18) Digits spaced out or around a spaced decimal point joined: "6 . 7 倍" → "6.7 倍", "1 2 3 亿元" →
+    "123 亿元". Single digits only, so "2025 10 11" or "Top 10 2025" keep their spaces."""
+    joined = re.sub(r"(?<=\d)\s*[.．]\s+(?=\d)|(?<=\d)\s+[.．]\s*(?=\d)", ".", text or "")
+    return re.sub(r"(?<![\d.])\d(?:\s\d)+(?![\d.])", lambda match: re.sub(r"\s", "", match.group(0)), joined)
+
+
+_CUT_LIMIT_EN = re.compile(
+    r"\b(?:just|only|merely|barely|a\s+mere|as\s+(?:low|high)\s+as|under|below|nearly|almost)\s+[-+]?\d+(?:\.\d*)?\s*$",
+    re.IGNORECASE,
+)
+_CLAIM_MULTIPLE_EN = re.compile(
+    r"(?<![A-Za-z])(?:P/?E|P/?B|price[- ]to[- ](?:earnings|book))(?:\s+ratio)?\b[^.;\d]{0,24}?[-+]?\d[\d,.]*\s*"
+    r"(?:x|times)\b",
     re.IGNORECASE,
 )
 
@@ -298,6 +375,9 @@ _DRAMATIC_CLAIM = re.compile(
     r"\bhalved\b|\bcollapse[sd]?\b|\bcrash(?:es|ed)?\b|\bplunge[sd]?\b|\bplummet(?:s|ed)?\b|\bmeltdown\b|"
     r"\bblow-?up\b|\bdelisting\s+risk\b|\bwiped\s+out\b|\bfraud\b|\bdefault(?:s|ed)\b|\bsoar(?:s|ed)\b|"
     r"\bskyrocket(?:s|ed)?\b|"
+    # (round 16, review-12 L18) "profit fell by half", "cut in half": "halved" in words
+    r"\b(?:fell|falls?|fallen|dropped|drops?|declined?|plunged?|slid|shrank|shrunk|sank|tumbled?|cut|slashed)\s+"
+    r"(?:by\s+)?(?:half|in\s+half)\b|"
     # (round 12, H10) figure-free company events a regulator or the company itself would announce: a modified audit
     # opinion ("无法表示意见", "否定意见"; "标准无保留意见" is the clean opinion), a trading halt or a restructuring.
     # Shown only when the title names an official source, like the rest of this list.
@@ -331,6 +411,9 @@ _CUT_PHRASE = re.compile(
     r"(?:[一二三四]季度|上半年|下半年|前三季度|全年|年度|今年|去年)(?:归母|扣非)?"
     r"(?:净利润|净利|营业收入|营收|市盈率|市净率|股价|收盘价|每股收益)\s*$|"
     r"(?:市盈率|市净率|收盘价|每股收益|股息率|持股比例|持仓比例)\s*$|"
+    # (round 16, review-12 L18) a year or a report and a metric, no value: "贵州茅台2025年净利", "…年报归母净利润"
+    r"(?:(?:19|20)\d{2}\s*年度?|年报|中报|半年报|季报)(?:归母|扣非)?"
+    r"(?:净利润|净利|营业收入|营收|收入|利润|市盈率|市净率|股价|收盘价|每股收益|市值)\s*$|"
     r"(?<![A-Za-z])(?:ROE|EPS|P/?E|P/?B)\s*$|"
     r"\b(?:to|at|of|by|from|with|and|or|the|than|into)\s*$",
     re.IGNORECASE,
@@ -562,11 +645,16 @@ def headline_findings(title: str) -> list[Finding]:
     found += [Finding("promotion", m.group(0)) for m in _PROMOTION.finditer(folded)]
     found += [Finding("imperative", m.group(0)) for m in _IMPERATIVE.finditer(folded)]
     found += [Finding("advice", m.group(0)) for m in _ADVICE.finditer(folded)]
+    # (round 16, review-12 L18) the figure rules also read English numbers in words and spaced-out digits
+    numeric = joined_digits(spelled_numbers(folded))
     found += [Finding("claim", m.group(0)) for m in _CLAIM_SHAPE.finditer(folded)]
+    if numeric != folded:
+        found += [Finding("claim", m.group(0)) for m in _CLAIM_SHAPE.finditer(numeric)]
+    found += [Finding("claim", m.group(0)) for m in _CLAIM_MULTIPLE_EN.finditer(numeric)]
     row = _data_row(folded)
     if row:
         found.append(Finding("claim", row))
-    cut = _CUT_FIGURE.search(folded)
+    cut = _CUT_FIGURE.search(numeric)
     if cut:
         found.append(Finding("claim", cut.group(0)))
     dramatic = _DRAMATIC_CLAIM.search(folded)
@@ -585,6 +673,11 @@ def headline_findings(title: str) -> list[Finding]:
         match = pattern.search(folded)
         if match:
             found.append(Finding("claim", match.group(0).strip() or folded[-8:]))
+    # (round 16, L18) a limiter cut before or at a figure written in words or with spaced digits ("…just four point")
+    for pattern in (_CUT_LIMIT, _CUT_LIMIT_EN):
+        match = pattern.search(numeric)
+        if match:
+            found.append(Finding("claim", match.group(0).strip() or numeric[-8:]))
     return found
 
 
