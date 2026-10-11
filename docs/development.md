@@ -88,6 +88,9 @@ It also raised the `tests` timeout to 90 min. The estimates are now: tests 49.7 
 11.8 / 45 (26%), agent-eval-extras 28.6 / 60 (48%), heldout-verify 10.1 / 45 (22%). `tests/test_ci_budget.py`
 checks both layouts. Skipped steps are not counted, so with `SKIP` the estimate is a lower bound.
 
+The last run before the change, 38098598453 at `c39008b` (heldout-verify already split off), was green but used
+41.8 of 45 min in `agent-eval-gate` (the verifier and red-team step alone 30.2 min) and 47.5 of 60 in `tests`.
+
 ## Output
 
 Logs go to `outputs/prepush/<commit>/<step>.log` and the summary to `outputs/prepush/<commit>/summary.md` (or

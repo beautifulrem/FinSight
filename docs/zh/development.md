@@ -79,6 +79,9 @@ deploy/k8s-smoke/smoke.sh        # 需要 kind 和 kubectl；断言 /ready、三
 28.6 / 60（48%），heldout-verify 10.1 / 45（22%）。`tests/test_ci_budget.py` 检查这两种布局。跳过的步骤不计入，所以用了 `SKIP`
 时估算只是下限。
 
+改动前的最后一次运行 38098598453（`c39008b`，heldout-verify 已拆出）通过了，但 `agent-eval-gate` 用了 45 分钟里的 41.8 分钟
+（其中校验器和红队一步就是 30.2 分钟），`tests` 用了 60 分钟里的 47.5 分钟。
+
 ## 输出
 
 日志写到 `outputs/prepush/<commit>/<step>.log`，汇总写到 `outputs/prepush/<commit>/summary.md`（或 `SUMMARY=<路径>`）：
