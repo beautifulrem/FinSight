@@ -306,7 +306,7 @@ def test_the_classifier_ships_and_is_measured_on_held_out_templates():
 
 
 def test_a_fallback_reading_is_explained_in_the_reason():
-    from query_intelligence.agent.frame import resolve_frame_question
+    from query_intelligence.agent.frame import frame_extra_reasons, resolve_frame_question
     from query_intelligence.agent.operation_classifier import fallback_operation
 
     # "凑一块" is in no lexicon class; the wording is one of the classifier's training templates (in-sample here: this
@@ -317,7 +317,9 @@ def test_a_fallback_reading_is_explained_in_the_reason():
     listed = [_entity(ENTITIES[3], True), _entity(ENTITIES[4], True)]
     _rewritten, reason, request = resolve_frame_question(question, [], listed, [])
     assert request["operation"] == "sum" and request["classifier"]["use"] == "fallback"
-    assert re.search(r"\|clf:sum:0\.\d\d:", reason)
+    # (round 16, review-12 L14) the classifier's reading is a route reason of its own, never an operand of the frame
+    assert reason == "frame:sum:net_profit:宁德时代|比亚迪"
+    assert any(re.fullmatch(r"clf:sum:0\.\d\d:\S+", item) for item in frame_extra_reasons(request))
 
 
 def test_the_fallback_needs_several_operands_and_a_question():
