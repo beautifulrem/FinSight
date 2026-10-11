@@ -1,8 +1,8 @@
 {
  "label": "after-exposure-round16",
- "commit": "717a89e",
+ "commit": "d3b5cc2",
  "dirty": false,
- "run_at": "2026-10-11T02:07:03+00:00",
+ "run_at": "2026-10-11T03:17:20+00:00",
  "command": "python -m training.operation_classifier.evaluate_independent --label after-exposure-round16",
  "wordings": "evaluation/operation_wordings_independent_v1.jsonl",
  "wordings_sha256": "faabe7d90d1cf300bb6d8570e0f8f6456f087d6c8debf87c4bf23d58c2b56a92",
@@ -42,9 +42,9 @@
     "n": 234
    },
    "frame_request_and_operands": {
-    "rate": 0.9658,
-    "low": 0.934,
-    "high": 0.9826,
+    "rate": 0.9744,
+    "low": 0.9452,
+    "high": 0.9882,
     "n": 234
    }
   },
@@ -122,7 +122,7 @@
     "combined": "20/20",
     "frame_request_classifier_off": "20/20",
     "frame_request": "20/20",
-    "frame_request_and_operands": "16/20"
+    "frame_request_and_operands": "18/20"
    },
    "sum": {
     "grammar": "20/20",
@@ -164,7 +164,7 @@
     "combined": "117/117",
     "frame_request_classifier_off": "116/117",
     "frame_request": "117/117",
-    "frame_request_and_operands": "114/117"
+    "frame_request_and_operands": "116/117"
    }
   },
   "combined_misses": []
@@ -172,10 +172,8 @@
  "dev_and_ext_use": {
   "agent_eval_v1.jsonl": {
    "questions": 743,
-   "classifier_fires": 1,
-   "by_use": {
-    "tie_break": 1
-   },
+   "classifier_fires": 0,
+   "by_use": {},
    "changes_frame_request": 0
   },
   "agent_eval_ext_v1.jsonl": {
