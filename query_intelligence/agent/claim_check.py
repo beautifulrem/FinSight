@@ -65,6 +65,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from ..runtime_entity_assets import COLLOQUIAL_ALIASES
+from .claim_definitions import Definition, blank_definitions, read_definitions
 from .coverage import METRICS as COVERAGE_METRICS
 from .coverage import PROFIT_GROWTH_FIELDS
 from .evidence import _NUMBER as _NUMBER_TOKEN
@@ -748,7 +749,15 @@ class ClaimCheck(BaseModel):
         ),
     )
     kind: Literal[
-        "value", "stated_reference", "relation", "ratio", "difference", "relative_difference", "sum", "mean"
+        "value",
+        "stated_reference",
+        "relation",
+        "ratio",
+        "difference",
+        "relative_difference",
+        "sum",
+        "mean",
+        "definition",
     ] = Field(
         default="value",
         description=(
@@ -756,7 +765,8 @@ class ClaimCheck(BaseModel):
             "compared side ('比白酒行业平均的30倍低': the average is 30x, round 10); a relation of two values; a "
             "multiple of the other side; a stated (absolute or relative) difference of the two; 'sum', the total "
             "of several targets ('茅台和五粮液成交额加起来不到50亿', round 12); or 'mean', their arithmetic mean "
-            "('三家的平均市盈率约6.6倍', round 15)."
+            "('三家的平均市盈率约6.6倍', round 15); (round 17) 'definition', a stated definition of the metric checked "
+            "against the glossary's formula ('ROE等于净利润除以净资产'; `evidence_id` is the glossary entry)."
         ),
     )
     operands: list[str] = Field(
@@ -821,6 +831,18 @@ class ClaimReport(BaseModel):
             "'baijiu (liquor) industry average'), from the server's name tables, so the English UI never shows them "
             "in Chinese"
         ),
+    )
+    limitations: list[str] = Field(
+        default_factory=list,
+        description=(
+            "(round 17, review-13 M13) What the verdict could not rest on: with the corrections layer switched on but "
+            "its file missing, the checks were judged against uncorrected seed values (the note also opens the "
+            "disclaimer)"
+        ),
+    )
+    degraded: list[str] = Field(
+        default_factory=list,
+        description="(round 17, M13) Machine-readable degradations, as in the chat: `data_layer_missing:corrections`.",
     )
 
 
@@ -967,7 +989,10 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
     reading = _read(claim, targets, zh=zh)
     numbers = reading.numbers
     evidence = _fetch([number for number in numbers if not number.reasons], registry)
-    checks = [_check(number, evidence, zh=zh) for number in numbers]
+    placed = [(number.start, _check(number, evidence, zh=zh)) for number in numbers]
+    # (round 17, review-13 M12a) a stated definition is a check of its own, cited to the glossary entry
+    placed += [(item.start, _definition_check(item)) for item in reading.definitions]
+    checks = [check for _start, check in sorted(placed, key=lambda pair: pair[0])]
     statuses = {check.status for check in checks}
     cautions = all(check.reason == "definition_mismatch" for check in checks if check.status == "unverifiable")
     if not checks or statuses == {"unverifiable"}:
@@ -985,6 +1010,11 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
         if zh
         else "This check compares the claim's numbers with the listed data sources; it is not investment advice."
     )
+    # (round 17, review-13 M13) the corrections layer switched on but missing: the verdicts were judged against the
+    # uncorrected seed values; say so as the chat does (round 16, L19), with the same ``degraded`` marker
+    limitations, degraded = _data_layer_limitations(service, evidence, zh=zh)
+    if limitations:
+        disclaimer = f"{limitations[0]}{'' if zh else ' '}{disclaimer}"
     unchecked = _unchecked(reading)
     decided = [check for check in checks if check.status != "unverifiable"]
     if not decided:
@@ -1011,11 +1041,74 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
         # One entry per evidence id: a sector target and a company's industry share one snapshot (round 9, E14).
         evidence_sources=list(
             {item.evidence_id: _source(item) for items in evidence.values() for item in items}.values()
-        ),
+        )
+        + _glossary_sources(reading.definitions, zh=zh),
         unchecked=unchecked,
         coverage=coverage,
         disclaimer=disclaimer,
+        limitations=limitations,
+        degraded=degraded,
     )
+
+
+def _definition_check(item: Definition) -> ClaimCheck:
+    """(round 17, M12a) A stated definition against the glossary's formula."""
+    return ClaimCheck(
+        kind="definition",
+        metric=item.metric,
+        status=item.status,
+        evidence_id=f"glossary_{item.term}",
+        source="glossary",
+        note=item.note,
+    )
+
+
+def _glossary_sources(definitions: list[Definition], *, zh: bool) -> list[dict[str, Any]]:
+    from .glossary import entry_for_term
+
+    sources: dict[str, dict[str, Any]] = {}
+    for item in definitions:
+        entry = entry_for_term(item.term)
+        if entry is None:
+            continue
+        sources[entry.evidence_id] = {
+            "evidence_id": entry.evidence_id,
+            "source_name": "FinSight 术语表" if zh else "FinSight glossary",
+            "as_of": None,
+            "title": entry.term,
+            "provenance": {"mode": "curated", "is_live": False},
+        }
+    return list(sources.values())
+
+
+# (round 17, review-13 M13) The claim checker's own wording of the round-16 L19 note: it states that the verdicts were
+# judged against the seed values. The ``degraded`` marker is the chat's (``compliance.data_layer_note``).
+CLAIM_LAYER_NOTE_ZH = "数据更正层未加载：本次核查依据的是未经更正的离线快照种子值，可能与原始披露不符。"
+CLAIM_LAYER_NOTE_EN = (
+    "The data corrections layer is not loaded: this check was judged against uncorrected seed values from the offline "
+    "snapshot, which may differ from the primary filings."
+)
+
+
+def _data_layer_limitations(
+    service: Any, evidence: dict[str, list[AgentEvidence]], *, zh: bool
+) -> tuple[list[str], list[str]]:
+    """``([note], ["data_layer_missing:corrections"])`` when the service's corrections layer is switched on but its file
+    is missing and the check used offline-snapshot market or fundamental records, else ``([], [])``."""
+    from ..data_loader import missing_snapshot_layers
+    from .compliance import data_layer_note
+
+    pipeline = getattr(service, "retrieval_pipeline", None)
+    extended, corrected = getattr(pipeline, "snapshot_layer_settings", (None, None))
+    try:
+        missing = missing_snapshot_layers(extended, corrected)
+    except (OSError, ValueError):
+        return [], []
+    items = [item.model_dump() for items in evidence.values() for item in items]
+    note, degraded = data_layer_note(items, missing, zh=zh)
+    if note is None:
+        return [], []
+    return [CLAIM_LAYER_NOTE_ZH if zh else CLAIM_LAYER_NOTE_EN], degraded
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -1555,11 +1648,23 @@ class _Reading:
     text: str  # normalised, names masked, dates blanked (same length as ``plain``)
     plain: str  # normalised claim
     positions: list[tuple[int, dict[str, Any]]]
+    # (round 17, review-13 M12a) definitional clauses, checked against the glossary; blanked in ``text``
+    definitions: list[Definition] = field(default_factory=list)
 
 
 def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Reading:
     plain = normalise(claim)
     norm, positions = _masked(plain, targets)
+    # (round 17, review-13 M12a) "ROE等于净利润除以营业收入，…", "市净率低于1说明…": a definition is its own check; its
+    # words and numbers are never a value of the company named elsewhere in the claim
+    definitions = read_definitions(plain, zh=zh)
+    if definitions:
+        norm = blank_definitions(norm, definitions)
+        positions = [
+            (position, target)
+            for position, target in positions
+            if not any(item.start <= position < item.end for item in definitions)
+        ]
     text = _blank(norm)
     raw = []
     for match in _NUMBER_TOKEN.finditer(text):
@@ -1753,7 +1858,7 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
             if subject.get("ambiguous") and not any(reason == "no_target" for reason, _note in number.reasons):
                 # (round 16, L9) "长电营收862亿元": an ambiguous short name, never checked against either company
                 number.reasons.insert(0, ("no_target", str(subject["ambiguous"])))
-    return _Reading(numbers, text, plain, positions)
+    return _Reading(numbers, text, plain, positions, definitions)
 
 
 # (round 15, K6) A company's line outside the A-share market: its H shares / Hong Kong line (by name, HK code or
