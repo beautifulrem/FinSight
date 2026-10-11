@@ -306,3 +306,57 @@ def test_a_direction_of_two_joined_figures_checks_both(checker, claim, verdict):
 def test_a_direction_of_another_quantity_is_not_carried_from_the_previous_figure(checker, claim):
     report = checker(claim)
     assert report.verdict == "supported" and len(report.checks) == 1, _rows(report)
+
+
+# ---- to_100 (review 12, L9 in claims): everyday short names ------------------------------------------------
+@pytest.mark.parametrize(
+    ("claim", "target", "verdict"),
+    [
+        ("紫金净利润超过500亿元", "紫金矿业", "supported"),  # 517.77
+        ("宁德营收约4237亿元", "宁德时代", "supported"),
+        ("平银2025年净利润426亿元", "平安银行", "supported"),
+        ("紫金的市净率不到3倍", "紫金矿业", "contradicted"),  # 3.92
+        ("茅台营收1688亿元，宁德净利润722亿元", "宁德时代", "supported"),
+    ],
+)
+def test_an_everyday_short_name_is_its_company(checker, claim, target, verdict):
+    report = checker(claim)
+    assert report.verdict == verdict, _rows(report)
+    assert target in [check.target for check in report.checks], _rows(report)
+
+
+def test_an_ambiguous_short_name_is_never_another_company(checker):
+    # 长电 is 长电科技's own short name and a common one for 长江电力; the NLU's fuzzy match made it 长江投资
+    report = checker("长电营收862亿元")
+    assert report.verdict == "unverifiable", _rows(report)
+    (check,) = report.checks
+    assert check.reason == "no_target" and "长江电力" in check.note and "长电科技" in check.note, _rows(report)
+    report = checker("茅台营收1688亿元，长电营收862亿元")
+    assert [check.status for check in report.checks] == ["supported", "unverifiable"], _rows(report)
+
+
+@pytest.mark.parametrize(
+    "claim", ["紫金银行2025年净利润20亿元", "宁德市2025年GDP增长5%", "华泰紫金天天金交易型货币B的规模"]
+)
+def test_a_short_name_inside_a_longer_name_is_not_expanded(checker, claim):
+    report = checker(claim)
+    assert all(check.target not in {"紫金矿业", "宁德时代"} for check in report.checks), _rows(report)
+
+
+def test_the_short_name_table_names_every_listed_stock_it_could_mean():
+    """Ambiguity check against the entity master: every listed stock whose name starts with a short form is the form's
+    company or listed with it (written in full it is that other stock; an ambiguous form resolves to none)."""
+    import csv
+    from pathlib import Path
+
+    from query_intelligence.agent.claim_check import SHORT_NAMES
+
+    with Path("data/runtime/entity_master.csv").open(encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    stocks = {row["canonical_name"] for row in rows if row["entity_type"] == "stock"}
+    for short, entry in SHORT_NAMES.items():
+        starting = {name for name in stocks if name.startswith(short)}
+        known = {entry.company, *entry.others} - {None}
+        assert starting <= known, (short, starting - known)
+        if entry.company is not None:
+            assert entry.company in stocks, short
