@@ -1,0 +1,55 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "c795172",
+  "run_at": "2026-10-11T02:40:20+00:00",
+  "command": "QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 FINSIGHT_REPO=. python evaluation/heldout_r11/score_claims_r11.py outputs/agent_eval/claims_r11-r16.json",
+  "claims_file": "evaluation/heldout_r11/claims_r11_heldout.jsonl",
+  "claims_sha256": "5eedbc7ca2748a441a0da852edaa4eefec327b219eabfc8b1cc19b5a51311f34",
+  "note": "AFTER EXPOSURE (round 16): independent round-11 claim slice rerun at c795172 (clean tree, the round-16 claims code). Its round-15 after-fix run (19/24 at c5ffb7d) and errors had been published; the round-16 rules were written for the round-12 review's L4-L6 and L9, not for this slice. 21/24 = 0.875: r11c12 and r11c20 fixed (宁德 written alone, the L9 short names); r11c03, r11c07, r11c11 still fail."
+ },
+ "summary": {
+  "claims": 24,
+  "verdict_accuracy": 0.875,
+  "ci95": [
+   0.75,
+   1.0
+  ],
+  "by_category": {
+   "contrast_implicit_subject": 1.0,
+   "control": 1.0,
+   "currency": 1.0,
+   "dedt_vs_parent": 1.0,
+   "forecast": 1.0,
+   "foreign_line": 1.0,
+   "mean": 0.75,
+   "published_year": 0.5,
+   "share_of_total3": 1.0,
+   "sum_reference": 0.667,
+   "trillion_unit": 1.0
+  }
+ },
+ "errors": [
+  {
+   "id": "r11c03",
+   "category": "mean",
+   "claim": "紫金矿业、中信证券、长江电力三家市盈率均值超过15倍",
+   "expected": "contradicted",
+   "got": "supported"
+  },
+  {
+   "id": "r11c07",
+   "category": "sum_reference",
+   "claim": "BYD and Midea together earned more than CATL",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r11c11",
+   "category": "published_year",
+   "claim": "In 2025 CITIC Securities earned RMB30.1 billion, up roughly 37%",
+   "expected": "supported",
+   "got": "partially_supported"
+  }
+ ]
+}
