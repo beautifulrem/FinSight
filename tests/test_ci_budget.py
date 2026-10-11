@@ -208,3 +208,25 @@ def test_cli_exit_status(tmp_path, capsys):
     assert "> 60%" in capsys.readouterr().out
     assert ci_budget.main(["jobs"]) == 0
     assert "agent-eval-gate\t45" in capsys.readouterr().out
+
+
+def test_step_load_uses_the_window_that_covers_the_step():
+    assert ci_budget.step_load(60, 1.0, (2.0, 3.0, 4.0)) == 2.0
+    assert ci_budget.step_load(400, 1.0, (2.0, 3.0, 4.0)) == 3.0
+    assert ci_budget.step_load(1200, 5.0, (2.0, 3.0, 4.0)) == 5.0
+    assert ci_budget.step_load(10, None, None) is None
+
+
+def test_a_budget_failure_on_a_busy_host_says_so(tmp_path, monkeypatch):
+    workflow = tmp_path / "ci.yml"
+    workflow.write_text("jobs:\n  tests:\n    timeout-minutes: 90\n", encoding="utf-8")
+    monkeypatch.setenv("CI_BUDGET_BUSY_LOAD", "4")
+    # round 16: pytest took 1186 s under load 7 (about 550 s on an idle host)
+    ok, message = ci_budget.check("pytest", 1186, tmp_path / "busy.jsonl", workflow, 7.2, (6.0, 6.5, 6.9))
+    assert not ok and "host busy (load 7.2 > 4)" in message and "re-measure on an idle host" in message
+    ok, message = ci_budget.check("pytest", 1186, tmp_path / "idle.jsonl", workflow, 1.0, (1.5, 1.2, 1.1))
+    assert not ok and "host busy" not in message
+    assert ci_budget.check("pytest", 550, tmp_path / "ok.jsonl", workflow, 1.0, (1.5, 1.2, 1.1))[0]
+    text = ci_budget.summary(tmp_path / "busy.jsonl", workflow)
+    assert "| tests | 90 | pytest | 1186 |" in text and text.splitlines()[4].endswith("| 7.2 |")
+    assert "Busy-host threshold (`CI_BUDGET_BUSY_LOAD`): load average 4." in text

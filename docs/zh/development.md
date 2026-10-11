@@ -72,6 +72,12 @@ deploy/k8s-smoke/smoke.sh        # 需要 kind 和 kubectl；断言 /ready、三
 | `CI_BUDGET_FRACTION` | `0.6` | job 的估算最多可用其 `timeout-minutes` 的比例；`off` 或 `0` 只报告 |
 | `CI_SLOWDOWN` | `3` | 没有单独系数的步骤，每本地秒对应的 runner 秒数 |
 | `CI_SLOWDOWN_STEPS` | `pytest=5`（内置） | 按步骤的系数，例如 `pytest=5,e2e=2.5`；换到 Apple 芯片笔记本以外的机器上要重新标定 |
+| `CI_BUDGET_BUSY_LOAD` | 性能核数（这台 M 系列笔记本为 4），否则为 CPU 数的一半 | 负载平均值超过它时，预算失败会标为「host busy」 |
+
+**机器繁忙会抬高估算。** 耗时是墙钟秒数。系数是在没有其他负载的笔记本上标定的。第 16 轮里，同一台 4 个性能核的笔记本上另有五个评测进程在跑，
+pytest 用了 1186 秒，而平时约 550 秒，`tests` job 于是被估成预算的 113%。因此每一步都记录机器的负载平均值（开始时的 1 分钟值，以及结束时
+窗口覆盖该步的平均值）。负载高于 `CI_BUDGET_BUSY_LOAD` 时的预算失败仍然算失败，但提示信息和汇总里的「Max host load」列会写明这一点。
+先在空闲的机器上重新测量这个 job，再决定相信还是忽略它。
 
 用 `7cc9a4c` 的本地耗时估算，被取消的那种布局下 `agent-eval-gate` 是 48.5 / 45 分钟（108%），`tests` 是 49.7 / 60（83%），
 所以两者都会在推送前失败。为了留出余量，第 16 轮把校验器压力测试和红队移到单独的 job `agent-eval-extras`（60 分钟），并把

@@ -14,7 +14,9 @@
 # could not see): after each step, scripts/ci_budget.py adds the step's local seconds x a hosted-runner slowdown
 # factor to the estimate of the CI job that runs it (job -> timeout-minutes read from .github/workflows/ci.yml) and
 # fails the step when the job's estimate exceeds CI_BUDGET_FRACTION of its timeout-minutes. Factors: CI_SLOWDOWN
-# (default 3), CI_SLOWDOWN_STEPS ("pytest=5,..."); see scripts/ci_budget.py for the calibration.
+# (default 3), CI_SLOWDOWN_STEPS ("pytest=5,..."); see scripts/ci_budget.py for the calibration. Wall-clock times
+# inflate on a busy host: each step records the load average, and a budget failure under a load above
+# CI_BUDGET_BUSY_LOAD (default: the performance-core count) says so; re-measure such a job on an idle host.
 #
 # Steps (names for SKIP): ruff, actionlint, pytest, fe-install, fe-typecheck, fe-lint, fe-test, fe-build, dist-diff,
 # e2e, gate-dev-holdout, gate-ext, gate-shipped, extras, claim-holdout, verify-slices, report-check.
@@ -55,8 +57,9 @@ run() {
     printf '[prepush] %-16s skipped\n' "$name"
     return
   fi
-  local log="$LOG_DIR/$name.log" started status seconds line budget budget_status
+  local log="$LOG_DIR/$name.log" started status seconds line budget budget_status load_start
   printf '[prepush] %-16s ...' "$name"
+  load_start="$("$PYTHON" -c 'import os; print(os.getloadavg()[0])' 2>/dev/null || echo 0)"
   started=$(date +%s)
   "$@" >"$log" 2>&1
   status=$?
@@ -66,9 +69,10 @@ run() {
   [ -n "$line" ] || line="$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -v '^\s*$' | tail -1)"
   line="$(printf '%s' "$line" | tr '|' '/' | sed 's/^[[:space:]]*//' | cut -c1-160)"
   # the CI job's estimated time so far against its timeout-minutes (scripts/ci_budget.py)
-  budget="$("$PYTHON" "$ROOT/scripts/ci_budget.py" check --step "$name" --seconds "$seconds" --state "$BUDGET_STATE" 2>&1)"
+  budget="$("$PYTHON" "$ROOT/scripts/ci_budget.py" check --step "$name" --seconds "$seconds" \
+    --state "$BUDGET_STATE" --load-start "$load_start" 2>&1)"
   budget_status=$?
-  budget="$(printf '%s' "$budget" | tail -1 | tr '|' '/' | cut -c1-160)"
+  budget="$(printf '%s' "$budget" | tail -1 | tr '|' '/' | cut -c1-320)"
   if [ "$status" = 0 ] && [ "$budget_status" = 0 ]; then
     ROWS+=("| $name | \`$shown\` | pass | $seconds | $budget | $line |")
     printf ' pass (%ss; %s)\n' "$seconds" "${budget#budget: }"
