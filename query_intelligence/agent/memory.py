@@ -557,6 +557,9 @@ def _added_holding(
     new = (count, None)
     previous = _effective(turns[-1])
     held = holding_value_request(previous)
+    if held is None and (stated := stated_holding_count(previous)):
+        # (round 16, review-12 L3) a position stated without a value question ("我持有比亚迪600股") is still held
+        held = (stated, None)
     earlier = [t for t in turns[-1].get("entities") or [] if t.get("symbol")]
     if held is None or holding_positions(previous) or len(earlier) != 1:
         return None
