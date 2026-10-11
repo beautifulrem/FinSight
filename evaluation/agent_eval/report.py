@@ -498,8 +498,9 @@ FILE_STATUS = {
     "chat_heldout_r11-auto-nollm-after-fix": "independent round-11 chat slice **after the round-15 fixes**, run once "
     "from the reviewer's folder; 2 of its 60 tasks overlap own wording by text (without them 12/58 -> 42/58)",
     "claims_heldout_r11-prefix": "**first and only pre-fix run** of the independent round-11 claim slice",
-    "claims_heldout_r11-after-fix": "independent round-11 claim slice **after the round-15 fixes**; one claim is an "
-    "exact copy in a round-15 test (also in the reviewer's probe file), see the note",
+    "claims_heldout_r11-after-fix": "independent round-11 claim slice **after the round-15 fixes**; one claim "
+    "(r11c09) is an exact copy in a round-15 test whose origin the record does not explain (coincidence or exposure; "
+    "excluded in every overlap tier), see `evaluation/heldout_r11/README.md`",
     "slice_overlap-heldout_r11-at-c5ffb7d": "overlap (text and content) of the round-11 slice with own texts at the "
     "after-fix commit",
     "chat_heldout_r10-auto-nollm-after-fix": "independent round-10 chat slice **after the round-14 fixes**; the run "
@@ -1889,9 +1890,9 @@ def render_with_sources() -> tuple[str, list[str]]:
             "60 conversations written by the round-11 reviewer before any round-15 fix "
             "(`evaluation/heldout_r11/README.md`), run with the shipped default data once before the fixes (by the "
             "reviewer) and once after them, from the reviewer's folder. `slice_overlap-heldout_r11-at-c5ffb7d.json` "
-            "lists the overlaps with own wording (text: 2 chat tasks and 2 claims, one claim an exact copy that is "
-            "also in the reviewer's probe file; content and signature tiers wider). Its 24 claims are in the evidence "
-            "table below (`claims_heldout_r11-*.json`).",
+            "lists the overlaps with own wording (text: 2 chat tasks and 2 claims, one claim, r11c09, an exact copy "
+            "in a round-15 test that the record does not explain, coincidence or exposure; content and signature "
+            "tiers wider). Its 24 claims are in the evidence table below (`claims_heldout_r11-*.json`).",
             "",
         ]
         for name, result in heldout_r11:

@@ -115,7 +115,25 @@ Copied unchanged (same hashes) after the round-15 fixes were measured on it once
 | + content overlaps | 11/55 → 39/55 | 5/20 → 15/20 |
 | + content signatures (upper bound) | 9/44 → 32/44 | 4/13 → 9/13 |
 
-One claim (r11c09) is an exact copy in `tests/test_agent_round15_claims.py`; the same sentence is in the reviewer's
-probe file `round11/probes/planted11.py`, which a round-15 engineer was asked to read for the planted-document styles.
+One claim (r11c09) is an exact copy in `tests/test_agent_round15_claims.py:60`, and **the record does not explain
+it**. (Until round 16 this section said the sentence was also in the reviewer's probe file
+`round11/probes/planted11.py`. That was wrong. The round-12 review (L15) found that `planted11.py` has a different
+Moutai sentence, a planted "USD 1.77 trillion" market value. A `grep -F` in round 16 confirms that the r11c09 sentence
+is not in `planted11.py` and not in any other file under `round11/`, `round11.md` or `round11.json`.) The record
+shows:
+
+| When (+0800, 2026-10-11) | Event | Source |
+|---|---|---|
+| 03:08:24 | `claims_r11_heldout.jsonl` created in the reviewer's folder | file birth time in `finsight-review/heldout_r11/` |
+| 03:12:02 / 03:12:24 | reviewer's first runs of the slice at `4ad3380` (chat / claims) | `run_at` in `chat_heldout_r11-auto-nollm-prefix.json` / `claims_heldout_r11-prefix.json` |
+| 03:21–03:30 | round-11 review report written | birth and modification times of `round11.md` / `round11.json` |
+| **03:42:38** | the sentence enters the repository in `138d64d` ("test(claims): round-15 K6 claim classes in own wording", parent `4ad3380`; its docstring says the review's sentences are not copied) | `git log -S` (the first commit that contains it) |
+| 06:51:18 / 06:56:46 | after-fix commit `c5ffb7d` / its claims run, reading the slice from the reviewer's folder | commit time / `run_at` in `claims_heldout_r11-after-fix.json` |
+| 06:58:45 | the slice enters the repository in `efa126c` | `git log -- evaluation/heldout_r11` |
+
+So the copy was committed 34 minutes after the slice existed in the reviewer's folder and 3 h 16 min before the slice
+was committed. The record cannot tell whether this is a coincidence (a natural sentence written for the round-11
+review's K6 trillion-unit class) or exposure. Either way, r11c09 is excluded in every overlap tier above (it is the
+exact text hit). It was right in both runs, so excluding it alone gives 6/23 → 18/23.
 From round 16 this slice is **after exposure**.
 
