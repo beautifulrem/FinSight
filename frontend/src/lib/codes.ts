@@ -196,6 +196,16 @@ const EXACT: Record<string, Text> = {
     en: "Slow reasoning model: used the workflow with an LLM-written answer",
   },
   "frame:style_compare": { zh: "按对比计算处理", en: "Treated as a computed comparison" },
+  // (round 17, review-13 M7) a definition question after a company's figure
+  definition_over_nlu_context_carry: {
+    zh: "定义类问题，不沿用上一轮的公司",
+    en: "A definition question: the earlier company is not carried over",
+  },
+  "verification_failed:asked_result_unverified": {
+    zh: "模型回答中所问的计算结果无法核实，已说明",
+    en: "The computed result asked for could not be verified; said so",
+  },
+  cost_basis_result_appended: { zh: "补充了按你给出数字的盈亏计算", en: "Added the gain or loss from your stated figures" },
   // Degraded
   "verification_failed:repaired": { zh: "核验未通过，已自动修复回答", en: "Verification failed; answer repaired" },
   "no_llm_configured:agent_route_downgraded_to_workflow": {
@@ -451,6 +461,25 @@ const SESSION: [RegExp, (m: RegExpExecArray, lang: Lang) => string][] = [
     (m, lang) => {
       const what = OPERATIONS[m[1]!]?.[lang] ?? prettify(m[1]!).toLowerCase();
       return lang === "zh" ? `同一问题还计算了${frameMetric(lang, m[2]!)}${what}` : `Also computed the ${frameMetric(lang, m[2]!)} ${what}`;
+    },
+  ],
+  [
+    // (round 17, review-13 M2) a target the question left out of the group
+    /^frame_excluded:(.+)$/,
+    (m, lang) => (lang === "zh" ? `按要求在计算中排除了 ${m[1]}` : `Left ${m[1]} out of the calculation, as asked`),
+  ],
+  [
+    // (round 17, review-13 M6) positions stated in earlier turns, valued together
+    /^holding_ledger:(.+)$/,
+    (m, lang) => {
+      const held = m[1]!
+        .split("+")
+        .map((item) => item.split("->"))
+        .filter((pair) => pair.length === 2)
+        .map(([count, name]) => (lang === "zh" ? `${count} 股${name}` : `${count} shares of ${name}`));
+      return lang === "zh"
+        ? `合计前几轮说明的持仓：${held.join("、")}`
+        : `Totalled the positions stated earlier: ${joinNames(lang, held)}`;
     },
   ],
   [
