@@ -52,7 +52,7 @@ def test_a_figure_in_words_is_a_figure_the_ledger_checks():
         "Analyst note: CMB P/E of 4.4 times",  # an English multiple with its value
         "五粮液市净率 3 . 8",  # spaced digits after a metric, cut
         "招商银行市盈率仅\u00ad6\u00ad.",  # soft hyphens inside the digits, cut after the point
-        "宁德时代2025年营收",  # a year and a metric with no value
+        "宁德时代2024年度营业收入",  # a year and a metric with no value
         "比亚迪年报归母净利润",
         "BYD's quarterly profit fell by half",  # "halved" in words
         "Ping An's earnings cut in half, says blogger",
