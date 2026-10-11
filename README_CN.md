@@ -31,11 +31,13 @@ FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问�
 
 ## 30 秒看懂
 
-- **数字可追溯**：逐句校验器把每个数字绑定到本句引用的证据。5,551 个被篡改的答案里，它只误放 **0.94%**；328 个正确答案全部通过（[校验器压力测试](docs/agent-eval.md#verifier-stress-test-328-gold-answers-5551-corrupted-variants-verifier_stress-round15json)，`8b62a6c`）。
-- **在没人调过的任务集上测**：测试集 v3 由独立作者编写，共 130 个任务，这里报的是首次 LLM 运行。在要求引用的一票否决口径下，DeepSeek Agent 通过 **0.869** [0.81, 0.92]，确定性固定流程 0.769，不调工具的 LLM 为 0（[测试集 v3](docs/agent-eval.md#test-set-v3-independent-author-untouched-first-runs)）。
-- **修复之后的样本外结果，并把重合算进去**：每轮评审在任何修复之前，按自己发现的缺陷写一组保留切片。最近一组切片经过一轮修复后从 **0.320 → 0.840**（对话 16/50 → 42/50；声明 0.423 → 0.923），之前两组为 **0.200 → 0.733** 和 **0.250 → 0.792**。去掉与自写措辞重合的任务后最近一组仍然成立：按文本 42/49，按内容 37/43，按内容特征 31/35（[来源说明](evaluation/heldout_r12/README.md#committed-to-the-repository-after-the-round-16-fixes)）。
+<!-- generated:pitch (python -m evaluation.agent_eval.readme) -->
+- **数字可追溯**：逐句校验器把每个数字绑定到本句引用的证据。5,597 个被篡改的答案里，它只误放 **0.93%**（默认允许派生数字时 1.05%）；329 个正确答案全部通过（[校验器压力测试](docs/agent-eval.md#verifier-stress-test-329-gold-answers-5597-corrupted-variants-verifier_stress-round16json)，第 16 轮，`d3b5cc2`）。
+- **在没人调过的任务集上测**：测试集 v3 由独立作者编写，共 130 个任务，这里报的是首次 LLM 运行。在要求引用的一票否决口径下，DeepSeek Agent 通过 **0.869** [0.81, 0.92]，确定性固定流程 0.769，不调工具的 LLM 为 0/130（[测试集 v3](docs/agent-eval.md#test-set-v3-independent-author-untouched-first-runs)）。
+- **修复之后的样本外结果，并把重合算进去**：每轮评审在任何修复之前，按自己发现的缺陷写一组保留切片。最近一组（第十二轮）切片经过一轮修复后从 **0.320 → 0.840**（对话 16/50 → 42/50；声明 0.423 → 0.923），之前两组为 **0.200 → 0.733** 和 **0.250 → 0.792**。去掉与自写措辞重合的任务后最近一组仍然成立：按文本 42/49，按内容 37/43，按内容特征 31/35（[来源说明](evaluation/heldout_r12/README.md#committed-to-the-repository-after-the-round-16-fixes)）。
 - **首次运行的数字照报，不被替换**：每套独立任务集都同时保留首次运行的数字和之后标为「暴露后」的数字。例如新写的独立路由标注首次得 0.801，盲收集的真实说法首次得 0.500（[评测历史](docs/zh/evaluation-history.md#独立任务集首次运行与暴露后)）。
 - **按服务标准交付**：没有 LLM 也能运行，每次 LLM 调用都受运行截止时间约束。做过压测和故障演练，k3s 多副本经 Postgres 共享会话。提供 MCP 和 A2A，配有 Prometheus、Grafana、Jaeger 监控（[性能](docs/zh/performance.md)、[部署](docs/zh/deployment.md)）。
+<!-- /generated:pitch -->
 
 <p align="center"><img src="docs/assets/ui/chrome-agent-trace.png" alt="Agent 回答、实时执行过程与证据面板" width="900"></p>
 
@@ -131,22 +133,24 @@ Kubernetes 与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 
 在线运行每个任务重复 3 次。每个比率都附 95% bootstrap 置信区间，路径之间做配对 bootstrap 和精确 McNemar 检验。下表每个数字都来自 [`evaluation/results/`](evaluation/results/) 里已提交的文件，文件记录了 commit、Prompt 哈希、模型和运行命令。
 
+<!-- generated:headline-table (python -m evaluation.agent_eval.readme) -->
 | 测什么 | 结果 | 证据 |
 |---|---|---|
 | 测试集 v3：独立作者写的 130 个任务，首次 LLM 运行，DeepSeek | Agent **0.869** [0.81, 0.92]，LLM 组织答案 0.831，确定性固定流程 0.769，不调工具的 LLM 0/130。Agent 对固定流程 +0.100 [+0.049, +0.156]，McNemar p = 0.007。Agent 对组织答案在 pass^3 上不显著 | [`ablation-final4-deepseek-testv3-holdout.json`](docs/agent-eval.md#test-set-v3-independent-author-untouched-first-runs) |
-| 校验器压力测试（第 15 轮，`8b62a6c`）：328 个正确答案，5,551 个篡改答案 | 篡改答案误放 **0.94%**（默认允许派生数字时 1.06%）；正确答案全部通过；换入另一家公司的数字 0.0% 放过（允许派生数字时 0.57%） | [`verifier_stress-round15.json`](docs/agent-eval.md#verifier-stress-test-328-gold-answers-5551-corrupted-variants-verifier_stress-round15json) |
+| 校验器压力测试（第 16 轮，`d3b5cc2`）：329 个正确答案，5,597 个篡改答案 | 篡改答案误放 **0.93%**（默认允许派生数字时 1.05%）；正确答案通过 100%；换入另一家公司的数字 0.0% 放过（允许派生数字时 0.57%） | [`verifier_stress-round16.json`](docs/agent-eval.md#verifier-stress-test-329-gold-answers-5597-corrupted-variants-verifier_stress-round16json) |
 | 最近一组评审切片（第十二轮）：50 个对话任务、26 条声明，一轮修复前后各跑一次 | 对话 **0.320 → 0.840**，声明 0.423 → 0.923。去掉重合任务后：16/49 → 42/49（文本），14/43 → 37/43（加内容），14/35 → 31/35（加内容特征） | [`chat_heldout_r12-auto-nollm-after-fix.json`](docs/agent-eval.md#round-12-held-out-chat-slice-independent-author-before-and-after-the-round-16-fixes)、[`slice_overlap-heldout_r12-at-9564263.json`](evaluation/heldout_r12/README.md#committed-to-the-repository-after-the-round-16-fixes) |
 | 上一组评审切片（第十一轮）：60 个对话任务、24 条声明，一轮修复前后各跑一次 | 对话 **0.200 → 0.733**，声明 0.292 → 0.792。去掉重合任务后：12/58 → 42/58（文本），11/55 → 39/55（加内容），9/44 → 32/44（加内容特征） | [`chat_heldout_r11-auto-nollm-after-fix.json`](docs/agent-eval.md#round-11-held-out-chat-slice-independent-author-before-and-after-the-round-15-fixes)、[`slice_overlap-heldout_r11-at-c5ffb7d.json`](evaluation/heldout_r11/README.md#committed-to-the-repository-after-the-round-15-fixes) |
-| 更早一组评审切片（第十轮）：48 个对话任务、24 条声明，一轮修复前后各跑一次 | 对话 **0.250 → 0.792**，声明 0.667 → 0.833。去掉重合任务后：12/45 → 35/45（文本），12/42 → 32/42（加内容），11/38 → 29/38（评审的口径） | [`chat_heldout_r10-auto-nollm-after-fix.json`](docs/agent-eval.md#round-10-held-out-chat-slice-independent-author-before-and-after-the-round-14-fixes)、[`slice_overlap-heldout_r10-content-at-3480a96.json`](evaluation/heldout_r10/README.md#provenance-of-the-after-fix-run-what-the-record-shows-round-11-review-k16) |
+| 更早一组评审切片（第十轮）：48 个对话任务、24 条声明，一轮修复前后各跑一次 | 对话 **0.250 → 0.792**，声明 0.667 → 0.833。去掉重合任务后：12/45 → 35/45（文本），12/42 → 32/42（加内容），10/29 → 24/29（加内容特征） | [`chat_heldout_r10-auto-nollm-after-fix.json`](docs/agent-eval.md#round-10-held-out-chat-slice-independent-author-before-and-after-the-round-14-fixes)、[`slice_overlap-heldout_r10-content-at-3480a96.json`](evaluation/heldout_r10/README.md#committed-to-the-repository-after-the-round-14-fixes) |
 | 更早的评审切片（对话，首次 → 一轮修复后） | 第六轮 0.579 → 0.816；第七轮 0.264 → 0.830；第八轮 0.275 → 0.686；第九轮 0.346 → 0.788 | [评测历史](docs/zh/evaluation-history.md#独立任务集首次运行与暴露后) |
 | 独立路由标注（新写的 241 条） | 首次 0.801，暴露后 0.842 | [`router_eval-independent_v2-first-run.json`](docs/agent-eval.md#router-label-sets) |
-| 对核查器盲收集的真实公开说法（50 条） | 首次 0.500 [0.36, 0.64]；针对其错误类别修改核查器后 0.840（暴露后） | [`claims_web_v2-first-run.json`](evaluation/real_claims_web_v2/README.md) |
-| 第三套盲收集的真实公开说法（50 条） | 首次 0.540 [0.40, 0.68]（第 14 轮核查器）；针对其错误类别修改核查器后 0.900（第 15 轮，暴露后） | [`claims_web_v3-first-run.json`](evaluation/real_claims_web_v3/README.md)、[`claims_web_v3-after-exposure-round15.json`](evaluation/real_claims_web_v3/README.md#round-15-after-exposure-checker-changed) |
-| 第四套盲收集的真实公开说法（50 条） | 首次 0.740 [0.62, 0.86]（第 15 轮核查器，第三套的规则之前）；之后 0.780（暴露后） | [`claims_web_v4-first-run.json`](evaluation/real_claims_web_v4/README.md) |
-| 第五套盲收集的真实公开说法（50 条） | 唯一一次盲测 0.680 [0.56, 0.80]（第 16 轮核查器）；16 个错误中 7 个是标注不采用的结论约定 | [`claims_web_v5-first-run.json`](evaluation/real_claims_web_v5/README.md#first-run-the-only-blind-run-c795172) |
-| 投毒到文档里的提示注入 | 模板路径在 14 个攻击集上 0 次成功；LLM 路径每个集合当作事实陈述 0–3.4% | [`redteam-offline-r16.json`](docs/agent-eval.md#prompt-injection-red-team-offline-template-path-after-round-16-all-fourteen-sets-ci-baseline)、[`redteam-r8-llm.json`](docs/zh/evaluation-history.md#其他测量) |
+| 对核查器盲收集的真实公开说法，第 2 套（v2，50 条） | 首次 0.500 [0.36, 0.64]（`117e74b`）；之后 0.840（第 16 轮核查器，暴露后） | [`claims_web_v2-first-run.json`](evaluation/real_claims_web_v2/README.md) |
+| 对核查器盲收集的真实公开说法，第 3 套（v3，50 条） | 首次 0.540 [0.40, 0.68]（`7ea8f5d`）；之后 0.900（第 16 轮核查器，暴露后） | [`claims_web_v3-first-run.json`](evaluation/real_claims_web_v3/README.md) |
+| 对核查器盲收集的真实公开说法，第 4 套（v4，50 条） | 首次 0.740 [0.62, 0.86]（`110e656`）；之后 0.780（第 16 轮核查器，暴露后） | [`claims_web_v4-first-run.json`](evaluation/real_claims_web_v4/README.md) |
+| 对核查器盲收集的真实公开说法，第 5 套（v5，50 条） | 首次 0.680 [0.56, 0.80]（`c795172`）；尚无后续运行 | [`claims_web_v5-first-run.json`](evaluation/real_claims_web_v5/README.md) |
+| 投毒到文档里的提示注入 | 模板路径在 14 个攻击集上 0 次成功（3,176 次运行）；最近一次完整 LLM 运行（`0473968`）每个集合当作事实陈述 0–3.4%；最近一次定向集（holdout13）Agent 0/16，组织答案 0/13 | [`redteam-offline-r16.json`](docs/agent-eval.md#prompt-injection-red-team-offline-template-path-after-round-16-all-fourteen-sets-ci-baseline)、[`redteam-r8-llm.json`](docs/agent-eval.md#prompt-injection-red-team-llm-paths-after-round-8-0473968)、[`redteam-r16-holdout13-llm.json`](docs/agent-eval.md#prompt-injection-red-team-llm-paths-on-holdout13-round-12-reviewers-styles-in-round-16) |
 | 延迟与负载 | DeepSeek Agent P95 15.4 秒（保留集），首字约 3 秒；数据源故障演练下 8 个用户（无 LLM）400 个请求 0 错误 | [性能](docs/zh/performance.md) |
-| CI 门禁（与已提交基线比较） | 开发集 538 个任务 1.000，保留集 53 个 0.9434，ext 99 个 1.000，发布默认配置 21 个 1.000 | [门禁基线](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |
+| CI 门禁（与已提交基线比较） | 开发集 538 个任务 1.000，保留集 53 个 0.943，ext 99 个 1.000，发布默认配置 21 个 1.000 | [门禁基线](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |
+<!-- /generated:headline-table -->
 
 更多细节：
 
@@ -170,17 +174,21 @@ python -m scripts.load_test --base-url http://127.0.0.1:8000 --users 8
 python -m scripts.chaos_drill --scenario sources           # 对运行中的服务屏蔽上游数据源
 ```
 
-推送到 `master` 之前，[`scripts/prepush.sh`](scripts/prepush.sh) 在本地跑一遍 CI 的全部步骤（[docs/zh/development.md](docs/zh/development.md)）。`master` 最近一次 CI 运行是 [38098598453](https://github.com/beautifulrem/FinSight/actions/runs/38098598453)：在 `c39008b` 上 9 个 job 全部通过（2026-10-11 查看），但时间余量很小：`agent-eval-gate` 用了 45 分钟里的 41.8 分钟，`tests` 用了 60 分钟里的 47.5 分钟。第 16 轮拆分了这些 job 并重新设定预算，推送前检查现在会让所属 job 估计超过超时 60% 的步骤失败（[CI 时间预算](docs/zh/development.md#ci-时间预算)）；这个新布局还没有 CI 运行记录。CI 怎么跑、人工评测工具包怎么用，见 [docs/zh/evaluation-history.md](docs/zh/evaluation-history.md#ci推送前检查与人工评测工具包)。
+<!-- generated:ci-status (python -m evaluation.agent_eval.readme) -->
+推送到 `master` 之前，[`scripts/prepush.sh`](scripts/prepush.sh) 在本地跑一遍 CI 的全部步骤（[docs/zh/development.md](docs/zh/development.md)）。最近一次提交的摘要是 [`prepush-2181568.md`](docs/results/ci/prepush-2181568.md)（`2181568`，2026-10-11，至少一个步骤失败，见摘要）：pytest 4,397 个通过、70 个跳过。`master` 最近一次记录的 CI 运行是 [38113129617](https://github.com/beautifulrem/FinSight/actions/runs/38113129617)：在 `aa73005` 上10 个 job 全部通过（2026-10-11 记录于 [`ci-run-aa73005.json`](docs/results/ci/ci-run-aa73005.json)，由 `python scripts/record_ci_run.py` 从 GitHub API 生成）；占用预算比例最高的 job `agent-eval-extras` 用了 60 分钟里的 28.9 分钟。页首的徽章显示 `master` 当前的状态。推送前检查会让所属 job 估计超过超时 60% 的步骤失败（[CI 时间预算](docs/zh/development.md#ci-时间预算)）。CI 怎么跑、人工评测工具包怎么用，见 [docs/zh/evaluation-history.md](docs/zh/evaluation-history.md#ci推送前检查与人工评测工具包)。
+<!-- /generated:ci-status -->
 
 ## 局限
 
+<!-- generated:limits (python -m evaluation.agent_eval.readme) -->
 - **未暴露的任务集很少**：每组评审切片只对一轮修复是样本外的。切片规模小（38–60 个对话任务），而且每组都有一部分与自写测试措辞重合，见上面的重合计数。「工程师在修复后运行之前没打开过切片」是工程师的陈述：那次运行是从评审的目录读取切片的，没有任何记录能证明是否打开过（[来源说明](evaluation/heldout_r10/README.md#provenance-of-the-after-fix-run-what-the-record-shows-round-11-review-k16)）。
-- **比较类问题靠词表泛化**：比较语法按词类判断运算，而词类是正则表达式，词类之外的问法仍会漏掉。最近一组切片（第十一轮）修复后仍有 60 个里的 16 个对话任务失败（[按类别](docs/zh/evaluation-history.md#第十一轮切片分类)）。
-- **路由在新问法上约有五分之一出错**：新写的独立标注上为 0.801。
+- **比较类问题靠词表泛化**：比较语法按词类判断运算，而词类是正则表达式，词类之外的问法仍会漏掉。最近一组切片（第十二轮）修复后仍有 50 个里的 8 个对话任务失败（[按类别](docs/agent-eval.md#round-12-held-out-chat-slice-independent-author-before-and-after-the-round-16-fixes)）。
+- **路由在新问法上约有 20% 出错**：新写的独立标注首次 0.801，暴露后 0.842。
 - **Agent 工具循环只比「LLM 组织答案」略好**：DeepSeek 上单次成功率领先，pass^3 不显著；GLM 上两者持平，Agent 成本是后者的 1.1–4 倍。
 - **校验证明的是可追溯，不是真实**：投毒到新闻正文里的假价格能通过校验，因为它确实「在证据里」。
 - **LLM 路径有时仍会转述投毒文档的内容**：输出层只能对它认出的内容注明出处或删除，不能阻止模型提到投毒内容。
 - **有些结果需要所有者提供**：目前还没有人工答案标注，没有与问财 / 豆包 / Kimi 的对比，没有用户研究，也没有所有者收集的真实说法。[工具包](evaluation/human/README.md)已经就绪。
+<!-- /generated:limits -->
 
 完整的局限说明（含每条的数字和限定）见 [docs/zh/evaluation-history.md](docs/zh/evaluation-history.md#完整的局限说明)。
 
