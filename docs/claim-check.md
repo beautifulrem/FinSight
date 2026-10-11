@@ -609,6 +609,54 @@ number ("微降0.5%") the word only gives the sign and the number is checked as 
 
 Words outside these lists (明显增长, 显著下降, "rose", "fell") stay plain directions (g > 0 or g < 0).
 
+### Round 17: definitions, same-company comparisons, 扣非 vs 归母, growth multiples, a missing corrections layer (after the round-13 review, M12, M13)
+
+The round-13 review found false `supported` verdicts for a false definition next to a true value, a weak direction word
+(微降), a same-company growth comparison written with 其, and an 扣非-vs-归母 comparison, and `unverifiable` for
+基本持平 / 大增 and a growth multiple (M12); and `/agent/claim-check` judged against the v1 seed values without a word
+when the corrections layer was switched on but missing (M13). The bands above were committed first (`3f054ba`); failing
+tests were then written in the engineer's own wording (`tests/test_agent_round17_claims.py` and
+`tests/test_agent_round17_claim_parts.py`: 86 cases, 80 failing at `3f054ba`; 8 more from a generalisation probe after
+the first fixes, all failing at `2f7fbde`; 94 cases now). None is a review sentence, a slice text, a real-claims set
+claim or a claim-bench row: `test_round17_claim_tests_do_not_copy_a_slice_a_real_claim_or_a_review_probe` checks
+them (0 exact, 0 near). Code: `claim_definitions.py` (new) and `_clause_parts`, `_relation_at`, `_metric_ratio` in
+`claim_check.py`.
+
+| Form | Example (own wording) | Reading |
+| --- | --- | --- |
+| A definition of a metric | "ROE是净利润与净资产之比", "市盈率=每股收益/股价", "毛利率是净利润占营业收入的比例", "净资产收益率（ROE）= 净利润 / 净资产", "P/E is the share price divided by earnings per share", "Return on equity is net income over total revenue" | a check of its own (`kind: "definition"`, `evidence_id: glossary_<term>`): the stated numerator and denominator against the glossary's formula (ROE 归母净利润 ÷ 归母净资产; P/E 股价 ÷ 每股收益 or 总市值 ÷ 净利润; P/B 股价 ÷ 每股净资产 or 总市值 ÷ 净资产; 毛利率 毛利润 ÷ 营业收入; 净利率 净利润 ÷ 营业收入; EPS 净利润 ÷ 股数). A false one is `contradicted` and the note says what the stated ratio is (净利率, ROA, P/S, the formula inverted), so a true number next to it gives `partially_supported`. Forms read: 等于 / 是 / 即 / 指 / = with 除以 / ÷ / /, 与…之比, 占…的比例; "用A除以B得到的就是X"; English is / equals / is calculated as with divided by / over / as a share of / the ratio of … to. A definition in other words stays an unchecked clause |
+| A P/B threshold as price against book value | "市净率小于1意味着股价跌破每股净资产", "破净是指市净率高于1", "A P/B below 1 means the share price is above book value per share" | a definition check: below book value is a P/B under 1. Its "1" is blanked before the numbers are read (before round 17 "市净率低于1…，工商银行市净率0.74倍" read the 1 as ICBC's P/B bound) |
+| Two growth rates of one company with 快于 / 慢于 / 明显 / 其 | "中信证券营收增速快于其净利润增速", "宁德时代净利润增速明显快于营收增速", "CITIC Securities' revenue grew faster than its net profit", "…net profit growth outpaced its revenue growth" | 快于 / 慢于 / outpaced / outgrew are comparison words; a growth word on the subject's side (增速明显快于其净利润, "grew faster than its net profit") makes both sides growth rates |
+| After a stated figure | "长江电力2025年营收862亿元，增速慢于其净利润增速" | the subject's figure is the one named earlier in the sentence |
+| Decline rates | "五粮液净利润的降幅比营收大", "平安银行营收降幅小于净利润降幅", "…，净利润降幅更大" | growth rates with the comparison turned (a larger decline is a lower growth rate); before round 17 the levels were compared |
+| 扣非 vs 归母, elided | "宁德时代归母净利润722亿元，扣非净利润更低", "美的集团净利润439亿元，扣非后净利润要低一些", "…, and its recurring net profit was even lower" | another figure of the previous clause's company against the stated one (`reference_metric`); also a growth ("营收增长16.5%，净利润增长更快") |
+| A growth rate as a multiple of another | "宁德时代净利润增速约为营收增速的2.5倍", "长江电力净利润增速接近营收增速的3倍", "CATL's net profit growth was about 2.5 times its revenue growth"; also levels: "中国平安扣非净利润是归母净利润的1.07倍" | a `ratio` check against another figure of the subject; a positive multiple of a growth when one of the two fell is `contradicted` |
+| A weak direction word | see the bands above | `range` / `ge` / `le` against the band, note "band '…' (round-17 convention)" |
+
+**M13.** With the corrections layer switched on (`QI_OFFLINE_SNAPSHOT_FIX`, the shipped default) but
+`data/snapshot/structured_data_fix.json` missing, a report whose checks used offline-snapshot market or fundamental
+records now carries `limitations: ["数据更正层未加载：本次核查依据的是未经更正的离线快照种子值，可能与原始披露不符。"]`
+(en: "The data corrections layer is not loaded: this check was judged against uncorrected seed values …"),
+`degraded: ["data_layer_missing:corrections"]` (the chat's marker, round 16 L19) and the same note at the start of the
+`disclaimer` (the UI shows the disclaimer). The verdict itself is unchanged: the seed values are what the service
+serves in that state, and the report says so. Tests: `test_a_missing_corrections_layer_is_stated_in_the_report`,
+`test_the_claim_check_endpoint_reports_the_missing_layer` (POST `/agent/claim-check`).
+
+**Runs at `e12eaa3`** (after exposure, round 17): the review's seven quoted M12 claims (§4.3 and §9) all give the
+expected verdicts (partially supported ×6, supported ×1). Benches and slices unchanged (dev 311 = 1.000 / 1.000,
+held-out 1.000 / 1.000, r4 1.000 / 0.907, r5 0.964 / 0.942, r6 0.970 / 0.894, r8 and r9 25/25, r10 21/24, r11 21/24,
+r12 24/26). Real published claims: v1 0.850 → 0.867 (w02, a growth multiple), with corrections 0.817 → 0.833, v2 0.840,
+v3 0.900 → **0.880** (x43 "毛利率26.4%，同比基本持平": 基本持平 is now read, but no source has the gross margin's prior
+year, so it is an unverifiable part and the verdict partially supported; the label says supported), v4 0.780, v5 0.680
+(unchanged per class).
+
+Open after round 17: the independent round-13 claim slice (weak directions, two metrics of one company, a definition
+next to a value, a contrast clause) has not been run after these fixes; a weak direction word about a ratio
+(毛利率, ROE) is an unverifiable part (the sources carry this period's value only), which moves a true level next to it
+to `partially_supported` (v3 x43); a definition is read only in the forms above (a definition by example, "ROE衡量…",
+or one with a third quantity is not checked); 腰斩 / 翻倍 about a reported figure and 远 / 明显 as a size of the gap
+(远高于 for 14.87 against 12.11) are not read; the UI shows a definition check as a row with no target.
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
@@ -805,6 +853,14 @@ python -m evaluation.claim_bench.run --set holdout
 | independent round-8 and round-9 claim slices, **after exposure**, at the round-16 claims code | `c795172` | 25 / – each | 1.000 [1.00, 1.00] each | – | – |
 | independent round-10 claim slice, **after exposure**, at the round-16 claims code | `c795172` | 24 / – | 0.875 [0.75, 1.00] | – | – |
 | independent round-11 claim slice, **after exposure (round 16)** | `c795172` | 24 / – | 0.875 [0.75, 1.00] | – | – |
+| dev (311), at the round-17 claims code | `e12eaa3` | 311 / 359 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| held-out, after exposure, at the round-17 claims code | `e12eaa3` | 47 / 54 | 1.000 [1.000, 1.000] | 1.000 [1.000, 1.000] | 1.000 |
+| independent round-4 slice, after exposure, at the round-17 claims code | `e12eaa3` | 67 / 75 | 1.000 [1.000, 1.000] | 0.907 [0.836, 0.963] | 0.522 |
+| independent round-5 slice, after exposure, at the round-17 claims code | `e12eaa3` | 56 / 86 | 0.964 [0.911, 1.000] | 0.942 [0.884, 0.988] | 0.929 |
+| independent round-6 slice, **after exposure**, at the round-17 claims code | `e12eaa3` | 67 / 104 | 0.970 [0.925, 1.000] | 0.894 [0.821, 0.961] | 0.382 |
+| independent round-8 and round-9 claim slices, **after exposure**, at the round-17 claims code | `e12eaa3` | 25 / – each | 1.000 [1.00, 1.00] each | – | – |
+| independent round-10 and round-11 claim slices, **after exposure**, at the round-17 claims code | `e12eaa3` | 24 / – each | 0.875 [0.75, 1.00] each | – | – |
+| independent round-12 claim slice, **after exposure (round 17)** | `e12eaa3` | 26 / – | 0.923 [0.81, 1.00] | – | – |
 
 The commit column is the commit each run started from (`config.commit`). The merged-code runs were committed one after
 another, so each starts from the previous result commit; the code is the same in all of them.
@@ -914,6 +970,14 @@ A **fifth blind set**, `claims_web_v5` (collected on r16-claims by a search agen
 tests, benches, docs or results, committed unread), scored **0.680 [0.56, 0.80]** (34/50) on its only blind run at
 `c795172`; 7 of its 16 errors are the definition-caution convention the labels do not follow
 ([v5](../evaluation/real_claims_web_v5/README.md#first-run-the-only-blind-run-c795172)).
+
+Round 17 re-ran every claim set once at `e12eaa3` (clean tree, r17-claims, the final round-17 claims code), with
+`*-round17.json` names (`claim_bench-dev.json` in place), all **after exposure**. The benches and the round-4 to round-12
+slices are unchanged (dev 311 = 1.000 / 1.000, held-out 1.000 / 1.000 with the CI floors 0.978 / 0.98, r4 1.000 / 0.907,
+r5 0.964 / 0.942, r6 0.970 / 0.894, r8 and r9 25/25, r10 21/24, r11 21/24, r12 24/26; the same ids fail). Real
+published claims: v1 0.850 → 0.867 (52/60), with corrections 0.817 → 0.833 (50/60), both w02 (a growth multiple,
+M12e); v2 0.840 (42/50); v3 0.900 → 0.880 (44/50: x43, a 毛利率 "同比基本持平" part that no source can check); v4 0.780
+(39/50) and v5 0.680 (34/50), unchanged per class; v5's blind number stays its first run.
 
 ```bash
 python -m evaluation.claim_bench.run --claims evaluation/heldout_r4/claims_moves_heldout.jsonl \
