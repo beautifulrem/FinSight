@@ -1651,25 +1651,32 @@ def _from_52w_extremes(data: dict[str, Any], zh: bool, request: PriceRequest) ->
         if zh:
             sentences.append(
                 f"{name}最新收盘 {_px(close, data, zh)}，要回到近52周最高收盘 {_px(high, data, zh)}"
-                f"（{found.get('high_date')}）需上涨 ({_num(high)} − {_num(close)}) ÷ {_num(close)} ≈ {pct}% [{eid}]。"
+                f"（{found.get('high_date')}）需上涨 {_num(high)} − {_num(close)} = "
+                f"{_num(round(float(high) - float(close), 3))} 元，即 ({_num(high)} − {_num(close)}) ÷ {_num(close)} ≈ "
+                f"{pct}% [{eid}]。"
             )
         else:
             sentences.append(
-                f"From its latest close of {_px(close, data, zh)}, {name} would need to rise ({_num(high)} − "
-                f"{_num(close)}) ÷ {_num(close)} ≈ {pct}% to get back to its 52-week high close of "
+                f"From its latest close of {_px(close, data, zh)}, {name} would need to rise {_num(high)} − "
+                f"{_num(close)} = CNY {_num(round(float(high) - float(close), 3))}, or ({_num(high)} − "
+                f"{_num(close)}) ÷ {_num(close)} ≈ {pct}%, to get back to its 52-week high close of "
                 f"{_px(high, data, zh)} on {found.get('high_date')} [{eid}]."
             )
     if request.off_high_52w and high:
         pct = _num(round((float(high) - float(close)) / float(high) * 100, 2))
+        # (round 16, review-12 L13) the gap in yuan as well as in percent ("还差多少元")
+        gap = _num(round(float(high) - float(close), 3))
         if zh:
             sentences.append(
                 f"{name}最新收盘 {_px(close, data, zh)}较近52周最高收盘 {_px(high, data, zh)}"
-                f"（{found.get('high_date')}）低 ({_num(high)} − {_num(close)}) ÷ {_num(high)} ≈ {pct}% [{eid}]。"
+                f"（{found.get('high_date')}）低 {_num(high)} − {_num(close)} = {gap} 元，即 ({_num(high)} − "
+                f"{_num(close)}) ÷ {_num(high)} ≈ {pct}% [{eid}]。"
             )
         else:
             sentences.append(
-                f"{name}'s latest close of {_px(close, data, zh)} is ({_num(high)} − {_num(close)}) ÷ {_num(high)} ≈ "
-                f"{pct}% below its 52-week high close of {_px(high, data, zh)} on {found.get('high_date')} [{eid}]."
+                f"{name}'s latest close of {_px(close, data, zh)} is {_num(high)} − {_num(close)} = CNY {gap}, or "
+                f"({_num(high)} − {_num(close)}) ÷ {_num(high)} ≈ {pct}%, below its 52-week high close of "
+                f"{_px(high, data, zh)} on {found.get('high_date')} [{eid}]."
             )
     return sentences
 
