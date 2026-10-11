@@ -6,7 +6,7 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 
 ENTITY_FIELDS = [
@@ -931,6 +931,7 @@ def derive_short_aliases(
                         - {names[best]})  # fmt: skip
         if not rivals:
             verdict(accepted, best, "unique")
+            accepted[-1]["dictionary_word"] = frequency.get(alias, 0) > 0
             continue
         if len(rivals) > SHORT_ALIAS_MAX_RIVALS:
             verdict(rejected, best, f"starts {len(rivals)} other names")
@@ -940,10 +941,18 @@ def derive_short_aliases(
         evidence = f"documents {names[best]} {mine} : {' + '.join(f'{n} {counts.get(n, 0)}' for n in rivals)}"
         dominant = mine >= SHORT_ALIAS_MIN_DOCUMENTS and mine >= SHORT_ALIAS_DOMINANCE * max(others, 1)
         verdict(accepted if dominant else rejected, best, evidence if dominant else f"ambiguous: {evidence}")
+        if dominant:
+            accepted[-1]["dictionary_word"] = frequency.get(alias, 0) > 0
     return accepted, rejected
 
 
-def short_alias_rows(accepted: list[dict[str, str]], next_alias_id: int) -> list[dict[str, str]]:
+# (round 16) the ``is_official`` value of a derived short name: "derived_word" when the form is also an ordinary word
+# of the jieba dictionary (宁德 is a city, 紫金 a colour): the resolver then needs a finance cue in the question
+DERIVED_MARK = "derived"
+DERIVED_WORD_MARK = "derived_word"
+
+
+def short_alias_rows(accepted: list[dict[str, Any]], next_alias_id: int) -> list[dict[str, str]]:
     rows = []
     for item in accepted:
         rows.append(
@@ -954,7 +963,7 @@ def short_alias_rows(accepted: list[dict[str, str]], next_alias_id: int) -> list
                 "normalized_alias": item["alias"],
                 "alias_type": COLLOQUIAL_ALIAS_TYPE,
                 "priority": "1",
-                "is_official": "false",
+                "is_official": DERIVED_WORD_MARK if item.get("dictionary_word") else DERIVED_MARK,
             }
         )
         next_alias_id += 1

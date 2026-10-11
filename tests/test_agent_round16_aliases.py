@@ -91,7 +91,7 @@ def test_no_derived_alias_in_the_shipped_table_collides_with_another_entity():
         row["entity_id"] = str(int(row["entity_id"])) if row["entity_id"].isdigit() else row["entity_id"]
     aliases = _read(RUNTIME / "alias_table.csv")
     report = json.loads((RUNTIME / "derived_short_aliases.json").read_text(encoding="utf-8"))
-    derived = [row for row in aliases if row.get("is_official") == "derived"]
+    derived = [row for row in aliases if str(row.get("is_official") or "").startswith("derived")]
     accepted = {(item["entity_id"], item["alias"]): item for item in report["accepted"]}
     assert {(row["entity_id"], row["alias_text"]) for row in derived} == set(accepted)
     assert {item["alias"] for item in report["accepted"]} >= {"紫金", "宁德", "平银", "长电"}
@@ -126,3 +126,18 @@ def test_the_nlu_resolves_a_derived_short_name(offline_service, question, symbol
     nlu = offline_service.analyze_query(question)
     nlu = nlu if isinstance(nlu, dict) else nlu.model_dump()
     assert symbol in {entity.get("symbol") for entity in nlu.get("entities") or []}, question
+
+
+@pytest.mark.parametrize(
+    ("question", "symbol", "resolved"),
+    [
+        ("宁德这座城市冬天冷不冷", "300750.SZ", False),  # an ordinary word: no finance cue, no company
+        ("宁德去年净利润多少", "300750.SZ", True),
+        ("紫金山离南京市区远吗", "601899.SH", False),
+        ("紫金的股价跌了多少", "601899.SH", True),
+    ],
+)
+def test_a_derived_name_that_is_also_a_word_needs_a_finance_cue(offline_service, question, symbol, resolved):
+    nlu = offline_service.analyze_query(question)
+    nlu = nlu if isinstance(nlu, dict) else nlu.model_dump()
+    assert (symbol in {entity.get("symbol") for entity in nlu.get("entities") or []}) is resolved, question
