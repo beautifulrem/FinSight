@@ -3530,6 +3530,27 @@ Repair of the 3969 rejected variants (whole-sentence deletion, template fallback
 
 * Note: Round 11 at 25205d4: deterministic gold set (gold_set.sha256 33b055d088e4334d…, a second run at the same commit was identical); 227 gold answers / 4,016 variants; claim false accept 0.0117, derived 0.0132, swap 0.0 / 0.0066; true accept 1.0. Supersedes the 9f0e46b run (now verifier_stress-9f0e46b.json). The 220 / 227 / 240 gold counts of earlier rounds came from different commits, not from load.
 
+### Verifier stress test (333 gold answers, 5666 corrupted variants, `verifier_stress-round17-frame.json`)
+
+Command: `python -m evaluation.agent_eval.verifier_stress ` at commit `7378156`. Lower is better; true-accept must stay 1.0.
+
+| | legacy | run | claim | claim_derived |
+|---|---|---|---|---|
+| True-accept (gold answers passing) | 1.000 | 1.000 | 1.000 | 1.000 |
+| False-accept, all corruptions | 0.318 | 0.236 | 0.009 | 0.010 |
+| False-accept, perturb_1pct (1389) | 0.253 | 0.014 | 0.014 | 0.014 |
+| False-accept, perturb_20pct (1526) | 0.082 | 0.026 | 0.013 | 0.013 |
+| False-accept, perturb_5pct (1499) | 0.050 | 0.018 | 0.008 | 0.008 |
+| False-accept, swap (1252) | 1.000 | 1.000 | 0.000 | 0.006 |
+
+Repair of the 5614 rejected variants (whole-sentence deletion, template fallback when nothing cited survives):
+
+| Readable (no dangling clause, stray punctuation, orphan citation) | Containing a fragment | Repaired answer verifies | Untouched sentences kept | Template fallback |
+|---|---|---|---|---|
+| 1.000 | 0.000 | 1.000 | 0.980 | 0.192 |
+
+* Note: round 17 (r17-frame): run at the final round-17 frame code 7378156 (12 more dev tasks add gold answers)
+
 ### Verifier stress test (329 gold answers, 5597 corrupted variants, `verifier_stress-round16.json`)
 
 Command: `python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress-round16.json` at commit `d3b5cc2`. Lower is better; true-accept must stay 1.0.
@@ -4640,6 +4661,7 @@ Paired comparisons (same tasks, a − b):
 | `gate-shipped.json` | run | `0096c6f` | 2026-10-10T16:01:55+00:00 | – | `outputs/agent_eval/gate-shipped.json` (bf74663837895f6c) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |
+| `verifier_stress-round17-frame.json` | verifier_stress | `7378156` | 2026-10-11T07:37:52+00:00 | – | `outputs/agent_eval/verifier_stress.json` (490990aa4904bdce) |
 | `verifier_stress-round16.json` | verifier_stress | `d3b5cc2` | 2026-10-11T03:12:38+00:00 | – | `outputs/agent_eval/verifier_stress-round16.json` (878193887cb85eaa) |
 | `verifier_stress-round15.json` | verifier_stress | `8b62a6c` | 2026-10-10T21:31:34+00:00 | – | `outputs/agent_eval/verifier_stress-r15.json` (8ae021c6a89151b3) |
 | `verifier_stress-round14.json` | verifier_stress | `aef319a` | 2026-10-10T18:00:45+00:00 | – | written directly |

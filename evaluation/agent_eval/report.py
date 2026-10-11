@@ -99,6 +99,7 @@ PERF_PAIRS = (
 )
 STRESS_RUNS = (
     "verifier_stress",
+    "verifier_stress-round17-frame",
     "verifier_stress-round16",
     "verifier_stress-round15",
     "verifier_stress-round14",
