@@ -45,7 +45,7 @@ def test_answers_from_uncorrected_seed_figures_say_so(without_corrections_file):
     agent, runtime = _agent(offline_snapshot_ext=True, offline_snapshot_fix=True)
     try:
         zh = agent.chat("五粮液的市盈率和净资产收益率", session_id="r16-l19-zh")
-        en = agent.chat("What is Wuliangye's P/E ratio?", session_id="r16-l19-en")
+        en = agent.chat("Wuliangye P/E right now, please", session_id="r16-l19-en")
     finally:
         runtime.close()
     assert zh["answer"].startswith(DATA_LAYER_NOTE_ZH) and DATA_LAYER_NOTE_ZH in zh["limitations"]
@@ -57,7 +57,7 @@ def test_no_note_with_the_layer_present_or_switched_off():
     for settings in ({"offline_snapshot_ext": True, "offline_snapshot_fix": True}, {"offline_snapshot_fix": False}):
         agent, runtime = _agent(**settings)
         try:
-            result = agent.chat("五粮液的市盈率是多少", session_id=f"r16-l19-ok-{len(settings)}")
+            result = agent.chat("五粮液眼下市盈率几倍", session_id=f"r16-l19-ok-{len(settings)}")
         finally:
             runtime.close()
         assert DATA_LAYER_NOTE_ZH not in result["answer"]
