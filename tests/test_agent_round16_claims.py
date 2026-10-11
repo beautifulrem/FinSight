@@ -360,3 +360,19 @@ def test_the_short_name_table_names_every_listed_stock_it_could_mean():
         assert starting <= known, (short, starting - known)
         if entry.company is not None:
             assert entry.company in stocks, short
+
+
+@pytest.mark.parametrize(
+    ("claim", "verdict", "checks"),
+    [
+        ("比亚迪营收增长3.5%而宁德时代营收下降", "partially_supported", 2),  # CATL revenue +17.04
+        ("宁德时代净利润722亿元且同比下降", "partially_supported", 2),  # +42.18
+        ("平安银行营收同比下降，招商银行也是", "partially_supported", 2),  # CMB +0.01
+        ("茅台市盈率约21倍，五粮液也一样", "partially_supported", 2),  # 五粮液 43.63
+        ("CMB's net profit rose about 1%, and ICBC's did too", "supported", 2),  # 1.05, 1.04
+        ("招商银行净利润同比增长，工商银行也是", "supported", 2),
+    ],
+)
+def test_a_part_joined_without_a_comma_or_left_out_is_checked(checker, claim, verdict, checks):
+    report = checker(claim)
+    assert report.verdict == verdict and len(report.checks) == checks, _rows(report)
