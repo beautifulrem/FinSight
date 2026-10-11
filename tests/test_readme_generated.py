@@ -146,3 +146,14 @@ def test_github_anchors_and_chinese_round_numbers():
     )
     assert readme.slug("CI、推送前检查与人工评测工具包") == "ci推送前检查与人工评测工具包"
     assert [readme.zh_number(n) for n in (6, 10, 12, 20, 23)] == ["六", "十", "十二", "二十", "二十三"]
+
+
+def test_a_slice_without_its_agent_eval_section_is_reported_not_a_crash(results_copy):
+    results = results_copy / "evaluation" / "results"
+    top = max(readme.slice_rounds()) + 1
+    prefix = results / f"chat_heldout_r{top - 1}-auto-nollm-prefix.json"
+    for kind in ("prefix", "after-fix"):
+        shutil.copy(prefix, results / f"chat_heldout_r{top}-auto-nollm-{kind}.json")
+    (results_copy / "evaluation" / f"heldout_r{top}").mkdir()
+    found = readme.problems()
+    assert len(found) == 1 and f"Round-{top} held-out chat slice" in found[0]

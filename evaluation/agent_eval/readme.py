@@ -203,7 +203,11 @@ def _slice(number: int) -> Slice:
     before = result(f"chat_heldout_r{number}-auto-nollm-prefix")
     after = result(f"chat_heldout_r{number}-auto-nollm-after-fix")
     heading_prefix = f"Round-{number} held-out chat slice"
-    heading = next(s for s in sections(EVAL_DOC) if s.heading.startswith(heading_prefix))
+    heading = next((s for s in sections(EVAL_DOC) if s.heading.startswith(heading_prefix)), None)
+    if heading is None:
+        raise LookupError(
+            f"docs/agent-eval.md has no section {heading_prefix!r}: render the slice in evaluation/agent_eval/report.py"
+        )
     fix = re.search(r"round-(\d+) fixes", heading.heading)
     claims_before = RESULTS / f"claims_heldout_r{number}-prefix.json"
     claims_after = RESULTS / f"claims_heldout_r{number}-after-fix.json"
@@ -1019,7 +1023,11 @@ def splice(text: str, regions: dict[str, str]) -> tuple[str, list[str]]:
 
 def problems(rendered: dict[str, dict[str, str]] | None = None) -> list[str]:
     """Why the committed READMEs differ from what the result files give (empty when they are up to date)."""
-    rendered = rendered or render()
+    if rendered is None:
+        try:
+            rendered = render()
+        except (LookupError, KeyError, ValueError) as error:
+            return [f"the README regions cannot be rendered from the committed files: {error!r}"]
     out = []
     for lang, path in READMES.items():
         text = path.read_text(encoding="utf-8")
