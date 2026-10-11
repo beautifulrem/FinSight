@@ -160,7 +160,7 @@ python -m scripts.load_test --base-url http://127.0.0.1:8000 --users 8
 python -m scripts.chaos_drill --scenario sources           # blocked upstreams against a live server
 ```
 
-Before a push to `master`, [`scripts/prepush.sh`](scripts/prepush.sh) runs every CI step locally ([docs/development.md](docs/development.md)). The latest CI run on `master` is [38077019773](https://github.com/beautifulrem/FinSight/actions/runs/38077019773): green, all 8 jobs, at `4ad3380`. How CI runs and how the human-evaluation kit works is described in [docs/evaluation-history.md](docs/evaluation-history.md#ci-the-pre-push-check-and-the-human-evaluation-kit).
+Before a push to `master`, [`scripts/prepush.sh`](scripts/prepush.sh) runs every CI step locally ([docs/development.md](docs/development.md)). The latest CI run on `master` is [38098598453](https://github.com/beautifulrem/FinSight/actions/runs/38098598453): green, all 9 jobs, at `c39008b` (checked 2026-10-11), but with little time margin: `agent-eval-gate` took 41.8 of its 45 min and `tests` 47.5 of 60. Round 16 splits and re-budgets those jobs, and the pre-push check now fails a step whose job would exceed 60% of its timeout ([CI time budgets](docs/development.md#ci-time-budgets)); that layout has no CI run yet. How CI runs and how the human-evaluation kit works is described in [docs/evaluation-history.md](docs/evaluation-history.md#ci-the-pre-push-check-and-the-human-evaluation-kit).
 
 ## Limits
 

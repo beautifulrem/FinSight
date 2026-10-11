@@ -168,7 +168,7 @@ python -m scripts.load_test --base-url http://127.0.0.1:8000 --users 8
 python -m scripts.chaos_drill --scenario sources           # 对运行中的服务屏蔽上游数据源
 ```
 
-推送到 `master` 之前，[`scripts/prepush.sh`](scripts/prepush.sh) 在本地跑一遍 CI 的全部步骤（[docs/zh/development.md](docs/zh/development.md)）。`master` 最近一次 CI 运行是 [38077019773](https://github.com/beautifulrem/FinSight/actions/runs/38077019773)：在 `4ad3380` 上 8 个 job 全部通过。CI 怎么跑、人工评测工具包怎么用，见 [docs/zh/evaluation-history.md](docs/zh/evaluation-history.md#ci推送前检查与人工评测工具包)。
+推送到 `master` 之前，[`scripts/prepush.sh`](scripts/prepush.sh) 在本地跑一遍 CI 的全部步骤（[docs/zh/development.md](docs/zh/development.md)）。`master` 最近一次 CI 运行是 [38098598453](https://github.com/beautifulrem/FinSight/actions/runs/38098598453)：在 `c39008b` 上 9 个 job 全部通过（2026-10-11 查看），但时间余量很小：`agent-eval-gate` 用了 45 分钟里的 41.8 分钟，`tests` 用了 60 分钟里的 47.5 分钟。第 16 轮拆分了这些 job 并重新设定预算，推送前检查现在会让所属 job 估计超过超时 60% 的步骤失败（[CI 时间预算](docs/zh/development.md#ci-时间预算)）；这个新布局还没有 CI 运行记录。CI 怎么跑、人工评测工具包怎么用，见 [docs/zh/evaluation-history.md](docs/zh/evaluation-history.md#ci推送前检查与人工评测工具包)。
 
 ## 局限
 
