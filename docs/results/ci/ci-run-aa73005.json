@@ -1,0 +1,75 @@
+{
+  "run_id": 38113129617,
+  "url": "https://github.com/beautifulrem/FinSight/actions/runs/38113129617",
+  "head_sha": "aa7300587fe2c9d608010b606e0aa087415dc545",
+  "branch": "master",
+  "event": "push",
+  "conclusion": "success",
+  "created_at": "2026-10-11T04:55:40Z",
+  "updated_at": "2026-10-11T05:50:10Z",
+  "jobs": [
+    {
+      "name": "agent-eval-extras",
+      "conclusion": "success",
+      "minutes": 28.9,
+      "timeout_minutes": 60
+    },
+    {
+      "name": "agent-eval-gate",
+      "conclusion": "success",
+      "minutes": 11.7,
+      "timeout_minutes": 45
+    },
+    {
+      "name": "docker",
+      "conclusion": "success",
+      "minutes": 6.7,
+      "timeout_minutes": 30
+    },
+    {
+      "name": "frontend",
+      "conclusion": "success",
+      "minutes": 0.9,
+      "timeout_minutes": 15
+    },
+    {
+      "name": "heldout-verify",
+      "conclusion": "success",
+      "minutes": 7.1,
+      "timeout_minutes": 45
+    },
+    {
+      "name": "k8s-smoke",
+      "conclusion": "success",
+      "minutes": 7.7,
+      "timeout_minutes": 40
+    },
+    {
+      "name": "kubernetes",
+      "conclusion": "success",
+      "minutes": 0.2,
+      "timeout_minutes": 10
+    },
+    {
+      "name": "lint",
+      "conclusion": "success",
+      "minutes": 0.2,
+      "timeout_minutes": 360
+    },
+    {
+      "name": "secrets",
+      "conclusion": "success",
+      "minutes": 0.7,
+      "timeout_minutes": 45
+    },
+    {
+      "name": "tests",
+      "conclusion": "success",
+      "minutes": 54.5,
+      "timeout_minutes": 120
+    }
+  ],
+  "recorded_at": "2026-10-11T06:02:07Z",
+  "command": "python scripts/record_ci_run.py --run 38113129617",
+  "note": "timeout_minutes from .github/workflows/ci.yml at the time of recording"
+}
