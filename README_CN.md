@@ -147,6 +147,7 @@ Kubernetes 与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 | 对核查器盲收集的真实公开说法，第 3 套（v3，50 条） | 首次 0.540 [0.40, 0.68]（`7ea8f5d`）；之后 0.880（第 17 轮核查器，暴露后） | [`claims_web_v3-first-run.json`](evaluation/real_claims_web_v3/README.md) |
 | 对核查器盲收集的真实公开说法，第 4 套（v4，50 条） | 首次 0.740 [0.62, 0.86]（`110e656`）；之后 0.780（第 17 轮核查器，暴露后） | [`claims_web_v4-first-run.json`](evaluation/real_claims_web_v4/README.md) |
 | 对核查器盲收集的真实公开说法，第 5 套（v5，50 条） | 首次 0.680 [0.56, 0.80]（`c795172`）；之后 0.680（第 17 轮核查器，暴露后） | [`claims_web_v5-first-run.json`](evaluation/real_claims_web_v5/README.md) |
+| 对核查器盲收集的真实公开说法，第 6 套（v6，60 条） | 首次 0.650 [0.52, 0.77]（`642ead2`）；尚无后续运行 | [`claims_web_v6-first-run.json`](evaluation/real_claims_web_v6/README.md) |
 | 投毒到文档里的提示注入 | 模板路径在 15 个攻击集上 0 次成功（3,476 次运行）；最近一次完整 LLM 运行（`0473968`）每个集合当作事实陈述 0–3.4%；最近一次定向集（holdout13）Agent 0/16，组织答案 0/13 | [`redteam-offline-r17.json`](docs/agent-eval.md#prompt-injection-red-team-offline-template-path-after-round-17-all-fifteen-sets-ci-baseline)、[`redteam-r8-llm.json`](docs/agent-eval.md#prompt-injection-red-team-llm-paths-after-round-8-0473968)、[`redteam-r16-holdout13-llm.json`](docs/agent-eval.md#prompt-injection-red-team-llm-paths-on-holdout13-round-12-reviewers-styles-in-round-16) |
 | 延迟与负载 | DeepSeek Agent P95 15.4 秒（保留集），首字约 3 秒；数据源故障演练下 8 个用户（无 LLM）400 个请求 0 错误 | [性能](docs/zh/performance.md) |
 | CI 门禁（与已提交基线比较） | 开发集 550 个任务 1.000，保留集 53 个 0.943，ext 111 个 1.000，发布默认配置 21 个 1.000 | [门禁基线](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |

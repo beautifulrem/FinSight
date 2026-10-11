@@ -467,6 +467,7 @@ EXTRA_EVIDENCE = (
     "claims_heldout_r9-after-exposure-round15",
     "claims_heldout_r10-after-exposure-round15",
     "claims_web_v5-first-run",
+    "claims_web_v6-first-run",
     "claims_web_v1-after-exposure-round16",
     "claims_web_v1-with-corrections-after-exposure-round16",
     "claims_web_v2-after-exposure-round16",
@@ -763,6 +764,8 @@ FILE_STATUS = {
     "claims_web_v5-after-exposure-round17": "**after exposure (round 17)**: the fifth set re-run at the round-17 "
     "code (review-13 M12 rules, none written for this set; its error classes were published in round 16); the "
     "blind number is the first run (0.68)",
+    "claims_web_v6-first-run": "engineer-collected real published claims, **blind first run** (sixth set, collected "
+    "and labelled outside the repository and copied in unchanged before this single run)",
     "claims_web_v5-first-run": "engineer-collected real published claims, **blind first run** (fifth set, collected "
     "on r16-claims by a search agent that did not open the checker's code, tests, claim benches, docs or results; "
     "committed before the run and not read by the engineer; run once at the final round-16 claims code)",
