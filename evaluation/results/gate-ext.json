@@ -17,10 +17,10 @@
    "agent_system": "agent_system@v4#0349457bbf23",
    "compose_system": "compose_system@v4#71d29468ed6d"
   },
-  "commit": "815d046",
-  "run_at": "2026-10-10T22:16:04+00:00",
+  "commit": "0469924",
+  "run_at": "2026-10-11T02:19:59+00:00",
   "eval_today": "2026-04-23",
-  "wall_seconds": 38.7,
+  "wall_seconds": 74.1,
   "command": "python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl --no-replay --out outputs/agent_eval/gate-ext.json",
   "env": {
    "QI_EVAL_SNAPSHOT_EXT": "1"
@@ -28,8 +28,8 @@
   "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 python -m evaluation.agent_eval.runner --mode workflow --tasks evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl --no-replay --out outputs/agent_eval/gate-ext.json"
  },
  "summary": {
-  "tasks": 78,
-  "turns": 86,
+  "tasks": 90,
+  "turns": 98,
   "repeats": 1,
   "task_success": 1.0,
   "pass^1": 1.0,
@@ -54,15 +54,15 @@
   "fact_recall": 1.0,
   "fact_stated": 1.0,
   "tool_recall": 1.0,
-  "tool_precision": 0.109,
+  "tool_precision": 0.0944,
   "compliance_clean": 1.0,
   "hedged_when_required": 1.0,
   "states_missing_when_required": 1.0,
   "draft_verification_pass": 1.0,
   "unsupported_numbers_per_answer": 0.0,
-  "latency_ms_p50": 82.61,
-  "latency_ms_p95": 746.45,
-  "latency_ms_p99": 4119.61,
+  "latency_ms_p50": 176.12,
+  "latency_ms_p95": 1378.82,
+  "latency_ms_p99": 7696.9,
   "llm_turns": 0,
   "llm_turn_latency_ms_p50": null,
   "llm_turn_latency_ms_p95": null,
@@ -88,51 +88,51 @@
  },
  "by_category": {
   "comparison": {
-   "tasks": 18,
+   "tasks": 24,
    "task_success": 1.0,
-   "latency_ms_p95": 157.9
+   "latency_ms_p95": 313.8
   },
   "compliance": {
    "tasks": 9,
    "task_success": 1.0,
-   "latency_ms_p95": 410.49
+   "latency_ms_p95": 759.12
   },
   "derived": {
    "tasks": 6,
    "task_success": 1.0,
-   "latency_ms_p95": 367.58
+   "latency_ms_p95": 701.32
   },
   "fact": {
-   "tasks": 28,
+   "tasks": 34,
    "task_success": 1.0,
-   "latency_ms_p95": 1261.39
+   "latency_ms_p95": 2322.51
   },
   "missing_data": {
    "tasks": 2,
    "task_success": 1.0,
-   "latency_ms_p95": 670.45
+   "latency_ms_p95": 1259.2
   },
   "multi_turn": {
    "tasks": 7,
    "task_success": 1.0,
-   "latency_ms_p95": 1425.45
+   "latency_ms_p95": 2626.64
   },
   "out_of_coverage": {
    "tasks": 8,
    "task_success": 1.0,
-   "latency_ms_p95": 441.81
+   "latency_ms_p95": 805.77
   }
  },
  "by_language": {
   "en": {
-   "tasks": 26,
+   "tasks": 30,
    "task_success": 1.0,
-   "latency_ms_p95": 408.44
+   "latency_ms_p95": 764.3
   },
   "zh": {
-   "tasks": 52,
+   "tasks": 60,
    "task_success": 1.0,
-   "latency_ms_p95": 1234.49
+   "latency_ms_p95": 1378.82
   }
  },
  "failed_checks": {},
@@ -215,12 +215,24 @@
   "r15_ext_back_to_high_en": "1",
   "r15_ext_unresolved_in_list_zh": "1",
   "r15_ext_net_profit_total_zh": "1",
-  "r15_ext_ellipsis_two_targets_en": "1"
+  "r15_ext_ellipsis_two_targets_en": "1",
+  "r16_ext_comparand_zh": "1",
+  "r16_ext_relative_to_en": "1",
+  "r16_ext_leading_adverb_en": "1",
+  "r16_ext_short_name_zh": "1",
+  "r16_ext_short_names_total_zh": "1",
+  "r16_ext_lots_zh": "1",
+  "r16_ext_mixed_count_zh": "1",
+  "r16_ext_gap_to_high_yuan_zh": "1",
+  "r16_ext_worth_wan_en": "1",
+  "r16_ext_plain_gain_zh": "1",
+  "r16_ext_total_then_share_zh": "1",
+  "r16_ext_which_then_gap_en": "1"
  },
  "source": {
   "file": "outputs/agent_eval/gate-ext.json",
-  "sha256_16": "0a96aa96521f83e6",
-  "bytes": 261632,
-  "slimmed_at": "2026-10-10T22:16:04+00:00"
+  "sha256_16": "c20ef29b8b81f180",
+  "bytes": 301503,
+  "slimmed_at": "2026-10-11T02:20:00+00:00"
  }
 }
