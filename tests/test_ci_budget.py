@@ -197,7 +197,7 @@ def test_summary_lists_each_job(tmp_path):
     for step in ("ruff", "pytest", "e2e", "actionlint"):
         ci_budget.check(step, 10, state)
     text = ci_budget.summary(state)
-    assert "| tests | 90 | pytest, e2e | 20 |" in text
+    assert "| tests | 120 | pytest, e2e | 20 |" in text
     assert "| lint |" in text and "actionlint" not in text.split("|---|")[-1]
 
 

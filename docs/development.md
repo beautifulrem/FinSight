@@ -96,6 +96,10 @@ It also raised the `tests` timeout to 90 min. The estimates are now: tests 49.7 
 11.8 / 45 (26%), agent-eval-extras 28.6 / 60 (48%), heldout-verify 10.1 / 45 (22%). `tests/test_ci_budget.py`
 checks both layouts. Skipped steps are not counted, so with `SKIP` the estimate is a lower bound.
 
+At `2181568` (after the round-16 merges, 4,397 tests) the idle-host pre-push run estimated `tests` at 56.9 of 90 min (63%),
+over the 60% line, so the `tests` timeout was raised again, to 120 min (47%); every other job stayed under 55%
+(`docs/results/ci/prepush-2181568.md`).
+
 The last run before the change, 38098598453 at `c39008b` (heldout-verify already split off), was green but used
 41.8 of 45 min in `agent-eval-gate` (the verifier and red-team step alone 30.2 min) and 47.5 of 60 in `tests`.
 
