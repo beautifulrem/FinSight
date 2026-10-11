@@ -1,0 +1,753 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "c795172",
+  "run_at": "2026-10-11T02:42:49+00:00",
+  "command": "python -m evaluation.real_claims_web_v3.score_claims_web_v3 --after-exposure --out evaluation/results/claims_web_v3-after-exposure-round16.json",
+  "exposure": "after",
+  "snapshot": "offline v1 + 2026-09-30 extension + corrections layer (QI_OFFLINE_SNAPSHOT_EXT and QI_OFFLINE_SNAPSHOT_FIX on, the shipped default), no LLM",
+  "labels": "evaluation/real_claims_web_v3/claims_web_v3.jsonl (label_claims_web_v3, definition-aware; expected_verdict_definition_blind reported alongside)",
+  "note": "after exposure (checker changed, round 15): the checker was changed after its engineers read this set's errors (round 15 wrote general rules for the classes with their own test wordings); not an out-of-sample estimate (the first run, claims_web_v3-first-run.json, is the blind number)",
+  "notes": [
+   "after exposure (checker changed, round 15): the checker was changed after its engineers read this set's errors (round 15 wrote general rules for the classes with their own test wordings); not an out-of-sample estimate (the first run, claims_web_v3-first-run.json, is the blind number)"
+  ]
+ },
+ "summary": {
+  "claims": 50,
+  "verdict_accuracy": 0.9,
+  "ci95": [
+   0.8,
+   0.98
+  ],
+  "by_category": {
+   "annual_figures": 1.0,
+   "annual_ratios": 1.0,
+   "daily_price": 0.9,
+   "english_or_traditional": 1.0,
+   "loose_or_relational": 0.778,
+   "market_value": 1.0
+  },
+  "by_category_counts": {
+   "annual_figures": {
+    "n": 8,
+    "correct": 8,
+    "accuracy": 1.0
+   },
+   "annual_ratios": {
+    "n": 3,
+    "correct": 3,
+    "accuracy": 1.0
+   },
+   "daily_price": {
+    "n": 10,
+    "correct": 9,
+    "accuracy": 0.9
+   },
+   "english_or_traditional": {
+    "n": 8,
+    "correct": 8,
+    "accuracy": 1.0
+   },
+   "loose_or_relational": {
+    "n": 18,
+    "correct": 14,
+    "accuracy": 0.778
+   },
+   "market_value": {
+    "n": 3,
+    "correct": 3,
+    "accuracy": 1.0
+   }
+  },
+  "by_source_type": {
+   "broker": {
+    "n": 4,
+    "correct": 3,
+    "accuracy": 0.75
+   },
+   "company": {
+    "n": 4,
+    "correct": 4,
+    "accuracy": 1.0
+   },
+   "media": {
+    "n": 26,
+    "correct": 24,
+    "accuracy": 0.923
+   },
+   "social": {
+    "n": 16,
+    "correct": 14,
+    "accuracy": 0.875
+   }
+  },
+  "by_social_platform": {
+   "Instagram": {
+    "n": 1,
+    "correct": 1,
+    "accuracy": 1.0
+   },
+   "Substack": {
+    "n": 1,
+    "correct": 1,
+    "accuracy": 1.0
+   },
+   "东方财富股吧/财富号": {
+    "n": 1,
+    "correct": 1,
+    "accuracy": 1.0
+   },
+   "东方财富财富号": {
+    "n": 5,
+    "correct": 3,
+    "accuracy": 0.6
+   },
+   "搜狐号": {
+    "n": 1,
+    "correct": 1,
+    "accuracy": 1.0
+   },
+   "新浪看点": {
+    "n": 1,
+    "correct": 1,
+    "accuracy": 1.0
+   },
+   "新浪财经头条": {
+    "n": 1,
+    "correct": 1,
+    "accuracy": 1.0
+   },
+   "澎湃号": {
+    "n": 1,
+    "correct": 1,
+    "accuracy": 1.0
+   },
+   "知乎": {
+    "n": 1,
+    "correct": 1,
+    "accuracy": 1.0
+   },
+   "雪球": {
+    "n": 3,
+    "correct": 3,
+    "accuracy": 1.0
+   }
+  },
+  "by_lang": {
+   "en": {
+    "n": 8,
+    "correct": 8,
+    "accuracy": 1.0
+   },
+   "zh": {
+    "n": 42,
+    "correct": 37,
+    "accuracy": 0.881
+   }
+  },
+  "by_expected_verdict": {
+   "contradicted": {
+    "n": 6,
+    "correct": 5,
+    "accuracy": 0.833
+   },
+   "partially_supported": {
+    "n": 21,
+    "correct": 18,
+    "accuracy": 0.857
+   },
+   "supported": {
+    "n": 21,
+    "correct": 20,
+    "accuracy": 0.952
+   },
+   "unverifiable": {
+    "n": 2,
+    "correct": 2,
+    "accuracy": 1.0
+   }
+  },
+  "against_definition_blind_labels": {
+   "verdict_accuracy": 0.86,
+   "ci95": [
+    0.76,
+    0.94
+   ]
+  },
+  "got_counts": {
+   "contradicted": 5,
+   "partially_supported": 18,
+   "supported": 22,
+   "unverifiable": 5
+  }
+ },
+ "errors": [
+  {
+   "id": "x04",
+   "category": "daily_price",
+   "source_type": "media",
+   "claim": "截至收盘，沪指涨0.52%，深成指涨1.3%，创业板指涨1.73%。",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "上证指数",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 0.52,
+     "actual": 0.3066,
+     "status": "unverifiable",
+     "reason": "period_mismatch",
+     "note": "the claim states no date and does not match the latest session; the latest session (2026-09-30) has 0.3066; other sessions are not checked"
+    },
+    {
+     "target": "深证成指",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 1.3,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_data",
+     "note": "no data for this metric"
+    },
+    {
+     "target": "创业板指",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 1.73,
+     "actual": -0.2318,
+     "status": "unverifiable",
+     "reason": "period_mismatch",
+     "note": "the claim states no date and does not match the latest session; the latest session (2026-09-30) has -0.2318; other sessions are not checked"
+    }
+   ]
+  },
+  {
+   "id": "x06",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "截至收盘，上证指数上涨0.52%，报收4106.26点，成功重返4100点整数关口",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "上证指数",
+     "metric": "pct_change_1d",
+     "comparator": "eq",
+     "claimed": 0.52,
+     "actual": 0.3066,
+     "status": "unverifiable",
+     "reason": "period_mismatch",
+     "note": "the claim states no date and does not match the latest session; the latest session (2026-09-30) has 0.3066; other sessions are not checked"
+    },
+    {
+     "target": "上证指数",
+     "metric": "close",
+     "comparator": "eq",
+     "claimed": 4106.26,
+     "actual": 3842.195,
+     "status": "unverifiable",
+     "reason": "period_mismatch",
+     "note": "the claim states no date and does not match the latest session; the latest session (2026-09-30) has 3842.195; other sessions are not checked"
+    },
+    {
+     "target": "上证指数",
+     "metric": "close",
+     "comparator": "eq",
+     "claimed": 4100.0,
+     "actual": 3842.195,
+     "status": "unverifiable",
+     "reason": "period_mismatch",
+     "note": "the claim states no date and does not match the latest session; the latest session (2026-09-30) has 3842.195; other sessions are not checked"
+    }
+   ]
+  },
+  {
+   "id": "x14",
+   "category": "loose_or_relational",
+   "source_type": "broker",
+   "claim": "其中，国寿、平安、太保、人保、新华分别为1541、1348、535、466、363亿元",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "checks": [
+    {
+     "target": "中国人寿",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 1541.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": "中国平安",
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 1348.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_metric",
+     "note": "metric not recognised"
+    },
+    {
+     "target": null,
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 535.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_target",
+     "note": "'太保' is not a company in the data"
+    },
+    {
+     "target": null,
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 466.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_target",
+     "note": "'人保' is not a company in the data"
+    },
+    {
+     "target": null,
+     "metric": null,
+     "comparator": "eq",
+     "claimed": 363.0,
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_target",
+     "note": "'新华' is not a company in the data"
+    }
+   ]
+  },
+  {
+   "id": "x41",
+   "category": "loose_or_relational",
+   "source_type": "social",
+   "claim": "紫金矿业这份“日赚近1.4亿元”的业绩，不仅刷新了公司自身的历史纪录",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "supported",
+   "checks": [
+    {
+     "target": "紫金矿业",
+     "metric": "net_profit_daily",
+     "comparator": "approx",
+     "claimed": 1.4,
+     "actual": 141854794.52,
+     "status": "supported",
+     "reason": null,
+     "note": "derived: net profit / 365 days = 51777000000 / 365 = 141854794.52"
+    }
+   ]
+  },
+  {
+   "id": "x44",
+   "category": "loose_or_relational",
+   "source_type": "media",
+   "claim": "美的集团归母净利润439.45亿元，同比增长14.03%，相当于每天净赚1.2亿元，净利率达到了9.7%",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "supported",
+   "checks": [
+    {
+     "target": "美的集团",
+     "metric": "net_profit",
+     "comparator": "eq",
+     "claimed": 439.45,
+     "actual": 43945000000.0,
+     "status": "supported",
+     "reason": null,
+     "note": ""
+    },
+    {
+     "target": "美的集团",
+     "metric": "netprofit_yoy",
+     "comparator": "eq",
+     "claimed": 14.03,
+     "actual": 14.8694,
+     "status": "unverifiable",
+     "reason": "definition_mismatch",
+     "note": "the claim names attributable to shareholders (归母) netprofit_yoy; the data's netprofit_yoy is total (incl. minority interests), a different definition"
+    },
+    {
+     "target": "美的集团",
+     "metric": "net_profit_daily",
+     "comparator": "eq",
+     "claimed": 1.2,
+     "actual": 120397260.27,
+     "status": "supported",
+     "reason": null,
+     "note": "derived: net profit / 365 days = 43945000000 / 365 = 120397260.27"
+    },
+    {
+     "target": "美的集团",
+     "metric": "net_margin",
+     "comparator": "eq",
+     "claimed": 9.7,
+     "actual": 9.5845,
+     "status": "supported",
+     "reason": null,
+     "note": "derived: net profit / revenue = 43945000000 / 458502000000 = 9.58%"
+    }
+   ]
+  }
+ ],
+ "results": [
+  {
+   "id": "x01",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x02",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x03",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x04",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x05",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x06",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x07",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x08",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x09",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x10",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x11",
+   "expected": "unverifiable",
+   "expected_definition_blind": "contradicted",
+   "got": "unverifiable",
+   "ok": true
+  },
+  {
+   "id": "x12",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x13",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x14",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "unverifiable",
+   "ok": false
+  },
+  {
+   "id": "x15",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x16",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x17",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x18",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x19",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "x20",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x21",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x22",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x23",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x24",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x25",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x26",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "x27",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x28",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x29",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x30",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x31",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x32",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "x33",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x34",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x35",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x36",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x37",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x38",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x39",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x40",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x41",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "supported",
+   "ok": false
+  },
+  {
+   "id": "x42",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "partially_supported",
+   "ok": true
+  },
+  {
+   "id": "x43",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x44",
+   "expected": "partially_supported",
+   "expected_definition_blind": "partially_supported",
+   "got": "supported",
+   "ok": false
+  },
+  {
+   "id": "x45",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "x46",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x47",
+   "expected": "contradicted",
+   "expected_definition_blind": "contradicted",
+   "got": "contradicted",
+   "ok": true
+  },
+  {
+   "id": "x48",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  },
+  {
+   "id": "x49",
+   "expected": "unverifiable",
+   "expected_definition_blind": "contradicted",
+   "got": "unverifiable",
+   "ok": true
+  },
+  {
+   "id": "x50",
+   "expected": "supported",
+   "expected_definition_blind": "supported",
+   "got": "supported",
+   "ok": true
+  }
+ ]
+}
