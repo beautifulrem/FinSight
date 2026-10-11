@@ -48,8 +48,10 @@ from query_intelligence.agent.operation_classifier import (
     FALLBACK_MIN,
     OPERATIONS,
     OperationClassifier,
+    DROPOUT_MARK,
     lexicon_hits,
     normalise,
+    strip_mark,
     structure_hits,
 )
 
@@ -684,7 +686,14 @@ def build_pipeline(lexicon: bool = True, c: float = 4.0, words: bool = True) -> 
     parts: list[tuple[str, Any]] = [
         (
             "chars",
-            TfidfVectorizer(analyzer="char_wb", ngram_range=(1, 3), min_df=2, sublinear_tf=True, max_features=20000),
+            TfidfVectorizer(
+                analyzer="char_wb",
+                ngram_range=(1, 3),
+                min_df=2,
+                sublinear_tf=True,
+                max_features=20000,
+                preprocessor=strip_mark,
+            ),
         )
     ]
     if words:
@@ -694,6 +703,7 @@ def build_pipeline(lexicon: bool = True, c: float = 4.0, words: bool = True) -> 
                 "words",
                 TfidfVectorizer(
                     analyzer="word",
+                    preprocessor=strip_mark,
                     token_pattern=r"(?u)\b[a-z][a-z'/-]+\b",
                     ngram_range=(1, 2),
                     min_df=2,
@@ -884,6 +894,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--no-lexicon", action="store_true", help="ablation: character n-grams only (not written)")
     parser.add_argument("--no-words", action="store_true", help="ablation: without word n-grams (not written)")
+    parser.add_argument("--no-dropout", action="store_true", help="ablation: without lexicon dropout (not written)")
     parser.add_argument("--out", default=str(RESULTS))
     args = parser.parse_args(argv)
     rng = random.Random(SEED)
@@ -892,7 +903,11 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
     dev = dev_wordings()
     texts = [normalise(text) for text, _label, _template in train] + [normalise(text) for text, _label in dev]
     labels = [label for _text, label, _template in train] + [label for _text, label in dev]
-    ablation = args.no_lexicon or args.no_words
+    if not args.no_dropout and not args.no_lexicon:
+        # (round 16, review-12 L17) lexicon dropout: every training question once more without lexicon features
+        texts += [DROPOUT_MARK + text for text in texts]
+        labels += labels
+    ablation = args.no_lexicon or args.no_words or args.no_dropout
     pipeline = build_pipeline(lexicon=not args.no_lexicon, words=not (args.no_lexicon or args.no_words))
     pipeline.fit(texts, labels)
     model = OperationClassifier(pipeline=pipeline, version=VERSION)
@@ -902,14 +917,16 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         "dirty": bool(_git("status", "--porcelain", "--untracked-files=no")),
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "command": "python -m training.operation_classifier.train"
-        + (" --no-lexicon" if args.no_lexicon else " --no-words" if args.no_words else ""),
+        + (" --no-lexicon" if args.no_lexicon else " --no-words" if args.no_words else "")
+        + (" --no-dropout" if args.no_dropout else ""),
         "features": "char_wb 1-3-gram TF-IDF (max 20000)"
         + ("" if args.no_lexicon or args.no_words else " + English word 1-2-gram TF-IDF (max 20000)")
         + (
             ""
             if args.no_lexicon
             else " + grammar lexicon hits + structure (order of total and comparison words, list of three, yes/no)"
-        ),
+        )
+        + ("" if args.no_lexicon or args.no_dropout else "; lexicon dropout (every question once more without them)"),
         "model": "LogisticRegression(C=4, multinomial, lbfgs)",
         "seed": SEED,
         "train": {
@@ -944,7 +961,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
         }
         out = Path(args.out)
     else:
-        suffix = "nolexicon" if args.no_lexicon else "nowords"
+        suffix = "nolexicon" if args.no_lexicon else "nowords" if args.no_words else "nodropout"
         out = Path(args.out).with_name(f"operation_classifier-r16-{suffix}.json")
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(json.dumps({key: report[key] for key in ("version", "train")}, ensure_ascii=False))
