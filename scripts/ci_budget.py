@@ -70,6 +70,7 @@ STEP_JOBS: dict[str, str | None] = {
     "ruff": "lint",
     "actionlint": None,
     "pytest": "tests",
+    "pytest-shipped": "tests-shipped",
     "fe-install": "frontend",
     "fe-typecheck": "frontend",
     "fe-lint": "frontend",
@@ -86,7 +87,9 @@ STEP_JOBS: dict[str, str | None] = {
     "report-check": "heldout-verify",
 }
 
-STEP_SLOWDOWN: dict[str, float] = {"pytest": 5.0}
+# pytest-shipped runs without coverage; 4 is an assumption between the default 3 and pytest-with-coverage 5 until a CI
+# run of the tests-shipped job calibrates it (round 17).
+STEP_SLOWDOWN: dict[str, float] = {"pytest": 5.0, "pytest-shipped": 4.0}
 
 # Hosted-runner seconds a job spends before its first measured step (set up, checkout, Python, dependency install;
 # run 38095861905: tests 121 s, agent-eval-gate 47 s, frontend 16 s, lint 13 s in total).
@@ -94,6 +97,7 @@ JOB_SETUP_SECONDS: dict[str, int] = {
     "lint": 15,
     "frontend": 20,
     "tests": 150,
+    "tests-shipped": 150,
     "agent-eval-gate": 60,
     "agent-eval-extras": 60,
     "heldout-verify": 60,

@@ -162,6 +162,7 @@ Kubernetes 与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 
 ```bash
 python -m pytest -q tests                                  # 离线；除非 QI_TEST_LIVE=1，否则不访问实时数据源
+QI_TEST_SHIPPED_DEFAULT=1 python -m pytest -q tests        # 在发布默认数据上再跑一遍（docs/zh/development.md）
 scripts/prepush.sh                                         # 推送前在本地跑 CI 跑的全部检查（docs/zh/development.md）
 python -m evaluation.agent_eval.gate                       # 快照回放的开发集 + 保留集，以及 ext、shipped 集，与已提交基线比较
 python -m evaluation.agent_eval.router_eval                # 路由准确率与混淆矩阵

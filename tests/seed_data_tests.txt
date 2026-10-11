@@ -1,0 +1,109 @@
+# Tests that assert v1 seed values (round-13 review M17). `QI_TEST_SHIPPED_DEFAULT=1 python -m pytest -q tests` runs the
+# suite on what the product serves by default (the extension and the corrections layer on) and deselects exactly these;
+# the normal run keeps them on the seed, which tests/conftest.py pins. Every entry failed on the shipped default at
+# round 17 because it expects a seed figure (茅台 P/E 24.6, 五粮液 ROE 29.4 / revenue 1,085 亿, 中国平安 close 53.61, ...),
+# a seed-only absence (平安银行 without data) or a v1-only record. tests/test_shipped_default.py checks that every entry
+# names an existing test. A test that passes on both stays off this list.
+tests/test_agent_graph_integration.py::test_fact_question_workflow_is_verified
+tests/test_agent_graph_integration.py::test_scripted_agent_over_real_tools
+tests/test_agent_round10.py::test_a_gap_two_turns_after_the_metric_keeps_the_metric
+tests/test_agent_round10.py::test_an_english_gap_two_turns_after_the_metric_keeps_the_metric
+tests/test_agent_round10.py::test_which_is_lower_then_by_how_much_after_a_two_target_turn
+tests/test_agent_round10.py::test_two_compared_after_two_single_target_turns_keeps_both_and_a_gap_is_never_off_topic
+tests/test_agent_round10.py::test_a_comparison_states_which_value_is_higher
+tests/test_agent_round10.py::test_the_template_states_a_net_margin_gap_not_a_daily_change_gap
+tests/test_agent_round10.py::test_the_corroboration_lookup_fetches_the_named_stocks_fundamentals_only
+tests/test_agent_round10.py::test_a_failed_tool_is_one_plain_limitation
+tests/test_agent_round10.py::test_a_turnover_comparison_states_which_traded_more
+tests/test_agent_round11.py::test_an_ellipsis_chain_then_a_gap_in_percentage_points
+tests/test_agent_round11.py::test_an_ellipsis_and_a_gap_in_one_message
+tests/test_agent_round11.py::test_the_latter_as_a_multiple_of_the_former
+tests/test_agent_round11.py::test_a_discount_to_the_industry_average_in_percent
+tests/test_agent_round11.py::test_an_english_ratio_between_the_two
+tests/test_agent_round11.py::test_a_turnover_gap_states_which_is_larger
+tests/test_agent_round11.py::test_net_margin_is_carried_as_net_margin_not_as_a_price
+tests/test_agent_round11.py::test_three_operands_are_ranked
+tests/test_agent_round11.py::test_a_declined_llm_gap_gets_the_computed_gap_appended
+tests/test_agent_round11.py::test_net_profit_as_a_share_of_revenue_is_the_net_margin
+tests/test_agent_round11.py::test_eps_is_named_missing_and_the_implied_value_is_labelled
+tests/test_agent_round12_claims.py::test_a_sum_of_two_companies_is_checked_against_the_sum[\u4e24\u5bb6\u516c\u53f8\u8305\u53f0\u4e0e\u4e94\u7cae\u6db2\u53bb\u5e74\u51c0\u5229\u6da6\u603b\u5171\u7ea61200\u4ebf\u5143-supported-120120000000.0]
+tests/test_agent_round12_claims.py::test_a_sum_of_two_companies_is_checked_against_the_sum[\u8305\u53f0\u3001\u4e94\u7cae\u6db2\u51c0\u5229\u6da6\u4e4b\u548c\u4e0d\u52301000\u4ebf-contradicted-120120000000.0]
+tests/test_agent_round12_claims.py::test_a_sum_of_two_companies_is_checked_against_the_sum[The combined net profit of Moutai and Wuliangye is about 150 billion yuan-contradicted-120120000000.0]
+tests/test_agent_round12_claims.py::test_bounds_written_as_po_or_after_a_share[\u4e94\u7cae\u6db2\u5168\u5e74\u8425\u6536\u5df2\u7ecf\u7834\u5343\u4ebf-ge-supported]
+tests/test_agent_round12_claims.py::test_bounds_written_as_po_or_after_a_share[\u4e2d\u56fd\u5e73\u5b89\u7684\u5e02\u51c0\u7387\u8fde\u4e94\u7cae\u6db2\u7684\u4e09\u6210\u90fd\u4e0d\u5230-lt-supported]
+tests/test_agent_round12_claims.py::test_a_stated_average_in_a_comparison_frame_is_the_industry_average[\u76f8\u8f83\u4e8e\u4fdd\u9669\u884c\u4e1a\u7ea611.8\u500d\u7684\u5e73\u5747PE\uff0c\u4e2d\u56fd\u5e73\u5b898.7\u500d\u7684\u5e02\u76c8\u7387\u504f\u4f4e-supported]
+tests/test_agent_round12_claims.py::test_english_differences_by_n[Moutai's return on equity beats Wuliangye's by roughly 3.6 points-supported-3.6]
+tests/test_agent_round12_claims.py::test_english_differences_by_n[Wuliangye's ROE trails Moutai's by about 3.6 percentage points-supported--3.6]
+tests/test_agent_round12_claims.py::test_english_differences_by_n[Ping An's P/E lags Wuliangye's by more than 20-contradicted--12.2]
+tests/test_agent_round12_claims.py::test_english_differences_by_n[Moutai's revenue tops Wuliangye's by around 60 billion yuan-supported-60338000000.0]
+tests/test_agent_round12_claims.py::test_english_differences_by_n[Ping An's net profit is roughly 40 billion yuan above Wuliangye's-contradicted-83200000000.0]
+tests/test_agent_round12_claims.py::test_one_fold_differences_are_relative[\u8305\u53f0\u7684\u51c0\u5229\u6da6\u6bd4\u4e94\u7cae\u6db2\u9ad8\u51fa\u4e00\u500d\u591a-supported]
+tests/test_agent_round12_claims.py::test_one_fold_differences_are_relative[\u8305\u53f0\u7684\u51c0\u5229\u6da6\u6bd4\u4e94\u7cae\u6db2\u591a\u4e86\u4e00\u500d\u5de6\u53f3-supported]
+tests/test_agent_round12_claims.py::test_a_sector_average_compared_with_a_company_value_it_states[The baijiu industry's average P/E is roughly 20x, below Moutai's 24.6x-partially_supported-statuses0]
+tests/test_agent_round12_claims.py::test_a_sector_average_compared_with_a_company_value_it_states[\u767d\u9152\u884c\u4e1a\u5e73\u5747\u5e02\u76c8\u7387\u7ea630\u500d\uff0c\u9ad8\u4e8e\u8305\u53f0\u768424.6\u500d-supported-statuses1]
+tests/test_agent_round12_frame.py::test_a_turnover_asked_in_words_is_stated_and_its_ratio_computed
+tests/test_agent_round12_frame.py::test_which_traded_more_actively_compares_turnover
+tests/test_agent_round12_frame.py::test_an_english_gap_in_points_after_a_move
+tests/test_agent_round12_frame.py::test_which_is_higher_and_by_how_many_points_states_the_gap_without_a_judgment_hedge
+tests/test_agent_round12_frame.py::test_a_holding_is_carried_to_another_target
+tests/test_agent_round12_frame.py::test_fund_units_are_valued_as_units
+tests/test_agent_round12_frame.py::test_an_english_share_of_revenue_kept_as_net_profit
+tests/test_agent_round12_frame.py::test_a_hyphenated_net_margin_gap_between_two_named_targets
+tests/test_agent_round12_frame.py::test_a_hong_kong_listing_by_description_is_out_of_coverage
+tests/test_agent_round12_frame.py::test_one_message_comparisons_use_the_frame_computation
+tests/test_agent_round12_frame.py::test_a_metric_switch_keeps_the_pair_and_a_longer_gap_question_computes
+tests/test_agent_round12_frame.py::test_a_holding_without_a_name_values_the_discussed_target
+tests/test_agent_round12_frame.py::test_lots_and_fund_units_are_valued_without_a_market_cap_gap
+tests/test_agent_round12_frame.py::test_colloquial_eps_and_net_margin
+tests/test_agent_round12_frame.py::test_a_bare_name_follow_up_carries_the_metric
+tests/test_agent_round12_frame.py::test_former_and_latter_follow_the_session_order_in_a_one_message_follow_up
+tests/test_agent_round12_llm.py::test_an_english_one_word_follow_up_is_answered_in_english
+tests/test_agent_round12_llm.py::test_an_acronym_only_follow_up_keeps_the_chinese_session_language
+tests/test_agent_round12_llm.py::test_a_recorded_ratio_of_two_cited_roes_passes_in_derived_mode
+tests/test_agent_round12_llm.py::test_a_recorded_gap_with_an_uncited_operand_is_cite_repaired
+tests/test_agent_round12_llm.py::test_a_recorded_relative_difference_across_a_semicolon_passes
+tests/test_agent_round12_llm.py::test_an_uncited_percent_formula_gets_its_operands_cited
+tests/test_agent_round12_llm.py::test_recorded_drafts_keep_their_derived_numbers_end_to_end
+tests/test_agent_round12_llm.py::test_the_frame_fallback_switch[True]
+tests/test_agent_round12_llm.py::test_the_frame_fallback_switch[False]
+tests/test_agent_round12_llm.py::test_a_gap_in_yi_of_two_amounts_written_in_yuan_is_derived
+tests/test_agent_round12_llm.py::test_an_abbreviation_does_not_cut_a_recorded_derivation_from_its_citation
+tests/test_agent_round13.py::test_a_verb_comparative_follow_up_is_computed_not_refused
+tests/test_agent_round13.py::test_an_english_verb_ratio_and_an_imperative_division
+tests/test_agent_round13.py::test_a_colloquial_count_of_one_operand_in_the_other_is_a_ratio
+tests/test_agent_round13.py::test_a_stated_multiple_is_checked
+tests/test_agent_round13.py::test_two_metrics_of_one_target_are_compared
+tests/test_agent_round13.py::test_two_industries_closed_lower_and_percentage_wise
+tests/test_agent_round13.py::test_a_total_of_two_amounts
+tests/test_agent_round13.py::test_the_cost_of_buying_lots_at_the_carried_close
+tests/test_agent_round13.py::test_round13_claim_rules[\u8305\u53f0\u51c0\u5229\u6da6\u662f\u4e94\u7cae\u6db2\u7684\u4e24\u500d\u591a\u4e00\u70b9-supported]
+tests/test_agent_round13.py::test_round13_claim_rules[\u5e73\u5b89\u8425\u6536\u662f\u8305\u53f0\u7684\u4e03\u500d\u591a\u4e00\u70b9-supported]
+tests/test_agent_round13.py::test_round13_claim_rules[\u8305\u53f0\u548c\u5e73\u5b89\u7684ROE\u76f8\u5dee\u5341\u4e03\u4e2a\u591a\u767e\u5206\u70b9-supported]
+tests/test_agent_round13.py::test_round13_claim_rules[\u8305\u53f0\u548c\u5e73\u5b89\u7684ROE\u76f8\u5dee\u5341\u516b\u4e2a\u591a\u767e\u5206\u70b9-contradicted]
+tests/test_agent_round13.py::test_round13_claim_rules[Wuliangye's P/E sits roughly 23% below the baijiu average-supported]
+tests/test_agent_round13.py::test_round13_claim_rules[Wuliangye's revenue is less than half of Moutai's-contradicted]
+tests/test_agent_round13_claims.py::test_point_numerals_sector_ratios_and_sector_averages[Wuliangye's P/E of 20.9x is about 23% below the baijiu average-supported-relative_difference]
+tests/test_agent_round13_review9.py::test_i1_a_share_is_computed_as_a_share
+tests/test_agent_round13_review9.py::test_i3_totals_and_an_opening_total
+tests/test_agent_round13_review9.py::test_i4_spread_and_every_pair
+tests/test_agent_round13_review9.py::test_i5_several_positions
+tests/test_agent_round13_review9.py::test_i7_a_factual_more_than_double_is_answered
+tests/test_agent_round13_review9.py::test_review9_three_targets_are_never_reduced_to_the_first_two
+tests/test_agent_round6.py::test_bounded_moves_are_checked_not_unverifiable[Ping An rose by less than two percent in the latest session-supported]
+tests/test_agent_round6.py::test_qualitative_moves_use_a_stated_threshold[\u4e2d\u56fd\u5e73\u5b89\u4e0a\u4e00\u4e2a\u4ea4\u6613\u65e5\u5c0f\u5e45\u4e0a\u6da8-supported-lt-1%]
+tests/test_agent_round6.py::test_a_multiple_of_another_target_compares_the_ratio
+tests/test_agent_round6.py::test_outperformance_compares_daily_moves
+tests/test_agent_round6.py::test_a_sector_word_describing_a_company_is_not_a_target
+tests/test_agent_round6.py::test_shared_claims_get_one_check_per_target
+tests/test_agent_round6.py::test_a_list_without_a_shared_word_keeps_the_nearest_target
+tests/test_agent_round8.py::test_net_margins_are_compared_in_words
+tests/test_agent_round8.py::test_peg_without_a_growth_rate_is_stated_as_not_computable
+tests/test_agent_round9.py::test_bank_context_pingan_states_the_missing_data
+tests/test_agent_round9.py::test_a_share_of_revenue_question_is_derived
+tests/test_agent_round9.py::test_a_difference_follow_up_derives_the_gap_from_the_previous_comparison
+tests/test_agent_round9.py::test_a_same_turn_difference_and_a_ratio_to_the_industry_are_derived
+tests/test_agent_tools.py::test_fundamentals_include_industry_snapshot
+tests/test_data_layers.py::test_the_real_pipeline_records_its_layer_settings
+tests/test_round12_snapshot_ext.py::test_the_extension_adds_names_and_never_changes_a_v1_record
+tests/test_round12_snapshot_ext.py::test_reported_eps_has_its_unit_and_growth_fields_their_own_labels
+tests/test_round13_snapshot_fix.py::test_without_the_layer_answers_are_unchanged

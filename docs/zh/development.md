@@ -25,6 +25,7 @@ CI_BUDGET_FRACTION=0.5 scripts/prepush.sh   # CI 时间预算比例（默认 0.6
 | `ruff` | `ruff check .` 和 `ruff format --check .` | lint |
 | `actionlint` | `actionlint .github/workflows/*.yml`（没装 actionlint 时跳过） | – |
 | `pytest` | `python -m pytest -q tests`（包括下文的 `tests/test_shipped_default.py`） | tests |
+| `pytest-shipped` | `QI_TEST_SHIPPED_DEFAULT=1 python -m pytest -q tests`：在发布默认数据上再跑一遍全部测试，去掉固定在种子上的名单（见下文） | tests-shipped |
 | `fe-install`、`fe-typecheck`、`fe-lint`、`fe-test`、`fe-build` | 在 `frontend/` 下依次 `pnpm install --frozen-lockfile`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build` | frontend |
 | `dist-diff` | `git status --porcelain query_intelligence/web/dist` 必须为空（提交的构建产物与源码一致） | frontend |
 | `e2e` | `pnpm run e2e`：Playwright 用真实 Chrome 访问离线服务 | tests |
@@ -33,8 +34,8 @@ CI_BUDGET_FRACTION=0.5 scripts/prepush.sh   # CI 时间预算比例（默认 0.6
 | `gate-shipped` | `gate --set shipped`（扩展层**和**更正层都开：产品实际提供的数据） | agent-eval-gate |
 | `extras` | `verifier_stress`、`redteam`、`gate --extras-only` | agent-eval-extras |
 | `claim-holdout` | `claim_bench.run --set holdout`，用 CI 的下限 | agent-eval-gate |
-| `verify-slices` | 十个保留切片的 verify 脚本（r9 带 `QI_EVAL_SNAPSHOT_EXT=1`，r10、r11 另带 `QI_EVAL_SNAPSHOT_FIX=1`） | heldout-verify |
-| `report-check` | `python -m evaluation.agent_eval.report --check` | heldout-verify |
+| `verify-slices` | 十一个保留切片的 verify 脚本（r9 带 `QI_EVAL_SNAPSHOT_EXT=1`，r10–r12 另带 `QI_EVAL_SNAPSHOT_FIX=1`） | heldout-verify |
+| `report-check` | `python -m evaluation.agent_eval.report --check`：docs/agent-eval.md 和 README 的生成区块（见下文） | heldout-verify |
 
 前面的步骤失败后，后面的步骤照样运行；只有所有运行了的步骤都通过，退出码才是 0。与 CI 一样，实时数据源和 trace 都关闭。
 e2e 服务由脚本挑一个空闲端口启动：在 CI 之外，Playwright 会复用已经在该端口上监听的服务，那可能是另一个工作目录的代码。
@@ -112,3 +113,26 @@ holdout 0.9434、ext 1.000、shipped 1.000）。
   期望值取自 `data/snapshot/structured_data_fix.json`。两层都开时 21/21，关掉更正层时 2/21。
 * `tests/test_data_layers.py`：Dockerfile 复制了加载器读取的每个数据层文件；开启了却缺失的数据层会记一条警告，并让
   `GET /ready` 返回 503。
+* （第 17 轮，第十三轮评审 M17）**在发布默认数据上把全部测试再跑一遍**：`QI_TEST_SHIPPED_DEFAULT=1 python -m pytest -q tests`
+  （CI job `tests-shipped`，推送前步骤 `pytest-shipped`）。这时 `tests/conftest.py` 打开两层，并取消选中
+  `tests/seed_data_tests.txt` 列出的测试：16 个模块里的 103 个测试，它们断言的是种子数值（茅台市盈率 24.6、中国平安
+  53.61、五粮液 ROE 29.4 等）、只在种子里才缺的数据或只有 v1 才有的记录；它们带 `seed_data` 标记，在常规运行中仍在种子上跑。
+  第 17 轮时发布默认数据上的结果是 4,294 个通过、70 个跳过、103 个未选中。只在种子上成立的新测试要加进名单；名单里的条目
+  找不到对应测试时 `tests/test_shipped_default.py` 会失败。
+* Playwright e2e 的服务（`frontend/playwright.config.ts`）固定 `QI_OFFLINE_SNAPSHOT_EXT=true` 和
+  `QI_OFFLINE_SNAPSHOT_FIX=true`，其中一个场景检查 `/ready`（三个数据层）和界面上的两个更正后数字（茅台市盈率 21.44、
+  中国平安 58.03），并禁止出现种子数值。
+
+## README 里的数字是生成的
+
+README 的关键数字（「30 秒看懂」列表、结果表、CI 段落和简短的局限列表，中英文）位于 `<!-- generated:<区块> ... -->`
+标记之间，由 [`evaluation/agent_eval/readme.py`](../../evaluation/agent_eval/readme.py) 根据已提交的文件生成：最近一组评审切片
+（有修复后对话运行的、编号最大的 `evaluation/heldout_r<N>/`；重合分层由切片侧的重合列表和两次运行的任务结果重新计算）、编号
+最大的 `verifier_stress-round<N>.json`、门禁基线、路由标注、盲收集的真实说法集、红队、最新的 CI 记录
+`docs/results/ci/ci-run-<sha>.json` 和最新的推送前摘要。`python -m evaluation.agent_eval.report` 会重新生成这些区块，
+`report --check`（CI job heldout-verify，推送前步骤 report-check）在区块过期或缺失时失败，所以改变关键数字的结果文件要和
+重新生成的 README 一起提交（第十三轮评审 M14：第 16 轮的 README 引用的是第十一轮切片、第 15 轮校验器数字和一个较早提交的 CI 运行）。
+
+推送后、CI 跑完时：先 `python scripts/record_ci_run.py`（GitHub CLI）写下这次运行的记录，再
+`python -m evaluation.agent_eval.readme`，两者一起提交。一次运行无法记录在它所测试的提交里，所以 README 写的是最近一次
+已记录的运行；CI 徽章显示 `master` 的实时状态。

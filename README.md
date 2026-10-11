@@ -154,6 +154,7 @@ Run the checks yourself:
 
 ```bash
 python -m pytest -q tests                                  # offline; live sources off unless QI_TEST_LIVE=1
+QI_TEST_SHIPPED_DEFAULT=1 python -m pytest -q tests        # again on the shipped default data (docs/development.md)
 scripts/prepush.sh                                         # everything CI runs, locally, before a push (docs/development.md)
 python -m evaluation.agent_eval.gate                       # replayed dev + held-out, ext and shipped sets against committed baselines
 python -m evaluation.agent_eval.router_eval                # route accuracy and confusion matrix

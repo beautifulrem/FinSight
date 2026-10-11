@@ -18,7 +18,7 @@
 # inflate on a busy host: each step records the load average, and a budget failure under a load above
 # CI_BUDGET_BUSY_LOAD (default: the performance-core count) says so; re-measure such a job on an idle host.
 #
-# Steps (names for SKIP): ruff, actionlint, pytest, fe-install, fe-typecheck, fe-lint, fe-test, fe-build, dist-diff,
+# Steps (names for SKIP): ruff, actionlint, pytest, pytest-shipped, fe-install, fe-typecheck, fe-lint, fe-test, fe-build, dist-diff,
 # e2e, gate-dev-holdout, gate-ext, gate-shipped, extras, claim-holdout, verify-slices, report-check.
 # Logs: outputs/prepush/<commit>/<step>.log. Exit status: 0 only when every step that ran passed.
 # Needs: Python 3.13 with requirements-dev.txt, pnpm (frontend/package.json pins the version), Google Chrome for the
@@ -133,10 +133,11 @@ verify_slices() {
     PYTHONPATH=. "$PYTHON" "$script" || return 1
   done
   QI_EVAL_SNAPSHOT_EXT=1 PYTHONPATH=. "$PYTHON" evaluation/heldout_r9/verify_heldout_r9.py || return 1
-  for script in evaluation/heldout_r10/verify_heldout_r10.py evaluation/heldout_r11/verify_heldout_r11.py; do
+  for script in evaluation/heldout_r10/verify_heldout_r10.py evaluation/heldout_r11/verify_heldout_r11.py \
+    evaluation/heldout_r12/verify_heldout_r12.py; do
     QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 PYTHONPATH=. "$PYTHON" "$script" || return 1
   done
-  echo "10 verify scripts passed"
+  echo "11 verify scripts passed"
 }
 
 # CI's environment: live sources off, traces off
@@ -147,6 +148,9 @@ echo "[prepush] commit $COMMIT, working tree clean: $CLEAN_AT_START, python $PYT
 run ruff "All checks passed|already formatted|would reformat" "ruff check . && ruff format --check ." ruff_all
 run actionlint "actionlint" "actionlint .github/workflows/*.yml" actionlint_ci
 run pytest "passed|failed|error" "python -m pytest -q tests" "$PYTHON" -m pytest -q tests
+# (round-13 review M17) the suite again on the shipped default data, minus tests/seed_data_tests.txt
+run pytest-shipped "passed|failed|error" "QI_TEST_SHIPPED_DEFAULT=1 python -m pytest -q tests" \
+  env QI_TEST_SHIPPED_DEFAULT=1 "$PYTHON" -m pytest -q tests
 run fe-install "Done in|Already up to date|Lockfile" "pnpm install --frozen-lockfile" fe install --frozen-lockfile
 run fe-typecheck "error|tsc" "pnpm typecheck" fe typecheck
 run fe-lint "problem|eslint" "pnpm lint" fe lint
@@ -159,7 +163,7 @@ run gate-ext '^result:' "python -m evaluation.agent_eval.gate --set ext" gate --
 run gate-shipped '^result:' "python -m evaluation.agent_eval.gate --set shipped" gate --set shipped
 run extras '"gate"' "verifier_stress; redteam; gate --extras-only" extras
 run claim-holdout "verdict|accuracy" "claim_bench.run --set holdout (floors 0.978 / 0.98)" claim_holdout
-run verify-slices "verify scripts passed|FAIL|Error" "10 held-out verify scripts (r9 with QI_EVAL_SNAPSHOT_EXT=1, r10/r11 also FIX=1)" verify_slices
+run verify-slices "verify scripts passed|FAIL|Error" "11 held-out verify scripts (r9 with QI_EVAL_SNAPSHOT_EXT=1, r10-r12 also FIX=1)" verify_slices
 run report-check "up to date|out of date|missing" "python -m evaluation.agent_eval.report --check" \
   "$PYTHON" -m evaluation.agent_eval.report --check
 
