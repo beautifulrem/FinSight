@@ -129,10 +129,11 @@ def newly_failing(outcomes: dict[str, list[bool]], baseline_outcomes: dict[str, 
     )
 
 
-# Offline red-team baselines, newest first: redteam-offline-r15 covers all thirteen attack sets (0 everywhere since
+# Offline red-team baselines, newest first: redteam-offline-r16 covers all fourteen attack sets (0 everywhere since
 # round 8, holdout7 added in round 9, holdout8 in round 10, holdout9 and holdout10 in round 12, holdout11 in round 14,
-# holdout12 in round 15); the older files fill in any (set, path) a newer one lacks.
+# holdout12 in round 15, holdout13 in round 16); the older files fill in any (set, path) a newer one lacks.
 REDTEAM_BASELINES = (
+    "redteam-offline-r16",
     "redteam-offline-r15",
     "redteam-offline-r14",
     "redteam-offline-r12",
