@@ -26,6 +26,7 @@ CI_BUDGET_FRACTION=0.5 scripts/prepush.sh   # CI time budget share (default 0.6;
 | `ruff` | `ruff check .` and `ruff format --check .` | lint |
 | `actionlint` | `actionlint .github/workflows/*.yml` (skipped when actionlint is not installed) | – |
 | `pytest` | `python -m pytest -q tests` (includes `tests/test_shipped_default.py`, below) | tests |
+| `pytest-shipped` | `QI_TEST_SHIPPED_DEFAULT=1 python -m pytest -q tests`: the suite on the shipped default data, minus the seed-pinned list (below) | tests-shipped |
 | `fe-install`, `fe-typecheck`, `fe-lint`, `fe-test`, `fe-build` | `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` in `frontend/` | frontend |
 | `dist-diff` | `git status --porcelain query_intelligence/web/dist` must be empty (the committed build matches the source) | frontend |
 | `e2e` | `pnpm run e2e`: Playwright in real Chrome against the offline server | tests |
@@ -34,8 +35,8 @@ CI_BUDGET_FRACTION=0.5 scripts/prepush.sh   # CI time budget share (default 0.6;
 | `gate-shipped` | `gate --set shipped` (extension **and** corrections layer on: what the product serves) | agent-eval-gate |
 | `extras` | `verifier_stress`, `redteam`, `gate --extras-only` | agent-eval-extras |
 | `claim-holdout` | `claim_bench.run --set holdout` with the CI floors | agent-eval-gate |
-| `verify-slices` | the ten held-out verify scripts (r9 with `QI_EVAL_SNAPSHOT_EXT=1`, r10 and r11 also with `QI_EVAL_SNAPSHOT_FIX=1`) | heldout-verify |
-| `report-check` | `python -m evaluation.agent_eval.report --check` | heldout-verify |
+| `verify-slices` | the eleven held-out verify scripts (r9 with `QI_EVAL_SNAPSHOT_EXT=1`, r10–r12 also with `QI_EVAL_SNAPSHOT_FIX=1`) | heldout-verify |
+| `report-check` | `python -m evaluation.agent_eval.report --check`: docs/agent-eval.md and the generated README regions (below) | heldout-verify |
 
 Every step runs even when an earlier one fails; the exit status is 0 only when all steps that ran passed. Live sources
 and traces are off, as in CI. The e2e server is started on a free port chosen by the script: outside CI Playwright
@@ -129,3 +130,30 @@ covered by:
   the corrections layer off.
 * `tests/test_data_layers.py`: the Dockerfile copies every layer file the loader reads, a switched-on layer that is
   missing logs a warning and makes `GET /ready` 503.
+* (round 17, round-13 review M17) **the whole suite a second time on the shipped default**:
+  `QI_TEST_SHIPPED_DEFAULT=1 python -m pytest -q tests` (CI job `tests-shipped`, pre-push step `pytest-shipped`).
+  `tests/conftest.py` then turns both layers on and deselects the tests listed in `tests/seed_data_tests.txt`: 103
+  tests in 16 modules whose assertions name seed figures (茅台 P/E 24.6, 中国平安 53.61, 五粮液 ROE 29.4 ...), a
+  seed-only absence or a v1-only record; they get the `seed_data` marker and still run on the seed in the normal run.
+  At round 17 the shipped-default run was 4,294 passed, 70 skipped, 103 deselected. A new test that only holds on the
+  seed goes on the list; `tests/test_shipped_default.py` fails when an entry names no test.
+* the Playwright e2e server (`frontend/playwright.config.ts`) pins `QI_OFFLINE_SNAPSHOT_EXT=true` and
+  `QI_OFFLINE_SNAPSHOT_FIX=true`, and one scenario checks `/ready` (three layers) and two corrected figures in the UI
+  (茅台 P/E 21.44, 中国平安 58.03), with the seed values forbidden.
+
+## Generated README numbers
+
+The README headline numbers (the "In 30 seconds" list, the results table, the CI paragraph and the short limits list,
+en and zh) sit between `<!-- generated:<region> ... -->` markers and are rendered by
+[`evaluation/agent_eval/readme.py`](../evaluation/agent_eval/readme.py) from committed files: the latest reviewer slice
+(the highest `evaluation/heldout_r<N>/` with an after-fix chat run; overlap tiers recomputed from the slice-side
+overlap lists and both runs' task outcomes), the highest `verifier_stress-round<N>.json`, the gate baselines, the
+router labels, the blind real-claims sets, the red team, the newest CI record `docs/results/ci/ci-run-<sha>.json` and
+the newest pre-push summary. `python -m evaluation.agent_eval.report` re-renders them and `report --check` (CI job
+heldout-verify, pre-push step report-check) fails when a region is stale or missing, so a result file that changes a
+headline number is committed together with the re-rendered READMEs (round-13 review M14: the round-16 READMEs
+quoted the round-11 slice, round-15 verifier numbers and a CI run of an older commit).
+
+After a push, once CI has finished: `python scripts/record_ci_run.py` (GitHub CLI) writes the run's record, then
+`python -m evaluation.agent_eval.readme` and commit both. A run cannot be recorded in the commit it tests, so the
+README names the latest recorded run; the CI badge shows the live state of `master`.

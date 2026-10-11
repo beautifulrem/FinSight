@@ -42,6 +42,7 @@ jobs:
 STEP_TOKENS = {
     "ruff": "ruff check .",
     "pytest": "python -m pytest -q tests",
+    "pytest-shipped": "QI_TEST_SHIPPED_DEFAULT=1 python -m pytest -q tests",
     "fe-install": "pnpm install --frozen-lockfile",
     "fe-typecheck": "pnpm typecheck",
     "fe-lint": "pnpm lint",
@@ -122,9 +123,9 @@ def test_budget_fraction_and_slowdown_configuration():
     with pytest.raises(ValueError):
         ci_budget.budget_fraction("-1")
     default, per_step = ci_budget.slowdowns("", "")
-    assert default == 3.0 and per_step["pytest"] == 5.0
+    assert default == 3.0 and per_step["pytest"] == 5.0 and per_step["pytest-shipped"] == 4.0
     default, per_step = ci_budget.slowdowns("2", "pytest=4, e2e=2.5")
-    assert default == 2.0 and per_step == {"pytest": 4.0, "e2e": 2.5}
+    assert default == 2.0 and per_step == {"pytest": 4.0, "pytest-shipped": 4.0, "e2e": 2.5}
 
 
 def test_check_accumulates_a_job_and_fails_the_step_that_crosses_the_budget(tmp_path):
