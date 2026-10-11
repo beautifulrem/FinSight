@@ -1,0 +1,275 @@
+{
+ "config": {
+  "claims": "evaluation/heldout_r5/claims_r5_heldout.jsonl",
+  "claims_sha256": "fd58c903acd977c2e75c51d70fefd93326594fa929ef9d398a0f0e919585c4d1",
+  "set": null,
+  "data": "offline-runtime-assets (market/fundamental/macro seed as of 2026-04-22)",
+  "model": null,
+  "commit": "e12eaa3",
+  "run_at": "2026-10-11T07:16:38+00:00",
+  "command": "python -m evaluation.claim_bench.run --claims evaluation/heldout_r5/claims_r5_heldout.jsonl --out evaluation/results/claim_bench-heldout_r5-after-round17.json"
+ },
+ "claims": 56,
+ "checks": 86,
+ "verdict_accuracy": 0.9643,
+ "verdict_accuracy_ci": [
+  0.9107,
+  1.0
+ ],
+ "check_accuracy": 0.9419,
+ "check_accuracy_ci": [
+  0.8837,
+  0.9882
+ ],
+ "comparator_accuracy": 0.9294,
+ "ci_method": "percentile bootstrap over claims, 2000 resamples, seed 20260926, 95%",
+ "verdict_confusion": {
+  "supported": {
+   "supported": 32,
+   "contradicted": 0,
+   "partially_supported": 0,
+   "unverifiable": 0
+  },
+  "contradicted": {
+   "supported": 0,
+   "contradicted": 7,
+   "partially_supported": 0,
+   "unverifiable": 2
+  },
+  "partially_supported": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 11,
+   "unverifiable": 0
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "partially_supported": 0,
+   "unverifiable": 4
+  }
+ },
+ "check_status_confusion": {
+  "supported": {
+   "supported": 61,
+   "contradicted": 0,
+   "unverifiable": 0,
+   "missing": 0
+  },
+  "contradicted": {
+   "supported": 0,
+   "contradicted": 17,
+   "unverifiable": 4,
+   "missing": 0
+  },
+  "unverifiable": {
+   "supported": 0,
+   "contradicted": 0,
+   "unverifiable": 3,
+   "missing": 0
+  },
+  "extra": {
+   "supported": 0,
+   "contradicted": 0,
+   "unverifiable": 1,
+   "missing": 0
+  }
+ },
+ "by_category": {
+  "ambiguous_derived": {
+   "claims": 1,
+   "verdict_accuracy": 1.0
+  },
+  "industry_average": {
+   "claims": 11,
+   "verdict_accuracy": 1.0
+  },
+  "multi_clause": {
+   "claims": 13,
+   "verdict_accuracy": 1.0
+  },
+  "plain": {
+   "claims": 11,
+   "verdict_accuracy": 0.9091
+  },
+  "ratio": {
+   "claims": 10,
+   "verdict_accuracy": 1.0
+  },
+  "turnover": {
+   "claims": 10,
+   "verdict_accuracy": 0.9
+  }
+ },
+ "by_language": {
+  "en": {
+   "claims": 7,
+   "verdict_accuracy": 1.0
+  },
+  "zh": {
+   "claims": 49,
+   "verdict_accuracy": 0.9592
+  }
+ },
+ "errors": [
+  {
+   "id": "r5c024",
+   "category": "turnover",
+   "claim": "中国平安的成交额不到50亿元",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "amount",
+      "comparator": "lt",
+      "status": "contradicted",
+      "subject": "601318.SH",
+      "claimed": 5000000000.0,
+      "actual": 6640000000.0
+     },
+     "predicted": {
+      "metric": "amount",
+      "comparator": "lt",
+      "status": "unverifiable",
+      "claimed": 50.0,
+      "actual": 6640000000.0,
+      "note": "the claim states no date and does not match the latest session; the latest session (2026-04-22) has 6640000000; other sessions are not checked"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c026",
+   "category": "turnover",
+   "claim": "创业板ETF成交16.7亿元，证券ETF成交额则超过10亿元",
+   "expected_verdict": "partially_supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "amount",
+      "comparator": "gt",
+      "status": "contradicted",
+      "subject": "512880.SH",
+      "claimed": 1000000000.0,
+      "actual": 441000000.0
+     },
+     "predicted": {
+      "metric": "amount",
+      "comparator": "gt",
+      "status": "unverifiable",
+      "claimed": 10.0,
+      "actual": 441000000.0,
+      "note": "the claim states no date and does not match the latest session; the latest session (2026-04-22) has 441000000; other sessions are not checked"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c043",
+   "category": "plain",
+   "claim": "贵州茅台当天是上涨的",
+   "expected_verdict": "contradicted",
+   "verdict": "unverifiable",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "gt",
+      "status": "contradicted",
+      "subject": "600519.SH",
+      "claimed": 0,
+      "actual": -0.1778
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "gt",
+      "status": "unverifiable",
+      "claimed": 0.0,
+      "actual": -0.1778,
+      "note": "the claim states no date and does not match the latest session; the latest session (2026-04-22) has -0.1778; other sessions are not checked"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  },
+  {
+   "id": "r5c049",
+   "category": "plain",
+   "claim": "茅台总市值约1.77万亿元",
+   "expected_verdict": "unverifiable",
+   "verdict": "unverifiable",
+   "wrong_checks": [],
+   "extra_checks": [
+    {
+     "target": "贵州茅台",
+     "metric": "market_cap",
+     "claimed": 1.77,
+     "claimed_high": null,
+     "claimed_unit": "万亿",
+     "comparator": "approx",
+     "negated": false,
+     "direction": null,
+     "reference": null,
+     "reference_value": null,
+     "reference_evidence_id": null,
+     "reference_metric": null,
+     "ratio": null,
+     "difference": null,
+     "kind": "value",
+     "operands": [],
+     "operand_values": [],
+     "operand_evidence_ids": [],
+     "actual": null,
+     "status": "unverifiable",
+     "reason": "no_data",
+     "evidence_id": null,
+     "source": null,
+     "as_of": null,
+     "as_of_basis": null,
+     "note": "the sources carry no market cap for this target"
+    }
+   ]
+  },
+  {
+   "id": "r5c054",
+   "category": "plain",
+   "claim": "Moutai closed at 1,409.5 yuan, down 1.8% on the day.",
+   "expected_verdict": "partially_supported",
+   "verdict": "partially_supported",
+   "wrong_checks": [
+    {
+     "expected": {
+      "metric": "pct_change_1d",
+      "comparator": "eq",
+      "status": "contradicted",
+      "subject": "600519.SH",
+      "claimed": -1.8,
+      "tol": 0.05,
+      "actual": -0.1778
+     },
+     "predicted": {
+      "metric": "pct_change_1d",
+      "comparator": "eq",
+      "status": "unverifiable",
+      "claimed": -1.8,
+      "actual": -0.1778,
+      "note": "the claim states no date and does not match the latest session; the latest session (2026-04-22) has -0.1778; other sessions are not checked"
+     },
+     "correct": false,
+     "comparator_correct": true
+    }
+   ],
+   "extra_checks": []
+  }
+ ]
+}
