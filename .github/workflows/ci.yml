@@ -93,10 +93,11 @@ jobs:
             || { echo "::error::query_intelligence/web/dist is stale; run 'pnpm build' in frontend/ and commit it"; exit 1; }
 
   tests:
-    # (round 16) 90 min: run 38095861905 took 47 of the previous 60 (pytest with coverage 44 min); scripts/prepush.sh
-    # fails a step whose job's estimated CI time exceeds 60% of its timeout-minutes (scripts/ci_budget.py)
+    # (round 16) 120 min: run 38095861905 took 47 of the previous 60 (pytest with coverage 44 min) with 3,721 tests; the
+    # suite has 4,397 since, and the pre-push estimate at 2181568 was 56.9 min (63% of 90). scripts/prepush.sh fails a
+    # step whose job's estimated CI time exceeds 60% of its timeout-minutes (scripts/ci_budget.py)
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     services:
       postgres:
         image: postgres:16-alpine
