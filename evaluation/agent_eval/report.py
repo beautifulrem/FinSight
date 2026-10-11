@@ -99,6 +99,7 @@ PERF_PAIRS = (
 )
 STRESS_RUNS = (
     "verifier_stress",
+    "verifier_stress-round16",
     "verifier_stress-round15",
     "verifier_stress-round14",
     "verifier_stress-round13",
@@ -305,6 +306,7 @@ HELDOUT_R8_RUNS = (
     "chat_heldout_r8-auto-nollm-after-exposure-round13",
     "chat_heldout_r8-auto-nollm-after-exposure-round14",
     "chat_heldout_r8-auto-nollm-after-exposure-round15",
+    "chat_heldout_r8-auto-nollm-after-exposure-round16",
 )
 # Round-9 held-out slice (evaluation/heldout_r9/, written by the round-9 reviewer): before and after the round-13 fixes.
 # From round 14 the round-9 slice is after exposure (the round-14 engineer read its remaining failures).
@@ -314,6 +316,7 @@ HELDOUT_R9_RUNS = (
     "chat_heldout_r9-auto-nollm-after-exposure-round14-first",
     "chat_heldout_r9-auto-nollm-after-exposure-round14",
     "chat_heldout_r9-auto-nollm-after-exposure-round15",
+    "chat_heldout_r9-auto-nollm-after-exposure-round16",
 )
 # Round-10 held-out slice (evaluation/heldout_r10/, written by the round-10 reviewer): before and after the round-14
 # fixes; (round 15) after exposure, rerun once at the final round-15 code.
@@ -321,10 +324,17 @@ HELDOUT_R10_RUNS = (
     "chat_heldout_r10-auto-nollm-prefix",
     "chat_heldout_r10-auto-nollm-after-fix",
     "chat_heldout_r10-auto-nollm-after-exposure-round15",
+    "chat_heldout_r10-auto-nollm-after-exposure-round16",
 )
 # Round-11 held-out slice (evaluation/heldout_r11/, written by the round-11 reviewer): before and after the round-15
 # fixes.
-HELDOUT_R11_RUNS = ("chat_heldout_r11-auto-nollm-prefix", "chat_heldout_r11-auto-nollm-after-fix")
+# (round 16) after exposure: the round-16 engineer read the slice's failing tasks at 0d102c2 and fixed their classes in
+# own wording, then reran it once at the final round-16 code.
+HELDOUT_R11_RUNS = (
+    "chat_heldout_r11-auto-nollm-prefix",
+    "chat_heldout_r11-auto-nollm-after-fix",
+    "chat_heldout_r11-auto-nollm-after-exposure-round16",
+)
 # Two runs of the same code and set that differ in one setting (an environment variable recorded in the notes):
 # (title, a, b, label a, label b, paths compared).
 PAIRED_ABLATIONS = (
@@ -355,6 +365,12 @@ PAIRED_ABLATIONS = (
 )
 # Other committed evidence the READMEs cite, summarised as one row each.
 EXTRA_EVIDENCE = (
+    "operation_classifier-independent-v1-first-run",
+    "operation_classifier-independent-v1-after-exposure-round16",
+    "operation_classifier-r16",
+    "operation_classifier-r16-nolexicon",
+    "operation_classifier-r16-nowords",
+    "operation_classifier-r16-nodropout",
     "claims_heldout_r11-prefix",
     "claims_heldout_r11-after-fix",
     "slice_overlap-heldout_r11-at-c5ffb7d",
@@ -498,6 +514,19 @@ FILE_STATUS = {
     "chat_heldout_r11-auto-nollm-after-fix": "independent round-11 chat slice **after the round-15 fixes**, run once "
     "from the reviewer's folder; 2 of its 60 tasks overlap own wording by text (without them 12/58 -> 42/58)",
     "claims_heldout_r11-prefix": "**first and only pre-fix run** of the independent round-11 claim slice",
+    "chat_heldout_r11-auto-nollm-after-exposure-round16": "independent round-11 chat slice **after exposure (round "
+    "16)**: the round-16 engineer read its failing tasks at 0d102c2 and fixed their classes in own wording, so this "
+    "rerun at the final round-16 code is not an estimate",
+    "chat_heldout_r10-auto-nollm-after-exposure-round16": "independent round-10 chat slice **after exposure**, rerun "
+    "once at the final round-16 code (its text was not read in round 16)",
+    "chat_heldout_r9-auto-nollm-after-exposure-round16": "independent round-9 chat slice **after exposure**, rerun "
+    "once at the final round-16 code (one control task was read to fix a regression)",
+    "chat_heldout_r8-auto-nollm-after-exposure-round16": "independent round-8 chat slice **after exposure**, rerun "
+    "once at the final round-16 code",
+    "operation_classifier-independent-v1-first-run": "**first run** of the independent operation wording set, at "
+    "c39008b before any round-16 change",
+    "operation_classifier-independent-v1-after-exposure-round16": "independent operation wording set **after "
+    "exposure**: the round-16 engineer generalised grammar classes from its first-run misses, so not an estimate",
     "claims_heldout_r11-after-fix": "independent round-11 claim slice **after the round-15 fixes**; one claim is an "
     "exact copy in a round-15 test (also in the reviewer's probe file), see the note",
     "slice_overlap-heldout_r11-at-c5ffb7d": "overlap (text and content) of the round-11 slice with own texts at the "
@@ -2077,6 +2106,28 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
                 + f"; false positives on {fpr.get('documents')} clean documents: "
                 + "; ".join(fpr_parts)
             )
+        elif isinstance(result.get("independent"), dict) and result.get("wordings"):
+            # (round 16, review-12 L17) the operation on wordings its template author did not write
+            independent = result["independent"]
+            accuracy = independent.get("accuracy") or {}
+            use = independent.get("classifier_use") or {}
+
+            def share(key: str, accuracy: dict[str, Any] = accuracy) -> str:
+                value = accuracy.get(key) or {}
+                return f"{_fmt(value.get('rate'))} [{_fmt(value.get('low'))}, {_fmt(value.get('high'))}]"
+
+            dev = result.get("dev_and_ext_use") or {}
+            dev_questions = sum(item.get("questions", 0) for item in dev.values())
+            dev_fires = sum(item.get("classifier_fires", 0) for item in dev.values())
+            summary = (
+                f"operation wordings written independently ({independent.get('questions')} questions, "
+                f"{result.get('label')}): grammar alone {share('grammar')}, classifier alone {share('classifier')}, "
+                f"grammar + classifier {share('combined')}; frame request with operands "
+                f"{share('frame_request_and_operands')}; the classifier fires on {use.get('fires')} "
+                f"({use.get('changes_to_right')} changes to right, {use.get('changes_to_wrong')} to wrong) and on "
+                f"{dev_fires} of {dev_questions} dev + ext questions"
+            )
+            config = {**config, "commit": result.get("commit")}
         elif str(result.get("version") or "").startswith("operation-clf"):
             # (round 15, review-11 K4) the comparison operation classifier on held-out templates
             held = result.get("held_out") or {}
