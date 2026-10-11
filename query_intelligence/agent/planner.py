@@ -19,7 +19,7 @@ from .coverage import (
     requested_price_fields,
     sector_data_question,
 )
-from .glossary import lookup_concept
+from .glossary import lookup_concept, lookup_concepts
 from .router import asks_price_forecast
 
 MAX_TARGETS = 3
@@ -108,13 +108,16 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
     # "北向资金是啥", "什么是两融": a market concept in the curated glossary is evidence of its own.
     concept = None if listed or sector_data_question(raw_query, entities) else lookup_concept(f"{raw_query} {query}")
     if concept is not None:
+        # (round 16, L11) "市盈率和市净率有什么区别": every figure label the question names (at most three)
+        concepts = [concept, *(entry for entry in lookup_concepts(raw_query) if entry.term != concept.term)]
         return Plan(
             calls=[
                 PlannedCall(
                     tool="explain_concept",
-                    arguments={"term": concept.term, "query": raw_query[:200]},
-                    reason=f"glossary concept: {concept.term}",
+                    arguments={"term": entry.term, "query": raw_query[:200]},
+                    reason=f"glossary concept: {entry.term}",
                 )
+                for entry in concepts[:3]
             ]
         )
     if not listed and "missing_entity" in (nlu_result.get("missing_slots") or []):
