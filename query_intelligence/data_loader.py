@@ -220,6 +220,12 @@ def snapshot_layers(extended: bool | None = None, corrected: bool | None = None)
     return rows
 
 
+def missing_snapshot_layers(extended: bool | None = None, corrected: bool | None = None) -> list[str]:
+    """(round 16, review-12 L19) Names of the layers that are switched on but whose file is missing (``/ready`` 503);
+    the agent states this in every answer that uses offline snapshot figures."""
+    return [row["name"] for row in snapshot_layers(extended, corrected) if row["enabled"] and not row["present"]]
+
+
 def _relative(path: Path) -> str:
     try:
         return str(path.relative_to(ROOT))

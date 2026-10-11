@@ -404,6 +404,38 @@ def apply_compliance(
     return guarded, notes
 
 
+# (round 16, review-12 L19) With the corrections layer switched on but its file missing, ``GET /ready`` is 503 but the
+# chat used to serve the v1 seed values (茅台 P/E 24.6 instead of the corrected 21.44) with no word about it. Chosen
+# behaviour: answer, and say so. Every answer whose market or fundamental figures come from the offline snapshot
+# opens with this note and carries it as a limitation (and ``degraded: data_layer_missing:corrections``); refusing
+# would also refuse the figures the layer does not touch. Live-provider figures are not affected.
+DATA_LAYER_NOTE_ZH = "数据更正层未加载，以下为未经更正的原始数据（离线快照种子值，可能与原始披露不符）。"
+DATA_LAYER_NOTE_EN = (
+    "The data corrections layer is not loaded: the figures below are uncorrected seed data from the offline snapshot "
+    "and may differ from the primary filings."
+)
+_CORRECTED_SOURCE_TYPES = {"market_api", "fundamental_sql"}
+
+
+def data_layer_note(
+    evidence: list[dict[str, Any]], missing_layers: list[str], *, zh: bool
+) -> tuple[str | None, list[str]]:
+    """``(note, degraded)`` when the corrections layer is missing and the run used offline-snapshot market or
+    fundamental figures (the records the layer corrects), else ``(None, [])``."""
+    if "corrections" not in missing_layers:
+        return None, []
+    used = any(
+        item.get("kind") == "structured"
+        and item.get("source_type") in _CORRECTED_SOURCE_TYPES
+        and str(((item.get("payload") or {}).get("provenance") or {}).get("source") or "") == "offline_snapshot"
+        for item in evidence
+        if isinstance(item, dict)
+    )
+    if not used:
+        return None, []
+    return (DATA_LAYER_NOTE_ZH if zh else DATA_LAYER_NOTE_EN), ["data_layer_missing:corrections"]
+
+
 def _strip_trading_sentences(text: str, *, zh: bool) -> tuple[str, int]:
     # Split after sentence ends but keep the whitespace (on the next sentence), so rejoining English text
     # does not glue sentences together ("[price_x].Industry").
