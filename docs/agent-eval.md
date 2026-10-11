@@ -1965,6 +1965,44 @@ Development set, path `auto`: 51 tasks, 95 turns. Status: independent round-8 ch
 
 * Note: AFTER EXPOSURE (round 16): independent round-8 chat slice rerun once at d3b5cc2 (clean tree; the final round-16 r16-frame code), no LLM, --no-replay. A regression check, not an out-of-sample measure: 51/51 = 1.000 (unchanged since round 13). The round-16 engineer did not read this slice.
 
+#### `chat_heldout_r8-auto-nollm-after-exposure-round17.json`
+
+Source `evaluation/results/chat_heldout_r8-auto-nollm-after-exposure-round17.json`: commit `7378156`, run 2026-10-11T07:30:08+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r8/chat_r8_heldout.jsonl --out outputs/agent_eval/chat_r8-r17.json
+```
+
+Development set, path `auto`: 51 tasks, 95 turns. Status: independent round-8 chat slice **after exposure**, rerun once at the final round-17 frame code.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 1.000 [1.00, 1.00] |
+| pass^k (all k repeats succeed) | 1.000 [1.00, 1.00] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 1.000 |
+| Required facts stated and cited | 1.000 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 1.000 |
+| Task success without the citation / tool / disclaimer checks | 1.000 [1.00, 1.00] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.648 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 2066.9 |
+| Turn success | 1.000 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 5 | 1.00 |
+| gap_lexicon | 14 | 1.00 |
+| hk_lookalike | 5 | 1.00 |
+| holding_value | 7 | 1.00 |
+| injection_prediction | 3 | 1.00 |
+| metric_aspect | 9 | 1.00 |
+| single_turn_compare | 8 | 1.00 |
+
+* Note: round 17: rerun once at the final round-17 code 7378156, after exposure (no LLM); the round-17 frame engineer did not read the slice text
+
 ### Round-9 held-out chat slice (independent author): before and after the round-13 fixes
 
 52 conversations written by the round-9 reviewer from their bug classes before any round-13 fix (`evaluation/heldout_r9/README.md`), run with `QI_EVAL_SNAPSHOT_EXT=1` once before the fixes (by the reviewer) and once after them; the after-fix run read the slice from the reviewer's folder and the engineers state they did not open it. `slice_overlap-heldout_r9-all-tasks.json` (every task and claim file scanned, round-10 review J9) lists 6 chat tasks and 5 claims that overlap own wording in tests, dev tasks or the ext gate set (without them chat 16/46 -> 36/46, claims 15/20 -> 20/20; the earlier fixed-list scan `slice_overlap-heldout_r9-at-da9f6af.json` missed the ext set and found 4 chat tasks, 16/48 -> 37/48); the content-level check (`slice_overlap-heldout_r9-content-at-da9f6af.json`) adds 4 chat tasks and 5 claims (chat 16/42 -> 33/42, claims 12/15 -> 15/15). Its 25 claims are in the evidence table below (`claims_heldout_r9-*.json`).
@@ -2293,6 +2331,53 @@ Failures (development set; first 25):
 
 * Note: AFTER EXPOSURE (round 16): independent round-9 chat slice rerun once at d3b5cc2 (clean tree; the final round-16 code), QI_EVAL_SNAPSHOT_EXT=1, no LLM, --no-replay: 51/52 = 0.981, the same as round 15 (still failing r9h_price_zh_03). At 0d102c2 a control task (r9h_ctrl_zh_04, which + by how much) regressed through the retrained classifier's tie-break; the round-16 engineer read that one task and fixed the class (a tie-break never trades a gap for the bare direction, 6b02ed3).
 
+#### `chat_heldout_r9-auto-nollm-after-exposure-round17.json`
+
+Source `evaluation/results/chat_heldout_r9-auto-nollm-after-exposure-round17.json`: commit `7378156`, run 2026-10-11T07:30:04+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r9/chat_r9_heldout.jsonl --out outputs/agent_eval/chat_r9-r17.json
+```
+
+Development set, path `auto`: 52 tasks, 79 turns. Status: independent round-9 chat slice **after exposure**, rerun once at the final round-17 frame code.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.981 [0.94, 1.00] |
+| pass^k (all k repeats succeed) | 0.981 [0.94, 1.00] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 1.000 |
+| Required facts stated and cited | 0.986 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.986 |
+| Task success without the citation / tool / disclaimer checks | 0.981 [0.94, 1.00] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.634 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 2092.4 |
+| Turn success | 0.987 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 7 | 1.00 |
+| forecast_hedge | 7 | 1.00 |
+| industry_missing | 3 | 1.00 |
+| multi_holding | 3 | 1.00 |
+| price_derived | 7 | 0.86 |
+| share_ratio | 7 | 1.00 |
+| spread | 3 | 1.00 |
+| sum | 5 | 1.00 |
+| verb_comparative | 7 | 1.00 |
+| yes_no_ratio | 3 | 1.00 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r9h_price_zh_03 | 现在离那个高点跌去了多少钱 | facts |
+
+* Note: round 17: rerun once at the final round-17 code 7378156, after exposure (QI_EVAL_SNAPSHOT_EXT=1 no LLM); the round-17 frame engineer did not read the slice text
+
 ### Round-10 held-out chat slice (independent author): before and after the round-14 fixes
 
 48 conversations written by the round-10 reviewer from their bug classes before any round-14 fix (`evaluation/heldout_r10/README.md`), run with the extension and the corrections layer on (`QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1`) once before the fixes (by the reviewer) and once after them. The after-fix run read the slice from the reviewer's folder (`config.tasks_file` = `/Volumes/Remi/finsight-review/heldout_r10/chat_r10_heldout.jsonl`, at `3480a96`); the slice entered the repository two minutes later (`367636b`). That the round-14 engineers did not open it is their statement: no fix-era commit names a slice item, but nothing records file access either. `slice_overlap-heldout_r10-at-3480a96.json` lists 3 chat tasks that near-copy own wording (without them 12/45 -> 35/45); the content-level check (`slice_overlap-heldout_r10-content-at-3480a96.json`) adds 3 more (12/42 -> 32/42), and the round-11 review's own count of 10 gives 11/38 -> 29/38. Its 24 claims are in the evidence table below (`claims_heldout_r10-*.json`).
@@ -2540,6 +2625,59 @@ Failures (development set; first 25):
 
 * Note: AFTER EXPOSURE (round 16): independent round-10 chat slice rerun once at d3b5cc2 (clean tree; the final round-16 code), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay: 39/48 -> 42/48 = 0.875 (r10h_stot_zh_01, r10h_verb_en_01, r10h_verb_en_02 now pass, none regressed). The round-16 engineer did not read this slice's text.
 
+#### `chat_heldout_r10-auto-nollm-after-exposure-round17.json`
+
+Source `evaluation/results/chat_heldout_r10-auto-nollm-after-exposure-round17.json`: commit `7378156`, run 2026-10-11T07:30:05+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r10/chat_r10_heldout.jsonl --out outputs/agent_eval/chat_r10-r17.json
+```
+
+Development set, path `auto`: 48 tasks, 53 turns. Status: independent round-10 chat slice **after exposure**, rerun once at the final round-17 frame code (its text was not read in round 17).
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.896 [0.81, 0.98] |
+| pass^k (all k repeats succeed) | 0.896 [0.81, 0.98] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 1.000 |
+| Required facts stated and cited | 0.884 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.884 |
+| Task success without the citation / tool / disclaimer checks | 0.896 [0.81, 0.98] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.646 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 3056.2 |
+| Turn success | 0.906 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 5 | 1.00 |
+| cost_basis | 3 | 1.00 |
+| extremes | 3 | 1.00 |
+| forecast_beyond | 5 | 1.00 |
+| foreign_line | 4 | 1.00 |
+| metric_alias | 5 | 1.00 |
+| multi_holding | 4 | 0.50 |
+| price_derived | 3 | 0.33 |
+| share_of_total | 4 | 1.00 |
+| sum | 5 | 0.80 |
+| verb_comparative | 4 | 1.00 |
+| yes_no_multiple | 3 | 1.00 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r10h_sum_zh_02 | 把招商银行的也算上，共多少 | facts, entities |
+| r10h_hold_en_01 | I own 2 lots of BYD and 500 shares of CMB. What's the total at the last close? | facts |
+| r10h_hold_zh_03 | 持有黄金ETF 2万份和招行500股，合计市值多少 | facts |
+| r10h_price_en_01 | How many yuan is Zijin Mining below its 52-week closing high? | facts |
+| r10h_price_zh_02 | 美的集团现价比52周最高收盘价低了百分之几 | facts |
+
+* Note: round 17: rerun once at the final round-17 code 7378156, after exposure (QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 no LLM); the round-17 frame engineer did not read the slice text
+
 ### Round-11 held-out chat slice (independent author): before and after the round-15 fixes
 
 60 conversations written by the round-11 reviewer before any round-15 fix (`evaluation/heldout_r11/README.md`), run with the shipped default data once before the fixes (by the reviewer) and once after them, from the reviewer's folder. `slice_overlap-heldout_r11-at-c5ffb7d.json` lists the overlaps with own wording (text: 2 chat tasks and 2 claims, one claim, r11c09, an exact copy in a round-15 test that the record does not explain, coincidence or exposure; content and signature tiers wider). Its 24 claims are in the evidence table below (`claims_heldout_r11-*.json`).
@@ -2750,6 +2888,61 @@ Failures (development set; first 25):
 
 * Note: AFTER EXPOSURE (round 16): independent round-11 chat slice (evaluation/heldout_r11/) rerun at d3b5cc2 (clean tree; the final round-16 code), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay: 44/60 -> 58/60 = 0.967. Not an estimate: the round-16 engineer read the slice's failing tasks at 0d102c2 (12 tasks) and fixed their classes in own wording (6b02ed3, d3b5cc2). Still failing r11h_hk_en_01 (a Hong Kong line in HKD, the foreign-line owner's class) and r11h_stot3_zh_01 (平安 in a list read as 中国平安).
 
+#### `chat_heldout_r11-auto-nollm-after-exposure-round17.json`
+
+Source `evaluation/results/chat_heldout_r11-auto-nollm-after-exposure-round17.json`: commit `7378156`, run 2026-10-11T07:30:26+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r11/chat_r11_heldout.jsonl --out outputs/agent_eval/chat_r11-r17.json
+```
+
+Development set, path `auto`: 60 tasks, 73 turns. Status: independent round-11 chat slice **after exposure**, rerun once at the final round-17 frame code (its text was not read in round 17).
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.983 [0.95, 1.00] |
+| pass^k (all k repeats succeed) | 0.983 [0.95, 1.00] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 1.000 |
+| Required facts stated and cited | 0.986 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.986 |
+| Task success without the citation / tool / disclaimer checks | 0.983 [0.95, 1.00] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.592 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 3389.6 |
+| Turn success | 0.986 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| control | 5 | 1.00 |
+| dated_close | 4 | 1.00 |
+| ellipsis_two | 2 | 1.00 |
+| foreign_line | 5 | 1.00 |
+| holding_follow_up | 3 | 1.00 |
+| holding_forms | 4 | 1.00 |
+| mean | 5 | 1.00 |
+| multi_purchase_pnl | 3 | 1.00 |
+| mv_over_profit | 2 | 1.00 |
+| news_missing | 2 | 1.00 |
+| price_recovery | 3 | 1.00 |
+| share_of_total3 | 3 | 0.67 |
+| sum_and_share | 2 | 1.00 |
+| sum_vs_one | 4 | 1.00 |
+| sum_words | 5 | 1.00 |
+| two_questions | 2 | 1.00 |
+| unreleased_results | 3 | 1.00 |
+| verb_comparative | 3 | 1.00 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r11h_stot3_zh_01 | 平安银行营收在平安、招行、工行三家营收总和里占百分之几 | facts, entities |
+
+* Note: round 17: rerun once at the final round-17 code 7378156, after exposure (QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 no LLM); the round-17 frame engineer did not read the slice text
+
 ### Round-12 held-out chat slice (independent author): before and after the round-16 fixes
 
 Written by the round-12 reviewer before any round-16 fix (`evaluation/heldout_r12/README.md`), run with the shipped default data once before the fixes (by the reviewer) and once after them, from the reviewer's folder. Overlap with own wording: `slice_overlap-heldout_r12-at-9564263.json`; its claims are in the evidence table below (`claims_heldout_r12-*.json`).
@@ -2887,6 +3080,64 @@ Failures (development set; first 25):
 | r12h_etfmix_zh_01 | 我有2000份中证500ETF和300股中信证券，总共值多少 | facts |
 
 * Note: independent round-12 chat slice after the round-16 fixes, run once at 9564263 (clean tree), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay, reading the reviewer's folder; the engineers state they did not open it; overlap tiers (slice_overlap-heldout_r12-at-9564263.json): none chat 16/50 → 42/50, claims 11/26 → 24/26; text near-copies chat 16/49 → 42/49, claims 11/26 → 24/26; + content overlaps chat 14/43 → 37/43, claims 9/22 → 20/22; + content signatures (upper bound) chat 14/35 → 31/35, claims 8/18 → 16/18
+
+#### `chat_heldout_r12-auto-nollm-after-exposure-round17.json`
+
+Source `evaluation/results/chat_heldout_r12-auto-nollm-after-exposure-round17.json`: commit `7378156`, run 2026-10-11T07:30:22+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r12/chat_r12_heldout.jsonl --out outputs/agent_eval/chat_r12-r17.json
+```
+
+Development set, path `auto`: 50 tasks, 54 turns. Status: independent round-12 chat slice **after exposure**, rerun once at the final round-17 frame code (its text was not read in round 17).
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.840 [0.74, 0.94] |
+| pass^k (all k repeats succeed) | 0.840 [0.74, 0.94] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.982 |
+| Required facts stated and cited | 0.848 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.848 |
+| Task success without the citation / tool / disclaimer checks | 0.860 [0.76, 0.96] |
+| Tool recall (required tools used) | 0.954 |
+| Tool precision (calls that were relevant) | 0.667 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 4253.2 |
+| Turn success | 0.852 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| compound_count | 4 | 0.50 |
+| control | 8 | 1.00 |
+| dated_close | 1 | 1.00 |
+| dividend_forecast | 2 | 1.00 |
+| etf_plus_stock | 1 | 0.00 |
+| future_market_value | 3 | 1.00 |
+| holding_list_carry | 5 | 1.00 |
+| leading_adverb | 3 | 1.00 |
+| metric_definition | 4 | 0.75 |
+| multi_purchase_forms | 5 | 0.60 |
+| price_gap_yuan | 2 | 0.50 |
+| short_name | 3 | 1.00 |
+| total_vs_one_anchor | 5 | 0.80 |
+| two_operations | 4 | 1.00 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r12h_tvo_en_01 | Taken together, are BYD's and Midea's revenues larger than ICBC's? By how much? | facts |
+| r12h_lots_en_01 | Bought 200 Midea at 85, then 300 more at 76 — where does that leave me now? | facts |
+| r12h_lots_zh_03 | 我先后两次买的：7.6元买了2000股，8.8元买了1000股，合计盈亏多少 | behavior, facts, disclaimer, language, entity |
+| r12h_count_zh_01 | 两万五千股工商银行按收盘价是多少钱 | facts |
+| r12h_count_zh_02 | 1万5千股中信证券，现在市值 | facts, required_tools |
+| r12h_def_en_01 | Explain what return on equity measures | required_tools |
+| r12h_gapy_en_01 | How many yuan below its 52-week closing high is CMB? | facts |
+| r12h_etfmix_zh_01 | 我有2000份中证500ETF和300股中信证券，总共值多少 | facts |
+
+* Note: round 17: rerun once at the final round-17 code 7378156, after exposure (QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 no LLM); the round-17 frame engineer did not read the slice text
 
 ### The no-tools LLM baseline: strict scoring vs uncited correctness
 
@@ -3235,9 +3486,9 @@ low − default: task success -0.038 [-0.094, +0.000], pass^k -0.038 [-0.094, +0
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `e8adccd` | 538 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-dev | `67c28da` | 550 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
 | gate-holdout | `83fdb7b` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
-| gate-ext | `f2a74de` | 99 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
+| gate-ext | `67c28da` | 111 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
 | gate-shipped | `0096c6f` | 21 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
 
 ### Fault injection (overall graceful rate 1.00)
@@ -4152,6 +4403,8 @@ Small online checks with DeepSeek over the offline tools, run sequentially (stop
 | `slice_overlap-heldout_r12-at-9564263.json` | `9564263` | overlap of `heldout_r12` with every task file and claim file (12 files) and the test literals (round-10 review J9): 0 exact and 1 near hits over 1 slice items (r12h_lots_zh_03); chat runs ; content level (round-11 review K16): `content` 10 items (r12c02, r12c04, r12c12, r12c18, r12h_count_en_01, r12h_count_zh_03, r12h_ctrl_zh_03, r12h_ctrl_zh_04, r12h_etfmix_zh_01, r12h_fmv_en_01), `content_signature` 18 items |
 | `operation_classifier-independent-v1-first-run.json` | `c39008b` | operation wordings written independently (234 questions, first-run): grammar alone 0.791 [0.734, 0.838], classifier alone 0.812 [0.757, 0.857], grammar + classifier 0.799 [0.743, 0.846]; frame request with operands 0.769 [0.711, 0.819]; the classifier fires on 2 (2 changes to right, 0 to wrong) and on 0 of 814 dev + ext questions |
 | `operation_classifier-independent-v1-after-exposure-round16.json` | `d3b5cc2` | operation wordings written independently (234 questions, after-exposure-round16): grammar alone 0.992 [0.969, 0.998], classifier alone 0.979 [0.951, 0.991], grammar + classifier 1.000 [0.984, 1.000]; frame request with operands 0.974 [0.945, 0.988]; the classifier fires on 2 (2 changes to right, 0 to wrong) and on 0 of 841 dev + ext questions |
+| `operation_classifier-independent-v1-after-exposure-round17.json` | `7378156` | operation wordings written independently (234 questions, after-exposure-round17): grammar alone 0.992 [0.969, 0.998], classifier alone 0.979 [0.951, 0.991], grammar + classifier 1.000 [0.984, 1.000]; frame request with operands 0.974 [0.945, 0.988]; the classifier fires on 2 (2 changes to right, 0 to wrong) and on 0 of 884 dev + ext questions |
+| `operation_classifier-policies-round17.json` | `951d085` | combination policy (rule committed first): independent set (234) grammar-first 1.000, classifier-first 0.996 (1 changed: 0 to right, 1 to wrong); fresh held-out template split (2160) grammar-first 0.919, classifier-first 0.929 (48 changed: 35 to right, 13 to wrong); classifier-first would change 9 of 850 dev + ext questions; decision: grammar-first |
 | `operation_classifier-r16.json` | `9f6e944` | operation classifier (char_wb 1-3-gram TF-IDF (max 20000) + English word 1-2-gram TF-IDF (max 20000) + grammar lexicon hits + structure (order of total and comparison words, list of three, yes/no); lexicon dropout (every question once more without them)), held-out templates (90 families, 2160 wordings): classifier 0.936 [0.924, 0.945], grammar 0.815 [0.798, 0.831], grammar + classifier 0.886 [0.872, 0.898]; the fallback recovers 152 of 247 operations the grammar misses; fallback fires on 5 of 933 non-comparison evaluation-set questions |
 | `operation_classifier-r16-nolexicon.json` | `d049ebe` | operation classifier (char_wb 1-3-gram TF-IDF (max 20000)), held-out templates (90 families, 2160 wordings): classifier 0.798 [0.780, 0.814], grammar 0.815 [0.798, 0.831], grammar + classifier 0.889 [0.875, 0.902]; the fallback recovers 160 of 247 operations the grammar misses |
 | `operation_classifier-r16-nowords.json` | `d049ebe` | operation classifier (char_wb 1-3-gram TF-IDF (max 20000) + grammar lexicon hits + structure (order of total and comparison words, list of three, yes/no); lexicon dropout (every question once more without them)), held-out templates (90 families, 2160 wordings): classifier 0.942 [0.931, 0.951], grammar 0.815 [0.798, 0.831], grammar + classifier 0.889 [0.875, 0.901]; the fallback recovers 159 of 247 operations the grammar misses |
@@ -4285,21 +4538,26 @@ Paired comparisons (same tasks, a − b):
 | `chat_heldout_r8-auto-nollm-after-exposure-round14.json` | run | `b725e4d` | 2026-10-10T17:25:36+00:00 | – | `outputs/agent_eval/chat_r8-r14.json` (5e18fd3b9396651e) |
 | `chat_heldout_r8-auto-nollm-after-exposure-round15.json` | run | `8b62a6c` | 2026-10-10T21:30:04+00:00 | – | `outputs/agent_eval/chat_r8-r15.json` (664af2c79c391a83) |
 | `chat_heldout_r8-auto-nollm-after-exposure-round16.json` | run | `d3b5cc2` | 2026-10-11T03:07:35+00:00 | – | `outputs/agent_eval/chat_r8-r16.json` (da1742f19b31c337) |
+| `chat_heldout_r8-auto-nollm-after-exposure-round17.json` | run | `7378156` | 2026-10-11T07:30:08+00:00 | – | `outputs/agent_eval/chat_r8-r17.json` (21b8bbfa532eae2c) |
 | `chat_heldout_r9-auto-nollm-prefix.json` | run | `cbcf3b2` | 2026-10-01T13:03:02+00:00 | – | `chat_r9-auto-cbcf3b2.json` (b096452410530e0f) |
 | `chat_heldout_r9-auto-nollm-after-fix.json` | run | `da9f6af` | 2026-10-10T14:08:27+00:00 | – | `outputs/agent_eval/chat_r9-after.json` (10e56aaba27f93b9) |
 | `chat_heldout_r9-auto-nollm-after-exposure-round14-first.json` | run | `cb675d2` | 2026-10-10T17:41:27+00:00 | – | `outputs/agent_eval/chat_r9-r14-first.json` (4b2645b34b817e35) |
 | `chat_heldout_r9-auto-nollm-after-exposure-round14.json` | run | `b725e4d` | 2026-10-10T17:26:28+00:00 | – | `outputs/agent_eval/chat_r9-r14.json` (35963adb02939ee4) |
 | `chat_heldout_r9-auto-nollm-after-exposure-round15.json` | run | `8b62a6c` | 2026-10-10T21:30:01+00:00 | – | `outputs/agent_eval/chat_r9-r15.json` (d74d631bd528eb5e) |
 | `chat_heldout_r9-auto-nollm-after-exposure-round16.json` | run | `d3b5cc2` | 2026-10-11T03:08:32+00:00 | – | `outputs/agent_eval/chat_r9-r16.json` (cdabc916f19e8313) |
+| `chat_heldout_r9-auto-nollm-after-exposure-round17.json` | run | `7378156` | 2026-10-11T07:30:04+00:00 | – | `outputs/agent_eval/chat_r9-r17.json` (659614c318c72fe4) |
 | `chat_heldout_r10-auto-nollm-prefix.json` | run | `7f4f06c` | 2026-10-10T15:26:16+00:00 | – | `chat_r10-auto-7f4f06c.json` (5e5093e352c7941d) |
 | `chat_heldout_r10-auto-nollm-after-fix.json` | run | `3480a96` | 2026-10-10T18:07:35+00:00 | – | `outputs/agent_eval/chat_r10-after.json` (c645506c909ac544) |
 | `chat_heldout_r10-auto-nollm-after-exposure-round15.json` | run | `8b62a6c` | 2026-10-10T21:30:01+00:00 | – | `outputs/agent_eval/chat_r10-r15.json` (0a40065b4a134caa) |
 | `chat_heldout_r10-auto-nollm-after-exposure-round16.json` | run | `d3b5cc2` | 2026-10-11T03:09:21+00:00 | – | `outputs/agent_eval/chat_r10-r16.json` (59ab3d6acaf1d7cb) |
+| `chat_heldout_r10-auto-nollm-after-exposure-round17.json` | run | `7378156` | 2026-10-11T07:30:05+00:00 | – | `outputs/agent_eval/chat_r10-r17.json` (04a7fd75b20754dc) |
 | `chat_heldout_r11-auto-nollm-prefix.json` | run | `4ad3380` | 2026-10-10T19:12:02+00:00 | – | `chat_r11-auto-4ad3380.json` (7d9e5c2b9aafe0aa) |
 | `chat_heldout_r11-auto-nollm-after-fix.json` | run | `c5ffb7d` | 2026-10-10T22:56:23+00:00 | – | `outputs/agent_eval/chat_r11-after.json` (3d06f22bf759476a) |
 | `chat_heldout_r11-auto-nollm-after-exposure-round16.json` | run | `d3b5cc2` | 2026-10-11T03:10:19+00:00 | – | `outputs/agent_eval/chat_r11-r16.json` (56f56dc96514484c) |
+| `chat_heldout_r11-auto-nollm-after-exposure-round17.json` | run | `7378156` | 2026-10-11T07:30:26+00:00 | – | `outputs/agent_eval/chat_r11-r17.json` (4f1dde922eec42e5) |
 | `chat_heldout_r12-auto-nollm-prefix.json` | run | `bb99360` | 2026-10-11T00:05:22+00:00 | – | `chat_r12-auto-bb99360.json` (c0fe1b8ffc636616) |
 | `chat_heldout_r12-auto-nollm-after-fix.json` | run | `9564263` | 2026-10-11T04:09:22+00:00 | – | `outputs/agent_eval/chat_r12-after.json` (ec089cb6ec0c19b0) |
+| `chat_heldout_r12-auto-nollm-after-exposure-round17.json` | run | `7378156` | 2026-10-11T07:30:22+00:00 | – | `outputs/agent_eval/chat_r12-r17.json` (19326b5b446a90a9) |
 | `router_eval-d78b313.json` | router_eval | `d78b313` | 2026-09-25T22:56:36+00:00 | – | written directly |
 | `router_eval-round2.json` | router_eval | `da3ec8b-dirty` | 2026-09-26T18:52:13+00:00 | – | written directly |
 | `router_eval-round3.json` | router_eval | `d3c1495` | 2026-09-28T07:16:51+00:00 | – | written directly |
@@ -4376,9 +4634,9 @@ Paired comparisons (same tasks, a − b):
 | `ablation-memsum-1-multiturn_v1.json` | ablation | `bc42017` | 2026-09-30T22:11:41+00:00 | cline-pass/deepseek-v4.1-flash | `ablation-memsum-1.json` (50162842790e1544) |
 | `ablation-glm-effort-default-holdout.json` | ablation | `bc42017` | 2026-09-30T22:18:04+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-default.json` (0443e4fcfda24919) |
 | `ablation-glm-effort-low-holdout.json` | ablation | `bc42017` | 2026-09-30T22:20:53+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-low.json` (24329b3dee31a93e) |
-| `gate-dev.json` | run | `e8adccd` | 2026-10-11T02:16:25+00:00 | – | `outputs/agent_eval/gate-dev.json` (2ee064a42cbad67d) |
+| `gate-dev.json` | run | `67c28da` | 2026-10-11T07:26:48+00:00 | – | `outputs/agent_eval/gate-dev.json` (7dddefa58ff764e5) |
 | `gate-holdout.json` | run | `83fdb7b` | 2026-10-10T13:50:15+00:00 | – | `outputs/agent_eval/gate-holdout.json` (6f2b2db180b6681c) |
-| `gate-ext.json` | run | `f2a74de` | 2026-10-11T04:04:55+00:00 | – | `outputs/agent_eval/gate-ext.json` (5dc4fd0ee976957f) |
+| `gate-ext.json` | run | `67c28da` | 2026-10-11T07:24:07+00:00 | – | `outputs/agent_eval/gate-ext.json` (aaaba974ef9a6d5c) |
 | `gate-shipped.json` | run | `0096c6f` | 2026-10-10T16:01:55+00:00 | – | `outputs/agent_eval/gate-shipped.json` (bf74663837895f6c) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |
@@ -4440,6 +4698,8 @@ Paired comparisons (same tasks, a − b):
 | `slice_overlap-heldout_r12-at-9564263.json` | slice_overlap_scan | `9564263` | 2026-10-11T04:08:05+00:00 | – | written directly |
 | `operation_classifier-independent-v1-first-run.json` | operation_classifier | `None` | None | – | written directly |
 | `operation_classifier-independent-v1-after-exposure-round16.json` | operation_classifier | `None` | None | – | written directly |
+| `operation_classifier-independent-v1-after-exposure-round17.json` | operation_classifier | `None` | None | – | written directly |
+| `operation_classifier-policies-round17.json` | operation_classifier | `None` | None | – | written directly |
 | `operation_classifier-r16.json` | operation_classifier | `None` | None | – | written directly |
 | `operation_classifier-r16-nolexicon.json` | operation_classifier | `None` | None | – | written directly |
 | `operation_classifier-r16-nowords.json` | operation_classifier | `None` | None | – | written directly |
