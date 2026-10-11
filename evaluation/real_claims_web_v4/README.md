@@ -287,3 +287,23 @@ The blind number is the first run's 0.740.
 | 7. English moves of a reported flow | w3_32 | 1 | 1 | "plunged to CY40.53 billion, almost 55% below sales in 2024" is now unverifiable (no date; the latest session does not fit), not contradicted |
 | 8. tolerance | w3_34 | 1 | 1 | unchanged (2% vs the labels' 1%) |
 | new: a daily figure with no date | w3_12 | 0 | 1 | "截至收盘，沪指涨0.27%…" does not fit the latest session (+0.31%): unverifiable under the round-15 rule, labelled contradicted |
+
+## Round 16: after exposure, per class
+
+Re-run once on a clean tree at `c795172` (r16-claims, the round-16 claims code: the round-12 review's L4-L6 parts
+without a number, growth-rate comparisons, book value and L9 short names; no rule was written for this set), 2026-10-11:
+`python -m evaluation.real_claims_web_v4.score_claims_web_v4 --after-exposure --out
+evaluation/results/claims_web_v4-after-exposure-round16.json`.
+
+| | blind first run (`110e656`) | round 15 (`a02821d`) | round 16 (`c795172`) |
+|---|---|---|---|
+| verdict accuracy | 0.740 [0.62, 0.86], 37/50 | 0.780 [0.66, 0.88], 39/50 | **0.780 [0.66, 0.88], 39/50** |
+| against the definition-blind labels | 0.720 [0.60, 0.84] | 0.760 [0.64, 0.88] | 0.760 [0.64, 0.88] |
+| by language | zh 35/43, en 2/7 | zh 36/43, en 3/7 | zh 36/43, en 3/7 |
+
+**Per category at round 16:** annual_figures 0.893 (25/28), annual_ratios 0.875 (7/8), daily_price 0.500 (1/2),
+english_or_traditional 0.429 (3/7), loose_or_relational 0.600 (3/5), unchanged from round 15. One verdict moved, still
+wrong: w3_32 (class 7, English moves of a reported flow) is partially supported instead of unverifiable: "net profit
+nosedived by 72%" now reads as a fall (−72 against −71.89, supported) while "almost 55% below sales in 2024" is still
+read as a daily move. The eleven errors are the same claims as in round 15 (classes 1, 3, 4, 6, 7, 8 and the no-date
+rule); the round-16 rules changed no other verdict in this set. The blind number is the first run's 0.740.

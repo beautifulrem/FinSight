@@ -1,0 +1,29 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "c795172",
+  "run_at": "2026-10-11T02:38:50+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r8/score_claims_r8.py outputs/agent_eval/claims_r8-r16.json",
+  "claims_file": "evaluation/heldout_r8/claims_r8_heldout.jsonl",
+  "claims_sha256": "c01bdbed66d9cf5252ddf3ca3cd0a754d39235d1b342fade96a6599502fb7e9b",
+  "note": "AFTER EXPOSURE: independent round-8 claim slice rerun at c795172 (clean tree, the round-16 claims code: review-12 L4/L5/L6 parts without a number, L9 short names). After exposure since round 13. 25/25 = 1.000 (round 15: 25/25)."
+ },
+ "summary": {
+  "claims": 25,
+  "verdict_accuracy": 1.0,
+  "ci95": [
+   1.0,
+   1.0
+  ],
+  "by_category": {
+   "english_relation": 1.0,
+   "industry_relation": 1.0,
+   "loose_numeral": 1.0,
+   "move_relation": 1.0,
+   "stated_average_order": 1.0,
+   "sum": 1.0,
+   "two_company_difference": 1.0
+  }
+ },
+ "errors": []
+}

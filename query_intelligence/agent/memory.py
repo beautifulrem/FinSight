@@ -18,6 +18,7 @@ from typing import Any
 from langgraph.checkpoint.memory import InMemorySaver
 
 from .frame import latest_frame, memory_view, metric_label, metric_of
+from .glossary import definition_question
 from .router import has_macro_content, is_dangling_why
 
 MAX_CONTEXT_TURNS = 3
@@ -466,6 +467,8 @@ def resolve_ellipsis(
     if not current_targets:
         if _MARKET_WIDE.search(text) or has_macro_content(text) or not (marker or aspects_now):
             return None
+        if definition_question(text):
+            return None  # (round 16, L11) "归母净利润是什么意思" after a company turn asks the definition
         targets = _last_targets(turns)
         if not targets:
             return None
@@ -844,6 +847,8 @@ def inherit_session_context(query: str, turns: list[dict[str, Any]]) -> tuple[st
     text = strip_filler(query)
     if not turns or not text or not has_follow_up_cue(text):
         return None
+    if definition_question(text):
+        return None  # (round 16, L11) "那市净率怎么理解": the definition, not the previous company's figure
     if re.search(r"[A-Za-z]{3,}", text):
         if len(text.split()) > _SESSION_FOLLOW_UP_WORDS:
             return None

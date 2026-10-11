@@ -9698,6 +9698,36 @@
     }
    ],
    "error": null
+  },
+  "explain_concept:{\"query\": \"什么是市盈率TTM？\", \"term\": \"市盈率\"}": {
+   "ok": true,
+   "data": {
+    "term": "市盈率",
+    "definition_zh": "市盈率（PE）是股价除以每股收益，等价于总市值除以归母净利润，可理解为按当前利润水平需要多少年的利润才能抵得上现在的市值。TTM（滚动）市盈率用最近十二个月（四个季度合计）的归母净利润计算；静态市盈率用上一完整财年的利润，动态市盈率用年化或预测的利润，三种口径的数值不能直接比较。FinSight 展示的是市盈率 TTM，按估值日的收盘价计算（估值日在数据中标明）；行业市盈率是所属行业的汇总值。市盈率的高低要结合行业、盈利增长和利润质量来看，亏损公司的市盈率为负或没有意义。",
+    "definition_en": "The price-to-earnings ratio (P/E) is the share price divided by earnings per share, or equivalently the market value divided by attributable net profit: how many years of current profit the market value represents. A TTM (trailing) P/E uses the last twelve months of profit (the latest four quarters); a static P/E uses the last full fiscal year and a forward or dynamic P/E an annualised or forecast profit, so the three are not directly comparable. FinSight shows the TTM P/E at the close of the valuation date (stated with the figure); the industry P/E is an aggregate of the company's industry. A P/E is read against the industry, growth and earnings quality; a loss-making company's P/E is negative or meaningless.",
+    "has_data_series": true,
+    "evidence_id": "glossary_市盈率",
+    "source": "FinSight glossary"
+   },
+   "evidence": [
+    {
+     "evidence_id": "glossary_市盈率",
+     "kind": "document",
+     "source_type": "glossary",
+     "title": "市盈率",
+     "source_name": "FinSight glossary",
+     "source_url": null,
+     "provider": null,
+     "as_of": null,
+     "text_excerpt": "市盈率（PE）是股价除以每股收益，等价于总市值除以归母净利润，可理解为按当前利润水平需要多少年的利润才能抵得上现在的市值。TTM（滚动）市盈率用最近十二个月（四个季度合计）的归母净利润计算；静态市盈率用上一完整财年的利润，动态市盈率用年化或预测的利润，三种口径的数值不能直接比较。FinSight 展示的是市盈率 TTM，按估值日的收盘价计算（估值日在数据中标明）；行业市盈率是所属行业的汇总值。市盈率的高低要结合行业、盈利增长和利润质量来看，亏损公司的市盈率为负或没有意义。\nThe price-to-earnings ratio (P/E) is the share price divided by earnings per share, or equivalently the market value divided by attributable net profit: how many years of current profit the market value represents. A TTM (trailing) P/E uses the last twelve months of profit (the latest four quarters); a static P/E uses the last full fiscal year and a forward or dynamic P/E an annualised or forecast profit, so the three are not directly comparable. FinSight shows the TTM P/E at the close of the valuation date (stated with the figure); the industry P/E is an aggregate of the company's industry. A P/E is read against the industry, growth and earnings quality; a loss-making company's P/E is negative or meaningless.",
+     "payload": {
+      "term": "市盈率",
+      "has_data_series": true
+     },
+     "produced_by": "explain_concept"
+    }
+   ],
+   "error": null
   }
  },
  "extended_at": [
@@ -9708,6 +9738,7 @@
   "2026-09-29T14:04:00+00:00",
   "2026-09-30T08:22:01+00:00",
   "2026-10-01T05:37:33+00:00",
-  "2026-10-01T05:18:26+00:00"
+  "2026-10-01T05:18:26+00:00",
+  "2026-10-11T02:32:01+00:00"
  ]
 }
