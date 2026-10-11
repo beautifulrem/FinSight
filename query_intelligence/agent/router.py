@@ -522,7 +522,7 @@ def _horizon(part: str) -> bool:
 
 
 _VALUE_MODAL = re.compile(
-    r"(?:能|会|将|可能|有望|能否|会否|能不能|会不会|是否|可不可能|有没有可能)(?:再|重新|继续|一举|成功|顺利)?"
+    r"(?:能|会|将|可能|有望|能否|会否|能不能|会不会|可不可能|有没有可能)(?:再|重新|继续|一举|成功|顺利)?"
     r"(?:突破|达到|到达?|超过|站上|跌破|回到|涨到|跌到|冲上|冲击|破|是|有|在)|"
     r"\b(?:will|would|could|can|might|may|going\s+to|likely\s+to|expected\s+to)\b(?!\s+you\b)[^.?!]{0,50}?"
     r"\b(?:reach|top|hit|exceed|surpass|get\s+to|be|climb|rise|fall|drop|break|cross|pass|double|shrink|grow)\b",

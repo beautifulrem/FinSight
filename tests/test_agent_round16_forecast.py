@@ -112,6 +112,8 @@ def test_targets_running_periods_and_this_years_dividend_are_forecasts(query):
         "中国神华今年已经分红了吗",
         "紫金矿业近五年净利润",
         "中国神华股息率多少",
+        "长江电力市值是否超过7000亿",  # a present-tense comparison, not a target
+        "Is Zijin's market cap above 800 billion yuan?",
     ],
 )
 def test_plain_lookups_are_not_forecasts(query):
