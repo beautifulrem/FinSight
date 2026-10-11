@@ -91350,3 +91350,9 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 91420,3655,中移动,中移动,colloquial_alias,1,false
 91421,1245,牧原,牧原,colloquial_alias,1,false
 91422,1026,立讯,立讯,colloquial_alias,1,false
+91423,2243,宁德,宁德,colloquial_alias,1,derived_word
+91424,11,平银,平银,colloquial_alias,1,derived
+91425,2969,招银,招银,colloquial_alias,1,derived
+91426,3886,紫金,紫金,colloquial_alias,1,derived_word
+91427,117,美集,美集,colloquial_alias,1,derived
+91428,3633,长电,长电,colloquial_alias,1,derived

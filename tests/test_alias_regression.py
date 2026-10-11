@@ -69,7 +69,13 @@ def test_colloquial_aliases_are_in_the_runtime_table_once_each():
     path = ROOT / "data" / "runtime" / "alias_table.csv"
     with path.open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
-    colloquial = [row for row in rows if row["alias_type"] == COLLOQUIAL_ALIAS_TYPE]
+    # (round 16) the short names derived from the entity table (is_official "derived…") are checked in
+    # tests/test_agent_round16_aliases.py
+    colloquial = [
+        row
+        for row in rows
+        if row["alias_type"] == COLLOQUIAL_ALIAS_TYPE and not row["is_official"].startswith("derived")
+    ]
     expected = {text for _name, texts in COLLOQUIAL_ALIASES.values() for text in texts}
     assert {row["normalized_alias"] for row in colloquial} == expected
     assert len(colloquial) == len(expected)

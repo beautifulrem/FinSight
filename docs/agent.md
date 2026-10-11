@@ -780,6 +780,200 @@ scripted drafts are in `tests/test_agent_round15_frame.py`; verifier stress at t
 
 **Results (round 15).** Gates at `9d41aab`: dev 510 → **524 = 1.000** (`gate-dev.json`), ext 44 → **68 = 1.000** (`gate-ext.json`), held-out 53 = 0.9434 and shipped 21 = 1.000 unchanged; offline red team 0 successes on all twelve sets; full pytest 2,876 passed / 70 skipped at the final code `8b62a6c` (round2 merged). The reviewer slices, all **after exposure**, rerun once at `8b62a6c` (the round-15 frame engineer worked from the round-11 review report and did not open the slice texts): round 8 51/51 (`chat_heldout_r8-auto-nollm-after-exposure-round15.json`), round 9 51/52 (`chat_heldout_r9-auto-nollm-after-exposure-round15.json`), round 10 38/48 → **39/48** (`chat_heldout_r10-auto-nollm-after-exposure-round15.json`; r10h_stot_zh_03 now passes, no task regressed; still failing: 2 several-holdings, 2 price-derived, 2 shares of a combined total, 1 total across turns, 2 English verb comparatives). The round-11 slice (`heldout_r11`) was not opened; its first run at `4ad3380` was 0.200 (chat) by the reviewer, and its after-fix run is the reviewer's.
 
+### Rules added in round 16 (round-12 review, L1, L2, L3, L9, L10, L12, L13, L14, L17)
+
+Round 16 fixed the comparison, holding and naming classes the round-12 review found with fresh wordings. The fixes use
+the author's own wording:
+
+- 14 dev tasks (`build_tasks._round16_frame_tasks`, v1 snapshot);
+- 12 ext tasks (`build_ext_tasks.round16_frame_ext_tasks`, extension names);
+- `tests/test_agent_round16_frame.py` and `tests/test_agent_round16_aliases.py`.
+
+The review's repro strings and its hidden `heldout_r12` slice are not used. `tests/test_agent_eval.py` checks these
+tasks, the test strings and every wording the classifier trains on against several sources:
+
+- every slice committed before round 12, the round-11 slice included;
+- the quoted repros of the round-4–12 reviews (the round-12 ones are in `_ROUND12_REVIEW_PROBES`);
+- the independent operation wording set below. It is an evaluation set, so it is never trained on.
+
+**Comparisons.**
+
+* **The single value named with the comparison word** (L1, `frame._comparand`). A total is compared with one value
+  named either with a connector before the comparison verb ("A和B的净利润合计，跟C比谁多", "与C相比", "同C比较一下") or
+  right after a comparison preposition ("相比C", "比起C", "compared with C", "relative to C", "against C"). That value
+  is the single side wherever it stands, and the other operands are the total. Before round 16, "A和B…，跟C比谁多" put
+  all three names before the anchor and answered with the total of all three.
+  - Only a metric may stand between the name and the verb, so "A与B合计比C多吗" still keeps C as the single side.
+  - A name followed by another list item ("相比A和B加起来") is not a single side.
+  - 相比 / 相较 / 比起 / 对比 / relative to / against / short of / outweigh / stack up / 顶得上 / 有没有…多 / "与C的差"
+    are comparison anchors of `total_vs_one`. "A加B比C多吗" / "A plus B … than C" (a weak total word) is
+    `total_vs_one` too.
+* **Leading adverbs** (L10). Together / Jointly / Combined / Altogether / In total / Overall / Collectively, and any
+  sentence-opening "-ly" word followed by a comma, are never an unresolved security. A real unknown name in the list is
+  still named.
+* **Two operations across sentences** (L12, `frame.message_pieces`). The operations of a message are read in every
+  sentence, not only the first comparison clause.
+  - "…是…的几倍？再算下两家合计" is a ratio and a total.
+  - An instruction ("算一下", "work out") counts as asking.
+  - A share asked right after a total ("…合计多少，茅台占比多少", "…加起来多少？工行占比多少") is a share of that total,
+    with the target it names as the numerator. Alias-table short names now locate an operand, so "工行" finds 工商银行.
+  - "哪家…更低？低多少" is one difference, and the difference sentence names the higher one.
+* **Grammar classes generalised after the independent wording set's first run** (L17, after exposure; the set is
+  described below):
+  - which: yes/no comparisons ("A的PE比B高吗", "Is A's P/E higher than B's?"), superlatives with 哪 / which / who;
+  - spread: best/worst, 最大差值, 高低差, max minus min, range across;
+  - share of a total in its own clause ("…加起来，茅台占多少", "合计…里的份额", "三家…中，A占几成", "其中A贡献了…");
+  - share against a stated base ("拿A做分母", "taking A as 100%"), and a stated fraction asked in percent. A sentence
+    that only asks the unit ("具体是百分之多少", "Give me the percentage.") is read with the sentence before it;
+  - mean: "今天平均涨跌幅", "mean daily change", 折中 / 中间值.
+  - One caveat: a session word ("今天") blocks a spread only next to 最高/最低.
+
+**Holdings and lots.**
+
+* **Several purchases** (L2, `coverage._LOT_ZH` / `_LOT_EN`). The name may stand between the verb and the count
+  ("30元买入紫金矿业1000股"), and 块 / 补了 / 加了 / 吃进 / 又入 count as purchases. "1,000 Zijin at 32 and another 500 at
+  27" has no "shares", and is still read as two lots. Every lot is summed, and the sign follows the total ("合计浮盈
+  3580 元", not the first lot's −210).
+* **Counts** (L3, `coverage.count_value`). Mixed units are read: 1万2千 = 12,000, 3千5百 = 3,500, 1万2 = 12,000. English
+  counts can use 万 / k / thousand ("2万 shares", "20k shares").
+* **Lists and positions** (L3):
+  - "…，按最新收盘价算总市值" after a 、-list values the holdings, not the companies.
+  - "800 shares of Midea and 1,200 of CMB" takes the unit of the position before it.
+  - A position stated without a value question ("我持有比亚迪600股") is carried into "再加上…100股，总共值多少".
+* **Price-derived** (L13). The gap to the 52-week high close, and the rise back to it, are given in yuan and in percent
+  ("低 43.45 − 29.79 = 13.66 元，即 … ≈ 31.44%").
+* **Arithmetic is not advice** (L13). A gain against a stated cost, or a stated holding's value, gets no hold/advice
+  prefix, no "问题包含投资建议或预测属性" limitation and no sentiment fetch. A judgment word ("该不该卖") in the question
+  still gets the prefix.
+
+**Short names from the entity table** (L9, `runtime_entity_assets.derive_short_aliases`, `scripts/derive_short_aliases.py`).
+For the securities the data covers, short names are derived by rule instead of listed by hand. The source is a
+four-character stock name that ends in a company-type word shared by at least 5 stock names (矿业, 时代, 银行, 电力 …).
+It gives two candidates: R1, its first two characters, and R2, the first character of each half.
+
+A candidate is dropped when it:
+
+- is an entity name;
+- is an alias another entity already owns;
+- is a common word (jieba dictionary frequency ≥ 1,000: 长江, 工商);
+- is an R2 form the document corpus never writes (紫矿);
+- starts more than two other listed names (中信: 325, 招商: 550, 工银: 411 fund names);
+- starts one or two other listed names that the corpus does not dominate. It is kept only when the target is named in
+  ≥ 8 documents and ≥ 5× the others.
+
+Shipped forms:
+
+- 宁德 → 宁德时代;
+- 平银 → 平安银行;
+- 招银 → 招商银行;
+- 紫金 → 紫金矿业 (corpus 9 : 紫金银行 1);
+- 美集 → 美的集团;
+- 长电 → 长江电力 (corpus 14 : 长电科技 1).
+
+Every accepted and rejected candidate is in `data/runtime/derived_short_aliases.json` with its evidence. The rows are
+colloquial aliases, so they match only as a whole jieba token and never fuzzily. A test checks that no derived alias
+collides with another entity's name or alias, and that a prefix rival is allowed only with the recorded corpus
+evidence.
+
+Known limits:
+
+- "宁德" is also a city. Without a finance word it stays the city ("宁德的天气冷吗"), but "宁德的房价涨了吗" (涨 is a
+  market word) resolves to 宁德时代.
+- "长电" is also 长电科技's usual short name.
+- "和平银…" tokenises as 和平 + 银, so "宁德和平银…" does not resolve 平银 ("平银与宁德…" does).
+
+**Trace** (L14). The classifier's reading is its own route reason, `clf:<operation>:<p>:<features>`, and so is every
+further operation, `frame_also:<operation>:<metric>` (`frame.frame_extra_reasons`). Before round 16 both were appended
+to `frame:<op>:<metric>:<A|B>`, and the UI showed them as a third operand. The UI shows them as separate chips: "运算分类器：合计（概率 0.72；依据：…）" / "Operation
+classifier: total (p 0.72; features: …)". Older traces with the appended form are cleaned when shown. `mean` and
+`total_vs_one` frames have labels too.
+
+**The operation classifier, evaluated on wordings its template author did not write** (L17). A fresh sub-agent wrote
+`evaluation/operation_wordings_independent_v1.jsonl`: 234 questions, 117 zh and 117 en, 20 per operation and 34
+`none`, with labels.
+
+- It received only the operation list with one-line definitions, the company names and the metric names.
+- It never saw `frame.py`, the templates, the tests or the task sets.
+- The full account is in `evaluation/operation_wordings_independent_v1.README.md`.
+
+`python -m training.operation_classifier.evaluate_independent` scores three readings of the operation:
+
+- the grammar alone (the run-time path with the classifier off);
+- the classifier alone;
+- the run-time combination.
+
+It also counts how often the classifier fires and how often it changes the frame request.
+
+| Run | Grammar alone | Classifier alone | Grammar + classifier | Classifier fires (changes) |
+|---|---|---|---|---|
+| **First run at `c39008b`**, before any round-16 change (`…-first-run.json`) | 0.791 [0.73, 0.84] | 0.812 [0.76, 0.86] | 0.799 [0.74, 0.85] | 2 / 234 (2, both right); dev + ext 0 / 814 |
+| **After exposure**, rerun at the final code `d3b5cc2` (`…-after-exposure-round16.json`) | 0.991 | 0.979 | **1.000** (234 / 234) | 2 / 234 (2, both right); dev + ext 0 / 841 |
+
+How to read the table:
+
+- **The first run is the estimate.** The first-run misses were concentrated in share of a total (7/20), total vs one
+  (10/20), spread (11/20) and which (12/20).
+- **The second row is not an estimate.** The engineers read those misses and generalised the grammar classes above, so
+  1.000 after exposure only says the set no longer finds a gap.
+- **Some misses are entity misses, not operation misses.** With the whole frame step (offline NLU entities, operands
+  checked), the after-exposure run is 0.974 (`frame_request_and_operands`).
+
+The classifier itself was retrained (`operation-clf-r16`, `operation_classifier-r16.json`, trained at `9f6e944` from a
+clean tree). Changes:
+
+- English word 1–2-grams.
+- Structural features: whether the total word comes before or after the comparison word, a list of three, a yes/no
+  question.
+- 110 more own-wording templates (5 per operation and language).
+- **Lexicon dropout**: every training question is used a second time without the lexicon and structure features.
+  Without dropout the model had learned "no lexicon word → `none`", so it could not read the wordings the grammar
+  misses.
+- The artifact now stores `trained_at_commit` and `dev_wordings_sha256` (L16).
+
+Results on held-out templates: 2,160 wordings from 90 template families never trained on. These are the same author's
+templates, so the independent set above is the real test.
+
+| Model | Classifier alone | Grammar + classifier | Held-out operations the grammar misses that the fallback rescues |
+|---|---|---|---|
+| Shipped | 0.936 [0.925, 0.945] | 0.886 [0.872, 0.898] | 152 of 247 |
+| Grammar alone | – | 0.815 | – |
+| Without dropout | 0.900 | 0.884 | – |
+| Without word n-grams | 0.942 | 0.889 | – |
+| Characters only | 0.798 | 0.889 | – |
+
+The word n-grams do not help on these templates (0.942 without them, within the interval).
+
+**The fallback threshold** was lowered from 0.6 to 0.45 after a sweep on the 295 held-out questions the grammar reads
+nothing in. The fallback is right on 146/146 at 0.6, 152/152 at 0.45 and 166/167 at 0.35. The threshold was chosen on
+this set, so its precision there is optimistic.
+
+Where the fallback fired:
+
+- Unseen wordings it now reads: "…拼一块是多少" (sum), "…一并是多少" (sum), "…中间值是多少" (mean), and the review's
+  "…之间相隔多少" (difference, p 0.59, from the 隔 n-grams). "…分别是多少" stays `none`.
+- On the 933 questions of the committed evaluation sets the grammar reads as non-comparisons, it fires 5 times, all
+  `which`. That is 0 at round 15. None of these sets is training data, and they have no operation labels.
+
+**Results (round 16).**
+
+- **Gates.** dev 524 → **538 = 1.000** (`gate-dev.json`, `e8adccd`); ext 78 → **90 = 1.000** (`gate-ext.json`);
+  held-out 53 = 0.9434 and shipped 21 = 1.000 unchanged.
+- **Review repros.** The round-12 review quoted 24 repros of L1, L2, L3, L9, L10, L12, L13 and L17 with an expected
+  answer (25 turns). Re-asked offline on the shipped default, all 24 now give the review's expected numbers. Before
+  round 16, none gave the expected answer; the stated-cost P&L had the right number but the advice prefix.
+- **Slices.** Rerun once at the final code `d3b5cc2`, all after exposure:
+  - round 8: 51/51 (`chat_heldout_r8-auto-nollm-after-exposure-round16.json`);
+  - round 9: 51/52, unchanged. A control (which + by how much) had regressed through the retrained classifier's
+    tie-break at `0d102c2`; a tie-break no longer trades a gap for the bare direction.
+  - round 10: 39/48 → **42/48** (`chat_heldout_r10-auto-nollm-after-exposure-round16.json`), none regressed; the slice
+    text was not read.
+  - round 11: 44/60 → **58/60** (`chat_heldout_r11-auto-nollm-after-exposure-round16.json`). This is not an estimate:
+    the round-16 engineer read the 12 failing tasks at `0d102c2` and fixed their classes in own wording. Still failing:
+    a Hong Kong line asked in HKD (the foreign-line class) and 平安 in a list read as 中国平安.
+- **Verifier stress.** 329 gold answers / 5,597 variants, claim-level false accepts 0.93 %, derived 1.05 %
+  (`verifier_stress-round16.json`).
+- **Red team.** 0 successes on all 13 sets.
+
 ### Session memory card
 
 `session_memory(turns, query)` builds a small extractive card that the agent's user message carries as "Session memory (from earlier turns)": `recent_targets` (up to 6 distinct listed entities, newest first), `user_constraints` stated at any earlier turn (`risk:conservative` / `risk:aggressive`, `horizon:long` / `horizon:short`, `scope:a_shares_only`, `scope:etf_only`) `stated_holdings` ("我持有招商银行", "I own …", up to 5) and (round 11) `comparison_frame`, the comparison under way (metric, operands in order, the values and evidence ids earlier turns found, and a note that those ids must be fetched again to be cited). It is rule-based and bounded, and it is the default.

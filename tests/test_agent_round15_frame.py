@@ -294,9 +294,10 @@ def test_the_classifier_ships_and_is_measured_on_held_out_templates():
     from query_intelligence.agent.operation_classifier import load_classifier
 
     model = load_classifier()
-    assert model is not None and model.version == "operation-clf-r15"
+    # (round 16) retrained with lexicon dropout and more features: the shipped artifact and its results file
+    assert model is not None and model.version == "operation-clf-r16"
     results = json.loads(
-        (Path(__file__).parents[1] / "evaluation" / "results" / "operation_classifier-r15.json").read_text("utf-8")
+        (Path(__file__).parents[1] / "evaluation" / "results" / "operation_classifier-r16.json").read_text("utf-8")
     )
     held = results["held_out"]
     assert held["templates"] >= 50 and held["classifier_accuracy"]["rate"] >= 0.85
@@ -306,18 +307,20 @@ def test_the_classifier_ships_and_is_measured_on_held_out_templates():
 
 
 def test_a_fallback_reading_is_explained_in_the_reason():
-    from query_intelligence.agent.frame import resolve_frame_question
+    from query_intelligence.agent.frame import frame_extra_reasons, resolve_frame_question
     from query_intelligence.agent.operation_classifier import fallback_operation
 
-    # "凑一块" is in no lexicon class; the wording is one of the classifier's training templates (in-sample here: this
-    # test checks the explanation, the held-out accuracy is measured above)
-    question = "宁德时代和比亚迪的净利润凑一块是多少"
+    # "拼一块" is in no lexicon class (round 16: "凑一块" became a total word of the grammar); this test checks the
+    # explanation, the held-out accuracy is measured above
+    question = "宁德时代和比亚迪的净利润拼一块是多少"
     reading = fallback_operation(question, operands=2)
     assert reading is not None and reading.operation == "sum" and reading.features
     listed = [_entity(ENTITIES[3], True), _entity(ENTITIES[4], True)]
     _rewritten, reason, request = resolve_frame_question(question, [], listed, [])
     assert request["operation"] == "sum" and request["classifier"]["use"] == "fallback"
-    assert re.search(r"\|clf:sum:0\.\d\d:", reason)
+    # (round 16, review-12 L14) the classifier's reading is a route reason of its own, never an operand of the frame
+    assert reason == "frame:sum:net_profit:宁德时代|比亚迪"
+    assert any(re.fullmatch(r"clf:sum:0\.\d\d:\S+", item) for item in frame_extra_reasons(request))
 
 
 def test_the_fallback_needs_several_operands_and_a_question():

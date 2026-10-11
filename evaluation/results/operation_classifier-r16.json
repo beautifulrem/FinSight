@@ -1,0 +1,551 @@
+{
+ "version": "operation-clf-r16",
+ "commit": "9f6e944",
+ "dirty": false,
+ "run_at": "2026-10-11T01:51:36+00:00",
+ "command": "python -m training.operation_classifier.train",
+ "features": "char_wb 1-3-gram TF-IDF (max 20000) + English word 1-2-gram TF-IDF (max 20000) + grammar lexicon hits + structure (order of total and comparison words, list of three, yes/no); lexicon dropout (every question once more without them)",
+ "model": "LogisticRegression(C=4, multinomial, lbfgs)",
+ "seed": 20261011,
+ "train": {
+  "generated": 8640,
+  "generated_templates": 360,
+  "dev_wordings": 827,
+  "dev_labels": {
+   "difference": 50,
+   "ratio": 24,
+   "relative": 8,
+   "share": 3,
+   "share_total": 7,
+   "sum": 22,
+   "mean": 6,
+   "spread": 3,
+   "which": 33,
+   "total_vs_one": 9,
+   "none": 662
+  },
+  "dev_wordings_sha256": "b53cb9dc749ba7ff31ddcb367d0c7cb0b716b0510ba5f8f8f85f5588c0ba6b6f"
+ },
+ "held_out": {
+  "examples": 2160,
+  "templates": 90,
+  "classifier_accuracy": {
+   "rate": 0.9356,
+   "low": 0.9245,
+   "high": 0.9452,
+   "n": 2160
+  },
+  "grammar_accuracy": {
+   "rate": 0.8153,
+   "low": 0.7984,
+   "high": 0.8311,
+   "n": 2160
+  },
+  "grammar_plus_classifier_accuracy": {
+   "rate": 0.8856,
+   "low": 0.8715,
+   "high": 0.8984,
+   "n": 2160
+  },
+  "grammar_missed_operations": 247,
+  "rescued_by_fallback": 152,
+  "recall_by_class": {
+   "difference": {
+    "rate": 0.875,
+    "low": 0.8207,
+    "high": 0.9145,
+    "n": 192
+   },
+   "ratio": {
+    "rate": 0.9792,
+    "low": 0.9477,
+    "high": 0.9919,
+    "n": 192
+   },
+   "relative": {
+    "rate": 0.8229,
+    "low": 0.7627,
+    "high": 0.8704,
+    "n": 192
+   },
+   "share": {
+    "rate": 1.0,
+    "low": 0.9804,
+    "high": 1.0,
+    "n": 192
+   },
+   "share_total": {
+    "rate": 0.75,
+    "low": 0.6843,
+    "high": 0.8059,
+    "n": 192
+   },
+   "sum": {
+    "rate": 0.875,
+    "low": 0.8207,
+    "high": 0.9145,
+    "n": 192
+   },
+   "mean": {
+    "rate": 0.9896,
+    "low": 0.9628,
+    "high": 0.9971,
+    "n": 192
+   },
+   "spread": {
+    "rate": 1.0,
+    "low": 0.9804,
+    "high": 1.0,
+    "n": 192
+   },
+   "which": {
+    "rate": 1.0,
+    "low": 0.9804,
+    "high": 1.0,
+    "n": 192
+   },
+   "total_vs_one": {
+    "rate": 1.0,
+    "low": 0.9804,
+    "high": 1.0,
+    "n": 192
+   },
+   "none": {
+    "rate": 0.9875,
+    "low": 0.9639,
+    "high": 0.9957,
+    "n": 240
+   }
+  },
+  "classifier_misses_sample": [
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "sum",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "difference/zh/19",
+    "expected": "difference",
+    "classifier": "none",
+    "grammar": "none"
+   },
+   {
+    "template": "ratio/zh/14",
+    "expected": "ratio",
+    "classifier": "none",
+    "grammar": "none"
+   }
+  ]
+ },
+ "in_sample_dev": {
+  "examples": 827,
+  "templates": 1,
+  "classifier_accuracy": {
+   "rate": 1.0,
+   "low": 0.9954,
+   "high": 1.0,
+   "n": 827
+  },
+  "grammar_accuracy": {
+   "rate": 1.0,
+   "low": 0.9954,
+   "high": 1.0,
+   "n": 827
+  },
+  "grammar_plus_classifier_accuracy": {
+   "rate": 1.0,
+   "low": 0.9954,
+   "high": 1.0,
+   "n": 827
+  },
+  "grammar_missed_operations": 0,
+  "rescued_by_fallback": 0,
+  "recall_by_class": {
+   "difference": {
+    "rate": 1.0,
+    "low": 0.9287,
+    "high": 1.0,
+    "n": 50
+   },
+   "ratio": {
+    "rate": 1.0,
+    "low": 0.862,
+    "high": 1.0,
+    "n": 24
+   },
+   "relative": {
+    "rate": 1.0,
+    "low": 0.6756,
+    "high": 1.0,
+    "n": 8
+   },
+   "share": {
+    "rate": 1.0,
+    "low": 0.4385,
+    "high": 1.0,
+    "n": 3
+   },
+   "share_total": {
+    "rate": 1.0,
+    "low": 0.6457,
+    "high": 1.0,
+    "n": 7
+   },
+   "sum": {
+    "rate": 1.0,
+    "low": 0.8513,
+    "high": 1.0,
+    "n": 22
+   },
+   "mean": {
+    "rate": 1.0,
+    "low": 0.6097,
+    "high": 1.0,
+    "n": 6
+   },
+   "spread": {
+    "rate": 1.0,
+    "low": 0.4385,
+    "high": 1.0,
+    "n": 3
+   },
+   "which": {
+    "rate": 1.0,
+    "low": 0.8957,
+    "high": 1.0,
+    "n": 33
+   },
+   "total_vs_one": {
+    "rate": 1.0,
+    "low": 0.7009,
+    "high": 1.0,
+    "n": 9
+   },
+   "none": {
+    "rate": 1.0,
+    "low": 0.9942,
+    "high": 1.0,
+    "n": 662
+   }
+  },
+  "classifier_misses_sample": []
+ },
+ "thresholds": {
+  "fallback_min": 0.45
+ },
+ "fallback_threshold_sweep": {
+  "held_out_templates": {
+   "grammar_none_eligible": 295,
+   "operations_among_them": 223,
+   "0.35": {
+    "fires": 167,
+    "right": 166,
+    "precision": {
+     "rate": 0.994,
+     "low": 0.9669,
+     "high": 0.9989,
+     "n": 167
+    }
+   },
+   "0.40": {
+    "fires": 160,
+    "right": 160,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.9766,
+     "high": 1.0,
+     "n": 160
+    }
+   },
+   "0.45": {
+    "fires": 152,
+    "right": 152,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.9754,
+     "high": 1.0,
+     "n": 152
+    }
+   },
+   "0.50": {
+    "fires": 149,
+    "right": 149,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.9749,
+     "high": 1.0,
+     "n": 149
+    }
+   },
+   "0.55": {
+    "fires": 146,
+    "right": 146,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.9744,
+     "high": 1.0,
+     "n": 146
+    }
+   },
+   "0.60": {
+    "fires": 146,
+    "right": 146,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.9744,
+     "high": 1.0,
+     "n": 146
+    }
+   }
+  },
+  "independent_v1_after_exposure": {
+   "grammar_none_eligible": 6,
+   "operations_among_them": 2,
+   "0.35": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   },
+   "0.40": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   },
+   "0.45": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   },
+   "0.50": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   },
+   "0.55": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   },
+   "0.60": {
+    "fires": 2,
+    "right": 2,
+    "precision": {
+     "rate": 1.0,
+     "low": 0.3424,
+     "high": 1.0,
+     "n": 2
+    }
+   }
+  }
+ },
+ "fallback_on_evaluation_sets": {
+  "agent_eval_holdout_v1.jsonl": {
+   "questions": 56,
+   "grammar_none": 53,
+   "fallback_fires": 0,
+   "by_operation": {}
+  },
+  "agent_eval_test_v2.jsonl": {
+   "questions": 174,
+   "grammar_none": 160,
+   "fallback_fires": 0,
+   "by_operation": {}
+  },
+  "agent_eval_multiturn_v1.jsonl": {
+   "questions": 206,
+   "grammar_none": 190,
+   "fallback_fires": 0,
+   "by_operation": {}
+  },
+  "agent_eval_test_v3.jsonl": {
+   "questions": 155,
+   "grammar_none": 144,
+   "fallback_fires": 2,
+   "by_operation": {
+    "which": 2
+   }
+  },
+  "router_labels_independent_v1.jsonl": {
+   "questions": 154,
+   "grammar_none": 149,
+   "fallback_fires": 1,
+   "by_operation": {
+    "which": 1
+   }
+  },
+  "router_labels_independent_v2.jsonl": {
+   "questions": 241,
+   "grammar_none": 237,
+   "fallback_fires": 2,
+   "by_operation": {
+    "which": 2
+   }
+  }
+ },
+ "artifact": {
+  "path": "models/operation_classifier.joblib",
+  "bytes": 1443136,
+  "sha256": "6882a4649bbbc0dfb9afa7f0f248eaf59f688780efb3c1944dd6ba413d4f902f",
+  "trained_at_commit": "9f6e944",
+  "dirty": false,
+  "dev_wordings_sha256": "b53cb9dc749ba7ff31ddcb367d0c7cb0b716b0510ba5f8f8f85f5588c0ba6b6f"
+ }
+}

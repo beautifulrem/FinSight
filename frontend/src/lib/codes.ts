@@ -344,7 +344,13 @@ function frameMetric(lang: Lang, key: string): string {
 
 /** `frame:{operation}:{metric}:{A|B…}` (agent/frame.py `resolve_frame_question`): the computed comparison. */
 function frameLabel(lang: Lang, operation: string, metric: string, operands: string): string | null {
-  const names = operands.split("|").filter(Boolean).map((name) => operandName(lang, name));
+  // (round 16, L14) traces written before round 16 appended the classifier ("|clf:…") and further operations
+  // ("+also:…") to the operands: they are never shown as operands
+  const own = operands.replace(/\+also:.*$/, "");
+  const names = own
+    .split("|")
+    .filter((name) => name && !name.startsWith("clf:"))
+    .map((name) => operandName(lang, name));
   const what = frameMetric(lang, metric);
   const [a = "", b = ""] = names;
   if (metric.includes("-") && names.length === 1) {
@@ -384,9 +390,46 @@ function frameLabel(lang: Lang, operation: string, metric: string, operands: str
       return lang === "zh"
         ? `计算${what}最高与最低之差：${joinNames(lang, names)}`
         : `Computed the ${what} spread (highest minus lowest): ${joinNames(lang, names)}`;
+    case "mean":
+      return lang === "zh"
+        ? `计算${what}平均值：${joinNames(lang, names)}`
+        : `Computed the average ${what}: ${joinNames(lang, names)}`;
+    case "total_vs_one": {
+      // (round 15) a total compared with one value: the group, then the single value (the last operand)
+      const group = names.slice(0, -1);
+      const single = names[names.length - 1] ?? "";
+      return lang === "zh"
+        ? `比较${what}合计与单个值：(${group.join(" + ")}) 对比 ${single}`
+        : `Compared a combined ${what} with one value: (${group.join(" + ")}) vs ${single}`;
+    }
     default:
       return null;
   }
+}
+
+const OPERATIONS: Record<string, Text> = {
+  difference: { zh: "差值", en: "difference" },
+  ratio: { zh: "倍数", en: "ratio" },
+  relative: { zh: "相对差", en: "relative difference" },
+  share: { zh: "占比", en: "share" },
+  share_total: { zh: "占合计的比例", en: "share of the total" },
+  sum: { zh: "合计", en: "total" },
+  mean: { zh: "平均值", en: "mean" },
+  spread: { zh: "最高与最低之差", en: "spread" },
+  which: { zh: "比较高低", en: "which is higher" },
+  total_vs_one: { zh: "合计对比单个值", en: "total vs one value" },
+};
+
+/** (round 16, L14) `clf:{operation}:{p}:{features}`: the operation classifier's reading, its own chip. */
+function classifierLabel(lang: Lang, operation: string, probability: string, features: string): string {
+  const what = OPERATIONS[operation]?.[lang] ?? prettify(operation).toLowerCase();
+  const shown = features
+    .split("+")
+    .filter(Boolean)
+    .map((item) => item.replace(/^chars:/, "").replace(/^lex=/, "").replace(/_/g, " "))
+    .join(lang === "zh" ? "、" : ", ");
+  const detail = shown ? (lang === "zh" ? `；依据：${shown}` : `; features: ${shown}`) : "";
+  return lang === "zh" ? `运算分类器：${what}（概率 ${probability}${detail}）` : `Operation classifier: ${what} (p ${probability}${detail})`;
 }
 
 const OFF_TOPIC: Record<string, Text> = {
@@ -402,6 +445,14 @@ const LANGUAGES: Record<string, Text> = { zh: { zh: "中文", en: "Chinese" }, e
 
 /** Session references and frame / alias reasons (agent/memory.py, agent/graph.py, agent/router.py). */
 const SESSION: [RegExp, (m: RegExpExecArray, lang: Lang) => string][] = [
+  [/^clf:([a-z_]+):([0-9.]+):(.*)$/, (m, lang) => classifierLabel(lang, m[1]!, m[2]!, m[3]!)],
+  [
+    /^frame_also:([a-z_]+):([a-z_0-9-]+)$/,
+    (m, lang) => {
+      const what = OPERATIONS[m[1]!]?.[lang] ?? prettify(m[1]!).toLowerCase();
+      return lang === "zh" ? `同一问题还计算了${frameMetric(lang, m[2]!)}${what}` : `Also computed the ${frameMetric(lang, m[2]!)} ${what}`;
+    },
+  ],
   [
     /^frame:dropped_non_operand:(.+)$/,
     (m, lang) => (lang === "zh" ? `忽略了不在比较对象中的 ${m[1]}` : `Dropped ${m[1]}: not one of the compared targets`),
