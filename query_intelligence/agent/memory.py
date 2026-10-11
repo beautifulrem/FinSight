@@ -531,8 +531,8 @@ def _only_listed_names(text: str, entities: list[dict[str, Any]]) -> bool:
 # (round 15, review-11 K7) a further position added to the holding of the turn before, with a total asked: "再加三千股
 # 工行呢，总共多少", "我还有500股平安银行，加起来值多少", "Add 3,000 ICBC shares - what's the total now?"
 _HOLDING_ADD = re.compile(
-    r"再加|加上|还有|另外|另有|又买|再买|又有|再算上|算上|连同|\bplus\b|\banother\b|\balso (?:have|hold|own)\b|"
-    r"\badd(?:ing)?\b|"
+    r"再加|加上|还有|另外|另有|又买|再买|又有|再有|外加|再算上|算上|连同|\bplus\b|\banother\b|"
+    r"\balso (?:have|hold|own)\b|\badd(?:ing)?\b|"
     r"\bas well\b",
     re.IGNORECASE,
 )
