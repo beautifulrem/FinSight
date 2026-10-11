@@ -352,10 +352,7 @@ def asks_price_forecast(query: str, *, as_of: date | None = None) -> bool:
         (_FUTURE_TIME.search(part) and _PRICE_LEVEL.search(part))
         # (round 16, L8) a horizon ("三年内", "within three years", "by 2030") is a future time for a price level
         or (
-            _HORIZON.search(part)
-            and _PRICE_LEVEL.search(part)
-            and not _SO_FAR.search(part)
-            and not _PAST_MARKERS.search(part)
+            _horizon(part) and _PRICE_LEVEL.search(part) and not _SO_FAR.search(part) and not _PAST_MARKERS.search(part)
         )
         or _asks_threshold_or_near_forecast(part)
         or _asks_dated_or_gap_forecast(part, reference)
@@ -466,7 +463,7 @@ def asks_earnings_forecast(query: str, *, as_of: date | None = None) -> bool:
         modal = bool(_EARNINGS_MODAL.search(part))
         future, in_progress = _stated_status(part, reference)
         # (round 16, L8) a horizon ("五年后", "in five years", "by 2030") is a future period too
-        if future or _FUTURE_PERIOD.search(part) or _HORIZON.search(part):
+        if future or _FUTURE_PERIOD.search(part) or _horizon(part):
             return True
         # (round 16, L8) this year's dividend has not been declared in the reported statements: "比亚迪今年分红多少",
         # "this year's dividend"; a dividend already paid ("今年已经分红了吗", "paid") is a past marker
@@ -501,14 +498,29 @@ _MARKET_VALUE = re.compile(
 )
 _EN_COUNT = r"(?:a|one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|few|several|\d+)"
 _HORIZON = re.compile(
-    r"(?:\d+|[一二两三四五六七八九十几]+)\s*(?:个)?年(?:以?后|之后|内|里|间)|若干年后|"
+    r"(?:\d+|[一二两三四五六七八九十几]+)\s*(?:个)?年(?:以?后|之后)|若干年后|"
     r"未来(?:\d+|[一二两三四五六七八九十几]+)?\s*年|到(?:19|20)\d{2}\s*年|"
-    r"\b(?:in|within|over)\s+(?:the\s+next\s+)?" + _EN_COUNT + r"\s+years?\b|"
+    r"\b(?:in|over)\s+(?:the\s+next\s+)?" + _EN_COUNT + r"\s+years?\b|"
     r"\b" + _EN_COUNT + r"\s+years?\s+(?:from\s+now|later|out|ahead)\b|"
     r"\bby\s+(?:the\s+end\s+of\s+)?(?:19|20)\d{2}\b|\bby\s+(?:the\s+)?end\s+of\s+(?:the\s+)?decade\b|"
     r"\b(?:the\s+)?next\s+(?:" + _EN_COUNT + r"\s+)?(?:years|decade)\b",
     re.IGNORECASE,
 )
+# "三年内", "within three years": also a past window ("一年内最高点", round 15 K14), so a horizon only with a modal
+_HORIZON_WITHIN = re.compile(
+    r"(?:\d+|[一二两三四五六七八九十几]+)\s*(?:个)?年(?:内|里|之内|以内)|\bwithin\s+(?:the\s+next\s+)?"
+    + _EN_COUNT
+    + r"\s+years?\b",
+    re.IGNORECASE,
+)
+
+
+def _horizon(part: str) -> bool:
+    """(round 16, L8) A future horizon: "五年后", "in five years", "by 2030"; "三年内" / "within three years" only
+    with a future modal ("三年内能到多少"), since "一年内最高点" is a past window."""
+    return bool(_HORIZON.search(part) or (_HORIZON_WITHIN.search(part) and _FUTURE_MODAL.search(part)))
+
+
 _VALUE_MODAL = re.compile(
     r"(?:能|会|将|可能|有望|能否|会否|能不能|会不会|是否|可不可能|有没有可能)(?:再|重新|继续|一举|成功|顺利)?"
     r"(?:突破|达到|到达?|超过|站上|跌破|回到|涨到|跌到|冲上|冲击|破|是|有|在)|"
@@ -531,7 +543,7 @@ def asks_market_value_forecast(query: str, *, as_of: date | None = None) -> bool
         if _PAST_MARKERS.search(checked) or _SO_FAR.search(checked):
             continue
         future, in_progress = _stated_status(part, reference)
-        if future or _FUTURE_TIME.search(part) or _FUTURE_PERIOD.search(part) or _HORIZON.search(part):
+        if future or _FUTURE_TIME.search(part) or _FUTURE_PERIOD.search(part) or _horizon(part):
             return True
         if _VALUE_MODAL.search(part):
             return True
