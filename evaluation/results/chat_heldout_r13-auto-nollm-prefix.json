@@ -1,0 +1,691 @@
+{
+ "kind": "run",
+ "config": {
+  "mode": "auto",
+  "llm": null,
+  "model": null,
+  "llm_client": "none",
+  "model_source": null,
+  "tasks_file": "/Volumes/Remi/finsight-review/heldout_r13/chat_r13_heldout.jsonl",
+  "snapshot": {
+   "path": null,
+   "recorded": false,
+   "misses": null
+  },
+  "repeats": 1,
+  "prompts": {
+   "agent_system": "agent_system@v4#0349457bbf23",
+   "compose_system": "compose_system@v4#71d29468ed6d"
+  },
+  "commit": "aa73005",
+  "run_at": "2026-10-11T05:21:46+00:00",
+  "eval_today": "2026-04-23",
+  "wall_seconds": 59.9,
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r13/chat_r13_heldout.jsonl --out /Volumes/Remi/finsight-review/heldout_r13/first_run/chat_r13-auto-aa73005.json",
+  "env": {
+   "QI_AGENT_TRACE_DIR": "off",
+   "QI_EVAL_SNAPSHOT_EXT": "1",
+   "QI_EVAL_SNAPSHOT_FIX": "1",
+   "QI_USE_LIVE_ANNOUNCEMENT": "false",
+   "QI_USE_LIVE_MACRO": "false",
+   "QI_USE_LIVE_MARKET": "false",
+   "QI_USE_LIVE_NEWS": "false"
+  },
+  "command_with_env": "QI_AGENT_TRACE_DIR=off QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 QI_USE_LIVE_ANNOUNCEMENT=false QI_USE_LIVE_MACRO=false QI_USE_LIVE_MARKET=false QI_USE_LIVE_NEWS=false python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r13/chat_r13_heldout.jsonl --out /Volumes/Remi/finsight-review/heldout_r13/first_run/chat_r13-auto-aa73005.json",
+  "slice_overlap": {
+   "slice": "chat_r13_heldout.jsonl",
+   "slice_texts": 58,
+   "exact": 0,
+   "near": 1,
+   "tasks_with_overlap": [
+    "r13h_book_zh_01"
+   ],
+   "own_files": [
+    "evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_holdout_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_multiturn_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_shipped_v1.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v2.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl",
+    "evaluation/agent_eval/tasks/agent_eval_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v1.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl",
+    "evaluation/agent_eval/tasks/router_labels_v1.jsonl",
+    "evaluation/claim_bench/claims_v1.jsonl",
+    "evaluation/claim_bench/claims_v1_holdout.jsonl"
+   ],
+   "method": "normalised equality (>= 4 chars); near = 3-gram Jaccard >= 0.8 or difflib ratio >= 0.85 (>= 10 chars); own texts = every evaluation/agent_eval/tasks/*.jsonl and evaluation/claim_bench/*.jsonl text, string literals in tests/*.py"
+  }
+ },
+ "summary": {
+  "tasks": 46,
+  "turns": 58,
+  "repeats": 1,
+  "task_success": 0.413,
+  "pass^1": 0.413,
+  "ci": {
+   "task_success": [
+    0.2609,
+    0.5652
+   ],
+   "pass^1": [
+    0.2609,
+    0.5652
+   ],
+   "task_success_uncited": [
+    0.3043,
+    0.6087
+   ]
+  },
+  "ci_method": "percentile bootstrap over tasks, 2000 resamples, seed 20260926, 95%; repeats of a task stay together",
+  "task_success_uncited": 0.4565,
+  "turn_success": 0.5345,
+  "behavior_accuracy": 0.9138,
+  "fact_recall": 0.5909,
+  "fact_stated": 0.5909,
+  "tool_recall": 0.8974,
+  "tool_precision": 0.5121,
+  "compliance_clean": 0.9138,
+  "hedged_when_required": 1.0,
+  "states_missing_when_required": 0.0,
+  "draft_verification_pass": 0.9636,
+  "unsupported_numbers_per_answer": 0.0727,
+  "latency_ms_p50": 187.35,
+  "latency_ms_p95": 1351.27,
+  "latency_ms_p99": 9114.79,
+  "llm_turns": 0,
+  "llm_turn_latency_ms_p50": null,
+  "llm_turn_latency_ms_p95": null,
+  "llm_turn_latency_ms_p99": null,
+  "ttft_turns": 0,
+  "ttft_ms_p50": null,
+  "ttft_ms_p95": null,
+  "ttft_ms_p99": null,
+  "llm_calls_per_turn": 0.0,
+  "tokens_per_turn": 0.0,
+  "reasoning_tokens_per_turn": 0.0,
+  "cache_hit_ratio": null,
+  "first_pass_verification": null,
+  "revise_rate": null,
+  "llm_error_rate": 0.0,
+  "llm_429_rate": 0.0,
+  "llm_error_kinds": {},
+  "json_repair_rate": null,
+  "json_failure_rate": null,
+  "cost_per_turn": null,
+  "cost_per_task": null,
+  "cost_currency": null
+ },
+ "by_category": {
+  "book_value_followup": {
+   "tasks": 2,
+   "task_success": 0.5,
+   "latency_ms_p95": 685.56
+  },
+  "breakeven_rise": {
+   "tasks": 4,
+   "task_success": 0.0,
+   "latency_ms_p95": 747.03
+  },
+  "control": {
+   "tasks": 8,
+   "task_success": 1.0,
+   "latency_ms_p95": 742.68
+  },
+  "definition_in_session": {
+   "tasks": 3,
+   "task_success": 0.3333,
+   "latency_ms_p95": 86.56
+  },
+  "exclusion": {
+   "tasks": 4,
+   "task_success": 0.25,
+   "latency_ms_p95": 651.17
+  },
+  "fx_missing": {
+   "tasks": 2,
+   "task_success": 0.0,
+   "latency_ms_p95": 116.66
+  },
+  "leading_adverb": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 223.59
+  },
+  "lookalike_entity": {
+   "tasks": 4,
+   "task_success": 0.0,
+   "latency_ms_p95": 675.58
+  },
+  "lots_in_shou": {
+   "tasks": 3,
+   "task_success": 0.3333,
+   "latency_ms_p95": 675.27
+  },
+  "partial_sell": {
+   "tasks": 4,
+   "task_success": 0.0,
+   "latency_ms_p95": 9114.79
+  },
+  "position_sizing": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 843.07
+  },
+  "rank_spread": {
+   "tasks": 2,
+   "task_success": 1.0,
+   "latency_ms_p95": 258.5
+  },
+  "statement_carry_total": {
+   "tasks": 3,
+   "task_success": 0.0,
+   "latency_ms_p95": 1351.27
+  },
+  "traditional_chinese": {
+   "tasks": 3,
+   "task_success": 0.3333,
+   "latency_ms_p95": 67.23
+  }
+ },
+ "by_language": {
+  "en": {
+   "tasks": 11,
+   "task_success": 0.4545,
+   "latency_ms_p95": 9114.79
+  },
+  "zh": {
+   "tasks": 35,
+   "task_success": 0.4,
+   "latency_ms_p95": 982.46
+  }
+ },
+ "failed_checks": {
+  "facts": 18,
+  "no_forbidden_content": 5,
+  "behavior": 5,
+  "limitations": 4,
+  "required_tools": 4,
+  "states_missing": 2,
+  "language": 1,
+  "entities": 1,
+  "entity": 1
+ },
+ "failures": [
+  {
+   "task": "r13h_sell_zh_01",
+   "category": "partial_sell",
+   "query": "长江电力我在27.5元建仓3000股，上个月29元减持了1000股，剩余部分现在账面盈亏多少",
+   "failed_checks": [
+    "facts",
+    "no_forbidden_content"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：按 2026-09-30 收盘价 28.54 元和你给出的成本价 27.5 元计算，长江电力每股浮盈 28.54 − 27.5 = 1.04 元（3.78%），3000 股合计 3000 × 1.04 = 3120 元 [price_600900.SH]。这是按最近收盘价计算的账面盈亏，未含佣金、"
+  },
+  {
+   "task": "r13h_sell_zh_02",
+   "category": "partial_sell",
+   "query": "招商银行：40元买入1500股，之后43元卖掉500股，剩下的股票按最新收盘价浮盈多少",
+   "failed_checks": [
+    "no_forbidden_content"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：按 2026-09-30 收盘价 41.26 元和你给出的成本价 40 元计算，招商银行每股浮盈 41.26 − 40 = 1.26 元（3.15%），1500 股合计 1500 × 1.26 = 1890 元 [price_600036.SH]。这是按最近收盘价计算的账面盈亏，未含佣金、印花税等"
+  },
+  {
+   "task": "r13h_sell_en_01",
+   "category": "partial_sell",
+   "query": "I bought 600 BYD at 90 and sold 200 of them at 100. What is the paper P&L on the shares I still hold?",
+   "failed_checks": [
+    "facts",
+    "no_forbidden_content"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: At the 2026-09-30 close of CNY 83.31 and your two stated purchase costs, BYD: 600 × (83.31 − 90) = CNY -4014;"
+  },
+  {
+   "task": "r13h_sell_zh_03",
+   "category": "partial_sell",
+   "query": "我24元进了2000股，后来27元出掉一半，剩下的现在赚多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中信证券（600030.SH）最新可用收盘价为 25.86 元（2026-09-30），当日涨跌幅 0.15% [price_600030.SH]。"
+  },
+  {
+   "task": "r13h_excl_zh_01",
+   "category": "exclusion",
+   "query": "美的集团、比亚迪、宁德时代这三家，不算比亚迪的话，营收合计是多少",
+   "failed_checks": [
+    "facts",
+    "no_forbidden_content"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：营业收入：美的集团 4585.02 亿元，比亚迪 8039.65 亿元，宁德时代 4237.02 亿元，合计 16861.69 亿元 [fundamental_000333.SZ][fundamental_002594.SZ][fundamental_300750.SZ]。口径：美的集团的收入为营"
+  },
+  {
+   "task": "r13h_excl_en_01",
+   "category": "exclusion",
+   "query": "Of CMB, ICBC and Ping An Bank, what's the combined market value excluding ICBC?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: market cap: China Merchants Bank CNY 1040.57 bn, ICBC CNY 2951.04 bn, Ping An Bank CNY 224.53 bn; combined CN"
+  },
+  {
+   "task": "r13h_excl_zh_03",
+   "category": "exclusion",
+   "query": "茅台、五粮液、中国平安中，排除中国平安后的营收之和",
+   "failed_checks": [
+    "facts",
+    "no_forbidden_content"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals",
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：营业收入：贵州茅台 1688.38 亿元，五粮液 405.29 亿元，中国平安 10505.06 亿元，合计 12598.73 亿元 [fundamental_600519.SH][fundamental_000858.SZ][fundamental_601318.SH]。口径：以上收入均为营业收"
+  },
+  {
+   "task": "r13h_alike_zh_01",
+   "category": "lookalike_entity",
+   "query": "美的置业2025年营业收入是多少",
+   "failed_checks": [
+    "behavior",
+    "limitations"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：美的集团 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-09-30 收盘计算）：PE(TTM) 13.77 倍，PB 2.89 倍，ROE（期末净资产） 19.69%，营业总收入 4585.02 亿元，归母净利润 439.45 亿元 [fundamental_00"
+  },
+  {
+   "task": "r13h_alike_zh_02",
+   "category": "lookalike_entity",
+   "query": "长江基建集团的市盈率是多少",
+   "failed_checks": [
+    "behavior",
+    "limitations",
+    "language"
+   ],
+   "count": 1,
+   "route": null,
+   "tools_used": [],
+   "answer_excerpt": "请问您想了解哪只股票、基金、ETF 或指数？请提供名称或代码（例如 600519.SH）。"
+  },
+  {
+   "task": "r13h_alike_zh_03",
+   "category": "lookalike_entity",
+   "query": "中信国际电讯最新股价",
+   "failed_checks": [
+    "behavior",
+    "limitations"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中芯国际（688981.SH）最新可用收盘价为 111.99 元（2026-09-30），当日涨跌幅 -4.7% [price_688981.SH]。"
+  },
+  {
+   "task": "r13h_alike_en_01",
+   "category": "lookalike_entity",
+   "query": "What is Midea Real Estate Holding's P/E?",
+   "failed_checks": [
+    "behavior",
+    "limitations"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Midea Group fundamentals (period 2025-12-31, FY2025; P/E and P/B at the 2026-09-30 close): PE(TTM) 13.77x, PB"
+  },
+  {
+   "task": "r13h_rise_zh_01",
+   "category": "breakeven_rise",
+   "query": "我的美的集团成本是88元，股价需要再涨多少个百分点才能保本",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。根据本次检索到的证据：美的集团（000333.SZ）最新可用收盘价为 80.1 元（2026-09-30），当日涨跌幅 -1.91% [price_000333.SZ]。"
+  },
+  {
+   "task": "r13h_rise_zh_02",
+   "category": "breakeven_rise",
+   "query": "中信证券成本30块，要回到成本价还得涨百分之几",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中信证券（600030.SH）最新可用收盘价为 25.86 元（2026-09-30），当日涨跌幅 0.15% [price_600030.SH]。"
+  },
+  {
+   "task": "r13h_rise_en_01",
+   "category": "breakeven_rise",
+   "query": "My cost basis in CMB is 45 yuan. What percentage gain from the last close would get me back to breakeven?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: China Merchants Bank (600036.SH) last available close was CNY 41.26 on 2026-09-30, daily change 1.85% [price_"
+  },
+  {
+   "task": "r13h_rise_zh_03",
+   "category": "breakeven_rise",
+   "query": "紫金矿业距离52周最高收盘价还需要涨多少百分比",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测。根据本次检索到的证据：紫金矿业（601899.SH）最新可用收盘价为 29.79 元（2026-09-30），当日涨跌幅 1.12% [price_601899.SH]。紫金矿业近52周（2025-10-09 至 2026-09-30，24"
+  },
+  {
+   "task": "r13h_shou_zh_01",
+   "category": "lots_in_shou",
+   "query": "我在26元买了中信证券8手，按最近收盘价盈亏多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "这是按最近收盘价计算的账面盈亏，未含佣金、印花税等交易费用和分红，不是卖出建议或投资建议。中信证券（600030.SH）最新可用收盘价为 25.86 元（2026-09-30），当日涨跌幅 0.15% [price_600030.SH]。中信证券 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2"
+  },
+  {
+   "task": "r13h_shou_zh_03",
+   "category": "lots_in_shou",
+   "query": "工商银行买了30手，成本7.9元，现在浮盈多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "这是按最近收盘价计算的账面盈亏，未含佣金、印花税等交易费用和分红，不是卖出建议或投资建议。工商银行（601398.SH）最新可用收盘价为 8.28 元（2026-09-30），当日涨跌幅 1.47% [price_601398.SH]。工商银行 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 20"
+  },
+  {
+   "task": "r13h_carry_zh_01",
+   "category": "statement_carry_total",
+   "query": "两只合计现在市值多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：长江电力 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-09-30 收盘计算）：PE(TTM) 19.29 倍，PB 3.23 倍，ROE（期末净资产） 15.59%，营业收入 862.42 亿元，归母净利润 345.03 亿元 [fundamental_6009"
+  },
+  {
+   "task": "r13h_carry_en_01",
+   "category": "statement_carry_total",
+   "query": "What are they worth together now?",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals",
+    "analyze_sentiment",
+    "get_price_history",
+    "get_fundamentals",
+    "analyze_sentiment"
+   ],
+   "answer_excerpt": "Based on the current evidence, this can only be a conditional assessment, not a definitive buy, sell, or hold recommendation. FinSight does not give a fair valu"
+  },
+  {
+   "task": "r13h_carry_zh_02",
+   "category": "statement_carry_total",
+   "query": "这两只股票总值是多少",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：紫金矿业（601899.SH）最新可用收盘价为 29.79 元（2026-09-30），当日涨跌幅 1.12% [price_601899.SH]。平安银行（000001.SZ）最新可用收盘价为 11.57 元（2026-09-30），当日涨跌幅 1.94% [price_000001.SZ]。"
+  },
+  {
+   "task": "r13h_defs_zh_01",
+   "category": "definition_in_session",
+   "query": "毛利率这个指标是怎么计算的",
+   "failed_checks": [
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：比亚迪（002594.SZ）最新可用收盘价为 83.31 元（2026-09-30），当日涨跌幅 1.57% [price_002594.SZ]。比亚迪 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-09-30 收盘计算）：PE(TTM) 25.81 倍，PB 3"
+  },
+  {
+   "task": "r13h_defs_zh_02",
+   "category": "definition_in_session",
+   "query": "市净率怎么计算的，代表什么",
+   "failed_checks": [
+    "required_tools"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：长江电力 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-09-30 收盘计算）：PE(TTM) 19.29 倍，PB 3.23 倍，ROE（期末净资产） 15.59%，营业收入 862.42 亿元，归母净利润 345.03 亿元 [fundamental_6009"
+  },
+  {
+   "task": "r13h_book_zh_02",
+   "category": "book_value_followup",
+   "query": "它的股价有没有跌破每股净资产",
+   "failed_checks": [
+    "facts"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history",
+    "compute_indicators"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中信证券（600030.SH）最新可用收盘价为 25.86 元（2026-09-30），当日涨跌幅 0.15% [price_600030.SH]。中信证券 技术指标：MA5 26.14 元，MA20 26.831 元，RSI(14) 30.4，20D vol 18.21，趋势信号为 bearis"
+  },
+  {
+   "task": "r13h_trad_zh_02",
+   "category": "traditional_chinese",
+   "query": "美的集團和長江電力的淨利潤合計",
+   "failed_checks": [
+    "facts",
+    "required_tools",
+    "entities"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_price_history"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：美的集团（000333.SZ）最新可用收盘价为 80.1 元（2026-09-30），当日涨跌幅 -1.91% [price_000333.SZ]。"
+  },
+  {
+   "task": "r13h_trad_zh_03",
+   "category": "traditional_chinese",
+   "query": "紫金礦業的市淨率",
+   "failed_checks": [
+    "behavior",
+    "facts",
+    "required_tools",
+    "entity"
+   ],
+   "count": 1,
+   "route": "refuse",
+   "tools_used": [],
+   "answer_excerpt": "这个问题不在 FinSight 的服务范围内。我只回答 A 股、基金、ETF、指数、行业和宏观经济相关的问题，例如「贵州茅台最新收盘价是多少？」。"
+  },
+  {
+   "task": "r13h_fx_zh_01",
+   "category": "fx_missing",
+   "query": "中芯国际的总市值折合多少美元",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "根据本次检索到的证据：中芯国际 基本面（报告期 2025-12-31，2025年年报；PE、PB 按 2026-09-30 收盘计算）：PE(TTM) 133.05 倍，PB 5.59 倍，ROE（期末净资产） 3.34%，营业收入 673.23 亿元，归母净利润 50.41 亿元 [fundamental_68898"
+  },
+  {
+   "task": "r13h_fx_en_01",
+   "category": "fx_missing",
+   "query": "What is Moutai's market value in US dollars?",
+   "failed_checks": [
+    "states_missing"
+   ],
+   "count": 1,
+   "route": "workflow",
+   "tools_used": [
+    "get_fundamentals"
+   ],
+   "answer_excerpt": "Based on the evidence retrieved for this question: Kweichow Moutai fundamentals (period 2025-12-31, FY2025; P/E and P/B at the 2026-04-22 close): PE(TTM) 21.44x"
+  }
+ ],
+ "task_outcomes": {
+  "r13h_sell_zh_01": "0",
+  "r13h_sell_zh_02": "0",
+  "r13h_sell_en_01": "0",
+  "r13h_sell_zh_03": "0",
+  "r13h_excl_zh_01": "0",
+  "r13h_excl_zh_02": "1",
+  "r13h_excl_en_01": "0",
+  "r13h_excl_zh_03": "0",
+  "r13h_alike_zh_01": "0",
+  "r13h_alike_zh_02": "0",
+  "r13h_alike_zh_03": "0",
+  "r13h_alike_en_01": "0",
+  "r13h_rise_zh_01": "0",
+  "r13h_rise_zh_02": "0",
+  "r13h_rise_en_01": "0",
+  "r13h_rise_zh_03": "0",
+  "r13h_shou_zh_01": "0",
+  "r13h_shou_zh_02": "1",
+  "r13h_shou_zh_03": "0",
+  "r13h_carry_zh_01": "0",
+  "r13h_carry_en_01": "0",
+  "r13h_carry_zh_02": "0",
+  "r13h_defs_zh_01": "0",
+  "r13h_defs_zh_02": "0",
+  "r13h_defs_en_01": "1",
+  "r13h_book_zh_01": "1",
+  "r13h_book_zh_02": "0",
+  "r13h_trad_zh_01": "1",
+  "r13h_trad_zh_02": "0",
+  "r13h_trad_zh_03": "0",
+  "r13h_adv_en_01": "1",
+  "r13h_adv_en_02": "1",
+  "r13h_size_zh_01": "1",
+  "r13h_size_en_01": "1",
+  "r13h_fx_zh_01": "0",
+  "r13h_fx_en_01": "0",
+  "r13h_rank_zh_01": "1",
+  "r13h_rank_en_01": "1",
+  "r13h_ctrl_zh_01": "1",
+  "r13h_ctrl_zh_02": "1",
+  "r13h_ctrl_zh_03": "1",
+  "r13h_ctrl_zh_04": "1",
+  "r13h_ctrl_zh_05": "1",
+  "r13h_ctrl_zh_06": "1",
+  "r13h_ctrl_zh_07": "1",
+  "r13h_ctrl_zh_08": "1"
+ },
+ "source": {
+  "file": "chat_r13-auto-aa73005.json",
+  "sha256_16": "bab17e3314c22b39",
+  "bytes": 199286,
+  "slimmed_at": "2026-10-11T10:02:39+00:00"
+ },
+ "notes": [
+  "independent round-13 chat slice (written by the round-13 reviewer before any round-17 fix), first and only pre-fix run at aa73005 by the reviewer, QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay"
+ ]
+}

@@ -3139,6 +3139,137 @@ Failures (development set; first 25):
 
 * Note: round 17: rerun once at the final round-17 code 7378156, after exposure (QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 no LLM); the round-17 frame engineer did not read the slice text
 
+### Round-13 held-out chat slice (independent author): before and after the round-17 fixes
+
+Written by the round-13 reviewer before any round-17 fix (`evaluation/heldout_r13/README.md`), run with the shipped default data once before the fixes (by the reviewer) and once after them, from the reviewer's folder. Overlap with own wording: `slice_overlap-heldout_r13-at-71cb928.json`; its claims are in the evidence table below (`claims_heldout_r13-*.json`).
+
+#### `chat_heldout_r13-auto-nollm-prefix.json`
+
+Source `evaluation/results/chat_heldout_r13-auto-nollm-prefix.json`: commit `aa73005`, run 2026-10-11T05:21:46+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r13/chat_r13_heldout.jsonl --out /Volumes/Remi/finsight-review/heldout_r13/first_run/chat_r13-auto-aa73005.json
+```
+
+Development set, path `auto`: 46 tasks, 58 turns. Status: **first and only pre-fix run** of the independent round-13 chat slice.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.413 [0.26, 0.57] |
+| pass^k (all k repeats succeed) | 0.413 [0.26, 0.57] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.914 |
+| Required facts stated and cited | 0.591 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.591 |
+| Task success without the citation / tool / disclaimer checks | 0.457 [0.30, 0.61] |
+| Tool recall (required tools used) | 0.897 |
+| Tool precision (calls that were relevant) | 0.512 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 0.000 |
+| No trading instructions | 0.914 |
+| Latency P95 (ms) | 1351.3 |
+| Turn success | 0.534 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| book_value_followup | 2 | 0.50 |
+| breakeven_rise | 4 | 0.00 |
+| control | 8 | 1.00 |
+| definition_in_session | 3 | 0.33 |
+| exclusion | 4 | 0.25 |
+| fx_missing | 2 | 0.00 |
+| leading_adverb | 2 | 1.00 |
+| lookalike_entity | 4 | 0.00 |
+| lots_in_shou | 3 | 0.33 |
+| partial_sell | 4 | 0.00 |
+| position_sizing | 2 | 1.00 |
+| rank_spread | 2 | 1.00 |
+| statement_carry_total | 3 | 0.00 |
+| traditional_chinese | 3 | 0.33 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r13h_sell_zh_01 | 长江电力我在27.5元建仓3000股，上个月29元减持了1000股，剩余部分现在账面盈亏多少 | facts, no_forbidden_content |
+| r13h_sell_zh_02 | 招商银行：40元买入1500股，之后43元卖掉500股，剩下的股票按最新收盘价浮盈多少 | no_forbidden_content |
+| r13h_sell_en_01 | I bought 600 BYD at 90 and sold 200 of them at 100. What is the paper P&L on the shares I still hold? | facts, no_forbidden_content |
+| r13h_sell_zh_03 | 我24元进了2000股，后来27元出掉一半，剩下的现在赚多少 | facts |
+| r13h_excl_zh_01 | 美的集团、比亚迪、宁德时代这三家，不算比亚迪的话，营收合计是多少 | facts, no_forbidden_content |
+| r13h_excl_en_01 | Of CMB, ICBC and Ping An Bank, what's the combined market value excluding ICBC? | facts |
+| r13h_excl_zh_03 | 茅台、五粮液、中国平安中，排除中国平安后的营收之和 | facts, no_forbidden_content |
+| r13h_alike_zh_01 | 美的置业2025年营业收入是多少 | behavior, limitations |
+| r13h_alike_zh_02 | 长江基建集团的市盈率是多少 | behavior, limitations, language |
+| r13h_alike_zh_03 | 中信国际电讯最新股价 | behavior, limitations |
+| r13h_alike_en_01 | What is Midea Real Estate Holding's P/E? | behavior, limitations |
+| r13h_rise_zh_01 | 我的美的集团成本是88元，股价需要再涨多少个百分点才能保本 | facts |
+| r13h_rise_zh_02 | 中信证券成本30块，要回到成本价还得涨百分之几 | facts |
+| r13h_rise_en_01 | My cost basis in CMB is 45 yuan. What percentage gain from the last close would get me back to breakeven? | facts |
+| r13h_rise_zh_03 | 紫金矿业距离52周最高收盘价还需要涨多少百分比 | facts |
+| r13h_shou_zh_01 | 我在26元买了中信证券8手，按最近收盘价盈亏多少 | facts |
+| r13h_shou_zh_03 | 工商银行买了30手，成本7.9元，现在浮盈多少 | facts |
+| r13h_carry_zh_01 | 两只合计现在市值多少 | facts |
+| r13h_carry_en_01 | What are they worth together now? | facts |
+| r13h_carry_zh_02 | 这两只股票总值是多少 | facts |
+| r13h_defs_zh_01 | 毛利率这个指标是怎么计算的 | required_tools |
+| r13h_defs_zh_02 | 市净率怎么计算的，代表什么 | required_tools |
+| r13h_book_zh_02 | 它的股价有没有跌破每股净资产 | facts |
+| r13h_trad_zh_02 | 美的集團和長江電力的淨利潤合計 | facts, required_tools, entities |
+| r13h_trad_zh_03 | 紫金礦業的市淨率 | behavior, facts, required_tools, entity |
+| … | 2 more in the result file | |
+
+* Note: independent round-13 chat slice (written by the round-13 reviewer before any round-17 fix), first and only pre-fix run at aa73005 by the reviewer, QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay
+
+#### `chat_heldout_r13-auto-nollm-after-fix.json`
+
+Source `evaluation/results/chat_heldout_r13-auto-nollm-after-fix.json`: commit `71cb928`, run 2026-10-11T10:02:04+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r13/chat_r13_heldout.jsonl --out outputs/agent_eval/chat_r13-after.json
+```
+
+Development set, path `auto`: 46 tasks, 58 turns. Status: independent round-13 chat slice **after the round-17 fixes**, run once from the reviewer's folder; overlap tiers in the note.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.978 [0.93, 1.00] |
+| pass^k (all k repeats succeed) | 0.978 [0.93, 1.00] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 1.000 |
+| Required facts stated and cited | 0.977 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.977 |
+| Task success without the citation / tool / disclaimer checks | 0.978 [0.93, 1.00] |
+| Tool recall (required tools used) | 1.000 |
+| Tool precision (calls that were relevant) | 0.610 |
+| Hedged when required (why / judgment / advice) | 1.000 |
+| States missing data when required | 1.000 |
+| No trading instructions | 1.000 |
+| Latency P95 (ms) | 1818.7 |
+| Turn success | 0.983 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| book_value_followup | 2 | 1.00 |
+| breakeven_rise | 4 | 0.75 |
+| control | 8 | 1.00 |
+| definition_in_session | 3 | 1.00 |
+| exclusion | 4 | 1.00 |
+| fx_missing | 2 | 1.00 |
+| leading_adverb | 2 | 1.00 |
+| lookalike_entity | 4 | 1.00 |
+| lots_in_shou | 3 | 1.00 |
+| partial_sell | 4 | 1.00 |
+| position_sizing | 2 | 1.00 |
+| rank_spread | 2 | 1.00 |
+| statement_carry_total | 3 | 1.00 |
+| traditional_chinese | 3 | 1.00 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r13h_rise_en_01 | My cost basis in CMB is 45 yuan. What percentage gain from the last close would get me back to breakeven? | facts |
+
+* Note: independent round-13 chat slice after the round-17 fixes, run once at 71cb928 (clean tree), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay, reading the reviewer's folder; the engineers state they did not open it; overlap tiers (slice_overlap-heldout_r13-at-71cb928.json): none chat 19/46 → 45/46, claims 14/22 → 22/22; text near-copies (2 exact claim copies in round-17 claim tests) chat 18/44 → 43/44, claims 12/18 → 18/18; + content overlaps chat 15/39 → 38/39, claims 11/15 → 15/15; + content signatures (upper bound) chat 11/27 → 26/27, claims 9/12 → 12/12
+
 ### The no-tools LLM baseline: strict scoring vs uncited correctness
 
 Under the strict score a task needs every required number stated **and cited with an evidence id**, the required tools and the product's risk-disclaimer field. A model without tools can meet none of these, so its 0.000 is a property of the scoring, not only of the model. The uncited columns score the same answers against the same snapshot values without those requirements. The snapshot is dated 2026-04-22 and the model has no access to it, so uncited correctness measures what the model knew or guessed.
@@ -4461,6 +4592,9 @@ Small online checks with DeepSeek over the offline tools, run sequentially (stop
 
 | Result file | Commit | Summary |
 |---|---|---|
+| `claims_heldout_r13-prefix.json` | `aa73005` | claim slice, verdict accuracy 0.636 [0.409, 0.818] over 22 claims — contrast_clause 0.500; control 1.000; definition_clause 0.500; same_company_metrics 0.600; weak_direction 0.400 |
+| `claims_heldout_r13-after-fix.json` | `71cb928` | claim slice, verdict accuracy 1.000 [1.000, 1.000] over 22 claims — contrast_clause 1.000; control 1.000; definition_clause 1.000; same_company_metrics 1.000; weak_direction 1.000 |
+| `slice_overlap-heldout_r13-at-71cb928.json` | `71cb928` | overlap of `heldout_r13` with every task file and claim file (12 files) and the test literals (round-10 review J9): 2 exact and 4 near hits over 6 slice items (r13c02, r13c06, r13c07, r13c17, r13h_book_zh_01, r13h_carry_en_01); chat runs ; content level (round-11 review K16): `content` 10 items (r13c08, r13c11, r13c14, r13c17, r13h_carry_en_01, r13h_carry_zh_02, r13h_ctrl_zh_04, r13h_ctrl_zh_08, r13h_rank_en_01, r13h_rise_zh_03), `content_signature` 24 items |
 | `claims_heldout_r12-prefix.json` | `bb99360` | claim slice, verdict accuracy 0.423 [0.231, 0.615] over 26 claims — amount_after_growth 0.500; book_value 0.000; control 1.000; direction_only 0.000; elided_second_clause 0.500; foreign_line 1.000; group_extreme 1.000; growth_comparison 0.000; short_name 0.000 |
 | `claims_heldout_r12-after-fix.json` | `9564263` | claim slice, verdict accuracy 0.923 [0.808, 1.000] over 26 claims — amount_after_growth 1.000; book_value 1.000; control 1.000; direction_only 0.750; elided_second_clause 1.000; foreign_line 1.000; group_extreme 1.000; growth_comparison 0.500; short_name 1.000 |
 | `slice_overlap-heldout_r12-at-9564263.json` | `9564263` | overlap of `heldout_r12` with every task file and claim file (12 files) and the test literals (round-10 review J9): 0 exact and 1 near hits over 1 slice items (r12h_lots_zh_03); chat runs ; content level (round-11 review K16): `content` 10 items (r12c02, r12c04, r12c12, r12c18, r12h_count_en_01, r12h_count_zh_03, r12h_ctrl_zh_03, r12h_ctrl_zh_04, r12h_etfmix_zh_01, r12h_fmv_en_01), `content_signature` 18 items |
@@ -4633,6 +4767,8 @@ Paired comparisons (same tasks, a − b):
 | `chat_heldout_r12-auto-nollm-prefix.json` | run | `bb99360` | 2026-10-11T00:05:22+00:00 | – | `chat_r12-auto-bb99360.json` (c0fe1b8ffc636616) |
 | `chat_heldout_r12-auto-nollm-after-fix.json` | run | `9564263` | 2026-10-11T04:09:22+00:00 | – | `outputs/agent_eval/chat_r12-after.json` (ec089cb6ec0c19b0) |
 | `chat_heldout_r12-auto-nollm-after-exposure-round17.json` | run | `7378156` | 2026-10-11T07:30:22+00:00 | – | `outputs/agent_eval/chat_r12-r17.json` (19326b5b446a90a9) |
+| `chat_heldout_r13-auto-nollm-prefix.json` | run | `aa73005` | 2026-10-11T05:21:46+00:00 | – | `chat_r13-auto-aa73005.json` (bab17e3314c22b39) |
+| `chat_heldout_r13-auto-nollm-after-fix.json` | run | `71cb928` | 2026-10-11T10:02:04+00:00 | – | `outputs/agent_eval/chat_r13-after.json` (b9a4be55b0ad724f) |
 | `router_eval-d78b313.json` | router_eval | `d78b313` | 2026-09-25T22:56:36+00:00 | – | written directly |
 | `router_eval-round2.json` | router_eval | `da3ec8b-dirty` | 2026-09-26T18:52:13+00:00 | – | written directly |
 | `router_eval-round3.json` | router_eval | `d3c1495` | 2026-09-28T07:16:51+00:00 | – | written directly |
@@ -4775,6 +4911,9 @@ Paired comparisons (same tasks, a − b):
 | `session-llm-check-h8-r12-after.json` | session | `4c45dac` | 2026-10-01T07:01:55+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `frame-llm-check-r12-fallback-off.json` | frame | `e9badd4` | 2026-10-01T06:26:06+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `frame-llm-check-r12-fallback-on.json` | frame | `e9badd4` | 2026-10-01T06:28:45+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
+| `claims_heldout_r13-prefix.json` | claim_slice | `aa73005` | 2026-10-11T05:25:26+00:00 | – | written directly |
+| `claims_heldout_r13-after-fix.json` | claim_slice | `71cb928` | 2026-10-11T10:02:29+00:00 | – | written directly |
+| `slice_overlap-heldout_r13-at-71cb928.json` | slice_overlap_scan | `71cb928` | 2026-10-11T10:00:35+00:00 | – | written directly |
 | `claims_heldout_r12-prefix.json` | claim_slice | `bb99360` | 2026-10-11T00:06:29+00:00 | – | written directly |
 | `claims_heldout_r12-after-fix.json` | claim_slice | `9564263` | 2026-10-11T04:09:48+00:00 | – | written directly |
 | `slice_overlap-heldout_r12-at-9564263.json` | slice_overlap_scan | `9564263` | 2026-10-11T04:08:05+00:00 | – | written directly |

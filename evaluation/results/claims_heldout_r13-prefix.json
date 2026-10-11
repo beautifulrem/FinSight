@@ -1,0 +1,82 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "aa73005",
+  "run_at": "2026-10-11T05:25:26+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r13/score_claims_r13.py <out.json>",
+  "note": "independent round-13 claim slice, first and only pre-fix run at aa73005, recorded by the reviewer"
+ },
+ "summary": {
+  "claims": 22,
+  "verdict_accuracy": 0.6364,
+  "ci95": [
+   0.4091,
+   0.8182
+  ],
+  "by_category": {
+   "contrast_clause": 0.5,
+   "control": 1.0,
+   "definition_clause": 0.5,
+   "same_company_metrics": 0.6,
+   "weak_direction": 0.4
+  }
+ },
+ "errors": [
+  {
+   "id": "r13c01",
+   "category": "weak_direction",
+   "claim": "工商银行2025年净利润同比微增",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r13c02",
+   "category": "weak_direction",
+   "claim": "招商银行营收同比基本持平",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r13c05",
+   "category": "weak_direction",
+   "claim": "美的集团净利润同比微降，营收则保持两位数增长",
+   "expected": "partially_supported",
+   "got": "supported"
+  },
+  {
+   "id": "r13c06",
+   "category": "same_company_metrics",
+   "claim": "宁德时代净利润增速明显快于营收增速",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r13c10",
+   "category": "same_company_metrics",
+   "claim": "紫金矿业营收增长约15%，净利润增速是营收增速的四倍以上",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r13c11",
+   "category": "definition_clause",
+   "claim": "净资产收益率等于净利润除以营业收入，美的集团的ROE为19.69%",
+   "expected": "partially_supported",
+   "got": "supported"
+  },
+  {
+   "id": "r13c14",
+   "category": "definition_clause",
+   "claim": "毛利率是净利润占营收的比例，长江电力毛利率约61.7%",
+   "expected": "partially_supported",
+   "got": "supported"
+  },
+  {
+   "id": "r13c15",
+   "category": "contrast_clause",
+   "claim": "宁德时代营收增速快于净利润增速，比亚迪则正好相反",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  }
+ ]
+}

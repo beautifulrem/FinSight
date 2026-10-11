@@ -1,0 +1,25 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "71cb928",
+  "run_at": "2026-10-11T10:02:29+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r13/score_claims_r13.py <out.json>",
+  "note": "independent round-13 claim slice after the round-17 fixes, run once at 71cb928 (clean tree); overlap tiers in slice_overlap-heldout_r13-at-71cb928.json"
+ },
+ "summary": {
+  "claims": 22,
+  "verdict_accuracy": 1.0,
+  "ci95": [
+   1.0,
+   1.0
+  ],
+  "by_category": {
+   "contrast_clause": 1.0,
+   "control": 1.0,
+   "definition_clause": 1.0,
+   "same_company_metrics": 1.0,
+   "weak_direction": 1.0
+  }
+ },
+ "errors": []
+}
