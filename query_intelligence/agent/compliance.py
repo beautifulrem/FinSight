@@ -23,6 +23,7 @@ from ..chatbot import (
     _is_known_non_trading_day,
     detect_query_language,
 )
+from ..query_terms import asks_position_size
 from ..text_safety import fold
 from .coverage import cost_basis_request, holding_value_request, without_holding_value
 from .evidence import AgentEvidence
@@ -40,6 +41,11 @@ _TRADING_ZH = re.compile(
     # Investment ratings and position sizing are advice too, whoever is quoted as their author.
     r"|(?:强烈)?(?:买入|增持|推荐|跑赢大市|优于大市|跑赢行业)(?:」|”|\"|')?\s*评级|评级(?:为|上调至|维持)?\s*(?:强烈)?(?:买入|增持|推荐)"
     r"|(?:[一二三四五六七八九十]|\d{1,2})\s*成仓位?|仓位(?:可|应|宜|提高|提升|加到|降到|降至|控制在)|逢低(?:加仓|买入|吸纳|布局)"
+    # (round 17, review-13 M11) a share count or a portfolio share given as the right amount ("买2000股比较合适",
+    # "买入20手为宜", "仓位不超过30%", "配置30%左右即可")
+    r"|(?:买|买入|建仓|配置|持有|配)\s*(?:约|大约|大概)?\s*\d[\d,]*(?:\.\d+)?\s*(?:股|手|万元?|元|%|％|成)\s*(?:左右|上下|以内)?\s*"
+    r"(?:比较|较为|更|最)?(?:合适|合理|为宜|即可|就好|就行|稳妥)"
+    r"|仓位\s*(?:不要?超过|不宜超过|最好|以|保持在|放在)\s*\d[\d.]*\s*(?:%|％|成)"
     # a call addressed to readers with adverbs in between ("建议投资者一次性建仓并长期持有", "请投资者尽快卖出持仓")
     r"|(?:建议|推荐|应该|应当|不妨|可考虑|赶紧|立即|果断|尽快|务必|必须|请)\s*(?:投资者|读者|大家|用户|股民|持有人|您|你)?\s*"
     r"(?:一次性|逢低|逢高|适当|分批|立即|果断|继续|长期|坚定|积极|尽快|马上|全部|提前)+\s*"
@@ -57,6 +63,12 @@ _TRADING_EN = re.compile(
     r"|\b(?:outperform|overweight|underweight|underperform|buy|sell|accumulate|market perform)\s+rating\b"
     r"|\brated\s+(?:a\s+)?(?:strong\s+)?(?:buy|sell|outperform|overweight|underweight|accumulate)\b"
     r"|\b(?:position size|increase (?:your|the) position|raise (?:your|the) position|allocate \d+%)"
+    # (round 17, M11) a share count or a portfolio share given as the right amount ("buying 500 shares would be
+    # reasonable", "keep it under 10% of your portfolio")
+    r"|\b(?:buy|buying|hold|holding|own|owning|put|putting|allocate|allocating)\s+(?:about\s+|around\s+|roughly\s+|up\s+to\s+)?"
+    r"\d[\d,]*(?:\.\d+)?\s*(?:shares|lots|%|percent)\b[^.;]{0,40}?\b(?:would be|is|seems|looks)\s+"
+    r"(?:reasonable|appropriate|fine|ok|okay|sensible|prudent|right|ideal)\b"
+    r"|\bkeep\s+(?:it|the position|your position|your exposure|exposure)\s+(?:under|below|at|around|within)\s+\d+\s*%"
     # "BUY PING AN NOW" (after NFKC folding), "sell Wuliangye before Friday", "holders must exit by 30 April"
     r"|\bbuy\s+(?:[a-z0-9.&'-]+\s+){0,3}?now\b|\b(?:sell|dump|exit)\s+(?:[a-z0-9.&'-]+\s+){0,3}?(?:now|immediately|before\s+\w+)\b"
     r"|\b(?:holders|investors|shareholders|you|readers|users|everyone)\s+(?:must|should)\s+"
@@ -165,6 +177,20 @@ _PRICE_NUMBER = re.compile(
     r"(?:CNY|RMB|¥|\$)\s*\d|\b(?:at|to|near|around|above|below|about)\s+\d",
     re.IGNORECASE,
 )
+
+# (round 17, review-13 M11) How many shares to buy or what share of a portfolio to put in ("我有10万块，买多少股招行比较
+# 合适", "Is it OK to put 30% of my portfolio in CATL?"): no number is recommended, and the answer says so.
+_POSITION_SIZE_ZH = (
+    "FinSight 不提供仓位或买入数量建议：买多少、占资金多大比例取决于个人的资金状况、风险承受能力和投资期限；"
+    "下文只列出相关的市场数据，不构成配置建议。"
+)
+_POSITION_SIZE_EN = (
+    "FinSight does not give position-size or allocation advice: how much to buy, or what share of a portfolio to put "
+    "in, depends on your finances, risk tolerance and horizon; below is market data only, not an allocation "
+    "recommendation."
+)
+_POSITION_SIZE_LIMITATION_ZH = "问题要求给出仓位或买入数量建议，FinSight 不提供此类建议"
+_POSITION_SIZE_LIMITATION_EN = "The question asks for a position size or an allocation; FinSight does not give one"
 
 _NEUTRAL_ZH = "是否交易取决于个人风险承受能力、投资期限和持仓情况，以上仅为证据梳理，不构成买卖建议。"
 _NEUTRAL_EN = (
@@ -354,6 +380,12 @@ def apply_compliance(
         )
         notes.append("earnings_forecast_hedge")
 
+    position_size = asks_position_size(query) or asks_position_size(effective_query or "")
+    if position_size:
+        # after the conditional prefix, before the evidence: no share count or portfolio share is recommended
+        softened = _after_prefix(softened, _POSITION_SIZE_ZH if zh else _POSITION_SIZE_EN, nlu_result, zh, query)
+        notes.append("position_size_hedge")
+
     fair_value = bool(FAIR_VALUE_MARKERS.search(asked))
     if fair_value:
         # after the conditional prefix, before the evidence: the price that follows is not the answer to "worth"
@@ -384,6 +416,10 @@ def apply_compliance(
     if fair_value:
         limitations = guards._append_unique(
             limitations, [_FAIR_VALUE_LIMITATION_ZH if zh else _FAIR_VALUE_LIMITATION_EN]
+        )
+    if position_size:
+        limitations = guards._append_unique(
+            limitations, [_POSITION_SIZE_LIMITATION_ZH if zh else _POSITION_SIZE_LIMITATION_EN]
         )
     limitations = guards._append_unique(
         limitations, guards._guardrail_limitations(pseudo_retrieval, nlu_result, zh=zh, query=query)
