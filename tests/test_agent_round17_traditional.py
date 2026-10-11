@@ -16,17 +16,8 @@ from query_intelligence.traditional import has_traditional, to_simplified
 
 
 @pytest.fixture(scope="module")
-def service():
-    from query_intelligence.service import build_default_service
-
-    return build_default_service(
-        use_live_market=False,
-        use_live_macro=False,
-        use_live_news=False,
-        use_live_announcement=False,
-        offline_snapshot_ext=True,
-        offline_snapshot_fix=True,
-    )
+def service(shipped_offline_service):
+    return shipped_offline_service
 
 
 @pytest.fixture(scope="module")
