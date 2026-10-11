@@ -71,6 +71,29 @@ def lexicon_hits(texts: Any) -> list[dict[str, float]]:
     return rows
 
 
+def structure_hits(texts: Any) -> list[dict[str, float]]:
+    """(round 16, review-12 L17) A few structural features the lexicon classes do not carry: whether a total word comes
+    before or after the comparison word (``order=sum_then_versus`` / ``order=versus_then_sum``), a list of three or more
+    names (``list>=3``) and a yes / no question (``yes_no``). Module-level so a fitted pipeline pickles it by
+    reference."""
+    from .frame import _SUM, _SUM_WEAK, _VERSUS, _YES_NO, _normalised
+
+    rows = []
+    for text in texts:
+        clause = _normalised(str(text or ""))
+        row: dict[str, float] = {}
+        total = _SUM.search(clause) or _SUM_WEAK.search(clause)
+        versus = _VERSUS.search(clause)
+        if total and versus:
+            row["order=sum_then_versus" if total.start() < versus.start() else "order=versus_then_sum"] = 1.0
+        if len(re.findall(r"[、，,]|\band\b|和|与|跟|及", clause)) >= 2:
+            row["list>=3"] = 1.0
+        if _YES_NO.search(clause.strip()):
+            row["yes_no"] = 1.0
+        rows.append(row)
+    return rows
+
+
 def normalise(text: str) -> str:
     return re.sub(r"\s+", " ", str(text or "")).strip().lower()
 
@@ -126,10 +149,15 @@ class OperationClassifier:
 
 
 def feature_names(features: Any) -> list[str]:
-    """Names of the union's features: ``chars:<n-gram>`` then ``lex=<class>``."""
-    chars = features.transformer_list[0][1]
-    lexicon = features.transformer_list[1][1].named_steps["dict"]
-    return [f"chars:{name}" for name in chars.get_feature_names_out()] + list(lexicon.get_feature_names_out())
+    """Names of the union's features in order: ``chars:<n-gram>``, (round 16) ``words:<n-gram>``, then the dictionary
+    features (``lex=<class>``, ``order=…``, ``list>=3``, ``yes_no``)."""
+    names: list[str] = []
+    for name, transformer in features.transformer_list:
+        if name in {"chars", "words"}:
+            names += [f"{name}:{item}" for item in transformer.get_feature_names_out()]
+        else:
+            names += list(transformer.named_steps["dict"].get_feature_names_out())
+    return names
 
 
 _lock = threading.Lock()
