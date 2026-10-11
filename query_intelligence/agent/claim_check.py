@@ -617,6 +617,8 @@ _SECTOR_WORD = re.compile(
 _UP_WORDS = re.compile(
     r"大涨|收涨|上涨|涨幅|涨了|走高|上扬|上升|增长|增加|提高|反弹|攀升|回升|涨(?![跌停破到至])|"
     r"\b(?:rose|rise[sn]?|risen|gained|gains?|jumped|climbed|climbs?|rallied|increased?|grew|went up|go up|"
+    # (round 16) the strong verbs of a reported change ("net profit soared 62%")
+    r"soared|surged|skyrocketed|"
     r"(?:was|is|closed|ended) (?:up|higher))\b|\bup\b(?!\s+to\b)",
     re.I,
 )
@@ -624,11 +626,16 @@ _DOWN_WORDS = re.compile(
     # (round 15) 降幅 / 减幅 / 缩减 / 萎缩 / 缩量: a decline ("净利润降幅为71.9%" is -71.9)
     r"大跌|收跌|下跌|跌幅|跌了|下挫|走低|下降|下滑|减少|回落|下行|降幅|减幅|降低|缩减|萎缩|缩量|跌(?![停破到至])|"
     r"\b(?:fell|fall(?:s|en)?|dropped|drops?|declined|declines?|decreased?|slipped|slumped|lost|shed|went down|"
+    # (round 16) "net profit nosedived by 72%", "plunged", "tumbled", "sank": a fall
+    r"plunged|plummeted|tumbled|sank|tanked|nosedived|dived|crashed|shrank|"
     r"go down|(?:was|is|closed|ended) (?:down|lower))\b|\bdown\b",
     re.I,
 )
 _DIRECTION_WINDOW = 20
-_CLAUSE_BREAK = re.compile(r"[，,。；;！!？?\n]|\bbut\b|而且|并且|但是|同时|\band\b(?!\s*[-+]?\d)")
+# (round 16) "while" / "whereas" join two claims ("Midea's revenue was up 12% while BYD's declined")
+_CLAUSE_BREAK = re.compile(
+    r"[，,。；;！!？?\n]|\bbut\b|\bwhile\b|\bwhereas\b|而且|并且|但是|同时|\band\b(?!\s*[-+]?\d)"
+)
 _SENTENCE_BREAK = re.compile(r"[。；;！!？?\n]")
 _INDEX_NAMES = re.compile(
     r"(?:沪深|中证|上证|深证|创业板|科创|北证|国证)\s*\d{2,4}|\bCSI\s*\d{3,4}|\b(?:SSE|STAR)\s*50\b", re.I
@@ -641,6 +648,10 @@ _NAME_DIGITS = re.compile(
 _MONTH = re.compile(r"(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月份?(?![\d日])")
 _TIMES_EARNINGS = re.compile(
     r"(\d+(?:\.\d+)?)\s*(?:x|times)\s+(?:(?:its|trailing|TTM|last year's)\s+)?(?:earnings|profits?)\b", re.I
+)
+# (round 16, review 12 L6) "0.7 times book value", "2x book", "7.2 times its book value per share" is not (BVPS itself)
+_TIMES_BOOK = re.compile(
+    r"(\d+(?:\.\d+)?)\s*(?:x|times)\s+(?:(?:its|their|the)\s+)?(?:net\s+)?book(?:[- ]value)?\b(?!\s+per\b)", re.I
 )
 _METRIC_DIGITS = re.compile(r"(?<![A-Za-z])(P/?E|P/?B|ROE|EPS)(?=[-+]?\d)", re.I)
 _LETTER_UNITS = re.compile(r"(\d)(?=(?:x|X|bn|mn|tn|pct|k)(?![A-Za-z]))")
@@ -895,6 +906,11 @@ class _Number:
     prior_year: bool = False  # (round 15) "上年为844.9亿元", "the previous year's 84.49 billion": level / (1 + YoY)
     anchored: bool = False  # (round 15) the claim names the latest session ("今天", "最新", "today") or a date
     bare_profit: bool = False  # (round 15) the metric came from a bare 利润 (read as net profit, said in the note)
+    # (round 16, review 12 L4/L6) a part of the claim without a number: a direction ("…，平安银行也实现了增长",
+    # "净利润同比下降"), an elided comparison ("…，工商银行则更高") or price against book value ("破净"); see
+    # ``_clause_parts``
+    part: Literal["change", "comparative", "book"] | None = None
+    antecedent: Any = field(default=None, repr=False)  # the earlier part of the sentence an elided part refers to
 
 
 def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = True) -> ClaimReport:
@@ -1161,6 +1177,7 @@ def normalise(claim: str) -> str:
     text = _TENTHS_AND_HALF.sub(lambda m: f"{_trim(float(m.group(1)) * 10 + 5)}%", text)
     text = _TENTHS.sub(lambda m: f"{_trim(float(m.group(1)) * 10)}%", text)
     text = _TIMES_EARNINGS.sub(r"\1x P/E", text)  # "trades at 8.7 times earnings" is a P/E
+    text = _TIMES_BOOK.sub(r"\1x P/B", text)  # (round 16, L6) "trades at 0.7 times book value" is a P/B
     text = _CURRENCY_BEFORE.sub(r"\1 ", text)  # (round 14) "RMB72.2 billion": the number is not glued to RMB
     text = _METRIC_DIGITS.sub(r"\1 ", text)
     return _LETTER_UNITS.sub(r"\1 ", text)
@@ -1632,13 +1649,17 @@ def _read(claim: str, targets: list[dict[str, Any]], *, zh: bool = True) -> _Rea
         for item in _superlatives(text, plain, positions)
         if not any(other.start <= item.start < other.end for other in [*numbers, *relations])
     ]
-    taken = [(number.start, number.end) for number in [*numbers, *relations]]
+    # (round 16, review 12 L4/L6) clauses without a number that still state something checkable: a direction of a
+    # reported figure, an elided comparison, price against book value
+    parts = _clause_parts(text, plain, positions, [*numbers, *relations])
+    taken = [(number.start, number.end) for number in [*numbers, *relations, *parts]]
     numbers.extend(_moves(text, norm, taken, plain))
     numbers[:] = _bind_targets(numbers, positions, targets, text)
     # (round 12, H6) "中国平安低于这一水平": the relation's compared side is the value stated before it; a stated
     # average with an evaluation word ("明显偏低", "估值更低") is a relation of the company with the industry
     relations = _resolve_anaphora(relations, numbers, text)
     relations += _evaluative_relations(numbers, relations, text, plain, positions)
+    relations += _resolve_parts(parts, text, norm, plain, positions)
     _assign_dates([*numbers, *relations], plain)
     for number in numbers:
         metric = _METRICS[number.metric] if number.metric else None
@@ -2521,6 +2542,7 @@ def _difference(number: _Number, text: str, positions: list[tuple[int, dict[str,
         metric = _subject_metric(text, sentence_start, cue_start, other)
         if metric is None:
             return False
+        metric, other = _growth_sides(text, _ref_end, metric, other)
         ref_target = {**subjects[-1], "metric": other}
         number.target, number.bound = subjects[-1], True
     elif (ref_target or {}).get("aggregate"):
@@ -2947,6 +2969,19 @@ _OTHER_PROFIT = re.compile(r"扣非|利润总额|营业利润|毛利润|总利�
 
 
 _NUMBER_MARK = "\u2063"  # stands for the number after a look-behind window (see ``_nearest_metrics``)
+# (round 16, review 12 L4) a subject whose figure is left out: "CATL's rose 42%", "比亚迪的也增长了20%"
+_ELIDED_SUBJECT = re.compile(
+    r"＠\s*(?:'s|’s|s'|')\s+(?:(?:also|too|was|were|has|had|have)\s+)*[A-Za-z]+\s*(?:(?:by|about|around|roughly|nearly|"
+    r"some|over|more than|almost)\s+)*$|"
+    r"＠\s*的\s*(?:也|则|同样|亦|却|反而)?\s*[一-鿿]{1,4}\s*(?:了)?\s*(?:约|近|超过)?\s*$",
+    re.I,
+)
+# (round 16, review 12 L6) the level a change reached: "，至50.4亿元", "增至", "降至", "达到", "to RMB5.04 billion"
+_REACHED = re.compile(
+    r"(?:增长|下降|增加|减少|提升|回落|上升|下滑|增|降|升|减|跌|涨)?\s*(?:至|到|达到?)\s*(?:了)?\s*(?:约|大约|近|超过|逾)?\s*$|"
+    r"\bto\s+(?:about\s+|around\s+|roughly\s+|nearly\s+|some\s+)?(?:RMB|CNY|¥|￥)?\s*$",
+    re.I,
+)
 
 
 def _metric_for(
@@ -2988,6 +3023,11 @@ def _metric_for(
         named = [name for _distance, name in found if name != "pct_change_1d"]
         if named and named[0] in _GROWTH_OF and number.unit_class == _PERCENT:
             metric = _GROWTH_OF[named[0]]
+        elif not named and number.unit_class == _PERCENT and previous is not None and _ELIDED_SUBJECT.search(before):
+            # (round 16, review 12 L4) "Midea's net profit rose 15% while CATL's rose about 42%": the possessive with
+            # no noun after it carries the previous clause's figure; a move word alone is not the day's price move
+            base = next((base for base, growth in _GROWTH_OF.items() if previous.metric in {base, growth}), None)
+            metric = _GROWTH_OF[base] if base else None
     if metric is None and compatible:
         metric = compatible[0]
     if metric is None and found:
@@ -3002,6 +3042,10 @@ def _metric_for(
             metric = _GROWTH_OF[base]  # "净利润850亿元，同比增长15%"
         elif number.unit_class == previous.unit_class and number.unit_class in _METRICS[prior].units:
             metric = prior  # "茅台市盈率24.6倍，五粮液20.9倍"
+        elif base and number.unit_class in _METRICS[base].units and _REACHED.search(before):
+            # (round 16, review 12 L6) "净利润同比增长约36%，至50.4亿元", "降至326亿元", "达到4585亿元": the level the
+            # growth reached
+            metric = base
     named = [name for _distance, name in found if name != "pct_change_1d"]
     # (round 14) "basic earnings per share advanced 6.6%": a move of a reported flow is its year-on-year change
     moved = bool(named) and named[0] in _FLOW_LEVELS and (_UP_WORDS.search(before) or _DOWN_WORDS.search(before))
@@ -3157,6 +3201,309 @@ def _moves(text: str, norm: str, taken: list[tuple[int, int]], plain: str = "") 
     return moves
 
 
+# ---------------------------------------------------------------------------------------------------------
+# Parts without a number (round 16, review 12 L4/L6)
+# ---------------------------------------------------------------------------------------------------------
+# A direction of a reported figure ("净利润同比下降", "…，平安银行也实现了增长", "and Moutai's increased too", "up from
+# the year before"). Before round 16 such a clause was listed as unchecked and a true number next to it made the claim
+# "supported" even when the clause was false.
+_PART_UP = re.compile(
+    r"增长(?![率速幅])|增加|提高|提升|上升|上涨|上扬|增多|走高|攀升|回升|多赚|涨(?![跌停幅破])|"
+    r"\b(?:grew|grow(?:s|n|ing)?|rose|risen|rises?|increased?|increases|increasing|gained|climbed|jumped|"
+    r"went up|(?:was|were|is|are) up|higher|up)\b",
+    re.I,
+)
+_PART_DOWN = re.compile(
+    r"下降|减少|下滑|下跌|降低|回落|萎缩|走低|下挫|缩减|少赚|缩水|跌(?![停幅破])|"
+    r"\b(?:fell|fallen|falls?|declined?|declines|declining|decreased?|decreases|dropped|drops?|shrank|shrunk|"
+    r"slipped|went down|(?:was|were|is|are) down|lower|down)\b",
+    re.I,
+)
+# A rate or its change is not a direction of the figure ("增速放缓", "降幅收窄", "growth slowed"): left alone
+_PART_RATE = re.compile(r"增速|增幅|降幅|跌幅|涨幅|增长率|减幅|\bgrowth\b|\brate\b", re.I)
+# The part refers to the previous clause's figure: "也 / 则 / 同样 / too / as well", a possessive with no noun after it
+# ("BYD's rose too", "比亚迪的也在增长")
+_PART_ELIDED = re.compile(
+    r"也|亦|同样|则|反而|却|\b(?:too|also|as well|likewise|similarly)\b|＠\s*(?:'s|’s|s'|')|＠\s*的", re.I
+)
+# A change against the previous year, in either language (years are read on the unblanked text)
+_PART_YOY = re.compile(
+    rf"{_YOY.pattern}|(?:比|较|相比|对比)\s*(?:去年|上一年度?|前一年|(?:19|20)\d{{2}}\s*年)|"
+    r"\b(?:from|than|over|on|versus|vs\.?|compared (?:with|to))\s+(?:the\s+)?(?:year before|previous year|prior year|"
+    r"(?:a|one) year (?:earlier|ago|before)|last year|(?:19|20)\d{2})\b",
+    re.I,
+)
+# The words a bare direction clause may carry besides the direction itself ("，比上年有所减少", "，同比继续下降")
+_PART_FILLER = re.compile(
+    r"有所|出现|实现|了|也|则|亦|同样|反而|却|同比|大幅|小幅|略有|略|明显|显著|继续|持续|进一步|均|都|在|有|呈|的|"
+    r"\s+|\b(?:also|too|as well|sharply|slightly|further|again|it|its|they|their)\b",
+    re.I,
+)
+_PART_NEGATION = re.compile(
+    r"(?:没有|没|并未|未能?|并没有|不是|并非|不再)\s*(?:出现|实现)?\s*(?:同比)?\s*(?:有所)?\s*$|"
+    r"\b(?:not|never|no longer)\b|n't\b",
+    re.I,
+)
+# An elided comparison: "…，工商银行则更高", "中国平安的更低", "and CATL's is lower still", "even higher"
+_PART_MORE_ZH = re.compile(
+    r"(?P<neg>不|并不|没有|没)?\s*(?:则|还|甚至|更是|也)?\s*(?:要|是)?\s*(?:更加|更|还要|还)\s*"
+    r"(?P<adj>高|低|大|小|多|少|贵|便宜|快|慢)(?![于过])"
+)
+_PART_MORE_EN = re.compile(
+    r"\b(?:even|still)\s+(?P<adj>higher|lower|bigger|larger|smaller|greater|cheaper|pricier|faster|slower)\b"
+    r"(?!\s+than)|\b(?P<adj2>higher|lower|bigger|larger|smaller|greater|cheaper|pricier|faster|slower)\s+still\b",
+    re.I,
+)
+_PART_MORE_GT = {"高", "大", "多", "贵", "快", "higher", "bigger", "larger", "greater", "pricier", "faster"}
+# Price against book value: "破净", "跌破每股净资产", "trades below book value", "at a discount to book"
+_BOOK_ZH = re.compile(
+    r"(?:跌)?破净(?!利|资产收益|值)|(?P<below>跌破|低于|不到|不及)\s*(?:了)?\s*(?:每股)?净资产(?!收益)|"
+    r"(?P<above>高于|超过)\s*(?:每股)?净资产(?!收益)"
+)
+_BOOK_EN = re.compile(
+    r"\b(?P<dir>below|under|beneath|above|over|less than|more than)\s+(?:its\s+|their\s+|the\s+)?(?:net\s+)?"
+    r"book(?:[- ]value)?\b(?!\s+per\b)|\b(?:a\s+)?(?P<side>discount|premium)\s+to\s+(?:its\s+|their\s+)?"
+    r"book(?:[- ]value)?\b(?!\s+per\b)",
+    re.I,
+)
+_BOOK_NOTE = "price against book value: below book value (破净) is a P/B under 1, above it a P/B over 1"
+_CHANGE_NOTE = "a change without a number: the sign of the year-on-year change"
+
+
+def _part_number(start: int, end: int, metric: str, comparator: Comparator, negated: bool) -> _Number:
+    return _Number(
+        start=start,
+        end=end,
+        value=0.0,
+        rounding=0.0,
+        scales=_BARE_SCALES,
+        unit="%",
+        unit_class=_PERCENT,
+        comparator=_FLIP[comparator] if negated else comparator,
+        negated=negated,
+        metric=metric,
+    )
+
+
+def _part_metric(name: str | None) -> tuple[str, bool] | None:
+    """The metric a direction part is checked on, and whether its change is unavailable (a change of ROE or P/E: the
+    sources carry this period's value only); ``None`` for a price, turnover or macro word (``_moves`` reads those)."""
+    if name is None:
+        return None
+    if name in _GROWTH_OF:
+        return _GROWTH_OF[name], False
+    if name in _GROWTH_OF.values() or name == "pct_change_1d":
+        return name, False
+    metric = _METRICS[name]
+    if metric.macro or not metric.fundamental or name == "net_profit_daily":
+        return None
+    return name, True
+
+
+def _clause_parts(
+    text: str, plain: str, positions: list[tuple[int, dict[str, Any]]], items: list[_Number]
+) -> list[_Number]:
+    """(round 16, review 12 L4/L6) Clauses with no number and no relation that still state something checkable:
+
+    * a direction of a reported figure: its own ("净利润同比下降": net profit growth < 0) or the previous clause's
+      ("比亚迪营收增长3.5%，宁德时代则有所下降": CATL's revenue growth < 0; "Midea's net profit rose 15% and BYD's
+      rose too": BYD's net profit growth > 0, never its day's price move; "净利润517.8亿元，比上年减少");
+    * an elided comparison with the previous clause's subject ("A的市盈率高于B，C则更高": C > A);
+    * price against book value ("破净", "below book value": P/B < 1).
+
+    The parts are read here (their metric, comparator and the earlier part they refer to) and bound to their targets
+    by ``_resolve_parts`` once the numbers are."""
+    parts: list[_Number] = []
+    taken = [(item.start, item.end) for item in items]
+    bounds, start = [], 0
+    for match in _CLAUSE_BREAK.finditer(text):
+        bounds.append((start, match.start()))
+        start = match.end()
+    bounds.append((start, len(text)))
+    for clause_start, clause_end in bounds:
+        segment = text[clause_start:clause_end]
+        words = plain[clause_start:clause_end]
+        if not segment.strip() or any(clause_start <= item_start < clause_end for item_start, _end in taken):
+            continue
+        if _FORECAST.search(words) or _HYPOTHETICAL.search(words):
+            continue  # a forecast is not a reported fact; it stays an unchecked clause
+        sentence_start, _sentence_end = _clause_bounds(text, clause_start, _SENTENCE_BREAK)
+        earlier = sorted(
+            (item for item in [*items, *parts] if sentence_start <= item.start < clause_start and item.metric),
+            key=lambda item: item.start,
+        )
+        antecedent = earlier[-1] if earlier else None
+        named = any(clause_start <= position < clause_end for position, _target in positions)
+        negation = _PART_NEGATION
+        book = _BOOK_ZH.search(segment) or _BOOK_EN.search(segment)
+        if book:
+            if book.re is _BOOK_ZH:
+                above = bool(book.group("above"))
+            else:
+                above = (book.group("dir") or "").lower() in {"above", "over", "more than"} or (
+                    book.group("side") or ""
+                ).lower() == "premium"
+            negated = bool(negation.search(segment, 0, book.start()))
+            number = _Number(
+                start=clause_start + book.start(),
+                end=clause_start + book.end(),
+                value=1.0,
+                rounding=0.0,
+                scales=_scales("倍", _MULTIPLE),
+                unit="倍",
+                unit_class=_MULTIPLE,
+                comparator=_FLIP["gt" if above else "lt"] if negated else ("gt" if above else "lt"),
+                negated=negated,
+                metric="pb",
+                convention=_BOOK_NOTE,
+                part="book",
+                antecedent=antecedent,
+            )
+            parts.append(number)
+            continue
+        more = _PART_MORE_EN.search(segment) or _PART_MORE_ZH.search(segment)
+        if more:
+            if named and antecedent is not None and antecedent.metric and not antecedent.ratio:
+                adjective = (more.group("adj") or more.groupdict().get("adj2") or "").lower()
+                comparator: Comparator = "gt" if adjective in _PART_MORE_GT else "lt"
+                negated = bool(more.groupdict().get("neg"))
+                number = _part_number(
+                    clause_start + more.start(), clause_start + more.end(), antecedent.metric, comparator, negated
+                )
+                number.unit, number.unit_class, number.relation = None, None, True
+                number.part, number.antecedent = "comparative", antecedent
+                parts.append(number)
+            continue
+        if _PART_RATE.search(segment) or _WIDENING.search(segment):
+            continue
+        ups = list(_PART_UP.finditer(segment))
+        downs = list(_PART_DOWN.finditer(segment))
+        if not ups and not downs:
+            continue
+        word = min([*ups, *downs], key=lambda match: match.start())
+        comparator = "gt" if word in ups else "lt"
+        own = [name for _d, name in _nearest_metrics(segment, "") if name != "pct_change_1d"]
+        if own:
+            resolved = _part_metric(own[0])
+        elif antecedent is not None and not (
+            antecedent.ratio or antecedent.difference or antecedent.sum_of or antecedent.reasons
+        ):
+            resolved = _part_metric(antecedent.metric)
+            price_word = bool(_MOVE.fullmatch(word.group(0)))
+            marked = bool(_PART_ELIDED.search(segment) or _PART_YOY.search(words))
+            bare = not _PART_FILLER.sub("", segment[: word.start()] + segment[word.end() :]).strip(" ＠")
+            if resolved and resolved[0] == "pct_change_1d" and _MOVE.search(segment):
+                resolved = None  # a price move of its own: ``_moves`` reads it (qualitative words, multi-day, …)
+            elif price_word and not marked:
+                resolved = None  # "…，五粮液下跌了": the day's move, not the previous figure's change
+            elif not (named or marked or bare):
+                resolved = None  # "…，赚钱效率在大幅提升": the clause names another quantity, not the previous figure
+        else:
+            resolved = None
+        if resolved is None or (resolved[0] == "pct_change_1d" and own):
+            continue
+        metric, unavailable = resolved
+        if metric == "pct_change_1d" and _MACRO_MOVE.fullmatch(word.group(0)) and not antecedent:
+            continue
+        negated = bool(negation.search(segment, 0, word.start()))
+        # "营收和净利润都同比下降", "BYD's revenue and net profit both rose": one part for each reported figure the
+        # clause joins (an English "and" ends a clause, so the first figure may stand in the clause before)
+        head_start = clause_start
+        previous_clause = next((bound for bound in reversed(bounds) if bound[1] <= clause_start), None)
+        if previous_clause is not None and re.fullmatch(r"\s*and\s*", text[previous_clause[1] : clause_start], re.I):
+            lead = text[previous_clause[0] : previous_clause[1]]
+            if not any(previous_clause[0] <= start < previous_clause[1] for start, _end in taken) and not (
+                _PART_UP.search(lead) or _PART_DOWN.search(lead)
+            ):
+                head_start = previous_clause[0]
+        joined = _joined_flows(text[head_start : clause_start + word.start()]) if own else []
+        for name, at in joined or [(None, word.start())]:
+            start = head_start + at if name else clause_start + word.start()
+            number = _part_number(
+                start,
+                max(start + 1, clause_start + word.end()) if name else clause_start + word.end(),
+                _GROWTH_OF[name] if name else metric,
+                comparator,
+                negated,
+            )
+            number.yoy_unavailable = unavailable and name is None
+            number.convention = "" if number.metric == "pct_change_1d" else _CHANGE_NOTE
+            number.part, number.antecedent = "change", antecedent
+            parts.append(number)
+    return parts
+
+
+def _joined_flows(head: str) -> list[tuple[str, int]]:
+    """The reported flows a clause joins before its direction word ("营收和净利润", "revenue and net profit"), in
+    order, with where each is named in ``head``; empty unless there are two or more."""
+    found: dict[str, int] = {}
+    for name in ("revenue", "net_profit", "profit_dedt"):
+        words = _METRICS[name].words
+        match = words.search(head) if words is not None else None
+        if match:
+            found[name] = match.start()
+    if len(found) < 2:
+        return []
+    ordered = sorted(found.items(), key=lambda item: item[1])
+    first, last = ordered[0][1], ordered[-1][1]
+    return ordered if re.search(r"和|与|及|、|\band\b|\bas well as\b", head[first:last], re.I) else []
+
+
+def _resolve_parts(
+    parts: list[_Number], text: str, norm: str, plain: str, positions: list[tuple[int, dict[str, Any]]]
+) -> list[_Number]:
+    """Bind the parts read by ``_clause_parts``: the subject is the company named in the part's clause (not as a
+    compared side), else the subject of the part it refers to; an elided comparison compares with the earlier subject
+    ("A高于B，C则更高": C against A; "A高于B，C则更低": C against B; "A的市盈率25.8倍，C更低": C against A)."""
+    resolved: list[_Number] = []
+    for part in parts:
+        clause_start, clause_end = _clause_bounds(text, part.start)
+        own = [
+            target
+            for position, target in positions
+            if clause_start <= position < clause_end and not _compared_side(text, position)
+        ]
+        antecedent = part.antecedent
+        earlier = antecedent.target if antecedent is not None else None
+        if part.part == "comparative":
+            if not own or earlier is None:
+                continue
+            subject = own[-1]
+            reference = earlier
+            if antecedent.relation and antecedent.reference is not None:
+                if antecedent.reference_kind != "target":
+                    continue
+                same_way = (antecedent.comparator in {"gt", "ge"}) == (part.comparator in {"gt", "ge"})
+                reference = earlier if same_way else antecedent.reference
+            if not reference or reference.get("key") == subject.get("key") or reference.get("aggregate"):
+                continue
+            part.target, part.reference, part.reference_kind = subject, reference, "target"
+            if _FORECAST.search(plain[clause_start:clause_end]):
+                part.reasons.append(("forecast", "a forecast or hypothetical, not a reported fact"))
+            resolved.append(part)
+            continue
+        subjects = list({str(target["key"]): target for target in own}.values())
+        if len(subjects) > 1 and _SHARED.search(text, clause_start, clause_end):
+            # "茅台和五粮液的净利润都下降了": one part for each
+            for target in subjects:
+                copy = replace(part, target=target, reasons=[])
+                _context(copy, norm, clause_start, clause_end, plain)
+                resolved.append(copy)
+            continue
+        if not subjects and earlier is None:
+            # "BYD's revenue and net profit both rose": the company named earlier in the sentence
+            sentence_start, _sentence_end = _clause_bounds(text, part.start, _SENTENCE_BREAK)
+            subjects = [
+                target
+                for position, target in positions
+                if sentence_start <= position < part.start and not _compared_side(text, position)
+            ][-1:]
+        part.target = subjects[-1] if subjects else earlier
+        _context(part, norm, clause_start, clause_end, plain)
+        resolved.append(part)
+    return resolved
+
+
 def _qualitative(number: _Number, word: str, *, big: bool) -> None:
     """ "大跌" / "plunged": a move of at least 3% in its direction; "小幅下跌" / "edged down": less than 1%. The
     thresholds are a convention and the check's note says so."""
@@ -3179,14 +3526,16 @@ _REL_WORD = re.compile(
 )
 _REL_NOT_AS = re.compile(r"没有|没")
 _REL_EN = re.compile(
-    r"\b(higher|greater|bigger|larger|more|lower|smaller|less|cheaper|pricier)\b[^,.;!?]{0,40}?\bthan\b|"
+    r"\b(higher|greater|bigger|larger|more|lower|smaller|less|cheaper|pricier|faster|slower)\b[^,.;!?]{0,40}?\bthan\b|"
     r"\b(above|below|exceeds?|exceeded|trails?|trailed|beats?|outperform(?:s|ed)?|underperform(?:s|ed)?|lag(?:s|ged)?)\b",
     re.I,
 )
-_REL_ADJ = re.compile(r"(?<!大)(活跃|高|大(?![涨跌])|多|贵|低|小|少|便宜)")
-_REL_GT_WORDS = {"高", "大", "多", "贵", "活跃", "高于", "大于", "超过", "多于", "强于", "好于", "优于", "跑赢"}
+# (round 16, L5) 快 / 慢: "净利润增速比比亚迪快"
+_REL_ADJ = re.compile(r"(?<!大)(活跃|高|大(?![涨跌])|多|贵|低|小|少|便宜|快|慢)")
+_REL_GT_WORDS = {"高", "大", "多", "贵", "活跃", "快", "高于", "大于", "超过", "多于", "强于", "好于", "优于", "跑赢"}
 _REL_GT_WORDS |= {"高过", "大过", "多过", "强过", "胜过", "赢过"}
 _REL_GT_EN = {"higher", "greater", "bigger", "larger", "more", "pricier", "above", "exceed", "exceeds", "exceeded"}
+_REL_GT_EN |= {"faster"}  # (round 16, L5) "grew faster than BYD's"
 _REL_GT_EN |= {"beat", "beats", "outperform", "outperforms", "outperformed"}
 # "跑赢沪深300" / "outperformed the CSI 300": with no metric named, a comparison of the daily moves.
 _PERFORMANCE_WORDS = {
@@ -3223,6 +3572,13 @@ _RANGE_LABEL = {
     "high_52w": ("52周最高收盘价", "52-week closing high"),
     "low_52w": ("52周最低收盘价", "52-week closing low"),
 }
+# (round 16, review 12 L5) a growth rate as the compared quantity: "营收增速", "增幅", "增长率", "增长速度", "增长更快",
+# "revenue growth", "grew faster / slower"
+_GROWTH_RATE = re.compile(
+    r"增速|增幅|增长率|增长速度|增长幅度|增长(?=[^，,。；;]{0,12}?[快慢])|\bgrowth\b|"
+    r"\bgr[eo]w(?:s|n|ing)?\b(?=[^,.;!?]{0,20}?\b(?:faster|slower)\b)",
+    re.I,
+)
 _ANAPHORA = re.compile(
     r"\s*(?:了|过)?\s*(?:(?:这|那|该|此|上述|前述)(?:一|个)?\s*(?:水平|均值|平均(?:值|水平|数)?|数值|数字|数|值|位置|标准|估值)|"
     r"它(?![的们])|(?:that|it|this)\b(?!\s+of\b|\s*['’]s\b)(?:\s+(?:level|average|figure|mark|number|multiple))?)",
@@ -3321,6 +3677,10 @@ def _relation_at(
         metric = "amount"  # "比创业板ETF更活跃": more actively traded, i.e. a higher turnover (round 9)
     if kind in _RANGE_LABEL:
         metric = "close"  # (round 13, I8) "股价低于52周高点": the latest close against the 52-week high
+    if metric in _GROWTH_OF and _GROWTH_RATE.search(text, clause_start, max(relation_end, clause_end)):
+        # (round 16, review 12 L5) "比亚迪的营收增速低于宁德时代", "grew faster than BYD's": the growth rates, not the
+        # levels
+        metric = _GROWTH_OF[metric]
     fell = re.search(r"跌|\b(?:fell|fall|dropped|declined|lost)\b", text[clause_start:clause_end], re.I)
     if metric == "pct_change_1d" and fell:
         comparator = "lt" if comparator == "gt" else "gt"  # "跌幅比五粮液大": it fell more, a lower change
@@ -3331,6 +3691,7 @@ def _relation_at(
         metric = _subject_metric(text, sentence_start, start, other)
         if metric is None:
             return None
+        metric, other = _growth_sides(text, ref_end, metric, other)
         ref_target = {**subject, "metric": other}
     else:
         # (round 15, K6) "美的集团和平安银行的总市值合计超过紫金矿业": the total of the listed companies is the subject
@@ -3721,6 +4082,18 @@ def _metric_side(text: str, start: int) -> tuple[str, int] | None:
         if match and match.end() > start and (best is None or match.end() > best[1]):
             best = (name, match.end())
     return best
+
+
+# (round 16, review 12 L5) a growth rate as the compared figure of the same company: "净利润增速高于营收增速"
+_GROWTH_AFTER = re.compile(r"\s*(?:的)?\s*(?:同比)?\s*(?:增速|增幅|增长率|增长速度|增长幅度|\bgrowth\b)", re.I)
+
+
+def _growth_sides(text: str, ref_end: int, metric: str, other: str) -> tuple[str, str]:
+    """(round 16, L5) "紫金矿业的净利润增长了62%，远高于营收增速", "净利润增速高于营收增速": when the compared side is a
+    growth rate, both sides are the growth rates of their figures, never the levels."""
+    if other in _GROWTH_OF and metric in _GROWTH_OF and _GROWTH_AFTER.match(text, ref_end):
+        return _GROWTH_OF[metric], _GROWTH_OF[other]
+    return metric, other
 
 
 def _subject_metric(text: str, start: int, cue_start: int, other: str) -> str | None:

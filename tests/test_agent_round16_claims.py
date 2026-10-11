@@ -57,7 +57,7 @@ def _rows(report):
     ] + [("unchecked", item.text) for item in report.unchecked]  # fmt: skip
 
 
-# ---- L4: a true number next to a false clause without a number ---------------------------------------------------------
+# ---- L4: a true number next to a false clause without a number ---------------------------------------------
 # Each claim has one true part with a number and one false part (the value that makes it false is in the comment). None
 # may be "supported": the false part is checked (partially_supported), or both are false (contradicted).
 TRUE_NUMBER_FALSE_CLAUSE = [
@@ -164,7 +164,7 @@ def test_a_direction_part_against_the_previous_year_is_the_yoy_of_the_named_figu
     ), _rows(report)  # fmt: skip
 
 
-# ---- L5: growth-rate comparisons --------------------------------------------------------------------------------------
+# ---- L5: growth-rate comparisons ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     ("claim", "metric", "verdict"),
     [
@@ -190,7 +190,7 @@ def test_a_level_comparison_stays_a_level_comparison(checker):
     assert report.verdict == "supported" and [check.metric for check in report.checks] == ["revenue"], _rows(report)
 
 
-# ---- L6: direction only, book value, amount after a growth ------------------------------------------------------------
+# ---- L6: direction only, book value, amount after a growth -------------------------------------------------
 @pytest.mark.parametrize(
     ("claim", "metric", "comparator", "verdict"),
     [
@@ -262,3 +262,47 @@ def test_an_amount_after_a_growth_is_the_level_it_reached(checker, claim, level,
     assert report.verdict == verdict, _rows(report)
     assert level in [check.metric for check in report.checks], _rows(report)
     assert all(check.reason != "no_metric" for check in report.checks), _rows(report)
+
+
+@pytest.mark.parametrize(
+    ("claim", "metrics", "verdict"),
+    [
+        ("紫金矿业的净利润增长了62%，远高于营收增速", ["netprofit_yoy", "netprofit_yoy"], "supported"),  # 62.01 > 14.96
+        ("宁德时代净利润增速高于营收增速", ["netprofit_yoy"], "supported"),  # 42.18 > 17.04
+        ("比亚迪净利润增速低于营收增速", ["netprofit_yoy"], "supported"),  # -18.82 < 3.46
+        ("中信证券营收增速比净利润增速快", ["revenue_yoy"], "contradicted"),  # 28.80 < 37.26
+        ("比亚迪净利润增速比营收增速低22个百分点", ["netprofit_yoy"], "supported"),  # -22.28
+    ],
+)
+def test_two_growth_rates_of_one_company_are_compared_as_growth_rates(checker, claim, metrics, verdict):
+    report = checker(claim)
+    assert report.verdict == verdict, _rows(report)
+    assert [check.metric for check in report.checks] == metrics, _rows(report)
+
+
+@pytest.mark.parametrize(
+    ("claim", "verdict"),
+    [
+        ("平安银行营收和净利润都同比下降", "supported"),  # -10.40, -4.21
+        ("比亚迪的营收与净利润均同比增长", "partially_supported"),  # +3.46, -18.82
+        ("BYD's revenue and net profit both rose year on year", "partially_supported"),
+        ("CMB's net profit and revenue both increased", "supported"),  # +1.05, +0.01
+    ],
+)
+def test_a_direction_of_two_joined_figures_checks_both(checker, claim, verdict):
+    report = checker(claim)
+    assert report.verdict == verdict, _rows(report)
+    assert sorted(check.metric for check in report.checks) == ["netprofit_yoy", "revenue_yoy"], _rows(report)
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "中芯国际营收673亿元，产能利用率持续提升",  # another quantity, not the previous figure
+        "比亚迪营收8040亿元，海外销量大幅增长",
+        "招商银行2025年净利润1501.81亿元，盈利能力保持稳定",
+    ],
+)
+def test_a_direction_of_another_quantity_is_not_carried_from_the_previous_figure(checker, claim):
+    report = checker(claim)
+    assert report.verdict == "supported" and len(report.checks) == 1, _rows(report)
