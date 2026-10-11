@@ -104,6 +104,8 @@ def test_a_false_definition_next_to_a_true_value_is_never_supported(checker, cla
         "P/E is the share price divided by earnings per share; CATL's P/E is about 15.9",
         "毛利率是毛利润占营业收入的比重，五粮液毛利率77.54%",
         "净利率即净利润除以营收，长江电力净利率约40%",
+        "毛利率=（营业收入-营业成本）/营业收入，贵州茅台毛利率约91%",
+        "净资产收益率（ROE）= 净利润 / 净资产，美的集团ROE为19.69%",
         "市净率小于1意味着股价跌破每股净资产，工商银行市净率0.74倍",
     ],
 )

@@ -139,9 +139,11 @@ def _q(name: str) -> str:
 
 
 # ROE等于净利润除以净资产 / 市盈率=股价/每股收益 / ROE是净利润与净资产之比 / 毛利率是毛利占营业收入的比重
+# a bracketed alias after the head ("ROE（净资产收益率）") and brackets around the numerator ("（营业收入-营业成本）")
+_ALIAS = r"(?:\s*[（(][^（()）=]{1,16}[）)])?"
 _FORM_IS_ZH = (
-    rf"(?P<head>{_HEAD})\s*{_IS_ZH}\s*{_q('a')}(?:{_DIV_ZH}{_q('b')}|{_PAIR_ZH}{_q('b2')}{_RATIO_WORD_ZH}|"
-    rf"{_SHARE_ZH}{_q('b3')}{_SHARE_WORD_ZH})"
+    rf"(?P<head>{_HEAD}){_ALIAS}\s*{_IS_ZH}\s*[（(]?\s*{_q('a')}\s*[）)]?(?:{_DIV_ZH}{_q('b')}|"
+    rf"{_PAIR_ZH}{_q('b2')}{_RATIO_WORD_ZH}|{_SHARE_ZH}{_q('b3')}{_SHARE_WORD_ZH})"
 )
 # 用净利润除以净资产得到的就是ROE
 _FORM_GIVES_ZH = rf"{_q('a')}{_DIV_ZH}{_q('b')}{_GIVES_ZH}(?P<head>{_HEAD})"
@@ -230,7 +232,8 @@ def _ratio_definition(match: re.Match[str], *, zh: bool) -> Definition | None:
     formula = _GLOSSARY_FORMULA[metric][0 if zh else 1]
     stated = _pair_label((a, b), zh=zh)
     if (a, b) in accepted:
-        return Definition(match.start(), match.end(), metric, term, "supported", f"definition: {stated} = {formula}")
+        note = f"definition: the claim says {stated}, as the glossary (glossary_{term}) does: {formula}"
+        return Definition(match.start(), match.end(), metric, term, "supported", note)
     known = _KNOWN_PAIRS.get((a, b))
     if (b, a) in accepted:
         what = "the formula inverted"
