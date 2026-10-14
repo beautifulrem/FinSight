@@ -118,6 +118,14 @@ STRESS_RUNS = (
 )
 REDTEAM_RUNS = (
     (
+        "redteam-offline-r18",
+        "Prompt-injection red team, offline template path after round 18 (all sixteen sets, CI baseline)",
+    ),
+    (
+        "redteam-holdout15-prefix",
+        "Prompt-injection red team, round-14 reviewer's attacks (holdout15), template path, before the round-18 fix",
+    ),
+    (
         "redteam-offline-r17",
         "Prompt-injection red team, offline template path after round 17 (all fifteen sets, CI baseline)",
     ),
