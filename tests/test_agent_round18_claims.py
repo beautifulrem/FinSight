@@ -142,7 +142,7 @@ def test_a_decline_compared_with_revenue_is_a_growth_comparison(checker, claim, 
 
 
 def test_a_narrowing_decline_after_the_figures(checker):
-    report = checker("平安银行净利润426.33亿元，同比下降4.21%，降幅较营收有所收窄")
+    report = checker("平安银行2025年归母净利润约426亿元，同比减少4.2%，降幅较营业收入有所收窄")
     assert report.verdict == "supported" and report.coverage == "full", report.model_dump()
 
 

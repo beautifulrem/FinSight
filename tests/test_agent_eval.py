@@ -1928,3 +1928,74 @@ def test_round17_frame_tasks_and_tests_do_not_copy_a_slice_or_a_review_probe():
     assert len(tasks) >= 24 and check_overlap(tasks) == []
     assert len(mine) >= 120
     assert _overlaps(mine, others) == (0, 0), "round-17 wording overlaps a slice, a test set or a reviewer probe"
+
+
+# The round-14 reviewer's probes as quoted in the review report (finsight-review/round14.md §4.1, §4.3 and the bug
+# table N10-N13; the probe scripts' other texts and the hidden heldout_r14 slice were not read): round-18 wording must
+# not copy them.
+_ROUND14_REVIEW_PROBES = [
+    "寧德時代股東應佔溢利",
+    "紫金礦業股本回報率",
+    "招商銀行市賬率是多少",
+    "ＢＹＤ的收盘价",
+    "ＣＡＴＬ的收盘价",
+    "茅台的ＰＥ",
+    "贵州茅台市盈率24.6倍",
+    "招行、工行、平安银行中，除平安银行外净利润均同比增长",
+    "寧德時代2025年純利722億元人民幣，按年增長42%",
+    "招行市賬率0.91倍",
+    "比亚迪与美的集团净利润之和不足宁德时代一家",
+    "平安银行净利润426.33亿元，同比下降4.21%，降幅较营收收窄",
+    "中国平安营收突破万亿",
+    "比亚迪市值不到宁德时代的六成吗",
+    "紫金黄金的股价",
+    "宇宙行的市净率",
+    "哦不对，我是说五粮液",
+    "不是问茅台，是问五粮液的市盈率",
+    "我手里有比亚迪800股，成本价是90元",
+    "按现在价格我亏了多少",
+    "我有中信证券3000股，成本28",
+    "要回本得涨多少",
+    "紫金矿业2025年净利润同比增长62%，增速是营收增速的4倍多",
+    "宁德时代、比亚迪合计营收超1.2万亿元",
+    "招行、工行、平安银行三家净利润均实现正增长",
+    "茅台、五粮液2025年营收均出现下滑",
+    "比亚迪2025年归母净利润722.01亿元",
+    "比亞迪2025年營業收入8039.65億元",
+]
+
+
+def test_round18_tests_do_not_copy_a_slice_a_real_claim_or_a_review_probe():
+    """Round-18 tests (tests/test_agent_round18_*.py, review-14 N10-N13) were written in the engineer's own wording
+    after the round-14 review: none may copy or near-copy a text of any committed slice, a claim of the six real-claims
+    sets or the claim benches, or a quoted reviewer probe of rounds 4-14. Counts only."""
+    import ast
+    from pathlib import Path
+
+    from evaluation.agent_eval.runner import ROOT
+    from evaluation.claim_bench.run import SETS, load_claims
+
+    files = sorted(Path(__file__).parent.glob("test_agent_round18_*.py"))
+    strings = [
+        node.value
+        for path in files
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and len(node.value) >= 6
+    ]
+    mine = [
+        text for text in strings if re.search(r"[\s一-鿿]", text) and not text.startswith("Round") and len(text) < 200
+    ]
+    real = [
+        json.loads(line).get("claim_text") or ""
+        for path in sorted((ROOT / "evaluation").glob("real_claims_web*/claims_web_v*.jsonl"))
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    benches = [row["claim"] for name in ("dev", "holdout") for row in load_claims(SETS[name])]
+    slices = _all_slice_texts()
+    others = real + benches + slices + _heldout_r4_texts() + _heldout_r5_texts() + _REVIEW_PROBES
+    others += _ROUND9_REVIEW_PROBES + _ROUND10_REVIEW_PROBES + _ROUND11_REVIEW_PROBES + _ROUND12_REVIEW_PROBES
+    others += _ROUND12_SAFETY_PROBES + _ROUND13_CLAIM_PROBES + _ROUND13_REVIEW_PROBES + _ROUND14_REVIEW_PROBES
+    assert len(files) >= 2 and len(mine) >= 60, "the round-18 tests were not read"
+    assert len(real) >= 300 and len(benches) >= 350 and len(slices) >= 450, "the compared sets were not read"
+    assert _overlaps(mine, others) == (0, 0), "round-18 wording overlaps a slice, a real claim or a review probe"
