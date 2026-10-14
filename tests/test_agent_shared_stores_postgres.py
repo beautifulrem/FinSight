@@ -111,11 +111,8 @@ def test_a2a_task_started_on_one_replica_is_served_and_resumed_by_the_other(repl
 
 def test_traces_written_by_one_replica_are_listed_and_served_by_the_other(replicas):
     replica_1, replica_2 = replicas
-    session = f"pg-trace-{uuid.uuid4().hex[:8]}"
-
-    answer = replica_1.post(
-        "/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": session}, headers=KEY_A
-    ).json()
+    answer = replica_1.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"}, headers=KEY_A).json()
+    session = answer["session_id"]  # issued by the server (round 18, N9)
 
     listing = replica_2.get("/agent/traces", params={"session_id": session}, headers=KEY_A).json()["traces"]
     assert [item["trace_id"] for item in listing] == [answer["trace_id"]]
@@ -164,8 +161,8 @@ def test_control_in_memory_stores_are_not_shared(monkeypatch):
 
         pending = _send(memory_1, "它的市盈率呢", KEY_A)
         assert "error" in _rpc(memory_2, "GetTask", {"id": pending["id"]}, KEY_A)
-        session = f"pg-control-{uuid.uuid4().hex[:8]}"
-        memory_1.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": session}, headers=KEY_A)
+        first = memory_1.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"}, headers=KEY_A).json()
+        session = first["session_id"]
         assert memory_2.get("/agent/traces", params={"session_id": session}, headers=KEY_A).json()["traces"] == []
         # ...while the Postgres-backed pair does share them.
         shared = _send(replica_1, "它的市盈率呢", KEY_A)

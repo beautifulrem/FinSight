@@ -18,6 +18,7 @@
         }
       ],
       "default": null,
+      "description": "Omit to start a new conversation: the server issues the id (response session_id, or the stream's session event). An id the caller does not already have gets 404, the same as another caller's.",
       "title": "Session Id"
     },
     "mode": {

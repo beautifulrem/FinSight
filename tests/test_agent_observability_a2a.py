@@ -48,9 +48,9 @@ def _send(client: TestClient, text: str, *, task_id: str | None = None, context_
 def test_traces_endpoint_lists_and_returns_runs(monkeypatch):
     client = _keyed_client(monkeypatch)
     client.headers["X-API-Key"] = "key-a"  # traces need an API key (anonymous callers get 403, C3)
-    answer = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "obs-1"}).json()
+    answer = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"}).json()
 
-    listing = client.get("/agent/traces", params={"session_id": "obs-1"}).json()["traces"]
+    listing = client.get("/agent/traces", params={"session_id": answer["session_id"]}).json()["traces"]
     assert [item["trace_id"] for item in listing] == [answer["trace_id"]]
     assert listing[0]["route"] == "workflow" and listing[0]["tool_calls"] >= 1
     assert listing[0]["verification_passed"] is True
@@ -64,7 +64,7 @@ def test_traces_endpoint_lists_and_returns_runs(monkeypatch):
 
 
 def test_metrics_endpoint_counts_runs_and_tools(client):
-    client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "obs-2"})
+    client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"})
 
     text = client.get("/metrics").text
 
@@ -223,24 +223,21 @@ def test_sessions_and_traces_are_scoped_to_the_api_key(monkeypatch):
     client = _keyed_client(monkeypatch)
     a, b = {"X-API-Key": "key-a"}, {"X-API-Key": "key-b"}
 
-    answer = client.post(
-        "/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "own-1"}, headers=a
-    ).json()
+    answer = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"}, headers=a).json()
+    sid = answer["session_id"]
 
     # Another caller cannot read, continue or list that session and its traces.
-    assert client.get("/agent/sessions/own-1", headers=b).status_code == 404
-    assert (
-        client.post("/agent/chat", json={"query": "它的市净率呢", "session_id": "own-1"}, headers=b).status_code == 404
-    )
+    assert client.get(f"/agent/sessions/{sid}", headers=b).status_code == 404
+    assert client.post("/agent/chat", json={"query": "它的市净率呢", "session_id": sid}, headers=b).status_code == 404
     assert client.get(f"/agent/traces/{answer['trace_id']}", headers=b).status_code == 404
     assert client.get("/agent/traces", headers=b).json()["traces"] == []
     # The owner can.
-    assert client.get("/agent/sessions/own-1", headers=a).json()["turns"]
+    assert client.get(f"/agent/sessions/{sid}", headers=a).json()["turns"]
     assert [t["trace_id"] for t in client.get("/agent/traces", headers=a).json()["traces"]] == [answer["trace_id"]]
 
 
 def test_feedback_is_recorded_for_known_traces(client, tmp_path):
-    answer = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "fb-1"}).json()
+    answer = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"}).json()
 
     ok = client.post("/agent/feedback", json={"trace_id": answer["trace_id"], "rating": "down", "comment": "PE 旧了"})
     missing = client.post("/agent/feedback", json={"trace_id": "nope", "rating": "up"})

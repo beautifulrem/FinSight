@@ -47,11 +47,12 @@ def test_workflow_refuse_and_clarify_responses_match_schema():
     client = _client()
     schema = _schema("agent_chat_response.schema.json")
 
+    pending = client.post("/agent/chat", json={"query": "这只股票能买吗"}).json()
     bodies = [
-        client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "sc-1"}).json(),
-        client.post("/agent/chat", json={"query": "今天天气怎么样", "session_id": "sc-2"}).json(),
-        client.post("/agent/chat", json={"query": "这只股票能买吗", "session_id": "sc-3"}).json(),
-        client.post("/agent/resume", json={"session_id": "sc-3", "reply": "贵州茅台"}).json(),
+        client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"}).json(),
+        client.post("/agent/chat", json={"query": "今天天气怎么样"}).json(),
+        pending,
+        client.post("/agent/resume", json={"session_id": pending["session_id"], "reply": "贵州茅台"}).json(),
     ]
 
     assert [body["status"] for body in bodies] == ["ok", "ok", "needs_clarification", "ok"]

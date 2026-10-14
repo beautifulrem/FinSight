@@ -366,9 +366,11 @@ def _metric_lines(text: str, prefixes: tuple[str, ...]) -> list[str]:
     return [line for line in text.splitlines() if line.startswith(prefixes)]
 
 
-def _ask(client: httpx.Client, query: str, *, mode: str, session: str) -> dict[str, Any]:
+def _ask(client: httpx.Client, query: str, *, mode: str) -> dict[str, Any]:
+    """One question in a new session: no ``session_id`` is sent, the server issues one (round 18, N9: a
+    client-chosen id that is not an existing session of the caller is a 404)."""
     started = time.perf_counter()
-    response = client.post("/agent/chat", json={"query": query, "mode": mode, "session_id": session})
+    response = client.post("/agent/chat", json={"query": query, "mode": mode})
     latency = round((time.perf_counter() - started) * 1000, 1)
     body = response.json() if response.status_code == 200 else {"error": response.text[:300]}
     return {"query": query, "status": response.status_code, "latency_ms": latency, "body": body}
@@ -413,8 +415,8 @@ def run_llm(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
             def phase(name: str, queries: list[str]) -> dict[str, Any]:
                 t0 = time.time()
                 runs = []
-                for index, query in enumerate(queries):
-                    result = _ask(client, query, mode="agent", session=f"chaos-{name}-{index}")
+                for query in queries:
+                    result = _ask(client, query, mode="agent")
                     body = result.pop("body")
                     llm = body.get("llm") or {}
                     trace_id = body.get("trace_id")
@@ -866,8 +868,8 @@ def run_sources(args: argparse.Namespace, out_dir: Path) -> dict[str, Any]:
 
             def phase(name: str, queries: list[str]) -> None:
                 runs = []
-                for index, query in enumerate(queries):
-                    result = _ask(client, query, mode="workflow", session=f"chaos-src-{name}-{index}")
+                for query in queries:
+                    result = _ask(client, query, mode="workflow")
                     body = result.pop("body")
                     runs.append(
                         {

@@ -142,7 +142,7 @@ The same tools are published by an MCP server; see [MCP](mcp.md).
 
 ## Memory and sessions
 
-- Each `session_id` is a LangGraph thread. The checkpointer is in memory by default; `QI_AGENT_CHECKPOINT_DB=/path/sessions.sqlite` persists sessions across restarts, and a `postgresql://` DSN shares them between processes and replicas.
+- Each `session_id` is a LangGraph thread. Session ids are issued by the server: a new conversation sends no `session_id` and reads the id from the response (or from the stream's first `session` event); a later request that sends a `session_id` the caller does not have gets `404` with the same body as another caller's id (`session <id> not found`), so ids cannot be probed (round 18, review-14 N9). The checkpointer is in memory by default; `QI_AGENT_CHECKPOINT_DB=/path/sessions.sqlite` persists sessions across restarts, and a `postgresql://` DSN shares them between processes and replicas.
 - Per-turn fields (tool log, evidence, verification, …) are reset at the start of every turn, so one turn's evidence can never be cited in the next. One checkpoint is written per run (`QI_AGENT_DURABILITY=exit`).
 - Completed turns (query, answer, entities, evidence ids) are kept in `turns` and fed to NLU as dialog context.
 - Requests on the same session are serialized with a per-session lock (a bounded LRU of at most 4,096 idle locks).
@@ -1128,14 +1128,14 @@ Example:
 
 ```bash
 curl -s localhost:8000/agent/chat -H 'Content-Type: application/json' \
-  -d '{"query": "贵州茅台的市盈率是多少", "session_id": "demo", "mode": "auto"}'
+  -d '{"query": "这只股票能买吗", "mode": "auto"}'
 ```
 
-A response with `status: "needs_clarification"` carries `clarification.question`; answer it:
+The response carries the server-issued `session_id` (send it with every later turn). A response with `status: "needs_clarification"` carries `clarification.question`; answer it with that id:
 
 ```bash
 curl -s localhost:8000/agent/resume -H 'Content-Type: application/json' \
-  -d '{"session_id": "demo", "reply": "贵州茅台"}'
+  -d '{"session_id": "<session_id from the response>", "reply": "贵州茅台"}'
 ```
 
 SSE events from `/agent/chat/stream`: `session` first; then, as they happen, `node_start` (a node is about to run), `step` (a node finished), `tool_call`, `tool_result` and `answer_delta` (the `answer` text of the LLM's JSON draft, decoded while it streams, escapes split across chunks included); then `answer` (the verified, compliance-checked response, which replaces the streamed preview) or `clarification`; finally `done`. An `error` event is sent if the run fails. The graph runs on a worker thread that owns the session lock, so a client that disconnects does not leave the session locked: the run finishes, its turn and trace are saved, and the lock is released (`tests/test_agent_round3.py::test_stream_client_disconnect_releases_the_lock_and_saves_the_trace`).

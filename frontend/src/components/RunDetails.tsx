@@ -40,7 +40,7 @@ function CopyId({ value }: { value: string }) {
   );
 }
 
-export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: Turn; sessionId: string }) {
+export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: Turn; sessionId: string | null }) {
   const { lang, t } = useI18n();
   const agent = view.agent;
   const llm = agent?.llm;
@@ -183,7 +183,7 @@ export function RunDetails({ view, turn, sessionId }: { view: AnswerView; turn: 
         </>
       )}
       <Row label={t("run.session")}>
-        <span className="font-mono text-[12px] break-all">{sessionId}</span>
+        <span className="font-mono text-[12px] break-all">{agent?.session_id || sessionId || "–"}</span>
         {agent?.turn_index != null && <span className="ml-1 text-[12px] text-muted">{t("run.turn", { n: agent.turn_index + 1 })}</span>}
       </Row>
     </dl>

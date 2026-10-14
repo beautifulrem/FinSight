@@ -29,7 +29,8 @@ export function HistoryView({ turns }: { turns: SessionTurn[] }) {
       <ol className="mt-2 space-y-3 border-t border-line pt-3">
         {turns.map((turn, i) => (
           <li key={i} className="space-y-1 text-[13.5px]">
-            <p className="font-medium text-ink">{turn.query}</p>
+            {/* (round 18, N15) the question as the user typed it, when the server kept it */}
+            <p className="font-medium text-ink">{turn.typed_query || turn.query}</p>
             {turn.answer && <p className="line-clamp-3 text-muted">{stripCitations(turn.answer)}</p>}
           </li>
         ))}

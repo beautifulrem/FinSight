@@ -215,7 +215,10 @@ export interface ClassicResponse {
 }
 
 export interface SessionTurn {
+  /** The question as the pipeline read it (normalised: traditional characters in simplified form). */
   query: string;
+  /** (round 18, N15) The question as the user typed it, when the server keeps it. */
+  typed_query?: string | null;
   route?: string;
   answer?: string;
   entities?: { name?: string | null; symbol?: string | null }[];
