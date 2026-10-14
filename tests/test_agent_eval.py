@@ -25,7 +25,8 @@ EXPECT = {
 def _response(**overrides):
     base = {
         "route": "workflow",
-        "answer": "可能受多因素影响。最新收盘价 1409.5 元 [price_600519.SH]。",
+        # (round 18) the product's own hedge sentence: a bare "可能" no longer counts as one
+        "answer": "以上证据只能提示可能的影响因素，不能据此确定单一原因。最新收盘价 1409.5 元 [price_600519.SH]。",
         "key_points": [],
         "evidence_used": ["price_600519.SH"],
         "tool_calls": [{"tool": "get_price_history", "ok": True}, {"tool": "search_news", "ok": True}],

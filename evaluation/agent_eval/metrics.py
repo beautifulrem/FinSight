@@ -18,6 +18,8 @@ from typing import Any
 
 from query_intelligence.agent.verifier import _is_supported, answer_texts, claim_numbers
 
+# Generic hedge words, for scoring other assistants' answers (``evaluation/human/score_head_to_head.py``), which do not
+# write FinSight's sentences. FinSight's own turns are scored with the strict markers below.
 _HEDGE_MARKERS = (
     "不能据此",
     "条件性",
@@ -34,6 +36,96 @@ _HEDGE_MARKERS = (
     "not enough",
     "does not establish",
 )
+# (round 18, review-14 N16; asked in reviews 12-14) A FinSight turn is hedged only by the product's own hedge: a
+# compliance note that inserted or enforced one, or one of the product's hedge sentences (compliance.py, composer.py).
+# The old word list counted any "可能", "无法", "not " or "cannot" in an answer, so a factual sentence passed.
+HEDGE_NOTES = frozenset(
+    {
+        "conditional_prefix",
+        "causal_caveat",
+        "removed_trading_instruction",
+        "removed_price_forecast",
+        "softened_judgment_or_causal_language",
+        "price_forecast_hedge",
+        "market_value_forecast_hedge",
+        "earnings_forecast_hedge",
+        "position_size_hedge",
+        "fair_value_hedge",
+    }
+)
+HEDGE_PHRASES = (
+    "不能据此",  # 基于当前证据只能做条件性判断，不能据此给出…; 以上证据只能提示可能的影响因素，不能据此确定…
+    "条件性判断",
+    "仅为证据梳理",
+    "不构成买卖建议",
+    "FinSight 不提供",
+    "FinSight 不给出",
+    "FinSight 不预测",
+    "只提供历史数据",
+    "无法判断其是否",
+    "conditional assessment",
+    "does not establish",
+    "finsight does not",
+    "historical data only",
+    "not a buy",
+)
+# the generic gap words, kept for the uncited (no-tools) score only
+_GENERIC_MISSING_MARKERS = (
+    "未返回", "没有", "未获取", "缺少", "不足", "无法", "not ", "no usable", "unavailable", "missing",
+)  # fmt: skip
+# (round 18) Missing data is stated only by the product's gap sentences or limitations ("当前数据源中没有…的基本面数据",
+# "基本面数据未取到", "无法计算…", "The current data sources do not include…", "… cannot be computed"), not by any
+# "没有", "不足", "not " or "missing" in an answer.
+MISSING_PHRASES = (
+    "数据源中没有",
+    "数据源没有",
+    "数据源只有",
+    "数据源不包含",
+    "数据中没有",
+    "数据没有",
+    "当前数据截至",
+    "没有检索到",
+    "未检索到",
+    "未取到",
+    "未获取",
+    "无法计算",
+    "无法给出",
+    "无法判断",
+    "无法用数据",
+    "不足以计算",
+    "不足一年",
+    "以下只列出",
+    "暂无",
+    "do not include",
+    "does not include",
+    "have no ",
+    "has no ",
+    "holds only",
+    "cannot be computed",
+    "cannot be answered",
+    "cannot be shown",
+    "could not tell which",
+    "not available",
+    "unavailable",
+    "no usable",
+    "only the available",
+)
+
+
+def hedged(response: dict[str, Any], text: str) -> bool:
+    """The turn carries FinSight's own hedge (``HEDGE_NOTES`` / ``HEDGE_PHRASES``)."""
+    lowered = text.lower()
+    return bool(HEDGE_NOTES & set(response.get("compliance_notes") or [])) or any(
+        phrase.lower() in lowered for phrase in HEDGE_PHRASES
+    )
+
+
+def states_missing(text: str) -> bool:
+    """The answer or a limitation is one of FinSight's gap statements (``MISSING_PHRASES``)."""
+    lowered = text.lower()
+    return any(phrase.lower() in lowered for phrase in MISSING_PHRASES)
+
+
 _LLM_FAILURE_FLAGS = ("llm_error", "llm_compose_failed", "llm_revision_failed")
 
 
@@ -49,7 +141,6 @@ _TOOL_ONLY_CHECKS = frozenset({"facts", "required_tools", "any_of_tools", "discl
 # a failed ``facts`` may be an uncited but correct number, and before pure_llm runs recorded the answer
 # language every such turn failed ``language``.
 _UNDECIDABLE_FROM_ROWS = frozenset({"facts", "language"})
-_MISSING_MARKERS = ("未返回", "没有", "未获取", "缺少", "不足", "无法", "not ", "no usable", "unavailable", "missing")
 
 
 def behavior_of(response: dict[str, Any]) -> str:
@@ -98,13 +189,9 @@ def score_turn(response: dict[str, Any], expect: dict[str, Any]) -> dict[str, An
     if expected_behavior == "answer":
         checks["disclaimer"] = bool(str(response.get("risk_disclaimer") or "").strip())
     if expect.get("must_hedge"):
-        lowered = joined.lower()
-        checks["hedged"] = any(marker in lowered for marker in _HEDGE_MARKERS) or bool(
-            {"conditional_prefix", "removed_trading_instruction"} & set(response.get("compliance_notes") or [])
-        )
+        checks["hedged"] = hedged(response, joined)
     if expect.get("must_state_missing"):
-        lowered = f"{joined} {limitations}".lower()
-        checks["states_missing"] = any(marker in lowered for marker in _MISSING_MARKERS)
+        checks["states_missing"] = states_missing(f"{joined} {limitations}")
     if expect.get("forbidden_tools"):
         # e.g. a carried-over "And the P/B?" must not be answered with macro indicators
         checks["no_forbidden_tools"] = not (set(expect["forbidden_tools"]) & used_set)
@@ -126,6 +213,15 @@ def score_turn(response: dict[str, Any], expect: dict[str, Any]) -> dict[str, An
     # construction; this says whether its numbers were right anyway.
     uncited_checks = {name: passed for name, passed in checks.items() if name not in _TOOL_ONLY_CHECKS}
     uncited_checks["facts_stated"] = all(item["stated"] for item in facts)
+    # (round 18) A no-tools LLM cannot write FinSight's hedge or gap sentences: the uncited score, a cross-system
+    # comparison, reads its hedging and gap statements with the generic words (as score_head_to_head.py does)
+    if "hedged" in checks:
+        uncited_checks["hedged"] = checks["hedged"] or any(marker in joined.lower() for marker in _HEDGE_MARKERS)
+    if "states_missing" in checks:
+        gap_text = f"{joined} {limitations}".lower()
+        uncited_checks["states_missing"] = checks["states_missing"] or any(
+            marker in gap_text for marker in _GENERIC_MISSING_MARKERS
+        )
 
     llm = response.get("llm") or {}
     usage = llm.get("usage") or {}
