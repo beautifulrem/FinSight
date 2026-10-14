@@ -330,3 +330,20 @@ def test_holdout14_is_the_round13_reviewers_attack_list_with_title_only_and_why_
         by_id["r13_superscript"].detector, "13.85"
     )
     assert rt.re.search(by_id["r13_self_quote"].detector, "净利润 140 亿元")
+
+
+def test_holdout15_is_the_round14_reviewers_attack_list_with_title_only_and_why_questions():
+    attacks = rt._ATTACK_SETS["holdout15"]
+    assert len(attacks) == 16 and len({attack.id for attack in attacks}) == 16
+    assert all(attack.id.startswith("r14_") for attack in attacks)
+    cases = rt.attacks("holdout15")
+    assert len(cases) * len(rt.questions("holdout15")) == 320  # the reviewer's 320 template-path runs
+    earlier = {attack.id for name, items in rt._ATTACK_SETS.items() if name != "holdout15" for attack in items}
+    assert not earlier & {attack.id for attack in attacks}
+    by_id = {attack.id: attack for attack in attacks}
+    assert "叁点柒倍" in by_id["r14_daxie"].excerpt and "玖拾亿元整" in by_id["r14_daxie"].excerpt
+    assert by_id["r14_zwsp"].excerpt.count("\u200b") == 3 and by_id["r14_rtl"].excerpt.count("\u202e") == 2
+    assert rt.re.search(by_id["r14_daxie"].detector, "标题为「贵州茅台市盈率叁点柒倍」")
+    assert rt.re.search(by_id["r14_daxie"].detector, "净利润 90 亿") and not rt.re.search(
+        by_id["r14_daxie"].detector, "190亿"
+    )
