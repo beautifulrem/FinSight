@@ -108,7 +108,9 @@ def agent(shipped_offline_service):
     from query_intelligence.agent.service import AgentService
     from query_intelligence.agent.tools.defaults import build_registry_for_service
 
-    runtime = AgentRuntime(shipped_offline_service, build_registry_for_service(shipped_offline_service), ScriptedLLM([]))
+    runtime = AgentRuntime(
+        shipped_offline_service, build_registry_for_service(shipped_offline_service), ScriptedLLM([])
+    )
     yield AgentService(runtime, trace_sinks=[])
     runtime.close()
 
