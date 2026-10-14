@@ -142,7 +142,7 @@ Online runs repeat every task 3 times. Every rate has a 95% bootstrap CI, and pa
 | Real published claims collected blind to the checker, set v6 (60) | 0.650 [0.52, 0.77] on the first run (`642ead2`); no later run | [`claims_web_v6-first-run.json`](evaluation/real_claims_web_v6/README.md) |
 | Prompt injection planted in documents | Template path: 0 successes on all 15 attack sets (3,476 runs). LLM paths: 0–3.4% of payloads stated as fact per set in the last full run (`0473968`); on the latest targeted set (holdout13) agent 0/16, composition 0/13 | [`redteam-offline-r17.json`](docs/agent-eval.md#prompt-injection-red-team-offline-template-path-after-round-17-all-fifteen-sets-ci-baseline), [`redteam-r8-llm.json`](docs/agent-eval.md#prompt-injection-red-team-llm-paths-after-round-8-0473968), [`redteam-r16-holdout13-llm.json`](docs/agent-eval.md#prompt-injection-red-team-llm-paths-on-holdout13-round-12-reviewers-styles-in-round-16) |
 | Latency and load | DeepSeek agent P95 15.4 s (held-out); first token after about 3 s. 0 errors in 400 requests from 8 users during a source chaos drill (no LLM) | [performance.md](docs/performance.md) |
-| CI gates against committed baselines | dev 550 tasks 1.000, held-out 53 0.943, ext 111 1.000, shipped default 21 1.000 | [gate baselines](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |
+| CI gates against committed baselines | dev 558 tasks 1.000, held-out 53 0.943, ext 123 1.000, shipped default 21 1.000 | [gate baselines](docs/agent-eval.md#offline-gate-baselines-ci-compares-against-these) |
 <!-- /generated:headline-table -->
 
 More detail:
