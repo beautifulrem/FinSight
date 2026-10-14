@@ -34,6 +34,7 @@ VERIFY_SCRIPTS: tuple[tuple[str, dict[str, str]], ...] = (
     ("evaluation/heldout_r11/verify_heldout_r11.py", _EXT_FIX),
     ("evaluation/heldout_r12/verify_heldout_r12.py", _EXT_FIX),
     ("evaluation/heldout_r13/verify_heldout_r13.py", _EXT_FIX),
+    ("evaluation/heldout_r14/verify_heldout_r14.py", _EXT_FIX),
 )
 
 

@@ -3270,6 +3270,151 @@ Failures (development set; first 25):
 
 * Note: independent round-13 chat slice after the round-17 fixes, run once at 71cb928 (clean tree), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay, reading the reviewer's folder; the engineers state they did not open it; overlap tiers (slice_overlap-heldout_r13-at-71cb928.json): none chat 19/46 → 45/46, claims 14/22 → 22/22; text near-copies (2 exact claim copies in round-17 claim tests) chat 18/44 → 43/44, claims 12/18 → 18/18; + content overlaps chat 15/39 → 38/39, claims 11/15 → 15/15; + content signatures (upper bound) chat 11/27 → 26/27, claims 9/12 → 12/12
 
+### Round-14 held-out chat slice (independent author): before and after the round-18 fixes
+
+Written by the round-14 reviewer before any round-18 fix (`evaluation/heldout_r14/README.md`), run with the shipped default data once before the fixes (by the reviewer) and once after them, from the reviewer's folder. Overlap with own wording: `slice_overlap-heldout_r14-at-f20c6c3.json`; its claims are in the evidence table below (`claims_heldout_r14-*.json`).
+
+#### `chat_heldout_r14-auto-nollm-prefix.json`
+
+Source `evaluation/results/chat_heldout_r14-auto-nollm-prefix.json`: commit `64cfbeb`, run 2026-10-11T11:41:27+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r14/chat_r14_heldout.jsonl --out /Volumes/Remi/finsight-review/heldout_r14/first_run/chat_r14-auto-64cfbeb.json
+```
+
+Development set, path `auto`: 50 tasks, 62 turns. Status: **first and only pre-fix run** of the independent round-14 chat slice.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.160 [0.08, 0.26] |
+| pass^k (all k repeats succeed) | 0.160 [0.08, 0.26] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.839 |
+| Required facts stated and cited | 0.351 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.351 |
+| Task success without the citation / tool / disclaimer checks | 0.160 [0.08, 0.26] |
+| Tool recall (required tools used) | 0.800 |
+| Tool precision (calls that were relevant) | 0.491 |
+| Hedged when required (why / judgment / advice) | – |
+| States missing data when required | – |
+| No trading instructions | 0.871 |
+| Latency P95 (ms) | 4460.6 |
+| Turn success | 0.323 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| buys_then_sale | 2 | 0.00 |
+| closed_position | 5 | 0.00 |
+| comma_count | 3 | 0.00 |
+| control | 7 | 1.00 |
+| correction_turn | 3 | 0.00 |
+| derived_figure | 2 | 0.00 |
+| fullwidth_latin | 3 | 0.00 |
+| hk_terms | 4 | 0.25 |
+| lookalike_unlisted | 5 | 0.00 |
+| nickname | 2 | 0.00 |
+| portfolio_weight | 2 | 0.00 |
+| range_52w | 3 | 0.00 |
+| sale_followup | 3 | 0.00 |
+| short_position | 2 | 0.00 |
+| stated_cost_carry | 4 | 0.00 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r14h_closed_zh_01 | 去年在32元买的紫金矿业2000股，上周在35元一次性清仓了，这笔一共赚了多少 | facts, no_forbidden_content |
+| r14h_closed_zh_02 | 比亚迪我95块进的600股，前天88块全部抛了，亏了多少钱 | facts, no_forbidden_content |
+| r14h_closed_en_01 | I closed out my whole CMB position yesterday: 1,200 shares bought at 36, sold at 42. What did I make? | facts |
+| r14h_closed_zh_03 | 中信证券2000股，成本22元，昨天26元全部卖出，盈利多少 | facts, no_forbidden_content |
+| r14h_closed_en_02 | Sold all 300 of my Midea shares at 85 after buying at 70 — total profit? | facts, required_tools |
+| r14h_comma_zh_01 | 招行持仓：买入均价39，2000股，按最新收盘价市值多少 | facts, no_forbidden_content |
+| r14h_comma_zh_02 | 工行均价7，5000股，现在市值多少 | facts, no_forbidden_content |
+| r14h_comma_zh_03 | 比亚迪成本价85，600股，按收盘价值多少钱 | facts, no_forbidden_content |
+| r14h_lots_zh_01 | 我紫金矿业先在28买了1000股，接着32又加仓了1000股，然后30卖掉800股，剩下的浮动盈亏是多少 | facts, no_forbidden_content |
+| r14h_lots_zh_02 | 工商银行7块买了3000股，7.6又加了2000股，8.1卖出2500股，剩下的赚了多少 | facts, no_forbidden_content |
+| r14h_cost_zh_01 | 按最新收盘价算我赚了多少 | facts |
+| r14h_cost_zh_02 | 现在亏了多少 | facts |
+| r14h_cost_en_01 | How much am I down at the last close? | facts |
+| r14h_cost_zh_03 | 要涨多少才能回本 | facts |
+| r14h_sale_en_01 | Sold 500 of them at 95 today. What's the paper P&L on the remaining shares? | facts |
+| r14h_sale_zh_01 | 今天在31卖了1000股，剩下的浮盈多少 | behavior, facts, entity |
+| r14h_sale_en_02 | Offloaded a quarter of them at 60 - and the shares I kept, where do they stand now? | facts |
+| r14h_alike_zh_01 | 中芯北方的营收 | behavior, limitations |
+| r14h_alike_zh_02 | 比亚迪锂电池的净利润 | behavior, limitations |
+| r14h_alike_zh_03 | 平安理财的净利润 | behavior, limitations |
+| r14h_alike_zh_04 | 宁德邦普的营收 | behavior, limitations |
+| r14h_alike_en_01 | Ping An Technology revenue | behavior, limitations |
+| r14h_hkterm_zh_01 | 中國平安純利 | facts, required_tools |
+| r14h_hkterm_zh_02 | 長江電力股東應佔溢利 | facts, required_tools |
+| r14h_hkterm_zh_03 | 中信證券股本回報率 | facts, required_tools |
+| … | 17 more in the result file | |
+
+* Note: independent round-14 chat slice (written by the round-14 reviewer before any round-18 fix), first and only pre-fix run at 64cfbeb by the reviewer, QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay
+
+#### `chat_heldout_r14-auto-nollm-after-fix.json`
+
+Source `evaluation/results/chat_heldout_r14-auto-nollm-after-fix.json`: commit `f20c6c3`, run 2026-10-14T17:47:11+00:00, no LLM (offline), prompts `agent_system@v4#0349457bbf23`, `compose_system@v4#71d29468ed6d`.
+
+```bash
+python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r14/chat_r14_heldout.jsonl --out outputs/agent_eval/chat_r14-after.json
+```
+
+Development set, path `auto`: 50 tasks, 62 turns. Status: independent round-14 chat slice **after the round-18 fixes**, run once from the reviewer's folder; overlap tiers in the note.
+
+| Metric | Value |
+|---|---|
+| Task success (dealbreaker-gated) | 0.740 [0.62, 0.86] |
+| pass^k (all k repeats succeed) | 0.740 [0.62, 0.86] (k=1) |
+| Behaviour accuracy (answer / clarify / refuse) | 0.952 |
+| Required facts stated and cited | 0.772 |
+| Required facts stated with the snapshot value, cited or not (uncited correctness) | 0.772 |
+| Task success without the citation / tool / disclaimer checks | 0.740 [0.62, 0.86] |
+| Tool recall (required tools used) | 0.956 |
+| Tool precision (calls that were relevant) | 0.657 |
+| Hedged when required (why / judgment / advice) | – |
+| States missing data when required | – |
+| No trading instructions | 0.984 |
+| Latency P95 (ms) | 1411.8 |
+| Turn success | 0.790 |
+
+| Category | Tasks | Task success |
+|---|---|---|
+| buys_then_sale | 2 | 1.00 |
+| closed_position | 5 | 0.60 |
+| comma_count | 3 | 0.67 |
+| control | 7 | 1.00 |
+| correction_turn | 3 | 1.00 |
+| derived_figure | 2 | 0.00 |
+| fullwidth_latin | 3 | 1.00 |
+| hk_terms | 4 | 1.00 |
+| lookalike_unlisted | 5 | 1.00 |
+| nickname | 2 | 1.00 |
+| portfolio_weight | 2 | 0.00 |
+| range_52w | 3 | 0.33 |
+| sale_followup | 3 | 0.33 |
+| short_position | 2 | 0.00 |
+| stated_cost_carry | 4 | 1.00 |
+
+Failures (development set; first 25):
+
+| Task | Query | Failed checks |
+|---|---|---|
+| r14h_closed_zh_01 | 去年在32元买的紫金矿业2000股，上周在35元一次性清仓了，这笔一共赚了多少 | facts |
+| r14h_closed_en_01 | I closed out my whole CMB position yesterday: 1,200 shares bought at 36, sold at 42. What did I make? | facts, no_forbidden_content |
+| r14h_comma_zh_02 | 工行均价7，5000股，现在市值多少 | behavior, facts, required_tools, entity |
+| r14h_sale_en_01 | Sold 500 of them at 95 today. What's the paper P&L on the remaining shares? | facts |
+| r14h_sale_en_02 | Offloaded a quarter of them at 60 - and the shares I kept, where do they stand now? | facts |
+| r14h_short_zh_01 | 现在这笔是赚是亏，多少 | facts |
+| r14h_short_en_01 | Where does that trade stand now? | behavior, facts, entity |
+| r14h_weight_zh_01 | 我持有工行5000股、长江电力1000股，长江电力占这两只总市值的百分之几 | facts |
+| r14h_weight_en_01 | I own 100 Moutai and 1,000 CMB — what share of the total is Moutai? | facts |
+| r14h_range_zh_02 | 比亚迪现价在52周区间里大概处在百分之多少的位置 | facts |
+| r14h_range_en_01 | How wide was CMB's 52-week closing range? | facts |
+| r14h_derive_zh_01 | 按市值和股价算，茅台一共有多少股 | behavior, facts, required_tools, entity |
+| r14h_derive_zh_02 | 工行一年净利润摊到每天大概多少 | facts |
+
+* Note: independent round-14 chat slice after the round-18 fixes, run once at f20c6c3 (clean tree), QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1, no LLM, --no-replay, reading the reviewer's folder; the engineers state they did not open it; overlap tiers (slice_overlap-heldout_r14-at-f20c6c3.json): none chat 8/50 → 37/50, claims 13/24 → 22/24; text near-copies (1 exact chat copy: an 8-character control turn) chat 7/48 → 35/48, claims 12/22 → 20/22; + content overlaps chat 4/40 → 28/40, claims 12/22 → 20/22; + content signatures (upper bound) chat 2/22 → 17/22, claims 10/18 → 17/18
+
 ### The no-tools LLM baseline: strict scoring vs uncited correctness
 
 Under the strict score a task needs every required number stated **and cited with an evidence id**, the required tools and the product's risk-disclaimer field. A model without tools can meet none of these, so its 0.000 is a property of the scoring, not only of the model. The uncited columns score the same answers against the same snapshot values without those requirements. The snapshot is dated 2026-04-22 and the model has no access to it, so uncited correctness measures what the model knew or guessed.
@@ -4651,6 +4796,9 @@ Small online checks with DeepSeek over the offline tools, run sequentially (stop
 
 | Result file | Commit | Summary |
 |---|---|---|
+| `claims_heldout_r14-prefix.json` | `64cfbeb` | claim slice, verdict accuracy 0.542 [0.333, 0.750] over 24 claims — control 1.000; exclusion_claim 0.250; hk_terms_claim 0.000; relative_change 0.667; sum_vs_single 0.667; unit_threshold 0.667 |
+| `claims_heldout_r14-after-fix.json` | `f20c6c3` | claim slice, verdict accuracy 0.917 [0.792, 1.000] over 24 claims — control 1.000; exclusion_claim 0.750; hk_terms_claim 1.000; relative_change 0.667; sum_vs_single 1.000; unit_threshold 1.000 |
+| `slice_overlap-heldout_r14-at-f20c6c3.json` | `f20c6c3` | overlap of `heldout_r14` with every task file and claim file (12 files) and the test literals (round-10 review J9): 1 exact and 3 near hits over 4 slice items (r14c08, r14c23, r14h_ctrl_zh_03, r14h_fix_en_01); chat runs ; content level (round-11 review K16): `content` 9 items (r14c23, r14h_comma_zh_01, r14h_comma_zh_02, r14h_cost_zh_01, r14h_ctrl_zh_01, r14h_ctrl_zh_02, r14h_ctrl_zh_06, r14h_range_zh_01, r14h_sale_zh_01), `content_signature` 31 items |
 | `lookalike-regression-r18.json` | `3e1008d` | deny-by-default lookalike rule (round 18, N5) off vs on over 3973 evaluation query strings: 4 decisions change (4 lose a symbol, 0 gain one) |
 | `claims_heldout_r13-prefix.json` | `aa73005` | claim slice, verdict accuracy 0.636 [0.409, 0.818] over 22 claims — contrast_clause 0.500; control 1.000; definition_clause 0.500; same_company_metrics 0.600; weak_direction 0.400 |
 | `claims_heldout_r13-after-fix.json` | `71cb928` | claim slice, verdict accuracy 1.000 [1.000, 1.000] over 22 claims — contrast_clause 1.000; control 1.000; definition_clause 1.000; same_company_metrics 1.000; weak_direction 1.000 |
@@ -4836,6 +4984,8 @@ Paired comparisons (same tasks, a − b):
 | `chat_heldout_r12-auto-nollm-after-exposure-round17.json` | run | `7378156` | 2026-10-11T07:30:22+00:00 | – | `outputs/agent_eval/chat_r12-r17.json` (19326b5b446a90a9) |
 | `chat_heldout_r13-auto-nollm-prefix.json` | run | `aa73005` | 2026-10-11T05:21:46+00:00 | – | `chat_r13-auto-aa73005.json` (bab17e3314c22b39) |
 | `chat_heldout_r13-auto-nollm-after-fix.json` | run | `71cb928` | 2026-10-11T10:02:04+00:00 | – | `outputs/agent_eval/chat_r13-after.json` (b9a4be55b0ad724f) |
+| `chat_heldout_r14-auto-nollm-prefix.json` | run | `64cfbeb` | 2026-10-11T11:41:27+00:00 | – | `chat_r14-auto-64cfbeb.json` (3f51215b1f891a84) |
+| `chat_heldout_r14-auto-nollm-after-fix.json` | run | `f20c6c3` | 2026-10-14T17:47:11+00:00 | – | `outputs/agent_eval/chat_r14-after.json` (001c39c558ef7de2) |
 | `router_eval-d78b313.json` | router_eval | `d78b313` | 2026-09-25T22:56:36+00:00 | – | written directly |
 | `router_eval-round2.json` | router_eval | `da3ec8b-dirty` | 2026-09-26T18:52:13+00:00 | – | written directly |
 | `router_eval-round3.json` | router_eval | `d3c1495` | 2026-09-28T07:16:51+00:00 | – | written directly |
@@ -4982,6 +5132,9 @@ Paired comparisons (same tasks, a − b):
 | `session-llm-check-h8-r12-after.json` | session | `4c45dac` | 2026-10-01T07:01:55+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `frame-llm-check-r12-fallback-off.json` | frame | `e9badd4` | 2026-10-01T06:26:06+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `frame-llm-check-r12-fallback-on.json` | frame | `e9badd4` | 2026-10-01T06:28:45+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
+| `claims_heldout_r14-prefix.json` | claim_slice | `64cfbeb` | 2026-10-11T11:42:34+00:00 | – | written directly |
+| `claims_heldout_r14-after-fix.json` | claim_slice | `f20c6c3` | 2026-10-14T17:47:34+00:00 | – | written directly |
+| `slice_overlap-heldout_r14-at-f20c6c3.json` | slice_overlap_scan | `f20c6c3` | 2026-10-14T17:45:43+00:00 | – | written directly |
 | `lookalike-regression-r18.json` | lookalike_regression | `3e1008d` | 2026-10-14T17:09:43+00:00 | – | written directly |
 | `claims_heldout_r13-prefix.json` | claim_slice | `aa73005` | 2026-10-11T05:25:26+00:00 | – | written directly |
 | `claims_heldout_r13-after-fix.json` | claim_slice | `71cb928` | 2026-10-11T10:02:29+00:00 | – | written directly |

@@ -1,0 +1,104 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "64cfbeb",
+  "run_at": "2026-10-11T11:42:34+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r14/score_claims_r14.py <out.json>",
+  "note": "independent round-14 claim slice, first and only pre-fix run at 64cfbeb, recorded by the reviewer"
+ },
+ "summary": {
+  "claims": 24,
+  "verdict_accuracy": 0.5417,
+  "ci95": [
+   0.3333,
+   0.75
+  ],
+  "by_category": {
+   "control": 1.0,
+   "exclusion_claim": 0.25,
+   "hk_terms_claim": 0.0,
+   "relative_change": 0.667,
+   "sum_vs_single": 0.667,
+   "unit_threshold": 0.667
+  }
+ },
+ "errors": [
+  {
+   "id": "r14c01",
+   "category": "exclusion_claim",
+   "claim": "在招行、工行和平安银行三家中，除平安银行以外，营收都实现了同比增长",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r14c02",
+   "category": "exclusion_claim",
+   "claim": "宁德时代、比亚迪、美的三家里，除比亚迪外净利润同比均增长超一成",
+   "expected": "supported",
+   "got": "partially_supported"
+  },
+  {
+   "id": "r14c04",
+   "category": "exclusion_claim",
+   "claim": "Among CMB, ICBC and Ping An Bank, all but Ping An Bank grew net profit last year",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r14c05",
+   "category": "hk_terms_claim",
+   "claim": "比亞迪2025年純利326.19億元人民幣",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r14c06",
+   "category": "hk_terms_claim",
+   "claim": "長江電力純利按年增長約6%",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r14c07",
+   "category": "hk_terms_claim",
+   "claim": "中信證券股東應佔溢利約300.8億元",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r14c08",
+   "category": "hk_terms_claim",
+   "claim": "工商銀行市賬率0.74倍",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r14c09",
+   "category": "hk_terms_claim",
+   "claim": "紫金礦業純利按年增長逾八成",
+   "expected": "contradicted",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r14c12",
+   "category": "sum_vs_single",
+   "claim": "五粮液、紫金矿业两家净利润合计不足茅台",
+   "expected": "supported",
+   "got": "unverifiable"
+  },
+  {
+   "id": "r14c15",
+   "category": "relative_change",
+   "claim": "紫金矿业营收增长约15%，净利润增幅相对较小",
+   "expected": "partially_supported",
+   "got": "supported"
+  },
+  {
+   "id": "r14c16",
+   "category": "unit_threshold",
+   "claim": "宁德时代市值站上万亿",
+   "expected": "supported",
+   "got": "unverifiable"
+  }
+ ]
+}
