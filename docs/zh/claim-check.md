@@ -635,6 +635,19 @@ insurance average」、「less than half of Moutai's net profit」、是保险�
 `degraded`。测试：`test_a_seed_value_without_the_corrections_layer_is_never_full_coverage`、
 `test_a_contradiction_on_a_seed_value_is_marked_too`、`test_checks_with_the_layer_present_are_not_degraded`。
 
+**`f7881df` 上的运行**（暴露之后，第 18 轮，2026-10-14；代码与 `5bce89e` 相同）：评审的四条 N13 说法、两条 N11 说法以及 N11 / N12
+聊天问题都得到预期结果（supported / contradicted / supported / supported；supported ×2；722.01、27.91、0.91、83.31、291.11、21.44）。
+基准：dev 311 条说法结论 1.000，359 项核查 1.000；留出集 47 / 54 = 1.000 / 1.000（下限 0.978 / 0.98；
+`claim_bench-holdout-after-exposure-round18.json`）。真实公开说法，每套重跑一次（`claims_web_v*-after-exposure-round18.json`）：v1 0.867
+（52/60），带更正层 0.833（50/60），v2 0.840（42/50），v3 0.880（44/50），v4 0.780（39/50），v5 0.680（34/50），v6 0.650 [0.52, 0.77]
+（39/60；按不区分定义的标注为 0.667）。与上一次运行相比（v1–v5 为第 17 轮，v6 为盲测首次运行）没有任何结论变化：第 18 轮的规则没有
+改变这些集合中任何一条说法的结论。v6 的这次运行标为“暴露之后”，因为它首次运行的错误已经提交；第 18 轮工程师没有打开这个集合。
+同一代码上的门禁：dev 550 个任务 1.000，留出集 53 个 0.943，ext 111 个 1.000，shipped 21 个 1.000。
+
+第 18 轮之后仍未解决：英文的排除（“all but Ping An Bank”）和一次排除多家（“除A、B外”）；名单或“均 / 都”在另一句中的排除；13 条以外的
+港台用语（“收益”作营业收入有意不收录）；更正层缺失时结论仍按种子值给出（只有 `coverage` 和 `degraded` 说明）；界面还不显示
+`excluded` 和核查项的 `degraded` 标记。
+
 ### 宏观数值（C13）
 
 宏观说法与 `get_macro_indicators` 的最新一期读数比对，`as_of` 是读数所属期间（`as_of_basis: indicator_date`）。

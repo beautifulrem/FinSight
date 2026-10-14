@@ -689,6 +689,22 @@ The verdict itself is still the seed values' (chosen behaviour, as in M13): a cl
 also read `coverage` or `degraded`. Tests: `test_a_seed_value_without_the_corrections_layer_is_never_full_coverage`,
 `test_a_contradiction_on_a_seed_value_is_marked_too`, `test_checks_with_the_layer_present_are_not_degraded`.
 
+**Runs at `f7881df`** (after exposure, round 18, 2026-10-14; code as at `5bce89e`): the review's four N13 claims, its two
+N11 claims and its N11 / N12 chat questions give the expected results (supported / contradicted / supported / supported;
+supported ×2; 722.01, 27.91, 0.91, 83.31, 291.11, 21.44). Benches: dev 311 claims verdict 1.000, 359 checks 1.000;
+held-out 47 / 54 = 1.000 / 1.000 (floors 0.978 / 0.98; `claim_bench-holdout-after-exposure-round18.json`). Real
+published claims, every set re-run once (`claims_web_v*-after-exposure-round18.json`): v1 0.867 (52/60), with
+corrections 0.833 (50/60), v2 0.840 (42/50), v3 0.880 (44/50), v4 0.780 (39/50), v5 0.680 (34/50), v6 0.650 [0.52, 0.77]
+(39/60; 0.667 against the definition-blind labels). No verdict changed in any set against its previous run (round 17
+for v1-v5, the blind first run for v6): the round-18 rules change no verdict of these sets. The
+v6 run is labelled after exposure because its first-run errors are committed; the round-18 engineer did not open the
+set. Gates at the same code: dev 550 tasks 1.000, held-out 53 0.943, ext 111 1.000, shipped 21 1.000.
+
+Open after round 18: exclusions in English ("all but Ping An Bank") or of several companies at once ("除A、B外"); an
+exclusion whose list or 均 / 都 is in another sentence; Hong Kong / Taiwan terms outside the 13 rows (收益 as revenue is
+left out on purpose); the verdict without the corrections layer is still the seed values' (only `coverage` and
+`degraded` say so); the UI does not show `excluded` or a check's `degraded` marker yet.
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
