@@ -1219,11 +1219,11 @@ def test_round13_tasks_and_claims_do_not_overlap_the_heldout_or_reviewer_sets():
     # (round 14) the ext set's round-14 tasks (ids ext_r14_*) are checked by the round-14 test below; (round 15) the
     # round-15 safety tasks (ext_r15s_*) by the round-15 safety test at the end of this file; (round 16) the round-16
     # safety tasks (ext_r16s_*) by the round-16 test after it; (round 17) the round-17 frame tasks (r17_*) by the
-    # round-17 test at the end of this file
+    # round-17 test at the end of this file; (round 18) the round-18 frame tasks (r18_*) by the round-18 test
     tasks = _round13_forecast_tasks() + [
         task
         for task in build_ext_tasks()
-        if not task["id"].startswith(("ext_r14_", "r14_", "ext_r15s_", "r15_", "ext_r16s_", "r16_", "r17_"))
+        if not task["id"].startswith(("ext_r14_", "r14_", "ext_r15s_", "r15_", "ext_r16s_", "r16_", "r17_", "r18_"))
     ]
     mine = [turn["query"] for task in tasks for turn in task["turns"]]
     tree = ast.parse(Path(__file__).with_name("test_agent_round13_claims.py").read_text(encoding="utf-8"))
