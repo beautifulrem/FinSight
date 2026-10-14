@@ -144,3 +144,51 @@ def test_a_decline_compared_with_revenue_is_a_growth_comparison(checker, claim, 
 def test_a_narrowing_decline_after_the_figures(checker):
     report = checker("平安银行净利润426.33亿元，同比下降4.21%，降幅较营收有所收窄")
     assert report.verdict == "supported" and report.coverage == "full", report.model_dump()
+
+
+# ---- N10: the corrections layer switched on but missing --------------------------------------------------------
+@pytest.fixture
+def seed_checker(monkeypatch, tmp_path):
+    from evaluation.agent_eval.runner import build_offline_service
+    from query_intelligence import data_loader
+    from query_intelligence.agent.claim_check import check_claim
+    from query_intelligence.agent.tools.defaults import build_registry_for_service
+
+    monkeypatch.setattr(data_loader, "SNAPSHOT_FIX_PATH", tmp_path / "structured_data_fix.json")
+    data_loader.clear_data_caches()
+    service = build_offline_service(snapshot_ext=True, snapshot_fix=True)
+    registry = build_registry_for_service(service)
+    yield lambda claim: check_claim(claim, service=service, registry=registry, zh=not claim.isascii())
+    monkeypatch.undo()
+    data_loader.clear_data_caches()
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "贵州茅台的PE在24.6倍上下",  # the v1 seed value; the corrected one is 21.44
+        "Kweichow Moutai trades at roughly 24.6 times earnings",
+    ],
+)
+def test_a_seed_value_without_the_corrections_layer_is_never_full_coverage(seed_checker, claim):
+    report = seed_checker(claim)
+    assert report.degraded == ["data_layer_missing:corrections"]
+    assert report.coverage == "partial", report.model_dump()
+    assert report.checks and all(check.degraded == ["data_layer_missing:corrections"] for check in report.checks)
+    note = report.checks[0].note
+    assert ("未经更正" in note) if not claim.isascii() else ("uncorrected" in note), note
+
+
+def test_a_contradiction_on_a_seed_value_is_marked_too(seed_checker):
+    report = seed_checker("贵州茅台市盈率不到22倍")  # true on corrected data, false on the seed
+    assert report.coverage == "partial" and report.checks[0].degraded, report.model_dump()
+
+
+def test_checks_with_the_layer_present_are_not_degraded(checker):
+    report = checker("贵州茅台的PE在21.4倍上下")
+    assert report.coverage == "full" and all(check.degraded == [] for check in report.checks), report.model_dump()
+
+
+def test_a_definition_without_the_layer_is_not_degraded(seed_checker):
+    report = seed_checker("市净率等于股价除以每股净资产")
+    assert report.degraded == [] and all(check.degraded == [] for check in report.checks)

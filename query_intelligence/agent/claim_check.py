@@ -818,6 +818,14 @@ class ClaimCheck(BaseModel):
         description="What as_of is: trade_date (price), valuation_date (P/E, P/B), or report_date.",
     )
     note: str = ""
+    degraded: list[str] = Field(
+        default_factory=list,
+        description=(
+            "(round 18, review-14 N10) `data_layer_missing:corrections` when the check was decided on an uncorrected "
+            "v1 seed value because the corrections layer is switched on but missing; the report's coverage is then "
+            "never 'full'."
+        ),
+    )
 
 
 class UncheckedClause(BaseModel):
@@ -1060,11 +1068,14 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
     limitations, degraded = _data_layer_limitations(service, evidence, zh=zh)
     if limitations:
         disclaimer = f"{limitations[0]}{'' if zh else ' '}{disclaimer}"
+        # (round 18, review-14 N10) a check decided on a v1 seed value the missing layer would have corrected is
+        # marked, and the report's coverage is never "full" for it
+        _mark_seed_checks(checks, evidence, degraded, zh=zh)
     unchecked = _unchecked(reading)
     decided = [check for check in checks if check.status != "unverifiable"]
     if not decided:
         coverage = "none"
-    elif len(decided) < len(checks) or unchecked:
+    elif len(decided) < len(checks) or unchecked or any(check.degraded for check in decided):
         coverage = "partial"
     else:
         coverage = "full"
@@ -1134,6 +1145,34 @@ CLAIM_LAYER_NOTE_EN = (
     "The data corrections layer is not loaded: this check was judged against uncorrected seed values from the offline "
     "snapshot, which may differ from the primary filings."
 )
+
+
+SEED_CHECK_NOTE_ZH = "依据未经更正的离线种子值判定（数据更正层未加载），结论仅供参考"
+SEED_CHECK_NOTE_EN = "judged against an uncorrected offline seed value (the data corrections layer is not loaded)"
+_V1_SEED_FILE = "data/structured_data.json"
+
+
+def _mark_seed_checks(
+    checks: list[ClaimCheck], evidence: dict[str, list[AgentEvidence]], degraded: list[str], *, zh: bool
+) -> None:
+    """(round 18, review-14 N10) Mark the decided checks whose value (or compared side, or operand) is a v1 seed record
+    of the offline snapshot, the records the corrections layer replaces (extension records keep their values)."""
+    seed = {
+        item.evidence_id
+        for items in evidence.values()
+        for item in items
+        if item.kind == "structured"
+        and item.source_type in {"market_api", "fundamental_sql"}
+        and str(((item.payload or {}).get("provenance") or {}).get("source") or "") == "offline_snapshot"
+        and str(((item.payload or {}).get("provenance") or {}).get("endpoint") or _V1_SEED_FILE) == _V1_SEED_FILE
+    }
+    for check in checks:
+        used = {check.evidence_id, check.reference_evidence_id, *check.operand_evidence_ids}
+        if check.status == "unverifiable" or not used & seed:
+            continue
+        check.degraded = list(degraded)
+        note = SEED_CHECK_NOTE_ZH if zh else SEED_CHECK_NOTE_EN
+        check.note = f"{check.note}{'；' if zh else '; '}{note}" if check.note else note
 
 
 def _data_layer_limitations(
