@@ -15,11 +15,19 @@ No converter library is a dependency. Two character tables are merged:
 
 Then a few Taiwan / Hong Kong financial terms (每股盈餘 = 每股收益, 年增 = 同比增长). A text with no traditional
 character is returned unchanged; characters outside both tables are kept as written.
+
+Round 18 (review-14 N11 / N12): ``normalise_text`` is what the NLU pipeline, the agent and the claim checker call. It
+reads full-width Latin letters and digits as ASCII (``fold_width``: "ＢＹＤ的ＰＥ" -> "BYD的PE"; the full-width
+Chinese punctuation the parsers split clauses on is kept), converts traditional characters (``to_simplified``) and
+rewrites the Hong Kong / Taiwan financial vocabulary of ``REGIONAL_TERMS`` to the mainland term (純利 -> 净利润,
+股東應佔溢利 -> 归母净利润, 市賬率 -> 市净率, 按年增長 -> 同比增长, 本益比 -> 市盈率 ...), in traditional or simplified
+characters.
 """
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
@@ -70,11 +78,10 @@ def _table() -> tuple[dict[int, str], frozenset[str]]:
     merged = {**_opencc_rows(), **_HAND}
     return str.maketrans(merged), frozenset(char for char, simple in merged.items() if char != simple)
 
-# Taiwan / Hong Kong financial terms, after the character table: (pattern, simplified term)
+# Taiwan / Hong Kong financial terms, after the character table: (pattern, simplified term). Applied to traditional
+# text only ("2025年增5%" in simplified text is a year, then 增); the terms that read the same in either script are in
+# ``REGIONAL_TERMS`` (round 18, which took over 每股盈余, 股东权益报酬率 and 纯益 from this table).
 _TERMS = (
-    (re.compile(r"每股盈余"), "每股收益"),
-    (re.compile(r"股东权益报酬率"), "净资产收益率"),
-    (re.compile(r"税后纯益|纯益"), "净利润"),
     (re.compile(r"年增(?=\s*[+\d])"), "同比增长"),
     (re.compile(r"年减(?=\s*\d)"), "同比下降"),
     (re.compile(r"人币"), "人民币"),
@@ -94,3 +101,120 @@ def to_simplified(text: str) -> str:
     for pattern, term in _TERMS:
         simplified = pattern.sub(term, simplified)
     return simplified
+
+
+# ---------------------------------------------------------------------------------------------------------
+# (round 18, review-14 N12) width
+# ---------------------------------------------------------------------------------------------------------
+# Full-width digits and Latin letters (U+FF10-FF19, U+FF21-FF3A, U+FF41-FF5A) and the full-width percent sign are the
+# ASCII characters NFKC maps them to. Nothing else in the full-width block is folded: the parsers split clauses on
+# ，。；：？！ and read （） as brackets, so those stay as written; ． / ／ / ＆ / ＇ are folded only between ASCII
+# letters or digits ("３．２", "Ｐ／Ｅ", "Ｓ＆Ｐ", "ＢＹＤ＇ｓ"). Circled or mathematical digits (①, 𝟏) are not
+# folded either: a list marker is not a number.
+_WIDTH = str.maketrans(
+    {
+        **{code: code - 0xFEE0 for code in range(0xFF10, 0xFF1A)},
+        **{code: code - 0xFEE0 for code in range(0xFF21, 0xFF3B)},
+        **{code: code - 0xFEE0 for code in range(0xFF41, 0xFF5B)},
+        0xFF05: "%",
+    }
+)
+_WIDTH_JOINERS = re.compile(r"(?<=[0-9A-Za-z])[．／＆＇](?=[0-9A-Za-z])")
+_JOINER_ASCII = {"．": ".", "／": "/", "＆": "&", "＇": "'"}
+_HAS_WIDE = re.compile(r"[％０-９Ａ-Ｚａ-ｚ]")
+
+
+def fold_width(text: str) -> str:
+    """Full-width letters, digits and % as ASCII; full-width Chinese punctuation kept (see ``_WIDTH``)."""
+    if not text or not _HAS_WIDE.search(text):
+        return text
+    folded = text.translate(_WIDTH)
+    return _WIDTH_JOINERS.sub(lambda match: _JOINER_ASCII[match.group(0)], folded)
+
+
+# ---------------------------------------------------------------------------------------------------------
+# (round 18, review-14 N11) Hong Kong / Taiwan financial vocabulary
+# ---------------------------------------------------------------------------------------------------------
+@dataclass(frozen=True)
+class RegionalTerm:
+    """A Hong Kong or Taiwan financial term and the mainland term it is read as. Patterns run on simplified characters
+    (after ``to_simplified``), so one row covers 純利 and 纯利."""
+
+    pattern: re.Pattern[str]
+    term: str
+    region: str  # "HK", "TW" or "HK/TW"
+    note: str
+
+
+# A change word after 按年 / 按季 ("按年增长", "按年下跌"): 按年 alone ("按年计算") is not a year-on-year comparison.
+_CHANGE_AFTER = r"(?=\s*(?:录得)?(?:增|升|上升|上涨|涨|跌|下跌|降|下降|减|减少|下滑|回落|[+\-−]?\d))"
+
+# Sources: the wording of Hong Kong exchange filings and press (HKEX-listed issuers' results announcements in Chinese:
+# "本公司擁有人應佔溢利", "股本回報率", "每股盈利", "按年"; HK financial press: "純利", "市賬率", "收市價", "營業額")
+# and of Taiwan's market (TWSE's daily table "個股日本益比、殖利率及股價淨值比"; Taiwanese results reports: "每股盈餘",
+# "稅後純益", "股東權益報酬率", "年增率"). The mainland terms are the ones the NLU and the claim checker already read.
+# Longer forms come first. Terms whose Hong Kong meaning differs from the mainland word of the same spelling (收益 is
+# revenue in Hong Kong filings, income in the mainland; 除稅後溢利 includes minority interests) are left out on purpose.
+REGIONAL_TERMS: tuple[RegionalTerm, ...] = (
+    RegionalTerm(
+        re.compile(r"(?:本公司|母公司|公司)?(?:普通股)?(?:股东|拥有人|权益持有人)应占(?:年度|年内|期内|本年度)?(?:溢利|利润|纯利|盈利)"),
+        "归母净利润",
+        "HK",
+        "profit attributable to owners / shareholders of the company: the mainland 归属于母公司股东的净利润",
+    ),
+    RegionalTerm(re.compile(r"纯利率|纯益率"), "净利率", "HK/TW", "net profit margin"),
+    RegionalTerm(
+        re.compile(r"税后纯益|纯利润|纯利|纯益"),
+        "净利润",
+        "HK/TW",
+        "HK press 纯利 / TW 稅後純益: the headline net profit (mainland colloquial 纯利润 too)",
+    ),
+    RegionalTerm(
+        re.compile(r"股东权益报酬率|股东权益回报率|股东资金回报率|股本回报率|权益回报率"),
+        "净资产收益率",
+        "HK/TW",
+        "return on equity (ROE); TW 股東權益報酬率, HK 股本回報率 / 股東權益回報率",
+    ),
+    RegionalTerm(re.compile(r"市账率|股价净值比|股价账面值比"), "市净率", "HK/TW", "price-to-book (P/B): HK 市賬率, TW 股價淨值比"),
+    RegionalTerm(re.compile(r"本益比"), "市盈率", "TW", "price-to-earnings (P/E): TW 本益比"),
+    RegionalTerm(re.compile(r"每股盈利|每股盈余"), "每股收益", "HK/TW", "earnings per share (EPS): HK 每股盈利, TW 每股盈餘"),
+    RegionalTerm(
+        re.compile(r"每股资产净值|每股账面值|每股净值"), "每股净资产", "HK/TW", "book value per share: HK 每股資產淨值, TW 每股淨值"
+    ),
+    RegionalTerm(re.compile(r"营业额(?!税)"), "营业收入", "HK", "turnover / revenue: HK 營業額"),
+    RegionalTerm(re.compile(r"收市价"), "收盘价", "HK", "closing price: HK 收市價"),
+    RegionalTerm(re.compile(r"年增率"), "同比增速", "TW", "year-on-year growth rate: TW 年增率"),
+    RegionalTerm(re.compile(r"按年" + _CHANGE_AFTER), "同比", "HK", "year on year: HK 按年 (only before a change word)"),
+    RegionalTerm(re.compile(r"按季" + _CHANGE_AFTER), "环比", "HK", "quarter on quarter: HK 按季 (only before a change word)"),
+)
+
+
+def regional_terms(text: str) -> str:
+    """``text`` with the Hong Kong / Taiwan financial terms of ``REGIONAL_TERMS`` in their mainland form."""
+    for row in REGIONAL_TERMS:
+        text = row.pattern.sub(row.term, text)
+    return text
+
+
+def normalise_text(text: str) -> str:
+    """What every reader of a question or a claim sees: width folded, traditional characters converted, regional
+    financial terms in their mainland form (``normalise_text_steps`` also names the steps that changed the text)."""
+    return normalise_text_steps(text)[0]
+
+
+def normalise_text_steps(text: str) -> tuple[str, list[str]]:
+    """``(text, steps)``: the steps (``fullwidth_to_ascii``, ``traditional_to_simplified``, ``regional_terms``) that
+    changed the text, for the NLU's explainability trace."""
+    steps: list[str] = []
+    if not text:
+        return text, steps
+    folded = fold_width(text)
+    if folded != text:
+        steps.append("fullwidth_to_ascii")
+    simplified = to_simplified(folded)
+    if simplified != folded:
+        steps.append("traditional_to_simplified")
+    mainland = regional_terms(simplified)
+    if mainland != simplified:
+        steps.append("regional_terms")
+    return mainland, steps
