@@ -25,7 +25,14 @@ from ..chatbot import (
 )
 from ..query_terms import asks_position_size
 from ..text_safety import fold
-from .coverage import cost_basis_request, holding_statement, holding_value_request, without_holding_value
+from .coverage import (
+    cost_basis_request,
+    holding_statement,
+    holding_value_request,
+    short_position_request,
+    without_holding_value,
+    without_stated_trades,
+)
 from .evidence import AgentEvidence
 from .frame import without_valuation_extremes
 from .router import _JUDGMENT_MARKERS as _ROUTER_JUDGMENT
@@ -330,10 +337,18 @@ def apply_compliance(
     # (round 16, review-12 L13) the gain or loss against a stated cost, or the value of a stated holding, is arithmetic
     # on the close: the NLU's hold / advice reading of "持有" alone does not prefix it (a judgment word still does)
     # (round 17, review-13 M16) and a holding stated with no question ("我持有比亚迪600股") is not advice either
+    # (round 18, review-14 N4/N14) and a gain or loss whose cost (or short price) an earlier turn stated, carried into
+    # this question by the session ("现在亏多少" after "我持有…成本价86元")
+    carried = str(effective_query or "")
     arithmetic_only = (
-        cost_basis_request(query) is not None or holding_value_request(query) is not None or holding_statement(query)
+        cost_basis_request(query) is not None
+        or holding_value_request(query) is not None
+        or holding_statement(query)
+        or (carried != query and cost_basis_request(carried) is not None)
+        or short_position_request(carried or query) is not None
     ) and not (
-        _JUDGMENT_TRIGGER.search(without_holding_value(query)) or _ROUTER_JUDGMENT.search(without_holding_value(query))
+        _JUDGMENT_TRIGGER.search(judged := without_holding_value(without_stated_trades(query)))
+        or _ROUTER_JUDGMENT.search(judged)
     )
     if not arithmetic_only and guards._needs_conditional_answer_guard(nlu_result, pseudo_retrieval, None, query):
         prefix = guards._conditional_answer_prefix(nlu_result, zh=zh, query=query).strip()
@@ -343,7 +358,11 @@ def apply_compliance(
 
     # (round 11, G5) the value of a stated holding ("我有1000股…值多少钱") is arithmetic on the close, not a fair value
     # (round 14, review-10 J4) the spread between the most and the least expensive is arithmetic, not a judgment
-    asked = " ".join(without_valuation_extremes(without_holding_value(text)) for text in (query, effective_query or ""))
+    # (round 18, review-14 N1/N3) and a trade the user reports ("清仓了", "又加仓了200股") is not a trading question
+    asked = " ".join(
+        without_valuation_extremes(without_holding_value(without_stated_trades(text)))
+        for text in (query, effective_query or "")
+    )
     price_forecast = asks_price_forecast(query, as_of=reference) or asks_price_forecast(
         effective_query or "", as_of=reference
     )

@@ -13,6 +13,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from .coverage import (
+    asks_total_shares,
     cost_basis_request,
     holding_value_request,
     requested_metrics,
@@ -164,6 +165,8 @@ def plan_from_nlu(nlu_result: dict[str, Any]) -> Plan:
     holding = holding_value_request(raw_query) is not None or cost_basis_request(raw_query) is not None
     # (round 12, H9) the metric lexicon decides: "一股赚多少钱" fetches the fundamentals and the close like 每股收益
     asks_eps = bool(_EPS_TERMS.search(text)) or any(metric.key == "eps" for metric in requested_metrics(text))
+    # (round 18, review-14 N14) the total share count is implied by the market value and the close: fetch both
+    asks_eps = asks_eps or asks_total_shares(text)
     # (round 13, I2) a price forecast ("能不能站上105元") is answered with the dated close under the hedge
     price_forecast = asks_price_forecast(raw_query)
     # (round 14) a 52-week range / distance question ("how far below its 52-week high") needs the price history
