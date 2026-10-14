@@ -420,7 +420,9 @@ def test_an_h_share_question_is_out_of_coverage_and_names_no_a_share_price(agent
     assert result["route"] == "refuse" and result["limitations"] == ["out_of_coverage"]
     assert "53.61" not in result["answer"] and "H 股" in result["answer"]
     mixed = agent.chat("中国平安和比亚迪电子的市盈率", session_id="r11-mixed")
-    assert "未用名称相近的 A 股代替" in mixed["answer"]
+    # (round 18, N5) the NLU sets 比亚迪电子 aside as an unknown company before the foreign-line check sees it
+    notes = ("未用名称相近的 A 股代替", "「比亚迪电子」；它与比亚迪名称相近，但不是同一家公司")
+    assert any(note in mixed["answer"] for note in notes)
     assert "002594.SZ" not in {call["arguments"].get("target") for call in mixed["tool_calls"]}
 
 
