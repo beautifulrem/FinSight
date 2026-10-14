@@ -411,6 +411,12 @@ class AgentRuntime:
             )
             rewrite_reasons.extend(session_reasons)
         elif not turns and not off_topic and not instruction_only and not outside and not injected:
+            corrected = resolve_correction(query, turns, listed_entities(nlu))
+            if corrected is not None:
+                # (round 18, review-14 N14) "不是问X，是问Y的市盈率" opening a conversation: only Y is asked about
+                query, reason = corrected
+                rewrite_reasons.append(reason)
+                nlu = analyze(query)
             # (round 12, H2) "五粮液的PE比茅台低百分之多少" opening a conversation: the same frame computation
             framed = self._frame_rewrite(query, turns, nlu, analyze)
             if framed is not None:
