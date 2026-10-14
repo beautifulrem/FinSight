@@ -445,6 +445,8 @@ _COMPARATOR_WORDS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("le", _words(r"至多|最多|以内|\bat most\b|\bup to\b")),
     # "营收破千亿" (round 12, H6): 破 alone reaches the number; 跌破 is a fall below it, 突破 stays "above"
     ("ge", _words(r"至少|起码|最少|(?<![跌突击打])破(?![产净发位获案解坏除])|\bat least\b")),
+    # (round 18, review-14 N13) "跨过万亿门槛", "迈入千亿俱乐部": reaching a threshold
+    ("ge", _words(r"跨过|跨越|迈过|迈上|迈入|跃上|跃过|冲上|登上|跻身")),
     (
         "lt",
         _words(r"低于|小于|少于|不到|不足|不及|跌破|\bbelow\b|\bunder\b|\bless than\b|\blower than\b|\bfewer than\b"),
@@ -674,6 +676,24 @@ _N_OF_ANOTHER = re.compile(
     r"(?P<n>[一二两三四五六七八九十]|\d+)\s*个\s*(?P<half>半)?"
     r"(?!\s*(?:半|多|月|小时|钟头|钟|星期|礼拜|交易日|工作日|季度|年|百分点|点|人|亿|万|元|倍))(?=\s*[一-鿿A-Za-z])"
 )
+_RATE_AGAINST_METRIC = re.compile(
+    r"(?P<rate>降幅|跌幅|减幅|增幅|涨幅|增速)\s*(?:较|比|相比|相较于?|较之)\s*"
+    r"(?P<metric>营业总收入|营业收入|营收|收入|归母净利润|扣非净利润|净利润)\s*(?:的)?\s*(?:降幅|跌幅|减幅|增幅|涨幅|增速)?\s*"
+    r"(?P<adverb>有所|明显|大幅|进一步|略有|显著|继续|略|更为|更加|更)?\s*(?P<way>收窄|缩小|扩大|加大|加深|放大)"
+)
+
+
+def _rate_against_metric(match: re.Match[str]) -> str:
+    """ "降幅较营收收窄" -> "降幅小于营收降幅", "增幅较营收扩大" -> "增幅大于营收增幅"."""
+    rate = match.group("rate")
+    smaller = match.group("way") in {"收窄", "缩小"}
+    return f"{rate}{match.group('adverb') or ''}{'小于' if smaller else '大于'}{match.group('metric')}{rate}"
+
+
+_BARE_TRILLION = re.compile(
+    r"(?P<lead>(?:突破|站上|跨过|跨越|迈过|迈上|迈入|跃上|跃过|冲上|登上|跻身|跌破|超过|超出|超|破|逾|不足|不到|达到|"
+    r"接近|逼近|将近|近)(?:了|到)?\s*)万亿"
+)
 _FULLWIDTH = str.maketrans("０１２３４５６７８９．％＋－", "0123456789.%+-")
 
 _CN_DIGITS = dict(zip("零〇一二两三四五六七八九", (0, 0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9), strict=True))
@@ -850,6 +870,13 @@ class ClaimReport(BaseModel):
         default_factory=list,
         description="(round 17, M13) Machine-readable degradations, as in the chat: `data_layer_missing:corrections`.",
     )
+    excluded: list[str] = Field(
+        default_factory=list,
+        description=(
+            "(round 18, review-14 N13) Companies the claim leaves out of its group ('招行、工行、平安银行中，除平安银行"
+            "外…均…': 平安银行): they are not checked; the shared statement is checked for the others."
+        ),
+    )
 
 
 _INDUSTRY_LABEL = re.compile(r"^(?P<industry>[一-鿿]+?)(?:行业|板块)(?P<average>平均|均值|平均水平)?$")
@@ -996,6 +1023,14 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
         match = phrase.search(claim)
         if match and all(target.get("sector") != name for target in targets):
             targets.append({"name": name, "symbol": None, "key": f"sector:{name}", "sector": name, "_mentions": []})
+    # (round 18, review-14 N13) "A、B、C中，除C外…均…": the claim is about A and B; C is left out of the reading
+    claim, excluded = _drop_exclusions(claim, targets)
+    if excluded:
+        targets = [
+            target
+            for target in targets
+            if target.get("name") not in excluded or any(name and name in claim for name in target["_mentions"])
+        ]
     reading = _read(claim, targets, zh=zh)
     numbers = reading.numbers
     evidence = _fetch([number for number in numbers if not number.reasons], registry)
@@ -1058,6 +1093,7 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
         disclaimer=disclaimer,
         limitations=limitations,
         degraded=degraded,
+        excluded=excluded,
     )
 
 
@@ -1148,6 +1184,99 @@ SHORT_NAMES: dict[str, ShortName] = {
 
 def _covers(mention: str, short: str) -> bool:
     return bool(mention) and short in mention and mention != short
+
+
+# ---------------------------------------------------------------------------------------------------------
+# (round 18, review-14 N13) Exclusions: "A、B、C中，除C外净利润均同比增长" is about A and B
+# ---------------------------------------------------------------------------------------------------------
+# 除 / 除了 / 除去 need 外 / 之外 / 以外 after the name (除了 alone also ends at a comma); 不算 / 不含 / 剔除 ... need
+# nothing; "A除外" is the name first. 除…外 followed by 也 / 还 / 以及 in its sentence is "besides" ("除了茅台外，五粮液
+# 也…"), not an exclusion. Only companies the claim names are excluded ("除房地产业务外" is left alone).
+_EXCLUDE_BEFORE = re.compile(
+    r"(?P<word>除了|除去|除开|除掉|除|不算|不计|不含|不包括|不包含|剔除|排除|刨去|刨除|去掉)\s*$"
+)
+_EXCLUDE_AFTER_CHU = re.compile(r"\s*(?:之外|以外|外)")
+_EXCLUDE_AFTER_NAME = re.compile(r"\s*除外")
+_BESIDES_REST = re.compile(r"^[^。；;！!？?]{0,24}?(?:也|还|以及|外加|另加|再加|加上|同样)")
+_JOINER = r"[、和与及跟]"
+# what is left of the group's wording once a member is excluded: "三家之中，", "这几家里", "其余两家", "另外两家"
+_GROUP_AFTER_LIST = re.compile(
+    r"\s*(?:这|这些)?\s*(?:[两二三四五六七八九十几\d]+\s*家(?:公司)?)?\s*(?:之中|当中|中间|里面|中|里)?\s*[，,]?"
+)
+_REST_OF_GROUP = re.compile(
+    r"\s*[，,]?\s*(?:其余|其他|另外|剩下的?|余下的?)?\s*(?:的)?\s*(?:[两二三四五六七八九十几\d]+\s*家(?:公司)?)?\s*[，,]?"
+)
+
+
+def _drop_exclusions(claim: str, targets: list[dict[str, Any]]) -> tuple[str, list[str]]:
+    """``(claim, excluded)``: the claim with each excluded company's exclusion phrase and its place in the group's list
+    removed ("招行、工行、平安银行中，除平安银行外净利润均同比增长" -> "招行、工行净利润均同比增长"), and the excluded
+    companies' names, in order. A claim without an exclusion is returned unchanged."""
+    excluded: list[str] = []
+    names = sorted(
+        {str(name) for target in targets if target.get("symbol") for name in target.get("_mentions") or [] if name},
+        key=len,
+        reverse=True,
+    )
+    for target in targets:
+        if not target.get("symbol"):
+            continue
+        mentions = sorted({str(name) for name in target.get("_mentions") or [] if name}, key=len, reverse=True)
+        found = _exclusion_span(claim, mentions)
+        if found is None:
+            continue
+        start, end = found
+        end = _REST_OF_GROUP.match(claim, end).end()  # type: ignore[union-attr]
+        before, after = claim[:start], claim[end:]
+        if before.rstrip().endswith(("，", ",")) and after.lstrip().startswith(("，", ",")):
+            after = after.lstrip()[1:]
+        claim = _drop_list_member(before + after, mentions, names)
+        excluded.append(str(target.get("name")))
+    return claim, excluded
+
+
+def _exclusion_span(claim: str, mentions: list[str]) -> tuple[int, int] | None:
+    """Where the exclusion phrase of one of ``mentions`` is ("除平安银行外", "不算五粮液", "比亚迪除外")."""
+    for name in mentions:
+        for match in re.finditer(re.escape(name), claim):
+            lead = _EXCLUDE_BEFORE.search(claim, 0, match.start())
+            if lead is not None:
+                if not lead.group("word").startswith("除"):
+                    return lead.start(), match.end()
+                closing = _EXCLUDE_AFTER_CHU.match(claim, match.end())
+                if closing is None and not (
+                    lead.group("word") == "除了" and re.match(r"\s*[，,]", claim[match.end() :])
+                ):
+                    continue
+                end = closing.end() if closing else match.end()
+                if not _BESIDES_REST.match(claim[end:]):  # "除了茅台外，五粮液也…": besides, not except
+                    return lead.start(), end
+                continue
+            closing = _EXCLUDE_AFTER_NAME.match(claim, match.end())
+            if closing is not None and not _BESIDES_REST.match(claim[closing.end() :]):
+                return match.start(), closing.end()
+    return None
+
+
+def _drop_list_member(claim: str, mentions: list[str], names: list[str]) -> str:
+    """The claim with the excluded company taken out of the list it is a member of ("A、B、C三家之中" -> "A、B"), and
+    the group words after the list ("三家之中，") that no longer fit."""
+    if not names:
+        return claim
+    any_name = "|".join(re.escape(name) for name in names)
+    for name in mentions:
+        member = re.compile(rf"{_JOINER}\s*{re.escape(name)}|{re.escape(name)}\s*{_JOINER}(?=\s*(?:{any_name}))")
+        match = member.search(claim)
+        if match is None:
+            continue
+        claim = claim[: match.start()] + claim[match.end() :]
+        # the rest of the list from where the member was, then the group words after it
+        rest = re.compile(rf"(?:\s*{_JOINER}?\s*(?:{any_name}))*").match(claim, match.start())
+        group = _GROUP_AFTER_LIST.match(claim, rest.end() if rest else match.start())
+        if group is not None and group.group(0):
+            claim = claim[: group.start()] + claim[group.end() :]
+        return claim
+    return claim
 
 
 def _expand_short_names(claim: str, entities: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
@@ -1335,6 +1464,12 @@ def normalise(claim: str) -> str:
     text = re.sub(r"(?<![A-Za-z])twice\b(?!\s+(?:a|per)\b)", "2 times", text, flags=re.I)
     text = _EN_MULTIPLE.sub(lambda m: f"{_EN_MULTIPLES[m.group(1).lower()]} times", text)  # "more than double"
     text = _PMI_LINE.sub("50", text)
+    # (round 18, review-14 N13) "营收突破万亿", "市值站上万亿", "跌破万亿": a bare 万亿 after a threshold word is one
+    # 万亿 (千亿 / 百亿 are read as numerals already); "万亿市值公司" without a threshold word is left alone
+    text = _BARE_TRILLION.sub(lambda m: f"{m.group('lead')}1万亿", text)
+    # (round 18, review-14 N13) "降幅较营收收窄", "增幅较营收扩大": the rates of two figures of the company compared
+    # ("降幅小于营收降幅"), not a move against the previous session
+    text = _RATE_AGAINST_METRIC.sub(_rate_against_metric, text)
     text = re.sub(r"的一半", "的0.5倍", text)
     text = _HALF_AFTER_COMPARISON.sub(_half_of_comparison, text)
     # A share of another value is a multiple (round 9): "的三分之一" → "的0.3333倍", "的六成" → "的0.6倍".
@@ -3991,7 +4126,10 @@ def _qualitative(number: _Number, word: str, *, big: bool) -> None:
 _REL_BI = re.compile(r"比")
 _REL_WORD = re.compile(
     r"高于|大于|超过|多于|强于|好于|优于|跑赢|高过|大过|多过|强过|胜过|赢过|低于|小于|少于|不及|不如|逊于|弱于|差于|跑输|低过|"
-    r"快于|慢于"  # (round 17, review-13 M12c) "营收增速快于其净利润增速"
+    r"快于|慢于|"  # (round 17, review-13 M12c) "营收增速快于其净利润增速"
+    # (round 18, review-14 N13) "A和B净利润之和不足C一家", "加起来还不到C": below the compared side. With a number in
+    # the clause these are bounds ("不到30倍"), left to the number by ``_relation_at``; not "想不到" / "达不到"
+    r"(?<![想做达找得办看见听])(?:不到|不足)"
 )
 _REL_NOT_AS = re.compile(r"没有|没")
 _REL_EN = re.compile(
