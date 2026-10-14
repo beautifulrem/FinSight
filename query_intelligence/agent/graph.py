@@ -41,7 +41,7 @@ from ..chat.language import (
     session_answer_language,
 )
 from ..integrations.intraday import asks_about_today
-from ..traditional import to_simplified
+from ..traditional import normalise_text
 from .compliance import apply_compliance, data_layer_note, language_violation
 from .composer import (
     answer_json_status,
@@ -264,9 +264,11 @@ class AgentRuntime:
         # Every turn-scoped field is reset explicitly: with a checkpointer, values from the previous
         # turn on the same thread would otherwise leak into this one. ``turns`` is session memory.
         # (round 17, review-13 M9) a question in traditional characters ("比亞迪和寧德時代的營收合計") is read in
-        # simplified characters by every stage (the NLU, the router, the frame and the composer).
+        # simplified characters by every stage (the NLU, the router, the frame and the composer); (round 18, review-14
+        # N11 / N12) with full-width letters and digits as ASCII and Hong Kong / Taiwan financial terms in their
+        # mainland form.
         return {
-            "query": to_simplified(query),
+            "query": normalise_text(query),
             "mode": mode,
             "started_at": time.time(),
             "user_profile": user_profile or {},

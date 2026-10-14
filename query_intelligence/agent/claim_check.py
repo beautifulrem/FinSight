@@ -65,6 +65,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from ..runtime_entity_assets import COLLOQUIAL_ALIASES
+from ..traditional import normalise_text
 from .claim_definitions import Definition, blank_definitions, read_definitions
 from .coverage import METRICS as COVERAGE_METRICS
 from .coverage import PROFIT_GROWTH_FIELDS
@@ -72,7 +73,6 @@ from .evidence import _NUMBER as _NUMBER_TOKEN
 from .evidence import AgentEvidence
 from .names import INDUSTRY_EN, english_aliases, english_name
 from .tools import ToolRegistry
-from .traditional import to_simplified
 from .verifier import _BARE_SCALES, _DATE_PATTERNS, _HYPOTHETICAL, _PARAMETER_PATTERNS, _UNIT_SCALES, EN_MONTH
 
 Status = Literal["supported", "contradicted", "unverifiable"]
@@ -948,8 +948,10 @@ class _Number:
 def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = True) -> ClaimReport:
     written = claim
     # (round 14) traditional characters ("工商銀行…淨利潤…億元") and "&" between English words ("Industrial &
-    # Commercial Bank of China") are read as their simplified / spelled-out forms; the report keeps the claim as written
-    claim = _AMPERSAND.sub(" and ", to_simplified(claim))
+    # Commercial Bank of China") are read as their simplified / spelled-out forms (the report keeps the claim as
+    # written); (round 18, review-14 N11 / N12) full-width letters and digits too ("ＰＥ"), and Hong Kong / Taiwan
+    # financial terms ("純利…按年增長", "市賬率") in their mainland form
+    claim = _AMPERSAND.sub(" and ", normalise_text(claim))
     # (round 14) the NLU reads "两个半招行" as 两个 / 半招 / 行; the company is a word of "相当于2.5倍招行"
     nlu = service.analyze_query(_n_of_another(claim))
     # (round 16, review 12 L9) everyday short names ("紫金", "宁德", "平银"): written out before the NLU reads the

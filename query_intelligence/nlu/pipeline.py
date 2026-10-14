@@ -11,7 +11,7 @@ from ..config import Settings
 from ..data_loader import load_aliases, load_entities, load_seed_aliases, load_seed_entities, load_synonyms
 from ..query_terms import asks_position_size, contains_bucket_market_term
 from ..training_data import filter_rows_for_label, load_training_rows
-from ..traditional import to_simplified
+from ..traditional import normalise_text_steps
 from .classifiers import INTENT_SAMPLES, TOPIC_SAMPLES, MultiLabelClassifier, ProductTypeClassifier, SingleLabelTextClassifier
 from .clarification_gate import ClarificationGate
 from .entity_boundary_crf import EntityBoundaryCRF
@@ -285,12 +285,13 @@ class NLUPipeline:
 
     def run(self, query: str, user_profile: dict, dialog_context: list, debug: bool) -> dict:
         # (round 17, review-13 M9) traditional characters are read as simplified ones before any rule or model
-        # ("長江電力的市淨率是多少" was refused as out of scope); ``raw_query`` keeps what the user wrote
+        # ("長江電力的市淨率是多少" was refused as out of scope); (round 18, review-14 N11 / N12) full-width letters and
+        # digits as ASCII ("ＢＹＤ", "ＰＥ") and Hong Kong / Taiwan financial terms in their mainland form ("市賬率",
+        # "股東應佔溢利"). ``raw_query`` keeps what the user wrote
         raw_query = query
-        query = to_simplified(query)
+        query, text_steps = normalise_text_steps(query)
         normalized_query, normalization_trace = self.normalizer.normalize(query)
-        if query != raw_query:
-            normalization_trace = ["traditional_to_simplified", *normalization_trace]
+        normalization_trace = [*text_steps, *normalization_trace]
         time_scope = self.normalizer.detect_time_scope(normalized_query)
         operation = self.normalizer.detect_operation(normalized_query)
 
