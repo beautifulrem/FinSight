@@ -16,7 +16,10 @@ from .coverage import (
     PROFIT_GROWTH_FIELDS,
     PriceRequest,
     asks_about_industry,
+    asks_portfolio_weight,
+    asks_total_shares,
     bind_positions,
+    cost_basis_request,
     coverage_gaps,
     drawdown_gaps,
     failed_target_statements,
@@ -260,7 +263,13 @@ def compose_template(
         facts.append(_margin_ranking(margins, zh))
     if "eps" in {metric.key for metric in wanted}:
         facts.extend(fact for fact in _implied_eps(tool_log, zh) if fact not in facts)
+    if query and asks_total_shares(query):
+        facts.extend(fact for fact in _implied_total_shares(tool_log, zh) if fact not in facts)
     holding = holding_value_request(query) if query else None
+    if holding is not None and (cost_basis_request(query) or {}).get("sales"):
+        # (round 18, review-14 N1) the count belongs to a position the question sells (in part or in full): its value
+        # at the latest close is not what is asked
+        holding = None
     positions = holding_positions(query) if query else []
     several = _several_holdings(positions, tool_log, query, zh, purchase=holding_purchase(query)) if positions else []
     if several:
@@ -278,6 +287,9 @@ def compose_template(
     costed = cost_basis_sentences(tool_log, query, zh) if query else []
     if costed:
         facts = [*costed, *facts]
+    shorted = short_sentences(tool_log, query, zh) if query else []
+    if shorted:
+        facts = [*shorted, *facts]
     booked = book_value_sentences(query, tool_log, zh) if query else []
     if booked:
         facts = [*booked, *(fact for fact in facts if fact not in booked)]
@@ -436,9 +448,22 @@ def _several_holdings(
     joined_cites = "".join(dict.fromkeys(cites))
     dates = sorted({str(closes[str(symbol)].get("as_of") or "") for symbol in bound} - {""})
     when = "、".join(dates) if zh else ", ".join(dates)
+    weights = ""
+    if asks_portfolio_weight(query) and not purchase and sum(values) > 0:
+        # (round 18, review-14 N14) each position's weight in the stated holdings: its value ÷ the total
+        names = [closes[str(symbol)].get("name") or symbol for symbol in bound]
+        shares_of = [
+            f"{name} {_num(value)} ÷ {total} ≈ {_num(round(value / sum(values) * 100, 2))}%"
+            for name, value in zip(names, values, strict=True)
+        ]
+        weights = (
+            ("；按市值计算的持仓占比：" + "，".join(shares_of))
+            if zh
+            else ("; weights by value: " + ", ".join(shares_of))
+        )
     if zh:
         verb = "买入约需" if purchase else "市值约为"
-        sentence = f"按最新收盘价（{when}）计算：{'，'.join(parts)}，合计{verb} {total} 元 {joined_cites}。"
+        sentence = f"按最新收盘价（{when}）计算：{'，'.join(parts)}，合计{verb} {total} 元{weights} {joined_cites}。"
         note = (
             "这是按最近收盘价估算的金额，未含佣金、印花税等交易费用，不是可成交价格，也不是估值判断或投资建议。"
             if purchase
@@ -447,7 +472,9 @@ def _several_holdings(
         return [sentence, note]
     # not "worth CNY …": the output layer reads that as a fair-value statement
     verb = "buying them all takes about" if purchase else "market value"
-    sentence = f"At the latest closes ({when}): {', '.join(parts)}, {verb} CNY {total} in total {joined_cites}."
+    sentence = (
+        f"At the latest closes ({when}): {', '.join(parts)}, {verb} CNY {total} in total{weights} {joined_cites}."
+    )
     note = (
         "This is an estimate at the last closes before commissions and stamp duty, not investment advice."
         if purchase
@@ -488,6 +515,50 @@ def _implied_eps(tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
                 f"{data.get('name')}'s EPS implied by the latest close and the P/E (TTM) is about CNY {_num(close)} / "
                 f"{_num(pe)} ≈ CNY {eps} (a derived figure, not the company's reported EPS; close of "
                 f"{price.get('as_of')}) {cites}."
+            )
+    return sentences
+
+
+def implied_total_shares(tool_log: list[dict[str, Any]]) -> list[tuple[dict[str, Any], dict[str, Any], float]]:
+    """(round 18, review-14 N14) ``(fundamentals, price, shares)`` for each target whose total market value and latest
+    close this run has: the share count the two imply (market value ÷ close)."""
+    closes = {
+        str((entry.get("data") or {}).get("symbol")): entry.get("data") or {}
+        for entry in tool_log
+        if entry.get("tool") == "get_price_history" and entry.get("ok")
+    }
+    found = []
+    for entry in tool_log:
+        data = entry.get("data") or {}
+        price = closes.get(str(data.get("symbol")))
+        value = (data.get("metrics") or {}).get("total_mv")
+        if entry.get("tool") != "get_fundamentals" or not entry.get("ok") or not price or not data.get("evidence_id"):
+            continue
+        close = price.get("close")
+        if not value or not close or float(close) <= 0 or not price.get("evidence_id"):
+            continue
+        found.append((data, price, float(value) / float(close)))
+    return found
+
+
+def _implied_total_shares(tool_log: list[dict[str, Any]], zh: bool) -> list[str]:
+    """(round 18, review-14 N14) The total share count when no source reports it: the market value divided by the
+    latest close, with both operands and a label saying it is derived, not the company's disclosed share capital."""
+    sentences = []
+    for data, price, shares in implied_total_shares(tool_log):
+        value, close = float(data["metrics"]["total_mv"]), float(price["close"])
+        cites = f"[{price['evidence_id']}][{data['evidence_id']}]"
+        count = _num(round(shares / 1e8, 2))
+        if zh:
+            sentences.append(
+                f"{data.get('name')}按总市值与最新收盘价反推的隐含总股本约为 {_money(value, zh)} ÷ {_num(close)} 元 ≈ "
+                f"{count} 亿股（推算值，不是公司披露的股本数；收盘价日期 {price.get('as_of')}） {cites}。"
+            )
+        else:
+            sentences.append(
+                f"{data.get('name')}'s share count implied by its market value and the latest close is about "
+                f"{_money(value, zh)} / CNY {_num(close)} ≈ {_num(round(shares / 1e9, 3))} bn shares (a derived "
+                f"figure, not the company's disclosed share capital; close of {price.get('as_of')}) {cites}."
             )
     return sentences
 
@@ -1678,6 +1749,38 @@ def _from_52w_extremes(data: dict[str, Any], zh: bool, request: PriceRequest) ->
                 f"{_num(close)}) ÷ {_num(close)} ≈ {pct}%, to get back to its 52-week high close of "
                 f"{_px(high, data, zh)} on {found.get('high_date')} [{eid}]."
             )
+    if request.spread_52w and high is not None and low is not None:
+        # (round 18, review-14 N14) the spread between the 52-week high and low close, in yuan and in percent of the low
+        gap = round(float(high) - float(low), 3)
+        pct = _num(round(gap / float(low) * 100, 2)) if float(low) else None
+        share = f"，即 ({_num(high)} − {_num(low)}) ÷ {_num(low)} ≈ {pct}%" if pct is not None and zh else ""
+        if zh:
+            sentences.append(
+                f"{name}近52周最高收盘 {_px(high, data, zh)}与最低收盘 {_px(low, data, zh)}相差 {_num(high)} − "
+                f"{_num(low)} = {_num(gap)} 元{share} [{eid}]。"
+            )
+        else:
+            share = f", or ({_num(high)} − {_num(low)}) ÷ {_num(low)} ≈ {pct}% of the low" if pct is not None else ""
+            sentences.append(
+                f"{name}'s 52-week high close of {_px(high, data, zh)} and low close of {_px(low, data, zh)} are "
+                f"{_num(high)} − {_num(low)} = CNY {_num(gap)} apart{share} [{eid}]."
+            )
+    if request.position_52w and high is not None and low is not None and float(high) > float(low):
+        # (round 18, review-14 N14) where the close sits in the range: (close − low) ÷ (high − low), 0% at the low
+        pct = _num(round((float(close) - float(low)) / (float(high) - float(low)) * 100, 2))
+        if zh:
+            sentences.append(
+                f"{name}最新收盘 {_px(close, data, zh)}位于近52周最低收盘 {_px(low, data, zh)}与最高收盘 "
+                f"{_px(high, data, zh)}之间，按 ({_num(close)} − {_num(low)}) ÷ ({_num(high)} − {_num(low)}) ≈ {pct}% "
+                f"计算（0% 为最低、100% 为最高） [{eid}]。"
+            )
+        else:
+            sentences.append(
+                f"{name}'s latest close of {_px(close, data, zh)} sits at ({_num(close)} − {_num(low)}) ÷ "
+                f"({_num(high)} − {_num(low)}) ≈ {pct}% of its 52-week range between the low close of "
+                f"{_px(low, data, zh)} and the high close of {_px(high, data, zh)} (0% is the low, 100% the high) "
+                f"[{eid}]."
+            )
     if request.off_high_52w and high:
         pct = _num(round((float(high) - float(close)) / float(high) * 100, 2))
         # (round 16, review-12 L13) the gap in yuan as well as in percent ("还差多少元")
@@ -1852,6 +1955,8 @@ def cost_basis_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -
     close, eid, name, as_of = float(data["close"]), data.get("evidence_id"), data.get("name"), data.get("as_of")
     if not eid:
         return []
+    if asked.get("closed") and asked.get("bought") is None:
+        return _closed_per_share_sentences(asked, data, zh)
     if asked.get("sales"):
         return _sale_sentences(asked, close, data, zh)
     if asked.get("rise_to_cost"):
@@ -1974,7 +2079,8 @@ def _sale_sentences(asked: dict[str, Any], close: float, data: dict[str, Any], z
             clauses.append("已全部卖出，没有剩余持仓")
         if found["total"] is not None:
             clauses.append(f"已实现与未实现两部分合计 {_num(found['total'])} 元")
-        return ["；".join(clauses) + f" [{eid}]。", _PNL_DISCLAIMER_ZH]
+        closed = asked.get("closed") or remaining == 0
+        return ["；".join(clauses) + f" [{eid}]。", _REALISED_DISCLAIMER_ZH if closed else _PNL_DISCLAIMER_ZH]
     head = (
         f"From your stated figures, {name}: {bought} shares bought ({'average ' if several_buys else ''}cost CNY "
         f"{avg_text}), {found['sold']} sold" + (f", {remaining} remaining" if remaining is not None else "")
@@ -2009,7 +2115,58 @@ def _sale_sentences(asked: dict[str, Any], close: float, data: dict[str, Any], z
         clauses.append("the whole position is sold, nothing remains")
     if found["total"] is not None:
         clauses.append(f"realised and unrealised together CNY {_num(found['total'])}")
-    return ["; ".join(clauses) + f" [{eid}].", _PNL_DISCLAIMER_EN]
+    closed = asked.get("closed") or remaining == 0
+    return ["; ".join(clauses) + f" [{eid}].", _REALISED_DISCLAIMER_EN if closed else _PNL_DISCLAIMER_EN]
+
+
+def closed_per_share(asked: dict[str, Any]) -> dict[str, float] | None:
+    """(round 18, review-14 N1) A position sold in full with no count stated: the realised result per share (sale
+    price − cost) and in percent of the cost, or ``None`` without a sale price."""
+    price = (asked.get("sales") or [{}])[0].get("price")
+    cost = float(asked.get("average_cost") or asked["cost"])
+    if price is None or not cost:
+        return None
+    diff = round(float(price) - cost, 4)
+    return {"price": float(price), "cost": cost, "diff": round(diff, 2), "pct": round(diff / cost * 100, 2)}
+
+
+def _closed_per_share_sentences(asked: dict[str, Any], data: dict[str, Any], zh: bool) -> list[str]:
+    """(round 18, review-14 N1) A position sold in full whose share count is not stated: the realised result per
+    share from the user's own sale price and cost; nothing remains, so nothing is valued at the latest close. The
+    user's figures are attributed to the user (the close is not used)."""
+    name, eid = data.get("name"), data.get("evidence_id")
+    found = closed_per_share(asked)
+    cost = _num(float(asked.get("average_cost") or asked["cost"]))
+    if zh:
+        if found is None:
+            body = f"按你给出的成本 {cost} 元，{name}已全部卖出，没有剩余持仓；你没有给出卖出价格，已实现盈亏无法计算"
+        else:
+            word = "已实现盈利" if found["diff"] >= 0 else "已实现亏损"
+            body = (
+                f"按你给出的数字，{name}已全部卖出，没有剩余持仓；"
+                f"按卖出价 {_num(found['price'])} 元对成本 {cost} 元计算，"
+                f"每股{word} {_num(found['price'])} − {cost} = {_num(found['diff'])} 元（{_num(found['pct'])}%）；"
+                "你没有给出股数，已实现盈亏总额无法计算"
+            )
+        return [f"{body} [{eid}]。", _REALISED_DISCLAIMER_ZH]
+    if found is None:
+        body = (f"From your stated cost of CNY {cost}, {name}: the whole position is sold, nothing remains; no sale "
+                "price is given, so the realised result cannot be computed")  # fmt: skip
+    else:
+        word = "realised gain" if found["diff"] >= 0 else "realised loss"
+        body = (
+            f"From your stated figures, {name}: the whole position is sold, nothing remains; at your sale price of CNY "
+            f"{_num(found['price'])} against your cost of CNY {cost}, a {word} of {_num(found['price'])} − {cost} = "
+            f"CNY {_num(found['diff'])} per share ({_num(found['pct'])}%); the number of shares is not stated, so the "
+            "total cannot be computed"
+        )
+    return [f"{body} [{eid}].", _REALISED_DISCLAIMER_EN]
+
+
+_REALISED_DISCLAIMER_ZH = "这是按你给出的买卖价格计算的已实现盈亏，未含佣金、印花税等交易费用和分红，不是投资建议。"
+_REALISED_DISCLAIMER_EN = (
+    "This is the realised result from your stated prices before fees, taxes and dividends, not investment advice."
+)
 
 
 def _rise_to_cost_sentences(asked: dict[str, Any], close: float, data: dict[str, Any], zh: bool) -> list[str]:
@@ -2090,10 +2247,16 @@ def asked_result(
     close = closes[0] if len(set(closes)) == 1 else None
     if asked is not None:
         cost = float(asked.get("average_cost") or asked["cost"])
-        if asked.get("sales"):
+        if asked.get("closed") and asked.get("bought") is None:
+            per_share = closed_per_share(asked)
+            values = [per_share["diff"], per_share["pct"]] if per_share else []
+            label = "全部卖出后的已实现盈亏" if zh else "realised result of the closed position"
+        elif asked.get("sales"):
             found = sale_numbers(asked, close) if close is not None else {}
             values = [found.get("unrealised"), *(sale.get("realised") for sale in found.get("sales") or [])]
             label = "卖出后剩余持仓与已卖出部分的盈亏" if zh else "P&L on the remaining and the sold shares"
+            if asked.get("closed"):
+                label = "全部卖出后的已实现盈亏" if zh else "realised result of the closed position"
         elif asked.get("rise_to_cost"):
             values = [round((cost - close) / close * 100, 2)] if close else []
             label = "回到成本价所需的涨幅" if zh else "rise needed to get back to the cost"
@@ -2126,6 +2289,133 @@ def could_not_verify_note(label: str, zh: bool) -> str:
         f"Could not verify the {label} asked for: the figures in the model's answer cannot be traced to this run's "
         "evidence, so no result is given."
     )
+
+
+def _single_close(tool_log: list[dict[str, Any]]) -> dict[str, Any] | None:
+    prices = [
+        entry.get("data") or {}
+        for entry in tool_log
+        if entry.get("tool") == "get_price_history" and entry.get("ok") and (entry.get("data") or {}).get("close")
+    ]
+    if len({str(data.get("symbol")) for data in prices}) != 1 or not prices[0].get("evidence_id"):
+        return None
+    return prices[0]
+
+
+def short_values(query: str, tool_log: list[dict[str, Any]]) -> list[float]:
+    """(round 18, review-14 N14) The short position's arithmetic: per-share gain (short price − close), its percent of
+    the short price and the total over the stated shares."""
+    from .coverage import short_position_request
+
+    asked = short_position_request(query or "")
+    data = _single_close(tool_log)
+    if asked is None or data is None:
+        return []
+    close, price = float(data["close"]), float(asked["price"])
+    diff = round(price - close, 2)
+    values = [price, diff, round((price - close) / price * 100, 2)]
+    if asked.get("shares"):
+        values += [float(asked["shares"]), round(int(asked["shares"]) * diff, 2)]
+    return values
+
+
+def short_sentences(tool_log: list[dict[str, Any]], query: str, zh: bool) -> list[str]:
+    """(round 18, review-14 N14) A short position's gain or loss at the latest close: (short price − close) per share,
+    in percent of the short price and times the shares; a short gains when the price falls. Before borrowing fees and
+    interest; not advice."""
+    from .coverage import short_position_request
+
+    asked = short_position_request(query or "")
+    data = _single_close(tool_log)
+    if asked is None or data is None:
+        return []
+    close, price, shares = float(data["close"]), float(asked["price"]), asked.get("shares")
+    eid, name, as_of = data["evidence_id"], data.get("name"), data.get("as_of")
+    diff = round(price - close, 2)
+    pct = _num(round((price - close) / price * 100, 2))
+    factor = f"(−{_num(abs(diff))})" if diff < 0 else _num(diff)
+    if zh:
+        word = "浮盈" if diff >= 0 else "浮亏"
+        sentence = (
+            f"按你给出的卖空价 {_num(price)} 元和 {as_of} 收盘价 {_px(close, data, zh)}计算，{name}空头每股{word} "
+            f"{_num(price)} − {_num(close)} = {_num(diff)} 元（{pct}%，股价下跌时空头盈利）"
+        )
+        if shares:
+            sentence += f"，{shares} 股合计 {shares} × {factor} = {_num(round(shares * diff, 2))} 元"
+        return [
+            f"{sentence} [{eid}]。",
+            "这是按最近收盘价计算的空头账面盈亏，未含融券利息、费用和税费，不是买入、卖出或平仓建议。",
+        ]
+    word = "gain" if diff >= 0 else "loss"
+    sentence = (
+        f"At your stated short price of CNY {_num(price)} and the {as_of} close of {_px(close, data, zh)}, the {name} "
+        f"short shows a paper {word} of {_num(price)} − {_num(close)} = CNY {_num(diff)} per share ({pct}%; a short "
+        "gains when the price falls)"
+    )
+    if shares:
+        sentence += f", or {shares} × {factor} = CNY {_num(round(shares * diff, 2))} on {shares} shares"
+    return [
+        f"{sentence} [{eid}].",
+        "This is a paper result at the last close before borrowing interest, fees and taxes, not a recommendation to "
+        "cover, buy or sell.",
+    ]
+
+
+def total_shares_values(query: str, tool_log: list[dict[str, Any]]) -> list[float]:
+    """(round 18, review-14 N14) The implied total share count (in shares, 亿股 and bn shares), registered with the
+    verifier when the question asks it."""
+    if not asks_total_shares(query or ""):
+        return []
+    values: list[float] = []
+    for _data, _price, shares in implied_total_shares(tool_log):
+        values += [round(shares), round(shares / 1e8, 2), round(shares / 1e9, 3)]
+    return values
+
+
+def weight_values(query: str, tool_log: list[dict[str, Any]]) -> list[float]:
+    """(round 18, review-14 N14) The positions' values, their total and each weight in percent, registered with the
+    verifier when the question asks the weights of stated positions."""
+    if not asks_portfolio_weight(query or ""):
+        return []
+    positions = holding_positions(query)
+    closes = {
+        str((entry.get("data") or {}).get("symbol")): entry.get("data") or {}
+        for entry in tool_log
+        if entry.get("tool") == "get_price_history" and entry.get("ok") and (entry.get("data") or {}).get("close")
+    }
+    candidates = {symbol: name_forms(str(data.get("name") or symbol), symbol) for symbol, data in closes.items()}
+    bound = bind_positions(query, positions, candidates) if positions and closes else []
+    if len(bound) < 2 or any(key is None for key in bound):
+        return []
+    values = [
+        round(position["shares"] * float(closes[str(key)]["close"]), 2)
+        for position, key in zip(positions, bound, strict=True)
+    ]
+    total = sum(values)
+    if not total:
+        return []
+    return [*values, round(total, 2), *(round(value / total * 100, 2) for value in values)]
+
+
+def range_52w_values(query: str, tool_log: list[dict[str, Any]]) -> list[float]:
+    """(round 18, review-14 N14) The numbers the 52-week spread and position sentences compute (high − low, its percent
+    of the low, and (close − low) ÷ (high − low)), registered with the verifier like the frame's results."""
+    wanted = requested_price_fields(query or "")
+    if not (wanted.spread_52w or wanted.position_52w):
+        return []
+    values: list[float] = []
+    for entry in tool_log:
+        data = entry.get("data") or {}
+        found = data.get("range_52w") or {}
+        high, low, close = found.get("high"), found.get("low"), data.get("close")
+        if entry.get("tool") != "get_price_history" or not entry.get("ok") or high is None or low is None:
+            continue
+        high, low = float(high), float(low)
+        if wanted.spread_52w and low:
+            values += [round(high - low, 3), round((high - low) / low * 100, 2)]
+        if wanted.position_52w and close is not None and high > low:
+            values.append(round((float(close) - low) / (high - low) * 100, 2))
+    return values
 
 
 def cost_basis_values(query: str, tool_log: list[dict[str, Any]]) -> list[float]:
@@ -2163,7 +2453,11 @@ def cost_basis_values(query: str, tool_log: list[dict[str, Any]]) -> list[float]
         held = sum(int(lot["shares"]) for lot in asked["lots_detail"])
         gain = round(sum(int(lot["shares"]) * (close - float(lot["cost"])) for lot in asked["lots_detail"]), 2)
         values += [float(held), gain, round(paid / held, 3), round(gain / paid * 100, 2) if paid else 0.0]
-    if asked.get("sales"):
+    if asked.get("closed") and asked.get("bought") is None:
+        per_share = closed_per_share(asked)
+        if per_share:
+            values += [per_share["price"], per_share["diff"], per_share["pct"]]
+    elif asked.get("sales"):
         found = sale_numbers(asked, close)
         values += [float(found["sold"]), found["diff"], found["pct"]]
         values += [float(v) for v in (found["remaining"], found["unrealised"], found["total"]) if v is not None]
