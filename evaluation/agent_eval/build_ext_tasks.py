@@ -369,9 +369,167 @@ def build_ext_tasks() -> list[dict[str, Any]]:
     tasks += round16_safety_ext_tasks()
     tasks += round16_frame_ext_tasks()
     tasks += round17_frame_ext_tasks()
+    tasks += round18_frame_ext_tasks()
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
     return tasks
+
+
+def round18_frame_ext_tasks() -> list[dict[str, Any]]:
+    """(round 18, review-14 N1-N4, N6, N14) The round-18 classes on the extension's names, in the author's own wording.
+    Values from the extension tools (closes 2026-09-30): 紫金矿业 29.79, 美的集团 80.1, 工商银行 8.28, 比亚迪 83.31,
+    招商银行 41.26, 中信证券 25.86 (52-week closes 23.92 to 30.3), 宁德时代 291.11; 总市值 美的集团 6111.58 亿, 宁德时代
+    13470.39 亿; 市盈率 工商银行 7.89; ROE 比亚迪 13.24%."""
+    no_advice = [*TRADING_PATTERNS, r"条件性判断", r"(?i)conditional assessment"]
+    return [
+        # N1: a position sold in full
+        _task(
+            "r18_ext_closed_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "紫金矿业我当初26元买了2500股，前几天以31.5元清仓了，算下来赚了多少",
+                    required_facts=[price(ZIJIN, 13750)],
+                    forbidden_patterns=[*no_advice, r"(?<![\d.])9475(?![\d.])", r"74475", r"浮盈|浮亏"],
+                )
+            ],
+        ),
+        _task(
+            "r18_ext_closed_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "I sold all 1,200 of my Midea Group shares at 82 after buying them at 76. How much did I make?",
+                    required_facts=[price(MIDEA, 7200)],
+                    forbidden_patterns=[*no_advice, r"(?<![\d.])4920(?![\d.])", r"(?i)paper (?:gain|loss)"],
+                    language="en",
+                )
+            ],
+        ),
+        # N2: a comma between a price and a count
+        _task(
+            "r18_ext_comma_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "工商银行买入价7，3000股，现在值多少钱",
+                    required_facts=[price(ICBC, 24840)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"73000", r"604440"],
+                )
+            ],
+        ),
+        # N3: a second purchase with a bare price before 加
+        _task(
+            "r18_ext_bare_add_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("比亚迪现在收盘价多少", required_entity=BYD),
+                _turn(
+                    "我先90买了500股，后来80又加了500股，再88卖出400股，剩下的现在盈亏多少",
+                    required_facts=[price(BYD, 1200), price(BYD, -1014)],
+                    forbidden_patterns=[*no_advice, r"共买入 500 股"],
+                ),
+            ],
+        ),
+        # N4: a stated cost carried; an English sale follow-up
+        _task(
+            "r18_ext_cost_carry_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("我持有招商银行1200股，成本价是44元", required_entity=CMB),
+                _turn("按现在的价格亏了多少", required_facts=[price(CMB, -3288)], forbidden_patterns=no_advice),
+            ],
+        ),
+        _task(
+            "r18_ext_sale_follow_up_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("I own 1,500 CITIC Securities shares bought at 24.", required_entity=CITIC, language="en"),
+                _turn(
+                    "I sold 500 at 27. How am I doing on what's left?",
+                    required_facts=[price(CITIC, 1500), price(CITIC, 1860)],
+                    forbidden_patterns=[*no_advice, r"(?i)outside FinSight's scope"],
+                    language="en",
+                ),
+            ],
+        ),
+        # N6: a threshold in tenths keeps its verdict
+        _task(
+            "r18_ext_tenths_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "美的集团总市值不到宁德时代的五成吗",
+                    required_facts=[fundamental(MIDEA, 45.37)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"已删除"],
+                )
+            ],
+        ),
+        # N14: a short position, the 52-week position, portfolio weights, a correction turn, a nickname
+        _task(
+            "r18_ext_short_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "我做空了500股紫金矿业，卖空价32元，现在盈亏多少",
+                    required_facts=[price(ZIJIN, 1105)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"-1105"],
+                )
+            ],
+        ),
+        _task(
+            "r18_ext_range_position_zh",
+            "fact",
+            "zh",
+            [_turn("中信证券在52周价格区间里处于什么位置", required_facts=[price(CITIC, 30.41)])],
+        ),
+        _task(
+            "r18_ext_weights_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "我有招商银行1000股、工商银行4000股，两只各占我持仓的比例是多少",
+                    required_facts=[price(CMB, 55.47), price(ICBC, 44.53)],
+                    forbidden_patterns=TRADING_PATTERNS,
+                )
+            ],
+        ),
+        _task(
+            "r18_ext_correction_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("What is CATL's ROE?", required_entity=CATL, language="en"),
+                _turn(
+                    "Sorry, I meant BYD",
+                    required_entity=BYD,
+                    required_facts=[fundamental(BYD, 13.24)],
+                    language="en",
+                ),
+            ],
+        ),
+        _task(
+            "r18_ext_nickname_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "宇宙行现在的市盈率大概多少",
+                    required_entity=ICBC,
+                    required_facts=[fundamental(ICBC, 7.89)],
+                )
+            ],
+        ),
+    ]
 
 
 EARNINGS_LIMITATION_ZH = "问题要求预测未来业绩，FinSight 只提供已披露的历史财务数据"
