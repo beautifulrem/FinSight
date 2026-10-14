@@ -125,19 +125,8 @@ claim_holdout() {
     --fail-under-verdict 0.978 --fail-under-checks 0.98
 }
 verify_slices() {
-  local script
-  for script in evaluation/agent_eval/independent/verify_multiturn.py evaluation/agent_eval/independent/verify_test_v3.py \
-    evaluation/heldout_r4/verify_heldout_r4.py evaluation/heldout_r5/verify_heldout_r5.py \
-    evaluation/heldout_r6/verify_heldout_r6.py evaluation/heldout_r7/verify_heldout_r7.py \
-    evaluation/heldout_r8/verify_heldout_r8.py; do
-    PYTHONPATH=. "$PYTHON" "$script" || return 1
-  done
-  QI_EVAL_SNAPSHOT_EXT=1 PYTHONPATH=. "$PYTHON" evaluation/heldout_r9/verify_heldout_r9.py || return 1
-  for script in evaluation/heldout_r10/verify_heldout_r10.py evaluation/heldout_r11/verify_heldout_r11.py \
-    evaluation/heldout_r12/verify_heldout_r12.py; do
-    QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 PYTHONPATH=. "$PYTHON" "$script" || return 1
-  done
-  echo "11 verify scripts passed"
+  # (round 18, review-14 N16) the same list CI's heldout-verify job runs (evaluation/agent_eval/verify_slices.py)
+  "$PYTHON" -m evaluation.agent_eval.verify_slices
 }
 
 # CI's environment: live sources off, traces off
@@ -163,7 +152,7 @@ run gate-ext '^result:' "python -m evaluation.agent_eval.gate --set ext" gate --
 run gate-shipped '^result:' "python -m evaluation.agent_eval.gate --set shipped" gate --set shipped
 run extras '"gate"' "verifier_stress; redteam; gate --extras-only" extras
 run claim-holdout "verdict|accuracy" "claim_bench.run --set holdout (floors 0.978 / 0.98)" claim_holdout
-run verify-slices "verify scripts passed|FAIL|Error" "11 held-out verify scripts (r9 with QI_EVAL_SNAPSHOT_EXT=1, r10-r12 also FIX=1)" verify_slices
+run verify-slices "verify scripts passed|FAIL|Error" "python -m evaluation.agent_eval.verify_slices (CI's list: 12 scripts)" verify_slices
 run report-check "up to date|out of date|missing" "python -m evaluation.agent_eval.report --check" \
   "$PYTHON" -m evaluation.agent_eval.report --check
 

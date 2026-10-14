@@ -162,7 +162,14 @@ class AgentChatRequest(BaseModel):
     """Request for ``/agent/chat`` and ``/agent/chat/stream``."""
 
     query: str = Field(min_length=1, max_length=MAX_QUERY_LENGTH)
-    session_id: str | None = Field(default=None, pattern=SESSION_ID_PATTERN)
+    session_id: str | None = Field(
+        default=None,
+        pattern=SESSION_ID_PATTERN,
+        description=(
+            "Omit to start a new conversation: the server issues the id (response session_id, or the stream's "
+            "session event). An id the caller does not already have gets 404, the same as another caller's."
+        ),
+    )
     mode: AgentMode = "auto"
     user_profile: dict[str, Any] = Field(default_factory=dict, max_length=MAX_USER_PROFILE_FIELDS)
     dialog_context: list[dict[str, Any]] = Field(default_factory=list, max_length=MAX_DIALOG_CONTEXT_ITEMS)

@@ -349,16 +349,16 @@ def test_resume_endpoint_double_submit_and_conflict_code():
     runtime = AgentRuntime(stub, build_fake_registry(), None, today=lambda: date(2026, 9, 24))
     app = create_app(service=stub, app_config={"deepseek": {"api_key": ""}}, agent_service=AgentService(runtime))
     client = TestClient(app)
-    client.post("/agent/chat", json={"query": "它的市盈率呢", "session_id": "api-idem"})
+    sid = client.post("/agent/chat", json={"query": "它的市盈率呢"}).json()["session_id"]
 
-    first = client.post("/agent/resume", json={"session_id": "api-idem", "reply": "贵州茅台"})
-    again = client.post("/agent/resume", json={"session_id": "api-idem", "reply": "贵州茅台"})
-    other = client.post("/agent/resume", json={"session_id": "api-idem", "reply": "五粮液"})
+    first = client.post("/agent/resume", json={"session_id": sid, "reply": "贵州茅台"})
+    again = client.post("/agent/resume", json={"session_id": sid, "reply": "贵州茅台"})
+    other = client.post("/agent/resume", json={"session_id": sid, "reply": "五粮液"})
 
     assert first.status_code == 200 and again.status_code == 200
     assert again.json()["replayed"] is True and again.json()["trace_id"] == first.json()["trace_id"]
     assert other.status_code == 409 and other.json()["detail"]["code"] == "no_pending_clarification"
-    assert len(client.get("/agent/sessions/api-idem").json()["turns"]) == 1
+    assert len(client.get(f"/agent/sessions/{sid}").json()["turns"]) == 1
 
 
 # --------------------------------------------------------------------------- SSE client disconnect

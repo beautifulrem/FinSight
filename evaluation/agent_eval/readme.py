@@ -13,7 +13,8 @@ pre-push and CI paragraph) and ``limits`` (the short limits list). Every number 
   ``claims_heldout_r<N>-{prefix,after-fix}.json`` and ``slice_overlap-heldout_r<N>-*.json`` (the overlap tiers are
   recomputed from the slice-side overlap lists and the two runs' ``task_outcomes``). The *latest slice* is the highest
   N that has a committed folder and an after-fix chat run; the fix round comes from its docs/agent-eval.md heading;
-- the verifier stress test: the highest ``verifier_stress-round<N>.json``;
+- the verifier stress test: the newest run (``config.run_at``) among ``verifier_stress-round<N>[-<label>].json``
+  (round 18, review-14 N16: a round-17 file existed while the headline still cited round 16);
 - the gates: ``gate-{dev,holdout,ext,shipped}.json``; the router labels: ``router_eval-independent_v2-*.json``;
 - the real-claims sets: every blind ``claims_web_v<K>-first-run.json`` and its latest ``-after-exposure-round<R>``;
 - the red team: the highest ``redteam-offline-r<N>.json``, the last full LLM run and the latest targeted LLM run;
@@ -85,6 +86,21 @@ def _numbered(pattern: str) -> list[tuple[int, str]]:
         if match:
             found.append((int(match.group(1)), path.stem))
     return sorted(found)
+
+
+def latest_verifier_stress() -> tuple[int, str]:
+    """(round, stem) of the newest verifier stress run, by its recorded ``run_at`` (then the round number)."""
+    regex = re.compile(r"verifier_stress-round(\d+)(?:-[\w-]+)?")
+    found = []
+    for path in RESULTS.glob("verifier_stress-round*.json"):
+        match = regex.fullmatch(path.stem)
+        if match:
+            run_at = str((_json(path).get("config") or {}).get("run_at") or "")
+            found.append((run_at, int(match.group(1)), path.stem))
+    if not found:
+        raise LookupError("no verifier_stress-round<N>.json result")
+    _run_at, number, stem = max(found)
+    return number, stem
 
 
 def short(commit: Any) -> str:
@@ -501,7 +517,7 @@ def collect() -> Facts:
     rounds = slice_rounds()
     if len(rounds) < 3:
         raise LookupError("fewer than three reviewer slices with before and after-fix runs")
-    verifier_round, verifier_stem = _numbered(r"verifier_stress-round(\d+)")[-1]
+    verifier_round, verifier_stem = latest_verifier_stress()
     ablation = result(TEST_V3)
     pure = result(TEST_V3_PURE_LLM)["results"]["test_v3"]["pure_llm"]["summary"]
     router_rounds = _numbered(r"router_eval-independent_v2-round(\d+)")

@@ -35,7 +35,7 @@ CI_BUDGET_FRACTION=0.5 scripts/prepush.sh   # CI time budget share (default 0.6;
 | `gate-shipped` | `gate --set shipped` (extension **and** corrections layer on: what the product serves) | agent-eval-gate |
 | `extras` | `verifier_stress`, `redteam`, `gate --extras-only` | agent-eval-extras |
 | `claim-holdout` | `claim_bench.run --set holdout` with the CI floors | agent-eval-gate |
-| `verify-slices` | the eleven held-out verify scripts (r9 with `QI_EVAL_SNAPSHOT_EXT=1`, r10–r12 also with `QI_EVAL_SNAPSHOT_FIX=1`) | heldout-verify |
+| `verify-slices` | `python -m evaluation.agent_eval.verify_slices`: the twelve held-out verify scripts (r9 with `QI_EVAL_SNAPSHOT_EXT=1`, r10–r13 also with `QI_EVAL_SNAPSHOT_FIX=1`), the same list CI runs | heldout-verify |
 | `report-check` | `python -m evaluation.agent_eval.report --check`: docs/agent-eval.md and the generated README regions (below) | heldout-verify |
 
 Every step runs even when an earlier one fails; the exit status is 0 only when all steps that ran passed. Live sources

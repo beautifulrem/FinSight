@@ -73,7 +73,10 @@ _TRAILING = re.compile(
 
 def claim_in_message(message: str) -> str | None:
     """The claim inside a hearsay chat message, or None. "听说茅台市盈率只有15倍，是真的吗？" → "茅台市盈率只有15倍"."""
-    text = (message or "").strip()
+    from ..text_safety import capital_numerals
+
+    # (round 18, review-14 N7) a figure in Chinese uppercase numerals ("叁点柒倍") is read as "三点七倍"
+    text = capital_numerals((message or "").strip())
     if len(text) < 4 or not _CUE.search(text) or not _CONTENT.search(text):
         return None
     claim = _TRAILING.sub("", _LEADING.sub("", text)).strip()

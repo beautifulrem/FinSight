@@ -136,10 +136,18 @@ def gold_response(task: dict, turn: dict) -> dict:
     facts = expect.get("required_facts") or []
     behavior = expect.get("behavior", "answer")
     parts = [render(float(item["value"]), language) for item in facts]
+    # (round 18, review-14 N16) score_turn reads only the product's own hedge and gap statements, so the synthetic
+    # gold carries the product's sentences (compliance.py / coverage.py wording)
     if expect.get("must_hedge"):
-        parts.append("仅为条件性测算，不构成投资建议" if language == "zh" else "a conditional estimate, not investment advice")
+        parts.append(
+            "基于当前证据只能做条件性判断，不能据此给出确定的买入、卖出、持有建议或价格预测"
+            if language == "zh"
+            else "this can only be a conditional assessment, not a definitive buy, sell, or hold recommendation"
+        )
     if expect.get("must_state_missing"):
-        parts.append("工具未返回该数据" if language == "zh" else "this figure is not available in the data")
+        parts.append(
+            "当前数据源中没有该项数据" if language == "zh" else "the current data sources do not include this figure"
+        )
     tools = sorted(set(expect.get("required_tools") or []) | set((expect.get("any_of_tools") or [])[:1]))
     entities = set(expect.get("required_entities") or []) | (
         {expect["required_entity"]} if expect.get("required_entity") else set()

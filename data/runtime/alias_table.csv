@@ -91358,3 +91358,6 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 91428,3633,长电,长电,colloquial_alias,1,derived
 91429,3800,宇宙行,宇宙行,colloquial_alias,1,false
 91430,8,平保,平保,colloquial_alias,1,false
+91431,2243,宁德时代新能源科技,宁德时代新能源科技,official_name,1,true
+91432,1,贵州茅台酒,贵州茅台酒,official_name,1,true
+91433,5250,中芯国际集成电路制造,中芯国际集成电路制造,official_name,1,true

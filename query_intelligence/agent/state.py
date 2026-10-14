@@ -29,6 +29,7 @@ def add_or_reset(left: list[Any] | None, right: Any) -> list[Any]:
 class AgentState(TypedDict, total=False):
     # request
     query: str
+    typed_query: str  # (round 18, N15) as typed, before the traditional -> simplified reading of ``query``
     mode: str
     started_at: float
     user_profile: dict[str, Any]

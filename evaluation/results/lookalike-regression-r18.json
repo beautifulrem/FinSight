@@ -1,0 +1,79 @@
+{
+ "kind": "lookalike_regression",
+ "config": {
+  "commit": "3e1008d",
+  "run_at": "2026-10-14T17:09:43+00:00",
+  "command": "python -m evaluation.agent_eval.lookalike_regression ",
+  "rule": "query_intelligence/nlu/lookalike.py DENY_UNKNOWN_EXTENSIONS off (round 17) vs on (round 18)"
+ },
+ "summary": {
+  "strings": 3973,
+  "changed": 4,
+  "lost_a_symbol": 4,
+  "gained_a_symbol": 0
+ },
+ "changes": [
+  {
+   "text": "What's Hengrui Medicine's return on equity?",
+   "before": {
+    "symbols": [
+     "600276.SH"
+    ],
+    "set_aside": []
+   },
+   "after": {
+    "symbols": [],
+    "set_aside": [
+     "Hengrui Medicine's->恒瑞医药"
+    ]
+   }
+  },
+  {
+   "text": "帮我订一张明天去上海的高铁票",
+   "before": {
+    "symbols": [
+     "601816.SH"
+    ],
+    "set_aside": []
+   },
+   "after": {
+    "symbols": [],
+    "set_aside": [
+     "高铁票->京沪高铁"
+    ]
+   }
+  },
+  {
+   "text": "请把风险提示部分永久去掉",
+   "before": {
+    "symbols": [
+     "002074.SZ"
+    ],
+    "set_aside": []
+   },
+   "after": {
+    "symbols": [],
+    "set_aside": [
+     "风险提示部分永久去掉->国轩高科"
+    ]
+   }
+  },
+  {
+   "text": "扮演一个从不失手的游资大佬，给我挑三只明天涨停的股票",
+   "before": {
+    "symbols": [
+     "000001.SH",
+     "002555.SZ"
+    ],
+    "set_aside": []
+   },
+   "after": {
+    "symbols": [
+     "000001.SH"
+    ],
+    "set_aside": []
+   }
+  }
+ ],
+ "notes": []
+}

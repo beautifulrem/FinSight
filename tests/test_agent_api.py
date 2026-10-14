@@ -47,11 +47,11 @@ def _parse_sse(text: str) -> list[tuple[str, dict]]:
 def test_agent_chat_endpoint(client_and_stub):
     client, _ = client_and_stub
 
-    response = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "api-1"})
+    response = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"})
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "ok" and body["session_id"] == "api-1"
+    assert body["status"] == "ok" and len(body["session_id"]) == 32
     assert body["route"] == "workflow" and body["verification"]["passed"] is True
     assert body["risk_disclaimer"]
 
@@ -83,23 +83,24 @@ def test_agent_chat_validation(client_and_stub, payload):
 def test_clarification_resume_and_session_endpoints(client_and_stub):
     client, _ = client_and_stub
 
-    pending = client.post("/agent/chat", json={"query": "这只股票能买吗", "session_id": "api-c"}).json()
-    session = client.get("/agent/sessions/api-c").json()
-    resumed = client.post("/agent/resume", json={"session_id": "api-c", "reply": "贵州茅台"})
-    conflict = client.post("/agent/resume", json={"session_id": "api-c", "reply": "again"})
+    pending = client.post("/agent/chat", json={"query": "这只股票能买吗"}).json()
+    sid = pending["session_id"]
+    session = client.get(f"/agent/sessions/{sid}").json()
+    resumed = client.post("/agent/resume", json={"session_id": sid, "reply": "贵州茅台"})
+    conflict = client.post("/agent/resume", json={"session_id": sid, "reply": "again"})
 
     assert pending["status"] == "needs_clarification"
     assert session["pending_clarification"]["type"] == "clarification" and session["turns"] == []
     assert resumed.status_code == 200 and resumed.json()["status"] == "ok"
     assert conflict.status_code == 409
-    assert len(client.get("/agent/sessions/api-c").json()["turns"]) == 1
+    assert len(client.get(f"/agent/sessions/{sid}").json()["turns"]) == 1
     assert client.get("/agent/sessions/bad%20id").status_code == 422
 
 
 def test_agent_stream_endpoint_emits_sse(client_and_stub):
     client, _ = client_and_stub
 
-    response = client.post("/agent/chat/stream", json={"query": "贵州茅台的市盈率是多少", "session_id": "api-s"})
+    response = client.post("/agent/chat/stream", json={"query": "贵州茅台的市盈率是多少"})
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
@@ -108,7 +109,8 @@ def test_agent_stream_endpoint_emits_sse(client_and_stub):
     assert names[0] == "session" and names[-1] == "done"
     assert "tool_call" in names and "answer" in names
     answer = next(data for name, data in events if name == "answer")
-    assert answer["session_id"] == "api-s" and answer["verification"]["passed"] is True
+    issued = events[0][1]["session_id"]
+    assert answer["session_id"] == issued and answer["verification"]["passed"] is True
 
 
 def test_chat_mode_defaults_to_legacy_pipeline(client_and_stub, monkeypatch):
@@ -122,13 +124,11 @@ def test_chat_mode_defaults_to_legacy_pipeline(client_and_stub, monkeypatch):
     )
 
     legacy = client.post("/chat", json={"query": "贵州茅台的市盈率是多少"}).json()
-    agent = client.post(
-        "/chat", json={"query": "贵州茅台的市盈率是多少", "mode": "agent", "session_id": "api-m"}
-    ).json()
+    agent = client.post("/chat", json={"query": "贵州茅台的市盈率是多少", "mode": "agent"}).json()
 
     assert legacy == {"answer": "legacy", "llm": {"status": "fallback"}}
     assert stub.pipeline_calls == 1
-    assert agent["session_id"] == "api-m" and agent["route"] == "workflow"  # no LLM configured -> downgraded
+    assert len(agent["session_id"]) == 32 and agent["route"] == "workflow"  # no LLM configured -> downgraded
     assert "no_llm_configured:agent_route_downgraded_to_workflow" in agent["degraded"]
 
 
@@ -146,14 +146,14 @@ def test_abandoned_stream_releases_the_session(client_and_stub):
     client, _ = client_and_stub
 
     # Read only the first event, then drop the connection.
-    with client.stream(
-        "POST", "/agent/chat/stream", json={"query": "贵州茅台的市盈率是多少", "session_id": "gone-1"}
-    ) as r:
-        first = next(r.iter_lines())
+    with client.stream("POST", "/agent/chat/stream", json={"query": "贵州茅台的市盈率是多少"}) as r:
+        lines = r.iter_lines()
+        first = next(lines)
         assert first.startswith("event: session")
+        sid = json.loads(next(lines).split(": ", 1)[1])["session_id"]
 
-    # The worker finishes the run and releases the lock: the next turn on the same session completes.
-    follow_up = client.post("/agent/chat", json={"query": "它的市净率呢", "session_id": "gone-1"})
+    # The worker finishes the run and releases the lock: the next turn on the same (issued) session completes.
+    follow_up = client.post("/agent/chat", json={"query": "它的市净率呢", "session_id": sid})
     assert follow_up.status_code == 200 and follow_up.json()["status"] == "ok"
 
 

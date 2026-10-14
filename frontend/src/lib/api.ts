@@ -87,16 +87,16 @@ export function resumeClarification(sessionId: string, reply: string, options: A
 }
 
 /**
- * `GET /agent/sessions/{id}`. The server answers 404 both for a session that has no turns yet and for another
- * caller's session (one body, so the response does not reveal which ids exist): for this browser's own id that
- * means "nothing remembered yet", so it is an empty session, not an error.
+ * `GET /agent/sessions/{id}`. The server answers 404 both for an id it does not know and for another caller's session
+ * (one body, so the response does not reveal which ids exist): `null` here. Since round 18 (N9) the server also
+ * refuses to continue an id it never issued, so a remembered id that 404s is forgotten, not reused.
  */
-export async function fetchSession(sessionId: string, options: ApiOptions): Promise<SessionInfo> {
+export async function fetchSession(sessionId: string, options: ApiOptions): Promise<SessionInfo | null> {
   const response = await fetch(`/agent/sessions/${encodeURIComponent(sessionId)}`, {
     headers: headers(options.apiKey),
     signal: options.signal,
   });
-  if (response.status === 404) return { session_id: sessionId, turns: [], pending_clarification: null };
+  if (response.status === 404) return null;
   if (!response.ok) throw await errorFrom(response);
   return (await response.json()) as SessionInfo;
 }
@@ -134,17 +134,19 @@ export async function fetchHealth(signal?: AbortSignal): Promise<boolean> {
 /**
  * `POST /agent/chat/stream`: yields typed SSE events until the server closes the stream.
  * Events: session → step / tool_call / tool_result … → answer | clarification → done (error on failure).
+ * `sessionId` is `null` for a new conversation: the server issues the id (the `session` event), and only an id it
+ * issued can be continued (round 18, N9).
  */
 export async function* streamAgentChat(
   query: string,
-  sessionId: string,
+  sessionId: string | null,
   mode: AgentMode,
   options: ApiOptions,
 ): AsyncGenerator<StreamEvent> {
   const response = await fetch("/agent/chat/stream", {
     method: "POST",
     headers: { ...headers(options.apiKey), Accept: "text/event-stream" },
-    body: JSON.stringify({ query, session_id: sessionId, mode }),
+    body: JSON.stringify(sessionId ? { query, session_id: sessionId, mode } : { query, mode }),
     signal: options.signal,
   });
   if (!response.ok || !response.body) throw await errorFrom(response);

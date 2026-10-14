@@ -86,6 +86,8 @@ def turn_record(state: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
     )
     return {
         "query": query,
+        # (round 18, review-14 N15) the question as typed (traditional characters kept), for the restored history
+        "typed_query": state.get("typed_query") or query,
         "effective_query": effective,
         "route": result.get("route"),
         "answer": str(result.get("answer") or "")[:_HISTORY_ANSWER_CHARS],

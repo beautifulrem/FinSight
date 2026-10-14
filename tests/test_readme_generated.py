@@ -93,14 +93,20 @@ def test_a_slice_counts_as_latest_only_with_its_folder_and_an_after_fix_run(resu
     assert readme.slice_rounds() == [*before, top]
 
 
-def test_the_highest_verifier_round_wins(results_copy):
-    rounds = readme._numbered(r"verifier_stress-round(\d+)")
+def test_the_newest_verifier_run_wins(results_copy):
+    """(round 18, review-14 N16) the headline cites the newest verifier stress run, whatever its file label: a
+    ``verifier_stress-round17-frame.json`` newer than ``-round16.json`` made the round-16 headline stale."""
+    number, stem = readme.latest_verifier_stress()
     results = results_copy / "evaluation" / "results"
-    shutil.copy(results / f"{rounds[-1][1]}.json", results / f"verifier_stress-round{rounds[-1][0] + 1}.json")
-    assert readme._numbered(r"verifier_stress-round(\d+)")[-1] == (
-        rounds[-1][0] + 1,
-        f"verifier_stress-round{rounds[-1][0] + 1}",
-    )
+    newer = json.loads((results / f"{stem}.json").read_text(encoding="utf-8"))
+    newer["config"] = {**newer["config"], "run_at": "2099-01-01T00:00:00+00:00"}
+    (results / f"verifier_stress-round{number}-later.json").write_text(json.dumps(newer), encoding="utf-8")
+    readme._json.cache_clear()
+    assert readme.latest_verifier_stress() == (number, f"verifier_stress-round{number}-later")
+    older = dict(newer, config={**newer["config"], "run_at": "2000-01-01T00:00:00+00:00"})
+    (results / f"verifier_stress-round{number + 1}.json").write_text(json.dumps(older), encoding="utf-8")
+    readme._json.cache_clear()
+    assert readme.latest_verifier_stress() == (number, f"verifier_stress-round{number}-later")
 
 
 def test_prepush_and_ci_records_are_parsed(tmp_path, monkeypatch):

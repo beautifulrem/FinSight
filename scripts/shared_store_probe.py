@@ -19,10 +19,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import subprocess
 import sys
 import time
-import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -32,6 +30,7 @@ from a2a.client import A2ACardResolver, A2AClientError, ClientConfig, ClientFact
 from a2a.helpers import get_artifact_text, new_text_message
 from a2a.types import GetTaskRequest, Role, SendMessageRequest, TaskState
 from a2a.utils.errors import A2AError
+
 try:
     from scripts.provenance import commit_label, git_state
 except ModuleNotFoundError:  # run as a file (python scripts/x.py): scripts/ itself is on sys.path
@@ -90,10 +89,9 @@ async def probe(replicas: list[str], key: str, other_key: str) -> dict[str, Any]
             token for token in ("fundamental_600519.SH", "600519") if token in get_artifact_text(artifacts["answer"])
         ]
 
-        session = f"probe{uuid.uuid4().hex[:10]}"
-        answer = (
-            await http_a.post(f"{first}/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": session})
-        ).json()
+        # a new conversation sends no session_id; the server issues one (round 18, N9)
+        answer = (await http_a.post(f"{first}/agent/chat", json={"query": "贵州茅台的市盈率是多少"})).json()
+        session = answer["session_id"]
         listing = (await http_a.get(f"{second}/agent/traces", params={"session_id": session})).json()["traces"]
         checks["trace_listed_on_replica_2"] = [item["trace_id"] for item in listing] == [answer["trace_id"]]
         detail = await http_a.get(f"{second}/agent/traces/{answer['trace_id']}")

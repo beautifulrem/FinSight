@@ -55,7 +55,7 @@ STEP_TOKENS = {
     "gate-shipped": "gate --set shipped",
     "extras": "gate --extras-only",
     "claim-holdout": "claim_bench.run --set holdout",
-    "verify-slices": "verify_heldout_r11.py",
+    "verify-slices": "evaluation.agent_eval.verify_slices",
     "report-check": "report --check",
 }
 
