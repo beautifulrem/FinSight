@@ -303,7 +303,9 @@ COLLOQUIAL_ALIASES: dict[str, tuple[str, tuple[str, ...]]] = {
     "300750.SZ": ("宁德时代", ("宁王",)),  # not "宁德": also a city
     "002594.SZ": ("比亚迪", ("迪王",)),
     "600036.SH": ("招商银行", ("招行",)),
-    "601398.SH": ("工商银行", ("工行",)),
+    # (round 18, review-14 N14) market nicknames, each checked against every alias and entity name (no collision)
+    "601398.SH": ("工商银行", ("工行", "宇宙行")),
+    "601318.SH": ("中国平安", ("平保",)),
     "601939.SH": ("建设银行", ("建行",)),
     "601288.SH": ("农业银行", ("农行",)),
     "601988.SH": ("中国银行", ("中行",)),
