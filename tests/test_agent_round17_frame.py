@@ -602,6 +602,11 @@ def test_llm_a_failed_draft_never_gets_a_template_answering_another_operation(sh
     finally:
         runtime.close()
     answer = str(result["answer"])
-    assert answer.startswith("未能核实所问的回到成本价所需的涨幅"), answer
     assert "-16.56%" not in answer and "37.5" not in answer, answer
     assert "verification_failed:asked_result_unverified" in (result.get("degraded") or [])
+    # (round 18, review-14 N6) the verified rise appended afterwards replaces the "could not verify" note: the note is
+    # never followed by the result it says it does not give
+    if "≈ 19.85%" in answer:
+        assert "未能核实" not in answer, answer
+    else:
+        assert answer.startswith("未能核实所问的回到成本价所需的涨幅"), answer

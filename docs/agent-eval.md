@@ -3622,9 +3622,9 @@ low − default: task success -0.038 [-0.094, +0.000], pass^k -0.038 [-0.094, +0
 
 | Run | Commit | Tasks | Task success [95% CI] | Behaviour | Facts | Snapshot misses |
 |---|---|---|---|---|---|---|
-| gate-dev | `67c28da` | 550 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
+| gate-dev | `859a3dd` | 558 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | 0 |
 | gate-holdout | `83fdb7b` | 53 | 0.943 [0.89, 1.00] | 1.000 | 1.000 | 0 |
-| gate-ext | `67c28da` | 111 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
+| gate-ext | `10e5f09` | 123 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
 | gate-shipped | `0096c6f` | 21 | 1.000 [1.00, 1.00] | 1.000 | 1.000 | None |
 
 ### Fault injection (overall graceful rate 1.00)
@@ -4858,9 +4858,9 @@ Paired comparisons (same tasks, a − b):
 | `ablation-memsum-1-multiturn_v1.json` | ablation | `bc42017` | 2026-09-30T22:11:41+00:00 | cline-pass/deepseek-v4.1-flash | `ablation-memsum-1.json` (50162842790e1544) |
 | `ablation-glm-effort-default-holdout.json` | ablation | `bc42017` | 2026-09-30T22:18:04+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-default.json` (0443e4fcfda24919) |
 | `ablation-glm-effort-low-holdout.json` | ablation | `bc42017` | 2026-09-30T22:20:53+00:00 | cline-pass/glm-5.3-flash | `ablation-glm-effort-low.json` (24329b3dee31a93e) |
-| `gate-dev.json` | run | `67c28da` | 2026-10-11T07:26:48+00:00 | – | `outputs/agent_eval/gate-dev.json` (7dddefa58ff764e5) |
+| `gate-dev.json` | run | `859a3dd` | 2026-10-14T15:38:04+00:00 | – | `outputs/agent_eval/gate-dev.json` (fa98bb9766f62551) |
 | `gate-holdout.json` | run | `83fdb7b` | 2026-10-10T13:50:15+00:00 | – | `outputs/agent_eval/gate-holdout.json` (6f2b2db180b6681c) |
-| `gate-ext.json` | run | `67c28da` | 2026-10-11T07:24:07+00:00 | – | `outputs/agent_eval/gate-ext.json` (aaaba974ef9a6d5c) |
+| `gate-ext.json` | run | `10e5f09` | 2026-10-14T15:43:01+00:00 | – | `outputs/agent_eval/gate-ext.json` (86b408cae07c2bb6) |
 | `gate-shipped.json` | run | `0096c6f` | 2026-10-10T16:01:55+00:00 | – | `outputs/agent_eval/gate-shipped.json` (bf74663837895f6c) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |

@@ -1219,11 +1219,11 @@ def test_round13_tasks_and_claims_do_not_overlap_the_heldout_or_reviewer_sets():
     # (round 14) the ext set's round-14 tasks (ids ext_r14_*) are checked by the round-14 test below; (round 15) the
     # round-15 safety tasks (ext_r15s_*) by the round-15 safety test at the end of this file; (round 16) the round-16
     # safety tasks (ext_r16s_*) by the round-16 test after it; (round 17) the round-17 frame tasks (r17_*) by the
-    # round-17 test at the end of this file
+    # round-17 test at the end of this file; (round 18) the round-18 frame tasks (r18_*) by the round-18 test
     tasks = _round13_forecast_tasks() + [
         task
         for task in build_ext_tasks()
-        if not task["id"].startswith(("ext_r14_", "r14_", "ext_r15s_", "r15_", "ext_r16s_", "r16_", "r17_"))
+        if not task["id"].startswith(("ext_r14_", "r14_", "ext_r15s_", "r15_", "ext_r16s_", "r16_", "r17_", "r18_"))
     ]
     mine = [turn["query"] for task in tasks for turn in task["turns"]]
     tree = ast.parse(Path(__file__).with_name("test_agent_round13_claims.py").read_text(encoding="utf-8"))
@@ -1962,6 +1962,41 @@ _ROUND14_REVIEW_PROBES = [
     "茅台、五粮液2025年营收均出现下滑",
     "比亚迪2025年归母净利润722.01亿元",
     "比亞迪2025年營業收入8039.65億元",
+    # (round 18, r18-frame) further round-14 review repros
+    "茅台1500买的100股上周1600全卖了，一共赚了多少",
+    "我上个月在40块清仓了招行，当时成本35，3000股，赚了多少",
+    "Sold all my 500 BYD at 95; I'd bought them at 80. What was my profit?",
+    "宁德时代我已经全部卖掉了，卖在300，成本250，1000股，一共赚了多少",
+    "我先280买了500股，后来300又加了300股，再310卖出400股，剩下的现在赚还是亏，多少",
+    "300又加了300股",
+    "宁德时代收盘价多少",
+    "I have 300 Moutai shares at an average cost of 1,600.",
+    "What's my loss now?",
+    "I own 2,000 ICBC bought at 7.5",
+    "I sold half at 8. How am I doing on the rest?",
+    "I sold it all, how much did I make?",
+    "我全卖了，赚了多少",
+    "招商银行买入价38，1500股，现在值多少",
+    "买入价38，1500股",
+    "Zijin Gold share price",
+    "比亚迪半导体的营收",
+    "BYD Semiconductor revenue",
+    "宁德新能源的净利润",
+    "招银理财的净利润",
+    "平安科技的营收",
+    "茅台的ROE",
+    "我融券卖空了100股比亚迪，价格90",
+    "现在盈亏多少",
+    "现在亏多少",
+    "我持有比亚迪600股",
+    "美的置业股价多少",
+    "帮我配一下：茅台、招行、长江电力各放多少比例",
+    "茅台、招行、长江电力各放多少比例",
+    "茅台招行长江电力怎么分配比例",
+    "平安银行…降幅较营收收窄",
+    "市盈率即股价除以每股收益",
+    "贵州茅台市盈率叁点柒倍，归母净利润玖拾亿元整",
+    "日均赚超10亿元",
 ]
 
 
@@ -1999,3 +2034,45 @@ def test_round18_tests_do_not_copy_a_slice_a_real_claim_or_a_review_probe():
     assert len(files) >= 2 and len(mine) >= 60, "the round-18 tests were not read"
     assert len(real) >= 300 and len(benches) >= 350 and len(slices) >= 450, "the compared sets were not read"
     assert _overlaps(mine, others) == (0, 0), "round-18 wording overlaps a slice, a real claim or a review probe"
+
+
+def test_round18_frame_tasks_and_tests_do_not_copy_a_slice_or_a_review_probe():
+    """Round-18 dev and ext tasks and the round-18 frame tests (tests/test_agent_round18_frame*.py) were written after
+    the round-14 review: none may copy or near-copy a text of any slice committed before round 14 (the round-13 slice
+    included), a quoted reviewer probe of rounds 4-14, the independent router sets, a test set, or the independent
+    operation wording set. Counts only; held-out text is never printed."""
+    import ast
+    from pathlib import Path
+
+    from evaluation.agent_eval.build_ext_tasks import round18_frame_ext_tasks
+    from evaluation.agent_eval.build_tasks import _round18_frame_tasks, check_overlap
+    from evaluation.agent_eval.runner import TASK_SETS, load_tasks
+
+    tasks = _round18_frame_tasks() + round18_frame_ext_tasks()
+    mine = [turn["query"] for task in tasks for turn in task["turns"]]
+    strings = [
+        node.value
+        for path in sorted(Path(__file__).parent.glob("test_agent_round18_frame*.py"))
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and len(node.value) >= 6
+    ]
+    mine += [
+        text
+        for text in strings
+        if re.search(r"[\s一-鿿]", text) and not text.startswith(("Round-18", "Round 18", "frame")) and len(text) < 200
+    ]
+    others = [
+        row["query"]
+        for name in ("router_labels_independent_v1.jsonl", "router_labels_independent_v2.jsonl")
+        for row in _router_rows(name)
+    ]
+    for name in ("holdout", "test_v2", "multiturn_v1", "test_v3"):
+        others.extend(turn["query"] for item in load_tasks(TASK_SETS[name][0]) for turn in item["turns"])
+    slices = _all_slice_texts(before_round=14)
+    others += _heldout_r4_texts() + _heldout_r5_texts() + slices + _REVIEW_PROBES + _ROUND10_REVIEW_PROBES
+    others += _ROUND9_REVIEW_PROBES + _ROUND11_REVIEW_PROBES + _ROUND12_REVIEW_PROBES + _ROUND13_REVIEW_PROBES
+    others += _ROUND14_REVIEW_PROBES + _independent_operation_wordings()
+    assert len(slices) >= 500, "the committed slices were not read"
+    assert len(tasks) >= 20 and check_overlap(tasks) == []
+    assert len(mine) >= 120
+    assert _overlaps(mine, others) == (0, 0), "round-18 wording overlaps a slice, a test set or a reviewer probe"

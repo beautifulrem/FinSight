@@ -91356,3 +91356,5 @@ alias_id,entity_id,alias_text,normalized_alias,alias_type,priority,is_official
 91426,3886,紫金,紫金,colloquial_alias,1,derived_word
 91427,117,美集,美集,colloquial_alias,1,derived
 91428,3633,长电,长电,colloquial_alias,1,derived
+91429,3800,宇宙行,宇宙行,colloquial_alias,1,false
+91430,8,平保,平保,colloquial_alias,1,false

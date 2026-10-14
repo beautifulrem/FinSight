@@ -513,6 +513,72 @@ def resolve_ellipsis(
     return None
 
 
+# (round 18, review-14 N14) a correction of the previous question's target: "哦不对，我是说五粮液", "说错了，是招行",
+# "不是问茅台，是问五粮液的市盈率", "Sorry, I meant Wuliangye", "Not Moutai, Wuliangye." The corrected target gets the
+# previous question's metric (or the one the correction states), and the target corrected away is dropped.
+_CORRECTION_ZH = re.compile(
+    r"^(?:哦|噢|喔|啊|呃|嗯|唉|哎)?[，,\s]*(?:不对|错了|说错了|口误|搞错了|打错了|写错了|更正一下|纠正一下|更正|纠正)"
+    r"[，,。！!\s]*(?:我)?(?:是说|是指|说的是|指的是|想问的是|要问的是|想说的是|问的是|应该是|是问|是)?\s*(?P<rest>.+)$|"
+    r"^(?:我)?不是(?:问|说|指)?(?P<wrong>[^，,。；;]{1,12}?)[，,；;]\s*(?:而)?是(?:问|说|指|想问)?\s*(?P<rest2>.+)$"
+)
+_CORRECTION_EN = re.compile(
+    r"^(?:sorry|oops|no|wait|actually|my bad)?[,.!\s]*(?:i meant|i mean|make that|correction:)\s+(?P<rest>.+)$|"
+    r"^not (?P<wrong>[^,;.]{1,40}?)[,;]\s*(?:i meant\s+|i mean\s+)?(?P<rest2>.+)$",
+    re.IGNORECASE,
+)
+
+
+def resolve_correction(
+    query: str, turns: list[dict[str, Any]], current_targets: list[dict[str, Any]]
+) -> tuple[str, str] | None:
+    """(round 18, review-14 N14) A turn that corrects the previous question's target: ``(rewritten, reason)`` asking the
+    previous question's metric of the corrected target ("哦不对，我是说五粮液" after "茅台的ROE" → "五粮液的ROE呢？"),
+    or the correction's own question without the target it corrects away ("不是问茅台，是问五粮液的市盈率" →
+    "五粮液的市盈率"). ``None`` when the turn is not a correction or names no target."""
+    from .coverage import name_forms
+
+    text = strip_filler(query).strip()
+    if not text:
+        return None
+    zh = bool(re.search(r"[一-鿿]", text))
+    match = (_CORRECTION_ZH if zh else _CORRECTION_EN).match(text)
+    if match is None:
+        return None
+    rest = (match.group("rest") or match.group("rest2") or "").strip()
+    wrong = (match.group("wrong") or "").strip()
+    kept = [
+        target
+        for target in current_targets
+        if any(
+            form and form.lower() in rest.lower()
+            for form in name_forms(str(target.get("canonical_name") or ""), str(target.get("mention") or ""))
+        )
+    ]
+    if len(kept) != 1 or (
+        wrong
+        and any(
+            form in wrong
+            for form in name_forms(str(kept[0].get("canonical_name") or ""), str(kept[0].get("mention") or ""))
+        )
+    ):
+        return None  # fmt: skip
+    name = str(kept[0].get("canonical_name") or kept[0].get("symbol"))
+    if any(found.group(0) for found in _ASPECT.finditer(rest)):
+        return rest.rstrip("。.!！"), f"correction:{name}"
+    if not turns:
+        return None
+    aspects = _last_aspects(turns, zh)
+    if not aspects:
+        return None
+    if zh:
+        rewritten = f"{name}的{'、'.join(aspects)}呢？"
+    else:
+        from .names import english_name
+
+        rewritten = f"What is {english_name(name) or name}'s {', '.join(aspects)}?"
+    return rewritten, f"correction:{name}+aspect->{'+'.join(aspects)}"
+
+
 def _only_listed_names(text: str, entities: list[dict[str, Any]]) -> bool:
     """Whether the follow-up is nothing but the targets' names joined by 和 / 与 / 、 / and and an ellipsis marker
     ("工行和平安银行的呢", "And ICBC and Ping An Bank?")."""
@@ -680,6 +746,66 @@ def resolve_ledger_total(
     return rewritten, reason
 
 
+def _carried_cost(
+    text: str, turns: list[dict[str, Any]], current_targets: list[dict[str, Any]]
+) -> tuple[str, str] | None:
+    """(round 18, review-14 N4) A position stated with its cost in an earlier turn ("我持有美的集团1200股，成本价86元",
+    "I'm holding 900 BYD shares bought at 95.") carries into a later gain-or-loss, break-even or sale question that
+    states no cost of its own ("现在亏多少", "回本还得涨多少", "I sold a quarter at 8.6. How am I doing on the
+    remainder?"): the question is rewritten with the stated position, so the cost-basis arithmetic answers it. Only
+    the conversation's latest target qualifies (a turn about another target in between ends the search), and a
+    question naming another target is not carried. ``(rewritten, reason)`` or ``None``."""
+    from .coverage import asks_gain_or_loss, cost_basis_request, short_position_request, stated_cost_position
+
+    if not turns or len(current_targets) > 1 or not asks_gain_or_loss(text) or cost_basis_request(text) is not None:
+        return None
+    if short_position_request(text, require_ask=False) is not None:
+        return None
+    discussed: str | None = None
+    for turn in reversed(turns[-MAX_CONTEXT_TURNS:]):
+        targets = [target for target in turn.get("entities") or [] if target.get("symbol")]
+        if len(targets) != 1:
+            return None
+        symbol = str(targets[0]["symbol"])
+        if discussed is not None and symbol != discussed:
+            return None
+        discussed = symbol
+        short = short_position_request(_effective(turn), require_ask=False)
+        position = stated_cost_position(_effective(turn))
+        if position is None and short is None:
+            continue
+        if current_targets and str(current_targets[0].get("symbol")) != symbol:
+            return None
+        if short is not None:
+            # (round 18, review-14 N14) a short stated earlier ("我融券卖空了200股…卖空价格300"), then "现在盈亏多少"
+            name = str(targets[0].get("name") or targets[0].get("canonical_name") or symbol)
+            count = short["shares"]
+            if re.search(r"[一-鿿]", text):
+                held = f"{count}股" if count else ""
+                rewritten = f"{name}：我融券卖空了{held}，卖空价格{short['price']:g}元，{text}"
+            else:
+                from .names import english_name
+
+                held = f"{count} shares of " if count else ""
+                rewritten = f"I shorted {held}{english_name(name) or name} at {short['price']:g}. {text}"
+            return rewritten, f"short_carried:{short['price']:g}x{count or 0}->{name}"
+        if current_targets and str(current_targets[0].get("symbol")) != symbol:
+            return None
+        name = str(targets[0].get("name") or targets[0].get("canonical_name") or symbol)
+        cost, shares = position["cost"], position["shares"]
+        if re.search(r"[一-鿿]", text):
+            held = f"我持有{shares}股，" if shares else "我"
+            rewritten = f"{name}{held}成本价{cost:g}元，{text}"
+        else:
+            from .names import english_name
+
+            english = english_name(name) or name
+            held = f"I hold {shares} shares of {english}" if shares else f"I hold {english}"
+            rewritten = f"{held} bought at {cost:g}. {text}"
+        return rewritten, f"cost_carried:{cost:g}x{shares or 0}->{name}"
+    return None
+
+
 _HOLDING_SWITCH = re.compile(r"换成|改成|换作|如果是|要是|假如|若是|\binstead\b|\bif\b", re.IGNORECASE)
 
 
@@ -727,6 +853,9 @@ def resolve_holding_follow_up(
                     inserted = f" of {english_name(name) or name}"
                 return f"{text[:cut]}{inserted}{text[cut:]}", f"holding_follow_up:{bare[0]['shares']}->{name}"
         return None
+    carried = _carried_cost(text, turns, current_targets)
+    if carried is not None:
+        return carried
     added = _added_holding(text, turns, current_targets)
     if added is not None:
         return added

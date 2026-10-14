@@ -853,13 +853,26 @@ for _metric_item in METRICS:
         EXTRA_METRIC_FIELDS.setdefault(_field, _metric_item)
 
 
+# (round 18, review-14 N2) Counts: a comma is a thousands separator only between groups of three digits ("12,500"),
+# so "买入价38,1500股" and "38，1500股" are a price and a count, never 381,500 shares; a full-width "，" always ends
+# a number.
+_DIGITS = r"(?:\d{1,3}(?:,\d{3})+(?!\d)|\d+)"
+# (round 18, review-14 N4) a price or cost may carry thousands separators too ("an average cost of 1,600")
+_MONEY = r"(?:\d{1,3}(?:,\d{3})+(?!\d)|\d+)(?:\.\d+)?"
+
+
+def _amount(raw: str) -> float:
+    """A stated price or cost: "1,600" is 1600.0 (the patterns accept a comma only between groups of three digits)."""
+    return float(str(raw).replace(",", ""))
+
+
 # (round 11, G5) "我有1000股五粮液，按最新收盘价值多少钱", "500 shares of Moutai, what are they worth?": the value of a
 # stated holding at the last close (shares × close), not a fair-value question. "一股/每股值多少" is a fair value, and
 # "10股派…" a dividend per share, so neither is a holding.
 _HOLDING_COUNT_ZH = (
     # (round 15, review-11 K7) "1.5万股", "3万股", "2千股": a count with a 万 / 千 multiplier is a holding, not a cap
     # (round 16, review-12 L3) mixed units: "1万2千股", "3千5百股", "1万2股" (12,000)
-    r"(?<![每\d.])(?P<n>\d+(?:\.\d+)?(?:\s*[万千百]\s*\d*)+(?=\s*[股份手])|\d[\d,，]*|"
+    r"(?<![每\d.])(?P<n>\d+(?:\.\d+)?(?:\s*[万千百]\s*\d*)+(?=\s*[股份手])|\d{1,3}(?:,\d{3})+(?!\d)|\d+|"
     r"[两二三四五六七八九十百千万][零〇一二两三四五六七八九十百千万]*|"
     r"一[十百千万][零〇一二两三四五六七八九十百千万]*)"
     # (round 12) fund units count like shares ("两万份沪深300ETF"); a lot (手) is 100 shares ("3手茅台")
@@ -882,7 +895,7 @@ _HOLDING_VALUE_ZH = re.compile(
 # next sentence, "the worth of 300 shares"; not "3.88 billion shares"
 _EN_COUNT = (
     # (round 16, review-12 L13) "2万 shares", "20k shares", "1.5 thousand shares"
-    r"(?<![\d.,])(?P<{name}>\d[\d,]*(?:\.\d+)?\s*(?:万|千|k\b|thousand\b)?|\d[\d,]*)\s+"
+    r"(?<![\d.,])(?P<{name}>(?:\d{{1,3}}(?:,\d{{3}})+(?!\d)|\d+)(?:\.\d+)?\s*(?:万|千|k\b|thousand\b)?|(?:\d{{1,3}}(?:,\d{{3}})+(?!\d)|\d+))\s+"
     r"(?:(?!billion|million|thousand|bn|mn)[A-Za-z][\w'.-]*\s+){{0,3}}?(?:shares?|units?)\b"
 )
 _HOLDING_VALUE_EN = re.compile(
@@ -890,9 +903,11 @@ _HOLDING_VALUE_EN = re.compile(
     + r"[^.?!]{0,60}?\b(?:worth|value|how much)\b|"
     + _EN_COUNT.format(name="n3")
     + r"[^.?!]{0,60}\.\s+(?:so\s+|and\s+)?(?:what|how much|total|combined)\b[^.?!]{0,40}?\b(?:worth|value)\b|"
-    r"\bhow much (?:are|is|would) (?:my )?(?P<n2>\d[\d,]*(?:\.\d+)?\s*(?:万|千|k\b|thousand\b)?)\s*"
+    r"\bhow much (?:are|is|would) (?:my )?(?P<n2>" + _DIGITS + r"(?:\.\d+)?\s*(?:万|千|k\b|thousand\b)?)\s*"
     r"(?:shares?|units?)\b|"
-    r"\bworth of (?:my |the |these |those )?(?P<n4>\d[\d,]*)\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?(?:shares?|units?)\b",
+    r"\bworth of (?:my |the |these |those )?(?P<n4>"
+    + _DIGITS
+    + r")\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?(?:shares?|units?)\b",
     re.IGNORECASE,
 )
 # (round 13) The cost of buying a stated number of shares or lots at the last close: "按这个价格，买三手要多少钱",
@@ -903,11 +918,13 @@ _PURCHASE_ZH = re.compile(
     r"(?:要|需要|得|需|须|大概|大约|一共|总共|共)*\s*(?:花|用|投入|准备)?\s*(?:多少钱|多少元|多少资金|几万|几千|多少)"
 )
 _PURCHASE_EN = re.compile(
-    r"\bhow much\b[^.?!]{0,40}?\b(?:buy|purchase)\s+(?P<n>\d[\d,]*)\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?"
+    r"\bhow much\b[^.?!]{0,40}?\b(?:buy|purchase)\s+(?P<n>" + _DIGITS + r")\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?"
     r"(?P<unit>shares?|units?|lots?)\b|"
-    r"\b(?:buy(?:ing)?|purchas(?:e|ing))\s+(?P<n2>\d[\d,]*)\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?(?P<unit2>shares?|units?|lots?)\b"
+    r"\b(?:buy(?:ing)?|purchas(?:e|ing))\s+(?P<n2>"
+    + _DIGITS
+    + r")\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?(?P<unit2>shares?|units?|lots?)\b"
     r"[^.?!]{0,40}?\b(?:cost|how much|need)\b|"
-    r"\b(?:cost|take|need)\b[^.?!]{0,20}?\b(?:buy|purchase)\s+(?P<n3>\d[\d,]*)\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?"
+    r"\b(?:cost|take|need)\b[^.?!]{0,20}?\b(?:buy|purchase)\s+(?P<n3>" + _DIGITS + r")\s+(?:[A-Za-z][\w'.-]*\s+){0,3}?"
     r"(?P<unit3>shares?|units?|lots?)\b",
     re.IGNORECASE,
 )
@@ -934,23 +951,30 @@ def _purchase_match(text: str) -> tuple[int, int, str, tuple[int, int]] | None:
 # 多少", "I bought 500 shares at 70 — what's my profit?": (close − cost) per share, in percent of the cost, and times
 # the shares when a count is stated; never advice
 _COST_ZH = re.compile(
-    r"(?:成本价?|买入价|买入成本|持仓成本|持仓均价|均价|进价|入手价)(?:是|为|在|大概|大约|约)?\s*(?P<cost>\d+(?:\.\d+)?)\s*(?:元|块)?|"
-    r"(?P<cost2>\d+(?:\.\d+)?)\s*(?:(?:元|块)(?:钱)?(?:一股|每股|1股)?\s*(?:的时候|时)?(?:又|再|还|也|另外)?|"
+    r"(?:成本价?|买入价|买入成本|持仓成本|持仓均价|均价|进价|入手价)(?:是|为|在|大概|大约|约)?\s*(?P<cost>"
+    + _MONEY
+    + r")\s*(?:元|块)?|"
+    r"(?P<cost2>" + _MONEY + r")\s*(?:(?:元|块)(?:钱)?(?:一股|每股|1股)?\s*(?:的时候|时)?(?:又|再|还|也|另外)?|"
     # (round 17) a bare price right before the buy verb: "我250买了400股"
     r"(?=买|进的|入手|建仓))"
     r"(?:买|买入|买进|入手|进的|进了|建仓|抄底|上车|加仓|补仓)|"
     # (round 17) "买在9元", "成本在40块", "进在30"
-    r"(?:买在|买于|进在|入在)\s*(?P<cost6>\d+(?:\.\d+)?)|"
+    r"(?:买在|买于|进在|入在)\s*(?P<cost6>" + _MONEY + r")|"
     # (round 17) the count, then the price, after the buy verb: "买了1000股300元", "买入500股，每股40元"
-    r"(?:买|买入|买进|入手|建仓)(?:了|入|进)?\s*(?:\d[\d,，]*|[两二三四五六七八九十百千万]+)\s*(?:股|手)\s*[，,]?\s*"
-    r"(?:每股|单价|价格|均价)?(?:是|为|在)?\s*(?P<cost3>\d+(?:\.\d+)?)\s*(?:元|块)(?!\s*(?:卖|抛))|"
+    r"(?:买|买入|买进|入手|建仓)(?:了|入|进)?\s*(?:\d{1,3}(?:,\d{3})+(?!\d)|\d+|[两二三四五六七八九十百千万]+)\s*(?:股|手)\s*[，,]?\s*"
+    r"(?:每股|单价|价格|均价)?(?:是|为|在)?\s*(?P<cost3>" + _MONEY + r")\s*(?:元|块)(?!\s*(?:卖|抛))|"
     # (round 17) the price before the cost word: "按94元的成本", "我是96元的成本"
-    r"(?P<cost4>\d+(?:\.\d+)?)\s*(?:元|块)(?:钱)?\s*(?:的)?\s*(?:持仓)?(?:成本价?|买入价|买入成本|均价|进价)"
+    r"(?P<cost4>" + _MONEY + r")\s*(?:元|块)(?:钱)?\s*(?:的)?\s*(?:持仓)?(?:成本价?|买入价|买入成本|均价|进价)"
 )
 # (round 15, review-11 K2) several purchases at different costs, each a (cost, count) pair: "40元买了500股…43元又买了
 # 500股", "先买500股成本40元，又买300股成本45元", "bought 500 shares at 40 and another 500 at 43"
 _LOT_ZH = re.compile(
-    r"(?P<cost>\d+(?:\.\d+)?)\s*(?:元|块)(?:钱)?(?:一股|每股)?\s*(?:的(?:价格|价位)?)?\s*(?:的时候|时|那会儿?)?"
+    r"(?<![\d.])(?P<cost>"
+    + _MONEY
+    + r")\s*(?:(?:元|块)(?:钱)?(?:一股|每股)?\s*(?:的(?:价格|价位)?)?\s*(?:的时候|时|那会儿?)?|"
+    # (round 18, review-14 N3) a bare price right before the buy or add verb: "300又加了300股", "270买了400股", "88补了
+    # 200股" (the sale pattern already reads "280卖了")
+    r"(?:的时候|时|那会儿?)?(?=(?:又|再|还|也|另外|接着|然后)?(?:买|加|补|入手|建仓|抄底|吃进|接)))"
     r"(?:又|再|还|也|另外|接着|然后)?"
     # (round 16, review-12 L2) 补了 / 加了 / 又入 / 吃进, and the name between the verb and the count ("30元买入紫金矿业
     # 1000股")
@@ -960,17 +984,21 @@ _LOT_ZH = re.compile(
     # (round 17) the name between the verb and the count here too: "先买宁德时代300股成本280元"
     + r"(?:买|买入|买进|入手|建仓|加仓|补仓)(?:了|入|进)?\s*(?:[一-鿿A-Za-z]{2,8}?\s*)?"
     + _HOLDING_COUNT_ZH.replace("(?P<n>", "(?P<n2>").replace("(?P<unit>", "(?P<unit2>")
-    + r"[^，,。；;]{0,10}?(?:成本价?|买入价|均价|单价|价格|每股)(?:是|为|在|约)?\s*(?P<cost2>\d+(?:\.\d+)?)|"
+    + r"[^，,。；;]{0,10}?(?:成本价?|买入价|均价|单价|价格|每股)(?:是|为|在|约)?\s*(?P<cost2>"
+    + _MONEY
+    + r")|"
     # (round 16) "第一次300股75元，第二次200股85元": a count then its cost, after an ordinal purchase word
     + r"(?:第[一二三四五六七八九十\d]+(?:次|笔|批)|头一次|先|后来|然后|再)[^，,。；;：:]{0,4}?"
     + _HOLDING_COUNT_ZH.replace("(?P<n>", "(?P<n3>").replace("(?P<unit>", "(?P<unit3>")
-    + r"\s*(?:的)?(?:成本|价格|均价|每股)?\s*(?P<cost3>\d+(?:\.\d+)?)\s*(?:元|块)"
+    + r"\s*(?:的)?(?:成本|价格|均价|每股)?\s*(?P<cost3>"
+    + _MONEY
+    + r")\s*(?:元|块)"
 )
 _LOT_EN = re.compile(
-    r"(?<![\d.,])(?P<n>\d[\d,]*)\s+(?:more\s+)?(?:(?:[A-Za-z][\w'.&-]*\s+){0,3}?(?:shares?|units?)\s+)?"
+    r"(?<![\d.,])(?P<n>" + _DIGITS + r")\s+(?:more\s+)?(?:(?:[A-Za-z][\w'.&-]*\s+){0,3}?(?:shares?|units?)\s+)?"
     # (round 16, review-12 L2) "1,000 Zijin at 32": a name with no "shares"
     r"(?:of\s+[A-Z][\w'&. -]{0,30}?\s+|(?-i:[A-Z])[\w'&.-]*(?:\s+(?-i:[A-Z])[\w'&.-]*){0,2}\s+)?"
-    r"(?:at|for)\s*(?:CNY|RMB|¥)?\s*(?P<cost>\d+(?:\.\d+)?)\b(?!\s*(?:shares|%))",
+    r"(?:at|for)\s*(?:CNY|RMB|¥)?\s*(?P<cost>" + _MONEY + r")\b(?!\s*(?:shares|%))",
     re.IGNORECASE,
 )
 _PNL_ASK_ZH = re.compile(
@@ -980,19 +1008,25 @@ _PNL_ASK_ZH = re.compile(
     r"[赚亏]了没有|赚没赚|亏没亏|有没有[赚亏]"
 )
 _COST_EN = re.compile(
-    r"\bpaid\s*(?:CNY|RMB|¥)?\s*(?P<cost3>\d+(?:\.\d+)?)\s*(?:a share|per share|each|apiece|for)\b|"
-    r"\b(?:bought|purchased|paid|got in|got into|bought into|went into|picked up|acquired|added|entered)\b[^.?!]{0,40}?"
+    r"\bpaid\s*(?:CNY|RMB|¥)?\s*(?P<cost3>" + _MONEY + r")\s*(?:a share|per share|each|apiece|for)\b|"
+    # (round 18) "after buying at 80"
+    r"\b(?:bought|buying|purchased|paid|got in|got into|bought into|went into|picked up|acquired|added|entered)\b"
+    r"[^.?!]{0,40}?"
     r"\b(?:at|for)\s*(?:CNY|RMB|¥)?\s*"
-    r"(?P<cost>\d+(?:\.\d+)?)|"
+    r"(?P<cost>" + _MONEY + r")|"
     r"\b(?:cost(?: basis| price)?|entry(?: price)?|average (?:cost|price)|avg\.? cost|(?:purchase|buy) price)\s*"
-    r"(?:is|was|of|at|=|:)?\s*(?:CNY|RMB|¥)?\s*(?P<cost2>\d+(?:\.\d+)?)|"
+    r"(?:is|was|of|at|=|:)?\s*(?:CNY|RMB|¥)?\s*(?P<cost2>" + _MONEY + r")|"
     # (round 17) "my 33 purchase price", "my CNY 96 entry"
-    r"\bmy\s+(?:CNY|RMB|¥)?\s*(?P<cost4>\d+(?:\.\d+)?)\s+(?:purchase price|buy price|cost(?: basis)?|entry(?: price)?|"
+    r"\bmy\s+(?:CNY|RMB|¥)?\s*(?P<cost4>"
+    + _MONEY
+    + r")\s+(?:purchase price|buy price|cost(?: basis)?|entry(?: price)?|"
     r"average cost)\b",
     re.IGNORECASE,
 )
 _PNL_ASK_EN = re.compile(
     r"\b(?:profit|loss|gain|p&l|pnl|up|down|made|lost|making|losing|underwater|in the (?:red|green))\b|"
+    # (round 18, review-14 N1) "What did I make?", "make or lose", "the realised result"
+    r"\b(?:did|do) i (?:make|lose)\b|\bmake or lose\b|\breali[sz]ed\b|"
     # (round 17) "Where am I now on the remaining stake?", "how do I stand on what's left?"
     r"\bwhere (?:am i|do i stand)\b|\bhow (?:am i doing|do i stand)\b",
     re.IGNORECASE,
@@ -1009,7 +1043,9 @@ _FRACTION_ZH = (
 )
 _SALE_ZH = re.compile(
     # the price first: "32元卖掉了1000股", "以320元的价格卖了400股"
-    r"(?:以|按|在|用)?\s*(?P<price>\d+(?:\.\d+)?)\s*(?:(?:元|块)(?:钱)?(?:一股|每股)?\s*(?:的(?:价格|价位|位置|点位)?)?\s*"
+    r"(?:以|按|在|用)?\s*(?P<price>"
+    + _MONEY
+    + r")\s*(?:(?:元|块)(?:钱)?(?:一股|每股)?\s*(?:的(?:价格|价位|位置|点位)?)?\s*"
     r"(?:的时候|时|那会儿?)?(?:又|再|还|也|后来|然后|接着|就)?|"
     # (round 17) "88的位置卖了300股", "昨天280卖了一半": a bare price right before the sale verb
     r"(?:的(?:价格|价位|位置|点位)|的时候|时)?(?=(?:卖|抛|出掉|出了|减持|减仓|清掉|止盈|止损|割)))"
@@ -1027,7 +1063,7 @@ _SALE_ZH = re.compile(
     + _FRACTION_ZH.replace("(?P<frac>", "(?P<frac2>")
     + r")"
     r"(?:[^，,。；;？?]{0,6}?(?:[，,]\s*)?(?:卖出价|卖价|成交价|价格|均价|每股|单价)?(?:是|为|在)?\s*(?:以|按)?\s*"
-    r"(?P<price2>\d+(?:\.\d+)?)\s*(?:元|块))?"
+    r"(?P<price2>" + _MONEY + r")\s*(?:元|块))?"
 )
 _FRACTION_VALUE = {
     "一半": 0.5, "半仓": 0.5, "三分之一": 1 / 3, "三分之二": 2 / 3, "四分之一": 0.25, "四分之三": 0.75, "五分之一": 0.2,
@@ -1036,12 +1072,12 @@ _FRACTION_VALUE = {
 }  # fmt: skip
 _SALE_EN = re.compile(
     r"\b(?:sold|sell|selling|trimmed|trim|offloaded|unloaded|dumped|cut|reduced|got rid of|took profits? on|cashed out)"
-    r"\s+(?:off\s+|out\s+)?(?:(?P<n>\d[\d,]*)|(?P<frac>half|a third|one third|a quarter|one quarter))"
+    r"\s+(?:off\s+|out\s+)?(?:(?P<n>" + _DIGITS + r")|(?P<frac>half|a third|one third|a quarter|one quarter))"
     r"(?:\s+(?:of\s+(?:them|those|it|the(?:se)? shares|my shares|the position|"
     # (round 17) "sold 300 of my 900 BYD shares at 90": the held count inside the sale
-    r"my\s+(?P<held>\d[\d,]*)(?:\s+(?!at\b|for\b)[A-Za-z][\w&.'-]*){0,3}?\s+shares?)|shares?|units?|lots?)"
+    r"my\s+(?P<held>" + _DIGITS + r")(?:\s+(?!at\b|for\b)[A-Za-z][\w&.'-]*){0,3}?\s+shares?)|shares?|units?|lots?)"
     r"(?:\s+of\s+[A-Z][\w&.'-]*)?)?"
-    r"(?:\s+(?:at|for)\s*(?:CNY|RMB|¥)?\s*(?P<price>\d+(?:\.\d+)?)\b(?!\s*%)"
+    r"(?:\s+(?:at|for)\s*(?:CNY|RMB|¥)?\s*(?P<price>" + _MONEY + r")\b(?!\s*%)"
     r"(?:\s*(?:a share|per share|each|apiece))?)?",
     re.IGNORECASE,
 )
@@ -1098,12 +1134,115 @@ def stated_sales(query: str) -> list[dict[str, Any]]:
                 "shares": shares,
                 "held": count_value(groups["held"]) if groups.get("held") else None,
                 "fraction": _FRACTION_VALUE.get((frac or "").lower()) if frac else None,
-                "price": float(price) if price else None,
+                "price": _amount(price) if price else None,
                 "start": match.start(),
                 "end": match.end(),
             }
         )
+    full = _full_sale(text, zh, [(sale["start"], sale["end"]) for sale in found])
+    if full is not None:
+        found.append(full)
+        found.sort(key=lambda sale: sale["start"])
     return found
+
+
+# (round 18, review-14 N1) a sale of the whole position, usually with no count: "全部卖掉了", "全都卖了", "都卖光了",
+# "清仓了", "一股不剩", "sold all", "sold the whole lot", "closed out the position", "exited my position", "were all
+# sold". The position is closed: the realised result is shares × (sale price − cost) and nothing is valued at the close.
+_FULL_SALE_ZH = re.compile(
+    r"(?:全部|全都|统统|通通|一次性)(?:都)?(?:给)?(?:卖出|卖掉|卖光|卖完|卖了|抛出|抛掉|抛光|抛了|出掉|出光|出清|出了|清掉|卖|抛)|"
+    r"(?<![没不未])(?:都|全)(?:给)?(?:卖出|卖掉|卖光|卖完|卖了|抛出|抛掉|抛光|抛了|出掉|出光|出清|卖|抛)|"
+    r"(?<![没不未要想])(?:清仓|清空|卖光|卖完|抛光|出清)(?!价)|一股不剩"
+)
+# the sale price right before the verb ("以310元全部卖掉", "在40块清仓了", "1600全卖了", "88元一股都卖光了")
+_FULL_SALE_PRICE_BEFORE_ZH = re.compile(
+    r"(?<![\d.])(?:以|按|在|用)?\s*(?P<price>" + _MONEY + r")\s*(?:元|块)?(?:钱)?(?:一股|每股)?\s*"
+    r"(?:的(?:价格|价位|位置|点位))?\s*(?:的时候|时)?\s*(?:就|又|再|已经|已|一下|一把)?\s*$"
+)
+# the sale price stated after the verb ("清仓价40元", "卖出价300", "卖在300")
+_FULL_SALE_PRICE_AFTER_ZH = re.compile(
+    r"(?:清仓价|卖出价|卖价|成交价|卖在|卖于|出在|清在|抛在)(?:格)?(?:是|为|在|约)?\s*(?P<price>" + _MONEY + r")"
+)
+# a sale considered, asked about or negated ("要是现在全部卖掉", "要不要清仓", "还没清仓") is not a closed position
+_SALE_NOT_MADE_ZH = re.compile(
+    r"(?:如果|要是|假如|假设|若是|倘若|万一|想|打算|准备|计划|要不要|该不该|应不应该|应该|是否|能不能|可不可以|可以|"
+    r"会不会|还没|没有|没|不)[^，。,；;？?！!]{0,10}$"
+)
+_FULL_SALE_EN = re.compile(
+    r"\b(?:sold|dumped|offloaded|unloaded|liquidated)\s+(?:off\s+|out\s+)?"
+    r"(?:all(?:\s+(?:of\s+)?(?:my\s+)?(?P<held>" + _DIGITS + r"))?|everything|"
+    r"(?:the|my)\s+(?:whole|entire|full)\s+(?:lot|position|stake|holding)|"
+    r"(?:them|it|those|these|the shares|my shares)\s+all|all\s+of\s+(?:them|it|those|these|my shares))\b|"
+    r"\b(?:closed|closing)\s+(?:out\s+)?(?:(?:my|the|this|that)\s+)?(?:(?-i:[A-Z])[\w&.'-]*\s+){0,3}?"
+    r"(?:(?:whole|entire|full)\s+)?(?:position|stake|holding)\b|\bclosed (?:it|them) out\b|"
+    r"\bexited\s+(?:(?:my|the)\s+)?(?:(?-i:[A-Z])[\w&.'-]*\s+){0,3}?(?:(?:whole|entire|full)\s+)?"
+    r"(?:position|stake|holding)\b|"
+    r"\bcashed out(?: of)? (?:all|everything|the whole (?:lot|position))\b|"
+    r"\b(?:were|was|got)\s+all\s+sold\b|\ball\s+(?:of\s+them\s+)?(?:were|got)\s+sold\b",
+    re.IGNORECASE,
+)
+_FULL_SALE_PRICE_EN = re.compile(
+    r"^[^.;?!]{0,40}?\b(?:at|for)\s*(?:CNY|RMB|¥)?\s*(?P<price>" + _MONEY + r")\b"
+    r"(?!\s*(?:%|percent|years?|months?|weeks?|days?|shares?))"
+    r"(?:\s*(?:a share|per share|each|apiece))?",
+    re.IGNORECASE,
+)
+_SALE_NOT_MADE_EN = re.compile(
+    r"\b(?:if|suppose|supposing|should i|would|could|plan(?:ning)? to|thinking of|want to|going to|haven't|have not|"
+    r"didn't|did not|not yet|whether to|should)\b[^.;?!]{0,30}$",
+    re.IGNORECASE,
+)
+
+
+def _full_sale(text: str, zh: bool, taken: list[tuple[int, int]]) -> dict[str, Any] | None:
+    """(round 18, review-14 N1) The one sale of the whole position a question states, or ``None``: ``{shares: None,
+    fraction: 1.0, full: True, price, held, start, end, spans}`` (``spans`` also covers a price stated after the verb,
+    so it is never read as a cost)."""
+    pattern = _FULL_SALE_ZH if zh else _FULL_SALE_EN
+    for match in pattern.finditer(text):
+        if any(start < match.end() and match.start() < end for start, end in taken):
+            continue
+        before = text[: match.start()]
+        if (_SALE_NOT_MADE_ZH if zh else _SALE_NOT_MADE_EN).search(before):
+            continue
+        start, end, price, held = match.start(), match.end(), None, None
+        spans: list[tuple[int, int]] = []
+        if zh:
+            ahead = _FULL_SALE_PRICE_BEFORE_ZH.search(before)
+            if ahead is not None and ahead.group("price"):
+                price, start = _amount(ahead.group("price")), ahead.start()
+            # "清仓了3000股": the count sold is the whole position
+            counted = re.match(r"(?:了)?\s*" + _HOLDING_COUNT_ZH, text[end:])
+            if counted is not None:
+                held = count_value(counted.group("n")) * (100 if counted.group("unit") == "手" else 1)
+                end += counted.end()
+            if price is None:
+                after = _FULL_SALE_PRICE_AFTER_ZH.search(text, end)
+                if after is not None:
+                    price = _amount(after.group("price"))
+                    spans.append(after.span())
+        else:
+            held = count_value(match.group("held")) if match.group("held") else None
+            after = _FULL_SALE_PRICE_EN.search(text[end:])
+            if after is not None:
+                price = _amount(after.group("price"))
+                end += after.end()
+        return {
+            "shares": None,
+            "held": held if held and held > 1 else None,
+            "fraction": 1.0,
+            "full": True,
+            "price": price,
+            "start": start,
+            "end": end,
+            "spans": [(start, end), *spans],
+        }
+    return None
+
+
+def _sale_spans(sales: list[dict[str, Any]]) -> list[tuple[int, int]]:
+    """Every character span a sale covers (its price, verb and count), blanked before a cost or a lot is read."""
+    return [span for sale in sales for span in (sale.get("spans") or [(sale["start"], sale["end"])])]
 
 
 def _blank(text: str, spans: list[tuple[int, int]]) -> str:
@@ -1112,17 +1251,69 @@ def _blank(text: str, spans: list[tuple[int, int]]) -> str:
     return text
 
 
-def cost_basis_request(query: str) -> dict[str, Any] | None:
+# (round 18, review-14 N14) a short position: "融券卖空了200股…卖空价格300", "做空了1000股，均价12", "I shorted 500
+# BYD at 88", "sold short 300 shares at 41". Its gain at the latest close is shares × (short price − close): a gain
+# when the price fell. A short is never a purchase cost or a sale of held shares.
+_SHORT_ZH = re.compile(r"融券卖空|融券卖出|融券做空|融券|卖空|做空|沽空")
+_SHORT_EN = re.compile(r"\bshort(?:ed|ing|-sold)?\b|\bsold short\b", re.IGNORECASE)
+_SHORT_PRICE_ZH = re.compile(
+    r"(?:卖空|做空|融券(?:卖出)?|沽空)(?:的)?(?:价格|价位|均价|价)(?:是|为|在|约)?\s*(?P<price>" + _MONEY + r")|"
+    r"(?:以|按|在)?\s*(?P<price2>"
+    + _MONEY
+    + r")\s*(?:元|块)?(?:的价格|的价位)?\s*(?:融券)?(?:卖空|做空|沽空|融券卖出)|"
+    r"(?:价格|价位|均价|成交价)(?:是|为|在|约)?\s*(?P<price3>" + _MONEY + r")"
+)
+_SHORT_PRICE_EN = re.compile(
+    r"\b(?:at|for)\s*(?:CNY|RMB|¥)?\s*(?P<price>" + _MONEY + r")\b(?!\s*(?:%|shares?))", re.IGNORECASE
+)
+_SHORT_COUNT_EN = re.compile(
+    r"\b(?:shorted|short-sold|sold short|shorting|short)\s+(?P<n>" + _DIGITS + r")\b", re.IGNORECASE
+)
+
+
+def short_position_request(query: str, *, require_ask: bool = True) -> dict[str, Any] | None:
+    """(round 18, review-14 N14) ``{shares, price}`` of a short position the question states with its short price
+    (``shares`` ``None`` when no count is stated), when it asks the gain or loss (or ``require_ask=False``); else
+    ``None``."""
+    text = query or ""
+    zh = _chinese(text)
+    if not (_SHORT_ZH.search(text) if zh else _SHORT_EN.search(text)):
+        return None
+    asked = (_PNL_ASK_ZH if zh else _PNL_ASK_EN).search(text)
+    if asked is None and require_ask:
+        return None
+    price = (_SHORT_PRICE_ZH if zh else _SHORT_PRICE_EN).search(text)
+    if price is None:
+        return None
+    value = _amount(next(group for group in price.groups() if group))
+    rest = _blank(text, [price.span()])
+    counted = re.search(_HOLDING_COUNT_ZH, rest) if zh else (_EN_POSITION.search(rest) or _SHORT_COUNT_EN.search(rest))
+    shares = None
+    if counted is not None:
+        shares = count_value(counted.group("n"))
+        unit = (counted.groupdict().get("unit") or "").lower()
+        shares = shares * 100 if unit in {"手", "lot", "lots"} else shares
+    return {"price": value, "shares": shares if shares and shares > 1 else None} if value > 0 else None
+
+
+def cost_basis_request(query: str, *, require_ask: bool = True) -> dict[str, Any] | None:
     """``{cost, shares, lots}`` when the question asks the gain or loss against a cost price it states (``shares`` is
-    ``None`` when no count is stated), else ``None``."""
+    ``None`` when no count is stated), else ``None``. (round 18) ``require_ask=False`` reads a position stated with its
+    cost and no question ("我持有美的1200股，成本价86元"), for a later turn's P&L question."""
     original = query or ""
     zh = _chinese(original)
+    if short_position_request(original, require_ask=False) is not None:
+        return None  # (round 18) a short position has its own arithmetic (``short_position_request``)
     sales = stated_sales(original)
     # (round 17, review-13 M1) a sale is never read as a cost, a purchase lot or the held count
-    text = _blank(original, [(sale["start"], sale["end"]) for sale in sales])
+    text = _blank(original, _sale_spans(sales))
     found = _COST_ZH.search(text) if zh else _COST_EN.search(text)
     rise = _RISE_TO_COST.search(original)
     asked = (_PNL_ASK_ZH.search(original) if zh else _PNL_ASK_EN.search(original)) or rise
+    if asked is None and sales and _REST_ASK.search(original):
+        asked = True  # (round 18, review-14 N4) "I sold a third at 8.1. What about the rest?"
+    if asked is None and not require_ask:
+        asked = True
     if found is None and asked is not None and len(detail := cost_lots(text)) >= 2:
         # (round 16) lots written as count then cost ("第一次300股75元，第二次200股85元"): no cost word or buy verb
         request = {"cost": detail[0]["cost"], "shares": sum(lot["shares"] for lot in detail), "lots": 0,
@@ -1132,7 +1323,7 @@ def cost_basis_request(query: str) -> dict[str, Any] | None:
         found = _PER_SHARE_PRICE_ZH.search(text)
     if found is None or asked is None:
         return None
-    cost = float(next(value for value in found.groupdict().values() if value))
+    cost = _amount(next(value for value in found.groupdict().values() if value))
     if cost <= 0:
         return None
     shares, lots = None, 0
@@ -1167,13 +1358,42 @@ def cost_basis_request(query: str) -> dict[str, Any] | None:
     return _with_sales(request, sales)
 
 
+# (round 18, review-14 N4) the rest of a position after a sale: "剩下的呢", "余下的", "What about the rest?"
+_REST_ASK = re.compile(
+    r"剩下的?|剩余的?|余下的?|留着的|\bthe rest\b|\bwhat'?s left\b|\bremain(?:ing|der)\b",
+    re.IGNORECASE,
+)
+
+
+def asks_gain_or_loss(query: str) -> bool:
+    """(round 18, review-14 N4) Whether a question asks a gain or loss, the rise back to a cost, or states a sale of
+    the position (with no cost of its own: the cost may be in an earlier turn)."""
+    text = query or ""
+    pattern = _PNL_ASK_ZH if _chinese(text) else _PNL_ASK_EN
+    return bool(pattern.search(text) or _RISE_TO_COST.search(text) or stated_sales(text))
+
+
+def stated_cost_position(query: str) -> dict[str, Any] | None:
+    """(round 18, review-14 N4) ``{cost, shares}`` of a position a message states with its cost ("我持有美的集团1200股，
+    成本价86元", "I'm holding 900 BYD shares bought at 95"), with or without a question; ``None`` when it states no
+    cost, or sells the position (a sale is answered in its own turn)."""
+    request = cost_basis_request(query, require_ask=False)
+    if request is None or request.get("sales") or request.get("lots_detail"):
+        return None
+    shares = request.get("shares")
+    if shares is None and not _chinese(query or ""):
+        held = _EN_HELD_COUNT.search(query or "")
+        shares = count_value(held.group("n")) if held is not None else None
+    return {"cost": float(request["cost"]), "shares": int(shares) if shares and shares > 1 else None}
+
+
 _EN_HELD_COUNT = re.compile(
-    r"\b(?:hold|own|have|had|holding|owned|got|bought|purchased|picked up)\s+(?P<n>\d[\d,]*)\b"
+    r"\b(?:hold|own|have|had|holding|owned|got|bought|purchased|picked up)\s+(?P<n>" + _DIGITS + r")\b"
     r"(?!\.\d|\s*(?:%|percent))",
     re.IGNORECASE,
 )
 # (round 17) a price per share stated next to a purchase: "我买了3手比亚迪，每股78元"
-_PER_SHARE_PRICE_ZH = re.compile(r"(?:每股|单价|成交价|买价)(?:是|为|在)?\s*(?P<cost>\d+(?:\.\d+)?)\s*(?:元|块)")
+_PER_SHARE_PRICE_ZH = re.compile(r"(?:每股|单价|成交价|买价)(?:是|为|在)?\s*(?P<cost>" + _MONEY + r")\s*(?:元|块)")
 _BUY_VERB_ZH = re.compile(r"买了|买入|买进|入手|建仓|(?<!要)买(?=\d|[两二三四五六七八九十]|了)")
 
 
@@ -1191,9 +1411,16 @@ def _with_sales(request: dict[str, Any], sales: list[dict[str, Any]]) -> dict[st
     resolved = []
     for sale in sales:
         shares = sale["shares"]
-        if shares is None and sale.get("fraction") and bought:
+        if sale.get("full") and bought:
+            # (round 18, review-14 N1) the whole position, or what earlier sales left of it
+            shares = bought - sum(item["shares"] for item in resolved)
+        elif shares is None and sale.get("fraction") and bought:
             shares = round(bought * float(sale["fraction"]))
-        if not shares:
+        if sale.get("full") and not bought and len(sales) == 1:
+            # "我280元买的，310元全部卖了": closed, with no count; the result is per share
+            return {**request, "sales": [{"shares": None, "price": sale.get("price")}], "bought": None,
+                    "average_cost": float(request["cost"]), "lots": 0, "shares": 0, "closed": True}  # fmt: skip
+        if not shares or shares < 0:
             return request  # "卖了一半" without the purchased count: nothing to take half of
         resolved.append({"shares": int(shares), "price": sale.get("price")})
     sold = sum(sale["shares"] for sale in resolved)
@@ -1202,7 +1429,26 @@ def _with_sales(request: dict[str, Any], sales: list[dict[str, Any]]) -> dict[st
         request["shares"] = bought - sold
         if bought - sold < 0:
             request["oversold"] = True
+        elif bought == sold and any(sale.get("full") for sale in sales):
+            request["closed"] = True
     return request
+
+
+def without_stated_trades(query: str) -> str:
+    """(round 18, review-14 N3) The question with the trades it reports blanked (each purchase lot, sale and cost
+    phrase: "96又加仓了200股", "104卖出100股"), for the advice checks: a past 加仓 or 卖出 the user reports is a fact
+    about their position, not a request for a trading call."""
+    text = query or ""
+    if cost_basis_request(text) is None:
+        return text
+    spans = _sale_spans(stated_sales(text))
+    blanked = _blank(text, spans)
+    pattern = _LOT_ZH if re.search(r"[一-鿿]", blanked) else _LOT_EN
+    spans += [match.span() for match in pattern.finditer(blanked)]
+    cost = (_COST_ZH if _chinese(blanked) else _COST_EN).search(blanked)
+    if cost is not None:
+        spans.append(cost.span())
+    return _blank(text, spans)
 
 
 def cost_lots(query: str, *, minimum: int = 2) -> list[dict[str, Any]]:
@@ -1210,7 +1456,7 @@ def cost_lots(query: str, *, minimum: int = 2) -> list[dict[str, Any]]:
     (two or more, or ``minimum``), in order; empty otherwise. (round 17, review-13 M1) A lot with a sale verb is a
     sale, never a purchase."""
     raw = query or ""
-    text = _blank(raw, [(sale["start"], sale["end"]) for sale in stated_sales(raw)])
+    text = _blank(raw, _sale_spans(stated_sales(raw)))
     found: list[dict[str, Any]] = []
     pattern = _LOT_ZH if re.search(r"[一-鿿]", text) else _LOT_EN
     for match in pattern.finditer(text):
@@ -1222,7 +1468,7 @@ def cost_lots(query: str, *, minimum: int = 2) -> list[dict[str, Any]]:
         count = count_value(raw_count)
         if (groups.get("unit") or groups.get("unit2") or groups.get("unit3") or "") == "手":
             count *= 100
-        cost = float(raw_cost)
+        cost = _amount(raw_cost)
         if count > 1 and cost > 0:
             found.append({"cost": cost, "shares": count})
     return found if len(found) >= minimum else []
@@ -1243,8 +1489,10 @@ _CN_UNIT = {"十": 10, "百": 100, "千": 1000, "万": 10000}
 
 
 def count_value(raw: str) -> int:
-    """A stated count: "2,000", "两千", "1.5万" (15,000), "3万" (30,000), "2千" (2,000)."""
-    raw = (raw or "").replace(",", "").replace("，", "").replace(" ", "")
+    """A stated count: "2,000", "两千", "1.5万" (15,000), "3万" (30,000), "2千" (2,000). (round 18, review-14 N2) Only
+    an ASCII comma separates thousands (the count patterns accept it only between groups of three digits); a full-width
+    "，" is a clause break, never part of a number."""
+    raw = (raw or "").replace(",", "").replace(" ", "")
     if raw.isdigit():
         return int(raw)
     thousands = re.fullmatch(r"(\d+(?:\.\d+)?)(?:k|thousand)", raw, re.IGNORECASE)
@@ -1330,26 +1578,57 @@ def stated_holding_count(text: str) -> int | None:
 
 
 _EN_POSITION = re.compile(
-    r"(?<![\d.,])(?P<n>\d[\d,]*)\s+(?:(?!billion|million|thousand|bn|mn)[A-Za-z][\w'.-]*\s+){0,3}?"
+    r"(?<![\d.,])(?P<n>" + _DIGITS + r")\s+(?:(?!billion|million|thousand|bn|mn)[A-Za-z][\w'.-]*\s+){0,3}?"
     r"(?P<unit>shares?|units?|lots?)\b",
     re.IGNORECASE,
 )
 
 
 _EN_BARE_POSITION = re.compile(
-    r"(?:,|\band\b|\bplus\b|&)\s*(?:another\s+|also\s+)?(?P<n>\d[\d,]*)\s+(?:of\s+|in\s+)?(?=(?-i:[A-Z]))|"
+    r"(?:,|\band\b|\bplus\b|&)\s*(?:another\s+|also\s+)?(?P<n>" + _DIGITS + r")\s+(?:of\s+|in\s+)?(?=(?-i:[A-Z]))|"
     # (round 16) a count and a name before the next item of the list ("1,500 CMB and 2,000 ICBC shares")
-    r"(?<![\d.,])(?P<n2>\d[\d,]*)\s+(?=(?-i:[A-Z])[\w&.-]*(?:\s+(?-i:[A-Z])[\w&.-]*){0,2}\s*(?:,|\band\b|&))",
+    r"(?<![\d.,])(?P<n2>" + _DIGITS + r")\s+(?=(?-i:[A-Z])[\w&.-]*(?:\s+(?-i:[A-Z])[\w&.-]*){0,2}\s*(?:,|\band\b|&))",
     re.IGNORECASE,
 )
+
+
+# (round 18, review-14 N14) the weight of each stated position in the holdings: "招行占我持仓的比例是多少", "各占多少",
+# "仓位占比", "What share of my portfolio is CMB?", "portfolio weights"
+_WEIGHT_ASK = re.compile(
+    r"占(?:我的?|我们的?)?(?:整个|全部|总)?(?:持仓|仓位|组合|总市值|总资产|账户|股票资产)(?:的)?(?:总值|市值)?(?:的)?"
+    r"(?:比例|比重|权重|多少|百分之几|几成|多大)|(?:持仓|仓位|组合)(?:的)?(?:占比|比重|权重)|各占(?:多少|几成|百分之几|比例|多大)|"
+    r"\b(?:weight|share|percentage|portion|proportion|fraction)s?\b[^.?!]{0,30}?\bof (?:my |the )?(?:portfolio|"
+    r"holdings|positions|total)\b|\bportfolio weights?\b|\bhow (?:much|big) (?:a )?(?:share|weight)\b",
+    re.IGNORECASE,
+)
+
+
+# (round 18, review-14 N14) the number of shares a company has issued: no source reports it, so the template states the
+# count implied by the market value and the latest close, labelled as derived
+_TOTAL_SHARES = re.compile(
+    r"总股本|总股数|股本(?:是|有|大概|大约)?(?:多少|几)|发行了?(?:多少|几)股|"
+    r"\bshares outstanding\b|\boutstanding shares\b|\btotal (?:number of )?shares\b|\bshare count\b",
+    re.IGNORECASE,
+)
+
+
+def asks_total_shares(query: str) -> bool:
+    """(round 18, review-14 N14) Whether the question asks a company's total share count."""
+    return bool(_TOTAL_SHARES.search(query or ""))
+
+
+def asks_portfolio_weight(query: str) -> bool:
+    """(round 18, review-14 N14) Whether the question asks the weight of stated positions in the holdings."""
+    return bool(_WEIGHT_ASK.search(query or ""))
 
 
 def holding_positions(query: str) -> list[dict[str, Any]]:
     """(round 13, review-9 I5) Every count in a holding-value question that states two or more positions ("我有200股
     茅台和3手五粮液，一共值多少", "300 Moutai shares and 2 lots of Ping An"): ``{shares, lots, units, start, end}`` in
-    order; empty for a single position (``holding_value_request`` covers it)."""
+    order; empty for a single position (``holding_value_request`` covers it). (round 18) A question asking the
+    positions' weights in the holdings counts too."""
     text = query or ""
-    if holding_value_request(text) is None:
+    if holding_value_request(text) is None and not asks_portfolio_weight(text):
         return []
     found: list[dict[str, Any]] = []
     for match in re.finditer(_HOLDING_COUNT_ZH, text):
@@ -1961,6 +2240,28 @@ _BACK_TO_HIGH = re.compile(
     r"\bhow much\b[^.?!]{0,40}?\b(?:back to|regain|reclaim|return to)\b[^.?!]{0,30}?\bhighs?\b",
     re.IGNORECASE,
 )
+# (round 18, review-14 N14) the spread between the 52-week high and low ("52周最高和最低差多少", "how wide is the
+# 52-week range?") and where the latest close sits in it ("处于52周区间的什么位置", "where does it sit in its 52-week
+# range?")
+_SPREAD_52W = re.compile(
+    r"(?:最高|高点)[^，。？?；;]{0,10}?(?:和|与|跟|同|到)[^，。？?；;]{0,8}?(?:最低|低点)[^，。？?；;]{0,10}?"
+    r"(?:差|相差|差距|价差|差了|差额|之差|距离)|"
+    r"(?:最高|高点)(?:与|和)?(?:最低|低点)(?:之间)?(?:的)?(?:价差|差距|差额|之差|振幅)|"
+    r"(?:区间|波动范围|价格范围)(?:有)?多(?:宽|大)|"
+    r"\b(?:spread|gap|difference|distance)\b between [^.?!]{0,30}?\bhighs?(?: close)? and (?:its |the )?"
+    r"(?:52[- ]week )?lows?\b|\bhigh[- ]low (?:spread|gap|range)\b|\bhow (?:wide|big|large) is [^.?!]{0,30}?"
+    r"52[- ]week (?:range|band)\b",
+    re.IGNORECASE,
+)
+_POSITION_52W = re.compile(
+    r"(?:处于|处在|位于|在)[^，。？?；;]{0,14}?(?:区间|范围|高低点之间)[^，。？?；;]{0,6}?(?:的)?(?:什么|哪个|哪里|多少|哪儿|何种)?"
+    r"(?:位置|分位|百分位|水平)|"
+    r"(?:区间|范围)(?:的|内的|里的)?(?:什么|哪个|几成|百分之几|多少)(?:的)?(?:位置|分位)|"
+    r"\bwhere (?:does|is)\b[^.?!]{0,40}?\b(?:sit|stand|trade|lie|trading|sitting|placed)\b[^.?!]{0,30}?"
+    r"\b52[- ]week (?:range|band)\b|"
+    r"\b(?:position|place|percentile) (?:in|within) (?:its |the )?52[- ]week (?:range|band)\b",
+    re.IGNORECASE,
+)
 _SHORT_OF_HIGH = re.compile(r"(?:距离?|离)[^，。？?；;]{0,8}?(?:最高|高点|前高)[^。？?；;]{0,8}?还差")
 # The session named next to a 52-week question ("今天最高多少，52周最高多少"): then the day's high/low is wanted too.
 _SESSION_WORDS = re.compile(r"今天|今日|当天|当日|日内|\btoday\b|\bintraday\b|\bsession\b", re.IGNORECASE)
@@ -2212,6 +2513,8 @@ class PriceRequest:
     rebound_52w: bool = False
     off_high_52w: bool = False
     back_to_high_52w: bool = False  # (round 15) the rise needed to get back to the 52-week high
+    spread_52w: bool = False  # (round 18) the 52-week high close minus the low close
+    position_52w: bool = False  # (round 18) where the latest close sits between the 52-week low and high
 
     @property
     def needs_quote(self) -> bool:
@@ -2251,7 +2554,9 @@ def requested_price_fields(query: str) -> PriceRequest:
         averages = [5]
     # "52周最高和最低" asks for the 52-week range, not the day's high and low (unless the day is named too)
     back = bool(_BACK_TO_HIGH.search(text))
-    yearly = asks_range_52w(text) or back
+    spread = bool(_SPREAD_52W.search(text))
+    position = bool(_POSITION_52W.search(text))
+    yearly = asks_range_52w(text) or back or ((spread or position) and bool(_RANGE_52W.search(text)))
     session = not yearly or bool(_SESSION_WORDS.search(text))
     return PriceRequest(
         closes=closes if _CLOSES_WORD.search(text) or match else 0,
@@ -2274,6 +2579,8 @@ def requested_price_fields(query: str) -> PriceRequest:
         # (round 17) "距离52周最高还差多少百分比" reads both ways: the fall from the high and the rise back to it
         off_high_52w=yearly and bool(_BELOW_HIGH.search(text)) and (not back or bool(_SHORT_OF_HIGH.search(text))),
         back_to_high_52w=back,
+        spread_52w=yearly and spread,
+        position_52w=yearly and position,
     )
 
 

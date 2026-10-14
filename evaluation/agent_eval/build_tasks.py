@@ -703,6 +703,7 @@ def build_tasks() -> list[dict[str, Any]]:
     tasks += _round15_frame_tasks()
     tasks += _round16_frame_tasks()
     tasks += _round17_frame_tasks()
+    tasks += _round18_frame_tasks()
 
     ids = [task["id"] for task in tasks]
     assert len(ids) == len(set(ids)), "duplicate task ids"
@@ -4770,6 +4771,133 @@ def _round17_frame_tasks() -> list[dict[str, Any]]:
                     forbidden_patterns=[*TRADING_PATTERNS, r"(?i)could not tell which security"],
                     language="en",
                 )
+            ],
+        ),
+    ]
+
+
+def _round18_frame_tasks() -> list[dict[str, Any]]:
+    """Round-18 rules: the classes the round-14 review found (N1-N4, N6, N14), in the author's own wording on the v1
+    snapshot (no turn copies or near-copies a committed slice, a quoted review probe or another set,
+    ``tests/test_agent_eval.py``). Values from the v1 tools (closes 茅台 1409.5 / 五粮液 100.64 / 中国平安 53.61 on
+    2026-04-22; 市盈率 24.6 / 20.9 / 8.7; 市净率 8.1 / 5.4 / 1.1): a position sold in full (800 × 13 = 10400; 30 ×
+    (1460 − 1500) = −1200), a comma between a price and a count (1200 × 53.61 = 64332), a second purchase with a bare
+    price (average 110.4: realised −640, remaining 400 × −9.76 = −3904), a cost carried into the next turn (2500 ×
+    −3.39 = −8475), an English sale follow-up (realised 1400, remaining 40 × 29.5 = 1180), a threshold in tenths
+    (20.9 ÷ 24.6 ≈ 84.96%, under 九成) and a correction turn (中国平安 P/B 1.1)."""
+
+    def fundamental(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"fundamental_{symbol}", "value": value}
+
+    def price(symbol: str, value: float) -> dict[str, Any]:
+        return {"evidence_id": f"price_{symbol}", "value": value}
+
+    mt, wly, pa = "600519.SH", "000858.SZ", "601318.SH"
+    no_advice = [*TRADING_PATTERNS, r"条件性判断", r"(?i)conditional assessment"]
+    return [
+        # N1: a position sold in full is closed: the realised result, never a paper P&L or a value at the close
+        _task(
+            "r18_closed_position_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "五粮液我95元建仓了800股，上周以108元全都卖掉了，这笔一共赚了多少",
+                    required_facts=[price(wly, 10400)],
+                    forbidden_patterns=[*no_advice, r"(?<![\d.])4512(?![\d.])", r"80512", r"浮盈|浮亏"],
+                )
+            ],
+        ),
+        _task(
+            "r18_closed_position_en",
+            "fact",
+            "en",
+            [
+                _turn(
+                    "I bought 30 Moutai shares at 1500 and later sold the whole lot at 1460. How much did I lose?",
+                    required_facts=[price(mt, -1200)],
+                    forbidden_patterns=[*no_advice, r"-2715", r"(?i)paper (?:gain|loss)"],
+                    language="en",
+                )
+            ],
+        ),
+        # N2: a comma between a price and a count never merges them
+        _task(
+            "r18_comma_count_zh",
+            "fact",
+            "zh",
+            [
+                _turn(
+                    "中国平安买入价50，1200股，按收盘价现在市值多少",
+                    required_facts=[price(pa, 64332)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"501200"],
+                )
+            ],
+        ),
+        # N3: a second purchase with a bare price before 加仓 is a lot
+        _task(
+            "r18_bare_price_add_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("五粮液的收盘价现在是多少", required_entity=wly),
+                _turn(
+                    "我最早120买了300股，之后96又加仓了200股，前天104卖出100股，剩下的盈亏多少",
+                    required_facts=[price(wly, -640), price(wly, -3904)],
+                    forbidden_patterns=[*no_advice, r"共买入 300 股"],
+                ),
+            ],
+        ),
+        # N4: a stated cost carries into the next turn's P&L question; an English sale follow-up is a holding turn
+        _task(
+            "r18_cost_carry_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("我拿着中国平安2500股，成本价是57元", required_entity=pa),
+                _turn("那按最新价我现在亏了多少", required_facts=[price(pa, -8475)], forbidden_patterns=no_advice),
+            ],
+        ),
+        _task(
+            "r18_sale_follow_up_en",
+            "multi_turn",
+            "en",
+            [
+                _turn("For the record, I hold 60 Moutai shares bought at 1380.", required_entity=mt, language="en"),
+                _turn(
+                    "I sold 20 of them at 1450. How am I doing on the remainder?",
+                    required_facts=[price(mt, 1400), price(mt, 1180)],
+                    forbidden_patterns=[*no_advice, r"(?i)outside FinSight's scope"],
+                    language="en",
+                ),
+            ],
+        ),
+        # N6: a threshold in tenths keeps its verdict
+        _task(
+            "r18_tenths_threshold_zh",
+            "comparison",
+            "zh",
+            [
+                _turn(
+                    "五粮液的市盈率不到贵州茅台的九成吗",
+                    required_facts=[fundamental(wly, 84.96)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"已删除"],
+                )
+            ],
+        ),
+        # N14: a correction turn keeps the metric for the corrected target
+        _task(
+            "r18_correction_zh",
+            "multi_turn",
+            "zh",
+            [
+                _turn("先看贵州茅台，市净率多少倍", required_entity=mt),
+                _turn(
+                    "啊说错了，应该是中国平安",
+                    required_entity=pa,
+                    required_facts=[fundamental(pa, 1.1)],
+                    forbidden_patterns=[*TRADING_PATTERNS, r"8\.1 倍"],
+                ),
             ],
         ),
     ]
