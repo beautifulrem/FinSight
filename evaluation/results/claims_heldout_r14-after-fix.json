@@ -1,0 +1,41 @@
+{
+ "kind": "claim_slice",
+ "config": {
+  "commit": "f20c6c3",
+  "run_at": "2026-10-14T17:47:34+00:00",
+  "command": "FINSIGHT_REPO=. python evaluation/heldout_r14/score_claims_r14.py <out.json>",
+  "note": "independent round-14 claim slice after the round-18 fixes, run once at f20c6c3 (clean tree); overlap tiers in slice_overlap-heldout_r14-at-f20c6c3.json"
+ },
+ "summary": {
+  "claims": 24,
+  "verdict_accuracy": 0.9167,
+  "ci95": [
+   0.7917,
+   1.0
+  ],
+  "by_category": {
+   "control": 1.0,
+   "exclusion_claim": 0.75,
+   "hk_terms_claim": 1.0,
+   "relative_change": 0.667,
+   "sum_vs_single": 1.0,
+   "unit_threshold": 1.0
+  }
+ },
+ "errors": [
+  {
+   "id": "r14c04",
+   "category": "exclusion_claim",
+   "claim": "Among CMB, ICBC and Ping An Bank, all but Ping An Bank grew net profit last year",
+   "expected": "supported",
+   "got": "contradicted"
+  },
+  {
+   "id": "r14c15",
+   "category": "relative_change",
+   "claim": "紫金矿业营收增长约15%，净利润增幅相对较小",
+   "expected": "partially_supported",
+   "got": "supported"
+  }
+ ]
+}

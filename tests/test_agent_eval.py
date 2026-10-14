@@ -2011,7 +2011,8 @@ def test_round18_tests_do_not_copy_a_slice_a_real_claim_or_a_review_probe():
     from evaluation.agent_eval.runner import ROOT
     from evaluation.claim_bench.run import SETS, load_claims
 
-    files = sorted(Path(__file__).parent.glob("test_agent_round18_*.py"))
+    # the claim and text tests of round 18 (the round-18 frame and safety tests have their own guards)
+    files = [Path(__file__).parent / name for name in ("test_agent_round18_claims.py", "test_agent_round18_text.py")]
     strings = [
         node.value
         for path in files
@@ -2028,7 +2029,7 @@ def test_round18_tests_do_not_copy_a_slice_a_real_claim_or_a_review_probe():
         if line.strip()
     ]
     benches = [row["claim"] for name in ("dev", "holdout") for row in load_claims(SETS[name])]
-    slices = _all_slice_texts()
+    slices = _all_slice_texts(before_round=14)
     others = real + benches + slices + _heldout_r4_texts() + _heldout_r5_texts() + _REVIEW_PROBES
     others += _ROUND9_REVIEW_PROBES + _ROUND10_REVIEW_PROBES + _ROUND11_REVIEW_PROBES + _ROUND12_REVIEW_PROBES
     others += _ROUND12_SAFETY_PROBES + _ROUND13_CLAIM_PROBES + _ROUND13_REVIEW_PROBES + _ROUND14_REVIEW_PROBES
