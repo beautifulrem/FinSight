@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useReducer, useRef } from "react";
 
 import { ApiError, classicChat, classifyError, resumeClarification, streamAgentChat, type ErrorKind } from "@/lib/api";
 import type { MessageKey } from "@/lib/i18n";
+import { type ArchivedTurn, archiveTurn } from "@/lib/turnArchive";
 import type {
   AgentResponse,
   Clarification,
@@ -51,6 +52,8 @@ export interface Turn {
   classic?: ClassicResponse;
   clarification?: Clarification;
   error?: { kind: ErrorKind; message: string };
+  /** (round 18, N15) Rebuilt after a reload from the answer this browser stored: no live timings. */
+  restored?: boolean;
 }
 
 /**
@@ -66,7 +69,10 @@ export interface Notice {
 
 export type NoticeMessage = Pick<Notice, "key" | "vars">;
 
-/** Turns restored from `GET /agent/sessions/{id}` after a reload (query and answer text only). */
+/**
+ * Turns restored from `GET /agent/sessions/{id}` after a reload whose full answer is not stored in this browser
+ * (query and answer text only; see `lib/turnArchive.ts`).
+ */
 export interface HistoryItem {
   kind: "history";
   id: string;
@@ -91,7 +97,7 @@ type Action =
   | { type: "notice"; notice: Notice }
   | { type: "reset"; notice?: Notice }
   | { type: "pending"; clarification: Clarification | null }
-  | { type: "restore"; turns: SessionTurn[]; pending: Clarification | null };
+  | { type: "restore"; turns: SessionTurn[]; archived: (ArchivedTurn | null)[]; pending: Clarification | null };
 
 const hasFrames = () => typeof window.requestAnimationFrame === "function";
 const requestFrame = (callback: () => void): number =>
@@ -159,6 +165,52 @@ function withAgent(turn: Turn, response: AgentResponse): Turn {
   return { ...turn, status: "done", finishedAt, agent: response };
 }
 
+/** A stored answer shown again after a reload, as the turn it was (round 18, N15). */
+function restoredTurn(entry: ArchivedTurn): Turn {
+  return {
+    kind: "turn",
+    id: nextId("turn"),
+    query: entry.query,
+    mode: "auto",
+    via: entry.via,
+    status: "done",
+    startedAt: 0,
+    steps: [],
+    agent: entry.response,
+    restored: true,
+  };
+}
+
+/**
+ * The restored conversation: turns whose answer this browser stored are full turns (tiles, citations, inspector);
+ * runs of the others are compact text history. A notice counts the restored turns when no compact block (which has
+ * its own count) leads the conversation.
+ */
+export function restoredItems(turns: SessionTurn[], archived: (ArchivedTurn | null)[]): ChatItem[] {
+  if (!turns.length) return [];
+  const items: ChatItem[] = [];
+  let compact: SessionTurn[] = [];
+  const flush = () => {
+    if (compact.length) items.push({ kind: "history", id: nextId("history"), turns: compact });
+    compact = [];
+  };
+  turns.forEach((turn, index) => {
+    const entry = archived[index];
+    if (entry) {
+      flush();
+      items.push(restoredTurn(entry));
+    } else {
+      compact.push(turn);
+    }
+  });
+  flush();
+  if (items[0]?.kind === "turn") {
+    const n = turns.length;
+    items.unshift({ kind: "notice", id: nextId("notice"), key: n === 1 ? "answer.restoredOne" : "answer.restored", vars: { n } });
+  }
+  return items;
+}
+
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "start":
@@ -203,17 +255,15 @@ function reducer(state: State, action: Action): State {
       return { ...state, pending: action.clarification };
     case "restore":
       if (state.items.length) return state;
-      return {
-        items: action.turns.length ? [{ kind: "history", id: nextId("history"), turns: action.turns }] : [],
-        pending: action.pending,
-      };
+      return { items: restoredItems(action.turns, action.archived), pending: action.pending };
     default:
       return state;
   }
 }
 
 export interface ChatOptions {
-  sessionId: string;
+  /** The server-issued session id, or `null` for a new conversation (the server issues one on the first turn). */
+  sessionId: string | null;
   mode: UiMode;
   apiKey: string;
   onSession?: (sessionId: string) => void;
@@ -231,6 +281,8 @@ export function useChat(options: ChatOptions) {
   const current = useRef<Run | null>(null);
   const optionsRef = useRef(options);
   const pendingRef = useRef(state.pending);
+  // (round 18, N9) the id the server issued on this conversation's first turn, until the caller passes it back
+  const issued = useRef<string | null>(null);
   useLayoutEffect(() => {
     optionsRef.current = options;
     pendingRef.current = state.pending;
@@ -241,7 +293,8 @@ export function useChat(options: ChatOptions) {
   const send = useCallback(async (raw: string) => {
     const query = raw.trim();
     if (!query || current.current) return;
-    const { sessionId, mode, apiKey } = optionsRef.current;
+    const { mode, apiKey } = optionsRef.current;
+    const sessionId = optionsRef.current.sessionId ?? issued.current;
     const pending = pendingRef.current;
     const via: Turn["via"] = mode === "classic" ? "classic" : pending ? "resume" : "stream";
     const id = nextId("turn");
@@ -253,6 +306,13 @@ export function useChat(options: ChatOptions) {
     current.current = run;
     const emit = (action: Action) => {
       if (!run.detached) dispatch(action);
+    };
+    // (round 18, N15) keep the full answer so a reload can show it again with its tiles and the typed question
+    const answered = (response: AgentResponse) => {
+      emit({ type: "agent", id, response });
+      if (!run.detached && response.status === "ok" && response.session_id) {
+        archiveTurn(response.session_id, { query, via: via === "resume" ? "resume" : "stream", response });
+      }
     };
     const request = { apiKey, signal: run.abort.signal };
     // Token deltas can arrive faster than the screen refreshes: buffer them and render once per frame.
@@ -280,7 +340,7 @@ export function useChat(options: ChatOptions) {
         }
         flush();
         if (event.event === "answer") {
-          emit({ type: "agent", id, response: event.data });
+          answered(event.data);
           finished = true;
         } else if (event.event === "clarification") {
           const { session_id: session, ...clarification } = event.data;
@@ -289,7 +349,10 @@ export function useChat(options: ChatOptions) {
         } else if (event.event === "error") {
           throw new Error(event.data.message);
         } else if (event.event === "session") {
-          if (!run.detached) optionsRef.current.onSession?.(event.data.session_id);
+          if (!run.detached) {
+            issued.current = event.data.session_id;
+            optionsRef.current.onSession?.(event.data.session_id);
+          }
         } else {
           emit({ type: "event", id, event });
         }
@@ -301,7 +364,8 @@ export function useChat(options: ChatOptions) {
         emit({ type: "classic", id, response: await classicChat(query, request) });
       } else if (via === "resume") {
         try {
-          emit({ type: "agent", id, response: await resumeClarification(sessionId, query, request) });
+          if (!sessionId) throw new ApiError("no session to resume", 409);
+          answered(await resumeClarification(sessionId, query, request));
         } catch (error) {
           // 409: the server has nothing pending (e.g. it restarted); ask the reply as a new question.
           if (!(error instanceof ApiError && error.status === 409)) throw error;
@@ -333,6 +397,7 @@ export function useChat(options: ChatOptions) {
   const reset = useCallback((message?: NoticeMessage) => {
     current.current?.abort.abort();
     current.current = null;
+    issued.current = null;
     dispatch({ type: "reset", notice: message ? { kind: "notice", id: nextId("notice"), ...message } : undefined });
   }, []);
 
@@ -344,7 +409,8 @@ export function useChat(options: ChatOptions) {
   const setPending = useCallback((clarification: Clarification | null) => dispatch({ type: "pending", clarification }), []);
 
   const restore = useCallback(
-    (turns: SessionTurn[], pending: Clarification | null) => dispatch({ type: "restore", turns, pending }),
+    (turns: SessionTurn[], archived: (ArchivedTurn | null)[], pending: Clarification | null) =>
+      dispatch({ type: "restore", turns, archived, pending }),
     [],
   );
 

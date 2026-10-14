@@ -41,13 +41,9 @@ describe("fetchSession", () => {
     await expect(fetchSession("s1", {})).resolves.toMatchObject({ turns: [{ query: "q" }] });
   });
 
-  it("treats a 404 (no turns yet, or not this caller's) as an empty session, not an error", async () => {
+  it("reads a 404 (an id the server does not know, or not this caller's) as no session, not an error", async () => {
     mockFetch(404, { detail: "session not found" });
-    await expect(fetchSession("fresh", {})).resolves.toEqual({
-      session_id: "fresh",
-      turns: [],
-      pending_clarification: null,
-    });
+    await expect(fetchSession("fresh", {})).resolves.toBeNull();
     vi.restoreAllMocks();
     mockFetch(500, { detail: "boom" });
     await expect(fetchSession("s1", {})).rejects.toThrow("boom");

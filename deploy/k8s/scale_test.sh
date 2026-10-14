@@ -68,7 +68,7 @@ import json, urllib.request
 from scripts.load_test import QUESTIONS
 for round_ in range(2):
     for i, q in enumerate(QUESTIONS):
-        req = urllib.request.Request("http://127.0.0.1:8000/agent/chat", data=json.dumps({"query": q, "mode": "workflow", "session_id": f"warm{round_}x{i}"}).encode(), headers={"Content-Type": "application/json"})
+        req = urllib.request.Request("http://127.0.0.1:8000/agent/chat", data=json.dumps({"query": q, "mode": "workflow"}).encode(), headers={"Content-Type": "application/json"})
         urllib.request.urlopen(req, timeout=120).read()
 ' >/dev/null
   done
@@ -131,12 +131,15 @@ $K port-forward "pod/$POD_A" 18803:8000 >/dev/null 2>&1 & PF_A=$!
 $K port-forward "pod/$POD_B" 18804:8000 >/dev/null 2>&1 & PF_B=$!
 trap 'kill $PF_A $PF_B 2>/dev/null || true' EXIT
 sleep 4
-SESSION="xreplica$(date +%s)"
+# Turn 1 sends no session_id: the server issues one (round 18, N9: a client-chosen id that is not an existing
+# session of the caller is a 404), and turn 2 continues it on the other pod.
+TURN1=$(curl --noproxy '*' -s http://127.0.0.1:18803/agent/chat -H 'Content-Type: application/json' \
+  -d "{\"query\":\"贵州茅台的市盈率是多少？\",\"mode\":\"workflow\"}")
+SESSION=$(printf '%s' "$TURN1" | python3 -c 'import sys,json; print(json.load(sys.stdin)["session_id"])')
 {
   echo "session: $SESSION"
   echo "turn 1 -> $POD_A"
-  curl --noproxy '*' -s http://127.0.0.1:18803/agent/chat -H 'Content-Type: application/json' \
-    -d "{\"query\":\"贵州茅台的市盈率是多少？\",\"mode\":\"workflow\",\"session_id\":\"$SESSION\"}" \
+  printf '%s' "$TURN1" \
     | python3 -c 'import sys,json; r=json.load(sys.stdin); print(json.dumps({k:r.get(k) for k in ("status","session_id","trace_id","route","answer")}, ensure_ascii=False, indent=1)); print("entities:", [e for e in (r.get("nlu_summary") or {}).get("entities") or []])'
   echo "turn 2 -> $POD_B"
   curl --noproxy '*' -s http://127.0.0.1:18804/agent/chat -H 'Content-Type: application/json' \

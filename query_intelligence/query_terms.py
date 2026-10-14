@@ -95,6 +95,27 @@ POSITION_SIZING = re.compile(
     # "分配多少钱给招行合适", "该拿多少钱买"
     r"(?:分配|分|拿|拿出|留)\s*(?:多少|几)(?:钱|资金|万|成)?[^，。？?！!；;]{0,10}?(?:买|投|配置|放)[^，。？?！!；;]{0,10}?"
     r"(?:" + _VERDICT_ZH + r"|$|[？?])|"
+    # (round 18, review-14 N8) a split across several stocks: "茅台、招行、长江电力各放多少比例", "各投几成", "各占多少
+    # 仓位", "怎么分配比例", "仓位怎么分", "在A和B之间怎么分", "按什么比例配置", "配置比例多少合适". A payout ("利润怎么分配",
+    # "利润分配比例") or an index weight ("各占沪深300多少比例") names no verb of putting money in and is not matched.
+    r"各自?\s*(?:放|配置?|买入?|投入?|投资|拿|分配?|压|押)\s*(?:多少|几成|百分之几|多大|几)|"
+    r"各占\s*(?:多少|几成|百分之几|多大)\s*(?:的)?\s*(?:仓位|资金|钱)|"
+    r"各占\s*(?:多少|几成|百分之几|多大)(?:的)?(?:比例|比重)?[^，。？?！!；;]{0,6}?(?:" + _VERDICT_ZH + r")|"
+    r"(?:怎么|如何|怎样)\s*(?:分配|配置|分|配|搭配)\s*(?:比例|仓位|资金|权重)|"
+    + _NOT_OTHERS
+    + r"(?:仓位|资金|钱|本金)\s*(?:应该|应当|该|要)?\s*(?:怎么|如何|怎样)\s*(?:分配|配置|分|配|搭配)|"
+    r"之间\s*(?:应该|应当|该|要)?\s*(?:怎么|如何|怎样)\s*(?:分配|配置|分|配|搭配)|"
+    r"按(?:什么|多少|怎样的|啥)\s*比例\s*(?:分配|配置|配|买|放|投)|"
+    + _NOT_OTHERS
+    + r"(?:配置|仓位|持仓)比例\s*(?:是|应该|该)?\s*(?:多少|几成|百分之几|怎么定|如何定)[^，。？?！!；;]{0,8}?(?:"
+    + _VERDICT_ZH
+    + r")|"
+    # "How should I split my money between BYD and CATL?", "How much should go into each of …", "What weights should I
+    # give …", "What allocation between … makes sense?"
+    r"\bhow\s+(?:should|would|do|can|shall)\s+(?:i|we|you|one)\s+(?:split|divide|allocate|distribute|spread|weight)\b|"
+    r"\bhow\s+much\b[^.?!]{0,20}?\bshould\s+go\s+(?:in|into|to|on)\b|"
+    r"\bwhat\s+(?:weights?|weightings?|allocations?|mix|split|proportions?|ratio)\b[^.?!]{0,90}?"
+    r"\b(?:should|makes?\s+sense|would\s+you|do\s+you\s+(?:suggest|recommend))\b|"
     # English: "how many shares should I buy", "how much should I invest in BYD", "put 30% of my portfolio in CATL",
     # "what percentage of my portfolio should go into ...", "position size", "how big a position"
     r"\bhow\s+many\s+(?:shares|lots|units)\b[^.?!]{0,30}?\b(?:should|shall|would\s+you\s+recommend|to)\b[^.?!]{0,20}?"

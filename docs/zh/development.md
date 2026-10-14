@@ -34,7 +34,7 @@ CI_BUDGET_FRACTION=0.5 scripts/prepush.sh   # CI 时间预算比例（默认 0.6
 | `gate-shipped` | `gate --set shipped`（扩展层**和**更正层都开：产品实际提供的数据） | agent-eval-gate |
 | `extras` | `verifier_stress`、`redteam`、`gate --extras-only` | agent-eval-extras |
 | `claim-holdout` | `claim_bench.run --set holdout`，用 CI 的下限 | agent-eval-gate |
-| `verify-slices` | 十一个保留切片的 verify 脚本（r9 带 `QI_EVAL_SNAPSHOT_EXT=1`，r10–r12 另带 `QI_EVAL_SNAPSHOT_FIX=1`） | heldout-verify |
+| `verify-slices` | `python -m evaluation.agent_eval.verify_slices`：十二个保留切片的 verify 脚本（r9 带 `QI_EVAL_SNAPSHOT_EXT=1`，r10–r13 另带 `QI_EVAL_SNAPSHOT_FIX=1`），与 CI 用同一份列表 | heldout-verify |
 | `report-check` | `python -m evaluation.agent_eval.report --check`：docs/agent-eval.md 和 README 的生成区块（见下文） | heldout-verify |
 
 前面的步骤失败后，后面的步骤照样运行；只有所有运行了的步骤都通过，退出码才是 0。与 CI 一样，实时数据源和 trace 都关闭。

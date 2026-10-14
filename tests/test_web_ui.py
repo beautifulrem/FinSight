@@ -14,10 +14,12 @@ import threading
 import time
 from datetime import date
 from pathlib import Path
+from typing import Annotated
 
 import pytest
 import uvicorn
 from agent_fakes import StubService, build_fake_registry
+from fastapi import Body
 from fastapi.responses import StreamingResponse
 from playwright.sync_api import Page, expect, sync_playwright
 
@@ -164,14 +166,15 @@ class SlowCannedStream:
         self.tools_done = threading.Event()
         self.first_token = threading.Event()
 
-    def events(self):
+    def events(self, session: str = "slow"):
+        # (round 18, N9) like the server, it keeps the session the browser continues (an unknown id would be a 404)
         def sse(name: str, data: dict) -> str:
             return f"event: {name}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
         def node(kind: str, name: str) -> str:
             return sse(kind, {"node": name, "label": name})
 
-        yield sse("session", {"session_id": "slow"})
+        yield sse("session", {"session_id": session})
         yield node("node_start", "guard_in")
         yield node("step", "guard_in")
         yield node("node_start", "agent_llm")
@@ -193,8 +196,8 @@ class SlowCannedStream:
         yield node("step", "agent_llm")
         yield node("node_start", "verify")
         time.sleep(0.2)
-        yield sse("answer", SLOW_ANSWER)
-        yield sse("done", {"session_id": "slow"})
+        yield sse("answer", {**SLOW_ANSWER, "session_id": session})
+        yield sse("done", {"session_id": session})
 
 
 def _free_port() -> int:
@@ -224,9 +227,10 @@ def base_url(agent_service):
     )
 
     @app.post("/test/slow-stream")
-    def slow_stream() -> StreamingResponse:
+    def slow_stream(payload: Annotated[dict, Body()]) -> StreamingResponse:
         # Test-only endpoint: the browser's /agent/chat/stream request is routed here (see page.route below).
-        return StreamingResponse(app.state.slow_stream.events(), media_type="text/event-stream")
+        events = app.state.slow_stream.events(payload.get("session_id") or "slow")
+        return StreamingResponse(events, media_type="text/event-stream")
 
     app.state.slow_stream = SlowCannedStream()
     port = _free_port()
@@ -757,11 +761,16 @@ def test_codes_are_humanised_and_stale_data_is_flagged(page):
     # The canned records are dated; freeze the page's clock (timers keep running) so the freshness badges do not
     # depend on the day the suite runs.
     page.clock.set_fixed_time("2026-10-01T12:00:00+08:00")
-    body = _sse([("session", {"session_id": "canned"}), ("answer", CANNED_ANSWER), ("done", {"session_id": "canned"})])
-    page.route(
-        "**/agent/chat/stream",
-        lambda route: route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=body),
-    )
+
+    def canned(route):
+        # (round 18, N9) a canned stream keeps the session the browser continues, as the server does: adopting an
+        # id the server never issued would make the next real request a 404
+        session = (route.request.post_data_json or {}).get("session_id") or "canned"
+        events = [("session", {"session_id": session}), ("answer", {**CANNED_ANSWER, "session_id": session})]
+        body = _sse([*events, ("done", {"session_id": session})])
+        route.fulfill(status=200, headers={"Content-Type": "text/event-stream"}, body=body)
+
+    page.route("**/agent/chat/stream", canned)
     # The canned answer is dated 2026-09-24: pin the browser clock to that week, so the 10-day market freshness
     # window does not turn the live tiles stale as the calendar moves on (the test failed from 2026-10-05 on)
     page.clock.set_fixed_time("2026-09-28T10:00:00+08:00")

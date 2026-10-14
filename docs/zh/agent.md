@@ -142,7 +142,7 @@ GLM 在 held-out 上的调用次数也同样下降：2.21 / 2.16 → 1.36 / 1.36
 
 ## 记忆与会话
 
-- 每个 `session_id` 对应一个 LangGraph thread。默认使用内存 checkpointer；设置 `QI_AGENT_CHECKPOINT_DB=/path/sessions.sqlite` 可在重启后保留会话；设置为 `postgresql://...` 则多个进程/副本共享会话。
+- 每个 `session_id` 对应一个 LangGraph thread。会话 id 由服务端签发：新对话不带 `session_id`，从响应（或流式接口的第一个 `session` 事件）读取 id；之后请求若带了调用方并不拥有的 `session_id`，返回 `404`，响应体与他人会话 id 相同（`session <id> not found`），无法据此探测会话是否存在（第 18 轮，review-14 N9）。默认使用内存 checkpointer；设置 `QI_AGENT_CHECKPOINT_DB=/path/sessions.sqlite` 可在重启后保留会话；设置为 `postgresql://...` 则多个进程/副本共享会话。
 - 每轮开始时重置本轮字段（工具日志、证据、校验结果等），因此上一轮的证据不会在下一轮被引用。每次运行只写一次检查点（`QI_AGENT_DURABILITY=exit`）。
 - 完成的轮次（问题、答案、实体、证据 id）保存在 `turns` 中，并作为对话上下文传给 NLU。
 - 同一会话的请求通过会话级锁串行执行（空闲锁按 LRU 最多保留 4,096 个）。
@@ -808,14 +808,14 @@ JSON Schema 由 `query_intelligence/contracts.py` 生成：
 
 ```bash
 curl -s localhost:8000/agent/chat -H 'Content-Type: application/json' \
-  -d '{"query": "贵州茅台的市盈率是多少", "session_id": "demo", "mode": "auto"}'
+  -d '{"query": "这只股票能买吗", "mode": "auto"}'
 ```
 
-`status: "needs_clarification"` 的响应带有 `clarification.question`，回答方式：
+响应中带有服务端签发的 `session_id`（之后每一轮都带上它）。`status: "needs_clarification"` 的响应带有 `clarification.question`，用该 id 回答：
 
 ```bash
 curl -s localhost:8000/agent/resume -H 'Content-Type: application/json' \
-  -d '{"session_id": "demo", "reply": "贵州茅台"}'
+  -d '{"session_id": "<响应中的 session_id>", "reply": "贵州茅台"}'
 ```
 
 `/agent/chat/stream` 的 SSE 事件：

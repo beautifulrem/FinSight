@@ -274,6 +274,8 @@ class AgentRuntime:
         # mainland form.
         return {
             "query": normalise_text(query),
+            # (round 18, review-14 N15) the question as the user typed it, shown when a session is restored
+            "typed_query": query,
             "mode": mode,
             "started_at": time.time(),
             "user_profile": user_profile or {},
