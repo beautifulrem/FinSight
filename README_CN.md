@@ -156,6 +156,7 @@ Kubernetes 与监控栈见 [docs/zh/deployment.md](docs/zh/deployment.md)。
 更多细节：
 
 - 每轮的完整表格、每组评审切片的分类结果和其他全部测量见 [docs/zh/evaluation-history.md](docs/zh/evaluation-history.md)。
+- 14 轮独立评审报告（各维度打分、带复现步骤的缺陷、核实了什么）见 [docs/reviews/](docs/reviews/README.md)。
 - 中文评测摘要见 [docs/zh/evaluation.md](docs/zh/evaluation.md)。
 - 含全部配对比较的生成页见 [docs/agent-eval.md](docs/agent-eval.md)（英文）。
 
