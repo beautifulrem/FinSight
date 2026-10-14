@@ -19,7 +19,8 @@ interface Props {
   /** Whether the key is kept in localStorage across restarts (opt-in); otherwise sessionStorage only. */
   rememberKey: boolean;
   onApiKey: (key: string, remember: boolean) => void;
-  sessionId: string;
+  /** `null` until the server issues an id on the conversation's first turn (round 18, N9). */
+  sessionId: string | null;
   lang: Lang;
   onLang: (lang: Lang) => void;
   theme: ThemePref;
@@ -91,10 +92,12 @@ function SettingsBody({ apiKey, rememberKey, onApiKey, sessionId, lang, onLang, 
   const [reveal, setReveal] = useState(false);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(sessionId));
   const [reloads, setReloads] = useState(0);
 
   useEffect(() => {
+    // a new conversation: the server has issued no id yet, so there is nothing remembered to ask about (round 18, N9)
+    if (!sessionId) return;
     const controller = new AbortController();
     fetchSession(sessionId, { apiKey, signal: controller.signal })
       .then((info) => {
@@ -111,6 +114,7 @@ function SettingsBody({ apiKey, rememberKey, onApiKey, sessionId, lang, onLang, 
   }, [sessionId, apiKey, reloads]);
 
   const reload = () => {
+    if (!sessionId) return;
     setLoading(true);
     setReloads((n) => n + 1);
   };
@@ -192,7 +196,7 @@ function SettingsBody({ apiKey, rememberKey, onApiKey, sessionId, lang, onLang, 
           </div>
           <p className="text-[12.5px] text-muted">{t("settings.memoryHint")}</p>
           <p className="text-[12px] text-faint">
-            {t("settings.session")}: <code id="session-id" className="font-mono break-all text-muted">{sessionId}</code>
+            {t("settings.session")}: <code id="session-id" className="font-mono break-all text-muted">{sessionId ?? "–"}</code>
           </p>
           {error ? (
             <p className="text-[12.5px] text-up">{t("settings.memoryError", { e: error })}</p>
@@ -202,7 +206,7 @@ function SettingsBody({ apiKey, rememberKey, onApiKey, sessionId, lang, onLang, 
                 <li key={i} className="rounded-lg border border-line bg-bg px-3 py-2 text-[12.5px]">
                   <div className="flex items-center gap-1.5">
                     <span className="font-mono text-faint">#{i + 1}</span>
-                    <span className="min-w-0 flex-1 truncate font-medium">{turn.query}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{turn.typed_query || turn.query}</span>
                     {turn.route && <Badge tone="cobalt">{turn.route}</Badge>}
                   </div>
                   {(turn.entities ?? []).filter((entity) => entity.symbol).length > 0 && (

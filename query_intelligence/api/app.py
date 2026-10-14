@@ -138,6 +138,16 @@ def _session_view(agent: Any, session_id: str, principal: str) -> dict[str, Any]
     return {"turns": turns, "pending_clarification": pending}
 
 
+def _require_continuable(agent: Any, session_id: str | None, principal: str) -> None:
+    """(round 18, review-14 N9) Session ids are issued by the server: a chat request that names a session must name
+    one the caller already has. A never-used id and another caller's id give the same 404 after the same reads
+    (``_session_view``); before this, a never-used id was adopted (200) while a foreign one was a 404 — an existence
+    oracle. A new conversation sends no ``session_id`` and gets one in the response (or the stream's ``session``
+    event)."""
+    if session_id and _session_view(agent, session_id, principal) is None:
+        raise _session_not_found(SessionAccessError(session_id))
+
+
 def _sse(event: dict[str, Any]) -> str:
     data = json.dumps(event["data"], ensure_ascii=False, default=str)
     return f"event: {event['event']}\ndata: {data}\n\n"
@@ -267,6 +277,7 @@ def create_app(
             raise HTTPException(status_code=422, detail="query must not be empty")
         if payload.mode != "workflow":
             logger.info("[chat] Routing query to the agent (mode=%s): %s", payload.mode, _short_query(query))
+            _require_continuable(get_agent(), payload.session_id, principal_of(request))
             try:
                 return get_agent().chat(
                     query,
@@ -361,6 +372,7 @@ def create_app(
         query = payload.query.strip()
         if not query:
             raise HTTPException(status_code=422, detail="query must not be empty")
+        _require_continuable(get_agent(), payload.session_id, principal_of(request))
         try:
             return await run_with_timeout(
                 get_agent().chat,
@@ -381,8 +393,7 @@ def create_app(
             raise HTTPException(status_code=422, detail="query must not be empty")
         agent = get_agent()
         owner = principal_of(request)
-        if payload.session_id and agent.owner_of(payload.session_id) not in {None, owner}:
-            raise _session_not_found(SessionAccessError(payload.session_id))
+        _require_continuable(agent, payload.session_id, owner)
 
         def events() -> Iterator[str]:
             for event in agent.stream(

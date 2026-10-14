@@ -20,7 +20,7 @@ interface Props {
   onTab: (tab: InspectorTab) => void;
   highlight?: string | null;
   highlightNonce?: number;
-  sessionId: string;
+  sessionId: string | null;
   onEvidence: (id: string) => void;
   className?: string;
 }

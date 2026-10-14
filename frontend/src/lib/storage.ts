@@ -25,8 +25,3 @@ export function writeStorage(key: string, value: string): void {
     /* ignore */
   }
 }
-
-export function newSessionId(): string {
-  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}${Math.random().toString(16).slice(2)}`;
-  return random.replaceAll("-", "");
-}

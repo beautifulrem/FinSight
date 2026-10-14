@@ -226,18 +226,19 @@ def test_anonymous_callers_are_scoped_per_browser():
     app = _app(SecuritySettings())
     alice, bob = TestClient(app), TestClient(app)
 
-    first = alice.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "anon-own-1"})
+    first = alice.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"})
     assert first.status_code == 200
+    own_id = first.json()["session_id"]
     cookie = first.cookies.get(ANON_COOKIE)
     assert cookie and "httponly" in first.headers["set-cookie"].lower()
     assert "samesite=lax" in first.headers["set-cookie"].lower()
 
     # another browser cannot read or continue that session
-    assert bob.get("/agent/sessions/anon-own-1").status_code == 404
-    follow_up = {"query": "它的市净率呢", "session_id": "anon-own-1"}
+    assert bob.get(f"/agent/sessions/{own_id}").status_code == 404
+    follow_up = {"query": "它的市净率呢", "session_id": own_id}
     assert bob.post("/agent/chat", json=follow_up).status_code == 404
     # the owner can, and keeps the same identity (no new cookie)
-    own = alice.get("/agent/sessions/anon-own-1")
+    own = alice.get(f"/agent/sessions/{own_id}")
     assert own.status_code == 200 and own.json()["turns"]
     assert ANON_COOKIE not in own.cookies
 
@@ -256,39 +257,87 @@ def test_unknown_and_foreign_sessions_are_indistinguishable():
     )
     client = TestClient(app)
     a, b = {"X-API-Key": "key-a"}, {"X-API-Key": "key-b"}
-    first = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "oracle-a"}, headers=a)
+    first = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"}, headers=a)
     assert first.status_code == 200
+    owned = first.json()["session_id"]
     reads: list[str] = []
     for name in ("owner_of", "history", "pending_clarification"):
         original = getattr(agent, name)
         setattr(agent, name, lambda sid, _o=original, _n=name: reads.append(_n) or _o(sid))
 
-    foreign = client.get("/agent/sessions/oracle-a", headers=b)
+    foreign = client.get(f"/agent/sessions/{owned}", headers=b)
     foreign_reads, reads[:] = list(reads), []
     unknown = client.get("/agent/sessions/oracle-nobody", headers=b)
     unknown_reads = list(reads)
 
     assert foreign.status_code == unknown.status_code == 404
-    assert foreign.json() == {"detail": "session oracle-a not found"}
+    assert foreign.json() == {"detail": f"session {owned} not found"}
     assert unknown.json() == {"detail": "session oracle-nobody not found"}
     assert foreign_reads == unknown_reads
-    for sid in ("oracle-a", "oracle-nobody"):
+    for sid in (owned, "oracle-nobody"):
         resumed = client.post("/agent/resume", json={"session_id": sid, "reply": "贵州茅台"}, headers=b)
         assert resumed.status_code == 404 and resumed.json() == {"detail": f"session {sid} not found"}
     # the owner still reads its session; a known session with nothing pending stays a 409 for its owner
-    assert client.get("/agent/sessions/oracle-a", headers=a).json()["turns"]
-    assert client.post("/agent/resume", json={"session_id": "oracle-a", "reply": "x"}, headers=a).status_code == 409
+    assert client.get(f"/agent/sessions/{owned}", headers=a).json()["turns"]
+    assert client.post("/agent/resume", json={"session_id": owned, "reply": "x"}, headers=a).status_code == 409
+
+
+def test_continuing_a_never_used_session_id_is_the_same_404_as_another_callers_id():
+    """(round 18, review-14 N9) Chat continue was an existence oracle: another caller's id gave 404, a never-used id
+    gave 200 and the id was adopted. Session ids are now issued by the server: a client-supplied id must name a
+    session the caller already has, and both other cases give the same 404 body after the same checkpointer reads,
+    on /agent/chat, /agent/chat/stream and the agent mode of /chat."""
+    stub = StubService()
+    runtime = AgentRuntime(stub, build_fake_registry(), None, today=lambda: date(2026, 9, 24))
+    agent = AgentService(runtime, trace_sinks=[])
+    app = create_app(
+        service=stub,
+        app_config={"deepseek": {"api_key": ""}},
+        agent_service=agent,
+        security=SecuritySettings(api_keys=("key-a", "key-b")),
+    )
+    client = TestClient(app)
+    a, b = {"X-API-Key": "key-a"}, {"X-API-Key": "key-b"}
+    first = client.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"}, headers=a)
+    assert first.status_code == 200
+    issued = first.json()["session_id"]
+    assert issued
+    reads: list[str] = []
+    for name in ("owner_of", "history", "pending_clarification"):
+        original = getattr(agent, name)
+        setattr(agent, name, lambda sid, _o=original, _n=name: reads.append(_n) or _o(sid))
+
+    never_used = "f" * 32
+    outcomes = {}
+    for label, sid in (("foreign", issued), ("unknown", never_used)):
+        reads[:] = []
+        chat = client.post("/agent/chat", json={"query": "它的市净率呢", "session_id": sid}, headers=b)
+        chat_reads = list(reads)
+        stream = client.post("/agent/chat/stream", json={"query": "它的市净率呢", "session_id": sid}, headers=b)
+        legacy = client.post("/chat", json={"query": "它的市净率呢", "session_id": sid, "mode": "auto"}, headers=b)
+        outcomes[label] = (chat.status_code, stream.status_code, legacy.status_code, chat_reads)
+        for response in (chat, stream, legacy):
+            assert response.json() == {"detail": f"session {sid} not found"}
+    assert outcomes["foreign"] == outcomes["unknown"]
+    assert outcomes["unknown"][:3] == (404, 404, 404)
+    # the never-used id was not adopted; the owner continues its issued session; a new conversation sends no id
+    assert client.get(f"/agent/sessions/{never_used}", headers=b).status_code == 404
+    continued = client.post("/agent/chat", json={"query": "它的市净率呢", "session_id": issued}, headers=a)
+    assert continued.status_code == 200
+    fresh = client.post("/agent/chat", json={"query": "五粮液的市盈率是多少"}, headers=b)
+    assert fresh.status_code == 200 and fresh.json()["session_id"] not in {issued, never_used}
 
 
 def test_a_forged_or_tampered_anonymous_cookie_gets_a_fresh_identity():
     app = _app(SecuritySettings(anon_cookie_secret="server-secret"))
     alice = TestClient(app)
-    alice.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少", "session_id": "anon-own-2"})
+    own_id = alice.post("/agent/chat", json={"query": "贵州茅台的市盈率是多少"}).json()["session_id"]
+    assert alice.get(f"/agent/sessions/{own_id}").status_code == 200
     ident = alice.cookies.get(ANON_COOKIE).split(".")[0]
 
     for forged in (f"{ident}.{'0' * 32}", f"{ident}.", ident, AnonymousIdentity("other").issue()[1]):
         mallory = TestClient(app, cookies={ANON_COOKIE: forged})
-        assert mallory.get("/agent/sessions/anon-own-2").status_code == 404
+        assert mallory.get(f"/agent/sessions/{own_id}").status_code == 404
 
     # the same secret on another replica accepts the cookie (QI_ANON_COOKIE_SECRET shared across pods)
     replica = AnonymousIdentity("server-secret")

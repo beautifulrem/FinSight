@@ -4,7 +4,8 @@ import { expect, test, type Page } from "@playwright/test";
  * Round-12 browser regressions against the offline server (see playwright.config.ts):
  * - a three-turn gap session in Chinese computes the ROE gap and cites both companies' fundamentals;
  * - a fact-check with a stated industry average shows the relation row and the "stated in the claim" row;
- * - (round 17) /ready lists the three offline layers and the answers carry corrected figures, not the seed's.
+ * - (round 17) /ready lists the three offline layers and the answers carry corrected figures, not the seed's;
+ * - (round 18, N15) a reload restores a turn with its KPI tiles, its inspector and the question as typed.
  * Every test also fails on a console error.
  */
 
@@ -70,12 +71,18 @@ test("three-turn gap session (zh) shows the computed gap with two citations", as
   await expect(inspector.getByText("计算ROE差值：五粮液 对比 贵州茅台")).toBeVisible();
   await expect(inspector).not.toContainText("Frame difference");
 
-  // A reload restores the three turns under a banner that counts them, and shows them (H14).
+  const chips = await answer.locator(".citation-chip").count();
+
+  // A reload restores the three turns under a notice that counts them (H14), as full answer cards drawn from the
+  // answers this browser received (round 18, N15): the gap sentence with its citations, and the inspector.
   await page.reload();
-  const history = page.locator(".session-history");
-  await expect(history).toContainText("已恢复本会话的 3 轮历史");
-  await expect(history).toHaveAttribute("open", "");
-  await expect(history.getByText("两者差几个点")).toBeVisible();
+  await expect(page.locator(".notice").filter({ hasText: "已恢复本会话的 3 轮历史" })).toBeVisible();
+  await expect(page.locator(".session-history")).toHaveCount(0);
+  await expect(page.locator(".turn")).toHaveCount(3);
+  const restored = page.locator(".turn").nth(2).locator(".answer-text");
+  await expect(restored).toContainText("两者相差 25.64 个百分点（贵州茅台更高）");
+  await expect(restored.locator(".citation-chip")).toHaveCount(chips);
+  await expect(inspector).toContainText("对应问题：两者差几个点");
 
   expect(errors).toEqual([]);
 });
@@ -139,6 +146,34 @@ test("the shipped default serves the corrected FY2025 figures, not the seed (rou
   const close = (await ask(page, "中国平安最新收盘价", 2)).locator(".answer-text");
   await expect(close).toContainText("58.03 元（2026-04-22）");
   await expect(close).not.toContainText("53.61");
+
+  expect(errors).toEqual([]);
+});
+
+test("a reload restores the turn with its tiles, its inspector and the question as typed (round-14 review N15)", async ({ page }) => {
+  const errors = collectConsoleErrors(page);
+  await openFresh(page);
+
+  // typed in traditional characters; the pipeline reads it in simplified form
+  const typed = "長江電力最新收盤價";
+  const card = await ask(page, typed, 1);
+  await expect(card.locator(".answer-text")).toContainText("长江电力");
+  const tiles = await page.locator(".turn").first().locator(".kpi-tile").count();
+  expect(tiles).toBeGreaterThan(0);
+
+  await page.reload();
+  await expect(page.locator(".notice").filter({ hasText: "已恢复本会话的 1 轮历史" })).toBeVisible();
+  const turn = page.locator(".turn").first();
+  await expect(turn.locator(".user-message")).toHaveText(typed);
+  await expect(turn.locator(".answer-text")).toContainText("长江电力");
+  await expect(turn.locator(".kpi-tile")).toHaveCount(tiles);
+  const inspector = page.getByRole("complementary");
+  await expect(inspector).toContainText(`对应问题：${typed}`);
+  await expect(inspector).not.toContainText("提问后，这里会显示证据来源");
+
+  // the restored conversation continues on the same server session
+  const next = await ask(page, "那市盈率呢", 2);
+  await expect(next.locator(".answer-text")).toContainText("长江电力");
 
   expect(errors).toEqual([]);
 });
