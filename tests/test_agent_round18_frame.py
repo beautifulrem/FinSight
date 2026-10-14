@@ -630,3 +630,24 @@ def test_the_users_own_trade_arithmetic_is_accepted_without_market_data():
     assert report.passed, (report.unsupported_numbers, report.uncited_numbers)
     wrong = draft.replace("10000", "13440")
     assert not verify_answer({"answer": wrong}, _store(tool_log), query=question, allow_derived=True).passed
+
+
+@pytest.mark.parametrize(
+    ("question", "cost", "shares"),
+    [
+        ("I'm sitting on 250 Moutai shares with an average cost of 1,480; how far down am I?", 1480.0, 250),
+        ("贵州茅台成本价1,455元，持有120股，现在浮亏多少", 1455.0, 120),
+        ("Bought 40 Moutai at 1,390 and sold them all at 1,425. What did I make?", 1390.0, 0),
+    ],
+)
+def test_a_cost_with_a_thousands_separator_is_one_number(question, cost, shares):
+    from query_intelligence.agent.coverage import cost_basis_request
+
+    asked = cost_basis_request(question)
+    assert asked is not None and asked["cost"] == cost and asked["shares"] == shares, (question, asked)
+
+
+def test_a_correction_opening_a_conversation_asks_only_the_corrected_target(agent):
+    result = _chat(agent, ["不是问工商银行，是问招商银行的市净率"], "r18-fix-open")
+    answer = str(result["answer"])
+    assert "0.91 倍" in answer and "0.74 倍" not in answer, answer

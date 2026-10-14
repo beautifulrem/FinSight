@@ -538,7 +538,7 @@ def resolve_correction(
     from .coverage import name_forms
 
     text = strip_filler(query).strip()
-    if not turns or not text:
+    if not text:
         return None
     zh = bool(re.search(r"[一-鿿]", text))
     match = (_CORRECTION_ZH if zh else _CORRECTION_EN).match(text)
@@ -565,6 +565,8 @@ def resolve_correction(
     name = str(kept[0].get("canonical_name") or kept[0].get("symbol"))
     if any(found.group(0) for found in _ASPECT.finditer(rest)):
         return rest.rstrip("。.!！"), f"correction:{name}"
+    if not turns:
+        return None
     aspects = _last_aspects(turns, zh)
     if not aspects:
         return None
