@@ -608,6 +608,33 @@ insurance average」、「less than half of Moutai's net profit」、是保险�
 形式读取（举例式定义、“ROE衡量…”、含第三个量的定义不核查）；描述报告指标的“腰斩 / 翻倍”以及表示差距大小的“远 / 明显”（远高于：
 14.87 对 12.11）不读取；界面把定义核查显示为没有标的的一行。
 
+### 第 18 轮：排除、两家之和与一家比较、单独的“万亿”、降幅比较、港台用语、全角字符、更正层缺失（第 14 轮评审之后，N10–N13）
+
+第 14 轮评审发现：排除写法（“…中，除A外净利润均同比增长”）只核查了 A，得到错误的不符；“A与B净利润之和不足C一家”和“营收突破万亿”
+无法核实；“降幅较营收收窄”被读成单日涨跌（N13）；港台财经用语和全角字母没有读取（N11、N12）；更正层已开启但文件缺失时，对 v1
+种子值给出普通的 `supported` 和完整覆盖（N10）。先用工程师自己的措辞写失败测试（`tests/test_agent_round18_claims.py`、
+`tests/test_agent_round18_text.py`）；没有一条是评审原句、切片文本、真实说法集的说法或说法基准行
+（`test_round18_tests_do_not_copy_a_slice_a_real_claim_or_a_review_probe`，完全重复 0、近似重复 0；有一条与评审说法近似，提交前已改写）。
+代码：`claim_check.py` 的 `_drop_exclusions`、`_REL_WORD`、`_BARE_TRILLION`、`_RATE_AGAINST_METRIC`、`_mark_seed_checks`；
+`query_intelligence/traditional.py` 的 `normalise_text` / `fold_width` / `REGIONAL_TERMS`。
+
+| 形式 | 例子（自拟） | 读法 |
+| --- | --- | --- |
+| 从一组公司中排除 | “工行、招行、平安银行三家之中，除去平安银行之外，归母净利润都是正增长”“宁德时代、比亚迪、美的集团里，除比亚迪以外…”“比亚迪除外，宁德时代和美的集团…”“…三家，不算五粮液，…” | 读取说法之前删去被排除公司的短语及其在名单中的位置，共同判断（均 / 都）只核查其余公司；报告在 `excluded` 中列出被排除的公司。“除了A外……也 / 还”（表示“此外”）不算排除；只排除说法中点名的公司（“除房地产业务外”保持不变） |
+| 两家之和低于一家 | “美的集团与比亚迪的净利润合计还不到宁德时代一家”“比亚迪和中芯国际净利润加起来不足宁德时代” | 目标之前的“不足 / 不到”与“不及 / 低于”一样是比较词（`lt`）；分句中有数字时仍是上下限（“比亚迪市盈率不到30倍”） |
+| 单独单位的阈值 | “中国平安的营收已经跨过万亿门槛”“比亚迪营业收入站上万亿”“宁德时代总市值突破万亿” | 阈值词（突破 / 站上 / 跨过 / 迈入 / 超 / 破 / 逾 / 跌破 / 不足 / 接近 …）之后单独的“万亿”读作 1万亿；跨过 / 跨越 / 迈过 / 迈入 / 跃上 / 冲上 / 登上 / 跻身 为 `ge`。没有阈值词的“万亿市值公司”不读作数字 |
+| 降幅（或增幅）与另一指标比较 | “平安银行归母净利润降幅较营业收入明显收窄”“五粮液净利润同比降幅较营收进一步扩大”“紫金矿业净利润增幅较营收明显扩大” | 改写为“降幅小于 / 大于营收降幅”，按公司的两个同比增速核查（`reference_metric: revenue_yoy`），不再读成与前一交易日比较的单日涨跌 |
+| 港台用语 | “美的集團去年純利約439億元，按年上升近15%”“工商銀行市賬率僅0.74倍”“五糧液本益比低於20倍” | 字表之后应用 `REGIONAL_TERMS`（13 条，注明地区和说明）：純利 → 净利润，股東應佔溢利 → 归母净利润，股本回報率 → 净资产收益率，市賬率 / 股價淨值比 → 市净率，本益比 → 市盈率，營業額 → 营业收入，每股盈利 → 每股收益，收市價 → 收盘价，按年 / 按季 + 变动词 → 同比 / 环比 |
+| 全角字母和数字 | “ＢＹＤ的ＰＥ约25.8倍”“Ｍｏｕｔａｉ's ROE is about 32.5%” | 按 ASCII 读取；全角中文标点保持不变 |
+
+**N10。** 更正层已开启但文件缺失时，已判定的核查项只要其数值、比较对象或加总项来自 v1 种子记录（`data/structured_data.json`，
+即更正层替换的记录），现在会带上 `degraded: ["data_layer_missing:corrections"]` 和备注“依据未经更正的离线种子值判定（数据更正层未加载），
+结论仅供参考”（英文：“judged against an uncorrected offline seed value (the data corrections layer is not loaded)”），报告的 `coverage`
+为 `partial`（界面显示“部分核查”），并保留第 17 轮的 `limitations` / `degraded` / 免责声明。扩展层记录（宁德时代、平安银行等）上的核查
+不作标记：更正层不改变它们的数值。结论本身仍按种子值给出（选定的行为，与 M13 一致）：只读 `verdict` 的客户端还需要读 `coverage` 或
+`degraded`。测试：`test_a_seed_value_without_the_corrections_layer_is_never_full_coverage`、
+`test_a_contradiction_on_a_seed_value_is_marked_too`、`test_checks_with_the_layer_present_are_not_degraded`。
+
 ### 宏观数值（C13）
 
 宏观说法与 `get_macro_indicators` 的最新一期读数比对，`as_of` 是读数所属期间（`as_of_basis: indicator_date`）。

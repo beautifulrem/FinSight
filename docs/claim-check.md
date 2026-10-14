@@ -657,6 +657,38 @@ to `partially_supported` (v3 x43); a definition is read only in the forms above 
 or one with a third quantity is not checked); 腰斩 / 翻倍 about a reported figure and 远 / 明显 as a size of the gap
 (远高于 for 14.87 against 12.11) are not read; the UI shows a definition check as a row with no target.
 
+### Round 18: exclusions, a sum below one company, bare 万亿, decline rates, regional vocabulary, full width, a missing corrections layer (after the round-14 review, N10-N13)
+
+The round-14 review found a false contradiction for an exclusion ("…中，除A外净利润均同比增长" checked only A),
+`unverifiable` for "A与B净利润之和不足C一家" and "营收突破万亿", a one-day move read from "降幅较营收收窄" (N13),
+Hong Kong / Taiwan financial vocabulary and full-width letters not read (N11, N12), and a plain `supported` with full
+coverage on a v1 seed value when the corrections layer is switched on but missing (N10). Failing tests were written
+first in the engineer's own wording (`tests/test_agent_round18_claims.py`, `tests/test_agent_round18_text.py`); none
+is a review sentence, a slice text, a real-claims set claim or a claim-bench row
+(`test_round18_tests_do_not_copy_a_slice_a_real_claim_or_a_review_probe`, 0 exact, 0 near; one near-copy of a review
+claim was reworded before it was committed). Code: `_drop_exclusions`, `_REL_WORD`, `_BARE_TRILLION`,
+`_RATE_AGAINST_METRIC`, `_mark_seed_checks` in `claim_check.py`; `normalise_text` / `fold_width` / `REGIONAL_TERMS` in
+`query_intelligence/traditional.py`.
+
+| Form | Example (own wording) | Reading |
+| --- | --- | --- |
+| An exclusion from a group | "工行、招行、平安银行三家之中，除去平安银行之外，归母净利润都是正增长", "宁德时代、比亚迪、美的集团里，除比亚迪以外…", "比亚迪除外，宁德时代和美的集团…", "…三家，不算五粮液，…" | the excluded company's phrase and its place in the list are removed before the claim is read, so the shared statement (均 / 都) is checked for the others only; the report lists the company in `excluded`. 除了A外…也 / 还 (besides) is not an exclusion; only a company the claim names is excluded ("除房地产业务外" is left alone) |
+| A sum below one company | "美的集团与比亚迪的净利润合计还不到宁德时代一家", "比亚迪和中芯国际净利润加起来不足宁德时代" | 不足 / 不到 before a target are comparison words (`lt`) like 不及 / 低于; with a number in the clause they stay bounds ("比亚迪市盈率不到30倍") |
+| A bare unit threshold | "中国平安的营收已经跨过万亿门槛", "比亚迪营业收入站上万亿", "宁德时代总市值突破万亿" | a bare 万亿 after a threshold word (突破 / 站上 / 跨过 / 迈入 / 超 / 破 / 逾 / 跌破 / 不足 / 接近 …) is 1万亿; 跨过 / 跨越 / 迈过 / 迈入 / 跃上 / 冲上 / 登上 / 跻身 are `ge` words. "万亿市值公司" without a threshold word is not a number |
+| A decline (or growth) rate against another figure | "平安银行归母净利润降幅较营业收入明显收窄", "五粮液净利润同比降幅较营收进一步扩大", "紫金矿业净利润增幅较营收明显扩大" | rewritten to "降幅小于 / 大于营收降幅" and checked as two year-on-year rates of the company (`reference_metric: revenue_yoy`), never as a one-day move against the previous session |
+| Hong Kong / Taiwan vocabulary | "美的集團去年純利約439億元，按年上升近15%", "工商銀行市賬率僅0.74倍", "五糧液本益比低於20倍" | `REGIONAL_TERMS` (13 rows with region and note) after the character table: 純利 → 净利润, 股東應佔溢利 → 归母净利润, 股本回報率 → 净资产收益率, 市賬率 / 股價淨值比 → 市净率, 本益比 → 市盈率, 營業額 → 营业收入, 每股盈利 → 每股收益, 收市價 → 收盘价, 按年 / 按季 + a change word → 同比 / 环比 |
+| Full-width letters and digits | "ＢＹＤ的ＰＥ约25.8倍", "Ｍｏｕｔａｉ's ROE is about 32.5%" | read as ASCII; full-width Chinese punctuation is kept |
+
+**N10.** With the corrections layer switched on but its file missing, a decided check whose value, compared side or
+operand is a v1 seed record (`data/structured_data.json`, the records the layer replaces) now carries
+`degraded: ["data_layer_missing:corrections"]` and the note "依据未经更正的离线种子值判定（数据更正层未加载），结论仅供参考"
+(en: "judged against an uncorrected offline seed value (the data corrections layer is not loaded)"), and the report's
+`coverage` is `partial` (the UI says "partly checked"), on top of the round-17 `limitations` / `degraded` /
+disclaimer. Checks on extension records (宁德时代, 平安银行 …) are not marked: the layer does not change their values.
+The verdict itself is still the seed values' (chosen behaviour, as in M13): a client that reads only `verdict` must
+also read `coverage` or `degraded`. Tests: `test_a_seed_value_without_the_corrections_layer_is_never_full_coverage`,
+`test_a_contradiction_on_a_seed_value_is_marked_too`, `test_checks_with_the_layer_present_are_not_degraded`.
+
 ### Macro values (C13)
 
 Macro claims are checked against the latest reading from `get_macro_indicators`. `as_of` is the reading's
