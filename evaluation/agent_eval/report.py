@@ -104,6 +104,7 @@ PERF_PAIRS = (
     ("perf-merged-prefetch-deepseek", "perf-merged-citerepair-stall-deepseek"),
 )
 STRESS_RUNS = (
+    "verifier_stress-round18",
     "verifier_stress",
     "verifier_stress-round17-frame",
     "verifier_stress-round16",
@@ -427,6 +428,7 @@ PAIRED_ABLATIONS = (
 )
 # Other committed evidence the READMEs cite, summarised as one row each.
 EXTRA_EVIDENCE = (
+    "lookalike-regression-r18",
     "claims_heldout_r13-prefix",
     "claims_heldout_r13-after-fix",
     "slice_overlap-heldout_r13-at-71cb928",
@@ -2395,6 +2397,13 @@ def extra_evidence_section(runs: list[tuple[str, dict[str, Any]]]) -> list[str]:
             summary = (
                 f"repair of {(result.get('whole_sentence_repair') or {}).get('repaired_answers')} rejected variants "
                 f"({result.get('gold_answers')} gold answers) — " + "; ".join(parts)
+            )
+        elif result.get("kind") == "lookalike_regression":
+            counts = result.get("summary") or {}
+            summary = (
+                f"deny-by-default lookalike rule (round 18, N5) off vs on over {counts.get('strings')} evaluation "
+                f"query strings: {counts.get('changed')} decisions change ({counts.get('lost_a_symbol')} lose a "
+                f"symbol, {counts.get('gained_a_symbol')} gain one)"
             )
         elif result.get("kind") == "claim_slice":
             run = result.get("summary") or {}
