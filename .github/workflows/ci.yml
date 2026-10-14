@@ -263,7 +263,8 @@ jobs:
     # 29 of that job's 45 min in run 38095861905 (the job used 40 min before its verify step); scripts/ci_budget.py
     # keeps each job's estimated time under 60% of its timeout-minutes
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # 75 min: the verifier stress test and the red team grew with every round (pre-push estimate 36.9 of 60 min at a73f262)
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
