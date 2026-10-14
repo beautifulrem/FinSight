@@ -185,6 +185,37 @@ class EntityResolver:
                 self._short_stock_aliases[alias] = [
                     (str(owner["canonical_name"]), str(owner.get("industry_name") or "")) for owner in owners if owner
                 ]
+        # (round 18, review-14 N5) every name of a listed stock (official names too: "比亚迪半导体" starts with the
+        # official name 比亚迪) -> its owners, for the deny-by-default rule; and the names by first character, so a
+        # name followed by another listed name ("茅台五粮液") is a list, not a longer name
+        self._stock_names: dict[str, list[tuple[str, str]]] = dict(self._short_stock_aliases)
+        self._listed_names_by_first_char: dict[str, set[str]] = defaultdict(set)
+        for alias, rows in self._alias_rows_by_normalized.items():
+            if len(alias) < 2 or alias.isdigit():
+                continue
+            owners = [self._entity_by_id(int(row["entity_id"])) for row in rows if row.get("alias_type") != "symbol"]
+            stocks = [owner for owner in owners if owner is not None and owner.get("entity_type") == "stock"]
+            if not stocks or len(stocks) != len(owners):
+                continue
+            self._listed_names_by_first_char[alias[0]].add(alias)
+            if alias not in self._stock_names and not alias.isascii():
+                self._stock_names[alias] = [
+                    (str(owner["canonical_name"]), str(owner.get("industry_name") or "")) for owner in stocks
+                ]
+
+    def _listed_name_at(self, text: str, index: int) -> int:
+        """(round 18, N5) The length of the longest name of a listed stock starting at ``index`` of ``text`` (0: none)."""
+        names = self._listed_names_by_first_char.get(text[index : index + 1], ())
+        return max((len(name) for name in names if text.startswith(name, index)), default=0)
+
+    def _inside_longer_name(self, query: str, start: int, end: int) -> bool:
+        """(round 18, N5) ``query[start:end]`` lies inside a longer name of the entity table that starts before it
+        ("茅台" in "贵州茅台酒…", "能源" in "宁德时代新能源科技"): that name is checked on its own."""
+        for begin in range(max(0, start - 24), start):
+            for alias in self._aliases_by_first_char.get(query[begin], ()):
+                if begin + len(alias) >= end and query.startswith(alias, begin):
+                    return True
+        return False
 
     def _finance_context(self, query: str, alias: str) -> bool:
         """(round 16) A finance cue, or another security named exactly ("招行和紫金的呢"), around a derived short name
@@ -205,12 +236,14 @@ class EntityResolver:
         "平安证券" -> 中国平安 / 平安银行): another company, which the entity master does not have. A longer alias
         at the same place (平安银行, 中信证券) is the company itself and is not a lookalike."""
         found: list[tuple[int, int, str, str]] = []
-        for alias, owners in self._short_stock_aliases.items():
+        for alias, owners in self._stock_names.items():
             if alias not in query:
                 continue
             for hit in re.finditer(re.escape(alias), query):
                 ends = [
-                    lookalike_end(query, hit.end(), alias=alias, owner=owner, industry=industry)
+                    lookalike_end(
+                        query, hit.end(), alias=alias, owner=owner, industry=industry, names_at=self._listed_name_at
+                    )
                     for owner, industry in owners
                 ]
                 if not ends or any(end is None for end in ends):
@@ -221,6 +254,8 @@ class EntityResolver:
                     for other in self._aliases_by_first_char.get(alias[0], [])
                 ):
                     continue  # "平安银行": a longer name of a listed company starts here
+                if self._inside_longer_name(query, hit.start(), hit.end()):
+                    continue
                 found.append((hit.start(), end, query[hit.start() : end], owners[0][0]))
         found.sort()
         kept: list[tuple[int, int, str, str]] = []
@@ -667,6 +702,7 @@ class EntityResolver:
                 alias=str(match["text"]),
                 owner=str(owner["canonical_name"]),
                 industry=str(owner.get("industry_name") or ""),
+                names_at=self._listed_name_at,
             )
             if end is None:
                 return False

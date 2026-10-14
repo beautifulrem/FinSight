@@ -68,6 +68,17 @@ class QueryNormalizer:
         # (round 17, review-13 M3) canonical name -> industry of listed stocks: an alias of one followed by a
         # business-line word ("Midea Real Estate", "茅台置业") is another company's name and is not rewritten
         self._stock_industries = dict(stock_industries or {})
+        # (round 18, review-14 N5) Chinese names of listed stocks by first character: a name followed by another
+        # listed name ("茅台五粮液") is a list of two companies, not one longer, unknown name
+        self._stock_names_by_first_char: dict[str, set[str]] = {}
+        for alias, target in (synonyms.get("alias") or {}).items():
+            if target in self._stock_industries:
+                for name in (alias, target):
+                    if len(name) >= 2 and not name.isascii():
+                        self._stock_names_by_first_char.setdefault(name[0], set()).add(name)
+        for name in self._stock_industries:
+            if len(name) >= 2 and not name.isascii():
+                self._stock_names_by_first_char.setdefault(name[0], set()).add(name)
         # English aliases of listed securities, for typo correction ("Moutia" -> "moutai"); off without the list.
         self._typo_aliases: list[tuple[str, tuple[str, ...]]] = sorted(
             (
@@ -82,6 +93,10 @@ class QueryNormalizer:
             key=lambda item: len(item[1]),
             reverse=True,
         )
+
+    def _stock_name_at(self, text: str, index: int) -> int:
+        names = self._stock_names_by_first_char.get(text[index : index + 1], ())
+        return max((len(name) for name in names if text.startswith(name, index)), default=0)
 
     def normalize(self, raw_query: str) -> tuple[str, list[str]]:
         text = raw_query.strip()
@@ -202,7 +217,12 @@ class QueryNormalizer:
                 continue
             if target in self._stock_industries:
                 lookalike = lookalike_end(
-                    text, end, alias=source, owner=target, industry=self._stock_industries[target]
+                    text,
+                    end,
+                    alias=source,
+                    owner=target,
+                    industry=self._stock_industries[target],
+                    names_at=self._stock_name_at,
                 )
                 if lookalike is not None:
                     if lookalikes is not None:
@@ -247,7 +267,12 @@ class QueryNormalizer:
                 # (round 17, M3) "… Bank of China Real Estate" is another company's name, not this one
                 if target in self._stock_industries and (
                     lookalike_end(
-                        match.string, match.end(), alias=source, owner=target, industry=self._stock_industries[target]
+                        match.string,
+                        match.end(),
+                        alias=source,
+                        owner=target,
+                        industry=self._stock_industries[target],
+                        names_at=self._stock_name_at,
                     )
                     is not None
                 ):
