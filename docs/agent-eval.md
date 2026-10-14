@@ -3644,6 +3644,25 @@ Command `python -m evaluation.agent_eval.fault_injection --out outputs/agent_eva
 | llm_hallucination | unsupported removed | 5 | 1.00 | – |
 | endless_tool_calls | step budget stops loop | 5 | 1.00 | – |
 
+### Verifier stress test (333 gold answers, 5631 corrupted variants, `verifier_stress-round18.json`)
+
+Command: `python -m evaluation.agent_eval.verifier_stress --out evaluation/results/verifier_stress-round18.json` at commit `3e1008d`. Lower is better; true-accept must stay 1.0.
+
+| | legacy | run | claim | claim_derived |
+|---|---|---|---|---|
+| True-accept (gold answers passing) | 1.000 | 1.000 | 1.000 | 1.000 |
+| False-accept, all corruptions | 0.318 | 0.236 | 0.009 | 0.011 |
+| False-accept, perturb_1pct (1381) | 0.253 | 0.015 | 0.015 | 0.015 |
+| False-accept, perturb_20pct (1517) | 0.082 | 0.026 | 0.013 | 0.013 |
+| False-accept, perturb_5pct (1491) | 0.050 | 0.017 | 0.008 | 0.008 |
+| False-accept, swap (1242) | 1.000 | 1.000 | 0.000 | 0.006 |
+
+Repair of the 5579 rejected variants (whole-sentence deletion, template fallback when nothing cited survives):
+
+| Readable (no dangling clause, stray punctuation, orphan citation) | Containing a fragment | Repaired answer verifies | Untouched sentences kept | Template fallback |
+|---|---|---|---|---|
+| 1.000 | 0.000 | 1.000 | 0.980 | 0.194 |
+
 ### Verifier stress test (227 gold answers, 4016 corrupted variants, `verifier_stress.json`)
 
 Command: `python -m evaluation.agent_eval.verifier_stress --out outputs/agent_eval/verifier_stress.json` at commit `25205d4`. Lower is better; true-accept must stay 1.0.
@@ -4631,6 +4650,7 @@ Small online checks with DeepSeek over the offline tools, run sequentially (stop
 
 | Result file | Commit | Summary |
 |---|---|---|
+| `lookalike-regression-r18.json` | `3e1008d` | deny-by-default lookalike rule (round 18, N5) off vs on over 3973 evaluation query strings: 4 decisions change (4 lose a symbol, 0 gain one) |
 | `claims_heldout_r13-prefix.json` | `aa73005` | claim slice, verdict accuracy 0.636 [0.409, 0.818] over 22 claims — contrast_clause 0.500; control 1.000; definition_clause 0.500; same_company_metrics 0.600; weak_direction 0.400 |
 | `claims_heldout_r13-after-fix.json` | `71cb928` | claim slice, verdict accuracy 1.000 [1.000, 1.000] over 22 claims — contrast_clause 1.000; control 1.000; definition_clause 1.000; same_company_metrics 1.000; weak_direction 1.000 |
 | `slice_overlap-heldout_r13-at-71cb928.json` | `71cb928` | overlap of `heldout_r13` with every task file and claim file (12 files) and the test literals (round-10 review J9): 2 exact and 4 near hits over 6 slice items (r13c02, r13c06, r13c07, r13c17, r13h_book_zh_01, r13h_carry_en_01); chat runs ; content level (round-11 review K16): `content` 10 items (r13c08, r13c11, r13c14, r13c17, r13h_carry_en_01, r13h_carry_zh_02, r13h_ctrl_zh_04, r13h_ctrl_zh_08, r13h_rank_en_01, r13h_rise_zh_03), `content_signature` 24 items |
@@ -4893,6 +4913,7 @@ Paired comparisons (same tasks, a − b):
 | `gate-ext.json` | run | `67c28da` | 2026-10-11T07:24:07+00:00 | – | `outputs/agent_eval/gate-ext.json` (aaaba974ef9a6d5c) |
 | `gate-shipped.json` | run | `0096c6f` | 2026-10-10T16:01:55+00:00 | – | `outputs/agent_eval/gate-shipped.json` (bf74663837895f6c) |
 | `fault_injection.json` | fault_injection | `9f0e46b` | 2026-09-28T17:05:31+00:00 | – | `outputs/agent_eval/fault_injection.json` (5c62a46e48e266ca) |
+| `verifier_stress-round18.json` | verifier_stress | `3e1008d` | 2026-10-14T16:48:10+00:00 | – | written directly |
 | `verifier_stress.json` | verifier_stress | `25205d4` | 2026-10-01T02:25:07+00:00 | – | `outputs/agent_eval/verifier_stress.json` (b7c21c077e6fa664) |
 | `verifier_stress-round17-frame.json` | verifier_stress | `7378156` | 2026-10-11T07:37:52+00:00 | – | `outputs/agent_eval/verifier_stress.json` (490990aa4904bdce) |
 | `verifier_stress-round16.json` | verifier_stress | `d3b5cc2` | 2026-10-11T03:12:38+00:00 | – | `outputs/agent_eval/verifier_stress-round16.json` (878193887cb85eaa) |
@@ -4952,6 +4973,7 @@ Paired comparisons (same tasks, a − b):
 | `session-llm-check-h8-r12-after.json` | session | `4c45dac` | 2026-10-01T07:01:55+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `frame-llm-check-r12-fallback-off.json` | frame | `e9badd4` | 2026-10-01T06:26:06+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
 | `frame-llm-check-r12-fallback-on.json` | frame | `e9badd4` | 2026-10-01T06:28:45+00:00 | cline-pass/deepseek-v4.1-flash | written directly |
+| `lookalike-regression-r18.json` | lookalike_regression | `3e1008d` | 2026-10-14T17:09:43+00:00 | – | written directly |
 | `claims_heldout_r13-prefix.json` | claim_slice | `aa73005` | 2026-10-11T05:25:26+00:00 | – | written directly |
 | `claims_heldout_r13-after-fix.json` | claim_slice | `71cb928` | 2026-10-11T10:02:29+00:00 | – | written directly |
 | `slice_overlap-heldout_r13-at-71cb928.json` | slice_overlap_scan | `71cb928` | 2026-10-11T10:00:35+00:00 | – | written directly |

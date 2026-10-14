@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -101,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
         "config": {
             "commit": commit,
             "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "command": "python -m evaluation.agent_eval.lookalike_regression " + " ".join(argv or []),
+            "command": " ".join(["python -m evaluation.agent_eval.lookalike_regression", *(argv or sys.argv[1:])]),
             "rule": "query_intelligence/nlu/lookalike.py DENY_UNKNOWN_EXTENSIONS off (round 17) vs on (round 18)",
         },
         "summary": {
