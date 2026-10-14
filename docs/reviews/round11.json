@@ -1,0 +1,342 @@
+{
+ "reviewed": {
+  "repo": "beautifulrem/FinSight",
+  "branch": "master",
+  "commit": "4ad3380",
+  "date": "2026-10-11",
+  "previous_commit": "7f4f06c",
+  "ci_run": "38077019773 on 4ad3380: success, all 8 jobs (tests 36m44s incl. e2e; agent-eval-gate 43m51s); previous master run 38064588334 on f8f5546 green",
+  "llm": "15 requests (13 chat + 2 planted), deepseek-v4.1-flash, 0 x 429, ~$0.022 chat",
+  "browser": "real Chrome via Playwright channel=chrome (claude-in-chrome extension not connected)"
+ },
+ "scores": {
+  "Agent core architecture": 92,
+  "Context & prompt engineering": 92,
+  "Evaluation & quantified results": 95,
+  "Reliability & fault tolerance": 97,
+  "Cost & performance": 94,
+  "Observability": 97,
+  "Security & compliance": 94,
+  "Engineering & deployment": 96,
+  "Front end & product experience": 96,
+  "Data acquisition": 93,
+  "Protocols & ecosystem": 97,
+  "Documentation & interview readiness": 93,
+  "Real-world value & differentiation": 87
+ },
+ "overall": 94,
+ "overall_exact": 94.08,
+ "previous_overall": [
+  77,
+  82,
+  86,
+  89,
+  90,
+  91,
+  93,
+  93,
+  93,
+  93
+ ],
+ "blocking_issues": [
+  "K1/K2: wrong numbers on fresh wordings (a total that absorbs the comparison target; several purchases valued at the first lot)",
+  "K3: the verifier deletes correct derived numbers, including the template's own three-company share; LLM repair can change the metric",
+  "K4: comparison frame still generalises by lexicon (unseen chat 46/76, new slice 0.200; no mean operation)",
+  "K6: claim checker false contradictions of true published-style claims (trillion, averages, year before amount) and false accepts (sum references, H-share claims); new claims 17/30, slice 0.292",
+  "Owner-blocked: human labels, head-to-head, owner real claims, user study; quota-bound 16-user load and compaction"
+ ],
+ "bugs": [
+  {
+   "id": "K1",
+   "severity": "Medium",
+   "title": "A total compared with a third value absorbs the third operand; a value-vs-total question drops the single value (template and LLM frame_result_appended)",
+   "where": "query_intelligence/agent/frame.py:764-782 (GRAMMAR sum takes every named operand; no total-vs-one production)",
+   "repro": "C: Do Zijin Mining and BYD together earn more than ICBC? What's the gap?; 工行一家的净利润，比招行、平安银行、中信证券三家加起来还多多少",
+   "observed": "combined CNY 452.96 bn (all three); only the three-name sum (工商银行 dropped_non_operand)",
+   "expected": "84.40 bn vs 368.56 bn, gap 284.17 bn; 1,456.72亿"
+  },
+  {
+   "id": "K2",
+   "severity": "Medium",
+   "title": "Two purchases at different costs: P&L of the first purchase only (template and LLM template fallback)",
+   "where": "query_intelligence/agent/coverage.py:570-596 (cost_basis_request takes the first _COST_ZH match and first count)",
+   "repro": "C: 我先在40元买了500股招行，后来43元又买了500股，现在盈亏多少; 我在80元买了100股比亚迪，又在90元买了100股，现在盈亏",
+   "observed": "+630 / +331",
+   "expected": "-240 / -338 (or say the lots cannot be combined)"
+  },
+  {
+   "id": "K3",
+   "severity": "Medium",
+   "title": "Verifier deletes correct derived numbers it cannot trace, incl. the template's own zh three-company share; LLM means/3-way shares/mktcap÷profit/profit totals stripped; one repair answered a revenue total for a profit question",
+   "where": "query_intelligence/agent/verifier.py:1061-1065 (>=3-operand total with repeated numerator); no mean or mktcap÷profit derivation; repair keeps unrelated sentence",
+   "repro": "C: 招商银行净利润在招行、工行、平安银行三家合计中占几成 (unsupported_numbers [5613.76]); LLM agent: 两家一起赚了多少 / three-bank average P/E",
+   "observed": "share sentence deleted ('已删除 2 处'); L1 revenue total 1,227,670,000,000 元",
+   "expected": "keep the computed share/mean/ratio or say it could not be checked; never change the metric"
+  },
+  {
+   "id": "K4",
+   "severity": "Medium",
+   "title": "Comparison lexicon misses common wordings; no mean operation; one message with two operations answers one (UI: sum+share -> relative gap)",
+   "where": "frame.py:599-626 (_SUM/_SUM_WEAK), :395-402 (verbs), :764-782 (no mean, mktcap÷profit, rise-to-high); comparison_clause first clause only",
+   "repro": "C: 两家一起赚了多少 (after two turns); 紫金矿业和宁德时代的营收合并起来是多少; 宁德时代、比亚迪、美的集团三家ROE的平均值; 长江电力、紫金矿业、宁德时代的市值加总，再除以三; 宁德时代比比亚迪多挣了多少钱; By what margin does Zijin's ROE lead CMB's?; 宁德时代需要涨多少百分比才能回到52周高点; UI 两家加一起是多少，宁德占其中几成",
+   "observed": "lists / pairwise ratios / relative gap 121.35%",
+   "expected": "1,048.2亿; 7,727.81亿; 18.12; 9,458.34亿; 395.82亿; 16.11; 58.02%; 1,048.2亿 + 68.88%"
+  },
+  {
+   "id": "K5",
+   "severity": "Medium",
+   "title": "HK lines by stock code, NNNN.HK after Chinese text, venue without 上市/挂牌, or currency answered with the A-share price",
+   "where": "query_intelligence/agent/coverage.py:63 ((?<![\\w.]) - \\w matches CJK), :93-100 (_HK_LINE: no (01211) code, 港交所+报价, HKD)",
+   "repro": "C: 比亚迪股份(01211)现在多少钱; 中芯国际0981.HK股价; 中芯国际在港交所的报价; What does China Merchants Bank trade at in Hong Kong dollars?",
+   "observed": "A-share close",
+   "expected": "out_of_coverage with the H-share note"
+  },
+  {
+   "id": "K6",
+   "severity": "Medium",
+   "title": "Claim checker false contradictions of true published-style claims and false accepts (trillion unit, means, sum references, English year-before-amount, H-share lines, implicit-subject 但 clause with short name, 扣非 vs 归母 relation, N-company share; partially_supported for a definition caution)",
+   "where": "query_intelligence/agent/claim_check.py (units, predicates, foreign-line check)",
+   "repro": "CC: Contemporary Amperex's market value stood at about 1.35 trillion yuan as of Sept 30; 招行、工行、平安银行三家的平均市盈率约6.6倍; Zijin's market cap is bigger than Midea's and Ping An Bank's put together; BYD's 2025 revenue of RMB804 billion was up 3.5% from a year earlier; 比亚迪H股市盈率约20倍; 比亚迪营收是宁德时代的近两倍，但净利润还不到宁德的一半; 比亚迪扣非净利润不足300亿元，比归母净利润少30多亿",
+   "observed": "contradicted / contradicted / supported / partially / contradicted / partially / partially",
+   "expected": "supported / supported / contradicted / supported / unverifiable / supported / supported"
+  },
+  {
+   "id": "K7",
+   "severity": "Low-Medium",
+   "title": "Holding forms: 万 counts -> company market cap; portfolio ending 总市值？ -> companies' caps; carried single holding + new one in follow-up -> new one only; r10 ETF units + shares -> count applied to ETF",
+   "where": "coverage.py:486-491 (_HOLDING_COUNT_ZH lookbehind blocks 万 after a digit), :492-495 (_HOLDING_VALUE_ZH needs 多少/几), holding_positions/bind_positions :683-800",
+   "repro": "C: 我有1.5万股工商银行，市值多少; 我的持仓：招商银行 1,000 股；工商银行 3,000 股；平安银行 10 手。总市值？; 我有两千股招商银行，值多少钱 -> 再加三千股工行呢，总共多少",
+   "observed": "29,510.44亿 / company caps / 24,840",
+   "expected": "124,200 / 77,670 / 107,360"
+  },
+  {
+   "id": "K8",
+   "severity": "Low-Medium",
+   "title": "Dated closes: template says 2025 bars missing although 2025-12-31 close is in the payload; a date after the last bar answered with the 09-30 close and no note",
+   "where": "query_intelligence/agent/coverage.py:925-938 (year-level check on as_of; history/prior_year_end not consulted)",
+   "repro": "C: 招商银行2025年12月31日收盘价是多少; 招商银行10月9日收盘价多少",
+   "observed": "'当前数据中没有招商银行2025年的行情' / 41.26",
+   "expected": "42.1 (LLM agent answers it) / state the date is after the data"
+  },
+  {
+   "id": "K9",
+   "severity": "Low-Medium",
+   "title": "Unresolved name in a three-name list or at the start dropped silently (two-operand rule fires only in some forms)",
+   "where": "frame.py:1120-1143 (unresolved_operand)",
+   "repro": "C: CYPC and CITIC Securities, revenue collectively?; Among Zijin, CYPC and SMIC, how far apart are the most and least expensive on P/E?",
+   "observed": "CITIC alone / two-name spread",
+   "expected": "could not tell which security 'CYPC' is"
+  },
+  {
+   "id": "K10",
+   "severity": "Low-Medium",
+   "title": "净利润总额 read as 利润总额 (false missing); ellipsis naming two new targets loses the metric; second question in the same message dropped",
+   "where": "frame.py _TERMS longest match; ellipsis aspect carry; comparison_clause",
+   "repro": "C: 工行与招行的净利润总额; 招商银行的市盈率 -> 工行和平安银行的呢; 比亚迪营收是宁德时代的几倍，净利润呢",
+   "observed": "没有利润总额数据 / prices only / revenue ratio only",
+   "expected": "5,187.43亿 / P/E 7.89, 5.17 / 1.90 and 0.45"
+  },
+  {
+   "id": "K11",
+   "severity": "Low",
+   "title": "Earnings forecasts for an English quarter or the next unreleased report not hedged",
+   "where": "query_intelligence/agent/stated_dates.py; router earnings-forecast words",
+   "repro": "C: Will BYD's Q4 2026 profit top last year's?; 比亚迪三季报净利润会同比增长吗",
+   "observed": "FY2025 figures, no hedge",
+   "expected": "FinSight does not forecast future earnings"
+  },
+  {
+   "id": "K12",
+   "severity": "Low",
+   "title": "Definition questions about labels the product shows (扣非 vs 归母, weighted ROE) get clarification or no evidence",
+   "where": "query_intelligence/agent/glossary.py (market concepts only); router clarify",
+   "repro": "C: 扣非净利润和归母净利润有什么区别; What does weighted average ROE mean?",
+   "observed": "asks which stock / No usable evidence",
+   "expected": "curated definitions"
+  },
+  {
+   "id": "K13",
+   "severity": "Low",
+   "title": "News with no offline documents silently falls back to the close; news lines still topic class only (I16)",
+   "where": "composer news path",
+   "repro": "C: What's the latest news on BYD?",
+   "observed": "close only",
+   "expected": "'no news found for BYD in the data'; lines that say what happened"
+  },
+  {
+   "id": "K14",
+   "severity": "Low",
+   "title": "Historical drawdown question labelled a price forecast",
+   "where": "router.py forecast words",
+   "repro": "C: 宁德时代股价离一年内最高点跌了多少",
+   "observed": "36.72% with '问题要求预测未来价格'",
+   "expected": "no forecast note"
+  },
+  {
+   "id": "K15",
+   "severity": "Low",
+   "title": "Planted financial-fact headlines shown as ledger titles in split/title-only variants",
+   "where": "evidence title withholding (800b068 covers regulatory headlines and pinyin only)",
+   "repro": "round11/probes/planted11.py r11_traditional/homoglyph/cn_numerals/unit_swap/pct_drop",
+   "observed": "20/128 titles shown, 4/320 ledger hits",
+   "expected": "withhold or attribute headlines asserting figures that contradict tool data"
+  },
+  {
+   "id": "K16",
+   "severity": "Low-Medium",
+   "title": "heldout_r10 after-fix provenance asserted, not shown; content-level near copies beyond the three counted",
+   "where": "README.md:28,124; evaluation/heldout_r10/README.md; evaluation/results/slice_overlap-heldout_r10-at-3480a96.json (config commit aef319a)",
+   "repro": "round11/probes/near_r10.py (+ control near_r10_control.py)",
+   "observed": "'not exposed'; 12/45 -> 35/45; runner tasks_file = reviewer folder",
+   "expected": "state the record; >=7 more content-similar items; 11/38 -> 29/38 when excluded; content-level overlap check"
+  },
+  {
+   "id": "K17",
+   "severity": "Low",
+   "title": "UI nits",
+   "where": "composer cost-basis sentence; freshness banner; language switch",
+   "repro": "shots/ui-03*, ui-06*",
+   "observed": "'200 × -90.5'; banner omits valuation date; zh suggestions after switching to en",
+   "expected": "brackets; banner includes valuation date; translated"
+  },
+  {
+   "id": "K18",
+   "severity": "Low",
+   "title": "README 18.5k words; 'In 30 seconds' block is five dense paragraphs with commit hashes",
+   "where": "README.md:24-36",
+   "repro": "-",
+   "observed": "-",
+   "expected": "5-bullet pitch, 3 headline numbers; per-round ledger moved to docs/"
+  }
+ ],
+ "round10_status": {
+  "J1": "fixed (f8f5546 -> CI 38064588334 green; HEAD 4ad3380 -> 38077019773 green 8/8; prepush.sh 17 steps; local e2e 2/2)",
+  "J2": "fixed (image ships corrections; /ready data_layers; missing file -> 503; smoke asserts 21.44 / 6.89 / 405.29)",
+  "J3": "fixed for two operands and en three; partial: zh three-company share deleted by the verifier (K3); r10 share_of_total 1/4",
+  "J4": "mostly fixed for the reported wordings; mktcap÷profit not; new lexicon escapes and no mean (K4)",
+  "J5": "fixed for both repros (94,991; 19,002); follow-up and form variants open (K7); r10 ETF holding wrong number",
+  "J6": "fixed (dates, quarters, years, earnings, gaps, sell price); residual English quarter / next-report (K11)",
+  "J7": "fixed for the reported wordings; residual codes/venue/currency (K5)",
+  "J8": "fixed (circ_mv, profit_dedt, 营业利润/毛利润 stated missing); new 净利润总额 misread (K10)",
+  "J9": "fixed (every task and claim file; README 16/46 -> 36/46)",
+  "J10": "fixed for regulatory headlines (holdout11 ledger 0/320); financial-fact headlines open (K15)",
+  "J11": "fixed",
+  "J12": "fixed (all six repros right)",
+  "J13": "mostly fixed (unrounded-sum label, 1.85%, English-only sentence)",
+  "J14": "fixed (高 16.33, 约 59.82%)",
+  "J15": "fixed (27b582a)",
+  "to_100_round10": {
+   "dim1": "J3 done (2 operands); J4 mostly; J5 repros done; grammar + property tests done; r10 run done (provenance K16)",
+   "dim2": "verifier derivations partial (A/(A+B), positions, cost basis); means/3-way/mktcap÷profit stripped; pass^2 full test v3 not done",
+   "dim3": "J9, shipped gate, strict anti-copy, J15 done",
+   "dim4": "/ready data layers done",
+   "dim5": "LLM-bound P95 optimisation not done",
+   "dim6": "degradation flag panel exists; replaced numbers not shown (partial)",
+   "dim7": "J6/J7/J10 done for reported forms",
+   "dim8": "J1 + prepush, J2, test_shipped_default done",
+   "dim9": "J13 done; I16 not done; extension not connected",
+   "dim10": "J2/J11/J8 done; weighted ROE for ext not done; trading-day live audit not done",
+   "dim12": "J11/J9 wording done; failure sections exist",
+   "dim13": "J12 done; second blind engineer set done (0.500 -> 0.840)"
+  }
+ },
+ "to_100": {
+  "Agent core architecture": [
+   "K1 total-vs-one production; never add the comparison target into a total",
+   "K2 several purchases -> average cost / P&L over all lots",
+   "K4 mean operation; sum words 一起/合并/统共/拢共/collectively/in all/jointly; verbs 多挣/eclipse/by what margin; mktcap÷profit; rise-to-high; two operations in one message",
+   "K7/K9/K10 holding forms, unresolved names anywhere, two-target ellipsis",
+   "move the generaliser off the lexicon (classical operation classifier with the lexicon as features, held-out wordings not generated from the same templates)",
+   "run heldout_r11 once after the fixes after the leak check",
+   "[owner] human-authored multi-turn slice"
+  ],
+  "Context & prompt engineering": [
+   "K3 verifier knows every frame operation and never deletes a number the template computed; failed repair never changes the metric",
+   "[owner: quota] pass^2/pass^3 of the shipped prompt on full test v3",
+   "[owner: quota] compaction experiment"
+  ],
+  "Evaluation & quantified results": [
+   "K16 state provenance as recorded; content-level overlap check (same company + number, difflib>=0.70); fix overlap file config commit",
+   "strengthen metrics.py hedge/missing markers",
+   "gate the r10 classes that still fail as ext/shipped tasks in own wording",
+   "[owner: labels] ~100 human labels + judge calibration"
+  ],
+  "Reliability & fault tolerance": [
+   "refuse or flag answers (not only /ready 503) when a switched-on layer is missing",
+   "[owner: quota] 16-user LLM load with provider fault"
+  ],
+  "Cost & performance": [
+   "one optimisation that moves the LLM-bound P95 (skip agent steps for frame questions, parallel tools, cheaper compose model), before/after on the same host",
+   "[owner: quota] 16-user run with cost per answer"
+  ],
+  "Observability": [
+   "trace field + panel for numbers deleted by the verifier (and whether the template computed them)",
+   "[owner: labels] judge scores per prompt version"
+  ],
+  "Security & compliance": [
+   "K5 HK codes, NNNN.HK after Chinese text, 港交所/联交所 + 报价, HKD/港元 -> out_of_coverage; same in claim checker",
+   "K11 earnings hedge for English quarters / next report; property test over report periods",
+   "K15 withhold or attribute financial-fact headlines in ledger titles",
+   "[owner: quota] larger LLM red team on holdout11 + r11 styles"
+  ],
+  "Engineering & deployment": [
+   "link the latest green HEAD CI run from the README",
+   "more of pytest on the shipped default; pin QI_OFFLINE_SNAPSHOT_FIX in Playwright webServer.env",
+   "make prepush a documented required rule"
+  ],
+  "Front end & product experience": [
+   "K4 in UI: answer both operations of 合计+占比",
+   "I16/K13 news lines that say what happened + explicit no-news line",
+   "K17 nits; restored turns with tiles/inspector",
+   "re-verify with the Chrome extension connected"
+  ],
+  "Data acquisition": [
+   "K8 dated closes from the 241-bar history; dates after the last bar stated",
+   "weighted ROE for extension companies (or both, labelled)",
+   "dated live audit on a trading day"
+  ],
+  "Protocols & ecosystem": [
+   "[owner: quota] online MCP fetch run with trace committed"
+  ],
+  "Documentation & interview readiness": [
+   "K18 5-bullet 30-second pitch; move per-round ledger out of README",
+   "K16 wording; link latest green HEAD CI",
+   "README failure-cases section with this round's wrong-number examples and guarding tests"
+  ],
+  "Real-world value & differentiation": [
+   "K6 trillion/万亿 units, means, sums of several companies, N-company shares, English year-before-amount, H/ADR/GDR -> unverifiable, 扣非 vs 归母 relations, implicit-subject 但 with short names, no 'partially_supported' for a definition caution",
+   "claims_web_v2 per error class after fixes; a third blind engineer set",
+   "[owner] 30-50 owner-collected real claims",
+   "[owner] 30-question head-to-head vs 问财/豆包/Kimi",
+   "[owner] 5-10 person user study with SUS"
+  ]
+ },
+ "owner_blocked": [
+  "~100 human answer labels + LLM-judge calibration: kit ready; results absent -> not credited (dims 3, 6)",
+  "问财/豆包/Kimi head-to-head (30 frozen questions): kit ready; results absent (dim 13)",
+  "30-50 owner-collected real claims via evaluation/human/: absent; engineer-collected claims_web_v1 (60, not blind) and claims_web_v2 (50, collected blind to the checker's code by search agents; first run 0.500, 0.840 after exposure) are credited only as engineering evaluations (dim 13)",
+  "5-10 person user study with SUS: kit ready; results absent (dim 13)",
+  "LLM quota: 16-user LLM load, compaction experiment, pass^k on full test v3, larger LLM red team, online MCP fetch run (dims 2, 4, 5, 7, 11) — not deducted beyond earlier rounds",
+  "302077a key: owner confirmed revocation 2026-09-30 -> scored as resolved"
+ ],
+ "verification_summary": {
+  "ci": "f8f5546 run 38064588334 green; HEAD 4ad3380 run 38077019773 green (8/8 jobs)",
+  "local_pytest": "2,812 passed, 70 skipped, 0 failed (12m49s)",
+  "ruff": "check + format (186 files) pass",
+  "frontend": "tsc OK, eslint OK, vitest 154/154 x3, dist rebuild identical, e2e 2/2 (42.5s)",
+  "verifier_stress": "324 gold / 5,452 variants, claim FA 0.95%, derived 1.08%",
+  "redteam": "template 0 successes on 12 sets (holdout11 0/320, ledger 0); my 16 new styles 0/320, ledger 4/320, titles shown 20/128; LLM agent 0/2",
+  "fault_injection": "12/12 graceful",
+  "gate": "passed: dev 510 = 1.000, held-out 53 = 0.9434, ext 44 = 1.000, shipped 21 = 1.000; report --check up to date",
+  "router": "own 1.000/414, independent v1 1.000/154, v2 0.8423/241",
+  "claim_bench": "dev 1.000/311; holdout 1.000/47; r4 1.000; r5 1.000; r6 0.985; r8 25/25; r9 25/25; r10 0.833 (20/24); claims_web_v1 0.850 / 0.783 (corr.); claims_web_v2 0.840 (first run 0.500)",
+  "slices": "r10 38/48 (= committed, per task); r9 51/52; r8 51/51; r7 53/53; 9 verify scripts OK",
+  "unseen_probes": "chat 46/76 (0.61) + extra 6/14; claims 17/30; LLM 13 turns 6 right (7 with a definition), 0 x 429",
+  "ops": "docker build + read-only run OK (uid 10001, RO FS, /ready 200 after 58 s with three data layers; missing layer -> 503); kubeconform 12/12 + 12/12 + 10/10; actionlint clean; promtool 14 rules + tests SUCCESS",
+  "security": "auth matrix, tenancy, 404 parity, 413 (CL/chunked/anon/a2a), 422, rate limit + Retry-After, XFF spoof 401, audit hashing, A2A isolation, output safety incl. new forecast forms: all pass",
+  "ui": "real Chrome via Playwright (extension not connected): 0 console errors, 0 failed requests; 390 px overflow 0, axe 0 x6; sum+share in one message -> relative gap",
+  "heldout_r10_provenance": "data identical; overlap file reproduced (3 near); runner read the reviewer folder; >=7 more content-similar items; 11/38 -> 29/38 with a broader exclusion",
+  "new_slice": "heldout_r11: 60 conv / 73 turns / 69 facts + 24 claims; verify OK; mutation 2 failures; first run at 4ad3380 (EXT=1 FIX=1) chat 0.200 [0.10, 0.30] (12/60), turn 0.342; claims 0.292 [0.125, 0.458] (7/24)",
+  "context7": "Playwright webServer (correct; QI_OFFLINE_SNAPSHOT_FIX inherited), Starlette ASGI body limit (correct)"
+ }
+}

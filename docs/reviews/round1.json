@@ -1,0 +1,31 @@
+{
+  "scores": {
+    "Agent core architecture": 80,
+    "Context & prompt engineering": 80,
+    "Evaluation & quantified results": 76,
+    "Reliability & fault tolerance": 82,
+    "Cost & performance": 68,
+    "Observability": 84,
+    "Security & compliance": 72,
+    "Engineering & deployment": 72,
+    "Front end & product experience": 85,
+    "Data acquisition": 78,
+    "Protocols & ecosystem": 84,
+    "Documentation & interview readiness": 76,
+    "Real-world value & differentiation": 70
+  },
+  "overall": 77,
+  "blocking_issues": [
+    "CI has never run on the default branch: origin/master ci.yml triggers only on [main, claude/**]; the fix (d70c215) and 9 other commits (React UI, live sources, red team, Postgres sessions, K8s) are unpushed and have never passed CI.",
+    "All evaluation artifacts backing README numbers (outputs/agent_eval/*.json, outputs/load_test-*.json, data_source_audit.json) are gitignored, so no headline number is traceable from the repository.",
+    "Headline comparative claims are within run-to-run noise and have no confidence intervals: held-out pass^3 is 0.906 for both agent and workflow_llm; an earlier run gave agent held-out pass^3 0.943, above the 'improved' v3 figure; the v1->v3 quality gain (0.849->0.906) is not distinguishable from noise.",
+    "legacy_llm is reported as pass^3 in docs/agent-eval.md, but it ran once (220 turns); it is pass^1.",
+    "Router bugs reproduced live: '它会涨吗' is refused as out-of-scope with weather wording (should clarify); 'What drove CATL's recent share price move?' routes to a simple workflow with no entity resolved and answers from unrelated docs; '茅台现在能不能抄底' routes as a simple lookup with only a price tool.",
+    "The verifier is sign/direction-blind, and uncited sentences may reuse any number in the run ('上涨2.35%' passes against -2.35; an uncited '预计明年涨幅21.4%' passes because PE is 21.4).",
+    "Agent-path latency: P95 25 s offline-eval, 33 s and 62.8 s observed live (one LLM step took 50.6 s); no token streaming; no concurrent load test of the agent path; a single shared 4-thread tool pool serves all requests.",
+    "Load-test 'before' numbers (0.73 req/s, P95 4.6 s) have no artifacts; performance.md still says the Postgres checkpointer is not implemented, which contradicts the README and code.",
+    "No tenant scoping: /agent/traces lists every session's queries and cost, and /agent/sessions/{id} is readable by anyone who knows the id.",
+    "Red-team held-out bypasses (persona, 强烈买入 rating, fake closing price) are documented but unfixed; the lexical injection filter redacts 0% of unseen attacks.",
+    "No explicit comparison against 问财/豆包/Kimi/Wind Alice, and English coverage of major names (CATL, BYD, CMB, CITIC) fails."
+  ]
+}

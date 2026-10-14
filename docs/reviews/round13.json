@@ -1,0 +1,370 @@
+{
+ "reviewed": {
+  "repo": "beautifulrem/FinSight",
+  "branch": "master",
+  "commit": "aa73005",
+  "date": "2026-10-11",
+  "ci": "run 38113129617 (aa73005): success, all 10 jobs green; tests 54m27s/120, agent-eval-gate 11m41s/45, agent-eval-extras 28m53s/60, heldout-verify 7m6s/45",
+  "browser": "real Chrome via Playwright channel=chrome (extension not connected)",
+  "llm_requests": 14,
+  "llm_model": "cline-pass/deepseek-v4.1-flash",
+  "llm_cost_usd": 0.021,
+  "local": {
+   "pytest": "4397 passed, 70 skipped",
+   "vitest": "164 x3",
+   "e2e": "2 passed",
+   "dist": "identical",
+   "gates": "dev 538=1.000, holdout 53=0.9434, ext 99=1.000, shipped 21=1.000, extras pass",
+   "verifier_stress": "329/5597 claim 0.93% derived 1.05%",
+   "redteam": "0 on 14 sets",
+   "r12_slice_rerun": "42/50, claims 24/26 (= committed)"
+  },
+  "probes": {
+   "chat": "49/68",
+   "claims": "23/28 + 11/14",
+   "planted_template": "0/300 success, 0 ledger payload",
+   "planted_llm": "0/2",
+   "llm_chat": "7/12"
+  },
+  "new_slice": {
+   "path": "/Volumes/Remi/finsight-review/heldout_r13/",
+   "chat": "46 conv / 58 turns / 44 facts; first run 0.413 [0.26,0.57]",
+   "claims": "22; first run 0.636 [0.41,0.82]"
+  }
+ },
+ "scores": {
+  "agent_core": 92,
+  "context_prompt": 92,
+  "evaluation": 95,
+  "reliability": 97,
+  "cost_performance": 94,
+  "observability": 97,
+  "security_compliance": 94,
+  "engineering_deployment": 95,
+  "frontend_product": 95,
+  "data_acquisition": 93,
+  "protocols_ecosystem": 97,
+  "documentation_interview": 94,
+  "real_world_value": 89
+ },
+ "overall": 94.2,
+ "blocking_issues": [
+  "Wrong numbers on fresh wordings: partial sale (M1), exclusion (M2)",
+  "Wrong instrument for lookalike company names (M3)",
+  "Verifier deletes/replaces correct derived numbers (M4)",
+  "Position-size/allocation requests unhedged (M11)",
+  "Claim checker false accepts on definitions/weak directions/same-company comparisons (M12)"
+ ],
+ "bugs": [
+  {
+   "id": "M1",
+   "severity": "Medium",
+   "title": "Part of a position sold: P&L of the whole position, or (English) the sale read as a second purchase",
+   "file": "query_intelligence/agent/coverage.py:811-830",
+   "repro": "C \"Bought 1,000 CATL at 300, sold 400 at 320. What is the P&L on the remaining shares?\"",
+   "observed": "-20,446 on 1,400 shares",
+   "expected": "-5,334 (realised +8,000)"
+  },
+  {
+   "id": "M2",
+   "severity": "Medium",
+   "title": "Exclusion words (除了/不算/去掉/排除/excluding) ignored: total of every named company; LLM path appends the frame's wrong total to a right answer",
+   "file": "query_intelligence/agent/frame.py (no exclusion lexicon); graph.py frame_result_appended",
+   "repro": "C \"招行、工行、平安银行三家里，除了招行，另外两家净利润加起来多少\"",
+   "observed": "5613.76亿",
+   "expected": "4111.95亿"
+  },
+  {
+   "id": "M3",
+   "severity": "Medium",
+   "title": "Names absent from the entity master fuzzy-matched to a covered company (美的置业, 中芯集成, 平安证券, Midea Real Estate; price tool 中信国际电讯 -> 中芯国际)",
+   "file": "query_intelligence/nlu/entity_resolver.py; runtime_entity_assets.py",
+   "repro": "C \"美的置业股价多少\"",
+   "observed": "美的集团 close 80.1",
+   "expected": "out_of_coverage / not recognised"
+  },
+  {
+   "id": "M4",
+   "severity": "Medium",
+   "title": "Verifier deletes correct derived numbers not registered as computed (deterministic 手 P&L); LLM path falls back to a template answering a different operation",
+   "file": "query_intelligence/agent/graph.py:1153 (computed=); verifier.py",
+   "repro": "C \"上周以40元买进招行5手，按最新收盘价算赚了多少\"",
+   "observed": "unsupported_numbers [500, 630] deleted; answer has no P&L",
+   "expected": "630"
+  },
+  {
+   "id": "M5",
+   "severity": "Low-Medium",
+   "title": "Rise % needed back to a cost / the 52-week high not computed in Chinese",
+   "file": "coverage.py:842; composer",
+   "repro": "C \"比亚迪我是95块买的，得涨百分之多少才能回本\"",
+   "observed": "-12.31% (loss %)",
+   "expected": "14.03%"
+  },
+  {
+   "id": "M6",
+   "severity": "Low-Medium",
+   "title": "Positions stated without a question, then a bare total question: fair-value hedge, no total",
+   "file": "coverage.py / memory.py holding carry",
+   "repro": "C \"记一下：我有招行1000股\" -> \"另外工行也有500股\" -> \"这些现在一共值多少钱\"",
+   "observed": "fair-value prefix, closes only",
+   "expected": "45,400"
+  },
+  {
+   "id": "M7",
+   "severity": "Low",
+   "title": "Definition asked as 怎么算 after a figure of that metric answers the company's data",
+   "file": "router.py ellipsis before concept:definition; glossary.py",
+   "repro": "C \"紫金矿业的毛利率\" -> \"毛利率一般是怎么算出来的\"",
+   "observed": "紫金 27.73%",
+   "expected": "毛利率 definition"
+  },
+  {
+   "id": "M8",
+   "severity": "Low",
+   "title": "Book-value follow-up answers with technicals",
+   "file": "ellipsis:aspect carry",
+   "repro": "C \"平安银行的市净率\" -> \"它是不是已经跌破净资产了\"",
+   "observed": "MA5/RSI",
+   "expected": "PB 0.48 < 1"
+  },
+  {
+   "id": "M9",
+   "severity": "Low-Medium",
+   "title": "Traditional characters not normalised (metrics unrecognised; some refused out of scope)",
+   "file": "query_intelligence/nlu/pipeline.py normaliser",
+   "repro": "C \"長江電力的市淨率是多少\"",
+   "observed": "out-of-scope refusal",
+   "expected": "3.23"
+  },
+  {
+   "id": "M10",
+   "severity": "Low",
+   "title": "'Overall,' (adverbs without 'together') gives no total; CYPC not an alias",
+   "file": "frame.py sum lexicon; alias_table.csv",
+   "repro": "C \"Overall, how much do Midea and Zijin earn?\"",
+   "observed": "two fundamentals, no total",
+   "expected": "957.22亿"
+  },
+  {
+   "id": "M11",
+   "severity": "Medium",
+   "title": "Position-size and allocation requests unhedged",
+   "file": "query_intelligence/agent/router.py:91 _JUDGMENT_MARKERS",
+   "repro": "C \"我有10万块，买多少股招行比较合适\"; \"Is it OK to put 30% of my portfolio in CATL?\"",
+   "observed": "facts only, no flag/hedge",
+   "expected": "conditional prefix + no position advice"
+  },
+  {
+   "id": "M12",
+   "severity": "Medium",
+   "title": "Claim checker: false definitions, weak direction words (微降/基本持平/大增), same-company comparisons with 其/明显, 扣非 vs 归母 not claim parts",
+   "file": "query_intelligence/agent/claim_check.py",
+   "repro": "CC \"ROE等于净利润除以营业收入，紫金矿业ROE为27.91%\"; \"中国平安2025年归母净利润1347.8亿元，扣非净利润更低\"",
+   "observed": "supported",
+   "expected": "partially_supported"
+  },
+  {
+   "id": "M13",
+   "severity": "Low",
+   "title": "claim-check silent when the corrections layer is missing; judges against seed values",
+   "file": "claim_check.py (no missing_snapshot_layers call; only graph.py:1461)",
+   "repro": "container without structured_data_fix.json; CC \"贵州茅台市盈率24.6倍\"",
+   "observed": "supported, no warning",
+   "expected": "limitation or unverifiable"
+  },
+  {
+   "id": "M14",
+   "severity": "Low",
+   "title": "Stale README lines (latest slice round 11 '16 of 60', verifier round 15, CI link not HEAD); known-issues overclaims L5/L11",
+   "file": "README.md:26,129,165,170; docs/known-issues.md:100,103",
+   "repro": "grep",
+   "observed": "stale",
+   "expected": "round 12 8/50; round 16 329/5,597/0.93%; HEAD run"
+  },
+  {
+   "id": "M15",
+   "severity": "Low",
+   "title": "H-share refusal for a company with no HK line implies one exists",
+   "file": "coverage.py foreign-line message",
+   "repro": "C \"茅台港股多少钱\"",
+   "observed": "'所问的是 H 股；贵州茅台在 A 股上市的股份在覆盖范围内'",
+   "expected": "'贵州茅台没有在香港上市的股份'"
+  },
+  {
+   "id": "M16",
+   "severity": "Low",
+   "title": "Holding statement gets advice prefix; curated glossary in a session prefixed '据一篇文档称…（未经其他来源证实）'",
+   "file": "compliance.py; single-source hedge",
+   "repro": "C \"我持有比亚迪600股\"",
+   "observed": "advice prefix",
+   "expected": "plain acknowledgement"
+  },
+  {
+   "id": "M17",
+   "severity": "Low",
+   "title": "lint job has no timeout-minutes; no pre-push summary at HEAD; pytest and Playwright mostly on the seed",
+   "file": "ci.yml:25-34; tests/conftest.py:22,25; frontend/playwright.config.ts",
+   "repro": "-",
+   "observed": "-",
+   "expected": "-"
+  },
+  {
+   "id": "M18",
+   "severity": "Low",
+   "title": "Classifier rarely changes behaviour (2/234 independent, 0/850 dev+ext); grammar-first combined 0.886 < classifier 0.936 on held-out templates",
+   "file": "operation_classifier.py FALLBACK_MIN; frame.py ordering",
+   "repro": "evaluate_independent rerun",
+   "observed": "fires 2/234",
+   "expected": "classifier decides on disagreement, measured on fresh wordings"
+  },
+  {
+   "id": "M19",
+   "severity": "Low",
+   "title": "Currency conversion answered in CNY without stating no FX rate",
+   "file": "router missing-data rules",
+   "repro": "C \"比亚迪的市值换算成美元是多少\"",
+   "observed": "7595.54亿元 only",
+   "expected": "state no exchange rate"
+  }
+ ],
+ "round12_status": {
+  "L1": "fixed",
+  "L2": "fixed for the reported forms; new class M1",
+  "L3": "fixed for the reported forms; residual M6, r12 compound_count 2/4",
+  "L4": "fixed (residual classes M12)",
+  "L5": "fixed across companies; partial within one company (M12)",
+  "L6": "fixed (weak direction words M12)",
+  "L7": "fixed (message nit M15)",
+  "L8": "fixed",
+  "L9": "fixed (master-absent lookalikes M3)",
+  "L10": "fixed for listed adverbs; residual M10",
+  "L11": "partial (M7)",
+  "L12": "fixed",
+  "L13": "fixed for the reported forms; zh rise % M5",
+  "L14": "fixed",
+  "L15": "fixed",
+  "L16": "partial (budgets + pre-push check done, HEAD CI green; new stale lines M14)",
+  "L17": "partial (M18)",
+  "L18": "fixed",
+  "L19": "fixed for chat/stream/A2A; claim-check residual M13",
+  "L20": "fixed (new class M11)"
+ },
+ "to_100": {
+  "agent_core": [
+   "M1 signed lots: sales reduce the position; remaining + realised P&L",
+   "M2 exclusion operator before group ops",
+   "M5 zh rise-to-cost/high %; M6 carry stated positions into a bare total",
+   "M10 'Overall,'/'All told,' as sums; CYPC alias",
+   "M18 classifier decides on disagreement, measured on a fresh wording set (first run reported)",
+   "run heldout_r13 once after fixes (EXT=1 FIX=1) after the leak check"
+  ],
+  "context_prompt": [
+   "M4 register every computed number (lot shares, lot P&L, rise %) in computed=; accept re-computable derivations on the LLM path; failed repair -> 'could not verify', never another operation",
+   "drop frame_result_appended when frame operands differ (exclusions)"
+  ],
+  "evaluation": [
+   "strengthen metrics.py hedge/missing markers",
+   "known-issues: 'fixed for the reported forms' + failing forms (L5 same company, L11 怎么算); 'fixed' only with a passing run on a set the fixer did not write",
+   "keep the next blind claims set out of the tree until its single run"
+  ],
+  "reliability": [
+   "M13 claim-check states a missing switched-on layer or returns unverifiable"
+  ],
+  "cost_performance": [
+   "one optimisation that moves the LLM-bound P95, measured before/after on the same host"
+  ],
+  "observability": [
+   "counter + Grafana panel + Trace line for numbers deleted/replaced by the verifier"
+  ],
+  "security_compliance": [
+   "M11 position-size/allocation markers + property test zh/en",
+   "M3 HK-only lookalikes are out of coverage, never a covered company's figures"
+  ],
+  "engineering_deployment": [
+   "timeout-minutes on lint; pre-push summary per pushed HEAD; README links the HEAD run (generated)",
+   "run a share of pytest and the Playwright server on ext+corrections (shipped default)"
+  ],
+  "frontend_product": [
+   "M2/M3 in the UI; M16 no advice prefix on holding statements",
+   "restored turns with tiles and inspector",
+   "re-verify with the Chrome extension connected"
+  ],
+  "data_acquisition": [
+   "M3 no fuzzy mapping of extra-character names onto another covered company; HKEX-only names as explicit OOC entries",
+   "M9 traditional->simplified normalisation",
+   "weighted ROE for extension companies; dated live audit on a trading day"
+  ],
+  "protocols_ecosystem": [],
+  "documentation_interview": [
+   "M14 generate landing-page numbers (latest slice, verifier round, CI link) in report --check",
+   "known-issues rows for residual forms and M bugs"
+  ],
+  "real_world_value": [
+   "M12 definitional clauses checked against the glossary; weak direction words as bounded growth parts; same-company comparisons with 其/明显; 扣非 vs 归母; growth-ratio multiples",
+   "sixth blind claims set kept out of the tree until its run"
+  ]
+ },
+ "owner_blocked": [
+  {
+   "item": "~100 human answer labels + judge calibration",
+   "dims": [
+    "evaluation",
+    "observability"
+   ],
+   "scoring": "kit ready credited; results absent, not deducted again"
+  },
+  {
+   "item": "问财/豆包/Kimi 30-question head-to-head",
+   "dims": [
+    "real_world_value"
+   ],
+   "scoring": "absent; not deducted again"
+  },
+  {
+   "item": "30-50 owner-collected real claims (claims_web_v1-v5 are engineer-collected)",
+   "dims": [
+    "real_world_value"
+   ],
+   "scoring": "absent; engineer sets credited as engineering evaluations only"
+  },
+  {
+   "item": "5-10 person user study with SUS",
+   "dims": [
+    "real_world_value",
+    "frontend_product"
+   ],
+   "scoring": "absent; not deducted again"
+  },
+  {
+   "item": "16-user LLM load with provider fault; cost per answer",
+   "dims": [
+    "reliability",
+    "cost_performance"
+   ],
+   "scoring": "quota-bound; not deducted again"
+  },
+  {
+   "item": "compaction experiment; pass^k of shipped prompt on full test v3",
+   "dims": [
+    "context_prompt"
+   ],
+   "scoring": "quota-bound; not deducted again"
+  },
+  {
+   "item": "larger LLM red team (>=64 runs/set); online MCP fetch run",
+   "dims": [
+    "security_compliance",
+    "protocols_ecosystem"
+   ],
+   "scoring": "quota-bound; not deducted again"
+  },
+  {
+   "item": "human-authored multi-turn slice",
+   "dims": [
+    "agent_core"
+   ],
+   "scoring": "absent; not deducted again"
+  }
+ ]
+}

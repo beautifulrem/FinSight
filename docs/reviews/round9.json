@@ -1,0 +1,321 @@
+{
+ "reviewed": {
+  "repo": "beautifulrem/FinSight",
+  "branch": "master",
+  "commit": "cbcf3b2",
+  "date": "2026-10-01",
+  "previous_commit": "40e8685",
+  "ci_run": "36842761572 success (8 jobs)"
+ },
+ "scores": {
+  "Agent core architecture": 93,
+  "Context & prompt engineering": 92,
+  "Evaluation & quantified results": 95,
+  "Reliability & fault tolerance": 95,
+  "Cost & performance": 91,
+  "Observability": 97,
+  "Security & compliance": 94,
+  "Engineering & deployment": 97,
+  "Front end & product experience": 96,
+  "Data acquisition": 91,
+  "Protocols & ecosystem": 97,
+  "Documentation & interview readiness": 92,
+  "Real-world value & differentiation": 86
+ },
+ "overall": 93,
+ "overall_exact": 93.54,
+ "previous_overall": [
+  77,
+  82,
+  86,
+  89,
+  90,
+  91,
+  93,
+  93
+ ],
+ "blocking_issues": [
+  "I1/I3/I4: share, sum and highest-minus-lowest questions get a wrong or no number (54.08% instead of 45.92%; no sums; 6.45 instead of 14.67); new slice share 0/7, sum 0/5, spread 0/3",
+  "I8: fact-checker contradicts true claims (三倍半, 高出接近一倍, 52周); new claims 18/25, slice 15/25",
+  "I2: '宁德时代下周五收盘会在多少', '五粮液明天能不能站上105元' answered with the latest close and no forecast hedge",
+  "I12: README says the r8 slice was unseen; three unpublished slice phrasings are in round-12 tests/dev tasks (gain still holds: 32/48 without them)",
+  "Owner-blocked: human labels, head-to-head, real claims, user study; quota-bound 8/16-user LLM load, compaction, GLM auto"
+ ],
+ "bugs": [
+  {
+   "id": "I1",
+   "severity": "Medium",
+   "title": "Share question (相当于…的百分之多少/几成/what percent of) computed as a relative difference (wrong number)",
+   "where": "query_intelligence/agent/frame.py:304-319, 363-374; LLM path via template fallback",
+   "repro": "五粮液净利润 / 茅台呢 / 五粮液相当于茅台的百分之多少; 招行的净利润相当于工行的几成; BYD's net profit is what percent of CATL's?",
+   "observed": "五粮液比贵州茅台低约 54.08% / 低约 59.25% / lists",
+   "expected": "45.92%; 40.75%; 45.18%"
+  },
+  {
+   "id": "I2",
+   "severity": "Medium",
+   "title": "Threshold and '收盘会在多少' price forecasts get no hedge on the template path",
+   "where": "query_intelligence/agent/router.py:124-166 (_FUTURE_TIME, _PRICE_LEVEL, _PRICE_MODAL)",
+   "repro": "宁德时代下周五收盘会在多少; 五粮液明天能不能站上105元; Could BYD fall below 80 yuan by Friday?",
+   "observed": "latest close only, KPI tile marked (所问指标), no 'FinSight 不预测未来价格'",
+   "expected": "price-forecast hedge + limitation (the LLM path already hedges)"
+  },
+  {
+   "id": "I3",
+   "severity": "Medium",
+   "title": "Sums still not computed (round-8 to_100 item and its own repro)",
+   "where": "frame._operation_of / composer.frame_sentences (no sum op); NLU out-of-scope for 'Put together'",
+   "repro": "茅台和五粮液成交额加一块多少; 宁德时代市值多少 / 比亚迪呢 / 两家加起来多少; ICBC's net profit? / and CMB's? / What do the two add up to?",
+   "observed": "both values listed, or refused out of scope",
+   "expected": "52.47亿; 21065.93亿; 518.74 bn"
+  },
+  {
+   "id": "I4",
+   "severity": "Medium",
+   "title": "Highest minus lowest of three: lists, or computes the wrong pair",
+   "where": "query_intelligence/agent/frame.py:652-655 (operands[-2:])",
+   "repro": "美的集团的毛利率 / 宁德时代呢 / 比亚迪呢 / 三家里最高的比最低的高几个点; Of Zijin Mining, Midea and BYD, what's the spread between the highest and lowest ROE?",
+   "observed": "sorted list, no number; 'Midea 19.69%, BYD 13.24%: a difference of 6.45' (frame:dropped_non_operand:紫金矿业)",
+   "expected": "8.65; 14.67"
+  },
+  {
+   "id": "I5",
+   "severity": "Low-Medium",
+   "title": "Two positions in one holding question: one valued or lots attributed to the wrong company",
+   "where": "query_intelligence/agent/coverage.py:328-384",
+   "repro": "平安银行收盘价 / 我有12手，加上之前的3000股招行，一共值多少; 我有500股招行和3手工行，总共值多少",
+   "observed": "12手(1200股)招商银行 49512元; 500股招商银行 20630元",
+   "expected": "137,664; 23,114"
+  },
+  {
+   "id": "I6",
+   "severity": "Low-Medium",
+   "title": "Verb comparatives (领先/落后/跑输/抵得上) missed; one refused out of scope",
+   "where": "query_intelligence/agent/frame.py:327-337 (_DIFFERENCE); NLU out-of-scope",
+   "repro": "招商银行ROE多少 / 工商银行的呢 / 招行领先工行几个百分点; 招商银行的净利润 / 平安银行呢 / 前者抵得上几个后者",
+   "observed": "prices (ROE lost); refused out_of_scope",
+   "expected": "3.12; 3.52"
+  },
+  {
+   "id": "I7",
+   "severity": "Low-Medium",
+   "title": "Factual yes/no ratio question hedged as advice and not answered",
+   "where": "query_intelligence/agent/compliance.py:75 (\\bdouble\\b in _JUDGMENT_TRIGGER)",
+   "repro": "Is CMB's ROE more than double ICBC's?; 宁德时代的净利润是不是比亚迪的两倍还多",
+   "observed": "conditional-assessment prefix + values, no ratio/yes-no",
+   "expected": "No, 1.36x; 是, 2.21倍"
+  },
+  {
+   "id": "I8",
+   "severity": "Medium",
+   "title": "Claim checker false contradictions of true claims (三倍半, 接近一倍, 多一点, 52周, 'N turns above', clause after 但)",
+   "where": "query_intelligence/agent/claim_check.py",
+   "repro": "招商银行的净利润是平安银行的三倍半左右; 招商银行的市净率不到1倍，比平安银行高出接近一倍; 平安银行的市盈率只有招行的七成多一点; 宁德时代比52周最高价低了三成多; BYD trades at roughly 26 times earnings, about 10 turns above CATL",
+   "observed": "contradicted / partially / partially / unverifiable ('eq 52' check) / partially",
+   "expected": "supported (all true)"
+  },
+  {
+   "id": "I9",
+   "severity": "Low-Medium",
+   "title": "HK-line residual: \"What did CATL's Hong Kong shares close at?\" answered with the A share",
+   "where": "query_intelligence/agent/coverage.py:55-75",
+   "repro": "What did CATL's Hong Kong shares close at?",
+   "observed": "CNY 291.11 (300750.SZ)",
+   "expected": "refuse, out_of_coverage, H-share note"
+  },
+  {
+   "id": "I10",
+   "severity": "Low",
+   "title": "Missing industry average not stated for extension names",
+   "where": "composer industry comparison; no industry_sql rows in the extension",
+   "repro": "比亚迪的市盈率比所在行业平均高还是低; How does CATL's P/E compare with the battery industry average?",
+   "observed": "stock data only",
+   "expected": "state the industry average is missing"
+  },
+  {
+   "id": "I11",
+   "severity": "Low",
+   "title": "YTD measured from the year's first close, not the prior year-end close",
+   "where": "query_intelligence/agent/tools/market.py:261-274",
+   "repro": "宁德时代今年以来涨跌幅",
+   "observed": "-22.88% (from 2026-01-05 377.5)",
+   "expected": "-20.73% (from 2025-12-31 367.26), or label the basis as non-standard"
+  },
+  {
+   "id": "I12",
+   "severity": "Medium",
+   "title": "heldout_r8 'never seen' claim not supported: three unpublished slice phrasings copied/near-copied into round-12 tests/dev tasks before the after-fix run",
+   "where": "README pitch + r8 row; cbcf3b2; tests/test_agent_round12_frame.py:255 (2353778); dev tasks 955b1b0",
+   "repro": "overlap_r8.py / near_r8.py (round9/probes)",
+   "observed": "'回到A股，它的市净率呢' exact; 'which traded more, and by how much?' same structure; '三万份证券ETF…值多少'",
+   "expected": "say so, label 3 tasks possibly exposed (excluding them 13/48 -> 32/48), extend the near-copy test to r8"
+  },
+  {
+   "id": "I13",
+   "severity": "Low",
+   "title": "Dirty provenance still committed without a label (gate baseline, two router results)",
+   "where": "evaluation/results/gate-holdout.json (10ce292-dirty), router_eval-round12-own.json (b685e23-dirty), router_eval-independent_v2-round11.json (40e8685-dirty); refusal only in results.py",
+   "repro": "-",
+   "observed": "-dirty commits, no note",
+   "expected": "refuse in every writer or label; rerun clean"
+  },
+  {
+   "id": "I14",
+   "severity": "Low",
+   "title": "Docs staleness",
+   "where": "README.md:65 (dev 370), docs/agent.md:725 (pytest 2,068/70), pitch verifier numbers at 25205d4, README G4 row omits verified 10/10 -> 8/10",
+   "repro": "-",
+   "observed": "stale",
+   "expected": "432 tasks; 2,282/65 at cbcf3b2; verifier at HEAD 286/4,990/1.00%"
+  },
+  {
+   "id": "I15",
+   "severity": "Low",
+   "title": "UI: KPI tile precision/date, English tile labels truncated, relative claim shown as '差值', forecast tile marked as the asked metric",
+   "where": "frontend KPI tiles / fact-check relation rows",
+   "repro": "shots/chrome-02, chrome-08, chrome-10",
+   "observed": "8.7% vs 8.68%; PE tile dated 2025/12/31 though at 2026-09-30 close",
+   "expected": "same precision; valuation date; full label; 'relative'"
+  },
+  {
+   "id": "I16",
+   "severity": "Low",
+   "title": "News answers content-free (round-8 to_100 item not done)",
+   "where": "composer news template",
+   "repro": "贵州茅台最近有什么新闻",
+   "observed": "'相关资料：每日经济新闻于2026-04-16发布的一篇新闻' x3",
+   "expected": "one neutral line per document"
+  },
+  {
+   "id": "I17",
+   "severity": "Low",
+   "title": "Flaky vitest under load",
+   "where": "frontend/src/components/ClaimCheck.test.tsx",
+   "repro": "pnpm run test on a loaded host",
+   "observed": "2 of 4 runs time out at 5 s",
+   "expected": "stable"
+  },
+  {
+   "id": "I18",
+   "severity": "Low",
+   "title": "Kustomization image tag of an older commit; local e2e start-up timeout too short on a loaded host",
+   "where": "deploy/k8s/kustomization.yaml (finsight:edcb442); frontend/playwright.config.ts (240 s)",
+   "repro": "kubectl kustomize deploy/k8s; pnpm run e2e at load ~35",
+   "observed": "edcb442; webServer timeout",
+   "expected": "release tag; longer start-up"
+  },
+  {
+   "id": "I19",
+   "severity": "Info",
+   "title": "H15 residual: 但/but not a clause break",
+   "where": "query_intelligence/agent/output_safety.py:743-749",
+   "repro": "_clause_spans('茅台营收1688亿元但二季度直营占比升至45%。')",
+   "observed": "one clause",
+   "expected": "split"
+  }
+ ],
+ "round8_status": {
+  "H1": "fixed for the round-8 repros (23.41亿, 2.18, 87.73%, 1.18, 4.91x); partial as a class (I1, I4, I6)",
+  "H2": "fixed (15.04%, 2.7, 26.27%; new one-message probes pass)",
+  "H3": "fixed for its forms (r3a-r3d, 9/11 new probes); residual threshold / '收盘会在多少' forms (I2)",
+  "H4": "fixed (150,960 carried, 3手, 5000份, English); residual two positions (I5)",
+  "H5": "fixed for all round-8 forms and 8 new lookalikes; residual \"BYD's Hong Kong shares:\" (I9)",
+  "H6": "partial: sums incl. three-way, 突破, 不到一半, negation, k17 anaphora fixed; 接近/将近一倍, 三倍半, 多一点, 52周 still wrong (I8)",
+  "H7": "fixed (L2 English; committed 10/10)",
+  "H8": "mostly fixed (L1 3.12 and L6 sum kept); share question falls back to the wrong template number (I1)",
+  "H9": "fixed except sums (turnover rate missing, EPS colloquial, net margin share, yuan change, industry gap); sums not done (I3)",
+  "H10": "fixed (holdout10 ledger 12/320 -> 0/320; my 16 new styles ledger 0/320)",
+  "H11": "fixed (24.14% + inline check; 那PB呢 -> 差多少 2.7)",
+  "H12": "fixed ('I read that … True?' fact-checked)",
+  "H13": "mostly fixed (r7/r8 in pitch, overlap corrected, router labelled); new staleness I14 and provenance I12",
+  "H14": "fixed (chips translated, restore shows turns, notice language, relation rows); new nits I15",
+  "H15": "fixed for 及/并/同时/而/while/whereas/and; 但/but residual (I19)"
+ },
+ "to_100": {
+  "Agent core architecture": [
+   "I1 share operation distinct from relative",
+   "I3 sum operation (加起来/合计/再加上/combined/put together), never refuse",
+   "I4 spread over >=3 operands, never drop operands silently",
+   "I5 several holdings in one message",
+   "I6 领先/落后/跑赢/跑输/lead/trail/outpace as difference, 抵得上/换几股 as ratio, no out-of-scope for frame questions",
+   "I7 answer factual 'more than double / N倍以上' with ratio + yes/no",
+   "Run heldout_r9 (unopened, QI_EVAL_SNAPSHOT_EXT=1) once after the fixes after a leak check"
+  ],
+  "Context & prompt engineering": [
+   "Shipped v4 prompt on test v3 with >=2 repeats at HEAD (pass^2)",
+   "LLM-draft verification failure on a frame question falls back to a correct computation; record fallback reason per turn"
+  ],
+  "Evaluation & quantified results": [
+   "I12: correct r8 wording, label 3 tasks possibly exposed (32/48 without them), extend near-copy test to r8 and future slices",
+   "I13: rerun gate-holdout, router_eval-round12-own, router_eval-independent_v2-round11 clean; dirty refusal in gate/router_eval",
+   "Run heldout_r9 after round-13 fixes, per category"
+  ],
+  "Reliability & fault tolerance": [
+   "Verification scripts and local e2e robust to a loaded host (tool timeouts raise, longer start-up)"
+  ],
+  "Cost & performance": [
+   "Identify the P95 driver of the 4-user LLM run from traces and show one optimisation with before/after on the same host"
+  ],
+  "Observability": [
+   "I15 KPI tiles show the valuation date and text precision"
+  ],
+  "Security & compliance": [
+   "I2 threshold/收盘会在多少/this week/'your call' forecasts hedged; property test future-time + price-number => hedge",
+   "I9 '<company>'s Hong Kong shares' any punctuation -> H-share refusal",
+   "LLM-path red team on holdout10 and the round-9 styles"
+  ],
+  "Engineering & deployment": [
+   "I13 dirty refusal in every results writer",
+   "I17 fix flaky ClaimCheck vitest",
+   "I18 release-tag the kustomization image; longer local e2e start-up timeout"
+  ],
+  "Front end & product experience": [
+   "I15 tile precision/date, English label truncation, relative-claim label, forecast tile",
+   "I16 news answers with one neutral line per document",
+   "Fixed top bar on the fact-check view"
+  ],
+  "Data acquisition": [
+   "I10 industry snapshots for the extension's industries or state them missing",
+   "I11 YTD from the prior year-end close (or label)",
+   "Gate a task set with QI_EVAL_SNAPSHOT_EXT=1 in CI so the shipped default is regression-tested",
+   "Next dated live audit on a trading day"
+  ],
+  "Protocols & ecosystem": [],
+  "Documentation & interview readiness": [
+   "I12 wording",
+   "I14: dev 432, pytest 2,282/65 at cbcf3b2, verifier at HEAD or labelled in the sentence, G4 verified 10/10 -> 8/10 in the README row",
+   "Label or rerun the dirty router v2 0.842"
+  ],
+  "Real-world value & differentiation": [
+   "I8: X倍半, 接近/将近一倍 = (0.8,1.0] more, 一倍多 = [1,2), 多一点 not a number, '52周' never a value, English 'N turns/points above', carry target after 但/却, superlatives, 'a third/quarter/half of'",
+   "I16 news answers that say something"
+  ]
+ },
+ "owner_blocked": [
+  "~100 human answer labels + LLM-judge calibration: kit ready (verified round 7); results absent -> not credited (dims 3, 6)",
+  "问财/豆包/Kimi head-to-head (30 frozen questions): kit ready; results absent (dim 13)",
+  "30-50 real claims through import_real_claims: kit ready; results absent (dim 13)",
+  "5-10 person user study with SUS: kit ready; results absent (dim 13)",
+  "LLM quota: 8/16-user LLM load test, compaction experiment, auto-mode GLM end-to-end, larger LLM red team, online MCP fetch run (dims 2, 4, 5, 7, 11); the 4-user LLM load + 503 burst was done and is credited",
+  "302077a key: owner confirmed revocation 2026-09-30 -> scored as resolved"
+ ],
+ "verification_summary": {
+  "ci": "run 36842761572 on cbcf3b2: success, 8 jobs; tests 2,282 passed / 65 skipped; Playwright e2e 2 passed; vitest 139",
+  "local_pytest": "2,277 passed, 70 skipped, 0 failed",
+  "ruff": "check + format (164 files) pass",
+  "frontend": "tsc OK, eslint OK, vitest 139/139 in 2 of 4 runs (flaky ClaimCheck timeout under load), dist rebuild identical, e2e 2 passed (after one 240 s web-server start-up timeout under load)",
+  "verifier_stress": "286 gold / 4,990 variants, claim FA 1.00%, derived 1.14%",
+  "redteam": "template 0 successes on all 11 sets (= committed); my 16 new styles template 0/320, ledger 0/320, excerpt 16/128; LLM agent 0/2",
+  "fault_injection": "11/11 graceful",
+  "gate": "passed: dev 432 = 1.000, held-out 53 = 0.9434; report --check up to date",
+  "router": "own 1.000/388, independent v1 1.000/154, v2 0.8423/241",
+  "claim_bench": "dev 1.000/299, holdout 1.000/47, r4 1.000, r5 1.000, r6 0.985, r8 0.800 (= committed)",
+  "slices": "r8 chat 0.6863 (= committed after-fix), r7 53/53 (after exposure); verify scripts multiturn/test_v3/r4-r8 OK",
+  "unseen_probes": "chat 76/91 (0.84); round-8 repros 23/23 turns + 19/20 singles; claims 18/25; LLM 11 chat turns + 2 planted, 0 x 429",
+  "ops": "docker build + read-only run OK (uid 10001, RO FS, /ready 200 after one checkpointer timeout under VM contention); kubeconform 12/12 + 10/10; actionlint OK; promtool 14 rules + tests SUCCESS",
+  "security": "auth matrix, tenancy, 404 parity, 413 chunked/anon/a2a, 422, rate limit + Retry-After, XFF spoof 401, audit hashing, A2A isolation: all pass",
+  "ui": "real Chrome zh/en dark/light, 0 console errors; Playwright 390/1440 overflow 0, axe 0",
+  "heldout_r8_provenance": "3 unpublished slice phrasings copied/near-copied in round-12 tests/dev tasks before the after-fix run; gain holds without them (13/48 -> 32/48)",
+  "new_slice": "heldout_r9: 52 conv / 79 turns / 72 facts + 25 claims; verify OK; first run at cbcf3b2 chat 0.346 [0.23,0.48], claims 0.600 [0.40,0.80]; leak check vs r13-frame 6a069d8: 0 >= 0.8"
+ }
+}

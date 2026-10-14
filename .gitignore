@@ -61,3 +61,6 @@ frontend/playwright-report/
 
 # Head-to-head screenshots stay local (their sha256 is recorded in the result file)
 evaluation/human/head_to_head/screenshots/
+
+# local archive of review scratch files and the blind-set originals (not part of the project)
+.archive/

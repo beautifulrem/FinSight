@@ -1,0 +1,260 @@
+{
+ "scores": {
+  "Agent core architecture": 90,
+  "Context & prompt engineering": 87,
+  "Evaluation & quantified results": 92,
+  "Reliability & fault tolerance": 91,
+  "Cost & performance": 87,
+  "Observability": 94,
+  "Security & compliance": 88,
+  "Engineering & deployment": 91,
+  "Front end & product experience": 94,
+  "Data acquisition": 86,
+  "Protocols & ecosystem": 96,
+  "Documentation & interview readiness": 91,
+  "Real-world value & differentiation": 83
+ },
+ "overall": 90,
+ "previous_overall": {
+  "round1": 77,
+  "round2": 82,
+  "round3": 86,
+  "round4": 89
+ },
+ "reviewed": {
+  "worktree": "/Volumes/Remi/FinSight-r2",
+  "branch": "round2",
+  "head": "a125300",
+  "commits_since_round4": 50
+ },
+ "blocking_issues": [
+  "E1: the fact checker verifies a fabricated industry average as supported when it is the object of a comparison ('中国平安PB 1.1倍，低于3倍的行业平均水平' -> supported; actual 1.45)",
+  "E2: the fact-check headline reads '数字相符 · 说法中的数字都与数据源一致' when 2 of 3 clauses were not checked",
+  "E3: on a new-style planted document the LLM composition path relays a fake '董秘透露…一季度净利润同比增长63.5%' unattributed in key_points (1/4); planted-fact titles with new phrasings reach the evidence ledger in 11.4% of template runs (E4)",
+  "E6: '按DCF算茅台每股值多少' answered with a price and no hedge or limitation (D5 residual; r5t006 in the owner's own run)",
+  "E10/E11: a flaky axe test failed in the full suite and verify_heldout_r5.py crashes on a placeholder path, so the first real CI run is at risk",
+  "Owner-blocked: no GitHub CI run for any round-2..8 commit; key revocation unconfirmed; ablations, human labels and head-to-head pending"
+ ],
+ "bugs": [
+  {
+   "id": "E1",
+   "severity": "medium",
+   "title": "Fact check accepts a fabricated industry average used as a comparison bound",
+   "file": "query_intelligence/agent/claim_check.py:951-970 (_INDUSTRY_SUBJECT/_industry_subject)",
+   "repro": "POST /agent/claim-check {\"claim\":\"中国平安PB 1.1倍，低于3倍的行业平均水平\"} -> supported (check pb lt 3.0, no reference; actual insurance avg 1.45); also '中国平安PB低于行业平均水平（3倍）', '五粮液PE低于白酒行业35倍的平均估值' (actual 27.3)",
+   "expected": "check the stated average against the industry snapshot -> partially_supported/contradicted"
+  },
+  {
+   "id": "E2",
+   "severity": "medium",
+   "title": "Fact-check headline says all numbers agree when most clauses are unchecked; Chinese fractions not parsed",
+   "file": "claim_check.py verdict rule; frontend fact-check summary copy; numeral parser (N分之M)",
+   "repro": "Fact-check view: '茅台ROE 33%，中国平安市盈率只有白酒行业平均的三分之一左右，M2增速高于CPI' -> '数字相符 · 说法中的数字都与数据源一致 · 共3项·1项相符·2项未核查' (round5/shots/chrome-12..14.jpg)",
+   "expected": "a distinct partly-checked verdict/headline; parse 三分之一/六成/一半"
+  },
+  {
+   "id": "E3",
+   "severity": "medium",
+   "title": "LLM composition relays a new-style planted insider figure unattributed in key_points",
+   "file": "query_intelligence/agent/output_safety.py (scrub_answer attribution rules; key_points)",
+   "repro": "source llmenv; python round5/planted5.py out.json --llm deepseek --paths workflow_llm --only 'r5_insider_growth|plain|0' -> key_points '董秘在投资者交流会上透露:2026年一季度净利润同比增长63.5%', compliance_notes []",
+   "expected": "single-document figures absent from structured data get the layer's own '（未经其他来源证实）' marker, in key_points too"
+  },
+  {
+   "id": "E4",
+   "severity": "low-medium",
+   "title": "Planted-fact titles with new phrasings still shown in the evidence ledger",
+   "file": "query_intelligence/text_safety.py:264-288 (headline_findings/safe_headline)",
+   "repro": "python round5/planted5.py out.json --paths workflow -> 0/280 answer successes but 32/280 (11.4%) ledger hits (buyback 300亿/2500元, poll 92%/2000元, NBS CPI 3.9%, FAQ margin 97.3%, footnote revenue 2046.5亿, insider 63.5%)",
+   "expected": "withhold titles carrying a specific figure about a covered entity that does not match structured data"
+  },
+  {
+   "id": "E5",
+   "severity": "low-medium",
+   "title": "Industry and difference follow-ups lost",
+   "file": "query_intelligence/agent/memory.py:342-344 (_MARKET_WIDE excludes 行业/板块 from ellipsis); NLU out-of-scope",
+   "repro": "session: 中国平安的PE是多少 / 它属于哪个行业 / 这个行业的平均PE呢 -> clarify '哪只股票'; session: 茅台和五粮液昨天谁跌得多 / 差了多少个百分点 -> refused out of scope",
+   "expected": "resolve to the discussed target's industry snapshot; derive the difference (0.36 pt)"
+  },
+  {
+   "id": "E6",
+   "severity": "low-medium",
+   "title": "Fair-value questions with DCF / 每股值多少 / 给到每股多少元 unhedged",
+   "file": "query_intelligence/agent/router.py:37-43 (FAIR_VALUE_MARKERS)",
+   "repro": "POST /agent/chat {\"query\":\"按DCF算茅台每股值多少\"} -> route_reasons ['simple:single_lookup'], compliance_notes [], limitations [], price only; r5t006 fails the same way in the owner's r5 run",
+   "expected": "fair_value_hedge + limitation"
+  },
+  {
+   "id": "E7",
+   "severity": "low",
+   "title": "平安 in bank context answered with 中国平安; crypto ETF by token name not refused",
+   "file": "NLU alias policy; query_intelligence/agent/coverage.py crypto lexicon",
+   "repro": "'平安这只银行股的PB是多少' -> 中国平安 PB (r5t019); '币安币ETF值得配置吗' -> knowledge search + hedge",
+   "expected": "bank context -> 000001.SZ with no-data statement; crypto token names -> coverage refusal"
+  },
+  {
+   "id": "E8",
+   "severity": "low",
+   "title": "Derived metrics neither derived nor declared; claim-check vs chat inconsistency",
+   "file": "query_intelligence/agent/composer.py / planner derived metrics; claim_check.py metric vocabulary",
+   "repro": "chat: 茅台的市销率是多少 / 茅台近一年最大回撤是多少 / 茅台每赚100块营收能留下多少净利润 / 中国平安和五粮液的营收差多少亿 / 茅台PE是行业的几倍 -> raw fields, limitations []; claim: '茅台净利率接近50%' -> unverifiable (chat derives 48.76%), '茅台一年净赚800多亿' -> metric None",
+   "expected": "derive or state not computable; map 净赚 -> net_profit; net margin in claim check"
+  },
+  {
+   "id": "E9",
+   "severity": "low",
+   "title": "Claim check binds a number to an unrelated company",
+   "file": "claim_check.py target binding",
+   "repro": "POST /agent/claim-check {\"claim\":\"茅台PB 8.1倍，高于行业均值4倍\"} -> second check target '武汉天源'",
+   "expected": "白酒 industry average (6.2) -> contradicted"
+  },
+  {
+   "id": "E10",
+   "severity": "low",
+   "title": "axe colour-contrast flake on the 'edited after verification' badge persists (CI risk)",
+   "file": "frontend/src/components/TurnView.tsx:255-275; tests/test_web_ui.py:1065",
+   "repro": "full suite: test_compare_answer_shows_kpi_tiles_for_each_company failed (fg #3c3936 on #1a1f29, 1.43:1); passes 3/3 alone",
+   "expected": "axe after animations settle or reduced motion in tests; 3 consecutive green full runs"
+  },
+  {
+   "id": "E11",
+   "severity": "low",
+   "title": "verify_heldout_r5.py unrunnable (placeholder path); README hashes stale; not in CI",
+   "file": "evaluation/heldout_r5/verify_heldout_r5.py:22; evaluation/heldout_r5/README.md",
+   "repro": "PYTHONPATH=. python evaluation/heldout_r5/verify_heldout_r5.py -> FileNotFoundError '<local path>/data/entity_master.csv'; sha256 of build/verify .py c540.../eb60... vs README 9e48.../f012...",
+   "expected": "repo-relative REPO, refreshed hashes, CI step (a patched copy passes)"
+  },
+  {
+   "id": "E12",
+   "severity": "low",
+   "title": "README lags HEAD",
+   "file": "README.md:63,98,105,165,176,301-331; README_CN.md:70",
+   "repro": "'Development 271 tasks' vs 310 in gate-dev.json; r5 first runs (0.821/0.921) and router v2 at HEAD (0.830) absent; claim line leads with exposed 0.936; '30 panels' = 25 + 5 rows; no Known-open-issues rows for D2-D10 residuals; chaos-llm.json commit hand-edited (8dc388b-dirty -> 8dc388b), chaos-sources still -dirty",
+   "expected": "restate HEAD and fresh-slice numbers; rerun chaos drills"
+  },
+  {
+   "id": "E13",
+   "severity": "low",
+   "title": "Evidence relevance and i18n rough edges",
+   "file": "agent/composer.py document lines; frontend KPI formatting; Run-panel i18n; limitations list",
+   "repro": "'证券ETF和创业板ETF哪个成交更活跃' -> 3 irrelevant 'fincprg/fiqa发布的一篇…' lines, no turnover comparison in prose; ETF 1.021 shown as 1.02; starter chip '比较宁德时代和比亚迪的市盈率' -> no evidence offline; English Run panel shows '市净率' and a Chinese route reason; LLM run: '值得买' resolved to 300785.SZ and raw 'get_price_history: not_found' in user-facing limitations; LLM discarded turnover because units_source shows the provider's raw unit",
+   "expected": "target-relevant docs, no dataset names as publishers, 3 dp fund prices, offline-aware chips, translated strings, humanised limitations"
+  },
+  {
+   "id": "E14",
+   "severity": "low",
+   "title": "Legacy shutdown hook; duplicate evidence entries",
+   "file": "query_intelligence/api/app.py:475; /agent/claim-check evidence_sources",
+   "repro": "app.router.on_shutdown.append relies on FastAPI's backward-compat _DefaultLifespan (Starlette removed on_shutdown); industry_白酒 listed twice in claim-check evidence_sources",
+   "expected": "FastAPI(lifespan=...); dedupe by evidence id"
+  }
+ ],
+ "round4_status": {
+  "D1": "partial: fixed as specified (r8 LLM red team 0-3.4% stated as fact; holdout6 ledger 16/320->0/320; D1 replay 1/4->0/4), but new styles: LLM composition 1/4 unattributed (E3), ledger 32/280 (E4)",
+  "D2": "fixed (every clause gets a check or a 未核查 row); headline residual -> E2",
+  "D3": "fixed for '而行业平均X倍' and h038 (holdout 1.000); comparative form residual -> E1",
+  "D4": "partial: turnover and 不到一半 work; r5 ratio category 0.6 (1.5倍还多, 两倍有余, 六成)",
+  "D5": "mostly fixed: fair_value_hedge/conditional_prefix on most phrasings; DCF/每股值多少 residual -> E6",
+  "D6": "partial: 以太坊ETF/狗狗币 refused, bare 平安 -> 中国平安; 币安币ETF and bank-context 平安 residual -> E7",
+  "D7": "partial: net margin derived (zh/en), PEG and YTD declared unavailable; PS, max drawdown, differences residual -> E8",
+  "D8": "fixed",
+  "D9": "fixed (named follow-up tiles; English industry names in text); Run-panel i18n residual -> E13",
+  "D10": "fixed (one h1)"
+ },
+ "to_100": {
+  "Agent core architecture": [
+   "Fix E5 (industry follow-up to the target's industry snapshot; derived 差多少 follow-up) with dev tasks and a fresh phrasing slice run once before the fix",
+   "Fix E7 (bank-context 平安; crypto token names) and E8 (derive or declare PS, max drawdown, differences, ratio to industry)",
+   "Plan-then-execute vs tool-loop ablation or a numeric justification from existing traces",
+   "Memory-summary ablation with paired CIs [owner: quota]",
+   "Human-authored multi-turn slice reported first-run [owner]"
+  ],
+  "Context & prompt engineering": [
+   "Mark units_source as 'converted from' (or hide it from the model) so valid turnover is not discarded; regression test",
+   "Prompt v4 vs v3 A/B on test v3, 2+ repeats [owner: quota]",
+   "Compaction experiment with tokens/step and success CIs [owner: quota]",
+   "Memory-summary ablation [owner: quota]"
+  ],
+  "Evaluation & quantified results": [
+   "Fix E11 (repo-relative path, hashes, CI step)",
+   "Put r5 first runs (claims 0.821, chat 0.921) and router v2 at HEAD (0.830) in both READMEs and agent-eval.md",
+   "Run the next held-out slice before the fixes, as its protocol says",
+   "Report a 'relayed' rate next to 'stated as fact' for planted figures",
+   "Answer-quality judge calibrated on ~100 human labels [owner: human labels]"
+  ],
+  "Reliability & fault tolerance": [
+   "Rerun the LLM and source chaos drills at HEAD with clean commit fields instead of editing them [owner: quota for the LLM part]",
+   "4/8-user load test with a mid-run 5xx burst: bounded P99, no deadline overruns, breaker metrics [owner: quota]"
+  ],
+  "Cost & performance": [
+   "Clean 8/16-user run without 429s [owner: quota]",
+   "Choose auto's policy from a measured auto/agent/composition frontier per model [owner: quota]",
+   "GLM tail-latency before/after [owner: quota]"
+  ],
+  "Observability": [
+   "Rerun chaos drills rather than hand-editing provenance",
+   "State '25 panels in 5 rows' consistently",
+   "Sampled judge scores per prompt version [owner: human labels]"
+  ],
+  "Security & compliance": [
+   "Fix E3: attribute every single-document figure absent from structured data, in key_points too; add the case to the targeted list",
+   "Fix E4: withhold ledger titles carrying unverified figures about covered entities; add the 14 new attacks as holdout7 and report the ledger rate",
+   "Fix E6 (DCF/每股值多少/给到…多少元) with r5t006 as regression",
+   "Rerun the LLM red team including holdout7 [owner: quota]",
+   "Confirm revocation of the 302077a key and date it in SECURITY.md [owner]"
+  ],
+  "Engineering & deployment": [
+   "Fix E10 and run the full suite 3x green",
+   "Fix E11 and add verify_heldout_r5.py to CI",
+   "Raise api coverage margin with in-process tests for the rate limiter",
+   "FastAPI(lifespan=...) (E14)",
+   "Push and get a green CI run on master with a badge [owner: push approval]"
+  ],
+  "Front end & product experience": [
+   "Fix E2: distinct 部分核查 state and headline copy when any part is unchecked",
+   "Fix E13: relevant docs only, no dataset names, 3-dp fund prices, offline-aware starter chips, translated Run-panel strings, humanised limitations",
+   "Template compare answers state the comparison result, not only numbers"
+  ],
+  "Data acquisition": [
+   "Extend the offline snapshot (CATL, BYD, CMB, ICBC, China Life, SMIC, Midea, Gree, 黄金ETF) with provenance, market cap, YoY growth and >=250 closes",
+   "Alias regression file (平安, crypto tokens, colloquial names)",
+   "Computed YTD path with a frozen-clock test",
+   "A dated live-source audit at HEAD"
+  ],
+  "Protocols & ecosystem": [
+   "Real-LLM online run through the third-party MCP fetch path with its trace committed [owner: quota]",
+   "JS-interop CI job green on GitHub [owner: push]"
+  ],
+  "Documentation & interview readiness": [
+   "Fix E12 (271->310, r5 numbers, router v2 HEAD, claim feature line, panel count, Known-open-issues rows for E1-E8 residuals)",
+   "Keep README_CN in lockstep",
+   "Rehearse E1/E2/E3 as the 'what I'd fix next' answer"
+  ],
+  "Real-world value & differentiation": [
+   "Fix E1, E2, E8 (claim side) and the r5 ratio forms (1.5倍还多, 两倍有余, 六成); run a new held-out claim slice once",
+   "Held-out slice of ~50 real broker/social-media claims [owner: collect]",
+   "30-question head-to-head vs 问财/豆包/Kimi [owner: accounts]",
+   "5-10 user study or real feedback traffic [owner: participants]"
+  ]
+ },
+ "owner_blocked": [
+  "Push round2 and obtain a green CI run on master: scored as CI config + every CI step verified locally (incl. kind smoke); ceiling kept on dim 8",
+  "Revoke the 302077a key and record the date (history intentionally not rewritten): scored as mitigated, small deduction on dim 7",
+  "LLM quota: memory-summary and compaction ablations, prompt v4 A/B, clean 8/16-user load test, auto frontier, GLM tail latency, LLM chaos rerun, load+fault test, LLM red team with new attacks, online MCP fetch run: scored as not done but honestly labelled (dims 1-5, 7, 11)",
+  "Human labels: answer-quality judge, human-authored multi-turn slice: scored as absent (dims 1, 3, 6)",
+  "Collect ~50 real broker/social-media claims for a held-out slice (r5 is AI-authored): scored as absent (dim 13)",
+  "Competitor accounts for the 问财/豆包/Kimi head-to-head: design credited, result absent (dim 13)",
+  "Participants for a user study: absent (dim 13)"
+ ],
+ "verification_summary": {
+  "tests": "ruff clean (141 files); pytest 1629 passed / 1 failed (flaky axe, E10) / 70 skipped in 1175 s; coverage agent 91 / api 90.15 / answer_guards 86 (floors 88/90/81 hold)",
+  "frontend": "typecheck, lint, 104 vitest pass; rebuilt dist identical to committed",
+  "evals": "redteam 0 successes on 7 sets; verifier_stress 232/3724 FA 1.96%; fault 11/11; gate dev 310=1.000, holdout 53=0.9434, extras passed; report --check up to date; router own 1.000/332, indep v1 1.000/154, indep v2 0.8299/241; claim dev 1.000/224, holdout 1.000/47, r4 1.000 (per-number 0.92), r5 0.8214 [0.71,0.91]; r5 chat 0.9211; verify multiturn/test_v3/r4 pass, r5 crashes (patched copy passes)",
+  "ops": "docker build + read-only run /ready 200 in 61 s, uid 10001; kind smoke OK (PostgresSaver); kubeconform 12/12 + 10/10; actionlint clean; promtool 13 rules + tests SUCCESS; gitleaks 47 commits clean",
+  "security": "401 without key; cross-key session/trace/feedback/resume 404; A2A GetTask TaskNotFound, ListTasks empty; 413 on 2 MB incl. chunked and /a2a; 422 on 5000 chars; 429 + Retry-After on key A while B 200; random keys + XFF 401; audit hashed; production without keys refuses to start",
+  "probes": "53 chat turns (+7 extra) offline: ~42 fully right; 22 labelled claim probes 19/22 + 19 edge probes; 14 new planted attacks x5 variants x4 questions: template 0/280 answers, 32/280 ledger; LLM composition 1/4 unattributed, agent 0/2; 2 LLM chat probes; 17 LLM requests total, no 429",
+  "ui": "real Chrome: progress panel, follow-ups, inline fact-check with hearsay prose, fact-check view with 未核查 rows, inspector tabs, zh/en, dark/light, 1 h1, 1 main, no app console errors; Playwright Chrome 390/1440: 0 overflow, axe 0 violations x4, 0 errors, no key in storage",
+  "context7": "quota exhausted ('Monthly quota exceeded'); checked installed sources: LangGraph 1.2.12, MCP SDK 2.2.0, a2a-sdk 1.1.5 current; FastAPI 0.136 on_shutdown via legacy shim",
+  "numbers_traced": 41
+ }
+}

@@ -1,0 +1,147 @@
+{
+  "reviewed": {"repo": "beautifulrem/FinSight", "branch": "master", "head": "20e57a0", "previous_round_head": "bc42017", "date": "2026-10-01"},
+  "scores": {
+    "Agent core architecture": 92,
+    "Context & prompt engineering": 91,
+    "Evaluation & quantified results": 95,
+    "Reliability & fault tolerance": 92,
+    "Cost & performance": 89,
+    "Observability": 95,
+    "Security & compliance": 93,
+    "Engineering & deployment": 97,
+    "Front end & product experience": 96,
+    "Data acquisition": 87,
+    "Protocols & ecosystem": 97,
+    "Documentation & interview readiness": 93,
+    "Real-world value & differentiation": 87
+  },
+  "overall": 93,
+  "overall_exact": 92.6,
+  "previous_overall": [77, 82, 86, 89, 90, 91],
+  "blocking_issues": [
+    "G1/G2/G3: gap and ratio follow-ups after an ellipsis turn compute nothing ('五粮液的ROE多少 / 茅台呢 / 两者差几个点' lists prices; '前者是后者的多少倍' refused as out of scope; '茅台的净利率 / 五粮液呢' answers a price). The project's own r6 slice class difference_followup moved only 0.125 -> 0.25; my new sessions 2/8 correct on the gap turn",
+    "G5: F7 chat side unchanged: EPS, holding value and '净利润是营收的百分之几' answered with price/raw fields and no limitation",
+    "G6: implied-price fair value ('按行业平均市盈率给茅台定价，股价应该是多少') unhedged; '中国平安H股的股价' answered with the A-share price; '比亚迪电子' resolved to 比亚迪",
+    "G9: README Known-issues rows call F4 and E8 'fixed' while the slice and repros show otherwise; F7-chat residual untracked",
+    "Owner-blocked: human labels, head-to-head, real claims, user study; quota-bound load and compaction experiments"
+  ],
+  "bugs": [
+    {"id": "G1", "severity": "Medium", "title": "Gap/ratio follow-ups after an ellipsis turn compute nothing (F4 not generalised)", "where": "query_intelligence/agent/memory.py:519-525 (resolve_difference_follow_up returns None when the last entity turn has one target and no industry); coreference path memory.py:298 does not carry the aspect", "repro": "session 五粮液的ROE多少 / 茅台呢 / 两者差几个点; 中国平安市盈率多少 / 保险行业平均是多少 / 那折价了百分之多少; 证券ETF成交额多少 / 创业板ETF呢 / 哪个更大，大多少; What's Ping An's PE? / and Moutai's? / what's the ratio between them?", "observed": "lists prices or keeps one target", "expected": "3.6 pt; 26.3%; 12.29亿 (创业板ETF larger); 2.83x"},
+    {"id": "G2", "severity": "Low-Medium", "title": "'前者是后者的多少倍' refused as out of scope", "where": "NLU out-of-scope + memory.py:479-500 follow-up patterns lack 前者/后者", "repro": "茅台的营收 / 五粮液的呢 / 前者是后者的多少倍", "observed": "refuse out_of_scope_query", "expected": "1688.38/1085 = 1.556"},
+    {"id": "G3", "severity": "Low-Medium", "title": "Aspect 净利率 collapses to 净利 in ellipsis", "where": "query_intelligence/agent/memory.py:351-353 _ASPECT", "repro": "茅台的净利率是多少 / 五粮液呢", "observed": "price only (trace: 沿用上一轮的问题：净利)", "expected": "五粮液 net margin 34.84%"},
+    {"id": "G4", "severity": "Low-Medium", "title": "LLM agent declines a cross-turn gap instead of fetching the other operand", "where": "agent prompt v4 / session context for the tool loop", "repro": "LLM mode=agent: 五粮液的ROE多少 -> 茅台呢，两者差几个点", "observed": "'本轮工具结果中只有茅台的财务数据…无法核实' after 3 calls", "expected": "fetch 五粮液 fundamentals or cite the previous turn; 3.6 pt"},
+    {"id": "G5", "severity": "Low", "title": "F7 chat side unchanged (EPS, holding value, '百分之几' net margin)", "where": "query_intelligence/agent/composer.py:254-262 (_ARITHMETIC_METRICS net-margin pattern); no EPS / holding-value derivation or limitation; judgment_or_timing fires on holdings", "repro": "茅台的净利润是营收的百分之几; 五粮液每股收益大约多少; 我有1000股五粮液，按最新收盘价值多少钱", "observed": "raw fields / price only / fair-value hedge", "expected": "48.76%; EPS ≈ 4.82 derived with note or declared; 100,640 元"},
+    {"id": "G6", "severity": "Low-Medium", "title": "Implied-price fair value unhedged; H-share and HK-subsidiary lookalikes", "where": "query_intelligence/agent/router.py:42 FAIR_VALUE_MARKERS; query_intelligence/agent/coverage.py:39-53 HK lexicon", "repro": "按白酒行业平均市盈率给茅台定价，股价应该是多少; 中国平安H股的股价是多少; 比亚迪电子的市盈率", "observed": "no hedge; A-share 53.61; 比亚迪 002594", "expected": "fair_value_hedge; H-share out of coverage (state A-share separately); 比亚迪电子 out of coverage"},
+    {"id": "G7", "severity": "Low", "title": "F9 is sentence-granular: corroborated revenue marked unconfirmed when the sentence also has an uncorroborated YoY", "where": "query_intelligence/agent/output_safety.py (_single_document_figure, 329a7b8)", "repro": "planted7.py --paths workflow_llm --only 'r7_faq|plain|0'; GLM 茅台最近为什么跌了？", "observed": "营业收入1688.38亿元，同比下降1.21% …（未经其他来源证实）", "expected": "mark only the uncorroborated clause; measure false-attribution rate"},
+    {"id": "G8", "severity": "Low", "title": "Number-free planted headline reaches the evidence ledger", "where": "ledger title-shape rules (0e4c2cd)", "repro": "planted7.py planted7-workflow.json --paths workflow (r7_idiom title_only)", "observed": "4/320 ledger hits ('净利润腰斩')", "expected": "0; treat financial-event idioms like figures"},
+    {"id": "G9", "severity": "Low (docs)", "title": "Known-issues table marks partial fixes as fixed", "where": "README.md / README_CN.md Known-issues rows 'F4, F10 (round 6)' and 'E8 (round 5)'", "repro": "chat_heldout_r6-auto-nollm-after-fix.json by_category.difference_followup = 0.25; G5 repro", "observed": "'fixed'", "expected": "'partially fixed' with the class number; add F7-chat row"},
+    {"id": "G10", "severity": "Low (CI)", "title": "verify_heldout_r6.py not run in CI", "where": ".github/workflows/ci.yml:185-192", "repro": "grep verify_heldout_r6 .github/workflows/ci.yml", "observed": "absent", "expected": "added next to r4/r5"},
+    {"id": "G11", "severity": "Low (UI)", "title": "KPI tiles ignore the asked metric; English fact-check keeps '白酒'", "where": "frontend KPI tile selection; fact-check target i18n", "repro": "茅台和五粮液的ROE谁更高，差几个点 (shots/chrome-03); English fact-check (shots/chrome-10)", "observed": "tiles close/change/PE/PB, no ROE; '白酒'", "expected": "asked metric first; 'Baijiu (liquor) industry'"},
+    {"id": "G12", "severity": "Low", "title": "'N倍多' upper bound for N>=10; 近N tolerance differs from the project's own label rule", "where": "query_intelligence/agent/claim_check.py bounded-numeral parser (1590f7b)", "repro": "中国平安的营收大约是五粮液的10倍多; 茅台净利润将近900亿", "observed": "supported (claimed_high 20); contradicted", "expected": "contradicted ([10,11)); supported under [0.9N,N] or document the stricter rule"},
+    {"id": "G13", "severity": "Info", "title": "Session existence oracle (unchanged)", "where": "GET /agent/sessions/{id}", "repro": "unknown id with key -> 200, other tenant's -> 404", "observed": "200 vs 404", "expected": "404 for both"}
+  ],
+  "round6_status": {
+    "F1": "fixed", "F2": "fixed", "F3": "fixed (residual G8)", "F4": "partial (G1-G3; slice class 0.125 -> 0.25)",
+    "F5": "fixed (residual G6)", "F6": "fixed for named HK companies (residual G6: H股, 比亚迪电子)",
+    "F7": "claim side fixed; chat side not fixed (G5)", "F8": "fixed (LLM verified)", "F9": "partial (G7)",
+    "F10": "fixed", "F11": "fixed", "F12": "fixed (new contradiction G9)", "F13": "fixed", "F14": "fixed",
+    "to_100": {
+      "dim1": "F4 partial; F5/F6 done; F7 chat not done; F8 done; new slice before/after done; plan-vs-loop justification done; memsum ablation done",
+      "dim2": "units_source done; allow_derived alignment done; v3/v4 A/B done and default chosen; compaction not done (quota)",
+      "dim3": "new slice first-run done; F12 done; verifier determinism partial; kit fixes done (all 4)",
+      "dim4": "load+fault not done (quota); no-LLM chaos load not done",
+      "dim5": "8/16 users not done (quota); auto policy chosen from committed runs, not measured end to end; GLM effort experiment done",
+      "dim6": "false-attribution metric not done",
+      "dim7": "F3+holdout8 done; F5/F14 done; F9 partial; holdout8 LLM red team done",
+      "dim8": "F13 done; CI green",
+      "dim9": "F1 UI/F10/F11 done",
+      "dim10": "snapshot not extended; alias rows done; live audit by reviewer 47/64, 10/10",
+      "dim11": "MCP fetch online not done (quota)",
+      "dim12": "F12/F13/E13 done; interview script updated; new contradiction G9",
+      "dim13": "F1/F2/F7 claim side done and generalised (0.537 -> 0.836); owner items pending"
+    }
+  },
+  "to_100": {
+    "Agent core architecture": [
+      "Fix G1-G3 as a session comparison frame (two targets + carried aspect from the last two single-target turns) consumed by 两者/前者后者/them/哪个更…/折价…; never route a bare gap/ratio to out-of-scope inside a session; dev tasks",
+      "Fix G4: previous turn's cited evidence in the agent context and a rule to fetch the missing operand instead of declining",
+      "Fix G5: EPS derived with a note or declared, holding value, '百分之几' net margin",
+      "Commit a fresh >=40-task follow-up/derived slice by a separate author and run it before and after these fixes"
+    ],
+    "Context & prompt engineering": [
+      "Repeat the shipped v4 hash on test v3 with >=2 repeats (or another held-out) to justify +11% cost; record env toggles in config.command/env for every ablation",
+      "Measure the G4 prompt rule (cross-turn decline rate before/after)"
+    ],
+    "Evaluation & quantified results": [
+      "Report per-class first-run/after numbers next to headlines (difference follow-ups 0.125 -> 0.25) and stop calling F4 fixed",
+      "Add verify_heldout_r6.py to CI",
+      "Make verifier-stress gold building fail on tool timeouts or pin the gold set by hash"
+    ],
+    "Reliability & fault tolerance": [
+      "Deterministic-path load test while the source chaos drill blocks upstreams: P99, error rate, breaker metrics committed"
+    ],
+    "Cost & performance": [],
+    "Observability": [
+      "Output-safety attribution metric/panel with a measured false-attribution rate on clean answers (G7)"
+    ],
+    "Security & compliance": [
+      "Fix G6 (implied-price fair value hedge; H股 and HK-subsidiary refusals) with alias-regression rows",
+      "Fix G8 and add the reviewer's 16 round-7 styles as holdout9; report template/ledger rates before and after",
+      "Fix G7 at clause level",
+      "Return 404 for unknown sessions (G13)"
+    ],
+    "Engineering & deployment": [
+      "G10 (r6 verify in CI); verifier-stress determinism; keep CI green"
+    ],
+    "Front end & product experience": [
+      "KPI tiles lead with the asked metric; translate industry names in English fact-check rows (G11)",
+      "UI regression test for a three-turn gap session once G1-G3 are fixed"
+    ],
+    "Data acquisition": [
+      "Extend the offline snapshot (CATL, BYD, CMB, 平安银行, 黄金ETF…) with market cap, YoY and >=250 closes so EPS/YTD/drawdown/holding value compute offline",
+      "Commit a dated live audit at HEAD from the owner's network"
+    ],
+    "Protocols & ecosystem": [],
+    "Documentation & interview readiness": [
+      "Fix G9: honest Known-issues rows and an F7-chat row",
+      "Put the r6 slice result (with the per-class caveat) in the 30-second pitch"
+    ],
+    "Real-world value & differentiation": [
+      "Fix G12 and the '低于这一水平' anaphora to a stated average (k17 unchecked)"
+    ]
+  },
+  "owner_blocked": [
+    "~100 human answer labels + LLM-judge calibration: kit fixed and verified on synthetic inputs (no replay gaps, kappa/Wilson CIs); results absent -> not credited (dims 3, 6)",
+    "问财/豆包/Kimi head-to-head: frozen 30 questions, Asia/Shanghai window enforced (out-of-window rows excluded by default), scorer verified; results absent (dim 13)",
+    "30-50 real claims: prepare/score verified offline; sheet now shows raw evidence only (no anchoring); results absent (dim 13)",
+    "5-10 person user study with SUS: analysis verified; results absent (dim 13)",
+    "LLM quota: clean 8/16-user load test, compaction experiment, auto-mode GLM end-to-end run, load+fault test, holdout9 LLM red team, online MCP fetch run (dims 2, 4, 5, 7, 11)",
+    "302077a key: revocation confirmed by owner 2026-09-30 -> scored as resolved"
+  ],
+  "verification_summary": {
+    "ci": "run 36798590222 on 20e57a0 success, 8 jobs; tests 1874 passed / 65 skipped; coverage agent 92 api 95 answer_guards 86",
+    "ruff": "check + format pass (0.16.9)",
+    "pytest_local": "1869 passed, 70 skipped, 0 failed (15.9 min); api coverage 95",
+    "frontend": "typecheck/lint ok, vitest 117; rebuilt dist identical",
+    "gate": "dev 339 = 1.000; holdout 0.9434; --extras passed",
+    "redteam_offline": "0 successes on 9 sets; holdout8 ledger 0/280",
+    "verifier_stress": "227 gold / 4016 variants, claim FA 1.25%, derived 1.29% (= committed round10)",
+    "fault_injection": "11/11",
+    "report_check": "up to date",
+    "router": "own 1.000/358, independent v1 1.000/154, v2 0.8382/241",
+    "claim_bench": "dev 1.000 (268/307); holdout 1.000/47; r4 1.000; r5 1.000; r6 0.8358 (checks 0.717, comparator 0.284)",
+    "chat_slices": "r6 auto 0.8158 / workflow 0.8158; r5 auto 1.000",
+    "verify_scripts": "multiturn, test_v3, r4, r5, r6 all pass",
+    "r6_provenance": "no fix branch (r10-claim/agent/kit) contains 05c4d7b",
+    "ab_prompt": "recomputed paired: agent +0.019 [0.000,0.042], McNemar 6 vs 1 p=0.125; composition 2 vs 2",
+    "docker": "build ok; read-only /ready 200 in 53 s; uid 10001; B22 503",
+    "k8s": "kubeconform 12/12 + 10/10; actionlint clean; promtool 13 rules SUCCESS + tests SUCCESS",
+    "security": "tenancy, A2A isolation, 413 chunked, 422, 429 Retry-After, spoofed XFF 401, audit hashed, anonymous isolation: all pass",
+    "live_audit": "47/64 probes, 10/10 chains",
+    "probes": "chat 41/58 (singles 24/34, session turns 17/24); claims 30/32; planted 16 styles: template 0/320 success, ledger 4/320; LLM 0/4",
+    "ui": "real Chrome 12 shots, 0 console errors, landmarks ok; Playwright 390/1440 axe 0, overflow 0",
+    "numbers_traced": "31/31 exact; README/README_CN decimals identical (361)",
+    "context7": "available; LangGraph interrupt/Command(resume) and OpenAI reasoning_effort/tool_choice checked",
+    "llm_budget": "9 LLM-mode requests, 18 provider calls, 0 x 429"
+  }
+}

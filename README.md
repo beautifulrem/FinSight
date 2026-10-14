@@ -148,6 +148,7 @@ Online runs repeat every task 3 times. Every rate has a 95% bootstrap CI, and pa
 More detail:
 
 - Per-round tables, the per-class results of every reviewer slice and every other measurement are in [docs/evaluation-history.md](docs/evaluation-history.md).
+- The 14 independent review reports (scores per dimension, bugs with repros, what was verified) are in [docs/reviews/](docs/reviews/README.md).
 - The generated page with all paired comparisons is [docs/agent-eval.md](docs/agent-eval.md).
 - A Chinese summary is in [docs/zh/evaluation.md](docs/zh/evaluation.md).
 
