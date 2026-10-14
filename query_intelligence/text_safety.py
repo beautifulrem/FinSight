@@ -58,9 +58,41 @@ _CONFUSABLES = str.maketrans(_CONFUSABLE_PAIRS)
 _FOREIGN_LETTER_SCRIPTS = ("CYRILLIC", "GREEK", "ARMENIAN", "CHEROKEE", "COPTIC", "GEORGIAN")
 
 
+# (round 18, review-14 N7) Chinese uppercase financial numerals (大写, as on cheques and contracts) and their
+# traditional forms, read as the lower-case numerals every figure rule knows: "叁点柒倍" is "三点七倍", "玖拾亿元整" is
+# "九十亿元整". Only inside a run of numerals that holds a 大写 character and is a figure: two or more numeral
+# characters ("玖拾", "叁点柒", "陆万"), or one followed by a unit ("叁倍", "伍成", "伍圆"). "陆家嘴", "队伍",
+# "拾取" and "登陆" keep their characters. A 圆 right after such a figure is the currency unit 元.
+_CAPITAL_DIGITS = {
+    "壹": "一", "贰": "二", "貳": "二", "叁": "三", "參": "三", "叄": "三", "肆": "四", "伍": "五", "陆": "六",
+    "陸": "六", "柒": "七", "捌": "八", "玖": "九", "拾": "十", "佰": "百", "仟": "千", "萬": "万", "億": "亿",
+}  # fmt: skip
+_CAPITAL_TABLE = str.maketrans(_CAPITAL_DIGITS)
+_CAPITAL_RUN = re.compile("[〇零一二两三四五六七八九十百千万亿点點" + "".join(_CAPITAL_DIGITS) + "]+(?P<yuan>[圆圓])?")
+_CAPITAL_UNIT_AFTER = re.compile(r"[倍成亿億万萬元圆圓角%％]|个百分点")
+
+
+def capital_numerals(text: str) -> str:
+    """``text`` with figures in Chinese uppercase financial numerals written in lower-case numerals (same length)."""
+    if not any(char in _CAPITAL_DIGITS for char in text):
+        return text
+
+    def lower(match: re.Match[str]) -> str:
+        run = match.group(0)
+        digits = run[: len(run) - len(match.group("yuan") or "")]
+        if not any(char in _CAPITAL_DIGITS for char in digits):
+            return run
+        if len(digits) < 2 and not (match.group("yuan") or _CAPITAL_UNIT_AFTER.match(text, match.end())):
+            return run
+        return digits.translate(_CAPITAL_TABLE) + ("元" if match.group("yuan") else "")
+
+    return _CAPITAL_RUN.sub(lower, text)
+
+
 def fold(text: str) -> str:
-    """NFKC, invisible characters removed, confusable letters mapped to Latin (for matching only)."""
-    return INVISIBLE.sub("", unicodedata.normalize("NFKC", text or "")).translate(_CONFUSABLES)
+    """NFKC, invisible characters removed, confusable letters mapped to Latin and (round 18) Chinese uppercase
+    financial numerals written as lower-case numerals (for matching only)."""
+    return capital_numerals(INVISIBLE.sub("", unicodedata.normalize("NFKC", text or "")).translate(_CONFUSABLES))
 
 
 def mixed_script_word(text: str) -> str | None:
