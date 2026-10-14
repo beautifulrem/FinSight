@@ -529,6 +529,8 @@ def verify_answer(
     invalid = [evidence_id for evidence_id in ids if evidence_id not in store]
     known = _evidence_numbers(store)
     query_numbers = claim_numbers(query)
+    thresholds = question_thresholds(query)
+    user_trade = user_trade_values(query)
     holding = holding_value_request(query)
     if holding is not None and float(holding[0]) not in query_numbers:
         query_numbers.append(float(holding[0]))  # "两千股": a count the claim parser reads only with some units
@@ -603,6 +605,12 @@ def verify_answer(
             # (round 14) a number the user stated and the sentence attributes to the user ("你给出的成本价 90 元")
             echo_allowed = not unit_ids or bool(_HYPOTHETICAL.search(unit)) or bool(_USER_STATED.search(unit))
             if echo_allowed and _is_supported(value, query_numbers, _BARE_SCALES):
+                continue
+            # (round 18, review-14 N1) the realised result of the user's own trade figures: inputs, not market data
+            if user_trade and _is_supported(value, user_trade, _BARE_SCALES, rounding):
+                continue
+            # (round 18, review-14 N6) the bound of a threshold question restated in its verdict ("不是，超过六成")
+            if thresholds and _BOUND_VERDICT.search(unit) and _is_supported(value, thresholds, _BARE_SCALES):
                 continue
             # (round 11, G5) a product with a number the user stated ("1000 × 100.64 = 100640 元" for "我有1000股"): the
             # user's count is an operand, and its product with a supported operand of the sentence is derived
@@ -1206,6 +1214,67 @@ def _is_product(
 
 
 _USER_STATED = re.compile(r"你给出的|你提供的|你说的|按你|\byour stated\b|\byou stated\b|\byou gave\b", re.IGNORECASE)
+# (round 18, review-14 N6) a bound the question asks a yes/no about, in tenths or as a half ("不到六成吗", "有没有一半",
+# "超过三成了吗"): the verdict restates it ("不是，超过两成"), so it is a number the user stated, in percent
+_TENTHS = re.compile(r"(?<![几数多第])(?P<k>[一二两三四五六七八九]|[1-9])\s*成(?![本交长立功为绩员])")
+_HALF = re.compile(r"一半|半数")
+# a verdict on such a bound: "是的，不到四成", "不是，超过两成", "So no: it is more than half"
+_BOUND_VERDICT = re.compile(
+    r"不到|不足|超过|超出|达到|大约是|约为|是的|不是|\b(?:less|more) than\b|\babout\b|\byes\b|\bno\b",
+    re.IGNORECASE,
+)
+
+
+def user_trade_values(query: str) -> list[float]:
+    """(round 18, review-14 N1) The arithmetic of the user's own trade figures alone, with no market data: for each
+    stated sale with its price, the sold shares, the sale price minus the (average) cost per share, its percent of the
+    cost and the realised result; the bought shares and the average cost. These are inputs the user gave, so a draft
+    restating them (cited or not) is not making an unverifiable market claim."""
+    request = cost_basis_request(query or "") or {}
+    sales = request.get("sales") or []
+    if not sales:
+        return []
+    average = float(request.get("average_cost") or request.get("cost") or 0.0)
+    if not average:
+        return []
+    values: list[float] = [average, round(average, 3)]
+    if request.get("bought"):
+        values.append(float(request["bought"]))
+    for sale in sales:
+        price = sale.get("price")
+        if sale.get("shares"):
+            values.append(float(sale["shares"]))
+        if price is None:
+            continue
+        diff = float(price) - average
+        values += [float(price), round(diff, 2), round(diff / average * 100, 2)]
+        if sale.get("shares"):
+            values.append(round(int(sale["shares"]) * diff, 2))
+    return [value for value in dict.fromkeys(values) if value]
+
+
+def question_thresholds(query: str) -> list[float]:
+    """(round 18, review-14 N6) The bounds a threshold question states, in percent: "六成" → 60, "一半" → 50, plus a
+    stated multiple ("两倍" → 2) read by the comparison frame; the verifier accepts them when the answer restates
+    them in its verdict."""
+    from .frame import claimed_multiple
+
+    text = query or ""
+    found: list[float] = []
+    for match in _TENTHS.finditer(text):
+        raw = match.group("k")
+        digit = int(raw) if raw.isdigit() else {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7,
+                                                "八": 8, "九": 9}[raw]  # fmt: skip
+        found.append(float(digit * 10))
+    if _HALF.search(text):
+        found.append(50.0)
+    claimed = claimed_multiple(text)
+    if claimed is not None:
+        multiple = float(claimed[0])
+        found += [multiple, round(multiple * 100, 6)]
+    return list(dict.fromkeys(found))
+
+
 _COST_WORD = re.compile(r"成本|买入价|浮盈|浮亏|\bcost\b|\bpaper (?:gain|loss)\b|\bentry price\b", re.IGNORECASE)
 
 

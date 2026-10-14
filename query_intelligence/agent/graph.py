@@ -55,6 +55,10 @@ from .composer import (
     frame_values,
     news_gaps,
     parse_answer,
+    range_52w_values,
+    short_values,
+    total_shares_values,
+    weight_values,
 )
 from .coverage import (
     a_share_stocks,
@@ -115,6 +119,7 @@ from .memory import (
     listed_entities,
     resolve_comparison_anchor,
     resolve_coreference,
+    resolve_correction,
     resolve_dangling_why,
     resolve_difference_follow_up,
     resolve_ellipsis,
@@ -627,6 +632,14 @@ class AgentRuntime:
             reasons.append(reason)
             nlu, carried_nlu = _set_aside_context_carry(analyze(query))
         listed = listed_entities(nlu)
+        corrected = resolve_correction(query, turns, listed)
+        if corrected is not None:
+            # (round 18, review-14 N14) "哦不对，我是说五粮液": the previous question about the corrected target
+            query, reason = corrected
+            reasons.append(reason)
+            nlu, carried = _set_aside_context_carry(analyze(query))
+            carried_nlu = carried_nlu if carried is not None else None
+            listed = listed_entities(nlu)
         ledger = resolve_ledger_total(query, turns, listed)
         if ledger is not None:
             # (round 17, review-13 M6) positions stated in earlier turns, then a bare total: their value at the close
@@ -1209,6 +1222,7 @@ class AgentRuntime:
             {"answer": text}, store, query=_check_query(state), allow_derived=True, computed=computed
         ).passed:
             return draft, update
+        answer = _without_could_not_verify(answer)
         joined = f"{answer}{'' if zh else ' '}{text}".strip() if answer else text
         cited = [*draft.get("evidence_used", []), *re.findall(r"\[([^\[\]]+)\]", text)]
         update["degraded"] = ["frame_result_appended"]
@@ -1243,6 +1257,7 @@ class AgentRuntime:
             computed=_computed_values(state),
         ).passed:
             return draft, {}
+        answer = _without_could_not_verify(answer)
         joined = f"{answer}{'' if zh else ' '}{text}".strip() if answer else text
         cited = [*draft.get("evidence_used", []), *re.findall(r"\[([^\[\]]+)\]", text)]
         return {**draft, "answer": joined, "evidence_used": list(dict.fromkeys(cited))}, {
@@ -2106,6 +2121,21 @@ def _evidence_update(results: list[ToolResult]) -> tuple[dict[str, dict[str, Any
     return update, flagged_any
 
 
+# (round 18, review-14 N6) the note a failed draft opens with when the asked result could not be verified
+# (``composer.could_not_verify_note``)
+_COULD_NOT_VERIFY = re.compile(
+    r"未能核实所问的[^：:。]{0,40}[：:]模型回答中的相关数字无法由本次证据核实，因此不给出该结果。|"
+    r"Could not verify the [^:.]{0,80} asked for: the figures in the model's answer cannot be traced to this run's "
+    r"evidence, so no result is given\.\s*"
+)
+
+
+def _without_could_not_verify(answer: str) -> str:
+    """(round 18, review-14 N6) A verified computation is about to be appended: the "could not verify" note would then
+    be followed by the very result it says it does not give, so the note goes."""
+    return _COULD_NOT_VERIFY.sub("", answer or "").strip()
+
+
 def _computed_values(state: AgentState) -> list[float]:
     """(round 15, review-11 K3; round 17, review-13 M4) Every number this run's deterministic arithmetic computes for
     the question: the comparison frame's results (``frame_values``) and the cost-basis arithmetic
@@ -2115,6 +2145,10 @@ def _computed_values(state: AgentState) -> list[float]:
     values = frame_values(state.get("frame_request") or {}, tool_log)
     asked = str(state.get("effective_query") or state.get("query") or "")
     values += cost_basis_values(asked, tool_log)
+    values += range_52w_values(asked, tool_log)
+    values += short_values(asked, tool_log)
+    values += weight_values(asked, tool_log)
+    values += total_shares_values(asked, tool_log)
     return list(dict.fromkeys(values))
 
 
@@ -2124,6 +2158,9 @@ def _check_query(state: AgentState) -> str:
     there."""
     query = str(state["query"])
     effective = str(state.get("effective_query") or query)
+    if cost_basis_request(effective) is not None and cost_basis_request(query) is None:
+        # (round 18, review-14 N4) a cost and count the user stated in an earlier turn, carried into this one
+        return f"{query} {effective}"
     if len(holding_positions(effective)) > len(holding_positions(query)):
         # (round 15, review-11 K7) "再加三千股工行呢，总共多少": the earlier turn's position, stated by the user, too
         return f"{query} {effective}"
