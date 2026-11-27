@@ -760,11 +760,13 @@ def normalize_answer(
 
     docs = retrieval_result.get("documents") if isinstance(retrieval_result, dict) else []
     structured = retrieval_result.get("structured_data") if isinstance(retrieval_result, dict) else []
-    fallback_evidence = [
-        str(item.get("evidence_id"))
+    all_evidence_ids = [
+        str(item.get("evidence_id")).strip()
         for item in list(docs or []) + list(structured or [])
-        if isinstance(item, dict) and item.get("evidence_id")
-    ][:6]
+        if isinstance(item, dict) and str(item.get("evidence_id") or "").strip()
+    ]
+    allowed_ids = set(all_evidence_ids)
+    fallback_evidence = all_evidence_ids[:6]
     answer = {
         "model_status": "real_model",
         "model_name": "",
@@ -776,6 +778,7 @@ def normalize_answer(
     }
     for key in ("key_points", "evidence_used", "limitations"):
         answer[key] = [str(value).strip() for value in answer[key] if str(value).strip()]
+    answer["evidence_used"] = [value for value in answer["evidence_used"] if value in allowed_ids]
     if not answer["evidence_used"]:
         answer["evidence_used"] = fallback_evidence
     answer["evidence_used"] = answer["evidence_used"][:6]
@@ -1324,13 +1327,18 @@ def coerce_query(value: Any, *, max_length: int = MAX_QUERY_LENGTH) -> str:
 def run_service(args: argparse.Namespace) -> None:
     from http import HTTPStatus
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-    from threading import Lock
+    from threading import BoundedSemaphore, Lock
 
     runtime = make_runtime(args)
     generation_lock = Lock()
+    inflight_semaphore = BoundedSemaphore(16)
+
+    class BoundedThreadingHTTPServer(ThreadingHTTPServer):
+        daemon_threads = True
 
     class LLMResponseHandler(BaseHTTPRequestHandler):
         server_version = "LLMResponseHTTP/1.0"
+        timeout = _REQUEST_READ_TIMEOUT_SECONDS
 
         def log_message(self, format: str, *args_: Any) -> None:
             logger.info("HTTP %s - " + format, self.address_string(), *args_)
@@ -1384,6 +1392,9 @@ def run_service(args: argparse.Namespace) -> None:
             if self.path != "/respond":
                 self._send_json(HTTPStatus.NOT_FOUND, {"detail": "not found"})
                 return
+            if not inflight_semaphore.acquire(blocking=False):
+                self._send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"detail": "server busy"})
+                return
             try:
                 try:
                     request = self._read_json_body()
@@ -1393,6 +1404,13 @@ def run_service(args: argparse.Namespace) -> None:
                 pipeline_result = request.get("pipeline_result")
                 query = request.get("query")
                 if isinstance(pipeline_result, dict):
+                    raw_query = pipeline_result.get("query")
+                    if raw_query is not None and len(str(raw_query)) > MAX_QUERY_LENGTH:
+                        self._send_json(
+                            HTTPStatus.UNPROCESSABLE_ENTITY,
+                            {"detail": f"query must be less than or equal to {MAX_QUERY_LENGTH} characters"},
+                        )
+                        return
                     record = pipeline_result
                 elif query is not None:
                     try:
@@ -1405,12 +1423,26 @@ def run_service(args: argparse.Namespace) -> None:
                     except ValueError as exc:
                         self._send_json(HTTPStatus.UNPROCESSABLE_ENTITY, {"detail": str(exc)})
                         return
+                    user_profile = request.get("user_profile") if isinstance(request.get("user_profile"), dict) else {}
+                    dialog_context = (
+                        request.get("dialog_context") if isinstance(request.get("dialog_context"), list) else []
+                    )
+                    if len(user_profile) > 64:
+                        self._send_json(
+                            HTTPStatus.UNPROCESSABLE_ENTITY, {"detail": "user_profile exceeds maximum field count"}
+                        )
+                        return
+                    if len(dialog_context) > 32:
+                        self._send_json(
+                            HTTPStatus.UNPROCESSABLE_ENTITY, {"detail": "dialog_context exceeds maximum item count"}
+                        )
+                        return
                     record = build_record_from_query(
                         query_text,
                         top_k=top_k,
                         debug=bool(request.get("debug") or False),
-                        user_profile=request.get("user_profile") if isinstance(request.get("user_profile"), dict) else {},
-                        dialog_context=request.get("dialog_context") if isinstance(request.get("dialog_context"), list) else [],
+                        user_profile=user_profile,
+                        dialog_context=dialog_context,
                     )
                 else:
                     self._send_json(HTTPStatus.UNPROCESSABLE_ENTITY, {"detail": "Provide either query or pipeline_result"})
@@ -1420,12 +1452,14 @@ def run_service(args: argparse.Namespace) -> None:
                 self._send_json(HTTPStatus.OK, response)
             except json.JSONDecodeError as exc:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"detail": f"invalid JSON body: {exc}"})
-            except Exception as exc:
+            except Exception:
                 logger.exception("LLM response request failed")
-                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"detail": str(exc)})
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"detail": "internal server error"})
+            finally:
+                inflight_semaphore.release()
 
     logger.info("Starting LLM response service: host=%s port=%d", args.host, args.port)
-    server = ThreadingHTTPServer((args.host, args.port), LLMResponseHandler)
+    server = BoundedThreadingHTTPServer((args.host, args.port), LLMResponseHandler)
     try:
         logger.info("LLM response service listening on http://%s:%d", args.host, args.port)
         server.serve_forever()

@@ -35,11 +35,18 @@ const TERMINAL = new Set([
 
 // ------------------------------------------------------------------------------------------ wire logging
 
+const baseOrigin = new URL(baseUrl).origin;
 const wire = [];
 async function loggingFetch(input, init = {}) {
   const url = input instanceof URL ? input.href : typeof input === 'string' ? input : input.url;
+  const targetOrigin = new URL(url).origin;
   const headers = new Headers(init.headers ?? {});
-  if (args['api-key']) headers.set('X-API-Key', args['api-key']);
+  if (args['api-key']) {
+    if (targetOrigin !== baseOrigin) {
+      throw new Error(`Refusing to send API key to cross-origin URL: ${url}`);
+    }
+    headers.set('X-API-Key', args['api-key']);
+  }
   let method = init.method ?? 'GET';
   if (typeof init.body === 'string') {
     try {
@@ -48,7 +55,8 @@ async function loggingFetch(input, init = {}) {
       /* not JSON-RPC */
     }
   }
-  const response = await fetch(input, { ...init, headers });
+  const fetchInit = args['api-key'] ? { ...init, headers, redirect: 'error' } : { ...init, headers };
+  const response = await fetch(input, fetchInit);
   wire.push({
     request: `${method} ${new URL(url).pathname}`,
     a2a_version: headers.get('A2A-Version'),

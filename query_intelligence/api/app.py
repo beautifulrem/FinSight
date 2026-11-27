@@ -129,9 +129,14 @@ def _session_view(agent: Any, session_id: str, principal: str) -> dict[str, Any]
     The two ``None`` cases must not be told apart (no session-existence oracle): the same three
     checkpointer reads run whatever the outcome, and the caller turns ``None`` into the same 404 body.
     """
-    owner = agent.owner_of(session_id)
-    turns = agent.history(session_id)
-    pending = agent.pending_clarification(session_id)
+    from contextlib import nullcontext
+
+    lock_fn = getattr(agent, "_lock", None)
+    guard = lock_fn(session_id) if callable(lock_fn) else nullcontext()
+    with guard:
+        owner = agent.owner_of(session_id)
+        turns = agent.history(session_id)
+        pending = agent.pending_clarification(session_id)
     exists = owner is not None or bool(turns) or pending is not None
     if not exists or owner not in {None, principal}:
         return None
@@ -372,39 +377,61 @@ def create_app(
         query = payload.query.strip()
         if not query:
             raise HTTPException(status_code=422, detail="query must not be empty")
-        _require_continuable(get_agent(), payload.session_id, principal_of(request))
+        agent = await run_with_timeout(get_agent)
+        owner = principal_of(request)
+        await run_with_timeout(_require_continuable, agent, payload.session_id, owner)
         try:
             return await run_with_timeout(
-                get_agent().chat,
-                query,
-                session_id=payload.session_id,
-                mode=payload.mode,
-                user_profile=payload.user_profile,
-                dialog_context=payload.dialog_context,
-                owner=principal_of(request),
-            )
-        except SessionAccessError as exc:
-            raise _session_not_found(exc) from exc
-
-    @app.post("/agent/chat/stream")
-    def agent_chat_stream(payload: AgentChatRequest, request: Request) -> StreamingResponse:
-        query = payload.query.strip()
-        if not query:
-            raise HTTPException(status_code=422, detail="query must not be empty")
-        agent = get_agent()
-        owner = principal_of(request)
-        _require_continuable(agent, payload.session_id, owner)
-
-        def events() -> Iterator[str]:
-            for event in agent.stream(
+                agent.chat,
                 query,
                 session_id=payload.session_id,
                 mode=payload.mode,
                 user_profile=payload.user_profile,
                 dialog_context=payload.dialog_context,
                 owner=owner,
-            ):
-                yield _sse(event)
+            )
+        except SessionAccessError as exc:
+            raise _session_not_found(exc) from exc
+
+    @app.post("/agent/chat/stream")
+    async def agent_chat_stream(payload: AgentChatRequest, request: Request) -> StreamingResponse:
+        query = payload.query.strip()
+        if not query:
+            raise HTTPException(status_code=422, detail="query must not be empty")
+        agent = await run_with_timeout(get_agent)
+        owner = principal_of(request)
+        await run_with_timeout(_require_continuable, agent, payload.session_id, owner)
+
+        async def events():
+            stream_iter = agent.stream(
+                query,
+                session_id=payload.session_id,
+                mode=payload.mode,
+                user_profile=payload.user_profile,
+                dialog_context=payload.dialog_context,
+                owner=owner,
+            )
+            deadline = time.monotonic() + request_timeout_s
+            try:
+                while True:
+                    remaining = max(0.01, deadline - time.monotonic())
+                    try:
+                        event = await asyncio.wait_for(asyncio.to_thread(next, stream_iter, None), timeout=remaining)
+                    except TimeoutError:
+                        yield _sse(
+                            {
+                                "event": "error",
+                                "data": {"message": f"agent did not finish within {request_timeout_s:g}s"},
+                            }
+                        )
+                        break
+                    if event is None:
+                        break
+                    yield _sse(event)
+            finally:
+                close_iter = getattr(stream_iter, "close", None)
+                if callable(close_iter):
+                    await asyncio.to_thread(close_iter)
 
         return StreamingResponse(
             events(),
@@ -414,13 +441,16 @@ def create_app(
 
     @app.post("/agent/resume")
     async def agent_resume(payload: AgentResumeRequest, request: Request) -> dict:
+        reply = payload.reply.strip()
+        if not reply:
+            raise HTTPException(status_code=422, detail="reply must not be empty")
+        agent = await run_with_timeout(get_agent)
+        owner = principal_of(request)
         # An unknown session is a 404 like another caller's session (not a 409 "nothing pending").
-        if _session_view(get_agent(), payload.session_id, principal_of(request)) is None:
+        if await run_with_timeout(_session_view, agent, payload.session_id, owner) is None:
             raise _session_not_found(SessionAccessError(payload.session_id))
         try:
-            return await run_with_timeout(
-                get_agent().resume, payload.session_id, payload.reply.strip(), owner=principal_of(request)
-            )
+            return await run_with_timeout(agent.resume, payload.session_id, reply, owner=owner)
         except SessionAccessError as exc:
             raise _session_not_found(exc) from exc
         except NoPendingClarificationError as exc:
@@ -457,7 +487,7 @@ def create_app(
         from ..agent.claim_check import check_claim
         from ..chatbot import detect_query_language
 
-        agent = get_agent()
+        agent = await run_with_timeout(get_agent)
         claim = payload.claim.strip()
         report = await run_with_timeout(
             check_claim,
@@ -505,8 +535,13 @@ def create_app(
     app.state.trace_store = trace_store
 
     def close_shared_stores() -> None:
-        # Postgres-backed stores own connection pools; the in-memory ones have nothing to close.
+        # Postgres-backed stores, agent checkpointers/MCP pools, and readiness threads are closed on shutdown.
+        owned_agent = agent_holder["service"] if agent_service is None else None
+        owned_runtime = runtime if service is None else None
         for store in (
+            owned_agent,
+            owned_runtime,
+            readiness,
             trace_store,
             getattr(app.state, "a2a_task_store", None),
             audit_sink,

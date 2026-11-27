@@ -1,11 +1,55 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+from datetime import date, datetime
+from decimal import Decimal
+import threading
 from typing import Any
+
+from ..integrations.sources.values import to_number
+
+
+def _iso_temporal(value: Any) -> Any:
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return value
+
+
+def _normalize_scalar(value: Any) -> Any:
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, (Decimal, float)):
+        return to_number(value)
+    return value
+
+
+def _normalize_mapping(mapping: dict[str, Any]) -> dict[str, Any]:
+    return {key: _normalize_scalar(val) for key, val in mapping.items()}
+
+
+@contextmanager
+def _borrow_connection(connection_or_pool: Any, lock: threading.Lock):
+    if hasattr(connection_or_pool, "connection") and callable(getattr(connection_or_pool, "connection", None)):
+        with connection_or_pool.connection() as conn:
+            yield conn
+        return
+    with lock:
+        try:
+            yield connection_or_pool
+        except Exception:
+            rollback = getattr(connection_or_pool, "rollback", None)
+            if callable(rollback):
+                try:
+                    rollback()
+                except Exception:
+                    pass
+            raise
 
 
 class PostgresDocumentRepository:
     def __init__(self, connection: Any) -> None:
         self.connection = connection
+        self._lock = threading.Lock()
 
     def search(self, query_bundle: dict, top_k: int = 20) -> list[dict]:
         sql = """
@@ -59,9 +103,10 @@ class PostgresDocumentRepository:
             "allowed_sources": self._allowed_sources(query_bundle),
             "limit": top_k,
         }
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql, params)
-            rows = cursor.fetchall()
+        with _borrow_connection(self.connection, self._lock) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql, params)
+                rows = cursor.fetchall()
         return [self._normalize_row(row) for row in rows]
 
     def _build_fts_query(self, query_bundle: dict) -> str:
@@ -90,18 +135,19 @@ class PostgresDocumentRepository:
         return allowed or ["news", "announcement", "faq", "product_doc", "research_note"]
 
     def _normalize_row(self, row: Any) -> dict:
-        if isinstance(row, dict):
-            item = row
-        else:
-            item = dict(row)
+        item = dict(row)
+        item["publish_time"] = _iso_temporal(item.get("publish_time"))
+        if item.get("credibility_score") is not None:
+            item["credibility_score"] = to_number(item.get("credibility_score"))
         item.setdefault("evidence_id", f"{item['source_type']}_{item['doc_id']}")
-        item["retrieval_score"] = float(item.get("retrieval_score", 0.0) or 0.0)
+        item["retrieval_score"] = to_number(item.get("retrieval_score")) or 0.0
         return item
 
 
 class PostgresStructuredRepository:
     def __init__(self, connection: Any) -> None:
         self.connection = connection
+        self._lock = threading.Lock()
 
     def fetch(self, query_bundle: dict) -> list[dict]:
         results = []
@@ -110,9 +156,9 @@ class PostgresStructuredRepository:
         for symbol in symbols:
             if "market_api" in source_plan:
                 results.extend(self._fetch_market_history(symbol))
-            if "fundamental_sql" in query_bundle.get("source_plan", []):
+            if "fundamental_sql" in source_plan:
                 results.extend(self._fetch_fundamental(symbol))
-            if "industry_sql" in query_bundle.get("source_plan", []):
+            if "industry_sql" in source_plan:
                 results.extend(self._fetch_industry(symbol))
         if "macro_sql" in source_plan:
             results.extend(self._fetch_macro())
@@ -124,32 +170,41 @@ class PostgresStructuredRepository:
         FROM qi.market_daily
         WHERE symbol = %(symbol)s
         ORDER BY trade_date DESC
-        LIMIT 5
+        LIMIT 30
         """
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql, {"symbol": symbol})
-            rows = cursor.fetchall()
+        with _borrow_connection(self.connection, self._lock) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql, {"symbol": symbol})
+                rows = cursor.fetchall()
         if not rows:
             return []
         normalized_rows = [
-            dict(row) if isinstance(row, dict) else {
-                "symbol": row[0],
-                "trade_date": row[1],
-                "open": row[2],
-                "high": row[3],
-                "low": row[4],
-                "close": row[5],
-                "pct_change": row[6],
-                "volume": row[7],
-                "amount": row[8],
-            }
+            _normalize_mapping(
+                dict(row)
+                if isinstance(row, dict)
+                else {
+                    "symbol": row[0],
+                    "trade_date": row[1],
+                    "open": row[2],
+                    "high": row[3],
+                    "low": row[4],
+                    "close": row[5],
+                    "pct_change": row[6],
+                    "volume": row[7],
+                    "amount": row[8],
+                }
+            )
             for row in rows
         ]
+        for item in normalized_rows:
+            item["pct_change_1d"] = item.get("pct_change")
         latest = normalized_rows[0]
         return [
             {
                 "evidence_id": f"price_{symbol}",
                 "source_type": "market_api",
+                "source_name": "postgres",
+                "provider": "postgres",
                 "payload": {
                     "symbol": symbol,
                     "trade_date": latest["trade_date"],
@@ -162,6 +217,7 @@ class PostgresStructuredRepository:
                     "amount": latest["amount"],
                     "history": normalized_rows,
                     "data_source": "market_daily",
+                    "source_name": "postgres",
                 },
             }
         ]
@@ -174,14 +230,16 @@ class PostgresStructuredRepository:
         ORDER BY report_date DESC
         LIMIT 1
         """
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql, {"symbol": symbol})
-            rows = cursor.fetchall()
-        return [
-            {
-                "evidence_id": f"fundamental_{row['symbol']}" if isinstance(row, dict) else f"fundamental_{row[0]}",
-                "source_type": "fundamental_sql",
-                "payload": dict(row) if isinstance(row, dict) else {
+        with _borrow_connection(self.connection, self._lock) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql, {"symbol": symbol})
+                rows = cursor.fetchall()
+        items = []
+        for row in rows:
+            payload = _normalize_mapping(
+                dict(row)
+                if isinstance(row, dict)
+                else {
                     "symbol": row[0],
                     "report_date": row[1],
                     "revenue": row[2],
@@ -190,10 +248,19 @@ class PostgresStructuredRepository:
                     "gross_margin": row[5],
                     "pe_ttm": row[6],
                     "pb": row[7],
-                },
-            }
-            for row in rows
-        ]
+                }
+            )
+            payload["source_name"] = "postgres"
+            items.append(
+                {
+                    "evidence_id": f"fundamental_{payload['symbol']}",
+                    "source_type": "fundamental_sql",
+                    "source_name": "postgres",
+                    "provider": "postgres",
+                    "payload": payload,
+                }
+            )
+        return items
 
     def _fetch_industry(self, symbol: str) -> list[dict]:
         sql = """
@@ -202,59 +269,84 @@ class PostgresStructuredRepository:
         WHERE symbol = %(symbol)s
         LIMIT 1
         """
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql, {"symbol": symbol})
-            entity_rows = cursor.fetchall()
-            if not entity_rows:
-                return []
-            industry_name = entity_rows[0]["industry_name"] if isinstance(entity_rows[0], dict) else entity_rows[0][0]
-            cursor.execute(
-                """
-                SELECT industry_name, trade_date, pct_change, pe, pb, turnover
-                FROM qi.industry_daily
-                WHERE industry_name = %(industry_name)s
-                ORDER BY trade_date DESC
-                LIMIT 1
-                """,
-                {"industry_name": industry_name},
-            )
-            rows = cursor.fetchall()
-        return [
-            {
-                "evidence_id": f"industry_{industry_name}",
-                "source_type": "industry_sql",
-                "payload": dict(row) if isinstance(row, dict) else {
+        with _borrow_connection(self.connection, self._lock) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql, {"symbol": symbol})
+                entity_rows = cursor.fetchall()
+                if not entity_rows:
+                    return []
+                industry_name = (
+                    entity_rows[0]["industry_name"] if isinstance(entity_rows[0], dict) else entity_rows[0][0]
+                )
+                if not industry_name:
+                    return []
+                cursor.execute(
+                    """
+                    SELECT industry_name, trade_date, pct_change, pe, pb, turnover
+                    FROM qi.industry_daily
+                    WHERE industry_name = %(industry_name)s
+                    ORDER BY trade_date DESC
+                    LIMIT 1
+                    """,
+                    {"industry_name": industry_name},
+                )
+                rows = cursor.fetchall()
+        items = []
+        for row in rows:
+            payload = _normalize_mapping(
+                dict(row)
+                if isinstance(row, dict)
+                else {
                     "industry_name": row[0],
                     "trade_date": row[1],
                     "pct_change": row[2],
                     "pe": row[3],
                     "pb": row[4],
                     "turnover": row[5],
-                },
-            }
-            for row in rows
-        ]
+                }
+            )
+            payload["source_name"] = "postgres"
+            items.append(
+                {
+                    "evidence_id": f"industry_{industry_name}",
+                    "source_type": "industry_sql",
+                    "source_name": "postgres",
+                    "provider": "postgres",
+                    "payload": payload,
+                }
+            )
+        return items
 
     def _fetch_macro(self) -> list[dict]:
         sql = """
-        SELECT indicator_code, metric_date, metric_value, unit
+        SELECT DISTINCT ON (indicator_code) indicator_code, metric_date, metric_value, unit
         FROM qi.macro_indicator
-        ORDER BY metric_date DESC
-        LIMIT 3
+        ORDER BY indicator_code, metric_date DESC
         """
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql, {})
-            rows = cursor.fetchall()
-        return [
-            {
-                "evidence_id": f"macro_{row['indicator_code']}" if isinstance(row, dict) else f"macro_{row[0]}",
-                "source_type": "macro_sql",
-                "payload": dict(row) if isinstance(row, dict) else {
+        with _borrow_connection(self.connection, self._lock) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql, {})
+                rows = cursor.fetchall()
+        items = []
+        for row in rows:
+            payload = _normalize_mapping(
+                dict(row)
+                if isinstance(row, dict)
+                else {
                     "indicator_code": row[0],
                     "metric_date": row[1],
                     "metric_value": row[2],
                     "unit": row[3],
-                },
-            }
-            for row in rows
-        ]
+                }
+            )
+            payload["source_name"] = "postgres"
+            items.append(
+                {
+                    "evidence_id": f"macro_{payload['indicator_code']}",
+                    "source_type": "macro_sql",
+                    "source_name": "postgres",
+                    "provider": "postgres",
+                    "payload": payload,
+                }
+            )
+        return items

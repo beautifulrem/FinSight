@@ -503,7 +503,10 @@
                 "upper": {"type": "number"},
                 "middle": {"type": "number"},
                 "lower": {"type": "number"},
-                "bandwidth": {"type": "number", "description": "Bandwidth as % of middle band"}
+                "bandwidth": {
+                  "anyOf": [{"type": "number"}, {"type": "null"}],
+                  "description": "Bandwidth as % of middle band"
+                }
               }
             },
             "price_vs_ma": {

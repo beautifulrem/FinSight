@@ -91,6 +91,12 @@ class RetrievalPipeline:
         # process-wide runtime with the live providers and the ``/sources/health`` endpoint.
         self.source_runtime = SourceRuntime()
         self.market_bundle_ttl_s = 60.0
+        self._postgres_pool = None
+
+    def close(self) -> None:
+        pool, self._postgres_pool = self._postgres_pool, None
+        if pool is not None and hasattr(pool, "close"):
+            pool.close()
 
     @classmethod
     def build_demo(cls) -> "RetrievalPipeline":
@@ -113,10 +119,27 @@ class RetrievalPipeline:
         def offline_snapshot() -> dict:
             return load_structured_data(settings.offline_snapshot_ext, settings.offline_snapshot_fix)
 
+        postgres_pool = None
         if settings.use_postgres_retrieval and settings.postgres_dsn:
-            connection = psycopg.connect(settings.postgres_dsn, row_factory=dict_row)
-            text_retriever = PostgresDocumentRepository(connection)
-            sql_retriever = PostgresStructuredRepository(connection)
+            from psycopg_pool import ConnectionPool
+
+            connect_timeout = max(1.0, float(settings.request_timeout_seconds or 5))
+            postgres_pool = ConnectionPool(
+                conninfo=settings.postgres_dsn,
+                min_size=1,
+                max_size=4,
+                kwargs={"autocommit": True, "row_factory": dict_row},
+                timeout=connect_timeout,
+                name="retrieval",
+                open=False,
+            )
+            try:
+                postgres_pool.open(wait=True, timeout=connect_timeout)
+            except Exception:
+                postgres_pool.close()
+                raise
+            text_retriever = PostgresDocumentRepository(postgres_pool)
+            sql_retriever = PostgresStructuredRepository(postgres_pool)
         else:
             structured = offline_snapshot()
             text_retriever = DocumentRetriever(load_documents())
@@ -124,7 +147,10 @@ class RetrievalPipeline:
 
         runtime = get_default_runtime()
         if settings.use_live_market and settings.tushare_token:
-            market_provider = TushareMarketProvider.from_token(settings.tushare_token)
+            market_provider = TushareMarketProvider.from_token(
+                settings.tushare_token,
+                timeout=settings.request_timeout_seconds,
+            )
             api_retriever = APIRetriever(offline_snapshot())
         elif settings.use_live_market:
             market_provider = AKShareMarketProvider.from_import(
@@ -152,6 +178,7 @@ class RetrievalPipeline:
             selector=DocumentSelector(),
             packager=RetrievalPackager(),
         )
+        instance._postgres_pool = postgres_pool
         instance.source_runtime = runtime
         # which offline snapshot layers this pipeline was built with (GET /ready reports them, round-10 review J2)
         instance.snapshot_layer_settings = (settings.offline_snapshot_ext, settings.offline_snapshot_fix)
@@ -162,7 +189,9 @@ class RetrievalPipeline:
         if settings.use_live_news:
             instance.news_providers.append(AKShareNewsProvider.from_import(runtime=runtime))
             if settings.tushare_token:
-                instance.news_providers.append(TushareNewsProvider.from_token(settings.tushare_token))
+                instance.news_providers.append(
+                    TushareNewsProvider.from_token(settings.tushare_token, timeout=settings.request_timeout_seconds)
+                )
         if settings.use_live_announcement:
             instance.announcement_provider = FallbackAnnouncementProvider.build_default(
                 url=settings.cninfo_announcement_url,
@@ -277,11 +306,13 @@ class RetrievalPipeline:
         live_industry_names: set[str] = set()
         live_failure_reasons: dict[str, str] = {}
 
-        for symbol, canonical_name in self._iter_entity_targets(query_bundle):
+        for symbol, canonical_name, target_product_type in self._iter_entity_targets_with_type(query_bundle):
             if not symbol:
                 continue
             try:
-                live_market = self._fetch_market_bundle(symbol, canonical_name, product_type, start_date, end_date)
+                live_market = self._fetch_market_bundle(
+                    symbol, canonical_name, target_product_type, start_date, end_date
+                )
             except Exception as exc:
                 logger.warning("Market provider fetch failed for %s: %s", symbol, exc)
                 failed_live_market_symbols.add(symbol)
@@ -329,10 +360,10 @@ class RetrievalPipeline:
                         }
                     )
             requested_fund_sources = requested_live_sources.intersection({"fund_nav", "fund_fee", "fund_redemption", "fund_profile"})
-            if product_type in {"etf", "fund"} and ("market_api" in requested_live_sources or requested_fund_sources):
+            if target_product_type in {"etf", "fund"} and ("market_api" in requested_live_sources or requested_fund_sources):
                 live_fund_items.extend(self._build_live_fund_items(symbol, live_market))
             requested_index_sources = requested_live_sources.intersection({"index_daily", "index_valuation"})
-            if product_type == "index" and ("market_api" in requested_live_sources or requested_index_sources):
+            if target_product_type == "index" and ("market_api" in requested_live_sources or requested_index_sources):
                 live_index_items.extend(self._build_live_index_items(symbol, live_market))
 
         filtered_items = []
@@ -796,14 +827,37 @@ class RetrievalPipeline:
         return docs
 
     def _iter_entity_targets(self, query_bundle: dict):
+        for symbol, canonical_name, _product_type in self._iter_entity_targets_with_type(query_bundle):
+            yield symbol, canonical_name
+
+    def _iter_entity_targets_with_type(self, query_bundle: dict):
+        default_type = query_bundle.get("product_type", "stock")
+        explicit_targets = query_bundle.get("entity_targets")
+        if isinstance(explicit_targets, list):
+            for target in explicit_targets:
+                if not isinstance(target, dict):
+                    continue
+                symbol = str(target.get("symbol") or "").strip()
+                canonical_name = str(target.get("canonical_name") or symbol).strip()
+                entity_type = str(target.get("entity_type") or "").strip()
+                target_type = entity_type if entity_type in {"stock", "etf", "fund", "index"} else default_type
+                if symbol or canonical_name:
+                    yield symbol, canonical_name, target_type
+            return
+
         entity_names = query_bundle.get("entity_names", [])
         symbols = query_bundle.get("symbols", [])
+        if symbols and len(entity_names) != len(symbols):
+            for symbol in symbols:
+                if symbol:
+                    yield symbol, symbol, default_type
+            return
         count = max(len(entity_names), len(symbols))
         for index in range(count):
             symbol = symbols[index] if index < len(symbols) else ""
             canonical_name = entity_names[index] if index < len(entity_names) else symbol
             if symbol or canonical_name:
-                yield symbol, canonical_name
+                yield symbol, canonical_name, default_type
 
     def _compute_executed_sources(self, deduped_docs: list[dict], structured_items: list[dict]) -> list[str]:
         executed_sources: list[str] = []

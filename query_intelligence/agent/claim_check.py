@@ -988,13 +988,13 @@ def check_claim(claim: str, *, service: Any, registry: ToolRegistry, zh: bool = 
     # financial terms ("純利…按年增長", "市賬率") in their mainland form
     claim = _AMPERSAND.sub(" and ", normalise_text(claim))
     # (round 14) the NLU reads "两个半招行" as 两个 / 半招 / 行; the company is a word of "相当于2.5倍招行"
-    nlu = service.analyze_query(_n_of_another(claim))
+    nlu = service.analyze_query(_n_of_another(claim)[:2000])
     # (round 16, review 12 L9) everyday short names ("紫金", "宁德", "平银"): written out before the NLU reads the
     # claim; an ambiguous one ("长电": 长江电力 or 长电科技) is its own target that no data belongs to
     expanded, ambiguous = _expand_short_names(claim, nlu.get("entities") or [])
     if expanded != claim:
         claim = expanded
-        nlu = service.analyze_query(_n_of_another(claim))
+        nlu = service.analyze_query(_n_of_another(claim)[:2000])
     targets: list[dict[str, Any]] = list(ambiguous)
     for entity in nlu.get("entities") or []:
         listed = entity.get("symbol") and entity.get("entity_type") in {"stock", "etf", "fund", "index"}
@@ -4369,7 +4369,11 @@ def _relation_at(
     )
     clause = plain[clause_start:clause_end]
     summed = None
-    if kind == "target" and not (ref_target or {}).get("aggregate"):
+    if (
+        kind == "target"
+        and not (ref_target or {}).get("aggregate")
+        and _TOTAL_WORDS.search(text, ref_end, sentence_end)
+    ):
         # (round 15) English lists too ("than CMB, Ping An Bank and CITIC combined": "and" ends a clause)
         summed = _SUMMED_LIST.match(text, ref_end, clause_end) or _UNLISTED_TOTAL.match(text, ref_end, sentence_end)
     if metric is None:
@@ -4391,8 +4395,9 @@ def _relation_at(
 # language ("、蔚来和小鹏三家的利润之和", ", Ping An Bank and CITIC combined"): the total cannot be computed, and the
 # first company alone is another quantity
 _UNLISTED_TOTAL = re.compile(
-    r"(?P<list>(?:\s*(?:、|，|,|和|与|及|以及|跟|\band\b|\bplus\b|&)\s*(?:the\s+)?"
-    r"[^，,。；;！!？?\d、和与及]{1,30}?(?:'s|’s|s'|')?)+)"
+    r"(?P<list>(?:\s*+(?:、|，|,|和|与|及|以及|跟|\band\b|\bplus\b|&)\s*+(?:the\s++)?"
+    r"(?!\s*(?:\band\b|\bplus\b|以及))[^\s，,。；;！!？?\d、和与及跟&]"
+    r"(?:(?!\s*(?:\band\b|\bplus\b|以及))[^，,。；;！!？?\d、和与及跟&]){0,29}?(?:'s|’s|s'|')?)+)"
     rf"\s*(?:{_COUNT_WORD})?\s*(?:的)?\s*[^，,。；;！!？?\d]{{0,8}}?{_TOTAL_WORDS}",
     re.I,
 )

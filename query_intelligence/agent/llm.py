@@ -87,6 +87,11 @@ def stall_timeout_active() -> bool:
     return _STALL_TIMEOUT.get() is not None
 
 
+def ignore_delta(_text: str) -> None:
+    """No-op delta sink used solely to enable chunk-stall timeouts without emitting client deltas."""
+    return None
+
+
 class LLMError(RuntimeError):
     def __init__(self, message: str, *, retryable: bool = False, status_code: int | None = None) -> None:
         super().__init__(message)
@@ -480,7 +485,10 @@ class DeepSeekToolClient:
                         retryable=retryable,
                         status_code=response.status_code,
                     )
+                deadline = _CALL_DEADLINE.get()
                 for line in response.iter_lines():
+                    if deadline is not None and time.time() >= deadline:
+                        raise LLMError("run deadline reached during streamed LLM response", retryable=False)
                     if not line.startswith("data:"):
                         continue
                     data = line[5:].strip()
@@ -581,6 +589,7 @@ class FallbackLLM:
         self.failure_threshold = max(1, failure_threshold)
         self.cooldown_s = cooldown_s
         self._clock = clock
+        self._lock = threading.Lock()
         self._failures = [0] * len(self.clients)
         self._opened_at: list[float | None] = [None] * len(self.clients)
         self._calls = [0] * len(self.clients)
@@ -608,9 +617,20 @@ class FallbackLLM:
     ) -> AssistantTurn:
         last_error: LLMError | None = None
         for index, client in enumerate(self.clients):
-            if self._is_open(index):
-                continue
-            self._calls[index] += 1
+            with self._lock:
+                if self._is_open(index):
+                    continue
+                self._calls[index] += 1
+            emitted_delta = False
+
+            def _tracked_delta(piece: str) -> None:
+                nonlocal emitted_delta
+                if piece and on_delta is not None and on_delta is not ignore_delta:
+                    emitted_delta = True
+                if on_delta is not None:
+                    on_delta(piece)
+
+            wrapped_delta = _tracked_delta if on_delta is not None else None
             try:
                 turn = client.chat(
                     messages,
@@ -619,15 +639,20 @@ class FallbackLLM:
                     json_mode=json_mode,
                     max_tokens=max_tokens,
                     reasoning=reasoning,
-                    on_delta=on_delta,
+                    on_delta=wrapped_delta,
                 )
             except LLMError as exc:
                 last_error = exc
-                self._failures[index] += 1
-                if self._failures[index] >= self.failure_threshold:
-                    self._opened_at[index] = self._clock()
+                with self._lock:
+                    self._failures[index] += 1
+                    if self._failures[index] >= self.failure_threshold:
+                        self._opened_at[index] = self._clock()
+                if emitted_delta:
+                    # Do not concatenate a second model's stream onto partial deltas already sent to the client.
+                    raise
                 continue
-            self._failures[index] = 0
+            with self._lock:
+                self._failures[index] = 0
             return turn if turn.model else turn.model_copy(update={"model": client.model})
         raise last_error or LLMError("all LLM clients are unavailable (circuits open)")
 
@@ -641,16 +666,17 @@ class FallbackLLM:
         return dict(total)
 
     def stats(self) -> list[dict[str, Any]]:
-        return [
-            {
-                "model": client.model,
-                "calls": self._calls[index],
-                "consecutive_failures": self._failures[index],
-                "circuit_open": self._opened_at[index] is not None,
-                "state": self._state(index),
-            }
-            for index, client in enumerate(self.clients)
-        ]
+        with self._lock:
+            return [
+                {
+                    "model": client.model,
+                    "calls": self._calls[index],
+                    "consecutive_failures": self._failures[index],
+                    "circuit_open": self._opened_at[index] is not None,
+                    "state": self._state(index),
+                }
+                for index, client in enumerate(self.clients)
+            ]
 
     def _state(self, index: int) -> str:
         """``closed``, ``open``, or ``half_open`` once the cool-down has passed (next call is a trial)."""

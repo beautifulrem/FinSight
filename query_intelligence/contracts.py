@@ -15,6 +15,8 @@ MAX_USER_PROFILE_FIELDS = 64
 MAX_DIALOG_CONTEXT_ITEMS = 32
 
 ShortText = Annotated[str, Field(max_length=MAX_NLU_TEXT_LENGTH)]
+SYMBOL_TEXT_PATTERN = r"^[A-Za-z0-9_.:-]{1,64}$"
+TickerSymbol = Annotated[str, Field(max_length=64, pattern=SYMBOL_TEXT_PATTERN)]
 
 QuestionStyle = Literal["fact", "why", "compare", "advice", "forecast"]
 TimeScope = Literal[
@@ -45,7 +47,7 @@ class EntityMatch(BaseModel):
     match_type: ShortText
     entity_id: int | None = None
     canonical_name: ShortText | None = None
-    symbol: ShortText | None = None
+    symbol: TickerSymbol | None = None
     exchange: ShortText | None = None
 
 
@@ -213,6 +215,8 @@ class AgentEvidenceSource(BaseModel):
     kind: str
     source_type: str | None = None
     title: str | None = None
+    title_withheld: bool | None = None
+    name_en: str | None = None
     source_name: str | None = None
     source_url: str | None = None
     as_of: str | None = None

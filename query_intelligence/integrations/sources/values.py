@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
 _MAGNITUDES = (("万亿", 1e12), ("亿", 1e8), ("万", 1e4))
@@ -17,11 +18,11 @@ _MAGNITUDES = (("万亿", 1e12), ("亿", 1e8), ("万", 1e4))
 def to_number(value: Any) -> float | None:
     if value is None or isinstance(value, bool):
         return None
-    if isinstance(value, int | float):
+    if isinstance(value, int | float | Decimal):
         number = float(value)
         return None if math.isnan(number) or math.isinf(number) else number
     text = str(value).strip().replace(",", "")
-    if not text or text.startswith("--") or text.lower() in {"nan", "none", "null", "false"}:
+    if not text or text.startswith("--") or text.lower() in {"nan", "none", "null", "false", "inf", "-inf", "+inf"}:
         return None
     multiplier = 1.0
     for suffix, factor in _MAGNITUDES:
@@ -40,7 +41,7 @@ def to_number(value: Any) -> float | None:
 def is_missing(value: Any) -> bool:
     if value is None:
         return True
-    if isinstance(value, float) and math.isnan(value):
+    if isinstance(value, float | Decimal) and not math.isfinite(float(value)):
         return True
     return isinstance(value, str) and (not value.strip() or value.strip().startswith("---"))
 

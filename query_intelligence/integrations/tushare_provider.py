@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
+from .sources.values import is_missing, to_number
+
 
 def _row_get(row: object, key: str):
     if isinstance(row, dict):
@@ -11,15 +13,25 @@ def _row_get(row: object, key: str):
     return getattr(row, key)
 
 
+def _num_get(row: object | None, key: str) -> float | None:
+    if row is None:
+        return None
+    return to_number(_row_get(row, key))
+
+
 @dataclass
 class TushareMarketProvider:
     client: object
 
     @classmethod
-    def from_token(cls, token: str) -> "TushareMarketProvider":
+    def from_token(cls, token: str, timeout: int = 15) -> "TushareMarketProvider":
         import tushare as ts
 
-        return cls(client=ts.pro_api(token))
+        try:
+            client = ts.pro_api(token, timeout=timeout)
+        except TypeError:
+            client = ts.pro_api(token)
+        return cls(client=client)
 
     def fetch_bundle(self, symbol: str, start_date: str, end_date: str) -> dict:
         errors: list[str] = []
@@ -50,7 +62,7 @@ class TushareMarketProvider:
         basic_trade_date = ""
         if daily_row:
             trade_date = _row_get(daily_row, "trade_date")
-            if trade_date:
+            if trade_date and not is_missing(trade_date):
                 basic_trade_date = str(trade_date).replace("-", "")
 
         basic_row = None
@@ -83,18 +95,18 @@ class TushareMarketProvider:
             "source_name": "tushare",
             **daily_trace,
             "trade_date": self._normalize_trade_date(_row_get(daily_row, "trade_date")) if daily_row else None,
-            "open": _row_get(daily_row, "open") if daily_row else None,
-            "high": _row_get(daily_row, "high") if daily_row else None,
-            "low": _row_get(daily_row, "low") if daily_row else None,
-            "close": _row_get(daily_row, "close") if daily_row else None,
-            "volume": _row_get(daily_row, "vol") if daily_row else None,
-            "amount": _row_get(daily_row, "amount") if daily_row else None,
-            "pct_change_1d": _row_get(daily_row, "pct_chg") if daily_row else None,
+            "open": _num_get(daily_row, "open"),
+            "high": _num_get(daily_row, "high"),
+            "low": _num_get(daily_row, "low"),
+            "close": _num_get(daily_row, "close"),
+            "volume": _num_get(daily_row, "vol"),
+            "amount": _num_get(daily_row, "amount"),
+            "pct_change_1d": _num_get(daily_row, "pct_chg"),
             "history": history,
-            "roe": _row_get(fina_row, "roe") if fina_row else None,
-            "grossprofit_margin": _row_get(fina_row, "grossprofit_margin") if fina_row else None,
-            "netprofit_yoy": _row_get(fina_row, "netprofit_yoy") if fina_row else None,
-            "profit_dedt": _row_get(fina_row, "profit_dedt") if fina_row else None,
+            "roe": _num_get(fina_row, "roe"),
+            "grossprofit_margin": _num_get(fina_row, "grossprofit_margin"),
+            "netprofit_yoy": _num_get(fina_row, "netprofit_yoy"),
+            "profit_dedt": _num_get(fina_row, "profit_dedt"),
         }
         fundamental_payload = {}
         if fina_row:
@@ -109,14 +121,14 @@ class TushareMarketProvider:
                 "source_name": "tushare",
                 **fina_trace,
                 "report_date": self._normalize_trade_date(_row_get(fina_row, "end_date")),
-                "pe_ttm": _row_get(basic_row, "pe_ttm") if basic_row else None,
-                "pb": _row_get(basic_row, "pb") if basic_row else None,
+                "pe_ttm": _num_get(basic_row, "pe_ttm"),
+                "pb": _num_get(basic_row, "pb"),
                 # PE/PB come from daily_basic on the latest trade date, not from the report.
                 "valuation_date": self._normalize_trade_date(basic_trade_date) if basic_row else None,
-                "roe": _row_get(fina_row, "roe"),
-                "grossprofit_margin": _row_get(fina_row, "grossprofit_margin"),
-                "netprofit_yoy": _row_get(fina_row, "netprofit_yoy"),
-                "profit_dedt": _row_get(fina_row, "profit_dedt"),
+                "roe": _num_get(fina_row, "roe"),
+                "grossprofit_margin": _num_get(fina_row, "grossprofit_margin"),
+                "netprofit_yoy": _num_get(fina_row, "netprofit_yoy"),
+                "profit_dedt": _num_get(fina_row, "profit_dedt"),
             }
         return {
             "source_type": "market_api",
@@ -142,13 +154,13 @@ class TushareMarketProvider:
         for row in items[:30]:
             history.append({
                 "trade_date": self._normalize_trade_date(_row_get(row, "trade_date")),
-                "open": _row_get(row, "open"),
-                "high": _row_get(row, "high"),
-                "low": _row_get(row, "low"),
-                "close": _row_get(row, "close"),
-                "pct_change_1d": _row_get(row, "pct_chg"),
-                "volume": _row_get(row, "vol"),
-                "amount": _row_get(row, "amount"),
+                "open": _num_get(row, "open"),
+                "high": _num_get(row, "high"),
+                "low": _num_get(row, "low"),
+                "close": _num_get(row, "close"),
+                "pct_change_1d": _num_get(row, "pct_chg"),
+                "volume": _num_get(row, "vol"),
+                "amount": _num_get(row, "amount"),
             })
         return history
 
@@ -172,8 +184,9 @@ class TushareMarketProvider:
         return None
 
     def _normalize_trade_date(self, trade_date: str | None) -> str | None:
-        if not trade_date:
+        if not trade_date or is_missing(trade_date):
             return None
+        trade_date = str(trade_date)
         if "-" in trade_date:
             return trade_date
         return datetime.strptime(trade_date, "%Y%m%d").date().isoformat()
@@ -185,10 +198,14 @@ class TushareNewsProvider:
     default_src: str = "新浪财经"
 
     @classmethod
-    def from_token(cls, token: str, default_src: str = "新浪财经") -> "TushareNewsProvider":
+    def from_token(cls, token: str, default_src: str = "新浪财经", timeout: int = 15) -> "TushareNewsProvider":
         import tushare as ts
 
-        return cls(client=ts.pro_api(token), default_src=default_src)
+        try:
+            client = ts.pro_api(token, timeout=timeout)
+        except TypeError:
+            client = ts.pro_api(token)
+        return cls(client=client, default_src=default_src)
 
     def fetch_news(self, symbol: str, canonical_name: str, limit: int = 10) -> list[dict]:
         end = date.today()
@@ -200,25 +217,36 @@ class TushareNewsProvider:
             fields="title,content,pub_time,src",
         )
         items = rows if isinstance(rows, list) else rows.to_dict("records")
-        normalized_symbol = symbol if "." in symbol else (f"{symbol}.SH" if symbol.startswith(("6", "5")) else f"{symbol}.SZ")
+        if "." in symbol:
+            normalized_symbol = symbol
+        elif symbol.startswith(("4", "8", "92")):
+            normalized_symbol = f"{symbol}.BJ"
+        elif symbol.startswith(("6", "5")):
+            normalized_symbol = f"{symbol}.SH"
+        else:
+            normalized_symbol = f"{symbol}.SZ"
         normalized_name = canonical_name or normalized_symbol
         results = []
         for row in items:
-            title = _row_get(row, "title") or normalized_name
-            content = _row_get(row, "content") or ""
+            raw_title = _row_get(row, "title")
+            raw_content = _row_get(row, "content")
+            title = str(raw_title) if not is_missing(raw_title) else normalized_name
+            content = str(raw_content) if not is_missing(raw_content) else ""
             if normalized_name not in f"{title}{content}" and symbol.split(".")[0] not in f"{title}{content}":
                 continue
+            raw_src = _row_get(row, "src")
+            pub_time = _row_get(row, "pub_time")
             results.append(
                 {
                     "evidence_id": f"tsnews_{normalized_symbol}_{len(results)+1}",
                     "doc_id": None,
                     "source_type": "news",
-                    "source_name": _row_get(row, "src") or "tushare",
+                    "source_name": str(raw_src) if not is_missing(raw_src) else "tushare",
                     "source_url": None,
                     "title": title,
                     "summary": content[:120],
                     "body": content,
-                    "publish_time": self._normalize_time(_row_get(row, "pub_time")),
+                    "publish_time": self._normalize_time(None if is_missing(pub_time) else str(pub_time)),
                     "product_type": "stock",
                     "credibility_score": 0.76,
                     "entity_symbols": [normalized_symbol],

@@ -267,6 +267,7 @@ export interface ChatOptions {
   mode: UiMode;
   apiKey: string;
   onSession?: (sessionId: string) => void;
+  onSessionInvalidated?: () => void;
 }
 
 interface Run {
@@ -376,8 +377,16 @@ export function useChat(options: ChatOptions) {
         await runStream();
       }
     } catch (error) {
-      if (run.abort.signal.aborted) dispatch({ type: "stopped", id });
-      else emit({ type: "error", id, error: classifyError(error) });
+      if (run.abort.signal.aborted) {
+        dispatch({ type: "stopped", id });
+      } else {
+        if (error instanceof ApiError && error.status === 404 && sessionId) {
+          issued.current = null;
+          emit({ type: "pending", clarification: null });
+          optionsRef.current.onSessionInvalidated?.();
+        }
+        emit({ type: "error", id, error: classifyError(error) });
+      }
     } finally {
       if (frame !== null) cancelFrame(frame);
       if (current.current === run) current.current = null;

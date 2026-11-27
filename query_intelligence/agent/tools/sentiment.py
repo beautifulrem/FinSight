@@ -112,6 +112,16 @@ def build_sentiment_tool(context: ToolContext) -> ToolSpec:
                 state["backend"] = _select_backend(context)
             return state["backend"]  # type: ignore[return-value]
 
+    def fallback_to_classical(exc: Exception) -> SentimentBackend:
+        with backend_lock:
+            current = state["backend"]
+            if current is not None and current.name == "classical":
+                return current
+            logger.warning("FinBERT sentiment inference unavailable, falling back to classical backend: %s", exc)
+            classical = _classical_backend(context)
+            state["backend"] = classical
+            return classical
+
     def handler(args: SentimentInput) -> ToolOutput:
         resolved = [context.resolve_target(target) for target in args.targets]
         bundle = context.bundle(
@@ -138,7 +148,13 @@ def build_sentiment_tool(context: ToolContext) -> ToolSpec:
             text = " ".join(
                 part for part in (document.get("title"), document.get("summary") or document.get("body")) if part
             )
-            label, bullish, confidence = _score_document(scorer, text)
+            try:
+                label, bullish, confidence = _score_document(scorer, text)
+            except Exception as exc:
+                if scorer.name != "finbert":
+                    raise
+                scorer = fallback_to_classical(exc)
+                label, bullish, confidence = _score_document(scorer, text)
             scored.append(
                 DocumentSentiment(
                     evidence_id=item.evidence_id,
@@ -195,13 +211,7 @@ def build_sentiment_tool(context: ToolContext) -> ToolSpec:
     )
 
 
-def _select_backend(context: ToolContext) -> SentimentBackend:
-    requested = os.getenv("QI_AGENT_SENTIMENT_BACKEND", "classical").strip().lower()
-    if requested == "finbert":
-        try:
-            return FinBertSentimentBackend()
-        except Exception as exc:  # optional heavy dependency; fall back to the classical model
-            logger.warning("FinBERT sentiment backend unavailable, using classical backend: %s", exc)
+def _classical_backend(context: ToolContext) -> SentimentBackend:
     classifier = getattr(context.nlu_pipeline, "sentiment_classifier", None)
     if classifier is None:
         from pathlib import Path
@@ -214,6 +224,16 @@ def _select_backend(context: ToolContext) -> SentimentBackend:
             raise ToolFailure("unavailable", "no sentiment model is available")
         classifier = SingleLabelTextClassifier.load_model(model_path)
     return ClassicalSentimentBackend(classifier)
+
+
+def _select_backend(context: ToolContext) -> SentimentBackend:
+    requested = os.getenv("QI_AGENT_SENTIMENT_BACKEND", "classical").strip().lower()
+    if requested == "finbert":
+        try:
+            return FinBertSentimentBackend()
+        except Exception as exc:  # optional heavy dependency; fall back to the classical model
+            logger.warning("FinBERT sentiment backend unavailable, using classical backend: %s", exc)
+    return _classical_backend(context)
 
 
 def _score_document(scorer: SentimentBackend, text: str) -> tuple[str, float, float]:

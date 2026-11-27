@@ -103,7 +103,18 @@ from .injection import (
     sanitize_untrusted_text,
     tool_message_content,
 )
-from .llm import LLMClient, LLMError, Pricing, Usage, llm_deadline, model_capabilities, resolve_cost
+from .llm import (
+    LLMClient,
+    LLMError,
+    Pricing,
+    Usage,
+    llm_deadline,
+    model_capabilities,
+    resolve_cost,
+)
+from .llm import (
+    ignore_delta as _ignore_delta,
+)
 from .memory import (
     GROUP_COUNT_MISMATCH,
     MAX_HISTORY_TURNS,
@@ -318,6 +329,12 @@ class AgentRuntime:
 
     def close(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)
+        shutdown = getattr(self.registry, "shutdown", None)
+        if callable(shutdown):
+            shutdown()
+        close_llm = getattr(self.llm, "close", None)
+        if callable(close_llm):
+            close_llm()
 
     # ------------------------------------------------------------------ nodes
 
@@ -2008,10 +2025,6 @@ def _context_composition(messages: list[dict[str, Any]], tools: list[dict[str, A
     if tools:
         parts["tool_schemas"] = len(json.dumps(tools, ensure_ascii=False))
     return parts
-
-
-def _ignore_delta(_text: str) -> None:
-    return None
 
 
 def _answer_delta_callback() -> Callable[[str], None]:

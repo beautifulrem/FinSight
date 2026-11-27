@@ -13,9 +13,11 @@ from __future__ import annotations
 import os
 import re
 import sqlite3
+import threading
+from collections import OrderedDict
 from typing import Any
 
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.memory import InMemorySaver as _LangGraphInMemorySaver
 
 from .frame import latest_frame, memory_view, metric_label, metric_of
 from .glossary import definition_question
@@ -24,6 +26,53 @@ from .router import has_macro_content, is_dangling_why
 MAX_CONTEXT_TURNS = 3
 MAX_HISTORY_TURNS = 2
 _HISTORY_ANSWER_CHARS = 600
+DEFAULT_MAX_MEMORY_SESSIONS = 512
+
+
+class InMemorySaver(_LangGraphInMemorySaver):
+    """Process-local ``InMemorySaver`` with bounded LRU session eviction."""
+
+    def __init__(self, *, max_sessions: int | None = None, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        if max_sessions is None:
+            max_sessions = int(os.getenv("QI_AGENT_MAX_MEMORY_SESSIONS", str(DEFAULT_MAX_MEMORY_SESSIONS)))
+        self.max_sessions = max(1, max_sessions)
+        self._lru: OrderedDict[str, None] = OrderedDict()
+        self._lru_lock = threading.Lock()
+
+    def get_tuple(self, config: Any) -> Any:
+        thread_id = (config or {}).get("configurable", {}).get("thread_id")
+        if thread_id:
+            with self._lru_lock:
+                if thread_id in self._lru:
+                    self._lru.move_to_end(thread_id)
+        return super().get_tuple(config)
+
+    def put(self, config: Any, checkpoint: Any, metadata: Any, new_versions: Any) -> Any:
+        result = super().put(config, checkpoint, metadata, new_versions)
+        thread_id = (config or {}).get("configurable", {}).get("thread_id")
+        if thread_id:
+            evicted: list[str] = []
+            with self._lru_lock:
+                self._lru[thread_id] = None
+                self._lru.move_to_end(thread_id)
+                while len(self._lru) > self.max_sessions:
+                    oldest, _ = self._lru.popitem(last=False)
+                    if oldest != thread_id:
+                        evicted.append(oldest)
+            for old_thread in evicted:
+                self._evict_thread(old_thread)
+        return result
+
+    def _evict_thread(self, thread_id: str) -> None:
+        if hasattr(super(), "delete_thread"):
+            super().delete_thread(thread_id)
+            return
+        self.storage.pop(thread_id, None)
+        for key in [key for key in list(self.writes) if key and key[0] == thread_id]:
+            self.writes.pop(key, None)
+        for key in [key for key in list(self.blobs) if key and key[0] == thread_id]:
+            self.blobs.pop(key, None)
 
 
 def make_checkpointer(path: str | None = None) -> Any:
@@ -1192,15 +1241,19 @@ def apply_clarification(query: str, reply: str) -> tuple[str, str]:
     otherwise it is prepended so the NLU sees the entity. Returns ``(query, reason)``.
     """
     reply = clarification_reply_text(reply)
+    reason = f"clarified:{reply}"[:256]
     possessive = _POSSESSIVE_EN.search(query)
     if possessive:
-        return f"{query[: possessive.start()]}{reply}'s{query[possessive.end() :]}", f"clarified:{reply}"
+        combined = f"{query[: possessive.start()]}{reply}'s{query[possessive.end() :]}"
+        return combined[:2000], reason
     for pattern in (_PRONOUN_ZH, _PRONOUN_EN):
         match = pattern.search(query)
         if match:
-            return f"{query[: match.start()]}{reply}{query[match.end() :]}", f"clarified:{reply}"
+            combined = f"{query[: match.start()]}{reply}{query[match.end() :]}"
+            return combined[:2000], reason
     separator = "" if re.search(r"[\u4e00-\u9fff]$", reply) else " "
-    return f"{reply}{separator}{query}", f"clarified:{reply}"
+    combined = f"{reply}{separator}{query}"
+    return combined[:2000], reason
 
 
 def is_target_only_reply(reply: str, nlu: dict[str, Any]) -> bool:
