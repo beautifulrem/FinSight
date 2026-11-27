@@ -92,13 +92,15 @@ def default_probes() -> list[Probe]:
 
         return ef.stock.get_quote_history(PROBE_SYMBOL, beg=recent, end=end, klt=101, fqt=1)
 
+    lpr_endpoint = "akshare.interest_rate_lpr_em" if hasattr(ak, "interest_rate_lpr_em") else "akshare.macro_china_lpr"
+    lpr_fn = getattr(ak, "interest_rate_lpr_em", None) or ak.macro_china_lpr
     probes = [
         Probe(
             "eastmoney.quote",
             "akshare.stock_zh_a_hist",
             lambda: ak.stock_zh_a_hist(symbol=PROBE_SYMBOL, period="daily", start_date=recent, end_date=end),
         ),
-        Probe("eastmoney.datacenter", "akshare.macro_china_lpr", ak.macro_china_lpr),
+        Probe("eastmoney.datacenter", lpr_endpoint, lpr_fn),
         Probe(
             "eastmoney.fund",
             "akshare.fund_open_fund_info_em",

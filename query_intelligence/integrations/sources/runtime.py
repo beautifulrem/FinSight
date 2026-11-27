@@ -55,7 +55,13 @@ def ensure_js_engine_ready() -> None:
         try:
             import py_mini_racer
 
-            py_mini_racer.MiniRacer().eval("0")
+            mr = py_mini_racer.MiniRacer()
+            try:
+                mr.eval("0")
+            finally:
+                close_mr = getattr(mr, "close", None)
+                if callable(close_mr):
+                    close_mr()
         except Exception:  # missing package or unusable engine: the calls that need it fail on their own
             pass
         _js_engine_ready = True

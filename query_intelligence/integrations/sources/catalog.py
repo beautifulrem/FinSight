@@ -58,6 +58,7 @@ ENDPOINT_SOURCES: dict[str, str] = {
     "akshare.macro_china_pmi": "eastmoney.datacenter",
     "akshare.macro_china_money_supply": "eastmoney.datacenter",
     "akshare.macro_china_lpr": "eastmoney.datacenter",
+    "akshare.interest_rate_lpr_em": "eastmoney.datacenter",
     "akshare.bond_zh_us_rate": "eastmoney.datacenter",
     "akshare.fund_open_fund_info_em": "eastmoney.fund",
     "akshare.fund_overview_em": "eastmoney.fund",

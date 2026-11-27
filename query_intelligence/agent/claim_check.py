@@ -4369,11 +4369,7 @@ def _relation_at(
     )
     clause = plain[clause_start:clause_end]
     summed = None
-    if (
-        kind == "target"
-        and not (ref_target or {}).get("aggregate")
-        and _TOTAL_WORDS.search(text, ref_end, sentence_end)
-    ):
+    if kind == "target" and not (ref_target or {}).get("aggregate"):
         # (round 15) English lists too ("than CMB, Ping An Bank and CITIC combined": "and" ends a clause)
         summed = _SUMMED_LIST.match(text, ref_end, clause_end) or _UNLISTED_TOTAL.match(text, ref_end, sentence_end)
     if metric is None:

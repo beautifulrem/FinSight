@@ -1044,13 +1044,22 @@ def test_js_engine_initialisation_survives_concurrent_first_use():
     pytest.importorskip("py_mini_racer")
     script = (
         "import threading\n"
-        "from query_intelligence.integrations.sources.runtime import _run_with_timeout\n"
+        "from query_intelligence.integrations.sources.runtime import _run_with_timeout, default_call_pool\n"
         "import py_mini_racer\n"
+        "def eval_one():\n"
+        "    mr = py_mini_racer.MiniRacer()\n"
+        "    try:\n"
+        "        return mr.eval('1+1')\n"
+        "    finally:\n"
+        "        close_mr = getattr(mr, 'close', None)\n"
+        "        if callable(close_mr):\n"
+        "            close_mr()\n"
         "def work():\n"
         "    for _ in range(3):\n"
-        "        _run_with_timeout(lambda: py_mini_racer.MiniRacer().eval('1+1'), 30)\n"
+        "        _run_with_timeout(eval_one, 30)\n"
         "threads = [threading.Thread(target=work) for _ in range(8)]\n"
         "[t.start() for t in threads]; [t.join() for t in threads]\n"
+        "default_call_pool().shutdown()\n"
         "print('ok')\n"
     )
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120)
