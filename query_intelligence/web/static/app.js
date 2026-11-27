@@ -11,13 +11,21 @@ const apiKeyInput = document.getElementById("api-key-input");
 const sessionIdEl = document.getElementById("session-id");
 const submitText = button.textContent;
 
-const STORAGE = { mode: "finsight.mode", session: "finsight.session", apiKey: "finsight.apiKey" };
+const STORAGE = { mode: "finsight.mode", session: "finsight.session" };
+const LEGACY_API_KEY_STORAGE = "finsight.apiKey";
 let pendingClarification = null;
+let inMemoryApiKey = "";
+
+try {
+  window.localStorage.removeItem(LEGACY_API_KEY_STORAGE);
+  window.sessionStorage.removeItem(LEGACY_API_KEY_STORAGE);
+} catch (_) {
+  /* storage may be unavailable */
+}
 
 function storageGet(key, fallback = "") {
   try {
-    const store = key === STORAGE.apiKey ? window.sessionStorage : window.localStorage;
-    return store.getItem(key) ?? fallback;
+    return window.localStorage.getItem(key) ?? fallback;
   } catch (_) {
     return fallback;
   }
@@ -25,10 +33,8 @@ function storageGet(key, fallback = "") {
 
 function storageSet(key, value) {
   try {
-    const store = key === STORAGE.apiKey ? window.sessionStorage : window.localStorage;
-    if (value) store.setItem(key, value);
-    else store.removeItem(key);
-    if (key === STORAGE.apiKey) window.localStorage.removeItem(STORAGE.apiKey);
+    if (value) window.localStorage.setItem(key, value);
+    else window.localStorage.removeItem(key);
   } catch (_) {
     /* storage may be unavailable (private mode); the page still works */
   }
@@ -219,7 +225,7 @@ function setLoading(loading) {
 
 function requestHeaders() {
   const headers = { "Content-Type": "application/json" };
-  const key = storageGet(STORAGE.apiKey);
+  const key = inMemoryApiKey || apiKeyInput.value.trim();
   if (key) headers["X-API-Key"] = key;
   return headers;
 }
@@ -388,14 +394,13 @@ settingsToggle.addEventListener("click", () => {
   settingsPanel.hidden = !open;
   settingsToggle.setAttribute("aria-expanded", String(open));
 });
-apiKeyInput.value = storageGet(STORAGE.apiKey);
 apiKeyInput.addEventListener("change", () => {
   const nextKey = apiKeyInput.value.trim();
-  if (nextKey !== storageGet(STORAGE.apiKey)) {
+  if (nextKey !== inMemoryApiKey) {
     setSession("");
     pendingClarification = null;
   }
-  storageSet(STORAGE.apiKey, nextKey);
+  inMemoryApiKey = nextKey;
 });
 sessionIdEl.textContent = sessionId || "(new session)";
 

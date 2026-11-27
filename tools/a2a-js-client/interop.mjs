@@ -20,7 +20,7 @@ import {
   JsonRpcTransportFactory,
 } from '@a2a-js/sdk/client';
 
-const args = parseArgs(argv.slice(2));
+const { options: args, apiKey } = parseArgs(argv.slice(2));
 const baseUrl = (args.url ?? 'http://127.0.0.1:8861').replace(/\/$/, '');
 const QUESTION = args.question ?? '贵州茅台的市盈率是多少';
 const STREAM_QUESTION = args['stream-question'] ?? '贵州茅台最近走势怎么样';
@@ -40,12 +40,14 @@ const wire = [];
 async function loggingFetch(input, init = {}) {
   const url = input instanceof URL ? input.href : typeof input === 'string' ? input : input.url;
   const targetOrigin = new URL(url).origin;
-  const headers = new Headers(init.headers ?? {});
-  if (args['api-key']) {
+  const incomingHeaders = new Headers(init.headers ?? {});
+  const a2aVersion = incomingHeaders.get('A2A-Version');
+  const headers = new Headers(incomingHeaders);
+  if (apiKey) {
     if (targetOrigin !== baseOrigin) {
       throw new Error(`Refusing to send API key to cross-origin URL: ${url}`);
     }
-    headers.set('X-API-Key', args['api-key']);
+    headers.set('X-API-Key', apiKey);
   }
   let method = init.method ?? 'GET';
   if (typeof init.body === 'string') {
@@ -55,11 +57,11 @@ async function loggingFetch(input, init = {}) {
       /* not JSON-RPC */
     }
   }
-  const fetchInit = args['api-key'] ? { ...init, headers, redirect: 'error' } : { ...init, headers };
+  const fetchInit = apiKey ? { ...init, headers, redirect: 'error' } : { ...init, headers };
   const response = await fetch(input, fetchInit);
   wire.push({
     request: `${method} ${new URL(url).pathname}`,
-    a2a_version: headers.get('A2A-Version'),
+    a2a_version: a2aVersion,
     status: response.status,
     content_type: response.headers.get('content-type'),
   });
@@ -323,11 +325,19 @@ async function main() {
 
 function parseArgs(list) {
   const parsed = {};
+  let parsedApiKey = '';
   for (let index = 0; index < list.length; index += 1) {
     const item = list[index];
     if (item.startsWith('--')) {
       const key = item.slice(2);
       const next = list[index + 1];
+      if (key === 'api-key') {
+        if (next !== undefined && !next.startsWith('--')) {
+          parsedApiKey = next;
+          index += 1;
+        }
+        continue;
+      }
       if (next === undefined || next.startsWith('--')) parsed[key] = true;
       else {
         parsed[key] = next;
@@ -335,7 +345,7 @@ function parseArgs(list) {
       }
     }
   }
-  return parsed;
+  return { options: parsed, apiKey: parsedApiKey };
 }
 
 main()
