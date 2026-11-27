@@ -2,9 +2,9 @@
 
 Languages: English | [中文](zh/frontend-chatbot.md)
 
-The local frontend chatbot is the browser-facing demo for FinSight. The UI streams agent runs from `POST /agent/chat/stream` (or calls the original `POST /chat` in *Classic* mode); the backend runs Query Intelligence and the agent tools, and an OpenAI-compatible LLM API only plans tool calls and phrases answers over the collected evidence. DeepSeek is the default provider configuration in this checkout, not the architecture boundary.
+The local frontend chatbot is the browser-facing workspace for FinSight (extending the frontend module of *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*, FAIA Vol. 433 / DMI 2026, DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)). The React 19 UI streams verified agent runs from `POST /agent/chat/stream` (or calls the original `POST /chat` in *Classic* mode) and includes a dedicated LLM-free claim-check tab (`POST /agent/claim-check`); the backend runs Query Intelligence and the agent tools, while an OpenAI-compatible LLM API only plans tool calls and phrases answers over collected evidence. DeepSeek is the default provider configuration in this checkout, not the architecture boundary.
 
-This wrapper must not replace the NLU/Retrieval backbone. Entity resolution, intent, source planning, evidence retrieval, ranking, warnings, and `analysis_summary` still come from Query Intelligence.
+This wrapper must not replace the NLU/Retrieval backbone. Entity resolution, intent, source planning, evidence retrieval, ranking, warnings, and `analysis_summary` still come from [Query Intelligence](query-intelligence.md).
 
 ## Run
 

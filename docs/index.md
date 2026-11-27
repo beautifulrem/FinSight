@@ -2,9 +2,9 @@
 
 Languages: English | [中文](zh/index.md)
 
-These pages document FinSight, an evidence-first A-share research agent. The classical NLU and retrieval backend is Query Intelligence; the agent layer orchestrates it with LangGraph.
+These pages document **FinSight**, an evidence-first China A-share financial analysis chatbot and research agent. The classical, explainable NLU and retrieval core (**Query Intelligence**) and five-stage evidence architecture were published in *Frontiers in Artificial Intelligence and Applications* (Vol. 433: *Digitalization and Management Innovation V*, DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107), see [`CITATION.cff`](../CITATION.cff)); the **Agent Layer** extends that foundation with LangGraph tool orchestration, sentence-level numeric claim verification, LLM-free claim checking, and MCP/A2A protocols.
 
-The root README is intentionally short; use these pages when you need contracts, configuration details, training steps, or downstream handoff notes.
+The [root README](../README.md) gives a concise overview, quick start, headline benchmarks, and BibTeX citation; use the reference pages below for contracts, configuration details, training steps, and operational runbooks.
 
 ## Contents
 

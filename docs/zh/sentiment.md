@@ -2,9 +2,9 @@
 
 语言：[English](../sentiment.md) | 中文
 
-`sentiment/` 是 FinSight 中已实现的下游模块，用 Query Intelligence 产物分析检索到的文档，并输出 `positive`、`negative` 或 `neutral`。
+`sentiment/` 是 FinSight 中已实现的下游模块（发表论文 *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*，FAIA 第 433 卷 / DMI 2026，DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107) 中的文本情感分析模块），用 Query Intelligence 产物分析检索到的文档，并输出 `positive`、`negative` 或 `neutral`。
 
-它独立于 NLU/Retrieval 主干，应复用上游 `nlu_result` 和 `retrieval_result`，不要重新做 query understanding。
+它独立于 NLU/Retrieval 主干，直接复用上游 `nlu_result` 和 `retrieval_result`，不重新做 query understanding；同时通过 `analyze_sentiment` 工具（`query_intelligence/agent/tools/sentiment.py`）向 [Agent 层](agent.md) 与 MCP 客户端提供服务。
 
 ## 状态
 
@@ -13,10 +13,9 @@
 | Schemas | `sentiment/schemas.py` | 已实现 |
 | Preprocessor | `sentiment/preprocessor.py` | 已实现 |
 | FinBERT classifier | `sentiment/classifier.py` | 已实现 |
+| Agent 与 MCP 工具（`analyze_sentiment`） | `query_intelligence/agent/tools/sentiment.py` | 已实现（经 `/agent/chat*` 与 MCP 提供，离线环境自动降级至 `ClassicalSentimentBackend`） |
 | 独立手动测试 | `manual_test/run_sentiment_test.py` | 已实现 |
 | 集成手动参数 | `manual_test/run_manual_query.py --sentiment` | 已实现 |
-| FastAPI sentiment routes | 无 | 目前没有挂到 `query_intelligence/api/app.py` |
-| 轻量文档情感分类器 | 规划中 | 现有 `training/train_sentiment.py` 是 NLU 用户情绪模型路径 |
 
 ## Pipeline
 

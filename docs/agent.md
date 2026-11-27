@@ -2,7 +2,7 @@
 
 Languages: English | [中文](zh/agent.md)
 
-The agent layer (`query_intelligence/agent/`) turns FinSight from a fixed "NLU → retrieval → one LLM call" pipeline into a tool-using research assistant. It sits **on top of** Query Intelligence: NLU and retrieval stay classical and explainable (see [AGENTS.md](../AGENTS.md)), and the agent only plans, calls tools, checks the draft against evidence, and applies compliance rules.
+The agent layer (`query_intelligence/agent/`) turns FinSight from the fixed "NLU → retrieval → one LLM call" pipeline presented in our published paper (*Frontiers in Artificial Intelligence and Applications*, Vol. 433 / DMI 2026, DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107); see [Query Intelligence](query-intelligence.md)) into a tool-using research assistant. It sits **on top of** Query Intelligence: NLU and retrieval stay classical and explainable (see [AGENTS.md](../AGENTS.md)), and the agent only plans, calls tools, checks the draft against evidence, and applies compliance rules.
 
 Two answer paths share one LangGraph state graph:
 

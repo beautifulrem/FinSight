@@ -2,7 +2,7 @@
 
 [README](../../README_CN.md) · [English](../features.md)
 
-第 15 轮从 `4ad3380` 的 `README_CN.md` 原样移来的完整功能列表、完整 API 表和完整的快速开始（只调整了相对链接）；README 只保留简短摘要。
+第 15 轮从 `4ad3380` 的 `README_CN.md` 原样移来的完整功能列表、完整 API 表和完整的快速开始（只调整了相对链接）；README 只保留简短摘要。以下全部能力建立在发表于 *Frontiers in Artificial Intelligence and Applications*（第 433 卷 / DMI 2026，DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)）的经典可解释 **Query Intelligence** 底座之上（见 [Query Intelligence](query-intelligence.md)）。
 
 - **Agent**：
   - 带理由的路由；并行工具调用；步数/工具/token 预算；
@@ -60,7 +60,7 @@
 | `POST /chat` | 原聊天接口（`mode=workflow` 保持原流程；`agent`/`auto` 走 Agent）。 |
 | `POST /nlu/analyze`、`POST /retrieval/search`、`POST /query/intelligence` | 经典 NLU 与检索产物。 |
 
-Schema 位于 `schemas/agent_*.schema.json`，由 `query_intelligence/contracts.py` 生成。
+Schema 位于 `schemas/agent_*.schema.json`、`schemas/nlu_result.schema.json` 与 `schemas/retrieval_result.schema.json`（由 `query_intelligence/contracts.py` 生成；`EntityItem.symbol` 限定为最长 64 字符的 `^[A-Za-z0-9._-]+$` 代码格式，`EvidenceItem` 包含 `source_id`、`source_mode`、`fallback_reason` 与 `cache_hit` 数据溯源字段）。
 
 ## 完整的快速开始
 

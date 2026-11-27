@@ -2,7 +2,7 @@
 
 语言：[English](../numerical-analysis.md) | 中文
 
-数值分析模块汇总 FinSight 检索到的结构化证据。主要实现位于 `query_intelligence/retrieval/market_analyzer.py`，输出在 `retrieval_result.analysis_summary` 中。
+数值分析模块汇总 FinSight 检索到的结构化证据（发表论文 *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*，FAIA 第 433 卷 / DMI 2026，DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107) 中的五大核心模块之一）。主要实现位于 `query_intelligence/retrieval/market_analyzer.py`，输出在 `retrieval_result.analysis_summary` 中，同时被 [Agent 层](agent.md) 的 `get_technical_indicators` 与 `get_fundamentals` 工具复用。
 
 该模块用于解释和判断证据就绪程度，不输出确定性的买入/卖出决策。
 

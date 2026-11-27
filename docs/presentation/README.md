@@ -1,6 +1,6 @@
 # Presentation Materials
 
-This folder is the cleaned presentation entry point for the FinSight project.
+This folder is the cleaned presentation entry point for **FinSight** (*FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*, published in *Frontiers in Artificial Intelligence and Applications*, Vol. 433 / DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)).
 
 The original `PPT_Overleaf` backup contained older browser screenshots, LaTeX build byproducts, unrelated image assets, and raw planning notes. The reusable content has been consolidated here as a clean slide outline and linked to the current documented frontend screenshots.
 
@@ -20,14 +20,14 @@ The original `PPT_Overleaf` backup contained older browser screenshots, LaTeX bu
 
 Kept:
 
-- Current frontend screenshots generated from the latest `/chat` UI.
-- A polished slide outline aligned with the implemented system.
+- Current frontend screenshots generated from the latest UI.
+- A polished slide outline aligned with the implemented system and published FAIA 2026 paper.
 - Links to stable documentation pages instead of duplicating large raw notes.
 
 Not carried forward:
 
 - `main.aux`, `main.log`, `main.nav`, `main.out`, `main.snm`, and `main.toc`: LaTeX compilation byproducts.
-- Old `Financial Chatbot by Group x` screenshots: superseded by the current Group 4.2 UI screenshots.
+- Old `Financial Chatbot by Group x` draft screenshots: superseded by the current FinSight UI screenshots.
 - Unrelated visual assets such as the ice cream vendor image.
 - Raw source notes with temporary brainstorming language.
 

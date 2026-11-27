@@ -2,9 +2,9 @@
 
 Languages: English | [中文](zh/sentiment.md)
 
-`sentiment/` is an implemented downstream FinSight module that consumes Query Intelligence artifacts and classifies retrieved documents as `positive`, `negative`, or `neutral`.
+`sentiment/` is an implemented downstream FinSight module (the document sentiment stage in *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*, FAIA Vol. 433 / DMI 2026, DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)) that consumes Query Intelligence artifacts and classifies retrieved documents as `positive`, `negative`, or `neutral`.
 
-It is separate from the NLU/Retrieval backbone. It should use upstream `nlu_result` and `retrieval_result` instead of redoing query understanding.
+It is separate from the NLU/Retrieval backbone. It uses upstream `nlu_result` and `retrieval_result` instead of redoing query understanding, and is exposed to the [Agent Layer](agent.md) and MCP clients through the `analyze_sentiment` tool (`query_intelligence/agent/tools/sentiment.py`).
 
 ## Status
 
@@ -13,10 +13,9 @@ It is separate from the NLU/Retrieval backbone. It should use upstream `nlu_resu
 | Schemas | `sentiment/schemas.py` | implemented |
 | Preprocessor | `sentiment/preprocessor.py` | implemented |
 | FinBERT classifier | `sentiment/classifier.py` | implemented |
+| Agent & MCP tool (`analyze_sentiment`) | `query_intelligence/agent/tools/sentiment.py` | implemented (served via `/agent/chat*` and MCP; falls back to `ClassicalSentimentBackend` offline) |
 | Manual runner | `manual_test/run_sentiment_test.py` | implemented |
 | Integrated manual flag | `manual_test/run_manual_query.py --sentiment` | implemented |
-| FastAPI sentiment routes | none | not wired into `query_intelligence/api/app.py` |
-| Lightweight classifier | training path exists for NLU sentiment; document-sentiment lightweight mode is planned |
 
 ## Pipeline
 

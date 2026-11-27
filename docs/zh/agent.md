@@ -2,7 +2,7 @@
 
 语言：[English](../agent.md) | 中文
 
-Agent 层（`query_intelligence/agent/`）把 FinSight 从固定的「NLU → 检索 → 一次 LLM 调用」流水线升级为会调用工具的研究助手。它**建立在** Query Intelligence 之上：NLU 与检索仍然是经典、可解释的方法（见 [AGENTS.md](../../AGENTS.md)），Agent 只负责规划、调用工具、用证据校验草稿，并执行合规规则。
+Agent 层（`query_intelligence/agent/`）把 FinSight 从发表论文（*Frontiers in Artificial Intelligence and Applications* 第 433 卷 / DMI 2026，DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)，详见 [Query Intelligence](query-intelligence.md)）中的固定「NLU → 检索 → 一次 LLM 调用」流水线升级为会调用工具的研究助手。它**建立在** Query Intelligence 之上：NLU 与检索仍然是经典、可解释的方法（见 [AGENTS.md](../../AGENTS.md)），Agent 只负责规划、调用工具、用证据校验草稿，并执行合规规则。
 
 两条回答路径共用一张 LangGraph 状态图：
 

@@ -2,7 +2,7 @@
 
 Languages: English | [中文](zh/numerical-analysis.md)
 
-The numerical analysis module summarizes structured evidence retrieved by FinSight. It is implemented mainly in `query_intelligence/retrieval/market_analyzer.py` and exposed through `retrieval_result.analysis_summary`.
+The numerical analysis module summarizes structured evidence retrieved by FinSight (one of the five core stages in *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*, FAIA Vol. 433 / DMI 2026, DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)). It is implemented mainly in `query_intelligence/retrieval/market_analyzer.py`, exposed through `retrieval_result.analysis_summary`, and also invoked by the [Agent Layer](agent.md) via `get_technical_indicators` and `get_fundamentals`.
 
 This module supports explanation and evidence readiness. It does not produce deterministic buy/sell decisions.
 

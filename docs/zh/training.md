@@ -2,7 +2,7 @@
 
 语言：[English](../training.md) | 中文
 
-FinSight 后端使用传统、可解释模型训练 NLU 和 Retrieval。训练资产和运行时资产是两套东西：
+FinSight 后端训练发表论文（*FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*，FAIA 第 433 卷 / DMI 2026，DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)）所使用的经典、可解释 NLU 与 Retrieval 模型。训练资产和运行时资产相互独立：
 
 - 训练资产用于提升分类器、ranker、CRF、typo linker、source planner 和 out-of-scope 行为。
 - 运行时资产用于生产实体解析、alias 匹配、本地文档召回和结构化 seed fallback。
@@ -16,7 +16,7 @@ FinSight 后端使用传统、可解释模型训练 NLU 和 Retrieval。训练�
 | `data/external/raw/` | 下载的公开数据集 | 本地 |
 | `data/training_assets/` | 标准化 manifest 和任务 JSONL | 本地 |
 | `data/runtime/` | 随仓库发布的运行时实体、alias、文档 | 提交 |
-| `models/` | 随仓库发布的模型 artifact | 提交 |
+| `models/` | 随仓库发布的模型 artifact（加载前经 `models/manifest.json` 校验 SHA-256 哈希） | 提交 |
 | `reports/` | 评估报告 | 本地 |
 
 ## 公开数据源

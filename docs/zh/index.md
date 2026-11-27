@@ -2,9 +2,9 @@
 
 语言：[English](../index.md) | 中文
 
-这些文档说明 FinSight：一个证据优先的 A 股研究 Agent。经典 NLU 与检索后端是 Query Intelligence，Agent 层用 LangGraph 编排它。
+这些文档说明 **FinSight**：一个证据优先的中国金融市场（A 股、基金/ETF、指数与宏观）分析问答与研究 Agent。其经典可解释的查询智能后端（**Query Intelligence**）与五模块证据架构已发表于 IOS Press *Frontiers in Artificial Intelligence and Applications* 第 433 卷（*Digitalization and Management Innovation V*，DMI 2026；DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)，引用元数据见 [`CITATION.cff`](../../CITATION.cff)）；**Agent 层**在此基础上扩展了 LangGraph 工具编排、逐句数值校验、零 LLM 市场声明核查以及 MCP/A2A 协议服务。
 
-根目录 README 只保留项目定位、架构图、快速运行、模块和必要配置。详细说明放在本目录中。
+[根目录中文 README](../../README_CN.md) 提供项目总览、论文对照、快速开始、核心评测与 BibTeX 引用格式；本目录按主题提供完整契约、配置、训练与运维参考文档。
 
 ## 内容
 

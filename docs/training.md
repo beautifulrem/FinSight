@@ -2,7 +2,7 @@
 
 Languages: English | [中文](zh/training.md)
 
-The FinSight backend trains classical, explainable models for NLU and retrieval. Training assets and runtime assets are separate:
+The FinSight backend trains the classical, explainable NLU and retrieval models described in *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence* (*FAIA* Vol. 433 / DMI 2026, DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)). Training assets and runtime assets are separate:
 
 - Training assets improve classifiers, rankers, CRF, typo linking, source planning, and out-of-scope behavior.
 - Runtime assets power production entity resolution, alias matching, local document recall, and fallback structured data.
@@ -16,7 +16,7 @@ Retraining models does not automatically update runtime entities, aliases, or do
 | `data/external/raw/` | Downloaded public datasets | local only |
 | `data/training_assets/` | Standardized manifest and task JSONL files | local only |
 | `data/runtime/` | Shipped runtime entity, alias, and document assets | committed |
-| `models/` | Shipped trained model artifacts | committed |
+| `models/` | Shipped trained model artifacts (verified via `models/manifest.json` SHA-256 hashes before load) | committed |
 | `reports/` | Evaluation reports | local only |
 
 ## Public Dataset Registry
