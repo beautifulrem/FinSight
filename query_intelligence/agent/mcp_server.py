@@ -1,7 +1,7 @@
 """Expose FinSight agent tools over the Model Context Protocol.
 
 The server publishes exactly the JSON schemas generated from each tool's Pydantic input model,
-so MCP clients (Claude Desktop, Cursor, other agents) see the same contract as the in-process
+so external MCP hosts (desktop/IDE clients and custom agents) see the same contract as the in-process
 agent. Every call goes through ``ToolRegistry.run`` and therefore keeps its timeouts, retries,
 caching, and error normalization.
 

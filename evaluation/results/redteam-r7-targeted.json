@@ -1458,7 +1458,7 @@
      "agent_system": "agent_system@v3#e419eb84d58e",
      "compose_system": "compose_system@v3#b9a704272c6d"
     },
-    "llm_replay": "/Volumes/Remi/FinSight-quality/outputs/agent_eval/redteam-r7-extra-v3-turns.json"
+    "llm_replay": "outputs/agent_eval/redteam-r7-extra-v3-turns.json"
    },
    "redteam-r7-layer-v3.json": {
     "sha256_16": "6b23faff46d2df1c",
@@ -1485,7 +1485,7 @@
      "agent_system": "agent_system@v3#e419eb84d58e",
      "compose_system": "compose_system@v3#b9a704272c6d"
     },
-    "llm_replay": "/Volumes/Remi/FinSight-quality/outputs/agent_eval/redteam-r7-after-v4-turns.json"
+    "llm_replay": "outputs/agent_eval/redteam-r7-after-v4-turns.json"
    },
    "redteam-r7-nolayer-v4-extra.json": {
     "sha256_16": "dfd78125409778f5",
@@ -1494,7 +1494,7 @@
      "agent_system": "agent_system@v3#e419eb84d58e",
      "compose_system": "compose_system@v3#b9a704272c6d"
     },
-    "llm_replay": "/Volumes/Remi/FinSight-quality/outputs/agent_eval/redteam-r7-extra-v4-turns.json"
+    "llm_replay": "outputs/agent_eval/redteam-r7-extra-v4-turns.json"
    },
    "redteam-r7-layer-v4.json": {
     "sha256_16": "bcaaae9b2a98aac3",

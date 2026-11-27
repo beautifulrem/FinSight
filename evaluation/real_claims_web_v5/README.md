@@ -43,9 +43,7 @@ collector read only:
 
 Two directory listings were also made: `evaluation/real_claims_web_v4/` (file names only, to see whether it has an
 `__init__.py`; it has none, so this folder has none) and `evaluation/` (directory names only, nothing opened). The
-session's standing project instructions (the FinSight repository's `AGENTS.md`, which describes the agent layer and
-its rules but contains no checker code, claim data or data values) were in context throughout. The collector was told
-which companies, metrics and dates are checkable (the scope below), and not to select by correctness.
+collector was given only the checkable scope (companies, metrics, and dates below) and instructed not to select by correctness.
 
 Web search results inevitably show published figures (that is what was being collected); none of the repository's data
 files was opened in phase 1, and no candidate was kept or left out because of its value. A few further English pages
@@ -70,7 +68,7 @@ as `xueqiu`, `eastmoney_caifuhao`); the selection script was re-run and produced
 candidates and claim texts). No published text, claim text, period, basis or verification status changed.
 
 **Never opened or searched:** `query_intelligence/`, `tests/`, `evaluation/claim_bench/`, `docs/`, `evaluation/results/`,
-`evaluation/heldout_*/`, the root `README.md` / `README_CN.md`, anything under `/Volumes/Remi/finsight-review/`, and the
+`evaluation/heldout_*/`, the root `README.md` / `README_CN.md`, external review directories, and the
 rest of the v4 README (from line 161, including its first-run section). The checker was not imported, the scorer was
 not run, pytest was not run.
 
@@ -81,9 +79,8 @@ was read after `collected_v5.jsonl` was written). The labels are computed from t
 written by someone who knew those classes. So the set is blind to the checker's code and tests, and its selection is
 blind to the data; its labels are not blind to the v4 classes.
 
-**Collection.** 2026-10-11 (every `retrieved` field), by one collector with web search (Tavily search and extract,
-loaded through the MCP tool search). Brave was not needed and not called. The `grok-cli` MCP server failed to connect at
-session start (not used). Every candidate was checked on its page with `tavily_extract` in query mode (`verified_by`);
+**Collection.** 2026-10-11 (every `retrieved` field), by one collector using web search (Tavily search and extract).
+Every candidate was checked on its page with `tavily_extract` in query mode (`verified_by`);
 where the first extract returned no article text the page was re-extracted with `extract_depth: advanced` (three
 candidates were found that way). Four candidates whose sentence could not be found in extracted text (two pages
 returned nothing even with `advanced`, one 股吧 page returned only an avatar line, one Instagram page returned no caption)

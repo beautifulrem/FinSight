@@ -5,8 +5,8 @@
 
 ## Construction protocol
 
-- **Author:** Claude (Opus 5.5, Claude Code subagent), 2026-09-28, written for the user of `<repo>`.
-- **Commit:** FinSight-r2 at commit `47dd024`, with a clean tracked tree.
+- **Author:** Independent evaluation author, 2026-09-28.
+- **Commit:** FinSight at commit `47dd024`, with a clean tracked tree.
 - **Independence.** The author did not open the agent's routing, memory, graph or planner code
   (`query_intelligence/agent/router.py`, `memory.py`, `graph.py`, `planner.py`). The author also did not open
   any existing task file (`evaluation/agent_eval/tasks/*.jsonl`). The conversations are modelled on how real

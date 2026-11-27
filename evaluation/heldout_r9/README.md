@@ -13,7 +13,7 @@ probe phrasings only.
   长江电力, 紫金矿业, 中信证券, 中芯国际 and the ETFs; market as of 2026-09-30, fundamentals FY2025, valuation 2026-09-30).
   **Run the chat slice with `QI_EVAL_SNAPSHOT_EXT=1`**: the runner is pinned to v1 otherwise and does not know these
   names.
-- Nothing was committed to the repo. Nothing was written outside `/Volumes/Remi/finsight-review/heldout_r9/`.
+- Nothing was committed to the repo. Nothing was written outside the external staging directory `<external-slice>/heldout_r9/`.
 
 ## Files
 
@@ -125,7 +125,7 @@ the A-share evidence, which is why the HK lines must be refused by the agent, no
 
 Files: `first_run/chat_r9-auto-cbcf3b2.json`, `first_run/claims_r9-cbcf3b2.json` (+ logs). Run the same commands after
 the fixes; report both, per category, and label any run after the engineers have read this folder "after exposure".
-**Round 13 had already started when this slice was finished**: branch `r13-frame` (worktree `FinSight-eval`, head
+**Round 13 had already started when this slice was finished**: branch `r13-frame` (head
 `6a069d8`, commits from 19:04 on 2026-10-01) fixes the classes the round-8 slice still failed (sums, comparative verbs,
 stated multiples), which overlap several categories here. A baseline leak check at `6a069d8`
 (`round9/probes/near_r9_vs_r13.py`, character 3-gram Jaccard against every string literal added on the branch): **0
@@ -175,8 +175,8 @@ word an ext-set turn; it failed both times) and the same 5 claims. Without them,
 committed runs: chat **16/46 → 36/46** (the review, counting 5 tasks, had 16/47 → 36/47), claims 15/20 → 20/20.
 
 **Provenance and content-level overlap (round 15, round-11 review K16).** Like the round-10 slice, the after-fix run
-read this slice from the reviewer's folder (`chat_heldout_r9-auto-nollm-after-fix.json`: `config.tasks_file =
-/Volumes/Remi/finsight-review/heldout_r9/chat_r9_heldout.jsonl`, `da9f6af`); the folder entered the repository later
+read this slice from the external slice folder (`chat_heldout_r9-auto-nollm-after-fix.json`: `config.tasks_file =
+<external-slice>/heldout_r9/chat_r9_heldout.jsonl`, `da9f6af`); the folder entered the repository later
 (`fb35e35`). "The engineers did not open the folder" above is their statement; nothing records file access. The
 content-level scan with the own texts read at `da9f6af` (`slice_overlap-heldout_r9-content-at-da9f6af.json`) adds,
 to the 6 text-level tasks and 5 claims, 4 chat tasks (r9h_hold_zh_01, r9h_price_zh_01, r9h_spread_en_01,

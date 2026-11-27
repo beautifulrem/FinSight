@@ -2,7 +2,7 @@
 
 Languages: English | [中文](zh/mcp.md)
 
-FinSight implements both sides of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/): an **MCP Server** exposing FinSight's read-only financial evidence tools to external MCP hosts (Claude Desktop, Cursor, custom agents), and an **MCP Client** allowing FinSight's LangGraph agent to call external MCP servers safely.
+FinSight implements both sides of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/): an **MCP Server** exposing FinSight's read-only financial evidence tools to external MCP hosts (desktop/IDE MCP clients and custom agents), and an **MCP Client** allowing FinSight's LangGraph agent to call external MCP servers safely.
 
 ## MCP Server (`query_intelligence/agent/mcp_server.py`)
 
@@ -31,7 +31,7 @@ python -m query_intelligence.agent.mcp_server --transport http --host 127.0.0.1 
 
 **HTTP Security**: `build_mcp_http_app()` enforces `SecuritySettings.validate()`, `BodyLimitMiddleware`, rate limiting, and `QI_API_KEYS` authentication. Binding to a non-loopback host or running under `QI_PROFILE=production` fails closed unless `QI_API_KEYS` is configured (or `QI_ALLOW_ANONYMOUS=1` is set explicitly). Optionally restrict host headers with `QI_MCP_ALLOWED_HOSTS`.
 
-### Client Configuration Example (`claude_desktop_config.json` / `.cursor/mcp.json`)
+### Client Configuration Example (`mcp.json`)
 
 ```json
 {

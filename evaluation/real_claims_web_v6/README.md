@@ -1,12 +1,12 @@
 # Real published claims, sixth set, blind (`claims_v6.jsonl`)
 
-**Kept outside the repository** (`/Volumes/Remi/finsight-blind/v6/`, a local git repository that is never pushed) until
+**Kept outside the repository** (in an external blind staging directory) until
 it is scored once, after the next round of claim-checker fixes. Nobody fixing the checker should read this folder.
 
 Sixth set of real published claims, collected on 2026-10-11 (ids `w6_01` … `w6_60`). It measures the claim checker on
 wording nobody wrote for it. The "Labelling rules" section was written and committed (local commit `bf72914`, clarified
 in `bafcf32`) before any candidate was collected; `collected_v6.jsonl` was committed (`3eb5601`) before any part was
-written. The checker has not been run on this set; no scorer exists here; nothing was copied into a FinSight worktree.
+written. The checker has not been run on this set; no scorer exists here; nothing was copied into the FinSight repo.
 
 ## Files
 
@@ -25,30 +25,30 @@ written. The checker has not been run on this set; no scorer exists here; nothin
 | `recheck_v6.json` | the labeller's own re-fetch of every URL (sentence found in page text or not) |
 
 ```bash
-PY=/Volumes/Remi/FinSight-r2/.venv/bin/python
-$PY select_v6.py          # candidates_*.jsonl -> collected_v6.jsonl (deterministic; re-run gives the same sha256)
-$PY label_claims_v6.py    # collected_v6.jsonl + claim_parts_v6.py -> claims_v6.jsonl (deterministic)
+PY=.venv/bin/python
+$PY evaluation/real_claims_web_v6/select_v6.py          # candidates_*.jsonl -> collected_v6.jsonl (deterministic; re-run gives the same sha256)
+$PY evaluation/real_claims_web_v6/label_claims_v6.py    # collected_v6.jsonl + claim_parts_v6.py -> claims_v6.jsonl (deterministic)
 ```
 
 ## Protocol
 
-**Who read what.** The labeller (this session) read, in this order: the FinSight-r2 data files (`data/structured_data.json`,
+**Who read what.** The labeller read, in this order: the FinSight data files (`data/structured_data.json`,
 `data/snapshot/structured_data_ext.json`, `structured_data_fix.json`, `manifest.json`, `manifest_fix.json`,
 `corrections/sources.json`, and listings of `data/snapshot/raw/`), lines 1-200 of
 `evaluation/real_claims_web_v5/README.md` (name, files, protocol, selection, counts, labelling rules; not "Label counts",
 "Data vs published reports", the first run or its error classes), and, through a script that kept only the `url` and
 text fields, the v1-v5 `collected_*.jsonl` files (do-not-use list and text repeats). Never opened: `query_intelligence/`,
 tests, claim-bench rows, any `real_claims_web*/` label, score or select script, any `claims_web_*.jsonl` or
-`candidates_*.jsonl` of earlier sets, `evaluation/results/`, `/Volumes/Remi/finsight-review/`. The checker was not
-imported or run; no file was written in any FinSight worktree.
+`candidates_*.jsonl` of earlier sets, `evaluation/results/`, or external review directories. The checker was not
+imported or run; no file was written in the FinSight repository.
 
 **Collection blind to the data.** Because the labeller had seen the offline values (step 1 of the task), collection was
-delegated to four fresh sub-agents that were given only `SCOPE_FOR_COLLECTORS.md`, `COLLECTOR_BRIEF.md` and the URL list,
-told not to open anything under `/Volumes/Remi/FinSight*`, and told not to keep or drop a candidate by its number. They
+delegated to four independent collectors that were given only `SCOPE_FOR_COLLECTORS.md`, `COLLECTOR_BRIEF.md` and the URL list,
+instructed not to open anything under the FinSight repository, and told not to keep or drop a candidate by its number. They
 were given no value. Selection is a fixed script that reads no data value.
 
 **Verification (deviation from v5).** Tavily's plan quota was exhausted for every collector after at most one call,
-and Brave returned "fetch failed". Collectors searched with the built-in web search and verified each sentence by
+and Brave returned "fetch failed". Collectors searched with web search and verified each sentence by
 fetching the page (curl; pypdf for one PDF) and finding the exact published text in the stripped page text; this is in
 every `verified_by`. `select_v6.py` was then changed (before any claim text was read; only `verified_by` strings and
 first-entity names had been counted) to accept "sentence found in fetched / extracted text" as verified, and to map
@@ -98,7 +98,7 @@ Quotas that could not be met from the pool: definition (2 candidates tagged), gr
 
 ## Labelling rules (written before collection and before labelling)
 
-Labels come from `label_claims_v6.py`, which reads only the data files of `/Volumes/Remi/FinSight-r2` (read-only):
+Labels come from `label_claims_v6.py`, which reads only the FinSight data files (read-only):
 `data/structured_data.json` (base), `data/snapshot/structured_data_fix.json` (corrections layer, overrides the base
 for the symbols it carries), `data/snapshot/structured_data_ext.json` (extension companies, indices and ETFs), and
 `data/snapshot/corrections/sources.json` (annual-report transcriptions; used only for the definition rule's
@@ -294,7 +294,7 @@ percentage) with sources.json. No bar or valuation has a primary transcription.
 ## Hashes (sha256)
 
 All files of this folder except this README (a file cannot carry its own hash; the README's hash is recorded in the
-local git commit message that adds this section). Data files read by the labeller (FinSight-r2, read-only):
+local git commit message that adds this section). Data files read by the labeller (FinSight, read-only):
 
 ```
 762e977aad2dfebbf78547c9e7ecc31cd8bd458c3f7549963932bac069431947  data/structured_data.json

@@ -2,7 +2,7 @@
 
 语言：[English](../mcp.md) | 中文
 
-FinSight 双向支持 [Model Context Protocol（MCP）](https://modelcontextprotocol.io/)：既可作为 **MCP 服务端** 向 Claude Desktop、Cursor 或外部 Agent 暴露 9 个只读金融取证工具，也可作为 **MCP 客户端** 安全挂载外部 MCP 工具。
+FinSight 双向支持 [Model Context Protocol（MCP）](https://modelcontextprotocol.io/)：既可作为 **MCP 服务端** 向桌面/IDE MCP 客户端或外部 Agent 暴露 9 个只读金融取证工具，也可作为 **MCP 客户端** 安全挂载外部 MCP 工具。
 
 ## MCP 服务端（`query_intelligence/agent/mcp_server.py`）
 
@@ -31,7 +31,7 @@ python -m query_intelligence.agent.mcp_server --transport http --host 127.0.0.1 
 
 **HTTP 安全边界**：`build_mcp_http_app()` 强制启用 `SecuritySettings.validate()`、`BodyLimitMiddleware`、限流与 `QI_API_KEYS` 鉴权。在 `QI_PROFILE=production` 或绑定非回环地址时，未配置 `QI_API_KEYS` 会拒绝启动（除非显式设置 `QI_ALLOW_ANONYMOUS=1`）；可通过 `QI_MCP_ALLOWED_HOSTS` 限制允许的 Host 头。
 
-### 客户端配置示例（`claude_desktop_config.json` / `.cursor/mcp.json`）
+### 客户端配置示例（`mcp.json`）
 
 ```json
 {

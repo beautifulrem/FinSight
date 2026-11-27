@@ -52,7 +52,7 @@
 可选（会消耗 LLM 额度，只在你运行时才调用）：用 LLM 当评审员，看它和你的标签一致程度：
 
 ```bash
-source /Volumes/Remi/finsight-review/llmenv.sh      # 只允许 cline-pass/* 模型；不要打印密钥
+# 先导出 DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL / DEEPSEEK_MODEL（不要打印密钥）
 python -m evaluation.human.score_labels --llm-judge --judge-limit 100
 ```
 
@@ -95,8 +95,8 @@ python -m evaluation.human.score_labels --llm-judge --judge-limit 100
 
    ```bash
    python -m evaluation.human.fetch_finsight_answers --date 2026-10-13
-   # 可选 LLM 智能体（脚本总是打开实时数据源）：
-   source /Volumes/Remi/finsight-review/llmenv.sh && python -m evaluation.human.fetch_finsight_answers --date 2026-10-13 --llm deepseek
+   # 可选 LLM 智能体（需先设置 DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL / DEEPSEEK_MODEL；脚本总是打开实时数据源）：
+   python -m evaluation.human.fetch_finsight_answers --date 2026-10-13 --llm deepseek
    ```
 
    它把 90 条 FinSight 回答写进 `answers.csv`，原始返回保存在 `head_to_head/raw/finsight-<T>.jsonl`。

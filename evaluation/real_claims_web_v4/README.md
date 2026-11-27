@@ -36,10 +36,8 @@ python -m evaluation.real_claims_web_v4.score_claims_web_v4           # the firs
 **Phase 1: collection and selection, with no data value known.** Before `collected_v4.jsonl` was written, the
 collector read no repository file except, through a script that printed only the `url` field, the URLs of
 `evaluation/real_claims_web/collected_v1.jsonl` and `evaluation/real_claims_web_v2/collected_v2.jsonl` (the
-do-not-use list). The session's standing project instructions (the FinSight repository's `AGENTS.md`, which
-describes the agent layer and its rules but contains no checker code, claim data or data values) were in context
-throughout. The collector was told which
-companies, metrics and dates are checkable (the scope below), and not to select by correctness.
+do-not-use list). The collector was given only the checkable scope (companies, metrics, and dates below) and
+instructed not to select by correctness.
 
 **Phase 2: labels, after `collected_v4.jsonl` was written.** Only then did the collector read:
 
@@ -50,7 +48,7 @@ companies, metrics and dates are checkable (the scope below), and not to select 
   of `select_claims_web_v2.py`, and the first rows of `collected_v2.jsonl` and `claims_web_v2.jsonl` (for formats).
 
 **Never opened or searched:** `query_intelligence/`, `tests/`, `evaluation/claim_bench/`, `docs/`, `evaluation/results/`,
-the root `README.md` / `README_CN.md`, anything under `/Volumes/Remi/finsight-review/`. The checker was not imported
+the root `README.md` / `README_CN.md`, or external review directories. The checker was not imported
 and the scorer was not run.
 
 **Exposure that remains.** The v2 README lists the v2 first run's error classes (named definitions, dated prices,

@@ -2,16 +2,13 @@
 
 You collect REAL published claims (sentences from web pages) for a blind evaluation set. Today is 2026-10-11.
 
-Allowed reads: /Volumes/Remi/finsight-blind/v6/SCOPE_FOR_COLLECTORS.md, /Volumes/Remi/finsight-blind/v6/COLLECTOR_BRIEF.md,
-/Volumes/Remi/finsight-blind/v6/do_not_use_urls.txt. Do NOT open, list or search anything under /Volumes/Remi/FinSight*
-or /Volumes/Remi/finsight-review, nor any other file in /Volumes/Remi/finsight-blind/v6/. You are not told any reference
-values and must not try to judge whether a claim is correct: never keep or drop a candidate because its number looks
-right or wrong.
+Allowed reads: `SCOPE_FOR_COLLECTORS.md`, `COLLECTOR_BRIEF.md`, and `do_not_use_urls.txt` in the blind collection
+directory. Do NOT open, list, or search anything under the FinSight repository or external review directories.
+You are not told any reference values and must not try to judge whether a claim is correct: never keep or drop a
+candidate because its number looks right or wrong.
 
-Tools: load Tavily via ToolSearch (query "select:mcp__tavily__tavily_search,mcp__tavily__tavily_extract"). Use
-tavily_search to find pages, then tavily_extract (with a query; retry with extract_depth "advanced" if no article
-text) to confirm the exact sentence is on the page. Brave search (mcp__brave-search__brave_web_search) may be used as
-a fallback search engine.
+Tools: use web search and page extraction (`tavily_search` / `tavily_extract`, or equivalent web search and fetch) to
+find articles and confirm the exact published sentence appears on the page.
 
 What counts: one sentence or clause, as published, that states a checkable fact in the scope (a number, a direction,
 a comparison or a definition with a number). Quote whole clauses only; you may cut a clause from a longer sentence

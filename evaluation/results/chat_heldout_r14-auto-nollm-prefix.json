@@ -6,7 +6,7 @@
   "model": null,
   "llm_client": "none",
   "model_source": null,
-  "tasks_file": "/Volumes/Remi/finsight-review/heldout_r14/chat_r14_heldout.jsonl",
+  "tasks_file": "<external-slice>/heldout_r14/chat_r14_heldout.jsonl",
   "snapshot": {
    "path": null,
    "recorded": false,
@@ -21,7 +21,7 @@
   "run_at": "2026-10-11T11:41:27+00:00",
   "eval_today": "2026-04-23",
   "wall_seconds": 148.7,
-  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r14/chat_r14_heldout.jsonl --out /Volumes/Remi/finsight-review/heldout_r14/first_run/chat_r14-auto-64cfbeb.json",
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks <external-slice>/heldout_r14/chat_r14_heldout.jsonl --out <external-slice>/heldout_r14/first_run/chat_r14-auto-64cfbeb.json",
   "env": {
    "QI_AGENT_TRACE_DIR": "off",
    "QI_EVAL_SNAPSHOT_EXT": "1",
@@ -31,7 +31,7 @@
    "QI_USE_LIVE_MARKET": "false",
    "QI_USE_LIVE_NEWS": "false"
   },
-  "command_with_env": "QI_AGENT_TRACE_DIR=off QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 QI_USE_LIVE_ANNOUNCEMENT=false QI_USE_LIVE_MACRO=false QI_USE_LIVE_MARKET=false QI_USE_LIVE_NEWS=false python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r14/chat_r14_heldout.jsonl --out /Volumes/Remi/finsight-review/heldout_r14/first_run/chat_r14-auto-64cfbeb.json",
+  "command_with_env": "QI_AGENT_TRACE_DIR=off QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 QI_USE_LIVE_ANNOUNCEMENT=false QI_USE_LIVE_MACRO=false QI_USE_LIVE_MARKET=false QI_USE_LIVE_NEWS=false python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks <external-slice>/heldout_r14/chat_r14_heldout.jsonl --out <external-slice>/heldout_r14/first_run/chat_r14-auto-64cfbeb.json",
   "slice_overlap": {
    "slice": "chat_r14_heldout.jsonl",
    "slice_texts": 62,

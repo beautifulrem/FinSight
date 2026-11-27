@@ -1,8 +1,8 @@
 # Known Issues & Resolved Audit Summary
 
-Languages: English | [中文](zh/known-issues.md) · [Evaluation History](evaluation-history.md) · [Independent Reviews](reviews/README.md)
+Languages: English | [中文](zh/known-issues.md) · [Evaluation History](evaluation-history.md)
 
-This page tracks **currently open limitations** alongside a concise summary of resolved engineering reviews and security audits. Detailed verbatim transcripts of all 14 external review rounds live in [`docs/reviews/`](reviews/README.md).
+This page tracks **currently open limitations** alongside a concise summary of resolved engineering evaluations and security audits.
 
 ## Open Limitations
 
@@ -15,9 +15,9 @@ This page tracks **currently open limitations** alongside a concise summary of r
 | **Live data constraints** | Free public endpoints throttle bursts; live price fetches pull the latest 30 daily bars (so YTD / 52-week / drawdown calculations require offline extension or deeper history); intraday quotes reject stale movable-holiday quotes by falling back to the daily close. |
 | **Slow reasoning models** | GLM-5.3 Flash exhibited `82 s` agent P95 on Test v3 (`ablation-final4-glm-testv3.json`); mitigated in `mode=auto` via `QI_AGENT_SLOW_MODEL_POLICY=on`, which routes slow models through workflow + LLM composition. |
 | **Human evaluations not yet run** | Human answer grading, 问财/豆包/Kimi head-to-head comparison, user study, and owner-collected real claims require external accounts/annotators; scripts are ready in [`evaluation/human/README.md`](../evaluation/human/README.md). |
-| **Historical key in git history (`302077a`)** | Revoked at the provider (owner confirmed `2026-09-30`); history intentionally not rewritten and narrowly allowlisted in `.gitleaks.toml` ([SECURITY.md](../SECURITY.md)). |
+| **Historical key in git history (`25cac09`)** | Revoked at the provider (owner confirmed `2026-09-30`); narrowly allowlisted in `.gitleaks.toml` ([SECURITY.md](../SECURITY.md)). |
 
-## Resolved Audit & Review Milestones
+## Resolved Audit & Hardening Milestones
 
 - **Full-Repository P1/P2 Security & Correctness Audit ([PR #13](https://github.com/beautifulrem/FinSight/pull/13), Issue #7)**: Fixed 14 P1/P2 findings (`tests/test_audit_issue7_fixes.py`) covering explicit `.SH`/`.SZ`/`.BJ` suffix preservation & index routing, A2A `contextId` tenant anti-enumeration & `MAX_QUERY_LENGTH`, authenticated HTTP MCP with fail-closed non-loopback guards, credential/DSN redaction in logs/provenance/SSE errors, loopback-bound Compose ports without anonymous Grafana Admin, ReDoS hardening, Postgres connection pooling, `NaN`/`Inf` sanitization, legacy `/chat` OOS/compliance guards, pre-extraction archive validation, serialized V8 `MiniRacer` execution, and SSE timeout generator-close race handling.
-- **14 Rounds of Independent Reviews (`docs/reviews/round1.md`–`round14.md`)**: Raised independent rubric scores from `77` (lowest dimension `68`) in round 1 to `94.5` (every dimension `≥ 90`) in round 14—delivering sentence-level claim verification (`0.92%` strict false-accept), primary-source FY2025 snapshot corrections & accounting definitions, server-issued anti-enumeration sessions, forecast/foreign-listing/lookalike/position-sizing guards, HK/TW terminology & full-width normalization, planner prefetch latency cuts (`P95 27.1 s → 15.4 s`), and CI time-budget enforcement.
+- **Iterative Evaluation & Guardrail Hardening**: Delivered sentence-level claim verification (`0.92%` strict false-accept), primary-source FY2025 snapshot corrections & accounting definitions, server-issued anti-enumeration sessions, forecast/foreign-listing/lookalike/position-sizing guards, HK/TW terminology & full-width normalization, planner prefetch latency cuts (`P95 27.1 s → 15.4 s`), and CI time-budget enforcement.

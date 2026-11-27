@@ -256,7 +256,7 @@ python -m evaluation.agent_eval.report --check             # 校验 docs/agent-e
 | 部署、性能与开发规范 | [deployment.md](docs/zh/deployment.md) · [performance.md](docs/zh/performance.md) · [development.md](docs/zh/development.md) | [deployment.md](docs/deployment.md) · [performance.md](docs/performance.md) · [development.md](docs/development.md) |
 | 模型训练与评测体系 | [training.md](docs/zh/training.md) · [evaluation.md](docs/zh/evaluation.md) · [evaluation-history.md](docs/zh/evaluation-history.md) | [training.md](docs/training.md) · [agent-eval.md](docs/agent-eval.md) · [evaluation-history.md](docs/evaluation-history.md) |
 | 已知问题与同类产品对比 | [known-issues.md](docs/zh/known-issues.md) · [comparison.md](docs/zh/comparison.md) | [known-issues.md](docs/known-issues.md) · [comparison.md](docs/comparison.md) |
-| 独立评审、演讲资料与人工评测套件 | [docs/presentation/](docs/presentation/README.md) · [docs/reviews/](docs/reviews/README.md) | [evaluation/human/](evaluation/human/README.md) |
+| 演讲资料与人工评测套件 | [docs/presentation/](docs/presentation/README.md) | [evaluation/human/](evaluation/human/README.md) |
 
 ## 引用
 

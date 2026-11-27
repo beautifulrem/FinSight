@@ -256,7 +256,7 @@ python -m evaluation.agent_eval.report --check             # verify docs/agent-e
 | Deployment, Performance & Development | [deployment.md](docs/deployment.md) · [performance.md](docs/performance.md) · [development.md](docs/development.md) | [deployment.md](docs/zh/deployment.md) · [performance.md](docs/zh/performance.md) · [development.md](docs/zh/development.md) |
 | Training & Evaluation | [training.md](docs/training.md) · [agent-eval.md](docs/agent-eval.md) · [evaluation-history.md](docs/evaluation-history.md) | [training.md](docs/zh/training.md) · [evaluation.md](docs/zh/evaluation.md) · [evaluation-history.md](docs/zh/evaluation-history.md) |
 | Known Issues & Product Comparison | [known-issues.md](docs/known-issues.md) · [comparison.md](docs/comparison.md) | [known-issues.md](docs/zh/known-issues.md) · [comparison.md](docs/zh/comparison.md) |
-| Independent Reviews & Human Kit | [docs/reviews/](docs/reviews/README.md) · [evaluation/human/](evaluation/human/README.md) | [docs/presentation/](docs/presentation/README.md) |
+| Presentation & Human Evaluation Kit | [docs/presentation/](docs/presentation/README.md) | [evaluation/human/](evaluation/human/README.md) |
 
 ## Citation
 

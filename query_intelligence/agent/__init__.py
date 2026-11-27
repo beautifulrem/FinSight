@@ -1,4 +1,4 @@
 """Agent orchestration layer over Query Intelligence.
 
-See docs/agent-upgrade/GOAL.md for the design and AGENTS.md for the layer rules.
+See docs/agent.md and docs/agent-upgrade/GOAL.md for the architecture and layer invariants.
 """

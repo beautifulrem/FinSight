@@ -6,7 +6,7 @@
   "model": null,
   "llm_client": "none",
   "model_source": null,
-  "tasks_file": "/Volumes/Remi/finsight-review/heldout_r8/chat_r8_heldout.jsonl",
+  "tasks_file": "<external-slice>/heldout_r8/chat_r8_heldout.jsonl",
   "snapshot": {
    "path": null,
    "recorded": false,
@@ -21,9 +21,9 @@
   "run_at": "2026-10-01T08:58:22+00:00",
   "eval_today": "2026-04-23",
   "wall_seconds": 135.8,
-  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r8/chat_r8_heldout.jsonl --out outputs/agent_eval/chat_r8-after.json",
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks <external-slice>/heldout_r8/chat_r8_heldout.jsonl --out outputs/agent_eval/chat_r8-after.json",
   "env": {},
-  "command_with_env": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r8/chat_r8_heldout.jsonl --out outputs/agent_eval/chat_r8-after.json"
+  "command_with_env": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks <external-slice>/heldout_r8/chat_r8_heldout.jsonl --out outputs/agent_eval/chat_r8-after.json"
  },
  "summary": {
   "tasks": 51,

@@ -1,6 +1,6 @@
 """Validate multiturn_v1.jsonl against the real offline FinSight tools.
 
-Usage (from the FinSight-r2 repo root):
+Usage (from the FinSight repo root):
     PYTHONPATH=. .venv/bin/python \
         evaluation/agent_eval/independent/verify_multiturn.py
 

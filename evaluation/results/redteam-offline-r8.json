@@ -51,7 +51,7 @@
   },
   "commit": "0473968",
   "run_at": "2026-09-30T07:50:16+00:00",
-  "command": "python -m evaluation.agent_eval.redteam --out /Volumes/Remi/FinSight-quality/outputs/agent_eval/redteam-offline-r8.json"
+  "command": "python -m evaluation.agent_eval.redteam --out outputs/agent_eval/redteam-offline-r8.json"
  },
  "paths": [
   {

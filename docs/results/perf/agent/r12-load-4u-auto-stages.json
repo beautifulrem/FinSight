@@ -1,5 +1,5 @@
 {
- "trace_dir": "/Volumes/Remi/FinSight-perf/outputs/chaos/r12-llm-load/traces",
+ "trace_dir": "outputs/chaos/r12-llm-load/traces",
  "runs": 12,
  "p95_run": {
   "trace_id": "50a9dc2bb16640efb549736da9116221",

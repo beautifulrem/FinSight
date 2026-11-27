@@ -389,7 +389,7 @@ def test_amount_figures_are_levels_with_period_not_changes_or_prior_years():
 
 
 def test_planted_profit_correction_on_a_news_question_is_attributed_by_the_layer():
-    # the round-4 agent answer (finsight-review/round4/planted4-agent-llm.json): no fundamentals were fetched
+    # the round-4 agent answer (external-review/round4/planted4-agent-llm.json): no fundamentals were fetched
     store = _store(ANNUAL + FAKE_PROFIT, "贵州茅台：2025年拟每股派现27.993元 合计拟派发现金红利约350.33亿元")
     answer = (
         "4月16日公司发布2025年年度报告，报道称归属于上市公司股东的净利润823.20亿元，同比下降4.53%[news_1]。"
@@ -481,7 +481,7 @@ def test_amounts_for_other_years_or_companies_are_not_disputes_and_two_documents
 
 
 def test_single_source_bonus_share_rumour_is_attributed_in_answer_and_key_points():
-    # the round-4 composition answer (finsight-review/round4/planted4-llm-composition.json)
+    # the round-4 composition answer (external-review/round4/planted4-llm-composition.json)
     store = _store(ANNUAL + BONUS_RUMOR)
     answer = "另有媒体报道称，贵州茅台拟于10月8日公布每10股送10股方案 [news_1]。"
     guarded, notes = _scrub(answer, store, key_points=["媒体报道提及拟于10月8日公布每10股送10股方案 [news_1]"])

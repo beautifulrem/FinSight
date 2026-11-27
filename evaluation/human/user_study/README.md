@@ -28,16 +28,15 @@ Remove-Item Env:DEEPSEEK_API_KEY -ErrorAction SilentlyContinue
 uvicorn query_intelligence.api.app:create_app --factory --host 127.0.0.1 --port 8765
 ```
 
-**可选：LLM 模式。** 想让参与者体验 LLM 智能体，在启动前额外设置（只能用 `cline-pass/*` 模型）：
+**可选：LLM 模式。** 想让参与者体验 LLM 智能体，在启动前额外设置 OpenAI 兼容网关环境变量：
 
 ```bash
 export DEEPSEEK_API_KEY=...                              # 不要写进任何文件或截图
-export DEEPSEEK_BASE_URL=https://api.cline.bot/api/v1
-export DEEPSEEK_MODEL=cline-pass/deepseek-v4.1-flash
+export DEEPSEEK_BASE_URL=https://api.deepseek.com/v1     # 或你配置的兼容网关
+export DEEPSEEK_MODEL=deepseek-chat
 ```
 
-（本机也可以直接 `source /Volumes/Remi/finsight-review/llmenv.sh`，它会设置同样的变量；之后仍要设置上面的
-`QI_FEEDBACK_PATH` 再启动。）然后在页面的模式切换处选「自动」或「LLM 智能体」。每个问题约用 1–3 次 LLM 调用，
+设置完上述环境变量以及 `QI_FEEDBACK_PATH` 后启动服务，然后在页面的模式切换处选「自动」或「LLM 智能体」。每个问题约用 1–3 次 LLM 调用，
 8 人 × 5 个任务大约 40–120 次。一次研究里所有参与者用同一种模式，并在问卷的 `comment` 或你的记录里写明模式。
 
 **离线数据只覆盖这些标的**（截至 2026-04-22 的快照）：贵州茅台、五粮液、中国平安、沪深300ETF、沪深300 指数、

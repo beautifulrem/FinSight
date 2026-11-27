@@ -1,6 +1,6 @@
 # Agent Layer Upgrade Progress (Completed)
 
-All 39 planned tasks in [GOAL.md](GOAL.md) (`T0.1`–`T5.3`) are **completed**, followed by 14 rounds of independent reviews ([docs/reviews/](../reviews/README.md)) and the full-repository P1/P2 security and correctness audit ([PR #13](https://github.com/beautifulrem/FinSight/pull/13)).
+All 39 planned tasks in [GOAL.md](GOAL.md) (`T0.1`–`T5.3`) are **completed**, followed by iterative guardrail hardening and the full-repository P1/P2 security and correctness audit ([PR #13](https://github.com/beautifulrem/FinSight/pull/13)).
 
 ## Milestone Summary
 

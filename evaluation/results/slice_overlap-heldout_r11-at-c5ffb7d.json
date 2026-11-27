@@ -4,7 +4,7 @@
   "slice": "heldout_r11",
   "commit": "c5ffb7d",
   "run_at": "2026-10-10T22:57:03+00:00",
-  "command": "python -m evaluation.agent_eval.slice_overlap /Volumes/Remi/finsight-review/heldout_r11 --content --out /tmp/r11-overlap-content.json"
+  "command": "python -m evaluation.agent_eval.slice_overlap <external-slice>/heldout_r11 --content --out /tmp/r11-overlap-content.json"
  },
  "slice": "heldout_r11",
  "slice_texts": 97,

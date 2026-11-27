@@ -46,7 +46,6 @@ Start with the [README](../README.md) for the quick start and headline benchmark
 | [Evaluation History](evaluation-history.md) | Independent sets (first-run vs after-exposure), per-round benchmark ledger, CI workflow, and full limits |
 | [Known Issues & Audit Log](known-issues.md) | Open limitations, trade-offs, and resolved review/audit findings |
 | [Product Comparison](comparison.md) | Capability comparison against 问财, 豆包, Kimi, Wind Alice, and 妙想, plus head-to-head protocol |
-| [Independent Reviews](reviews/README.md) | Summary index of 14 external evaluation rounds and rubric |
 | [Agent Upgrade Plan](agent-upgrade/GOAL.md) · [Progress](agent-upgrade/PROGRESS.md) | Original agent-layer architecture goals and milestone log |
 | [Architecture Practices Research](research/agent-architecture-practices-2026.md) | Literature synthesis of production agent and verification patterns |
 | [Presentation Materials](presentation/README.md) | Slide outline, engineering design notes, and walkthrough script |

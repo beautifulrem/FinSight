@@ -1,6 +1,6 @@
 """Label the sixth blind claim set: collected_v6.jsonl -> claims_v6.jsonl.
 
-Every value a part is compared with is computed here from the FinSight-r2 data files (read-only):
+Every value a part is compared with is computed here from the FinSight data files (read-only):
 data/structured_data.json, data/snapshot/structured_data_fix.json, data/snapshot/structured_data_ext.json and
 data/snapshot/corrections/sources.json (primary-source comparison and the definition rule's same-figure exception only).
 Standard library only; nothing from query_intelligence is imported; the claim checker is never run.
@@ -12,11 +12,12 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = Path("/Volumes/Remi/FinSight-r2")
+REPO = Path(os.environ.get("FINSIGHT_REPO", HERE.parents[1]))
 BASE = REPO / "data/structured_data.json"
 FIX = REPO / "data/snapshot/structured_data_fix.json"
 EXT = REPO / "data/snapshot/structured_data_ext.json"

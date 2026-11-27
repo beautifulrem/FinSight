@@ -6,7 +6,7 @@
   "model": null,
   "llm_client": "none",
   "model_source": null,
-  "tasks_file": "/Volumes/Remi/finsight-review/heldout_r11/chat_r11_heldout.jsonl",
+  "tasks_file": "<external-slice>/heldout_r11/chat_r11_heldout.jsonl",
   "snapshot": {
    "path": null,
    "recorded": false,
@@ -21,12 +21,12 @@
   "run_at": "2026-10-10T22:56:23+00:00",
   "eval_today": "2026-04-23",
   "wall_seconds": 40.9,
-  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r11/chat_r11_heldout.jsonl --out outputs/agent_eval/chat_r11-after.json",
+  "command": "python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks <external-slice>/heldout_r11/chat_r11_heldout.jsonl --out outputs/agent_eval/chat_r11-after.json",
   "env": {
    "QI_EVAL_SNAPSHOT_EXT": "1",
    "QI_EVAL_SNAPSHOT_FIX": "1"
   },
-  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks /Volumes/Remi/finsight-review/heldout_r11/chat_r11_heldout.jsonl --out outputs/agent_eval/chat_r11-after.json",
+  "command_with_env": "QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks <external-slice>/heldout_r11/chat_r11_heldout.jsonl --out outputs/agent_eval/chat_r11-after.json",
   "slice_overlap": {
    "slice": "chat_r11_heldout.jsonl",
    "slice_texts": 73,

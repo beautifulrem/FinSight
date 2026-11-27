@@ -19,7 +19,7 @@ Synthesis of 2025–2026 production AI-agent and prompt-engineering practices (A
 ## Deliberately Omitted Patterns (Low Fit for FinSight)
 
 - **Role-playing multi-agent debates**: High token multiplier (~15×) without improving single-domain factual accuracy; replaced by deterministic verification + single-loop orchestration.
-- **LLM-based routing or vector-DB retrieval backbone**: Violates FinSight's explainable classical Query Intelligence architecture (`AGENTS.md`) and weakens exact financial symbol/period matching.
+- **LLM-based routing or vector-DB retrieval backbone**: Violates FinSight's explainable classical Query Intelligence architecture and weakens exact financial symbol/period matching.
 - **Always-on conversation summarization**: Ablated on `multiturn_v1` with zero accuracy gain on ≤5-turn financial dialogues; kept opt-in (`QI_AGENT_MEMORY_SUMMARY=1`, off by default).
 - **DeepSeek strict tool mode**: Avoided in favor of standard schemas validated locally with Pydantic + JSON repair for cross-gateway compatibility.
 

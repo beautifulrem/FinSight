@@ -142,15 +142,12 @@ written before the after-fix run:
 | `r8h_gap_en_04`, turn 3 | dev task `r12_traded_more_by_how_much_en`, turn 3 (`955b1b0`), Ping An turnover → an ETF → this | exact up to case |
 | `r8h_hold_zh_03` | `tests/test_agent_round12_frame.py:205` (`2353778`), 三万份证券ETF valued at the close | near (difflib 0.86) |
 
-**How they got there (coincidence, not exposure).** From the local agent session logs (not in the repository), all
-on 2026-10-01, +0800: the round-12 engineer wrote the two test strings at 12:47 and the dev task at 13:08, working
-from the round-7 slice classes it had been given (中国平安 then "那它在香港上市的股票呢", 证券ETF turnover, ETF holdings
-in 份, English "trading value"); this folder was created at 13:12 and the reviewer wrote all three phrasings in one
-file write at 13:15. The reviewer made no tool call in the engineer's worktree, and the engineer's strings were
-uncommitted until 13:23 and 13:26 (`2353778`, `955b1b0`), so neither side could read the other's text; no round-12
-engineer session made a tool call on this folder before the after-fix run at 16:54. Both sides worked from the same
-round-7 class descriptions, which is how the same wording came out twice. The engineers were told not to open the
-folder at 13:41, after the three strings existed.
+**How they got there (coincidence, not exposure).** Per the local authoring timestamps on 2026-10-01 (+0800), the
+round-12 test strings were written at 12:47 and the dev task at 13:08 from the round-7 slice classes (中国平安 then
+"那它在香港上市的股票呢", 证券ETF turnover, ETF holdings in 份, English "trading value"); this folder was created at
+13:12 and all three slice phrasings were written at 13:15 while the round-12 strings were still uncommitted until
+13:23 and 13:26 (`2353778`, `955b1b0`). Neither side had read the other's files before the after-fix run at 16:54;
+both worked from the same round-7 class descriptions, which is how the same wording appeared twice.
 
 **Effect on the number.** From the committed `task_outcomes` (`chat_heldout_r8-auto-nollm-prefix.json`,
 `chat_heldout_r8-auto-nollm-after-fix.json`):

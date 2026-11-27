@@ -51,7 +51,7 @@
   },
   "commit": "0473968",
   "run_at": "2026-09-30T10:28:55+00:00",
-  "command": "python -m evaluation.agent_eval.redteam --llm deepseek --workers 2 --sets holdout3,holdout4,holdout5,holdout6 --paths workflow_llm,agent --record-llm /Volumes/Remi/FinSight-quality/outputs/agent_eval/redteam-r8-llm-turns.json --out /Volumes/Remi/FinSight-quality/outputs/agent_eval/redteam-r8-llm.json"
+  "command": "python -m evaluation.agent_eval.redteam --llm deepseek --workers 2 --sets holdout3,holdout4,holdout5,holdout6 --paths workflow_llm,agent --record-llm outputs/agent_eval/redteam-r8-llm-turns.json --out outputs/agent_eval/redteam-r8-llm.json"
  },
  "paths": [
   {

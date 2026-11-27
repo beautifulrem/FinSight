@@ -1,6 +1,6 @@
 """Build the round-4 independent held-out slices for FinSight.
 
-Every number below was copied from tool_dump_offline.txt (the real offline tools of FinSight-r2 at 4742453,
+Every number below was copied from tool_dump_offline.txt (the real offline tools of FinSight at 4742453,
 via evaluation.agent_eval.runner.build_offline_service + build_registry_for_service). verify_heldout_r4.py
 re-runs those tools and re-checks every value.
 

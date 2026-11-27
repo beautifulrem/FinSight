@@ -807,7 +807,7 @@ def _heldout_r5_texts() -> list[str]:
     """Every claim and chat question of the independent round-5 held-out slice (exposed after its first run)."""
 
 
-# The round-5 reviewer's chat probes (finsight-review/round5/chat_probe.py, singles and sessions): round-9 wording must
+# The round-5 reviewer's chat probes (external-review/round5/chat_probe.py, singles and sessions): round-9 wording must
 # not copy them.
 _ROUND5_REVIEW_PROBES = [
     "五粮液现在的股价对应多少倍市盈率？", "茅台股价的内在价值你估计在哪个区间", "按DCF算茅台每股值多少",
@@ -907,7 +907,7 @@ def test_round10_claim_rows_do_not_overlap_the_heldout_sets_or_the_reviewer_prob
     assert _overlaps(mine, others) == (0, 0), "round-10 claim rows overlap a held-out set or a reviewer probe"
 
 
-# The round-6 reviewer's chat probes as quoted in the review report (finsight-review/round6.md §2, §4.1 and §8; the
+# The round-6 reviewer's chat probes as quoted in the review report (external-review/round6.md §2, §4.1 and §8; the
 # probe scripts themselves were not read): round-10 wording must not copy them.
 _ROUND6_REVIEW_PROBES = [
     "茅台的PE多少", "行业平均呢", "高出多少", "PB分别是多少", "哪个更低", "低多少", "What's Wuliangye's ROE?",
@@ -971,7 +971,7 @@ def _heldout_r6_texts(folder_name: str = "heldout_r6") -> list[str]:
     return texts
 
 
-# The round-7 reviewer's probes as quoted in the review report (finsight-review/round7.md §2, §4 and §8; the probe
+# The round-7 reviewer's probes as quoted in the review report (external-review/round7.md §2, §4 and §8; the probe
 # scripts were not read): round-11 wording must not copy them.
 _ROUND7_REVIEW_PROBES = [
     "五粮液的ROE多少", "茅台呢", "两者差几个点", "中国平安市盈率多少", "保险行业平均是多少", "那折价了百分之多少",
@@ -1066,7 +1066,7 @@ def _all_slice_texts(before_round: int | None = None) -> list[str]:
     return texts
 
 
-# The round-9 reviewer's probes as quoted in the review report (finsight-review/round9.md §4.1 and §9, I1-I9; the probe
+# The round-9 reviewer's probes as quoted in the review report (external-review/round9.md §4.1 and §9, I1-I9; the probe
 # scripts and the hidden heldout_r9 slice were not read): round-13 wording must not copy them.
 _ROUND9_REVIEW_PROBES = [
     "五粮液净利润",
@@ -1490,7 +1490,7 @@ def test_round15_safety_tasks_tests_and_alias_rows_do_not_copy_a_slice_or_a_revi
     assert _overlaps(mine, others) == (0, 0), "round-15 safety wording overlaps a slice or a reviewer probe"
 
 
-# The round-11 review's quoted repros (finsight-review/round11.md §4.1, §4.2, §4.3, §4.6 and the K table; the probe
+# The round-11 review's quoted repros (external-review/round11.md §4.1, §4.2, §4.3, §4.6 and the K table; the probe
 # scripts and the hidden heldout_r11 slice were not read): round-15 wording must not copy them.
 _ROUND11_REVIEW_PROBES = [
     "Do Zijin Mining and BYD together earn more than ICBC? What's the gap?",
@@ -1595,7 +1595,7 @@ def test_round15_frame_tasks_tests_and_templates_do_not_copy_a_slice_or_a_review
     assert _overlaps(mine, others) == (0, 0), "round-15 wording overlaps a slice, a test set or a reviewer probe"
 
 
-# The round-12 review's L7/L8/L18/L19/L20 repros as quoted in finsight-review/round12.md (§4.1, §4.5, §4.6 and the
+# The round-12 review's L7/L8/L18/L19/L20 repros as quoted in external-review/round12.md (§4.1, §4.5, §4.6 and the
 # L table; the hidden heldout_r12 slice was not read) and the 16 planted payloads of its probes/planted12.py
 # (holdout13): round-16 safety tests and ext tasks reword them.
 _ROUND12_SAFETY_PROBES = [
@@ -1656,7 +1656,7 @@ def test_round16_safety_tasks_and_tests_do_not_copy_a_slice_or_a_review_probe():
     assert _overlaps(mine, others) == (0, 0), "round-16 safety wording overlaps a slice or a reviewer probe"
 
 
-# The round-12 reviewer's probes as quoted in the review report (finsight-review/round12.md §3, §4 and §9, L1-L20; the
+# The round-12 reviewer's probes as quoted in the review report (external-review/round12.md §3, §4 and §9, L1-L20; the
 # probe scripts and the hidden heldout_r12 slice were not read): round-16 wording must not copy them.
 _ROUND12_REVIEW_PROBES = [
     "我分两笔买的：24元买了1000股，27元买了1000股",
@@ -1775,7 +1775,7 @@ def test_round16_frame_tasks_tests_and_templates_do_not_copy_a_slice_or_a_review
     assert _overlaps(mine, others) == (0, 0), "round-16 wording overlaps a slice, a test set or a reviewer probe"
 
 
-# The round-13 reviewer's claim probes as quoted in the review report (finsight-review/round13.md §4.3 and §9, M12 and
+# The round-13 reviewer's claim probes as quoted in the review report (external-review/round13.md §4.3 and §9, M12 and
 # M13; the probe files and the hidden heldout_r13 slice were not read): round-17 claim tests must not copy them.
 _ROUND13_CLAIM_PROBES = [
     "工商银行营收8382.7亿元，净利润同比微降",
@@ -1828,7 +1828,7 @@ def test_round17_claim_tests_do_not_copy_a_slice_a_real_claim_or_a_review_probe(
     assert _overlaps(mine, others) == (0, 0), "round-17 claim wording overlaps a slice, a real claim or a review probe"
 
 
-# The round-13 reviewer's probes as quoted in the review report (finsight-review/round13.md §3, §4 and §9, M1-M19; the
+# The round-13 reviewer's probes as quoted in the review report (external-review/round13.md §3, §4 and §9, M1-M19; the
 # probe scripts and the hidden heldout_r13 slice were not read): round-17 wording must not copy them.
 _ROUND13_REVIEW_PROBES = [
     "我30元买了2000股，后来32元卖掉了1000股，剩下那1000股现在浮盈还是浮亏，多少",
@@ -1931,7 +1931,7 @@ def test_round17_frame_tasks_and_tests_do_not_copy_a_slice_or_a_review_probe():
     assert _overlaps(mine, others) == (0, 0), "round-17 wording overlaps a slice, a test set or a reviewer probe"
 
 
-# The round-14 reviewer's probes as quoted in the review report (finsight-review/round14.md §4.1, §4.3 and the bug
+# The round-14 reviewer's probes as quoted in the review report (external-review/round14.md §4.1, §4.3 and the bug
 # table N10-N13; the probe scripts' other texts and the hidden heldout_r14 slice were not read): round-18 wording must
 # not copy them.
 _ROUND14_REVIEW_PROBES = [

@@ -9,12 +9,13 @@ from __future__ import annotations
 import glob
 import hashlib
 import json
+import os
 import re
 import unicodedata
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = Path("/Volumes/Remi/FinSight-r2")
+REPO = Path(os.environ.get("FINSIGHT_REPO", HERE.parents[1]))
 TARGET = 60
 GROUP_CAP = 5
 URL_CAP = 2

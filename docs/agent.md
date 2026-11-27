@@ -2,7 +2,7 @@
 
 Languages: English | [中文](zh/agent.md)
 
-The Agent Layer (`query_intelligence/agent/`) extends the published paper's Query Intelligence pipeline ([DOI: `10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)) with a stateful LangGraph research orchestrator, 9 typed read-only tools, sentence-level numeric claim verification, and deterministic offline fallback. Classical NLU and hybrid retrieval remain the router and evidence backbone ([AGENTS.md](../AGENTS.md)).
+The Agent Layer (`query_intelligence/agent/`) extends the published paper's Query Intelligence pipeline ([DOI: `10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)) with a stateful LangGraph research orchestrator, 9 typed read-only tools, sentence-level numeric claim verification, and deterministic offline fallback. Classical NLU and hybrid retrieval remain the explainable router and evidence backbone.
 
 Two execution paths share one LangGraph state graph:
 

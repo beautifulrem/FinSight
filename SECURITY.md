@@ -16,7 +16,7 @@ Security fixes are shipped on the latest commit on `master`.
 
 - **No secrets in git**: API keys, tokens, database passwords, and cookies must come from environment variables (`DEEPSEEK_API_KEY`, `TUSHARE_TOKEN`, `QI_API_KEYS`, `QI_ANON_COOKIE_SECRET`), a git-ignored local `.env`, or external Kubernetes Secrets ([docs/deployment.md](docs/deployment.md#secrets)).
 - **Automated scanning**: `gitleaks` runs on staged diffs via [`.pre-commit-config.yaml`](.pre-commit-config.yaml) and over the **entire git history** in CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). [`.gitleaks.toml`](.gitleaks.toml) allows only narrowly scoped false positives and the single revoked historical finding below.
-- **Historical disclosure (`302077a`)**: An LLM API key was briefly committed to `config/app_config.json` in `302077a` (2026-05-02) and removed 7 minutes later in `d1d2958`. History was intentionally not rewritten; the repository owner confirmed provider-side revocation on 2026-09-30.
+- **Historical disclosure (`25cac09`)**: An LLM API key was briefly committed to `config/app_config.json` in `25cac09` (2026-05-02) and removed 7 minutes later in `df385ba`. The repository owner confirmed provider-side revocation on 2026-09-30.
 - **Credential redaction**: Logs, `/ready`, SSE/A2A error payloads, and evaluation provenance snapshots redact database DSNs, bearer tokens, and keys (`describe_error` / secret filters). Caller identities are logged only as SHA-256 prefixes.
 
 ## Security Boundaries

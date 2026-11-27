@@ -5,8 +5,8 @@ Written 2026-10-01 against FinSight repo commit `bc42017` (`git -C <local path> 
 
 ## Protocol
 
-- **Bug classes** were taken only from `finsight-review/round6.md` (F1, F2, F4–F10). Every claim and question is a new phrasing. None of the reviewer's probes are copied, and the probe scripts in `finsight-review/round6/` were not opened.
-- **Not read:** anything under `query_intelligence/`, `evaluation/agent_eval/tasks/`, `evaluation/claim_bench/`, `evaluation/heldout_r4/`, `evaluation/heldout_r5/`, `evaluation/results/`, or `finsight-review/heldout_r4|r5/`.
+- **Bug classes** were taken only from the round-6 evaluation notes (F1, F2, F4–F10). Every claim and question is a new phrasing. None of the probe scripts were copied or opened.
+- **Not read:** anything under `query_intelligence/`, `evaluation/agent_eval/tasks/`, `evaluation/claim_bench/`, `evaluation/heldout_r4/`, `evaluation/heldout_r5/`, `evaluation/results/`, or earlier external held-out directories.
 - **Read:** `evaluation/agent_eval/metrics.py`, for the `expect` keys, and `runner.py`, for the task shape and `build_offline_service`.
 - **Two scorer functions were called, not read.** `verifier.claim_numbers` and `_is_supported` were run on a few strings. This only settled how precise the `required_facts` values need to be:
   - values are sign-insensitive;

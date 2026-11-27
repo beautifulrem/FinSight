@@ -8,7 +8,7 @@ Extend FinSight's published classical **Query Intelligence** pipeline ([DOI: `10
 
 ## Non-Negotiable Constraints
 
-1. **Classical backbone preserved**: No LLM router or vector database replaces NLU or retrieval ([AGENTS.md](../../AGENTS.md)).
+1. **Classical backbone preserved**: No LLM router or vector database replaces NLU or retrieval.
 2. **Financial compliance**: Never emit buy/sell/position-size instructions; cite run `evidence_id`s; surface missing data explicitly; always attach a risk disclaimer.
 3. **Offline testability & deterministic fallback**: All core tests run offline via `ScriptedLLM`; missing API keys or LLM failures fall back cleanly to the deterministic planner + template composer.
 4. **Backwards compatibility**: Existing `/nlu/analyze`, `/retrieval/search`, `/query/intelligence*`, and classic `/chat` contracts remain stable.

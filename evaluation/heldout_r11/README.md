@@ -124,7 +124,7 @@ shows:
 
 | When (+0800, 2026-10-11) | Event | Source |
 |---|---|---|
-| 03:08:24 | `claims_r11_heldout.jsonl` created in the reviewer's folder | file birth time in `finsight-review/heldout_r11/` |
+| 03:08:24 | `claims_r11_heldout.jsonl` created in the external slice folder | file birth time in `<external-slice>/heldout_r11/` |
 | 03:12:02 / 03:12:24 | reviewer's first runs of the slice at `4ad3380` (chat / claims) | `run_at` in `chat_heldout_r11-auto-nollm-prefix.json` / `claims_heldout_r11-prefix.json` |
 | 03:21–03:30 | round-11 review report written | birth and modification times of `round11.md` / `round11.json` |
 | **03:42:38** | the sentence enters the repository in `138d64d` ("test(claims): round-15 K6 claim classes in own wording", parent `4ad3380`; its docstring says the review's sentences are not copied) | `git log -S` (the first commit that contains it) |

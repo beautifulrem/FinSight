@@ -47,7 +47,6 @@
 | [评测历史](evaluation-history.md) | 独立任务集（首次运行 vs 暴露后）、逐轮评测记录、CI 流程与完整局限 |
 | [已知问题与审计记录](known-issues.md) | 当前开放局限、取舍说明，以及各轮评审与安全审计修复摘要 |
 | [同类产品对比](comparison.md) | 与问财、豆包、Kimi、Wind Alice、妙想的能力对比与人工评测方案 |
-| [独立评审报告](../reviews/README.md) | 14 轮外部独立评审索引与评分标准 |
 | [Agent 升级目标](../agent-upgrade/GOAL.md) · [进展](../agent-upgrade/PROGRESS.md) | Agent 层架构设计目标与里程碑记录 |
 | [Agent 工程实践调研](../research/agent-architecture-practices-2026.md) | 生产级 Agent 与校验架构文献调研（英文） |
 | [演示与设计资料](../presentation/README.md) | PPT 大纲、架构设计复盘与口头讲解提纲 |

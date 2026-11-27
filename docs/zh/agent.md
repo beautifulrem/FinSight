@@ -2,7 +2,7 @@
 
 语言：[English](../agent.md) | 中文
 
-Agent 层（`query_intelligence/agent/`）在论文核心的 Query Intelligence 流水线（[DOI: `10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)）之上构建有状态的 LangGraph 研究编排器、9 个类型化只读工具、逐句数值校验器与离线确定性兜底。经典 NLU 与混合检索始终作为路由器和证据底座（参见 [AGENTS.md](../../AGENTS.md)）。
+Agent 层（`query_intelligence/agent/`）在论文核心的 Query Intelligence 流水线（[DOI: `10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)）之上构建有状态的 LangGraph 研究编排器、9 个类型化只读工具、逐句数值校验器与离线确定性兜底。经典 NLU 与混合检索始终作为可解释的路由器和证据底座。
 
 两条执行路径共享同一张 LangGraph 状态图：
 

@@ -73,7 +73,7 @@ partially_supported 2. Every verdict is computed by the predicates in `build_hel
 
 ```bash
 cd <FinSight checkout>
-FINSIGHT_REPO=$PWD .venv/bin/python /Volumes/Remi/finsight-review/heldout_r14/verify_heldout_r14.py   # -> OK
+FINSIGHT_REPO=$PWD .venv/bin/python evaluation/heldout_r14/verify_heldout_r14.py   # -> OK
 ```
 
 At `64cfbeb`: **OK** (50 conversations, 62 turns, 57 facts; 24 claims). Mutation test (one stored fact value and one
@@ -85,9 +85,9 @@ Info lines: the price tool maps 中芯北方 / 比亚迪锂电池 / 平安理财
 
 ```bash
 QI_EVAL_SNAPSHOT_EXT=1 QI_EVAL_SNAPSHOT_FIX=1 python -m evaluation.agent_eval.runner --mode auto --no-replay \
-  --tasks /Volumes/Remi/finsight-review/heldout_r14/chat_r14_heldout.jsonl --out first_run/chat_r14-auto-64cfbeb.json
-FINSIGHT_REPO=$PWD python /Volumes/Remi/finsight-review/heldout_r14/score_claims_r14.py first_run/claims_r14-64cfbeb.json
-python -m evaluation.agent_eval.slice_overlap /Volumes/Remi/finsight-review/heldout_r14 --content \
+  --tasks evaluation/heldout_r14/chat_r14_heldout.jsonl --out first_run/chat_r14-auto-64cfbeb.json
+FINSIGHT_REPO=$PWD python evaluation/heldout_r14/score_claims_r14.py first_run/claims_r14-64cfbeb.json
+python -m evaluation.agent_eval.slice_overlap evaluation/heldout_r14 --content \
   --out first_run/slice_overlap-heldout_r14-at-64cfbeb.json
 ```
 

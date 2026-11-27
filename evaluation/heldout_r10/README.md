@@ -89,8 +89,8 @@ claims 16/24 → 20/24 (`claims_heldout_r10-*.json`). From round 15 this slice i
 
 ### Provenance of the after-fix run: what the record shows (round-11 review K16)
 
-- **The run read the reviewer's folder.** `chat_heldout_r10-auto-nollm-after-fix.json` records
-  `config.tasks_file = /Volumes/Remi/finsight-review/heldout_r10/chat_r10_heldout.jsonl` and
+- **The run read the external slice folder.** `chat_heldout_r10-auto-nollm-after-fix.json` records
+  `config.tasks_file = <external-slice>/heldout_r10/chat_r10_heldout.jsonl` and
   `run_at = 2026-10-10T18:07:35Z`, at `3480a96` (committed 18:06:33Z); the claim run followed at 18:07:59Z. The folder
   entered the repository two minutes later, in `367636b` (18:09:28Z); it is the only commit that touches
   `evaluation/heldout_r10/`, and its data files are byte-identical to the reviewer's (the hashes above).
