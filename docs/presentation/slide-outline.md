@@ -1,135 +1,42 @@
-# FinSight Presentation Outline
+# FinSight Slide Outline
 
-Use this as the clean source for a short project or conference presentation (*FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*, published in *Frontiers in Artificial Intelligence and Applications*, Vol. 433: *Digitalization and Management Innovation V*, DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)). Query Intelligence is the explainable backend core, while the browser UI and LangGraph research agent consume its typed evidence artifacts downstream.
+Concise deck outline for conference talks and technical demos of **FinSight** (*FAIA* Vol. 433 / DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)).
 
-## 1. Project Motivation
+## 1. Motivation
+- General chatbots hallucinate prices, confuse company entities, omit sources, and emit unlicensed buy/sell calls.
+- Financial QA demands **strict separation between explainable evidence production and downstream narration**.
 
-Financial questions are harder than general chatbot questions because they can affect real investment decisions. A useful system must understand ambiguous user intent, retrieve traceable evidence, handle time-sensitive data, and avoid deterministic buy/sell conclusions.
-
-Core problem:
-
-- Users ask broad questions such as "What do you think about Ping An Insurance?"
-- The system must infer whether the user needs price movement, fundamentals, news, risk, comparison, or a hold-style judgment.
-- The answer should be grounded in market, fundamental, industry, news, announcement, and macro evidence.
-
-## 2. System Boundary
-
-FinSight separates evidence production from answer wording.
-
-Query Intelligence owns:
-
-- Query normalization and language handling.
-- Product, intent, topic, style, and out-of-scope detection.
-- Entity resolution and source planning.
-- Structured and document retrieval.
-- Ranking, deduplication, warnings, and `analysis_summary`.
-
-Downstream modules consume those artifacts:
-
-- Browser workspace (`frontend/`, served at `GET /`) via verified streaming agent (`POST /agent/chat/stream`), LLM-free claim check (`POST /agent/claim-check`), or classic `POST /chat`.
-- LLM API response polishing / tool orchestration over compact evidence. DeepSeek is the default provider example, not a hard dependency.
-- Sentiment analysis over retrieved documents (`sentiment/`).
-- Optional local-transformers handoff via `scripts/llm_response.py`.
-
-## 3. Architecture
+## 2. Two-Layer Architecture
+- **Layer 1 — Explainable Query Intelligence (FAIA 2026 Paper)**: Classical NLU (`query_intelligence/nlu/`: normalization, alias/CRF/typo resolution, TF-IDF + linear/tree classifiers, OOS & clarification gates, source planner), hybrid retrieval & `MarketAnalyzer` (`query_intelligence/retrieval/`), FinBERT document sentiment (`sentiment/`), and constrained JSON handoff (`scripts/llm_response.py`).
+- **Layer 2 — Verified Research Agent (Post-Paper Extension)**: LangGraph tool loop + deterministic fallback (`query_intelligence/agent/`), 9 typed read-only tools with live multi-source circuit breakers, sentence-level numeric claim verifier (`verifier.py`), LLM-free Claim Check (`claim_check.py`), MCP + A2A 1.0, and React 19 UI (`frontend/`).
 
 ```mermaid
 flowchart LR
-  A["User question"] --> B["Frontend /chat"]
-  B --> C["NLU"]
-  C --> D["Source plan"]
-  D --> E["Retrieval"]
-  E --> F["analysis_summary"]
-  E --> G["Evidence documents + structured data"]
-  G --> H["Compact evidence payload"]
-  F --> H
-  H --> I["LLM API response polishing"]
-  I --> J["Answer + key points + disclaimer + evidence cards"]
+  U["React 19 UI / REST / A2A"] --> G["Classical NLU + Input Guard + Router"]
+  G --> T["9 Typed Read-Only Tools (Live Fallback + Offline Snapshot)"]
+  T --> C["LLM Agent Loop / Deterministic Template"]
+  C --> V["Sentence-Level Numeric Verifier + Compliance"]
+  V --> OUT["Cited Answer + Evidence Ledger + Trace"]
 ```
 
-Key implementation paths:
+## 3. Core Technical Highlights
+- **Classical, inspectable routing**: Rules, lexicons, CRF, and LTR explain every entity match, rank score, and route decision.
+- **Sentence-level numeric verification**: Every number must appear in the `evidence_id` cited *in that same sentence* (unit-, precision-, and sign-aware).
+- **Defense in depth**: Read-only tools, untrusted-data envelopes, output safety attribution, forecast/foreign-listing/lookalike guards, and hard removal of trading instructions.
+- **Zero-key resilience**: Runs fully offline without an LLM API key; degrades gracefully on upstream 429/503 or provider blocks.
 
-- `query_intelligence/nlu/`
-- `query_intelligence/retrieval/`
-- `query_intelligence/retrieval/market_analyzer.py`
-- `query_intelligence/api/app.py`
-- `frontend/` (`query_intelligence/web/dist/`), `query_intelligence/chat/`, and `query_intelligence/web/static/`
-- `query_intelligence/agent/`
-- `sentiment/`
+## 4. Headline Benchmarks
+- **Paper NLU & Retrieval (10,000 bilingual queries)**: `0.975` finance recall · `0.9729` OOS accuracy · `0.9407` intent F1 · `0.9208` topic F1 · `0.9664` Recall@10 · `32/32` contract fuzz checks.
+- **Independent Test v3 (130 tasks, untouched first run, DeepSeek)**: Agent **`0.869`** vs. LLM composition `0.831`, deterministic workflow `0.769`, no-tool LLM `0/130`.
+- **Verifier Stress (333 gold, 5,631 corrupted)**: **`0.92%`** strict false-accept (`0.0%` cross-company swaps), `100%` true-accept.
+- **Prompt-Injection Red Team**: Template path `0 / 3,796` across 16 sets; latest targeted LLM slice `0/16` agent, `0/13` composition.
+- **Latency & Scale**: DeepSeek P95 `15.4 s` (~3 s TTFT); `0` errors across `400` chaos-load requests; linear k3s scaling (`1 → 3` replicas) with Postgres-shared sessions.
 
-## 4. Data Sources
-
-Runtime evidence combines shipped assets and live providers:
-
-- Runtime entity and alias tables in `data/runtime/`.
-- Runtime document corpus in `data/runtime/documents.jsonl`.
-- Market and fundamental providers through AKShare, Tushare, efinance, and seed fallback data.
-- Announcement evidence through Cninfo and shipped seed announcements.
-- Optional PostgreSQL retrieval for production document stores.
-
-The backend keeps provider warnings in `retrieval_result.warnings` so the frontend can see when live data degraded or fell back.
-
-## 5. Data Mining And ML Methods
-
-The Query Intelligence backbone stays explainable and classical:
-
-- Rules and dictionaries for normalization and source planning.
-- TF-IDF and linear classifiers for query classification.
-- CRF and alias tables for entity extraction and resolution.
-- Tree and ranking models for source planning and retrieval ranking.
-- Technical indicators and market features in `analysis_summary`.
-
-Transformer or LLM models are downstream only. They do not replace NLU or retrieval decisions.
-
-## 6. Frontend Demo
-
-Run:
-
+## 5. Live Demo Flow
 ```bash
-export DEEPSEEK_API_KEY="your_deepseek_api_key_here"
-python scripts/launch_chatbot.py
+uvicorn query_intelligence.api.app:create_app --factory --port 8765
 ```
-
-Open:
-
-```text
-http://127.0.0.1:8765/
-```
-
-Demo queries:
-
-- `你觉得中国平安怎么样？`
-- `What do you think about Ping An Insurance (601318.SH)?`
-- `Write me a poem`
-
-Expected behavior:
-
-- Financial queries return answer text, key points, evidence cards, and a risk disclaimer.
-- English queries receive English output.
-- Out-of-scope queries are rejected as non-financial.
-- If the configured LLM API is unavailable, the system falls back to a structured evidence summary.
-
-Screenshots:
-
-- Chinese response: `docs/assets/frontend-chatbot-zh.png`
-- English response: `docs/assets/frontend-chatbot-en.png`
-
-## 7. Verified Results
-
-Recent local verification:
-
-- `GET /health` returned `{"status":"ok"}`.
-- Chinese and English `/chat` test calls returned `llm.status="ok"`.
-- Browser UI rendered input, submit button, answer card, key points, evidence sources, and disclaimer.
-- `tests/test_chatbot.py` passed.
-
-## 8. Business Value
-
-The system provides an evidence-first financial analysis workflow:
-
-- Reduces hallucination by grounding answers in retrieved artifacts.
-- Makes source decisions and provider degradation inspectable.
-- Supports bilingual interaction over the same backend artifacts.
-- Gives downstream teams stable JSON contracts instead of unstructured chatbot text.
-
-It is not an automated investment advisor. It prepares reliable evidence and risk-aware wording for human review.
+1. Factual + valuation query: `"贵州茅台和五粮液的市盈率和ROE哪个更低？"` → streaming trace, citation chips, KPI tiles.
+2. Multi-turn follow-up: `"前者最近走势怎么样？"` → coreference resolution + price chart.
+3. Hearsay / Claim Check tab: `"听说茅台市盈率只有15倍"` → deterministic contradicted verdict with primary-source date.
+4. Safety / compliance probes: `"写一段Python代码"` (refuse), `"现在能满仓买入吗"` (hedged, no advice), `"腾讯港股现价"` (`out_of_coverage`).

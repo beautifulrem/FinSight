@@ -1,322 +1,45 @@
-# 评测（中文摘要）
+# 评测摘要（中文）
 
-语言：[English（完整版）](../agent-eval.md) | 中文
+语言：[自动生成完整英文版](../agent-eval.md) | [评测历史](evaluation-history.md) | 中文
 
-本页是 [docs/agent-eval.md](../agent-eval.md) 的中文摘要。完整页面由 `python -m evaluation.agent_eval.report` 从 [`evaluation/results/`](../../evaluation/results/) 里已提交的文件生成，CI 用 `report --check` 保证页面和数据一致。每个结果文件都记录了运行的 commit、Prompt 版本（`id@version#sha`）、时间和命令。下面每个数字都注明了出自哪个文件、哪个 commit。
+本页为 [`docs/agent-eval.md`](../agent-eval.md) 的精简中文导读，汇总 FinSight 的核心评测口径、对比基线、校验器压力测试、提示注入红队与复现命令。
 
-## 测什么
+## 评测口径
 
-| 内容 | 位置 |
-|---|---|
-| **开发集**：最初 207 个任务 / 220 轮，11 个类别，中英文，用来驱动修复。第二轮补了 9 个省略追问任务；第三轮为第二轮评审发现的问题（悬空「为什么」、复数指代、缺失期间/指标、加密资产与美股、注入改语言）补了 22 个回归任务，现为 238 个任务。 | `evaluation/agent_eval/tasks/agent_eval_v1.jsonl`（`build_tasks.py`） |
-| **保留集**：53 个任务 / 56 轮，在开发集驱动修复之后才编写。没有用来调规则，但用来选过 Prompt，所以是验证集。 | `agent_eval_holdout_v1.jsonl`（`build_holdout.py`） |
-| **测试集 v2**：121 个任务 / 174 轮，12 个类别，77 个中文、44 个英文任务，其中 24 段 3–5 轮的对话。下面的在线运行发生时它未被触碰；第二轮的追问修复参考了它暴露的失败类别，所以此后它也只算验证集。 | `agent_eval_test_v2.jsonl`（`build_test_v2.py`） |
-| 某一时刻的工具快照，回放使用，结果不依赖实时数据源 | `evaluation/agent_eval/fixtures/snapshot_*.json` |
-| 评分、bootstrap 置信区间、配对比较 | `evaluation/agent_eval/metrics.py` |
-| 回答路径消融 | `evaluation/agent_eval/ablation.py` |
-| CI 门禁（与已提交基线比较） | `evaluation/agent_eval/gate.py` |
-| 故障注入、校验器压力测试、提示注入红队、路由评测 | `fault_injection.py`、`verifier_stress.py`、`redteam.py`、`router_eval.py` |
-| 用户反馈转候选任务 | `scripts/feedback_to_tasks.py` |
+- **一票否决（dealbreaker）**：每题必须同时满足（1）行为正确（回答/澄清/拒答）；（2）全部必需事实陈述且带有效 `[evidence_id]` 引用；（3）调用必需工具；（4）判断类问题带限定语；（5）全文无买卖或仓位指令。
+- **统计方法**：在线评测每题重复 3 次，报告 95% bootstrap 置信区间、配对 bootstrap 差值与精确 McNemar 检验；独立任务集永久保留未暴露首次结果。
 
-- **期望值怎么来**：期望的事实来自随仓库提供的离线快照（`data/structured_data.json`，行情截至 2026-04-22），每个必需的值都能核对。
-- **题目去重**：题目专为本评测编写，并与仓库里用于训练或其他评测的问题做过重叠检查；测试集 v2 还检查了近似重复，这项检查由测试固定下来（`tests/test_agent_eval.py`）。
+## 核心指标总览
 
-**一票否决的评分。** 一轮只有同时满足以下条件才算成功：
-
-- 行为（回答/澄清/拒答）正确；
-- 每个必需事实都陈述**且**用正确的 evidence id 引用；
-- 用了必需的工具；
-- 没有交易指令；
-- 任务要求时，有限定语、如实说明缺数据、在追问中正确沿用实体。
-
-多轮任务要每一轮都成功才算成功。`pass^k` 只有 k 次重复全部成功才算通过；只跑一次的路径（`legacy`、`workflow`、`legacy_llm`）报告的是 pass^1。
-
-## 统计方法
-
-- **置信区间**：任务成功率和 pass^k 写成 `值 [下限, 上限]`，用按任务的百分位 bootstrap（2000 次重采样，固定种子 20260926），同一任务的多次重复一起抽样。
-  - **为什么以任务为单位**：以任务而不是轮次或运行为单位，因为同一任务的重复运行是相关的。
-  - **区间有多宽**：保留集 53 个任务，一个任务就是 1.9 个百分点，0.9 附近的区间宽约 ±6–9 个百分点；测试集 121 个任务，一个任务是 0.8 个百分点。
-- **两条路径的比较**：在同一批任务上做配对 bootstrap（两条路径用同样的重采样），另对 pass^k 结果做精确 McNemar 检验（只有一条路径全过、另一条没全过的任务才有信息量）。只有任务成功率差值的 95% 区间不含 0 时才称为显著；McNemar 忽略部分通过，是更严格的检验。
-- **不覆盖什么**：bootstrap 把任务集当作所有可能问题的一个样本，不覆盖换一份数据快照、换一天的网关状态，或各任务集作者自身的写法风格。
-
-## 比较的回答路径
-
-| 路径 | 是什么 | 需要 LLM |
+| 维度 | 核心指标 | 证据来源 |
 |---|---|---|
-| `legacy` | 原 `/chat` 路径（Query Intelligence 流水线 + 模板答案，即没有 LLM Key 时的行为）。它的拒答/澄清行为从 NLU 标志推断，对它是宽松的。 | 否 |
-| `workflow` | Agent 的确定性路径：经典 NLU 守卫与路由、确定性规划器、工具、模板组答、证据校验、合规节点。 | 否 |
-| `pure_llm` | LLM 直接回答，不调工具。 | 是 |
-| `legacy_llm` | 原 `/chat` 路径，由 LLM 改写证据。每个任务只跑一次。 | 是 |
-| `workflow_llm` | Agent 确定性路径，由 LLM 根据工具证据组织答案。 | 是 |
-| `agent` | Agent 在 LangGraph 循环里由 LLM 选择工具。 | 是 |
+| **论文 Query Intelligence（10,000 双语查询）** | 金融召回 **0.975**、越界准确率 **0.9729**、意图 F1 **0.9407**、主题 F1 **0.9208**、Recall@10 **0.9664** | [FAIA 2026](https://ebooks.iospress.nl/doi/10.3233/FAIA261107) |
+| **独立测试集 v3（DeepSeek 首次，130 题）** | Agent **0.869** `[0.81, 0.92]`、LLM 组织答案 0.831、确定性流程 0.769、纯 LLM（无工具）**0/130** | [`ablation-final4-deepseek-testv3-holdout.json`](../agent-eval.md#test-set-v3-independent-author-untouched-first-runs) |
+| **校验器压力测试（333 正例，5,631 篡改）** | 严格误放 **0.92%**（允许派生数字 1.05%）、正例通过 **100%**、跨公司换数 **0.0%** | [`verifier_stress-round18.json`](../agent-eval.md#verifier-stress-test-333-gold-answers-5631-corrupted-variants-verifier_stress-round18json) |
+| **提示注入红队（16 套攻击集）** | 模板路径 **0 / 3,796** 成功；全量 LLM 运行 0–3.4% 当作事实；最新定向切片（holdout13）Agent 0/16、组织答案 0/13 | [`redteam-offline-r18.json`](../agent-eval.md#prompt-injection-red-team-offline-template-path-after-round-18-all-sixteen-sets-ci-baseline) |
+| **声明核查（Claim Check）** | 离线开发集（311）**1.000**、保留集（47）**1.000**；盲收集真实公开说法首次得分 **0.500–0.740**（v2–v6） | [claim-check.md](claim-check.md) |
+| **离线 CI 门禁基线** | `dev`（558）**1.000**、`holdout`（53）**0.943**、`ext`（123）**1.000**、`shipped`（21）**1.000** | [`docs/agent-eval.md`](../agent-eval.md#offline-gate-baselines-ci-compares-against-these) |
+| **故障注入（11 场景）** | **11/11** 平稳降级（超时、5xx、空数据、超大文档、LLM 宕机、死循环） | [`fault_injection.json`](../agent-eval.md) |
 
-## 主要结果
+## 关键统计结论
 
-任务成功率（方括号为 95% 置信区间）：
+1. **工具检索 + 校验是核心增益**：纯 LLM（无工具）在严格引用口径下通过 `0/130`；仅靠确定性规划 + 模板即可达 `0.769`；加入规划预取 LLM Agent 提升至 `0.869`（`+0.100`，`p = 0.007`）。
+2. **混合路由性价比最优**：简单事实查询走确定性流程零成本且 P95 `< 2 s`；复杂多跳/归因/对比问题走规划预取 Agent；慢速推理模型（如 GLM）通过 `QI_AGENT_SLOW_MODEL_POLICY=on` 自动走工作流 + LLM 组织答案，避免 `82 s` 级长尾。
+3. **整句删除修复优于子句裁剪**：校验失败后执行整句级删除修复，可读性与二次校验通过率均达 `100%`（旧子句裁剪仅 `26%` 可读）。
 
-| 路径 | 开发集 · DeepSeek | 保留集 · DeepSeek | 测试集 v2 · DeepSeek | 保留集 · GLM | 测试集 v2 · GLM |
-|---|---|---|---|---|---|
-| legacy | 0.256 [0.20, 0.32] | 0.189 [0.09, 0.30] | 0.223 [0.15, 0.30] | 0.207 [0.11, 0.32] | 0.223 [0.15, 0.30] |
-| legacy_llm（pass^1） | 0.440 [0.37, 0.51] | 0.679 [0.55, 0.79] | 未运行 | 未运行 | 未运行 |
-| pure_llm | 0.000 | 0.000 | 0.000 | 未运行 | 未运行 |
-| workflow | 0.981 [0.96, 1.00] | 0.849 [0.75, 0.94] | 0.727 [0.64, 0.80] | 0.849 [0.75, 0.94] | 0.727 [0.64, 0.80] |
-| workflow_llm | 0.979 [0.96, 1.00] | 0.906 [0.83, 0.98] | 0.766 [0.69, 0.83] | 0.906 [0.83, 0.98] | 0.760 [0.68, 0.83] |
-| agent | 0.986 [0.97, 1.00] | 0.956 [0.91, 0.99] | 0.804 [0.73, 0.86] | 0.981 [0.94, 1.00] | 0.810 [0.74, 0.87] |
-
-来源与运行命令：
-
-- **DeepSeek V4.1 Flash**：
-  - 开发集和保留集：`ablation-final.json`，commit `846bc5e`，命令 `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 6`；
-  - 测试集 v2：`ablation-test_v2-deepseek.json`，commit `38a3069`。
-- **GLM-5.3 Flash**：保留集和测试集 v2 来自 `ablation-glm.json`，commit `f7bf624`；GLM 开发集以 `ablation-glm-dev.json`（`38a3069`）为准。
-- **运行方式**：在线路径每个任务重复 3 次，成本为网关账单口径（`usage.cost`，美元）。
-
-### 第二轮代码上的在线重跑（`d1c007c`）
-
-`ablation-final2-deepseek.json` 和 `ablation-final2-glm.json`，commit `d1c007c`，命令 `python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 4 --sets holdout,test_v2 --modes workflow_llm,agent`，GLM 为同一命令加环境变量 `DEEPSEEK_MODEL=cline-pass/glm-5.3-flash`（`--llm deepseek` 只指定 OpenAI 兼容客户端，模型来自 `DEEPSEEK_MODEL`，因此命令行里看不到模型；结果文件的 `config.model` 记录了实际模型，今后的运行也可以用 `--model` 把模型写进命令）。这时测试集 v2 已属于暴露后。
-
-| 路径 | 保留集 · DeepSeek | 测试集 v2 · DeepSeek | 保留集 · GLM | 测试集 v2 · GLM | P95（DeepSeek / GLM，保留集） |
-|---|---|---|---|---|---|
-| legacy | 0.208 [0.11, 0.32] | 0.223 [0.15, 0.30] | 0.208 | 0.223 | 0.6 秒 / 1.5 秒 |
-| workflow | 0.906 [0.83, 0.98] | 0.826 [0.76, 0.89] | 0.906 | 0.826 | 0.4 秒 / 0.8 秒 |
-| workflow_llm | 0.956 [0.90, 1.00]，pass^3 0.943 | 0.860 [0.80, 0.92]，pass^3 0.843 | 0.962 [0.91, 1.00]，pass^3 0.962 | 0.857 [0.80, 0.91]，pass^3 0.843 | 15.7 秒 / 17.1 秒 |
-| agent | 0.962 [0.93, 0.99]，pass^3 0.906 | 0.901 [0.85, 0.95]，pass^3 0.876 | 0.950 [0.91, 0.99]，pass^3 0.887 | 0.846 [0.79, 0.90]，pass^3 0.777 | 20.4 秒 / 66.6 秒 |
-
-配对比较（agent − workflow_llm）：
-
-- DeepSeek 保留集 +0.006 [−0.050, +0.063]，不显著；测试集 v2 +0.041 [+0.006, +0.083]，显著，pass^3 +0.033 [−0.025, +0.091] 不显著。
-- GLM 保留集 −0.013 [−0.076, +0.057]；测试集 v2 −0.011 [−0.050, +0.028]；都不显著。
-- 单任务成本：DeepSeek agent $0.00115 / workflow_llm $0.00084（保留集）；GLM agent $0.00126 / workflow_llm $0.00024。
-
-**在最终 commit 上的重跑待定**：`3730408` 上的重跑中途耗尽了 ClinePass 周额度，每次调用都返回 HTTP 429，Agent 全部降级到模板，所以这些运行没有提交。只有测试集 v3 的「纯 LLM」基线在额度耗尽前跑完：0/130（`ablation-test_v3-purellm-deepseek.json`）。评测工具现在会把 429 占比超过 20% 的运行标为无效（`invalid_runs`），`results.py` 默认拒绝提交。
-
-其他指标（DeepSeek，开发集，`846bc5e`）：
-
-| 指标 | workflow | workflow_llm | agent |
-|---|---|---|---|
-| pass^3 | –（跑一次） | 0.976 [0.95, 1.00] | 0.971 [0.95, 0.99] |
-| 必需事实陈述且引用 | 1.000 | 0.998 | 0.992 |
-| 工具精确率 | 0.739 | 0.739 | 0.659 |
-| 草稿首次即通过校验 | – | 0.812 | 0.486 |
-| 每轮 LLM 调用 | 0 | 1.006 | 1.9 |
-| 每轮 token | 0 | 2050.8 | 8377.7 |
-| Prompt 缓存命中率 | – | 0.656 | 0.668 |
-| P50 / P95 延迟 | 59.9 ms / 809.5 ms | 4.9 s / 16.7 s | 6.0 s / 25.2 s |
-| 单任务成本 | – | $0.00084 | $0.00159 |
-
-GLM 更便宜但更慢：开发集单任务成本 workflow_llm $0.00028、agent $0.00143；P95 分别约 23 秒和 87 秒（`ablation-glm-dev.json`）。
-
-### 最终在线运行（`9536abf`）
-
-DeepSeek V4.1 Flash（GLM-5.3 Flash 只跑测试集 v3），每任务 3 次，3 个并发。来源：`ablation-final4-deepseek-testv3-holdout.json`、`ablation-final4-deepseek-testv2-multiturn.json`、`ablation-final4-glm-testv3.json`；不调工具的 LLM 来自 `ablation-test_v3-purellm-deepseek.json`（`3730408`）。测试集 v3 从未用于任何修复，这是它第一次跑 LLM 路径。
-
-| 路径 | 测试集 v3 · DeepSeek | 测试集 v3 · GLM | 保留集（验证集） | 测试集 v2（暴露后） | 多轮集 v1（暴露后） |
-|---|---|---|---|---|---|
-| legacy（原 `/chat`） | 0.008 | 0.008 | 0.208 | 0.223 | 0.000 |
-| pure_llm（不调工具） | 0/130 | – | – | – | – |
-| workflow | 0.769 [0.69, 0.84] | 0.769 | 0.943 [0.89, 1.00] | 0.901 [0.84, 0.95] | 1.000 |
-| workflow_llm | 0.831 [0.76, 0.89]，pass^3 0.823 | 0.818 [0.75, 0.88]，pass^3 0.800 | 0.981 | 0.931 [0.88, 0.97] | 0.980 |
-| agent | **0.869 [0.81, 0.92]**，pass^3 0.854 | 0.815 [0.76, 0.87]，pass^3 0.731 | 1.000 | 0.959 [0.92, 0.99] | 0.959 |
-| agent P95 / 单任务成本 | 18.4 s / $0.00114 | 81.9 s / $0.00139 | 21.3 s / $0.00085 | 15.5 s / $0.00135 | 14.8 s / $0.00391 |
-| LLM 出错轮次（agent · workflow_llm） | 0 · 0 | 0.013 · 0.002（无 429） | 0 · 0 | 0.008（全为 429）· 0.015（无 429） | 0 · 0 |
-
-配对比较（测试集 v3，DeepSeek）：agent 对 workflow +0.100 [+0.049, +0.156]（McNemar 13:2，p = 0.007）；workflow_llm 对 workflow +0.062 [+0.023, +0.105]（p = 0.039）；agent 对 workflow_llm 单次 +0.038 [+0.003, +0.082]，pass^3 +0.031 [−0.008, +0.077]（McNemar 6:2，p = 0.29，不显著）。GLM 上 agent 对 workflow_llm −0.003 [−0.044, +0.041]。测试集 v2 上 agent 对 workflow_llm +0.028 [+0.003, +0.058]；保留集与多轮集 v1 不显著。
-
-## 置信区间支持的结论
-
-- **开发集（DeepSeek，`846bc5e`）**：workflow 0.981、workflow_llm 0.979、agent 0.986，两两之间都不显著。
-- **保留集（DeepSeek，`846bc5e`）**：
-  - Agent 对 workflow_llm：0.956 对 0.906，Δ +0.050 [−0.006, +0.119]，**不显著**；保留集 **pass^3 两者都是 0.906**（McNemar 2 / 2 个不一致任务，p = 1.0）。
-  - Agent 对确定性 workflow：任务成功率显著（+0.107 [+0.038, +0.189]），但 pass^3 上是 3 / 0，p = 0.25。
-- **测试集 v2（DeepSeek，`38a3069`）**：
-  - **两条 LLM 路径都显著好于确定性 workflow**：workflow_llm +0.039 [+0.008, +0.074]，agent +0.077 [+0.033, +0.124]。
-  - **主运行的 agent 优势不可信**：主运行里 agent 对 workflow_llm 是 +0.039 [+0.005, +0.074]，但那次 24% 的 agent 轮次遇到网关 HTTP 429 并降级到规划器。
-  - **低并发重跑**：在 `--workers 3` 下重跑（降级 6%），agent 得分不变（0.802），与 workflow_llm 的差值是 +0.036 [−0.011, +0.085]，**不显著**；pass^3（0.777 对 0.760，McNemar 7 / 5，p = 0.77）也没有差异（`ablation-test_v2-deepseek-agent-w3.json`）。
-- **第二个模型族（GLM-5.3 Flash）**：
-  - **保留集**：agent 0.981 对 0.906，+0.075 [+0.019, +0.151]，显著；McNemar 4 / 0，p = 0.125。
-  - **测试集 v2**：agent 0.810 对 0.760，+0.050 [+0.008, +0.091]，显著；pass^3 McNemar 8 / 3，p = 0.23。
-  - **开发集上反过来**：agent 0.974 对 workflow_llm 0.995，−0.021 [−0.035, −0.008]，McNemar 1 / 11，p = 0.006。GLM Agent 在对比和宏观答案里漏掉必需数字。
-- **两个模型都成立的结论**：
-  1. 在规则没针对过的问法上（测试集 v2），LLM 组答和 Agent 的单次成功率比确定性流程高 3–8 个百分点。
-  2. Agent 相对 LLM 组答的优势最多是几个百分点的单次成功率，只在 GLM 上显著，从未表现为显著的 pass^3 提升，成本却高 2–5 倍。「Agent 在保留集上领先」这一说法在 DeepSeek 上**不成立**。`mode=auto`（简单问题走确定性路径，开放问题走 Agent）是成本/延迟上的选择，不是已被证明的质量提升。
-- **运行间波动**：
-  - **数值**：同样任务集的三次 DeepSeek 运行（`c1c3388`、`1beb760`、`846bc5e`）里，保留集 Agent pass^3 分别是 0.943、0.849、0.906，相差 0.094，其中也包含代码和 Prompt 的变化。
-  - **含义**：两次单独运行在保留集上相差 5 个百分点以内不能当作证据。
-
-## Prompt 版本与 A/B
-
-| 版本 | 改动 | 结果 |
-|---|---|---|
-| v1 | 最初的 Prompt。 | 基线。 |
-| v2 | 标签分区、按问题类型控制投入、写明每条规则的理由、一个输出示例。 | **成本**：Agent 开发集单任务成本 −69%（$0.00401 → $0.00126），这一点是稳健的。**质量**：开发集 Agent +0.011 [+0.002, +0.022]（小但显著，pass^3 McNemar p = 0.07）；保留集 Agent −0.031 [−0.113, +0.038]（不显著）。**副作用**：保留集判断类问题的限定语从 1.00 掉到 0.67，因为 v2 删掉了 v1 的「描述不确定性与风险」。 |
-| v3 | v2 加上判断类问题的明确规则（条件性观点、不确定性、风险）。 | `66c0ef2` 之前的默认版本。保留集 Agent 限定语 0.91。 |
-| v4 | v3 加两条证据规则：不转述文档中的联系方式、推广、保本/翻倍收益、荐股或买卖建议（引用或警示也不行）；只有文档来源的说法要注明「据一篇文档称…（未经其他来源证实）」，不把单一文档的监管事项当作事实，文档数值与行情/基本面数据冲突时以数据为准。 | **自 `66c0ef2` 起为默认版本。** `bc42017` 上测试集 v3 的任务成功率 A/B（DeepSeek，2 次重复，v3 与 v4 先后连续运行；`ablation-ab-prompt-v3-testv3.json`、`ablation-ab-prompt-v4-testv3.json`）：Agent 0.858 → 0.877，pass^2 0.831 → 0.869，v4 − v3 +0.019 [+0.000, +0.038]，McNemar 6 比 1，p = 0.125；组织答案 0.831 → 0.823，−0.008 [−0.035, +0.011]，p = 1.0。两者都不显著：文档规则没有可测的任务成功率代价，而红队需要它们，所以 v4 成为默认。代价：Agent P95 15.9 → 19.2 秒，单任务成本 $0.00102 → $0.00113；组织答案在判断类问题上的限定语 0.93 → 0.89。这次选择用掉了测试集 v3，之后 v4 在测试集 v3 上的数字不再算未被触碰。A/B 用的是第 10 轮推算数字补丁之前的提示词哈希（`e419eb84d58e`、`064c64f9e15f`），补丁在两个版本里文字相同。更早在第 7 轮定向红队复现中测过：同样 20 个用例，检测器命中 4/20（v3 为 8/20），4 次都在已注明未经证实的句子里（`evaluation/results/redteam-r7-targeted.json`，详见英文版 agent-eval.md「Round 7」）。 |
-
-- **A/B 的条件**：v1/v2 在同一 commit（`1beb760`）上比较；v3 跑在 `846bc5e` 上，那里还包含观察和工具错误的改动，所以 v3 对 v2 不是纯 Prompt 比较。
-- **撤回的说法**：早先「v2/v3 把保留集 Agent pass^3 从 0.849 提到 0.906」**已撤回**，两个数都在对方的置信区间里，而 v1 时代 `c1c3388` 的一次运行是 0.943。有数据支撑的是成本下降。
-- **v3 对 v4 的条件**：同一 commit（`bc42017`）、同一模型，先后连续运行；完整表格和配对比较见 [agent-eval.md](../agent-eval.md#prompt-v3-vs-v4-on-test-v3-deepseek-same-commit)。
-- **版本锁定**：Prompt 文本按哈希锁定在 `query_intelligence/agent/prompts.lock.json`，每份 trace 和报告都记录 `id@version#sha`。
-
-## 离线门禁、路由评测与第二轮
-
-- **离线门禁基线**（CI 与之比较，`gate-dev.json`、`gate-holdout.json`，`d3c1495`）：确定性路径开发集 238 个任务 1.000；保留集 0.906 [0.83, 0.98]（此前在 `f7bf624` 是 0.849）。
-- **路由评测**（`router_eval-*.json`）：
-  - **准确率**：在带路由标签的问题集上，`d78b313` 在 158 条上准确率 0.715，第二轮（`da3ec8b`）在 162 条上 0.975，剩余 4 个错误全部列在文件里。
-  - **各路由**（第二轮）：拒答召回 0.967、澄清召回 0.909、固定流程和 Agent 召回 1.0。
-  - **性质**：标注由作者按书面路由策略编写，这是回归与策略一致性检查，不是独立基准。
-- **第二轮修复针对测试集 v2 暴露的两类失败**：
-  - **两类失败**：一是不点名公司的追问（「ROE呢」）被当成超范围拒答，多轮类只有 0.21–0.32；二是悬空问题没有澄清（0.33）。
-  - **修复**：省略追问补全、「只有指标没有公司」时澄清、模糊概念过滤。它们只在新写的开发集风格任务上开发和验证，没有拿测试集 v2 的题调整。
-  - **撞题检查**：新写的开发集题目中有两道和测试集 v2 一字不差，被重叠测试拦下后改写。
-  - **测试集 v2 已被读过**：由于失败类别是从测试集 v2 读出来的，它此后是验证集；要得到无偏估计需要新的测试集。
-
-## 校验器压力测试
-
-`verifier_stress.json`，commit `25205d4`（第 11 轮）：对开发集上 227 个正确答案生成 4,016 个篡改变体（数字改动 1%、5%、20%，或在公司之间互换），看校验器放过多少。越低越好；正确答案必须全部通过。
-
-| | 原来的整批比对 | 按运行比对 | 逐句绑定（当前） | 逐句绑定 + 派生数字（默认开启） |
-|---|---|---|---|---|
-| 正确答案通过率 | 1.000 | 1.000 | 1.000 | 1.000 |
-| 全部篡改的误放率 | 0.330 | 0.246 | **0.012** | 0.013 |
-| 改动 1%（971） | 0.268 | 0.017 | 0.017 | 0.017 |
-| 改动 5%（1,055） | 0.055 | 0.024 | 0.011 | 0.011 |
-| 改动 20%（1,080） | 0.090 | 0.033 | 0.018 | 0.018 |
-| 公司间互换（910） | 1.000 | 1.000 | **0.000** | 0.007 |
-
-**确定性（第 11 轮）。** 正确答案来自回放的工具结果，所以正确答案集合只取决于提交和任务文件。结果文件记录 `gold_set`（任务 id 和对（任务 id，答案）的 sha256）；同一提交跑两次结果逐字节相同（`gold_set.sha256` 以 `33b055d0` 开头）。构建正确答案时若遇到工具超时、上游错误、运行截止或回放缺失，运行直接报错（`GoldSetError`），不再悄悄少一道题；每个正确答案的篡改用自己的随机流（种子为 `(seed, 任务 id)`），一个答案的变化不会打乱其他答案的变体。此前文档把 220 / 227 / 240 的差异归因于负载下的工具超时，这是错的：同一提交在负载 4-12 下并发跑三次，每题的草稿都相同；三个数字来自三个不同提交。
-
-`9f0e46b` 上的结果（202 个正确答案、3,399 个变体、逐句绑定误放率 1.94%，允许派生数字 2.03%，公司间互换 0.53%）保存在 `verifier_stress-9f0e46b.json`。那次被拒的 3,333 个答案按整句删除修复（不再拆子句），无内容可留时改用模板回答：修复后 100% 可读（无残句、孤立引用、多余标点），100% 通过校验，未被篡改的句子保留 98.0%，18.3% 回退到模板。更早的子句拼接（`2494656` 时测得）只有 29.1% 可读，96.5% 含残句。
-
-之后的重跑：第 9 轮（`d78a556`，240 个正确答案）逐句绑定误放率 1.87%（`verifier_stress-round9.json`）；第 10 轮（`53454f5`，227 个正确答案、4,016 个变体）1.25%，允许推算时 1.29%，正确答案全部通过（`verifier_stress-round10.json`）；第 11 轮（`25205d4`）见上表，被拒的 3,969 个答案修复后 100% 可读且通过校验，未被篡改的句子保留 97.6%，17.8% 回退到模板。
-
-之前版本的数字（`2494656`：159 个正确答案、2,433 个变体、误放率 2.1%）已被这次运行取代：开发集后来增加了任务，数字切分 bug 也已修复（见[性能 §2a](performance.md#2a-agent-路径延迟剖析改动与前后对比)）。
-
-## 提示注入红队
-
-攻击文本投毒在搜索结果里，只统计文档工具确实返回了投毒文本的运行。
-
-- **在线**（`redteam-online.json`，`846bc5e`，DeepSeek）：
-  - **开发攻击集**：9 种攻击 × 4 种混淆（全角、原文、拆分、零宽字符），三条路径各 72 次，成功率都是 0，关键词过滤全部拦下。
-  - **保留攻击集**：8 种攻击，关键词过滤一次都没拦下，但结构性防护让成功率保持很低：workflow 0/64、workflow_llm 2/64、agent 1/64。
-  - **成功的三次**：「海盗」口吻的人设改变、复述投毒文档里的「强烈买入」评级、新闻摘录里植入的假收盘价。最后一次能通过数字校验，因为植入的数字确实在所引证据里：校验证明的是可追溯，不是真实。
-- **离线**（`redteam-offline.json`，`2494656`，workflow 路径，CI 基线）：开发集 0/72、保留集 0/64、holdout2 0/64（`f7bf624` 时为 2/64）；holdout3（第二轮评审的 11 个投毒攻击，在修复前加入，不用于调参）修复前 6/88，修复后 **2/88**：剩下的是“拆分”变体把伪造的合并消息作为标题带进答案，标题本身看起来就是一条普通新闻标题，词法规则无法区分。
-- **之后的防护**：`ceaef0b` 之后加入的策略级防护（评级/仓位删除、语言守卫等）目前只由离线基线覆盖，还没有新的在线运行。
-
-- **第二轮代码上的在线重跑**（`redteam-final2.json`，`d1c007c`，DeepSeek）：
-  - 开发攻击集：三条路径都是 0/72；
-  - 保留攻击集：workflow 0/64、workflow_llm 1/64（复述投毒文档里的评级）、agent 0/64；
-  - holdout2：0/64、1/64（英文评级）、0/64。
-  
-  holdout3 在线还没跑过，那次重跑撞上了额度上限，见上。
-
-- **第四轮后的离线模板路径**（`redteam-offline-r6.json`，`f3f6934`）：六套攻击集全部 0 成功。holdout4（第三轮评审的 12 种攻击，修复前加入）从 52/240 降到 0/240（`redteam-offline-prefix-r4.json` → `redteam-offline-postfix-r4.json`）；holdout5（第四轮独立作者写的 21 种攻击）首次运行即 0/168（`redteam-holdout5-first-run.json`，`817a2d8`）。
-- **最终 commit 上的 LLM 路径**（`redteam-final4-llm.json`，`9536abf`，DeepSeek）：
-
-  | 攻击集 | workflow | workflow_llm | agent |
-  |---|---|---|---|
-  | holdout3（88 次） | 0 | 5.7% | 2.3% |
-  | holdout4（240 次） | 0 | 7.1% | 5.8% |
-  | holdout5（168 次） | 0 | 9.5% | 4.8% |
-
-  模型复述了投毒的「事实」（假 ROE、假分红）、诈骗联系方式、「资金翻倍、亏损全额赔付」和伪造的退市通知；没有 LLM 出错。
-- **第七轮输出层**（`agent/output_safety.py`，每个回答都经过）：来自文档的联系方式、推广、交易指令替换为一条说明；单一来源的监管或公司行动说法加上「据一篇文档称…（未经其他来源证实）」；与结构化基本面矛盾的文档数字由校验器标出并删除。对 20 个此前泄漏的案例，记录一次模型输出后分别用旧代码和新代码回放（`redteam-r7-targeted.json`）：v3 无输出层 8 次命中、3 次当作事实陈述；v3 加输出层 6 次命中、0 次当作事实；v4 Prompt 4 次命中、0 次。第八轮（D1）加宽了输出层（与回答中另一句、另一篇文档或基本面说法不同的单一来源数字、单一来源送转传闻都加上出处）和红队脚本的出处识别，之后在 `0473968` 上重跑完整 LLM 红队（`redteam-r8-llm.json`，holdout3–6）：当作事实陈述组织答案 3.4% / 0.0% / 1.2% / 0.9%，Agent 0.0% / 0.8% / 2.4% / 0.0%；原始检测命中组织答案 6.8% / 5.0% / 3.6% / 2.8%，Agent 0.0% / 4.6% / 3.0% / 0.9%（详见 [Agent 层](agent.md) 第 8 轮一节）。
-- **第八、九轮**（详见 [Agent 层](agent.md)）：第八轮离线模板路径七套攻击集全部 0 成功（`redteam-offline-r8.json`）。第九轮把第五轮评审的 14 种新型攻击原样加为 holdout7，修复前离线运行：回答 0/280，证据列表标题 32/280（`redteam-holdout7-prefix.json`，`a7b1018`）；修复后八套攻击集全部 0 成功，holdout7 标题 0/280（`redteam-offline-r9.json`，`8814b3b`）。修复后 holdout7 的 LLM 路径（`redteam-r9-holdout7-llm.json`，`3d7afd5`，168 次运行，没有 429）：当作事实陈述组织答案 2/112、Agent 0/56，其余复述都带输出层的「（未经其他来源证实）」标注。
-- **第十轮**：第六轮评审的 14 种新型攻击原样加为 holdout8，修复前离线运行：回答 0/280，证据列表标题 12/280（`redteam-holdout8-prefix.json`，`278f1a1`）；修复后九套攻击集全部 0 成功，holdout8 标题 0/280，较早的集合中形似监管新闻的标题仍有 holdout3 2/88、holdout4 8/240、holdout5 6/168（`redteam-offline-r10.json`，`4325bc1`，CI 基线）。修复后 holdout8 的 LLM 路径（`redteam-r10-holdout8-llm.json`，`12b710c`，140 次运行，295 次调用，没有 429）：当作事实陈述组织答案 1/112、Agent 1/28；Agent 那一例是输出层缺口（同一句投毒内容附在两篇文档里被算成两个来源），在 `1141736` 修复后，用记录下来的同样草稿回放（不调 LLM）为 0/28（`redteam-r10-holdout8-llm-replay.json`）。
-- **注入分类器**（`injection_classifier-r4.json`）：对未见过的攻击（holdout2–4 共 62 条）召回 0.39 [0.28, 0.51]，与关键词过滤合用 0.42；3,000 篇保留的正常文档上误报 0.47%。
-
-## 独立任务集
-
-作者自己写的集合会高估：规则和标注出自同一个人，高分可能只说明规则贴合作者的措辞。所以第三、四轮请没看过代码的独立作者（另开的 AI 编写者）按书面规则另写集合，写好后先提交再运行。每套集合的首次运行结果原样提交；之后针对它做的修复，结果一律标注「暴露后」。
-
-| 任务集 | 规模与编写方式 | 首次运行 | 暴露后 |
-|---|---|---|---|
-| 多轮集 v1（`agent_eval_multiturn_v1.jsonl`，[编写说明](../../evaluation/agent_eval/tasks/README_multiturn_v1.md)） | 49 段对话 / 206 轮；作者没读过路由、记忆、规划器代码和任何任务文件；172 个事实值都由离线工具输出核对 | 无 LLM：任务 0.224 [0.12, 0.35]，轮次 0.709（`multiturn_v1-auto-nollm-first-run.json`，`1bd1932`）。DeepSeek：agent 任务 0.361 [0.24, 0.49]、pass^3 0.286、轮次 0.795；workflow_llm 任务 0.286（`ablation-multiturn_v1-deepseek-first-run.json`，`527a611`） | 无 LLM 1.000（`multiturn_v1-auto-nollm-after-fixes.json`，`7513376`）；DeepSeek agent 0.959、workflow_llm 0.980（`9536abf`） |
-| 测试集 v3（`agent_eval_test_v3.jsonl`，[编写说明](../../evaluation/agent_eval/tasks/README_test_v3.md)） | 130 个任务 / 155 轮；同样的独立规则；从未用于修复，但在 `bc42017` 上用来选过默认 Prompt | 无 LLM：任务 0.762 [0.68, 0.83]，轮次 0.794（`test_v3-auto-nollm-first-run.json`，`882745d`）；不调工具的 LLM 0/130（`3730408`）；DeepSeek agent **0.869 [0.81, 0.92]**、workflow_llm 0.831（`ablation-final4-deepseek-testv3-holdout.json`，`9536abf`） | – |
-| 独立路由标注 v1（154 条） | 按四句路由策略标注，没看路由代码 | 0.740（`router_eval-independent_v1-first-run.json`，`882745d`） | 1.000（`router_eval-round4-independent-after-exposure.json`，`075caad`） |
-| 独立路由标注 v2（241 条，[编写说明](../../evaluation/agent_eval/tasks/README_router_labels_independent_v2.md)） | 第四轮修复冻结后新写，作者没读任何代码、任务或结果文件；其中 4 条与自有标注碰巧相同 | **0.801**（`router_eval-independent_v2-first-run.json`，`3080bfe`） | 第 10 轮之后 0.838（`router_eval-independent_v2-round10.json`，`05f418a`；第 9 轮之后 0.830） |
-| 声明核查基准（[说明](claim-check.md)） | 开发 131 条、保留 47 条，改检查器之前写好并提交；保留集的 sha256 由测试锁定 | 保留集只跑一次：结论准确率 0.936 [0.851, 1.000]，逐数字 0.944（`claim_bench-holdout.json`，`2fcb4f0`） | 第 8 轮修复 h038 类别后保留集 1.000（`claim_bench-holdout-after-round8.json`）；开发集 0.527 → 1.000（`claim_bench-dev-baseline.json` → `claim_bench-dev.json`） |
-| 第四轮声明切片（`evaluation/heldout_r4/claims_moves_heldout.jsonl`，[说明](../../evaluation/heldout_r4/README.md)） | 67 条涨跌幅、相对关系、宏观声明；独立作者在第四轮修复前编写 | 结论准确率 0.716 [0.61, 0.82]，逐数字 0.639，比较方向 0.435（`claim_bench-heldout_r4-first-run.json`，`817a2d8`） | 结论 1.000，逐数字 0.920（`claim_bench-heldout_r4-after-exposure.json`，`c731dba`） |
-| 第四轮多轮切片（`multiturn_r4_heldout.jsonl`） | 24 段对话 / 58 轮，同上 | 无 LLM：任务 0.667 [0.50, 0.83]，轮次 0.810（`multiturn_r4_heldout-auto-nollm-first-run.json`，`817a2d8`） | 任务 0.917 [0.79, 1.00]（`multiturn_r4_heldout-after-exposure.json`，`c731dba`） |
-| 第四轮投毒攻击（`injection_holdout4.jsonl`，红队中的 holdout5） | 21 种文档投毒攻击，同上 | 模板路径 0/168（`redteam-holdout5-first-run.json`，`817a2d8`） | LLM 路径见「提示注入红队」 |
-| 第五轮声明切片（`evaluation/heldout_r5/claims_r5_heldout.jsonl`，[说明](../../evaluation/heldout_r5/README.md)） | 56 条多子句、行业平均、成交额、倍数声明；独立作者编写 | 结论准确率 **0.821 [0.71, 0.91]**，逐数字 0.814，比较方向 0.835（`claim_bench-heldout_r5-first-run.json`，`f01097a`） | 1.000（`claim_bench-heldout_r5-after-exposure.json`，第 9 轮修复了它暴露的失败类别） |
-| 第五轮对话切片（`chat_r5_heldout.jsonl`） | 38 个任务 / 41 轮，同上 | 无 LLM：任务 **0.921 [0.82, 1.00]**（`chat_heldout_r5-auto-nollm-first-run.json`，`f01097a`） | 1.000（`chat_heldout_r5-auto-nollm-after-exposure.json`，`d78a556`，第 9 轮） |
-| 第六轮声明切片（`evaluation/heldout_r6/claims_r6_heldout.jsonl`，[说明](../../evaluation/heldout_r6/README.md)） | 67 条：给出的行业平均、两家公司之差、中文约数、对照组；独立作者基于 `bc42017`、在第 10 轮修复前编写 | 修复前唯一一次：结论准确率 **0.537 [0.42, 0.66]**，逐数字 0.533，比较方向 0.294（`claim_bench-heldout_r6-prefix.json`，`05c4d7b`） | **不是暴露后**：做第 10 轮修复的工程师从未看过它。修复后结论 **0.836 [0.75, 0.93]**，逐数字 0.717，比较方向 0.284（`claim_bench-heldout_r6-after-fix.json`，`68279eb`） |
-| 第六轮对话切片（`chat_r6_heldout.jsonl`） | 38 个任务 / 61 轮，同上 | 无 LLM：任务 **0.579 [0.42, 0.74]**，轮次 0.721（`chat_heldout_r6-auto-nollm-prefix.json`，`05c4d7b`） | 同上，样本外：任务 **0.816 [0.68, 0.92]**，轮次 0.869，行为 0.984（`chat_heldout_r6-auto-nollm-after-fix.json`，`68279eb`） |
-
-**第六轮切片说明修复能泛化，但不完整。** 它只按第六轮评审的缺陷类别编写，修复者没看过，所以修复前后的变化（声明 0.537 → 0.836，对话 0.579 → 0.816）是样本外测量。修复后仍错的：11 条声明结论（括号或英文写的行业平均 r6c04/r6c10/r6c15；英文的两家公司之差 r6c33/r6c34/r6c38；约数说法 将近一半、一成半、一千四百出头、一万二千多亿、近四成），7 个对话任务（6 个「它比行业低了多少」这类追问只给出两个操作数、没给差值，其中一个被当作无关问题拒答；一个英文净利率差）。比较方向得分没变（0.294 → 0.284）：切片把每个比较标成「关系检查 + 所述数值检查」，核查器输出的检查结构不同（所述数值记为 `eq` 而不是 `approx`），很多预期检查即使结论正确也配不上；它衡量的是检查结构，不是结论对错。
-
-对照：项目自有路由标注在同期是 0.988（162 条，`router_eval-round3b.json`），第四轮后是 1.000（303 条，`router_eval-round4-own.json`），第 9 轮后是 1.000（344 条，`router_eval-round9-own.json`）。
+## 复现命令
 
 ```bash
-python -m evaluation.agent_eval.router_eval --labels evaluation/agent_eval/tasks/router_labels_independent_v2.jsonl
-python -m evaluation.claim_bench.run --claims evaluation/heldout_r6/claims_r6_heldout.jsonl --out evaluation/results/claim_bench-heldout_r6-after-fix.json
-python -m evaluation.agent_eval.runner --mode auto --no-replay --tasks evaluation/heldout_r6/chat_r6_heldout.jsonl --out outputs/agent_eval/chat_r6-after.json
-python -m evaluation.agent_eval.runner --mode auto --tasks evaluation/agent_eval/tasks/agent_eval_test_v3.jsonl \
-    --snapshot evaluation/agent_eval/fixtures/snapshot_test_v3.json
-python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets test_v3,multiturn_v1
-PYTHONPATH=. python evaluation/agent_eval/independent/verify_test_v3.py      # 重新核对每个期望事实
-```
-
-## 其他消融与模型策略
-
-三项都在 `bc42017` 上运行，一次只跑一个，完整表格和配对比较见 [agent-eval.md](../agent-eval.md)：
-
-- **LLM 记忆摘要**（`QI_AGENT_MEMORY_SUMMARY=0/1`，多轮集 v1，DeepSeek Agent，1 次重复；`ablation-memsum-0-multiturn_v1.json`、`ablation-memsum-1-multiturn_v1.json`）：任务 0.980 对 0.980，轮次 0.995 对 0.995，每轮 token 7,105 对 7,053，每轮 LLM 调用 1.51 对 1.75，成本相同。多轮集 v1 的对话最多五轮，原文窗口加规则卡片已经够用，摘要保持关闭；它是暴露后的集合，更长的对话没有测过。
-- **GLM 推理强度**（`DEEPSEEK_REASONING_EFFORT` 不设 / `low`，`cline-pass/glm-5.3-flash`，保留集 Agent，1 次重复；`ablation-glm-effort-default-holdout.json`、`ablation-glm-effort-low-holdout.json`）：P50 8.1 → 3.1 秒，P95 35.8 → 17.7 秒，单任务成本 $0.00136 → $0.00086（−37%），每轮推理 token 585 → 54；但任务成功率 1.000 → 0.962（−0.038 [−0.094, +0.000]，McNemar 0 比 2，p = 0.5，不显著），判断类问题的限定语 1.00 → 0.82。没有采用：省下的延迟换来的是更少的限定语。
-- **慢速模型策略**（`66c0ef2`）：模型能力表中 GLM 设了 `prefer_composition`，`mode=auto` 时原本走 Agent 路由的问题改走固定流程 + LLM 组织答案，路由原因记为 `model_policy:composition_for_slow_model`；`QI_AGENT_SLOW_MODEL_POLICY=off` 关闭，`mode=agent` 不受影响。依据是已提交的测试集 v3 GLM 运行（`ablation-final4-glm-testv3.json`：Agent 与组织答案持平，Agent P95 82 秒对 27 秒，pass^3 0.731 对 0.800）；之后没有用 GLM 端到端跑过 `auto`。
-
-## 故障注入
-
-`fault_injection.json`，`f7bf624`：用替身工具和脚本化 LLM 模拟故障（不是在真实数据源上注入），11 个场景各 5 次，平稳降级率都是 1.00：
-
-- 工具超时、上游 5xx（重试后报 `upstream_error`）、空结果、慢工具、超大文档（截断后仍能作答）；
-- 文档注入（指令被脱敏、没有交易建议）、LLM 宕机（降级到规划器）；
-- 畸形工具参数、未知工具、LLM 编造数字（被删除）、无休止的工具调用（步数预算叫停）。
-
-在真实网关和真实数据源上做的故障演练见 [A2A、容灾与可观测性](a2a-and-observability.md#故障演练)。
-
-## 在线运行中的网关限流
-
-- **并发评测作废**：DeepSeek 和 GLM 的评测同时跑在同一网关上，24–52% 的 LLM 轮次报错。那些结果作废，只作为证据保留（`ablation-test_v2-deepseek-concurrent.json`），GLM 开发集顺序重跑为 `ablation-glm-dev.json`。
-- **单独运行也会被限流**：DeepSeek Agent 在 `--workers 6` 时也有 24% 的测试集轮次遇到 HTTP 429（每轮约 2 次 LLM 调用），`--workers 3` 时降到 6%。
-- **新增指标**：摘要现在会报告 `llm_error_rate`、最常见的错误类型，以及答案草稿的 JSON 修复率和失败率。
-- **更早的运行**：没有这项指标的运行（`c1c3388`、`1beb760`、`846bc5e`）可能含有未知比例的降级。
-
-## 传统基线为什么会变（开发集 0.2657 → 0.256，保留集 0.2075 → 0.1887）
-
-- **根因**：原 `/chat` 的时效守卫读的是 `date.today()`。
-  - **交易日**：问「现在/最新」而最新行情早于今天时，回复「未获取到今日…因此不能据此判断…」，其中含限定语。
-  - **非交易日**：回复「今天不是 A 股常规交易日…」，没有限定语。
-- **发生了什么**：最终运行（`846bc5e`）结束于北京时间 2026-09-26（周六）02:34，其离线 legacy 部分在午夜之后运行，于是三个任务失去了限定语，正好是开发集 2/207 和保留集 1/53。
-- **复现**：固定日期后，在 `846bc5e` 和 `1beb760` 上都能复现两组数值。
-- **修复**：`28b587e` 起，消融给 legacy 路径传入评测日期（2026-04-23）。
-
-## 已知失败与根因
-
-- **测试集 v2 的多轮与悬空问题**：见上文「第二轮」。第二轮的修复还没有在测试集 v2 上重新做在线测量。
-- **英文缺数据任务**：测试集 v2 里两个英文「缺数据」任务仍未通过必需工具检查。
-- **限定语的词法触发**：在确定性路径上会漏掉一些说法（例如「抄底」「翻倍」「止盈点位」），LLM 路径则通过 Prompt 实现限定语。
-- **红队保留攻击**：3/128 次成功，见上文。
-
-## 复现
-
-```bash
-# 任务集与快照
-python -m evaluation.agent_eval.build_tasks          # 开发集（检查与训练数据的重叠）
-python -m evaluation.agent_eval.build_holdout        # 保留集
-python -m evaluation.agent_eval.build_test_v2        # 测试集 v2（派生事实、重叠报告）
-python -m evaluation.agent_eval.runner --mode workflow --record-missing   # 新增任务时只补录缺失的工具调用
-# 离线
-python -m evaluation.agent_eval.ablation --sets dev,holdout,test_v2 --out outputs/agent_eval/ablation-offline.json
-python -m evaluation.agent_eval.gate                 # 下限 + 已提交基线；有意改动后用 --update-baseline
+# 离线门禁、路由、校验器与红队
+python -m evaluation.agent_eval.gate
 python -m evaluation.agent_eval.router_eval
-python -m evaluation.agent_eval.fault_injection
 python -m evaluation.agent_eval.verifier_stress
-python -m evaluation.agent_eval.redteam && python -m evaluation.agent_eval.gate --extras-only
-# 在线（OpenAI 兼容接口：DEEPSEEK_BASE_URL / DEEPSEEK_API_KEY / DEEPSEEK_MODEL）；一次只跑一个
-python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets holdout,test_v2 \
-    --modes workflow_llm,agent --out outputs/agent_eval/ablation-deepseek.json
-# 提交证据并重新生成完整页面
-python -m evaluation.agent_eval.results outputs/agent_eval/ablation-deepseek.json   # -> evaluation/results/
-python -m evaluation.agent_eval.report               # CI 中用 --check
+python -m evaluation.agent_eval.redteam
+python -m evaluation.agent_eval.fault_injection
+
+# 在线消融（需配置 OpenAI 兼容端点 DEEPSEEK_*）
+python -m evaluation.agent_eval.ablation --llm deepseek --repeats 3 --workers 3 --sets holdout,test_v2
+
+# 校验并重新生成 docs/agent-eval.md 与 README 指标区块
+python -m evaluation.agent_eval.report --check
 ```

@@ -1,46 +1,54 @@
-# 文档导航
+# 文档目录
 
 语言：[English](../index.md) | 中文
 
-这些文档说明 **FinSight**：一个证据优先的中国金融市场（A 股、基金/ETF、指数与宏观）分析问答与研究 Agent。其经典可解释的查询智能后端（**Query Intelligence**）与五模块证据架构已发表于 IOS Press *Frontiers in Artificial Intelligence and Applications* 第 433 卷（*Digitalization and Management Innovation V*，DMI 2026；DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)，引用元数据见 [`CITATION.cff`](../../CITATION.cff)）；**Agent 层**在此基础上扩展了 LangGraph 工具编排、逐句数值校验、零 LLM 市场声明核查以及 MCP/A2A 协议服务。
+**FinSight** 面向中国金融市场提供证据优先的金融分析问答与可验证研究 Agent。其经典可解释 Query Intelligence 核心发表于 *Frontiers in Artificial Intelligence and Applications* 第 433 卷（*Digitalization and Management Innovation V*，DMI 2026，IOS Press；DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)，引用元数据见 [`CITATION.cff`](../../CITATION.cff)）。
 
-[根目录中文 README](../../README_CN.md) 提供项目总览、论文对照、快速开始、核心评测与 BibTeX 引用格式；本目录按主题提供完整契约、配置、训练与运维参考文档。
+快速上手与核心指标请先阅读 [中文 README](../../README_CN.md)，按主题查阅下方参考文档。
 
-## 内容
+## 核心架构
 
-| 文档 | 用途 |
+| 文档 | 内容 |
 |---|---|
-| [模块总览](modules.md) | 五个模块地图：前端、NLU/Retrieval、数值分析、文本分析、LLM 总结和预测。 |
-| [Agent 层](agent.md) | Agent 状态图、工具、路由、证据校验、合规、记忆、`/agent/*` API 与 schema、配置、tracing。 |
-| [说法核查](claim-check.md) | 核查一句市场说法：比较词、否定、增速、单位、数据日期、聊天提示，以及说法基准（dev 131 条、held-out 47 条）的置信区间与局限。 |
-| [评测历史](evaluation-history.md) | 第 14 轮之前写在 README 里的完整结果：任务集与编写者、最终在线运行、首次运行与暴露后、每组评审切片的分类表、其他测量、完整的局限说明、CI 怎么跑。[English](../evaluation-history.md) |
-| [已知问题](known-issues.md) | 第三轮以来每个评审缺陷的修复 commit 与测试，以及仍未解决的事项和原因（本轮新增的行先写进 README）。[English](../known-issues.md) |
-| [完整功能、API 与安装说明](features.md) | 完整功能列表、完整接口表和完整的快速开始（快照开关、Kubernetes、监控）。[English](../features.md) |
-| [评测（中文摘要）](evaluation.md) | 三个任务集、一票否决指标、bootstrap 置信区间与配对检验、两个模型族的在线消融、Prompt A/B、校验器压力测试、红队、故障注入、路由评测。完整英文版见 [Agent Evaluation](../agent-eval.md)。 |
-| [竞品对比](comparison.md) | 与问财、豆包、Kimi、Wind Alice、妙想的对比：带出处的能力表、它们强在哪里、一个设计好但尚未执行的对比测试。 |
-| [MCP Server](../mcp.md)（英文） | 通过 stdio 或 streamable HTTP 向 MCP 客户端提供 Agent 工具。 |
-| [A2A、容灾与可观测性](a2a-and-observability.md) | A2A 接口、LLM 网关适配、模型容灾、网关成本、运行查看器与用户反馈、Prometheus 指标、Grafana 看板与告警、故障演练。 |
-| [实时数据源](data-sources.md) | 实时数据源审计、降级链、熔断、有界调用池、缓存、新浪/同花顺交叉核对、来源标注、`/sources/health`（含主动探测）。 |
-| [性能](performance.md) | 确定性路径与 LLM Agent 路径压测（含人民币成本）、检查点修复的复现、k3s 多副本扩展、服务启动时间。 |
-| [部署](deployment.md) | Docker 镜像、监控 profile、Kubernetes 清单（多副本经 Postgres 共享会话）、只读根文件系统。 |
-| [开发](development.md) | 推送前检查（`scripts/prepush.sh`：推送到 master 之前在本地跑 CI 跑的东西），以及发布默认配置如何被测试。 |
-| [设计复盘](../presentation/agent-design-notes.md) | 关键取舍、自研与复用的边界、32 个真实失败案例（根因与修复）、带置信区间的消融结论、独立任务集结果、面试问答。 |
-| [面试讲稿](../presentation/interview-script.md) | 30 秒介绍、架构讲解、三个可辩护的数字、失败故事、白板提纲、AI 编程工具使用说明。 |
-| [Agent 工程实践调研](../research/agent-architecture-practices-2026.md)（英文） | 2025–2026 Agent 与 Prompt 工程一手资料调研，以及驱动本轮改动的差距分析。 |
-| [Query Intelligence](query-intelligence.md) | 支持范围、架构、API、NLU 和 Retrieval 输出契约、live provider、环境变量、排错。 |
-| [本地网页 Chatbot](frontend-chatbot.md) | 浏览器 UI、`/chat` 契约、LLM API 配置、真实本地截图和排错。 |
-| [数值分析](numerical-analysis.md) | `analysis_summary`、技术指标、基本面、宏观信号和数据就绪程度。 |
-| [Presentation Materials](../presentation/README.md) | 清理后的英文汇报大纲和当前演示截图入口。 |
-| [训练和运行时资产](training.md) | 公开数据同步、manifest 训练、运行时资产生成、评估和发布检查。 |
-| [LLM 回答生成交接](llm-response.md) | 旧版本地 transformers 回答 JSON 交接、输出契约、配置和安全约束。 |
-| [文档情感分析](sentiment.md) | 下游 sentiment pipeline、预处理、FinBERT 路由、输出字段和测试命令。 |
-| [Retrieval 输出兼容说明](retrieval_output_spec.md) | `analysis_summary` 和 retrieval 输出引用的兼容入口。 |
+| [系统模块](modules.md) | 六层模块职责地图（论文五阶段 + Agent 编排层）、数据流与扩展入口 |
+| [Query Intelligence](query-intelligence.md) | 经典 NLU、混合检索、`NLUResult` / `RetrievalResult` 契约与论文基准 |
+| [Agent 层](agent.md) | LangGraph 工作流、确定性兜底、9 个只读工具、逐句数值校验、安全护栏与配置 |
+| [完整功能、API 与配置](features.md) | 全部能力清单、HTTP 接口契约与运行开关 |
+| [检索输出规范](retrieval_output_spec.md) | `RetrievalResult`、`analysis_summary` 与数据溯源字段说明 |
 
-English documentation is in [docs/](../index.md).
+## 分析、声明核查与数据源
 
-## 文档原则
+| 文档 | 内容 |
+|---|---|
+| [声明核查](claim-check.md) | 零 LLM 金融声明数值核查、比较语法、口径匹配与基准评测 |
+| [数据源架构](data-sources.md) | 实时多源（Tushare、AKShare、巨潮、efinance）、降级链、熔断器与离线快照/更正层 |
+| [数值分析](numerical-analysis.md) | `MarketAnalyzer` 技术指标、基本面/宏观信号与 `data_readiness` |
+| [文档情感分析](sentiment.md) | 下游逐句 FinBERT 与离线经典词典情感流水线（`sentiment/`） |
+| [受约束 LLM 回答交接](llm-response.md) | 本地 HuggingFace/transformers JSON 总结与追问生成（`scripts/llm_response.py`） |
 
-- 根 README 回答“这是什么、怎么跑、更多信息在哪”。
-- `docs/` 按主题保存稳定参考文档。
-- 命令从 fresh clone 可直接复制运行，不包含本机专用 wrapper。
-- 公开文档不包含真实 token、生成产物、缓存或机器路径。
+## 界面、协议与运维
+
+| 文档 | 内容 |
+|---|---|
+| [网页前端与聊天界面](frontend-chatbot.md) | React 19 + TypeScript 工作台、SSE 流式追踪、声明核查页、经典 `/chat` 与 Playwright E2E |
+| [MCP 集成](mcp.md) | stdio / 鉴权 HTTP MCP 服务暴露，以及接入外部 MCP 工具（`QI_MCP_SERVERS`） |
+| [A2A 与可观测性](a2a-and-observability.md) | A2A 1.0 JSON-RPC/流式协议、模型容灾、Postgres 共享存储、Prometheus、Grafana 与 Jaeger |
+| [部署指南](deployment.md) | 多阶段 Docker 镜像、Compose 配置、Kubernetes kustomize 清单、镜像标签策略与 kind 冒烟测试 |
+| [性能与扩展](performance.md) | 延迟剖析、并发压测、上游故障演练与 k3s 多副本扩展 |
+| [开发与推送前检查](development.md) | 本地 CI 镜像脚本（`scripts/prepush.sh`）、CI 时间预算与发布默认数据测试策略 |
+| [模型训练与运行时资产](training.md) | 公开数据同步、Manifest 训练、SHA-256 校验与运行时资产物化 |
+
+## 评测、治理与宣讲材料
+
+| 文档 | 内容 |
+|---|---|
+| [评测摘要（中文）](evaluation.md) | 核心评测口径、对比基线、校验器与红队结果中文总览 |
+| [Agent 评测完整版（自动生成）](../agent-eval.md) | 由 `evaluation/results/` 自动渲染的配对检验、置信区间、消融与红队报告（英文） |
+| [评测历史](evaluation-history.md) | 独立任务集（首次运行 vs 暴露后）、逐轮评测记录、CI 流程与完整局限 |
+| [已知问题与审计记录](known-issues.md) | 当前开放局限、取舍说明，以及各轮评审与安全审计修复摘要 |
+| [同类产品对比](comparison.md) | 与问财、豆包、Kimi、Wind Alice、妙想的能力对比与人工评测方案 |
+| [独立评审报告](../reviews/README.md) | 14 轮外部独立评审索引与评分标准 |
+| [Agent 升级目标](../agent-upgrade/GOAL.md) · [进展](../agent-upgrade/PROGRESS.md) | Agent 层架构设计目标与里程碑记录 |
+| [Agent 工程实践调研](../research/agent-architecture-practices-2026.md) | 生产级 Agent 与校验架构文献调研（英文） |
+| [演示与设计资料](../presentation/README.md) | PPT 大纲、架构设计复盘与口头讲解提纲 |
+| [安全政策](../../SECURITY.md) · [贡献指南](../../CONTRIBUTING.md) | 漏洞私密披露、安全边界与参与贡献规范 |

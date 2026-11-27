@@ -1,83 +1,45 @@
-# LLM 回答生成交接
+# 受约束 LLM 回答交接
 
 语言：[English](../llm-response.md) | 中文
 
-`scripts/llm_response.py` 是 FinSight 下游工具（对应发表论文 *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*，FAIA 第 433 卷 / DMI 2026，DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107) 中的受约束 LLM 总结与追问预测模块），用紧凑的 Query Intelligence 证据生成前端可直接消费的 JSON。它可以读取已有 record，也可以先从原始 query 跑 Query Intelligence。
+`scripts/llm_response.py` 实现论文中的受约束本地模型总结与追问预测阶段（[DOI: `10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)），将压缩后的 Query Intelligence 证据转化为经 Schema 校验的 JSON，不重新推断意图、标的或数据源计划。
 
-它不属于 NLU/Retrieval 主干，不应重新推断意图、目标实体或 source plan。
+> 生产级 LangGraph Agent（`/agent/chat*`）与 React 网页前端请参见 [Agent 层](agent.md) 与 [网页前端](frontend-chatbot.md)。
 
-本页记录本地 HuggingFace/transformers 回答交接脚本路径。浏览器研究工作台、OpenAI 兼容 `/chat` 接口以及带逐句校验的 LangGraph 研究 Agent（`/agent/chat*`）分别见 [本地网页 Chatbot](frontend-chatbot.md) 与 [Agent 层](agent.md)。DeepSeek 是默认 provider 示例，不是架构限制。
+## 输出契约
 
-## 输出
+输出两段经校验和规范化的 JSON：
 
-脚本生成：
+- **`answer_generation`**：`answer`、`key_points[]`、`evidence_ids_used[]`（严格过滤为本次运行实际存在的 ID）、`limitations[]`、`risk_disclaimer`、`model`。
+- **`next_question_prediction`**：三条推荐追问，附相关性分数与简短理由。
 
-- `answer_generation`：回答文本、关键点、使用的 evidence IDs、局限、风险提示和模型名。
-- `next_question_prediction`：严格 3 个追问，包含分数和简短理由。
-
-两个输出都会做 JSON 校验和规范化。
-
-## 默认后端
-
-当前脚本默认值：
-
-| 设置 | 默认值 |
-|---|---|
-| Backend | 本地 HuggingFace/transformers |
-| 回答模型 | `instruction-pretrain/finance-Llama3-8B` |
-| 追问模型 | `Qwen/Qwen2.5-3B-Instruct` |
-| 模型搜索根目录 | `models/llm`，以及 `LLM_MODELS_DIR` / `QI_LLM_MODELS_DIR` |
-| 回答 max tokens | `700` |
-| 追问 max tokens | `260` |
-| JSON repair retries | `1` |
-
-快速运行：
+## 快速运行
 
 ```bash
-python scripts/llm_response.py --query "你觉得中国平安怎么样？"
-```
+# 先运行 Query Intelligence，再生成 JSON 回答
+python scripts/llm_response.py --query "你觉得中国平安（601318.SH）怎么样？"
 
-读取已有 combined record：
-
-```bash
+# 直接消费已有合并记录（{query, nlu_result, retrieval_result, ...}）
 python scripts/llm_response.py --input path/to/pipeline_record.json
 ```
 
-`--input` 需要一个 JSON 对象，包含 `query`、`nlu_result`、`retrieval_result`；`statistical_result` 和 `sentiment_result` 可选。Query Intelligence artifact 默认是分开的文件，因此可以先组合，或直接用 `--query`。
+## 默认本地模型与参数
 
-## 安全约束
+| 参数 / 配置 | 默认值 | 说明 |
+|---|---|---|
+| `--answer-model` | `instruction-pretrain/finance-Llama3-8B` | 回答生成模型 |
+| `--next-question-model` | `Qwen/Qwen2.5-3B-Instruct` | 追问预测模型 |
+| `--models-dir` | `models/llm`（`LLM_MODELS_DIR` / `QI_LLM_MODELS_DIR`） | 优先检索的本地模型目录 |
+| `--answer-max-new-tokens` / `--next-max-new-tokens` | `700` / `260` | 生成 Token 上限 |
+| `--json-retries` | `1` | JSON 解析失败后的修复重试次数 |
+| `--device-map`、`--dtype`、`--temperature` | `auto` | 推理设备与采样配置 |
+| `--trust-remote-code` | `false` | 仅对经审计的 HuggingFace 仓库显式开启 |
 
-- 只使用紧凑证据：query、NLU、retrieval evidence summary、可选统计结果和可选 sentiment 结果。
-- 输入模型前去掉 debug trace、长原文、history arrays 和 source-generation metadata。
-- OpenAI-compatible API 默认开启 JSON Output。
-- 尽量校验和修复 JSON。
-- 不得编造缺失行情、基本面、估值、宏观、新闻、情感或统计事实。
-- 必须包含风险提示。
-- 不输出 chain-of-thought 或 markdown fences。
+需要鉴权下载权重时通过 `HF_TOKEN` 或 `HUGGINGFACE_HUB_TOKEN` 提供凭据。
 
-## 配置
+## 安全与约束
 
-常用 CLI 参数：
-
-| 参数 | 用途 |
-|---|---|
-| `--answer-model` | `answer_generation` 使用的模型。 |
-| `--next-question-model` | 追问使用的模型。 |
-| `--models-dir` | 本地模型目录，优先于 HuggingFace model ID。 |
-| `--few-shot-source` | 回答和追问 prompt 使用的 few-shot JSONL 来源。 |
-| `--answer-max-new-tokens` | 回答 JSON token 上限。 |
-| `--next-max-new-tokens` | 追问 JSON token 上限。 |
-| `--device-map` | 传给 transformers 的设备映射。 |
-| `--dtype` | `auto`、`float16`、`bfloat16` 或 `float32`。 |
-| `--temperature` | 采样温度。 |
-| `--json-retries` | JSON 解析失败后的严格重试次数。 |
-| `--trust-remote-code` | 只有已审计且必须依赖该能力的 HuggingFace 模型才开启。 |
-
-环境变量：
-
-| 变量 | 用途 |
-|---|---|
-| `LLM_MODELS_DIR` 或 `QI_LLM_MODELS_DIR` | 本地模型搜索根目录。 |
-| `HF_TOKEN` 或 `HUGGINGFACE_HUB_TOKEN` | HuggingFace 鉴权。 |
-
-默认禁用远程 repository code。只有审计过模型仓库后才使用 `--trust-remote-code`。
+- 仅输入压缩后的证据摘要，自动剥离调试轨迹、长原文与原始接口噪声。
+- 严格校验并过滤 `evidence_ids_used`，剔除思维链与 Markdown 代码块围栏。
+- 严禁编造缺失的行情、基本面、宏观、新闻或情感事实，强制输出风险提示。
+- 回归测试：`python -m pytest -q tests/test_llm_response.py`。

@@ -1,34 +1,14 @@
-# Presentation Materials
+# Presentation & Walkthrough Materials
 
-This folder is the cleaned presentation entry point for **FinSight** (*FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*, published in *Frontiers in Artificial Intelligence and Applications*, Vol. 433 / DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)).
+Presentation and engineering walkthrough resources for **FinSight** (*FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*, FAIA Vol. 433 / DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)).
 
-The original `PPT_Overleaf` backup contained older browser screenshots, LaTeX build byproducts, unrelated image assets, and raw planning notes. The reusable content has been consolidated here as a clean slide outline and linked to the current documented frontend screenshots.
-
-## Contents
-
-| File | Purpose |
+| File | Contents |
 |---|---|
-| [slide-outline.md](slide-outline.md) | Presentation-ready structure, talking points, and demo flow. |
-| [agent-design-notes.md](agent-design-notes.md) | Agent layer design review (Chinese): decisions and trade-offs, failure cases, ablation conclusions, limits, interview Q&A. |
-| [interview-script.md](interview-script.md) | One-page interview script (Chinese): 30-second pitch, 2-minute architecture walk-through, three defended numbers with method and CI, a failure story, follow-up answers, whiteboard outline, and a note on AI coding-tool use. |
-| [../assets/frontend-chatbot-zh.png](../assets/frontend-chatbot-zh.png) | Current Chinese chatbot demo screenshot. |
-| [../assets/frontend-chatbot-en.png](../assets/frontend-chatbot-en.png) | Current English chatbot demo screenshot. |
-| [../frontend-chatbot.md](../frontend-chatbot.md) | Full frontend runbook and verified local test notes. |
-| [../query-intelligence.md](../query-intelligence.md) | Backend architecture and API contract reference. |
+| [slide-outline.md](slide-outline.md) | Concise conference & demo slide outline covering paper core + agent layer |
+| [agent-design-notes.md](agent-design-notes.md) | Engineering design review (Chinese): architecture trade-offs, failure patterns, ablations, and limits |
+| [interview-script.md](interview-script.md) | One-page walkthrough script (Chinese): 30-second pitch, 2-minute architecture, 3 defended metrics, and failure stories |
+| [`../assets/ui/chrome-agent-trace.png`](../assets/ui/chrome-agent-trace.png) | React 19 agent UI with live run trace and evidence ledger |
+| [`../assets/ui/chrome-run-details.png`](../assets/ui/chrome-run-details.png) | Run details panel (tokens, cost, per-stage latency) |
+| [`../assets/frontend-chatbot-zh.png`](../assets/frontend-chatbot-zh.png) · [`en`](../assets/frontend-chatbot-en.png) | Bilingual chatbot demo screenshots |
 
-## Cleanup Decisions
-
-Kept:
-
-- Current frontend screenshots generated from the latest UI.
-- A polished slide outline aligned with the implemented system and published FAIA 2026 paper.
-- Links to stable documentation pages instead of duplicating large raw notes.
-
-Not carried forward:
-
-- `main.aux`, `main.log`, `main.nav`, `main.out`, `main.snm`, and `main.toc`: LaTeX compilation byproducts.
-- Old `Financial Chatbot by Group x` draft screenshots: superseded by the current FinSight UI screenshots.
-- Unrelated visual assets such as the ice cream vendor image.
-- Raw source notes with temporary brainstorming language.
-
-If a final PPT/PDF is exported later, place only the final artifact or clean source under this folder.
+For system specifications, see [Query Intelligence](../query-intelligence.md), [Agent Layer](../agent.md), and [Web UI](../frontend-chatbot.md).

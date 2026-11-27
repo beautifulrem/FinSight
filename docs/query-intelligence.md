@@ -2,345 +2,126 @@
 
 Languages: English | [中文](zh/query-intelligence.md)
 
-Query Intelligence is the classical, explainable ML backend core of **FinSight**, presented in *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence* (*Frontiers in Artificial Intelligence and Applications*, Vol. 433: *Digitalization and Management Innovation V*, DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)). It turns a natural-language financial query into two typed evidence artifacts:
+**Query Intelligence** is the classical, explainable ML core of FinSight published in *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence* (*Frontiers in Artificial Intelligence and Applications*, Vol. 433 / DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)).
 
-- `nlu_result`: what the user asked, what entities were resolved, what evidence is needed, and which sources should run.
-- `retrieval_result`: what evidence was found, how complete it is, how it was ranked, and what structured analysis signals (`analysis_summary`) are available.
+It converts a raw financial question into two typed, inspectable JSON artifacts:
 
-Downstream systems consume these artifacts instead of re-inferring intent, targets, or source plans:
+- **`NLUResult`**: normalized text, resolved entities, product type, multi-label intents/topics, question style, time scope, missing slots, risk flags, source plan, and matched-rule/feature explanations.
+- **`RetrievalResult`**: executed sources, ranked document and structured evidence rows with stable `evidence_id`s, coverage flags, warnings, debug traces, and `analysis_summary`.
 
-- **Paper downstream modules:** [Numerical Analysis](numerical-analysis.md) (`MarketAnalyzer`), [Document Sentiment Analysis](sentiment.md) (`sentiment/`), [LLM Response Handoff](llm-response.md) (`scripts/llm_response.py`), and [Local Frontend Chatbot](frontend-chatbot.md) (`GET /`, `POST /chat`).
-- **Agentic extension:** [Agent Layer](agent.md) (`query_intelligence/agent/`) wraps NLU, retrieval, live fallback chains, and sentiment as typed tools in a LangGraph loop with sentence-level numeric claim verification.
+> [!NOTE]
+> **Paper Benchmark (`10.3233/FAIA261107`):** Evaluated on 10,000 bilingual queries (6,236 finance-domain, 3,764 out-of-scope), Query Intelligence achieves **0.975** finance recall, **0.9729** OOS rejection accuracy, **0.9407** intent micro-F1, **0.9208** topic micro-F1, **0.9664** retrieval Recall@10, and **32/32** end-to-end fuzz contract checks.
 
-> **Paper Benchmark Summary (`10.3233/FAIA261107`):** On 10,000 bilingual query-style cases (6,236 finance-domain and 3,764 out-of-scope queries in Chinese and English), Query Intelligence achieved **0.975** finance-domain recall, **0.9729** out-of-scope rejection accuracy, **0.9407** intent micro-F1, **0.9208** topic micro-F1, **0.9664** retrieval Recall@10, and **32/32** passed contract checks on an end-to-end fuzz matrix.
+## Scope & Architecture
 
-## Scope and Boundaries
+Default coverage targets Chinese financial markets: A-share equities, ETFs/open funds, major indices, industry sectors, and macro/policy indicators. Non-financial or out-of-coverage queries are marked `out_of_scope` before retrieval or any LLM call.
 
-Default shipped runtime coverage is China-market v1:
-
-- A-share stocks: price, news, announcements, financials, industry, fundamentals, valuation, risk, comparison.
-- ETF/funds: NAV, fixed investment, fees, subscription/redemption, product mechanics, ETF/LOF/index-fund comparison.
-- Index/market/sectors: CSI 300, SSE Composite, sector indexes such as liquor or semiconductors.
-- Macro/policy/indicators: CPI, PMI, M2, treasury yields, rate cuts, policy impact.
-- Question styles: factual lookup, why up/down, hold judgment, buy/sell timing, comparison, fundamentals, risk, forecast-like questions.
-
-Unsupported or non-financial questions should be marked `out_of_scope`.
-
-NLU and Retrieval use explainable methods as their main path: rules, dictionaries, TF-IDF, linear classifiers, CRF, tree models, learning-to-rank, and provider-backed structured retrieval. `sentiment/`, `scripts/llm_response.py`, and `/chat` are downstream exceptions and may use transformer or LLM models over compact evidence.
-
-## Architecture
+The NLU and retrieval backbone uses **classical, explainable ML only** (rules, lexicons, TF-IDF, linear/tree classifiers, CRF, LTR, and PostgreSQL full-text search). Downstream modules ([Numerical Analysis](numerical-analysis.md), [Document Sentiment](sentiment.md), [LLM Response Handoff](llm-response.md), and the [Agent Layer](agent.md)) consume its typed outputs without re-inferring intent or entities.
 
 ```mermaid
 flowchart TD
-  A["Frontend Query"] --> B["FastAPI /query/intelligence"]
-  B --> C["NLU Pipeline"]
-  C --> C1["Normalizer"]
-  C --> C2["Entity Resolver + Alias + CRF + Typo Linker"]
-  C --> C3["Product / Intent / Topic / Style / Sentiment Models"]
-  C --> C4["Out-of-Scope + Clarification Gate"]
-  C --> C5["Source Planner + Source Plan Reranker"]
-  C --> D["nlu_result.json"]
-  D --> E["Retrieval Pipeline"]
-  E --> E1["Query Builder"]
-  E --> E2["Document Retriever + Live News + Cninfo"]
-  E --> E3["Structured Providers: Tushare / AKShare / Postgres / Seed"]
-  E --> E4["Feature Builder + ML Ranker + Deduper + Selector"]
-  E --> E5["MarketAnalyzer: Technical Indicators + Valuation + Macro Direction"]
-  E --> F["retrieval_result.json"]
-  F --> G["sentiment/"]
-  F --> H["scripts/llm_response.py"]
-  F --> I["/chat Browser Chatbot"]
+  Q["User Query"] --> API["FastAPI /query/intelligence"]
+  API --> NLU["NLU Pipeline"]
+  NLU --> N1["Normalizer & Lookalike / Foreign-Listing Guard"]
+  N1 --> N2["Entity Resolver (Alias + CRF + Typo Linker)"]
+  N2 --> N3["Product / Intent / Topic / Style / Tone Classifiers"]
+  N3 --> N4["OOS & Clarification Gate + Source Plan Reranker"]
+  N4 --> NR["NLUResult"]
+  NR --> RET["Retrieval Pipeline"]
+  RET --> R1["Query Builder (per-entity typed targets)"]
+  R1 --> R2["Document Retriever + Live News + Cninfo"]
+  R1 --> R3["Structured Providers (Tushare / AKShare / Postgres / Snapshot)"]
+  R2 --> R4["Feature Builder + LTR Ranker + Deduper"]
+  R3 --> R5["MarketAnalyzer -> analysis_summary"]
+  R4 --> RR["RetrievalResult"]
+  R5 --> RR
 ```
 
-## Key Paths
+## Module Paths
 
-| Path | Description |
+| Path | Responsibility |
 |---|---|
-| `query_intelligence/api/app.py` | FastAPI app. |
-| `query_intelligence/service.py` | Orchestrates NLU and retrieval. |
-| `query_intelligence/contracts.py` | Pydantic request/response contracts. |
-| `query_intelligence/config.py` | Environment-driven settings. |
-| `query_intelligence/data_loader.py` | Runtime CSV/JSON loaders. |
-| `query_intelligence/nlu/pipeline.py` | NLU chain. |
-| `query_intelligence/retrieval/pipeline.py` | Retrieval chain. |
-| `query_intelligence/retrieval/market_analyzer.py` | Technical indicators and `analysis_summary`. |
-| `query_intelligence/integrations/` | Tushare, AKShare, Cninfo, efinance providers. |
-| `schemas/` | JSON Schemas for external validation. |
+| `query_intelligence/service.py` | End-to-end NLU + Retrieval orchestration |
+| `query_intelligence/contracts.py` | Pydantic models mirrored to `schemas/*.schema.json` |
+| `query_intelligence/config.py` | Environment-driven runtime settings |
+| `query_intelligence/data_loader.py` | Runtime entity/alias/corpus/snapshot loaders |
+| `query_intelligence/nlu/` | Normalization, entity/alias/CRF/lookalike resolution, classifiers, source planning |
+| `query_intelligence/retrieval/` | Query builder, document & structured retrievers, LTR ranker, `MarketAnalyzer` |
+| `query_intelligence/integrations/` | Tushare, AKShare, Cninfo, and efinance adapters |
 
-## API
+## API Endpoints
 
-API code is in `query_intelligence/api/app.py`.
+| Endpoint | Input | Output |
+|---|---|---|
+| `POST /nlu/analyze` | `AnalyzeRequest` | `NLUResult` |
+| `POST /retrieval/search` | `RetrievalRequest` | `RetrievalResult` |
+| `POST /query/intelligence` | `PipelineRequest` | `PipelineResponse` (`nlu_result` + `retrieval_result`) |
+| `POST /query/intelligence/artifacts` | `ArtifactRequest` | Artifact file paths (`query.txt`, `nlu_result.json`, `retrieval_result.json`, `manifest.json`) |
 
-| Endpoint | Purpose | Input | Output |
-|---|---|---|---|
-| `GET /health` | Liveness: the process answers HTTP | none | `{"status":"ok"}` |
-| `GET /ready` | Readiness: checkpoint store reachable and writable, LLM config sane, retrieval index loaded | none | 200 `{"status":"ready","checks":{...}}` or 503 `{"status":"not_ready",...}` |
-| `GET /` | Browser chatbot UI | browser | HTML app |
-| `POST /chat` | End-to-end NLU + Retrieval + LLM API response polishing | `ChatRequest` | Chatbot response JSON |
-| `POST /nlu/analyze` | NLU only | `AnalyzeRequest` | `NLUResult` |
-| `POST /retrieval/search` | Retrieval from an existing NLU result | `RetrievalRequest` | `RetrievalResult` |
-| `POST /query/intelligence` | End-to-end NLU + Retrieval | `PipelineRequest` | `PipelineResponse` |
-| `POST /query/intelligence/artifacts` | End-to-end run and write files | `ArtifactRequest` | `ArtifactResponse` |
-
-### Pipeline Request
+### `PipelineRequest` Example
 
 ```json
 {
   "query": "What do you think about Ping An Insurance (601318.SH)?",
-  "user_profile": {
-    "risk_preference": "balanced",
-    "preferred_market": "cn",
-    "holding_symbols": ["601318.SH"]
-  },
-  "dialog_context": [
-    {
-      "role": "user",
-      "content": "I hold Ping An Insurance."
-    }
-  ],
+  "user_profile": {"risk_preference": "balanced", "holding_symbols": ["601318.SH"]},
+  "dialog_context": [{"role": "user", "content": "I hold Ping An Insurance."}],
   "top_k": 10,
   "debug": false
 }
 ```
 
-| Field | Type | Required | Description |
-|---|---:|---:|---|
-| `query` | string | yes | Raw user query, 1 to 2000 characters. |
-| `user_profile` | object | no | Holdings, risk preference, preferred market, or other caller metadata. |
-| `dialog_context` | array | no | Prior turns, previous entities, or clarification state. |
-| `top_k` | integer | no | Retrieval output limit, 1 to 100, default 20. |
-| `debug` | boolean | no | Enables extra debug traces. Keep `false` in production. |
+`query` accepts 1–2,000 characters; `top_k` accepts 1–100 (default `20`); keep `debug: false` in production.
 
-`ArtifactRequest` adds optional `session_id` and `message_id`; the response includes paths for `query.txt`, `nlu_result.json`, `retrieval_result.json`, and `manifest.json`.
+## Contracts
 
-## NLUResult
-
-| Field | Type | Description |
-|---|---:|---|
-| `query_id` | string | UUID shared by NLU and retrieval outputs. |
-| `raw_query` | string | Original frontend query. |
-| `normalized_query` | string | Normalized query text. |
-| `question_style` | enum | `fact`, `why`, `compare`, `advice`, `forecast`. |
-| `product_type` | object | Single-label product prediction with `label` and `score`. |
-| `intent_labels` | array | Multi-label intent predictions with scores. |
-| `topic_labels` | array | Multi-label topic predictions with scores. |
-| `entities` | array | Entity resolution results. |
-| `comparison_targets` | array | Targets in comparison queries. |
-| `keywords` | array | Retrieval keywords. |
-| `time_scope` | enum | `today`, `recent_3d`, `recent_1w`, `recent_1m`, `recent_1q`, `long_term`, `unspecified`. |
-| `forecast_horizon` | string | Forecast or holding horizon, usually `short_term`, `medium_term`, or `long_term`. |
-| `sentiment_of_user` | string | User tone, such as `positive`, `neutral`, `negative`, `bullish`, `bearish`, or `anxious`. |
-| `operation_preference` | enum | `buy`, `sell`, `hold`, `reduce`, `observe`, `unknown`. |
-| `required_evidence_types` | array | Evidence requirements for downstream retrieval and answer generation. |
-| `source_plan` | array | Sources retrieval should try to execute. |
-| `risk_flags` | array | Risk and safety flags. |
-| `missing_slots` | array | Missing required slots. |
-| `confidence` | float | Overall NLU confidence. |
-| `explainability` | object | Matched rules and top model features. |
-
-### NLU Labels
-
-| Field | Values |
-|---|---|
-| `product_type.label` | `stock`, `etf`, `fund`, `index`, `macro`, `generic_market`, `unknown`, `out_of_scope` |
-| `intent_labels[].label` | `price_query`, `market_explanation`, `hold_judgment`, `buy_sell_timing`, `product_info`, `risk_analysis`, `peer_compare`, `fundamental_analysis`, `valuation_analysis`, `macro_policy_impact`, `event_news_query`, `trading_rule_fee` |
-| `topic_labels[].label` | `price`, `news`, `industry`, `macro`, `policy`, `fundamentals`, `valuation`, `risk`, `comparison`, `product_mechanism` |
-| `required_evidence_types[]` | `price`, `news`, `industry`, `fundamentals`, `valuation`, `risk`, `macro`, `comparison`, `product_mechanism` |
-| `risk_flags[]` | `investment_advice_like`, `out_of_scope_query`, `entity_not_found`, `entity_ambiguous`, `clarification_required` |
-| `missing_slots[]` | `missing_entity`, `comparison_target` |
-
-### Entity Fields
+### `NLUResult`
 
 | Field | Description |
 |---|---|
-| `mention` | Text span from the query. |
-| `entity_type` | Usually `stock`, `etf`, `fund`, `index`, `sector`, `macro_indicator`, or `policy`. |
-| `confidence` | Entity confidence. |
-| `match_type` | Current matching paths include `alias_exact`, `alias_fuzzy`, `fuzzy`, `crf_fuzzy`, `linked`, `context_dialog`, `context_profile`. |
-| `entity_id` | Runtime entity ID. |
-| `canonical_name` | Canonical entity name. |
-| `symbol` | Security or indicator symbol when available. |
-| `exchange` | Exchange code when known. |
+| `query_id`, `raw_query`, `normalized_query` | Shared UUID and raw/normalized query text |
+| `product_type` | Single-label prediction: `stock`, `etf`, `fund`, `index`, `macro`, `generic_market`, `unknown`, `out_of_scope` |
+| `intent_labels[]` | Multi-label: `price_query`, `market_explanation`, `hold_judgment`, `buy_sell_timing`, `product_info`, `risk_analysis`, `peer_compare`, `fundamental_analysis`, `valuation_analysis`, `macro_policy_impact`, `event_news_query`, `trading_rule_fee` |
+| `topic_labels[]` | Multi-label: `price`, `news`, `industry`, `macro`, `policy`, `fundamentals`, `valuation`, `risk`, `comparison`, `product_mechanism` |
+| `question_style` | `fact`, `why`, `compare`, `advice`, `forecast` |
+| `entities[]` | `mention`, `entity_type`, `canonical_name`, `symbol` (`^[A-Za-z0-9._-]+$`, ≤64 chars), `exchange`, `match_type`, `confidence` |
+| `comparison_targets[]`, `keywords[]` | Paired comparison subjects and retrieval keywords |
+| `time_scope`, `forecast_horizon`, `sentiment_of_user`, `operation_preference` | Temporal window, horizon, user tone, and trading-action preference |
+| `required_evidence_types[]`, `source_plan[]` | Needed evidence categories and ordered retrieval sources |
+| `risk_flags[]`, `missing_slots[]` | Safety/clarification triggers (`investment_advice_like`, `out_of_scope_query`, `entity_not_found`, `clarification_required`, `missing_entity`, `comparison_target`) |
+| `confidence`, `explainability` | Confidence score, matched rules, and top linear/tree features |
 
-## RetrievalResult
-
-| Field | Type | Description |
-|---|---:|---|
-| `query_id` | string | Same query ID as `NLUResult`. |
-| `nlu_snapshot` | object | Key NLU fields used by retrieval. |
-| `executed_sources` | array | Sources actually executed; may be smaller than `source_plan`. |
-| `documents` | array | Unstructured evidence. |
-| `structured_data` | array | Structured evidence rows. |
-| `evidence_groups` | array | Deduplication or clustering groups. |
-| `coverage` | object | High-level evidence coverage. |
-| `coverage_detail` | object | Fine-grained coverage flags. |
-| `warnings` | array | Retrieval warnings. |
-| `retrieval_confidence` | float | Overall retrieval confidence. |
-| `analysis_summary` | object | Pre-computed market/fundamental/macro/data-readiness signals. |
-| `debug_trace` | object | Candidate counts and top-ranked evidence IDs. |
-
-### Document Evidence
+### `RetrievalResult`
 
 | Field | Description |
 |---|---|
-| `evidence_id` | Unique evidence ID. |
-| `source_type` | Document source type. |
-| `source_name` | Source name, such as `cninfo`, `akshare_sina`, or a news outlet. |
-| `source_url` | Web or PDF URL. Dataset-only notes may use `dataset://...`. |
-| `provider` | Provider name. |
-| `title`, `summary`, `text_excerpt`, `body` | Text fields for downstream reading. |
-| `body_available` | Whether full body text is available. |
-| `publish_time`, `retrieved_at` | Time metadata. |
-| `entity_hits` | Matched symbols or entity names. |
-| `retrieval_score`, `rank_score` | Initial and reranked scores. |
-| `reason` | Ranking reasons. |
-| `payload` | Optional raw extension object. |
+| `query_id`, `nlu_snapshot`, `executed_sources[]` | Run correlation and sources actually executed |
+| `documents[]` | Ranked `news`, `announcement`, `research_note`, `faq`, `product_doc` items with `evidence_id`, `source_url`, `publish_time`, `rank_score`, and `reason[]` |
+| `structured_data[]` | `market_api`, `fundamental_sql`, `industry_sql`, `macro_sql`, `fund_*`, `index_*`, `macro_indicator`, `policy_event` rows with `provider_endpoint`, `source_reference`, `as_of`, `quality_flags`, and `payload` |
+| `evidence_groups[]` | Deduplication/clustering groups |
+| `coverage`, `coverage_detail` | High-level and fine-grained evidence completeness flags |
+| `warnings[]` | E.g. `out_of_scope_query`, `clarification_required_missing_entity`, `announcement_not_found_recent_window` |
+| `analysis_summary` | Pre-computed technical, fundamental, macro, and data-readiness signals ([numerical-analysis.md](numerical-analysis.md)) |
+| `retrieval_confidence`, `debug_trace` | Confidence score and candidate/ranking debug trace |
 
-### Structured Evidence
+## Runtime Configuration
 
-| Field | Description |
-|---|---|
-| `evidence_id` | Unique structured evidence ID. |
-| `source_type` | Structured source type. |
-| `source_name`, `provider` | Source metadata. |
-| `source_url` | Public page URL when available; API-only rows may keep this null. |
-| `provider_endpoint` | API/function endpoint, such as `akshare.stock_zh_a_hist` or `tushare.daily`. |
-| `query_params` | Provider query parameters. |
-| `source_reference` | Traceable reference such as `provider://akshare_sina/stock_zh_a_hist`. |
-| `as_of`, `period`, `retrieved_at` | Time metadata. |
-| `field_coverage` | Field completeness summary. |
-| `quality_flags` | Data quality flags. |
-| `payload` | Business payload consumed by downstream models. |
-
-### Source Types
-
-| Type | Used In | Meaning |
+| Variable | Default | Purpose |
 |---|---|---|
-| `news` | documents | News articles from live or local providers. |
-| `announcement` | documents | Exchange or Cninfo-style public company announcement. |
-| `research_note` | documents | Research report, analyst note, or research-style dataset document. |
-| `faq` | documents | Curated FAQ for rules, fees, or product mechanics. |
-| `product_doc` | documents | Product document or explainer. |
-| `market_api` | structured | Stock/ETF/fund/index quote or price-history data. |
-| `fundamental_sql` | structured | Company financial indicators, valuation, profitability, or fundamentals. |
-| `industry_sql` | structured | Industry identity, sector trend, or sector context. |
-| `macro_sql` | structured | Macro seed or macro table data. |
-| `fund_nav`, `fund_fee`, `fund_redemption`, `fund_profile` | structured | Fund and ETF product data. |
-| `index_daily`, `index_valuation` | structured | Index quote and valuation data. |
-| `macro_indicator`, `policy_event` | structured | Live macro indicators or policy records. |
+| `TUSHARE_TOKEN` | empty | Enables Tushare daily/financial/news providers |
+| `QI_POSTGRES_DSN` | empty | PostgreSQL connection string for structured/FTS stores |
+| `QI_USE_LIVE_MARKET` / `_NEWS` / `_ANNOUNCEMENT` / `_MACRO` | `false` (core CLI) / `true` (app default) | Toggle live external providers vs offline snapshot |
+| `QI_USE_POSTGRES_RETRIEVAL` | `false` | Route document/structured retrieval to PostgreSQL |
+| `QI_HTTP_TIMEOUT_SECONDS` | `15` | Upstream HTTP timeout |
+| `QI_MODELS_DIR` | `models` | Directory containing shipped `.joblib` artifacts and `manifest.json` |
+| `QI_ENTITY_MASTER_PATH`, `QI_ALIAS_TABLE_PATH`, `QI_DOCUMENTS_PATH` | auto | Override shipped runtime files in `data/runtime/` |
 
-### Coverage
-
-| Key | Meaning |
-|---|---|
-| `coverage.price` | Price, NAV, or market evidence exists. |
-| `coverage.news` | At least one news document exists. |
-| `coverage.industry` | Industry evidence exists. |
-| `coverage.fundamentals` | Fundamental evidence exists. |
-| `coverage.announcement` | Announcement evidence exists. |
-| `coverage.product_mechanism` | FAQ/product/fund mechanism evidence exists. |
-| `coverage.macro` | Macro or policy evidence exists. |
-| `coverage.risk` | Risk-relevant evidence exists. |
-| `coverage.comparison` | Comparison query has evidence for at least two targets. |
-
-`coverage_detail` uses more specific keys such as `price_history`, `financials`, `valuation`, `industry_snapshot`, `fund_nav`, `fund_fee`, `fund_redemption`, `fund_profile`, `index_daily`, `index_valuation`, `macro_indicator`, and `policy_event`.
-
-### Warnings and Quality Flags
-
-| Field | Value | Meaning |
-|---|---|---|
-| `warnings` | `out_of_scope_query` | NLU classified the query as out of scope; retrieval abstained. |
-| `warnings` | `clarification_required_missing_entity` | Query needs clarification, usually because an entity is missing or unresolved. |
-| `warnings` | `announcement_not_found_recent_window` | Announcements were requested but no recent matching announcement was found. |
-| `quality_flags` | `seed_source` | Row came from bundled seed data, not a live provider. |
-| `quality_flags` | `missing_source_url` | No public page URL is attached. |
-| `quality_flags` | `empty_payload` | No business payload fields are present. |
-| `quality_flags` | `missing_values` | At least one business payload field is null. |
-
-### Ranking Reasons
-
-Current reason values include `lexical_score`, `trigram_similarity`, `entity_exact_match`, `alias_match`, `title_hit`, `keyword_coverage`, `intent_compatibility`, `topic_compatibility`, `product_type_match`, `source_credibility`, `recency_score`, `is_primary_disclosure`, `doc_length`, `time_window_match`, and `ticker_hit`.
-
-## Analysis Summary
-
-`analysis_summary` is built by `query_intelligence/retrieval/market_analyzer.py`. It summarizes evidence; it is not investment advice.
-
-Typical shape:
-
-```text
-analysis_summary
-├── market_signal
-│   ├── trend_signal
-│   ├── rsi_14
-│   ├── ma5 / ma20
-│   ├── macd
-│   ├── bollinger
-│   ├── volatility_20d
-│   └── pct_change_nd
-├── fundamental_signal
-│   ├── pe_ttm / pb / roe
-│   └── valuation_assessment
-├── macro_signal
-│   ├── indicators[]
-│   └── overall
-└── data_readiness
-    ├── has_price_data / has_fundamentals / has_macro / has_news
-    ├── has_technical_indicators
-    ├── relevant_intents
-    └── relevant_topics
-```
-
-## Live Providers
-
-| Source type | Provider | Endpoint or source | Notes |
-|---|---|---|---|
-| `market_api` | Tushare | `tushare.daily` | Requires `TUSHARE_TOKEN`; preferred for A-share data. |
-| `fundamental_sql` | Tushare | `tushare.fina_indicator` | Preferred for financial indicators. |
-| `market_api` | AKShare / efinance | `stock_zh_a_hist`, Sina quote, efinance fallback | Token-free fallback. |
-| `news` | AKShare / Eastmoney | `stock_news_em` | Returns web URLs for valid symbols where available. |
-| `news` | Tushare | `major_news` | May not include public URLs. |
-| `announcement` | Cninfo | `hisAnnouncement/query`, static PDF base | Announcement metadata and PDF URLs. |
-| `macro_sql` | AKShare | CPI, PMI, M2, China/US yield functions | Macro indicators. |
-| `fund/etf` | AKShare | ETF history, open-fund info, fund detail | NAV, fee, redemption, profile. |
-| `index` | AKShare | index daily and CSIndex valuation | Index market and valuation data. |
-| `research_note`, `faq`, `product_doc` | local runtime | `data/runtime/documents.jsonl` | Clone-usable local corpus. |
-| optional | PostgreSQL | `QI_POSTGRES_DSN` | Production document and structured stores. |
-
-For pure API structured rows, `source_url` may be null. Use `provider_endpoint`, `query_params`, and `source_reference` for traceability.
-
-## Environment Variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `TUSHARE_TOKEN` | empty | Tushare API token. |
-| `QI_POSTGRES_DSN` | empty | PostgreSQL DSN. |
-| `CNINFO_ANNOUNCEMENT_URL` | Cninfo default | Cninfo announcement endpoint. |
-| `CNINFO_STATIC_BASE` | `https://static.cninfo.com.cn/` | Cninfo PDF base URL. |
-| `QI_HTTP_TIMEOUT_SECONDS` | `15` | Live provider HTTP timeout. |
-| `QI_USE_LIVE_MARKET` | `false` | Enable live market/fundamental providers. |
-| `QI_USE_LIVE_NEWS` | follows `QI_USE_LIVE_MARKET` | Enable live news. |
-| `QI_USE_LIVE_ANNOUNCEMENT` | follows `QI_USE_LIVE_MARKET` | Enable Cninfo announcements. |
-| `QI_USE_LIVE_MACRO` | `false` | Enable live macro indicators. |
-| `QI_USE_POSTGRES_RETRIEVAL` | `false` | Enable PostgreSQL retrieval. |
-| `QI_MODELS_DIR` | `models` | Model directory. |
-| `QI_API_OUTPUT_DIR` | `outputs/query_intelligence` | Artifact output directory. |
-| `QI_ENTITY_MASTER_PATH` | auto | Runtime entity CSV override. |
-| `QI_ALIAS_TABLE_PATH` | auto | Runtime alias CSV override. |
-| `QI_DOCUMENTS_PATH` | auto | Runtime document corpus override. |
-
-Runtime load order:
-
-- Entity master: `QI_ENTITY_MASTER_PATH` > `data/runtime/entity_master.csv` > `data/entity_master.csv`
-- Alias table: `QI_ALIAS_TABLE_PATH` > `data/runtime/alias_table.csv` > `data/alias_table.csv`
-- Documents: `QI_DOCUMENTS_PATH` > `data/runtime/documents.jsonl` or `.json` > `data/documents.json`
-- Structured seed fallback: `data/structured_data.json`
+**Asset load precedence**: explicit env override → `data/runtime/*` → `data/*`.
 
 ## Troubleshooting
 
-| Symptom | Check |
+| Symptom | Resolution |
 |---|---|
-| A trained stock cannot be resolved | Training data does not populate runtime entity stores. Run `python -m scripts.materialize_runtime_entity_assets`. |
-| `source_url` is null | Structured API rows may not have URLs; inspect `provider_endpoint`, `query_params`, and `source_reference`. |
-| `executed_sources` is smaller than `source_plan` | Live flags, tokens, entity symbols, provider availability, or safety skipping can reduce executed sources. |
-| API returns JSON but no natural-language answer | Expected. Use `scripts/llm_response.py` for downstream answer JSON. |
-| Production rows come from `seed` | Enable live providers or PostgreSQL and verify provider credentials. |
+| Stock resolves during training but not runtime | Run `python -m scripts.materialize_runtime_entity_assets` to refresh `data/runtime/`. |
+| `source_url` is null on structured rows | Expected for API-only feeds; use `provider_endpoint`, `query_params`, and `source_reference`. |
+| `executed_sources` is smaller than `source_plan` | Check live toggles, provider tokens, missing symbols, or OOS/clarification short-circuits. |
+| Only seed rows returned | Enable live providers or configure `QI_POSTGRES_DSN`. |

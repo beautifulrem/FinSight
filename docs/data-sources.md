@@ -1,497 +1,55 @@
-# Live Data Sources: Audit, Fallback Chains, and Provenance
+# Data Sources, Fallback Chains & Provenance
 
 Languages: English | [中文](zh/data-sources.md)
 
-This document records a real-network audit of every live data source FinSight uses, the bugs it
-exposed, and the acquisition design that now sits in front of those sources: ordered fallback chains,
-per-source circuit breakers, a TTL cache with last-known-good reads, hard timeouts, and provenance
-metadata on every returned record.
-
-All numbers below were measured, not estimated. Upstream behaviour changes (Eastmoney in particular
-throttles bursts from one IP), so rerun the audit before quoting them.
+FinSight retrieves Chinese market, fundamental, macro, news, and announcement data through ordered live fallback chains protected by per-source circuit breakers, bounded worker pools, TTL/last-known-good caching, cross-source reconciliation, and a three-layer offline snapshot. Every record carries digit-free `provenance` metadata.
 
 ## What is live, what is snapshot, and the fallback order
 
-| Mode | Market data | Fundamentals / valuation | Macro | News / announcements |
+| Mode | Market Data | Fundamentals & Valuation | Macro | News & Announcements |
 |---|---|---|---|---|
-| Live (`QI_USE_LIVE_*=true`, the default) | live chain (below), 30 latest bars per call | Sina + THS statements (cross-checked), Eastmoney datacenter → Tencent valuation | Eastmoney datacenter (+ ChinaBond for the 10Y yield) | Eastmoney news; cninfo → Eastmoney notices |
-| Offline (`QI_USE_LIVE_*=false`) | shipped snapshot only | shipped snapshot only | shipped snapshot only | local document corpus |
+| **Live** (`QI_USE_LIVE_*=true`, default) | Live chain (30 latest daily bars; intraday during A-share hours for "today") | Sina + THS statements (cross-checked), Eastmoney datacenter → Tencent valuation | Eastmoney datacenter (+ ChinaBond 10Y yield) | Eastmoney news; Cninfo → Eastmoney notices |
+| **Offline** (`QI_USE_LIVE_*=false`) | Shipped offline snapshot | Shipped offline snapshot | Shipped offline snapshot | Local runtime corpus (`data/runtime/documents.jsonl`) |
 
-Order in live mode, per record: the live chain for that data kind (first source that returns usable
-rows) → the TTL cache → the last-known-good copy (at most 24 h old) → the shipped snapshot. A snapshot
-*price* stands in for a failed live fetch only while it is fresh (10 days); snapshot fundamentals,
-industry tiles and macro values are served with `mode: snapshot` and a fallback reason. Every record
-says which of these it is in `provenance` (`mode`, `as_of`, `fetched_at`, `fallback_reason`).
+Per-record resolution order in live mode: **live chain → TTL cache → last-known-good (≤24 h) → offline snapshot** (snapshot prices stand in for failed live fetches only if ≤10 days old; fundamentals/macro/industry snapshots are served labelled `mode: snapshot` with `fallback_reason`).
 
-The shipped snapshot has two layers (next section): v1 (`data/structured_data.json`, as of
-2026-04-22) and the extension (`data/snapshot/structured_data_ext.json`, as of 2026-09-30). Each
-answer states each target's own date. A corrections layer (`data/snapshot/structured_data_fix.json`,
-[below](#corrections-layer-primary-source-values-and-field-definitions)) replaces the v1 values that the
-companies' annual reports or the daily record contradict and states every figure's definition.
+## Fallback Chains
 
-## Offline snapshot: v1 and the 2026-09-30 extension
-
-**Coverage before → after (offline mode, extension on).**
-
-| | v1 only | v1 + extension |
-|---|---|---|
-| Instruments with a price | 7 (at most 5 daily closes each) | 22 (the 15 new ones have 301–307 daily closes, 2025-07-01 to 2026-09-30) |
-| Companies with fundamentals | 3 (no market cap, YoY growth or EPS) | 13 (the 10 new ones: FY2025 revenue, net profit, ROE, gross margin, EPS, revenue/profit YoY; P/E TTM, P/B, P/S, total and free-float market cap on 2026-09-30) |
-| Computable offline | latest close, daily change, P/E, P/B, ROE, net margin | plus EPS (reported), market cap, YoY growth, PEG, holding value, YTD change, 52-week high/low, max drawdown (52 weeks and YTD), MA/RSI/MACD for the new names |
-
-The 15 added instruments: 宁德时代 300750.SZ, 比亚迪 002594.SZ, 招商银行 600036.SH, 平安银行 000001.SZ,
-工商银行 601398.SH, 中信证券 600030.SH, 长江电力 600900.SH, 紫金矿业 601899.SH, 美的集团 000333.SZ,
-中芯国际 688981.SH, 黄金ETF 518880.SH, 中证500ETF 510500.SH, 科创50ETF 588000.SH, 上证指数 000001.SH,
-创业板指 399006.SZ. 中芯国际 has 301 closes (trading halts), the others 307.
-
-**Where the numbers come from.** `scripts/build_offline_snapshot.py fetch` (2026-10-01 04:55–04:57 UTC,
-from the maintainer's network, sequential with a 1.5 s pause) calls the same chains as the live
-runtime: daily bars through `AKShareMarketProvider` (Eastmoney failed with a proxy error for every
-stock and ETF, Sina served all 15; the attempts are in the manifest), statements from Sina and THS
-reconciled by the live cross-check (Sina served 9 companies with `agree`, THS served 中芯国际 with
-`disagree_resolved`), and the valuation from the Eastmoney datacenter (`stock_value_em`, 2026-09-30
-row; its close must equal the bar's close or the build fails). The source records it received are
-committed under `data/snapshot/raw/` (window-filtered); `build` turns them into
-`structured_data_ext.json` offline and deterministically, and `manifest.json` records per instrument
-the endpoint, the attempts, the fetch time, the report period and a sha256 of every raw file, of the
-output and of v1.
-
-```bash
-python -m scripts.build_offline_snapshot fetch    # live, ~2 min
-python -m scripts.build_offline_snapshot build    # offline, deterministic
-python -m scripts.build_offline_snapshot verify   # hashes match, rebuild == committed file, no v1 overlap
-```
-
-**Rules.**
-
-- The extension never changes a v1 value: the loader adds a key only when v1 does not have it, and
-  `build` refuses a symbol that v1 already covers. `tests/test_round12_snapshot_ext.py` checks every v1
-  record is identical with the extension on.
-- Statements are the FY2025 annual report for every company (the same period as the v1 fundamentals),
-  so companies compare on one period; P/E, P/B, P/S and the market cap are priced on 2026-09-30, and the
-  answer says so ("PE、PB 按 2026-09-30 收盘计算", "总市值 … 按 2026-09-30 收盘计算").
-- Closes are unadjusted (不复权), like every other price in the project. The 52-week range and the
-  drawdowns are labelled "按未复权收盘价"; a window with a close-to-close jump beyond every A-share
-  daily limit (>21%, e.g. 比亚迪's 2025-07-29 bonus issue, outside the 52-week window) is not computed.
-  Cash dividends and small bonus issues are not adjusted for.
-- Dates: v1 prices are as of 2026-04-22, extension prices as of 2026-09-30. Every price sentence carries
-  its own date, the provenance note names it (数据来自离线快照，截至2026-09-30), and a comparison of
-  price data from different trading days says so ("注意：所比较的行情日期不同（贵州茅台 2026-04-22，宁德时代
-  2026-09-30）…").
-- `QI_OFFLINE_SNAPSHOT_EXT=false` turns the extension off. The extension is not refreshed automatically;
-  rerun `fetch` + `build` to move its date.
-
-**Evaluation stays on v1.** Every task set and held-out slice in the repository was labelled against
-v1, including absence labels (for example "宁德时代 has no offline price" in test v3, the multi-turn set
-and the round-4/5/6 slices). The evaluation harness (`build_offline_service`, the task builders) and
-the test environment therefore pin v1; `QI_EVAL_SNAPSHOT_EXT=1` opts in. The 14 round-12 dev tasks that
-need the extension were recorded into the dev replay fixture with it on, for 9 symbols no earlier dev
-task had recorded, so every earlier task replays exactly what it did before. Run with
-`QI_EVAL_SNAPSHOT_EXT=1`, the verify scripts report 22 failed checks, all premises about v1: absence
-checks for 300750.SZ, 600036.SH, 002594.SZ, 000001.SZ, 000333.SZ and 000001.SH (r4 2, r5 3, multi-turn 5,
-test v3 6), and three claim labels that become checkable (r5 r5c045/r5c055 on 平安银行's P/E and ROE, r6
-r6c19 on 宁德时代's P/E: 6 checks). The round-7 slice passes either way. Pinned to v1 (the default), every
-verify script prints OK.
-
-**The shipped default is gated too (round 13).** The extension is on by default, so a regression on its names
-would not fail a v1-pinned gate. The gate set `ext` (`evaluation/agent_eval/tasks/agent_eval_ext_v1.jsonl`, 44 tasks /
-48 turns since round 14, built by `python -m evaluation.agent_eval.build_ext_tasks`, values read by hand from
-`structured_data_ext.json`) runs with `QI_EVAL_SNAPSHOT_EXT=1` against the offline tools directly, with no replay
-fixture, so the loader, the price and fundamentals tools, the derived fields and the answers on extension names are all
-exercised: `python -m evaluation.agent_eval.gate --set ext` (its own CI step in the `agent-eval-gate` job; floors
-task success 0.95, behaviour 0.98, facts 0.95, compliance 1.0, hedged 1.0; baseline `evaluation/results/gate-ext.json`,
-44/44 at the merged round-14 code `d2f518f`; 32/32 at `ca889e4` on the r14-safety branch and 36/36 at `2a55c49` on the r14-frame branch; 24/24 at `235d00c` before the 20 round-14 tasks, of which the 8 J6/J7 ones (`round14_ext_tasks`) score 2/8 with the code before the round-14 fixes; the 12 comparison tasks are `round14_frame_ext_tasks`). It covers facts on extension names, YTD / 52-week / drawdown / holding value, price-forecast hedges
-with past-time controls, a missing industry average and follow-ups. The first 24 tasks score 15/24 with the code at
-`cbcf3b2` (before the round-13 fixes); they were written after the fixes, so that is a regression baseline, not an
-independent measure. The dev and held-out gates stay pinned to v1 for comparability.
-
-**Year to date (round 13, review I11).** `get_price_history` also returns `prior_year_end`, the last close of the year
-before (present whenever `year_start` is), and the year-to-date change is measured from it, the 年初至今 basis of quote
-vendors: 宁德时代 −20.73% from 367.26 (2025-12-31), where round 12 said −22.88% from the 2026-01-05 close (377.5). A
-payload recorded before round 13 has only `year_start`; the answer then names "the first close of the year" as its
-base. The year-to-date drawdown window still starts at the year's first close.
-
-**No industry snapshot for the extension's companies (round 13, review I10).** The v1 industry tiles (白酒, 保险, 券商, …;
-PE, PB, turnover) are a hand seed (`source_name: "seed"`), and the live refresh (THS industry index) carries only the
-daily change, so there is no fetch path to rebuild them "the same way" for the extension's industries (banks, autos,
-batteries, securities, utilities, mining, semiconductors, appliances). On 2026-10-01 the only live industry valuation
-source that answered from this machine was cninfo `stock_industry_pe_ratio_cninfo` (date 2026-09-30, 120 rows): static
-weighted / median P/E on the CAPCO classification, no P/B and no turnover, a different basis from the v1 tiles. No tiles
-were added and no existing value changed; instead, a question about one of these companies' industry average says so
-("当前数据没有比亚迪所属行业的平均市盈率，无法与行业平均比较。" / "The industry average P/E of CATL's industry is not
-available in the current data, …"), and the claim checker marks such a relation unverifiable ("no industry snapshot").
-
-## Corrections layer: primary-source values and field definitions
-
-The v1 seed was never checked against the companies' own reports, and none of the shipped figures said
-which definition it uses. Round 13 checked the FY2025 statement figures of the three v1 companies and the
-2026-04-22 bars of the seven v1 instruments against a primary record (the industry and macro rows were not checked,
-see "Not corrected, still unverified" below) and adds a third layer, `data/snapshot/structured_data_fix.json`, that the product applies by default
-(`QI_OFFLINE_SNAPSHOT_FIX=true`; precedence **corrections > v1 seed > extension**). The seed file itself
-is unchanged.
-
-**What the v1 seed got wrong (FY2025, report date 2025-12-31).** Sources are the FY2025 annual reports
-on CNINFO (the exchanges' designated disclosure site), retrieved 2026-10-10. Every value below is quoted
-in `data/snapshot/corrections/sources.json` with the PDF URL, its sha256, the PDF page and the printed
-page.
-
-| Company | Field | v1 seed | Annual report | Where |
-|---|---|---|---|---|
-| 五粮液 000858.SZ | revenue | 1085亿 | 营业收入 405.29亿 (= 营业总收入), −54.55% | 2025年年度报告 (ann. 1225273091, 2026-04-30), p. 7 |
-| | net profit | 378亿 | 归母净利润 89.54亿, −71.89% (total 93.17亿) | p. 7; 合并利润表 p. 57 |
-| | ROE | 29.4% | 加权平均 6.89% (on period-end equity 7.47%) | p. 7 |
-| | gross margin | 76.1% | 77.54% (营业收入 − 营业成本 9,101,956,953.59 元, p. 56) | derived |
-| | EPS | – | basic = diluted 2.3068 元 | p. 7 |
-| 中国平安 601318.SH | revenue | 12180亿 | 营业收入 10505.06亿, +2.1% | 2025年年度报告 (ann. 1225038263, 2026-03-27), p. 14 (printed 10) |
-| | net profit | 1210亿 | 归母净利润 1347.78亿, +6.5% (total 1583.01亿) | p. 14; 合并利润表 p. 191 (187) |
-| | ROE | 15.2% | 加权平均 14.0% | p. 14 |
-| | EPS | – | basic 7.68 元, diluted 7.44 元 | p. 14 |
-| 贵州茅台 600519.SH | revenue, net profit | 1688.38亿, 823.20亿 | **correct**: 营业收入 1688.38亿 (营业总收入 1720.54亿), 归母净利润 823.20亿 | 2025年年度报告 (ann. 1225114741, 2026-04-17), p. 6 |
-| | ROE | 33.0% | 加权平均 32.53% (on period-end equity 33.65%) | p. 6 |
-| all three | P/E, P/B | 茅台 24.6 / 8.1, 五粮液 20.9 / 5.4, 平安 8.7 / 1.1 | 21.44 / 7.22, 43.63 / 3.26, 7.80 / 1.05 | derived: 2026-04-22 close × period-end shares ÷ FY2025 归母净利润 (÷ period-end 归母净资产) |
-
-五粮液's report also says its quarterly 2025 figures differ materially from the quarterly reports it had
-published ("公司对2025年业务模式进行梳理，基于谨慎性原则，调整2025年部分业务收入确认相关核算", p. 8).
-
-**2026-04-22 prices.** Every v1 bar was compared with a daily record (AKShare, fetched 2026-10-10; raw
-records in `data/snapshot/raw/corrections/`). For the index the record is the compiler's own
-(China Securities Index Co., `stock_zh_index_hist_csindex`), cross-checked with Sina; stocks and funds
-come from Sina's daily kline cross-checked with Tencent's (Eastmoney's kline host refused connections
-on 2026-10-10).
-
-| Instrument | v1 seed (close, change) | Daily record | Action |
+| Data Kind | Primary | Secondary Chain | Final Fallback |
 |---|---|---|---|
-| 中国平安 601318.SH | 53.61, +0.73%, 成交额 66.4亿 | 58.03, 0.00%, 33.65亿 | corrected |
-| 沪深300 000300.SH | 4005.2, +0.42% | 4799.63, +0.66%, 成交金额 6195.06亿 (CSIndex) | corrected |
-| 创业板ETF 159915.SZ | 2.465, +0.86% | 3.758, +2.09% | corrected |
-| 证券ETF 512880.SH | 1.021, +0.59% | 1.075, +0.84% | corrected |
-| 贵州茅台, 五粮液, 沪深300ETF | 1409.5, 100.64, 4.811 | same | checked, unchanged |
+| Stock daily bars | Eastmoney `stock_zh_a_hist` (or Tushare when token set) | Sina `stock_zh_a_daily` → Tencent fqkline → Sina realtime → efinance | LKG → fresh snapshot |
+| ETF daily bars | Eastmoney `fund_etf_hist_em` | Sina `fund_etf_hist_sina` → Tencent fqkline → efinance | LKG → fresh snapshot |
+| Index daily bars | Sina `stock_zh_index_daily` | Eastmoney `index_zh_a_hist` → Tencent fqkline → Eastmoney spot | LKG → fresh snapshot |
+| Financial statements | Sina `stock_financial_analysis_indicator` | THS `stock_financial_abstract_ths` (reconciled concurrently) | Shipped snapshot |
+| PE(TTM) / PB | Eastmoney datacenter `stock_value_em` | Tencent quote | Shipped snapshot |
+| Industry context | Eastmoney `stock_individual_info_em` / THS industry index | Cninfo `stock_profile_cninfo` | Shipped snapshot (labelled stale) |
+| Fund profile & fees | Eastmoney `fund_overview_em` | Xueqiu → `fund_etf_fund_info_em` | – |
+| CPI / PMI / M2 / LPR | Eastmoney datacenter (NBS / PBoC) | – | LKG (6 h TTL / 24 h stale) → snapshot |
+| CN 10Y yield | Eastmoney `bond_zh_us_rate` | ChinaBond `bond_china_yield` | LKG → snapshot |
+| News / Announcements | Eastmoney news; Cninfo orgId notices | Eastmoney notices API | Local corpus |
 
-The four corrected records also replace their 2026-04-21 bar (the seed's was wrong too). The daily change
-is computed from the previous close, as the exchanges publish it; CSIndex states its own.
+All adapters preserve explicit exchange suffixes (`.SH`, `.SZ`, `.BJ`) and route SSE `000xxx.SH` and SZSE `399xxx.SZ` symbols as indices rather than stocks.
 
-**Field definitions.** Every fundamentals record the layer serves carries `definitions`:
-`roe_basis` (`weighted` | `period_end`), `revenue_basis` (`营业收入` | `营业总收入`), `net_profit_basis`
-(`归母` | `total`), `eps_basis` (`basic` | `diluted`), `netprofit_yoy_basis`, `revenue_yoy_basis`, and for
-the v1 companies `gross_margin_basis`, `pe_basis`, `pb_basis`. The v1 corrections serve the report's
-headline figures (weighted ROE, 营业收入, 归母净利润, basic EPS). The extension's values are kept as
-fetched; the layer only states their definitions, each checked at build time against figures quoted
-from that company's annual report:
+## Offline Snapshot & Corrections Layer
 
-| Company | ROE (served vs report's weighted) | revenue | net profit | EPS | net-profit YoY |
-|---|---|---|---|---|---|
-| 宁德时代 | period-end 21.42 (weighted 24.91) | 营业收入 = 营业总收入 | 归母 | basic = diluted | total (42.18; 归母 42.28) |
-| 比亚迪 | period-end 13.24 (15.31) | 营业收入 | 归母 | basic = diluted | total (−18.82; 归母 −18.97) |
-| 美的集团 | period-end 19.69 (19.70) | **营业总收入** 4585.02亿 (营业收入 4564.52亿; its YoY and gross margin are on 营业收入) | 归母 | **diluted** 5.76 (basic 5.80) | total (14.87; 归母 14.03) |
-| 紫金矿业 | period-end 27.91 (33.04) | 营业收入 | 归母 | **diluted** 1.91 (basic 1.95) | total (62.01; 归母 61.55) |
-| 中芯国际 | period-end 3.34 (3.4) | 营业收入 = 营业总收入 | 归母 | basic = diluted | 归母 (36.29) |
-| 招商银行 | period-end 11.80 (13.44) | 营业收入 | 归母 | basic = diluted | total (1.05; 归母 1.21) |
-| 平安银行 | period-end 7.73 (9.15) | 营业收入 | 归母 = total | basic = diluted | 归母 = total |
-| 工商银行 | period-end 8.68 (9.45) | 营业收入 | 归母 | basic = diluted | total (1.04; 归母 0.74) |
-| 中信证券 | period-end 9.40 (10.59) | 营业收入; YoY 28.8% vs the **restated** 2024 (17.35% vs the original) | 归母 | basic = diluted | total (37.26; 归母 38.58) |
-| 长江电力 | period-end 15.59 (15.90) | 营业收入 = 营业总收入 | 归母 | basic = diluted | total (6.13; 归母 6.17) |
+FinSight ships three deterministic offline layers (precedence: **corrections > v1 seed > extension**), verified by SHA-256 and surfaced on `GET /ready`:
 
-"Period-end" is 归母净利润 ÷ year-end 归母权益 (for the banks and 中信证券 including preferred shares and
-perpetual bonds). The round-12 README of `evaluation/real_claims_web/` called 美的's ROE weighted: its
-19.69 matches the period-end figure (19.687) and is 0.01 point from the weighted 19.70, so it is listed
-as period-end like the others.
+1. **v1 Seed** (`data/structured_data.json`, as of `2026-04-22`): 7 core instruments and 3 companies, pinned by default in offline evaluation suites (`QI_OFFLINE_SNAPSHOT_EXT=false`, `QI_OFFLINE_SNAPSHOT_FIX=false` inside `tests/conftest.py`).
+2. **Snapshot Extension** (`data/snapshot/structured_data_ext.json`, as of `2026-09-30`, `QI_OFFLINE_SNAPSHOT_EXT=true`): Adds 15 major A-shares, ETFs, and indices with 301–307 daily closes (enabling offline 52-week high/low, YTD return from `prior_year_end`, max drawdown, EPS, market cap, YoY growth, and technical indicators). Rebuild/verify via `python -m scripts.build_offline_snapshot verify`.
+3. **Corrections Layer** (`data/snapshot/structured_data_fix.json`, `QI_OFFLINE_SNAPSHOT_FIX=true`): Replaces erroneous v1 FY2025 statements (五粮液, 中国平安, 贵州茅台) and 2026-04-22 daily bars using primary CNINFO annual reports and CSIndex/Sina daily records (`data/snapshot/corrections/sources.json`), and attaches explicit `definitions` (`roe_basis`, `revenue_basis`, `net_profit_basis`, `eps_basis`, `*_yoy_basis`). If enabled but missing at runtime, `GET /ready` returns `503` and chat/claim-check mark `degraded: ["data_layer_missing:corrections"]`.
 
-**How answers use it.** `get_fundamentals` returns `definitions` (omitted when the record has none, so
-recorded evaluation payloads are unchanged), the template writes the definition with the figure
-("ROE（加权） 6.89%", "营业总收入 4585.02 亿元", "归母净利润 89.54 亿元", "稀释每股收益 5.76 元",
-"净利润（含少数股东损益）增速 14.8694%"), a comparison adds one sentence naming each side's definition
-("口径：五粮液的ROE为加权平均，宁德时代的ROE为按期末净资产；口径不同，比较仅供参考。"), the KPI tiles show
-"ROE（加权）", "营业总收入", "归母净利润", and the provenance note names the document
-("数值依据宜宾五粮液股份有限公司2025年年度报告").
+## Reliability Mechanisms (`integrations/sources/`)
 
-**Correction protocol.**
+- **Per-source circuit breaker (`health.py`)**: Opens after `QI_SOURCE_FAILURE_THRESHOLD` (default `3`) consecutive failures; short-circuits for `QI_SOURCE_COOLDOWN_SECONDS` (`60 s`, exponential backoff up to `600 s`) before allowing one half-open trial.
+- **Bounded call pool & hard timeouts (`runtime.py`)**: Wraps un-timeoutable third-party libraries (including serialized `MiniRacer` V8 execution for AKShare JS helpers) inside a bounded worker pool (`QI_SOURCE_MAX_WORKERS=32`, `QI_SOURCE_CALL_TIMEOUT_SECONDS=10`). Saturated pools fast-reject (`SourcePoolSaturatedError`) without tripping source breakers; nested calls run inline to prevent deadlocks.
+- **TTL cache & last-known-good (`cache.py`)**: 60 s for market bundles, 30 min for daily macro, 6 h for monthly macro, with up to 24 h stale fallback on total upstream failure.
+- **Sina/THS fundamental cross-check (`crosscheck.py`, `QI_SOURCE_CROSS_CHECK=1`)**: Concurrently fetches both sources, drops out-of-range anomalies, distinguishes cumulative vs single-quarter YoY conventions, resolves disagreements ≥2 pp against level-recomputed cumulative YoY, and records outcomes in `provenance.cross_check`.
+- **Intraday quotes (`intraday.py`)**: Queries containing `今天`/`今日`/`today` during Beijing A-share trading hours (Mon–Fri `09:30–11:30`, `13:00–15:00`) fetch live Sina/Tencent quotes (`price_basis: "intraday"`); outside trading hours or on holidays, returns the dated daily close with explicit `basis_reason`.
+- **Value hygiene (`values.py`)**: Normalizes `NaN`/`Inf`, placeholder dashes, percent strings, `亿`/`万` scales, and `volume_unit` (`lot` vs `share`).
 
-1. Only a primary record corrects a value: the company's annual report (or its summary) on CNINFO /
-   the exchange site for statements, the index compiler or an exchange-fed daily kline (two independent
-   services agreeing) for prices. Media figures are never a source.
-2. Each figure is transcribed into `sources.json` with the quoted line, the PDF page, the printed page,
-   the unit, the document URL, its sha256 and the retrieval date. `build` fails if a value is not in its
-   quote, if an extension definition does not match the quoted figures (amounts within 0.05%, ratios
-   within 0.011 points or half a unit of a one-decimal figure), or if a corrected price disagrees with
-   its cross-check source.
-3. A bar is corrected only when the record disagrees with the seed; bars that agree are listed as checked.
-4. The seed and the extension files are never edited; the layer records the hashes of both.
+## Provenance Schema
 
-```bash
-python -m scripts.build_snapshot_corrections fetch                  # live: daily records (AKShare)
-python -m scripts.build_snapshot_corrections build                  # offline, deterministic
-python -m scripts.build_snapshot_corrections verify                 # hashes, rebuild == committed, quotes parse
-python -m scripts.build_snapshot_corrections documents --cache DIR  # live: re-download the 13 reports, check
-                                                                    # sha256 and that every quote is on its page
-```
-
-`documents` was run on 2026-10-10: 13 documents, 109 quotes, all found on their pages (it needs `pypdf`,
-not a runtime dependency). 招商银行 is cited from its annual report summary (ann. 1225047778): the full
-report's text layer does not extract with pypdf.
-
-**Evaluation stays on the seed.** The expected numbers of the dev and held-out tasks, the independent
-slices and the replay fixtures were computed from the v1 seed, so the harness pins the layer off like the
-extension (`build_offline_service`, the task builders and the test environment;
-`QI_EVAL_SNAPSHOT_FIX=1` opts in). With it pinned, the gates and every verify script give the same
-results as before. Opting in shows why the pin is needed: with `QI_EVAL_SNAPSHOT_FIX=1` all seven
-verify scripts fail, because their facts are seed values (r6 reports 115 problems and r7 168 failures, for example
-茅台 P/E 24.6 in the slice against 21.44 re-derived, 中国平安's close 53.61 against 58.03). The real-claims set `claims_web_v1` was relabelled against the corrected data in a
-separate file and re-scored: 0.800 [0.70, 0.88] (48/60) on its first run against the seed
-(`claims_web_v1-first-run.json`, `df0d212`), 0.817 [0.72, 0.90] (49/60) with the corrections layer on and the labels
-recomputed from the corrected data (`claims_web_v1-with-corrections.json`, `8aa4c52`; 0.700 against the first run's
-labels). The second number is **after exposure** (the collector had read the checker, and the correction was made
-after the first run showed the seed disagreeing with the reports); the checker itself was unchanged between the two
-runs (see `evaluation/real_claims_web/README.md`).
-
-**Not corrected, still unverified.** The v1 `industry_sql` rows (白酒 PE 27.3 / PB 6.2, 保险, 宽基指数,
-成长指数, 券商) and `macro_sql` values (CPI 0.8, PMI 50.6, M2 8.1, 10Y 2.31 for 2026-03) were not checked
-against a primary record; the 宽基指数 and 成长指数 rows repeat the seed's daily changes of 沪深300 and
-创业板ETF (+0.42%, +0.86%), which the daily records contradict. Live-mode fundamentals carry no
-`definitions` (in the extension's records Sina's ROE is the period-end figure and its EPS the diluted one where they
-differ, but a live payload does not say so).
-
-## How the audit was run
-
-| Item | Value |
-|---|---|
-| Date | 2026-09-25 (a market holiday, Mid-Autumn Festival; the latest trading day was 2026-09-24) |
-| Command | `python -m scripts.audit_data_sources --json outputs/data_source_audit.json` |
-| Code | commit `c1c3388` plus the working-tree changes described here |
-| Versions | Python 3.13.13, akshare 1.18.97, efinance 0.5.9, requests 2.34.2, pandas 2.3.3 |
-| Network | Residential connection in mainland China with a local HTTP proxy (`127.0.0.1:6152`) in the environment |
-| Method | Each source is called on its own: breaker disabled, no retries, no cache, 15 s hard timeout. The runtime chains are then run end to end with a fresh breaker. |
-| Entities | 600519 贵州茅台, 300750 宁德时代, 601318 中国平安, ETF 510300, index 000300, macro series CPI / PMI / M2 / CN10Y / LPR |
-
-Result: 64 probes, 49 succeeded. Every failure has an identified root cause (below).
-
-**Committed re-run.** The table above comes from a run on a dirty tree whose JSON was not kept. The
-audit was re-run on 2026-09-28 09:14 UTC from a clean checkout of commit `6dde495` (same network and
-package versions) and the full output is committed:
-[`results/data_sources/audit-20260928-6dde495.json`](results/data_sources/audit-20260928-6dde495.json)
-(`commit` and `working_tree_clean: true` are recorded in the file). It gives the same totals: **49/64
-probes OK, 10/10 fallback chains OK** (every market bundle served by Sina). The failures are the same
-families: Eastmoney `push2`/`push2his` hosts 0/11 (proxy error, root cause 1; efinance uses the same
-host), Xueqiu 0/1 (login token), the removed `macro_china_pmi_monthly`, and one empty announcement
-result each for cninfo and the Eastmoney notice API (the ETF, which has no company announcements).
-
-**Trend across committed runs.** Each file records its commit and `working_tree_clean: true`.
-
-| Run (UTC / Beijing) | Commit | Probes OK | Chains OK | Failures |
-|---|---|---|---|---|
-| 2026-09-28 09:14 / 17:14 | `6dde495` | 49/64 | 10/10 | the families listed above |
-| 2026-09-28 19:55 / 09-29 03:55 | `4742453` | 49/64 | 10/10 | the same 15 probes |
-| 2026-09-29 02:57 / 10:57 (morning session) | `5d4c192` | 52/67 | 10/10 | the same 15 probes; the 3 new intraday probes (Sina real-time quote dated today, 33–106 ms) all OK |
-| 2026-10-01 06:21–06:26 / 14:21 (National Day holiday), 2 rounds | `c915aef` | 98/134 (49/67 per round) | 10/10 | the same 15 probes per round, plus the 3 intraday probes, which reject the 2026-09-30 quote on a non-trading day by design |
-
-Files: [`audit-20260928-6dde495.json`](results/data_sources/audit-20260928-6dde495.json),
-[`audit-20260928T1955Z-4742453.json`](results/data_sources/audit-20260928T1955Z-4742453.json),
-[`audit-20260929T0257Z-5d4c192.json`](results/data_sources/audit-20260929T0257Z-5d4c192.json),
-[`audit-20261001T0626Z-c915aef.json`](results/data_sources/audit-20261001T0626Z-c915aef.json) (per-source report:
-[`.md`](results/data_sources/audit-20261001T0626Z-c915aef.md)). Four runs at different times of day (afternoon
-close, night, during the session, a holiday afternoon) fail the same way, so the Eastmoney proxy errors and
-the Xueqiu token are properties of this network, not of the time of day.
-
-### Audit at HEAD, 2026-10-01 (per source)
-
-`python -m scripts.audit_data_sources --rounds 2 --pause 1 --out-dir docs/results/data_sources`, from a clean
-checkout of `c915aef`, started 2026-10-01 06:21:45 UTC (14:21 Beijing, a market holiday; the last trading day
-was 2026-09-30), on the maintainer's network with the environment's local HTTP proxy. Calls are sequential with
-a 1 s pause after each; every source was called twice per target. Lags are trading sessions behind
-2026-09-30 for daily bars (SSE calendar from `tool_trade_date_hist_sina`) and calendar days to 2026-10-01
-otherwise. Schema drift compares the columns each provider reads with what the source returned.
-
-| Kind | Source | OK / calls | P50 / P95 ms | Newest as-of (lag) | Note |
-|---|---|---:|---:|---|---|
-| Stock daily | Sina `stock_zh_a_daily` | 6/6 | 326 / 420 | 2026-09-30 (0 sessions) | serves the chain |
-| Stock daily | Tencent fqkline | 6/6 | 85 / 91 | 2026-09-30 (0) | |
-| Stock quote | Sina `hq.sinajs.cn` | 6/6 | 45 / 57 | 2026-09-30 (0) | |
-| Stock daily | Eastmoney `stock_zh_a_hist`, efinance | 0/6, 0/6 | 129 / 213, 485 / 795 | – | `ProxyError` on `push2his` (root cause 1) |
-| Intraday | Sina → Tencent | 0/6 | 101 / 111 | – | quote dated 2026-09-30, "not today": correct on a holiday |
-| ETF daily / NAV | Sina, Tencent, Eastmoney fund NAV | 2/2 each | 191 / 213, 90 / 103, 122 / 177 | 2026-09-30 (0) | Eastmoney `fund_etf_hist_em` 0/2 (root cause 1) |
-| ETF profile | Eastmoney `fund_overview_em` | 2/2 | 226 / 273 | – | Xueqiu 0/2 (`KeyError: 'data'`, login token) |
-| Index daily | Sina, Tencent | 2/2 each | 178 / 234, 97 / 106 | 2026-09-30 (0) | Eastmoney `index_zh_a_hist` 0/2 (root cause 1) |
-| Index valuation | CSIndex | 2/2 | 257 / 270 | 2026-09-30 (1 day) | |
-| Financials | Sina, THS | 6/6 each | 427 / 654, 221 / 483 | 2026-06-30 report | no schema drift |
-| Valuation | Eastmoney datacenter, Tencent quote | 6/6 each | 381 / 612, 52 / 54 | 2026-09-30 (1 day) | |
-| Industry | cninfo profile | 6/6 | 85 / 144 | – | Eastmoney `stock_individual_info_em` 0/6 (root cause 1) |
-| Macro | Eastmoney CPI / PMI / M2 | 2/2 each | 127–170 / 174–351 | 2026-08 / 2026-09 / 2026-08 (30–61 days) | monthly releases |
-| Macro | Eastmoney 10Y, ChinaBond 10Y, LPR | 2/2 each | 268 / 318, 2185 / 2248, 927 / 1096 | 2026-09-30, 2026-09-30, 2026-09-20 | |
-| Macro (legacy, unused) | jin10 CPI / PMI | 2/2 each | 27825 / 28582, 19528 / 32843 | 2025-09-10 / 2025-08-31 (386 / 396 days) | stale feeds; `macro_china_pmi_monthly` gone (0/2) |
-| News | Eastmoney `stock_news_em` | 8/8 | 113 / 153 | 2026-09-30 (≤ 2 days) | |
-| Announcements | cninfo, Eastmoney notices | 6/8 each | 221 / 476, 71 / 100 | 2026-10-01 (600519: 2026-08-15) | empty for the ETF 510300 (no company announcements) |
-| Tushare (market, news) | – | not configured | – | – | `TUSHARE_TOKEN` is not set; never called |
-
-Totals: 36 source rows: 24 all OK, 2 partial (the ETF announcements), 8 down, 2 not configured; no schema drift.
-All 10 runtime chains served: the four market bundles that start at Eastmoney fell back to Sina
-(`live_fallback`, 1.2–2.4 s including fundamentals), the index bundle was live from Sina (0.4 s), macro 2.2 s,
-news and announcements 0.1–0.4 s. A first run at `da30dc5` flagged a false schema drift (601318 中国平安, an
-insurer, has no THS 销售毛利率 column); the check was corrected in `c915aef` and that run was not committed.
-
-**Schedule.** [`.github/workflows/data-source-audit.yml`](../.github/workflows/data-source-audit.yml)
-runs the audit every Monday at 01:30 UTC and on demand (`workflow_dispatch`), writes a summary table to
-the job page and uploads the JSON as an artifact for 90 days. GitHub's runners are outside mainland
-China, so their results are not comparable with the table above; audits quoted in the docs are run
-from the deployment network and committed under `docs/results/data_sources/`.
-
-## Per-source results
-
-Latency is the observed range across targets. "Newest as-of" is the latest date in the returned
-rows. Results come from the audit run above.
-
-| Kind | Source (function) | OK | Latency ms | Newest as-of | Failure / note |
-|---|---|---|---:|---|---|
-| Stock daily | Eastmoney `push2his` (`stock_zh_a_hist`) | 0/3 | 109–348 | – | Connection dropped (see root cause 1) |
-| Stock daily | Sina (`stock_zh_a_daily`) | 3/3 | 261–512 | 2026-09-24 | Volume in shares |
-| Stock daily | Tencent (`web.ifzq.gtimg.cn` fqkline, **new**) | 3/3 | 97–104 | 2026-09-24 | Volume in lots (手) |
-| Stock quote | Sina realtime (`hq.sinajs.cn`) | 3/3 | 40–57 | 2026-09-24 | One row, no history |
-| Stock daily | efinance (`get_quote_history`) | 0/3 | 763–1076 | – | Same `push2his` host as Eastmoney |
-| ETF daily | Eastmoney (`fund_etf_hist_em`) | 0/1 | 123 | – | Root cause 1 |
-| ETF daily | Sina (`fund_etf_hist_sina`) | 1/1 | 279 | 2026-09-24 | |
-| ETF daily | Tencent fqkline (**new**) | 1/1 | 98 | 2026-09-24 | |
-| ETF NAV | Eastmoney fund (`fund_open_fund_info_em`) | 1/1 | 140 | 2026-09-24 | |
-| ETF profile/fees | Eastmoney fund (`fund_overview_em`, **new**) | 1/1 | 203 | – | Fees, manager, tracking index |
-| ETF profile/fees | Xueqiu (`fund_individual_detail_info_xq`) | 0/1 | 1392 | – | `KeyError: 'data'`: now needs a login token (root cause 4) |
-| Index daily | Sina (`stock_zh_index_daily`) | 1/1 | 246 | 2026-09-24 | Returns full history (~6,000 rows); a later run took 3,418 ms |
-| Index daily | Eastmoney (`index_zh_a_hist`) | 0/1 | 5451 | – | Root cause 1 (`80.push2.eastmoney.com`) |
-| Index daily | Tencent fqkline (**new**) | 1/1 | 99 | 2026-09-24 | |
-| Index valuation | CSIndex (`stock_zh_index_value_csindex`) | 1/1 | 288 | 2026-09-24 | A later run took about 1,600 ms |
-| Financials | Sina (`stock_financial_analysis_indicator`) | 3/3 | 344–391 | 2026-06-30 | Column renames (root cause 3) |
-| Financials | THS (`stock_financial_abstract_ths`, **new**) | 3/3 | 215–261 | 2026-06-30 | First call in a process took 6,197 ms |
-| PE(TTM)/PB | Eastmoney datacenter (`stock_value_em`, **new**) | 3/3 | 317–431 | 2026-09-24 | Replaces the removed `stock_a_indicator_lg` |
-| PE(TTM)/PB | Tencent quote (`qt.gtimg.cn`, **new**) | 3/3 | 43–81 | 2026-09-24 | Fields 39/46 match Eastmoney (600519: 18.99 / 6.15) |
-| Industry | Eastmoney `push2` (`stock_individual_info_em`) | 0/3 | 101–129 | – | Root cause 1 |
-| Industry | cninfo profile (`stock_profile_cninfo`, **new**) | 3/3 | 67–126 | – | CSRC industry classification |
-| Macro | Eastmoney datacenter (`macro_china_cpi`, **new**) | 1/1 | 140 | 2026-08 | NBS figures; CPI YoY 0.8 % |
-| Macro | Eastmoney datacenter (`macro_china_pmi`, **new**) | 1/1 | 136 | 2026-08 | Manufacturing PMI 49.8 |
-| Macro | Eastmoney datacenter (`macro_china_money_supply`) | 1/1 | 190 | 2026-08 | M2 YoY 7.5 % |
-| Macro | Eastmoney datacenter (`bond_zh_us_rate`) | 1/1 | 355 | 2026-09-24 | CN 10Y 1.6738 % |
-| Macro | ChinaBond (`bond_china_yield`, **new**) | 1/1 | 2302 | 2026-09-24 | 10Y 1.6738 %, identical to Eastmoney |
-| Macro | Eastmoney datacenter (`macro_china_lpr`, **new**) | 1/1 | 863 | 2026-09-20 | LPR 1Y 3.0 %, 5Y 3.5 % |
-| Macro (old) | jin10 (`macro_china_cpi_monthly`) | 1/1 | 23676 | **2025-09-10** | Feed stopped a year ago (root cause 2) |
-| Macro (old) | jin10 (`macro_china_pmi_yearly`) | 1/1 | 18727 | **2025-08-31** | Feed stopped a year ago |
-| Macro (old) | `macro_china_pmi_monthly` | 0/1 | 0 | – | Function no longer exists in akshare 1.18 |
-| News | Eastmoney search (`stock_news_em`) | 4/4 | 120–175 | 2026-09-25 | Works for stocks and the ETF |
-| Announcements | cninfo (`hisAnnouncement/query` with orgId) | 3/4 | 191–453 | 2026-09-25 | Nothing for ETF 510300 |
-| Announcements | Eastmoney notices (`np-anotice-stock`, **new**) | 3/4 | 62–144 | 2026-09-25 | Nothing for ETF 510300 |
-| Macro (tried) | National Bureau of Statistics `data.stats.gov.cn/easyquery.htm` | 0/2 | – | – | HTTP 403 WAF `reason:UrlACL`: rejects scripted clients (measured separately with `requests`, not part of the audit script) |
-
-## Root causes of the failures
-
-1. **Eastmoney quote hosts drop connections** (`push2his.eastmoney.com`, `push2.eastmoney.com`,
-   `80.push2.eastmoney.com`). The first `stock_zh_a_hist` call of the session succeeded (150 ms); every
-   later call failed. The failure reproduced with `curl --noproxy '*'` ("Empty reply from server") and
-   with `requests` using `trust_env=False` (`RemoteDisconnected`). With the proxy in the path the same
-   failure surfaces as `ProxyError`. Browser `User-Agent`/`Referer` headers did not help. This is
-   upstream throttling of the client IP, a pattern reported repeatedly in akshare issues through 2026.
-   efinance uses the same `push2his` host, so it is not an independent fallback. Eastmoney's other
-   hosts (`datacenter-web`, `search-api-web`, `np-anotice-stock`, `fund`/`fundf10`) were unaffected.
-2. **Stale macro series in the old provider.** It read CPI from jin10 `macro_china_cpi_monthly`, whose
-   newest row is 2025-09-10. The newest row's value was `NaN` (an unreleased placeholder), so the
-   provider returned `metric_value: NaN`, which is not valid JSON. PMI fell back to jin10
-   `macro_china_pmi_yearly` (newest row 2025-08-31) because `macro_china_pmi_monthly` no longer exists.
-   The whole macro call took **50.3 s**.
-3. **Library/API drift in the old code.**
-   - `stock_a_indicator_lg` was removed from akshare, so `pe_ttm`/`pb` were always `None`.
-   - Sina renamed `主营业务毛利率(%)` to `销售毛利率(%)` and dropped `每股收益(元)`, so gross margin and
-     EPS were always `None`.
-   - For M2 the old matcher found no known column name. It fell through to the first numeric column,
-     `货币和准货币(M2)-数量(亿元)`, and **reported the money stock (3,568,083.6 亿元) as a percentage growth
-     rate**.
-   - The monthly dates `2026年08月份` were not parsed.
-   - `fund_etf_fund_info_em` was called with `symbol=` although its parameter is `fund=`.
-4. **Xueqiu now requires a login token.** `fund_individual_detail_info_xq` raises `KeyError: 'data'`;
-   akshare's own Xueqiu company endpoint says so explicitly.
-5. **cninfo returned nothing.** `hisAnnouncement/query` ignores `stock=<code>,` unless the company
-   `orgId` is supplied. It then returns the whole-market feed, which the provider's `secCode` filter
-   emptied: 0 announcements for every stock. The orgId comes from `information/topSearch/query`
-   (for example `GD165627` for 300750; not always `gssh0<code>`).
-6. **The old ETF bundle took 14.9 s.** Much of that was spent on endpoints that could not help: a 5 s
-   `fund_etf_spot_em` whole-market list on a throttled host, and the token-gated Xueqiu call.
-
-## Before and after (end-to-end, same machine, same day)
-
-| Call | Before | After (audit chain run) |
-|---|---|---|
-| Stock bundle 600519 (price + fundamentals + industry) | 1,803 ms. PE/PB, gross margin and EPS were `None`. | 2,062 ms. PE(TTM) 18.99 and PB 6.15 filled; EPS 35.57 |
-| Stock bundle 300750 / 601318 | 1,582 ms / not run | 1,036 ms / 998 ms (Eastmoney skipped by the breaker) |
-| ETF bundle 510300 | 14,926 ms | 2,186 ms (first run in a process: 5,113 ms) |
-| Index bundle 000300 | 367–1,094 ms | 5,286 ms (dominated by Sina full-history latency variance) |
-| Macro CPI/PMI/M2/CN10Y | 50,323 ms; CPI `NaN`, PMI a year stale, M2 wrong unit | 2,753 ms including LPR; all current |
-| Announcements 600519 / 300750 | 0 / 0 items | 10 / 10 items, 275 / 194 ms |
-| News 600519 | 121 ms | 111 ms |
-
-"Before" is the `HEAD` code run against live endpoints earlier the same day. "After" is the
-`run_chains` section of the audit report.
-
-## Fallback chains per data kind
-
-Each chain is tried in order. The first source that returns usable data wins. "Usable" means non-empty,
-and for macro series also within the freshness window, so a dead feed is rejected as `empty`.
-
-| Data kind | Live primary | Live secondaries (in order) | Then |
-|---|---|---|---|
-| Stock daily bars | Eastmoney `stock_zh_a_hist` | Sina `stock_zh_a_daily` → Tencent fqkline → Sina realtime quote → efinance | last-known-good bundle → shipped snapshot only if still fresh |
-| ETF daily bars | Eastmoney `fund_etf_hist_em` | Sina `fund_etf_hist_sina` → Tencent fqkline → efinance | same |
-| Index daily bars | Sina `stock_zh_index_daily` | Eastmoney `index_zh_a_hist` → Tencent fqkline → Eastmoney spot | same |
-| Financial indicators | Sina `stock_financial_analysis_indicator` | THS `stock_financial_abstract_ths` | shipped snapshot |
-| PE(TTM) / PB | Eastmoney datacenter `stock_value_em` | Tencent quote | – |
-| Industry | Eastmoney `stock_individual_info_em` (+ board history) | cninfo `stock_profile_cninfo` (industry name only) | shipped snapshot |
-| Fund fees / profile | Eastmoney `fund_overview_em` | Xueqiu (skipped once fees are known) → `fund_etf_fund_info_em` | – |
-| CPI / PMI / M2 / LPR | Eastmoney datacenter (NBS / PBoC figures) | none available (NBS blocks scripts, jin10 is stale) | last-known-good (6 h TTL, 24 h stale) → shipped snapshot |
-| CN 10Y yield | Eastmoney `bond_zh_us_rate` | ChinaBond `bond_china_yield` | last-known-good → shipped snapshot |
-| News | Eastmoney `stock_news_em` | – | local document corpus |
-| Announcements | cninfo (orgId query) | Eastmoney notices API | local document corpus |
-
-Ordering rationale:
-
-- The primary is the most precise or complete source. Eastmoney bars include `涨跌幅` and `成交额`; Sina
-  index bars keep three decimals, while Tencent rounds to two.
-- Secondaries are chosen for independence from the primary's host and for speed.
-- efinance stays last because it shares Eastmoney's throttled host.
-
-## Robustness mechanisms
-
-All live I/O goes through `SourceRuntime.call` (`query_intelligence/integrations/sources/`):
-
-- **Circuit breaker per source** (`health.py`). After `QI_SOURCE_FAILURE_THRESHOLD` (default 3)
-  consecutive failures the circuit opens. Calls are then short-circuited without network I/O for
-  `QI_SOURCE_COOLDOWN_SECONDS` (default 60 s). Next, one half-open trial is admitted: success closes
-  the circuit, while failure re-opens it with a doubled cooldown, capped by
-  `QI_SOURCE_MAX_COOLDOWN_SECONDS` (600 s). The audit shows the effect: after the first stock had
-  failed twice on Eastmoney, the next stocks skipped Eastmoney immediately
-  (`eastmoney.quote:circuit_open`), and their bundles dropped from 2,062 ms to about 1,000 ms.
-- **Hard timeouts on a bounded pool** (`runtime.py`, `SourceCallPool`). Most akshare functions accept
-  no timeout, so each guarded call runs on a worker of a fixed-size pool (`QI_SOURCE_MAX_WORKERS`,
-  default 32). The caller stops waiting after `QI_SOURCE_CALL_TIMEOUT_SECONDS` (default 10 s); the
-  call is recorded as a failure and counted as *abandoned* until the hung socket finally returns and
-  frees its worker. Timeouts are not retried. Before this change every call started a new daemon
-  thread, so a hanging upstream under load grew the thread count without bound. Now at most
-  `QI_SOURCE_MAX_WORKERS` calls run at once; a call that finds every worker busy is rejected at once
-  (`SourcePoolSaturatedError`, attempt label `<source>:saturated`) instead of queueing behind hung
-  calls. Saturation is local back-pressure, so it does not count against the source's breaker. A
-  guarded call made from inside another guarded call runs inline under the outer timeout, so nesting
-  cannot deadlock a full pool. Pool counters (`busy`, `max_busy`, `timed_out_total`,
-  `abandoned_total`, `abandoned_running`, `rejected_total`) are served by `/sources/health` under
-  `worker_pool` and exported to Prometheus (see [a2a-and-observability.md](a2a-and-observability.md)).
-- **TTL cache with last-known-good reads** (`cache.py`). The TTLs are 60 s for market bundles,
-  30 min for daily macro series, and 6 h for monthly ones. When every live source fails, an expired
-  entry up to `QI_SOURCE_MAX_STALE_SECONDS` old (default 24 h) is served. It is marked
-  `last_known_good` and a `market_served_last_known_good` warning is added. `QI_SOURCE_CACHE=0`
-  disables the cache.
-- **Snapshot policy.** When live sources are disabled, the shipped `data/structured_data.json` records
-  are served and labelled `snapshot`. When a live price fetch *fails*, the snapshot price is used only
-  if it is still fresh (at most 10 days old). The shipped prices are from 2026-04, so they are not
-  presented as today's quote; the failure is returned as a `provider_warning` instead. Fundamentals
-  and macro snapshots remain available but are flagged `stale`.
-- **Value hygiene** (`values.py`). `NaN`, `--`/`---` placeholders, percent strings, and `亿`/`万`
-  magnitudes are normalized, so no `NaN` reaches JSON. `volume_unit` (`lot` or `share`) is stated per
-  source. Verified for the 2026-09-24 bars: 600519 Sina 3,123,900 shares vs Tencent 31,239 lots.
-
-## Provenance on every record
-
-Every structured payload and every document carries `payload.provenance`. Tool outputs expose the
-same object as an optional `provenance` field. The shape below is illustrative; the values follow
-the 300750 chain in the audit run.
+Every structured payload and document includes `provenance` containing only strings, booleans, and ISO dates (never raw numeric metrics, preventing false verifier matches):
 
 ```json
 {
@@ -510,207 +68,34 @@ the 300750 chain in the audit run.
 }
 ```
 
-- `mode` is one of `live`, `live_fallback`, `last_known_good`, or `snapshot`.
-- `freshness` compares `as_of` with a per-kind window: 10 days for daily data, 75 for monthly macro,
-  and 200 for financial reports.
-- The object contains only strings and booleans, and compact dates are rewritten as ISO dates.
-  Provenance therefore can never make an invented number look "traceable" to the agent's
-  numeric-faithfulness check.
-- The retrieval packager treats `provenance`, `valuation_provenance` and `volume_unit` as metadata, so
-  `field_coverage` and `quality_flags` are unchanged.
-- Offline records say `数据来自离线快照，截至2026-03-31，非实时（离线快照），数据可能已过时；因未开启实时宏观数据降级`.
+## Health Endpoint
 
-### Intraday quotes for 今天/今日/today questions
-
-The daily chains answer with daily bars. A price question that says 今天, 今日 or "today" asks
-`get_price_history` for `intraday=true` (only when live market data is on). The tool first checks the
-Beijing-time session (`query_intelligence/integrations/intraday.py`). The market is open Monday–Friday
-09:30–11:30 and 13:00–15:00. The 11:30–13:00 lunch break also counts: the quote is the morning's last
-trade, labelled with its time.
-
-- **Market open.** The tool fetches a real-time quote: Sina `hq.sinajs.cn`, then Tencent `qt.gtimg.cn`.
-  It rejects a quote that is not dated today. The output has these fields:
-  - `price_basis: "intraday"`;
-  - an `intraday` block with price, previous close, change and `quote_time` (ISO with `+08:00`);
-  - its own `intraday_provenance` (source, endpoint, `fetched_at`, `as_of` = quote time, attempts).
-
-  The evidence `as_of` is the quote time. The answer says "盘中实时价为 …（HH:MM:SS 北京时间，盘中价格，
-  非收盘价）". A limitation adds that it is not a close and will change until the close.
-- **Otherwise** the tool keeps the daily close (`price_basis: "daily_close"`) and records why in
-  `basis_reason`:
-  - `outside_trading_hours`;
-  - `intraday_unavailable`: no live source, as with the offline snapshot;
-  - `intraday_failed: …`: both real-time sources failed.
-
-  The answer then says so, e.g. "当前为非交易时段，以下为最近交易日收盘价（YYYY-MM-DD）" or
-  "盘中实时行情获取失败，以下为最近交易日收盘价…". On weekends and fixed-date holidays it says
-  "今天不是 A 股常规交易日".
-- **Holidays.** Holiday detection reuses `_is_known_non_trading_day`, which covers weekends plus the fixed
-  closures (New Year, Labour Day, National Day). Movable holidays are not listed. On those days the
-  real-time quote is dated an earlier day, so it is rejected and the daily close is used, with the reason
-  stated.
-- **Evaluation.** Offline runs never request `intraday`. The argument is omitted from the normalised call
-  key when false, so recorded snapshots and the gate are unchanged.
-- **Tests.** `tests/test_intraday_quote.py` injects a frozen clock (`ToolContext.clock`) and stub providers:
-  - trading-hours morning → intraday quote with provenance, and the answer verifies;
-  - before 09:30, after 15:00 and a weekend → daily close with the stated reason;
-  - a failing real-time source → daily close, "获取失败";
-  - an English "today" question;
-  - a non-今天 question is unaffected;
-  - Sina/Tencent parsing and rejection of stale quotes.
-
-## Cross-source validation of fundamentals
-
-The round-1 review found that live Sina fundamentals for 000858.SZ gave H1-2026 revenue YoY -46.15%
-and net-profit YoY -55.32%, while a retrieved news item in the same answer said +20.87% and +89.30%
-(bug B11). Fetching both sources on 2026-09-26 shows where the disagreement comes from:
-
-| Report period | THS revenue (亿元) | THS revenue YoY | Sina revenue YoY | THS net profit YoY | Sina net profit YoY |
-|---|---:|---:|---:|---:|---:|
-| 2025-06-30 | 235.10 | -53.58% | +4.19% | -75.74% | +1.56% |
-| 2026-03-31 | 228.38 | +33.67% | -38.18% | +82.57% | -45.84% |
-| 2026-06-30 | 284.17 | +20.87% | -46.15% | +89.30% | -55.32% |
-
-THS's growth rates agree with its own reported levels (284.17 / 235.10 - 1 = +20.87%), and with the
-company figures quoted by the news. Sina's rates are not consistent with those levels. Before this
-change the provider used Sina and only fell back to THS when Sina failed, so the wrong figures were
-served whenever Sina answered.
-
-Now (`integrations/sources/crosscheck.py`, on by default with `QI_SOURCE_CROSS_CHECK=1`) both
-sources are fetched concurrently for every stock bundle and reconciled:
-
-1. **Range checks.** Values outside plausible bounds (revenue YoY below -100%, ROE beyond ±200%,
-   gross margin beyond ±100%, …) are dropped and listed in `out_of_range`, never served.
-2. **Report period.** Only the same report period is compared or merged. If the latest periods differ,
-   the newer one is served and the check says `period_mismatch`.
-3. **Cumulative vs single-quarter convention.** A-share reports are cumulative year to date. THS
-   levels are checked to be non-decreasing within each fiscal year, and each reported YoY is compared
-   with the YoY recomputed from the levels both cumulatively and for the single quarter
-   (e.g. Q2 = H1 - Q1). A source that reports single-quarter growth is recognised
-   (`conventions: {"sina.finance:revenue_yoy": "single_quarter"}`) instead of being called wrong.
-4. **Resolution.** Two growth rates within 2 percentage points agree. Otherwise the value that matches
-   the level-recomputed cumulative YoY (within 1 point) is served; if neither can be confirmed, the
-   primary's value is served and the status is `disagree_unresolved`. Same-period gaps (for example
-   Sina's missing gross margin) are filled from the other source and listed in `filled_from_other`.
-
-The outcome is recorded where the agent and the UI already look:
-
-- `provenance.cross_check`: `status` (`agree`, `disagree_resolved`, `disagree_unresolved`,
-  `period_mismatch`, `single_source`), `served_source`, `compared_with`, `disagreeing_fields`,
-  `resolution`, `conventions`, `level_consistent`, and a Chinese `note`. Like the rest of provenance
-  it contains only strings, booleans and ISO dates, so it cannot make a number look "traceable".
-- `provenance.note` is extended, e.g. `新浪财经与同花顺的营收同比、净利润同比不一致；已采用与报告期营收/净利润绝对值推算结果一致的同花顺数据，请以公司定期报告为准`.
-- A provider warning such as
-  `fundamentals_cross_source_disagree_resolved:000858:revenue_yoy,netprofit_yoy:served=ths.finance`,
-  which the retrieval packager adds to the result's warnings.
-
-Cost: one extra upstream call per stock bundle, run concurrently with the Sina call (THS measured
-215–261 ms in the audit), and bundles are cached for 60 s.
-
-## Stale snapshot industry records
-
-The shipped snapshot has industry tiles keyed by board name (`白酒` dated 2026-04-21, `保险`, …),
-reached through `entity_to_industry`. The live provider names industries differently (Eastmoney
-`酿酒行业`, cninfo `酒、饮料和精制茶制造业`), so the live record never replaced the snapshot tile, and
-an April industry change sat next to September prices in live answers.
-
-With live data enabled the pipeline now refreshes a stale snapshot industry record from the THS
-industry index (`stock_board_industry_index_ths`, source `ths.industry`, 170–440 ms measured on
-2026-09-26; the daily change is computed from the last two closes) and caches it for 5 minutes. No
-snapshot field (PE, PB, turnover) is carried into the live record. If the refresh fails the snapshot
-is kept but labelled: snapshot provenance with reason `live industry index unavailable`
-(`实时行业指数不可用，沿用离线快照（旧数据，勿当作今日行情）`) and an
-`industry_snapshot_stale:<board>:<date>` warning. With live data off nothing changes.
-
-## Health endpoint
-
-`GET /sources/health` is passive by default: it reports what the runtime has recorded and never calls
-an upstream. For each source it returns status (`up`, `degraded`, `down`, or `unknown`), circuit
-state, call/success/failure counts, last and average latency, last error, `retry_in_s` for open
-circuits, the breaker and cache configuration, and the source-call pool counters (`worker_pool`).
-
-**Active probe (opt-in).** `GET /sources/health?probe=1` first runs one cheap request for every
-catalogued source (all 19: Eastmoney quote/datacenter/fund/news/announcements, Sina kline/quote/finance,
-Tencent kline/quote, THS finance/industry, CSIndex, ChinaBond, cninfo announcements/profile, Xueqiu,
-efinance, and Tushare when `TUSHARE_TOKEN` is set) through the same guarded `SourceRuntime.call`, so
-breakers, latency and errors are recorded exactly as for real traffic, then returns the report with a
-`probe` block (per-source `ok`, `outcome`, `latency_ms`, `error`; `catalog_total`; and `not_probed`,
-each skipped source with its reason). Every source row also gets a `probe` field: the latest probe
-result, or `{"probed": false, "reason": ...}` (for example Tushare without a token), so an unprobed
-source is never mistaken for a healthy or merely idle one. Slow multi-page upstreams get 15 s, the rest 6 s. Several upstreams throttle bursts from one IP, so probing is rate limited
-process-wide: one round per `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS` (default 60). Inside that window
-the previous round is returned with `status: rate_limited` and `retry_in_s`; a request during a
-running round gets `in_progress`. With live market data off the probe is `skipped`.
+- `GET /sources/health`: Passive report of all 19 catalogued sources (status, circuit state, call/error counts, latencies, `retry_in_s`) and `worker_pool` counters (`busy`, `max_busy`, `timed_out_total`, `abandoned_total`, `rejected_total`).
+- `GET /sources/health?probe=1`: Opt-in active probe running one lightweight check per catalogued source, rate-limited process-wide to once per `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS` (`60 s`).
 
 ## Configuration
 
-| Variable | Default | Meaning |
+| Variable | Default | Purpose |
 |---|---|---|
-| `QI_USE_LIVE_MARKET` / `_NEWS` / `_ANNOUNCEMENT` / `_MACRO` | `true` | Enable live providers (unchanged) |
-| `QI_SOURCE_CALL_TIMEOUT_SECONDS` | `10` | Hard wall-clock timeout per upstream call |
-| `QI_SOURCE_FAILURE_THRESHOLD` | `3` | Consecutive failures that open a circuit |
-| `QI_SOURCE_COOLDOWN_SECONDS` | `60` | First open-circuit cooldown |
-| `QI_SOURCE_MAX_COOLDOWN_SECONDS` | `600` | Cooldown cap after repeated failed trials |
-| `QI_SOURCE_CACHE` | `true` | TTL cache and last-known-good reads |
-| `QI_SOURCE_MAX_STALE_SECONDS` | `86400` | Oldest last-known-good value that may be served |
-| `QI_SOURCE_MAX_WORKERS` | `32` | Size of the bounded source-call pool |
-| `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS` | `60` | Minimum time between two active probe rounds |
-| `QI_SOURCE_CROSS_CHECK` | `true` | Fetch Sina and THS fundamentals and reconcile them |
-| `QI_OFFLINE_SNAPSHOT_EXT` | `true` | Merge the snapshot extension (`data/snapshot/structured_data_ext.json`) under v1 |
-| `QI_EVAL_SNAPSHOT_EXT` | unset (off) | Let the evaluation harness see the extension (it is pinned to v1 otherwise) |
-| `QI_OFFLINE_SNAPSHOT_FIX` | `true` | Apply the corrections layer (`data/snapshot/structured_data_fix.json`) over v1 and state field definitions |
-| `QI_EVAL_SNAPSHOT_FIX` | unset (off) | Let the evaluation harness see the corrections layer (it is pinned to the v1 seed otherwise) |
+| `QI_USE_LIVE_MARKET` / `_NEWS` / `_ANNOUNCEMENT` / `_MACRO` | `true` | Enable live providers |
+| `QI_SOURCE_CALL_TIMEOUT_SECONDS` | `10` | Per-call hard wall-clock timeout |
+| `QI_SOURCE_FAILURE_THRESHOLD` | `3` | Consecutive failures to open circuit |
+| `QI_SOURCE_COOLDOWN_SECONDS` / `_MAX_COOLDOWN_SECONDS` | `60` / `600` | Circuit open cooldown and backoff cap |
+| `QI_SOURCE_CACHE` / `QI_SOURCE_MAX_STALE_SECONDS` | `true` / `86400` | TTL cache and LKG retention window |
+| `QI_SOURCE_MAX_WORKERS` | `32` | Bounded source worker-pool size |
+| `QI_SOURCE_PROBE_MIN_INTERVAL_SECONDS` | `60` | Minimum interval between active `?probe=1` runs |
+| `QI_SOURCE_CROSS_CHECK` | `true` | Enable concurrent Sina/THS fundamental reconciliation |
+| `QI_OFFLINE_SNAPSHOT_EXT` / `QI_OFFLINE_SNAPSHOT_FIX` | `true` / `true` | Toggle offline extension and corrections layers |
+| `QI_EVAL_SNAPSHOT_EXT` / `QI_EVAL_SNAPSHOT_FIX` | unset | Opt-in switches for evaluation harness runs |
 
-## Tests
+## Tests & Known Limitations
 
-- `tests/test_data_sources.py` (offline, part of the default run) covers:
-  - breaker transitions: open, short-circuit, half-open, and cooldown doubling;
-  - hard timeouts;
-  - cache TTL, stale reads, and copy isolation;
-  - chain ordering and fallback reasons;
-  - Tencent fallback, and the breaker stopping calls to a blocked source;
-  - the new fundamentals, valuation, fund and industry sources;
-  - macro column/NaN/staleness handling and the ChinaBond fallback;
-  - the cninfo orgId lookup and the announcement fallback;
-  - pipeline caching, last-known-good, the fresh-vs-stale snapshot policy, and provenance on tool
-    outputs;
-  - `/sources/health`.
-- `tests/test_source_reliability.py` (offline) covers the bounded pool (abandoned-call accounting,
-  fast rejection without tripping the breaker, the thread bound under a hung upstream, nested calls),
-  the rate-limited active probe, the Sina/THS reconciliation on the real 000858 figures (range,
-  report period, cumulative vs single quarter, digit-free metadata), the stale-industry refresh and
-  labelling, and the Prometheus collector for breaker states and the pool.
-- `tests/test_round12_snapshot_ext.py` (offline) covers the snapshot extension: v1 records unchanged,
-  the merge rule, >= 250 closes and the derived-metric fields, the offline rebuild (`verify`), the v1 pin
-  of the evaluation harness, provenance of an extension record, the 52-week range, the drawdowns (1y,
-  YTD), the ex-rights jump guard, and the answers (drawdown, 52-week range, market cap, EPS, growth,
-  holding value, YTD change, cross-date comparisons).
-- `tests/test_round13_snapshot_fix.py` (offline) covers the corrections layer: which seed records it
-  replaces and which it leaves, extension values kept with their definitions added, the precedence rule,
-  the offline rebuild (`verify`, which re-parses every quoted figure), the document of every correction,
-  the environment switch, the seed pin of the evaluation harness, provenance naming the annual report,
-  and the answers (definition labels, extra metrics, the comparison note, unchanged without the layer).
-- `tests/test_data_sources_live.py` hits real endpoints. It runs only with `QI_LIVE_TESTS=1` (or the
-  repository's existing `QI_INTEGRATION_TESTS=1`).
+```bash
+python -m pytest -q tests/test_data_sources.py tests/test_source_reliability.py tests/test_intraday_quote.py tests/test_data_layers.py
+QI_LIVE_TESTS=1 python -m pytest -q tests/test_data_sources_live.py
+```
 
-## Known limitations
-
-- CPI, PMI, M2 and LPR have no independent live secondary. The official NBS API returns 403 to
-  scripts, and the jin10 series are a year stale. If the Eastmoney datacenter is down, these indicators
-  come from the last-known-good cache or the (stale, labelled) snapshot.
-- Sina's latest half-year report row has `销售毛利率(%) = NaN` for the audited stocks, so
-  `grossprofit_margin` is `null` unless THS served the report. The value is reported as missing rather
-  than borrowed from another period.
-- Eastmoney quote-host throttling depends on the client IP. On another network the primary may
-  succeed; the chain and breaker handle both cases.
-- Tushare was not audited because no `TUSHARE_TOKEN` was available (the 2026-10-01 audit lists it as
-  "not configured"). Its records get generic live provenance.
-- The offline snapshot extension is a dated copy (2026-09-30): it is not refreshed automatically, its
-  closes are unadjusted, and the 52-week range and the drawdowns use daily closes, not intraday highs and
-  lows. The live path keeps the latest 30 bars per call, so for a live-served quote the year-to-date change,
-  the 52-week range and the drawdowns are stated as not computable.
-- ETFs have no announcements on either source (0 items for 510300).
-- CSIndex valuation only covers CSI indices. For the SZSE index 399006 创业板指 the request failed in a
-  live pipeline run, so `index_valuation` has no values and its provenance note says 未获取到实时数据.
-- The agent API's `evidence_sources` list is built in `agent/graph.py`; it does not yet copy
-  `provenance` from the evidence payload. The data is present in tool results and evidence payloads.
+- **Macro secondaries**: CPI, PMI, M2, and LPR rely on Eastmoney datacenter (falling back to LKG/snapshot if unavailable).
+- **Unadjusted closes & window length**: Closes are unadjusted (`不复权`); live calls fetch 30 daily bars, so 52-week/YTD drawdowns require the offline extension or deeper history.
+- **Industry valuation tiles**: Live THS industry refreshes provide daily change only; extension-only industries report missing industry-average valuation explicitly rather than fabricating tiles.
+- **Historical audit log**: Point-in-time live audit measurements are archived in [docs/results/data_sources/audit-20261001T0626Z-c915aef.md](results/data_sources/audit-20261001T0626Z-c915aef.md).

@@ -2,82 +2,44 @@
 
 Languages: English | [中文](zh/llm-response.md)
 
-`scripts/llm_response.py` is a downstream FinSight utility (implementing the constrained LLM summarization and follow-up question prediction stage in *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*, FAIA Vol. 433 / DMI 2026, DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)) that produces frontend-ready JSON from compact Query Intelligence evidence. It can consume an existing record or run Query Intelligence first from a raw query.
+`scripts/llm_response.py` implements the paper's constrained local-model answer generation and follow-up question prediction stage ([DOI: `10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)). It transforms compact Query Intelligence artifacts into strictly validated JSON without re-inferring intent, entities, or source plans.
 
-It is outside the NLU/Retrieval backbone. It must not re-infer intent, targets, or source plans.
+> For the production LangGraph agent (`/agent/chat*`) and browser workspace, see [Agent Layer](agent.md) and [Web UI & Chatbot](frontend-chatbot.md).
 
-This page documents the local HuggingFace/transformers handoff script. The browser workspace, OpenAI-compatible `/chat` endpoint, and verified LangGraph research agent (`/agent/chat*`) are documented in [Local Frontend Chatbot](frontend-chatbot.md) and [Agent Layer](agent.md). DeepSeek is the default API provider example, not an architectural limit.
+## Output Contract
 
-## Outputs
+Returns two normalized JSON blocks:
 
-The script generates:
+- **`answer_generation`**: `answer`, `key_points[]`, `evidence_ids_used[]` (filtered strictly to IDs present in the run), `limitations[]`, `risk_disclaimer`, and `model`.
+- **`next_question_prediction`**: three follow-up questions with relevance scores and brief rationales.
 
-- `answer_generation`: answer text, key points, evidence IDs used, limitations, risk disclaimer, and model name.
-- `next_question_prediction`: exactly three follow-up questions with scores and short reasons.
-
-Both outputs are validated and normalized as JSON.
-
-## Default Backend
-
-Current script defaults:
-
-| Setting | Default |
-|---|---|
-| Backend | local HuggingFace/transformers |
-| Answer model | `instruction-pretrain/finance-Llama3-8B` |
-| Next-question model | `Qwen/Qwen2.5-3B-Instruct` |
-| Model search root | `models/llm`, then `LLM_MODELS_DIR` / `QI_LLM_MODELS_DIR` |
-| Max answer tokens | `700` |
-| Max next-question tokens | `260` |
-| JSON repair retries | `1` |
-
-Quick run:
+## Quick Run
 
 ```bash
-python scripts/llm_response.py --query "What do you think about Ping An Insurance (601318.SH)?"
-```
+# Run Query Intelligence first, then generate JSON
+python scripts/llm_response.py --query "你觉得中国平安（601318.SH）怎么样？"
 
-Use an existing combined record:
-
-```bash
+# Consume an existing combined record ({query, nlu_result, retrieval_result, ...})
 python scripts/llm_response.py --input path/to/pipeline_record.json
 ```
 
-`--input` expects one JSON object with `query`, `nlu_result`, and `retrieval_result`; `statistical_result` and `sentiment_result` are optional. Query Intelligence artifact runs write separate files, so either combine them first or use `--query`.
+## Default Local Models & Options
+
+| Setting / Flag | Default | Purpose |
+|---|---|---|
+| `--answer-model` | `instruction-pretrain/finance-Llama3-8B` | Model for `answer_generation` |
+| `--next-question-model` | `Qwen/Qwen2.5-3B-Instruct` | Model for `next_question_prediction` |
+| `--models-dir` | `models/llm` (`LLM_MODELS_DIR` / `QI_LLM_MODELS_DIR`) | Local model root checked before HuggingFace Hub |
+| `--answer-max-new-tokens` / `--next-max-new-tokens` | `700` / `260` | Generation token caps |
+| `--json-retries` | `1` | Repair retries on invalid JSON |
+| `--device-map`, `--dtype`, `--temperature` | `auto` | Inference placement and decoding controls |
+| `--trust-remote-code` | `false` | Opt-in only for audited HuggingFace repos |
+
+Authenticated downloads read `HF_TOKEN` or `HUGGINGFACE_HUB_TOKEN`.
 
 ## Safeguards
 
-- Uses compact evidence only: query, NLU result, retrieval evidence summary, optional statistical result, and optional sentiment result.
-- Strips debug traces, long raw documents, history arrays, and source-generation metadata before model input.
-- Enables JSON Output by default for OpenAI-compatible APIs.
-- Validates and repairs JSON when possible.
-- Must not invent missing market data, fundamentals, valuation, macro data, news, sentiment, or statistical facts.
-- Must include a risk disclaimer.
-- Must not output chain-of-thought or markdown fences.
-
-## Configuration
-
-Common CLI options:
-
-| Option | Purpose |
-|---|---|
-| `--answer-model` | Model for `answer_generation`. |
-| `--next-question-model` | Model for follow-up questions. |
-| `--models-dir` | Local model directory checked before HuggingFace model IDs. |
-| `--few-shot-source` | Few-shot JSONL source used by answer and next-question prompts. |
-| `--answer-max-new-tokens` | Generation limit for answer JSON. |
-| `--next-max-new-tokens` | Generation limit for next-question JSON. |
-| `--device-map` | Device placement passed to transformers. |
-| `--dtype` | `auto`, `float16`, `bfloat16`, or `float32`. |
-| `--temperature` | Sampling temperature. |
-| `--json-retries` | Strict JSON retry count after parse failure. |
-| `--trust-remote-code` | Enable audited HuggingFace repository code when required. |
-
-Environment variables:
-
-| Variable | Purpose |
-|---|---|
-| `LLM_MODELS_DIR` or `QI_LLM_MODELS_DIR` | Local model search root. |
-| `HF_TOKEN` or `HUGGINGFACE_HUB_TOKEN` | Authenticated HuggingFace access. |
-
-Remote repository code is disabled by default. Use `--trust-remote-code` only for audited HuggingFace models that require it.
+- Feeds compact summaries only—strips debug traces, raw long bodies, and provider dumps before prompting.
+- Filters emitted `evidence_ids_used` strictly against the run's actual evidence set and strips chain-of-thought or markdown fences.
+- Never invents missing market, fundamental, macro, news, or sentiment facts; always emits a risk disclaimer.
+- Verified by `python -m pytest -q tests/test_llm_response.py`.

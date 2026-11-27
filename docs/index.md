@@ -2,47 +2,52 @@
 
 Languages: English | [中文](zh/index.md)
 
-These pages document **FinSight**, an evidence-first China A-share financial analysis chatbot and research agent. The classical, explainable NLU and retrieval core (**Query Intelligence**) and five-stage evidence architecture were published in *Frontiers in Artificial Intelligence and Applications* (Vol. 433: *Digitalization and Management Innovation V*, DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107), see [`CITATION.cff`](../CITATION.cff)); the **Agent Layer** extends that foundation with LangGraph tool orchestration, sentence-level numeric claim verification, LLM-free claim checking, and MCP/A2A protocols.
+Reference documentation for **FinSight**, an evidence-first financial analysis chatbot and verified research agent for Chinese financial markets. The classical Query Intelligence core was published in *Frontiers in Artificial Intelligence and Applications*, Vol. 433 (*Digitalization and Management Innovation V*, DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107), metadata in [`CITATION.cff`](../CITATION.cff)).
 
-The [root README](../README.md) gives a concise overview, quick start, headline benchmarks, and BibTeX citation; use the reference pages below for contracts, configuration details, training steps, and operational runbooks.
+Start with the [README](../README.md) for the quick start and headline benchmarks, then use the guides below by topic.
 
-## Contents
+## Core Architecture
 
-| Document | Purpose |
+| Document | Contents |
 |---|---|
-| [Modules](modules.md) | Five-module map: frontend, NLU/Retrieval, numerical analysis, text analysis, and LLM summary/prediction. |
-| [Agent Layer](agent.md) | Agent graph, tools, routing, verification, compliance, memory, `/agent/*` API and schemas, configuration, tracing. |
-| [Claim Check](claim-check.md) | Fact-checking a pasted market claim: comparators, negation, growth, units, as-of dates, the chat hint, and the claim benchmark (dev 131, held-out 47) with bootstrap CIs and limits. |
-| [Evaluation history](evaluation-history.md) | The long results that were in the README up to round 14: task sets and who wrote them, the final online run, first runs vs after exposure, per-class tables of every reviewer slice, other measurements, the limits in full, how CI runs. [中文](zh/evaluation-history.md) |
-| [Known issues](known-issues.md) | Every review bug from round 3 on with its fix commit and test, and what is still open and why (rows of the current round are in the README first). [中文](zh/known-issues.md) |
-| [Features, API and setup in full](features.md) | The full feature list, the full endpoint table and the full quick start (snapshot switches, Kubernetes, monitoring). [中文](zh/features.md) |
-| [Agent Evaluation](agent-eval.md) | Task sets (dev, held-out, test v2), replay snapshots, dealbreaker-gated metrics with bootstrap CIs and paired tests, online ablation with two LLM families (pass^3, latency, cost), prompt A/B, verifier stress test, prompt-injection red team, fault injection, and limitations. Generated from `evaluation/results/`. |
-| [Comparison](comparison.md) | FinSight next to 问财, 豆包, Kimi, Wind Alice and 妙想: sourced capability table, where the incumbents win, and a head-to-head test design (not run). [中文](zh/comparison.md) |
-| [MCP](mcp.md) | Serving the agent tools to MCP clients over stdio or streamable HTTP, and consuming external MCP servers as agent tools (`QI_MCP_SERVERS`). |
-| [A2A, Failover and Observability](a2a-and-observability.md) | A2A endpoint, LLM gateway handling, model failover, gateway cost, run inspector and feedback, Prometheus metrics, Grafana dashboard and alerts, chaos drill. |
-| [Data Sources](data-sources.md) | Live source audit, fallback chains, circuit breakers, bounded call pool, cache, Sina/THS cross-check, provenance, `/sources/health` (with an active probe). |
-| [Performance](performance.md) | Load tests of the deterministic and LLM agent paths (cost in CNY), the checkpoint fix reproduced, k3s multi-replica scaling, service start-up. |
-| [Deployment](deployment.md) | Docker image, monitoring profile, Kubernetes manifests (replicas sharing sessions through Postgres), read-only root filesystem. |
-| [Development](development.md) | The pre-push check (`scripts/prepush.sh`: what CI runs, run locally before a push to master) and how the shipped default is tested. |
-| [Design notes (Chinese)](presentation/agent-design-notes.md) | Trade-offs, built vs reused, 32 real failure cases with root cause and fix, ablation conclusions with CIs, independent-set results, interview FAQ. |
-| [Interview script (Chinese)](presentation/interview-script.md) | 30-second pitch, architecture walk-through, three defended numbers, a failure story, whiteboard outline, AI coding-tool note. |
-| [Agent practices research](research/agent-architecture-practices-2026.md) | 2025–2026 agent and prompt-engineering practice from primary sources, and the gap analysis that drove the latest changes. |
-| [Query Intelligence](query-intelligence.md) | Scope, architecture, API, NLU and retrieval output contracts, live providers, environment variables, troubleshooting. |
-| [Local Frontend Chatbot](frontend-chatbot.md) | Browser UI, `/chat` contract, LLM API settings, real local screenshots, and troubleshooting. |
-| [Numerical Analysis](numerical-analysis.md) | `analysis_summary`, technical indicators, fundamentals, macro signals, and data readiness. |
-| [Presentation Materials](presentation/README.md) | Clean slide outline and links to current demo screenshots. |
-| [Training](training.md) | Public dataset sync, manifest-based training, runtime asset materialization, evaluation, and release checks. |
-| [LLM Response](llm-response.md) | Legacy local-transformers answer-generation JSON handoff, output contract, configuration, and safeguards. |
-| [Sentiment](sentiment.md) | Downstream document sentiment pipeline, preprocessing, FinBERT routing, output fields, and test commands. |
-| [Retrieval Output Spec](retrieval_output_spec.md) | Compatibility entry point for `analysis_summary` and retrieval output references. [中文](zh/retrieval_output_spec.md) |
+| [Modules](modules.md) | Six-layer system map (five paper modules + Agent layer), data flow, and extension points |
+| [Query Intelligence](query-intelligence.md) | Classical NLU, hybrid retrieval, typed `NLUResult` / `RetrievalResult` contracts, and paper benchmarks |
+| [Agent Layer](agent.md) | LangGraph workflow, deterministic fallback, 9 typed tools, claim verifier, safety guardrails, memory, and configuration |
+| [Features & API Reference](features.md) | Complete capability list, HTTP endpoint matrix, schemas, and quick-start switches |
+| [Retrieval Output Spec](retrieval_output_spec.md) | Schema reference for `RetrievalResult`, `analysis_summary`, and provenance fields |
 
-Chinese documentation is in [docs/zh](zh/index.md).
+## Analysis, Claim Verification & Data
 
-## Documentation Style
+| Document | Contents |
+|---|---|
+| [Claim Check](claim-check.md) | LLM-free numeric fact-checking of pasted market claims, comparator grammar, and benchmark results |
+| [Data Sources](data-sources.md) | Live providers (Tushare, AKShare, Cninfo, efinance), fallback chains, circuit breakers, offline snapshot + corrections layer |
+| [Numerical Analysis](numerical-analysis.md) | `MarketAnalyzer` technical indicators, fundamental/macro signals, and `data_readiness` |
+| [Document Sentiment](sentiment.md) | Downstream per-sentence FinBERT and offline classical sentiment pipeline (`sentiment/`) |
+| [LLM Response Handoff](llm-response.md) | Constrained local HuggingFace/transformers JSON answer and follow-up generation (`scripts/llm_response.py`) |
 
-The structure follows the common pattern used by mature open-source projects:
+## Interfaces, Protocols & Operations
 
-- The root README answers "what is this, how do I run it, where do I go next?"
-- `docs/` contains stable reference pages split by topic.
-- Commands are copyable from a fresh clone and avoid local-only wrappers.
-- Public docs avoid generated output, private tokens, and machine-specific paths.
+| Document | Contents |
+|---|---|
+| [Web UI & Chatbot](frontend-chatbot.md) | React 19 + TypeScript workspace, SSE streaming, claim-check tab, classic `/chat` mode, and Playwright E2E |
+| [MCP Integration](mcp.md) | Serving FinSight tools over stdio / streamable HTTP MCP and attaching external MCP servers (`QI_MCP_SERVERS`) |
+| [A2A & Observability](a2a-and-observability.md) | A2A 1.0 JSON-RPC/streaming server, model failover, Postgres shared stores, Prometheus, Grafana, and Jaeger |
+| [Deployment](deployment.md) | Multi-stage Docker image, Compose profiles, Kubernetes kustomize manifests, image tag policy, and kind smoke test |
+| [Performance & Scaling](performance.md) | Latency profiling, load tests, source chaos drills, and multi-replica k3s scaling |
+| [Development](development.md) | Local pre-push mirror (`scripts/prepush.sh`), CI time budgets, and shipped-default test policy |
+| [Training & Runtime Assets](training.md) | Dataset sync, manifest-driven classical model training, SHA-256 verification, and asset materialization |
+
+## Evaluation, Governance & Presentations
+
+| Document | Contents |
+|---|---|
+| [Agent Evaluation (Generated)](agent-eval.md) | Auto-generated paired tables, bootstrap CIs, ablations, verifier stress, and red-team results from `evaluation/results/` |
+| [Evaluation History](evaluation-history.md) | Independent sets (first-run vs after-exposure), per-round benchmark ledger, CI workflow, and full limits |
+| [Known Issues & Audit Log](known-issues.md) | Open limitations, trade-offs, and resolved review/audit findings |
+| [Product Comparison](comparison.md) | Capability comparison against 问财, 豆包, Kimi, Wind Alice, and 妙想, plus head-to-head protocol |
+| [Independent Reviews](reviews/README.md) | Summary index of 14 external evaluation rounds and rubric |
+| [Agent Upgrade Plan](agent-upgrade/GOAL.md) · [Progress](agent-upgrade/PROGRESS.md) | Original agent-layer architecture goals and milestone log |
+| [Architecture Practices Research](research/agent-architecture-practices-2026.md) | Literature synthesis of production agent and verification patterns |
+| [Presentation Materials](presentation/README.md) | Slide outline, engineering design notes, and walkthrough script |
+| [Security Policy](../SECURITY.md) · [Contributing](../CONTRIBUTING.md) | Vulnerability reporting, secrets/runtime security boundaries, and contributor workflow |
