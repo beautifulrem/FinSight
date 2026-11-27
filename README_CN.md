@@ -2,11 +2,12 @@
 
 <h1>FinSight</h1>
 
-<h3>证据优先的 A 股研究 Agent。</h3>
+<h3>基于可解释查询智能（Query Intelligence）的证据优先金融分析与研究 Agent</h3>
 
 <p>
   <a href="README.md"><img alt="Language English" src="https://img.shields.io/badge/Language-English-2f80ed?style=flat&labelColor=555555"></a>
   <a href="README_CN.md"><img alt="Language Simplified Chinese" src="https://img.shields.io/badge/%E8%AF%AD%E8%A8%80-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-d97706?style=flat&labelColor=555555"></a>
+  <a href="https://ebooks.iospress.nl/doi/10.3233/FAIA261107"><img alt="DOI 10.3233/FAIA261107" src="https://img.shields.io/badge/Paper-FAIA%20Vol.%20433%20(DMI%202026)-b31b1b?style=flat&labelColor=555555"></a>
   <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-f1c40f?style=flat&labelColor=555555"></a>
   <a href="https://github.com/beautifulrem/FinSight/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/beautifulrem/FinSight/actions/workflows/ci.yml/badge.svg?branch=master"></a>
   <img alt="Python 3.13" src="https://img.shields.io/badge/Python-3.13-3776ab?style=flat&labelColor=555555">
@@ -15,19 +16,41 @@
   <img alt="React 19" src="https://img.shields.io/badge/UI-React%2019%20%2B%20TS-149eca?style=flat&labelColor=555555">
 </p>
 
+<p>
+  <a href="#发表论文">发表论文</a> ·
+  <a href="#30-秒看懂">30 秒看懂</a> ·
+  <a href="#架构">系统架构</a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#测什么怎么测">评测结果</a> ·
+  <a href="#api">接口契约</a> ·
+  <a href="#文档">文档导航</a> ·
+  <a href="#引用">引用格式</a>
+</p>
+
 </div>
 
 ---
 
+FinSight 面向中国金融市场（A 股上市公司、ETF/基金、指数、行业与宏观指标），将**可解释的证据生产**与**下游回答生成及逐句校验**严格解耦：
 
-FinSight 回答关于 A 股上市公司、基金、指数和宏观数据的问题：
+- 经典、可审查的 **Query Intelligence** 前端负责实体消歧、意图/主题识别、越界守卫、数据源规划与证据组装；
+- **LangGraph** 研究 Agent 在受控循环中编排类型化只读取证工具；
+- **答案里的每个数字都由代码对照同一句引用的证据逐句核对**，并由合规守卫剔除任何交易指令式表述；
+- 未配置 LLM API Key 时，同一张执行图自动切换至确定性规划器完成带引用与校验的回答。
 
-- 经典、可解释的 NLU 负责理解、守卫和路由；
-- LLM 在 LangGraph 循环里编排类型化的取证工具；
-- **答案里的每个数字都由代码对照同一句引用的证据逐句核对**；
-- 最后由合规节点删除任何像投资建议的表述。
+## 发表论文
 
-没有 LLM Key 时，同一张图由确定性规划器完成回答。
+> **FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence**
+> Ruiqi Xie, Jiachang Zhang, Mingxi Shi, Shiyi Li, Mingyuan Gao, Zihao Yin, Adela S.M. Lau *（香港大学计算与数据科学学院 / 统计及精算学系 Data Science Lab）*
+> 发表收录于 *Digitalization and Management Innovation V*（*Frontiers in Artificial Intelligence and Applications*，FAIA 第 433 卷），IOS Press，2026 年 10 月（DMI 2026 会议论文集），开放获取（CC BY-NC 4.0）。
+> **链接**：[IOS Press 论文页](https://ebooks.iospress.nl/doi/10.3233/FAIA261107) · [DOI: `10.3233/FAIA261107`](https://doi.org/10.3233/FAIA261107) · [BibTeX 引用](#引用)
+
+本仓库同时包含**已发表论文的 Query Intelligence 与受约束金融问答实现**，以及在此基础上持续演进的**可验证研究 Agent 服务平台**：
+
+| 层次 | 范围与核心模块 | 证据契约、接口与代表性指标 |
+|---|---|---|
+| **1. 可解释查询智能底座** *（FAIA 2026 论文核心）* | 经典 NLU（`query_intelligence/nlu/`：规范化、别名/CRF/纠错实体消歧、TF-IDF + 线性/树分类器、越界拒答与澄清门控、Source Plan 重排）、混合检索与 `MarketAnalyzer`（`query_intelligence/retrieval/`）、逐句 FinBERT 情感分析（`sentiment/`）及受约束 LLM 总结与追问预测（`scripts/llm_response.py`、`query_intelligence/chat/`）。 | 显式类型化 `NLUResult` 与 `RetrievalResult` 产物（`POST /nlu/analyze`、`/retrieval/search`、`/query/intelligence`、`/chat`）。论文在 **10,000** 条中英查询（6,236 条金融域 + 3,764 条越界）上测得：金融域召回率 **0.975**、越界拒答准确率 **0.9729**、意图 micro-F1 **0.9407**、主题 micro-F1 **0.9208**、检索 Recall@10 **0.9664**，并通过 **32/32** 端到端契约模糊测试（[docs/zh/query-intelligence.md](docs/zh/query-intelligence.md)）。 |
+| **2. 可验证研究 Agent 与服务平台** *（论文发表后扩展）* | LangGraph 多步编排与确定性兜底（`query_intelligence/agent/`）、带实时多源降级链/熔断/溯源的 9 个类型化只读工具（`integrations/sources/`）、逐句数值与引用校验器（`agent/verifier.py`）、零 LLM 市场声明核查（`agent/claim_check.py`）、MCP 与 A2A 协议服务、Postgres 多副本会话检查点、可观测栈及 React 19 双语前端（`frontend/`）。 | `POST /agent/chat`、`/agent/chat/stream`（SSE）、`/agent/resume`、`/agent/claim-check`、`/a2a` 与 MCP 服务（`query_intelligence.agent.mcp_server`）。独立作者未接触测试集 v3 严格一票否决通过率 **0.869**，5,631 条篡改回答压力测试误放率仅 **0.92%**（[docs/zh/agent.md](docs/zh/agent.md)、[docs/zh/evaluation.md](docs/zh/evaluation.md)）。 |
 
 ## 30 秒看懂
 
@@ -84,6 +107,25 @@ flowchart LR
 
 完整列表见 [docs/zh/features.md](docs/zh/features.md)。
 
+### 目录结构
+
+```text
+FinSight/
+├── query_intelligence/
+│   ├── nlu/            # 经典可解释 NLU：规范化、别名/CRF/纠错实体消歧、分类器、Source Planner
+│   ├── retrieval/      # 查询构建、结构化与文档检索、LTR 排序、去重、MarketAnalyzer 技术与基本面摘要
+│   ├── agent/          # LangGraph 编排、9 个类型化工具、逐句数值校验器、声明核查、MCP 与 A2A 服务
+│   ├── integrations/   # Tushare / AKShare / 巨潮 / efinance 实时数据源、降级链、熔断器与数据溯源
+│   ├── api/            # FastAPI 路由、API Key 鉴权、限流、就绪探针与 SSE 流式接口
+│   └── contracts.py    # NLUResult、RetrievalResult 与 Agent 请求/响应 Pydantic 契约
+├── sentiment/          # 下游逐句 FinBERT 与经典词典金融文档情感分析
+├── frontend/           # React 19 + TypeScript 中英双语研究工作台（构建产物位于 query_intelligence/web/dist）
+├── evaluation/         # 可复现 Agent 评测集、claim_bench、校验器压力测试、提示注入红队与保留切片
+├── data/ & models/     # 随仓离线行情/基本面快照、运行时词表及 SHA-256 校验的经典机器学习模型
+├── schemas/            # 导出的 NLU、Retrieval 与 Agent JSON Schema
+└── scripts/ & training/# 模型训练流水线、受约束 LLM 输出脚本、压测与故障演练工具
+```
+
 ## 快速开始
 
 **本地**（Python 3.13）：
@@ -91,6 +133,12 @@ flowchart LR
 ```bash
 pip install -r requirements.txt
 uvicorn query_intelligence.api.app:create_app --factory --port 8765   # 打开 http://127.0.0.1:8765
+```
+
+若要直接命令行运行并查看论文中的显式 `NLUResult` 与 `RetrievalResult` 证据产物：
+
+```bash
+python manual_test/run_manual_query.py --query "你觉得中国平安怎么样？"
 ```
 
 没有 Key 时由确定性路径回答。启用 LLM Agent（任何 OpenAI 兼容接口均可）：
@@ -195,15 +243,20 @@ python -m scripts.chaos_drill --scenario sources           # 对运行中的服�
 
 完整的局限说明（含每条的数字和限定）见 [docs/zh/evaluation-history.md](docs/zh/evaluation-history.md#完整的局限说明)。
 
-## 已知未修复问题
+## 评审与审计记录
 
-第三轮以来每个评审缺陷都列在 [docs/zh/known-issues.md](docs/zh/known-issues.md)：已修复的给出修复 commit 和测试，另有一张表列出仍未解决的事项和原因。本轮新增的行写进下表，本轮结束时并入该页。
+第三轮以来的每个评审缺陷均记录在 [docs/zh/known-issues.md](docs/zh/known-issues.md)（含修复 commit、回归测试与未决取舍），另有 14 轮独立评审报告位于 [docs/reviews/](docs/reviews/README.md)，以及 [PR #13](https://github.com/beautifulrem/FinSight/pull/13) 合入的全仓库 P1/P2 安全与金融证据正确性审计修复（回归测试见 [`tests/test_audit_issue7_fixes.py`](tests/test_audit_issue7_fixes.py)）。
+
+<details>
+<summary>第十一轮评审归档前备注（K16–K18）</summary>
 
 | 编号 | 严重度 | 问题 | 状态 |
 |---|---|---|---|
 | K16（第十一轮） | 低–中（评测如实） | 第十轮切片修复后运行的来源被当作事实陈述（「没打开过」），而且只统计了文本层面的重合 | 基本修复（第十二轮评审）：[切片说明](evaluation/heldout_r10/README.md#provenance-of-the-after-fix-run-what-the-record-shows-round-11-review-k16)写明记录显示的事实：那次运行读的是评审的目录，切片之后才进入仓库（`367636b`）。`slice_overlap --content` 增加了内容层面的检查。去掉内容重合后，第十轮对话为 12/42 → 32/42，第九轮对话为 16/42 → 33/42。新的不准确之处（第十二轮评审 L15），第 16 轮已更正：第十一轮切片说明用一个并不包含该句的探针文件来解释声明 r11c09 的完全相同副本；记录无法解释这份副本（[来历](evaluation/heldout_r11/README.md#committed-to-the-repository-after-the-round-15-fixes)） |
 | K17（第十一轮） | 低（界面） | 成本盈亏乘式写成「200 × -90.5」；数据日期横幅没包含估值日；切换到英文后，中文那一轮的推荐追问仍是中文 | 已修复（`d9d2923`、`1e2c38c`）：写成「200 × (−90.5)」；横幅的日期范围包含估值日；推荐追问和默认免责声明随界面语言切换。测试：`tests/test_round15_ui_nits.py`、vitest |
 | K18（第十一轮） | 低（文档） | README 有 1.85 万词，「30 秒看懂」是五大段 | 已修复：README 改为落地页，长内容原样移到 [docs/zh/evaluation-history.md](docs/zh/evaluation-history.md)、[docs/zh/known-issues.md](docs/zh/known-issues.md) 和 [docs/zh/features.md](docs/zh/features.md) |
+
+</details>
 
 ## API
 
@@ -214,7 +267,7 @@ python -m scripts.chaos_drill --scenario sources           # 对运行中的服�
 | `GET /agent/traces/{id}`、`/agent/sessions/{id}` | 运行 trace 和会话记忆，只返回调用方自己的 |
 | `GET /.well-known/agent-card.json`、`POST /a2a` | A2A 服务卡片与 JSON-RPC 接口 |
 | `GET /metrics`、`/health`、`/ready` | Prometheus 指标、存活检查、就绪检查（含离线数据层） |
-| `POST /chat`、`/nlu/analyze`、`/retrieval/search` | 原聊天接口，以及经典 NLU 与检索产物 |
+| `POST /query/intelligence`、`/nlu/analyze`、`/retrieval/search`、`/chat` | 经典 Query Intelligence 流水线（`NLUResult` + `RetrievalResult`）与受证据约束的聊天接口 |
 
 全部接口见 [docs/zh/features.md](docs/zh/features.md#api)；schema 位于 `schemas/agent_*.schema.json`、`schemas/nlu_result.schema.json` 与 `schemas/retrieval_result.schema.json`（`EntityItem.symbol` 限定为最长 64 字符的 `^[A-Za-z0-9._-]+$` 代码格式，`EvidenceItem` 包含 `source_id`、`source_mode`、`fallback_reason` 与 `cache_hit` 数据溯源字段）。
 
@@ -222,27 +275,49 @@ python -m scripts.chaos_drill --scenario sources           # 对运行中的服�
 
 | 主题 | 链接 |
 |---|---|
-| 评测历史：每轮表格、切片分类结果、其他测量、完整局限 | [docs/zh/evaluation-history.md](docs/zh/evaluation-history.md) |
-| 已知问题：每个评审缺陷、修复与测试，以及仍未解决的事项 | [docs/zh/known-issues.md](docs/zh/known-issues.md) |
-| 完整功能列表、完整 API 表与完整的快速开始 | [docs/zh/features.md](docs/zh/features.md) |
+| Query Intelligence（经典 NLU、检索、`MarketAnalyzer` —— 论文核心模块） | [docs/zh/query-intelligence.md](docs/zh/query-intelligence.md) |
 | Agent 层：图、工具、记忆、API、配置 | [docs/zh/agent.md](docs/zh/agent.md) |
+| 完整功能列表、完整 API 表与完整的快速开始 | [docs/zh/features.md](docs/zh/features.md) |
+| 声明核查：规则、比较词、基准 | [docs/zh/claim-check.md](docs/zh/claim-check.md) |
+| 实时数据源与离线快照 | [docs/zh/data-sources.md](docs/zh/data-sources.md) |
 | 评测（中文摘要） | [docs/zh/evaluation.md](docs/zh/evaluation.md) |
 | 评测完整版（生成）：任务集、置信区间、在线消融、第二模型、Prompt A/B、红队、校验器压力测试 | [docs/agent-eval.md](docs/agent-eval.md)（英文） |
+| 评测历史：每轮表格、切片分类结果、其他测量、完整局限 | [docs/zh/evaluation-history.md](docs/zh/evaluation-history.md) |
+| 已知问题：每个评审缺陷、修复与测试，以及仍未解决的事项 | [docs/zh/known-issues.md](docs/zh/known-issues.md) |
 | 与问财、豆包、Kimi、Wind Alice、妙想的对比 | [docs/zh/comparison.md](docs/zh/comparison.md) |
 | 人工评测工具包：回答标注、产品对比、真实说法、用户研究 | [evaluation/human/README.md](evaluation/human/README.md) |
 | A2A、模型容灾、网关成本、监控、看板、故障演练 | [docs/zh/a2a-and-observability.md](docs/zh/a2a-and-observability.md) |
-| 实时数据源与离线快照 | [docs/zh/data-sources.md](docs/zh/data-sources.md) |
 | 性能、压测与扩展 | [docs/zh/performance.md](docs/zh/performance.md) |
 | 部署 | [docs/zh/deployment.md](docs/zh/deployment.md) |
 | 开发：推送前检查，发布默认配置如何被测试 | [docs/zh/development.md](docs/zh/development.md) |
 | 设计复盘：取舍、自研与复用、失败案例 | [docs/presentation/agent-design-notes.md](docs/presentation/agent-design-notes.md) |
 | 面试讲稿：30 秒介绍、三个可辩护的数字、失败故事、白板提纲 | [docs/presentation/interview-script.md](docs/presentation/interview-script.md) |
-| 声明核查：规则、比较词、基准 | [docs/zh/claim-check.md](docs/zh/claim-check.md) |
 | Agent 与 Prompt 工程实践调研 | [docs/research/agent-architecture-practices-2026.md](docs/research/agent-architecture-practices-2026.md)（英文） |
-| Query Intelligence（经典 NLU 与检索） | [docs/zh/query-intelligence.md](docs/zh/query-intelligence.md) |
 | 网页前端 | [docs/zh/frontend-chatbot.md](docs/zh/frontend-chatbot.md) |
 | 全部文档 | [docs/zh/index.md](docs/zh/index.md) |
+
+## 引用
+
+如果本项目、可解释 Query Intelligence 流水线或其数值校验评测基准对您的研究或工程工作有所帮助，欢迎引用我们的论文：
+
+```bibtex
+@incollection{xie2026finsight,
+  title     = {FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence},
+  author    = {Xie, Ruiqi and Zhang, Jiachang and Shi, Mingxi and Li, Shiyi and Gao, Mingyuan and Yin, Zihao and Lau, Adela S.M.},
+  booktitle = {Digitalization and Management Innovation V},
+  series    = {Frontiers in Artificial Intelligence and Applications},
+  volume    = {433},
+  publisher = {IOS Press},
+  year      = {2026},
+  month     = oct,
+  isbn      = {978-1-64368-695-0},
+  issn      = {0922-6389},
+  doi       = {10.3233/FAIA261107},
+  url       = {https://ebooks.iospress.nl/doi/10.3233/FAIA261107}
+}
+```
 
 ## 安全声明
 
 FinSight 只做证据汇总，不是投资顾问，不能作为交易决策的唯一依据。
+

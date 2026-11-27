@@ -2,9 +2,9 @@
 
 语言：[English](../frontend-chatbot.md) | 中文
 
-本地网页 Chatbot 是 FinSight 的浏览器演示入口。它刻意保持轻量：前端把用户问题发到 `POST /chat`，后端先跑 Query Intelligence，再把紧凑证据交给 OpenAI-compatible LLM API 生成面向用户的回答措辞。DeepSeek 是当前 checkout 的默认 provider 配置，不是架构边界。
+本地网页 Chatbot 是 FinSight 的浏览器交互与研究工作台（在发表论文 *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*，FAIA 第 433 卷 / DMI 2026，DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107) 前端模块基础上升级）。React 19 界面默认通过 `POST /agent/chat/stream` 流式展示经过逐句校验的 Agent 运行过程（也可在 *经典模式* 下调用原 `POST /chat`），并提供独立的零 LLM 市场声明核查页签（`POST /agent/claim-check`）；后端运行 Query Intelligence 与类型化工具，OpenAI 兼容 LLM API 仅在已收集证据上负责工具编排与答案措辞。DeepSeek 是当前 checkout 的默认 provider 配置，不是架构边界。
 
-这个包装层不能替代 NLU/Retrieval 主干。实体识别、意图、source plan、证据检索、排序、warnings 和 `analysis_summary` 仍全部来自 Query Intelligence。
+这个包装层不能替代 NLU/Retrieval 主干。实体识别、意图、source plan、证据检索、排序、warnings 和 `analysis_summary` 仍全部来自 [Query Intelligence](query-intelligence.md)。
 
 ## 运行
 

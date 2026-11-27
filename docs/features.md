@@ -2,7 +2,7 @@
 
 [README](../README.md) · [中文](zh/features.md)
 
-The full feature list, the full API table and the full quick start, moved verbatim in round 15 from `README.md` at `4ad3380` (only relative links adjusted); the README keeps a short summary of each.
+The full feature list, the full API table and the full quick start, moved verbatim in round 15 from `README.md` at `4ad3380` (only relative links adjusted); the README keeps a short summary of each. All capabilities below sit atop the classical, explainable **Query Intelligence** backend published in *Frontiers in Artificial Intelligence and Applications* (Vol. 433 / DMI 2026, DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107); see [Query Intelligence](query-intelligence.md)).
 
 - **Agent**
   - Routing with logged reasons, parallel tool calls, and step/tool/token budgets.
@@ -63,7 +63,7 @@ The full feature list, the full API table and the full quick start, moved verbat
 | `POST /chat` | Original chatbot endpoint: `mode=workflow` keeps the original pipeline; `agent` and `auto` use the agent. |
 | `POST /nlu/analyze`, `POST /retrieval/search`, `POST /query/intelligence` | Classical NLU and retrieval artifacts. |
 
-Schemas are in `schemas/agent_*.schema.json`, generated from `query_intelligence/contracts.py`.
+Schemas are in `schemas/agent_*.schema.json`, `schemas/nlu_result.schema.json`, and `schemas/retrieval_result.schema.json` (generated from `query_intelligence/contracts.py`; `EntityItem.symbol` restricts tickers to `^[A-Za-z0-9._-]+$` up to 64 chars, and `EvidenceItem` carries provenance fields `source_id`, `source_mode`, `fallback_reason`, and `cache_hit`).
 
 ## Quick start in full
 

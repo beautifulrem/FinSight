@@ -2,12 +2,17 @@
 
 语言：[English](../query-intelligence.md) | 中文
 
-Query Intelligence 是 FinSight（ARIN7012 Group 4.2 证据优先金融分析聊天机器人项目）的后端核心模块。它把金融问题转换为两个证据产物：
+Query Intelligence 是 **FinSight** 的经典可解释机器学习后端核心模块，发表于论文 *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*（IOS Press *Frontiers in Artificial Intelligence and Applications* 第 433 卷 *Digitalization and Management Innovation V*，DMI 2026；DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)）。它把自然语言金融问题转换为两个显式类型化证据产物：
 
 - `nlu_result`：用户问了什么、识别到哪些实体、需要哪些证据、应该执行哪些 source。
-- `retrieval_result`：找到了哪些证据、证据是否完整、如何排序，以及有哪些结构化分析信号。
+- `retrieval_result`：找到了哪些证据、证据是否完整、如何排序，以及有哪些结构化分析信号（`analysis_summary`）。
 
-下游系统应消费这些产物，不应重新推断用户意图、目标实体或 source plan。本地网页 Chatbot 的 `GET /` 和 `POST /chat` 就是一个下游包装层；详见 [本地网页 Chatbot](frontend-chatbot.md)。
+下游模块直接消费这些产物，而不重新推断用户意图、目标实体或 source plan：
+
+- **论文下游模块**：[数值分析](numerical-analysis.md)（`MarketAnalyzer`）、[文档情感分析](sentiment.md)（`sentiment/`）、[LLM 回答生成交接](llm-response.md)（`scripts/llm_response.py`）与 [本地网页 Chatbot](frontend-chatbot.md)（`GET /`、`POST /chat`）。
+- **Agent 平台扩展**：[Agent 层](agent.md)（`query_intelligence/agent/`）将 NLU、检索、实时多源降级链与情感模块封装为类型化工具，在 LangGraph 循环中编排并执行逐句数值与引用校验。
+
+> **论文评测摘要（`10.3233/FAIA261107`）**：在 10,000 条中英双语查询样本（6,236 条金融域查询 + 3,764 条越界查询）的本地评测中，Query Intelligence 取得金融域召回率 **0.975**、越界拒答准确率 **0.9729**、意图 micro-F1 **0.9407**、主题 micro-F1 **0.9208**、检索 Recall@10 **0.9664**，并通过 **32/32** 端到端契约模糊测试矩阵校验。
 
 ## 支持范围和边界
 

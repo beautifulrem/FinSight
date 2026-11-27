@@ -2,12 +2,17 @@
 
 Languages: English | [中文](zh/query-intelligence.md)
 
-Query Intelligence is the classical-ML backend core of FinSight, an evidence-first A-share research agent. It turns a financial query into two evidence artifacts:
+Query Intelligence is the classical, explainable ML backend core of **FinSight**, presented in *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence* (*Frontiers in Artificial Intelligence and Applications*, Vol. 433: *Digitalization and Management Innovation V*, DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)). It turns a natural-language financial query into two typed evidence artifacts:
 
 - `nlu_result`: what the user asked, what entities were resolved, what evidence is needed, and which sources should run.
-- `retrieval_result`: what evidence was found, how complete it is, how it was ranked, and what structured analysis signals are available.
+- `retrieval_result`: what evidence was found, how complete it is, how it was ranked, and what structured analysis signals (`analysis_summary`) are available.
 
-Downstream systems must consume these artifacts instead of re-inferring intent, targets, or source plans. The local browser chatbot at `GET /` and `POST /chat` is one such downstream wrapper; see [Local Frontend Chatbot](frontend-chatbot.md).
+Downstream systems consume these artifacts instead of re-inferring intent, targets, or source plans:
+
+- **Paper downstream modules:** [Numerical Analysis](numerical-analysis.md) (`MarketAnalyzer`), [Document Sentiment Analysis](sentiment.md) (`sentiment/`), [LLM Response Handoff](llm-response.md) (`scripts/llm_response.py`), and [Local Frontend Chatbot](frontend-chatbot.md) (`GET /`, `POST /chat`).
+- **Agentic extension:** [Agent Layer](agent.md) (`query_intelligence/agent/`) wraps NLU, retrieval, live fallback chains, and sentiment as typed tools in a LangGraph loop with sentence-level numeric claim verification.
+
+> **Paper Benchmark Summary (`10.3233/FAIA261107`):** On 10,000 bilingual query-style cases (6,236 finance-domain and 3,764 out-of-scope queries in Chinese and English), Query Intelligence achieved **0.975** finance-domain recall, **0.9729** out-of-scope rejection accuracy, **0.9407** intent micro-F1, **0.9208** topic micro-F1, **0.9664** retrieval Recall@10, and **32/32** passed contract checks on an end-to-end fuzz matrix.
 
 ## Scope and Boundaries
 

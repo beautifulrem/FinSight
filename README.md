@@ -2,11 +2,12 @@
 
 <h1>FinSight</h1>
 
-<h3>Evidence-first research agent for China A-shares.</h3>
+<h3>Evidence-First Financial Analysis &amp; Research Agent with Explainable Query Intelligence</h3>
 
 <p>
   <a href="README.md"><img alt="Language English" src="https://img.shields.io/badge/Language-English-2f80ed?style=flat&labelColor=555555"></a>
   <a href="README_CN.md"><img alt="Language Simplified Chinese" src="https://img.shields.io/badge/%E8%AF%AD%E8%A8%80-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-d97706?style=flat&labelColor=555555"></a>
+  <a href="https://ebooks.iospress.nl/doi/10.3233/FAIA261107"><img alt="DOI 10.3233/FAIA261107" src="https://img.shields.io/badge/Paper-FAIA%20Vol.%20433%20(DMI%202026)-b31b1b?style=flat&labelColor=555555"></a>
   <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-f1c40f?style=flat&labelColor=555555"></a>
   <a href="https://github.com/beautifulrem/FinSight/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/beautifulrem/FinSight/actions/workflows/ci.yml/badge.svg?branch=master"></a>
   <img alt="Python 3.13" src="https://img.shields.io/badge/Python-3.13-3776ab?style=flat&labelColor=555555">
@@ -15,11 +16,36 @@
   <img alt="React 19" src="https://img.shields.io/badge/UI-React%2019%20%2B%20TS-149eca?style=flat&labelColor=555555">
 </p>
 
+<p>
+  <a href="#published-paper">Paper</a> ·
+  <a href="#in-30-seconds">In 30 Seconds</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#what-is-measured-and-how">Evaluation</a> ·
+  <a href="#api">API</a> ·
+  <a href="#documentation">Docs</a> ·
+  <a href="#citation">Citation</a>
+</p>
+
 </div>
 
 ---
 
-FinSight answers questions about Chinese listed companies, funds, indices and macro data. A classical, explainable NLU front end routes and guards every question. An LLM orchestrates typed evidence tools in a LangGraph loop. **Every number in the answer is checked by code against the evidence cited in the same sentence**, and a compliance guard then removes anything that reads like investment advice. Without an LLM key, the same graph runs on a deterministic planner.
+FinSight answers questions about Chinese listed companies, ETFs/funds, indices, sectors, and macro indicators by strictly separating **explainable evidence production** from **downstream answer generation and verification**. A classical, inspectable Query Intelligence front end resolves entities, classifies intent/topic/scope, plans data sources, and assembles typed evidence; a LangGraph research agent orchestrates typed tools, checks **every number in every sentence against the evidence cited in that sentence**, and strips anything that reads like trading advice. Without an LLM API key, the same graph runs end-to-end on a deterministic planner.
+
+## Published paper
+
+> **FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence**
+> Ruiqi Xie, Jiachang Zhang, Mingxi Shi, Shiyi Li, Mingyuan Gao, Zihao Yin, and Adela S.M. Lau *(The University of Hong Kong)*
+> Published in *Digitalization and Management Innovation V* (*Frontiers in Artificial Intelligence and Applications*, Vol. 433), IOS Press, October 2026 (DMI 2026). Open Access (CC BY-NC 4.0).
+> **Links:** [IOS Press Chapter](https://ebooks.iospress.nl/doi/10.3233/FAIA261107) · [DOI: `10.3233/FAIA261107`](https://doi.org/10.3233/FAIA261107) · [BibTeX](#citation)
+
+This repository contains both the **published paper's Query Intelligence & chatbot implementation** and the **extended agentic research platform** built atop it:
+
+| Layer | Scope & Key Modules | Artifacts, Endpoints & Headline Benchmarks |
+|---|---|---|
+| **1. Explainable Query Intelligence Core** *(FAIA 2026 Paper)* | Classical NLU (`query_intelligence/nlu/`: normalization, alias/CRF/typo entity resolution, TF-IDF + linear/tree classifiers, OOS & clarification gates, source-plan reranking), hybrid retrieval & `MarketAnalyzer` (`query_intelligence/retrieval/`), FinBERT document sentiment (`sentiment/`), and constrained LLM handoff (`scripts/llm_response.py`, `query_intelligence/chat/`). | Typed `NLUResult` & `RetrievalResult` contracts (`POST /nlu/analyze`, `/retrieval/search`, `/query/intelligence`, `/chat`). Paper evaluation on **10,000** bilingual queries (6,236 finance, 3,764 OOS): **0.975** finance recall, **0.9729** OOS rejection accuracy, **0.9407** intent micro-F1, **0.9208** topic micro-F1, **0.9664** retrieval Recall@10, and **32/32** end-to-end fuzz contract checks ([docs/query-intelligence.md](docs/query-intelligence.md)). |
+| **2. Verified Research Agent & Service Platform** *(Post-Paper Extension)* | LangGraph orchestration + deterministic fallback (`query_intelligence/agent/`), 9 typed read-only tools with live multi-source circuit breakers & provenance (`integrations/sources/`), sentence-level numeric claim verifier (`agent/verifier.py`), LLM-free market claim checker (`agent/claim_check.py`), MCP & A2A servers, Postgres session store, observability stack, and React 19 UI (`frontend/`). | `POST /agent/chat`, `/agent/chat/stream` (SSE), `/agent/resume`, `/agent/claim-check`, `/a2a`, and MCP (`query_intelligence.agent.mcp_server`). Strict citation-gated pass rate **0.869** on untouched independent Test v3, **0.92%** verifier false-accept rate across 5,631 corrupted answers ([docs/agent.md](docs/agent.md), [docs/agent-eval.md](docs/agent-eval.md)). |
 
 ## In 30 seconds
 
@@ -76,6 +102,25 @@ The main pieces:
 
 The full list is in [docs/features.md](docs/features.md).
 
+### Repository layout
+
+```text
+FinSight/
+├── query_intelligence/
+│   ├── nlu/            # Classical NLU: normalization, entity/alias/CRF resolution, classifiers, source planner
+│   ├── retrieval/      # Query builder, structured/document retrieval, LTR ranker, deduper, MarketAnalyzer
+│   ├── agent/          # LangGraph orchestrator, 9 typed tools, claim verifier, claim-check, MCP & A2A servers
+│   ├── integrations/   # Live Tushare / AKShare / Cninfo / efinance providers, circuit breakers & provenance
+│   ├── api/            # FastAPI endpoints, API-key security, rate limiting, readiness & SSE streaming
+│   └── contracts.py    # Pydantic schemas for NLUResult, RetrievalResult, and Agent contracts
+├── sentiment/          # Downstream per-sentence FinBERT & classical financial document sentiment
+├── frontend/           # React 19 + TypeScript bilingual UI (built assets shipped in query_intelligence/web/dist)
+├── evaluation/         # Reproducible agent benchmarks, claim_bench, verifier stress, red-team & held-out slices
+├── data/ & models/     # Shipped offline market/fundamental snapshots, runtime dictionaries & verified ML models
+├── schemas/            # Exported JSON Schemas for NLU, Retrieval, and Agent APIs
+└── scripts/ & training/# Model training pipeline, constrained LLM handoff, load testing & chaos drills
+```
+
 ## Quick start
 
 **Local** (Python 3.13):
@@ -83,6 +128,12 @@ The full list is in [docs/features.md](docs/features.md).
 ```bash
 pip install -r requirements.txt
 uvicorn query_intelligence.api.app:create_app --factory --port 8765   # open http://127.0.0.1:8765
+```
+
+To inspect raw `NLUResult` and `RetrievalResult` evidence artifacts directly from the command line (the Query Intelligence pipeline from the paper):
+
+```bash
+python manual_test/run_manual_query.py --query "你觉得中国平安怎么样？"
 ```
 
 Without a key, answers come from the deterministic path. To enable the LLM agent, point it at any OpenAI-compatible endpoint:
@@ -187,9 +238,12 @@ Before a push to `master`, [`scripts/prepush.sh`](scripts/prepush.sh) runs every
 
 The full list, with every caveat and number, is in [docs/evaluation-history.md](docs/evaluation-history.md#limits-in-full).
 
-## Known open issues
+## Review & audit log
 
-Every review bug from round 3 onwards is listed in [docs/known-issues.md](docs/known-issues.md), with the fix commit and test for each fixed bug and a table of what is still open and why. Rows for the current round go into the table below; they are merged into that page when the round closes.
+Every review finding from round 3 onwards is tracked in [docs/known-issues.md](docs/known-issues.md) (with fix commits, regression tests, and open trade-offs), alongside 14 independent evaluation reports in [docs/reviews/](docs/reviews/README.md) and the full-repository P1/P2 security & correctness audit merged in [PR #13](https://github.com/beautifulrem/FinSight/pull/13) ([`tests/test_audit_issue7_fixes.py`](tests/test_audit_issue7_fixes.py)).
+
+<details>
+<summary>Round-11 review notes prior to archive merge (K16–K18)</summary>
 
 | Id | Severity | Issue | Status |
 |---|---|---|---|
@@ -197,6 +251,7 @@ Every review bug from round 3 onwards is listed in [docs/known-issues.md](docs/k
 | K17 (round 11) | Low (UI) | The cost-basis product was written "200 × -90.5"; the freshness banner left out the valuation date; a zh turn's suggestions stayed in Chinese after switching to English | fixed (`d9d2923`, `1e2c38c`): "200 × (−90.5)"; the banner range includes 估值日; suggestions and the default disclaimer follow the UI language. Tests: `tests/test_round15_ui_nits.py`, vitest |
 | K18 (round 11) | Low (docs) | The README had 18.5k words, and its 30-second pitch was five dense paragraphs | fixed: this README is a landing page; the long material moved verbatim to [docs/evaluation-history.md](docs/evaluation-history.md), [docs/known-issues.md](docs/known-issues.md) and [docs/features.md](docs/features.md) |
 
+</details>
 
 ## API
 
@@ -207,7 +262,7 @@ Every review bug from round 3 onwards is listed in [docs/known-issues.md](docs/k
 | `GET /agent/traces/{id}`, `/agent/sessions/{id}` | Run trace and session memory, scoped to the caller |
 | `GET /.well-known/agent-card.json`, `POST /a2a` | A2A agent card and JSON-RPC endpoint |
 | `GET /metrics`, `/health`, `/ready` | Prometheus metrics, liveness, readiness (incl. the offline data layers) |
-| `POST /chat`, `/nlu/analyze`, `/retrieval/search` | The original chatbot and the classical NLU and retrieval artifacts |
+| `POST /query/intelligence`, `/nlu/analyze`, `/retrieval/search`, `/chat` | Classical Query Intelligence pipeline (`NLUResult` + `RetrievalResult`) and downstream evidence-constrained chatbot |
 
 Every endpoint is listed in [docs/features.md](docs/features.md#api); schemas are in `schemas/agent_*.schema.json`, `schemas/nlu_result.schema.json`, and `schemas/retrieval_result.schema.json` (`EntityItem.symbol` restricts tickers to `^[A-Za-z0-9._-]+$` up to 64 chars, and `EvidenceItem` carries provenance fields `source_id`, `source_mode`, `fallback_reason`, and `cache_hit`).
 
@@ -215,26 +270,48 @@ Every endpoint is listed in [docs/features.md](docs/features.md#api); schemas ar
 
 | Topic | Link |
 |---|---|
+| Query Intelligence (classical NLU, retrieval, `MarketAnalyzer` — paper core) | [docs/query-intelligence.md](docs/query-intelligence.md) |
+| Agent layer: graph, tools, memory, API, configuration | [docs/agent.md](docs/agent.md) |
+| Features, the full API table and the full quick start | [docs/features.md](docs/features.md) |
+| Claim check: rules, comparators, benchmark | [docs/claim-check.md](docs/claim-check.md) |
+| Live data sources and the offline snapshot | [docs/data-sources.md](docs/data-sources.md) |
+| Evaluation (generated): task sets, CIs, online ablation, second model, prompt A/B, red team, verifier stress | [docs/agent-eval.md](docs/agent-eval.md) |
 | Evaluation history: per-round tables, per-class slice results, other measurements, full limits | [docs/evaluation-history.md](docs/evaluation-history.md) |
 | Known issues: every review bug, its fix and test, and what is still open | [docs/known-issues.md](docs/known-issues.md) |
-| Features, the full API table and the full quick start | [docs/features.md](docs/features.md) |
-| Agent layer: graph, tools, memory, API, configuration | [docs/agent.md](docs/agent.md) |
-| Evaluation (generated): task sets, CIs, online ablation, second model, prompt A/B, red team, verifier stress | [docs/agent-eval.md](docs/agent-eval.md) |
 | Comparison with 问财, 豆包, Kimi, Wind Alice, 妙想 | [docs/comparison.md](docs/comparison.md) |
 | Human evaluation kit: answer labels, head-to-head, real claims, user study | [evaluation/human/README.md](evaluation/human/README.md) |
 | A2A, model failover, gateway cost, metrics, dashboards, chaos drill | [docs/a2a-and-observability.md](docs/a2a-and-observability.md) |
-| Live data sources and the offline snapshot | [docs/data-sources.md](docs/data-sources.md) |
 | Performance, load and scaling | [docs/performance.md](docs/performance.md) |
 | Deployment | [docs/deployment.md](docs/deployment.md) |
 | Development: the pre-push check, how the shipped default is tested | [docs/development.md](docs/development.md) |
 | Design notes: trade-offs, built vs reused, failure cases (Chinese) | [docs/presentation/agent-design-notes.md](docs/presentation/agent-design-notes.md) |
 | Interview script: 30-second pitch, three defended numbers, a failure story, whiteboard outline (Chinese) | [docs/presentation/interview-script.md](docs/presentation/interview-script.md) |
-| Claim check: rules, comparators, benchmark | [docs/claim-check.md](docs/claim-check.md) |
 | Agent and prompt-engineering practice research | [docs/research/agent-architecture-practices-2026.md](docs/research/agent-architecture-practices-2026.md) |
-| Query Intelligence (classical NLU and retrieval) | [docs/query-intelligence.md](docs/query-intelligence.md) |
 | Web UI | [docs/frontend-chatbot.md](docs/frontend-chatbot.md) |
 | All pages | [docs/index.md](docs/index.md) |
+
+## Citation
+
+If you find FinSight, its explainable Query Intelligence pipeline, or its verification benchmarks useful in your research or engineering work, please cite our paper:
+
+```bibtex
+@incollection{xie2026finsight,
+  title     = {FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence},
+  author    = {Xie, Ruiqi and Zhang, Jiachang and Shi, Mingxi and Li, Shiyi and Gao, Mingyuan and Yin, Zihao and Lau, Adela S.M.},
+  booktitle = {Digitalization and Management Innovation V},
+  series    = {Frontiers in Artificial Intelligence and Applications},
+  volume    = {433},
+  publisher = {IOS Press},
+  year      = {2026},
+  month     = oct,
+  isbn      = {978-1-64368-695-0},
+  issn      = {0922-6389},
+  doi       = {10.3233/FAIA261107},
+  url       = {https://ebooks.iospress.nl/doi/10.3233/FAIA261107}
+}
+```
 
 ## Safety
 
 FinSight summarises evidence. It is not an investment adviser and must not be the sole basis for trading decisions.
+

@@ -2,11 +2,11 @@
 
 语言：[English](../llm-response.md) | 中文
 
-`scripts/llm_response.py` 是 FinSight 下游工具，用紧凑的 Query Intelligence 证据生成前端可直接消费的 JSON。它可以读取已有 record，也可以先从原始 query 跑 Query Intelligence。
+`scripts/llm_response.py` 是 FinSight 下游工具（对应发表论文 *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*，FAIA 第 433 卷 / DMI 2026，DOI：[`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107) 中的受约束 LLM 总结与追问预测模块），用紧凑的 Query Intelligence 证据生成前端可直接消费的 JSON。它可以读取已有 record，也可以先从原始 query 跑 Query Intelligence。
 
 它不属于 NLU/Retrieval 主干，不应重新推断意图、目标实体或 source plan。
 
-本页记录当前 checkout 中旧版的本地 HuggingFace/transformers 回答交接路径。本地网页 Chatbot 和 OpenAI-compatible LLM API 路径见 [本地网页 Chatbot](frontend-chatbot.md)。DeepSeek 是默认 provider 示例，不是架构限制。
+本页记录本地 HuggingFace/transformers 回答交接脚本路径。浏览器研究工作台、OpenAI 兼容 `/chat` 接口以及带逐句校验的 LangGraph 研究 Agent（`/agent/chat*`）分别见 [本地网页 Chatbot](frontend-chatbot.md) 与 [Agent 层](agent.md)。DeepSeek 是默认 provider 示例，不是架构限制。
 
 ## 输出
 

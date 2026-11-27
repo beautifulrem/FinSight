@@ -2,11 +2,11 @@
 
 Languages: English | [中文](zh/llm-response.md)
 
-`scripts/llm_response.py` is a downstream FinSight utility that produces frontend-ready JSON from compact Query Intelligence evidence. It can consume an existing record or run Query Intelligence first from a raw query.
+`scripts/llm_response.py` is a downstream FinSight utility (implementing the constrained LLM summarization and follow-up question prediction stage in *FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*, FAIA Vol. 433 / DMI 2026, DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)) that produces frontend-ready JSON from compact Query Intelligence evidence. It can consume an existing record or run Query Intelligence first from a raw query.
 
 It is outside the NLU/Retrieval backbone. It must not re-infer intent, targets, or source plans.
 
-This page documents the legacy local HuggingFace/transformers handoff path in the current checkout. The browser chatbot and OpenAI-compatible LLM API path are documented separately in [Local Frontend Chatbot](frontend-chatbot.md). DeepSeek is the default provider example, not an architectural limit.
+This page documents the local HuggingFace/transformers handoff script. The browser workspace, OpenAI-compatible `/chat` endpoint, and verified LangGraph research agent (`/agent/chat*`) are documented in [Local Frontend Chatbot](frontend-chatbot.md) and [Agent Layer](agent.md). DeepSeek is the default API provider example, not an architectural limit.
 
 ## Outputs
 

@@ -1,6 +1,6 @@
 # FinSight Presentation Outline
 
-Use this as the clean source for a short project presentation. It is aligned with the current implementation: Query Intelligence is the explainable backend, while the local browser chatbot is a downstream frontend wrapper.
+Use this as the clean source for a short project or conference presentation (*FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence*, published in *Frontiers in Artificial Intelligence and Applications*, Vol. 433: *Digitalization and Management Innovation V*, DMI 2026, IOS Press; DOI: [`10.3233/FAIA261107`](https://ebooks.iospress.nl/doi/10.3233/FAIA261107)). Query Intelligence is the explainable backend core, while the browser UI and LangGraph research agent consume its typed evidence artifacts downstream.
 
 ## 1. Project Motivation
 
@@ -26,9 +26,9 @@ Query Intelligence owns:
 
 Downstream modules consume those artifacts:
 
-- Local browser chatbot: `GET /` and `POST /chat`.
-- LLM API response polishing over compact evidence. DeepSeek is the default provider example, not a hard dependency.
-- Sentiment analysis over retrieved documents.
+- Browser workspace (`frontend/`, served at `GET /`) via verified streaming agent (`POST /agent/chat/stream`), LLM-free claim check (`POST /agent/claim-check`), or classic `POST /chat`.
+- LLM API response polishing / tool orchestration over compact evidence. DeepSeek is the default provider example, not a hard dependency.
+- Sentiment analysis over retrieved documents (`sentiment/`).
 - Optional local-transformers handoff via `scripts/llm_response.py`.
 
 ## 3. Architecture
@@ -53,7 +53,7 @@ Key implementation paths:
 - `query_intelligence/retrieval/`
 - `query_intelligence/retrieval/market_analyzer.py`
 - `query_intelligence/api/app.py`
-- `query_intelligence/chat/` and `query_intelligence/web/static/`
+- `frontend/` (`query_intelligence/web/dist/`), `query_intelligence/chat/`, and `query_intelligence/web/static/`
 - `query_intelligence/agent/`
 - `sentiment/`
 
