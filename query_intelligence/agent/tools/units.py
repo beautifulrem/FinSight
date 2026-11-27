@@ -23,6 +23,7 @@ the evaluation replays recorded outputs through the same registry.
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -55,7 +56,11 @@ PERCENT_METRICS = frozenset(
         "revenue_yoy",
         "profit_yoy",
         "debt_to_assets",
+        "debt_ratio",
+        "liability_ratio",
         "dividend_yield",
+        "dv_ratio",
+        "dv_ttm",
         "pct_change",
         "turnover",
         "turnover_rate",
@@ -83,9 +88,20 @@ PER_SHARE_METRICS = frozenset({"eps", "bps", "dividend_per_share"})
 # rates that are legitimately small (pct_change, turnover, *_yoy) are never rescaled.
 _FRACTION_LIMIT = 1.0
 _FRACTION_CANDIDATES = frozenset(
-    {"roe", "roa", "roic", "gross_margin", "grossprofit_margin", "net_margin", "netprofit_margin", "debt_to_assets"}
+    {
+        "roe",
+        "roa",
+        "roic",
+        "gross_margin",
+        "grossprofit_margin",
+        "net_margin",
+        "netprofit_margin",
+        "debt_to_assets",
+        "debt_ratio",
+        "liability_ratio",
+    }
 )
-_PERCENT_SOURCES = ("tushare", "akshare", "sina", "ths", "eastmoney", "efinance", "cninfo")
+_PERCENT_SOURCES = ("tushare", "akshare", "sina", "ths", "eastmoney", "efinance", "cninfo", "postgres")
 
 
 def _source_key(*candidates: Any) -> str:
@@ -100,9 +116,10 @@ def _number(value: Any) -> float | None:
     if value is None or isinstance(value, bool):
         return None
     try:
-        return float(value)
+        parsed = float(value)
     except (TypeError, ValueError):
         return None
+    return parsed if math.isfinite(parsed) else None
 
 
 def normalise_market(data: dict[str, Any], *, source: str | None = None) -> dict[str, Any]:

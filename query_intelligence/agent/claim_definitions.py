@@ -102,7 +102,7 @@ _QUANTITIES: tuple[tuple[str, str], ...] = (
 _QUANTITY = "|".join(f"(?:{pattern})" for _name, pattern in _QUANTITIES)
 _QUANTITY_LOOKUP = tuple((name, re.compile(rf"(?:{pattern})$", re.I)) for name, pattern in _QUANTITIES)
 _FILLER_ZH = r"(?:用|以|拿|将|公司(?:的)?|当期|期末|期初|报告期|加权平均(?:的)?|平均(?:的)?|全部|一家公司(?:的)?)*"
-_FILLER_EN = r"(?:(?:the|a|its|their|company's|a company's|firm's|average|period-end|current|annual|weighted)\s+)*"
+_FILLER_EN = r"(?:(?:the|a|its|their|company's|firm's|average|period-end|current|annual|weighted)\s+)*"
 _Q = rf"{_FILLER_ZH}{_FILLER_EN}(?P<{{name}}>{_QUANTITY})"
 
 _HEADS: tuple[tuple[str, str], ...] = (

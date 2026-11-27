@@ -112,14 +112,20 @@ INDICATORS: dict[str, _Indicator] = {
         "1年期贷款市场报价利率(LPR)",
         "%",
         "macro_monthly",
-        (_Series("macro_china_lpr", ("TRADE_DATE",), ("LPR1Y",)),),
+        (
+            _Series("interest_rate_lpr_em", ("日期", "TRADE_DATE"), ("1年期LPR", "LPR1Y")),
+            _Series("macro_china_lpr", ("TRADE_DATE", "日期"), ("LPR1Y", "1年期LPR")),
+        ),
     ),
     "LPR5Y_CN": _Indicator(
         "LPR5Y_CN",
         "5年期以上贷款市场报价利率(LPR)",
         "%",
         "macro_monthly",
-        (_Series("macro_china_lpr", ("TRADE_DATE",), ("LPR5Y",)),),
+        (
+            _Series("interest_rate_lpr_em", ("日期", "TRADE_DATE"), ("5年期以上LPR", "LPR5Y")),
+            _Series("macro_china_lpr", ("TRADE_DATE", "日期"), ("LPR5Y", "5年期以上LPR")),
+        ),
     ),
 }
 

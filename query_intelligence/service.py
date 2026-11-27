@@ -16,6 +16,11 @@ class QueryIntelligenceService:
         self.nlu_pipeline = nlu_pipeline
         self.retrieval_pipeline = retrieval_pipeline
 
+    def close(self) -> None:
+        close_fn = getattr(self.retrieval_pipeline, "close", None)
+        if callable(close_fn):
+            close_fn()
+
     def analyze_query(
         self,
         query: str,

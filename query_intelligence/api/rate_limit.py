@@ -167,8 +167,10 @@ class PostgresTokenBucket:
     def _warn(self, exc: Exception) -> None:
         now = time.monotonic()
         if now - self._last_warning >= 60.0:
+            from .readiness import describe_error
+
             self._last_warning = now
-            logger.warning("shared rate limiter unavailable, limiting per replica: %s", exc)
+            logger.warning("shared rate limiter unavailable, limiting per replica: %s", describe_error(exc))
 
     def close(self) -> None:
         close = getattr(self.pool, "close", None)
@@ -190,6 +192,7 @@ def build_rate_limiter(rate_per_minute: int, *, dsn: str | None = None) -> Token
     if not dsn:
         return TokenBucket(rate_per_minute)
     from ..agent.pg import open_pool
+    from .readiness import describe_error
 
     pool = None
     try:
@@ -198,7 +201,7 @@ def build_rate_limiter(rate_per_minute: int, *, dsn: str | None = None) -> Token
     except Exception as exc:
         if pool is not None:
             pool.close()
-        logger.warning("shared rate limiter unavailable at start-up, limiting per replica: %s", exc)
+        logger.warning("shared rate limiter unavailable at start-up, limiting per replica: %s", describe_error(exc))
         return TokenBucket(rate_per_minute)
     logger.info("[startup] Rate limit shared through Postgres (%d/min per client).", rate_per_minute)
     return limiter

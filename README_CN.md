@@ -216,7 +216,7 @@ python -m scripts.chaos_drill --scenario sources           # 对运行中的服�
 | `GET /metrics`、`/health`、`/ready` | Prometheus 指标、存活检查、就绪检查（含离线数据层） |
 | `POST /chat`、`/nlu/analyze`、`/retrieval/search` | 原聊天接口，以及经典 NLU 与检索产物 |
 
-全部接口见 [docs/zh/features.md](docs/zh/features.md#api)；schema 位于 `schemas/agent_*.schema.json`。
+全部接口见 [docs/zh/features.md](docs/zh/features.md#api)；schema 位于 `schemas/agent_*.schema.json`、`schemas/nlu_result.schema.json` 与 `schemas/retrieval_result.schema.json`（`EntityItem.symbol` 限定为最长 64 字符的 `^[A-Za-z0-9._-]+$` 代码格式，`EvidenceItem` 包含 `source_id`、`source_mode`、`fallback_reason` 与 `cache_hit` 数据溯源字段）。
 
 ## 文档
 

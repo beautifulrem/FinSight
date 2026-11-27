@@ -156,13 +156,15 @@ class ToolContext:
     ) -> dict[str, Any]:
         from ...query_terms import INDUSTRY_TERMS
 
-        normalized_query = query or " ".join(names or symbols or [])
-        return {
+        sym_list = list(symbols or [])
+        name_list = list(names or [])
+        normalized_query = query or " ".join(name_list or sym_list)
+        bundle_dict: dict[str, Any] = {
             "query_id": "agent-tool",
             "normalized_query": normalized_query,
             "keywords": list(keywords or []),
-            "entity_names": list(names or []),
-            "symbols": list(symbols or []),
+            "entity_names": name_list,
+            "symbols": sym_list,
             "industry_terms": [term for term in INDUSTRY_TERMS if term in normalized_query],
             "source_plan": list(source_plan),
             "product_type": product_type,
@@ -170,6 +172,12 @@ class ToolContext:
             "topic_labels": [],
             "time_scope": "unspecified",
         }
+        if sym_list and len(sym_list) == len(name_list):
+            bundle_dict["entity_targets"] = [
+                {"symbol": sym, "canonical_name": name, "entity_type": product_type}
+                for sym, name in zip(sym_list, name_list, strict=True)
+            ]
+        return bundle_dict
 
     def fetch_structured(self, bundle: dict[str, Any]) -> list[dict]:
         key = repr(
@@ -186,9 +194,17 @@ class ToolContext:
             cached = self._structured_cache.get(key)
             if cached and cached[0] > now:
                 return cached[1]
+            if cached is not None:
+                self._structured_cache.pop(key, None)
         items = self.retrieval_pipeline.fetch_structured(bundle)
         if not provider_warnings(items):
             with self._lock:
+                if len(self._structured_cache) >= 256:
+                    expired = [k for k, (exp, _) in self._structured_cache.items() if exp <= now]
+                    for k in expired:
+                        self._structured_cache.pop(k, None)
+                    while len(self._structured_cache) >= 256:
+                        self._structured_cache.pop(next(iter(self._structured_cache)), None)
                 self._structured_cache[key] = (now + self.structured_ttl_s, items)
         return items
 

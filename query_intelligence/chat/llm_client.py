@@ -178,13 +178,21 @@ def make_answer_language_repair_messages(query: str, output: dict[str, Any]) -> 
 
 
 def _compact_document(item: dict[str, Any]) -> dict[str, Any]:
+    from ..agent.injection import sanitize_document_text
+
+    def _clean(field: Any, limit: int) -> str | None:
+        if field is None:
+            return None
+        cleaned, _ = sanitize_document_text(str(field)[:limit])
+        return cleaned
+
     return {
         "evidence_id": item.get("evidence_id"),
         "source_type": item.get("source_type"),
         "source_name": item.get("source_name"),
-        "title": item.get("title"),
-        "summary": item.get("summary"),
-        "text_excerpt": item.get("text_excerpt"),
+        "title": _clean(item.get("title"), 300),
+        "summary": _clean(item.get("summary"), 600),
+        "text_excerpt": _clean(item.get("text_excerpt"), 1200),
         "publish_time": item.get("publish_time"),
         "source_url": item.get("source_url"),
     }
@@ -236,9 +244,7 @@ def normalize_llm_answer(output: dict[str, Any], record: dict[str, Any], *, mode
     evidence_used_raw = output.get("evidence_used") or []
     allowed_ids = _evidence_ids(record)
     evidence_used = [
-        str(item).strip()
-        for item in evidence_used_raw
-        if str(item).strip() and (not allowed_ids or str(item).strip() in allowed_ids)
+        str(item).strip() for item in evidence_used_raw if str(item).strip() and str(item).strip() in allowed_ids
     ]
     return {
         "answer": answer,

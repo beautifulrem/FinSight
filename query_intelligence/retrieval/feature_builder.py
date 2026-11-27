@@ -121,14 +121,25 @@ class FeatureBuilder:
             "ticker_hit": ticker_hit,
         }
 
-    def _recency_score(self, publish_time: str | None) -> float:
+    def _parse_publish_time(self, publish_time: str | datetime | object | None) -> datetime | None:
         if not publish_time:
-            return 0.3
+            return None
+        if isinstance(publish_time, datetime):
+            return publish_time
+        if hasattr(publish_time, "isoformat") and not isinstance(publish_time, str):
+            publish_time = publish_time.isoformat()
+        if not isinstance(publish_time, str):
+            return None
         try:
-            published = datetime.fromisoformat(publish_time.replace("Z", "+00:00"))
-            age_days = max((datetime.now(tz=published.tzinfo) - published).days, 0)
+            return datetime.fromisoformat(publish_time.replace("Z", "+00:00"))
         except (ValueError, TypeError):
+            return None
+
+    def _recency_score(self, publish_time: str | datetime | None) -> float:
+        published = self._parse_publish_time(publish_time)
+        if published is None:
             return 0.3
+        age_days = max((datetime.now(tz=published.tzinfo) - published).days, 0)
         return round(max(0.05, math.exp(-0.693 * age_days / 60)), 4)
 
     def _char_ngram_similarity(self, text_a: str, text_b: str, n: int = 3) -> float:
@@ -167,14 +178,11 @@ class FeatureBuilder:
                     hits += 1
         return round(hits / max(total, 1), 4) if total else 0.5
 
-    def _time_window_match(self, publish_time: str | None, time_scope: str) -> float:
-        if not publish_time:
+    def _time_window_match(self, publish_time: str | datetime | None, time_scope: str) -> float:
+        published = self._parse_publish_time(publish_time)
+        if published is None:
             return 0.3
-        try:
-            published = datetime.fromisoformat(publish_time.replace("Z", "+00:00"))
-            age_days = max((datetime.now(tz=published.tzinfo) - published).days, 0)
-        except (ValueError, TypeError):
-            return 0.3
+        age_days = max((datetime.now(tz=published.tzinfo) - published).days, 0)
         target_days = TIME_SCOPE_DAYS.get(time_scope, 30)
         if age_days <= target_days:
             return 1.0

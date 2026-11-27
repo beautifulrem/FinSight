@@ -198,6 +198,74 @@ describe("session ids are issued by the server (round 18, N9)", () => {
     await vi.waitFor(() => expect(bodies).toHaveLength(1));
     expect(bodies[0]).not.toHaveProperty("session_id");
   });
+
+  it("clears a wedged session_id after a 404 on /agent/chat/stream so the next turn succeeds", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    let streamCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("/health")) return json(200, { status: "ok" });
+      if (url.startsWith("/agent/sessions/s1")) {
+        return json(200, { session_id: "s1", turns: TURNS.slice(0, 1), pending_clarification: null });
+      }
+      if (url === "/agent/chat/stream") {
+        streamCalls += 1;
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        bodies.push(body);
+        if (streamCalls === 1) {
+          return json(404, { detail: "session s1 not found" });
+        }
+        const answer = { ...PRICE_ANSWER, session_id: "fresh2", turn_index: 0 };
+        const events = [
+          ["session", { session_id: "fresh2" }],
+          ["answer", answer],
+          ["done", { session_id: "fresh2" }],
+        ] as const;
+        const text = events.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join("");
+        return new Response(text, { status: 200, headers: { "Content-Type": "text/event-stream" } });
+      }
+      return json(404, { detail: "not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.localStorage.setItem(STORAGE_KEYS.session, "s1");
+
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText("已恢复本会话的 1 轮历史");
+
+    await user.type(screen.getByRole("textbox"), "长江电力收盘价{Enter}");
+    await vi.waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]!.session_id).toBe("s1");
+    await vi.waitFor(() => expect(window.localStorage.getItem(STORAGE_KEYS.session)).toBeNull());
+
+    await user.type(screen.getByRole("textbox"), "长江电力收盘价{Enter}");
+    await vi.waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[1]).not.toHaveProperty("session_id");
+  });
+
+  it("clears previous principal session and turn archive when the API key changes", async () => {
+    const { bodies } = streamServer();
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole("textbox"), "长江电力收盘价{Enter}");
+    await screen.findAllByRole("article");
+    expect(window.localStorage.getItem(STORAGE_KEYS.session)).toBe("issued1");
+    expect(loadArchive("issued1")).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    const keyInput = await screen.findByLabelText("API Key");
+    await user.clear(keyInput);
+    await user.type(keyInput, "k2");
+    await user.tab();
+
+    await vi.waitFor(() => expect(window.localStorage.getItem(STORAGE_KEYS.session)).toBeNull());
+    expect(loadArchive("issued1")).toEqual([]);
+    await user.keyboard("{Escape}");
+
+    await user.type(screen.getByRole("textbox"), "茅台收盘价{Enter}");
+    await vi.waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[1]).not.toHaveProperty("session_id");
+  });
 });
 
 describe("session id persistence (round 12)", () => {

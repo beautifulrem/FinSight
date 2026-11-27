@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from decimal import Decimal
 import logging
+import math
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -15,7 +17,11 @@ class MarketAnalyzer:
         if len(history) < 2:
             return payload
 
-        closes = [row.get("close") for row in history if row.get("close") is not None]
+        closes = [
+            parsed
+            for row in history
+            if (parsed := self._to_float(row.get("close"))) is not None
+        ]
         if len(closes) < 2:
             return payload
 
@@ -306,8 +312,9 @@ class MarketAnalyzer:
     def _to_float(value: Any) -> float | None:
         if value is None or isinstance(value, bool):
             return None
-        if isinstance(value, (int, float)):
-            return float(value)
+        if isinstance(value, (int, float, Decimal)):
+            parsed = float(value)
+            return parsed if math.isfinite(parsed) else None
         if isinstance(value, str):
             text = value.strip().replace(",", "")
             if not text:
@@ -315,9 +322,10 @@ class MarketAnalyzer:
             if text.endswith("%"):
                 text = text[:-1]
             try:
-                return float(text)
+                parsed = float(text)
             except ValueError:
                 return None
+            return parsed if math.isfinite(parsed) else None
         return None
 
     @staticmethod
@@ -326,8 +334,8 @@ class MarketAnalyzer:
             "symbol": payload.get("symbol"),
             "canonical_name": payload.get("canonical_name"),
             "trade_date": payload.get("trade_date"),
-            "close": payload.get("close"),
-            "pct_change_1d": payload.get("pct_change_1d"),
+            "close": MarketAnalyzer._to_float(payload.get("close")),
+            "pct_change_1d": MarketAnalyzer._to_float(payload.get("pct_change_1d")),
             "trend_signal": analysis.get("trend_signal"),
             "rsi_14": analysis.get("rsi_14"),
             "ma5": analysis.get("ma5"),
@@ -367,7 +375,7 @@ class MarketAnalyzer:
     @staticmethod
     def _summarize_macro_indicator(payload: dict) -> dict[str, Any] | None:
         code = payload.get("indicator_code")
-        value = payload.get("metric_value")
+        value = MarketAnalyzer._to_float(payload.get("metric_value"))
         if not code:
             return None
         direction = "unknown"

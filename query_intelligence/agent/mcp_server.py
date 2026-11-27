@@ -122,6 +122,43 @@ async def _serve_stdio(server: Server) -> None:
         await server.run(read_stream, write_stream, server.create_initialization_options())
 
 
+def build_mcp_http_app(
+    server: Server,
+    *,
+    path: str = "/mcp",
+    host: str = "127.0.0.1",
+    security: Any = None,
+) -> Any:
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    from ..api.security import SecuritySettings, install_security
+
+    settings = security or SecuritySettings.from_env()
+    settings.validate()
+    loopback = host in {"127.0.0.1", "localhost", "::1"}
+    if not loopback and not settings.api_keys and not settings.allow_anonymous:
+        raise RuntimeError(
+            "MCP HTTP server bound to a non-loopback host requires QI_API_KEYS (or QI_ALLOW_ANONYMOUS=1)."
+        )
+    allowed_hosts = [item.strip() for item in os.getenv("QI_MCP_ALLOWED_HOSTS", "").split(",") if item.strip()]
+    transport_security = None
+    if allowed_hosts:
+        transport_security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=allowed_hosts,
+            allowed_origins=list(settings.cors_origins),
+        )
+    app = server.streamable_http_app(
+        streamable_http_path=path,
+        stateless_http=True,
+        host=host,
+        max_request_body_size=settings.max_request_bytes,
+        transport_security=transport_security,
+    )
+    install_security(app, settings)
+    return app
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Serve FinSight agent tools over MCP.")
     parser.add_argument("--transport", choices=["stdio", "http"], default="stdio")
@@ -142,7 +179,7 @@ def main(argv: list[str] | None = None) -> None:
 
     import uvicorn
 
-    app = server.streamable_http_app(streamable_http_path=args.path, stateless_http=True, host=args.host)
+    app = build_mcp_http_app(server, path=args.path, host=args.host)
     uvicorn.run(app, host=args.host, port=args.port)
 
 

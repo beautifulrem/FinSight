@@ -1043,17 +1043,76 @@ def test_js_engine_initialisation_survives_concurrent_first_use():
 
     pytest.importorskip("py_mini_racer")
     script = (
-        "import threading\n"
-        "from query_intelligence.integrations.sources.runtime import _run_with_timeout\n"
+        "import faulthandler, threading\n"
+        "faulthandler.dump_traceback_later(30, repeat=False)\n"
+        "from query_intelligence.integrations.sources.runtime import _run_with_timeout, default_call_pool\n"
         "import py_mini_racer\n"
+        "def eval_one():\n"
+        "    mr = py_mini_racer.MiniRacer()\n"
+        "    try:\n"
+        "        assert mr.eval('1+1') == 2\n"
+        "    finally:\n"
+        "        close_mr = getattr(mr, 'close', None)\n"
+        "        if callable(close_mr):\n"
+        "            close_mr()\n"
         "def work():\n"
         "    for _ in range(3):\n"
-        "        _run_with_timeout(lambda: py_mini_racer.MiniRacer().eval('1+1'), 30)\n"
+        "        _run_with_timeout(eval_one, 30)\n"
         "threads = [threading.Thread(target=work) for _ in range(8)]\n"
         "[t.start() for t in threads]; [t.join() for t in threads]\n"
-        "print('ok')\n"
+        "default_call_pool().shutdown()\n"
+        "faulthandler.cancel_dump_traceback_later()\n"
+        "print('ok', flush=True)\n"
     )
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120)
 
     assert result.returncode == 0, result.stderr[-500:]
     assert result.stdout.strip() == "ok"
+
+
+def test_js_engine_gate_caps_live_contexts_and_replays_evicted_setup():
+    """Only one V8 isolate stays live at a time, and unclosed akshare-style instances clean up under GC."""
+    import gc
+    import threading
+
+    py_mini_racer = pytest.importorskip("py_mini_racer")
+    from query_intelligence.integrations.sources.runtime import ensure_js_engine_ready
+
+    ensure_js_engine_ready()
+    context_mod = pytest.importorskip("py_mini_racer._context")
+
+    mr1 = py_mini_racer.MiniRacer()
+    mr1.eval("function decode(x) { return x + 10; }")
+    mr2 = py_mini_racer.MiniRacer()
+    mr2.eval("function decode(x) { return x * 3; }")
+    assert context_mod.context_count() <= 1
+    assert mr1.call("decode", 5) == 15
+    assert context_mod.context_count() <= 1
+    assert mr2.call("decode", 4) == 12
+    assert context_mod.context_count() <= 1
+    mr1.close()
+    mr2.close()
+    assert context_mod.context_count() == 0
+
+    errors: list[BaseException] = []
+
+    def unclosed_worker(offset: int) -> None:
+        try:
+            for step in range(6):
+                mr = py_mini_racer.MiniRacer()
+                mr.eval(f"function f(v) {{ return v + {offset + step}; }}")
+                assert mr.call("f", 2) == 2 + offset + step
+                assert context_mod.context_count() <= 1
+        except BaseException as exc:  # pragma: no cover - collected and re-raised on main thread
+            errors.append(exc)
+
+    workers = [threading.Thread(target=unclosed_worker, args=(i * 10,)) for i in range(8)]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join()
+    gc.collect()
+
+    assert not errors, errors
+    assert context_mod.context_count() == 0
+

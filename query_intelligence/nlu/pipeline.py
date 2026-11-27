@@ -427,9 +427,15 @@ class NLUPipeline:
         if requires_entity_clarification:
             risk_flags.append("clarification_required")
 
+        matched_rules = (
+            normalization_trace
+            + [item for item in entity_trace if ":" in item]
+            + ([f"question_style_ml:{question_style_score:.2f}"] if question_style_score is not None else [])
+            + ([f"clarification_ml:{clarification_score:.2f}"] if clarification_score is not None else [])
+        )
         explainability = {
-            "matched_rules": normalization_trace + [item for item in entity_trace if ":" in item] + ([f"question_style_ml:{question_style_score:.2f}"] if question_style_score is not None else []) + ([f"clarification_ml:{clarification_score:.2f}"] if clarification_score is not None else []),
-            "top_features": [item["label"] for item in intents[:2]] + slot_info["keywords"][:2],
+            "matched_rules": [str(item)[:256] for item in matched_rules[:64]],
+            "top_features": [str(item)[:256] for item in ([item["label"] for item in intents[:2]] + slot_info["keywords"][:2])[:64]],
         }
 
         confidence_parts = [product["score"]]
@@ -438,23 +444,23 @@ class NLUPipeline:
 
         return {
             "query_id": str(uuid4()),
-            "raw_query": raw_query,
-            "normalized_query": normalized_query,
+            "raw_query": raw_query[:2000],
+            "normalized_query": normalized_query[:2000],
             "question_style": question_style,
-            "product_type": {"label": product["label"], "score": product["score"]},
-            "intent_labels": intents,
-            "topic_labels": topics,
-            "entities": entities,
-            "comparison_targets": comparison_targets,
-            "keywords": slot_info["keywords"],
+            "product_type": {"label": str(product["label"])[:256], "score": product["score"]},
+            "intent_labels": intents[:64],
+            "topic_labels": topics[:64],
+            "entities": entities[:32],
+            "comparison_targets": [str(item)[:256] for item in comparison_targets[:64]],
+            "keywords": [str(item)[:256] for item in slot_info["keywords"][:64]],
             "time_scope": time_scope,
-            "forecast_horizon": slot_info["forecast_horizon"],
-            "sentiment_of_user": sentiment,
+            "forecast_horizon": str(slot_info["forecast_horizon"])[:256],
+            "sentiment_of_user": str(sentiment)[:256],
             "operation_preference": operation,
-            "required_evidence_types": plan["required_evidence_types"],
-            "source_plan": plan["source_plan"],
-            "risk_flags": risk_flags,
-            "missing_slots": slot_info["missing_slots"],
+            "required_evidence_types": [str(item)[:256] for item in plan["required_evidence_types"][:64]],
+            "source_plan": [str(item)[:256] for item in plan["source_plan"][:64]],
+            "risk_flags": [str(item)[:256] for item in risk_flags[:64]],
+            "missing_slots": [str(item)[:256] for item in slot_info["missing_slots"][:64]],
             "confidence": confidence,
             "explainability": explainability,
         }
@@ -462,10 +468,11 @@ class NLUPipeline:
     def _build_out_of_scope_result(
         self, query: str, normalized_query: str, out_of_scope_score: float, extra_rules: list[str] | None = None
     ) -> dict:
+        rules = [f"out_of_scope_ml:{out_of_scope_score:.2f}", *(extra_rules or [])]
         return {
             "query_id": str(uuid4()),
-            "raw_query": query,
-            "normalized_query": normalized_query,
+            "raw_query": query[:2000],
+            "normalized_query": normalized_query[:2000],
             "question_style": "fact",
             "product_type": {"label": "out_of_scope", "score": round(out_of_scope_score, 2)},
             "intent_labels": [],
@@ -483,7 +490,7 @@ class NLUPipeline:
             "missing_slots": [],
             "confidence": round(out_of_scope_score, 2),
             "explainability": {
-                "matched_rules": [f"out_of_scope_ml:{out_of_scope_score:.2f}", *(extra_rules or [])],
+                "matched_rules": [str(item)[:256] for item in rules[:64]],
                 "top_features": [],
             },
         }
@@ -1370,32 +1377,51 @@ class NLUPipeline:
             return [next(iter(resolved_by_id.values()))]
         return []
 
-    def _extract_strings(self, value: object) -> list[str]:
+    def _extract_strings(
+        self,
+        value: object,
+        *,
+        _depth: int = 0,
+        _out: list[str] | None = None,
+        max_depth: int = 6,
+        max_items: int = 32,
+        max_chars: int = 2000,
+    ) -> list[str]:
+        out = [] if _out is None else _out
+        if len(out) >= max_items or _depth > max_depth:
+            return out
         if isinstance(value, str):
-            return [value]
+            out.append(value[:max_chars])
+            return out
         if isinstance(value, dict):
-            strings: list[str] = []
             for nested in value.values():
-                strings.extend(self._extract_strings(nested))
-            return strings
+                if len(out) >= max_items:
+                    break
+                self._extract_strings(
+                    nested, _depth=_depth + 1, _out=out, max_depth=max_depth, max_items=max_items, max_chars=max_chars
+                )
+            return out
         if isinstance(value, (list, tuple, set)):
-            strings: list[str] = []
             for nested in value:
-                strings.extend(self._extract_strings(nested))
-            return strings
-        return []
+                if len(out) >= max_items:
+                    break
+                self._extract_strings(
+                    nested, _depth=_depth + 1, _out=out, max_depth=max_depth, max_items=max_items, max_chars=max_chars
+                )
+            return out
+        return out
 
     def _extract_dialog_context_strings(self, dialog_context: list) -> list[str]:
         strings: list[str] = []
-        for item in dialog_context:
+        for item in dialog_context[:32]:
             if not isinstance(item, dict):
                 continue
             role = item.get("role")
             if role and role != "user":
                 continue
             for field in ("content", "query", "text"):
-                if field in item:
-                    strings.extend(self._extract_strings(item[field]))
+                if field in item and len(strings) < 32:
+                    self._extract_strings(item[field], _out=strings)
         return strings
 
     def _extract_user_profile_strings(self, user_profile: dict) -> list[str]:
@@ -1421,8 +1447,8 @@ class NLUPipeline:
         }
         strings: list[str] = []
         for key, value in user_profile.items():
-            if key in profile_fields:
-                strings.extend(self._extract_strings(value))
+            if key in profile_fields and len(strings) < 32:
+                self._extract_strings(value, _out=strings)
         return strings
 
     def _tag_context_entity(self, entity: dict, source: str) -> dict:

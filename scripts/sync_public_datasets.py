@@ -59,6 +59,8 @@ def main() -> None:
             ),
             flush=True,
         )
+    if any(result.status == "failed" for result in results):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

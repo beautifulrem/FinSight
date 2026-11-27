@@ -73,6 +73,30 @@
           "default": null,
           "title": "Title"
         },
+        "title_withheld": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title Withheld"
+        },
+        "name_en": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name En"
+        },
         "source_name": {
           "anyOf": [
             {

@@ -68,11 +68,13 @@ class AKShareNewsProvider:
     def _normalize_symbol(self, symbol: str) -> str | None:
         if "." in symbol:
             code, exchange = symbol.split(".", 1)
-            if code.isdigit() and len(code) == 6 and exchange.upper() in {"SH", "SZ"}:
+            if code.isdigit() and len(code) == 6 and exchange.upper() in {"SH", "SZ", "BJ"}:
                 return f"{code}.{exchange.upper()}"
             return None
         if not symbol.isdigit() or len(symbol) != 6:
             return None
+        if symbol.startswith(("4", "8", "92")):
+            return f"{symbol}.BJ"
         if symbol.startswith(("6", "5")):
             return f"{symbol}.SH"
         return f"{symbol}.SZ"

@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 
+from .sources.values import is_missing, to_number
+
 
 def _rows_to_records(rows):
     if rows is None:
@@ -43,13 +45,13 @@ class EFinanceETFProvider:
             normalized.append(
                 {
                     "trade_date": self._normalize_date(row.get("日期")),
-                    "open": row.get("开盘"),
-                    "high": row.get("最高"),
-                    "low": row.get("最低"),
-                    "close": row.get("收盘"),
-                    "pct_change_1d": row.get("涨跌幅"),
-                    "volume": row.get("成交量"),
-                    "amount": row.get("成交额"),
+                    "open": to_number(row.get("开盘")),
+                    "high": to_number(row.get("最高")),
+                    "low": to_number(row.get("最低")),
+                    "close": to_number(row.get("收盘")),
+                    "pct_change_1d": to_number(row.get("涨跌幅")),
+                    "volume": to_number(row.get("成交量")),
+                    "amount": to_number(row.get("成交额")),
                 }
             )
         normalized.sort(key=lambda item: item.get("trade_date") or "", reverse=True)
@@ -74,19 +76,20 @@ class EFinanceETFProvider:
         }
 
     def _normalize_date(self, value: str | date | datetime | None) -> str | None:
-        if not value:
+        if not value or is_missing(value):
             return None
         if isinstance(value, datetime):
             return value.date().isoformat()
         if isinstance(value, date):
             return value.isoformat()
+        text = str(value)
         try:
-            return datetime.fromisoformat(value).date().isoformat()
+            return datetime.fromisoformat(text).date().isoformat()
         except ValueError:
             try:
-                return datetime.strptime(value, "%Y-%m-%d").date().isoformat()
+                return datetime.strptime(text, "%Y-%m-%d").date().isoformat()
             except ValueError:
-                return value
+                return text
 
 
 def _ensure_efinance_data_dir() -> None:

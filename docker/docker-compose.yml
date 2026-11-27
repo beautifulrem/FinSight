@@ -5,7 +5,7 @@
 #   OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318 \
 #     docker compose -f docker/docker-compose.yml --profile monitoring up --build
 #       # + Prometheus (alerts.yml loaded), Grafana with the FinSight dashboard, Jaeger
-#       # Grafana http://127.0.0.1:${GRAFANA_PORT:-3300} (anonymous admin, local use only),
+#       # Grafana http://127.0.0.1:${GRAFANA_PORT:-3300} (anonymous viewer, loopback bind by default),
 #       # Prometheus http://127.0.0.1:${PROMETHEUS_PORT:-9090}, Jaeger http://127.0.0.1:${JAEGER_PORT:-16686}
 # Monitoring configs are copied into the images at build time (dockerfile_inline) instead of bind-mounted,
 # so the profile also works where the Docker VM cannot see the checkout (colima, remote daemons).
@@ -20,7 +20,7 @@ services:
       args:
         WITH_TORCH: "${WITH_TORCH:-0}"
     ports:
-      - "${FINSIGHT_PORT:-8000}:8000"
+      - "${FINSIGHT_BIND_HOST:-127.0.0.1}:${FINSIGHT_PORT:-8000}:8000"
     environment:
       DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
       DEEPSEEK_BASE_URL: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
@@ -71,7 +71,7 @@ services:
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
-      - "${JAEGER_PORT:-16686}:16686"
+      - "${FINSIGHT_BIND_HOST:-127.0.0.1}:${JAEGER_PORT:-16686}:16686"
 
   prometheus:
     profiles: ["monitoring"]
@@ -81,7 +81,7 @@ services:
         FROM prom/prometheus:v3.15.0
         COPY prometheus.yml alerts.yml /etc/prometheus/
     ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+      - "${FINSIGHT_BIND_HOST:-127.0.0.1}:${PROMETHEUS_PORT:-9090}:9090"
     depends_on: [app]
 
   grafana:
@@ -94,11 +94,11 @@ services:
         COPY finsight-dashboard.json /var/lib/grafana/dashboards/finsight-dashboard.json
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/finsight-dashboard.json
     ports:
-      - "${GRAFANA_PORT:-3300}:3000"
+      - "${FINSIGHT_BIND_HOST:-127.0.0.1}:${GRAFANA_PORT:-3300}:3000"
     depends_on: [prometheus]
 
 volumes:

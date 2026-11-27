@@ -183,12 +183,15 @@ class MCPConnection:
                 f"MCP server {self.config.name} did not connect within {self.config.connect_timeout_s:g}s"
             ) from exc
 
-    def _target(self) -> Any:
+    def _target(self) -> tuple[Any, Any]:
         from mcp import StdioServerParameters
 
         if self.config.command:
-            return StdioServerParameters(
-                command=self.config.command, args=list(self.config.args), env=self.config.env, cwd=self.config.cwd
+            return (
+                StdioServerParameters(
+                    command=self.config.command, args=list(self.config.args), env=self.config.env, cwd=self.config.cwd
+                ),
+                None,
             )
         if self.config.headers:
             import httpx2  # the HTTP client the MCP SDK's transports use
@@ -197,15 +200,16 @@ class MCPConnection:
             # Same defaults as the SDK's own client (long read timeout for response streams); the per-call
             # limit is enforced by read_timeout_seconds in ``call``.
             http = httpx2.AsyncClient(headers=self.config.headers, timeout=httpx2.Timeout(30.0, read=300.0))
-            return streamable_http_client(self.config.url, http_client=http)
-        return self.config.url
+            return streamable_http_client(self.config.url, http_client=http), http
+        return self.config.url, None
 
     async def _run(self, ready: concurrent.futures.Future) -> None:
         """Owns the client context for its whole life: anyio scopes must be entered and exited in one task."""
         from mcp import Client
 
+        target, owned_http = self._target()
         try:
-            async with Client(self._target(), read_timeout_seconds=self.config.timeout_s) as client:
+            async with Client(target, read_timeout_seconds=self.config.timeout_s) as client:
                 tools = await _list_all_tools(client)
                 self.protocol_version, self.server_info = _session_info(client)
                 self._stop = asyncio.Event()
@@ -222,6 +226,9 @@ class MCPConnection:
                 raise
         finally:
             self._client = None
+            if owned_http is not None:
+                with contextlib.suppress(Exception):
+                    await owned_http.aclose()
 
     def call(self, tool: str, arguments: dict[str, Any]) -> Any:
         """``tools/call`` with the configured timeout; returns ``mcp.types.CallToolResult``."""
@@ -392,13 +399,13 @@ def result_to_output(
     skipped = sorted({str(getattr(block, "type", "unknown")) for block in result.content or []} - {"text"})
     text = "\n".join(texts).strip()
     if result.is_error:
-        message, _ = sanitize_untrusted_text(text or "remote tool error")
+        message, _ = sanitize_untrusted_text((text or "remote tool error")[:4000])
         raise ToolFailure("upstream_error", f"{config.name}/{tool}: {_short(message)}")
 
     structured = result.structured_content
     if isinstance(structured, dict) and set(structured) == {"result"} and structured["result"] == text:
         structured = None  # a plain string wrapped by the server: keep it as text
-    if structured is None and text.startswith(("{", "[")):
+    if structured is None and len(text) <= max(65536, config.max_text_chars * 8) and text.startswith(("{", "[")):
         with contextlib.suppress(json.JSONDecodeError):
             structured, text = json.loads(text), ""
 
@@ -442,14 +449,16 @@ def _sanitize_deep(value: Any, max_chars: int, flags: dict[str, bool], depth: in
     if depth > _MAX_DEPTH:
         return "[nested content omitted]"
     if isinstance(value, str):
-        cleaned, hit = sanitize_document_text(value)  # remote tool text is third-party: both layers
+        pre_limit = max(max_chars * 4, 4096)
+        bounded = value[:pre_limit] if len(value) > pre_limit else value
+        cleaned, hit = sanitize_document_text(bounded)  # remote tool text is third-party: both layers
         flags["hit"] = flags["hit"] or hit
-        return cleaned if len(cleaned) <= max_chars else f"{cleaned[: max_chars - 1]}…"
+        return cleaned if len(cleaned) <= max_chars and len(value) <= max_chars else f"{cleaned[: max_chars - 1]}…"
     if isinstance(value, dict):
         # Keys are third-party text too (they become JSON the LLM reads).
         result = {}
         for key, item in list(value.items())[:_MAX_LIST_ITEMS]:
-            clean_key, hit = sanitize_untrusted_text(str(key))
+            clean_key, hit = sanitize_untrusted_text(str(key)[:256])
             flags["hit"] = flags["hit"] or hit
             result[clean_key[:80]] = _sanitize_deep(item, max_chars, flags, depth + 1)
         return result
