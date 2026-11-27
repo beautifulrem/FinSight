@@ -8,6 +8,7 @@ import json
 import logging
 from pathlib import Path
 import subprocess
+import threading
 import time
 from types import SimpleNamespace
 from typing import Any
@@ -814,3 +815,46 @@ def test_artifact_writer_sanitizes_query_id_and_handles_same_instant_writes(tmp_
     assert first_dir.is_relative_to(writer.output_dir)
     assert second_dir.is_relative_to(writer.output_dir)
     assert first_dir != second_dir
+
+
+def test_agent_chat_stream_timeout_defers_close_until_pending_next_finishes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SSE timeout while next() is still running on a worker thread must not call generator.close() concurrently."""
+    monkeypatch.setenv("QI_AGENT_REQUEST_TIMEOUT_S", "0.05")
+    unblock_worker = threading.Event()
+    closed = threading.Event()
+
+    class _SlowStreamAgent:
+        runtime = None
+
+        def _lock(self, _sid: str) -> threading.RLock:
+            return threading.RLock()
+
+        def owner_of(self, _sid: str) -> None:
+            return None
+
+        def pending_clarification(self, _sid: str) -> None:
+            return None
+
+        def history(self, _sid: str) -> list[dict[str, Any]]:
+            return []
+
+        def stream(self, query: str, **_kwargs: Any):
+            try:
+                yield {"event": "session", "data": {"session_id": "s-slow"}}
+                unblock_worker.wait(timeout=2.0)
+                yield {"event": "done", "data": {"query": query}}
+            finally:
+                closed.set()
+
+    app = create_app(
+        service=StubService(),
+        app_config={"deepseek": {"api_key": ""}},
+        agent_service=_SlowStreamAgent(),
+    )
+    with TestClient(app) as client:
+        resp = client.post("/agent/chat/stream", json={"query": "贵州茅台的市盈率是多少"})
+        assert resp.status_code == 200
+        assert "event: error" in resp.text
+        assert "agent did not finish within" in resp.text
+        unblock_worker.set()
+        assert closed.wait(timeout=2.0)

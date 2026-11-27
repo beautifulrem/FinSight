@@ -8,7 +8,7 @@ import sys
 import threading
 import time
 from collections.abc import AsyncIterator, Iterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -412,11 +412,14 @@ def create_app(
                 owner=owner,
             )
             deadline = time.monotonic() + request_timeout_s
+            pending_read: asyncio.Future[Any] | None = None
             try:
                 while True:
                     remaining = max(0.01, deadline - time.monotonic())
+                    pending_read = asyncio.ensure_future(asyncio.to_thread(next, stream_iter, None))
                     try:
-                        event = await asyncio.wait_for(asyncio.to_thread(next, stream_iter, None), timeout=remaining)
+                        event = await asyncio.wait_for(asyncio.shield(pending_read), timeout=remaining)
+                        pending_read = None
                     except TimeoutError:
                         yield _sse(
                             {
@@ -431,7 +434,18 @@ def create_app(
             finally:
                 close_iter = getattr(stream_iter, "close", None)
                 if callable(close_iter):
-                    await asyncio.to_thread(close_iter)
+                    if pending_read is not None and not pending_read.done():
+                        loop = asyncio.get_running_loop()
+
+                        def _close_when_done(fut: asyncio.Future[Any]) -> None:
+                            if not fut.cancelled():
+                                _ = fut.exception()
+                            with suppress(RuntimeError):
+                                loop.run_in_executor(None, close_iter)
+
+                        pending_read.add_done_callback(_close_when_done)
+                    else:
+                        await asyncio.to_thread(close_iter)
 
         return StreamingResponse(
             events(),
