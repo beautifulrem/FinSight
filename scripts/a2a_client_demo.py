@@ -103,13 +103,25 @@ async def run_demo(
     """Run the four steps and return a summary (used by the test)."""
     owns_client = http_client is None
     headers = {"X-API-Key": api_key} if api_key else {}
-    http = http_client or httpx.AsyncClient(timeout=httpx.Timeout(180.0), headers=headers)
+    http = http_client or httpx.AsyncClient(
+        timeout=httpx.Timeout(180.0), headers=headers, follow_redirects=not bool(api_key)
+    )
     if http_client is not None and headers:
         http.headers.update(headers)
     summary: dict[str, Any] = {}
     try:
         # 1. Discovery
         card = await A2ACardResolver(http, base_url).get_agent_card()
+        if api_key:
+            from urllib.parse import urlparse
+
+            expected_origin = (urlparse(base_url).scheme, urlparse(base_url).netloc)
+            for iface in card.supported_interfaces:
+                parsed_iface = urlparse(iface.url)
+                if (parsed_iface.scheme, parsed_iface.netloc) != expected_origin:
+                    raise ValueError(
+                        f"Refusing to send API key to cross-origin AgentCard interface URL: {iface.url!r}"
+                    )
         out(f"== Agent card: {card.name} {card.version}")
         out(f"   interface: {card.supported_interfaces[0].url} ({card.supported_interfaces[0].protocol_binding})")
         out(f"   streaming: {card.capabilities.streaming}; skills: {', '.join(skill.id for skill in card.skills)}")

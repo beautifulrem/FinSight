@@ -533,12 +533,17 @@ def test_build_frontend_response_trims_overlong_answer_text() -> None:
 
 
 def test_build_frontend_response_caps_evidence_used() -> None:
+    record = _sample_record()
+    record["retrieval_result"]["documents"] = [
+        {"evidence_id": f"E{i}", "source_type": "news", "title": f"Doc {i}", "summary": f"Summary {i}"}
+        for i in range(1, 9)
+    ]
     response = build_frontend_response(
-        _sample_record(),
+        record,
         {
             "answer": "主要受估值修复和行业情绪改善影响。",
             "key_points": [],
-            "evidence_used": ["E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8"],
+            "evidence_used": ["FAKE_ID", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8"],
             "limitations": [],
         },
         {"predictions": []},

@@ -11,11 +11,12 @@ import json
 import sys
 from pathlib import Path
 
-from query_intelligence.contracts import AgentChatRequest, AgentChatResponse, AgentResumeRequest
+from query_intelligence.contracts import AgentChatRequest, AgentChatResponse, AgentResumeRequest, NLUResult
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_DIR = ROOT / "schemas"
 MODELS = {
+    "nlu_result.schema.json": NLUResult,
     "agent_chat_request.schema.json": AgentChatRequest,
     "agent_resume_request.schema.json": AgentResumeRequest,
     "agent_chat_response.schema.json": AgentChatResponse,

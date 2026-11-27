@@ -41,6 +41,8 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.applications import Starlette
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from .rate_limit import DEFAULT_MAX_RATE_CLIENTS, TokenBucket, build_rate_limiter, rate_limit_dsn
 
@@ -200,14 +202,13 @@ def is_anonymous(principal: str) -> bool:
     return principal.startswith(ANON_PREFIX)
 
 
-def install_security(app: FastAPI, settings: SecuritySettings | None = None) -> SecuritySettings:
+def install_security(app: FastAPI | Starlette, settings: SecuritySettings | None = None) -> SecuritySettings:
     settings = settings or SecuritySettings.from_env()
     settings.validate()
     bucket = build_rate_limiter(settings.rate_limit_per_minute, dsn=settings.rate_limit_db)
     app.state.rate_limiter = bucket  # closed with the other shared stores at shutdown
     anonymous = AnonymousIdentity(settings.anon_cookie_secret)
 
-    @app.middleware("http")
     async def guard(request: Request, call_next):
         public = (
             (request.method, request.url.path) in PUBLIC_PATHS
@@ -237,7 +238,12 @@ def install_security(app: FastAPI, settings: SecuritySettings | None = None) -> 
             # rotating random keys does not buy fresh buckets.
             address = request.client.host if request.client else "unknown"
             client = request.state.principal if key_valid else f"ip:{address}"
-            wait = bucket.take(client)
+            if hasattr(bucket, "pool"):
+                import asyncio
+
+                wait = await asyncio.to_thread(bucket.take, client)
+            else:
+                wait = bucket.take(client)
             if wait > 0:
                 return JSONResponse(
                     {"detail": "rate limit exceeded"},
@@ -260,6 +266,7 @@ def install_security(app: FastAPI, settings: SecuritySettings | None = None) -> 
             )
         return response
 
+    app.add_middleware(BaseHTTPMiddleware, dispatch=guard)
     # added after the http middleware above, so it wraps it: oversized bodies never reach auth or routing
     app.add_middleware(BodyLimitMiddleware, max_bytes=settings.max_request_bytes)
     if settings.cors_origins:

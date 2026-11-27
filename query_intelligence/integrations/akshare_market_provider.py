@@ -119,9 +119,14 @@ class AKShareMarketProvider:
         end_date: str = "20261231",
     ) -> dict:
         plain_symbol = symbol.split(".")[0]
+        suffix = symbol.split(".")[1].upper() if "." in symbol else ""
+        if product_type == "stock" and (
+            (suffix == "SH" and plain_symbol.startswith("000")) or (suffix == "SZ" and plain_symbol.startswith("399"))
+        ):
+            product_type = "index"
         with self.runtime.trace() as market_attempts:
             market_rows, market_source_name, provider_warnings, market_endpoint = self._fetch_market_rows(
-                plain_symbol, product_type, start_date, end_date
+                symbol, product_type, start_date, end_date
             )
         latest = market_rows[0] if market_rows else {}
         is_fund_product = product_type in {"etf", "fund"}
@@ -133,10 +138,10 @@ class AKShareMarketProvider:
             industry_payload = self._safe_fetch_industry_snapshot(industry_name)
         if industry_name and not industry_payload:
             industry_payload = self._identity_industry_snapshot(plain_symbol, industry_name, company_info)
-        fundamental_payload = self._safe_fetch_fundamental_payload(plain_symbol) if product_type == "stock" else {}
+        fundamental_payload = self._safe_fetch_fundamental_payload(symbol) if product_type == "stock" else {}
         fund_payloads = self._safe_fetch_fund_payloads(plain_symbol) if is_fund_product else {}
-        index_payloads = self._safe_fetch_index_payloads(plain_symbol, market_rows) if is_index_product else {}
-        market_trace = self._market_api_trace(plain_symbol, product_type, market_endpoint, start_date, end_date)
+        index_payloads = self._safe_fetch_index_payloads(symbol, market_rows) if is_index_product else {}
+        market_trace = self._market_api_trace(symbol, product_type, market_endpoint, start_date, end_date)
         market_source_id = source_for_endpoint(market_endpoint)
 
         payload = {
@@ -243,9 +248,18 @@ class AKShareMarketProvider:
         start_date: str,
         end_date: str,
     ) -> dict:
-        query_params: dict[str, str] = {"symbol": symbol}
-        if endpoint in {"akshare.stock_zh_a_hist", "akshare.fund_etf_hist_em", "akshare.stock_zh_a_daily"}:
+        plain_symbol = symbol.split(".")[0]
+        query_params: dict[str, str] = {"symbol": plain_symbol}
+        if endpoint in {"akshare.stock_zh_a_hist", "akshare.fund_etf_hist_em"}:
             query_params.update({"period": "daily", "start_date": start_date, "end_date": end_date, "adjust": ""})
+        elif endpoint == "akshare.stock_zh_a_daily":
+            query_params = {
+                "symbol": self._prefixed(symbol),
+                "period": "daily",
+                "start_date": start_date,
+                "end_date": end_date,
+                "adjust": "",
+            }
         elif endpoint in {"akshare.stock_zh_index_daily", "akshare.fund_etf_hist_sina"}:
             query_params = {
                 "symbol": self._prefixed_index_symbol(symbol) if product_type == "index" else self._prefixed(symbol)
@@ -286,12 +300,13 @@ class AKShareMarketProvider:
     def _fetch_market_rows(
         self, symbol: str, product_type: str, start_date: str, end_date: str
     ) -> tuple[list[dict], str, list[str], str]:
+        plain_symbol = symbol.split(".")[0]
         provider_warnings: list[str] = []
         endpoint = self._default_market_endpoint(product_type)
         if product_type == "etf":
             rows, source_name, endpoint = self._fetch_etf_rows(symbol, start_date, end_date, provider_warnings)
         elif product_type == "fund":
-            rows = self._fetch_fund_rows(symbol, provider_warnings)
+            rows = self._fetch_fund_rows(plain_symbol, provider_warnings)
             source_name = "akshare"
         elif product_type == "index":
             rows, endpoint = self._fetch_index_rows(symbol, start_date, end_date, provider_warnings)
@@ -302,7 +317,7 @@ class AKShareMarketProvider:
                     "akshare.stock_zh_a_hist",
                     "stock_zh_a_hist",
                     provider_warnings,
-                    symbol=symbol,
+                    symbol=plain_symbol,
                     period="daily",
                     start_date=start_date,
                     end_date=end_date,
@@ -338,7 +353,7 @@ class AKShareMarketProvider:
         normalized.sort(key=lambda item: item.get("trade_date") or "", reverse=True)
         self._fill_missing_pct_change(normalized)
         if not normalized:
-            provider_warnings.append(f"market_provider_empty_rows:{source_name}:{symbol}")
+            provider_warnings.append(f"market_provider_empty_rows:{source_name}:{plain_symbol}")
         return normalized, source_name, list(dict.fromkeys(provider_warnings)), endpoint
 
     def _call_akshare(self, endpoint: str, method_name: str, provider_warnings: list[str], **kwargs):
@@ -451,6 +466,8 @@ class AKShareMarketProvider:
 
     def _fetch_sina_realtime_row(self, symbol: str, provider_warnings: list[str]) -> dict:
         prefixed_symbol = self._prefixed(symbol)
+        if not prefixed_symbol.isalnum():
+            raise ValueError(f"invalid symbol for sina quote: {symbol!r}")
         response = self._call_with_retry(
             "sina.hq_sinajs_cn",
             lambda: requests.get(
@@ -521,12 +538,13 @@ class AKShareMarketProvider:
         self, symbol: str, start_date: str, end_date: str, provider_warnings: list[str]
     ) -> tuple[object, str, str]:
         """ETF chain: Eastmoney -> Sina -> Tencent -> efinance."""
+        plain_symbol = symbol.split(".")[0]
         try:
             rows = self._call_akshare(
                 "akshare.fund_etf_hist_em",
                 "fund_etf_hist_em",
                 provider_warnings,
-                symbol=symbol,
+                symbol=plain_symbol,
                 period="daily",
                 start_date=start_date,
                 end_date=end_date,
@@ -578,15 +596,28 @@ class AKShareMarketProvider:
 
     def _prefixed(self, symbol: str) -> str:
         plain = symbol.split(".")[0]
+        suffix = symbol.split(".")[1].upper() if "." in symbol else ""
+        if suffix in {"SH", "SZ", "BJ"}:
+            return f"{suffix.lower()}{plain}"
+        if plain.startswith(("4", "8", "92")):
+            return f"bj{plain}"
         return f"sh{plain}" if plain.startswith(("5", "6", "9")) else f"sz{plain}"
 
     def _suffixed(self, symbol: str) -> str:
         plain = symbol.split(".")[0]
+        suffix = symbol.split(".")[1].upper() if "." in symbol else ""
+        if suffix in {"SH", "SZ", "BJ"}:
+            return f"{plain}.{suffix}"
+        if plain.startswith(("4", "8", "92")):
+            return f"{plain}.BJ"
         return f"{plain}.SH" if plain.startswith(("5", "6", "9")) else f"{plain}.SZ"
 
     def _prefixed_index_symbol(self, symbol: str) -> str:
         """Return Sina-style prefixed symbol for index APIs (sh000001 / sz399001)."""
         plain = symbol.split(".")[0]
+        suffix = symbol.split(".")[1].upper() if "." in symbol else ""
+        if suffix in {"SH", "SZ", "BJ"}:
+            return f"{suffix.lower()}{plain}"
         if plain.startswith(("0", "5", "6")):
             return f"sh{plain}"
         return f"sz{plain}"
@@ -595,14 +626,15 @@ class AKShareMarketProvider:
         self, symbol: str, start_date: str, end_date: str, provider_warnings: list[str]
     ) -> tuple[list[dict], str]:
         """Index chain: Sina -> Eastmoney history -> Tencent -> Eastmoney spot."""
+        plain_symbol = symbol.split(".")[0]
         prefixed = self._prefixed_index_symbol(symbol)
         steps = (
             ("stock_zh_index_daily", ({"symbol": prefixed},)),
             (
                 "index_zh_a_hist",
                 (
-                    {"symbol": symbol, "period": "daily", "start_date": start_date, "end_date": end_date},
-                    {"symbol": symbol},
+                    {"symbol": plain_symbol, "period": "daily", "start_date": start_date, "end_date": end_date},
+                    {"symbol": plain_symbol},
                 ),
             ),
             ("tencent", ()),
@@ -826,12 +858,13 @@ class AKShareMarketProvider:
         resolved against the reported revenue/net-profit levels and always recorded in provenance and
         as a provider warning.
         """
+        plain_symbol = symbol.split(".")[0]
         warnings: list[str] = []
         start_year = str(date.today().year - 1)
         sina_endpoint = "akshare.stock_financial_analysis_indicator"
         ths_endpoint = "akshare.stock_financial_abstract_ths"
-        sina_params: dict = {"symbol": symbol, "start_year": start_year}
-        ths_params: dict = {"symbol": symbol, "indicator": "按报告期"}
+        sina_params: dict = {"symbol": plain_symbol, "start_year": start_year}
+        ths_params: dict = {"symbol": plain_symbol, "indicator": "按报告期"}
         has_sina = hasattr(self.ak_module, "stock_financial_analysis_indicator")
         has_ths = hasattr(self.ak_module, "stock_financial_abstract_ths")
 
@@ -893,7 +926,7 @@ class AKShareMarketProvider:
         if check.disagrees or check.out_of_range:
             fields = ",".join(check.disagreeing_fields or check.out_of_range)
             payload["provider_warnings"] = [
-                f"fundamentals_cross_source_{check.status}:{symbol}:{fields}:served={served}"
+                f"fundamentals_cross_source_{check.status}:{plain_symbol}:{fields}:served={served}"
             ]
         if valuation.get("valuation_date"):
             payload["valuation_date"] = valuation["valuation_date"]
@@ -950,12 +983,13 @@ class AKShareMarketProvider:
         return {"report_date": latest, **periods[latest]}
 
     def _fetch_valuation(self, symbol: str) -> tuple[dict, dict | None]:
+        plain_symbol = symbol.split(".")[0]
         warnings: list[str] = []
         with self.runtime.trace() as attempts:
             if hasattr(self.ak_module, "stock_value_em"):
                 try:
                     rows = _rows_to_records(
-                        self._call_akshare("akshare.stock_value_em", "stock_value_em", warnings, symbol=symbol)
+                        self._call_akshare("akshare.stock_value_em", "stock_value_em", warnings, symbol=plain_symbol)
                     )
                     dated = [row for row in rows if self._normalize_date(row.get("数据日期"))]
                     if dated:
@@ -990,7 +1024,10 @@ class AKShareMarketProvider:
         """PE(TTM) and PB from the Tencent quote (fields 39 and 46, timestamp field 30)."""
         if self.http_get is None:
             return {}
+        plain_symbol = symbol.split(".")[0]
         prefixed = self._prefixed(symbol)
+        if not prefixed.isalnum():
+            return {}
         response = self._call_with_retry(
             "tencent.qt_quote",
             lambda: self.http_get(f"{TENCENT_QUOTE_URL}{prefixed}", headers=_BROWSER_HEADERS, timeout=self.timeout),
@@ -1000,7 +1037,7 @@ class AKShareMarketProvider:
         text = response.content.decode("gbk", errors="replace") if hasattr(response, "content") else response.text
         _, _, body = text.partition("=")
         fields = body.strip().strip('";').split("~")
-        if len(fields) < 47 or fields[2] != symbol:
+        if len(fields) < 47 or fields[2] != plain_symbol:
             return {}
         pe_ttm, pb = to_number(fields[39]), to_number(fields[46])
         if pe_ttm is None and pb is None:
@@ -1042,19 +1079,21 @@ class AKShareMarketProvider:
         return {"fund_nav_payload": nav_payload, **payloads}
 
     def _safe_fetch_index_payloads(self, symbol: str, market_rows: list[dict]) -> dict:
+        plain_symbol = symbol.split(".")[0]
         return {
             "index_daily_payload": self._build_index_daily_payload(symbol, market_rows),
-            "index_valuation_payload": self._fetch_index_valuation_payload(symbol),
+            "index_valuation_payload": self._fetch_index_valuation_payload(plain_symbol),
         }
 
     def _build_index_daily_payload(self, symbol: str, market_rows: list[dict]) -> dict:
+        plain_symbol = symbol.split(".")[0]
         latest = market_rows[0] if market_rows else {}
         trace = self._api_trace("akshare.stock_zh_index_daily", {"symbol": self._prefixed_index_symbol(symbol)})
         return {
             "source_name": "akshare",
             "provider": "akshare",
             **trace,
-            "symbol": symbol,
+            "symbol": plain_symbol,
             "trade_date": latest.get("trade_date"),
             "open": latest.get("open"),
             "high": latest.get("high"),

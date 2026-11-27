@@ -10,6 +10,7 @@ Device selection: CUDA > MPS > CPU.
 from __future__ import annotations
 
 import logging
+import threading
 from collections import Counter
 from typing import Any
 
@@ -66,6 +67,7 @@ class SentimentClassifier:
         self._device = device or _detect_device()
         self._max_sentences = max_sentences
         self._models: dict[str, Any] = {}  # lang -> pipeline
+        self._load_lock = threading.Lock()
         logger.info("SentimentClassifier device=%s max_sentences=%s", self._device, self._max_sentences)
 
     # ------------------------------------------------------------------
@@ -81,14 +83,17 @@ class SentimentClassifier:
         if model_id is None:
             raise ValueError(f"Unsupported language: {language}")
 
-        logger.info("Loading %s model: %s", language, model_id)
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
-        model = AutoModelForSequenceClassification.from_pretrained(model_id)
-        model.to(self._device)
-        model.eval()
+        with self._load_lock:
+            if language in self._models:
+                return self._models[language]
+            logger.info("Loading %s model: %s", language, model_id)
+            tokenizer = AutoTokenizer.from_pretrained(model_id)
+            model = AutoModelForSequenceClassification.from_pretrained(model_id)
+            model.to(self._device)
+            model.eval()
 
-        self._models[language] = (tokenizer, model)
-        return self._models[language]
+            self._models[language] = (tokenizer, model)
+            return self._models[language]
 
     def _infer_single(self, text: str, language: str) -> dict[str, float]:
         """Run inference on a single text and return label→score dict."""

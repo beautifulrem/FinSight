@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 
 SCHEMA_VERSION = "1.0"
+_SAFE_SLUG = re.compile(r"[^A-Za-z0-9_-]+")
 
 
 @dataclass
@@ -26,10 +29,24 @@ class ArtifactWriter:
         message_id: str | None = None,
     ) -> dict:
         query_id = str(nlu_result["query_id"])
-        created_at = datetime.now(timezone.utc).isoformat()
-        run_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{query_id[:8]}"
-        run_dir = self.output_dir / run_id
-        run_dir.mkdir(parents=True, exist_ok=False)
+        safe_prefix = _SAFE_SLUG.sub("", query_id)[:8] or "query"
+        now = datetime.now(timezone.utc)
+        created_at = now.isoformat()
+        base_run_id = f"{now.strftime('%Y%m%d-%H%M%S-%f')}-{safe_prefix}"
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        run_id = base_run_id
+        for attempt in range(8):
+            candidate = (self.output_dir / run_id).resolve()
+            if not candidate.is_relative_to(self.output_dir):
+                raise ValueError(f"unsafe artifact run_id: {run_id!r}")
+            try:
+                candidate.mkdir(parents=False, exist_ok=False)
+                run_dir = candidate
+                break
+            except FileExistsError:
+                if attempt == 7:
+                    raise
+                run_id = f"{base_run_id}-{uuid4().hex[:6]}"
 
         query_path = run_dir / "query.txt"
         nlu_path = run_dir / "nlu_result.json"

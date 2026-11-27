@@ -11,8 +11,17 @@ const apiKeyInput = document.getElementById("api-key-input");
 const sessionIdEl = document.getElementById("session-id");
 const submitText = button.textContent;
 
-const STORAGE = { mode: "finsight.mode", session: "finsight.session", apiKey: "finsight.apiKey" };
+const STORAGE = { mode: "finsight.mode", session: "finsight.session" };
+const LEGACY_API_KEY_STORAGE = "finsight.apiKey";
 let pendingClarification = null;
+let inMemoryApiKey = "";
+
+try {
+  window.localStorage.removeItem(LEGACY_API_KEY_STORAGE);
+  window.sessionStorage.removeItem(LEGACY_API_KEY_STORAGE);
+} catch (_) {
+  /* storage may be unavailable */
+}
 
 function storageGet(key, fallback = "") {
   try {
@@ -24,19 +33,20 @@ function storageGet(key, fallback = "") {
 
 function storageSet(key, value) {
   try {
-    window.localStorage.setItem(key, value);
+    if (value) window.localStorage.setItem(key, value);
+    else window.localStorage.removeItem(key);
   } catch (_) {
     /* storage may be unavailable (private mode); the page still works */
   }
 }
 
-function newSessionId() {
-  const random = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : String(Date.now());
-  return random.replaceAll("-", "");
-}
+let sessionId = storageGet(STORAGE.session);
 
-let sessionId = storageGet(STORAGE.session) || newSessionId();
-storageSet(STORAGE.session, sessionId);
+function setSession(nextId) {
+  sessionId = nextId || "";
+  storageSet(STORAGE.session, sessionId);
+  sessionIdEl.textContent = sessionId || "(new session)";
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -215,7 +225,7 @@ function setLoading(loading) {
 
 function requestHeaders() {
   const headers = { "Content-Type": "application/json" };
-  const key = storageGet(STORAGE.apiKey);
+  const key = inMemoryApiKey || apiKeyInput.value.trim();
   if (key) headers["X-API-Key"] = key;
   return headers;
 }
@@ -258,17 +268,33 @@ async function runAgentResume(reply) {
     headers: requestHeaders(),
     body: JSON.stringify({ session_id: sessionId, reply }),
   });
-  if (!res.ok) throw new Error(await readError(res));
-  handleAgentResult(await res.json());
+  if (!res.ok) {
+    if (res.status === 404) {
+      setSession("");
+      pendingClarification = null;
+    }
+    throw new Error(await readError(res));
+  }
+  const body = await res.json();
+  if (body.session_id) setSession(body.session_id);
+  handleAgentResult(body);
 }
 
 async function runAgentStream(query, mode) {
+  const payloadBody = { query, mode };
+  if (sessionId) payloadBody.session_id = sessionId;
   const res = await fetch("/agent/chat/stream", {
     method: "POST",
     headers: requestHeaders(),
-    body: JSON.stringify({ query, session_id: sessionId, mode }),
+    body: JSON.stringify(payloadBody),
   });
-  if (!res.ok || !res.body) throw new Error(await readError(res));
+  if (!res.ok || !res.body) {
+    if (res.status === 404 && sessionId) {
+      setSession("");
+      pendingClarification = null;
+    }
+    throw new Error(await readError(res));
+  }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -287,6 +313,9 @@ async function runAgentStream(query, mode) {
       if (!event || !payload) continue;
       const data = JSON.parse(payload[1]);
       switch (event[1]) {
+        case "session":
+          if (data.session_id) setSession(data.session_id);
+          break;
         case "step":
           setStatus(data.label, true);
           addStep(data.label);
@@ -298,10 +327,12 @@ async function runAgentStream(query, mode) {
           if (!data.ok) addStep(`✗ ${data.tool}: ${(data.error && data.error.code) || "failed"}`);
           break;
         case "clarification":
+          if (data.session_id) setSession(data.session_id);
           handleAgentResult({ status: "needs_clarification", clarification: data });
           finished = true;
           break;
         case "answer":
+          if (data.session_id) setSession(data.session_id);
           handleAgentResult(data);
           finished = true;
           break;
@@ -354,9 +385,7 @@ form.addEventListener("submit", async (event) => {
 modeSelect.value = storageGet(STORAGE.mode, "auto") || "auto";
 modeSelect.addEventListener("change", () => storageSet(STORAGE.mode, modeSelect.value));
 newSessionButton.addEventListener("click", () => {
-  sessionId = newSessionId();
-  storageSet(STORAGE.session, sessionId);
-  sessionIdEl.textContent = sessionId;
+  setSession("");
   pendingClarification = null;
   appendMessage("bot", '<div class="answer-text">Started a new session; earlier questions are no longer used as context.</div>');
 });
@@ -365,9 +394,15 @@ settingsToggle.addEventListener("click", () => {
   settingsPanel.hidden = !open;
   settingsToggle.setAttribute("aria-expanded", String(open));
 });
-apiKeyInput.value = storageGet(STORAGE.apiKey);
-apiKeyInput.addEventListener("change", () => storageSet(STORAGE.apiKey, apiKeyInput.value.trim()));
-sessionIdEl.textContent = sessionId;
+apiKeyInput.addEventListener("change", () => {
+  const nextKey = apiKeyInput.value.trim();
+  if (nextKey !== inMemoryApiKey) {
+    setSession("");
+    pendingClarification = null;
+  }
+  inMemoryApiKey = nextKey;
+});
+sessionIdEl.textContent = sessionId || "(new session)";
 
 const welcomeBubble = messagesEl.querySelector(".bubble");
 if (welcomeBubble) attachCopyButton(welcomeBubble);

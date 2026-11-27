@@ -385,7 +385,33 @@ def _command(module: str, argv: list[str] | None) -> str:
 # connection string are never recorded.
 _ENV_PREFIXES = ("QI_",)
 _ENV_NAMES = ("DEEPSEEK_MODEL",)
-_ENV_SECRET = ("KEY", "SECRET", "TOKEN", "PASSWORD", "PASSWD", "DSN", "URL", "URI", "AUTH", "COOKIE")
+_ENV_SECRET = (
+    "KEY",
+    "SECRET",
+    "TOKEN",
+    "PASSWORD",
+    "PASSWD",
+    "DSN",
+    "URL",
+    "URI",
+    "AUTH",
+    "COOKIE",
+    "_DB",
+    "MCP_SERVERS",
+)
+
+
+def _looks_secret_value(value: str) -> bool:
+    lowered = value.lower()
+    return (
+        "://" in value
+        or "password=" in lowered
+        or "authorization" in lowered
+        or "bearer " in lowered
+        or "api-key" in lowered
+        or "api_key" in lowered
+        or value.startswith("sk-")
+    )
 
 
 def env_toggles(environ: dict[str, str] | None = None) -> dict[str, str]:
@@ -398,6 +424,7 @@ def env_toggles(environ: dict[str, str] | None = None) -> dict[str, str]:
         for name, value in sorted(source.items())
         if (name.startswith(_ENV_PREFIXES) or name in _ENV_NAMES)
         and not any(marker in name.upper() for marker in _ENV_SECRET)
+        and not _looks_secret_value(value)
     }
 
 

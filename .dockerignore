@@ -15,6 +15,10 @@
 # Secrets and local environments
 .env
 .env.*
+**/.env
+**/.env.*
+config/*.local*
+config/*secret*
 .venv
 venv
 env
@@ -32,9 +36,11 @@ coverage_html
 # Frontend: the UI ships as the committed build in query_intelligence/web/dist, so the image needs
 # neither node_modules nor the TypeScript sources.
 frontend
+tools
 
 # Runtime outputs, reports and large local data
 outputs
+state
 reports
 tmp
 temp

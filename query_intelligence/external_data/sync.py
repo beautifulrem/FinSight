@@ -48,7 +48,7 @@ def sync_source(source: DatasetSource, raw_root: Path) -> SyncResult:
                 _extract_zip_files(target_dir)
         if source.source_id == "smp2017":
             _extract_zip_files(target_dir)
-        if source.source_id == "thucnews":
+        if source.source_id == "thucnews" or source.source_type == "direct_http":
             _extract_7z_files(target_dir)
         return SyncResult(source_id=source.source_id, status="cached", output_dir=str(target_dir))
 
@@ -56,23 +56,37 @@ def sync_source(source: DatasetSource, raw_root: Path) -> SyncResult:
         target_dir.mkdir(parents=True, exist_ok=True)
         return SyncResult(source_id=source.source_id, status="skipped", output_dir=str(target_dir))
 
-    if source.source_type == "huggingface_dataset":
-        download_huggingface_dataset(source.entrypoint, target_dir, allow_patterns=_allow_patterns_for_source(source.source_id))
-        _materialize_script_backed_dataset(source.source_id, target_dir)
-        if source.source_id == "dailydialog":
-            _extract_zip_files(target_dir)
-    elif source.source_type in ("github_repo", "github_release"):
-        branch = source.version if source.version != "default" else "main"
-        download_github_repo(source.entrypoint, target_dir, branch=branch)
-        if source.source_id == "smp2017":
-            _extract_zip_files(target_dir)
-    elif source.source_type == "direct_http":
-        filename = source.version if "." in source.version else "download.bin"
-        output_path = download_http_file(source.entrypoint, target_dir, filename=filename)
-        if output_path.suffix.lower() == ".7z":
-            _extract_7z_files(target_dir)
-    else:
+    if source.source_type not in ("huggingface_dataset", "github_repo", "github_release", "direct_http"):
         return SyncResult(source_id=source.source_id, status="unsupported")
+
+    staging_dir = target_dir.parent / f".{source.version}.syncing"
+    if staging_dir.exists():
+        shutil.rmtree(staging_dir, ignore_errors=True)
+    target_dir.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        if source.source_type == "huggingface_dataset":
+            download_huggingface_dataset(
+                source.entrypoint, staging_dir, allow_patterns=_allow_patterns_for_source(source.source_id)
+            )
+            _materialize_script_backed_dataset(source.source_id, staging_dir)
+            if source.source_id == "dailydialog":
+                _extract_zip_files(staging_dir)
+        elif source.source_type in ("github_repo", "github_release"):
+            branch = source.version if source.version != "default" else "main"
+            download_github_repo(source.entrypoint, staging_dir, branch=branch)
+            if source.source_id == "smp2017":
+                _extract_zip_files(staging_dir)
+        elif source.source_type == "direct_http":
+            filename = source.version if "." in source.version else "download.bin"
+            output_path = download_http_file(source.entrypoint, staging_dir, filename=filename)
+            if output_path.suffix.lower() == ".7z":
+                _extract_7z_files(staging_dir)
+        if target_dir.exists():
+            shutil.rmtree(target_dir)
+        staging_dir.replace(target_dir)
+    except Exception:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        raise
 
     return SyncResult(source_id=source.source_id, status="downloaded", output_dir=str(target_dir))
 
@@ -105,7 +119,7 @@ def download_github_repo(repo_url: str, target_dir: Path, *, branch: str = "main
     if target_dir.exists() and (target_dir / ".git").exists():
         return target_dir
     subprocess.run(
-        ["git", "clone", "--depth", "1", "--branch", branch, repo_url, str(target_dir)],
+        ["git", "clone", "--depth", "1", "--branch", branch, "--", repo_url, str(target_dir)],
         check=True,
         timeout=SUBPROCESS_TIMEOUT_SECONDS,
     )
@@ -173,16 +187,12 @@ def _materialize_script_backed_dataset(source_id: str, target_dir: Path) -> None
     if not urls:
         return
     qrels_dir = target_dir / "qrels" if source_id == "fiqa" else target_dir
-    if source_id == "fiqa":
-        existing_qrels = list(qrels_dir.glob("*.tsv"))
-        if len(existing_qrels) >= len(urls):
-            return
-    else:
-        existing_data_files = [path for path in target_dir.rglob("*") if path.is_file() and path.suffix.lower() in {".txt", ".csv", ".tsv", ".json", ".jsonl", ".parquet"} and path.name != "README.md"]
-        if existing_data_files:
-            return
     for url in urls:
-        download_http_file(url, qrels_dir)
+        expected_name = Path(unquote(urlparse(url).path)).name or "download.bin"
+        expected_path = qrels_dir / expected_name
+        if expected_path.is_file() and expected_path.stat().st_size > 0:
+            continue
+        download_http_file(url, qrels_dir, filename=expected_name)
     if source_id == "smp2017":
         _extract_zip_files(target_dir)
 
@@ -297,6 +307,35 @@ def _extract_zip_files(target_dir: Path) -> None:
             raise
 
 
+def _inspect_7z_archive(path: Path, extract_dir: Path) -> None:
+    """Pre-validate 7z archive members (paths, symlinks, count, and uncompressed size) before extraction."""
+    import json
+
+    completed = subprocess.run(
+        ["lsar", "-json", "--", str(path)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=SUBPROCESS_TIMEOUT_SECONDS,
+    )
+    info = json.loads(completed.stdout or "{}")
+    contents = info.get("lsarContents")
+    if not isinstance(contents, list):
+        raise ValueError(f"unable to inspect 7z archive metadata for {path}")
+    total_size = 0
+    for entry in contents:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("XADFileName") or "")
+        if name:
+            _safe_archive_target(extract_dir, name)
+        mode = int(entry.get("XADPosixPermissions") or 0)
+        if entry.get("XADLinkDestination") or stat.S_ISLNK(mode):
+            raise ValueError(f"Blocked unsafe 7z symlink member: {name!r}")
+        total_size += max(0, int(entry.get("XADFileSize") or 0))
+    _validate_archive_limits(len(contents), total_size)
+
+
 def _extract_7z_files(target_dir: Path) -> None:
     for path in target_dir.rglob("*.7z"):
         extract_dir = path.with_suffix("")
@@ -305,8 +344,9 @@ def _extract_7z_files(target_dir: Path) -> None:
         tmp_dir = _fresh_extract_dir(path)
         tmp_dir.mkdir(parents=True)
         try:
+            _inspect_7z_archive(path, tmp_dir)
             subprocess.run(
-                ["unar", "-quiet", "-output-directory", str(tmp_dir), str(path)],
+                ["unar", "-quiet", "-output-directory", str(tmp_dir), "--", str(path)],
                 check=True,
                 timeout=SUBPROCESS_TIMEOUT_SECONDS,
             )

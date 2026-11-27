@@ -176,10 +176,13 @@ class AgentService:
         state = self.runtime.initial_state(query, mode=mode, user_profile=user_profile, dialog_context=dialog_context)
         state["owner"] = owner
         events: queue.Queue[dict[str, Any] | None] = queue.Queue()
+        locked = threading.Event()
 
         def run() -> None:
             with self._lock(session):
+                locked.set()
                 try:
+                    self._check_owner(session, owner)
                     graph_input: Any = state
                     if self._answers_pending_clarification(session, query):
                         graph_input = Command(resume=query.strip())
@@ -193,13 +196,21 @@ class AgentService:
                         for event in self._chunk_events(session, chunk, owner):
                             events.put(event)
                 except Exception as exc:  # surfaced to the client as an error event
+                    from ..api.readiness import describe_error
+
                     logger.exception("agent stream failed")
-                    events.put({"event": "error", "data": {"message": f"{type(exc).__name__}: {exc}"}})
+                    message = (
+                        "SessionAccessError: session access denied"
+                        if isinstance(exc, SessionAccessError)
+                        else describe_error(exc)
+                    )
+                    events.put({"event": "error", "data": {"message": message}})
                 finally:
                     events.put(None)
 
-        yield {"event": "session", "data": {"session_id": session}}
         threading.Thread(target=run, name=f"agent-stream-{session[:8]}", daemon=True).start()
+        locked.wait(timeout=5.0)
+        yield {"event": "session", "data": {"session_id": session}}
         while (event := events.get()) is not None:
             yield event
         yield {"event": "done", "data": {"session_id": session}}
@@ -240,6 +251,13 @@ class AgentService:
 
     def close(self) -> None:
         self.runtime.close()
+        conn = getattr(self.checkpointer, "conn", None)
+        close_conn = getattr(conn, "close", None)
+        if callable(close_conn):
+            try:
+                close_conn()
+            except Exception:
+                logger.warning("checkpointer close failed", exc_info=True)
 
     # ------------------------------------------------------------------ helpers
 

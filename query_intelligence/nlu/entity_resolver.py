@@ -613,6 +613,7 @@ class EntityResolver:
         return groups
 
     def _fuzzy_alias_mentions(self, query: str) -> list[dict]:
+        query = query[:512]
         raw_matches: list[dict] = []
         query_has_product_term = self._has_product_term(query)
         for alias in self._candidate_fuzzy_aliases(query, query_has_product_term):

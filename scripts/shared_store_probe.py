@@ -38,7 +38,14 @@ except ModuleNotFoundError:  # run as a file (python scripts/x.py): scripts/ its
 
 
 async def _client(base: str, http: httpx.AsyncClient) -> Any:
+    from urllib.parse import urlparse
+
     card = await A2ACardResolver(http, base).get_agent_card()
+    expected_origin = (urlparse(base).scheme, urlparse(base).netloc)
+    for iface in card.supported_interfaces:
+        parsed_iface = urlparse(iface.url)
+        if (parsed_iface.scheme, parsed_iface.netloc) != expected_origin:
+            raise ValueError(f"Refusing to send API key to cross-origin AgentCard interface URL: {iface.url!r}")
     return ClientFactory(ClientConfig(streaming=False, httpx_client=http)).create(card)
 
 
@@ -55,8 +62,8 @@ async def probe(replicas: list[str], key: str, other_key: str) -> dict[str, Any]
     checks: dict[str, Any] = {}
     timings: dict[str, float] = {}
     async with (
-        httpx.AsyncClient(timeout=120, headers={"X-API-Key": key}) as http_a,
-        httpx.AsyncClient(timeout=120, headers={"X-API-Key": other_key}) as http_b,
+        httpx.AsyncClient(timeout=120, headers={"X-API-Key": key}, follow_redirects=False) as http_a,
+        httpx.AsyncClient(timeout=120, headers={"X-API-Key": other_key}, follow_redirects=False) as http_b,
     ):
         a1, a2 = await _client(first, http_a), await _client(second, http_a)
         b2 = await _client(second, http_b)

@@ -52,7 +52,7 @@ class EastmoneyAnnouncementProvider:
         )
         response.raise_for_status()
         rows = ((response.json() or {}).get("data") or {}).get("list") or []
-        normalized_symbol = _suffixed(plain_symbol)
+        normalized_symbol = _suffixed(symbol)
         results = []
         for row in rows:
             codes = [str(item.get("stock_code")) for item in row.get("codes") or [] if isinstance(item, dict)]
@@ -168,8 +168,13 @@ def _fetcher(provider: object, symbol: str, limit: int) -> Callable[[], list[dic
     return fetch
 
 
-def _suffixed(plain_symbol: str) -> str:
-    return f"{plain_symbol}.SH" if plain_symbol.startswith(("5", "6", "9")) else f"{plain_symbol}.SZ"
+def _suffixed(symbol: str) -> str:
+    if "." in symbol:
+        code, exchange = symbol.split(".", 1)
+        return f"{code}.{exchange.upper()}"
+    if symbol.startswith(("4", "8", "92")):
+        return f"{symbol}.BJ"
+    return f"{symbol}.SH" if symbol.startswith(("5", "6", "9")) else f"{symbol}.SZ"
 
 
 def _eastmoney_time(value: object) -> str | None:

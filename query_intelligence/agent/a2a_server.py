@@ -54,10 +54,22 @@ def a2a_enabled() -> bool:
 
 
 def session_for_context(context_id: str | None) -> str | None:
-    """A2A context ids are UUIDs; agent session ids are hex without dashes."""
+    """A2A context ids are UUIDs; agent session ids are ASCII hex/alphanumeric without dashes."""
     if not context_id:
         return None
-    return "a2a" + "".join(ch for ch in context_id if ch.isalnum())[:60]
+    cleaned = "".join(ch for ch in context_id if ch.isascii() and ch.isalnum())[:60]
+    if not cleaned:
+        return None
+    return "a2a" + cleaned
+
+
+def _continuable_session(agent: Any, session_id: str, owner: str) -> bool:
+    """Constant-read session ownership check matching ``api.app._session_view`` (no existence oracle)."""
+    existing_owner = agent.owner_of(session_id)
+    turns = agent.history(session_id)
+    pending = agent.pending_clarification(session_id)
+    exists = existing_owner is not None or bool(turns) or pending is not None
+    return bool(exists and existing_owner in {None, owner})
 
 
 def answer_text(response: dict[str, Any]) -> str:
@@ -174,8 +186,14 @@ def build_executor(get_agent: Callable[[], Any], *, mode: str = "auto") -> Any:
     from a2a.server.tasks import TaskUpdater
     from a2a.types import TaskState
 
+    from ..api.readiness import describe_error
+    from ..contracts import MAX_QUERY_LENGTH
+    from .errors import SessionAccessError
+
     class FinSightAgentExecutor(AgentExecutor):
         async def execute(self, context: Any, event_queue: Any) -> None:
+            call_state = getattr(getattr(context, "call_context", None), "state", None)
+            incoming_context_id = str((call_state or {}).get("finsight_client_context_id") or "")
             task = context.current_task
             if task is None:
                 task = new_task_from_user_message(context.message)
@@ -185,18 +203,40 @@ def build_executor(get_agent: Callable[[], Any], *, mode: str = "auto") -> Any:
             if not query:
                 await updater.reject(updater.new_agent_message([new_text_part("Empty message.")]))
                 return
-            agent = get_agent()
-            session = session_for_context(task.context_id)
+            if len(query) > MAX_QUERY_LENGTH:
+                await updater.reject(
+                    updater.new_agent_message([new_text_part(f"Message exceeds {MAX_QUERY_LENGTH} characters.")])
+                )
+                return
+            agent = await asyncio.to_thread(get_agent)
             owner = principal_of_context(context)
+            if incoming_context_id:
+                session = session_for_context(incoming_context_id)
+                probe_session = session or "a2a"
+                allowed = await asyncio.to_thread(_continuable_session, agent, probe_session, owner)
+                if session is None or not allowed:
+                    await updater.reject(updater.new_agent_message([new_text_part("Context not found.")]))
+                    return
+            else:
+                session = session_for_context(task.context_id)
             await updater.start_work()
             try:
-                if task.status.state == TaskState.TASK_STATE_INPUT_REQUIRED and agent.pending_clarification(session):
+                if (
+                    task.status.state == TaskState.TASK_STATE_INPUT_REQUIRED
+                    and session is not None
+                    and await asyncio.to_thread(agent.pending_clarification, session)
+                ):
                     response = await asyncio.to_thread(agent.resume, session, query, owner=owner)
                 else:
                     response = await self._run_streamed(agent, updater, query, session, owner)
             except Exception as exc:  # surfaced to the A2A client as a failed task
                 logger.exception("A2A task failed")
-                await updater.failed(updater.new_agent_message([new_text_part(f"{type(exc).__name__}: {exc}")]))
+                failure = (
+                    "SessionAccessError: session access denied"
+                    if isinstance(exc, SessionAccessError)
+                    else describe_error(exc)
+                )
+                await updater.failed(updater.new_agent_message([new_text_part(failure)]))
                 return
 
             if response.get("status") == "needs_clarification":
@@ -272,6 +312,7 @@ def build_task_store() -> Any:
     An unreachable database falls back to memory with a warning, so the API still starts."""
     from a2a.server.tasks import InMemoryTaskStore
 
+    from ..api.readiness import describe_error
     from .pg import open_pool, store_dsn
 
     dsn = store_dsn("QI_A2A_TASK_DB")
@@ -283,8 +324,35 @@ def build_task_store() -> Any:
             logger.info("[startup] A2A tasks are stored in Postgres (shared by all replicas).")
             return store
         except Exception as exc:
-            logger.warning("[startup] A2A Postgres task store unavailable (%s); using the in-memory store.", exc)
-    return InMemoryTaskStore()
+            logger.warning(
+                "[startup] A2A Postgres task store unavailable (%s); using the in-memory store.",
+                describe_error(exc),
+            )
+    max_tasks = max(1, int(os.getenv("QI_A2A_MAX_MEMORY_TASKS", "2000")))
+
+    class BoundedInMemoryTaskStore(InMemoryTaskStore):
+        async def save(self, task: Any, context: Any) -> None:
+            await super().save(task, context)
+            impl = getattr(self, "_impl", None)
+            tasks_by_owner = getattr(impl, "tasks", None)
+            lock = getattr(impl, "lock", None)
+            if not isinstance(tasks_by_owner, dict) or lock is None:
+                return
+            with lock:
+                total = sum(len(bucket) for bucket in tasks_by_owner.values())
+                while total > max_tasks:
+                    largest_owner = max(tasks_by_owner, key=lambda key: len(tasks_by_owner[key]), default=None)
+                    if largest_owner is None or not tasks_by_owner[largest_owner]:
+                        break
+                    oldest_id = next(iter(tasks_by_owner[largest_owner]))
+                    if oldest_id == task.id and len(tasks_by_owner[largest_owner]) == 1:
+                        break
+                    del tasks_by_owner[largest_owner][oldest_id]
+                    if not tasks_by_owner[largest_owner]:
+                        del tasks_by_owner[largest_owner]
+                    total -= 1
+
+    return BoundedInMemoryTaskStore()
 
 
 def build_request_handler(executor: Any, task_store: Any, card: Any) -> Any:
@@ -315,6 +383,21 @@ def build_request_handler(executor: Any, task_store: Any, card: Any) -> Any:
         )
 
     class FinSightRequestHandler(DefaultRequestHandler):
+        async def on_message_send(self, params: Any, context: Any = None) -> Any:
+            raw_cid = str(getattr(getattr(params, "message", None), "context_id", "") or "")
+            state = getattr(context, "state", None)
+            if isinstance(state, dict):
+                state["finsight_client_context_id"] = raw_cid
+            return await super().on_message_send(params, context)
+
+        async def on_message_send_stream(self, params: Any, context: Any = None) -> Any:
+            raw_cid = str(getattr(getattr(params, "message", None), "context_id", "") or "")
+            state = getattr(context, "state", None)
+            if isinstance(state, dict):
+                state["finsight_client_context_id"] = raw_cid
+            async for event in super().on_message_send_stream(params, context):
+                yield event
+
         async def on_subscribe_to_task(self, params: Any, context: Any) -> Any:
             task = await self.task_store.get(params.id, context)  # owner-scoped: another caller's task is "not found"
             if task is None:

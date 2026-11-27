@@ -89,6 +89,9 @@ class ReadinessChecker:
             "checks": results,
         }
 
+    def close(self) -> None:
+        self._executor.shutdown(wait=False, cancel_futures=True)
+
 
 # ---- individual checks ----
 
@@ -189,7 +192,15 @@ def check_retrieval_index(service: Any) -> dict[str, Any]:
         if getattr(retriever, "vectorizer", None) is None or rows != len(documents):
             problems.append("TF-IDF index is not fitted to the corpus")
     elif hasattr(retriever, "connection"):
-        retriever.connection.execute("SELECT 1").fetchone()
+        conn = retriever.connection
+        if hasattr(conn, "connection") and callable(getattr(conn, "connection", None)):
+            timeout = float(os.getenv("QI_READY_DB_TIMEOUT_S", "3") or 3)
+            with conn.connection(timeout=timeout) as pooled:
+                pooled.execute("SELECT 1").fetchone()
+        else:
+            lock = getattr(retriever, "_lock", None) or threading.Lock()
+            with lock:
+                conn.execute("SELECT 1").fetchone()
         detail["database"] = "postgres"
     else:
         problems.append("unknown document retriever")

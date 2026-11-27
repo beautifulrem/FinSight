@@ -27,6 +27,30 @@ def build_chatbot_response(
         "nlu_result": pipeline_result["nlu_result"],
         "retrieval_result": pipeline_result["retrieval_result"],
     }
+    nlu = pipeline_result.get("nlu_result") or {}
+    if "out_of_scope_query" in (nlu.get("risk_flags") or []):
+        language = detect_query_language(query)
+        refusal = (
+            "This question is outside FinSight's financial research scope; FinSight only answers market, "
+            "fundamental, macro, fund/ETF, and disclosure questions."
+            if language == "en"
+            else "该问题超出金融研究范围，FinSight 仅回答股票、指数、基金/ETF、宏观经济与公告披露相关问题。"
+        )
+        point = (
+            "Out-of-scope query; no financial evidence or LLM generation was invoked."
+            if language == "en"
+            else "超出金融研究范围，未调用实时检索与大模型生成。"
+        )
+        return {
+            "answer": refusal,
+            "key_points": [point],
+            "risk_disclaimer": _default_risk_disclaimer(record),
+            "evidence_used": [],
+            "evidence_sources": [],
+            "llm": {"provider": "deepseek", "model": deepseek_client.model, "status": "skipped", "error": None},
+            "nlu_result": pipeline_result["nlu_result"],
+            "retrieval_result": pipeline_result["retrieval_result"],
+        }
     try:
         if progress:
             progress("DeepSeek: sending compact evidence for response polishing...")
@@ -41,6 +65,21 @@ def build_chatbot_response(
         llm_status = {"provider": "deepseek", "model": deepseek_client.model, "status": "fallback", "error": str(exc)}
     if progress:
         progress("Step 3/3: applying market freshness guard and formatting evidence sources...")
+    if llm_status["status"] == "ok":
+        from ..agent.compliance import _guards, _strip_trading_sentences, contains_trading_instruction
+
+        zh = detect_query_language(query) == "zh"
+        guards = _guards()
+        cleaned_text, _ = _strip_trading_sentences(str(answer.get("answer") or ""), zh=zh)
+        cleaned_text, _ = guards.strip_prohibited_promotion(cleaned_text, zh=zh)
+        cleaned_points = [
+            str(point)
+            for point in (answer.get("key_points") or [])
+            if str(point).strip()
+            and not contains_trading_instruction(str(point))
+            and not guards.contains_prohibited_promotion(str(point))
+        ]
+        answer = {**answer, "answer": cleaned_text, "key_points": cleaned_points}
     answer = apply_market_freshness_guard(answer, record, as_of_date=as_of_date)
     evidence_sources = build_evidence_sources(record, answer.get("evidence_used") or [])
     if progress:

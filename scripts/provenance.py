@@ -50,8 +50,34 @@ def commit_label(state: dict[str, Any] | None = None) -> str:
     return f"{state['commit']}{suffix}"
 
 
-# Names that can hold a credential or a connection string are never recorded.
-_SECRET_MARKERS = ("KEY", "SECRET", "TOKEN", "PASSWORD", "PASSWD", "DSN", "URL", "URI", "AUTH", "COOKIE")
+# Names and value patterns that can hold a credential or a connection string are never recorded.
+_SECRET_MARKERS = (
+    "KEY",
+    "SECRET",
+    "TOKEN",
+    "PASSWORD",
+    "PASSWD",
+    "DSN",
+    "URL",
+    "URI",
+    "AUTH",
+    "COOKIE",
+    "_DB",
+    "MCP_SERVERS",
+)
+
+
+def _looks_secret_value(value: str) -> bool:
+    lowered = value.lower()
+    return (
+        "://" in value
+        or "password=" in lowered
+        or "authorization" in lowered
+        or "bearer " in lowered
+        or "api-key" in lowered
+        or "api_key" in lowered
+        or value.startswith("sk-")
+    )
 
 
 def env_switches(environ: dict[str, str] | None = None) -> dict[str, str]:
@@ -63,5 +89,7 @@ def env_switches(environ: dict[str, str] | None = None) -> dict[str, str]:
     return {
         name: value
         for name, value in sorted(source.items())
-        if (name.startswith("QI_") or name == "DEEPSEEK_MODEL") and not any(m in name.upper() for m in _SECRET_MARKERS)
+        if (name.startswith("QI_") or name == "DEEPSEEK_MODEL")
+        and not any(m in name.upper() for m in _SECRET_MARKERS)
+        and not _looks_secret_value(value)
     }

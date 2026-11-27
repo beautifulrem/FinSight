@@ -18,6 +18,7 @@ import contextlib
 import contextvars
 import threading
 import time
+import weakref
 from collections.abc import Callable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
@@ -34,7 +35,223 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 _JS_ENGINE_LOCK = threading.Lock()
+_JS_CALL_RLOCK = threading.RLock()
+_JS_DEFERRED_LOCK = threading.Lock()
+_JS_DEFERRED_EXITS: list[Any] = []
+_JS_CALL_DEPTH = 0
+_JS_ACTIVE_REF: weakref.ReferenceType[Any] | None = None
+_JS_MAX_HISTORY = 32
 _js_engine_ready = False
+
+
+def _drain_deferred_js_exits() -> None:
+    global _JS_CALL_DEPTH
+    while True:
+        with _JS_DEFERRED_LOCK:
+            if not _JS_DEFERRED_EXITS:
+                return
+            maker = _JS_DEFERRED_EXITS.pop()
+        _JS_CALL_DEPTH += 1
+        try:
+            with contextlib.suppress(Exception):
+                maker.__exit__(None, None, None)
+        finally:
+            _JS_CALL_DEPTH -= 1
+
+
+@contextlib.contextmanager
+def _js_gate() -> Iterator[None]:
+    global _JS_CALL_DEPTH
+    _JS_CALL_RLOCK.acquire()
+    _JS_CALL_DEPTH += 1
+    try:
+        yield
+    finally:
+        _JS_CALL_DEPTH -= 1
+        if _JS_CALL_DEPTH == 0:
+            _drain_deferred_js_exits()
+        _JS_CALL_RLOCK.release()
+
+
+def _install_mini_racer_gate(cls: type[Any]) -> None:
+    """Serialize ``MiniRacer`` against ``--single-threaded`` V8 and keep at most one live isolate.
+
+    ``mini-racer >= 0.13`` initialises V8 14.4 with ``DEFAULT_V8_FLAGS = ("--single-threaded",)`` and
+    spawns a C++ ``IsolateManager`` thread plus a Python ``asyncio`` loop thread per ``MiniRacer``
+    instance. Concurrent context creation/evaluation/teardown across ``source-call`` worker threads can
+    deadlock V8 on multi-core Linux runners, and ``akshare`` decoders rely on GC rather than ``close()``.
+    Parking any previous live context before opening another keeps ``mr_context_count() <= 1`` while
+    replaying top-level ``eval`` setup scripts transparently if a parked instance is used again.
+    """
+    if getattr(cls, "_finsight_serialized", False):
+        return
+
+    orig_init = cls.__init__
+    orig_eval = cls.eval
+    orig_execute = getattr(cls, "execute", None)
+    orig_call = getattr(cls, "call", None)
+    orig_close = getattr(cls, "close", None)
+
+    if not callable(orig_close):
+        # Legacy py-mini-racer (<0.10) without explicit close/_own_context_maker: serialize calls only.
+        def _legacy_init(self: Any, *args: Any, **kwargs: Any) -> None:
+            with _js_gate():
+                orig_init(self, *args, **kwargs)
+
+        def _legacy_eval(self: Any, *args: Any, **kwargs: Any) -> Any:
+            with _js_gate():
+                return orig_eval(self, *args, **kwargs)
+
+        cls.__init__ = _legacy_init  # type: ignore[method-assign]
+        cls.eval = _legacy_eval  # type: ignore[method-assign]
+        if callable(orig_execute):
+
+            def _legacy_execute(self: Any, *args: Any, **kwargs: Any) -> Any:
+                with _js_gate():
+                    return orig_execute(self, *args, **kwargs)
+
+            cls.execute = _legacy_execute  # type: ignore[method-assign]
+        if callable(orig_call):
+
+            def _legacy_call(self: Any, *args: Any, **kwargs: Any) -> Any:
+                with _js_gate():
+                    return orig_call(self, *args, **kwargs)
+
+            cls.call = _legacy_call  # type: ignore[method-assign]
+        cls._finsight_serialized = True
+        return
+
+    def _park_instance(inst: Any) -> None:
+        maker = getattr(inst, "_own_context_maker", None)
+        inst._own_context_maker = None
+        inst._ctx = None
+        if maker is not None:
+            with contextlib.suppress(Exception):
+                maker.__exit__(None, None, None)
+
+    def _evict_other_active(target: Any) -> None:
+        global _JS_ACTIVE_REF
+        active = _JS_ACTIVE_REF() if _JS_ACTIVE_REF is not None else None
+        if active is not None and active is not target:
+            _park_instance(active)
+            _JS_ACTIVE_REF = None
+        elif active is None:
+            _JS_ACTIVE_REF = None
+
+    def _ensure_context(inst: Any) -> None:
+        global _JS_ACTIVE_REF
+        if getattr(inst, "_finsight_external_ctx", False) or getattr(inst, "_finsight_closed", False):
+            return
+        _evict_other_active(inst)
+        if getattr(inst, "_ctx", None) is None:
+            inst._finsight_internal_eval = True
+            try:
+                orig_init(inst)
+                for snippet in getattr(inst, "_finsight_history", ()):
+                    orig_eval(inst, snippet)
+            finally:
+                inst._finsight_internal_eval = False
+            _JS_ACTIVE_REF = weakref.ref(inst)
+
+    def _wrapped_init(self: Any, *args: Any, **kwargs: Any) -> None:
+        global _JS_ACTIVE_REF
+        has_external_ctx = bool(args and args[0] is not None) or (kwargs.get("context") is not None)
+        with _js_gate():
+            self._finsight_closed = False
+            self._finsight_external_ctx = has_external_ctx
+            self._finsight_history = []
+            self._finsight_internal_eval = True
+            try:
+                if not has_external_ctx:
+                    _evict_other_active(self)
+                orig_init(self, *args, **kwargs)
+            finally:
+                self._finsight_internal_eval = False
+            if not has_external_ctx:
+                _JS_ACTIVE_REF = weakref.ref(self)
+
+    def _wrapped_eval(self: Any, code: str, *args: Any, **kwargs: Any) -> Any:
+        with _js_gate():
+            _ensure_context(self)
+            result = orig_eval(self, code, *args, **kwargs)
+            if not getattr(self, "_finsight_internal_eval", False) and not getattr(
+                self, "_finsight_external_ctx", False
+            ):
+                history = getattr(self, "_finsight_history", None)
+                if isinstance(history, list) and len(history) < _JS_MAX_HISTORY:
+                    history.append(code)
+            return result
+
+    def _wrap_internal_call(fn: Callable[..., Any]) -> Callable[..., Any]:
+        def _method(self: Any, *args: Any, **kwargs: Any) -> Any:
+            with _js_gate():
+                _ensure_context(self)
+                prev = getattr(self, "_finsight_internal_eval", False)
+                self._finsight_internal_eval = True
+                try:
+                    return fn(self, *args, **kwargs)
+                finally:
+                    self._finsight_internal_eval = prev
+
+        return _method
+
+    def _wrapped_close(self: Any, *args: Any, **kwargs: Any) -> Any:
+        global _JS_ACTIVE_REF
+        with _js_gate():
+            self._finsight_closed = True
+            history = getattr(self, "_finsight_history", None)
+            if isinstance(history, list):
+                history.clear()
+            active = _JS_ACTIVE_REF() if _JS_ACTIVE_REF is not None else None
+            if active is self:
+                _JS_ACTIVE_REF = None
+            return orig_close(self, *args, **kwargs)
+
+    def _wrapped_del(self: Any) -> None:
+        global _JS_ACTIVE_REF, _JS_CALL_DEPTH
+        maker = getattr(self, "_own_context_maker", None)
+        self._own_context_maker = None
+        self._ctx = None
+        if maker is None:
+            return
+        if _JS_CALL_RLOCK.acquire(blocking=False):
+            _JS_CALL_DEPTH += 1
+            try:
+                active = _JS_ACTIVE_REF() if _JS_ACTIVE_REF is not None else None
+                if active is None or active is self:
+                    _JS_ACTIVE_REF = None
+                with contextlib.suppress(Exception):
+                    maker.__exit__(None, None, None)
+            finally:
+                _JS_CALL_DEPTH -= 1
+                if _JS_CALL_DEPTH == 0:
+                    _drain_deferred_js_exits()
+                _JS_CALL_RLOCK.release()
+        else:
+            with _JS_DEFERRED_LOCK:
+                _JS_DEFERRED_EXITS.append(maker)
+
+    cls.__init__ = _wrapped_init  # type: ignore[method-assign]
+    cls.eval = _wrapped_eval  # type: ignore[method-assign]
+    if callable(orig_execute):
+        cls.execute = _wrap_internal_call(orig_execute)  # type: ignore[method-assign]
+    if callable(orig_call):
+        cls.call = _wrap_internal_call(orig_call)  # type: ignore[method-assign]
+    for helper_name in (
+        "heap_stats",
+        "heap_snapshot",
+        "low_memory_notification",
+        "set_hard_memory_limit",
+        "set_soft_memory_limit",
+        "was_hard_memory_limit_reached",
+        "was_soft_memory_limit_reached",
+    ):
+        helper = getattr(cls, helper_name, None)
+        if callable(helper):
+            setattr(cls, helper_name, _wrap_internal_call(helper))
+    cls.close = _wrapped_close  # type: ignore[method-assign]
+    cls.__del__ = _wrapped_del  # type: ignore[method-assign]
+    cls._finsight_serialized = True
 
 
 def ensure_js_engine_ready() -> None:
@@ -42,9 +259,10 @@ def ensure_js_engine_ready() -> None:
 
     Several akshare functions (Sina daily bars and indices, cninfo profiles, ...) decode responses with
     ``py_mini_racer``. V8's process-wide allocator is not safe to initialise from two threads at once:
-    concurrent first use aborts the whole process (``Check failed: !pool->IsInitialized()``). Live calls
-    run on worker threads and the agent runs tools in parallel, so the first call initialises the
-    engine under a lock and every later call finds it ready. No-op when the package is missing.
+    concurrent first use aborts the whole process (``Check failed: !pool->IsInitialized()``), and
+    ``mini-racer >= 0.13`` runs V8 with ``--single-threaded`` where concurrent isolates can deadlock.
+    Live calls run on worker threads and the agent runs tools in parallel, so the first call installs
+    the serialization gate and warms the engine under a lock. No-op when the package is missing.
     """
     global _js_engine_ready
     if _js_engine_ready:
@@ -55,7 +273,14 @@ def ensure_js_engine_ready() -> None:
         try:
             import py_mini_racer
 
-            py_mini_racer.MiniRacer().eval("0")
+            _install_mini_racer_gate(py_mini_racer.MiniRacer)
+            mr = py_mini_racer.MiniRacer()
+            try:
+                mr.eval("0")
+            finally:
+                close_mr = getattr(mr, "close", None)
+                if callable(close_mr):
+                    close_mr()
         except Exception:  # missing package or unusable engine: the calls that need it fail on their own
             pass
         _js_engine_ready = True

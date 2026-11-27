@@ -209,7 +209,7 @@ Every review bug from round 3 onwards is listed in [docs/known-issues.md](docs/k
 | `GET /metrics`, `/health`, `/ready` | Prometheus metrics, liveness, readiness (incl. the offline data layers) |
 | `POST /chat`, `/nlu/analyze`, `/retrieval/search` | The original chatbot and the classical NLU and retrieval artifacts |
 
-Every endpoint is listed in [docs/features.md](docs/features.md#api); schemas are in `schemas/agent_*.schema.json`.
+Every endpoint is listed in [docs/features.md](docs/features.md#api); schemas are in `schemas/agent_*.schema.json`, `schemas/nlu_result.schema.json`, and `schemas/retrieval_result.schema.json` (`EntityItem.symbol` restricts tickers to `^[A-Za-z0-9._-]+$` up to 64 chars, and `EvidenceItem` carries provenance fields `source_id`, `source_mode`, `fallback_reason`, and `cache_hit`).
 
 ## Documentation
 

@@ -61,6 +61,8 @@ class CninfoAnnouncementProvider:
 
     def fetch_announcements(self, symbol: str, limit: int = 10) -> list[dict]:
         plain_symbol = symbol.split(".")[0]
+        suffix = symbol.split(".")[1].upper() if "." in symbol else ""
+        is_bj = suffix == "BJ" or (not suffix and plain_symbol.startswith(("4", "8", "92")))
         try:
             org_id = self._org_id(plain_symbol)
             response = self.session.post(
@@ -68,9 +70,9 @@ class CninfoAnnouncementProvider:
                 data={
                     "pageNum": 1,
                     "pageSize": limit if org_id else max(limit, 30),
-                    "column": "szse",
+                    "column": "third" if is_bj else "szse",
                     "tabName": "fulltext",
-                    "plate": "" if org_id else "sz;sh",
+                    "plate": "" if org_id else ("bj" if is_bj else "sz;sh"),
                     "stock": f"{plain_symbol},{org_id}" if org_id else f"{plain_symbol},",
                     "sortName": "",
                     "sortType": "",
@@ -163,12 +165,17 @@ class CninfoAnnouncementProvider:
             logger.info("Cninfo orgId lookup failed for %s: %s", plain_symbol, exc)
             return None
         with self._org_lock:
+            if len(self._org_ids) >= 2048:
+                self._org_ids.pop(next(iter(self._org_ids)))
             self._org_ids[plain_symbol] = org_id
         return org_id
 
     def _normalize_symbol(self, symbol: str) -> str:
         if "." in symbol:
-            return symbol
+            code, exchange = symbol.split(".", 1)
+            return f"{code}.{exchange.upper()}"
+        if symbol.startswith(("4", "8", "92")):
+            return f"{symbol}.BJ"
         if symbol.startswith(("6", "5")):
             return f"{symbol}.SH"
         return f"{symbol}.SZ"

@@ -82,7 +82,13 @@ export default function App() {
   const dark = themePref === "dark" || (themePref === "system" && prefersDark);
   const config = useMemo(() => ({ placeholder: meta("placeholder"), submitText: meta("submit-text") }), []);
 
-  const chat = useChat({ sessionId, mode, apiKey, onSession: setSessionId });
+  const clearSessionState = useCallback(() => {
+    writeStorage(STORAGE_KEYS.session, "");
+    clearArchive();
+    setSessionId(null);
+  }, []);
+
+  const chat = useChat({ sessionId, mode, apiKey, onSession: setSessionId, onSessionInvalidated: clearSessionState });
   const { items, pending, busy, send, stop, reset, setPending, restore } = chat;
 
   // Preferences ------------------------------------------------------------------------------
@@ -396,8 +402,14 @@ export default function App() {
             apiKey={apiKey}
             rememberKey={storedKey.remember}
             onApiKey={(key, remember) => {
+              const keyChanged = key.trim() !== apiKey.trim();
               setStoredKey({ key, remember });
               saveApiKey(key, remember);
+              if (keyChanged) {
+                clearSessionState();
+                setInspect((current) => ({ ...current, turnId: null, highlight: null }));
+                reset();
+              }
             }}
             sessionId={sessionId}
             lang={lang}

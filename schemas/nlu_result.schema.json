@@ -3,10 +3,12 @@
     "EntityMatch": {
       "properties": {
         "mention": {
+          "maxLength": 256,
           "title": "Mention",
           "type": "string"
         },
         "entity_type": {
+          "maxLength": 256,
           "title": "Entity Type",
           "type": "string"
         },
@@ -17,6 +19,7 @@
           "type": "number"
         },
         "match_type": {
+          "maxLength": 256,
           "title": "Match Type",
           "type": "string"
         },
@@ -35,6 +38,7 @@
         "canonical_name": {
           "anyOf": [
             {
+              "maxLength": 256,
               "type": "string"
             },
             {
@@ -47,6 +51,8 @@
         "symbol": {
           "anyOf": [
             {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9_.:-]{1,64}$",
               "type": "string"
             },
             {
@@ -59,6 +65,7 @@
         "exchange": {
           "anyOf": [
             {
+              "maxLength": 256,
               "type": "string"
             },
             {
@@ -82,15 +89,19 @@
       "properties": {
         "matched_rules": {
           "items": {
+            "maxLength": 256,
             "type": "string"
           },
+          "maxItems": 64,
           "title": "Matched Rules",
           "type": "array"
         },
         "top_features": {
           "items": {
+            "maxLength": 256,
             "type": "string"
           },
+          "maxItems": 64,
           "title": "Top Features",
           "type": "array"
         }
@@ -101,6 +112,7 @@
     "LabelScore": {
       "properties": {
         "label": {
+          "maxLength": 256,
           "title": "Label",
           "type": "string"
         },
@@ -121,6 +133,7 @@
     "ProductPrediction": {
       "properties": {
         "label": {
+          "maxLength": 256,
           "title": "Label",
           "type": "string"
         },
@@ -141,14 +154,17 @@
   },
   "properties": {
     "query_id": {
+      "maxLength": 256,
       "title": "Query Id",
       "type": "string"
     },
     "raw_query": {
+      "maxLength": 2000,
       "title": "Raw Query",
       "type": "string"
     },
     "normalized_query": {
+      "maxLength": 2000,
       "title": "Normalized Query",
       "type": "string"
     },
@@ -170,6 +186,7 @@
       "items": {
         "$ref": "#/$defs/LabelScore"
       },
+      "maxItems": 64,
       "title": "Intent Labels",
       "type": "array"
     },
@@ -177,6 +194,7 @@
       "items": {
         "$ref": "#/$defs/LabelScore"
       },
+      "maxItems": 64,
       "title": "Topic Labels",
       "type": "array"
     },
@@ -184,20 +202,25 @@
       "items": {
         "$ref": "#/$defs/EntityMatch"
       },
+      "maxItems": 32,
       "title": "Entities",
       "type": "array"
     },
     "comparison_targets": {
       "items": {
+        "maxLength": 256,
         "type": "string"
       },
+      "maxItems": 64,
       "title": "Comparison Targets",
       "type": "array"
     },
     "keywords": {
       "items": {
+        "maxLength": 256,
         "type": "string"
       },
+      "maxItems": 64,
       "title": "Keywords",
       "type": "array"
     },
@@ -215,10 +238,12 @@
       "type": "string"
     },
     "forecast_horizon": {
+      "maxLength": 256,
       "title": "Forecast Horizon",
       "type": "string"
     },
     "sentiment_of_user": {
+      "maxLength": 256,
       "title": "Sentiment Of User",
       "type": "string"
     },
@@ -236,29 +261,37 @@
     },
     "required_evidence_types": {
       "items": {
+        "maxLength": 256,
         "type": "string"
       },
+      "maxItems": 64,
       "title": "Required Evidence Types",
       "type": "array"
     },
     "source_plan": {
       "items": {
+        "maxLength": 256,
         "type": "string"
       },
+      "maxItems": 64,
       "title": "Source Plan",
       "type": "array"
     },
     "risk_flags": {
       "items": {
+        "maxLength": 256,
         "type": "string"
       },
+      "maxItems": 64,
       "title": "Risk Flags",
       "type": "array"
     },
     "missing_slots": {
       "items": {
+        "maxLength": 256,
         "type": "string"
       },
+      "maxItems": 64,
       "title": "Missing Slots",
       "type": "array"
     },

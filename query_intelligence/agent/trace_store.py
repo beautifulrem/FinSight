@@ -195,7 +195,12 @@ def build_trace_store(trace_dir: str | Path | None = None) -> RecentTraceStore |
     try:
         store = PostgresTraceStore(open_pool(dsn, name="agent-traces"), fallback=local)
     except Exception as exc:
-        logger.warning("[startup] Postgres trace store unavailable (%s); traces stay in this process.", exc)
+        from ..api.readiness import describe_error
+
+        logger.warning(
+            "[startup] Postgres trace store unavailable (%s); traces stay in this process.",
+            describe_error(exc),
+        )
         return local
     logger.info("[startup] Agent traces are stored in Postgres (%.1fs).", time.perf_counter() - started)
     return store
