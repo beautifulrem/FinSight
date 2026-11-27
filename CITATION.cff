@@ -1,0 +1,73 @@
+cff-version: 1.2.0
+title: "FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence"
+message: "If you use FinSight or its Query Intelligence / evaluation artifacts in academic work, please cite the published FAIA paper below."
+type: software
+license: MIT
+repository-code: "https://github.com/beautifulrem/FinSight"
+url: "https://ebooks.iospress.nl/doi/10.3233/FAIA261107"
+authors:
+  - family-names: Xie
+    given-names: Ruiqi
+    affiliation: "Department of Statistics and Actuarial Science, School of Computing and Data Science, The University of Hong Kong"
+    orcid: "https://orcid.org/0009-0000-9585-8525"
+  - family-names: Zhang
+    given-names: Jiachang
+    affiliation: "Department of Statistics and Actuarial Science, School of Computing and Data Science, The University of Hong Kong"
+    orcid: "https://orcid.org/0009-0007-2822-5657"
+  - family-names: Shi
+    given-names: Mingxi
+    affiliation: "Department of Statistics and Actuarial Science, School of Computing and Data Science, The University of Hong Kong"
+    orcid: "https://orcid.org/0009-0003-8557-9620"
+  - family-names: Li
+    given-names: Shiyi
+    affiliation: "Department of Statistics and Actuarial Science, School of Computing and Data Science, The University of Hong Kong"
+    orcid: "https://orcid.org/0009-0003-2876-1856"
+  - family-names: Gao
+    given-names: Mingyuan
+    affiliation: "Department of Statistics and Actuarial Science, School of Computing and Data Science, The University of Hong Kong"
+    orcid: "https://orcid.org/0009-0005-7074-2637"
+  - family-names: Yin
+    given-names: Zihao
+    affiliation: "Department of Statistics and Actuarial Science, School of Computing and Data Science, The University of Hong Kong"
+    orcid: "https://orcid.org/0009-0007-7444-8384"
+  - family-names: Lau
+    given-names: "Adela S.M."
+    affiliation: "Data Science Lab, Department of Statistics and Actuarial Science, School of Computing and Data Science, The University of Hong Kong"
+    orcid: "https://orcid.org/0000-0001-5918-8309"
+preferred-citation:
+  type: conference-paper
+  title: "FinSight: An Evidence-First Financial Analysis Chatbot with Explainable Query Intelligence"
+  authors:
+    - family-names: Xie
+      given-names: Ruiqi
+      orcid: "https://orcid.org/0009-0000-9585-8525"
+    - family-names: Zhang
+      given-names: Jiachang
+      orcid: "https://orcid.org/0009-0007-2822-5657"
+    - family-names: Shi
+      given-names: Mingxi
+      orcid: "https://orcid.org/0009-0003-8557-9620"
+    - family-names: Li
+      given-names: Shiyi
+      orcid: "https://orcid.org/0009-0003-2876-1856"
+    - family-names: Gao
+      given-names: Mingyuan
+      orcid: "https://orcid.org/0009-0005-7074-2637"
+    - family-names: Yin
+      given-names: Zihao
+      orcid: "https://orcid.org/0009-0007-7444-8384"
+    - family-names: Lau
+      given-names: "Adela S.M."
+      orcid: "https://orcid.org/0000-0001-5918-8309"
+  collection-title: "Digitalization and Management Innovation V"
+  conference:
+    name: "The 5th International Conference on Digitalization and Management Innovation (DMI 2026)"
+  publisher:
+    name: "IOS Press"
+  volume: 433
+  year: 2026
+  month: 10
+  doi: "10.3233/FAIA261107"
+  isbn: "978-1-64368-695-0"
+  issn: "0922-6389"
+  url: "https://ebooks.iospress.nl/doi/10.3233/FAIA261107"
